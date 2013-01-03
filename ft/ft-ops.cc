@@ -602,10 +602,10 @@ toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
     paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch);
     if (bfe->left_is_neg_infty) {
         return 0;
-    } else if (bfe->range_lock_left_key == NULL) {
+    } else if (bfe->range_lock_left_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, bfe->range_lock_left_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+        return toku_ftnode_which_child(node, &bfe->range_lock_left_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
     }
 }
 
@@ -615,10 +615,10 @@ toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
     paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch);
     if (bfe->right_is_pos_infty) {
         return node->n_children - 1;
-    } else if (bfe->range_lock_right_key == NULL) {
+    } else if (bfe->range_lock_right_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, bfe->range_lock_right_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+        return toku_ftnode_which_child(node, &bfe->range_lock_right_key, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
     }
 }
 
@@ -627,7 +627,7 @@ ft_cursor_rightmost_child_wanted(FT_CURSOR cursor, FT_HANDLE brt, FTNODE node)
 {
     if (cursor->right_is_pos_infty) {
         return node->n_children - 1;
-    } else if (cursor->range_lock_right_key.data == NULL) {
+    } else if (cursor->range_lock_right_key.data == nullptr) {
         return -1;
     } else {
         return toku_ftnode_which_child(node, &cursor->range_lock_right_key, &brt->ft->cmp_descriptor, brt->ft->compare_fun);
@@ -1322,7 +1322,7 @@ ft_compare_pivot(DESCRIPTOR desc, ft_compare_func cmp, const DBT *key, const DBT
 void toku_destroy_ftnode_internals(FTNODE node)
 {
     for (int i=0; i<node->n_children-1; i++) {
-        toku_free(node->childkeys[i].data);
+        toku_destroy_dbt(&node->childkeys[i]);
     }
     toku_free(node->childkeys);
     node->childkeys = NULL;
@@ -1345,16 +1345,11 @@ void toku_destroy_ftnode_internals(FTNODE node)
     }
     toku_free(node->bp);
     node->bp = NULL;
-
 }
 
-
 /* Frees a node, including all the stuff in the hash table. */
-void toku_ftnode_free (FTNODE *nodep) {
-
-    //TODO: #1378 Take omt lock (via ftnode) around call to toku_omt_destroy().
-
-    FTNODE node=*nodep;
+void toku_ftnode_free(FTNODE *nodep) {
+    FTNODE node = *nodep;
     if (node->height == 0) {
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
@@ -1368,7 +1363,7 @@ void toku_ftnode_free (FTNODE *nodep) {
     }
     toku_destroy_ftnode_internals(node);
     toku_free(node);
-    *nodep=0;
+    *nodep = nullptr;
 }
 
 void
@@ -1505,7 +1500,7 @@ init_childinfo(FTNODE node, int childnum, FTNODE child) {
 
 static void
 init_childkey(FTNODE node, int childnum, const DBT *pivotkey) {
-    toku_copy_dbt(&node->childkeys[childnum], *pivotkey);
+    toku_clone_dbt(&node->childkeys[childnum], *pivotkey);
     node->totalchildkeylens += pivotkey->size;
 }
 
@@ -2017,31 +2012,6 @@ static void ft_nonleaf_cmd_once_to_child(ft_compare_func compare_fun, DESCRIPTOR
  */
 int toku_ftnode_which_child(FTNODE node, const DBT *k,
                             DESCRIPTOR desc, ft_compare_func cmp) {
-#define DO_PIVOT_SEARCH_LR 0
-#if DO_PIVOT_SEARCH_LR
-    int i;
-    for (i=0; i<node->n_children-1; i++) {
-        int c = ft_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
-        if (c > 0) continue;
-        if (c < 0) return i;
-        return i;
-    }
-    return node->n_children-1;
-#else
-#endif
-#define DO_PIVOT_SEARCH_RL 0
-#if DO_PIVOT_SEARCH_RL
-    // give preference for appending to the dictionary.         no change for
-    // random keys
-    int i;
-    for (i = node->n_children-2; i >= 0; i--) {
-        int c = ft_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
-        if (c > 0) return i+1;
-    }
-    return 0;
-#endif
-#define DO_PIVOT_BIN_SEARCH 1
-#if DO_PIVOT_BIN_SEARCH
     // a funny case of no pivots
     if (node->n_children <= 1) return 0;
 
@@ -2068,7 +2038,6 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k,
         return mi;
     }
     return lo;
-#endif
 }
 
 // Used for HOT.
@@ -3905,10 +3874,8 @@ void toku_ft_handle_create(FT_HANDLE *ft_handle_ptr) {
 
 static inline void
 ft_cursor_cleanup_dbts(FT_CURSOR c) {
-    if (c->key.data) toku_free(c->key.data);
-    if (c->val.data) toku_free(c->val.data);
-    memset(&c->key, 0, sizeof(c->key));
-    memset(&c->val, 0, sizeof(c->val));
+    toku_destroy_dbt(&c->key);
+    toku_destroy_dbt(&c->val);
 }
 
 //
@@ -3981,12 +3948,6 @@ int toku_ft_cursor (
         }
     }
     FT_CURSOR XCALLOC(cursor);
-#if 0
-    // if this cursor is to do read_committed fetches, then the txn objects must be valid.
-    if (cursor == 0)
-        return ENOMEM;
-    memset(cursor, 0, sizeof(*cursor));
-#endif
     cursor->ft_handle = brt;
     cursor->prefetching = false;
     toku_init_dbt(&cursor->range_lock_left_key);
@@ -4106,36 +4067,6 @@ is_le_val_del(LEAFENTRY le, FT_CURSOR ftcursor) {
         rval = le_latest_is_del(le);
     }
     return rval;
-}
-
-static const DBT zero_dbt = {0,0,0,0};
-
-static void search_save_bound (ft_search_t *search, DBT *pivot) {
-    if (search->have_pivot_bound) {
-        toku_free(search->pivot_bound.data);
-    }
-    search->pivot_bound = zero_dbt;
-    search->pivot_bound.data = toku_malloc(pivot->size);
-    search->pivot_bound.size = pivot->size;
-    memcpy(search->pivot_bound.data, pivot->data, pivot->size);
-    search->have_pivot_bound = true;
-}
-
-static bool search_pivot_is_bounded (ft_search_t *search, DESCRIPTOR desc, ft_compare_func cmp, DBT *pivot) __attribute__((unused));
-static bool search_pivot_is_bounded (ft_search_t *search, DESCRIPTOR desc, ft_compare_func cmp, DBT *pivot)
-// Effect:  Return true iff the pivot has already been searched (for fixing #3522.)
-//  If searching from left to right, if we have already searched all the values less than pivot, we don't want to search again.
-//  If searching from right to left, if we have already searched all the vlaues greater than pivot, we don't want to search again.
-{
-    if (!search->have_pivot_bound) return true; // isn't bounded.
-    FAKE_DB(db, desc);
-    int comp = cmp(&db, pivot, &search->pivot_bound);
-    if (search->direction == FT_SEARCH_LEFT) {
-        // searching from left to right.  If the comparison function says the pivot is <= something we already compared, don't do it again.
-        return comp>0;
-    } else {
-        return comp<0;
-    }
 }
 
 struct store_fifo_offset_extra {
@@ -4726,10 +4657,8 @@ got_a_good_value:
 
             ft_cursor_cleanup_dbts(ftcursor);
             if (!ftcursor->is_temporary) {
-                ftcursor->key.data = toku_memdup(key, keylen);
-                ftcursor->val.data = toku_memdup(val, vallen);
-                ftcursor->key.size = keylen;
-                ftcursor->val.size = vallen;
+                toku_memdup_dbt(&ftcursor->key, key, keylen);
+                toku_memdup_dbt(&ftcursor->val, val, vallen);
             }
             //The search was successful.  Prefetching can continue.
             *doprefetch = true;
@@ -4755,10 +4684,6 @@ ft_search_node (
     bool can_bulk_fetch
     );
 
-// the number of nodes to prefetch
-#define TOKU_DO_PREFETCH 1
-#if TOKU_DO_PREFETCH
-
 static int
 ftnode_fetch_callback_and_free_bfe(CACHEFILE cf, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int *dirtyp, void *extraargs)
 {
@@ -4781,12 +4706,14 @@ ftnode_pf_callback_and_free_bfe(void *ftnode_pv, void* disk_data, void *read_ext
 
 static void
 ft_node_maybe_prefetch(FT_HANDLE brt, FTNODE node, int childnum, FT_CURSOR ftcursor, bool *doprefetch) {
+    // the number of nodes to prefetch
+    const int num_nodes_to_prefetch = 1;
 
     // if we want to prefetch in the tree
     // then prefetch the next children if there are any
     if (*doprefetch && ft_cursor_prefetching(ftcursor) && !ftcursor->disable_prefetching) {
         int rc = ft_cursor_rightmost_child_wanted(ftcursor, brt, node);
-        for (int i = childnum + 1; (i <= childnum + TOKU_DO_PREFETCH) && (i <= rc); i++) {
+        for (int i = childnum + 1; (i <= childnum + num_nodes_to_prefetch) && (i <= rc); i++) {
             BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, i);
             uint32_t nextfullhash = compute_child_fullhash(brt->ft->cf, node, i);
             struct ftnode_fetch_extra *MALLOC(bfe);
@@ -4811,8 +4738,6 @@ ft_node_maybe_prefetch(FT_HANDLE brt, FTNODE node, int childnum, FT_CURSOR ftcur
         }
     }
 }
-
-#endif
 
 struct unlock_ftnode_extra {
     FT_HANDLE ft_handle;
@@ -4887,12 +4812,10 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
 
     int r = ft_search_node(brt, childnode, search, bfe.child_to_read, getf, getf_v, doprefetch, ftcursor, &next_unlockers, &next_ancestors, bounds, can_bulk_fetch);
     if (r!=TOKUDB_TRY_AGAIN) {
-#if TOKU_DO_PREFETCH
         // maybe prefetch the next child
         if (r == 0 && node->height == 1) {
             ft_node_maybe_prefetch(brt, node, childnum, ftcursor, doprefetch);
         }
-#endif
 
         assert(next_unlockers.locked);
         if (msgs_applied) {
@@ -4937,8 +4860,6 @@ toku_ft_search_which_child(
     ft_search_t *search
     )
 {
-#define DO_SEARCH_WHICH_CHILD_BINARY 1
-#if DO_SEARCH_WHICH_CHILD_BINARY
     if (node->n_children <= 1) return 0;
 
     DBT pivotkey;
@@ -4972,7 +4893,7 @@ toku_ft_search_which_child(
     }
     // ready to return something, if the pivot is bounded, we have to move
     // over a bit to get away from what we've already searched
-    if (search->have_pivot_bound) {
+    if (search->pivot_bound.data != nullptr) {
         FAKE_DB(db, desc);
         if (search->direction == FT_SEARCH_LEFT) {
             while (lo < node->n_children - 1 &&
@@ -4994,30 +4915,6 @@ toku_ft_search_which_child(
         }
     }
     return lo;
-#endif
-#define DO_SEARCH_WHICH_CHILD_LINEAR 0
-#if DO_SEARCH_WHICH_CHILD_LINEAR
-    int c;
-    DBT pivotkey;
-    toku_init_dbt(&pivotkey);
-
-    /* binary search is overkill for a small array */
-    int child[node->n_children];
-
-    /* scan left to right or right to left depending on the search direction */
-    for (c = 0; c < node->n_children; c++) {
-        child[c] = (search->direction == FT_SEARCH_LEFT) ? c : node->n_children - 1 - c;
-    }
-    for (c = 0; c < node->n_children-1; c++) {
-        int p = (search->direction == FT_SEARCH_LEFT) ? child[c] : child[c] - 1;
-        toku_copy_dbt(&pivotkey, node->childkeys[p]);
-        if (search_pivot_is_bounded(search, desc, cmp, &pivotkey) && search->compare(search, &pivotkey)) {
-            return child[c];
-        }
-    }
-    /* check the first (left) or last (right) node if nothing has been found */
-    return child[c];
-#endif
 }
 
 static void
@@ -5028,7 +4925,8 @@ maybe_search_save_bound(
 {
     int p = (search->direction == FT_SEARCH_LEFT) ? child_searched : child_searched - 1;
     if (p >= 0 && p < node->n_children-1) {
-        search_save_bound(search, &node->childkeys[p]);
+        toku_destroy_dbt(&search->pivot_bound);
+        toku_clone_dbt(&search->pivot_bound, node->childkeys[p]);
     }
 }
 

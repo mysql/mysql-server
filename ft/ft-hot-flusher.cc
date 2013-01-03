@@ -67,41 +67,11 @@ hot_set_highest_key(struct hot_flusher_extra *flusher)
     // The max current key will be NULL if we are traversing in the
     // rightmost subtree of a given parent.  As such, we don't want to
     // allocate memory for this case.
-    if (flusher->max_current_key.data == NULL) {
-        if (flusher->highest_pivot_key.data) {
-            toku_free(flusher->highest_pivot_key.data);
-        }
-        flusher->highest_pivot_key.data = NULL;
-    } else {
+    toku_destroy_dbt(&flusher->highest_pivot_key);
+    if (flusher->max_current_key.data != NULL) {
         // Otherwise, let's copy all the contents from one key to the other.
-        void *source = flusher->max_current_key.data;
-        void *destination = flusher->highest_pivot_key.data;
-        uint32_t size = flusher->max_current_key.size;
-
-        destination = toku_xrealloc(destination, size);
-        memcpy(destination, source, size);
-
-        // Finish copying all fields from the max current key.
-        // Add free here.
-        toku_fill_dbt(&(flusher->highest_pivot_key), destination, size);
+        toku_clone_dbt(&flusher->highest_pivot_key, flusher->max_current_key);
     }
-}
-
-// Copies the pivot key in the parent to the given DBT key, using the
-// pivot corresponding to the given child.
-static void
-hot_set_key(DBT *key, FTNODE parent, int childnum)
-{
-    // assert that childnum is less than number of children - 1.
-    DBT *pivot = &parent->childkeys[childnum];
-
-    void *data = key->data;
-    uint32_t size = pivot->size;
-
-    data = toku_xrealloc(data, size);
-    memcpy(data, pivot->data, size);
-
-    toku_fill_dbt(key, data, size);
 }
 
 static int
@@ -137,7 +107,8 @@ hot_update_flusher_keys(FTNODE parent,
     // Update maximum current key if the child is NOT the rightmost
     // child node.
     if (childnum < (parent->n_children - 1)) {
-        hot_set_key(&flusher->max_current_key, parent, childnum);
+        toku_destroy_dbt(&flusher->max_current_key);
+        toku_clone_dbt(&flusher->max_current_key, parent->childkeys[childnum]);
     }
 }
 
@@ -227,13 +198,8 @@ hot_flusher_init(struct flusher_advice *advice,
 static void
 hot_flusher_destroy(struct hot_flusher_extra *flusher)
 {
-    if (flusher->highest_pivot_key.data) {
-        toku_free(flusher->highest_pivot_key.data);
-    }
-
-    if (flusher->max_current_key.data) {
-        toku_free(flusher->max_current_key.data);
-    }
+    toku_destroy_dbt(&flusher->highest_pivot_key);
+    toku_destroy_dbt(&flusher->max_current_key);
 }
 
 // Entry point for Hot Optimize Table (HOT).  Note, this function is
@@ -254,9 +220,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
                                          // start of HOT operation
     (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_HOT_NUM_STARTED), 1);
 
-    {
-        toku_ft_note_hot_begin(brt);
-    }
+    toku_ft_note_hot_begin(brt);
 
     // Higher level logic prevents a dictionary from being deleted or
     // truncated during a hot optimize operation.  Doing so would violate
@@ -297,10 +261,7 @@ toku_ft_hot_optimize(FT_HANDLE brt,
 
         // Initialize the maximum current key.  We need to do this for
         // every traversal.
-        if (flusher.max_current_key.data) {
-            toku_free(flusher.max_current_key.data);
-        }
-        flusher.max_current_key.data = NULL;
+        toku_destroy_dbt(&flusher.max_current_key);
 
         flusher.sub_tree_size = 1.0;
         flusher.percentage_done = 0.0;

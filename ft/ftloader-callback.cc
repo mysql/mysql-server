@@ -7,10 +7,11 @@
 #include <toku_portability.h>
 #include <toku_assert.h>
 #include <toku_pthread.h>
-#include <string.h>
 #include <errno.h>
-#include "memory.h"
+#include <string.h>
+
 #include "ftloader-internal.h"
+#include "ybt.h"
 
 static void error_callback_lock(ft_loader_error_callback loader_error) {
     toku_mutex_lock(&loader_error->mutex);
@@ -22,13 +23,15 @@ static void error_callback_unlock(ft_loader_error_callback loader_error) {
 
 void ft_loader_init_error_callback(ft_loader_error_callback loader_error) {
     memset(loader_error, 0, sizeof *loader_error);
+    toku_init_dbt(&loader_error->key);
+    toku_init_dbt(&loader_error->val);
     toku_mutex_init(&loader_error->mutex, NULL);
 }
 
 void ft_loader_destroy_error_callback(ft_loader_error_callback loader_error) { 
     toku_mutex_destroy(&loader_error->mutex);
-    toku_free(loader_error->key.data);
-    toku_free(loader_error->val.data);
+    toku_destroy_dbt(&loader_error->key);
+    toku_destroy_dbt(&loader_error->val);
     memset(loader_error, 0, sizeof *loader_error);
 }
 
@@ -44,14 +47,6 @@ void ft_loader_set_error_function(ft_loader_error_callback loader_error, ft_load
     loader_error->extra = error_extra;
 }
 
-static void copy_dbt(DBT *dest, DBT *src) {
-    if (src) {
-        dest->data = toku_malloc(src->size);
-        memcpy(dest->data, src->data, src->size);
-        dest->size = src->size;
-    }
-}
-
 int ft_loader_set_error(ft_loader_error_callback loader_error, int error, DB *db, int which_db, DBT *key, DBT *val) {
     int r;
     error_callback_lock(loader_error);
@@ -62,8 +57,12 @@ int ft_loader_set_error(ft_loader_error_callback loader_error, int error, DB *db
         loader_error->error = error;        // set the error 
         loader_error->db = db;
         loader_error->which_db = which_db;
-        copy_dbt(&loader_error->key, key);  // copy the data
-        copy_dbt(&loader_error->val, val);
+        if (key != nullptr) {
+            toku_clone_dbt(&loader_error->key, *key);
+        }
+        if (val != nullptr) {
+            toku_clone_dbt(&loader_error->val, *val);
+        }
     }
     error_callback_unlock(loader_error);
     return r;

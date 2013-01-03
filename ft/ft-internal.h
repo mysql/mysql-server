@@ -78,7 +78,7 @@ struct ftnode_fetch_extra {
     // used in the case where type == ftnode_fetch_subset
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     ft_search_t* search;
-    DBT *range_lock_left_key, *range_lock_right_key;
+    DBT range_lock_left_key, range_lock_right_key;
     bool left_is_neg_infty, right_is_pos_infty;
     // states if we should try to aggressively fetch basement nodes 
     // that are not specifically needed for current query, 
@@ -721,8 +721,8 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->type = ftnode_fetch_all;
     bfe->h = h;
     bfe->search = NULL;
-    bfe->range_lock_left_key = NULL;
-    bfe->range_lock_right_key = NULL;
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
     bfe->left_is_neg_infty = false;
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
@@ -754,8 +754,14 @@ static inline void fill_bfe_for_subset_read(
     bfe->type = ftnode_fetch_subset;
     bfe->h = h;
     bfe->search = search;
-    bfe->range_lock_left_key = (left->data ? left : NULL);
-    bfe->range_lock_right_key = (right->data ? right : NULL);
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
+    if (left) {
+        toku_copyref_dbt(&bfe->range_lock_left_key, *left);
+    }
+    if (right) {
+        toku_copyref_dbt(&bfe->range_lock_right_key, *right);
+    }
     bfe->left_is_neg_infty = left_is_neg_infty;
     bfe->right_is_pos_infty = right_is_pos_infty;
     bfe->child_to_read = -1;
@@ -776,8 +782,8 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->type = ftnode_fetch_none;
     bfe->h = h;
     bfe->search = NULL;
-    bfe->range_lock_left_key = NULL;
-    bfe->range_lock_right_key = NULL;
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
     bfe->left_is_neg_infty = false;
     bfe->right_is_pos_infty = false;
     bfe->child_to_read = -1;
@@ -789,18 +795,8 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
 
 static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
     paranoid_invariant(bfe->type == ftnode_fetch_prefetch);
-    if (bfe->range_lock_left_key != NULL) {
-        toku_free(bfe->range_lock_left_key->data);
-        toku_destroy_dbt(bfe->range_lock_left_key);
-        toku_free(bfe->range_lock_left_key);
-        bfe->range_lock_left_key = NULL;
-    }
-    if (bfe->range_lock_right_key != NULL) {
-        toku_free(bfe->range_lock_right_key->data);
-        toku_destroy_dbt(bfe->range_lock_right_key);
-        toku_free(bfe->range_lock_right_key);
-        bfe->range_lock_right_key = NULL;
-    }
+    toku_destroy_dbt(&bfe->range_lock_left_key);
+    toku_destroy_dbt(&bfe->range_lock_right_key);
 }
 
 // this is in a strange place because it needs the cursor struct to be defined
@@ -811,21 +807,15 @@ static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
     bfe->type = ftnode_fetch_prefetch;
     bfe->h = h;
     bfe->search = NULL;
-    {
-        const DBT *left = &c->range_lock_left_key;
-        const DBT *right = &c->range_lock_right_key;
-	if (left->data) {
-            XMALLOC(bfe->range_lock_left_key);
-            toku_fill_dbt(bfe->range_lock_left_key, toku_xmemdup(left->data, left->size), left->size);
-        } else {
-            bfe->range_lock_left_key = NULL;
-        }
-        if (right->data) {
-            XMALLOC(bfe->range_lock_right_key);
-            toku_fill_dbt(bfe->range_lock_right_key, toku_xmemdup(right->data, right->size), right->size);
-        } else {
-            bfe->range_lock_right_key = NULL;
-        }
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
+    const DBT *left = &c->range_lock_left_key;
+    if (left->data) {
+        toku_clone_dbt(&bfe->range_lock_left_key, *left);
+    }
+    const DBT *right = &c->range_lock_right_key;
+    if (right->data) {
+        toku_clone_dbt(&bfe->range_lock_right_key, *right);
     }
     bfe->left_is_neg_infty = c->left_is_neg_infty;
     bfe->right_is_pos_infty = c->right_is_pos_infty;

@@ -90,7 +90,7 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
         // by the table size manually. fill_key_buf_random will
         // do this iff arg->bounded_element_range is true.
         invariant(arg->bounded_element_range);
-        fill_key_buf_random<int>(arg->random_data, keybuf, arg);
+        fill_key_buf_random(arg->random_data, keybuf, arg);
         fill_val_buf_random(arg->random_data, valbuf, arg->cli);
         r = env->put_multiple(
             env, 

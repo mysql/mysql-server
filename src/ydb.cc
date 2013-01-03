@@ -184,13 +184,6 @@ single_process_unlock(int *lockfd) {
     return 0;
 }
 
-static inline DBT*
-init_dbt_realloc(DBT *dbt) {
-    memset(dbt, 0, sizeof(*dbt));
-    dbt->flags = DB_DBT_REALLOC;
-    return dbt;
-}
-
 int 
 toku_ydb_init(void) {
     int r = 0;
@@ -2337,7 +2330,7 @@ env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u
     DBT dname_dbt;  
     DBT iname_dbt;  
     toku_fill_dbt(&dname_dbt, dname, strlen(dname)+1);
-    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    toku_init_dbt_flags(&iname_dbt, DB_DBT_REALLOC);
 
     // get iname
     r = toku_db_get(env->i->directory, txn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
@@ -2448,7 +2441,7 @@ env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, co
     DBT iname_dbt;  
     toku_fill_dbt(&old_dname_dbt, dname, strlen(dname)+1);
     toku_fill_dbt(&new_dname_dbt, newname, strlen(newname)+1);
-    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    toku_init_dbt_flags(&iname_dbt, DB_DBT_REALLOC);
 
     // get iname
     r = toku_db_get(env->i->directory, txn, &old_dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
@@ -2594,7 +2587,7 @@ toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN
     TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
 
     toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);
-    init_dbt_realloc(&iname_dbt);  // sets iname_dbt.data = NULL
+    toku_init_dbt_flags(&iname_dbt, DB_DBT_REALLOC);
     r = toku_db_get(db->dbenv->i->directory, dbtxn, &dname_dbt, &iname_dbt, DB_SERIALIZABLE);  // allocates memory for iname
     assert_zero(r);
     new_iname_in_env = (char *) iname_dbt.data;
