@@ -37,9 +37,9 @@
          "src/Operation_wrapper.cpp",
          "src/Ndb_init_wrapper.cpp",
          "src/Ndb_cluster_connection_wrapper.cpp",
+         "src/NdbTransaction_wrapper.cpp",
          "src/Ndb_wrapper.cpp",
          "src/NdbError_wrapper.cpp",
-         "src/NdbTransaction_wrapper.cpp",
          "src/NdbOperation_wrapper.cpp"
       ],
 
@@ -51,7 +51,7 @@
             'libraries':
             [
               '-l<(node_root_dir)/$(Configuration)/node.lib',
-              '-l<(mysql_path)/lib/ndbclient.lib',
+              '-l<(mysql_path)/lib/ndbclient_static.lib',
               '-l<(mysql_path)/lib/mysqlclient.lib',
             ],
             'msvs_settings':
