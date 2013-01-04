@@ -31,8 +31,6 @@
 #include <util/mempool.h>
 #include <util/omt.h>
 
-// Uncomment the following to use quicklz
-
 #ifndef FT_FANOUT
 #define FT_FANOUT 16
 #endif
@@ -43,14 +41,6 @@ enum { FT_CMD_OVERHEAD = (2 + sizeof(MSN))     // the type plus freshness plus M
 
 enum { FT_DEFAULT_NODE_SIZE = 1 << 22 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
-
-struct nodeheader_in_file {
-    int n_in_buffer;
-};
-enum { BUFFER_HEADER_SIZE = (4 // height//
-			     + 4 // n_children
-			     + TREE_FANOUT * 8 // children
-			     ) };
 
 //
 // Field in ftnode_fetch_extra that tells the 
