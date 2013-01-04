@@ -13,6 +13,6 @@ set tokudb_disable_slow_update=1;
 
 replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 --error ER_UNSUPPORTED_EXTENSION
-update t set b=b+1 where id=42;
+update noar t set b=b+1 where id=42;
 
 drop table t;

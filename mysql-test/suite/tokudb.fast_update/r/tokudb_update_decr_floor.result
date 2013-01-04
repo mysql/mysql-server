@@ -10,7 +10,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -21,7 +21,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -32,16 +32,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -52,16 +52,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -72,7 +72,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -83,7 +83,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -94,16 +94,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -114,16 +114,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -134,7 +134,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -145,7 +145,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -156,16 +156,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -176,16 +176,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -196,7 +196,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -207,7 +207,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -218,16 +218,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -238,16 +238,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -258,7 +258,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -269,7 +269,7 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
 ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt, ti;
 create table tt (
@@ -280,16 +280,16 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;
 create table tt (
@@ -300,15 +300,15 @@ insert into tt values (1,4);
 create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
-update tt set x=if(x=0,0,x-1) where id=1;
-update ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
+update noar tt set x=if(x=0,0,x-1) where id=1;
+update noar ti set x=if(x=0,0,x-1) where id=1;
 include/diff_tables.inc [test.tt, test.ti]
 drop table tt, ti;

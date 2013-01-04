@@ -32,27 +32,27 @@ def test_int(t, u, n):
     print "insert into ti select * from tt;"
 
     if u == 'unsigned':
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
-        print "update ti set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar ti set x=if(x=0,0,x-1) where id=1;"
 
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
-        print "update ti set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar ti set x=if(x=0,0,x-1) where id=1;"
 
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
-        print "update ti set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar ti set x=if(x=0,0,x-1) where id=1;"
 
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
-        print "update ti set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar ti set x=if(x=0,0,x-1) where id=1;"
 
         print "# try to decrement when x=0"
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
-        print "update ti set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar ti set x=if(x=0,0,x-1) where id=1;"
         print "let $diff_tables = test.tt, test.ti;"
         print "source include/diff_tables.inc;"
     else:
         print "replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;"
         print "error ER_UNSUPPORTED_EXTENSION;"
-        print "update tt set x=if(x=0,0,x-1) where id=1;"
+        print "update noar tt set x=if(x=0,0,x-1) where id=1;"
 
     print "drop table tt, ti;"
 

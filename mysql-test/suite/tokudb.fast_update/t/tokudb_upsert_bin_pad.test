@@ -12,11 +12,11 @@ set tokudb_disable_slow_upsert=1;
 create table t0 (id int primary key, b binary(32));
 create table t1 like t0;
 
-insert into t0 values (1,'hi'),(2,'there');
+insert noar into t0 values (1,'hi'),(2,'there');
 select * from t0;
-insert into t1 values (1,null),(2,null);
-insert into t1 values (1,null) on duplicate key update b='hi';
-insert into t1 values (2,null) on duplicate key update b='there';
+insert noar into t1 values (1,null),(2,null);
+insert noar into t1 values (1,null) on duplicate key update b='hi';
+insert noar into t1 values (2,null) on duplicate key update b='there';
 select * from t1;
 
 let $diff_tables = test.t0, test.t1;
