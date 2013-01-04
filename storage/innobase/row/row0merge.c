@@ -2731,6 +2731,14 @@ row_merge_build_indexes(
 	block_size = 3 * sizeof *block;
 	block = os_mem_alloc_large(&block_size);
 
+	/* Initialize all the merge file descriptors, so that we
+	don't call row_merge_file_destroy() on uninitialized
+	merge file descriptor */
+
+	for (i = 0; i < n_indexes; i++) {
+		merge_files[i].fd = -1;
+	}
+
 	for (i = 0; i < n_indexes; i++) {
 
 		if (row_merge_file_create(&merge_files[i]) < 0)
