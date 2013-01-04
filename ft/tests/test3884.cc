@@ -161,7 +161,7 @@ test_split_on_boundary(void)
             insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -221,7 +221,7 @@ test_split_with_everything_on_the_left(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k);
             }
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
@@ -293,7 +293,7 @@ test_split_on_boundary_of_last_node(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k);
             }
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         } else {
             k = bn * eltsperbn;
@@ -362,7 +362,7 @@ test_split_at_begin(void)
             totalbytes += insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -441,7 +441,7 @@ test_split_at_end(void)
             }
         }
         if (bn < sn.n_children - 1) {
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }
@@ -495,7 +495,7 @@ test_split_odd_nodes(void)
             insert_dummy_value(&sn, bn, k);
         }
         if (bn < sn.n_children - 1) {
-            toku_fill_dbt(&sn.childkeys[bn], toku_xmemdup(&k, sizeof k), sizeof k);
+            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
             sn.totalchildkeylens += (sizeof k);
         }
     }

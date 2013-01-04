@@ -352,7 +352,7 @@ test_serialize_leaf(void) {
     elts[2] = le_malloc("x", "xval");
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
+    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;

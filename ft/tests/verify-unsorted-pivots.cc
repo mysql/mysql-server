@@ -65,7 +65,7 @@ make_tree(FT_HANDLE brt, int height, int fanout, int nperleaf, int *seq, int *mi
             } else {
                 int k = minkeys[fanout - childnum - 1]; // use unsorted pivots
                 DBT pivotkey;
-                toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, toku_xmemdup(&k, sizeof k), sizeof k));
+                toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, &k, sizeof k));
             }
             toku_unpin_ftnode(brt->ft, child);
         }
