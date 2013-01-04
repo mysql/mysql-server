@@ -66,7 +66,7 @@ Handle<Value> startTransaction(const Arguments &args) {
                               const char *, uint32_t> MCALL;
 
   MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
-  mcallptr->envelope = & NdbEnvelope;
+  mcallptr->wrapReturnValueAs(getNdbTransactionEnvelope());
   mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
   mcallptr->runAsync();
   

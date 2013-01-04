@@ -87,6 +87,7 @@ PTR unwrapPointer(Local<Object> obj) {
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));
 #ifdef UNIFIED_DEBUG
   Envelope * env = static_cast<Envelope *>(obj->GetPointerFromInternalField(0));
+  assert(env->magic == 0xF00D);
   DEBUG_PRINT_DETAIL("Unwrapping %s: %p", env->classname, ptr);
 #endif
   return ptr;

@@ -29,7 +29,7 @@
 #include "unified_debug.h"
 
 void work_thd_run(uv_work_t *req) {
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
+  AsyncCall *m = (AsyncCall *) req->data;
 
   m->run();
   m->handleErrors();
@@ -41,7 +41,7 @@ void main_thd_complete(uv_work_t *req) {
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
 
-  AsyncMethodCall *m = (AsyncMethodCall *) req->data;
+  AsyncCall *m = (AsyncCall *) req->data;
 
   m->doAsyncCallback(v8::Context::GetCurrent()->Global());
 

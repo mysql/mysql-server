@@ -18,6 +18,11 @@
  02110-1301  USA
 */
 
+/* TODO: The build_dir might vary depending on platform and type of build
+   (gyp vs. waf vs. CMake); this file should be home for the logic to find 
+   it no matter where it ended up.
+*/
+
 global.path            = require("path");
 global.fs              = require("fs");
 global.assert          = require("assert");
