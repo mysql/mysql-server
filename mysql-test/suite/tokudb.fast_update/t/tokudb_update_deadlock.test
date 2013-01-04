@@ -14,19 +14,20 @@ connect (conn1,localhost,root,,);
 connection default;
 set session tokudb_enable_fast_update=1;
 begin;
-update t set b=b+1 where id=1;
+update noar t set b=b+1 where id=1;
 
 connection conn1;
 set session tokudb_enable_fast_update=1;
 begin;
-update t set b=b-1 where id=2;
+update noar t set b=b-1 where id=2;
 
 connection default;
-send update t set b=b+1 where id=2;
+send update noar t set b=b+1 where id=2;
 
 connection conn1;
-error 1213;
-update t set b=b-1 where id=1;
+sleep 1;
+error 1205,1213;
+update noar t set b=b-1 where id=1;
 rollback;
 
 connection default;

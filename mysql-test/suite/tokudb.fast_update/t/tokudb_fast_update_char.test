@@ -20,13 +20,13 @@ alter table ti engine=innodb;
 insert into tt values (1,null,null);
 insert into ti values (1,null,null);
 
-update tt set c='hi' where id=1;
-update ti set c='hi' where id=1;
+update noar tt set c='hi' where id=1;
+update noar ti set c='hi' where id=1;
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
-update tt set c='there' where id=1;
-update ti set c='there' where id=1;
+update noar tt set c='there' where id=1;
+update noar ti set c='there' where id=1;
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
@@ -39,32 +39,13 @@ alter table ti engine=innodb;
 insert into tt values ('1',null,null);
 insert into ti values ('1',null,null);
 
-update tt set c='hi' where id='1';
-update ti set c='hi' where id='1';
+update noar tt set c='hi' where id='1';
+update noar ti set c='hi' where id='1';
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
-update tt set c='there' where id='1';
-update ti set c='there' where id='1';
-let $diff_tables = test.tt, test.ti;
-source include/diff_tables.inc;
-
-drop table tt, ti;
-
-create table tt (id varchar(8) primary key, a int, b char(32), c char(32), d binary(32));
-create table ti like tt;
-alter table ti engine=innodb;
-
-insert into tt values ('1',null,null,null,null);
-insert into ti values ('1',null,null,null,null);
-
-update tt set b='hi' where id='1';
-update ti set b='hi' where id='1';
-let $diff_tables = test.tt, test.ti;
-source include/diff_tables.inc;
-
-update tt set c='there' where id='1';
-update ti set c='there' where id='1';
+update noar tt set c='there' where id='1';
+update noar ti set c='there' where id='1';
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
@@ -77,18 +58,37 @@ alter table ti engine=innodb;
 insert into tt values ('1',null,null,null,null);
 insert into ti values ('1',null,null,null,null);
 
-update tt set b='123' where id='1';
-update ti set b='123' where id='1';
+update noar tt set b='hi' where id='1';
+update noar ti set b='hi' where id='1';
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
-update tt set c=456 where id='1';
-update ti set c=456 where id='1';
+update noar tt set c='there' where id='1';
+update noar ti set c='there' where id='1';
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 
-update tt set c=789 where id=1;
-update ti set c=789 where id=1;
+drop table tt, ti;
+
+create table tt (id varchar(8) primary key, a int, b char(32), c char(32), d binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert into tt values ('1',null,null,null,null);
+insert into ti values ('1',null,null,null,null);
+
+update noar tt set b='123' where id='1';
+update noar ti set b='123' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update noar tt set c=456 where id='1';
+update noar ti set c=456 where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update noar tt set c=789 where id=1;
+update noar ti set c=789 where id=1;
 let $diff_tables = test.tt, test.ti;
 source include/diff_tables.inc;
 

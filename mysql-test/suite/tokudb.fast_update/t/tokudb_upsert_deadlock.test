@@ -13,19 +13,20 @@ connect (conn1,localhost,root,,);
 connection default;
 set session tokudb_enable_fast_upsert=1;
 begin;
-insert into t (id) values (1) on duplicate key update b=b+1;
+insert noar into t (id) values (1) on duplicate key update b=b+1;
 
 connection conn1;
 set session tokudb_enable_fast_upsert=1;
 begin;
-insert into t (id) values (2) on duplicate key update b=b-1;
+insert noar into t (id) values (2) on duplicate key update b=b-1;
 
 connection default;
-send insert into t (id) values (2) on duplicate key update b=b+1;
+send insert noar into t (id) values (2) on duplicate key update b=b+1;
 
 connection conn1;
-error 1213;
-insert into t (id) values (1) on duplicate key update b=b-1;
+sleep 1;
+error 1205,1213;
+insert noar into t (id) values (1) on duplicate key update b=b-1;
 rollback;
 
 connection default;

@@ -16,11 +16,11 @@ create table tt (id int primary key, x int);
 
 replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
-update tt set x=1 where id='abc';
+update noar tt set x=1 where id='abc';
 
 replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
-update tt set x='abc' where id=1;
+update noar tt set x='abc' where id=1;
 
 drop table tt;
 

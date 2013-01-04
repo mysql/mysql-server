@@ -12,49 +12,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -69,49 +69,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -126,49 +126,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -183,49 +183,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -240,49 +240,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -297,49 +297,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -354,49 +354,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -411,49 +411,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -468,49 +468,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -525,49 +525,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -582,49 +582,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -639,49 +639,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -696,49 +696,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -753,49 +753,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -810,49 +810,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -867,49 +867,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -924,49 +924,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -981,49 +981,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -1038,49 +1038,49 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (
@@ -1095,48 +1095,48 @@ id	x
 3	0
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
-update t set x=100 where id=2;
+update noar t set x=100 where id=2;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where id=3;
+update noar t set x=x+1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	1
-update t set x=x-1 where id=3;
+update noar t set x=x-1 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+100 where id=3;
+update noar t set x=x+100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	100
-update t set x=x-100 where id=3;
+update noar t set x=x-100 where id=3;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=1+x where id=1;
+update noar t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=-x where id=1;
+update noar t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=100;
+update noar t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 100;
+update noar t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1;
+update noar t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
