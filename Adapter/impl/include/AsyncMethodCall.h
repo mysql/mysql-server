@@ -37,7 +37,7 @@ using namespace v8;
   *
   * There are two class hierarchies declared here.
   * The first hierarchy is:
-  *    AsyncMethodCall
+  *    AsyncCall
   *     -> Call_Returning<R>           template over return type
   *       -> NativeMethodCall<R, C>      template over class
   *
@@ -45,8 +45,8 @@ using namespace v8;
   *     Call_1_<A0> , Call_2_<A0,A1> , ..  Call_8_<A0,A1, .. A7>
   *     expressing the set of arguments to a function or method call
   *
-  * The base class AsyncMethodCall wraps the worker-thread run() routine
-  * and the main thread (post-run) doAsyncCallback() needed for async execution.
+  * The base class AsyncCall wraps the worker-thread run() routine and the 
+  * main thread (post-run) doAsyncCallback() needed for async execution.
   *
   * The run() method, declared void run(void), will be scheduled to run in a
   * uv worker thread.
@@ -54,29 +54,26 @@ using namespace v8;
   * The doAsyncCallback() method will take a JavaScript context.  It is expected
   * to prepare the result and call the user's callback function.
   *
-  * The templated class AsyncCall_Returning<R> inherits from AsyncMethodCall and
+  * The templated class AsyncCall_Returning<R> inherits from AsyncCall and
   * adds a return type, which is initialized at 0.
   */
 
 
 /** Base class
 **/
-class AsyncMethodCall {
-  public:
+class AsyncCall {
+  protected:
     /* Member variables */
     Persistent<Function> callback;
-    Envelope * envelope;
 
-    /* Constructors */
-    AsyncMethodCall() : callback(), envelope(0) {}
-
-    AsyncMethodCall(Local<Value> f) {
+  public:
+    AsyncCall(Local<Value> callbackFunc) {
       // FIXME: raise an error if you use the wrong type as a callback
-      callback = Persistent<Function>::New(Local<Function>::Cast(f));
+      callback = Persistent<Function>::New(Local<Function>::Cast(callbackFunc));
     }
 
     /* Destructor */
-    virtual ~AsyncMethodCall() {
+    virtual ~AsyncCall() {
       callback.Dispose();
     }
 
@@ -84,12 +81,11 @@ class AsyncMethodCall {
     virtual void run(void) = 0;
     virtual void doAsyncCallback(Local<Object>) = 0;
 
-    /* Base Class Methods */
+    /* Base Class Virtual Methods */
     virtual void handleErrors(void) { }
 
+    /* Base Class Fixed Methods */
     void runAsync() {
-      DEBUG_PRINT_DETAIL("runAsync() [%s]",
-                         this->envelope ? this->envelope->classname : "");
       uv_work_t * req = new uv_work_t;
       req->data = (void *) this;
       uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
@@ -101,7 +97,11 @@ class AsyncMethodCall {
     templated over return types
 **/
 template <typename RETURN_TYPE>
-class AsyncCall_Returning : public AsyncMethodCall {
+class AsyncCall_Returning : public AsyncCall {
+private:
+  /* Private Member variables */
+  Envelope * returnValueEnvelope;
+  
 public:
   /* Member variables */
   NativeCodeError *error;
@@ -109,7 +109,7 @@ public:
 
   /* Constructor */
   AsyncCall_Returning<RETURN_TYPE>(Local<Value> callback) :
-    AsyncMethodCall(callback), error(0)                       {}
+    AsyncCall(callback), returnValueEnvelope(0), error(0)  {}
 
   /* Destructor */
   virtual ~AsyncCall_Returning<RETURN_TYPE>() {
@@ -117,13 +117,17 @@ public:
   }
 
   /* Methods */
+  void wrapReturnValueAs(Envelope *env) {
+    returnValueEnvelope = env;
+  }
+  
   Local<Value> jsReturnVal() {
     HandleScope scope;
 
     if(isWrappedPointer(return_val)) {
-      DEBUG_ASSERT(envelope);
-      Local<Object> obj = envelope->newWrapper();
-      wrapPointerInObject(return_val, *envelope, obj);
+      DEBUG_ASSERT(returnValueEnvelope);
+      Local<Object> obj = returnValueEnvelope->newWrapper();
+      wrapPointerInObject(return_val, *returnValueEnvelope, obj);
       return scope.Close(obj);
     }
     else {
@@ -135,9 +139,7 @@ public:
   */
   void doAsyncCallback(Local<Object> context) {
     HandleScope scope;
-    DEBUG_PRINT("doAsyncCallback() for %s",
-                (envelope && envelope->classname) ?
-                envelope->classname : "{?}");
+    DEBUG_PRINT("doAsyncCallback()");
     Handle<Value> cb_args[2];
 
     if(error) cb_args[0] = error->toJS();

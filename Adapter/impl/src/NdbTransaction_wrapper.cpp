@@ -27,6 +27,7 @@
 #include "unified_debug.h"
 
 #include "NdbJsConverters.h"
+#include "NdbWrappers.h"
 #include "NdbWrapperErrors.h"
 
 using namespace v8;
@@ -48,6 +49,9 @@ public:
 
 NdbTransactionEnvelopeClass NdbTransactionEnvelope;
 
+Envelope * getNdbTransactionEnvelope() {
+  return & NdbTransactionEnvelope;
+}
 
 //////////// IMMEDIATE METHOD WRAPPERS
 
@@ -112,7 +116,6 @@ Handle<Value> execute(const Arguments &args) {
   typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
                               NdbOperation::AbortOption, int> NCALL;
   NCALL * ncallptr = new NCALL(& NdbTransaction::execute, args);
-  ncallptr->envelope = & NdbTransactionEnvelope;
   ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
   ncallptr->runAsync();
 

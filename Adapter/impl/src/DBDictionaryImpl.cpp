@@ -58,7 +58,6 @@ using namespace v8;
  *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
 */
-Envelope NdbDictionaryImplEnv("NdbDictionaryImpl");
 Envelope NdbDictTableEnv("NdbDictionary::Table");
 Envelope NdbDictColumnEnv("NdbDictionary::Column");
 Envelope NdbDictIndexEnv("NdbDictionary::Index");
@@ -81,7 +80,6 @@ public:
     NativeCFunctionCall_2_<int, ndb_session *, const char *>(NULL, args),
     list() 
   {
-    envelope = & NdbDictionaryImplEnv;
   }
   
   /* UV_WORKER_THREAD part of listTables */
@@ -171,7 +169,6 @@ public:
     NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(NULL, args),
     ndb_table(0), indexes(0), n_index(0)
   {
-    envelope = & NdbDictionaryImplEnv;
   }
   
   /* UV_WORKER_THREAD part of listTables */

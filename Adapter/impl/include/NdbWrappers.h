@@ -24,7 +24,6 @@
 /***  This file includes public wrapper functions exported to C++ code 
 ***/
 
-
 #include "Record.h"
 #include "Operation.h"
 
@@ -37,4 +36,9 @@ Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *);
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *);
 Handle<Value> NdbIndexScanOperation_Wrapper(NdbIndexScanOperation *);
+
+
+/* Not actual wrapper functions, but functions that provide an envelope */
+
+Envelope * getNdbTransactionEnvelope(void);
 

@@ -75,7 +75,6 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
 
   typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
   MCALL * mcallptr = new MCALL(& Ndb_cluster_connection::connect, args);
-  mcallptr->envelope = & NdbccEnvelope;
 
   if(args.Length() == 4) {
     DEBUG_PRINT_DETAIL("async");
@@ -108,7 +107,6 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
   
   typedef NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> MCALL;
   MCALL * mcallptr = new MCALL(& Ndb_cluster_connection::wait_until_ready, args);
-  mcallptr->envelope = & NdbccEnvelope;
 
   if(args.Length() == 3) {
     mcallptr->runAsync();

@@ -57,8 +57,6 @@ Handle<Value> getNdb(const Arguments &args) {
 }
 
 
-
-
 /* NewDBSessionImpl()
    SYNC (2 args) / ASYNC (3 args)
    arg0: Ndb_cluster_connection
@@ -77,7 +75,7 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   typedef NativeCFunctionCall_2_<ndb_session *, Ndb_cluster_connection *, 
                                  const char *> NCALL;
   NCALL *ncallptr = new NCALL(& ndb_session_new, args);
-  ncallptr->envelope = & NdbSessionImplEnv;
+  ncallptr->wrapReturnValueAs(& NdbSessionImplEnv);
 
   if(args.Length() == 3) {
     DEBUG_PRINT("async (%d arguments)", args.Length());
