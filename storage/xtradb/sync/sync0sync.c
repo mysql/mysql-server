@@ -501,13 +501,7 @@ mutex_spin_wait(
 {
 	ulint	   index; /* index of the reserved wait cell */
 	ulint	   i;	  /* spin round count */
-#ifdef UNIV_DEBUG
-	ib_int64_t lstart_time = 0, lfinish_time; /* for timing os_wait */
-	ulint ltime_diff;
-	ulint sec;
-	ulint ms;
-	uint timer_started = 0;
-#endif /* UNIV_DEBUG */
+
 	ut_ad(mutex);
 
 	/* This update is not thread safe, but we don't mind if the count
@@ -540,13 +534,6 @@ spin_loop:
 	if (i == SYNC_SPIN_ROUNDS) {
 #ifdef UNIV_DEBUG
 		mutex->count_os_yield++;
-#ifndef UNIV_HOTBACKUP
-		if (timed_mutexes && timer_started == 0) {
-			ut_usectime(&sec, &ms);
-			lstart_time= (ib_int64_t)sec * 1000000 + ms;
-			timer_started = 1;
-		}
-#endif /* UNIV_HOTBACKUP */
 #endif /* UNIV_DEBUG */
 		os_thread_yield();
 	}
@@ -639,34 +626,13 @@ spin_loop:
 	mutex_os_wait_count++;
 
 	mutex->count_os_wait++;
-#ifdef UNIV_DEBUG
-	/* !!!!! Sometimes os_wait can be called without os_thread_yield */
-#ifndef UNIV_HOTBACKUP
-	if (timed_mutexes == 1 && timer_started == 0) {
-		ut_usectime(&sec, &ms);
-		lstart_time= (ib_int64_t)sec * 1000000 + ms;
-		timer_started = 1;
-	}
-#endif /* UNIV_HOTBACKUP */
-#endif /* UNIV_DEBUG */
+
 
 	sync_array_wait_event(sync_primary_wait_array, index);
 	goto mutex_loop;
 
 finish_timing:
-#ifdef UNIV_DEBUG
-	if (timed_mutexes == 1 && timer_started==1) {
-		ut_usectime(&sec, &ms);
-		lfinish_time= (ib_int64_t)sec * 1000000 + ms;
 
-		ltime_diff= (ulint) (lfinish_time - lstart_time);
-		mutex->lspent_time += ltime_diff;
-
-		if (mutex->lmax_spent_time < ltime_diff) {
-			mutex->lmax_spent_time= ltime_diff;
-		}
-	}
-#endif /* UNIV_DEBUG */
 	return;
 }
 
