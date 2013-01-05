@@ -226,7 +226,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
+    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
@@ -394,7 +394,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
         if (i < nrows-1) {
             uint32_t keylen;
             char *CAST_FROM_VOIDP(keyp, le_key_and_len(le, &keylen));
-            toku_fill_dbt(&sn.childkeys[i], toku_xmemdup(keyp, keylen), keylen);
+            toku_memdup_dbt(&sn.childkeys[i], keyp, keylen);
         }
     }
 
@@ -813,12 +813,12 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
-    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup("a", 2), 2);
-    toku_fill_dbt(&sn.childkeys[2], toku_xmemdup("a", 2), 2);
-    toku_fill_dbt(&sn.childkeys[3], toku_xmemdup("b", 2), 2);
-    toku_fill_dbt(&sn.childkeys[4], toku_xmemdup("b", 2), 2);
-    toku_fill_dbt(&sn.childkeys[5], toku_xmemdup("x", 2), 2);
+    toku_memdup_dbt(&sn.childkeys[0], "A", 2);
+    toku_memdup_dbt(&sn.childkeys[1], "a", 2);
+    toku_memdup_dbt(&sn.childkeys[2], "a", 2);
+    toku_memdup_dbt(&sn.childkeys[3], "b", 2);
+    toku_memdup_dbt(&sn.childkeys[4], "b", 2);
+    toku_memdup_dbt(&sn.childkeys[5], "x", 2);
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
@@ -965,9 +965,9 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("A", 2), 2);
-    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup("A", 2), 2);
-    toku_fill_dbt(&sn.childkeys[2], toku_xmemdup("A", 2), 2);
+    toku_memdup_dbt(&sn.childkeys[0], "A", 2);
+    toku_memdup_dbt(&sn.childkeys[1], "A", 2);
+    toku_memdup_dbt(&sn.childkeys[2], "A", 2);
     sn.totalchildkeylens = (sn.n_children-1)*2;
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
@@ -1086,7 +1086,7 @@ test_serialize_leaf(enum ftnode_verify_type bft, bool do_clone) {
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup("b", 2), 2);
+    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
     sn.totalchildkeylens = 2;
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
@@ -1230,7 +1230,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], hello_string, 6);
+    toku_memdup_dbt(&sn.childkeys[0], hello_string, 6);
     sn.totalchildkeylens = 6;
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;

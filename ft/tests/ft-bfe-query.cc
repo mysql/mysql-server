@@ -300,8 +300,8 @@ test_prefetching(void) {
     
     MALLOC_N(sn.n_children, sn.bp);
     MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], toku_xmemdup(&key1, sizeof(key1)), sizeof key1);
-    toku_fill_dbt(&sn.childkeys[1], toku_xmemdup(&key2, sizeof(key2)), sizeof key2);
+    toku_memdup_dbt(&sn.childkeys[0], &key1, sizeof(key1));
+    toku_memdup_dbt(&sn.childkeys[1], &key2, sizeof(key2));
     sn.totalchildkeylens = sizeof(key1) + sizeof(key2);
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
