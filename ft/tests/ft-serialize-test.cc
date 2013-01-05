@@ -1218,7 +1218,6 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
 
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    char *hello_string;
     sn.flags = 0x11223344;
     sn.thisnodename.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -1227,10 +1226,9 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     sn.n_children = 2;
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
-    hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], hello_string, 6);
+    toku_memdup_dbt(&sn.childkeys[0], "hello", 6);
     sn.totalchildkeylens = 6;
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
