@@ -83,10 +83,13 @@ struct ftnode_fetch_extra {
     int child_to_read;
     // when we read internal nodes, we want to read all the data off disk in one I/O
     // then we'll treat it as normal and only decompress the needed partitions etc.
+
     bool read_all_partitions;
-    // Accounting: How many bytes were fetched, and how much time did it take?
-    tokutime_t bytes_read;
-    uint64_t read_time;
+    // Accounting: How many bytes were read, and how much time did we spend doing I/O?
+    uint64_t bytes_read;
+    tokutime_t io_time;
+    tokutime_t decompress_time;
+    tokutime_t deserialize_time;
 };
 
 struct toku_fifo_entry_key_msn_heaviside_extra {
@@ -533,7 +536,7 @@ int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_RO
 void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
 int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash, ROLLBACK_LOG_NODE *logp, FT h);
 int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
-int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, DESCRIPTOR desc, ft_compare_func cmp);
+int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe);
 int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, uint32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
 
 // <CER> For verifying old, non-upgraded nodes (versions 13 and 14).
@@ -631,18 +634,21 @@ STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 #define WHEN_FTTRACE(x) ((void)0)
 #endif
 
-void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
 void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
-extern void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
-extern void toku_ftnode_checkpoint_complete_callback(void *value_data);
-extern void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
-extern int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
-extern void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
-extern int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
-extern bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
+void toku_ft_status_update_serialize_times(tokutime_t serialize_time, tokutime_t compress_time);
+void toku_ft_status_update_deserialize_times(tokutime_t deserialize_time, tokutime_t decompress_time);
+
+void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
+void toku_ftnode_checkpoint_complete_callback(void *value_data);
+void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
+int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
+void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
+int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR old_attr, PAIR_ATTR* new_attr, void *extraargs);
+bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
-extern int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
+int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
+void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 
 // Given pinned node and pinned child, split child into two
 // and update node with information about its new child.
@@ -719,7 +725,8 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->disable_prefetching = false;
     bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
-    bfe->read_time = 0;
+    bfe->io_time = 0;
+    bfe->deserialize_time = 0;
 }
 
 //
@@ -758,7 +765,7 @@ static inline void fill_bfe_for_subset_read(
     bfe->disable_prefetching = disable_prefetching;
     bfe->read_all_partitions = read_all_partitions;
     bfe->bytes_read = 0;
-    bfe->read_time = 0;
+    bfe->io_time = 0;
 }
 
 //
@@ -780,7 +787,7 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->disable_prefetching = false;
     bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
-    bfe->read_time = 0;
+    bfe->io_time = 0;
 }
 
 static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
@@ -813,7 +820,7 @@ static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
     bfe->disable_prefetching = c->disable_prefetching;
     bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
-    bfe->read_time = 0;
+    bfe->io_time = 0;
 }
 
 struct ancestors {
@@ -1037,6 +1044,10 @@ typedef enum {
     FT_NUM_MSG_BUFFER_FETCHED_WRITE,
     FT_BYTES_MSG_BUFFER_FETCHED_WRITE,
     FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,
+    FT_NODE_COMPRESS_TOKUTIME, // seconds spent compressing nodes to memory
+    FT_NODE_SERIALIZE_TOKUTIME, // seconds spent serializing nodes to memory
+    FT_NODE_DECOMPRESS_TOKUTIME, // seconds spent decompressing nodes to memory
+    FT_NODE_DESERIALIZE_TOKUTIME, // seconds spent deserializing nodes to memory
     FT_PRO_NUM_ROOT_SPLIT,
     FT_PRO_NUM_ROOT_H0_INJECT,
     FT_PRO_NUM_ROOT_H1_INJECT,

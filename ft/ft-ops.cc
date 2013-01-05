@@ -235,7 +235,7 @@ status_init(void)
     STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH,   TOKUTIME, "buffers fetched for prefetch (seconds)");
     STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write");
     STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_WRITE,         PARCOUNT, "buffers fetched for write (bytes)");
-    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,      PARCOUNT, "buffers fetched for write (seconds)");
+    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,      TOKUTIME, "buffers fetched for write (seconds)");
     
     // Disk write statistics.
     //
@@ -257,6 +257,12 @@ status_init(void)
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,                 PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (bytes)");
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,    PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (uncompressed bytes)");
     STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)");
+
+    // CPU time statistics for [de]serialization and [de]compression.
+    STATUS_INIT(FT_NODE_COMPRESS_TOKUTIME,                             TOKUTIME, "node compression to memory (seconds)");
+    STATUS_INIT(FT_NODE_SERIALIZE_TOKUTIME,                            TOKUTIME, "node serialization to memory (seconds)");
+    STATUS_INIT(FT_NODE_DECOMPRESS_TOKUTIME,                           TOKUTIME, "node decompression to memory (seconds)");
+    STATUS_INIT(FT_NODE_DESERIALIZE_TOKUTIME,                          TOKUTIME, "node deserialization to memory (seconds)");
 
     // Promotion statistics.
     STATUS_INIT(FT_PRO_NUM_ROOT_SPLIT,                     PARCOUNT, "promotion: roots split");
@@ -858,15 +864,15 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
     if (bfe->type == ftnode_fetch_prefetch) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_PREFETCH, 1);
         STATUS_INC(FT_BYTES_PIVOTS_FETCHED_PREFETCH, bfe->bytes_read);
-        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_PREFETCH, bfe->read_time);
+        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_PREFETCH, bfe->io_time);
     } else if (bfe->type == ftnode_fetch_all) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_WRITE, 1);
         STATUS_INC(FT_BYTES_PIVOTS_FETCHED_WRITE, bfe->bytes_read);
-        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_WRITE, bfe->read_time);
+        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_WRITE, bfe->io_time);
     } else if (bfe->type == ftnode_fetch_subset) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_QUERY, 1);
         STATUS_INC(FT_BYTES_PIVOTS_FETCHED_QUERY, bfe->bytes_read);
-        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_QUERY, bfe->read_time);
+        STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_QUERY, bfe->io_time);
     }
 }
 
@@ -1158,7 +1164,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_PREFETCH, 1);
                 STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_PREFETCH, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH, bfe->io_time);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
@@ -1166,7 +1172,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_WRITE, 1);
                 STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_WRITE, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_WRITE, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_WRITE, bfe->io_time);
             }
         } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
@@ -1174,7 +1180,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_NORMAL, 1);
                 STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_NORMAL, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_NORMAL, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_NORMAL, bfe->io_time);
             }
         } else {
             if (state == PT_COMPRESSED) {
@@ -1182,7 +1188,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE, 1);
                 STATUS_INC(FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_AGGRESSIVE, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_BASEMENTS_FETCHED_AGGRESSIVE, bfe->io_time);
             }
         }
     }
@@ -1193,7 +1199,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH, 1);
                 STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH, bfe->io_time);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
@@ -1201,7 +1207,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_WRITE, 1);
                 STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_WRITE, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE, bfe->io_time);
             }
         } else if (childnum == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
@@ -1209,7 +1215,7 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_NORMAL, 1);
                 STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_NORMAL, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_NORMAL, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_NORMAL, bfe->io_time);
             }
         } else {
             if (state == PT_COMPRESSED) {
@@ -1217,10 +1223,20 @@ ft_status_update_partial_fetch_reason(
             } else {
                 STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE, 1);
                 STATUS_INC(FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE, bfe->bytes_read);
-                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, bfe->read_time);
+                STATUS_INC(FT_TOKUTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, bfe->io_time);
             }
         }
     }
+}
+
+void toku_ft_status_update_serialize_times(tokutime_t serialize_time, tokutime_t compress_time) {
+    STATUS_INC(FT_NODE_SERIALIZE_TOKUTIME, serialize_time);
+    STATUS_INC(FT_NODE_COMPRESS_TOKUTIME, compress_time);
+}
+
+void toku_ft_status_update_deserialize_times(tokutime_t deserialize_time, tokutime_t decompress_time) {
+    STATUS_INC(FT_NODE_DESERIALIZE_TOKUTIME, deserialize_time);
+    STATUS_INC(FT_NODE_DECOMPRESS_TOKUTIME, decompress_time);
 }
 
 // callback for partially reading a node
@@ -1252,14 +1268,10 @@ int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraar
         if ((lc <= i && i <= rc) || toku_bfe_wants_child_available(bfe, i)) {
             enum pt_state state = BP_STATE(node, i);
             if (state == PT_COMPRESSED) {
-                r = toku_deserialize_bp_from_compressed(node, i, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+                r = toku_deserialize_bp_from_compressed(node, i, bfe);
             } else {
                 invariant(state == PT_ON_DISK);
-                tokutime_t io_t0 = toku_time_now();
                 r = toku_deserialize_bp_from_disk(node, ndd, i, fd, bfe);
-                tokutime_t io_t1 = toku_time_now();
-                bfe->bytes_read = BP_SIZE(ndd, i);
-                bfe->read_time = io_t1 - io_t0;
             }
             ft_status_update_partial_fetch_reason(bfe, i, state, (node->height == 0));
         }
