@@ -4,10 +4,6 @@
 
 --source include/have_innodb.inc
 
-# check that CSV engine was compiled in, as the result of the test
-# depends on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
-
 #
 # Clean up after previous tests
 #

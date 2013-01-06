@@ -100,11 +100,13 @@ os_thread_get_curr_id(void)
 
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
-the function given. The start function takes a void* parameter
-and returns an ulint.
-@return	handle to the thread */
+the function given.
+NOTE: We count the number of threads in os_thread_exit(). A created
+thread should always use that to exit so thatthe thread count will be
+decremented.
+We do not return an error code because if there is one, we crash here. */
 UNIV_INTERN
-os_thread_t
+void
 os_thread_create_func(
 /*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function
@@ -115,28 +117,45 @@ os_thread_create_func(
 						thread, or NULL */
 {
 #ifdef __WIN__
-	os_thread_t	thread;
+	HANDLE		handle;
 	DWORD		win_thread_id;
 
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
 
-	thread = CreateThread(NULL,	/* no security attributes */
+	handle = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
 			      func,
 			      arg,
 			      0,	/* thread runs immediately */
 			      &win_thread_id);
 
-	if (thread_id) {
-		*thread_id = win_thread_id;
+	if (handle) {
+		if (thread_id) {
+			*thread_id = win_thread_id;
+		}
+
+		/* Innodb does not use the handle outside this thread.
+		It only uses the thread_id.  So close the handle now.
+		The thread object is held open by the thread until it
+		exits. */
+		Sleep(0);
+		CloseHandle(handle);
+
+	} else {
+		/* If we cannot start a new thread, life has no meaning. */
+		fprintf(stderr,
+			"InnoDB: Error: CreateThread returned %d\n",
+			GetLastError());
+		ut_ad(0);
+		exit(1);
 	}
 
-	return(thread);
-#else
+#else /* __WIN__ else */
+
 	int		ret;
-	os_thread_t	pthread;
+	os_thread_id_t	pthread_id;
 	pthread_attr_t	attr;
 
 #ifndef UNIV_HPUX10
@@ -156,6 +175,7 @@ os_thread_create_func(
 		fprintf(stderr,
 			"InnoDB: Error: pthread_attr_setstacksize"
 			" returned %d\n", ret);
+		ut_ad(0);
 		exit(1);
 	}
 #endif
@@ -164,25 +184,21 @@ os_thread_create_func(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef UNIV_HPUX10
-	ret = pthread_create(&pthread, pthread_attr_default, func, arg);
+	ret = pthread_create(&pthread_id, pthread_attr_default, func, arg);
 #else
-	ret = pthread_create(&pthread, &attr, func, arg);
+	ret = pthread_create(&pthread_id, &attr, func, arg);
 #endif
 	if (ret) {
 		fprintf(stderr,
 			"InnoDB: Error: pthread_create returned %d\n", ret);
+		ut_ad(0);
 		exit(1);
 	}
 
 #ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
-	if (thread_id) {
-		*thread_id = pthread;
-	}
-
-	return(pthread);
-#endif
+#endif /* not __WIN__ */
 }
 
 /*****************************************************************//**

@@ -206,14 +206,14 @@ will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_merge_rename_tables(
-/*====================*/
+row_merge_rename_tables_dict(
+/*=========================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
 					tmp_name */
 	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx)		/*!< in: transaction handle */
+	trx_t*		trx)		/*!< in/out: dictionary transaction */
 	__attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**

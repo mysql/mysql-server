@@ -345,11 +345,18 @@ extern const char*	fts_default_stopword[];
 /** Variable specifying the maximum FTS cache size for each table */
 extern ulong		fts_max_cache_size;
 
+/** Variable specifying the total memory allocated for FTS cache */
+extern ulong		fts_max_total_cache_size;
+
 /** Variable specifying the maximum FTS max token size */
 extern ulong		fts_max_token_size;
 
 /** Variable specifying the minimum FTS max token size */
 extern ulong		fts_min_token_size;
+
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
 #define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
