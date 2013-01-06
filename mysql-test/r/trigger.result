@@ -1970,7 +1970,7 @@ drop table if exists t1;
 create table t1 (i int, j int);
 create trigger t1_bi before insert on t1 for each row begin end;
 create trigger t1_bi before insert on t1 for each row begin end;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR HY000: Trigger already exists
 drop trigger t1_bi;
 drop trigger t1_bi;
 ERROR HY000: Trigger does not exist
