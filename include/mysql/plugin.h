@@ -551,6 +551,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
+int thd_allow_batch(MYSQL_THD thd);
 
 /**
   Create a temporary file.
