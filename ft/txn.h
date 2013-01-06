@@ -9,10 +9,26 @@
 
 #include "txn_manager.h"
 
+void txn_status_init(void);
+void txn_status_destroy(void);
+
+
+inline bool txn_pair_is_none(TXNID_PAIR txnid) {
+    return txnid.parent_id64 == TXNID_NONE && txnid.child_id64 == TXNID_NONE;
+}
+
+inline bool txn_needs_snapshot(TXN_SNAPSHOT_TYPE snapshot_type, TOKUTXN parent) {
+    // we need a snapshot if the snapshot type is a child or
+    // if the snapshot type is root and we have no parent.
+    // Cases that we don't need a snapshot: when snapshot type is NONE
+    //  or when it is ROOT and we have a parent
+    return (snapshot_type != TXN_SNAPSHOT_NONE && (parent==NULL || snapshot_type == TXN_SNAPSHOT_CHILD));
+}
+
 void toku_txn_lock(TOKUTXN txn);
 void toku_txn_unlock(TOKUTXN txn);
 
-uint64_t toku_txn_get_id(TOKUTXN txn);
+uint64_t toku_txn_get_root_id(TOKUTXN txn);
 
 int toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
@@ -30,7 +46,7 @@ int toku_txn_begin_with_xid (
     TOKUTXN parent_tokutxn, 
     TOKUTXN *tokutxn, 
     TOKULOGGER logger, 
-    TXNID xid, 
+    TXNID_PAIR xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
     bool for_recovery
@@ -80,9 +96,6 @@ typedef enum {
     TXN_BEGIN,             // total number of transactions begun (does not include recovered txns)
     TXN_COMMIT,            // successful commits
     TXN_ABORT,
-    TXN_CLOSE,             // should be sum of aborts and commits
-    TXN_NUM_OPEN,          // should be begin - close
-    TXN_MAX_OPEN,          // max value of num_open
     TXN_STATUS_NUM_ROWS
 } txn_status_entry;
 
@@ -111,5 +124,10 @@ void toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn);
 
 // Return whether txn (or it's descendents) have done no work.
 bool toku_txn_is_read_only(TOKUTXN txn);
+
+void toku_txn_lock_state(TOKUTXN txn);
+void toku_txn_unlock_state(TOKUTXN txn);
+void toku_txn_pin_live_txn_unlocked(TOKUTXN txn);
+void toku_txn_unpin_live_txn(TOKUTXN txn);
 
 #endif //TOKUTXN_H

@@ -130,8 +130,18 @@ static inline void rbuf_ma_uint64_t (struct rbuf *r, MEMARENA ma __attribute__((
 static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
     *txnid = rbuf_ulonglong(r);
 }
+
+static inline void rbuf_TXNID_PAIR (struct rbuf *r, TXNID_PAIR *txnid) {
+    txnid->parent_id64 = rbuf_ulonglong(r);
+    txnid->child_id64 = rbuf_ulonglong(r);
+}
+
 static inline void rbuf_ma_TXNID (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID *txnid) {
     rbuf_TXNID(r, txnid);
+}
+
+static inline void rbuf_ma_TXNID_PAIR (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID_PAIR *txnid) {
+    rbuf_TXNID_PAIR(r, txnid);
 }
 
 static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {

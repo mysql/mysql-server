@@ -38,8 +38,17 @@ typedef const void *bytevec;
 
 typedef int64_t DISKOFF;  /* Offset in a disk. -1 is the NULL pointer. */
 typedef uint64_t TXNID;
+
+typedef struct txnid_pair_s {
+    TXNID parent_id64;
+    TXNID child_id64;
+} TXNID_PAIR;
+
+
 #define TXNID_NONE_LIVING ((TXNID)0)
 #define TXNID_NONE        ((TXNID)0)
+
+static const TXNID_PAIR TXNID_PAIR_NONE = { .parent_id64 = TXNID_NONE, .child_id64 = TXNID_NONE };
 
 typedef struct blocknum_s { int64_t b; } BLOCKNUM; // make a struct so that we will notice type problems.
 typedef struct gid_s { uint8_t *gid; } GID; // the gid is of size [DB_GID_SIZE]

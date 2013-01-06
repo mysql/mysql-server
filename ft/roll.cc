@@ -278,7 +278,7 @@ toku_rollback_cmddelete (FILENUM    filenum,
 }
 
 static int
-toku_apply_rollinclude (TXNID      xid,
+toku_apply_rollinclude (TXNID_PAIR      xid,
                         uint64_t   num_nodes,
                         BLOCKNUM   spilled_head,
                         uint32_t   spilled_head_hash __attribute__((__unused__)),
@@ -334,7 +334,7 @@ toku_apply_rollinclude (TXNID      xid,
 }
 
 int
-toku_commit_rollinclude (TXNID      xid,
+toku_commit_rollinclude (TXNID_PAIR      xid,
                          uint64_t   num_nodes,
                          BLOCKNUM   spilled_head,
                          uint32_t   spilled_head_hash,
@@ -352,7 +352,7 @@ toku_commit_rollinclude (TXNID      xid,
 }
 
 int
-toku_rollback_rollinclude (TXNID      xid,
+toku_rollback_rollinclude (TXNID_PAIR      xid,
                            uint64_t   num_nodes,
                            BLOCKNUM   spilled_head,
                            uint32_t   spilled_head_hash,

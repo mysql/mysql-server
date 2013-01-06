@@ -25,7 +25,7 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
 void toku_rollback_log_unpin(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 
 // assert that the given log's txnid and sequence match the ones given
-void toku_rollback_verify_contents(ROLLBACK_LOG_NODE log, TXNID txnid, uint64_t sequence);
+void toku_rollback_verify_contents(ROLLBACK_LOG_NODE log, TXNID_PAIR txnid, uint64_t sequence);
 
 // if there is a previous rollback log for the given log node, prefetch it
 void toku_maybe_prefetch_previous_rollback_log(TOKUTXN txn, ROLLBACK_LOG_NODE log);
@@ -65,7 +65,7 @@ struct rollback_log_node {
     uint32_t           build_id;      // build_id (svn rev number) of software that wrote this node to disk
     int                dirty;
     // to which transaction does this node belong?
-    TXNID              txnid;
+    TXNID_PAIR         txnid;
     // sequentially, where in the rollback log chain is this node? 
     // the sequence is between 0 and totalnodes-1
     uint64_t           sequence;
@@ -105,7 +105,7 @@ void rollback_empty_log_init(ROLLBACK_LOG_NODE log);
 void make_rollback_log_empty(ROLLBACK_LOG_NODE log);
 
 static inline bool rollback_log_is_unused(ROLLBACK_LOG_NODE log) {
-    return (log->txnid == TXNID_NONE);
+    return (log->txnid.parent_id64 == TXNID_NONE);
 }
 
 

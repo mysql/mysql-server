@@ -69,7 +69,6 @@ struct __toku_db_env_internal {
     TOKULOGGER logger;
     toku::locktree::manager ltm;
 
-    int32_t open_txns;                                      // Number of open transactions
     DB *directory;                                      // Maps dnames to inames
     DB *persistent_environment;                         // Stores environment settings, can be used for upgrade
     // TODO: toku::omt<DB *>

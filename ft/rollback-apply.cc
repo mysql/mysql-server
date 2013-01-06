@@ -77,7 +77,7 @@ apply_txn(TOKUTXN txn, LSN lsn, apply_rollback_item func) {
         ROLLBACK_LOG_NODE log;
         //pin log
         toku_get_and_pin_rollback_log(txn, next_log, next_log_hash, &log);
-        toku_rollback_verify_contents(log, txn->txnid64, last_sequence - 1);
+        toku_rollback_verify_contents(log, txn->txnid, last_sequence - 1);
 
         toku_maybe_prefetch_previous_rollback_log(txn, log);
 
@@ -142,7 +142,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             if (txn_has_current_rollback_log(txn)) {
                 num_nodes--; //Don't count the in-progress rollback log.
             }
-            toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid64, num_nodes,
+            toku_logger_save_rollback_rollinclude(txn->parent, txn->txnid, num_nodes,
                                                       txn->roll_info.spilled_rollback_head, txn->roll_info.spilled_rollback_head_hash,
                                                       txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash);
             //Remove ownership from child.
@@ -164,7 +164,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             ROLLBACK_LOG_NODE child_log;
             toku_get_and_pin_rollback_log(txn, txn->roll_info.current_rollback, 
                     txn->roll_info.current_rollback_hash, &child_log);
-            toku_rollback_verify_contents(child_log, txn->txnid64, txn->roll_info.num_rollback_nodes - 1);
+            toku_rollback_verify_contents(child_log, txn->txnid, txn->roll_info.num_rollback_nodes - 1);
 
             // Append the list to the front of the parent.
             if (child_log->oldest_logentry) {

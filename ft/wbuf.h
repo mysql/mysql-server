@@ -186,6 +186,12 @@ static inline void wbuf_nocrc_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_nocrc_ulonglong(w, tid);
 }
 
+static inline void wbuf_nocrc_TXNID_PAIR (struct wbuf *w, TXNID_PAIR tid) {
+    wbuf_nocrc_ulonglong(w, tid.parent_id64);
+    wbuf_nocrc_ulonglong(w, tid.child_id64);
+}
+
+
 static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
     wbuf_ulonglong(w, tid);
 }

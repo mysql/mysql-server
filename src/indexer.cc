@@ -330,38 +330,76 @@ indexer_fill_prov_info(DB_INDEXER *indexer, struct ule_prov_info *prov_info) {
         return;
     }
 
+    // handle test case first
+    if (indexer->i->test_xid_state) {
+        for (uint32_t i = 0; i < num_provisional; i++) {
+            UXRHANDLE uxr = ule_get_uxr(ule, num_committed + i);
+            prov_ids[i] = uxr_get_txnid(uxr);
+            prov_states[i] = indexer->i->test_xid_state(indexer, prov_ids[i]);
+            prov_txns[i] = NULL;
+        }
+        return;
+    }
+    
     // hold the txn manager lock while we inspect txn state
     // and pin some live txns
     DB_ENV *env = indexer->i->env;
     TXN_MANAGER txn_manager = toku_logger_get_txn_manager(env->i->logger);
-    toku_txn_manager_suspend(txn_manager); 
+    TXNID parent_xid = uxr_get_txnid(ule_get_uxr(ule, num_committed));
+
+    // let's first initialize things to defaults
     for (uint32_t i = 0; i < num_provisional; i++) {
         UXRHANDLE uxr = ule_get_uxr(ule, num_committed + i);
         prov_ids[i] = uxr_get_txnid(uxr);
-        if (indexer->i->test_xid_state) {
-            prov_states[i] = indexer->i->test_xid_state(indexer, prov_ids[i]);
-            prov_txns[i] = NULL;
+        prov_txns[i] = NULL;
+        prov_states[i] = TOKUTXN_RETIRED;
+    }
+
+    toku_txn_manager_suspend(txn_manager); 
+    TXNID_PAIR root_xid_pair = {.parent_id64=parent_xid, .child_id64 = TXNID_NONE};
+    TOKUTXN root_txn = NULL;
+    toku_txn_manager_id2txn_unlocked(
+        txn_manager, 
+        root_xid_pair, 
+        &root_txn
+        );
+    if (root_txn == NULL) {
+        toku_txn_manager_resume(txn_manager);
+        return; //everything is retired in this case, the default
+    }
+    prov_txns[0] = root_txn;
+    prov_states[0] = toku_txn_get_state(root_txn);
+    toku_txn_lock_state(root_txn);
+    prov_states[0] = toku_txn_get_state(root_txn);
+    if (prov_states[0] == TOKUTXN_LIVE || prov_states[0] == TOKUTXN_PREPARING) {
+        // pin this live txn so it can't commit or abort until we're done with it
+        toku_txn_pin_live_txn_unlocked(root_txn);
+    }
+    toku_txn_unlock_state(root_txn);
+
+    root_txn->child_manager->suspend();
+    for (uint32_t i = 1; i < num_provisional; i++) {
+        UXRHANDLE uxr = ule_get_uxr(ule, num_committed + i);
+        TXNID child_id = uxr_get_txnid(uxr);
+        TOKUTXN txn = NULL;
+
+        TXNID_PAIR txnid_pair = {.parent_id64 = parent_xid, .child_id64 = child_id};
+        root_txn->child_manager->find_tokutxn_by_xid_unlocked(txnid_pair, &txn);
+        prov_txns[i] = txn;
+        if (txn) {
+            toku_txn_lock_state(txn);
+            prov_states[i] = toku_txn_get_state(txn);
+            if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
+                // pin this live txn so it can't commit or abort until we're done with it
+                toku_txn_pin_live_txn_unlocked(txn);
+            }
+            toku_txn_unlock_state(txn);
         }
         else {
-            TOKUTXN txn = NULL;
-            toku_txn_manager_id2txn_unlocked(
-                txn_manager, 
-                prov_ids[i], 
-                &txn
-                );
-            prov_txns[i] = txn;
-            if (txn) {
-                prov_states[i] = toku_txn_get_state(txn);
-                if (prov_states[i] == TOKUTXN_LIVE || prov_states[i] == TOKUTXN_PREPARING) {
-                    // pin this live txn so it can't commit or abort until we're done with it
-                    toku_txn_manager_pin_live_txn_unlocked(txn_manager, txn);
-                }
-            }
-            else {
-                prov_states[i] = TOKUTXN_RETIRED;
-            }
+            prov_states[i] = TOKUTXN_RETIRED;
         }
     }
+    root_txn->child_manager->resume();
     toku_txn_manager_resume(txn_manager);
 }
     

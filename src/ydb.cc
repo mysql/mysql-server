@@ -207,11 +207,6 @@ ydb_getf_do_nothing(DBT const* UU(key), DBT const* UU(val), void* UU(extra)) {
 
 /* env methods */
 
-static void 
-env_init_open_txn(DB_ENV *env) {
-    env->i->open_txns = 0;
-}
-
 static void
 env_fs_report_in_yellow(DB_ENV *UU(env)) {
     char tbuf[26];
@@ -977,7 +972,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     if (toku_env_is_panicked(env)) {
         goto panic_and_quit_early;
     }
-    if (env->i->open_txns != 0) {
+    if (env->i->logger && toku_logger_txns_exist(env->i->logger)) {
         err_msg = "Cannot close environment due to open transactions\n";
         r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
         goto panic_and_quit_early;
@@ -1397,7 +1392,7 @@ env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out
 
 static int
 env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
-    return toku_txn_manager_get_txn_from_xid(toku_logger_get_txn_manager(env->i->logger), xid, txnp);
+    return toku_txn_manager_get_root_txn_from_xid(toku_logger_get_txn_manager(env->i->logger), xid, txnp);
 }
 
 static int
@@ -2143,7 +2138,6 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     result->i->datadir_lockfd = -1;
     result->i->logdir_lockfd  = -1;
     result->i->tmpdir_lockfd  = -1;
-    env_init_open_txn(result);
     env_fs_init(result);
 
     result->i->bt_compare = toku_builtin_compare_fun;

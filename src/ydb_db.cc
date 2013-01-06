@@ -80,22 +80,22 @@ create_iname_hint(const char *dname, char *hint) {
 // n >= 0 means to include mark ("_B_" or "_P_") with hex value of n in iname
 // (intended for use by loader, which will create many inames using one txnid).
 static char *
-create_iname(DB_ENV *env, uint64_t id, char *hint, const char *mark, int n) {
+create_iname(DB_ENV *env, uint64_t id1, uint64_t id2, char *hint, const char *mark, int n) {
     int bytes;
     char inamebase[strlen(hint) +
                    8 +  // hex file format version
-                   16 + // hex id (normally the txnid)
+                   24 + // hex id (normally the txnid's parent and child)
                    8  + // hex value of n if non-neg
                    sizeof("_B___.tokudb")]; // extra pieces
     if (n < 0)
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%" PRIx64 "_%" PRIx32            ".tokudb",
-                         hint, id, FT_LAYOUT_VERSION);
+                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32            ".tokudb",
+                         hint, id1, id2, FT_LAYOUT_VERSION);
     else {
         invariant(strlen(mark) == 1);
         bytes = snprintf(inamebase, sizeof(inamebase),
-                         "%s_%" PRIx64 "_%" PRIx32 "_%s_%" PRIx32 ".tokudb",
-                         hint, id, FT_LAYOUT_VERSION, mark, n);
+                         "%s_%" PRIx64 "_%" PRIx64 "_%" PRIx32 "_%s_%" PRIx32 ".tokudb",
+                         hint, id1, id2, FT_LAYOUT_VERSION, mark, n);
     }
     assert(bytes>0);
     assert(bytes<=(int)sizeof(inamebase)-1);
@@ -264,15 +264,17 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         char hint[strlen(dname) + 1];
 
         // create iname and make entry in directory
-        uint64_t id = 0;
+        uint64_t id1 = 0;
+        uint64_t id2 = 0;
 
         if (txn) {
-            id = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn);
+            id1 = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn).parent_id64;
+            id2 = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn).child_id64;
         } else {
-            id = toku_sync_fetch_and_add(&nontransactional_open_id, 1);
+            id1 = toku_sync_fetch_and_add(&nontransactional_open_id, 1);
         }
         create_iname_hint(dname, hint);
-        iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname
+        iname = create_iname(db->dbenv, id1, id2, hint, NULL, -1);  // allocated memory for iname
         toku_fill_dbt(&iname_dbt, iname, strlen(iname) + 1);
         //
         // put_flags will be 0 for performance only, avoid unnecessary query
@@ -969,7 +971,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
     int rval = 0;
     int i;
     
-    TXNID xid = 0;
+    TXNID_PAIR xid = TXNID_PAIR_NONE;
     DBT dname_dbt;  // holds dname
     DBT iname_dbt;  // holds new iname
     
@@ -994,7 +996,7 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
         // now create new iname
         char hint[strlen(dname) + 1];
         create_iname_hint(dname, hint);
-        const char *new_iname = create_iname(env, xid, hint, mark, i);               // allocates memory for iname_in_env
+        const char *new_iname = create_iname(env, xid.parent_id64, xid.child_id64, hint, mark, i);               // allocates memory for iname_in_env
         new_inames_in_env[i] = new_iname;
         toku_fill_dbt(&iname_dbt, new_iname, strlen(new_iname) + 1);      // iname_in_env goes in directory
         rval = toku_db_put(env->i->directory, txn, &dname_dbt, &iname_dbt, 0, true);

@@ -480,7 +480,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     bl->N = N;
     bl->load_lsn = load_lsn;
     if (txn) {
-        bl->load_root_xid = txn->ancestor_txnid64;
+        bl->load_root_xid = txn->txnid.parent_id64;
     }
     else {
         bl->load_root_xid = TXNID_NONE;

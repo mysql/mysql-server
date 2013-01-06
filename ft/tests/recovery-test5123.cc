@@ -20,12 +20,15 @@ static void test_5123(void) {
     test_setup(&logger, &ct);
 
     int r;
+    TXNID_PAIR one = {.parent_id64 = (TXNID)1, TXNID_NONE};
+    TXNID_PAIR two = {.parent_id64 = (TXNID)2, TXNID_NONE};
+    TXNID_PAIR three = {.parent_id64 = (TXNID)3, TXNID_NONE};
 
-    toku_log_xbegin(logger, NULL, false, (TXNID) 1, TXNID_NONE);
-    toku_log_xbegin(logger, NULL, false, (TXNID) 3, TXNID_NONE);
-    toku_log_xbegin(logger, NULL, false, (TXNID) 2, TXNID_NONE);
+    toku_log_xbegin(logger, NULL, false, one, TXNID_PAIR_NONE);
+    toku_log_xbegin(logger, NULL, false, three, TXNID_PAIR_NONE);
+    toku_log_xbegin(logger, NULL, false, two, TXNID_PAIR_NONE);
 
-    toku_log_xcommit(logger, NULL, false, NULL, (TXNID) 2);
+    toku_log_xcommit(logger, NULL, false, NULL, two);
 
     toku_logger_close_rollback(logger);
 

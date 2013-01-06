@@ -88,8 +88,6 @@ void
 xids_finalize_with_child(XIDS xids, TXNID this_xid) {
     // Precondition:
     //  - xids was created by xids_create_unknown_child
-    //  - All error checking (except that this_xid is higher than its parent) is already complete
-    invariant(this_xid > xids_get_innermost_xid(xids));
     TXNID this_xid_disk = toku_htod64(this_xid);
     uint32_t num_child_xids = ++xids->num_xids;
     xids->ids[num_child_xids - 1] = this_xid_disk;
@@ -118,8 +116,6 @@ xids_create_from_buffer(struct rbuf *rb,		// xids list for parent transaction
     uint8_t index;
     for (index = 0; index < xids->num_xids; index++) {
         rbuf_TXNID(rb, &xids->ids[index]);
-        if (index > 0)
-            assert(xids->ids[index] > xids->ids[index-1]);
     }
     *xids_p = xids;
 }
@@ -141,20 +137,6 @@ xids_get_xid(XIDS xids, uint8_t index) {
     TXNID rval = xids->ids[index];
     rval = toku_dtoh64(rval);
     return rval;
-}
-
-// This function assumes that target_xid IS in the list
-// of xids.
-uint8_t 
-xids_find_index_of_xid(XIDS xids, TXNID target_xid) {
-    uint8_t index = 0;  // search outer to inner
-    TXNID current_xid = xids_get_xid(xids, index);
-    while (current_xid != target_xid) {
-        invariant(current_xid < target_xid);
-        index++;
-        current_xid = xids_get_xid(xids, index); // Next inner txnid in xids.
-    }
-    return index;
 }
 
 uint8_t 

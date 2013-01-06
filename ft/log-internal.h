@@ -21,6 +21,7 @@
 #include <portability/toku_pthread.h>
 #include <util/omt.h>
 #include "rollback_log_node_cache.h"
+#include "txn_child_manager.h"
 
 using namespace toku;
 // Locking for the logger
@@ -139,14 +140,29 @@ struct txn_roll_info {
 
 struct tokutxn {
     // These don't change after create:
-    const uint64_t txnid64; // this happens to be the first lsn
-    const uint64_t ancestor_txnid64; // this is the lsn of root transaction
-    const uint64_t snapshot_txnid64; // this is the lsn of the snapshot
+
+    TXNID_PAIR txnid;
+
+    uint64_t snapshot_txnid64; // this is the lsn of the snapshot
     const TXN_SNAPSHOT_TYPE snapshot_type;
     const bool for_recovery;
     const TOKULOGGER logger;
     const TOKUTXN parent;
-    // These don't either but they're created in a way that's hard to make
+    // The child txn is protected by the child_txn_manager lock
+    // and by the user contract. The user contract states (and is
+    // enforced at the ydb layer) that a child txn should not be created
+    // while another child exists. The txn_child_manager will protect
+    // other threads from trying to read this value while another
+    // thread commits/aborts the child
+    TOKUTXN child;
+    // statically allocated child manager, if this 
+    // txn is a root txn, this manager will be used and set to 
+    // child_manager for this transaction and all of its children
+    txn_child_manager child_manager_s;
+    // child manager for this transaction, all of its children,
+    // and all of its ancestors
+    txn_child_manager* child_manager;
+    // These don't change but they're created in a way that's hard to make
     // strictly const.
     DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
     xid_omt_t *live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
@@ -170,9 +186,14 @@ struct tokutxn {
     omt<FT> open_fts; // a collection of the fts that we touched.  Indexed by filenum.
     struct txn_roll_info roll_info; // Info used to manage rollback entries
 
-    // Protected by the txn manager lock:
+    // mutex that protects the transition of the state variable
+    // the rest of the variables are used by the txn code and 
+    // hot indexing to ensure that when hot indexing is processing a 
+    // leafentry, a TOKUTXN cannot dissappear or change state out from
+    // underneath it
+    toku_mutex_t state_lock;
+    toku_cond_t state_cond;
     TOKUTXN_STATE state;
-    struct toku_list prepared_txns_link; // list of prepared transactions
     uint32_t num_pin; // number of threads (all hot indexes) that want this
                       // txn to not transition to commit or abort
 };
@@ -232,6 +253,10 @@ static inline int toku_logsizeof_LSN (LSN lsn __attribute__((__unused__))) {
 
 static inline int toku_logsizeof_TXNID (TXNID txnid __attribute__((__unused__))) {
     return 8;
+}
+
+static inline int toku_logsizeof_TXNID_PAIR (TXNID_PAIR txnid __attribute__((__unused__))) {
+    return 16;
 }
 
 static inline int toku_logsizeof_XIDP (XIDP xid) {
