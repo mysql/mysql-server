@@ -1453,11 +1453,11 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_foreign_eval_sql(
 /*==================*/
-	pars_info_t*	info,	/*!< in: info struct, or NULL */
+	pars_info_t*	info,	/*!< in: info struct */
 	const char*	sql,	/*!< in: SQL string to evaluate */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in: transaction */
+	const char*	name,	/*!< in: table name (for diagnostics) */
+	const char*	id,	/*!< in: foreign key id */
+	trx_t*		trx)	/*!< in/out: transaction */
 {
 	dberr_t	error;
 	FILE*	ef	= dict_foreign_err_file;
@@ -1470,9 +1470,9 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Error in foreign key constraint creation for table ",
 		      ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->id);
+		ut_print_name(ef, trx, TRUE, id);
 		fputs("\nalready exists."
 		      " (Note that internally InnoDB adds 'databasename'\n"
 		      "in front of the user-defined constraint name.)\n"
@@ -1499,7 +1499,7 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Internal error in foreign key constraint creation"
 		      " for table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, name);
 		fputs(".\n"
 		      "See the MySQL .err log in the datadir"
 		      " for more information.\n", ef);
@@ -1519,10 +1519,10 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_create_add_foreign_field_to_dictionary(
 /*========================================*/
-	ulint		field_nr,	/*!< in: foreign field number */
-	dict_table_t*	table,		/*!< in: table */
-	dict_foreign_t*	foreign,	/*!< in: foreign */
-	trx_t*		trx)		/*!< in: transaction */
+	ulint			field_nr,	/*!< in: field number */
+	const char*		table_name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,	/*!< in: foreign */
+	trx_t*			trx)		/*!< in/out: transaction */
 {
 	pars_info_t*	info = pars_info_create();
 
@@ -1543,48 +1543,26 @@ dict_create_add_foreign_field_to_dictionary(
 		       "INSERT INTO SYS_FOREIGN_COLS VALUES"
 		       "(:id, :pos, :for_col_name, :ref_col_name);\n"
 		       "END;\n",
-		       table, foreign, trx));
+		       table_name, foreign->id, trx));
 }
 
 /********************************************************************//**
-Add a single foreign key definition to the data dictionary tables in the
-database. We also generate names to constraints that were not named by the
-user. A generated constraint has a name of the format
-databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
-are given locally for this table, that is, the number is not global, as in
-the old format constraints < 4.0.18 it used to be.
+Add a foreign key definition to the data dictionary tables.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
-	ulint*		id_nr,	/*!< in/out: number to use in id generation;
-				incremented if used */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in/out: dictionary transaction */
+	const char*		name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,/*!< in: foreign key */
+	trx_t*			trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
-	ulint		i;
-
 	pars_info_t*	info = pars_info_create();
-
-	if (foreign->id == NULL) {
-		/* Generate a new constraint id */
-		char*	id;
-		ulint	namelen	= strlen(table->name);
-
-		id = static_cast<char*>(mem_heap_alloc(
-				foreign->heap, namelen + 20));
-
-		/* no overflow if number < 1e13 */
-		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
-		foreign->id = id;
-	}
 
 	pars_info_add_str_literal(info, "id", foreign->id);
 
-	pars_info_add_str_literal(info, "for_name", table->name);
+	pars_info_add_str_literal(info, "for_name", name);
 
 	pars_info_add_str_literal(info, "ref_name",
 				  foreign->referenced_table_name);
@@ -1598,16 +1576,16 @@ dict_create_add_foreign_to_dictionary(
 				      "INSERT INTO SYS_FOREIGN VALUES"
 				      "(:id, :for_name, :ref_name, :n_cols);\n"
 				      "END;\n"
-				      , table, foreign, trx);
+				      , name, foreign->id, trx);
 
 	if (error != DB_SUCCESS) {
 
 		return(error);
 	}
 
-	for (i = 0; i < foreign->n_fields; i++) {
+	for (ulint i = 0; i < foreign->n_fields; i++) {
 		error = dict_create_add_foreign_field_to_dictionary(
-			i, table, foreign, trx);
+			i, name, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
@@ -1654,7 +1632,9 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		error = dict_create_add_foreign_to_dictionary(&number, table,
+		dict_create_add_foreign_id(&number, table->name, foreign);
+
+		error = dict_create_add_foreign_to_dictionary(table->name,
 							      foreign, trx);
 
 		if (error != DB_SUCCESS) {

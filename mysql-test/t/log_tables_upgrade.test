@@ -1,5 +1,4 @@
 --source include/not_embedded.inc
---source include/have_csv.inc
 
 # Only run test if "mysql_upgrade" is found
 --require r/have_mysql_upgrade.result
