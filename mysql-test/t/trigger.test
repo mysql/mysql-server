@@ -2275,7 +2275,7 @@ drop table if exists t1;
 create table t1 (i int, j int);
 
 create trigger t1_bi before insert on t1 for each row begin end;
---error ER_NOT_SUPPORTED_YET
+--error ER_TRG_ALREADY_EXISTS
 create trigger t1_bi before insert on t1 for each row begin end;
 drop trigger t1_bi;
 --error ER_TRG_DOES_NOT_EXIST
