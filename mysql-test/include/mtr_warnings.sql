@@ -88,7 +88,7 @@ SET @@collation_connection = @collation_connection_saved||
 INSERT INTO global_suppressions VALUES
  (".SELECT UNIX_TIMESTAMP... failed on master"),
  ("Aborted connection"),
- ("Client requested master to start replication from impossible position"),
+ ("Client requested master to start replication from position"),
  ("Could not find first log file name in binary log"),
  ("Enabling keys got errno"),
  ("Error reading master configuration"),
@@ -178,7 +178,8 @@ INSERT INTO global_suppressions VALUES
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
- ("Although a path was specified for the .* option, log tables are used"),
+ ("Although a path was specified for the --general-log-file option, log tables are used"),
+ ("Although a path was specified for the --slow-query-log-file option, log tables are used"),
  ("Backup: Operation aborted"),
  ("Restore: Operation aborted"),
  ("Restore: The grant .* was skipped because the user does not exist"),

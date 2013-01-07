@@ -166,7 +166,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
-
 Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                               &LOCK_log_throttle_qni,
                               Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
@@ -455,7 +454,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
-  /* Does not change the contents of the diagnostics area. */
+  /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
 
   /*
@@ -1187,6 +1186,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1686,12 +1707,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
-  case COM_DELAYED_INSERT:
+  case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -1708,7 +1731,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
                       thd->get_stmt_da()->is_error() ?
-                      thd->get_stmt_da()->sql_errno() : 0,
+                      thd->get_stmt_da()->mysql_errno() : 0,
                       command_name[command].str);
 
   log_slow_statement(thd);
@@ -2093,13 +2116,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)
@@ -2132,7 +2151,7 @@ bool sp_process_definer(THD *thd)
   if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -2244,6 +2263,18 @@ mysql_execute_command(THD *thd)
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
 
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(1);
+    }
+  }
+
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
 #endif
@@ -2278,13 +2309,10 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
-    thd->get_stmt_da()->set_warning_info_read_only(TRUE);
-  else
+  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) == 0)
   {
-    thd->get_stmt_da()->set_warning_info_read_only(FALSE);
     if (all_tables)
-      thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2630,16 +2658,16 @@ case SQLCOM_PREPARE:
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      ((1L << (uint) Sql_condition::WARN_LEVEL_NOTE) |
-			       (1L << (uint) Sql_condition::WARN_LEVEL_WARN) |
-			       (1L << (uint) Sql_condition::WARN_LEVEL_ERROR)
+			      ((1L << (uint) Sql_condition::SL_NOTE) |
+			       (1L << (uint) Sql_condition::SL_WARNING) |
+			       (1L << (uint) Sql_condition::SL_ERROR)
 			       ));
     break;
   }
   case SQLCOM_SHOW_ERRORS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      (1L << (uint) Sql_condition::WARN_LEVEL_ERROR));
+			      (1L << (uint) Sql_condition::SL_ERROR));
     break;
   }
   case SQLCOM_SHOW_PROFILES:
@@ -2882,7 +2910,7 @@ case SQLCOM_PREPARE:
         */
         if (splocal_refs != thd->query_name_consts)
           push_warning(thd, 
-                       Sql_condition::WARN_LEVEL_WARN,
+                       Sql_condition::SL_WARNING,
                        ER_UNKNOWN_ERROR,
 "Invoked routine ran a statement that may cause problems with "
 "binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
@@ -2912,7 +2940,7 @@ case SQLCOM_PREPARE:
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_TABLE_EXISTS_ERROR,
                                 ER(ER_TABLE_EXISTS_ERROR),
                                 create_info.alias);
@@ -3345,16 +3373,8 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
 
-    /*
-      Since INSERT DELAYED doesn't support temporary tables, we could
-      not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
-      Open them here instead.
-    */
-    if (first_table->lock_type != TL_WRITE_DELAYED)
-    {
-      if ((res= open_temporary_tables(thd, all_tables)))
-        break;
-    }
+    if ((res= open_temporary_tables(thd, all_tables)))
+      break;
 
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3409,10 +3429,6 @@ end_with_restore_list:
 
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
-
-    /* Fix lock for first table */
-    if (first_table->lock_type == TL_WRITE_DELAYED)
-      first_table->lock_type= TL_WRITE;
 
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
@@ -3959,7 +3975,7 @@ end_with_restore_list:
           goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_HOSTNAME_WONT_WORK,
                               ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
@@ -4318,7 +4334,7 @@ end_with_restore_list:
       {
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
-          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::SL_WARNING,
                        ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
         thd->clear_error();
       }
@@ -4505,7 +4521,7 @@ end_with_restore_list:
         {
           if (lex->drop_if_exists)
           {
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
             res= FALSE;
@@ -4558,7 +4574,7 @@ end_with_restore_list:
           sp_revoke_privileges(thd, db, name,
                                lex->sql_command == SQLCOM_DROP_PROCEDURE))
       {
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_PROC_AUTO_REVOKE_FAIL,
                      ER(ER_PROC_AUTO_REVOKE_FAIL));
         /* If this happens, an error should have been reported. */
@@ -4575,7 +4591,7 @@ end_with_restore_list:
 	if (lex->drop_if_exists)
 	{
           res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-	  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning_printf(thd, Sql_condition::SL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
@@ -4902,6 +4918,36 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
+#if defined(VALGRIND_DO_QUICK_LEAK_CHECK)
+  // Get incremental leak reports, for easier leak hunting.
+  // ./mtr --mem --mysqld='-T 4096' --valgrind-mysqld main.1st
+  // Note that with multiple connections, the report below may be misleading.
+  if (test_flags & TEST_DO_QUICK_LEAK_CHECK)
+  {
+    static unsigned long total_leaked_bytes= 0;
+    unsigned long leaked= 0;
+    unsigned long dubious __attribute__((unused));
+    unsigned long reachable __attribute__((unused));
+    unsigned long suppressed __attribute__((unused));
+    /*
+      We could possibly use VALGRIND_DO_CHANGED_LEAK_CHECK here,
+      but that is a fairly new addition to the Valgrind api.
+      Note: we dont want to check 'reachable' until we have done shutdown,
+      and that is handled by the final report anyways.
+      We print some extra information, to tell mtr to ignore this report.
+    */
+    sql_print_information("VALGRIND_DO_QUICK_LEAK_CHECK");
+    VALGRIND_DO_QUICK_LEAK_CHECK;
+    VALGRIND_COUNT_LEAKS(leaked, dubious, reachable, suppressed);
+    if (leaked > total_leaked_bytes)
+    {
+      sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
+                      "for query '%.*s'", leaked - total_leaked_bytes,
+                      static_cast<int>(thd->query_length()), thd->query());
+    }
+    total_leaked_bytes= leaked;
+  }
+#endif
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -5747,7 +5793,7 @@ void THD::reset_for_next_command()
   }
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_da()->reset_for_next_command();
+  thd->get_stmt_da()->reset_statement_cond_count();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
 
@@ -6066,8 +6112,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
-          if (unlikely(thd->security_ctx->password_expired && 
-                       !lex->is_change_password))
+          if (unlikely(thd->security_ctx->password_expired &&
+                       !lex->is_change_password &&
+                       lex->sql_command != SQLCOM_SET_OPTION))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
             error= 1;
@@ -6186,7 +6233,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -6332,7 +6379,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              List<String> *partition_names,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
@@ -6484,8 +6531,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                        MDL_TRANSACTION);
+
+  // Pure table aliases do not need to be locked:
+  if (!test(table_options & TL_OPTION_ALIAS))
+  {
+    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                          MDL_TRANSACTION);
+  }
   if (table->is_derived_table())
   {
     ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;
@@ -6959,8 +7011,14 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
-      error=0;
+      /* process the kill only if thread is not already undergoing any kill
+         connection.
+      */
+      if (tmp->killed != THD::KILL_CONNECTION)
+      {
+        tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      }
+      error= 0;
     }
     else
       error=ER_KILL_DENIED_ERROR;

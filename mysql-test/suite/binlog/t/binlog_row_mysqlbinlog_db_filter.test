@@ -140,6 +140,17 @@ while($i)
     -- echo **** ERROR **** Database name 'b42941' NOT FOUND in mysqlbinlog output ($flags $outfile.2).
   }
 
+  #bug #13067813
+  if (`SELECT INSTR(@b42941_output.1, 'unknown table')`)
+  {
+    -- echo **** ERROR **** Table mapping failure detected
+  }
+
+  if (`SELECT INSTR(@b42941_output.2, 'unknown table')`)
+  {
+    -- echo **** ERROR **** Table mapping failure detected
+  }
+
   dec $i;
 }
 

@@ -36,13 +36,13 @@
 do {							\
    if (swap_ptrs)					\
    {							\
-     reg1 char **a = (char**) (A), **b = (char**) (B);  \
+     char **a = (char**) (A), **b = (char**) (B);  \
      char *tmp = *a; *a++ = *b; *b++ = tmp;		\
    }							\
    else							\
    {							\
-     reg1 char *a = (A), *b = (B);			\
-     reg3 char *end= a+size;				\
+     char *a = (A), *b = (B);			\
+     char *end= a+size;				\
      do							\
      {							\
        char tmp = *a; *a++ = *b; *b++ = tmp;		\

@@ -33,6 +33,7 @@ struct PFS_thread;
   @{
 */
 
+/** Hash key for a user. */
 struct PFS_user_key
 {
   /**
@@ -44,6 +45,7 @@ struct PFS_user_key
   uint m_key_length;
 };
 
+/** Per user statistics. */
 struct PFS_ALIGNED PFS_user : public PFS_connection_slice
 {
 public:

@@ -120,20 +120,17 @@ typedef struct Binlog_storage_observer {
      This callback is called after binlog has been flushed
 
      This callback is called after cached events have been flushed to
-     binary log file. Whether the binary log file is synchronized to
-     disk is indicated by the bit BINLOG_STORAGE_IS_SYNCED in @a flags.
+     binary log file but not yet synced.
 
      @param param Observer common parameter
      @param log_file Binlog file name been updated
      @param log_pos Binlog position after update
-     @param flags flags for binlog storage
 
      @retval 0 Sucess
      @retval 1 Failure
   */
   int (*after_flush)(Binlog_storage_param *param,
-                     const char *log_file, my_off_t log_pos,
-                     uint32 flags);
+                     const char *log_file, my_off_t log_pos);
 } Binlog_storage_observer;
 
 /**
@@ -214,17 +211,24 @@ typedef struct Binlog_transmit_observer {
                            const char *log_file, my_off_t log_pos );
 
   /**
-     This callback is called after sending an event packet to slave
+     This callback is called after an event packet is sent to the
+     slave or is skipped.
 
-     @param param Observer common parameter
-     @param event_buf Binlog event packet buffer sent
-     @param len length of the event packet buffer
-
+     @param param             Observer common parameter
+     @param event_buf         Binlog event packet buffer sent
+     @param len               length of the event packet buffer
+     @param skipped_log_file  Binlog file name of the event that
+                              was skipped in the master. This is
+                              null if the position was not skipped
+     @param skipped_log_pos   Binlog position of the event that
+                              was skipped in the master. 0 if not
+                              skipped
      @retval 0 Sucess
      @retval 1 Failure
    */
   int (*after_send_event)(Binlog_transmit_param *param,
-                          const char *event_buf, unsigned long len);
+                          const char *event_buf, unsigned long len,
+                          const char *skipped_log_file, my_off_t skipped_log_pos);
 
   /**
      This callback is called after resetting master status

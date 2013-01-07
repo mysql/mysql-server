@@ -129,7 +129,7 @@ int main(int argc, char **argv)
 } /* main */
 
 
-static void get_options(register int *argc, register char ***argv)
+static void get_options(int *argc, char ***argv)
 {
   int help,version;
   const char *pos,*usage;
@@ -676,7 +676,7 @@ static int examine_log(char * file_name, char **table_names)
 }
 
 
-static int read_string(IO_CACHE *file, register uchar* *to, register uint length)
+static int read_string(IO_CACHE *file, uchar* *to, uint length)
 {
   DBUG_ENTER("read_string");
 

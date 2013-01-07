@@ -36,7 +36,7 @@ class Defragger {
   Vector<DefragBuffer*> m_buffers;
 
   DefragBuffer* find_buffer(NodeId nodeId, Uint32 fragId){
-    for (size_t i = 0; i < m_buffers.size(); i++)
+    for (unsigned i = 0; i < m_buffers.size(); i++)
     {
       DefragBuffer* dbuf = m_buffers[i];
       if (dbuf->m_node_id == nodeId &&
@@ -47,7 +47,7 @@ class Defragger {
   }
 
   void erase_buffer(const DefragBuffer* dbuf){
-    for (size_t i = 0; i < m_buffers.size(); i++)
+    for (unsigned i = 0; i < m_buffers.size(); i++)
     {
       if (m_buffers[i] == dbuf)
       {
@@ -63,7 +63,7 @@ public:
   Defragger() {};
   ~Defragger()
   {
-    for (size_t i = m_buffers.size(); i > 0; --i)
+    for (unsigned i = m_buffers.size(); i > 0; --i)
     {
       delete m_buffers[i-1]; // free the memory of the fragment
     }
@@ -120,7 +120,7 @@ public:
     clear any unassembled signal buffers from node
   */
   void node_failed(NodeId nodeId) {
-    for (size_t i = m_buffers.size(); i > 0; --i)
+    for (unsigned i = m_buffers.size(); i > 0; --i)
     {
       if (m_buffers[i-1]->m_node_id == nodeId)
       {

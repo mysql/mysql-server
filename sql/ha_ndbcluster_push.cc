@@ -24,9 +24,6 @@
 
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_binlog.h"
@@ -40,12 +37,19 @@
 
 #include <ndb_version.h>
 
+
+/*
+  Explain why an operation could not be pushed when using 'explain extended'
+  @param[in] msgfmt printf style format string.
+*/
 #define EXPLAIN_NO_PUSH(msgfmt, ...)                              \
 do                                                                \
 {                                                                 \
   if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
   {                                                               \
-    ndbcluster_explain_no_push ((msgfmt), __VA_ARGS__);           \
+    push_warning_printf(current_thd,                              \
+                        Sql_condition::SL_NOTE, ER_YES,     \
+                        (msgfmt), __VA_ARGS__);                   \
   }                                                               \
 }                                                                 \
 while(0)
@@ -69,29 +73,6 @@ static bool ndbcluster_is_lookup_operation(AQP::enum_access_type accessType)
     accessType == AQP::AT_MULTI_PRIMARY_KEY ||
     accessType == AQP::AT_UNIQUE_KEY;
 }
-
-/**
- * Used by 'explain extended' to explain why an operation could not be pushed.
- * @param[in] msgfmt printf style format string.
- */
-static void ndbcluster_explain_no_push(const char* msgfmt, ...)
-{
-  va_list args;
-  char wbuff[1024];
-  va_start(args,msgfmt);
-  (void) my_vsnprintf (wbuff, sizeof(wbuff), msgfmt, args);
-  va_end(args);
-  /**
-   *  FIXME:
-   *  We temp. use '9999' as errorcode, Change to use
-   *  'WARN_QUERY_NOT_PUSHED' when its deffinition has reached
-   *  one if the 'mainline' branches. (sql/share/errmsg.txt)
-   */
-  uint warn_code= 9999;
-  push_warning(current_thd, Sql_condition::WARN_LEVEL_NOTE, warn_code,
-               wbuff);
-} // ndbcluster_explain_no_push();
-
 
 uint
 ndb_table_access_map::first_table(uint start) const
@@ -153,8 +134,7 @@ ndb_pushed_join::~ndb_pushed_join()
 
 bool ndb_pushed_join::match_definition(
                       int type, //NdbQueryOperationDef::Type, 
-                      const NDB_INDEX_DATA* idx,
-                      bool needSorted) const
+                      const NDB_INDEX_DATA* idx) const
 {
   const NdbQueryOperationDef* const root_operation= 
     m_query_def->getQueryOperation((uint)0);
@@ -195,13 +175,6 @@ bool ndb_pushed_join::match_definition(
 
   case NdbQueryOperationDef::TableScan:
     DBUG_ASSERT (idx==NULL && expected_index==NULL);
-    if (needSorted)
-    {
-      DBUG_PRINT("info", 
-                 ("TableScan access can not be provied as sorted result. " 
-                  "Therefore, join cannot be pushed."));
-      return FALSE;
-    }
     break;
 
   case NdbQueryOperationDef::OrderedIndexScan:
@@ -213,13 +186,6 @@ bool ndb_pushed_join::match_definition(
                           "Therefore, join cannot be pushed.", 
                           idx->index->getName(),
                           expected_index->getName()));
-      return FALSE;
-    }
-    if (needSorted && m_query_def->getQueryType() == NdbQueryDef::MultiScanQuery)
-    {
-      DBUG_PRINT("info", 
-                 ("OrderedIndexScan with scan siblings " 
-                  "can not execute as pushed join."));
       return FALSE;
     }
     break;
@@ -313,6 +279,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
   m_join_root(),
   m_join_scope(),
   m_const_scope(),
+  m_internal_op_count(0),
   m_fld_refs(0),
   m_builder(NULL)
 { 
@@ -329,8 +296,8 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
       const AQP::Table_access* const table = m_plan.get_table_access(i);
       if (table->get_table()->file->ht != ndbcluster_hton)
       {
-        EXPLAIN_NO_PUSH("Table '%s' not in ndb engine, not pushable", 
-                        table->get_table()->alias);
+        DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable", 
+                            table->get_table()->alias));
         continue;
       }
 
@@ -366,7 +333,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
         {
           m_tables[i].m_maybe_pushable= PUSHABLE_AS_CHILD | PUSHABLE_AS_PARENT;
         }
-        else
+        else if (reason != NULL)
         {
           EXPLAIN_NO_PUSH("Table '%s' is not pushable: %s",
                           table->get_table()->alias, reason);
@@ -482,6 +449,33 @@ ndb_pushed_builder_ctx::make_pushed_join(
 
 
 /**
+ * Find the number SPJ operations needed to execute a given access type.
+ * (Unique index lookups are translated to two single table lookups internally.)
+ */
+uint internal_operation_count(AQP::enum_access_type accessType)
+{
+  switch (accessType)
+  {
+  case AQP::AT_PRIMARY_KEY:
+  case AQP::AT_ORDERED_INDEX_SCAN:
+  case AQP::AT_MULTI_PRIMARY_KEY:
+  case AQP::AT_MULTI_MIXED:
+  case AQP::AT_TABLE_SCAN:
+    return 1;
+ 
+    // Unique key lookups is mapped to two primary key lookups internally.
+  case AQP::AT_UNIQUE_KEY:
+  case AQP::AT_MULTI_UNIQUE_KEY:
+    return 2;
+
+  default:
+    // Other access types are not pushable, so seeing them here is an error.
+    DBUG_ASSERT(false);
+    return 2;
+  }
+}
+ 
+/**
  * If there is a pushable query starting with 'root'; add as many
  * child operations as possible to this 'ndb_pushed_builder_ctx' starting
  * with that join_root.
@@ -510,6 +504,14 @@ ndb_pushed_builder_ctx::is_pushable_with_root(const AQP::Table_access* root)
     DBUG_RETURN(false);
   }
 
+  if (root->filesort_before_join())
+  {
+    EXPLAIN_NO_PUSH("Table '%s' is not pushable, "
+                    "need filesort before joining child tables",
+                     root->get_table()->alias);
+    DBUG_RETURN(false);
+  }
+
   /**
    * Past this point we know at least root to be pushable as parent
    * operation. Search remaining tables appendable if '::is_pushable_as_child()'
@@ -520,6 +522,7 @@ ndb_pushed_builder_ctx::is_pushable_with_root(const AQP::Table_access* root)
   m_join_root= root;
   m_const_scope.set_prefix(root_no);
   m_join_scope= ndb_table_access_map(root_no);
+  m_internal_op_count = internal_operation_count(access_type);
 
   uint push_cnt= 0;
   for (uint tab_no= root->get_access_no()+1; tab_no<m_plan.get_access_count(); tab_no++)
@@ -593,16 +596,6 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     DBUG_RETURN(false);
   }
 
-  if (access_type==AQP::AT_ORDERED_INDEX_SCAN && m_join_root->is_fixed_ordered_index())  
-  {
-    // root must be an ordered index scan - Thus it cannot have other scan descendant.
-    EXPLAIN_NO_PUSH("Push of table '%s' as scan-child "
-                    "with ordered indexscan-root '%s' not implemented",
-                     table->get_table()->alias,
-                     m_join_root->get_table()->alias);
-    DBUG_RETURN(false);
-  }
-
   if (table->get_no_of_key_fields() > ndb_pushed_join::MAX_LINKED_KEYS)
   {
     EXPLAIN_NO_PUSH("Can't push table '%s' as child, "
@@ -625,6 +618,19 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
       DBUG_RETURN(false);
     }
   }
+
+  // Check that we do not exceed the max number of pushable operations.
+  const uint internal_ops_needed = internal_operation_count(access_type);
+  if (unlikely(m_internal_op_count + internal_ops_needed
+               > NDB_SPJ_MAX_TREE_NODES))
+  {
+    EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s'. Max number"
+                    " of pushable tables exceeded.",
+                    table->get_table()->alias,
+                    m_join_root->get_table()->alias);
+    DBUG_RETURN(false);
+  }
+  m_internal_op_count += internal_ops_needed;
 
   DBUG_PRINT("info", ("Table:%d, Checking %d REF keys", tab_no, 
                       table->get_no_of_key_fields()));
@@ -933,12 +939,38 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
     // This key item is const. and did not cause the set of possible parents
     // to be recalculated. Reuse what we had before this key item.
     DBUG_ASSERT(field_parents.is_clear_all());
-    /** 
-     * Scan queries cannot be pushed if the pushed query may refer column 
-     * values (paramValues) from rows stored in a join cache.  
+
+    /**
+     * Field referrence is a 'paramValue' to a column value evaluated
+     * prior to the root of this pushed join candidate. Some restrictions
+     * applies to when a field reference is allowed in a pushed join:
      */
-    if (!ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
+    if (ndbcluster_is_lookup_operation(m_join_root->get_access_type()))
     {
+      /**
+       * The 'eq_ref' access function join_read_key(), may optimize away
+       * key reads if the key for a requested row is the same as the
+       * previous. Thus, iff this is the root of a pushed lookup join
+       * we do not want it to contain childs with references to columns 
+       * 'outside' the the pushed joins, as these may still change
+       * between calls to join_read_key() independent of the root key
+       * itself being the same.
+       */
+      EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
+                      "it referes to column '%s.%s' prior to a "
+                      "potential 'const' root.",
+                      table->get_table()->alias, 
+                      m_join_root->get_table()->alias,
+                      get_referred_table_access_name(key_item_field),
+                      get_referred_field_name(key_item_field));
+      DBUG_RETURN(false);
+    }
+    else  
+    {
+      /** 
+       * Scan queries cannot be pushed if the pushed query may refer column 
+       * values (paramValues) from rows stored in a join cache.  
+       */
       const TABLE* const referred_tab = key_item_field->field->table;
       uint access_no = tab_no;
       do
@@ -1010,12 +1042,20 @@ ndb_pushed_builder_ctx::optimize_query_plan()
   DBUG_ENTER("optimize_query_plan");
   const uint root_no= m_join_root->get_access_no();
 
+  for (uint tab_no= root_no; tab_no<m_plan.get_access_count(); tab_no++)
+  {
+    if (m_join_scope.contain(tab_no))
+    {
+      m_tables[tab_no].m_fanout = m_plan.get_table_access(tab_no)->get_fanout();
+      m_tables[tab_no].m_child_fanout = 1.0;
+    }
+  }
+
   // Find an optimal order for joining the tables
   for (uint tab_no= m_plan.get_access_count()-1;
        tab_no > root_no;
        tab_no--)
   {
-    struct pushed_tables &table= m_tables[tab_no];
     if (!m_join_scope.contain(tab_no))
       continue;
 
@@ -1025,6 +1065,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
      * don't skip any dependent parents from our ancestors
      * when selecting the actuall 'm_parent' to be used.
      */
+    pushed_tables &table= m_tables[tab_no];
     if (!table.m_depend_parents.is_clear_all())
     {
       ndb_table_access_map const &dependency= table.m_depend_parents;
@@ -1061,13 +1102,37 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     DBUG_ASSERT(!parents.contain(tab_no)); // No circular dependency!
 
     /**
-     * In order to take advantage of the parallelism in the SPJ block; 
-     * Choose the first possible parent candidate. Will result in the
-     * most 'bushy' query plan (aka: star-join)
+-    * In order to take advantage of the parallelism in the SPJ block;
+     * Initial parent candidate is the first possible among 'parents'.
+     * Will result in the most 'bushy' query plan (aka: star-join)
      */
     parent_no= parents.first_table(root_no);
+
+    /**
+     * Push optimization for execution of child operations:
+     *
+     * To take advantage of the selectivity of parent operations we 
+     * execute any parent operations with fanout <= 1 before this
+     * child operation. By making them depending on parent 
+     * operations with high selectivity, child will be eliminated when
+     * the parent returns no matching rows.
+     *
+     * -> Execute child operation after any such parents
+     */
+    for (uint candidate= parent_no+1; candidate<parents.length(); candidate++)
+    {
+      if (parents.contain(candidate))
+      {
+        if (m_tables[candidate].m_fanout > 1.0)
+          break;
+
+        parent_no= candidate;     // Parent candidate is selective, eval after
+      }
+    }
+
     DBUG_ASSERT(parent_no < tab_no);
     table.m_parent= parent_no;
+    m_tables[parent_no].m_child_fanout*= table.m_fanout*table.m_child_fanout;
 
     ndb_table_access_map dependency(table.m_depend_parents);
     dependency.clear_bit(parent_no);
@@ -1081,7 +1146,7 @@ ndb_pushed_builder_ctx::optimize_query_plan()
   {
     if (m_join_scope.contain(tab_no))
     {
-      struct pushed_tables &table= m_tables[tab_no];
+      pushed_tables &table= m_tables[tab_no];
       const uint parent_no= table.m_parent;
       table.m_ancestors= m_tables[parent_no].m_ancestors;
       table.m_ancestors.add(parent_no);
@@ -1205,7 +1270,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
   {
     if (ndbcluster_is_lookup_operation(table->get_access_type()))
     {
-      for (uint i= 0; i < key->key_parts; i++)
+      for (uint i= 0; i < key->user_defined_key_parts; i++)
       {
         op_key[i]= m_builder->paramValue();
         if (unlikely(op_key[i] == NULL))
@@ -1213,13 +1278,13 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
           DBUG_RETURN(-1);
         }
       }
-      op_key[key->key_parts]= NULL;
+      op_key[key->user_defined_key_parts]= NULL;
     }
   }
   else
   {
     const uint key_fields= table->get_no_of_key_fields();
-    DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+    DBUG_ASSERT(key_fields > 0 && key_fields <= key->user_defined_key_parts);
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
 
     if (ndbcluster_is_lookup_operation(table->get_access_type()))
@@ -1447,7 +1512,7 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
 
   if (index.unique_index_attrid_map) // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
-    for (ix = 0; ix < key_def->key_parts; ix++)
+    for (ix = 0; ix < key_def->user_defined_key_parts; ix++)
     {
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
@@ -1459,7 +1524,7 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     int columnnr= 0;
     assert (index.type == PRIMARY_KEY_ORDERED_INDEX || index.type == PRIMARY_KEY_INDEX);
 
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    for (ix = 0, key_part= key_def->key_part; ix < key_def->user_defined_key_parts; ix++, key_part++)
     {
       // As NdbColumnImpl::m_keyInfoPos isn't available through
       // NDB API we have to calculate it ourself, else we could:
@@ -1487,5 +1552,3 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // ndbcluster_build_key_map
-
-#endif // WITH_NDBCLUSTER_STORAGE_ENGINE

@@ -362,7 +362,8 @@ Ndb_cluster_connection_impl(const char * connect_string,
     m_first_ndb_object(0),
     m_latest_error_msg(),
     m_latest_error(0),
-    m_max_trans_id(0)
+    m_max_trans_id(0),
+    m_multi_wait_group(0)
 {
   DBUG_ENTER("Ndb_cluster_connection");
   DBUG_PRINT("enter",("Ndb_cluster_connection this=0x%lx", (long) this));
@@ -380,6 +381,11 @@ Ndb_cluster_connection_impl(const char * connect_string,
       of order.  Same applies for regular ndbapi user.
     */
     g_eventLogger->setRepeatFrequency(0);
+
+#ifdef VM_TRACE
+    ndb_print_state_mutex= NdbMutex_Create();
+#endif
+
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -392,10 +398,6 @@ Ndb_cluster_connection_impl(const char * connect_string,
   /* Clear global stats baseline */
   memset(globalApiStatsBaseline, 0, sizeof(globalApiStatsBaseline));
 
-#ifdef VM_TRACE
-  if (ndb_print_state_mutex == NULL)
-    ndb_print_state_mutex= NdbMutex_Create();
-#endif
   m_config_retriever=
     new ConfigRetriever(connect_string, force_api_nodeid,
                         NDB_VERSION, NDB_MGM_NODE_TYPE_API);
@@ -473,18 +475,17 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     delete m_config_retriever;
     m_config_retriever= NULL;
   }
-#ifdef VM_TRACE
-  if (ndb_print_state_mutex != NULL)
-  {
-    NdbMutex_Destroy(ndb_print_state_mutex);
-    ndb_print_state_mutex= NULL;
-  }
-#endif
 
   NdbMutex_Lock(g_ndb_connection_mutex);
   if(--g_ndb_connection_count == 0)
   {
     NdbColumnImpl::destory_pseudo_columns();
+
+#ifdef VM_TRACE
+    NdbMutex_Destroy(ndb_print_state_mutex);
+    ndb_print_state_mutex= NULL;
+#endif
+
   }
   NdbMutex_Unlock(g_ndb_connection_mutex);
 
@@ -496,6 +497,10 @@ Ndb_cluster_connection_impl::~Ndb_cluster_connection_impl()
     NdbMutex_Destroy(m_new_delete_ndb_mutex);
   m_new_delete_ndb_mutex = 0;
   
+  if(m_multi_wait_group)
+    delete m_multi_wait_group;
+  m_multi_wait_group = 0;
+
   DBUG_VOID_RETURN;
 }
 
@@ -720,23 +725,27 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_batch_size= batch_size;
     }
 
-    // Configure timeouts
-    Uint32 timeout = 120000;
-    for (iter.first(); iter.valid(); iter.next())
-    {
-      Uint32 tmp1 = 0, tmp2 = 0;
-      iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
-      iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
-      tmp1 += tmp2;
-      if (tmp1 > timeout)
-        timeout = tmp1;
-    }
-    m_config.m_waitfor_timeout = timeout;
-
     Uint32 queue = 0;
     if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
     {
       m_config.m_default_queue_option = queue;
+    }
+
+    // Configure timeouts
+    {
+      Uint32 timeout = 120000;
+      // Use new iterator to leave iter valid.
+      ndb_mgm_configuration_iterator iterall(config, CFG_SECTION_NODE);
+      for (; iterall.valid(); iterall.next())
+      {
+        Uint32 tmp1 = 0, tmp2 = 0;
+        iterall.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
+        iterall.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+        tmp1 += tmp2;
+        if (tmp1 > timeout)
+          timeout = tmp1;
+      }
+      m_config.m_waitfor_timeout = timeout;
     }
   }
   DBUG_RETURN(init_nodes_vector(nodeId, config));
@@ -816,22 +825,38 @@ int Ndb_cluster_connection_impl::connect(int no_retries,
       DBUG_PRINT("exit", ("no m_config_retriever, ret: -1"));
       DBUG_RETURN(-1);
     }
-    if (m_config_retriever->do_connect(no_retries,
-                                       retry_delay_in_seconds,
-                                       verbose))
+
+    // the allocNodeId function will connect if not connected
+    int alloc_error;
+    Uint32 nodeId = m_config_retriever->allocNodeId(no_retries,
+                                                   retry_delay_in_seconds,
+                                                   verbose, alloc_error);
+    if (!nodeId)
     {
-      char buf[1024];
-      m_latest_error = 1;
-      m_latest_error_msg.assfmt("Connect using '%s' timed out",
-                                get_connectstring(buf, sizeof(buf)));
-      DBUG_PRINT("exit", ("mgmt server not up yet, ret: 1"));
-      DBUG_RETURN(1); // mgmt server not up yet
+      // Failed to allocate nodeid from mgmt server, find out
+      // the cause and set proper error message
+
+      if (!m_config_retriever->is_connected())
+      {
+        // Could not connect to mgmt server
+        m_latest_error = alloc_error;
+        m_latest_error_msg.assfmt("%s", m_config_retriever->getErrorString());
+        DBUG_RETURN(1); // Recoverable error
+      }
+
+      if (alloc_error == NDB_MGM_ALLOCID_ERROR)
+      {
+        // A nodeid for this node was found in config, but it was not
+        // free right now. Retry later and it might be free.
+        m_latest_error = alloc_error;
+        m_latest_error_msg.assfmt("%s", m_config_retriever->getErrorString());
+        DBUG_RETURN(1); // Recoverable error
+      }
+
+      // Fatal error, use default error
+      break;
     }
 
-    Uint32 nodeId = m_config_retriever->allocNodeId(4/*retries*/,
-                                                    3/*delay*/);
-    if(nodeId == 0)
-      break;
     ndb_mgm_configuration * props = m_config_retriever->getConfig(nodeId);
     if(props == 0)
       break;
@@ -980,5 +1005,46 @@ Ndb_cluster_connection::collect_client_stats(Uint64* statsArr, Uint32 sz)
   return relevant;
 }
 
-template class Vector<Ndb_cluster_connection_impl::Node>;
+void
+Ndb_cluster_connection::set_max_adaptive_send_time(Uint32 milliseconds)
+{
+  m_impl.m_transporter_facade->setSendThreadInterval(milliseconds);
+}
 
+Uint32
+Ndb_cluster_connection::get_max_adaptive_send_time()
+{
+  return m_impl.m_transporter_facade->getSendThreadInterval();
+}
+
+NdbWaitGroup *
+Ndb_cluster_connection::create_ndb_wait_group(int size)
+{
+  if(m_impl.m_multi_wait_group == NULL)
+  {
+    m_impl.m_multi_wait_group = new NdbWaitGroup(this, size);
+    return m_impl.m_multi_wait_group;
+  }
+  else
+  {
+    return NULL;  // NdbWaitGroup already exists
+  }
+}
+
+bool
+Ndb_cluster_connection::release_ndb_wait_group(NdbWaitGroup *group)
+{
+  if(m_impl.m_multi_wait_group && m_impl.m_multi_wait_group == group)
+  {
+    delete m_impl.m_multi_wait_group;
+    m_impl.m_multi_wait_group = 0;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
+
+template class Vector<Ndb_cluster_connection_impl::Node>;

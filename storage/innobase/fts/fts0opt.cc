@@ -39,20 +39,26 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0vlc.ic"
 #endif
 
-/* The FTS optimize thread's work queue. */
+/** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
 
-/* The number of document ids to delete in one statement. */
+/** The number of document ids to delete in one statement. */
 static const ulint FTS_MAX_DELETE_DOC_IDS = 1000;
 
-/* Time to wait for a message. */
+/** Time to wait for a message. */
 static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
 
-/* Default optimize interval in secs. */
+/** Default optimize interval in secs. */
 static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 
+/** Server is shutting down, so does we exiting the optimize thread */
+static bool fts_opt_start_shutdown = false;
+
+/** Last time we did check whether system need a sync */
+static ib_time_t	last_check_sync_time;
+
 #if 0
-/* Check each table in round robin to see whether they'd
+/** Check each table in round robin to see whether they'd
 need to be "optimized" */
 static	ulint	fts_optimize_sync_iterator = 0;
 #endif
@@ -2593,10 +2599,18 @@ fts_optimize_remove_table(
 		return;
 	}
 
+	/* FTS optimizer thread is already exited */
+	if (fts_opt_start_shutdown) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Try to remove table %s after FTS optimize"
+			" thread exiting.", table->name);
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
 
 	/* We will wait on this event until signalled by the consumer. */
-	event = os_event_create(table->name);
+	event = os_event_create();
 
 	remove = static_cast<fts_msg_del_t*>(
 		mem_heap_alloc(msg->heap, sizeof(*remove)));
@@ -2802,6 +2816,43 @@ fts_optimize_how_many(
 	return(n_tables);
 }
 
+/**********************************************************************//**
+Check if the total memory used by all FTS table exceeds the maximum limit.
+@return true if a sync is needed, false otherwise */
+static
+bool
+fts_is_sync_needed(
+/*===============*/
+	const ib_vector_t*	tables)		/*!< in: registered tables
+						vector*/
+{
+	ulint	total_memory = 0;
+	double	time_diff = difftime(ut_time(), last_check_sync_time);
+
+	if (fts_need_sync || time_diff < 5) {
+		return(false);
+	}
+
+	last_check_sync_time = ut_time();
+
+	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
+		const fts_slot_t*	slot;
+
+		slot = static_cast<const fts_slot_t*>(
+			ib_vector_get_const(tables, i));
+
+		if (slot->table && slot->table->fts) {
+			total_memory += slot->table->fts->cache->total_size;
+		}
+
+		if (total_memory > fts_max_total_cache_size) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 #if 0
 /*********************************************************************//**
 Check whether a table needs to be optimized. */
@@ -2922,6 +2973,10 @@ fts_optimize_thread(
 
 			/* Timeout ? */
 			if (msg == NULL) {
+				if (fts_is_sync_needed(tables)) {
+					fts_need_sync = true;
+				}
+
 				continue;
 			}
 
@@ -3021,8 +3076,6 @@ fts_optimize_thread(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
-	ib_wqueue_free(wq);
-
 	os_event_set(exit_event);
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -3046,6 +3099,7 @@ fts_optimize_init(void)
 
 	fts_optimize_wq = ib_wqueue_create();
 	ut_a(fts_optimize_wq != NULL);
+	last_check_sync_time = ut_time();
 
 	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
 }
@@ -3073,10 +3127,20 @@ fts_optimize_start_shutdown(void)
 	fts_msg_t*	msg;
 	os_event_t	event;
 
+	/* If there is an ongoing activity on dictionary, such as
+	srv_master_evict_from_table_cache(), wait for it */
+	dict_mutex_enter_for_mysql();
+
+	/* Tells FTS optimizer system that we are exiting from
+	optimizer thread, message send their after will not be
+	processed */
+	fts_opt_start_shutdown = true;
+	dict_mutex_exit_for_mysql();
+
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs
 	deregister the FTS tables. */
-	event = os_event_create(NULL);
+	event = os_event_create();
 
 	msg = fts_optimize_create_msg(FTS_MSG_STOP, NULL);
 	msg->ptr = event;
@@ -3085,6 +3149,9 @@ fts_optimize_start_shutdown(void)
 
 	os_event_wait(event);
 	os_event_free(event);
+
+	ib_wqueue_free(fts_optimize_wq);
+
 }
 
 /**********************************************************************//**

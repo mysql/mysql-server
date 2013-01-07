@@ -2,12 +2,29 @@
 # Some negative tests of the ndb_replication table
 #
 #
---source include/have_ndb.inc
+--source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
+# Need suppressions on all servers where warnings/errors can be seen.
+--disable_query_log
+--connection server1
+call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
+call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
+call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
+call mtr.add_suppression("NDB Slave: .* missing function argument .*");
+call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+--connection server2
+call mtr.add_suppression("NDB: .*Bad schema for mysql.ndb_replication table.*");
+call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
+call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
+call mtr.add_suppression("NDB Slave: .* missing function argument .*");
+call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
+--connection default
+--enable_query_log
+
 #
-# wrong schema for the table
+--echo Wrong schema for the table, too few pks
 #
 --disable_warnings
 --disable_query_log
@@ -28,9 +45,116 @@ CREATE TABLE mysql.ndb_replication
 create table t1 (a int key, X int) engine ndb;
 drop table t1;
 
+
 #
-# correct schema for the table
-# but other errors
+--echo Wrong schema for the table, incorrect pk
+#
+--disable_warnings
+--disable_query_log
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,binlog_type))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+# gives warning when trying to create table as logging
+# may not be as intended
+create table t1 (a int key, X int) engine ndb;
+drop table t1;
+
+#
+--echo Wrong schema for the table, binlog_type is signed
+#
+
+--disable_warnings
+--disable_query_log
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+# gives warning when trying to create table as logging
+# may not be as intended
+create table t1 (a int key, X int) engine ndb;
+drop table t1;
+
+#
+--echo Wrong schema for the table, conflict_fn is too long
+#
+--disable_warnings
+--disable_query_log
+drop table mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(257),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+# gives warning when trying to create table as logging
+# may not be as intended
+create table t1 (a int key, X int) engine ndb;
+drop table t1;
+
+#
+--echo Correct schema for the table but no conflict fn
+#
+--disable_warnings
+--disable_query_log
+drop table mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+insert into mysql.ndb_replication values ("test", "t1", 0, 7);
+create table test.t1 (a int primary key) engine=ndb;
+show warnings;
+drop table test.t1;
+
+--let server_num=1.1
+--let $pattern=%NDB Binlog: logging%
+--let $limit=1
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+delete from mysql.ndb_replication;
+
+--echo Check that NULL uses server defaults
+show variables like 'ndb_log_update_as_write';
+show variables like 'ndb_log_updated_only';
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL);
+
+create table test.t1 (a int primary key) engine=ndb;
+show warnings;
+drop table test.t1;
+
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+
+#
+--echo Correct schema for the table but other errors
 #
 --disable_warnings
 --disable_query_log
@@ -48,14 +172,18 @@ CREATE TABLE mysql.ndb_replication
 
 # Non existant conflict_fn
 # gives error when creating table
+#call mtr.add_suppression("NDB Slave: .* unknown conflict resolution function .*");
+
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
---error 1005
+--error 1296 
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
 
 # Column type cannot be used for this function
 # gives warning when creating table
+#call mtr.add_suppression("NDB Slave: .* has wrong datatype.*");
+
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, X int) engine ndb;
 drop table t1;
@@ -63,19 +191,262 @@ delete from mysql.ndb_replication;
 
 # Too few arguments
 # gives error when creating table
+#call mtr.add_suppression("NDB Slave: .* missing function argument .*");
+
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
---error 1005
+--error 1296 
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
 
 # Too many arguments
 # gives error when creating table
+#call mtr.add_suppression("NDB Slave: .* missing \')\' .*");
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
---error 1005
+--error 1296
 create table t1 (a int key, X int) engine ndb;
 show warnings;
 delete from mysql.ndb_replication;
+
+show variables like 'server_id';
+
+create database europenorth;
+create database europesouth;
+create database usnorth;
+create database ussouth;
+
+--echo Basic wildcard tests
+--echo Note that we put in bad conflict fn names so that the warnings generated
+--echo when the table create fails give an indication of which ndb_replication
+--echo table row was chosen.
+--echo
+--echo Wild serverid
+insert into mysql.ndb_replication values ("europenorth", "france", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("europenorth", "france", 0, NULL, "NDB$B()");
+
+--echo Should match specific entry (1) with algorithm A.
+--error 1296
+create table europenorth.france (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where server_id=1;
+
+--echo Should match generic entry (0) with algorthin B.
+--error 1296
+create table europenorth.france (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication;
+
+--echo Wild table_name
+insert into mysql.ndb_replication values ("europenorth", "fr_nce", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("europenorth", "%any", 1, NULL, "NDB$B()");
+
+--echo Should match specific entry (fr_nce) with algorithm A.
+--error 1296
+create table europenorth.france (a int primary key) engine=ndb;
+show warnings;
+
+--echo Should match specific entry (%any) with algorithm B.
+--error 1296
+create table europenorth.germany (a int primary key) engine=ndb;
+show warnings;
+
+--echo Should match specific entry (%any) with algorithm B.
+--error 1296
+create table europenorth.romany (a int primary key) engine=ndb;
+show warnings;
+
+--echo No match, should be fine
+create table europenorth.uk (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.uk;
+
+delete from mysql.ndb_replication;
+
+--echo Wild db
+insert into mysql.ndb_replication values ("%north", "countries", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("%south", "countries", 1, NULL, "NDB$B()");
+
+--echo Should match north with A
+--error 1296
+create table europenorth.countries (a int primary key) engine=ndb;
+show warnings;
+
+--echo Should match north with A
+--error 1296
+create table usnorth.countries (a int primary key) engine=ndb;
+show warnings;
+
+--echo Should match south with B
+--error 1296
+create table europesouth.countries (a int primary key) engine=ndb;
+show warnings;
+
+--echo Should match south with B
+--error 1296 
+create table ussouth.countries (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication;
+
+--echo Now test wildcard matching precedence
+--echo Wildcards match in the following precedence (highest->lowest)
+--echo   Exact match
+--echo   Wild serverid
+--echo   Wild table_name
+--echo   Wild serverid + wild table_name
+--echo   Wild db
+--echo   Wild db + wild serverid
+--echo   Wild db + wild table_name
+--echo   All wild
+--echo
+--echo The 'wild serverid' is 0
+--echo
+--echo Multiple matches at the same precedence are ambiguous and result
+--echo in an error.
+--echo
+
+--echo Start with full set of potential matches, and chip away
+# Put in duplicate matches at every precedence
+# Delete rows to get one then no matches at each precedence.
+
+# Unique
+insert into mysql.ndb_replication values ("europenorth", "netherlands", 1, NULL, "NDB$A()");
+
+# Wild serverid
+insert into mysql.ndb_replication values ("europenorth", "netherlands", 0, NULL, "NDB$B()");
+
+# Wild table_name (two)
+insert into mysql.ndb_replication values ("europenorth", "%lands", 1, NULL, "NDB$C()");
+insert into mysql.ndb_replication values ("europenorth", "nether%s", 1, NULL, "NDB$D()");
+
+# Wild server_id and table_name
+insert into mysql.ndb_replication values ("europenorth", "%lands", 0, NULL, "NDB$E()");
+insert into mysql.ndb_replication values ("europenorth", "nether%s", 0, NULL, "NDB$F()");
+
+# Wild db
+insert into mysql.ndb_replication values ("Europe%", "netherlands", 1, NULL, "NDB$G()");
+insert into mysql.ndb_replication values ("%North", "netherlands", 1, NULL, "NDB$H()");
+
+# Wild db + Wild server_id
+
+insert into mysql.ndb_replication values ("Europe%", "netherlands", 0, NULL, "NDB$I()");
+insert into mysql.ndb_replication values ("%North", "netherlands", 0, NULL, "NDB$J()");
+
+# Wild db + Wild table_name
+
+insert into mysql.ndb_replication values ("Europe%", "%lands", 1, NULL, "NDB$K()");
+insert into mysql.ndb_replication values ("%North", "nether%s", 1, NULL, "NDB$L()");
+
+# All wild
+
+insert into mysql.ndb_replication values ("Europe%", "%lands", 0, NULL, "NDB$M()");
+insert into mysql.ndb_replication values ("%North", "nether%s", 0, NULL, "NDB$N()");
+
+
+--echo Unique match (A)
+--error 1296
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="netherlands" and server_id=1;
+
+--echo Unique match with wild serverid (B)
+--error 1296
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="netherlands" and server_id=0;
+
+--echo Ambiguous wild table name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="%lands" and server_id=1;
+
+--echo Wild table name (D)
+--error 1296
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="nether%s" and server_id=1;
+
+--echo Ambiguous wild server id and table name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="nether%s" and server_id=0;
+
+--echo Wild server id and table name (E)
+--error 1296
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="europenorth" and table_name="%lands" and server_id=0;
+
+--echo Amiguous wild db
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=1;
+
+--echo Wild db (H)
+--error 1296 
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="%North" and table_name="netherlands" and server_id=1;
+
+--echo Ambiguous wild db + server_id
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=0;
+
+--echo Wild db + server id (J)
+--error 1296 
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="%North" and table_name="netherlands" and server_id=0;
+
+--echo Ambiguous wild db + table_name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=1;
+
+--echo Wild db + table_name (L)
+--error 1296 
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication where db="%North" and table_name="nether%s" and server_id=1;
+
+--echo Ambiguous all wild
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+drop table europenorth.netherlands;
+
+delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=0;
+
+--echo All wild (N)
+--error 1296
+create table europenorth.netherlands (a int primary key) engine=ndb;
+show warnings;
+
+delete from mysql.ndb_replication;
+
+drop database europenorth;
+drop database europesouth;
+drop database usnorth;
+drop database ussouth;
 
 --disable_query_log
 --sync_slave_with_master

@@ -404,3 +404,55 @@ alter table t1 auto_increment=32000000;
 show create table t1;
 
 drop table t1;
+
+#
+# Bug #46985 Got error 4350 'Transaction already aborted' from NDBCLUSTER
+#
+# This bug was a configuration issue, but the testcase revealed another
+# bug whereauto_increment was not handled correctly for INSERT IGNORE
+
+CREATE TABLE t1 (
+  id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+  data binary(16) NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_t1_data (data)
+) ENGINE = NDB;
+
+INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+
+SELECT id FROM t1;
+
+DELETE from t1;
+
+INSERT IGNORE INTO t1 (data) VALUES (6),(6),(6),(6),(6),(6),(6);
+
+SELECT id from t1;
+
+DROP TABLE t1;
+
+#
+# Bug #13731134	AUTO-INC COUNTER IS NOT UPDATED WITH EXPLICIT @@INSERT_ID SET
+#
+
+create table t1 (a serial) engine ndb;
+
+set @@insert_id=1;
+insert into t1 values(null);
+
+connection server2;
+
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+set @@insert_id=17;
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+select * from t1 order by a;
+
+set @@insert_id=1;
+--error ER_DUP_ENTRY
+insert into t1 values(null);
+
+connection server1;
+drop table t1;

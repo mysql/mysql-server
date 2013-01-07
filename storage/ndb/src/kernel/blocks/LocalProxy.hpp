@@ -56,12 +56,8 @@ public:
   BLOCK_DEFINES(LocalProxy);
 
 protected:
-  enum { MaxLqhWorkers = MAX_NDBMT_LQH_WORKERS };
-  enum { MaxExtraWorkers = 1 };
-  enum { MaxWorkers = MaxLqhWorkers + MaxExtraWorkers };
+  enum { MaxWorkers = SimulatedBlock::MaxInstances };
   typedef Bitmask<(MaxWorkers+31)/32> WorkerMask;
-  Uint32 c_lqhWorkers;
-  Uint32 c_extraWorkers;
   Uint32 c_workers;
   // no gaps - extra worker has index c_lqhWorkers (not MaxLqhWorkers)
   SimulatedBlock* c_worker[MaxWorkers];
@@ -77,43 +73,22 @@ protected:
     return c_worker[i];
   }
 
-  SimulatedBlock* extraWorkerBlock() {
-    return workerBlock(c_lqhWorkers);
-  }
-
   // get worker block reference by index (not by instance)
 
   BlockReference workerRef(Uint32 i) {
     return numberToRef(number(), workerInstance(i), getOwnNodeId());
   }
 
-  BlockReference extraWorkerRef() {
-    ndbrequire(c_workers == c_lqhWorkers + 1);
-    Uint32 i = c_lqhWorkers;
-    return workerRef(i);
-  }
-
   // convert between worker index and worker instance
 
   Uint32 workerInstance(Uint32 i) const {
     ndbrequire(i < c_workers);
-    Uint32 ino;
-    if (i < c_lqhWorkers)
-      ino = 1 + i;
-    else
-      ino = 1 + MaxLqhWorkers;
-    return ino;
+    return i + 1;
   }
 
   Uint32 workerIndex(Uint32 ino) const {
     ndbrequire(ino != 0);
-    Uint32 i;
-    if (ino != 1 + MaxLqhWorkers)
-      i = ino - 1;
-    else
-      i = c_lqhWorkers;
-    ndbrequire(i < c_workers);
-    return i;
+    return ino - 1;
   }
 
   // support routines and classes ("Ss" = signal state)
@@ -160,14 +135,10 @@ protected:
   // run workers in parallel
   struct SsParallel : SsCommon {
     WorkerMask m_workerMask;
-    bool m_extraLast;   // run extra after LQH workers
-    Uint32 m_extraSent;
     SsParallel() {
-      m_extraLast = false;
-      m_extraSent = 0;
     }
   };
-  void sendREQ(Signal*, SsParallel& ss);
+  void sendREQ(Signal*, SsParallel& ss, bool skipLast = false);
   void recvCONF(Signal*, SsParallel& ss);
   void recvREF(Signal*, SsParallel& ss, Uint32 error);
   // for use in sendREQ
@@ -221,11 +192,17 @@ protected:
 
   template <class Ss>
   Ss& ssSeize() {
-    const Uint32 base = SsIdBase;
-    const Uint32 mask = ~base;
-    const Uint32 ssId = base | c_ssIdSeq;
-    c_ssIdSeq = (c_ssIdSeq + 1) & mask;
-    return ssSeize<Ss>(ssId);
+    SsPool<Ss>& sp = Ss::pool(this);
+    Ss* ssptr = ssSearch<Ss>(0);
+    ndbrequire(ssptr != 0);
+    // Use position in array as ssId
+    UintPtr pos = ssptr - sp.m_pool;
+    Uint32 ssId = Uint32(pos) + 1;
+    new (ssptr) Ss;
+    ssptr->m_ssId = ssId;
+    sp.m_usage++;
+    D("ssSeize()" << V(sp.m_usage) << hex << V(ssId) << " " << Ss::name());
+    return *ssptr;
   }
 
   template <class Ss>
@@ -589,6 +566,24 @@ protected:
   SsPool<Ss_SYNC_REQ> c_ss_SYNC_REQ;
 
   void execSYNC_PATH_REQ(Signal*);
+
+  // GSN_API_FAILREQ
+  struct Ss_API_FAILREQ : SsParallel {
+    Uint32 m_ref; //
+    Ss_API_FAILREQ() {
+      m_sendREQ = (SsFUNCREQ)&LocalProxy::sendAPI_FAILREQ;
+      m_sendCONF = (SsFUNCREP)&LocalProxy::sendAPI_FAILCONF;
+    }
+    enum { poolSize = MAX_NODES };
+    static SsPool<Ss_API_FAILREQ>& pool(LocalProxy* proxy) {
+      return proxy->c_ss_API_FAILREQ;
+    }
+  };
+  SsPool<Ss_API_FAILREQ> c_ss_API_FAILREQ;
+  void execAPI_FAILREQ(Signal*);
+  void sendAPI_FAILREQ(Signal*, Uint32 ssId, SectionHandle*);
+  void execAPI_FAILCONF(Signal*);
+  void sendAPI_FAILCONF(Signal*, Uint32 ssId);
 };
 
 #endif

@@ -1111,10 +1111,23 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "100000" },
 
   {
+    CFG_DB_NO_REDOLOG_PARTS,
+    "NoOfFragmentLogParts",
+    DB_TOKEN,
+    "Number of file groups of redo log files belonging to "DB_TOKEN_PRINT" node",
+    ConfigInfo::CI_USED,
+    CI_RESTART_INITIAL,
+    ConfigInfo::CI_INT,
+    STR_VALUE(NDB_DEFAULT_LOG_PARTS),
+    "4",
+    STR_VALUE(NDB_MAX_LOG_PARTS)
+  },
+
+  {
     CFG_DB_NO_REDOLOG_FILES,
     "NoOfFragmentLogFiles",
     DB_TOKEN,
-    "No of 16 Mbyte Redo log files in each of 4 file sets belonging to "DB_TOKEN_PRINT" node",
+    "No of Redo log files in each of the file group belonging to "DB_TOKEN_PRINT" node",
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_INT,
@@ -1142,7 +1155,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    0,
+    "sparse",
     0, 0 },
 
   {
@@ -1675,6 +1688,19 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"},
 
   {
+    CFG_EXTRA_SEND_BUFFER_MEMORY,
+    "ExtraSendBufferMemory",
+    DB_TOKEN,
+    "Extra send buffer memory to use for send buffers in all transporters",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT64,
+    "0",
+    "0",
+    "32G"
+  },
+
+  {
     CFG_TOTAL_SEND_BUFFER_MEMORY,
     "TotalSendBufferMemory",
     DB_TOKEN,
@@ -1694,7 +1720,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "Amount of bytes (out of TotalSendBufferMemory) to reserve for connection\n"
     "between data nodes. This memory will not be available for connections to\n"
     "management server or API nodes.",
-    ConfigInfo::CI_USED,
+    ConfigInfo::CI_DEPRECATED,
     false,
     ConfigInfo::CI_INT,
     "0",
@@ -1725,7 +1751,16 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_INT,
     "0",
     "2",
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     "8"
+#else
+    /**
+     * NOTE: The actual maximum number of threads is 50...
+     *   but that config is so weird so it's only possible to get
+     *   by using ThreadConfig
+     */
+    "36"
+#endif
   },
 
   {
@@ -1922,7 +1957,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "4096",                  /* Default */
+    "8192",                  /* Default */
     "0",                     /* Min */
     "64k"                    /* Max : There is no flow control...so set limit*/
   },
@@ -2120,6 +2155,36 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "60",
     "0",
     STR_VALUE(MAX_INT_RNIL)
+  },
+
+  {
+    CFG_DB_CRASH_ON_CORRUPTED_TUPLE,
+    "CrashOnCorruptedTuple",
+    DB_TOKEN,
+    "To be failfast or not, when checksum indicates corruption.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_BOOL,
+#if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,1)
+    "false",
+#else
+    "true",
+#endif
+    "false",
+    "true"},
+
+
+  {
+    CFG_DB_FREE_PCT,
+    "MinFreePct",
+    DB_TOKEN,
+    "Keep 5% of database free to ensure that we don't get out of memory during restart",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "5",
+    "0",
+    "100"
   },
 
   /***************************************************************************
@@ -3779,7 +3844,6 @@ public:
         else
           fprintf(m_out, "UNKNOWN\n");
       }
-      fprintf(m_out, "\n");
       break;
 
     case ConfigInfo::CI_INT:
@@ -3795,7 +3859,6 @@ public:
         fprintf(m_out, "(");
       fprintf(m_out, "Min: %llu, ", info.getMin(section, param_name));
       fprintf(m_out, "Max: %llu)\n", info.getMax(section, param_name));
-      fprintf(m_out, "\n");
       break;
 
     case ConfigInfo::CI_BITMASK:
@@ -3808,11 +3871,45 @@ public:
       else if (info.hasDefault(section, param_name))
         fprintf(m_out, "Default: %s\n",
               info.getDefaultString(section, param_name));
-      fprintf(m_out, "\n");
       break;
     case ConfigInfo::CI_SECTION:
-      break;
+      return;
     }
+
+    Uint32 flags = info.getFlags(section, param_name);
+    bool comma = false;
+    bool new_line_needed = false;
+    if (flags & ConfigInfo::CI_CHECK_WRITABLE)
+    {
+      comma= true;
+      new_line_needed = true;
+      fprintf(m_out, "writable");
+    }
+    if (flags & ConfigInfo::CI_RESTART_SYSTEM)
+    {
+      if (comma)
+        fprintf(m_out, ", system");
+      else
+      {
+        comma = true;
+        fprintf(m_out, "system");
+      }
+      new_line_needed = true;
+    }
+    if (flags & ConfigInfo::CI_RESTART_INITIAL)
+    {
+      if (comma)
+        fprintf(m_out, ", initial");
+      else
+      {
+        comma = true;
+        fprintf(m_out, "initial");
+      }
+      new_line_needed = true;
+    }
+    if (new_line_needed)
+      fprintf(m_out, "\n");
+    fprintf(m_out, "\n");
   }
 };
 
@@ -3890,7 +3987,8 @@ public:
     pairs.put("name", param_name);
     pairs.put("comment", info.getDescription(section, param_name));
 
-    switch (info.getType(section, param_name)) {
+    const ConfigInfo::Type param_type = info.getType(section, param_name);
+    switch (param_type) {
     case ConfigInfo::CI_BOOL:
       pairs.put("type", "bool");
 
@@ -3931,6 +4029,13 @@ public:
         pairs.put("mandatory", "true");
       else if (info.hasDefault(section, param_name))
         pairs.put("default", info.getDefaultString(section, param_name));
+
+      if (param_type == ConfigInfo::CI_ENUM)
+      {
+        // Concatenate the allowed enum values to a space separated string
+        info.get_enum_values(section, param_name, buf);
+        require(pairs.put("allowed_values", buf.c_str()));
+      }
       break;
 
     case ConfigInfo::CI_SECTION:
@@ -4775,6 +4880,25 @@ checkThreadPrioSpec(InitConfigFileParser::Context & ctx, const char * unused)
 
 #include "../kernel/vm/mt_thr_config.hpp"
 
+static bool
+check_2n_number_less_16(Uint32 num)
+{
+  switch (num)
+  {
+    case 0:
+    case 1:
+    case 2:
+    case 4:
+    case 8:
+    case 12:
+    case 16:
+      return true;
+    default:
+      return false;
+  }
+  return false;
+}
+
 static
 bool
 checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
@@ -4783,6 +4907,7 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   Uint32 maxExecuteThreads = 0;
   Uint32 lqhThreads = 0;
   Uint32 classic = 0;
+  Uint32 ndbLogParts = 0;
   const char * thrconfig = 0;
   const char * locktocpu = 0;
 
@@ -4795,7 +4920,19 @@ checkThreadConfig(InitConfigFileParser::Context & ctx, const char * unused)
   ctx.m_currentSection->get("MaxNoOfExecutionThreads", &maxExecuteThreads);
   ctx.m_currentSection->get("__ndbmt_lqh_threads", &lqhThreads);
   ctx.m_currentSection->get("__ndbmt_classic", &classic);
+  ctx.m_currentSection->get("NoOfFragmentLogParts", &ndbLogParts);
 
+  if (!check_2n_number_less_16(lqhThreads))
+  {
+    ctx.reportError("NumLqhThreads must be 0, 1,2,4,8,12 or 16");
+    return false;
+  }
+  if (!check_2n_number_less_16(ndbLogParts) ||
+      ndbLogParts < 4)
+  {
+    ctx.reportError("NoOfLogParts must be 4,8,12 or 16");
+    return false;
+  }
   if (ctx.m_currentSection->get("ThreadConfig", &thrconfig))
   {
     int ret = tmp.do_parse(thrconfig);

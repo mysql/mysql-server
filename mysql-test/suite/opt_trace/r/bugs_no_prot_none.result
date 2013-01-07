@@ -1784,10 +1784,12 @@ SELECT 1 FROM t1 WHERE 1 LIKE
                                 },
                                 {
                                   "reconsidering_access_paths_for_index_ordering": {
+                                    "clause": "ORDER BY",
                                     "index_order_summary": {
                                       "table": "`t1`",
-                                      "index": "a_2",
+                                      "index_provides_order": true,
                                       "order_direction": "asc",
+                                      "index": "a_2",
                                       "plan_changed": true,
                                       "access_type": "ref"
                                     } /* index_order_summary */

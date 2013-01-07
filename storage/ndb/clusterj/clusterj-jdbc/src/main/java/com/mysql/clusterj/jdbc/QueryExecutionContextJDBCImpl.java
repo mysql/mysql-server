@@ -20,17 +20,16 @@ package com.mysql.clusterj.jdbc;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
-import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
 
-import com.mysql.clusterj.ClusterJUserException;
+import com.mysql.clusterj.ClusterJFatalInternalException;
 import com.mysql.clusterj.core.query.QueryExecutionContextImpl;
 import com.mysql.clusterj.core.spi.SessionSPI;
+import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
-import com.mysql.jdbc.ParameterBindings;
 
 /** This class handles retrieving parameter values from the parameterBindings
  * associated with a PreparedStatement.
@@ -44,10 +43,7 @@ public class QueryExecutionContextJDBCImpl extends QueryExecutionContextImpl {
     static final Logger logger = LoggerFactoryService.getFactory().getInstance(QueryExecutionContextJDBCImpl.class);
 
     /** The wrapped ParameterBindings */
-    ParameterBindings parameterBindings;
-
-    /** The current offset */
-    int offset = 0;
+    ValueHandler parameterBindings;
 
     /** The number of parameters */
     int numberOfParameters;
@@ -58,176 +54,108 @@ public class QueryExecutionContextJDBCImpl extends QueryExecutionContextImpl {
      * @param numberOfParameters the number of parameters per statement
      */
     public QueryExecutionContextJDBCImpl(SessionSPI session,
-            ParameterBindings parameterBindings, int numberOfParameters) {
+            ValueHandler parameterBindings, int numberOfParameters) {
         super(session);
         this.parameterBindings = parameterBindings;
         this.numberOfParameters = numberOfParameters;
     }
 
-    /** Advance to the next statement (and next number of affected rows).
-     */
-    public void nextStatement() {
-        offset += numberOfParameters;
-    }
-
     public Byte getByte(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Byte result = parameterBindings.getByte(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Byte result = parameterBindings.getByte(parameterIndex);
+        return result;
     }
 
     public BigDecimal getBigDecimal(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            BigDecimal result = parameterBindings.getBigDecimal(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        BigDecimal result = parameterBindings.getBigDecimal(parameterIndex);
+        return result;
     }
 
     public BigInteger getBigInteger(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            BigInteger result = parameterBindings.getBigDecimal(parameterIndex).toBigInteger();
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        BigInteger result = parameterBindings.getBigDecimal(parameterIndex).toBigInteger();
+        return result;
     }
 
     public Boolean getBoolean(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Boolean result = parameterBindings.getBoolean(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Boolean result = parameterBindings.getBoolean(parameterIndex);
+        return result;
     }
 
     public byte[] getBytes(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            byte[] result = parameterBindings.getBytes(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        byte[] result = parameterBindings.getBytes(parameterIndex);
+        return result;
     }
 
     public Double getDouble(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Double result = parameterBindings.getDouble(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Double result = parameterBindings.getDouble(parameterIndex);
+        return result;
     }
 
     public Float getFloat(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Float result = parameterBindings.getFloat(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Float result = parameterBindings.getFloat(parameterIndex);
+        return result;
     }
 
     public Integer getInt(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Integer result = parameterBindings.getInt(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Integer result = parameterBindings.getInt(parameterIndex);
+        return result;
     }
 
     public Date getJavaSqlDate(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            java.sql.Date result = parameterBindings.getDate(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        java.sql.Date result = parameterBindings.getJavaSqlDate(parameterIndex);
+        return result;
     }
 
     public Time getJavaSqlTime(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Time result = parameterBindings.getTime(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Time result = parameterBindings.getJavaSqlTime(parameterIndex);
+        return result;
     }
 
     public Timestamp getJavaSqlTimestamp(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            java.sql.Timestamp result = parameterBindings.getTimestamp(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        java.sql.Timestamp result = parameterBindings.getJavaSqlTimestamp(parameterIndex);
+        return result;
     }
 
     public java.util.Date getJavaUtilDate(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            java.util.Date result = parameterBindings.getDate(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        java.util.Date result = parameterBindings.getJavaUtilDate(parameterIndex);
+        return result;
     }
 
     public Long getLong(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Long result = parameterBindings.getLong(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Long result = parameterBindings.getLong(parameterIndex);
+        return result;
     }
 
     public Short getShort(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Short result = parameterBindings.getShort(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        Short result = parameterBindings.getShort(parameterIndex);
+        return result;
     }
 
     public String getString(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            String result = parameterBindings.getString(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        int parameterIndex = Integer.valueOf(index);
+        String result = parameterBindings.getString(parameterIndex);
+        return result;
     }
 
     public Object getObject(String index) {
-        try {
-            int parameterIndex = Integer.valueOf(index) + offset;
-            Object result = parameterBindings.getObject(parameterIndex);
-            return result;
-        } catch (SQLException ex) {
-                throw new ClusterJUserException(local.message("ERR_Getting_Parameter_Value", offset, index), ex);
-        }
+        throw new ClusterJFatalInternalException(local.message("ERR_Should_Not_Occur"));
+    }
+
+    public Object getValueHandler() {
+        return parameterBindings;
     }
 
 }

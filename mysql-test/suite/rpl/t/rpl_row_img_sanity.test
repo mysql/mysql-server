@@ -145,21 +145,6 @@ while (`SELECT HEX(@img_types) != HEX('')`)
     -- let $row_img_expected_slave= $row_img_expected_master
     -- source include/rpl_row_img_parts_master_slave.inc
 
-    # we need to test insert delayed to check if the thread handling
-    # the delayed inserts also marks the correct write set (it has its
-    # own sort of table object).
-    -- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
-    if (`SELECT @@binlog_row_image = "FULL" or @@binlog_row_image = "NOBLOB"`)
-    {
-      -- let $row_img_expected_master= | 1:100 2:NULL 3:'a'
-    }
-    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
-    { 
-      -- let $row_img_expected_master= | 1:100 3:'a'
-    }
-    -- let $row_img_expected_slave= $row_img_expected_master
-    -- source include/rpl_row_img_parts_master_slave.inc
-
     -- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
     if (`SELECT @@binlog_row_image = "FULL"`)
     {
@@ -172,22 +157,6 @@ while (`SELECT HEX(@img_types) != HEX('')`)
     if  (`SELECT @@binlog_row_image = "MINIMAL"`)
     { 
       -- let $row_img_expected_master= | 1:1000
-    }
-    -- let $row_img_expected_slave= $row_img_expected_master
-    -- source include/rpl_row_img_parts_master_slave.inc
-
-    -- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
-    if (`SELECT @@binlog_row_image = "FULL"`)
-    {
-      -- let $row_img_expected_master= | 1:10000 2:NULL 3:NULL
-    } 
-    if  (`SELECT @@binlog_row_image = "NOBLOB"`)
-    { 
-      -- let $row_img_expected_master= | 1:10000 2:NULL
-    }
-    if  (`SELECT @@binlog_row_image = "MINIMAL"`)
-    { 
-      -- let $row_img_expected_master= | 1:10000
     }
     -- let $row_img_expected_slave= $row_img_expected_master
     -- source include/rpl_row_img_parts_master_slave.inc
@@ -512,19 +481,9 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c3(512)));
 -- let $row_img_expected_slave = | 1:10 2:NULL 3:'a'
 -- source include/rpl_row_img_parts_master_slave.inc
 
--- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
--- let $row_img_expected_master= | 1:100 2:NULL 3:'a'
--- let $row_img_expected_slave = | 1:100 2:NULL 3:'a'
--- source include/rpl_row_img_parts_master_slave.inc
-
 -- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
 -- let $row_img_expected_master= | 1:1000 2:NULL
 -- let $row_img_expected_slave = | 1:1000 2:NULL
--- source include/rpl_row_img_parts_master_slave.inc
-
--- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
--- let $row_img_expected_master= | 1:10000 2:NULL
--- let $row_img_expected_slave = | 1:10000 2:NULL
 -- source include/rpl_row_img_parts_master_slave.inc
 
 -- let $row_img_query= UPDATE t SET c1=2 WHERE c1=1
@@ -560,19 +519,9 @@ CREATE TABLE t (c1 int, c2 int, c3 blob, primary key(c1,c2));
 -- let $row_img_expected_slave = | 1:10 2:0 3:'a'
 -- source include/rpl_row_img_parts_master_slave.inc
 
--- let $row_img_query= INSERT DELAYED INTO t(c1,c3) VALUES (100,"a")
--- let $row_img_expected_master= | 1:100 2:0 3:'a'
--- let $row_img_expected_slave = | 1:100 2:0 3:'a'
--- source include/rpl_row_img_parts_master_slave.inc
-
 -- let $row_img_query= INSERT INTO t(c1) VALUES (1000)
 -- let $row_img_expected_master= | 1:1000 2:0
 -- let $row_img_expected_slave = | 1:1000 2:0
--- source include/rpl_row_img_parts_master_slave.inc
-
--- let $row_img_query= INSERT DELAYED INTO t(c1) VALUES (10000)
--- let $row_img_expected_master= | 1:10000 2:0
--- let $row_img_expected_slave = | 1:10000 2:0
 -- source include/rpl_row_img_parts_master_slave.inc
 
 -- let $row_img_query= UPDATE t SET c3='b' WHERE c1=1

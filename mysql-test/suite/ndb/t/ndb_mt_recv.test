@@ -1,0 +1,9 @@
+#
+# Intention of this test is to do some basic testing with
+# multiple receiver threads.
+# It use 'ndb_basic' as testload, and override the default
+# config by specifying its own *.cnf file.
+# There is also a ndb_mt_recv-master.opt defined for
+# this test which specify 'result-file=...ndb_basic'.
+#
+--source ndb_basic.test

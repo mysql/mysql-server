@@ -77,10 +77,10 @@ INSERT INTO fts_test (title,body) VALUES
 ('MySQL vs. YourSQL','In the following database comparison ...'),
 ('MySQL Security','When configured properly, MySQL ...');
 CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE'
+ERROR 0A000: LOCK=NONE is not supported. Reason: Fulltext index creation requires a lock. Try LOCK=SHARED.
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE'
+ERROR 0A000: LOCK=NONE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try LOCK=SHARED.
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
 SELECT * FROM fts_test WHERE MATCH (title, body)
 AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);

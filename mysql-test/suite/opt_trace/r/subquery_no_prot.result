@@ -658,13 +658,13 @@ WHERE NOT EXISTS
   ] /* steps */
 }	0	0
 
-SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER BY b);
+SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER BY b);
 1
 1
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
-SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER BY b)	{
+SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER BY b)	{
   "steps": [
     {
       "join_preparation": {
@@ -682,13 +682,13 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER
                   ] /* transformations_to_subquery */
                 },
                 {
-                  "expanded_query": "/* select#2 */ select `t1`.`a` from `t1`"
+                  "expanded_query": "/* select#2 */ select `t2`.`a` from `t2`"
                 }
               ] /* steps */
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select `t1`.`a` from `t1`)))"
+            "expanded_query": "/* select#1 */ select 1 AS `1` from DUAL  where (not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -700,19 +700,19 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(not(exists(/* select#2 */ select `t1`.`a` from `t1`)))",
+              "original_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select `t1`.`a` from `t1`)))"
+                  "resulting_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(not(exists(/* select#2 */ select `t1`.`a` from `t1`)))"
+                  "resulting_condition": "(not(exists(/* select#2 */ select `t2`.`a` from `t2`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
@@ -728,7 +728,7 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER
                                 {
                                   "table_dependencies": [
                                     {
-                                      "table": "`t1`",
+                                      "table": "`t2`",
                                       "row_may_be_null": false,
                                       "map_bit": 0,
                                       "depends_on_map_bits": [
@@ -739,7 +739,7 @@ SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER
                                 {
                                   "rows_estimation": [
                                     {
-                                      "table": "`t1`",
+                                      "table": "`t2`",
                                       "rows": 1,
                                       "cost": 1,
                                       "table_type": "system",

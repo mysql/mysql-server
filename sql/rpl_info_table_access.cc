@@ -214,7 +214,7 @@ enum enum_return_id Rpl_info_table_access::find_info(Rpl_info_values *field_valu
   }
 
   keyinfo= table->s->key_info + (uint) table->s->primary_key;
-  for (uint idx= 0; idx < keyinfo->key_parts; idx++)
+  for (uint idx= 0; idx < keyinfo->user_defined_key_parts; idx++)
   {
     uint fieldnr= keyinfo->key_part[idx].fieldnr - 1;
 

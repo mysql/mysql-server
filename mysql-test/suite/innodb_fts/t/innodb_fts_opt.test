@@ -424,43 +424,43 @@ SHOW STATUS LIKE 'Handler_read%';
 
 # Query will also avoid sorting when Boolean mode is used
 FLUSH STATUS;
-SELECT title, 
-       MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE)
+SELECT title,
+       MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check ORDER BY/LIMIT query with no WHERE clause
 FLUSH STATUS;
 SELECT title,
-       MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
+       MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
 ORDER BY score DESC LIMIT 1;
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check query where FTS result is "covering"
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, 
-       MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10');
+SELECT FTS_DOC_ID docid,
+       MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5');
 SHOW SESSION STATUS LIKE 'Handler_read%';
 
 # Check the combination of all three
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid,
-       MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
+       MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
 ORDER BY score DESC LIMIT 1;
 SHOW STATUS LIKE 'Handler_read%';
 SHOW SESSION STATUS LIKE 'Sort%';
 
 # Check the count optimization
-let $query = 
-SELECT COUNT(*) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE);
+let $query =
+SELECT COUNT(*)
+FROM wp
+WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 eval EXPLAIN $query;
 FLUSH STATUS;
 eval $query;
@@ -469,22 +469,22 @@ SHOW STATUS LIKE 'Handler_read%';
 #
 # Check that nothing goes wrong when combining different modes
 #
-SELECT title, 
-       MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title,
+       MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title, 
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
+SELECT title,
+       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('MySQL database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 
-SELECT title, 
-       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE)
+SELECT title,
+       MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
 
 

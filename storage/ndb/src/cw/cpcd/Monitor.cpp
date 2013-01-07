@@ -63,7 +63,7 @@ CPCD::Monitor::run() {
 
     proc.lock();
 
-    for(size_t i = 0; i < proc.size(); i++) {
+    for(unsigned i = 0; i < proc.size(); i++) {
       proc[i]->monitor();
     }
 

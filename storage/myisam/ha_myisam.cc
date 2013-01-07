@@ -249,8 +249,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       pos->algorithm;
     keydef[i].block_length= pos->block_size;
     keydef[i].seg= keyseg;
-    keydef[i].keysegs= pos->key_parts;
-    for (j= 0; j < pos->key_parts; j++)
+    keydef[i].keysegs= pos->user_defined_key_parts;
+    for (j= 0; j < pos->user_defined_key_parts; j++)
     {
       Field *field= pos->key_part[j].field;
       type= field->key_type();
@@ -311,7 +311,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                                           (uchar*) table_arg->record[0]);
       }
     }
-    keyseg+= pos->key_parts;
+    keyseg+= pos->user_defined_key_parts;
   }
   if (table_arg->found_next_number_field)
     keydef[share->next_number_index].flag|= HA_AUTO_KEY;
@@ -644,7 +644,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
-                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                  HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR),
    can_enable_indexes(1)
 {}
@@ -1946,7 +1946,7 @@ void ha_myisam::update_create_info(HA_CREATE_INFO *create_info)
 }
 
 
-int ha_myisam::create(const char *name, register TABLE *table_arg,
+int ha_myisam::create(const char *name, TABLE *table_arg,
 		      HA_CREATE_INFO *ha_create_info)
 {
   int error;
@@ -1980,7 +1980,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   create_info.language= share->table_charset->number;
 
 #ifdef HAVE_READLINK
-  if (my_use_symdir)
+  if (my_enable_symlinks)
   {
     create_info.data_file_name= ha_create_info->data_file_name;
     create_info.index_file_name= ha_create_info->index_file_name;
@@ -1989,11 +1989,11 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 #endif /* HAVE_READLINK */
   {
     if (ha_create_info->data_file_name)
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (ha_create_info->index_file_name)
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
   }
@@ -2239,7 +2239,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
   */
   const KEY *key= &table_share->key_info[keyno_arg];
 
-  for (uint k= 0; k < key->key_parts; ++k)
+  for (uint k= 0; k < key->user_defined_key_parts; ++k)
   {
     const KEY_PART_INFO *key_part= &key->key_part[k];
     if (key_part->key_part_flag & HA_BLOB_PART)

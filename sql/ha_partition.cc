@@ -78,8 +78,7 @@ using std::max;
 #define PARTITION_DISABLED_TABLE_FLAGS (HA_CAN_GEOMETRY | \
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
-                                        HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED)
+                                        HA_CAN_SQL_HANDLER)
 static const char *ha_par_ext= ".par";
 
 /****************************************************************************
@@ -4206,6 +4205,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
                               part, sub_elem->partition_name));
           if ((error= m_file[part]->ha_truncate()))
             break;
+          sub_elem->part_state= PART_NORMAL;
         } while (++j < num_subparts);
       }
       else
@@ -4794,6 +4794,7 @@ bool ha_partition::init_record_priority_queue()
          i < m_tot_parts;
          i= bitmap_get_next_set(&m_part_info->read_partitions, i))
     {
+      DBUG_PRINT("info", ("init rec-buf for part %u", i));
       int2store(ptr, i);
       ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
     }
@@ -4899,7 +4900,7 @@ int ha_partition::index_init(uint inx, bool sorted)
     KEY **key_info= m_curr_key_info;
     do
     {
-      for (i= 0; i < (*key_info)->key_parts; i++)
+      for (i= 0; i < (*key_info)->user_defined_key_parts; i++)
         bitmap_set_bit(table->read_set,
                        (*key_info)->key_part[i].field->field_index);
     } while (*(++key_info));
@@ -5726,11 +5727,27 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
   DBUG_ASSERT(bitmap_is_set(&m_part_info->read_partitions,
                             m_part_spec.start_part));
 
-  DBUG_PRINT("info", ("m_part_spec.start_part %d", m_part_spec.start_part));
-  for (i= m_part_spec.start_part;
+  /*
+    Position part_rec_buf_ptr to point to the first used partition >=
+    start_part. There may be partitions marked by used_partitions,
+    but is before start_part. These partitions has allocated record buffers
+    but is dynamically pruned, so those buffers must be skipped.
+  */
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_part_spec.start_part;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+  {
+    part_rec_buf_ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+  }
+  DBUG_PRINT("info", ("m_part_spec.start_part %u first_used_part %u",
+                      m_part_spec.start_part, i));
+  for (/* continue from above */ ;
        i <= m_part_spec.end_part;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
   {
+    DBUG_PRINT("info", ("reading from part %u (scan_type: %u)",
+                        i, m_index_scan_type));
+    DBUG_ASSERT(i == uint2korr(part_rec_buf_ptr));
     uchar *rec_buf_ptr= part_rec_buf_ptr + PARTITION_BYTES_IN_POS;
     int error;
     handler *file= m_file[i];
@@ -6547,7 +6564,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
     flush method in the select_union class.
-    It is used to some extent when insert delayed inserts.
     See HA_EXTRA_RESET_STATE for use in conjunction with delete_all_rows().
 
     It should be ok to call HA_EXTRA_NO_CACHE on all underlying handlers
@@ -7595,13 +7611,32 @@ enum_alter_inplace_result
 ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
                                                Alter_inplace_info *ha_alter_info)
 {
+#ifdef PARTITION_SUPPORTS_INPLACE_ALTER
   uint index= 0;
   enum_alter_inplace_result result= HA_ALTER_INPLACE_NO_LOCK;
   ha_partition_inplace_ctx *part_inplace_ctx;
   THD *thd= ha_thd();
+#else
+  enum_alter_inplace_result result= HA_ALTER_INPLACE_NOT_SUPPORTED;
+#endif
 
   DBUG_ENTER("ha_partition::check_if_supported_inplace_alter");
 
+#ifndef PARTITION_SUPPORTS_INPLACE_ALTER
+  /*
+    Due to bug#14760210 partitions can be out-of-sync in case
+    commit_inplace_alter_table fails after the first partition.
+
+    Until we can either commit all partitions at the same time or
+    have an atomic recover on failure/crash we don't support any
+    inplace alter.
+
+    TODO: investigate what happens when indexes are out-of-sync
+    between partitions. If safe and possible to recover from,
+    then we could allow ADD/DROP INDEX.
+  */
+  DBUG_RETURN(result);
+#else
   part_inplace_ctx=
     new (thd->mem_root) ha_partition_inplace_ctx(thd, m_tot_parts);
   if (!part_inplace_ctx)
@@ -7630,6 +7665,7 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
   ha_alter_info->handler_ctx= part_inplace_ctx;
 
   DBUG_RETURN(result);
+#endif
 }
 
 

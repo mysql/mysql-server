@@ -16,17 +16,18 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 #
 # Check if the needed jars are available
 #
-my $clusterj_jpa_jar = my_find_file($basedir,
+my $clusterj_jpa_jar = my_find_file($bindir,
                                 ["storage/ndb/clusterj/clusterj-openjpa", 
                                  "share/mysql/java",             # install unix
                                  "lib/java"],                    # install windows
                                 "clusterjpa-*.jar", NOT_REQUIRED);
 
-my $clusterj_jpa_test_jar = my_find_file($basedir,
+my $clusterj_jpa_test_jar = my_find_file($bindir,
                                     ["storage/ndb/clusterj/clusterj-jpatest", 
                                      "share/mysql/java",             # install unix
                                      "lib/java"],                    # install windows

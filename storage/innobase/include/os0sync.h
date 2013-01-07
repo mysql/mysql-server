@@ -124,10 +124,8 @@ explicitly by calling sync_os_reset_event.
 @return	the event handle */
 UNIV_INTERN
 os_event_t
-os_event_create(
-/*============*/
-	const char*	name);	/*!< in: the name of the event, if NULL
-				the event is created without a name */
+os_event_create(void);
+/*==================*/
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */

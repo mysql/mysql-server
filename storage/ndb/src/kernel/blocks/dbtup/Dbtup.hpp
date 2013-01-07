@@ -579,6 +579,9 @@ typedef Ptr<Fragoperrec> FragoperrecPtr;
   // for md5 of key (could maybe reuse existing temp buffer)
   Uint64 c_dataBuffer[ZWORDS_ON_PAGE/2 + 1];
 
+  // Crash the node when a tuple got corrupted
+  bool c_crashOnCorruptedTuple;
+
   struct Page_request 
   {
     Page_request() {}
@@ -1132,8 +1135,8 @@ ArrayPool<TupTriggerData> c_triggerPool;
     // List of ordered indexes
     DLList<TupTriggerData> tuxCustomTriggers;
     
-    Uint32 fragid[MAX_FRAG_PER_NODE];
-    Uint32 fragrec[MAX_FRAG_PER_NODE];
+    Uint32 fragid[MAX_FRAG_PER_LQH];
+    Uint32 fragrec[MAX_FRAG_PER_LQH];
 
     union {
       struct {
@@ -1831,6 +1834,7 @@ private:
   void execTUP_DEALLOCREQ(Signal* signal);
   void execTUP_WRITELOG_REQ(Signal* signal);
   void execNODE_FAILREP(Signal* signal);
+  void execNODE_STATE_REP(Signal*);
 
   void execDROP_FRAG_REQ(Signal*);
 
@@ -2894,6 +2898,7 @@ private:
   
   Uint32 calculateChecksum(Tuple_header*, Tablerec* regTabPtr);
   void setChecksum(Tuple_header*, Tablerec* regTabPtr);
+  int corruptedTupleDetected(KeyReqStruct*);
 
   void complexTrigger(Signal* signal,
                       KeyReqStruct *req_struct,
@@ -3230,7 +3235,7 @@ private:
 
   // Trigger variables
   Uint32 c_maxTriggersPerTable;
-
+  Uint32 m_minFreePages;
   Uint32 m_max_parallel_index_build;
 
   Uint32 c_errorInsert4000TableId;

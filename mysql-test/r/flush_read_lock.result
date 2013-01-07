@@ -746,19 +746,13 @@ Success: FTWRL is blocked when 'insert into t1_base values (1)' is active in ano
 Success: Was able to run 'insert into t1_temp values (1)' under FTWRL.
 Success: Was able to run 'insert into t1_temp values (1)' with FTWRL active in another connection.
 Success: Was able to run FTWRL while 'insert into t1_temp values (1)' was active in another connection.
-#
-# 18.c) INSERT DELAYED is incompatible with FTWRL.
-Success: Was not able to run 'insert delayed into t1_base values (1)' under FTWRL.
-Success: 'insert delayed into t1_base values (1)' is blocked by FTWRL active in another connection.
-Success: FTWRL is blocked when 'insert delayed into t1_base values (1)' is active in another connection.
-delete from t1_base;
 # 
-# 18.d) INSERT SELECT into base table is incompatible with FTWRL.
+# 18.c) INSERT SELECT into base table is incompatible with FTWRL.
 Success: Was not able to run 'insert into t1_base select * from t1_temp' under FTWRL.
 Success: 'insert into t1_base select * from t1_temp' is blocked by FTWRL active in another connection.
 Success: FTWRL is blocked when 'insert into t1_base select * from t1_temp' is active in another connection.
 #
-# 18.e) INSERT SELECT into temp table is compatible with FTWRL.
+# 18.d) INSERT SELECT into temp table is compatible with FTWRL.
 Success: Was able to run 'insert into t1_temp select * from t1_base' under FTWRL.
 Success: Was able to run 'insert into t1_temp select * from t1_base' with FTWRL active in another connection.
 Success: Was able to run FTWRL while 'insert into t1_temp select * from t1_base' was active in another connection.

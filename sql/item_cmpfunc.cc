@@ -221,15 +221,15 @@ static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
          items[i]->result_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
       return 0;
-    found_types|= 1<< (uint)item_cmp_type(left_result,
-                                           items[i]->result_type());
+    found_types|= 1U << (uint)item_cmp_type(left_result,
+                                            items[i]->result_type());
   }
   /*
    Even if all right-hand items are NULLs and we are skipping them all, we need
    at least one type bit in the found_type bitmask.
   */
   if (skip_nulls && !found_types)
-    found_types= 1 << (uint)left_result;
+    found_types= 1U << (uint)left_result;
   return found_types;
 }
 
@@ -451,7 +451,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+        (((rc= (*item)->save_in_field(field, true)) == TYPE_OK) ||
          rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
@@ -742,7 +742,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(str), warn_type, warn_name);
 
   return value;
@@ -786,9 +786,9 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   Note, const_value may stay untouched, so the caller is responsible to
   initialize it.
 
-  @param date_arg        - date argument, it's name is used for error reporting.
-  @param str_arg         - string argument to get datetime value from.
-  @param OUT const_value - the converted value is stored here, if not NULL.
+  @param      date_arg    date argument, it's name is used for error reporting.
+  @param      str_arg     string argument to get datetime value from.
+  @param[out] const_value the converted value is stored here, if not NULL.
 
   @return true on error, false on success, false if str_arg is not a const.
 */
@@ -1846,6 +1846,12 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  /*
+    Refresh this pointer as left_expr may have been substituted
+    during resolving.
+  */
+  args[0]= ((Item_in_subselect *)args[1])->left_expr;
+
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;
@@ -1917,8 +1923,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 
 void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
@@ -1930,7 +1935,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
     So, just forward the call to the Item_in_subselect object.
   */
 
-  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+  args[1]->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
@@ -3252,12 +3257,12 @@ Item *Item_func_case::find_item(String *str)
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
-      if (!(value_added_map & (1<<(uint)cmp_type)))
+      if (!(value_added_map & (1U << (uint)cmp_type)))
       {
         cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
         if ((null_value=args[first_expr_num]->null_value))
           return else_expr_num != -1 ? args[else_expr_num] : 0;
-        value_added_map|= 1<<(uint)cmp_type;
+        value_added_map|= 1U << (uint)cmp_type;
       }
       if (!cmp_items[(uint)cmp_type]->cmp(args[i]) && !args[i]->null_value)
         return args[i + 1];
@@ -3518,7 +3523,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
-    if (found_types & (1 << STRING_RESULT))
+    if (found_types & (1U << STRING_RESULT))
     {
       /*
         If we'll do string comparison, we also need to aggregate
@@ -3558,7 +3563,7 @@ void Item_func_case::fix_length_and_dec()
     }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
-      if (found_types & (1 << i) && !cmp_items[i])
+      if (found_types & (1U << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
         if (!(cmp_items[i]=
@@ -4407,7 +4412,7 @@ void Item_func_in::fix_length_and_dec()
   }
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
-    if (found_types & 1 << i)
+    if (found_types & (1U << i))
     {
       (type_cnt)++;
       cmp_type= (Item_result) i;
@@ -4598,7 +4603,7 @@ void Item_func_in::fix_length_and_dec()
     {
       for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
       {
-        if (found_types & (1 << i) && !cmp_items[i])
+        if (found_types & (1U << i) && !cmp_items[i])
         {
           if ((Item_result)i == STRING_RESULT &&
               agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
@@ -4688,12 +4693,12 @@ longlong Item_func_in::val_int()
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
-    if (!(value_added_map & (1 << (uint)cmp_type)))
+    if (!(value_added_map & (1U << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
       if ((null_value= args[0]->null_value))
         return 0;
-      value_added_map|= 1 << (uint)cmp_type;
+      value_added_map|= 1U << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return (longlong) (!negated);
@@ -4836,8 +4841,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 
 
 void Item_cond::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -4852,8 +4856,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
 
   while ((item=li++))
   {
-    item->fix_after_pullout(parent_select, removed_select, li.ref());
-    item= *li.ref();
+    item->fix_after_pullout(parent_select, removed_select);
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
     if (functype() == COND_AND_FUNC && abort_on_null)
@@ -5180,7 +5183,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -5189,7 +5192,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
@@ -5221,7 +5224,8 @@ void Item_is_not_null_test::update_used_tables()
   with_subselect= args[0]->has_subquery();
   with_stored_program= args[0]->has_stored_program();
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
+      !with_stored_program)
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }

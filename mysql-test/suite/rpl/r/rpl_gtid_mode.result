@@ -48,7 +48,7 @@ include/rpl_stop_server.inc [server_number=2]
 ---- GTID_MODE = UPGRADE_STEP_[1|2] not supported ----
 include/assert_command_output.inc
 include/assert_command_output.inc
----- GTID_MODE=ON requires --disable-gtid-unsafe-statements ----
+---- GTID_MODE=ON requires --enforce-gtid-consistency ----
 include/assert_command_output.inc
 ==== Master has GTID_MODE = OFF, slave has GTID_MODE = ON ====
 include/rpl_start_server.inc [server_number=2 gtids=on]
@@ -71,7 +71,7 @@ ERROR HY000: GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805BE8E-51AB-11E1-BACC-6706C20AD7BA:1. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805be8e-51ab-11e1-bacc-6706c20ad7ba:1. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';

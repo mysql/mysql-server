@@ -437,7 +437,7 @@ public class MyLoadUnloadTest {
         final String cname = System.getProperty(cname_prop, "test.MyJapiTest");
         final String mname = System.getProperty(mname_prop, "test");
         out.println();
-        out.println("    using properties");
+        out.println("    settings:");
         out.println("        pprefixes = '" + pprefixes + "'");
         out.println("        cname = '" + cname + "'");
         out.println("        mname = '" + mname + "'");
@@ -461,7 +461,7 @@ public class MyLoadUnloadTest {
         // run test
         out.println();
         out.println("    load class ...");
-        Class cls = ucl.loadClass(cname);
+        Class<?> cls = ucl.loadClass(cname);
         out.println("    ... loaded " + cls
                     + " <" + cls.getClassLoader() + ">");
 

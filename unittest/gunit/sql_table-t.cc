@@ -26,7 +26,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "sql_table.h"
 
-namespace {
+namespace sql_table_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -106,6 +106,54 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn3)
   promote_first_timestamp_column(&definitions);
   EXPECT_EQ(Field::NONE, column_1_definition.unireg_check);
   EXPECT_EQ(Field::NONE, column_2_definition.unireg_check);
+}
+
+
+/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
+const char		srv_mysql50_table_name_prefix[10] = "#mysql50#";
+
+/*
+  This is a test case based on innobase_init()
+  There was an out-of-bounds read when converting "-@" to a table name.
+ */
+TEST_F(SqlTableTest, FileNameToTableName)
+{
+  struct PackStuff
+  {
+    char foo1;
+    char str[3];
+    char foo2;
+  };
+  PackStuff foo;
+  memcpy(foo.str, "-@", 3);
+  MEM_NOACCESS(&foo.foo1, 1);
+  MEM_NOACCESS(&foo.foo2, 1);
+
+  const char test_filename[] = "-@";
+  char       test_tablename[sizeof test_filename
+                            + sizeof(srv_mysql50_table_name_prefix) - 1];
+
+  // This one used to fail with AddressSanitizer
+  uint name_length;
+  name_length= filename_to_tablename(test_filename,
+                                     test_tablename,
+                                     sizeof(test_tablename)
+#ifndef DBUG_OFF
+                                     , true
+#endif
+                                     );
+  EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);
+
+  // This one used to fail if compiled with -DHAVE_VALGRIND
+  name_length= filename_to_tablename(foo.str,
+                                     test_tablename,
+                                     sizeof(test_tablename)
+#ifndef DBUG_OFF
+                                     , true
+#endif
+                                     );
+  EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);
+
 }
 
 }

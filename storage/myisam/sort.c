@@ -648,7 +648,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 
         /* Write all keys in memory to file for later merge */
 
-static int write_keys(MI_SORT_PARAM *info, register uchar **sort_keys,
+static int write_keys(MI_SORT_PARAM *info, uchar **sort_keys,
                       uint count, BUFFPEK *buffpek, IO_CACHE *tempfile)
 {
   uchar **end;
@@ -690,7 +690,7 @@ my_var_write(MI_SORT_PARAM *info, IO_CACHE *to_file, uchar *bufs)
 
 
 static int write_keys_varlen(MI_SORT_PARAM *info,
-                             register uchar **sort_keys,
+                             uchar **sort_keys,
                              uint count, BUFFPEK *buffpek,
                              IO_CACHE *tempfile)
 {
@@ -735,8 +735,8 @@ static int write_key(MI_SORT_PARAM *info, uchar *key, IO_CACHE *tempfile)
 
 /* Write index */
 
-static int write_index(MI_SORT_PARAM *info, register uchar **sort_keys,
-                       register uint count)
+static int write_index(MI_SORT_PARAM *info, uchar **sort_keys,
+                       uint count)
 {
   DBUG_ENTER("write_index");
 
@@ -757,7 +757,7 @@ static int merge_many_buff(MI_SORT_PARAM *info, uint keys,
                            uchar **sort_keys, BUFFPEK *buffpek,
                            int *maxbuffer, IO_CACHE *t_file)
 {
-  register int i;
+  int i;
   IO_CACHE t_file2, *from_file, *to_file, *temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -819,7 +819,7 @@ cleanup:
 static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
                            uint sort_length)
 {
-  register uint count;
+  uint count;
   uint length;
 
   if ((count=(uint) MY_MIN((ha_rows) buffpek->max_keys,buffpek->count)))
@@ -839,7 +839,7 @@ static uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 static uint read_to_buffer_varlen(IO_CACHE *fromfile, BUFFPEK *buffpek,
                                   uint sort_length)
 {
-  register uint count;
+  uint count;
   uint16 length_of_key = 0;
   uint idx;
   uchar *buffp;
@@ -1014,7 +1014,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
     }
     else
     {
-      register uchar *end;
+      uchar *end;
       strpos= buffpek->key;
       for (end=strpos+buffpek->mem_count*sort_length;
            strpos != end ;

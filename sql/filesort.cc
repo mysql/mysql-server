@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -443,7 +443,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
                     ER_THD(thd, ER_FILSORT_ABORT),
                     kill_errno ?
                     ER(kill_errno) :
-                    thd->get_stmt_da()->message());
+                    thd->get_stmt_da()->message_text());
 
     if (log_warnings > 1)
     {
@@ -1193,7 +1193,7 @@ void make_sortkey(Sort_param *param, uchar *to, uchar *ref_pos)
 
 static void register_used_fields(Sort_param *param)
 {
-  reg1 SORT_FIELD *sort_field;
+  SORT_FIELD *sort_field;
   TABLE *table=param->sort_form;
   MY_BITMAP *bitmap= table->read_set;
 
@@ -1424,7 +1424,7 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
 int merge_many_buff(Sort_param *param, uchar *sort_buffer,
                     BUFFPEK *buffpek, uint *maxbuffer, IO_CACHE *t_file)
 {
-  register uint i;
+  uint i;
   IO_CACHE t_file2,*from_file,*to_file,*temp;
   BUFFPEK *lastbuff;
   DBUG_ENTER("merge_many_buff");
@@ -1482,7 +1482,7 @@ cleanup:
 uint read_to_buffer(IO_CACHE *fromfile, BUFFPEK *buffpek,
 		    uint rec_length)
 {
-  register uint count;
+  uint count;
   uint length;
 
   if ((count=(uint) min((ha_rows) buffpek->max_keys,buffpek->count)))
@@ -1732,7 +1732,7 @@ int merge_buffers(Sort_param *param, IO_CACHE *from_file,
     }
     else
     {
-      register uchar *end;
+      uchar *end;
       strpos= buffpek->key+offset;
       for (end= strpos+buffpek->mem_count*rec_length ;
            strpos != end ;

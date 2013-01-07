@@ -48,6 +48,28 @@ $homedir = $ENV{HOME};
 $my_progname = $0;
 $my_progname =~ s/.*[\/]//;
 
+
+if (defined($ENV{UMASK})) {
+  my $UMASK = $ENV{UMASK};
+  my $m;
+  my $fmode = "0640";
+
+  if(($UMASK =~ m/[^0246]/) || ($UMASK =~ m/^[^0]/) || (length($UMASK) != 4)) {
+    printf("UMASK must be a 3-digit mode with an additional leading 0 to indicate octal.\n");
+    printf("The first digit will be corrected to 6, the others may be 0, 2, 4, or 6.\n"); }
+  else {
+    $fmode= substr $UMASK, 2, 2;
+    $fmode= "06${fmode}"; }
+
+  if($fmode != $UMASK) {
+    printf("UMASK corrected from $UMASK to $fmode ...\n"); }
+
+  $fmode= oct($fmode);
+
+  umask($fmode);
+}
+
+
 main();
 
 ####

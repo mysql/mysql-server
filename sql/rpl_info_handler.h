@@ -107,7 +107,7 @@ public:
 
   /**
     Deletes any information in the repository. In contrast to the
-    @code remove_info() method, the repository is not removed.
+    @c remove_info() method, the repository is not removed.
 
     @retval FALSE No error
     @retval TRUE  Failure

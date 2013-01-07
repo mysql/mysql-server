@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1674,7 +1674,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
                            MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
-                      "trying to live without them", thd->get_stmt_da()->message());
+                      "trying to live without them",
+                      thd->get_stmt_da()->message_text());
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
@@ -1840,7 +1841,7 @@ static Time_zone*
 tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 {
   TABLE *table= 0;
-  TIME_ZONE_INFO *tz_info;
+  TIME_ZONE_INFO *tz_info= NULL;
   Tz_names_entry *tmp_tzname;
   Time_zone *return_val= 0;
   int res;
@@ -1848,7 +1849,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   my_time_t ttime;
   char buff[MAX_FIELD_WIDTH];
   String abbr(buff, sizeof(buff), &my_charset_latin1);
-  char *alloc_buff, *tz_name_buff;
+  char *alloc_buff= NULL;
+  char *tz_name_buff= NULL;
   /*
     Temporary arrays that are used for loading of data for filling
     TIME_ZONE_INFO structure
@@ -1867,22 +1869,6 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   memset(&tmp_tz_info, 0, sizeof(TIME_ZONE_INFO));
 
   DBUG_ENTER("tz_load_from_open_tables");
-
-  /* Prepare tz_info for loading also let us make copy of time zone name */
-  if (!(alloc_buff= (char*) alloc_root(&tz_storage, sizeof(TIME_ZONE_INFO) +
-                                       tz_name->length() + 1)))
-  {
-    sql_print_error("Out of memory while loading time zone description");
-    return 0;
-  }
-  tz_info= (TIME_ZONE_INFO *)alloc_buff;
-  memset(tz_info, 0, sizeof(TIME_ZONE_INFO));
-  tz_name_buff= alloc_buff + sizeof(TIME_ZONE_INFO);
-  /*
-    By writing zero to the end we guarantee that we can call ptr()
-    instead of c_ptr() for time zone name.
-  */
-  strmake(tz_name_buff, tz_name->ptr(), tz_name->length());
 
   /*
     Let us find out time zone id by its name (there is only one index
@@ -2356,7 +2342,7 @@ my_tz_find(THD *thd, const String *name)
   complete check this way it doesn't require looking (and having installed)
   the leap seconds table.
 
-  @param[in,out] broken down time structure as filled in by the OS
+  @param[in,out] t broken down time structure as filled in by the OS
 */
 
 void Time_zone::adjust_leap_second(MYSQL_TIME *t)

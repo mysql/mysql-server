@@ -4066,6 +4066,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     stmt->bind was initialized in mysql_stmt_prepare
     stmt->bind overlaps with bind if mysql_stmt_bind_param
     is called from mysql_stmt_store_result.
+    BEWARE of buffer overwrite ...
   */
 
   if (stmt->bind != my_bind)
@@ -4238,7 +4239,7 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *my_bind,
   if ((int) stmt->state < (int) MYSQL_STMT_FETCH_DONE)
   {
     set_stmt_error(stmt, CR_NO_DATA, unknown_sqlstate, NULL);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (column >= stmt->field_count)
   {

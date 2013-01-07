@@ -407,39 +407,6 @@ show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
 drop table t1;
-flush query cache;
-reset query cache;
-create table t1 (a int not null);
-insert into t1 values (1),(2),(3);
-select * from t1;
-a
-1
-2
-3
-select * from t1;
-a
-1
-2
-3
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-insert delayed into t1 values (4);
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-select a from t1;
-a
-1
-2
-3
-4
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	1
-drop table t1;
-show status like "Qcache_queries_in_cache";
-Variable_name	Value
-Qcache_queries_in_cache	0
 show global variables like "query_cache_min_res_unit";
 Variable_name	Value
 query_cache_min_res_unit	4096
@@ -473,7 +440,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	11
+Qcache_hits	10
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2
@@ -490,7 +457,7 @@ a
 3
 show status like "Qcache_hits";
 Variable_name	Value
-Qcache_hits	12
+Qcache_hits	11
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	2

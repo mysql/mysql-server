@@ -68,7 +68,6 @@ rpl_replicate_ignore_db : Result Difference due To Change In .inc File
 rpl_replicate_ignore_db : Result Difference due To Change In .inc File
 rpl_skip_error : Result Difference due To Change In .inc File
 
-rpl_row_until : Test Present in rpl suite as well . Test Fails table table t2 table not found.
 rpl_loaddata_s : Test Present in rpl suite as well . Test Fails due to bin log truncation.
 rpl_log_pos : Test Present in rpl suite as well . Test Fails due to bin log truncation.
 rpl_row_NOW : Result Difference due To Change In .inc File

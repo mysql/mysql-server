@@ -1603,8 +1603,7 @@ rec_get_converted_size(
 						   dtuple_get_info_bits(dtuple)
 						   & REC_NEW_STATUS_MASK,
 						   dtuple->fields,
-						   dtuple->n_fields,
-						   index->n_nullable, NULL));
+						   dtuple->n_fields, NULL));
 	}
 
 	data_size = dtuple_get_data_size(dtuple, 0);

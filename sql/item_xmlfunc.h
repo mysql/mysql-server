@@ -37,6 +37,18 @@ public:
   }
   void fix_length_and_dec();
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
+
+protected:
+  /** 
+    Parse the specified XPATH expression and initialize @c nodeset_func.
+
+    @note This is normally called in resolve phase since we only support
+          constant XPATH expressions, but it may be called upon execution when
+          const value is not yet known at resolve time.
+
+    @param xpath_expr XPATH expression to be parsed
+   */
+  void parse_xpath(Item* xpath_expr);
 };
 
 

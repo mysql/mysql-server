@@ -201,9 +201,6 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Decimal:
   case NdbDictionary::Column::Decimalunsigned:
   case NdbDictionary::Column::Binary:
-  case NdbDictionary::Column::Datetime:
-  case NdbDictionary::Column::Time:
-  case NdbDictionary::Column::Date:
   case NdbDictionary::Column::Bit:
     while (len > 4)
     {
@@ -276,14 +273,34 @@ write_char:
     pos--;
     break;
   }
+  /*
+   * Date and time types.  Compared as binary data so valid values
+   * are not required, but they can be nice for manual testing e.g.
+   * to avoid garbage in ndb_select_all output.  -todo
+   */
+  case NdbDictionary::Column::Year:
+  case NdbDictionary::Column::Date:
+  case NdbDictionary::Column::Time:
+  case NdbDictionary::Column::Datetime:
+  case NdbDictionary::Column::Time2:
+  case NdbDictionary::Column::Datetime2:
+  case NdbDictionary::Column::Timestamp:
+  case NdbDictionary::Column::Timestamp2:
+    while (len > 4)
+    {
+      memcpy(buf+pos, &val, 4);
+      pos += 4;
+      len -= 4;
+      val= myRand(&seed);
+    }
+    memcpy(buf+pos, &val, len);
+    break;
   case NdbDictionary::Column::Blob:
     * outlen = calc_blobLen(myRand(&seed), len);
     // Don't set any actual data...
     break;
   case NdbDictionary::Column::Undefined:
   case NdbDictionary::Column::Text:
-  case NdbDictionary::Column::Year:
-  case NdbDictionary::Column::Timestamp:
     abort();
     break;
   }

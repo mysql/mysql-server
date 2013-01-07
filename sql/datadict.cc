@@ -112,10 +112,14 @@ bool dd_frm_storage_engine(THD *thd, const char *db, const char *table_name,
   dd_frm_type(thd, path, &db_type);
 
   /* Type is unknown if the object is not found or is not a table. */
-  if (db_type == DB_TYPE_UNKNOWN ||
-      !(*table_type= ha_resolve_by_legacy_type(thd, db_type)))
+  if (db_type == DB_TYPE_UNKNOWN)
   {
     my_error(ER_NO_SUCH_TABLE, MYF(0), db, table_name);
+    return TRUE;
+  }
+  else if (!(*table_type= ha_resolve_by_legacy_type(thd, db_type)))
+  {
+    my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table_name);
     return TRUE;
   }
 

@@ -140,7 +140,7 @@ SELECT query_cache_type = @@SESSION.query_cache_type;
 
 --echo '#---------------------WL6372_VAR_3_07----------------------#'
 #################################################################################
-# Checking the size of table cache functionality                                #
+# Checking the size of query cache functionality                                #
 #################################################################################
 --echo # create 1 table and insert 3 rows each
 

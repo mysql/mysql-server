@@ -1,5 +1,5 @@
 Larger MaxAllowedPacket as this limits the size of Blob MySQLD can handle
-show variables like '%max_allowed_packet%';
+show variables like 'max_allowed_packet';
 Variable_name	Value
 max_allowed_packet	104857600
 use test;

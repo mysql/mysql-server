@@ -60,6 +60,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
     do {} while (0)
 #endif
 
+/** An instrumented socket. */
 struct st_mysql_socket
 {
   /** The real socket descriptor. */
@@ -102,9 +103,8 @@ mysql_socket_invalid()
 /**
   Set socket descriptor and address.
   @param socket nstrumented socket
-  @param fd socket descriptor
   @param addr unformatted socket address
-  @param adr_len length of socket addres
+  @param addr_len length of socket addres
 */
 
 static inline void
@@ -129,7 +129,6 @@ mysql_socket_set_address(
 /**
   Set socket descriptor and address.
   @param socket instrumented socket
-  @param thread instrumented owning thread
 */
 static inline void
 mysql_socket_set_thread_owner(
@@ -196,7 +195,6 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
   @param STATE locker state
   @param SOCKET instrumented socket
   @param OP The socket operation to be performed
-  @param FLAGS per-socket operation flags.
   @param COUNT bytes to be written/read
   @sa MYSQL_END_SOCKET_WAIT.
 */
@@ -225,6 +223,13 @@ mysql_socket_setfd(MYSQL_SOCKET *mysql_socket, my_socket fd)
     do {} while (0)
 #endif
 
+/**
+  @def MYSQL_SOCKET_SET_STATE
+  Set the state (IDLE, ACTIVE) of an instrumented socket.
+  @param SOCKET the instrumented socket
+  @param STATE the new state
+  @sa PSI_socket_state
+*/
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   #define MYSQL_SOCKET_SET_STATE(SOCKET, STATE) \
     inline_mysql_socket_set_state(SOCKET, STATE)
@@ -320,8 +325,8 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
   Return port number and IP address of the local host
   @c mysql_socket_getsockname is a replacement for @c getsockname.
   @param FD Instrumented socket descriptor returned by socket()
-  @param A  Pointer to returned address of local host in sockaddr structure
-  @param L  Pointer to length of sockaddr structure
+  @param AP  Pointer to returned address of local host in @c sockaddr structure
+  @param LP  Pointer to length of @c sockaddr structure
 */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   #define mysql_socket_getsockname(FD, AP, LP) \
@@ -425,7 +430,7 @@ inline_mysql_socket_set_state(MYSQL_SOCKET socket, enum PSI_socket_state state)
   @param N  Maximum bytes to receive
   @param FL Control flags
   @param AP Pointer to source address in sockaddr_storage structure
-  @param L  Size of sockaddr_storage structure
+  @param LP Size of sockaddr_storage structure
 */
 #ifdef HAVE_PSI_SOCKET_INTERFACE
   #define mysql_socket_recvfrom(FD, B, N, FL, AP, LP) \

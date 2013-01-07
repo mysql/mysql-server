@@ -132,7 +132,14 @@ private:
 /**
  * Request Info
  *
- p = Parallelism           - 8  Bits -> Max 256 (Bit 0-7)
+ p = Parallelism           - 8  Bits -> Max 255 (Bit 0-7).
+                                        Note: these bits are ignored since
+                                        7.0.34, 7.1.23, 7.2.7 and should be
+                                        zero-filled until future reuse.
+                                        For signal sent to old nodes they
+                                        should be filled in.
+                                        Check version with
+                                        ndbd_scan_tabreq_implicit_parallelism().
  l = Lock mode             - 1  Bit 8
  h = Hold lock mode        - 1  Bit 10
  c = Read Committed        - 1  Bit 11

@@ -40,21 +40,44 @@ public class EqualPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
+    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        property.markEqualBound(candidateIndices, this);
+    }
+
+    @Override
+    public int operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // can always set boundEQ
-        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundEQ, op);
+        Object value = param.getParameterValue(context);
+        if (value != null) {
+            property.operationSetBounds(value, IndexScanOperation.BoundType.BoundEQ, op);
+            return BOTH_BOUNDS_SET;
+        } else {
+            return NO_BOUND_SET;
+        }
     }
 
     @Override
-    public void operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
+    public int operationSetLowerBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // only set lower bound
-        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
+        Object value = param.getParameterValue(context);
+        if (value != null) {
+            property.operationSetBounds(value, IndexScanOperation.BoundType.BoundLE, op);
+            return LOWER_BOUND_SET;
+        } else {
+            return NO_BOUND_SET;
+        }
     }
 
     @Override
-    public void operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
+    public int operationSetUpperBound(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
         // only set upper bound
-        property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
+        Object value = param.getParameterValue(context);
+        if (value != null) {
+            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundGE, op);
+            return UPPER_BOUND_SET;
+        } else {
+            return NO_BOUND_SET;
+        }
     }
 
     @Override

@@ -1,5 +1,4 @@
-
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,8 +15,12 @@
 
 ADD_SUBDIRECTORY(test)
 
-FILE(GLOB JAVA_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java)
+# the JTie Java API
+FILE(GLOB JAVA_SOURCES
+  ${CMAKE_CURRENT_SOURCE_DIR}/com/mysql/jtie/*.java)
 
-CREATE_JAR(jtie ${JAVA_SOURCES} 
-  CLASSPATH target/classes)
+SET(CLASSPATH
+  ${CMAKE_BINARY_DIR}/storage/ndb/src/ndbjtie/jtie/target/classes)
 
+CREATE_JAR(jtie ${JAVA_SOURCES}
+  CLASSPATH ${CLASSPATH})

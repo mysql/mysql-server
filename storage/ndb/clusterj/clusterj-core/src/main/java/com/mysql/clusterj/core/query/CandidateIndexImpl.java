@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ import java.util.List;
  * one for each index containing the column referenced by the query term.
  * 
  */
-public class CandidateIndexImpl {
+public final class CandidateIndexImpl {
 
     /** My message translator */
     static final I18NHelper local = I18NHelper.getInstance(CandidateIndexImpl.class);
@@ -63,6 +63,8 @@ public class CandidateIndexImpl {
     private CandidateColumnImpl[] candidateColumns = null;
     private ScanType scanType = PredicateImpl.ScanType.TABLE_SCAN;
     private int fieldScore = 1;
+    protected int score = 0;
+    private boolean canBound = true;
 
     public CandidateIndexImpl(
             String className, Index storeIndex, boolean unique, AbstractDomainFieldHandlerImpl[] fields) {
@@ -114,7 +116,7 @@ public class CandidateIndexImpl {
 
     @Override
     public String toString() {
-        StringBuffer buffer = new StringBuffer();
+        StringBuilder buffer = new StringBuilder();
         buffer.append("CandidateIndexImpl for class: ");
         buffer.append(className);
         buffer.append(" index: ");
@@ -174,13 +176,12 @@ public class CandidateIndexImpl {
      * The last query term (candidate column) for each of the lower and upper bound is noted.
      * The method is synchronized because the method modifies the state of the instance,
      * which might be shared by multiple threads.
-     * @return the score of this index.
      */
-    synchronized int getScore() {
+    synchronized void score() {
+        score = 0;
         if (candidateColumns == null) {
-            return 0;
+            return;
         }
-        int result = 0;
         boolean lowerBoundDone = false;
         boolean upperBoundDone = false;
         if (unique) {
@@ -188,7 +189,7 @@ public class CandidateIndexImpl {
             for (CandidateColumnImpl column: candidateColumns) {
                 if (!(column.equalBound)) {
                     // not equal bound; can't use unique index
-                    return result;
+                    return;
                 }
             }
             if ("PRIMARY".equals(indexName)) {
@@ -196,31 +197,35 @@ public class CandidateIndexImpl {
             } else {
                 scanType = PredicateImpl.ScanType.UNIQUE_KEY;
             }
-            return 100;
+            score = 100;
+            return;
         } else {
             // range index
             // leading columns need any kind of bound
             // extra credit for equals
+            boolean firstColumn = true;
             for (CandidateColumnImpl candidateColumn: candidateColumns) {
                 if ((candidateColumn.equalBound)) {
                     scanType = PredicateImpl.ScanType.INDEX_SCAN;
                     if (!lowerBoundDone) {
-                        result += fieldScore;
+                        score += fieldScore;
                         lastLowerBoundColumn = candidateColumn;
                     }
                     if (!upperBoundDone) {
-                        result += fieldScore;
+                        score += fieldScore;
                         lastUpperBoundColumn = candidateColumn;
                     }
                 } else if ((candidateColumn.inBound)) {
                     scanType = PredicateImpl.ScanType.INDEX_SCAN;
-                    multiRange = true;
+                    if (firstColumn) {
+                        multiRange = true;
+                    }
                     if (!lowerBoundDone) {
-                        result += fieldScore;
+                        score += fieldScore;
                         lastLowerBoundColumn = candidateColumn;
                     }
                     if (!upperBoundDone) {
-                        result += fieldScore;
+                        score += fieldScore;
                         lastUpperBoundColumn = candidateColumn;
                     }
                 } else if (!(lowerBoundDone && upperBoundDone)) {
@@ -233,7 +238,7 @@ public class CandidateIndexImpl {
                     }
                     if (!lowerBoundDone) {
                         if (hasLowerBound) {
-                            result += fieldScore;
+                            score += fieldScore;
                             lastLowerBoundColumn = candidateColumn;
                         } else {
                             lowerBoundDone = true;
@@ -241,7 +246,7 @@ public class CandidateIndexImpl {
                     }
                     if (!upperBoundDone) {
                         if (hasUpperBound) {
-                            result += fieldScore;
+                            score += fieldScore;
                             lastUpperBoundColumn = candidateColumn;
                         } else {
                             upperBoundDone = true;
@@ -251,6 +256,7 @@ public class CandidateIndexImpl {
                         continue;
                     }
                 }
+                firstColumn = false;
             }
             if (lastLowerBoundColumn != null) {
                 lastLowerBoundColumn.markLastLowerBoundColumn();
@@ -259,7 +265,7 @@ public class CandidateIndexImpl {
                 lastUpperBoundColumn.markLastUpperBoundColumn();
             }
         }
-        return result;
+        return;
     }
 
     public ScanType getScanType() {
@@ -350,6 +356,7 @@ public class CandidateIndexImpl {
     class CandidateColumnImpl {
 
         protected AbstractDomainFieldHandlerImpl domainFieldHandler;
+        protected PredicateImpl predicate;
         protected PredicateImpl lowerBoundPredicate;
         protected PredicateImpl upperBoundPredicate;
         protected PredicateImpl equalPredicate;
@@ -375,7 +382,6 @@ public class CandidateIndexImpl {
         }
 
         public int getParameterSize(QueryExecutionContext context) {
-            // TODO Auto-generated method stub
             return inPredicate.getParameterSize(context);
         }
 
@@ -402,21 +408,25 @@ public class CandidateIndexImpl {
         private void markLowerBound(PredicateImpl predicate, boolean strict) {
             lowerBoundStrict = strict;
             this.lowerBoundPredicate = predicate;
+            this.predicate = predicate;
         }
 
         private void markUpperBound(PredicateImpl predicate, boolean strict) {
             upperBoundStrict = strict;
             this.upperBoundPredicate = predicate;
+            this.predicate = predicate;
         }
 
         private void markEqualBound(PredicateImpl predicate) {
             equalBound = true;
             this.equalPredicate = predicate;
+            this.predicate = predicate;
         }
 
         public void markInBound(InPredicateImpl predicate) {
             inBound = true;
             this.inPredicate = predicate;
+            this.predicate = predicate;
         }
 
         /** Set bounds into each predicate that has been defined.
@@ -427,6 +437,14 @@ public class CandidateIndexImpl {
          */
         private int operationSetBounds(
                 QueryExecutionContext context, IndexScanOperation op, int index, int boundStatus) {
+            if (inPredicate != null && index == -1
+                    || !canBound) {
+                // "in" predicate cannot be used to set bounds unless it is the first column in the index
+                // if index scan but no valid bounds to set skip bounds
+                return BOUND_STATUS_BOTH_BOUNDS_DONE;
+            }
+
+            int boundSet = PredicateImpl.NO_BOUND_SET;
 
             if (logger.isDetailEnabled()) logger.detail("column: " + domainFieldHandler.getName() 
                     + " boundStatus: " + boundStatus
@@ -439,51 +457,53 @@ public class CandidateIndexImpl {
                 case BOUND_STATUS_NO_BOUND_DONE:
                     // can set either/both lower or upper bound
                     if (equalPredicate != null) {
-                        equalPredicate.operationSetBounds(context, op, true);
+                        boundSet |= equalPredicate.operationSetBounds(context, op, true);
                     }
                     if (inPredicate != null) {
-                        inPredicate.operationSetBound(context, op, index, true);
+                        boundSet |= inPredicate.operationSetBound(context, op, index, true);
                     }
                     if (lowerBoundPredicate != null) {
-                        lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                        boundSet |= lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
                     }
                     if (upperBoundPredicate != null) {
-                        upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                        boundSet |= upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
                     }
                     break;
                 case BOUND_STATUS_LOWER_BOUND_DONE:
                     // cannot set lower, only upper bound
                     if (equalPredicate != null) {
-                        equalPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                        boundSet |= equalPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
                     }
                     if (inPredicate != null) {
-                        inPredicate.operationSetUpperBound(context, op, index);
+                        boundSet |= inPredicate.operationSetUpperBound(context, op, index);
                     }
                     if (upperBoundPredicate != null) {
-                        upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
+                        boundSet |= upperBoundPredicate.operationSetUpperBound(context, op, lastUpperBoundColumn);
                     }
                     break;
                 case BOUND_STATUS_UPPER_BOUND_DONE:
                     // cannot set upper, only lower bound
                     if (equalPredicate != null) {
-                        equalPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                        boundSet |= equalPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
                     }
                     if (inPredicate != null) {
-                        inPredicate.operationSetLowerBound(context, op, index);
+                        boundSet |= inPredicate.operationSetLowerBound(context, op, index);
                     }
                     if (lowerBoundPredicate != null) {
-                        lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
+                        boundSet |= lowerBoundPredicate.operationSetLowerBound(context, op, lastLowerBoundColumn);
                     }
                     break;
             }
-            if (!hasLowerBound()) {
-                // if this has no lower bound, set lower bound done
+            if (0 == (boundSet & PredicateImpl.LOWER_BOUND_SET)) {
+                // didn't set lower bound
                 boundStatus |= BOUND_STATUS_LOWER_BOUND_DONE;
             }
-            if (!hasUpperBound()) {
-                // if this has no upper bound, set upper bound done
+                
+            if (0 == (boundSet & PredicateImpl.UPPER_BOUND_SET)) {
+                // didn't set upper bound
                 boundStatus |= BOUND_STATUS_UPPER_BOUND_DONE;
             }
+                
             return boundStatus;
         }
 
@@ -511,8 +531,104 @@ public class CandidateIndexImpl {
         return storeIndex;
     }
 
+    public int getScore() {
+        return score;
+    }
+
     public boolean isMultiRange() {
         return multiRange;
+    }
+
+    public boolean isUnique() {
+        return unique;
+    }
+
+    /** Is this index usable in the current context?
+     * If a primary or unique index, all parameters must be non-null.
+     * If a btree index, the parameter for the first comparison must be non-null.
+     * If ordering is specified, the ordering fields must appear in the proper position in the index.
+     * <ul><li>Returns -1 if this index is unusable.
+     * </li><li>Returns 0 if this index is usable but has no filtering terms
+     * </li><li>Returns 1 if this index is usable and has at least one usable filtering term
+     * </li></ul>
+     * @param context the query execution context
+     * @param orderingFields the fields in the ordering
+     * @return the usability of this index
+     */
+    public int isUsable(QueryExecutionContext context, String[] orderingFields) {
+        boolean ordering = orderingFields != null;
+        if (ordering && !containsAllOrderingFields(orderingFields)) {
+            return -1;
+        }
+                
+        // ordering is ok; unique indexes have to have no null parameters
+        if (unique && score > 0) {
+            return context.hasNoNullParameters()?1:-1;
+        } else {
+            // index scan; the first parameter must not be null
+            if (candidateColumns == null) {
+                // this is a dummy index for "no where clause"
+                canBound = false;
+            } else {
+                CandidateColumnImpl candidateColumn = candidateColumns[0];
+                PredicateImpl predicate = candidateColumn.predicate;
+                canBound = predicate != null && predicate.isUsable(context);
+            }
+            // if first parameter is null, can scan but not bound
+            if (canBound) {
+                if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound true -> returns 1");
+                scanType = PredicateImpl.ScanType.INDEX_SCAN;
+                return 1;
+            } else {
+                if (ordering) {
+                    if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound false -> returns 0");
+                    scanType = PredicateImpl.ScanType.INDEX_SCAN;
+                    return 0;
+                } else {
+                    if (logger.isDebugEnabled()) logger.debug("for " + indexName + " canBound false -> returns -1");
+                    return -1;
+                }
+            }
+        }
+    }
+
+    /** Does this index contain all ordering fields?
+     * 
+     * @param orderingFields the ordering fields
+     * @return true if this ordered index contains all ordering fields in the proper position with no gaps
+     */
+    public boolean containsAllOrderingFields(String[] orderingFields) {
+        if (isUnique()) {
+            return false;
+        }
+        int candidateColumnIndex = 0;
+        if (orderingFields != null) {
+            for (String orderingField: orderingFields) {
+                if (candidateColumnIndex >= candidateColumns.length) {
+                    // too many columns in orderingFields for this index
+                    if (logger.isDebugEnabled()) logger.debug("Index " + indexName + " cannot be used because "
+                            + orderingField + " is not part of this index.");
+                    return false;
+                }
+                // each ordering field must correspond in order to the index fields
+                CandidateColumnImpl candidateColumn = candidateColumns[candidateColumnIndex++];
+                if (!orderingField.equals(candidateColumn.domainFieldHandler.getName())) {
+                    // the ordering field is not in the proper position in this candidate index
+                    if (logger.isDebugEnabled()) {
+                        logger.debug("Index " + indexName + " cannot be used because CandidateColumn "
+                            + candidateColumn.domainFieldHandler.getName() + " does not match " + orderingField);
+                    }
+                    return false;
+                }
+            }
+            if (logger.isDebugEnabled()) {
+                logger.debug("CandidateIndexImpl.containsAllOrderingFields found possible index (unique: "
+                        + unique + ") " + indexName);
+            }
+            scanType = PredicateImpl.ScanType.INDEX_SCAN;
+            return true;
+        }
+        return false;
     }
 
 }

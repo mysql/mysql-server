@@ -1,0 +1,23 @@
+use test;
+create table t1 (a varchar(1024)) engine=ndb max_rows=100000000;
+insert into t1 values (repeat('I', 1024));
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1;
+insert into t1 select * from t1 limit 8192;
+insert into t1 select * from t1 limit 8192;
+insert into t1 select * from t1 limit 8192;
+Continuing insert/delete until redo is full
+Redo log full, waiting for redo log having space...
+Redo had space again.
+drop table t1;

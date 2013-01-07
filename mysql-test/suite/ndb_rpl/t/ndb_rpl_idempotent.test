@@ -9,6 +9,20 @@
 
 # create a table with one row
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
+
+# Replicate the table creation, then reset the master log and
+# slave to avoid the creation being replayed below
+#
+sync_slave_with_master;
+--connection slave
+STOP SLAVE;
+--connection master
+RESET MASTER;
+--connection slave
+RESET SLAVE;
+START SLAVE;
+--connection master
+
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
 
@@ -49,10 +63,13 @@ source include/check_slave_is_running.inc;
 
 # stop slave and reset position to before the last changes
 STOP SLAVE;
---replace_result $the_pos <the_pos>
+--disable_query_log
+--disable_result_log
 eval CHANGE MASTER TO
   master_log_file = '$the_file',
   master_log_pos = $the_pos ;
+--enable_result_log
+--enable_query_log
 
 source include/check_slave_no_error.inc;
 
@@ -108,6 +125,108 @@ source include/check_slave_is_running.inc;
 
 connection master;
 DROP TABLE IF EXISTS t1;
+
+#
+# Test that the ndb_binlog_index table records
+# the start position of an epoch transaction
+# as the first position after the previous
+# epoch transaction
+#
+--sync_slave_with_master
+--connection slave
+STOP SLAVE;
+--connection master
+RESET MASTER;
+--connection slave
+RESET SLAVE;
+START SLAVE;
+--connection master
+
+--echo Let's interleave some DDL and DML in the Binlog
+
+--echo   Some DDL
+create table t1(a int primary key) engine=ndb;
+
+--echo   First epoch transaction
+begin;
+insert into t1 values (1), (2), (3);
+commit;
+
+--echo Sync slave and retrieve epoch
+--sync_slave_with_master
+--replace_column 1 <first_epoch>
+SELECT @first_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+let $first_epoch= `select @first_epoch` ;
+
+--echo   Slave contents
+select * from t1 ORDER by a;
+
+--echo   Get the next master binlog pos from the epoch
+connection master;
+--disable_query_log
+--disable_result_log
+eval SELECT @the_pos:=next_position,
+   @the_file:=SUBSTRING_INDEX(REPLACE(next_file,'\\\\','/'), '/', -1)
+   FROM mysql.ndb_binlog_index WHERE epoch = $first_epoch ;
+let $the_pos= `SELECT @the_pos` ;
+let $the_file= `SELECT @the_file` ;
+--enable_result_log
+--enable_query_log
+
+--echo  Now let's do some more DDL and DML
+create table t2 (a int primary key) engine=ndb;
+
+begin;
+insert into t2 values (1), (2), (3);
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+source include/check_slave_is_running.inc;
+
+--echo   Stop slave and reset position to start of the applied epoch
+STOP SLAVE;
+--disable_query_log
+--disable_result_log
+
+eval CHANGE MASTER TO
+  master_log_file = '$the_file',
+  master_log_pos = $the_pos;
+
+--enable_result_log
+--enable_query_log
+
+source include/check_slave_no_error.inc;
+
+# Add a suppression for the warning that will appear in the
+# Slave's .err file
+insert into mtr.test_suppressions values
+  ("Slave: Table \'t2\' already exists .*"),
+  ("Slave SQL: Error \'Table \'t2\' already exists\' .*");
+
+
+START SLAVE;
+
+--let $slave_sql_errno= 1050
+--let $show_slave_sql_error=1
+--source include/wait_for_slave_sql_error.inc
+
+STOP SLAVE;
+
+# Cleanup
+--connection master
+RESET MASTER;
+
+--connection slave
+RESET SLAVE;
+START SLAVE;
+
+--connection master
+DROP TABLE t1;
+DROP TABLE t2;
+
+--sync_slave_with_master
 
 # End of 5.1 Test
 --source include/rpl_end.inc

@@ -55,7 +55,7 @@ ENDIF()
 # As a consequence of ALARMs no longer being used, thread
 # notification for KILL must close the socket to wake up
 # other threads.
-SET(SIGNAL_WITH_VIO_CLOSE 1)
+SET(SIGNAL_WITH_VIO_SHUTDOWN 1)
 
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -323,15 +323,14 @@ ELSE()
 ENDIF()
 
 # Figure out threading library
-#
+# Defines CMAKE_USE_PTHREADS_INIT and CMAKE_THREAD_LIBS_INIT.
 FIND_PACKAGE (Threads)
 
 FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
   CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
-  IF(NOT HAVE_WERROR_FLAG)
-    RETURN()
+  IF(HAVE_WERROR_FLAG)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
   ENDIF()
-  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
   CHECK_C_SOURCE_COMPILES("
     #include <pthread.h>
     void foo(void) {}

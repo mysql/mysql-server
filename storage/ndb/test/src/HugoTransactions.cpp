@@ -200,7 +200,8 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 				  int abortPercent,
 				  int parallelism, 
 				  NdbOperation::LockMode lm,
-                                  int scan_flags)
+                                  int scan_flags,
+                                  int bound_cnt, const HugoBound* bound_arr)
 {
   
   int                  retryAttempt = 0;
@@ -242,6 +243,14 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
       ERR(pTrans->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;
+    }
+
+    for (int i = 0; i < bound_cnt; i++) {
+      const HugoBound& b = bound_arr[i];
+      if (pOp->setBound(b.attr, b.type, b.value) != 0) {
+        ERR(pOp->getNdbError());
+        return NDBT_FAILED;
+      }
     }
     
     for(a = 0; a<tab.getNoOfColumns(); a++){
@@ -351,8 +360,10 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
 
     closeTransaction(pNdb);
 
-    g_info << rows << " rows have been read" << endl;
-    if (records != 0 && rows != records){
+    g_info << rows << " rows have been read"
+           << ", number of index bounds " << bound_cnt << endl;
+    // TODO verify expected number of records with index bounds
+    if (records != 0 && rows != records && bound_cnt == 0){
       g_err << "Check expected number of records failed" << endl 
 	    << "  expected=" << records <<", " << endl
 	    << "  read=" << rows << endl;
@@ -397,12 +408,19 @@ restart:
     }
 
     pOp = getScanOperation(pTrans);
-    if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+    if (pOp == NULL)
+    {
+      const NdbError err = pTrans->getNdbError();
+      ERR(err);
       closeTransaction(pNdb);
+      if (err.status == NdbError::TemporaryError)
+      {
+        NdbSleep_MilliSleep(50);
+        continue;
+      }
       return NDBT_FAILED;
     }
-    
+
     if( pOp->readTuples(NdbOperation::LM_Exclusive, flags,
                         parallelism))
     {

@@ -1,0 +1,70 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+# Test the ASCII protocol functions in the My/Memcache.pm library
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+
+  # SET a new key
+  $r = $mc->set("lib_test_1", 1501);
+  if($r) { print "OK: Test 1\n"; } 
+    
+  # REPLACE an existing key
+  $r = $mc->replace("lib_test_1", 1502);
+  if($r) { print "OK: Test 2\n"; }
+
+  # REPLACE a new key should fail
+  $r = $mc->replace("lib_test_2", 1503);
+  unless($r) { print "OK: Test 3\n"; } 
+  
+  # ADD a new key
+  $r = $mc->add("lib_test_2", 1504);
+  if($r) { print "OK: Test 4\n"; }
+  
+  # ADD an existing key should fail (return 0)
+  $r = $mc->add("lib_test_1", 1505);
+  unless($r) { print "OK: Test 5\n"; } 
+
+  # DELETE an existing key
+  $mc->add("lib_test_3", 1506);
+  $r = $mc->delete("lib_test_3");  
+  if($r) { print "OK: Test 6\n"; }
+  
+  # This DELETE should fail (return 0)
+  $r = $mc->delete("lib_test_not_there");
+  unless($r) { print "OK: Test 7\n"; } 
+
+  # GET returns the value
+  $r = $mc->get("lib_test_2");
+  if($r == 1504) { print "OK: Test 8\n"; }
+  else { print "[FAIL] TEST 8: $r \n"; }
+  
+  # GET returns NOT_FOUND
+  $r = $mc->get("lib_test_3");
+  if((! defined($r)) && $mc->{error} eq "NOT_FOUND") { print "OK: Test 9\n"; }
+
+  # INCR returns the NOT_FOUND
+  $r = $mc->incr("lib_test_3", 1);
+  if ((!defined($r)) && $mc->{error} eq "NOT_FOUND") { print "OK: Test 10\n"; }
+  else { print "[FAIL] TEST 10: $r \n"; }
+}
+
+EOF
+
+SELECT mkey, string_value FROM ndbmemcache.demo_table 
+ WHERE mkey like 'lib_test%' ORDER BY mkey;
+DELETE FROM ndbmemcache.demo_table where mkey like 'lib_test%';

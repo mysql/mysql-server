@@ -105,14 +105,12 @@ ERROR 23000: Column 'a' cannot be null
 INSERT INTO t1 (a) values (null),(null);
 Warnings:
 Warning	1048	Column 'a' cannot be null
-Warning	1048	Column 'a' cannot be null
 INSERT INTO t1 (b) values (null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (1/null);
 ERROR 23000: Column 'b' cannot be null
 INSERT INTO t1 (b) values (null),(null);
 Warnings:
-Warning	1048	Column 'b' cannot be null
 Warning	1048	Column 'b' cannot be null
 INSERT INTO t1 (c) values (null);
 ERROR 23000: Column 'c' cannot be null
@@ -121,14 +119,12 @@ ERROR 23000: Column 'c' cannot be null
 INSERT INTO t1 (c) values (null),(null);
 Warnings:
 Warning	1048	Column 'c' cannot be null
-Warning	1048	Column 'c' cannot be null
 INSERT INTO t1 (d) values (null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (1/null);
 ERROR 23000: Column 'd' cannot be null
 INSERT INTO t1 (d) values (null),(null);
 Warnings:
-Warning	1048	Column 'd' cannot be null
 Warning	1048	Column 'd' cannot be null
 select * from t1;
 a	b	c	d

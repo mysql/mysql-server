@@ -39,6 +39,9 @@ typedef int (*sc_compare_func)(const void*, const void*);
 
 
 Gcalc_dyn_list::Gcalc_dyn_list(size_t blk_size, size_t sizeof_item):
+#ifndef DBUG_OFF
+  m_last_item_id(0),
+#endif
   m_blk_size(blk_size - ALLOC_ROOT_MIN_BLOCK_SIZE),
   m_sizeof_item(ALIGN_SIZE(sizeof_item)),
   m_points_per_blk((m_blk_size - PH_DATA_OFFSET) / m_sizeof_item),

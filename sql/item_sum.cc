@@ -153,9 +153,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       If it is there under a construct where it is not allowed 
       we report an error. 
     */ 
-    invalid= !(allow_sum_func & (1 << max_arg_level));
+    invalid= !(allow_sum_func & ((nesting_map)1 << max_arg_level));
   }
-  else if (max_arg_level >= 0 || !(allow_sum_func & (1 << nest_level)))
+  else if (max_arg_level >= 0 ||
+           !(allow_sum_func & ((nesting_map)1 << nest_level)))
   {
     /*
       The set function can be aggregated only in outer subqueries.
@@ -164,7 +165,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     if (register_sum_func(thd, ref))
       return TRUE;
-    invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    invalid= aggr_level < 0 &&
+             !(allow_sum_func & ((nesting_map)1 << nest_level));
     if (!invalid && thd->variables.sql_mode & MODE_ANSI)
       invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
@@ -312,14 +314,15 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
        sl && sl->nest_level > max_arg_level;
        sl= sl->master_unit()->outer_select() )
   {
-    if (aggr_level < 0 && (allow_sum_func & (1 << sl->nest_level)))
+    if (aggr_level < 0 &&
+        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & (1 << sl->nest_level)))
+  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
   {
     /* 
       We reached the subquery of level max_arg_level and checked
@@ -541,7 +544,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -971,7 +974,7 @@ bool Aggregator_distinct::add()
       return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
-      if ((*field)->is_real_null(0))
+      if ((*field)->is_real_null())
         return 0;					// Don't count NULL
 
     if (tree)
@@ -991,7 +994,7 @@ bool Aggregator_distinct::add()
   }
   else
   {
-    item_sum->get_arg(0)->save_in_field(table->field[0], FALSE);
+    item_sum->get_arg(0)->save_in_field(table->field[0], false);
     if (table->field[0]->is_null())
       return 0;
     DBUG_ASSERT(tree);
@@ -2425,7 +2428,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
   nr= args[0]->val_temporal_by_field_type();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr= nr;
     else
     {
@@ -2436,7 +2439,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_packed(old_nr);
 }
@@ -2467,12 +2470,12 @@ void Item_sum_hybrid::min_max_update_real_field()
   nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0) ||
+    if (result_field->is_null() ||
 	(cmp_sign > 0 ? old_nr > nr : old_nr < nr))
       old_nr=nr;
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr);
 }
@@ -2486,7 +2489,7 @@ void Item_sum_hybrid::min_max_update_int_field()
   nr=args[0]->val_int();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2499,7 +2502,7 @@ void Item_sum_hybrid::min_max_update_int_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr, unsigned_flag);
 }
@@ -2517,7 +2520,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
   const my_decimal *nr= args[0]->val_decimal(&nr_val);
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2528,7 +2531,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_decimal(old_nr);
 }
@@ -3028,7 +3031,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
                                           &well_formed_error);
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
@@ -3500,7 +3503,7 @@ String* Item_func_group_concat::val_str(String* str)
       table->blob_storage->is_truncated_value())
   {
     warning_for_row= true;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }
@@ -3535,7 +3538,24 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     }
   }
   str->append(STRING_WITH_LEN(" separator \'"));
-  str->append(*separator);
+
+  if (query_type & QT_TO_SYSTEM_CHARSET)
+  {
+    // Convert to system charset.
+   convert_and_print(separator, str, system_charset_info);
+  }
+  else if (query_type & QT_TO_ARGUMENT_CHARSET)
+  {
+    /*
+      Convert the string literals to str->charset(),
+      which is typically equal to charset_set_client.
+    */
+   convert_and_print(separator, str, str->charset());
+  }
+  else
+  {
+    separator->print(str);
+  }
   str->append(STRING_WITH_LEN("\')"));
 }
 

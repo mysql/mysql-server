@@ -21,8 +21,6 @@
 
 #define PRIVATE_BASE          14000
 
-#define CFG_ACC_DIR_RANGE     (PRIVATE_BASE +  1)
-#define CFG_ACC_DIR_ARRAY     (PRIVATE_BASE +  2)
 #define CFG_ACC_FRAGMENT      (PRIVATE_BASE +  3)
 #define CFG_ACC_OP_RECS       (PRIVATE_BASE +  4)
 #define CFG_ACC_OVERFLOW_RECS (PRIVATE_BASE +  5)
@@ -63,5 +61,7 @@
 #define CFG_TUX_FRAGMENT      (PRIVATE_BASE + 41)
 #define CFG_TUX_ATTRIBUTE     (PRIVATE_BASE + 42)
 #define CFG_TUX_SCAN_OP       (PRIVATE_BASE + 43)
+
+#define CFG_SPJ_TABLE         (PRIVATE_BASE + 44)
 
 #endif

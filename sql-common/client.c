@@ -3077,7 +3077,6 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_name");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_os");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_platform");
-  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_command_line");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_pid");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_thread");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_version");
@@ -3101,9 +3100,6 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef __WIN__
-  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                      "_command_line", GetCommandLine());
-
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
@@ -3175,7 +3171,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (!passwd)
   {
     passwd=mysql->options.password;
-#if !defined(DONT_USE_MYSQL_PWD) && !defined(MYSQL_SERVER)
+#if !defined(MYSQL_SERVER)
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
 #endif
@@ -4097,13 +4093,15 @@ mysql_send_query(MYSQL* mysql, const char* query, ulong length)
 int STDCALL
 mysql_real_query(MYSQL *mysql, const char *query, ulong length)
 {
+  int retval;
   DBUG_ENTER("mysql_real_query");
-  DBUG_PRINT("enter",("handle: 0x%lx", (long) mysql));
-  DBUG_PRINT("query",("Query = '%-.4096s'",query));
+  DBUG_PRINT("enter",("handle: %p", mysql));
+  DBUG_PRINT("query",("Query = '%-.*s'", (int) length, query));
 
   if (mysql_send_query(mysql,query,length))
     DBUG_RETURN(1);
-  DBUG_RETURN((int) (*mysql->methods->read_query_result)(mysql));
+  retval= (int) (*mysql->methods->read_query_result)(mysql);
+  DBUG_RETURN(retval);
 }
 
 
@@ -4422,7 +4420,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
-
+  case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
+    if (*(my_bool*) arg)
+      mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    else
+      mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    break;
 
   default:
     DBUG_RETURN(1);
@@ -4733,9 +4736,13 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         pkt_len != SCRAMBLE_LENGTH + 1)
         DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, pkt_len);
-    mysql->scramble[pkt_len] = 0;
+    /*
+      save it in MYSQL.
+      Copy data of length SCRAMBLE_LENGTH_323 or SCRAMBLE_LENGTH
+      to ensure that buffer overflow does not occur.
+    */
+    memcpy(mysql->scramble, pkt, (pkt_len - 1));
+    mysql->scramble[pkt_len-1] = 0;
   }
 
   if (mysql->passwd[0])

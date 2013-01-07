@@ -225,7 +225,7 @@ dict_stats_thread_init()
 {
 	ut_a(!srv_read_only_mode);
 
-	dict_stats_event = os_event_create("dict_stats_event");
+	dict_stats_event = os_event_create();
 
 	/* The recalc_pool_mutex is acquired from:
 	1) the background stats gathering thread before any other latch
@@ -297,6 +297,13 @@ dict_stats_process_entry_from_recalc_pool()
 	if (table == NULL) {
 		/* table does not exist, must have been DROPped
 		after its id was enqueued */
+		mutex_exit(&dict_sys->mutex);
+		return;
+	}
+
+	/* Check whether table is corrupted */
+	if (table->corrupted) {
+		dict_table_close(table, TRUE, FALSE);
 		mutex_exit(&dict_sys->mutex);
 		return;
 	}
