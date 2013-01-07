@@ -42,7 +42,6 @@ can wait inside InnoDB */
 #define OS_THREAD_PRIORITY_ABOVE_NORMAL	3
 
 #ifdef __WIN__
-typedef void*			os_thread_t;
 typedef DWORD			os_thread_id_t;	/*!< In Windows the thread id
 						is an unsigned long int */
 extern "C"  {
@@ -61,8 +60,7 @@ don't access the arguments and don't return any value, we should be safe. */
 
 #else
 
-typedef pthread_t		os_thread_t;
-typedef os_thread_t		os_thread_id_t;	/*!< In Unix we use the thread
+typedef pthread_t		os_thread_id_t;	/*!< In Unix we use the thread
 						handle itself as the id of
 						the thread */
 extern "C"  { typedef void*	(*os_thread_func_t)(void*); }
@@ -104,13 +102,13 @@ os_thread_pf(
 	os_thread_id_t	a);	/*!< in: OS thread identifier */
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
-the function given. The start function takes a void* parameter
-and returns a ulint.
+the function given.
 NOTE: We count the number of threads in os_thread_exit(). A created
-thread should always use that to exit and not use return() to exit.
-@return	handle to the thread */
+thread should always use that to exit so thatthe thread count will be
+decremented.
+We do not return an error code because if there is one, we crash here. */
 UNIV_INTERN
-os_thread_t
+void
 os_thread_create_func(
 /*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function

@@ -3124,11 +3124,19 @@ err:
   {
     DBUG_ASSERT(!worker);
 
-    // destroy buffered events of the current group prior to exit
+    /*
+      Destroy all deferred buffered events but the current prior to exit.
+      The current one will be deleted as an event never destined/assigned
+      to any Worker in Coordinator's regular execution path.
+    */
     for (uint k= 0; k < rli->curr_group_da.elements; k++)
-    { 
-      delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+    {
+      Log_event *ev_buf=
+        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      if (this != ev_buf)
+        delete ev_buf;
     }
+    rli->curr_group_da.elements= 0;
   }
   else
   {
@@ -10877,15 +10885,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
 
-    /*
-      Note that unlike the other thd options set here, this one
-      comes from a global, and not from the incoming event.
-    */
-    if (opt_slave_allow_batching)
-      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
-    else
-      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-
     thd->binlog_row_event_extra_data = m_extra_row_data;
 
     /* A small test to verify that objects have consistent types */
@@ -11193,9 +11192,6 @@ AFTER_MAIN_EXEC_ROW_LOOP:
       error= 0;
     }
   } // if (table)
-
-  /* reset OPTION_ALLOW_BATCH as not affect later events */
-  thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
 
   if (error)
   {
