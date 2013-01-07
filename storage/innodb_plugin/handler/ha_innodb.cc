@@ -1142,7 +1142,7 @@ innobase_mysql_tmpfile(void)
 
 	DBUG_EXECUTE_IF(
 		"innobase_tmpfile_creation_failure",
-		return(-1);
+		DBUG_RETURN(-1);
 	);
 
 	tmpdir = my_tmpdir(&mysql_tmpdir_list);
