@@ -655,6 +655,33 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     return 1;
   }
 
+  /* Building .TRG and .TRN trigger filenames */
+  file.length= build_table_filename(file_buff, FN_REFLEN - 1,
+                                    tables->db, tables->table_name,
+                                    TRG_EXT, 0);
+  file.str= file_buff;
+
+  trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
+                                             tables->db,
+                                             lex->spname->m_name.str,
+                                             TRN_EXT, 0, &was_truncated);
+  // Check if we hit FN_REFLEN bytes in path length
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(trigname_buff)-1,
+             trigname_buff);
+    return 1;
+  }
+  trigname_file.str= trigname_buff;
+
+
+  /* Use the filesystem to enforce trigger namespace constraints. */
+  if (!access(trigname_buff, F_OK))
+  {
+    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
+    return 1;
+  }
+
   sp_head *trg= lex->sphead;
   int trg_event= trg->m_trg_chistics.event;
   int trg_action_time= trg->m_trg_chistics.action_time;
@@ -747,32 +774,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     sql_create_definition_file() files handles renaming and backup of older
     versions
   */
-  file.length= build_table_filename(file_buff, FN_REFLEN - 1,
-                                    tables->db, tables->table_name,
-                                    TRG_EXT, 0);
-  file.str= file_buff;
-
-  trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
-                                             tables->db,
-                                             lex->spname->m_name.str,
-                                             TRN_EXT, 0, &was_truncated);
-  // Check if we hit FN_REFLEN bytes in path length
-  if (was_truncated)
-  {
-    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(trigname_buff)-1,
-             trigname_buff);
-    return 1;
-  }
-  trigname_file.str= trigname_buff;
-
-
-  /* Use the filesystem to enforce trigger namespace constraints. */
-  if (!access(trigname_buff, F_OK))
-  {
-    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
-    return 1;
-  }
-
   trigname.trigger_table.str= tables->table_name;
   trigname.trigger_table.length= tables->table_name_length;
 
