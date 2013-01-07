@@ -4,9 +4,6 @@
 # Test sleeps for long times
 --source include/big_test.inc
 
-# check that CSV engine was compiled in
---source include/have_csv.inc
-
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 

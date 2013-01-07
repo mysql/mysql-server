@@ -168,7 +168,6 @@ UNIV_INTERN mysql_pfs_key_t	recv_writer_mutex_key;
 
 /** Flag indicating if recv_writer thread is active. */
 UNIV_INTERN bool		recv_writer_thread_active = false;
-UNIV_INTERN os_thread_t		recv_writer_thread_handle = 0;
 #endif /* !UNIV_HOTBACKUP */
 
 /* prototypes */
@@ -3267,9 +3266,7 @@ recv_recovery_from_checkpoint_start_func(
 				/* Spawn the background thread to
 				flush dirty pages from the buffer
 				pools. */
-				recv_writer_thread_handle =
-					os_thread_create(
-					recv_writer_thread, 0, 0);
+				os_thread_create(recv_writer_thread, 0, 0);
 			} else {
 				/* Init the doublewrite buffer memory
 				 structure */
@@ -3438,12 +3435,6 @@ recv_recovery_from_checkpoint_finish(void)
 			count = 0;
 		}
 	}
-
-#ifdef __WIN__
-	if (recv_writer_thread_handle) {
-		CloseHandle(recv_writer_thread_handle);
-	}
-#endif /* __WIN__ */
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
