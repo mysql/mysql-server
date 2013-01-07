@@ -1050,6 +1050,6 @@ typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 
 typedef Mutex ib_mutex_t;
 
-#include "ib_mutex.ic"
+#include "ut0mutex.ic"
 
 #endif /* ut0mutex_h */
