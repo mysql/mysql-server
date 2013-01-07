@@ -42,7 +42,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "read0types.h"
 #include "page0types.h"
 #include "ut0bh.h"
-#include "ib_mutex.h"
+#include "ut0mutex.h"
 
 typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 

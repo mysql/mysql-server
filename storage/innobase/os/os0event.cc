@@ -24,7 +24,7 @@ Created 2012-09-23 Sunny Bains
 *******************************************************/
 
 #include "os0event.h"
-#include "ib_mutex.h"
+#include "ut0mutex.h"
 #include "ha_prototypes.h"
 
 #include <list>

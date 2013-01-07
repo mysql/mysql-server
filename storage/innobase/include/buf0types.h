@@ -27,7 +27,7 @@ Created 11/17/1995 Heikki Tuuri
 #define buf0types_h
 
 #include "os0event.h"
-#include "ib_mutex.h"
+#include "ut0mutex.h"
 
 /** Buffer page (uncompressed or compressed) */
 struct buf_page_t;

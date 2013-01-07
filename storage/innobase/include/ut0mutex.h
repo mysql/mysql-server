@@ -17,7 +17,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 *****************************************************************************/
 
 /******************************************************************//**
-@file include/ib_mutex.h
+@file include/ut0mutex.h
 Policy based mutexes.
 
 Created 2012-03-24 Sunny Bains.
@@ -25,8 +25,8 @@ Created 2012-03-24 Sunny Bains.
 
 #include "sync0policy.h"
 
-#ifndef ib_mutex_h
-#define ib_mutex_h
+#ifndef ut0mutex_h
+#define ut0mutex_h
 
 /** OS event mutex. We can't track the locking because this mutex is used
 by the events code. The mutex can be released by the condition variable
@@ -1052,4 +1052,4 @@ typedef Mutex ib_mutex_t;
 
 #include "ib_mutex.ic"
 
-#endif /* ib_mutex_h */
+#endif /* ut0mutex_h */

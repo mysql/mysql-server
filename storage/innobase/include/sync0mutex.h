@@ -27,7 +27,7 @@ Created 2012-08-15 Sunny Bains.
 #include "os0event.h"
 #include "sync0types.h"
 #include "ut0counter.h"
-#include "ib_mutex.h"
+#include "ut0mutex.h"
 
 #ifndef sync0mutex_h
 #define sync0mutex_h
