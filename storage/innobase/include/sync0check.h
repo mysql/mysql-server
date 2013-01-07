@@ -67,7 +67,8 @@ sync_check_lock(const latch_t* latch);
 
 /**
 Check if it is OK to acquire the latch. 
-@param latch - latch type */
+@param latch - latch type
+@param level - the level of the mutex */
 UNIV_INTERN
 void
 sync_check_lock(const latch_t* latch, latch_level_t level);

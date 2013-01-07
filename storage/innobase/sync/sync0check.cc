@@ -770,8 +770,13 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "autoinc",
 		  SYNC_DICT_AUTOINC_MUTEX, autoinc_mutex_key);
 
+#if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
+	LATCH_ADD(SrvLatches, "buf_block_mutex",
+		  SYNC_BUF_BLOCK, PFS_NOT_INSTRUMENTED);
+#else
 	LATCH_ADD(SrvLatches, "buf_block_mutex",
 		  SYNC_BUF_BLOCK, buffer_block_mutex_key);
+#endif /* PFS_SKIP_BUFFER_MUTEX_RWLOCK || PFS_GROUP_BUFFER_SYNC */
 
 	LATCH_ADD(SrvLatches, "buf_pool",
 		  SYNC_BUF_POOL, buf_pool_mutex_key);
