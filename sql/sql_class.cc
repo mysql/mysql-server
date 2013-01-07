@@ -988,9 +988,7 @@ THD::THD(bool enable_plugins)
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.flags.enabled= true;
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   active_vio = 0;
-#endif
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1711,7 +1709,6 @@ void THD::awake(THD::killed_state state_to_set)
 
   if (state_to_set != THD::KILL_QUERY)
   {
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
     {
       /*
@@ -1742,7 +1739,6 @@ void THD::awake(THD::killed_state state_to_set)
 
       shutdown_active_vio();
     }
-#endif
 
     /* Mark the target thread's alarm request expired, and signal alarm. */
     thr_alarm_kill(thread_id);
@@ -1809,7 +1805,6 @@ void THD::disconnect()
 
   killed= THD::KILL_CONNECTION;
 
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   /*
     Since a active vio might might have not been set yet, in
     any case save a reference to avoid closing a inexistent
@@ -1817,7 +1812,6 @@ void THD::disconnect()
   */
   vio= active_vio;
   shutdown_active_vio();
-#endif
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio && net.vio != NULL)
@@ -2269,7 +2263,6 @@ int THD::send_explain_fields(select_result *result)
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
 void THD::shutdown_active_vio()
 {
   DBUG_ENTER("shutdown_active_vio");
@@ -2283,7 +2276,6 @@ void THD::shutdown_active_vio()
 #endif
   DBUG_VOID_RETURN;
 }
-#endif
 
 
 /*
