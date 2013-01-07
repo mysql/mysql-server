@@ -1853,6 +1853,7 @@ loop:
 
 	ret = unlink(name);
 
+	fprintf(stderr, "errno : %d\n", errno);
 	if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
