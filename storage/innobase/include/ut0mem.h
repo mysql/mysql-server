@@ -30,7 +30,7 @@ Created 5/30/1994 Heikki Tuuri
 #include <string.h>
 #ifndef UNIV_HOTBACKUP
 # include "os0event.h"
-# include "ib_mutex.h"
+# include "ut0mutex.h"
 
 /** The total amount of memory currently allocated from the operating
 system with os_mem_alloc_large() or malloc().  Does not count malloc()
