@@ -960,6 +960,20 @@ struct PolicyMutex
 	}
 
 #ifdef UNIV_PFS_MUTEX
+	/** Performance schema monitoring - register mutex with PFS.
+
+	Note: This is public only because we want to get around an issue
+	with registering a subset of buffer pool pages with PFS when
+	PFS_GROUP_BUFFER_SYNC is defined. Therefore this has to then
+	be called by external code (see buf0buf.cc).
+
+	@param key - Performance Schema key. */
+	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
+	{
+		ut_ad(m_ptr == 0);
+		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
+	}
+
 private:
 
 	/** Performance schema monitoring.
@@ -996,14 +1010,6 @@ private:
 		if (m_ptr != 0) {
 			PSI_MUTEX_CALL(unlock_mutex)(m_ptr);
 		}
-	}
-
-	/** Performance schema monitoring - register mutex
-	@param key - Performance Schema key. */
-	void pfs_add(mysql_pfs_key_t key) UNIV_NOTHROW
-	{
-		ut_ad(m_ptr == 0);
-		m_ptr = PSI_MUTEX_CALL(init_mutex)(key, this);
 	}
 
 	/** Performance schema monitoring - deregister */

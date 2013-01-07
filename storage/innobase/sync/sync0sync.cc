@@ -84,11 +84,11 @@ sync_print_wait_info(FILE* file)
 }
 
 /**
-Prints info of the sync system. */
+Prints info of the sync system.
+@param file - where to print */
 UNIV_INTERN
 void
 sync_print(
-/*=======*/
 	FILE*	file)				/*!< in/out: where to print */
 {
 #ifdef UNIV_SYNC_DEBUG
