@@ -2179,7 +2179,8 @@ btr_root_raise_and_insert(
 	fprintf(stderr, "Root raise new page no %lu\n", new_page_no);
 #endif
 
-	if (!dict_index_is_clust(index)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(new_block);
 	}
 

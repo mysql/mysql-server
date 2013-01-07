@@ -1470,7 +1470,9 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (leaf && !dict_index_is_clust(index)) {
+	if (leaf
+	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -1898,7 +1900,9 @@ btr_cur_update_alloc_zip(
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
 				length, create)) {
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
+		if (!dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)
+		    && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 		return(FALSE);
@@ -2015,7 +2019,9 @@ btr_cur_update_in_place(
 		rw_lock_x_unlock(&btr_search_latch);
 	}
 
-	if (page_zip && !dict_index_is_clust(index)
+	if (page_zip
+	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -2238,7 +2244,9 @@ any_extern:
 		cursor, new_entry, offsets, heap, 0/*n_ext*/, mtr);
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
-	if (page_zip && !dict_index_is_clust(index)
+	if (page_zip
+	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -2535,7 +2543,9 @@ make_external:
 			rec_offs_make_valid(page_cursor->rec, index, *offsets);
 		}
 
-		if (page_zip && !dict_index_is_clust(index)
+		if (page_zip
+		    && !dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)
 		    && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer. */
 			ibuf_update_free_bits_zip(block, mtr);
@@ -2552,7 +2562,9 @@ make_external:
 		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
+		if (!dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)	
+		    && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 	}
@@ -3112,11 +3124,12 @@ btr_cur_optimistic_delete_func(
 #endif /* UNIV_ZIP_DEBUG */
 
 		if (dict_index_is_clust(cursor->index)
+		    || dict_table_is_temporary(cursor->index->table)
 		    || dict_index_is_ibuf(cursor->index)
 		    || !page_is_leaf(page)) {
 			/* The insert buffer does not handle
-			inserts to clustered indexes, to
-			non-leaf pages of secondary index B-trees,
+			inserts to clustered indexes, temporary tables, 
+			to non-leaf pages of secondary index B-trees,
 			or to the insert buffer. */
 		} else if (page_zip) {
 			ibuf_update_free_bits_zip(block, mtr);
