@@ -4,9 +4,6 @@
 # Basic log tables test
 #
 
-# check that CSV engine was compiled in
---source include/have_csv.inc
-
 SET @old_general_log_state = @@global.general_log;
 SET @old_log_output=       @@global.log_output;
 SET @old_slow_query_log=   @@global.slow_query_log;

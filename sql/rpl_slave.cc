@@ -2531,6 +2531,8 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              sql_gtid_set_size));
+  field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2770,8 +2772,12 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_ca, &my_charset_bin);
     // Master_Ssl_Crlpath
     protocol->store(mi->ssl_capath, &my_charset_bin);
+    // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
+    // Executed_Gtid_Set
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
+    // Auto_Position
+    protocol->store(mi->is_auto_position() ? 1 : 0);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -3877,7 +3883,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 {
   mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
   thd->proc_info= messages[SLAVE_RECON_MSG_WAIT];
-#ifdef SIGNAL_WITH_VIO_CLOSE  
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN  
   thd->clear_active_vio();
 #endif
   end_server(mysql);
@@ -4285,11 +4291,11 @@ err:
       Here we need to clear the active VIO before closing the
       connection with the master.  The reason is that THD::awake()
       might be called from terminate_slave_thread() because somebody
-      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
       can be called in the middle of closing the VIO associated with
       the 'mysql' object, causing a crash.
     */
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->clear_active_vio();
 #endif
     mysql_close(mysql);
@@ -6570,7 +6576,7 @@ err:
 
 extern "C" void slave_io_thread_detach_vio()
 {
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
     thd->clear_active_vio();
@@ -6748,7 +6754,7 @@ replication resumed in log '%s' at position %s", mi->get_user(),
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->get_user(), mi->host, mi->port);
     }
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->set_active_vio(mysql->net.vio);
 #endif
   }

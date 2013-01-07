@@ -2,10 +2,6 @@
 # This test must examine integrity of system database "mysql"
 #
 
-# check that CSV engine was compiled in, as the result of the test
-# depends on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
-
 -- disable_query_log
 use mysql;
 -- enable_query_log

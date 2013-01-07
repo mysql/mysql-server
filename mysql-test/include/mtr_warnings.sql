@@ -178,7 +178,8 @@ INSERT INTO global_suppressions VALUES
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
- ("Although a path was specified for the .* option, log tables are used"),
+ ("Although a path was specified for the --general-log-file option, log tables are used"),
+ ("Although a path was specified for the --slow-query-log-file option, log tables are used"),
  ("Backup: Operation aborted"),
  ("Restore: Operation aborted"),
  ("Restore: The grant .* was skipped because the user does not exist"),
