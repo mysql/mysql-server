@@ -495,7 +495,7 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine HAVE_DTRACE 1
 
-#cmakedefine SIGNAL_WITH_VIO_CLOSE 1
+#cmakedefine SIGNAL_WITH_VIO_SHUTDOWN 1
 
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine S_IROTH @S_IROTH@
