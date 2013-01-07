@@ -5,6 +5,7 @@
 Diskless=1
 NoOfFragmentLogFiles = 64
 FragmentLogFileSize = 48M
+MinFreePct = 0
 
 # Artificially small SendBuffer (to hit error)
 SendBuffer = 512K

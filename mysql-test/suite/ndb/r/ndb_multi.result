@@ -204,6 +204,8 @@ select count(*) from t1;
 count(*)
 2
 ALTER OFFLINE TABLE t1 ADD COLUMN c int;
+Warnings:
+Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 select a from t1 where b = 2;
 a
 2
@@ -212,3 +214,9 @@ show tables;
 Tables_in_test
 t1
 drop table t1;
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+Tables_in_mysql (ndb_schema)
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';
+count(1)
+0

@@ -19,11 +19,11 @@
 
 #include <Configuration.hpp>
 #include <kernel_types.h>
-#include <TransporterRegistry.hpp>
 #include <NdbOut.hpp>
 #include <NdbMem.h>
 #include <NdbTick.h>
 
+#include <TransporterRegistry.hpp>
 #include <SignalLoggerManager.hpp>
 #include <FastScheduler.hpp>
 
@@ -33,13 +33,9 @@
 #include <signaldata/EventReport.hpp>
 #include <signaldata/TamperOrd.hpp>
 #include <signaldata/StartOrd.hpp>
-#include <signaldata/CloseComReqConf.hpp>
 #include <signaldata/SetLogLevelOrd.hpp>
 #include <signaldata/EventSubscribeReq.hpp>
 #include <signaldata/DumpStateOrd.hpp>
-#include <signaldata/DisconnectRep.hpp>
-#include <signaldata/EnableCom.hpp>
-#include <signaldata/RouteOrd.hpp>
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/Sync.hpp>
 #include <signaldata/AllocMem.hpp>
@@ -51,6 +47,7 @@
 
 #include <NdbSleep.h>
 #include <SafeCounter.hpp>
+#include <SectionReader.hpp>
 
 #define ZREPORT_MEMORY_USAGE 1000
 
@@ -61,6 +58,7 @@ extern int simulate_error_during_shutdown;
 // Index pages used by ACC instances
 Uint32 g_acc_pages_used[1 + MAX_NDBMT_LQH_WORKERS];
 
+extern void mt_init_receiver_cache();
 extern void mt_set_section_chunk_size();
 
 Cmvmi::Cmvmi(Block_context& ctx) :
@@ -87,20 +85,15 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   g_sectionSegmentPool.setSize(long_sig_buffer_size,
                                true,true,true,CFG_DB_LONG_SIGNAL_BUFFER);
 
+  mt_init_receiver_cache();
   mt_set_section_chunk_size();
 
   // Add received signals
-  addRecSignal(GSN_CONNECT_REP, &Cmvmi::execCONNECT_REP);
-  addRecSignal(GSN_DISCONNECT_REP, &Cmvmi::execDISCONNECT_REP);
-
   addRecSignal(GSN_NDB_TAMPER,  &Cmvmi::execNDB_TAMPER, true);
   addRecSignal(GSN_SET_LOGLEVELORD,  &Cmvmi::execSET_LOGLEVELORD);
   addRecSignal(GSN_EVENT_REP,  &Cmvmi::execEVENT_REP);
   addRecSignal(GSN_STTOR,  &Cmvmi::execSTTOR);
   addRecSignal(GSN_READ_CONFIG_REQ,  &Cmvmi::execREAD_CONFIG_REQ);
-  addRecSignal(GSN_CLOSE_COMREQ,  &Cmvmi::execCLOSE_COMREQ);
-  addRecSignal(GSN_ENABLE_COMREQ,  &Cmvmi::execENABLE_COMREQ);
-  addRecSignal(GSN_OPEN_COMREQ,  &Cmvmi::execOPEN_COMREQ);
   addRecSignal(GSN_TEST_ORD,  &Cmvmi::execTEST_ORD);
 
   addRecSignal(GSN_TAMPER_ORD,  &Cmvmi::execTAMPER_ORD);
@@ -108,6 +101,8 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_START_ORD,  &Cmvmi::execSTART_ORD);
   addRecSignal(GSN_EVENT_SUBSCRIBE_REQ, 
                &Cmvmi::execEVENT_SUBSCRIBE_REQ);
+  addRecSignal(GSN_CANCEL_SUBSCRIPTION_REQ,
+               &Cmvmi::execCANCEL_SUBSCRIPTION_REQ);
 
   addRecSignal(GSN_DUMP_STATE_ORD, &Cmvmi::execDUMP_STATE_ORD);
 
@@ -115,7 +110,6 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   addRecSignal(GSN_NODE_START_REP, &Cmvmi::execNODE_START_REP, true);
 
   addRecSignal(GSN_CONTINUEB, &Cmvmi::execCONTINUEB);
-  addRecSignal(GSN_ROUTE_ORD, &Cmvmi::execROUTE_ORD);
   addRecSignal(GSN_DBINFO_SCANREQ, &Cmvmi::execDBINFO_SCANREQ);
 
   addRecSignal(GSN_SYNC_REQ, &Cmvmi::execSYNC_REQ, true);
@@ -170,18 +164,12 @@ Cmvmi::Cmvmi(Block_context& ctx) :
   m_start_time = NdbTick_CurrentMillisecond() / 1000; // seconds
 
   bzero(g_acc_pages_used, sizeof(g_acc_pages_used));
-
 }
 
 Cmvmi::~Cmvmi()
 {
   m_shared_page_pool.clear();
 }
-
-#ifdef ERROR_INSERT
-NodeBitmask c_error_9000_nodes_mask;
-extern Uint32 MAX_RECEIVED_SIGNALS;
-#endif
 
 void Cmvmi::execNDB_TAMPER(Signal* signal) 
 {
@@ -211,21 +199,12 @@ void Cmvmi::execNDB_TAMPER(Signal* signal)
   }
 #endif
 
-#ifdef ERROR_INSERT
   if (signal->theData[0] == 9003)
   {
-    if (MAX_RECEIVED_SIGNALS < 1024)
-    {
-      MAX_RECEIVED_SIGNALS = 1024;
-    }
-    else
-    {
-      MAX_RECEIVED_SIGNALS = 1 + (rand() % 128);
-    }
-    ndbout_c("MAX_RECEIVED_SIGNALS: %d", MAX_RECEIVED_SIGNALS);
+    // Migrated to TRPMAN
     CLEAR_ERROR_INSERT_VALUE;
+    sendSignal(TRPMAN_REF, GSN_NDB_TAMPER, signal, signal->getLength(),JBB);
   }
-#endif
 }//execNDB_TAMPER()
 
 static Uint32 blocks[] =
@@ -249,6 +228,7 @@ static Uint32 blocks[] =
   PGMAN_REF,
   DBINFO_REF,
   DBSPJ_REF,
+  TRPMAN_REF,
   0
 };
 
@@ -384,12 +364,15 @@ struct SavedEvent
   STATIC_CONST( HeaderLength = 3 );
 };
 
+#define SAVE_BUFFER_CNT (CFG_MAX_LOGLEVEL - CFG_MIN_LOGLEVEL + 1)
+
+Uint32 m_saved_event_sequence = 0;
+
 static
 struct SavedEventBuffer
 {
   SavedEventBuffer() {
     m_read_pos = m_write_pos = 0;
-    m_sequence = 0;
     m_buffer_len = 0;
     m_data = 0;
   }
@@ -407,7 +390,6 @@ struct SavedEventBuffer
     }
   }
 
-  Uint32 m_sequence;
   Uint16 m_write_pos;
   Uint16 m_read_pos;
   Uint32 m_buffer_len;
@@ -420,9 +402,14 @@ struct SavedEventBuffer
   Uint32 free() const;
 
   Uint32 m_scan_pos;
-  void startScan();
+  int startScan();
   int scan(SavedEvent * dst, Uint32 filter[]);
-} m_saved_event_buffer;
+
+  /**
+   * Get sequence number of entry located at current scan pos
+   */
+  Uint32 getScanPosSeq() const;
+} m_saved_event_buffer[SAVE_BUFFER_CNT + /* add unknown here */ 1];
 
 void
 SavedEventBuffer::alloc(Uint32 len)
@@ -464,7 +451,7 @@ SavedEventBuffer::save(const Uint32 * theData, Uint32 len)
 
   SavedEvent s;
   s.m_len = len; // size of SavedEvent
-  s.m_seq = m_sequence++;
+  s.m_seq = m_saved_event_sequence++;
   s.m_time = (Uint32)time(0);
   const Uint32 * src = (const Uint32*)&s;
   Uint32 * dst = m_data + m_write_pos;
@@ -484,36 +471,52 @@ SavedEventBuffer::save(const Uint32 * theData, Uint32 len)
   m_write_pos = (m_write_pos + total) % m_buffer_len;
 }
 
-void
+int
 SavedEventBuffer::startScan()
 {
+  if (m_read_pos == m_write_pos)
+  {
+    return 1;
+  }
   m_scan_pos = m_read_pos;
+  return 0;
 }
 
 int
 SavedEventBuffer::scan(SavedEvent* _dst, Uint32 filter[])
 {
+  assert(m_scan_pos != m_write_pos);
   Uint32 * dst = (Uint32*)_dst;
-  while (m_scan_pos != m_write_pos)
+  const Uint32 * ptr = m_data + m_scan_pos;
+  SavedEvent * s = (SavedEvent*)ptr;
+  assert(s->m_len <= 25);
+  Uint32 total = s->m_len + SavedEvent::HeaderLength;
+  if (m_scan_pos + total <= m_buffer_len)
   {
-    const Uint32 * ptr = m_data + m_scan_pos;
-    SavedEvent * s = (SavedEvent*)ptr;
-    assert(s->m_len <= 25);
-    Uint32 total = s->m_len + SavedEvent::HeaderLength;
-    if (m_scan_pos + total <= m_buffer_len)
-    {
-      memcpy(dst, s, 4 * total);
-    }
-    else
-    {
-      Uint32 remain = m_buffer_len - m_scan_pos;
-      memcpy(dst, s, 4 * remain);
-      memcpy(dst + remain, m_data, 4 * (total - remain));
-    }
-    m_scan_pos = (m_scan_pos + total) % m_buffer_len;
+    memcpy(dst, s, 4 * total);
+  }
+  else
+  {
+    Uint32 remain = m_buffer_len - m_scan_pos;
+    memcpy(dst, s, 4 * remain);
+    memcpy(dst + remain, m_data, 4 * (total - remain));
+  }
+  m_scan_pos = (m_scan_pos + total) % m_buffer_len;
+
+  if (m_scan_pos == m_write_pos)
+  {
     return 1;
   }
   return 0;
+}
+
+Uint32
+SavedEventBuffer::getScanPosSeq() const
+{
+  assert(m_scan_pos != m_write_pos);
+  const Uint32 * ptr = m_data + m_scan_pos;
+  SavedEvent * s = (SavedEvent*)ptr;
+  return s->m_seq;
 }
 
 void Cmvmi::execEVENT_REP(Signal* signal) 
@@ -564,7 +567,10 @@ void Cmvmi::execEVENT_REP(Signal* signal)
     sendSignal(ptr.p->blockRef, GSN_EVENT_REP, signal, signal->length(), JBB);
   }
 
-  m_saved_event_buffer.save(signal->theData, signal->getLength());
+  Uint32 saveBuf = Uint32(eventCategory);
+  if (saveBuf >= NDB_ARRAY_SIZE(m_saved_event_buffer) - 1)
+    saveBuf = NDB_ARRAY_SIZE(m_saved_event_buffer) - 1;
+  m_saved_event_buffer[saveBuf].save(signal->theData, signal->getLength());
 
   if(clogLevel.getLogLevel(eventCategory) < threshold){
     return;
@@ -630,11 +636,12 @@ Cmvmi::execEVENT_SUBSCRIBE_REQ(Signal * signal){
 }
 
 void
-Cmvmi::cancelSubscription(NodeId nodeId){
+Cmvmi::execCANCEL_SUBSCRIPTION_REQ(Signal *signal){
   
   SubscriberPtr ptr;
+  NodeId nodeId = signal->theData[0];
+
   subscribers.first(ptr);
-  
   while(ptr.i != RNIL){
     Uint32 i = ptr.i;
     BlockReference blockRef = ptr.p->blockRef;
@@ -685,10 +692,16 @@ Cmvmi::execREAD_CONFIG_REQ(Signal* signal)
 
   f_accpages = compute_acc_32kpages(p);
 
-  Uint32 eventlog = 4096;
+  Uint32 eventlog = 8192;
   ndb_mgm_get_int_parameter(p, CFG_DB_EVENTLOG_BUFFER_SIZE, &eventlog);
-  m_saved_event_buffer.init(eventlog);
-
+  {
+    Uint32 cnt = NDB_ARRAY_SIZE(m_saved_event_buffer);
+    Uint32 split = (eventlog + (cnt / 2)) / cnt;
+    for (Uint32 i = 0; i < cnt; i++)
+    {
+      m_saved_event_buffer[i].init(split);
+    }
+  }
   c_memusage_report_frequency = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_MEMREPORT_FREQUENCY,
                             &c_memusage_report_frequency);
@@ -837,17 +850,20 @@ void Cmvmi::execSTTOR(Signal* signal)
 #ifdef ERROR_INSERT
     if (ERROR_INSERTED(9004))
     {
+      Uint32 tmp[25];
       Uint32 len = signal->getLength();
+      memcpy(tmp, signal->theData, sizeof(tmp));
+
       Uint32 db = c_dbNodes.find(0);
       if (db == getOwnNodeId())
         db = c_dbNodes.find(db);
-      Uint32 i = c_error_9000_nodes_mask.find(0);
-      Uint32 tmp[25];
-      memcpy(tmp, signal->theData, sizeof(tmp));
-      signal->theData[0] = i;
-      sendSignal(calcQmgrBlockRef(db),GSN_API_FAILREQ, signal, 1, JBA);
-      ndbout_c("stopping %u using %u", i, db);
+
+      DumpStateOrd * ord = (DumpStateOrd *)&signal->theData[0];
+      ord->args[0] = 9005; // Active 9004
+      ord->args[1] = db;
+      sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
       CLEAR_ERROR_INSERT_VALUE;
+
       memcpy(signal->theData, tmp, sizeof(tmp));
       sendSignalWithDelay(reference(), GSN_STTOR,
                           signal, 100, len);
@@ -857,220 +873,6 @@ void Cmvmi::execSTTOR(Signal* signal)
     globalData.theStartLevel = NodeState::SL_STARTED;
     sendSTTORRY(signal);
   }
-}
-
-void Cmvmi::execCLOSE_COMREQ(Signal* signal)
-{
-  // Close communication with the node and halt input/output from 
-  // other blocks than QMGR
-  
-  CloseComReqConf * const closeCom = (CloseComReqConf *)&signal->theData[0];
-
-  const BlockReference userRef = closeCom->xxxBlockRef;
-  Uint32 requestType = closeCom->requestType;
-  Uint32 failNo = closeCom->failNo;
-//  Uint32 noOfNodes = closeCom->noOfNodes;
-  
-  jamEntry();
-  for (unsigned i = 0; i < MAX_NODES; i++)
-  {
-    if(NodeBitmask::get(closeCom->theNodes, i))
-    {
-      jam();
-
-      //-----------------------------------------------------
-      // Report that the connection to the node is closed
-      //-----------------------------------------------------
-      signal->theData[0] = NDB_LE_CommunicationClosed;
-      signal->theData[1] = i;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-      
-      globalTransporterRegistry.setIOState(i, HaltIO);
-      globalTransporterRegistry.do_disconnect(i);
-    }
-  }
-  if (requestType != CloseComReqConf::RT_NO_REPLY)
-  {
-    ndbassert((requestType == CloseComReqConf::RT_API_FAILURE) ||
-              ((requestType == CloseComReqConf::RT_NODE_FAILURE) &&
-               (failNo != 0)));
-    jam();
-    CloseComReqConf* closeComConf = (CloseComReqConf *)signal->getDataPtrSend();
-    closeComConf->xxxBlockRef = userRef;
-    closeComConf->requestType = requestType;
-    closeComConf->failNo = failNo;
-
-    /* Note assumption that noOfNodes and theNodes
-     * bitmap is not trampled above 
-     * signals received from the remote node.
-     */
-    sendSignal(QMGR_REF, GSN_CLOSE_COMCONF, signal, 19, JBA);
-  }
-}
-
-void Cmvmi::execOPEN_COMREQ(Signal* signal)
-{
-  // Connect to the specifed NDB node, only QMGR allowed communication 
-  // so far with the node
-
-  const BlockReference userRef = signal->theData[0];
-  Uint32 tStartingNode = signal->theData[1];
-  Uint32 tData2 = signal->theData[2];
-  jamEntry();
-
-  const Uint32 len = signal->getLength();
-  if(len == 2)
-  {
-#ifdef ERROR_INSERT
-    if (! ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002)) 
-	   && c_error_9000_nodes_mask.get(tStartingNode)))
-#endif
-    {
-      globalTransporterRegistry.do_connect(tStartingNode);
-      globalTransporterRegistry.setIOState(tStartingNode, HaltIO);
-      
-      //-----------------------------------------------------
-      // Report that the connection to the node is opened
-      //-----------------------------------------------------
-      signal->theData[0] = NDB_LE_CommunicationOpened;
-      signal->theData[1] = tStartingNode;
-      sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-      //-----------------------------------------------------
-    }
-  } else {
-    for(unsigned int i = 1; i < MAX_NODES; i++ ) 
-    {
-      jam();
-      if (i != getOwnNodeId() && getNodeInfo(i).m_type == tData2)
-      {
-	jam();
-
-#ifdef ERROR_INSERT
-	if ((ERROR_INSERTED(9000) || ERROR_INSERTED(9002))
-	    && c_error_9000_nodes_mask.get(i))
-	  continue;
-#endif
-	globalTransporterRegistry.do_connect(i);
-	globalTransporterRegistry.setIOState(i, HaltIO);
-	
-	signal->theData[0] = NDB_LE_CommunicationOpened;
-	signal->theData[1] = i;
-	sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-      }
-    }
-  }
-  
-  if (userRef != 0)
-  {
-    jam(); 
-    signal->theData[0] = tStartingNode;
-    signal->theData[1] = tData2;
-    sendSignal(userRef, GSN_OPEN_COMCONF, signal, len - 1,JBA);
-  }
-}
-
-void Cmvmi::execENABLE_COMREQ(Signal* signal)
-{
-  jamEntry();
-  const EnableComReq *enableComReq = (const EnableComReq *)signal->getDataPtr();
-
-  /* Need to copy out signal data to not clobber it with sendSignal(). */
-  Uint32 senderRef = enableComReq->m_senderRef;
-  Uint32 senderData = enableComReq->m_senderData;
-  Uint32 nodes[NodeBitmask::Size];
-  MEMCOPY_NO_WORDS(nodes, enableComReq->m_nodeIds, NodeBitmask::Size);
-
-  /* Enable communication with all our NDB blocks to these nodes. */
-  Uint32 search_from = 0;
-  for (;;)
-  {
-    Uint32 tStartingNode = NodeBitmask::find(nodes, search_from);
-    if (tStartingNode == NodeBitmask::NotFound)
-      break;
-    search_from = tStartingNode + 1;
-
-    globalTransporterRegistry.setIOState(tStartingNode, NoHalt);
-    setNodeInfo(tStartingNode).m_connected = true;
-
-    //-----------------------------------------------------
-    // Report that the version of the node
-    //-----------------------------------------------------
-    signal->theData[0] = NDB_LE_ConnectedApiVersion;
-    signal->theData[1] = tStartingNode;
-    signal->theData[2] = getNodeInfo(tStartingNode).m_version;
-    signal->theData[3] = getNodeInfo(tStartingNode).m_mysql_version;
-
-    sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
-    //-----------------------------------------------------
-  }
-
-  EnableComConf *enableComConf = (EnableComConf *)signal->getDataPtrSend();
-  enableComConf->m_senderRef = reference();
-  enableComConf->m_senderData = senderData;
-  MEMCOPY_NO_WORDS(enableComConf->m_nodeIds, nodes, NodeBitmask::Size);
-  sendSignal(senderRef, GSN_ENABLE_COMCONF, signal,
-             EnableComConf::SignalLength, JBA);
-}
-
-void Cmvmi::execDISCONNECT_REP(Signal *signal)
-{
-  const DisconnectRep * const rep = (DisconnectRep *)&signal->theData[0];
-  const Uint32 hostId = rep->nodeId;
-  jamEntry();
-
-  setNodeInfo(hostId).m_connected = false;
-  setNodeInfo(hostId).m_connectCount++;
-  const NodeInfo::NodeType type = getNodeInfo(hostId).getType();
-  ndbrequire(type != NodeInfo::INVALID);
-
-  sendSignal(QMGR_REF, GSN_DISCONNECT_REP, signal, 
-             DisconnectRep::SignalLength, JBA);
-  
-  cancelSubscription(hostId);
-
-  signal->theData[0] = NDB_LE_Disconnected;
-  signal->theData[1] = hostId;
-  sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 2, JBB);
-}
- 
-void Cmvmi::execCONNECT_REP(Signal *signal){
-  const Uint32 hostId = signal->theData[0];
-  jamEntry();
-  
-  const NodeInfo::NodeType type = (NodeInfo::NodeType)getNodeInfo(hostId).m_type;
-  ndbrequire(type != NodeInfo::INVALID);
-  globalData.m_nodeInfo[hostId].m_version = 0;
-  globalData.m_nodeInfo[hostId].m_mysql_version = 0;
-  
-  /**
-   * Inform QMGR that client has connected
-   */
-  signal->theData[0] = hostId;
-  if (ERROR_INSERTED(9005))
-  {
-    sendSignalWithDelay(QMGR_REF, GSN_CONNECT_REP, signal, 50, 1);
-  }
-  else
-  {
-    sendSignal(QMGR_REF, GSN_CONNECT_REP, signal, 1, JBA);
-  }
-
-  /* Automatically subscribe events for MGM nodes.
-   */
-  if(type == NodeInfo::MGM)
-  {
-    jam();
-    globalTransporterRegistry.setIOState(hostId, NoHalt);
-  }
-
-  //------------------------------------------
-  // Also report this event to the Event handler
-  //------------------------------------------
-  signal->theData[0] = NDB_LE_Connected;
-  signal->theData[1] = hostId;
-  signal->header.theLength = 2;
-  
-  execEVENT_REP(signal);
 }
 
 #ifdef VM_TRACE
@@ -1527,6 +1329,17 @@ recurse(char * buf, int loops, int arg){
 #define check_block(block,val) \
 (((val) >= DumpStateOrd::_ ## block ## Min) && ((val) <= DumpStateOrd::_ ## block ## Max))
 
+int
+cmp_event_buf(const void * ptr0, const void * ptr1)
+{
+  Uint32 pos0 = * ((Uint32*)ptr0);
+  Uint32 pos1 = * ((Uint32*)ptr1);
+
+  Uint32 time0 = m_saved_event_buffer[pos0].getScanPosSeq();
+  Uint32 time1 = m_saved_event_buffer[pos1].getScanPosSeq();
+  return time0 - time1;
+}
+
 void
 Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 {
@@ -1743,17 +1556,39 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 
   if (arg == DumpStateOrd::DumpEventLog)
   {
-    Uint32 result_ref = signal->theData[1];
-    m_saved_event_buffer.startScan();
-    SavedEvent s;
+    /**
+     * Array with m_saved_event_buffer indexes sorted by time and
+     */
     Uint32 cnt = 0;
+    Uint32 sorted[NDB_ARRAY_SIZE(m_saved_event_buffer)];
+
+    /**
+     * insert
+     */
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_saved_event_buffer); i++)
+    {
+      if (m_saved_event_buffer[i].startScan())
+        continue;
+
+      sorted[cnt] = i;
+      cnt++;
+    }
+
+    /*
+     * qsort
+     */
+    qsort(sorted, cnt, sizeof(Uint32), cmp_event_buf);
+
+    Uint32 result_ref = signal->theData[1];
+    SavedEvent s;
     EventReport * rep = CAST_PTR(EventReport, signal->getDataPtrSend());
     rep->setEventType(NDB_LE_SavedEvent);
     rep->setNodeId(getOwnNodeId());
-    while (m_saved_event_buffer.scan(&s, 0))
+    while (cnt > 0)
     {
       jam();
-      cnt++;
+
+      bool done = m_saved_event_buffer[sorted[0]].scan(&s, 0);
       signal->theData[1] = s.m_len;
       signal->theData[2] = s.m_seq;
       signal->theData[3] = s.m_time;
@@ -1770,6 +1605,21 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
         ptr[0].p = s.m_data;
         ptr[0].sz = s.m_len;
         sendSignal(result_ref, GSN_EVENT_REP, signal, 4, JBB, ptr, 1);
+      }
+
+      if (done)
+      {
+        jam();
+        memmove(sorted, sorted + 1, (cnt - 1) * sizeof(Uint32));
+        cnt--;
+      }
+      else
+      {
+        jam();
+        /**
+         * sloppy...use qsort to re-sort
+         */
+        qsort(sorted, cnt, sizeof(Uint32), cmp_event_buf);
       }
     }
     signal->theData[1] = 0; // end of stream
@@ -1790,41 +1640,21 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
 #ifdef ERROR_INSERT
   if (arg == 9000 || arg == 9002)
   {
-    SET_ERROR_INSERT_VALUE(arg);
-    for (Uint32 i = 1; i<signal->getLength(); i++)
-      c_error_9000_nodes_mask.set(signal->theData[i]);
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
-  
   if (arg == 9001)
   {
-    CLEAR_ERROR_INSERT_VALUE;
-    if (signal->getLength() == 1 || signal->theData[1])
-    {
-      for (Uint32 i = 0; i<MAX_NODES; i++)
-      {
-	if (c_error_9000_nodes_mask.get(i))
-	{
-	  signal->theData[0] = 0;
-	  signal->theData[1] = i;
-	  EXECUTE_DIRECT(CMVMI, GSN_OPEN_COMREQ, signal, 2);
-	}
-      }
-    }
-    c_error_9000_nodes_mask.clear();
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
 
   if (arg == 9004 && signal->getLength() == 2)
   {
     SET_ERROR_INSERT_VALUE(9004);
-    c_error_9000_nodes_mask.clear();
-    c_error_9000_nodes_mask.set(signal->theData[1]);
-  }
 
-  if (arg == 9004 && signal->getLength() == 2)
-  {
-    SET_ERROR_INSERT_VALUE(9004);
-    c_error_9000_nodes_mask.clear();
-    c_error_9000_nodes_mask.set(signal->theData[1]);
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
 #endif
 
@@ -1871,87 +1701,20 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
   if((arg == 9993) ||  /* Unblock recv from nodeid */
      (arg == 9992))    /* Block recv from nodeid */
   {
-    bool block = (arg == 9992);
-    for (Uint32 n = 1; n < signal->getLength(); n++)
-    {
-      Uint32 nodeId = signal->theData[n];
-
-      if ((nodeId > 0) &&
-          (nodeId < MAX_NODES))
-      {
-        if (block)
-        {
-          ndbout_c("CMVMI : Blocking receive from node %u", nodeId);
-
-          globalTransporterRegistry.blockReceive(nodeId);
-        }
-        else
-        {
-          ndbout_c("CMVMI : Unblocking receive from node %u", nodeId);
-
-          globalTransporterRegistry.unblockReceive(nodeId);
-        }
-      }
-      else
-      {
-        ndbout_c("CMVMI : Ignoring dump %u for node %u",
-                 arg, nodeId);
-      }
-    }
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
+
   if (arg == 9990) /* Block recv from all ndbd matching pattern */
   {
-    Uint32 pattern = 0;
-    if (signal->getLength() > 1)
-    {
-      pattern = signal->theData[1];
-      ndbout_c("CMVMI : Blocking receive from all ndbds matching pattern -%s-",
-               ((pattern == 1)? "Other side":"Unknown"));
-    }
-
-    for (Uint32 node = 1; node < MAX_NDB_NODES; node++)
-    {
-      if (globalTransporterRegistry.is_connected(node))
-      {
-        if (getNodeInfo(node).m_type == NodeInfo::DB)
-        {
-          if (!globalTransporterRegistry.isBlocked(node))
-          {
-            switch (pattern)
-            {
-            case 1:
-            {
-              /* Match if given node is on 'other side' of
-               * 2-replica cluster
-               */
-              if ((getOwnNodeId() & 1) != (node & 1))
-              {
-                /* Node is on the 'other side', match */
-                break;
-              }
-              /* Node is on 'my side', don't match */
-              continue;
-            }
-            default:
-              break;
-            }
-            ndbout_c("CMVMI : Blocking receive from node %u", node);
-            globalTransporterRegistry.blockReceive(node);
-          }
-        }
-      }
-    }
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
+
   if (arg == 9991) /* Unblock recv from all blocked */
   {
-    for (Uint32 node = 0; node < MAX_NODES; node++)
-    {
-      if (globalTransporterRegistry.isBlocked(node))
-      {
-        ndbout_c("CMVMI : Unblocking receive from node %u", node);
-        globalTransporterRegistry.unblockReceive(node);
-      }
-    }
+    // Migrated to TRPMAN
+    sendSignal(TRPMAN_REF, GSN_DUMP_STATE_ORD, signal, signal->getLength(),JBB);
   }
 #endif
 
@@ -2050,44 +1813,6 @@ void Cmvmi::execDBINFO_SCANREQ(Signal *signal)
   jamEntry();
 
   switch(req.tableId){
-  case Ndbinfo::TRANSPORTERS_TABLEID:
-  {
-    jam();
-    Uint32 rnode = cursor->data[0];
-    if (rnode == 0)
-      rnode++; // Skip node 0
-
-    while(rnode < MAX_NODES)
-    {
-      switch(getNodeInfo(rnode).m_type)
-      {
-      default:
-      {
-        jam();
-        Ndbinfo::Row row(signal, req);
-        row.write_uint32(getOwnNodeId()); // Node id
-        row.write_uint32(rnode); // Remote node id
-        row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
-        ndbinfo_send_row(signal, req, row, rl);
-       break;
-      }
-
-      case NodeInfo::INVALID:
-        jam();
-       break;
-      }
-
-      rnode++;
-      if (rl.need_break(req))
-      {
-        jam();
-        ndbinfo_send_scan_break(signal, req, rl, rnode);
-        return;
-      }
-    }
-    break;
-  }
-
   case Ndbinfo::RESOURCES_TABLEID:
   {
     jam();
@@ -2678,6 +2403,31 @@ Cmvmi::execTESTSIG(Signal* signal){
     return;
   }
 
+  /**
+   * Testing Api fragmented signal send/receive
+   */
+  if (testType == 40)
+  {
+    /* Fragmented signal sent from Api, we'll check it and return it */
+    Uint32 expectedVal = 0;
+    for (Uint32 s = 0; s < handle.m_cnt; s++)
+    {
+      SectionReader sr(handle.m_ptr[s].i, getSectionSegmentPool());
+      Uint32 received;
+      while (sr.getWord(&received))
+      {
+        ndbrequire(received == expectedVal ++);
+      }
+    }
+
+    /* Now return it back to the Api, no callback, so framework
+     * can time-slice the send
+     */
+    sendFragmentedSignal(ref, GSN_TESTSIG, signal, signal->length(), JBB, &handle);
+
+    return;
+  }
+
   if(signal->getSendersBlockRef() == ref){
     /**
      * Signal from API (not via NodeReceiverGroup)
@@ -3108,69 +2858,6 @@ Cmvmi::reportIMUsage(Signal* signal, int incDec, BlockReference ref)
   signal->theData[5] = DBACC;
   sendSignal(ref, GSN_EVENT_REP, signal, 6, JBB);
 }
-
-
-/**
- * execROUTE_ORD
- * Allows other blocks to route signals as if they
- * came from Cmvmi
- * Useful in ndbmtd for synchronising signals w.r.t
- * external signals received from other nodes which
- * arrive from the same thread that runs CMVMI.
- */
-void
-Cmvmi::execROUTE_ORD(Signal* signal)
-{
-  jamEntry();
-  if(!assembleFragments(signal)){
-    jam();
-    return;
-  }
-
-  SectionHandle handle(this, signal);
-
-  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
-  Uint32 dstRef = ord->dstRef;
-  Uint32 srcRef = ord->srcRef;
-  Uint32 gsn = ord->gsn;
-  /* ord->cnt ignored */
-
-  Uint32 nodeId = refToNode(dstRef);
-  
-  if (likely((nodeId == 0) ||
-             getNodeInfo(nodeId).m_connected))
-  {
-    jam();
-    Uint32 secCount = handle.m_cnt;
-    ndbrequire(secCount >= 1 && secCount <= 3);
-
-    jamLine(secCount);
-
-    /**
-     * Put section 0 in signal->theData
-     */
-    Uint32 sigLen = handle.m_ptr[0].sz;
-    ndbrequire(sigLen <= 25);
-    copy(signal->theData, handle.m_ptr[0]);
-
-    SegmentedSectionPtr save = handle.m_ptr[0];
-    for (Uint32 i = 0; i < secCount - 1; i++)
-      handle.m_ptr[i] = handle.m_ptr[i+1];
-    handle.m_cnt--;
-
-    sendSignal(dstRef, gsn, signal, sigLen, JBB, &handle);
-
-    handle.m_cnt = 1;
-    handle.m_ptr[0] = save;
-    releaseSections(handle);
-    return ;
-  }
-
-  releaseSections(handle);
-  warningEvent("Unable to route GSN: %d from %x to %x",
-	       gsn, srcRef, dstRef);
-}
-
 
 void Cmvmi::execGET_CONFIG_REQ(Signal *signal)
 {

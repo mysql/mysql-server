@@ -30,7 +30,7 @@ int decimal_shift(decimal_t *dec, int shift);
 }
 
 
-namespace {
+namespace decimal_unittest {
 
 #define DIG_PER_DEC1 9
 #define DIG_BASE     1000000000
@@ -39,7 +39,7 @@ typedef decimal_digit_t dec1;
 
 int full= 0;
 decimal_t a, b, c;
-decimal_digit_t buf1[25], buf2[25], buf3[25];
+decimal_digit_t buf1[50], buf2[50], buf3[50];
 
 void dump_decimal(decimal_t *d)
 {

@@ -185,10 +185,8 @@ static struct my_option my_long_options[] =
    "When used with REPAIR, get table structure from .frm file, so the table can be repaired even if .MYI header is corrupted.",
    &opt_frm, &opt_frm, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &current_user,
    &current_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"verbose", 'v', "Print info about the various stages.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -870,10 +868,10 @@ static int dbConnect(char *host, char *user, char *passwd)
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
-    return 1;
+    DBUG_RETURN(1);
   }
   mysql_connection.reconnect= 1;
-  return 0;
+  DBUG_RETURN(0);
 } /* dbConnect */
 
 

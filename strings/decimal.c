@@ -1717,10 +1717,18 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
       }
       for (buf1=to->buf + intg0 + MY_MAX(frac0, 0); buf1 > to->buf; buf1--)
       {
-        buf1[0]=buf1[-1];
+        /* Avoid out-of-bounds write. */
+        if (buf1 < to->buf + len)
+          buf1[0]=buf1[-1];
+        else
+          error= E_DEC_OVERFLOW;
       }
       *buf1=1;
-      to->intg++;
+      /* We cannot have more than 9 * 9 = 81 digits. */
+      if (to->intg < len * DIG_PER_DEC1)
+        to->intg++;
+      else
+        error= E_DEC_OVERFLOW;
     }
   }
   else
@@ -1752,6 +1760,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
     scale=0;
 
 done:
+  DBUG_ASSERT(to->intg <= (len * DIG_PER_DEC1));
   to->frac=scale;
   return error;
 }
@@ -2079,44 +2088,45 @@ int decimal_mul(const decimal_t *from1, const decimal_t *from2, decimal_t *to)
   int intg1=ROUND_UP(from1->intg), intg2=ROUND_UP(from2->intg),
       frac1=ROUND_UP(from1->frac), frac2=ROUND_UP(from2->frac),
       intg0=ROUND_UP(from1->intg+from2->intg),
-      frac0=frac1+frac2, error, i, j, d_to_move;
+      frac0=frac1+frac2, error, iii, jjj, d_to_move;
   dec1 *buf1=from1->buf+intg1, *buf2=from2->buf+intg2, *buf0,
        *start2, *stop2, *stop1, *start0, carry;
 
   sanity(to);
 
-  i=intg0;                                       /* save 'ideal' values */
-  j=frac0;
+  iii= intg0;                                       /* save 'ideal' values */
+  jjj= frac0;
   FIX_INTG_FRAC_ERROR(to->len, intg0, frac0, error);  /* bound size */
-  to->sign=from1->sign != from2->sign;
-  to->frac=from1->frac+from2->frac;              /* store size in digits */
+  to->sign= from1->sign != from2->sign;
+  to->frac= from1->frac + from2->frac;              /* store size in digits */
+  set_if_smaller(to->frac, NOT_FIXED_DEC);
   to->intg=intg0*DIG_PER_DEC1;
 
   if (unlikely(error))
   {
     set_if_smaller(to->frac, frac0*DIG_PER_DEC1);
     set_if_smaller(to->intg, intg0*DIG_PER_DEC1);
-    if (unlikely(i > intg0))                     /* bounded integer-part */
+    if (unlikely(iii > intg0))                     /* bounded integer-part */
     {
-      i-=intg0;
-      j=i >> 1;
-      intg1-= j;
-      intg2-=i-j;
+      iii-=intg0;
+      jjj= iii >> 1;
+      intg1-= jjj;
+      intg2-=iii-jjj;
       frac1=frac2=0; /* frac0 is already 0 here */
     }
     else                                         /* bounded fract part */
     {
-      j-=frac0;
-      i=j >> 1;
+      jjj-=frac0;
+      iii=jjj >> 1;
       if (frac1 <= frac2)
       {
-        frac1-= i;
-        frac2-=j-i;
+        frac1-= iii;
+        frac2-=jjj-iii;
       }
       else
       {
-        frac2-= i;
-        frac1-=j-i;
+        frac2-= iii;
+        frac1-=jjj-iii;
       }
     }
   }

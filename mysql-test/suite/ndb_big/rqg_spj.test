@@ -1,0 +1,62 @@
+#
+# RQG SPJ
+#
+--source include/have_ndb.inc
+--source include/not_windows.inc
+--source include/not_embedded.inc
+--source suite/ndb/include/have_ndb_rqg.inc
+--source suite/ndb/t/ndbinfo_create.inc
+
+# Remember all SPJ conters when test started.
+--disable_query_log
+create temporary table spj_counts_at_startup 
+       select counter_name, sum(val) as val 
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+--enable_query_log
+
+##
+# Load simple.zz
+# -o => with "oj-extensions"
+--echo Calling: $LOAD_RQG -d simple.zz -o
+--exec bash -c "$LOAD_RQG -d simple.zz -o"
+
+##
+# run spj_test.yy for 3600 seconds
+#
+# If you want to reproduce an "run"
+#   add -s <seed value> to command below
+#
+# NOTE: CluB get unhappy if a testcase doesnt print for 1800 seconds
+#       So call program several times instead
+#       (having --exec print as it goes would also be nice...instead of
+#        just at the end)
+#
+let $cmd = $RUN_RQG -g spj_test.yy -t 600;
+--echo Calling: $cmd (6 times)
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+
+drop database spj_myisam;
+drop database spj_ndb;
+
+--disable_query_log
+create temporary table spj_counts_at_end
+       select counter_name, sum(val) as val
+       from ndbinfo.counters 
+       where block_name='DBSPJ' 
+       group by counter_name;
+
+select spj_counts_at_end.counter_name, 
+       spj_counts_at_end.val - spj_counts_at_startup.val
+from spj_counts_at_startup, spj_counts_at_end
+where spj_counts_at_startup.counter_name = spj_counts_at_end.counter_name;
+--enable_query_log
+--source suite/ndb/t/ndbinfo_drop.inc
+
+exit;

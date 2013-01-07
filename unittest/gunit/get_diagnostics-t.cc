@@ -22,7 +22,7 @@
 #include "item.h"
 #include "sql_get_diagnostics.h"
 
-namespace {
+namespace get_diagnostics_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -204,7 +204,7 @@ TEST_F(GetDiagnosticsTest, Error)
   MEM_ROOT *mem_root= thd()->mem_root;
 
   // Pre-existing warning
-  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
                       WARN_DATA_TRUNCATED, "Data truncated");
 
   // Simulate GET DIAGNOSTICS as a new command separated
@@ -223,7 +223,7 @@ TEST_F(GetDiagnosticsTest, Error)
   EXPECT_TRUE(thd()->get_stmt_da()->is_ok());
 
   // New condition for the error
-  EXPECT_EQ(1U, thd()->get_stmt_da()->statement_warn_count());
+  EXPECT_EQ(1U, thd()->get_stmt_da()->last_statement_cond_count());
 
   // Counted as a error
   EXPECT_EQ(1U, thd()->get_stmt_da()->error_count());
@@ -241,7 +241,7 @@ TEST_F(GetDiagnosticsTest, FatalError)
   MEM_ROOT *mem_root= thd()->mem_root;
 
   // Pre-existing warning
-  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
                       WARN_DATA_TRUNCATED, "Data truncated");
 
   // Simulate GET DIAGNOSTICS as a new command separated
@@ -415,11 +415,11 @@ TEST_F(GetDiagnosticsTest, ConditionInformationClassOrigin)
   String str;
 
   // "MySQL" origin
-  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
                       ER_XAER_NOTA, "Unknown XID");
 
   // "ISO 9075" origin
-  push_warning_printf(thd(), Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
                       ER_UNKNOWN_ERROR, "Unknown error");
 
   // Condition 1 CLASS_ORIGIN
@@ -441,6 +441,92 @@ TEST_F(GetDiagnosticsTest, ConditionInformationClassOrigin)
   var= get_cond_info_item(thd(), 2, Condition_information_item::SUBCLASS_ORIGIN);
   EXPECT_EQ(&str, var->val_str(&str));
   EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
+}
+
+
+// Push + pop diagnostics area
+TEST_F(GetDiagnosticsTest, PushPopDiagnosticsArea)
+{
+  Diagnostics_area da1(thd()->query_id, false);
+  Diagnostics_area da2(thd()->query_id, false);
+  Diagnostics_area *org_da= thd()->get_stmt_da();
+
+  thd()->push_diagnostics_area(&da1);
+  EXPECT_EQ(&da1, thd()->get_stmt_da());
+  EXPECT_EQ(org_da, thd()->get_stacked_da());
+
+  thd()->push_diagnostics_area(&da2);
+  EXPECT_EQ(&da2, thd()->get_stmt_da());
+  EXPECT_EQ(&da1, thd()->get_stacked_da());
+
+  thd()->pop_diagnostics_area();
+  EXPECT_EQ(&da1, thd()->get_stmt_da());
+  EXPECT_EQ(org_da, thd()->get_stacked_da());
+
+  thd()->pop_diagnostics_area();
+  EXPECT_EQ(org_da, thd()->get_stmt_da());
+  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+}
+
+
+// Pop when there is just one diagnostics area = assert
+#if GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+TEST_F(GetDiagnosticsTest, DiePopDiagnosticsArea)
+{
+  ::testing::FLAGS_gtest_death_test_style= "threadsafe";
+
+  EXPECT_DEATH(thd()->pop_diagnostics_area(), ".*Assertion.*m_stacked_da*");
+}
+#endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)
+
+
+// Pushed diagnostics area should initially contain copy of conditions
+TEST_F(GetDiagnosticsTest, PushDiagnosticsArea)
+{
+  Diagnostics_area da(thd()->query_id, false);
+  Diagnostics_area *org_da= thd()->get_stmt_da();
+
+  Item *var;
+  String str;
+
+  // "MySQL" origin
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
+                      ER_XAER_NOTA, "Unknown XID");
+
+  // "ISO 9075" origin
+  push_warning_printf(thd(), Sql_condition::SL_WARNING,
+                      ER_UNKNOWN_ERROR, "Unknown error");
+
+  // Push new diagnostics area, clear old
+  thd()->push_diagnostics_area(&da);
+  org_da->reset_condition_info(thd()->query_id);
+  EXPECT_TRUE(org_da->cond_count() == 0);
+  EXPECT_FALSE(da.cond_count() == 0);
+  EXPECT_FALSE(thd()->get_stmt_da()->cond_count() == 0);
+
+  // Condition 1 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 1, Condition_information_item::CLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("MySQL", str.c_ptr_safe());
+
+  // Condition 1 SUBCLASS_ORIGIN
+  var= get_cond_info_item(thd(), 1, Condition_information_item::SUBCLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("MySQL", str.c_ptr_safe());
+
+  // Condition 2 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 2, Condition_information_item::CLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
+
+  // Condition 2 CLASS_ORIGIN
+  var= get_cond_info_item(thd(), 2, Condition_information_item::SUBCLASS_ORIGIN);
+  EXPECT_EQ(&str, var->val_str(&str));
+  EXPECT_STREQ("ISO 9075", str.c_ptr_safe());
+
+  thd()->pop_diagnostics_area();
+  EXPECT_TRUE(thd()->get_stacked_da() == NULL);
+  EXPECT_TRUE(thd()->get_stmt_da()->cond_count() == 0);
 }
 
 

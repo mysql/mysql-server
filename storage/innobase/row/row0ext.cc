@@ -95,6 +95,8 @@ row_ext_create(
 
 	row_ext_t*	ret;
 
+	ut_ad(n_ext > 0);
+
 	ret = static_cast<row_ext_t*>(
 		mem_heap_alloc(heap,
 			       (sizeof *ret) + (n_ext - 1) * sizeof ret->len));

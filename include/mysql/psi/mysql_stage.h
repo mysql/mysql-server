@@ -41,6 +41,13 @@
   do {} while (0)
 #endif
 
+/**
+  @def MYSQL_SET_STAGE
+  Set the current stage
+  @param K the stage key
+  @param F the source file name
+  @param L the source file line
+*/
 #ifdef HAVE_PSI_STAGE_INTERFACE
   #define MYSQL_SET_STAGE(K, F, L) \
     inline_mysql_set_stage(K, F, L)

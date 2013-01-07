@@ -326,6 +326,36 @@ enum_return_status Gtid_state::ensure_sidno()
 }
 
 
+enum_return_status Gtid_state::add_lost_gtids(const char *text)
+{
+  DBUG_ENTER("Gtid_state::add_lost_gtids()");
+  sid_lock->assert_some_wrlock();
+
+  DBUG_PRINT("info", ("add_lost_gtids '%s'", text));
+
+  if (!logged_gtids.is_empty())
+  {
+    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY)),
+                 (ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY,
+                 MYF(0)));
+    RETURN_REPORTED_ERROR;
+  }
+  if (!owned_gtids.is_empty())
+  {
+    BINLOG_ERROR((ER(ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY)),
+                 (ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY,
+                 MYF(0)));
+    RETURN_REPORTED_ERROR;
+  }
+  DBUG_ASSERT(lost_gtids.is_empty());
+
+  PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_text(text));
+  PROPAGATE_REPORTED_ERROR(logged_gtids.add_gtid_text(text));
+
+  DBUG_RETURN(RETURN_STATUS_OK);
+}
+
+
 int Gtid_state::init()
 {
   DBUG_ENTER("Gtid_state::init()");

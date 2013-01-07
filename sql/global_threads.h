@@ -26,9 +26,10 @@ extern mysql_mutex_t LOCK_thread_count;
 extern mysql_mutex_t LOCK_thread_remove;
 extern mysql_cond_t COND_thread_count;
 
-/*
+/**
   We maintail a set of all registered threads.
   We provide acccessors to iterate over all threads.
+  There is no guarantee on the order of THDs when iterating.
 
   We also provide mutators for inserting, and removing an element:
   add_global_thread() inserts a THD into the set, and increments the counter.

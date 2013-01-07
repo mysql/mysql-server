@@ -1296,53 +1296,6 @@ dict_index_is_online_ddl(
 			     != ONLINE_INDEX_COMPLETE));
 }
 
-/*********************************************************************//**
-Attempts to log an operation on a secondary index that is being created.
-@return TRUE if the operation was logged or the index creation failed;
-FALSE if the index creation was completed */
-UNIV_INLINE
-ibool
-dict_index_online_trylog(
-/*=====================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation on the index entry */
-{
-	ibool	online = FALSE;
-
-	/* First check whether this is a normal index or a temporary
-	index being built (online). The latter requires online logging.
-	With MDL (Metadata Lock ) protection, an index cannot be set
-	to ONLINE status while DML is going on. So for most (normal)
-	index, following check outside index->lock is sufficient */
-	if (!dict_index_is_online_ddl(index)) {
-		return(FALSE);
-	}
-
-	/* Now it is an online index creation, acquire the index->lock
-	to check whether it has completed or not */
-	rw_lock_s_lock(dict_index_get_lock(index));
-
-	/* The index->online_status can change from ONLINE_INDEX_CREATION
-	to ONLINE_INDEX_COMPLETE as the online index completes its log
-	application. So we will need to check the status again */
-
-	switch (dict_index_get_online_status(index)) {
-	case ONLINE_INDEX_COMPLETE:
-		break;
-	case ONLINE_INDEX_CREATION:
-		dict_index_online_log(index, entry, trx_id, op);
-		/* fall through */
-	case ONLINE_INDEX_ABORTED:
-	case ONLINE_INDEX_ABORTED_DROPPED:
-		online = TRUE;
-	}
-
-	rw_lock_s_unlock(dict_index_get_lock(index));
-	return(online);
-}
-
 /**********************************************************************//**
 Check whether a column exists in an FTS index.
 @return ULINT_UNDEFINED if no match else the offset within the vector */

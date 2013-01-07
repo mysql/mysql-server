@@ -122,6 +122,24 @@ printfile(FILE* out, Properties& props, const char * section, ...)
   fflush(out);
 }
 
+static
+char *
+dirname(const char * path)
+{
+  char * s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i<len; i++)
+  {
+    if (s[len - i] == '/')
+    {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
 bool
 setup_files(atrt_config& config, int setup, int sshx)
 {
@@ -179,8 +197,8 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  const char * val;
 	  require(proc.m_options.m_loaded.get("--datadir=", &val));
 	  BaseString tmp;
-	  tmp.assfmt("%s/bin/mysql_install_db --defaults-file=%s/my.cnf --datadir=%s > %s/mysql_install_db.log 2>&1",
-		     g_prefix, g_basedir, val, proc.m_proc.m_cwd.c_str());
+	  tmp.assfmt("%s --defaults-file=%s/my.cnf --basedir=%s --datadir=%s > %s/mysql_install_db.log 2>&1",
+		     g_mysql_install_db_bin_path, g_basedir, g_prefix, val, proc.m_proc.m_cwd.c_str());
 
           to_fwd_slashes(tmp);
 	  if (sh(tmp.c_str()) != 0)
@@ -305,16 +323,36 @@ setup_files(atrt_config& config, int setup, int sshx)
 	  }
 	  fprintf(fenv, "\"\nexport CMD\n");
 	}
-	
-	fprintf(fenv, "PATH=%s/bin:%s/libexec:$PATH\n", g_prefix, g_prefix);
+
+        fprintf(fenv, "PATH=");
+        for (int i = 0; g_search_path[i] != 0; i++)
+        {
+          fprintf(fenv, "%s/%s:", g_prefix, g_search_path[i]);
+        }
+        fprintf(fenv, "$PATH\n");
 	keys.push_back("PATH");
+
+        {
+          /**
+           * In 5.5...binaries aren't compiled with rpath
+           * So we need an explicit LD_LIBRARY_PATH
+           *
+           * Use path from libmysqlclient.so
+           */
+          char * dir = dirname(g_libmysqlclient_so_path);
+          fprintf(fenv, "LD_LIBRARY_PATH=%s:$LD_LIBRARY_PATH\n", dir);
+          free(dir);
+          keys.push_back("LD_LIBRARY_PATH");
+        }
+
 	for (size_t k = 0; k<keys.size(); k++)
 	  fprintf(fenv, "export %s\n", keys[k].c_str());
+
 	fflush(fenv);
 	fclose(fenv);
       }
       free(env);
-      
+
       {
         tmp.assfmt("%s/ssh-login.sh", proc.m_proc.m_cwd.c_str());
         FILE* fenv = fopen(tmp.c_str(), "w+");

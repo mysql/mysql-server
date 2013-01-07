@@ -58,7 +58,7 @@ char * getNSString(Uint32 ns){
 
 void
 fill(const char * buf, int mod){
-  int len = strlen(buf)+1;
+  int len = (int)(strlen(buf)+1);
   ndbout << buf << " ";
   while((len % mod) != 0){
     ndbout << " ";

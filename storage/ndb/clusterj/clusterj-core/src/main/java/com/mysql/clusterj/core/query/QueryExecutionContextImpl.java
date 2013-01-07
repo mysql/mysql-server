@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,6 +79,7 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
      */
     protected QueryExecutionContextImpl(QueryExecutionContextImpl context) {
         this.session = context.getSession();
+        this.explain = context.getExplain();
         boundParameters = new HashMap<String, Object>(context.boundParameters);
     }
 
@@ -102,6 +103,8 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
                     local.message("ERR_Parameter_Null"));
         }
         boundParameters.put(parameterName, value);
+        // if any parameters changed, the explain is no longer valid
+        this.explain = null;
     }
     /** Get the value of a parameter by name.
      */
@@ -127,7 +130,8 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
     }
 
     public ResultData getResultData(QueryDomainType<?> queryDomainType) {
-        return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this);
+        // TODO handle skip and limit
+        return ((QueryDomainTypeImpl<?>)queryDomainType).getResultData(this, 0, Long.MAX_VALUE, null, null);
     }
 
     /** Add a filter to the list of filters created for this query.
@@ -336,6 +340,15 @@ public class QueryExecutionContextImpl implements QueryExecutionContext {
 
     public Object getObject(String index) {
         return boundParameters.get(index);
+    }
+
+    public boolean hasNoNullParameters() {
+        for (Object value: boundParameters.values()) {
+            if (value == null) {
+                return false;
+            }
+        }
+        return true;
     }
 
 }

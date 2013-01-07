@@ -14,7 +14,7 @@ int main (argc, argv)
 int argc;
 char *argv[];
 {
-  register int result, ix;
+  int result, ix;
   extern int factorial(int);
   my_thread_global_init();
 

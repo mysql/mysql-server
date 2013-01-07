@@ -210,7 +210,25 @@ NdbSqlUtil::m_typeList[] = {
     cmpDecimalunsigned,
     NULL,
     NULL
-  }
+  },
+  { // 31
+    Type::Time2,
+    cmpTime2,
+    NULL,
+    NULL
+  },
+  { // 32
+    Type::Datetime2,
+    cmpDatetime2,
+    NULL,
+    NULL
+  },
+  { // 33
+    Type::Timestamp2,
+    cmpTimestamp2,
+    NULL,
+    NULL
+  },
 };
 
 const NdbSqlUtil::Type&
@@ -680,6 +698,26 @@ NdbSqlUtil::cmpTimestamp(const void* info, const void* p1, unsigned n1, const vo
   return 0;
 }
 
+// times with fractional seconds are big-endian binary-comparable
+
+int
+NdbSqlUtil::cmpTime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  return cmpBinary(info, p1, n1, p2, n2);
+}
+
+int
+NdbSqlUtil::cmpDatetime2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  return cmpBinary(info, p1, n1, p2, n2);
+}
+
+int
+NdbSqlUtil::cmpTimestamp2(const void* info, const void* p1, unsigned n1, const void* p2, unsigned n2)
+{
+  return cmpBinary(info, p1, n1, p2, n2);
+}
+
 // like
 
 static const int ndb_wild_prefix = '\\';
@@ -693,7 +731,7 @@ NdbSqlUtil::likeChar(const void* info, const void* p1, unsigned n1, const void* 
   const char* v2 = (const char*)p2;
   CHARSET_INFO* cs = (CHARSET_INFO*)(info);
   // strip end spaces to match (incorrect) MySQL behaviour
-  n1 = (*cs->cset->lengthsp)(cs, v1, n1);
+  n1 = (unsigned)(*cs->cset->lengthsp)(cs, v1, n1);
   int k = (*cs->coll->wildcmp)(cs, v1, v1 + n1, v2, v2 + n2, ndb_wild_prefix, ndb_wild_one, ndb_wild_many);
   return k == 0 ? 0 : +1;
 }
@@ -980,13 +1018,13 @@ NdbSqlUtil::strnxfrm_bug7284(CHARSET_INFO* cs, unsigned char* dst, unsigned dstL
   if (n1 <= 0)
     return -1;
   // strxfrm to binary
-  int n2 = ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
+  int n2 = (int)ndb_strnxfrm(cs, xsp, sizeof(xsp), nsp, n1);
   if (n2 <= 0)
     return -1;
   // XXX bug workaround - strnxfrm may not write full string
   memset(dst, 0x0, dstLen);
   // strxfrm argument string - returns no error indication
-  int n3 = ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
+  int n3 = (int)ndb_strnxfrm(cs, dst, dstLen, src, srcLen);
   // pad with strxfrm-ed space chars
   int n4 = n3;
   while (n4 < (int)dstLen) {
@@ -1201,3 +1239,813 @@ NdbSqlUtil::convertByteOrder(Uint32 typeId,
 #endif
 }
 
+// unpack and pack date/time types
+
+// Year
+
+void
+NdbSqlUtil::unpack_year(Year& s, const uchar* d)
+{
+  s.year = (uint)(1900 + d[0]);
+}
+
+void
+NdbSqlUtil::pack_year(const Year& s, uchar* d)
+{
+  d[0] = (uchar)(s.year - 1900);
+}
+
+// Date
+
+void
+NdbSqlUtil::unpack_date(Date& s, const uchar* d)
+{
+  uchar b[4];
+  memcpy(b, d, 3);
+  b[3] = 0;
+  uint w = (uint)uint3korr(b);
+  s.day = (w & 31);
+  w >>= 5;
+  s.month = (w & 15);
+  w >>= 4;
+  s.year = w;
+}
+
+void
+NdbSqlUtil::pack_date(const Date& s, uchar* d)
+{
+  uint w = 0;
+  w |= s.year;
+  w <<= 4;
+  w |= s.month;
+  w <<= 5;
+  w |= s.day;
+  int3store(d, w);
+}
+
+// Time
+
+void
+NdbSqlUtil::unpack_time(Time& s, const uchar* d)
+{
+  uchar b[4];
+  memcpy(b, d, 3);
+  b[3] = 0;
+  uint w = 0;
+  int v = (int)sint3korr(b);
+  if (v >= 0)
+  {
+    s.sign = 1;
+    w = (uint)v;
+  }
+  else
+  {
+    s.sign = 0;
+    w = (uint)(-v);
+  }
+  const uint f = (uint)100;
+  s.second = (w % f);
+  w /= f;
+  s.minute = (w % f);
+  w /= f;
+  s.hour = w;
+}
+
+void
+NdbSqlUtil::pack_time(const Time& s, uchar* d)
+{
+  const uint f = (uint)100;
+  uint w = 0;
+  w += s.hour;
+  w *= f;
+  w += s.minute;
+  w *= f;
+  w += s.second;
+  int v = 0;
+  if (s.sign == 1)
+  {
+    v = (int)w;
+  }
+  else
+  {
+    v = (int)w;
+    v = -v;
+  }
+  int3store(d, v);
+}
+
+// Datetime
+
+void
+NdbSqlUtil::unpack_datetime(Datetime& s, const uchar* d)
+{
+  uint64 w;
+  memcpy(&w, d, 8);
+  const uint64 f = (uint64)100;
+  s.second = (w % f);
+  w /= f;
+  s.minute = (w % f);
+  w /= f;
+  s.hour = (w % f);
+  w /= f;
+  s.day = (w % f);
+  w /= f;
+  s.month = (w % f);
+  w /= f;
+  s.year = w;
+}
+
+void
+NdbSqlUtil::pack_datetime(const Datetime& s, uchar* d)
+{
+  const uint64 f = (uint64)100;
+  uint64 w = 0;
+  w += s.year;
+  w *= f;
+  w += s.month;
+  w *= f;
+  w += s.day;
+  w *= f;
+  w += s.hour;
+  w *= f;
+  w += s.minute;
+  w *= f;
+  w += s.second;
+  memcpy(d, &w, 8);
+}
+
+// Timestamp
+
+void
+NdbSqlUtil::unpack_timestamp(Timestamp& s, const uchar* d)
+{
+  uint32 w;
+  memcpy(&w, d, 4);
+  s.second = (uint)w;
+}
+
+void
+NdbSqlUtil::pack_timestamp(const Timestamp& s, uchar* d)
+{
+  uint32 w = s.second;
+  memcpy(d, &w, 4);
+}
+
+// types with fractional seconds
+
+static uint64
+unpack_bigendian(const uchar* d, uint len)
+{
+  assert(len <= 8);
+  uint64 val = 0;
+  int i = (int)len;
+  int s = 0;
+  while (i != 0)
+  {
+    i--;
+    uint64 v = d[i];
+    val += (v << s);
+    s += 8;
+  }
+  return val;
+}
+
+static void
+pack_bigendian(uint64 val, uchar* d, uint len)
+{
+  uchar b[8];
+  uint i = 0;
+  while (i  < len)
+  {
+    b[i] = (uchar)(val & 255);
+    val >>= 8;
+    i++;
+  }
+  uint j = 0;
+  while (i != 0)
+  {
+    i--;
+    d[i] = b[j];
+    j++;
+  }
+}
+
+// Time2 : big-endian time(3 bytes).fraction(0-3 bytes)
+
+void
+NdbSqlUtil::unpack_time2(Time2& s, const uchar* d, uint prec)
+{
+  const uint64 one = (uint64)1;
+  uint flen = (1 + prec) / 2;
+  uint fbit = 8 * flen;
+  uint64 val = unpack_bigendian(&d[0], 3 + flen);
+  uint spos = 23 + fbit;
+  uint sign = (uint)((val & (one << spos)) >> spos);
+  if (sign == 0) // negative
+    val = (one << spos) - val;
+  uint64 w = (val >> fbit);
+  s.second = (uint)(w & 63);
+  w >>= 6;
+  s.minute = (uint)(w & 63);
+  w >>= 6;
+  s.hour = (uint)(w & 1023);
+  w >>= 10;
+  s.interval = (uint)(w & 1);
+  w >>= 1;
+  s.sign = sign;
+  uint f = (uint)(val & ((one << fbit) - 1));
+  if (prec % 2 != 0)
+    f /= 10;
+  s.fraction = f;
+}
+
+void
+NdbSqlUtil::pack_time2(const Time2& s, uchar* d, uint prec)
+{
+  const uint64 one = (uint64)1;
+  uint flen = (1 + prec) / 2;
+  uint fbit = 8 * flen;
+  uint spos = 23 + fbit;
+  uint64 w = 0;
+  w |= s.sign;
+  w <<= 1;
+  w |= s.interval;
+  w <<= 10;
+  w |= s.hour;
+  w <<= 6;
+  w |= s.minute;
+  w <<= 6;
+  w |= s.second;
+  uint f = s.fraction;
+  if (prec % 2 != 0)
+    f *= 10;
+  uint64 val = (w << fbit) | f;
+  if (s.sign == 0)
+    val = (one << spos) - val;
+  pack_bigendian(val, &d[0], 3 + flen);
+}
+
+// Datetime2 : big-endian date(5 bytes).fraction(0-3 bytes)
+
+void
+NdbSqlUtil::unpack_datetime2(Datetime2& s, const uchar* d, uint prec)
+{
+  const uint64 one = (uint64)1;
+  uint flen = (1 + prec) / 2;
+  uint fbit = 8 * flen;
+  uint64 val = unpack_bigendian(&d[0], 5 + flen);
+  uint spos = 39 + fbit;
+  uint sign = (uint)((val & (one << spos)) >> spos);
+  if (sign == 0) // negative
+    val = (one << spos) - val;
+  uint64 w = (val >> fbit);
+  s.second = (uint)(w & 63);
+  w >>= 6;
+  s.minute = (uint)(w & 63);
+  w >>= 6;
+  s.hour = (uint)(w & 31);
+  w >>= 5;
+  s.day = (uint)(w & 31);
+  w >>= 5;
+  uint year_month = (uint)(w & ((1 << 17) - 1));
+  s.month = year_month % 13;
+  s.year = year_month / 13;
+  w >>= 17;
+  s.sign = sign;
+  uint f = (uint)(val & ((one << fbit) - 1));
+  if (prec % 2 != 0)
+    f /= 10;
+  s.fraction = f;
+}
+
+void
+NdbSqlUtil::pack_datetime2(const Datetime2& s, uchar* d, uint prec)
+{
+  const uint64 one = (uint64)1;
+  uint flen = (1 + prec) / 2;
+  uint fbit = 8 * flen;
+  uint spos = 39 + fbit;
+  uint64 w = 0;
+  w |= s.sign;
+  w <<= 17;
+  w |= (s.year * 13 + s.month);
+  w <<= 5;
+  w |= s.day;
+  w <<= 5;
+  w |= s.hour;
+  w <<= 6;
+  w |= s.minute;
+  w <<= 6;
+  w |= s.second;
+  uint f = s.fraction;
+  if (prec % 2 != 0)
+    f *= 10;
+  uint64 val = (w << fbit) | f;
+  if (s.sign == 0)
+    val = (one << spos) - val;
+  pack_bigendian(val, &d[0], 5 + flen);
+}
+
+// Timestamp2 : big-endian non-negative unix time
+
+void
+NdbSqlUtil::unpack_timestamp2(Timestamp2& s, const uchar* d, uint prec)
+{
+  uint flen = (1 + prec) / 2;
+  uint w = (uint)unpack_bigendian(&d[0], 4);
+  s.second = w;
+  uint f = (uint)unpack_bigendian(&d[4], flen);
+  if (prec % 2 != 0)
+    f /= 10;
+  s.fraction = f;
+}
+
+void
+NdbSqlUtil::pack_timestamp2(const Timestamp2& s, uchar* d, uint prec)
+{
+  uint flen = (1 + prec) / 2;
+  uint w = s.second;
+  pack_bigendian(w, &d[0], 4);
+  uint f = s.fraction;
+  if (prec % 2 != 0)
+    f *= 10;
+  pack_bigendian(f, &d[4], flen);
+}
+
+#ifdef TEST_NDB_SQL_UTIL
+
+/*
+ * Before using the pack/unpack test one must verify correctness
+ * of unpack methods via sql and ndb_select_all.  Otherwise we are
+ * just testing pack/unpack of some fantasy formats.
+ */
+
+#include <util/NdbTap.hpp>
+#include <ndb_rand.h>
+#include <NdbOut.hpp>
+#include <NdbEnv.h>
+
+#define chk1(x) \
+  do { if (x) break; ndbout << "line " << __LINE__ << ": " << #x << endl; \
+       require(false); } while (0)
+
+#define lln(x, n) \
+  do { if (verbose < n) break; ndbout << x << endl; } while (0)
+
+#define ll0(x) lln(x, 0)
+#define ll1(x) lln(x, 1)
+
+static int seed = -1; // random
+static int loops = 10;
+static int subloops = 100000;
+static int verbose = 0;
+
+static const uint maxprec = 6;
+
+static uint maxfrac[1 + maxprec] = {
+  0, 9, 99, 999, 9999, 99999, 999999
+};
+
+static uint
+getrand()
+{
+  union {
+    uint32 n;
+    uchar b[4];
+  };
+  for (int i = 0; i < 4; i++)
+    b[i] = (uchar)ndb_rand();
+  return n;
+}
+
+static uint
+getrand(uint m)
+{
+  assert(m != 0);
+  uint n = ndb_rand();
+  return n % m;
+}
+
+static uint
+getrand(uint m1, uint  m2, bool& nz)
+{
+  assert(m1 <= m2);
+  // test zero and min and max more often
+  uint n = 0;
+  switch (getrand(10)) {
+  case 0:
+    n = 0;
+    break;
+  case 1:
+    n = m1;
+    break;
+  case 2:
+    n = m2;
+    break;
+  default:
+    n =  m1 + getrand(m2 - m1 + 1);
+    break;
+  }
+  if (n != 0)
+    nz = true;
+  return n;
+}
+
+static void
+cmpyear(const NdbSqlUtil::Year& s1,
+        const NdbSqlUtil::Year& s2)
+{
+  chk1(s1.year == s2.year);
+}
+
+static void
+testyear()
+{
+  NdbSqlUtil::Year s1;
+  NdbSqlUtil::Year s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.year = getrand(1900, 2155, nz);
+  if (!nz)
+    s1.year = 1900;
+  NdbSqlUtil::pack_year(s1, d1);
+  NdbSqlUtil::unpack_year(s2, d1);
+  cmpyear(s1, s2);
+  NdbSqlUtil::pack_year(s2, d2);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+loopyear()
+{
+  for (int i = 0; i < subloops; i++) {
+    testyear();
+  }
+}
+
+static void
+cmpdate(const NdbSqlUtil::Date& s1,
+        const NdbSqlUtil::Date& s2)
+{
+  chk1(s1.year == s2.year);
+  chk1(s1.month == s2.month);
+  chk1(s1.day == s2.day);
+}
+
+static void
+testdate()
+{
+  NdbSqlUtil::Date s1;
+  NdbSqlUtil::Date s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.year = getrand(1000, 9999, nz);
+  s1.month = getrand(1, 12, nz);
+  s1.day = getrand(1, 31, nz);
+  if (!nz)
+    s1.year = 1900;
+  NdbSqlUtil::pack_date(s1, d1);
+  NdbSqlUtil::unpack_date(s2, d1);
+  cmpdate(s1, s2);
+  NdbSqlUtil::pack_date(s2, d2);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+loopdate()
+{
+  for (int i = 0; i < subloops; i++) {
+    testdate();
+  }
+}
+
+static void
+cmptime(const NdbSqlUtil::Time& s1,
+        const NdbSqlUtil::Time& s2)
+{
+  chk1(s1.sign == s2.sign);
+  chk1(s1.hour == s2.hour);
+  chk1(s1.minute == s2.minute);
+  chk1(s1.second == s2.second);
+}
+
+static void
+testtime()
+{
+  NdbSqlUtil::Time s1;
+  NdbSqlUtil::Time s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.sign = getrand(0, 1, nz);
+  s1.hour = getrand(0, 838, nz);
+  s1.minute = getrand(0, 59, nz);
+  s1.second = getrand(0, 59, nz);
+  if (!nz)
+    s1.sign = 1;
+  NdbSqlUtil::pack_time(s1, d1);
+  NdbSqlUtil::unpack_time(s2, d1);
+  cmptime(s1, s2);
+  NdbSqlUtil::pack_time(s2, d2);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+looptime()
+{
+  for (int i = 0; i < subloops; i++) {
+    testtime();
+  }
+}
+
+static void
+cmpdatetime(const NdbSqlUtil::Datetime& s1,
+            const NdbSqlUtil::Datetime& s2)
+{
+  chk1(s1.year == s2.year);
+  chk1(s1.month == s2.month);
+  chk1(s1.day == s2.day);
+  chk1(s1.hour == s2.hour);
+  chk1(s1.minute == s2.minute);
+  chk1(s1.second == s2.second);
+}
+
+static void
+testdatetime()
+{
+  NdbSqlUtil::Datetime s1;
+  NdbSqlUtil::Datetime s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.year = getrand(1000, 9999, nz);
+  s1.month = getrand(1, 12, nz);
+  s1.day = getrand(1, 31, nz);
+  s1.hour = getrand(0, 23, nz);
+  s1.minute = getrand(0, 59, nz);
+  s1.second = getrand(0, 59, nz);
+  NdbSqlUtil::pack_datetime(s1, d1);
+  NdbSqlUtil::unpack_datetime(s2, d1);
+  cmpdatetime(s1, s2);
+  NdbSqlUtil::pack_datetime(s2, d2);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+loopdatetime()
+{
+  for (int i = 0; i < subloops; i++) {
+    testdatetime();
+  }
+}
+
+static void
+cmptimestamp(const NdbSqlUtil::Timestamp& s1,
+             const NdbSqlUtil::Timestamp& s2)
+{
+  chk1(s1.second == s2.second);
+}
+
+static void
+testtimestamp()
+{
+  NdbSqlUtil::Timestamp s1;
+  NdbSqlUtil::Timestamp s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.second = getrand(0, 59, nz);
+  NdbSqlUtil::pack_timestamp(s1, d1);
+  NdbSqlUtil::unpack_timestamp(s2, d1);
+  cmptimestamp(s1, s2);
+  NdbSqlUtil::pack_timestamp(s2, d2);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+looptimestamp()
+{
+  for (int i = 0; i < subloops; i++) {
+    testtimestamp();
+  }
+}
+
+static void
+cmptime2(const NdbSqlUtil::Time2& s1,
+         const NdbSqlUtil::Time2& s2)
+{
+  chk1(s1.sign == s2.sign);
+  chk1(s1.interval == s2.interval);
+  chk1(s1.hour == s2.hour);
+  chk1(s1.minute == s2.minute);
+  chk1(s1.second == s2.second);
+  chk1(s1.fraction == s2.fraction);
+}
+
+static void
+testtime2(uint prec)
+{
+  NdbSqlUtil::Time2 s1;
+  NdbSqlUtil::Time2 s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.sign = getrand(0, 1, nz);
+  s1.interval = 0;
+  s1.hour = getrand(0, 838, nz);
+  s1.minute = getrand(0, 59, nz);
+  s1.second = getrand(0, 59, nz);
+  s1.fraction = getrand(0, maxfrac[prec], nz);
+  if (!nz)
+    s1.sign = 1;
+  NdbSqlUtil::pack_time2(s1, d1, prec);
+  NdbSqlUtil::unpack_time2(s2, d1, prec);
+  cmptime2(s1, s2);
+  NdbSqlUtil::pack_time2(s2, d2, prec);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+looptime2()
+{
+  for (uint prec = 0; prec <= maxprec; prec++) {
+    for (int i = 0; i < subloops; i++) {
+      testtime2(prec);
+    }
+  }
+}
+
+static void
+cmpdatetime2(const NdbSqlUtil::Datetime2& s1,
+             const NdbSqlUtil::Datetime2& s2)
+{
+  chk1(s1.sign == s2.sign);
+  chk1(s1.year == s2.year);
+  chk1(s1.month == s2.month);
+  chk1(s1.day == s2.day);
+  chk1(s1.hour == s2.hour);
+  chk1(s1.minute == s2.minute);
+  chk1(s1.second == s2.second);
+  chk1(s1.fraction == s2.fraction);
+}
+
+static void
+testdatetime2(uint prec)
+{
+  NdbSqlUtil::Datetime2 s1;
+  NdbSqlUtil::Datetime2 s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.sign = getrand(0, 1, nz); // negative not yet in MySQL
+  s1.year = getrand(0, 9999, nz);
+  s1.month = getrand(1, 12, nz);
+  s1.day = getrand(1, 31, nz);
+  s1.hour = getrand(0, 23, nz);
+  s1.minute = getrand(0, 59, nz);
+  s1.second = getrand(0, 59, nz);
+  s1.fraction = getrand(0, maxfrac[prec], nz);
+  if (!nz)
+    s1.sign = 1;
+  NdbSqlUtil::pack_datetime2(s1, d1, prec);
+  NdbSqlUtil::unpack_datetime2(s2, d1, prec);
+  cmpdatetime2(s1, s2);
+  NdbSqlUtil::pack_datetime2(s2, d2, prec);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+loopdatetime2()
+{
+  for (uint prec = 0; prec <= maxprec; prec++) {
+    for (int i = 0; i < subloops; i++) {
+      testdatetime2(prec);
+    }
+  }
+}
+
+static void
+cmptimestamp2(const NdbSqlUtil::Timestamp2& s1,
+              const NdbSqlUtil::Timestamp2& s2)
+{
+  chk1(s1.second == s2.second);
+  chk1(s1.fraction == s2.fraction);
+}
+
+static void
+testtimestamp2(uint prec)
+{
+  NdbSqlUtil::Timestamp2 s1;
+  NdbSqlUtil::Timestamp2 s2;
+  uchar d1[20];
+  uchar d2[20];
+  memset(&s1, 0x1f, sizeof(s1));
+  memset(&s2, 0x1f, sizeof(s2));
+  memset(d1, 0x1f, sizeof(d1));
+  memset(d2, 0x1f, sizeof(d2));
+  bool nz = false;
+  s1.second = getrand(0, 59, nz);
+  s1.fraction = getrand(0, maxfrac[prec], nz);
+  NdbSqlUtil::pack_timestamp2(s1, d1, prec);
+  NdbSqlUtil::unpack_timestamp2(s2, d1, prec);
+  cmptimestamp2(s1, s2);
+  NdbSqlUtil::pack_timestamp2(s2, d2, prec);
+  chk1(memcmp(d1, d2, sizeof(d1)) == 0);
+}
+
+static void
+looptimestamp2()
+{
+  for (uint prec = 0; prec <= maxprec; prec++) {
+    for (int i = 0; i < subloops; i++) {
+      testtimestamp2(prec);
+    }
+  }
+}
+
+static void
+testrun()
+{
+  loopyear();
+  loopdate();
+  looptime();
+  loopdatetime();
+  looptimestamp();
+  looptime2();
+  loopdatetime2();
+  looptimestamp2();
+}
+
+static int
+testmain()
+{
+  ndb_init();
+  struct { char* env; int* val; } opt[] = {
+    { "TEST_NDB_SQL_UTIL_SEED", &seed },
+    { "TEST_NDB_SQL_UTIL_LOOPS", &loops },
+    { "TEST_NDB_SQL_UTIL_VERBOSE", &verbose },
+    { 0, 0 }
+  };
+  for (int i = 0; opt[i].env != 0; i++) {
+    const char* p = NdbEnv_GetEnv(opt[i].env, (char*)0, 0);
+    if (p != 0)
+      *opt[i].val = atoi(p);
+  }
+#ifdef VM_TRACE
+  signal(SIGABRT, SIG_DFL);
+#endif
+  if (seed == 0)
+    ll0("random seed: loop number");
+  else {
+    if (seed < 0)
+      seed = getpid();
+    ll0("random seed " << seed);
+    ndb_srand(seed);
+  }
+  for (int i = 0; i < loops; i++) {
+    ll0("loop:" << i << "/" << loops);
+    if (seed == 0)
+      ndb_srand(seed);
+    testrun(); // aborts on any error
+  }
+  ll0("passed");
+  return 0;
+}
+
+TAPTEST(NdbSqlUtil)
+{
+  int ret = testmain();
+  return (ret == 0);
+}
+
+#endif

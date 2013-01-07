@@ -34,7 +34,7 @@
 #    - GTID_MODE is read-only.
 #    - GTID_MODE cannot (yet) be set to UPGRADE_STEP_1 or UPGRADE_STEP_2
 #    - GTID_MODE=ON requires all of --log-bin, --log-slave-updates,
-#      and --disable-gtid-unsafe-statements.
+#      and --enforce-gtid-consistency.
 #
 #   Master and slave:
 #    - START SLAVE fails if master has GTID_MODE = ON and slave has
@@ -154,15 +154,15 @@ INSERT INTO t1 VALUES (1);
 
 --let $assert_regex= --gtid-mode=UPGRADE_STEP_1 or --gtid-mode=UPGRADE_STEP_2 are not yet supported
 
---let $assert_command= $server2_cmd --gtid-mode=upgrade_step_1 --disable-gtid-unsafe-statements 2>&1
+--let $assert_command= $server2_cmd --gtid-mode=upgrade_step_1 --enforce-gtid-consistency 2>&1
 --source include/assert_command_output.inc
 
---let $assert_command= $server2_cmd --gtid-mode=upgrade_step_2 --disable-gtid-unsafe-statements 2>&1
+--let $assert_command= $server2_cmd --gtid-mode=upgrade_step_2 --enforce-gtid-consistency 2>&1
 --source include/assert_command_output.inc
 
---echo ---- GTID_MODE=ON requires --disable-gtid-unsafe-statements ----
+--echo ---- GTID_MODE=ON requires --enforce-gtid-consistency ----
 
---let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements
+--let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency
 --let $assert_command= $server2_cmd --gtid-mode=on 2>&1
 --source include/assert_command_output.inc
 
@@ -193,7 +193,7 @@ START SLAVE;
 # automatically running with both options on.
 
 --let $assert_regex= --gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates
---let $assert_command= $server1_cmd --gtid-mode=on --disable-gtid-unsafe-statements 2>&1
+--let $assert_command= $server1_cmd --gtid-mode=on --enforce-gtid-consistency 2>&1
 --source include/assert_command_output.inc
 
 --let $rpl_server_number= 1

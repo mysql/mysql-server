@@ -29,7 +29,7 @@
 
 if ($use_gtids)
 {
-  --let $_saved_gtids= `SELECT @@global.gtid_done`
+  --let $_saved_gtids= `SELECT @@global.gtid_executed`
   if ($rpl_debug)
   {
     --echo save_master_pos saved gtid='$_saved_gtids'

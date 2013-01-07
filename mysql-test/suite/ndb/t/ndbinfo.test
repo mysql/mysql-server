@@ -201,6 +201,53 @@ set @@ndbinfo_offline=1;
 let $q1 = SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 eval $q1;
 
+# new views
+desc threadblocks;
+select distinct block_name from threadblocks order by 1;
+desc threadstat;
+select count(*) > 0 block_name from threadstat;
+
+desc cluster_transactions;
+desc server_transactions;
+desc cluster_operations;
+desc server_operations;
+
+create table t1 (a int primary key) engine = ndb;
+begin;
+insert into t1 values (1);
+select state, count_operations, outstanding_operations,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_transactions;
+select node_id, operation_type, state,
+IF(tc_node_id <= 48, "<tc_node_id>", "<incorrect nodeid>") tc_node_id,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_operations
+order by 1;
+
+--sorted_result
+select st.state, st.count_operations, st.outstanding_operations,
+       so.node_id, so.state, so.operation_type
+from server_transactions st,
+     server_operations so
+where st.transid = so.transid
+  and so.tc_node_id = st.node_id
+  and so.tc_block_instance = st.block_instance
+  and so.client_node_id = st.client_node_id
+  and so.client_block_ref = st.client_block_ref; 
+rollback;
+drop table t1;
+
+#
+select distinct resource_name
+from resources
+order by 1;
+
+select distinct counter_name
+from counters
+order by 1;
+
 # Turn on ndbinfo_offline
 set @@global.ndbinfo_offline=TRUE;
 select @@ndbinfo_offline;

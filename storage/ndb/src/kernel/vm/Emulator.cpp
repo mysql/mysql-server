@@ -79,7 +79,12 @@ EmulatorData::create(){
     Global jam() buffer, for non-multithreaded operation.
     For multithreaded ndbd, each thread will set a local jam buffer later.
   */
-  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, (void *)&theEmulatedJamBuffer);
+#ifndef NO_EMULATED_JAM
+  void * jamBuffer = (void *)&theEmulatedJamBuffer;
+#else
+  void * jamBuffer = 0;
+#endif
+  NdbThread_SetTlsKey(NDB_THREAD_TLS_JAM, jamBuffer);
 
   NdbMem_Create();
 
@@ -89,6 +94,7 @@ EmulatorData::create(){
   theSimBlockList  = new SimBlockList();
   m_socket_server  = new SocketServer();
   m_mem_manager    = new Ndbd_mem_manager();
+  globalData.m_global_page_pool.setMutex();
 
   if (theConfiguration == NULL ||
       theWatchDog == NULL ||

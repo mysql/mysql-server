@@ -45,7 +45,7 @@ struct row_mutex_instances
   /** True if column LOCKED_BY_THREAD_ID is not null. */
   bool m_locked;
   /** Column LOCKED_BY_THREAD_ID. */
-  ulong m_locked_by_thread_id;
+  ulonglong m_locked_by_thread_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.MUTEX_INSTANCES. */
@@ -102,7 +102,7 @@ struct row_rwlock_instances
   /** True if column WRITE_LOCKED_BY_THREAD_ID is not null. */
   bool m_write_locked;
   /** Column WRITE_LOCKED_BY_THREAD_ID. */
-  ulong m_write_locked_by_thread_id;
+  ulonglong m_write_locked_by_thread_id;
   /** Column READ_LOCKED_BY_COUNT. */
   ulong m_readers;
 };

@@ -73,7 +73,7 @@ inline uint randomized_index(const void *ptr, uint max_size)
   static uint seed1= 0;
   static uint seed2= 0;
   uint result;
-  register intptr value;
+  intptr value;
 
   if (unlikely(max_size == 0))
     return 0;

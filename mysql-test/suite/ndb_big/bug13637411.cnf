@@ -1,0 +1,28 @@
+!include include/default_mysqld.cnf
+
+[cluster_config.1]
+ndbd=
+ndb_mgmd=
+mysqld=
+
+NoOfReplicas=1
+DataMemory=21G
+IndexMemory=220M
+Diskless=1
+
+[mysqld]
+# Make all mysqlds use cluster
+ndbcluster
+
+ndb-cluster-connection-pool=1
+ndb-force-send=1
+ndb-use-exact-count=0
+ndb-extra-logging=1
+ndb-autoincrement-prefetch-sz=256
+ndb-wait-connected=600
+ndb-wait-setup=300
+
+[ENV]
+NDB_CONNECTSTRING=             @mysql_cluster.1.ndb_connectstring
+MASTER_MYPORT=                 @mysqld.1.1.port
+

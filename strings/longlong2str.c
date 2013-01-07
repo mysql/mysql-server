@@ -50,7 +50,7 @@
 char *ll2str(longlong val,char *dst,int radix, int upcase)
 {
   char buffer[65];
-  register char *p;
+  char *p;
   long long_val;
   char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
   ulonglong uval= (ulonglong) val;
@@ -101,7 +101,7 @@ char *ll2str(longlong val,char *dst,int radix, int upcase)
 char *longlong10_to_str(longlong val,char *dst,int radix)
 {
   char buffer[65];
-  register char *p;
+  char *p;
   long long_val;
   ulonglong uval= (ulonglong) val;
 

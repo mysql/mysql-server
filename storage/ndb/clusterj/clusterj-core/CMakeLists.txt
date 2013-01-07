@@ -21,6 +21,14 @@ SET ( JAVA_SOURCE_DIRS
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/store
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util)
 
+SET ( BROKEN_JAVAC
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/*.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/metadata/*.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/query/*.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/spi/*.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/store/*.java
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/core/util/*.java)
+
 SET ( JAVA_SOURCES "")
 FOREACH(D ${JAVA_SOURCE_DIRS})
   FILE(GLOB tmp ${D}/*.java)
@@ -35,4 +43,5 @@ CREATE_JAR(clusterj-core ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   DEPENDENCIES clusterj-api.jar
   EXTRA_FILES src/main/resources/META-INF
-              src/main/resources/com)
+              src/main/resources/com
+  BROKEN_JAVAC ${BROKEN_JAVAC})

@@ -112,7 +112,7 @@ enum Constants
     MAX_LENGTH_SZ =  5,    
     MAX_SEQ_SZ    =  5,    // enum(seq|con) + length(4)
     MAX_ALGO_SIZE =  9,
-    MAX_DIGEST_SZ = 25,    // SHA + enum(Bit or Octet) + length(4)
+    MAX_DIGEST_SZ = 69,    // SHA512 + enum(Bit or Octet) + length(4)
     DSA_SIG_SZ    = 40,
     ASN_NAME_MAX  = 512    // max total of all included names
 };
@@ -258,8 +258,11 @@ typedef STL::list<Signer*> SignerList;
 
 
 enum ContentType { HUH = 651 };
-enum SigType  { SHAwDSA = 517, MD2wRSA = 646, MD5wRSA = 648, SHAwRSA =649};
-enum HashType { MD2h = 646, MD5h = 649, SHAh = 88 };
+enum SigType  { SHAwDSA = 517, MD2wRSA = 646, MD5wRSA = 648, SHAwRSA = 649,
+                SHA256wRSA = 655, SHA384wRSA = 656, SHA512wRSA = 657,
+                SHA256wDSA = 416 };
+enum HashType { MD2h = 646, MD5h = 649, SHAh = 88, SHA256h = 414,
+                SHA384h = 415, SHA512h = 416 };
 enum KeyType  { DSAk = 515, RSAk = 645 };     // sums of algo OID
 
 

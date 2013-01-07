@@ -224,7 +224,7 @@ void BasicDES::SetKey(const byte* key, word32 /*length*/, CipherDir dir)
     byte *const pc1m = buffer;                 /* place to modify pc1 into */
     byte *const pcr = pc1m + 56;               /* place to rotate pc1 into */
     byte *const ks = pcr + 56;
-    register int i,j,l;
+    int i,j,l;
     int m;
 
     for (j = 0; j < 56; j++) {          /* convert pc1 to bits of key */

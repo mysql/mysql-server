@@ -364,10 +364,8 @@ must be reset explicitly by calling sync_os_reset_event.
 @return	the event handle */
 UNIV_INTERN
 os_event_t
-os_event_create(
-/*============*/
-	const char*	name)	/*!< in: the name of the event, if NULL
-				the event is created without a name */
+os_event_create(void)
+/*==================*/
 {
 	os_event_t	event;
 
@@ -376,10 +374,7 @@ os_event_create(
 
 		event = static_cast<os_event_t>(ut_malloc(sizeof(*event)));
 
-		event->handle = CreateEvent(NULL,
-					    TRUE,
-					    FALSE,
-					    (LPCTSTR) name);
+		event->handle = CreateEvent(NULL, TRUE, FALSE, NULL);
 		if (!event->handle) {
 			fprintf(stderr,
 				"InnoDB: Could not create a Windows event"
@@ -389,8 +384,6 @@ os_event_create(
 	} else /* Windows with condition variables */
 #endif
 	{
-		UT_NOT_USED(name);
-
 		event = static_cast<os_event_t>(ut_malloc(sizeof *event));
 
 #ifndef PFS_SKIP_EVENT_MUTEX
@@ -756,7 +749,7 @@ os_mutex_create(void)
 
 	mutex_str->handle = mutex;
 	mutex_str->count = 0;
-	mutex_str->event = os_event_create(NULL);
+	mutex_str->event = os_event_create();
 
 	if (UNIV_LIKELY(os_sync_mutex_inited)) {
 		/* When creating os_sync_mutex itself we cannot reserve it */

@@ -364,6 +364,9 @@ private:
   void execNODE_PINGREQ(Signal* signal);
   void execNODE_PINGCONF(Signal* signal);
 
+  // Ndbinfo signal
+  void execDBINFO_SCANREQ(Signal *signal);
+
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
@@ -575,6 +578,14 @@ private:
 #ifdef ERROR_INSERT
   Uint32 nodeFailCount;
 #endif
+
+  Uint32 get_hb_count(Uint32 nodeId) const {
+    return globalData.get_hb_count(nodeId);
+  }
+
+  Uint32& set_hb_count(Uint32 nodeId) {
+    return globalData.set_hb_count(nodeId);
+  }
 };
 
 #endif

@@ -48,6 +48,13 @@ Full Text Search interface
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+UNIV_INTERN bool	fts_need_sync = false;
+
+/** Variable specifying the total memory allocated for FTS cache */
+UNIV_INTERN ulong	fts_max_total_cache_size;
+
 /** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
 
@@ -681,7 +688,7 @@ fts_add_index(
 
 	ib_vector_push(fts->indexes, &index);
 
-	index_cache = (fts_index_cache_t*) fts_find_index_cache(cache, index);
+	index_cache = fts_find_index_cache(cache, index);
 
 	if (!index_cache) {
 		/* Add new index cache structure */
@@ -832,6 +839,8 @@ fts_drop_index(
 	    && (index == static_cast<dict_index_t*>(
 			ib_vector_getp(table->fts->indexes, 0))))
 	   || ib_vector_is_empty(indexes)) {
+		doc_id_t	current_doc_id;
+		doc_id_t	first_doc_id;
 
 		/* If we are dropping the only FTS index of the table,
 		remove it from optimize thread */
@@ -855,17 +864,20 @@ fts_drop_index(
 			return(err);
 		}
 
+		current_doc_id = table->fts->cache->next_doc_id;
+		first_doc_id = table->fts->cache->first_doc_id;
 		fts_cache_clear(table->fts->cache, TRUE);
 		fts_cache_destroy(table->fts->cache);
 		table->fts->cache = fts_cache_create(table);
+		table->fts->cache->next_doc_id = current_doc_id;
+		table->fts->cache->first_doc_id = first_doc_id;
 	} else {
 		fts_cache_t*            cache = table->fts->cache;
 		fts_index_cache_t*      index_cache;
 
 		rw_lock_x_lock(&cache->init_lock);
 
-		index_cache = (fts_index_cache_t*) fts_find_index_cache(
-			cache, index);
+		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache->words) {
 			fts_words_free(index_cache->words);
@@ -1111,6 +1123,8 @@ fts_cache_clear(
 
 	mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
 	cache->sync_heap->arg = NULL;
+
+	fts_need_sync = false;
 
 	cache->total_size = 0;
 	cache->deleted_doc_ids = NULL;
@@ -1478,11 +1492,14 @@ fts_drop_table(
 
 		dict_table_close(table, TRUE, FALSE);
 
-		error = row_drop_table_for_mysql(table_name, trx, TRUE);
+		/* Pass nonatomic=false (dont allow data dict unlock),
+		because the transaction may hold locks on SYS_* tables from
+		previous calls to fts_drop_table(). */
+		error = row_drop_table_for_mysql(table_name, trx, true, false);
 
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unale to drop FTS index aux table %s: %s",
+				"Unable to drop FTS index aux table %s: %s",
 				table_name, ut_strerr(error));
 		}
 	} else {
@@ -1716,6 +1733,7 @@ fts_create_common_tables(
 	que_t*		graph;
 	fts_table_t	fts_table;
 	mem_heap_t*	heap = mem_heap_create(1024);
+	pars_info_t*	info;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
@@ -1754,17 +1772,23 @@ fts_create_common_tables(
 		goto func_exit;
 	}
 
+	info = pars_info_create();
+
+	pars_info_bind_id(info, TRUE, "table_name", name);
+	pars_info_bind_id(info, TRUE, "index_name", FTS_DOC_ID_INDEX_NAME);
+	pars_info_bind_id(info, TRUE, "doc_id_col_name", FTS_DOC_ID_COL_NAME);
+
 	/* Create the FTS DOC_ID index on the hidden column. Currently this
 	is common for any FT index created on the table. */
 	graph = fts_parse_sql_no_dict_lock(
 		NULL,
-		NULL,
+		info,
 		mem_heap_printf(
 			heap,
 			"BEGIN\n"
 			""
-			"CREATE UNIQUE INDEX %s ON %s(%s);\n",
-			FTS_DOC_ID_INDEX_NAME, name, FTS_DOC_ID_COL_NAME));
+			"CREATE UNIQUE INDEX $index_name ON $table_name("
+			"$doc_id_col_name);\n"));
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
@@ -2100,11 +2124,15 @@ static
 fts_trx_t*
 fts_trx_create(
 /*===========*/
-	trx_t*	trx)				/*!< in: InnoDB transaction */
+	trx_t*	trx)				/*!< in/out: InnoDB
+						transaction */
 {
-	fts_trx_t*	ftt;
-	ib_alloc_t*	heap_alloc;
-	mem_heap_t*	heap = mem_heap_create(1024);
+	fts_trx_t*		ftt;
+	ib_alloc_t*		heap_alloc;
+	mem_heap_t*		heap = mem_heap_create(1024);
+	trx_named_savept_t*	savep;
+
+	ut_a(trx->fts_trx == NULL);
 
 	ftt = static_cast<fts_trx_t*>(mem_heap_alloc(heap, sizeof(fts_trx_t)));
 	ftt->trx = trx;
@@ -2121,6 +2149,14 @@ fts_trx_create(
 	/* Default instance has no name and no heap. */
 	fts_savepoint_create(ftt->savepoints, NULL, NULL);
 	fts_savepoint_create(ftt->last_stmt, NULL, NULL);
+
+	/* Copy savepoints that already set before. */
+	for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	     savep != NULL;
+	     savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
+
+		fts_savepoint_take(trx, ftt, savep->name);
+	}
 
 	return(ftt);
 }
@@ -3389,7 +3425,8 @@ fts_add_doc_by_id(
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
-				if (cache->total_size > fts_max_cache_size) {
+				if (cache->total_size > fts_max_cache_size
+				    || fts_need_sync) {
 					fts_sync(cache->sync);
 				}
 
@@ -3475,7 +3512,7 @@ fts_get_max_doc_id(
 
 	/* fetch the largest indexes value */
 	btr_pcur_open_at_index_side(
-		FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 		const rec_t*    rec = NULL;
@@ -3558,6 +3595,7 @@ fts_doc_fetch_by_doc_id(
 	pars_info_bind_function(info, "my_func", callback, arg);
 
 	select_str = fts_get_select_columns_str(index, info, info->heap);
+	pars_info_bind_id(info, TRUE, "table_name", index->table_name);
 
 	if (!get_doc || !get_doc->get_document_graph) {
 		if (option == FTS_FETCH_DOC_BY_ID_EQUAL) {
@@ -3567,7 +3605,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s FROM %s"
+					" SELECT %s FROM $table_name"
 					" WHERE %s = :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3579,8 +3617,7 @@ fts_doc_fetch_by_doc_id(
 					"  END IF;\n"
 					"END LOOP;\n"
 					"CLOSE c;",
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
@@ -3604,7 +3641,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s, %s FROM %s"
+					" SELECT %s, %s FROM $table_name"
 					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3617,8 +3654,7 @@ fts_doc_fetch_by_doc_id(
 					"END LOOP;\n"
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
 			get_doc->get_document_graph = graph;
@@ -4125,9 +4161,14 @@ fts_sync_begin(
 
 	sync->trx = trx_allocate_for_background();
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC deleted count: %ld size: %lu bytes\n",
-		ib_vector_size(cache->deleted_doc_ids), cache->total_size);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS SYNC for table %s, deleted count: %ld size: "
+			"%lu bytes",
+			sync->table->name,
+			ib_vector_size(cache->deleted_doc_ids),
+			cache->total_size);
+	}
 }
 
 /*********************************************************************//**
@@ -4146,8 +4187,10 @@ fts_sync_index(
 
 	trx->op_info = "doing SYNC index";
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC words: %ld\n", rbt_size(index_cache->words));
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC words: %ld", rbt_size(index_cache->words));
+	}
 
 	ut_ad(rbt_validate(index_cache->words));
 
@@ -4219,10 +4262,14 @@ fts_sync_commit(
 			ut_strerr(error));
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: SYNC time : %lusecs: elapsed %lf ins/sec\n",
-		(ulong) (ut_time() - sync->start_time),
-		(double) n_nodes/ (double) elapsed_time);
+	if (fts_enable_diag_print && elapsed_time) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC for table %s: SYNC time : %lu secs: "
+			"elapsed %lf ins/sec",
+			sync->table->name,
+			(ulong) (ut_time() - sync->start_time),
+			(double) n_nodes/ (double) elapsed_time);
+	}
 
 	trx_free_for_background(trx);
 
@@ -4540,10 +4587,13 @@ fts_init_doc_id(
 
 	rw_lock_x_lock(&table->fts->cache->lock);
 
+	/* Return if the table is already initialized for DOC ID */
 	if (table->fts->cache->first_doc_id != FTS_NULL_DOC_ID) {
 		rw_lock_x_unlock(&table->fts->cache->lock);
 		return(0);
 	}
+
+	DEBUG_SYNC_C("fts_initialize_doc_id");
 
 	/* Then compare this value with the ID value stored in the CONFIG
 	table. The larger one will be our new initial Doc ID */
@@ -4896,7 +4946,7 @@ fts_get_doc_id_from_rec(
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
 UNIV_INTERN
-const fts_index_cache_t*
+fts_index_cache_t*
 fts_find_index_cache(
 /*=================*/
 	const fts_cache_t*	cache,		/*!< in: cache to search */
@@ -4904,7 +4954,8 @@ fts_find_index_cache(
 {
 	/* We cast away the const because our internal function, takes
 	non-const cache arg and returns a non-const pointer. */
-	return(fts_get_index_cache((fts_cache_t*) cache, index));
+	return(static_cast<fts_index_cache_t*>(
+		fts_get_index_cache((fts_cache_t*) cache, index)));
 }
 
 /*********************************************************************//**
@@ -5267,16 +5318,15 @@ void
 fts_savepoint_take(
 /*===============*/
 	trx_t*		trx,		/*!< in: transaction */
+	fts_trx_t*	fts_trx,	/*!< in: fts transaction */
 	const char*	name)		/*!< in: savepoint name */
 {
 	mem_heap_t*		heap;
-	fts_trx_t*		fts_trx;
 	fts_savepoint_t*	savepoint;
 	fts_savepoint_t*	last_savepoint;
 
 	ut_a(name != NULL);
 
-	fts_trx = trx->fts_trx;
 	heap = fts_trx->heap;
 
 	/* The implied savepoint must exist. */
@@ -5726,8 +5776,8 @@ fts_read_tables(
 			}
 
 			table->name = static_cast<char*>(
-				mem_heap_dup(heap, data, len + 1));
-
+				mem_heap_alloc(heap, len + 1));
+			memcpy(table->name, data, len);
 			table->name[len] = 0;
 			break;
 
@@ -5815,7 +5865,8 @@ fts_check_and_drop_orphaned_tables(
 				path = fil_make_ibd_name(
 					aux_table->name, false);
 
-				os_file_delete_if_exists(path);
+				os_file_delete_if_exists(innodb_file_data_key,
+							 path);
 
 				mem_free(path);
 			}
@@ -6334,7 +6385,10 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		index = dict_table_get_first_index(table);
+		index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+
+		ut_a(index);
+
 		has_fts = FALSE;
 		fts_doc_fetch_by_doc_id(NULL, start_doc, index,
 					FTS_FETCH_DOC_BY_ID_LARGE,

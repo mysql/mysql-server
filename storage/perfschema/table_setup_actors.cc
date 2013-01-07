@@ -105,6 +105,9 @@ int table_setup_actors::write_row(TABLE *table, unsigned char *buf,
     }
   }
 
+  if (user->length() == 0 || host->length() == 0 || role->length() == 0)
+    return HA_ERR_WRONG_COMMAND;
+
   return insert_setup_actor(user, host, role);
 }
 
@@ -264,39 +267,13 @@ int table_setup_actors::delete_row_values(TABLE *table,
                                           const unsigned char *buf,
                                           Field **fields)
 {
-  Field *f;
-  String user_data("", 0, &my_charset_utf8_bin);
-  String host_data("", 0, &my_charset_utf8_bin);
-  String role_data("", 0, &my_charset_utf8_bin);
-  String *user= NULL;
-  String *host= NULL;
-  String *role= NULL;
+  DBUG_ASSERT(m_row_exists);
 
-  for (; (f= *fields) ; fields++)
-  {
-    if (bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch(f->field_index)
-      {
-      case 0: /* HOST */
-        host= get_field_char_utf8(f, &host_data);
-        break;
-      case 1: /* USER */
-        user= get_field_char_utf8(f, &user_data);
-        break;
-      case 2: /* ROLE */
-        role= get_field_char_utf8(f, &role_data);
-        break;
-      default:
-        DBUG_ASSERT(false);
-      }
-    }
-  }
+  CHARSET_INFO *cs= &my_charset_utf8_bin;
+  String user(m_row.m_username, m_row.m_username_length, cs);
+  String role(m_row.m_rolename, m_row.m_rolename_length, cs);
+  String host(m_row.m_hostname, m_row.m_hostname_length, cs);
 
-  DBUG_ASSERT(user != NULL);
-  DBUG_ASSERT(host != NULL);
-  DBUG_ASSERT(role != NULL);
-
-  return delete_setup_actor(user, host, role);
+  return delete_setup_actor(&user, &host, &role);
 }
 

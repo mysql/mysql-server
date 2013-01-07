@@ -3,7 +3,7 @@ drop view if exists v1,v2;
 drop function if exists f1;
 drop function if exists f2;
 use INFORMATION_SCHEMA;
-show tables where Tables_in_information_schema NOT LIKE 'Innodb%';
+show tables where Tables_in_information_schema NOT LIKE 'Innodb%' and Tables_in_information_schema NOT LIKE 'ndb%';
 Tables_in_information_schema
 CHARACTER_SETS
 COLLATIONS
@@ -141,7 +141,7 @@ View	Create View	character_set_client	collation_connection
 v6	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v6` AS select `t1`.`f1` AS `f1` from `t1`	latin1	latin1_swedish_ci
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show fields from testdb_1.v7;
@@ -173,7 +173,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 show create view testdb_1.v7;
 View	Create View	character_set_client	collation_connection
-v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `testdb_1`.`t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
+v7	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v7` AS select `t2`.`f1` AS `f1` from `t2`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 revoke insert(f1) on v3 from testdb_2@localhost;

@@ -89,8 +89,10 @@ static const char K_TABLE[]=                        "table";
 static const char K_TABLE_NAME[]=                   "table_name";
 static const char K_UNION_RESULT[]=                 "union_result";
 static const char K_UPDATE_VALUE_SUBQUERIES[]=      "update_value_subqueries";
+static const char K_USED_KEY_PARTS[]=               "used_key_parts";
 static const char K_USING_FILESORT[]=               "using_filesort";
 static const char K_USING_TMP_TABLE[]=              "using_temporary_table";
+
 
 /*
   see commentary at the beginning of opt_trace.cc
@@ -581,6 +583,9 @@ bool table_base_ctx::format_body(Opt_trace_context *json, Opt_trace_object *obj)
 
   if (!col_key.is_empty())
     obj->add_utf8(K_KEY, col_key.str);
+
+  if (!col_key_parts.is_empty())
+    add_string_array(json, K_USED_KEY_PARTS, col_key_parts);
 
   if (!col_key_len.is_empty())
     obj->add_alnum(K_KEY_LENGTH, col_key_len.str);

@@ -24,29 +24,13 @@ CHECK_TYPE_SIZE("long long" NDB_SIZEOF_LONG_LONG)
 CONFIGURE_FILE(ndb_types.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_types.h
                @ONLY)
-
-#
-# Read a value for variable from ndb_configure.m4
-#
-MACRO(NDB_GET_CONFIG_VALUE keyword var)
- IF(NOT ${var})
-   # Read the line which contains the keyword
-   FILE (STRINGS ${NDB_SOURCE_DIR}/VERSION str
-         REGEX "^[ ]*${keyword}=")
-   IF(str)
-     # Remove the keyword=
-     STRING(REPLACE "${keyword}=" "" str ${str})
-     # Remove whitespace
-     STRING(REGEX REPLACE "[ ].*" "" str "${str}")
-     SET(${var} ${str})
-   ENDIF()
- ENDIF()
-ENDMACRO()
+# Exclude ndb_types.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
 
 #
 # Read ndb_configure.m4 and extract the NDB_VERSION_XX=YY variables
 #
-
+INCLUDE("${NDB_SOURCE_DIR}/cmake/ndb_get_config_value.cmake")
 NDB_GET_CONFIG_VALUE(NDB_VERSION_MAJOR major)
 SET(NDB_VERSION_MAJOR "${major}" CACHE INTERNAL "NDB Major Version" FORCE)
 
@@ -86,4 +70,58 @@ ENDIF()
 CONFIGURE_FILE(ndb_version.h.in
                ${CMAKE_CURRENT_SOURCE_DIR}/ndb_version.h
                @ONLY)
+# Exclude ndb_version.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 
+
+# Install public headers
+SET(NDB_GENERAL_HEADERS
+    ndb_constants.h
+    ndb_init.h
+    ndb_types.h
+    ndb_version.h)
+
+
+SET(NDB_NDBAPI_HEADERS
+    ndbapi/ndbapi_limits.h
+    ndbapi/ndb_opt_defaults.h
+    ndbapi/Ndb.hpp
+    ndbapi/NdbApi.hpp
+    ndbapi/NdbTransaction.hpp
+    ndbapi/NdbDictionary.hpp
+    ndbapi/NdbError.hpp
+    ndbapi/NdbEventOperation.hpp
+    ndbapi/NdbIndexOperation.hpp
+    ndbapi/NdbOperation.hpp
+    ndbapi/ndb_cluster_connection.hpp
+    ndbapi/NdbBlob.hpp
+    ndbapi/NdbPool.hpp
+    ndbapi/NdbRecAttr.hpp
+    ndbapi/NdbReceiver.hpp
+    ndbapi/NdbScanFilter.hpp
+    ndbapi/NdbScanOperation.hpp
+    ndbapi/NdbIndexScanOperation.hpp
+    ndbapi/NdbIndexStat.hpp
+    ndbapi/ndberror.h
+    ndbapi/NdbInterpretedCode.hpp)
+
+SET(NDB_MGMAPI_HEADERS
+    mgmapi/mgmapi.h
+    mgmapi/mgmapi_error.h
+    mgmapi/mgmapi_debug.h
+    mgmapi/mgmapi_config_parameters.h
+    mgmapi/mgmapi_config_parameters_debug.h
+    mgmapi/ndb_logevent.h
+    mgmapi/ndbd_exit_codes.h)
+
+INSTALL(FILES ${NDB_GENERAL_HEADERS}
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb
+        COMPONENT Developement)
+
+INSTALL(FILES ${NDB_NDBAPI_HEADERS}
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/ndbapi
+        COMPONENT Developement)
+
+INSTALL(FILES ${NDB_MGMAPI_HEADERS}
+        DESTINATION ${INSTALL_INCLUDEDIR}/storage/ndb/mgmapi
+        COMPONENT Developement)

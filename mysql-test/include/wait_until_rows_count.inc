@@ -11,9 +11,6 @@
 #    let $table= t1;
 #    --source include/wait_until_rows_count.inc
 #
-# EXAMPLE
-#    extra/binlog/binlog_insert_delayed.test
-#
 
 let $wait_condition=
   select count(*) = $count from $table;

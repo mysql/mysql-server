@@ -399,3 +399,24 @@ disconnect con2;
 # Wait till all disconnects are completed
 --source include/wait_until_count_sessions.inc
 
+--echo #
+--echo # Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED 
+--echo #              XID DATA IN XA RECOVER OUTPUT
+--echo #
+--echo #
+--echo # xa Recover command was not diplaying non printable ASCII
+--echo # characters in the XID previosuly. Now there is another column
+--echo # in the result set which is a Hex Encoded String of the XID.
+--echo #
+xa start 0xABCDEF1234567890, 0x01, 0x02 ;
+xa end 0xABCDEF1234567890, 0x01, 0x02 ;
+xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+xa recover;
+xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
+
+xa start 0x4142434445, 0x46, 0x02 ;
+xa end 0x4142434445, 0x46, 0x02 ;
+xa prepare 0x4142434445, 0x46, 0x02 ;
+xa recover;
+xa rollback 0x4142434445, 0x46, 0x02 ;
+

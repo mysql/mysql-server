@@ -690,7 +690,7 @@ DblqhProxy::completeLCP_2(Signal* signal)
    *   that will checkpoint extent-pages
    */
   // NOTE: ugly to use MaxLqhWorkers directly
-  Uint32 instance = MaxLqhWorkers + 1;
+  Uint32 instance = c_workers + 1;
   sendSignal(numberToRef(PGMAN, instance, getOwnNodeId()),
              GSN_END_LCP_REQ, signal, EndLcpReq::SignalLength, JBB);
 }

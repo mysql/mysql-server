@@ -171,6 +171,10 @@ create table t1 (mat_id MEDIUMINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, 
 create table t2 (mat_id MEDIUMINT UNSIGNED NOT NULL, pla_id MEDIUMINT UNSIGNED NOT NULL);
 insert into t1 values (NULL, 'a', 1), (NULL, 'b', 2), (NULL, 'c', 3), (NULL, 'd', 4), (NULL, 'e', 5), (NULL, 'f', 6), (NULL, 'g', 7), (NULL, 'h', 8), (NULL, 'i', 9);
 insert into t2 values (1, 100), (1, 101), (1, 102), (2, 100), (2, 103), (2, 104), (3, 101), (3, 102), (3, 105);
+analyze table t1, t2;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+test.t2	analyze	status	OK
 SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 pla_id	mat_id
 100	1
@@ -190,13 +194,13 @@ pla_id	test
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.mat_id FROM t1 m2 INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	NULL
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	7	test.m2.matintnum	2	NULL
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	NULL
 explain SELECT STRAIGHT_JOIN d.pla_id, m2.test FROM t1 m2  INNER JOIN (SELECT mp.pla_id, MIN(m1.matintnum) AS matintnum FROM t2 mp INNER JOIN t1 m1 ON mp.mat_id=m1.mat_id GROUP BY mp.pla_id) d ON d.matintnum=m2.matintnum;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	m2	ALL	NULL	NULL	NULL	NULL	9	NULL
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	9	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	7	test.m2.matintnum	2	NULL
 2	DERIVED	mp	ALL	NULL	NULL	NULL	NULL	9	Using temporary; Using filesort
 2	DERIVED	m1	eq_ref	PRIMARY	PRIMARY	3	test.mp.mat_id	1	NULL
 drop table t1,t2;
@@ -1817,7 +1821,7 @@ AND outr.col_varchar_key <> 'r'
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived4>	ALL	NULL	NULL	NULL	NULL	1	Using where; Start temporary
-1	PRIMARY	<derived5>	ref	<auto_key0>	<auto_key0>	4	const	2	Using where
+1	PRIMARY	<derived5>	ref	<auto_key0>	<auto_key0>	4	const	2	NULL
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	20	Using where; End temporary; Using join buffer (Block Nested Loop)
 5	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	20	NULL
 4	DERIVED	t3	system	NULL	NULL	NULL	NULL	1	NULL

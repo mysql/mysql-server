@@ -1,10 +1,4 @@
 drop table if exists t1;
-create table t1 (n int);
-create view  v1 as select * from t1;
-insert delayed into v1 values (1);
-ERROR HY000: 'test.v1' is not BASE TABLE
-drop table t1;
-drop view  v1;
 CREATE DATABASE meow;
 CREATE TABLE table_target   ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));
 CREATE TABLE table_target2  ( mexs_id CHAR(8), messzeit TIMESTAMP, PRIMARY KEY (mexs_id));

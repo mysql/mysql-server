@@ -1,0 +1,45 @@
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+clusters = .4node
+fix-nodeid=1
+mt = 2
+
+[ndb_mgmd]
+
+[mysqld]
+default-storage-engine=myisam
+skip-innodb
+loose-skip-bdb
+skip-grant-tables
+socket=mysql.sock
+
+[client]
+protocol=tcp
+
+[cluster_config.4node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host2,CHOOSE_host3
+ndbapi= CHOOSE_host1,CHOOSE_host1,CHOOSE_host1
+mysqld = CHOOSE_host1
+
+NoOfReplicas = 2
+IndexMemory = 100M 
+DataMemory = 500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 64M
+ODirect=1
+MaxNoOfExecutionThreads=8
+SendBufferMemory=4M
+MaxNoOfAttributes=2000
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M
+
+[cluster_config.ndbd.1.2node]
+TwoPassInitialNodeRestartCopy=1

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -397,13 +397,13 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
 }
 
 
-/*
+/**
   Convert lldiv_t to datetime.
 
-  @param        lld      The value to convert from.
-  @param OUT    ltime    The variable to convert to.
-  @param        flags    Conversion flags.
-  @param IN/OUT warnings Warning flags.
+  @param         lld      The value to convert from.
+  @param[out]    ltime    The variable to convert to.
+  @param         flags    Conversion flags.
+  @param[in,out] warnings Warning flags.
   @return                False on success, true on error.
 */
 static bool
@@ -440,7 +440,7 @@ lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
 /**
   Convert decimal value to datetime value with a warning.
   @param       decimal The value to convert from.
-  @param OUT   ltime   The variable to convert to.
+  @param[out]  ltime   The variable to convert to.
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
@@ -469,7 +469,7 @@ my_decimal_to_datetime_with_warn(const my_decimal *decimal,
 /**
   Convert double value to datetime value with a warning.
   @param       nr      The value to convert from.
-  @param OUT   ltime   The variable to convert to.
+  @param[out]  ltime   The variable to convert to.
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
@@ -497,7 +497,7 @@ my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
 /**
   Convert longlong value to datetime value with a warning.
   @param       nr      The value to convert from.
-  @param OUT   ltime   The variable to convert to.
+  @param[out]  ltime   The variable to convert to.
   @return              False on success, true on error.
 */
 bool
@@ -511,14 +511,14 @@ my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime, uint flags)
 }
 
 
-/*
+/**
   Convert lldiv_t value to time with nanosecond rounding.
 
-  @param        lld      The value to convert from.
-  @param OUT    ltime    The variable to convert to,
-  @param        flags    Conversion flags.
-  @param IN/OUT warnings Warning flags.
-  @return                False on success, true on error.
+  @param         lld      The value to convert from.
+  @param[out]    ltime    The variable to convert to,
+  @param         flags    Conversion flags.
+  @param[in,out] warnings Warning flags.
+  @return                 False on success, true on error.
 */
 static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
 {
@@ -535,12 +535,12 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
 }
 
 
-/*
+/**
   Convert decimal number to TIME
-  @param     decimal_value  The number to convert from.
-  @param OUT ltime          The variable to convert to.
-  @param     flags          Conversion flags.
-  @return    False on success, true on error.
+  @param      decimal_value  The number to convert from.
+  @param[out] ltime          The variable to convert to.
+  @param      flags          Conversion flags.
+  @return     False on success, true on error.
 */
 bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
 {
@@ -562,13 +562,13 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
 }
 
 
-/*
+/**
   Convert double number to TIME
 
-  @param     nr      The number to convert from.
-  @param OUT ltime   The variable to convert to.
-  @param     flags   Conversion flags.
-  @return    False on success, true on error.
+  @param      nr      The number to convert from.
+  @param[out] ltime   The variable to convert to.
+  @param      flags   Conversion flags.
+  @return     False on success, true on error.
 */
 bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
 {
@@ -591,12 +591,12 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
 
 
 
-/*
+/**
   Convert longlong number to TIME
-  @param     nr     The number to convert from.
-  @param OUT ltime  The variable to convert to.
-  @param     flags  Conversion flags.
-  @return    False on success, true on error.
+  @param      nr     The number to convert from.
+  @param[out] ltime  The variable to convert to.
+  @param      flags  Conversion flags.
+  @return     False on success, true on error.
 */
 bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
 {
@@ -658,10 +658,10 @@ my_time_t TIME_to_timestamp(THD *thd, const MYSQL_TIME *t, my_bool *in_dst_time_
   so new warnings are added to the old ones.
   Caller must make sure to initialize "warnings".
 
-  @param IN  thd       current thd
-  @param IN  ltime     datetime value
-  @param OUT tm        timeval value
-  @param OUT warnings  pointer to warnings vector
+  @param[in]  thd       current thd
+  @param[in]  ltime     datetime value
+  @param[out] tm        timeval value
+  @param[out] warnings  pointer to warnings vector
   @return
   @retval      false on success
   @retval      true on error
@@ -731,10 +731,10 @@ bool datetime_with_no_zero_in_date_to_timeval(THD *thd,
   so new warnings are added to the old ones.
   Caller must make sure to initialize "warnings".
 
-  @param IN  thd       current thd
-  @param IN  ltime     datetime value
-  @param OUT tm        timeval value
-  @param OUT warnings  pointer to warnings vector
+  @param[in]  thd       current thd
+  @param[in]  ltime     datetime value
+  @param[out] tm        timeval value
+  @param[out] warnings  pointer to warnings vector
   @return
   @retval      false on success
   @retval      true on error
@@ -1182,10 +1182,10 @@ const char *get_date_time_format_str(KNOWN_DATE_TIME_FORMAT *format,
 
 /**
   Convert TIME value to String.
-  @param format   Format (unused, see comments above)
-  @param l_time   TIME value
-  @param OUT str  String to conver to
-  @param dec      Number of fractional digits.
+  @param      format   Format (unused, see comments above)
+  @param      l_time   TIME value
+  @param[out] str      String to convert to
+  @param      dec      Number of fractional digits.
 */
 void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str, uint dec)
@@ -1198,9 +1198,9 @@ void make_time(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 /**
   Convert DATE value to String.
-  @param format   Format (unused, see comments above)
-  @param l_time   DATE value
-  @param OUT str  String to conver to
+  @param      format   Format (unused, see comments above)
+  @param      l_time   DATE value
+  @param[out] str      String to convert to
 */
 void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
                const MYSQL_TIME *l_time, String *str)
@@ -1213,10 +1213,10 @@ void make_date(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 /**
   Convert DATETIME value to String.
-  @param format   Format (unused, see comments above)
-  @param l_time   DATE value
-  @param OUT str  String to conver to
-  @param dec      Number of fractional digits.
+  @param      format   Format (unused, see comments above)
+  @param      l_time   DATE value
+  @param[out] str      String to convert to
+  @param      dec      Number of fractional digits.
 */
 void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
                    const MYSQL_TIME *l_time, String *str, uint dec)
@@ -1229,9 +1229,9 @@ void make_datetime(const DATE_TIME_FORMAT *format __attribute__((unused)),
 
 /**
   Convert TIME/DATE/DATETIME value to String.
-  @param l_time   DATE value
-  @param OUT str  String to conver to
-  @param dec      Number of fractional digits.
+  @param      l_time   DATE value
+  @param[out] str      String to convert to
+  @param      dec      Number of fractional digits.
 */
 bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 {
@@ -1244,7 +1244,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 
 
 void make_truncated_value_warning(THD *thd,
-                                  Sql_condition::enum_warning_level level,
+                                  Sql_condition::enum_severity_level level,
                                   ErrConvString val, timestamp_type time_type,
                                   const char *field_name)
 {
@@ -1268,7 +1268,7 @@ void make_truncated_value_warning(THD *thd,
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
-                       (ulong) thd->get_stmt_da()->current_row_for_warning());
+                       (ulong) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
@@ -1386,7 +1386,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
   return 0;					// Ok
 
 invalid_date:
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");
@@ -1661,7 +1661,7 @@ longlong TIME_to_longlong_packed(const MYSQL_TIME *ltime,
 /**
   Convert packed numeric temporal representation to time, date or datetime,
   using field type.
-  @param OUT  ltime        The variable to write to.
+  @param[out] ltime        The variable to write to.
   @param      type         MySQL field type.
   @param      packed_value Numeric datetype representation.
 */

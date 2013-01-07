@@ -1,0 +1,240 @@
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+
+--disable_warnings
+drop table if exists t1, t1sum;
+--enable_warnings
+
+select @@session.time_zone;
+set time_zone = '+00:00';
+select @@session.time_zone;
+
+--echo # create query summary table
+create table t1sum (
+  pk int primary key,
+  cnt int unsigned not null,
+  crc bigint unsigned
+) engine=myisam;
+
+--echo # PART 1: data load and queries
+
+--echo # create table prec 3
+--let $prec=(3)
+--let $frac=.123
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # test defaults
+insert into t1(a) values (0);
+select * from t1;
+delete from t1;
+
+--echo # load data
+load data local infile 'suite/ndb/data/wl946_main3.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+--echo # verify ndb_select_all
+--source ndb_wl946_select_all.inc
+
+--echo # index queries
+select * from t1 where b = '2011';
+select * from t1 where c = '2007-12-01';
+select * from t1 where d = '-13:38:50.785';
+select * from t1 where e = '8321-12-27 21:08:47.878';
+select * from t1 where f = '1979-12-28 20:02:06.999';
+--source ndb_wl946_main_query.inc
+
+--echo # check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+select * from t1 where b = '2011';
+select * from t1 where c = '2007-12-01';
+select * from t1 where d = '-13:38:50.785';
+select * from t1 where e = '8321-12-27 21:08:47.878';
+select * from t1 where f = '1979-12-28 20:02:06.999';
+--source ndb_wl946_main_query.inc
+
+--echo # drop table prec 3
+drop table t1;
+
+--echo # create table prec 6
+--let $prec=(6)
+--let $frac=.123456
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # test defaults
+insert into t1(a) values (0);
+select * from t1;
+delete from t1;
+
+--echo # load data
+load data local infile 'suite/ndb/data/wl946_main6.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+--echo # verify ndb_select_all
+--source ndb_wl946_select_all.inc
+
+--echo # index queries
+select * from t1 where b = '1984';
+select * from t1 where c = '2099-12-21';
+select * from t1 where d = '15:11:51.840792';
+select * from t1 where e = '1917-01-19 09:13:16.715589';
+select * from t1 where f = '2032-03-16 20:53:59.869710';
+--source ndb_wl946_main_query.inc
+
+--echo # check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+select * from t1 where b = '1984';
+select * from t1 where c = '2099-12-21';
+select * from t1 where d = '15:11:51.840792';
+select * from t1 where e = '1917-01-19 09:13:16.715589';
+select * from t1 where f = '2032-03-16 20:53:59.869710';
+--source ndb_wl946_main_query.inc
+
+--echo # drop table prec 6
+drop table t1;
+
+--echo # PART 2: backup and restore
+
+--echo # create table prec 3
+--let $prec=(3)
+--let $frac=.123
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # load data
+load data local infile 'suite/ndb/data/wl946_main3.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+
+--echo # run backup
+--source include/ndb_backup.inc
+--let backup_id_3 = $the_backup_id
+
+--echo # drop table prec 3
+drop table t1;
+
+--echo # restore meta from backup
+--exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup
+--exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # drop table prec 3
+drop table t1;
+
+--echo # create table prec 6
+--let $prec=(6)
+--let $frac=.123456
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # load data
+load data local infile 'suite/ndb/data/wl946_main6.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+
+--echo # run backup
+--source include/ndb_backup.inc
+--let backup_id_6 = $the_backup_id
+
+--echo # drop table prec 6
+drop table t1;
+
+--echo # restore meta from backup
+--exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -m --print-meta $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup
+--exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+--echo # check contents truncated to prec 3
+# something weird: have to insert concat into char to get correct checksum
+--let $works=0
+if ($works)
+{
+select count(*), sum(crc32(concat(a,b,c,left(d,length(d)-3),left(e,length(e)-3),left(f,length(f)-3)))) from t1;
+}
+if (!$works)
+{
+--disable_warnings
+drop table if exists t1tmp;
+--enable_warnings
+create temporary table t1tmp (
+  x char(255)
+) engine=myisam;
+insert into t1tmp select concat(a,b,c,left(d,length(d)-3),left(e,length(e)-3),left(f,length(f)-3)) from t1;
+select count(*), sum(crc32(x)) from t1tmp;
+drop table t1tmp;
+}
+
+--echo # drop table prec 6
+drop table t1;
+
+--echo # PART 3: restore with data promote and demote
+
+--echo # create table prec 6
+--let $prec=(6)
+--let $frac=.123456
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup with promote
+--exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 1 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $backup_id_3 -n 2 -r --promote-attributes $NDB_BACKUPS-$backup_id_3 >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents
+# replace fraction .000123 by .123
+select count(*), sum(crc32(replace(concat(a,b,c,d,e,f),".000","."))) from t1;
+
+--echo # drop table prec 6
+drop table t1;
+
+--echo # create table prec 3
+--let $prec=(3)
+--let $frac=.123
+--source ndb_wl946_create.inc
+show create table t1;
+--source show_attributes.inc
+--source show_indexes.inc
+
+--echo # restore data from backup with demote
+--exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 1 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $backup_id_6 -n 2 -r --lossy-conversions $NDB_BACKUPS-$backup_id_6 >> $NDB_TOOLS_OUTPUT
+
+--echo # check contents truncated to prec 3
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+
+set time_zone = default;
+select @@session.time_zone;
+
+drop table t1, t1sum;

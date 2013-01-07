@@ -873,6 +873,9 @@ mach_read_ulint(
 	default:
 		ut_error;
 	}
+
+	/* Prevent warning "not all control paths return a value". */
+	return(0);
 }
 
 #endif /* !UNIV_HOTBACKUP */

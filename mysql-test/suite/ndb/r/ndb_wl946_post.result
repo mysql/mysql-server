@@ -1,0 +1,127 @@
+drop table if exists t1;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+set time_zone = '+00:00';
+select @@session.time_zone;
+@@session.time_zone
++00:00
+# create table prec 0
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time not null default '10:11:12',
+e datetime not null default '2000-01-02 10:11:12',
+f timestamp not null default '2000-01-02 10:11:12',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# test defaults
+insert into t1 (a) values (0);
+select * from t1;
+a	b	c	d	e	f
+0	2000	2000-01-02	10:11:12	2000-01-02 10:11:12	2000-01-02 10:11:12
+delete from t1;
+# restore data from wl946_pre with promote
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run backup
+# drop table
+drop table t1;
+# restore meta from backup
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# drop table
+drop table t1;
+# restore meta wl946_pre
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup with demote
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+set time_zone = default;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+drop table t1;

@@ -1,1 +1,1 @@
---gtid-mode=on --disable-gtid-unsafe-statements --log-slave-updates  --replicate-ignore-table=test.t_ignore
+--gtid-mode=on --enforce-gtid-consistency --log-slave-updates  --replicate-ignore-table=test.t_ignore

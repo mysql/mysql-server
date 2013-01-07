@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -166,8 +165,7 @@ public class CharsetTest extends AbstractClusterJModelTest {
         writeToJDBC(columnDescriptor, tableName, instances);
         result = readFromJDBC(columnDescriptor, tableName);
         if (debug) System.out.println("Returned results of size " + result.size());
-//        if (debug) System.out.println("Results:\n" + dump(result));
-        verify("writeJDBCreadJDBC", strings, result, columnDescriptor);
+        verify("writeJDBCreadJDBC ", strings, result, columnDescriptor);
     }
 
     protected void writeJDBCreadNDB(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
@@ -179,8 +177,7 @@ public class CharsetTest extends AbstractClusterJModelTest {
         writeToJDBC(columnDescriptor, tableName, instances);
         result = readFromNDB(columnDescriptor, modelClass);
         if (debug) System.out.println("Returned results of size " + result.size());
-//        if (debug) System.out.println("Results: " + dump(result));
-        verify("writeJDBCreadNDB", strings, result, columnDescriptor);
+        verify("writeJDBCreadNDB ", strings, result, columnDescriptor);
     }
 
     protected void writeNDBreadJDBC(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
@@ -192,8 +189,7 @@ public class CharsetTest extends AbstractClusterJModelTest {
         writeToNDB(columnDescriptor, instances);
         result = readFromJDBC(columnDescriptor, tableName);
         if (debug) System.out.println("Returned results of size " + result.size());
-//        if (debug) System.out.println("Results: " + dump(result));
-        verify("writeNDBreadJDBC", strings, result, columnDescriptor);
+        verify("writeNDBreadJDBC ", strings, result, columnDescriptor);
     }
 
     protected void writeNDBreadNDB(String charsetName, String tableName, Class<? extends CharsetModel> modelClass,
@@ -205,8 +201,7 @@ public class CharsetTest extends AbstractClusterJModelTest {
         writeToNDB(columnDescriptor, instances);
         result = readFromNDB(columnDescriptor, modelClass);
         if (debug) System.out.println("Returned results of size " + result.size());
-//        if (debug) System.out.println("Results: " + dump(result));
-        verify("writeNDBreadNDB", strings, result, columnDescriptor);
+        verify("writeNDBreadNDB ", strings, result, columnDescriptor);
     }
 
     private void verify(String where, List<String> expecteds, List<String> actuals, ColumnDescriptor columnDescriptor) {
@@ -214,15 +209,19 @@ public class CharsetTest extends AbstractClusterJModelTest {
         for (int i = 0; i < expecteds.size(); ++i) {
             String expected = expecteds.get(i);
             String actual = actuals.get(i);
-            int expectedLength = expected.length();
-            int actualLength = actual.length();
-            errorIfNotEqual(where + " got failure on size of column data for column width " + columnDescriptor.columnWidth + " at row " + i, expectedLength, actualLength);
-            if (expectedLength != actualLength) 
-                continue;
-            for (int j = 0; j < expected.length(); ++j) {
-                if (--maxErrors > 0) {
-                    errorIfNotEqual("Failure to match column data for column width " + columnDescriptor.columnWidth + " at row " + i + " column " + j,
-                            expected.codePointAt(j), actual.codePointAt(j));
+            if (actual == null) {
+                error(where + columnDescriptor.columnName + " actual column " + i + " was null.");
+            } else {
+                int expectedLength = expected.length();
+                int actualLength = actual.length();
+                errorIfNotEqual(where + "got failure on size of column data for column width " + columnDescriptor.columnWidth + " at row " + i, expectedLength, actualLength);
+                if (expectedLength != actualLength) 
+                    continue;
+                for (int j = 0; j < expected.length(); ++j) {
+                    if (--maxErrors > 0) {
+                        errorIfNotEqual("Failure to match column data for column width " + columnDescriptor.columnWidth + " at row " + i + " column " + j,
+                                expected.codePointAt(j), actual.codePointAt(j));
+                    }
                 }
             }
         }
@@ -236,7 +235,6 @@ public class CharsetTest extends AbstractClusterJModelTest {
         CharsetEncoder encoder = charset.newEncoder();
        // add all encodable characters to the buffer
         int count = 0;
-//        for (int i = 0; i < 65536; ++i) {
         for (int i = 0; i < 65536; ++i) {
             Character ch = (char)i;
             if (encoder.canEncode(ch)) {

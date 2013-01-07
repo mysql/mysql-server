@@ -13,12 +13,12 @@ ndb_log_update_as_write	ON
 ndb_log_updated_only	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2
-INSERT INTO test.ba SET   @1=1   @2=1   @3=1
-INSERT INTO test.ba SET   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=3   @2=3   @3=3
-INSERT INTO test.ba SET   @1=4   @2=4   @3=4
-INSERT INTO test.ba SET   @1=4   @3=40
+DELETE FROM `test`.`ba` WHERE   @1=2
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`ba` SET   @1=4   @3=40
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -31,12 +31,12 @@ ndb_log_update_as_write	ON
 ndb_log_updated_only	OFF
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=1   @2=1   @3=1
-INSERT INTO test.ba SET   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=3   @2=3   @3=3
-INSERT INTO test.ba SET   @1=4   @2=4   @3=4
-INSERT INTO test.ba SET   @1=4   @2=4   @3=40
+DELETE FROM `test`.`ba` WHERE   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=40
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -49,12 +49,12 @@ ndb_log_update_as_write	OFF
 ndb_log_updated_only	ON
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2
-INSERT INTO test.ba SET   @1=1   @2=1   @3=1
-INSERT INTO test.ba SET   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=3   @2=3   @3=3
-INSERT INTO test.ba SET   @1=4   @2=4   @3=4
-UPDATE test.ba WHERE   @1=4   @3=4 SET   @1=4   @3=40
+DELETE FROM `test`.`ba` WHERE   @1=2
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ba` WHERE   @1=4   @3=4 SET   @1=4   @3=40
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -67,12 +67,12 @@ ndb_log_update_as_write	OFF
 ndb_log_updated_only	OFF
 select txt from binlog_stmts where txt not like '%ndb_apply_status%' order by txt;
 txt
-DELETE FROM test.ba WHERE   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=1   @2=1   @3=1
-INSERT INTO test.ba SET   @1=2   @2=2   @3=2
-INSERT INTO test.ba SET   @1=3   @2=3   @3=3
-INSERT INTO test.ba SET   @1=4   @2=4   @3=4
-UPDATE test.ba WHERE   @1=4   @2=4   @3=4 SET   @1=4   @2=4   @3=40
+DELETE FROM `test`.`ba` WHERE   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=1   @2=1   @3=1
+INSERT INTO `test`.`ba` SET   @1=2   @2=2   @3=2
+INSERT INTO `test`.`ba` SET   @1=3   @2=3   @3=3
+INSERT INTO `test`.`ba` SET   @1=4   @2=4   @3=4
+UPDATE `test`.`ba` WHERE   @1=4   @2=4   @3=4 SET   @1=4   @2=4   @3=40
 select * from ba order by ks;
 ks	st	lp
 1	1	1
@@ -96,3 +96,80 @@ select * from bah order by tst;
 tst	cvy	sqs
 1	2	1
 drop table bah;
+reset master;
+show variables like '%log_update%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	ON
+CREATE TABLE `t1` (
+`charId` varchar(60) NOT NULL,
+`enumId` enum('A','B','C') NOT NULL,
+`val` bigint(20) NOT NULL,
+`version` int(11) NOT NULL,
+PRIMARY KEY (`charId`,`enumId`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES ('', 'A', 0, 1);
+FLUSH LOGS;
+UPDATE t1 SET val = val + 1 WHERE charId = '';
+FLUSH LOGS;
+DELETE FROM t1 WHERE charId = '';
+FLUSH LOGS;
+Manually applying captured binlog
+select * from t1;
+charId	enumId	val	version
+drop table t1;
+reset master;
+show variables like '%log_update%';
+Variable_name	Value
+ndb_log_update_as_write	ON
+ndb_log_updated_only	ON
+create table t1 (pk int not null primary key, name varchar(256)) engine = ndb;
+FLUSH LOGS;
+insert into t1 values (0, "zero"),(1,"one"),(2,"two"),(3,"three"),(4,"four"),(5,"five"),(6,"six"),(7,"seven"),(8,"eight"),(9,"nine");
+select * from t1 order by pk;
+pk	name
+0	zero
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+7	seven
+8	eight
+9	nine
+update t1 set name = "even" where pk in (0,2,4,6,8);
+update t1 set name = "odd" where pk in (1,3,5,7,9);
+delete from t1 where name = "odd";
+select * from t1 order by pk;
+pk	name
+0	even
+2	even
+4	even
+6	even
+8	even
+FLUSH LOGS;
+truncate t1;
+insert into t1 values (0, "zero"),(1,"one"),(2,"two"),(3,"three"),(4,"four"),(5,"five"),(6,"six"),(7,"seven"),(8,"eight"),(9,"nine");
+select * from t1 order by pk;
+pk	name
+0	zero
+1	one
+2	two
+3	three
+4	four
+5	five
+6	six
+7	seven
+8	eight
+9	nine
+FLUSH LOGS;
+Manually applying captured binlog
+select * from t1 order by pk;
+pk	name
+0	even
+2	even
+4	even
+6	even
+8	even
+drop table t1;

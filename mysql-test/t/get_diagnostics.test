@@ -867,3 +867,137 @@ FLUSH STATUS;
 SHOW STATUS LIKE 'Com%get_diagnostics';
 GET DIAGNOSTICS @var1 = NUMBER;
 SHOW STATUS LIKE 'Com%get_diagnostics';
+
+
+--echo #
+--echo # WL#6406 Stacked diagnostic areas
+--echo #
+
+--echo #
+--echo # Test non-reserved keywords: STACKED
+
+CREATE TABLE t1 (stacked INT);
+INSERT INTO t1 (stacked) values (1);
+SELECT stacked FROM t1 WHERE stacked = 1;
+SELECT `stacked` FROM t1 WHERE `stacked` = 1;
+DROP TABLE t1;
+
+DELIMITER |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE stacked INT DEFAULT 1;
+  SELECT stacked;
+END|
+DELIMITER ;|
+
+CALL p1();
+
+DROP PROCEDURE p1;
+
+--echo #
+--echo # Test GET STACKED DIAGNOSTICS syntax
+
+--error ER_PARSE_ERROR
+GET STACKED;
+--error ER_PARSE_ERROR
+GET STACKED DIAGNOSTICS;
+
+--echo #
+--echo # Error if used without active HANDLER
+
+--error ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER
+GET STACKED DIAGNOSTICS @var1 = NUMBER;
+
+CREATE PROCEDURE p1() GET STACKED DIAGNOSTICS @var1 = NUMBER;
+--error ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER
+CALL p1();
+DROP PROCEDURE p1;
+
+delimiter |;
+CREATE FUNCTION f1() RETURNS INT
+BEGIN
+  GET STACKED DIAGNOSTICS @var1 = NUMBER;
+  RETURN 1;
+END|
+delimiter ;|
+--error ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER
+SELECT f1();
+DROP FUNCTION f1;
+
+--echo #
+--echo # GET CURRENT DIAGNOSTICS = GET STACKED DIAGNOSTICS
+--echo # when handler is first activated
+--echo # GET STACKED DIAGNOSTICS doesn't change during handler
+
+CREATE TABLE t1(a INT);
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    DECLARE msg1 TEXT;
+    DECLARE errno1 INT;
+    DECLARE msg2 TEXT;
+    DECLARE errno2 INT;
+    DECLARE msg4 TEXT;
+    DECLARE errno4 INT;
+
+    # Should be identical
+    GET CURRENT DIAGNOSTICS CONDITION 1 msg1 = MESSAGE_TEXT, errno1 = MYSQL_ERRNO;
+    SELECT msg1, errno1;
+    GET STACKED DIAGNOSTICS CONDITION 1 msg2 = MESSAGE_TEXT, errno2 = MYSQL_ERRNO;
+    SELECT msg2, errno2;
+
+    SELECT * FROM t1;   # Clear first diagnostics area
+
+    # CURRENT should be empty, STACKED unchanged
+    GET CURRENT DIAGNOSTICS @cno = NUMBER;
+    SELECT @cno;
+    GET STACKED DIAGNOSTICS CONDITION 1 msg4 = MESSAGE_TEXT, errno4 = MYSQL_ERRNO;
+    SELECT msg4, errno4;
+  END;
+  DROP TABLE non_existent;
+END|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;
+DROP TABLE t1;
+
+--echo #
+--echo # RESIGNAL of a warning should modify the warning both in first and
+--echo # second diagnostics area.
+
+delimiter |;
+CREATE PROCEDURE p1()
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLWARNING
+  BEGIN
+    DECLARE msg1 TEXT;
+    DECLARE errno1 INT;
+    DECLARE msg2 TEXT;
+    DECLARE errno2 INT;
+    DECLARE msg3 TEXT;
+    DECLARE errno3 INT;
+    DECLARE msg4 TEXT;
+    DECLARE errno4 INT;
+
+    # Should be identical
+    GET CURRENT DIAGNOSTICS CONDITION 1 msg1 = MESSAGE_TEXT, errno1 = MYSQL_ERRNO;
+    SELECT msg1, errno1;
+    GET STACKED DIAGNOSTICS CONDITION 1 msg2 = MESSAGE_TEXT, errno2 = MYSQL_ERRNO;
+    SELECT msg2, errno2;
+
+    RESIGNAL SET MYSQL_ERRNO= 9999, MESSAGE_TEXT= 'Changed by resignal';
+
+    # Should be changed, but still identical
+    GET CURRENT DIAGNOSTICS CONDITION 1 msg3 = MESSAGE_TEXT, errno3 = MYSQL_ERRNO;
+    SELECT msg3, errno3;
+    GET STACKED DIAGNOSTICS CONDITION 1 msg4 = MESSAGE_TEXT, errno4 = MYSQL_ERRNO;
+    SELECT msg4, errno4;
+  END;
+  SELECT 10 + 'a';
+END|
+delimiter ;|
+CALL p1();
+DROP PROCEDURE p1;

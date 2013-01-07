@@ -33,7 +33,6 @@ loose-innodb_data_file_path=      ibdata1:10M:autoextend
 slave-net-timeout=120
 ndbcluster
 ndb-wait-setup=60
-ndb-index-stat-enable=0
 
 
 [mysqld.1.1]

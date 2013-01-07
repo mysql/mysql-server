@@ -79,7 +79,6 @@ class ha_archive: public handler
   uchar byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
   ha_rows scan_rows;         /* Number of rows left in scan */
-  bool delayed_insert;       /* If the insert is delayed */
   bool bulk_insert;          /* If we are performing a bulk insert */
   const uchar *current_key;
   uint current_key_len;
@@ -107,7 +106,7 @@ public:
             HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
             HA_STATS_RECORDS_IS_EXACT |
             HA_HAS_RECORDS | HA_CAN_REPAIR |
-            HA_FILE_BASED | HA_CAN_INSERT_DELAYED | HA_CAN_GEOMETRY);
+            HA_FILE_BASED | HA_CAN_GEOMETRY);
   }
   ulong index_flags(uint idx, uint part, bool all_parts) const
   {

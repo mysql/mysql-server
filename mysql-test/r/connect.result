@@ -340,15 +340,16 @@ SELECT last_t1();
 ERROR HY000: You must SET PASSWORD before executing this statement
 CALL test_t1(last_t1() + 1);
 ERROR HY000: You must SET PASSWORD before executing this statement
-# setting a password with a user name is no good
+# setting a password with a user name is ok if it exactly matches the
+# authenticated user.
 SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
-ERROR HY000: You must SET PASSWORD before executing this statement
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+USER()
+must_change@localhost
 SELECT last_t1();
-ERROR HY000: You must SET PASSWORD before executing this statement
+last_t1()
+4
 CALL test_t1(last_t1() + 1);
-ERROR HY000: You must SET PASSWORD before executing this statement
 # setting a password for the current user works
 SET PASSWORD FOR CURRENT_USER() = PASSWORD('aha3');
 SELECT USER();
@@ -356,7 +357,7 @@ USER()
 must_change@localhost
 SELECT last_t1();
 last_t1()
-4
+5
 CALL test_t1(last_t1() + 1);
 # testing the ALTER USER command
 # try a single user
@@ -392,6 +393,21 @@ DROP PROCEDURE test_t1;
 DROP FUNCTION last_t1;
 DROP TABLE t1;
 DROP USER must_change@localhost;
+#
+# WL#6587:  Protocol support for password expiration
+#
+CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
+ALTER USER wl6587@localhost PASSWORD EXPIRE;
+# non-interactive mysql should fail
+Warning: Using a password on the command line interface can be insecure.
+ERROR 1820 (HY000): You must SET PASSWORD before executing this statement
+# mysqladmin non-password should fail
+Warning: Using a password on the command line interface can be insecure.
+mysqladmin: connect to server at 'localhost' failed
+error: 'You must SET PASSWORD before executing this statement'
+# mysqladmin password should work
+Warning: Using a password on the command line interface can be insecure.
+DROP USER wl6587@localhost;
 # ------------------------------------------------------------------
 # -- End of 5.6 tests
 # ------------------------------------------------------------------

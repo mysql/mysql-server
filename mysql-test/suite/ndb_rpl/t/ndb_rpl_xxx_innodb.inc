@@ -10,7 +10,7 @@
 # Selects out the log name, start & end pos
 # from the ndb_apply_status table
 #
-# include/show_binlog_using_logname.inc
+# suite/ndb_rpl/t/show_binlog_using_logname.inc
 # To select out 1 row from offset 1
 # from the start position in the binlog whose
 # name is = log_name
@@ -163,7 +163,7 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source  include/show_binlog_using_logname.inc
+--source  suite/ndb_rpl/t/show_binlog_using_logname.inc
 
 # Flush the logs on the master moving all
 # Transaction to a new binlog and ensure
@@ -213,7 +213,7 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source  include/show_binlog_using_logname.inc
+--source  suite/ndb_rpl/t/show_binlog_using_logname.inc
 
 # Now we reset both the master and the slave
 # Run some more transaction and ensure
@@ -261,7 +261,7 @@ SET AUTOCOMMIT=1;
 --echo
 
 connection master;
---source include/show_binlog_using_logname.inc
+--source suite/ndb_rpl/t/show_binlog_using_logname.inc
 
 # Since we are doing replication, it is a good
 # idea to check to make sure all data was 
@@ -285,7 +285,7 @@ DROP DATABASE tpcb;
 
 #connection master;
 #--eval SHOW BINLOG EVENTS in '$log_name' from $start_pos
-#--source include/show_binlog_using_logname.inc
+#--source suite/ndb_rpl/t/show_binlog_using_logname.inc
 
 --echo ****** Do dumps compare ************
 

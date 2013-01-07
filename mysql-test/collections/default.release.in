@@ -4,15 +4,15 @@
 # include default.daily
 # include default.weekly
 
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug                       --skip-ndbcluster --skip-rpl --report-features --debug-server
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal                      --skip-ndbcluster --report-features
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps                          --skip-ndbcluster --ps-protocol
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs1+ps  --vardir=var-funcs_1_ps --suite=funcs_1  --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=partitions --vardir=var-parts      --suite=parts
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=stress     --vardir=var-stress     --suite=stress
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=jp         --vardir=var-jp         --suite=jp
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=embedded   --vardir=var-embedded                    --embedded-server --skip-rpl --skip-ndbcluster
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=embedded   --vardir=var-embedded                    --embedded-server --skip-rpl
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist       --vardir=var-nist       --suite=nist
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=nist+ps    --vardir=var-nist_ps    --suite=nist     --ps-protocol
-perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --skip-ndb --parallel=auto --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k
+perl mysql-test-run.pl --timer --force --comment=memcached --vardir=var-memcached --experimental=collections/default.experimental --parallel=auto --retry=0 --suite=memcached --mysqld=--innodb-page-size=4k

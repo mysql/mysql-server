@@ -19,13 +19,8 @@
 #include <ndb_global.h>
 #include <ndb_opts.h>
 
-#include <my_sys.h>
-#include <my_getopt.h>
-#include <mysql_version.h>
-
 #include <NdbOut.hpp>
 #include <NdbApi.hpp>
-#include <NdbSleep.h>
 #include <NDBT.hpp>
 #include <HugoTransactions.hpp>
 #include <HugoQueryBuilder.hpp>
@@ -93,7 +88,7 @@ static void usage()
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my", load_default_groups, &argc, &argv);
+  ndb_load_defaults(NULL, load_default_groups, &argc, &argv);
   int ho_error;
   if ((ho_error=handle_options(&argc, &argv, my_long_options,
 			       ndb_std_get_one_option)))
@@ -192,7 +187,7 @@ int main(int argc, char** argv){
     }
     HugoQueryBuilder builder(&MyNdb, tables.getBase(), mask);
     builder.setJoinLevel(_depth);
-    const NdbQueryDef * q = builder.createQuery(&MyNdb);
+    const NdbQueryDef * q = builder.createQuery();
     if (_verbose >= 2)
     {
       q->print(); ndbout << endl;
@@ -209,7 +204,7 @@ int main(int argc, char** argv){
       }
       else
       {
-        res = hq.runLookupQuery(&MyNdb, _records, _batch);
+        res = hq.runLookupQuery(&MyNdb, _records/_depth, _batch);
       }
       if (res != 0)
       {

@@ -12,6 +12,8 @@ ALTER OFFLINE TABLE t1 ADD c CHAR(19);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 commit;
 ALTER OFFLINE TABLE t1 ADD c CHAR(19);
+Warnings:
+Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 create unique index b_unq on t1(b) using hash;
 ERROR 23000: Can't write, because of unique constraint, to table 't1'
 update t1 set b = b - 1 where a = 1;

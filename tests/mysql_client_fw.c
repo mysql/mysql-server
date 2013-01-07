@@ -212,8 +212,8 @@ static void print_error(MYSQL *l_mysql, const char *msg)
  {
    if (l_mysql && mysql_errno(l_mysql))
    {
-     if (mysql->server_version)
-     fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
+     if (l_mysql->server_version)
+     fprintf(stdout, "\n [MySQL-%s]", l_mysql->server_version);
      else
      fprintf(stdout, "\n [MySQL]");
      fprintf(stdout, "[%d] %s\n", mysql_errno(l_mysql), mysql_error(l_mysql));
@@ -1213,10 +1213,8 @@ static struct my_option client_test_long_options[] =
 {"testcase", 'c',
  "May disable some code when runs as mysql-test-run testcase.",
  0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DONT_ALLOW_USER_CHANGE
 {"user", 'u', "User for login if not current user", &opt_user,
  &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
 {"vardir", 'v', "Data dir for tests.", &opt_vardir,
  &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"getopt-ll-test", 'g', "Option for testing bug in getopt library",

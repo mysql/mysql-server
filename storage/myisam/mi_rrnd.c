@@ -29,7 +29,7 @@
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int mi_rrnd(MI_INFO *info, uchar *buf, register my_off_t filepos)
+int mi_rrnd(MI_INFO *info, uchar *buf, my_off_t filepos)
 {
   my_bool skip_deleted_blocks;
   DBUG_ENTER("mi_rrnd");

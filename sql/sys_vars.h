@@ -2090,17 +2090,17 @@ public:
 
 
 /**
-  Class for @@session.gtid_done and @@global.gtid_done.
+  Class for @@session.gtid_executed and @@global.gtid_executed.
 */
-class Sys_var_gtid_done : Sys_var_gtid_set_func
+class Sys_var_gtid_executed : Sys_var_gtid_set_func
 {
 public:
-  Sys_var_gtid_done(const char *name_arg, const char *comment_arg)
+  Sys_var_gtid_executed(const char *name_arg, const char *comment_arg)
     : Sys_var_gtid_set_func(name_arg, comment_arg, SESSION) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid_done::global_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_executed::global_value_ptr");
     global_sid_lock->wrlock();
     const Gtid_set *gs= gtid_state->get_logged_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
@@ -2115,7 +2115,7 @@ public:
 private:
   static enum_return_status get_groups_from_trx_cache(THD *thd, Gtid_set *gs)
   {
-    DBUG_ENTER("Sys_var_gtid_done::get_groups_from_trx_cache");
+    DBUG_ENTER("Sys_var_gtid_executed::get_groups_from_trx_cache");
     if (opt_bin_log)
     {
       thd->binlog_setup_trx_data();
@@ -2133,17 +2133,111 @@ public:
 
 
 /**
-  Class for @@session.gtid_lost and @@global.gtid_lost.
+  Class for @@session.gtid_purged.
 */
-class Sys_var_gtid_lost : Sys_var_gtid_set_func
+class Sys_var_gtid_purged : public sys_var
 {
 public:
-  Sys_var_gtid_lost(const char *name_arg, const char *comment_arg)
-    : Sys_var_gtid_set_func(name_arg, comment_arg, GLOBAL) {}
+  Sys_var_gtid_purged(const char *name_arg,
+          const char *comment, int flag_args, ptrdiff_t off, size_t size,
+          CMD_LINE getopt,
+          const char *def_val,
+          PolyLock *lock= 0,
+          enum binlog_status_enum binlog_status_arg=VARIABLE_NOT_IN_BINLOG,
+          on_check_function on_check_func=0,
+          on_update_function on_update_func=0,
+          const char *substitute=0,
+          int parse_flag= PARSE_NORMAL)
+    : sys_var(&all_sys_vars, name_arg, comment, flag_args, off, getopt.id,
+              getopt.arg_type, SHOW_CHAR, (intptr)def_val,
+              lock, binlog_status_arg, on_check_func, on_update_func,
+              substitute, parse_flag)
+  {}
+
+  bool session_update(THD *thd, set_var *var)
+  {
+    DBUG_ASSERT(FALSE);
+    return true;
+  }
+
+  void session_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  bool global_update(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_gtid_purged::global_update");
+#ifdef HAVE_REPLICATION
+    bool error= false;
+    int rotate_res= 0;
+
+    global_sid_lock->wrlock();
+    char *previous_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+    enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
+    char *current_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
+    global_sid_lock->unlock();
+    if (RETURN_STATUS_OK != ret)
+    {
+      error= true;
+      goto end;
+    }
+
+    // Log messages saying that GTID_PURGED and GTID_EXECUTED were changed.
+    sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
+                          previous_gtid_lost, current_gtid_lost);
+    sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
+                          previous_gtid_logged, current_gtid_logged);
+
+    // Rotate logs to have Previous_gtid_event on last binlog.
+    rotate_res= mysql_bin_log.rotate_and_purge(true);
+    if (rotate_res)
+    {
+      error= true;
+      goto end;
+    }
+
+end:
+    my_free(previous_gtid_logged);
+    my_free(previous_gtid_lost);
+    my_free(current_gtid_logged);
+    my_free(current_gtid_lost);
+    DBUG_RETURN(error);
+#else
+    DBUG_RETURN(true);
+#endif /* HAVE_REPLICATION */
+  }
+
+  void global_save_default(THD *thd, set_var *var)
+  { DBUG_ASSERT(FALSE); }
+
+  bool do_check(THD *thd, set_var *var)
+  {
+    DBUG_ENTER("Sys_var_gtid_purged::do_check");
+    char buf[1024];
+    String str(buf, sizeof(buf), system_charset_info);
+    String *res= var->value->val_str(&str);
+    if (!res)
+      DBUG_RETURN(true);
+    var->save_result.string_value.str= thd->strmake(res->c_ptr_safe(),
+                                                    res->length());
+    if (!var->save_result.string_value.str)
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0)); // thd->strmake failed
+      DBUG_RETURN(true);
+    }
+    var->save_result.string_value.length= res->length();
+    bool ret= Gtid_set::is_valid(res->c_ptr_safe()) ? false : true;
+    DBUG_PRINT("info", ("ret=%d", ret));
+    DBUG_RETURN(ret);
+  }
+
+  bool check_update_type(Item_result type)
+  { return type != STRING_RESULT; }
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid_lost::global_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_purged::global_value_ptr");
     global_sid_lock->wrlock();
     const Gtid_set *gs= gtid_state->get_lost_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);

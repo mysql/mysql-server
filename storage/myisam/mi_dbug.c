@@ -19,7 +19,7 @@
 
 	/* Print a key in user understandable format */
 
-void _mi_print_key(FILE *stream, register HA_KEYSEG *keyseg,
+void _mi_print_key(FILE *stream, HA_KEYSEG *keyseg,
 		   const uchar *key, uint length)
 {
   int flag;

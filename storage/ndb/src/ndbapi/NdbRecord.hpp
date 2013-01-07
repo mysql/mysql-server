@@ -189,8 +189,6 @@ public:
   Uint32 tableVersion;
   /* Copy of table->m_keyLenInWords. */
   Uint32 m_keyLenInWords;
-  /* Total maximum size of TRANSID_AI data (for computing batch size). */
-  Uint32 m_max_transid_ai_bytes;
   /**
    * Number of distribution keys (usually == number of primary keys).
    *

@@ -226,6 +226,7 @@ row_upd_check_references_constraints(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
+run_again:
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
@@ -274,8 +275,10 @@ row_upd_check_references_constraints(
 				dict_table_close(ref_table, FALSE, FALSE);
 			}
 
-			if (err != DB_SUCCESS) {
-
+			/* Some table foreign key dropped, try again */
+			if (err == DB_DICT_CHANGED) {
+				goto run_again;
+			} else if (err != DB_SUCCESS) {
 				goto func_exit;
 			}
 		}
@@ -469,6 +472,47 @@ row_upd_changes_field_size_or_external(
 	}
 
 	return(FALSE);
+}
+
+/***********************************************************//**
+Returns true if row update contains disowned external fields.
+@return true if the update contains disowned external fields. */
+UNIV_INTERN
+bool
+row_upd_changes_disowned_external(
+/*==============================*/
+	const upd_t*	update)	/*!< in: update vector */
+{
+	const upd_field_t*	upd_field;
+	const dfield_t*		new_val;
+	ulint			new_len;
+	ulint                   n_fields;
+	ulint			i;
+
+	n_fields = upd_get_n_fields(update);
+
+	for (i = 0; i < n_fields; i++) {
+		const byte*	field_ref;
+
+		upd_field = upd_get_nth_field(update, i);
+		new_val = &(upd_field->new_val);
+		new_len = dfield_get_len(new_val);
+
+		if (!dfield_is_ext(new_val)) {
+			continue;
+		}
+
+		ut_ad(new_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+		field_ref = static_cast<const byte*>(dfield_get_data(new_val))
+			    + new_len - BTR_EXTERN_FIELD_REF_SIZE;
+
+		if (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG) {
+			return(true);
+		}
+	}
+
+	return(false);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1621,8 +1665,10 @@ row_upd_sec_index_entry(
 	ibool			referenced;
 	dberr_t			err	= DB_SUCCESS;
 	trx_t*			trx	= thr_get_trx(thr);
-	ulint			mode	= BTR_MODIFY_LEAF;
+	ulint			mode;
 	enum row_search_result	search_result;
+
+	ut_ad(trx->id);
 
 	index = node->index;
 
@@ -1636,18 +1682,71 @@ row_upd_sec_index_entry(
 
 	log_free_check();
 
+#ifdef UNIV_DEBUG
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
+	if (!trx->ddl) {
+		DEBUG_SYNC_C_IF_THD(trx->mysql_thd,
+				    "before_row_upd_sec_index_entry");
+	}
+#endif /* UNIV_DEBUG */
+
 	mtr_start(&mtr);
+
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_COMPLETE:
+			/* This is a normal index. Do not log anything.
+			Perform the update on the index tree directly. */
+			break;
+		case ONLINE_INDEX_CREATION:
+			/* Log a DELETE and optionally INSERT. */
+			row_log_online_op(index, entry, 0);
+
+			if (!node->is_delete) {
+				mem_heap_empty(heap);
+				entry = row_build_index_entry(
+					node->upd_row, node->upd_ext,
+					index, heap);
+				ut_a(entry);
+				row_log_online_op(index, entry, trx->id);
+			}
+			/* fall through */
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			mtr_commit(&mtr);
+			goto func_exit;
+		}
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			| BTR_DELETE_MARK;
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF
+			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
-
-	/* We can only try to use the insert/delete buffer to buffer
-	delete-mark operations if the index we're modifying has no foreign
-	key constraints referring to it. */
-	if (!referenced) {
-		mode |= BTR_DELETE_MARK;
-	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -1699,10 +1798,8 @@ row_upd_sec_index_entry(
 		/* Delete mark the old index record; it can already be
 		delete marked if we return after a lock wait in
 		row_ins_sec_index_entry() below */
-
 		if (!rec_get_deleted_flag(
-			rec, dict_table_is_comp(index->table))) {
-
+			    rec, dict_table_is_comp(index->table))) {
 			err = btr_cur_del_mark_set_sec_rec(
 				0, btr_cur, TRUE, thr, &mtr);
 
@@ -1732,6 +1829,8 @@ row_upd_sec_index_entry(
 		goto func_exit;
 	}
 
+	mem_heap_empty(heap);
+
 	/* Build a new index entry */
 	entry = row_build_index_entry(node->upd_row, node->upd_ext,
 				      index, heap);
@@ -1744,45 +1843,6 @@ func_exit:
 	mem_heap_free(heap);
 
 	return(err);
-}
-
-/***********************************************************//**
-Logs the update or delete of a secondary index record if needed
-while the index is being created. */
-static UNIV_COLD __attribute__((nonnull))
-void
-row_upd_sec_online(
-/*===============*/
-	upd_node_t*	node,	/*!< in: row update node */
-	trx_id_t	trx_id)	/*!< in: transaction ID */
-{
-	mem_heap_t*	heap;
-	dtuple_t*	entry;
-	dict_index_t*	index	= node->index;;
-
-	ut_ad(node->state == UPD_NODE_UPDATE_ALL_SEC
-	      || node->state == UPD_NODE_UPDATE_SOME_SEC);
-	ut_ad(!dict_index_is_clust(index));
-	ut_ad(dict_index_get_online_status(index) == ONLINE_INDEX_CREATION);
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
-	heap = mem_heap_create(1024);
-	entry = row_build_index_entry(node->row, node->ext, index, heap);
-	ut_a(entry);
-
-	row_log_online_op(index, entry, trx_id, ROW_OP_DELETE_MARK);
-
-	if (!node->is_delete) {
-		mem_heap_empty(heap);
-		entry = row_build_index_entry(node->upd_row, node->upd_ext,
-					      index, heap);
-		ut_a(entry);
-		row_log_online_op(index, entry, trx_id, ROW_OP_INSERT);
-	}
-
-	mem_heap_free(heap);
 }
 
 /***********************************************************//**
@@ -1800,29 +1860,6 @@ row_upd_sec_step(
 	ut_ad((node->state == UPD_NODE_UPDATE_ALL_SEC)
 	      || (node->state == UPD_NODE_UPDATE_SOME_SEC));
 	ut_ad(!dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		ibool	online = FALSE;
-
-		rw_lock_s_lock(dict_index_get_lock(node->index));
-		switch (dict_index_get_online_status(node->index)) {
-		case ONLINE_INDEX_CREATION:
-			row_upd_sec_online(node, thr_get_trx(thr)->id);
-			/* fall through */
-		case ONLINE_INDEX_ABORTED:
-		case ONLINE_INDEX_ABORTED_DROPPED:
-			online = TRUE;
-			break;
-		case ONLINE_INDEX_COMPLETE:
-			break;
-		}
-
-		rw_lock_s_unlock(dict_index_get_lock(node->index));
-
-		if (online) {
-			return(DB_SUCCESS);
-		}
-	}
 
 	if (node->state == UPD_NODE_UPDATE_ALL_SEC
 	    || row_upd_changes_ord_field_binary(node->index, node->update,
@@ -2132,8 +2169,7 @@ row_upd_clust_rec(
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}
@@ -2220,8 +2256,7 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}
@@ -2539,6 +2574,8 @@ row_upd(
 				    "after_row_upd_clust");
 	}
 #endif /* UNIV_DEBUG */
+
+	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
 	do {
 		/* Skip corrupted index */

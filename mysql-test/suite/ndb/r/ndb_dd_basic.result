@@ -1,34 +1,29 @@
 select count(*) from information_schema.columns;
 count(*)
 #
-DROP TABLE IF EXISTS t1;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=MYISAM;
-Warnings:
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=XYZ;
-Warnings:
-Warning	1286	Unknown storage engine 'XYZ'
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR 42000: Unknown storage engine 'XYZ'
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
-Warnings:
-Warning	1478	Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 5K
 UNDO_BUFFER_SIZE = 1M
 ENGINE=NDB;
 ERROR HY000: Failed to create UNDOFILE
-set storage_engine=ndb;
+set default_storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
@@ -37,7 +32,7 @@ ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=NDB;
-set storage_engine=myisam;
+set default_storage_engine=myisam;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1

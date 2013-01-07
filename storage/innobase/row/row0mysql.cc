@@ -616,6 +616,7 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
+	case DB_DICT_CHANGED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -956,22 +957,22 @@ row_get_prebuilt_insert_row(
 					handle */
 {
 	dict_table_t*		table	= prebuilt->table;
-	const dict_index_t*	last_index = dict_table_get_last_index(table);
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	/* Check if an index has been dropped or a new index has been
-	added that prebuilt does not know about. We may need to rebuild
-	the row insert template. */
-
 	if (prebuilt->ins_node != 0) {
 
-		if (prebuilt->trx_id >= last_index->trx_id
+		/* Check if indexes have been dropped or added and we
+		may need to rebuild the row insert template. */
+
+		if (prebuilt->trx_id == table->def_trx_id
 		    && UT_LIST_GET_LEN(prebuilt->ins_node->entry_list)
 		    == UT_LIST_GET_LEN(table->indexes)) {
 
 			return(prebuilt->ins_node->row);
 		}
+
+		ut_ad(prebuilt->trx_id < table->def_trx_id);
 
 		que_graph_free_recursive(prebuilt->ins_graph);
 
@@ -1009,14 +1010,7 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	/* The prebuilt->trx_id can be greater than the current last
-	index trx id for cases where the secondary index create failed
-	but the secondary index was visible briefly during the create
-	process. */
-
-	if (last_index->trx_id > prebuilt->trx_id) {
-		prebuilt->trx_id = last_index->trx_id;
-	}
+	prebuilt->trx_id = table->def_trx_id;
 
 	return(prebuilt->ins_node->row);
 }
@@ -1331,7 +1325,8 @@ error_exit:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
-			ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
+			ut_ad(node->state == INS_NODE_INSERT_ENTRIES
+			      || node->state == INS_NODE_ALLOC_ROW_ID);
 			goto run_again;
 		}
 
@@ -1677,9 +1672,19 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	init_fts_doc_id_for_ref(table, &fk_depth);
-
 	trx_start_if_not_started_xa(trx);
+
+	if (dict_table_is_referenced_by_foreign_key(table)) {
+		/* Share lock the data dictionary to prevent any
+		table dictionary (for foreign constraint) change.
+		This is similar to row_ins_check_foreign_constraint
+		check protect by the dictionary lock as well.
+		In the future, this can be removed once the Foreign
+		key MDL is implemented */
+		row_mysql_freeze_data_dictionary(trx);
+		init_fts_doc_id_for_ref(table, &fk_depth);
+		row_mysql_unfreeze_data_dictionary(trx);
+	}
 
 	node = prebuilt->upd_node;
 
@@ -2047,6 +2052,8 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
 	rw_lock_s_unlock(&dict_operation_lock);
@@ -2085,6 +2092,8 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Serialize data dictionary operations with dictionary mutex:
@@ -2102,7 +2111,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back.
+be rolled back and the 'table' object will be freed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
@@ -2215,7 +2224,6 @@ err_exit:
 #endif /* UNIV_MEM_DEBUG */
 	}
 
-
 	heap = mem_heap_create(512);
 
 	switch (trx_get_dict_operation(trx)) {
@@ -2241,7 +2249,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space) {
+	if (table->space != TRX_SYS_SPACE) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -2293,7 +2301,10 @@ err_exit:
 			if (commit) {
 				trx_commit_for_mysql(trx);
 			}
+		} else {
+			dict_mem_table_free(table);
 		}
+
 		break;
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
@@ -2503,9 +2514,15 @@ row_table_add_foreign_constraints(
 
 	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
 					      name, reject_fks);
+
+	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
+			err = DB_DUPLICATE_KEY;);
+
+	DEBUG_SYNC_C("table_add_foreign_constraints");
+
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, NULL, false, true);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -3549,6 +3566,13 @@ next_rec:
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
+
+		/* Update system table failed.  Table in memory metadata
+		could be in an inconsistent state, mark the in-memory
+		table->corrupted to be true. In the long run, this should
+		be fixed by atomic truncate table */
+		table->corrupted = true;
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
 		      stderr);
@@ -3777,6 +3801,9 @@ row_drop_table_for_mysql(
 				table, NULL, trx);
 		}
 	}
+
+	/* make sure background stats thread is not running on the table */
+	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4300,9 +4327,9 @@ row_mysql_drop_temp_tables(void)
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		TRUE,
+		true,
 		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	for (;;) {
 		const rec_t*	rec;
@@ -4461,8 +4488,21 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name(table_name, TRUE, FALSE,
-						DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name(
+			table_name, TRUE, FALSE, static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+
+		if (!table) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load table %s from InnoDB internal "
+				"data dictionary during drop database",
+				table_name);
+			mem_free(table_name);
+			err = DB_TABLE_NOT_FOUND;
+			break;
+
+		}
 
 		if (row_is_mysql_tmp_table_name(table->name)) {
 			/* There could be an orphan temp table left from
@@ -4929,7 +4969,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, NULL,
+			false, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);
@@ -5018,9 +5059,19 @@ row_check_index_for_mysql(
 
 	*n_rows = 0;
 
-	/* Full Text index are implemented by auxiliary tables,
-	not the B-tree */
-	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+	if (dict_index_is_clust(index)) {
+		/* The clustered index of a table is always available.
+		During online ALTER TABLE that rebuilds the table, the
+		clustered index in the old table will have
+		index->online_log pointing to the new table. All
+		indexes of the old table will remain valid and the new
+		table will be unaccessible to MySQL until the
+		completion of the ALTER TABLE. */
+	} else if (dict_index_is_online_ddl(index)
+		   || (index->type & DICT_FTS)) {
+		/* Full Text index are implemented by auxiliary tables,
+		not the B-tree. We also skip secondary indexes that are
+		being created online. */
 		return(true);
 	}
 
