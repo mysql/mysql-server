@@ -1424,6 +1424,8 @@ public:
   bool eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs); 
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
+  bool too_big_for_varchar() const
+  { return max_char_length() > CONVERT_IF_BIGGER_TO_BLOB; }
   void fix_length_and_charset(uint32 max_char_length_arg, CHARSET_INFO *cs)
   {
     max_length= char_to_byte_length_safe(max_char_length_arg, cs->mbmaxlen);

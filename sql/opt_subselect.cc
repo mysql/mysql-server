@@ -853,8 +853,7 @@ bool subquery_types_allow_materialization(Item_in_subselect *in_subs)
         create a blob column because item->max_length is too big.
         The following check is copied from Item::make_string_field():
       */ 
-      if (inner->max_length / inner->collation.collation->mbmaxlen > 
-          CONVERT_IF_BIGGER_TO_BLOB)
+      if (inner->too_big_for_varchar())
       {
         DBUG_RETURN(FALSE);
       }
@@ -3865,6 +3864,7 @@ SJ_TMP_TABLE::create_sj_weedout_tmp_table(THD *thd)
   fn_format(path, path, mysql_tmpdir, "", MY_REPLACE_EXT|MY_UNPACK_FILENAME);
 
   /* STEP 2: Figure if we'll be using a key or blob+constraint */
+  /* it always has my_charset_bin, so mbmaxlen==1 */
   if (uniq_tuple_length_arg >= CONVERT_IF_BIGGER_TO_BLOB)
     using_unique_constraint= TRUE;
 

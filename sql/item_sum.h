@@ -1439,7 +1439,7 @@ public:
   virtual Field *make_string_field(TABLE *table);
   enum_field_types field_type() const
   {
-    if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB )
+    if (too_big_for_varchar())
       return MYSQL_TYPE_BLOB;
     else
       return MYSQL_TYPE_VARCHAR;

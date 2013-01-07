@@ -375,7 +375,7 @@ select group_concat('x') UNION ALL select 1;
 drop table t1;
 
 #
-# Bug #12863 : missing separators after first empty cancatanated elements
+# Bug #12863 : missing separators after first empty concatenated elements
 #
 
 CREATE TABLE t1 (id int, a varchar(9));

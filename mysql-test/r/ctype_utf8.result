@@ -5055,6 +5055,14 @@ id	l
 a	1024
 Warnings:
 Warning	1260	Row 2 was cut by GROUP_CONCAT()
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1;
+id	l
+a	1024
+Warnings:
+Warning	1260	Row 2 was cut by GROUP_CONCAT()
 #
 # End of 5.5 tests
 #

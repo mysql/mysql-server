@@ -14185,7 +14185,7 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
           can't index BIT fields.
       */
       (*tmp->item)->marker=4;			// Store null in key
-      if ((*tmp->item)->max_length >= CONVERT_IF_BIGGER_TO_BLOB)
+      if ((*tmp->item)->too_big_for_varchar())
 	using_unique_constraint=1;
     }
     if (param->group_length >= MAX_BLOB_WIDTH)

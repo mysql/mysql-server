@@ -5579,7 +5579,7 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp, CHARSET_INFO *cs)
 /**
   Create a field to hold a string value from an item.
 
-  If max_length > CONVERT_IF_BIGGER_TO_BLOB create a blob @n
+  If too_big_for_varchar() create a blob @n
   If max_length > 0 create a varchar @n
   If max_length == 0 create a CHAR(0) 
 
@@ -5594,7 +5594,7 @@ Field *Item::make_string_field(TABLE *table)
     Note: the following check is repeated in 
     subquery_types_allow_materialization():
   */
-  if (max_length/collation.collation->mbmaxlen > CONVERT_IF_BIGGER_TO_BLOB)
+  if (too_big_for_varchar())
     field= new Field_blob(max_length, maybe_null, name,
                           collation.collation, TRUE);
   /* Item_type_holder holds the exact type, do not change it */
@@ -5699,7 +5699,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_STRING:
-    if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
+    if (fixed_length && !too_big_for_varchar())
     {
       field= new Field_string(max_length, maybe_null, name,
                               collation.collation);

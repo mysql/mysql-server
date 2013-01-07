@@ -1590,6 +1590,11 @@ SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1
 GROUP BY id
 ORDER BY l DESC;
 
+SELECT id, CHAR_LENGTH(GROUP_CONCAT(body)) AS l
+FROM (SELECT 'a' AS id, REPEAT('foo bar', 100) AS body
+UNION ALL
+SELECT 'a' AS id, REPEAT('bla bla', 100) AS body) t1;
+
 --echo #
 --echo # End of 5.5 tests
 --echo #
