@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1328,12 +1328,18 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         strcpy(p_last_skip_coord->file_name, p_coord->file_name);
       }
 
-      if (!skip_group && last_skip_group)
+      if (!skip_group && last_skip_group
+          && event_type != FORMAT_DESCRIPTION_EVENT)
       {
         /*
           Dump thread is ready to send it's first transaction after
           one or more skipped transactions. Send a heart beat event
           to update slave IO thread coordinates before that happens.
+
+          Notice that for a new binary log file, FORMAT_DESCRIPTION_EVENT
+          is the first event to be sent to the slave. In this case, it is
+          no need to send a HB event (which might have coordinates
+          of previous binlog file).
         */
 
         if (send_last_skip_group_heartbeat(thd, net, packet, p_last_skip_coord,
@@ -1492,13 +1498,16 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
               event as the time_out of certain functions (Ex: master_pos_wait()
               or semi sync ack timeout) might be less than heartbeat period.
             */
-            if (skip_group &&
-                send_last_skip_group_heartbeat(thd, net, packet,
-                                               p_coord, &ev_offset,
-                                               current_checksum_alg, &errmsg))
+            if (skip_group)
             {
-              thd->EXIT_COND(&old_stage);
-              GOTO_ERR;
+              if (send_last_skip_group_heartbeat(thd, net, packet,
+                                                 p_coord, &ev_offset,
+                                                 current_checksum_alg, &errmsg))
+              {
+                thd->EXIT_COND(&old_stage);
+                GOTO_ERR;
+              }
+              last_skip_group= false; /*A HB for this pos has been sent. */
             }
 
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);

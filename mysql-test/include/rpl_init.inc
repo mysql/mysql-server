@@ -51,6 +51,7 @@
 #    [--let $rpl_skip_reset_master_and_slave= 1]
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
+#    [--let $use_gtids= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -103,6 +104,9 @@
 #    $slave_timeout
 #      Timeout used when waiting for the slave threads to start.
 #      See include/wait_for_slave_param.inc
+#
+#    $use_gtids
+#      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
 #
 #
 # ==== Side effects ====

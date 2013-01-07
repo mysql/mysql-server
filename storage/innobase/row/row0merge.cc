@@ -3423,6 +3423,14 @@ row_merge_build_indexes(
 	merge_files = static_cast<merge_file_t*>(
 		mem_alloc(n_indexes * sizeof *merge_files));
 
+	/* Initialize all the merge file descriptors, so that we
+	don't call row_merge_file_destroy() on uninitialized
+	merge file descriptor */
+
+	for (i = 0; i < n_indexes; i++) {
+		merge_files[i].fd = -1;
+	}
+
 	for (i = 0; i < n_indexes; i++) {
 		if (row_merge_file_create(&merge_files[i]) < 0) {
 			error = DB_OUT_OF_MEMORY;
