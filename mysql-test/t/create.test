@@ -1639,7 +1639,7 @@ END ; |
 INSERT INTO t1 (pk, int_key) SELECT `pk` , `int_key` FROM B ;
 
 --delimiter |
---error ER_NOT_SUPPORTED_YET
+--error ER_TRG_ALREADY_EXISTS
 CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
 BEGIN 
   UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
