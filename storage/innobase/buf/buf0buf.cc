@@ -907,18 +907,15 @@ pfs_register_buffer_block(
 	num_to_register = ut_min(
 		chunk->size, PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
-#if 0
 	for (ulint i = 0; i < num_to_register; i++) {
-		BPageMutex*	mutex;
-		rw_lock_t*	rwlock;
-
 #  ifdef UNIV_PFS_MUTEX
+		BPageMutex*	mutex;
+
 		mutex = &block->mutex;
-		ut_a(!mutex->pfs_psi);
-		mutex->pfs_psi = (PSI_server)
-			? PSI_server->init_mutex(buffer_block_mutex_key, mutex)
-			: NULL;
+		mutex->pfs_add(buffer_block_mutex_key);
 #  endif /* UNIV_PFS_MUTEX */
+
+		rw_lock_t*	rwlock;
 
 #  ifdef UNIV_PFS_RWLOCK
 		rwlock = &block->lock;
@@ -939,7 +936,6 @@ pfs_register_buffer_block(
 #  endif /* UNIV_PFS_RWLOCK */
 		block++;
 	}
-#endif
 }
 # endif /* PFS_GROUP_BUFFER_SYNC */
 
@@ -988,12 +984,11 @@ buf_block_init(
 
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
 	/* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
-	of buffer block mutex/rwlock with performance schema. If
-	PFS_GROUP_BUFFER_SYNC is defined, skip the registration
-	since buffer block mutex/rwlock will be registered later in
-	pfs_register_buffer_block() */
+	of buffer block rwlock with performance schema.
 
-	// FIXME: HANDLE PFS_NOT_INSTRUMENTED for Mutexes
+	If PFS_GROUP_BUFFER_SYNC is defined, skip the registration
+	since buffer block rwlock will be registered later in
+	pfs_register_buffer_block(). */
 
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
 
@@ -1008,6 +1003,7 @@ buf_block_init(
 	rw_lock_create(buf_block_lock_key, &block->lock, SYNC_LEVEL_VARYING);
 
 # ifdef UNIV_SYNC_DEBUG
+
 	rw_lock_create(buf_block_debug_latch_key,
 		       &block->debug_latch, SYNC_NO_ORDER_CHECK);
 # endif /* UNIV_SYNC_DEBUG */
@@ -1095,7 +1091,7 @@ buf_chunk_init(
 
 #ifdef PFS_GROUP_BUFFER_SYNC
 	pfs_register_buffer_block(chunk);
-#endif
+#endif /* PFS_GROUP_BUFFER_SYNC */
 	return(chunk);
 }
 
