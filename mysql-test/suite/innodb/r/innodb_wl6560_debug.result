@@ -35,7 +35,7 @@ a	b
 1	2
 drop table t1;
 set session debug="-d,ib_ddl_crash_during_create";
-SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC = 'RESET';
 use test;
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
@@ -129,7 +129,7 @@ a	b	c
 1	a	b
 2	a	b
 3	a	b
-set DEBUG_SYNC='RESET';
+set DEBUG_SYNC = 'RESET';
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
 insert into t1 values (1, 'a', 'b');
@@ -151,7 +151,7 @@ a	b	c
 -3	a	b
 -2	a	b
 -1	a	b
-set DEBUG_SYNC='RESET';
+set DEBUG_SYNC = 'RESET';
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
 insert into t1 values (1, 'a', 'b');
