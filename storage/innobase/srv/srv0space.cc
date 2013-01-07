@@ -421,11 +421,12 @@ Tablespace::check_size(
 			&& m_last_file_size_max < rounded_size_pages)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"auto-extending data file %s is of a "
+				"auto-extending %sdata file %s is of a "
 				"different size %lu pages (rounded "
 				"down to MB) than specified in the .cnf "
 				"file: initial %lu pages, max %lu "
 				"(relevant if non-zero) pages!",
+				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				file.m_filename,
 				rounded_size_pages,
 				file.m_size,
@@ -440,10 +441,11 @@ Tablespace::check_size(
 	if (rounded_size_pages != file.m_size) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Data file %s is of a different "
+			"%sData file %s is of a different "
 			"size %lu pages (rounded down to MB) "
 			"than specified in the .cnf file "
 			"%lu pages!",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 			file.m_filename, rounded_size_pages, file.m_size);
 
 		return(DB_ERROR);
@@ -675,9 +677,10 @@ Tablespace::read_lsn_and_check_flags(
 		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Data file \"%s\" uses page size %lu, "
+				"%sData file \"%s\" uses page size %lu, "
 				"but the start-up parameter is "
 				"--innodb-page-size=%lu",
+				((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 				it->m_filename,
 				fsp_flags_get_page_size(flags),
 				UNIV_PAGE_SIZE);
@@ -786,8 +789,9 @@ Tablespace::file_not_found(
 		*create_new_db = TRUE;
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The first specified data file \"%s\" "
+			"The first specified %sdata file \"%s\" "
 			"did not exist%s",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 			file.m_name,
 			(m_space_id == TRX_SYS_SPACE)
 			? " : a new database to be created!"
@@ -797,22 +801,27 @@ Tablespace::file_not_found(
 
 		/* Last data file. */
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Data file \"%s\" did not exist: new "
-			"to be created", file.m_name);
+			"%sData file \"%s\" did not exist: new "
+			"to be created",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
+			file.m_name);
 
 	} else if (*create_new_db) {
 
 		/* Other data files. */
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"You can add a new data file at the "
-			"end but not in the middle. Data file "
+			"You can add a new %sdata file at the "
+			"end but not in the middle. %sData file "
 			"\"%s\" not found.",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
+			((m_space_id == TRX_SYS_SPACE) ? "" : "Temp-"),
 			file.m_name);
 
 			return(DB_ERROR);
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Need to create new data file \"%s\"",
+			"Need to create new %sdata file \"%s\"",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 			file.m_name);
 	}
 
@@ -878,8 +887,9 @@ Tablespace::check_file_spec(
 	if (m_files.size() >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can only have < 1000 data files, you have "
+			"Can only have < 1000 %sdata files, you have "
 			"defined %lu",
+			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 			(ulint) m_files.size());
 
 		return(DB_ERROR);
@@ -931,9 +941,10 @@ Tablespace::check_file_spec(
 			ut_ad(it->m_exists);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"First data file \"%s\" of tablespace not "
+				"First %sdata file \"%s\" of tablespace not "
 				"found but one of the other data files \"%s\" "
 				"exists.",
+				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				it->m_name, it->m_name);
 
 			err = DB_ERROR;
@@ -1060,8 +1071,9 @@ Tablespace::get_increment() const
 		if (!is_valid_size()) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Last data file size is %lu, max "
+				"Last %sdata file size is %lu, max "
 				"size allowed %lu",
+				((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
 				last_file_size(),
 				m_last_file_size_max);
 		}
@@ -1133,7 +1145,7 @@ Tablespace::delete_files()
 			innodb_file_data_key, it->m_filename)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Removed temporary tablespace data file: "
-				"\"%s\"", it->m_name);
+				"\"%s\" (if exists)", it->m_name);
 		}
 	}
 }
