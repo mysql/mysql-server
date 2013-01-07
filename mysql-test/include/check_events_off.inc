@@ -4,9 +4,9 @@
 # Wait till we can expect that we have no event activity till the scheduler is #
 # switched on again.                                                           #
 # = There will be no modifications of user tables by existing events           #
-#   except they use "INSERT DELAYED" or the server system variable             #
+#   except if the server system variable                                       #
 #   "concurrent_inserts" is not switched off.                                  #
-#   Only some storage engines support concurrent_inserts" or "INSERT DELAYED". #
+#   Only some storage engines support concurrent_inserts.                      #
 #                                                                              #
 # Creation:                                                                    #
 # 2008-12-19 mleich Implement this check needed for bug fixes in tests         #

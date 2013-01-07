@@ -272,9 +272,13 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   {
     case FRMTYPE_TABLE:
       {
-        if (!(rc= mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                               table_type), 
-                                     ren_table->db, old_alias,
+        handlerton *hton= ha_resolve_by_legacy_type(thd, table_type);
+        if (table_type != DB_TYPE_UNKNOWN && !hton)
+        {
+          my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
+          DBUG_RETURN(1);
+        }
+        if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
           if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
@@ -289,9 +293,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
               triggers appropriately. So let us revert operations on .frm
               and handler's data and report about failure to rename table.
             */
-            (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                                table_type),
-                                      new_db, new_alias,
+            (void) mysql_rename_table(hton, new_db, new_alias,
                                       ren_table->db, old_alias, 0);
           }
         }

@@ -83,9 +83,9 @@ a2 Int NOT NULL AT=FIXED ST=DISK
 a3 Bigint NOT NULL AT=FIXED ST=DISK
 a4 Char(10;latin1_swedish_ci) NULL AT=FIXED ST=DISK
 a5 Decimal(5,1) NULL AT=FIXED ST=DISK
-a6 Time NULL AT=FIXED ST=DISK
+a6 Time2(0) NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Datetime NULL AT=FIXED ST=DISK
+a8 Datetime2(0) NULL AT=FIXED ST=DISK
 a9 Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=DISK
 a10 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 SELECT * FROM test.t1 ORDER BY a1;
@@ -183,9 +183,9 @@ a2 Int NOT NULL AT=FIXED ST=DISK
 a3 Bigint NOT NULL AT=FIXED ST=DISK
 a4 Char(10;latin1_swedish_ci) NULL AT=FIXED ST=DISK
 a5 Decimal(5,1) NULL AT=FIXED ST=DISK
-a6 Time NULL AT=FIXED ST=DISK
+a6 Time2(0) NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Datetime NULL AT=FIXED ST=DISK
+a8 Datetime2(0) NULL AT=FIXED ST=DISK
 a9 Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=DISK
 a10 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 SELECT * FROM test.t1 ORDER BY a1;
@@ -270,9 +270,9 @@ a2 Int NOT NULL AT=FIXED ST=DISK
 a3 Bigint NOT NULL AT=FIXED ST=DISK
 a4 Char(10;latin1_swedish_ci) NULL AT=FIXED ST=DISK
 a5 Decimal(5,1) NULL AT=FIXED ST=DISK
-a6 Time NULL AT=FIXED ST=DISK
+a6 Time2(0) NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Datetime NULL AT=FIXED ST=DISK
+a8 Datetime2(0) NULL AT=FIXED ST=DISK
 a9 Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=DISK
 a10 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 ALTER TABLE test.t1 ENGINE=MyISAM;
@@ -395,8 +395,8 @@ a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
 a6 Bigint NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Time NULL AT=FIXED ST=DISK
-a9 Datetime NULL AT=FIXED ST=DISK
+a8 Time2(0) NULL AT=FIXED ST=DISK
+a9 Datetime2(0) NULL AT=FIXED ST=DISK
 a10 Text(256,0,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
 a11 Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 a12 Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
@@ -466,8 +466,8 @@ a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
 a6 Bigint NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Time NULL AT=FIXED ST=DISK
-a9 Datetime NULL AT=FIXED ST=DISK
+a8 Time2(0) NULL AT=FIXED ST=DISK
+a9 Datetime2(0) NULL AT=FIXED ST=DISK
 a10 Text(256,0,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
 a11 Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 a12 Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
@@ -502,8 +502,8 @@ a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
 a6 Bigint NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Time NULL AT=FIXED ST=DISK
-a9 Datetime NULL AT=FIXED ST=DISK
+a8 Time2(0) NULL AT=FIXED ST=DISK
+a9 Datetime2(0) NULL AT=FIXED ST=DISK
 a10 Text(256,0,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
 a11 Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 a12 Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
@@ -538,8 +538,8 @@ a4 Bit(1) NULL AT=FIXED ST=DISK
 a5 Tinyint NULL AT=FIXED ST=DISK
 a6 Bigint NULL AT=FIXED ST=DISK
 a7 Date NULL AT=FIXED ST=DISK
-a8 Time NULL AT=FIXED ST=DISK
-a9 Datetime NULL AT=FIXED ST=DISK
+a8 Time2(0) NULL AT=FIXED ST=DISK
+a9 Datetime2(0) NULL AT=FIXED ST=DISK
 a10 Text(256,0,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=<none>
 a11 Text(256,4000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
 a12 Text(256,13948,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=DISK BV=2 BT=NDB$BLOB_#_#
@@ -576,8 +576,14 @@ DROP TABLE test.t1;
 create table t1 (a int primary key, b int, c int, index bc (b,c))
 storage disk tablespace ts engine = ndb;
 alter online table t1 drop index bc;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t1 add index b (b);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t1 drop index b;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 drop table t1;
 ALTER TABLESPACE ts
 DROP DATAFILE './table_space/datafile.dat'

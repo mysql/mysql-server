@@ -231,11 +231,16 @@ insert into mysql.ndb_replication values
   ("test", "t3", 0, 7, "NDB\$EPOCH(32)"),
   ("test", "t4", 0, 7, "NDB\$EPOCH(-1)");
 
---error 1005
+--disable_query_log
+# Only need suppress here, as table creation fails due to this.
+call mtr.add_suppression("NDB Slave: .* Too many extra Gci bits at .*");
+--enable_query_log
+
+--error 1296 
 create table test.t3 (a int primary key) engine=ndb;
 show warnings;
 
---error 1005
+--error 1296 
 create table test.t4 (a int primary key) engine=ndb;
 show warnings;
 

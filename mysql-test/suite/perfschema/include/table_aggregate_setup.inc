@@ -250,7 +250,7 @@ prepare dump_waits_table_lock from
   count_read_normal, count_read_with_shared_locks,
   count_read_high_priority, count_read_no_insert,
   count_read_external,
-  count_write_delayed, count_write_low_priority,
+  count_write_low_priority,
   count_write_external
   from performance_schema.table_lock_waits_summary_by_table
   where object_type='TABLE' and object_schema='test'

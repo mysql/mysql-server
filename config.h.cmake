@@ -495,7 +495,7 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine HAVE_DTRACE 1
 
-#cmakedefine SIGNAL_WITH_VIO_CLOSE 1
+#cmakedefine SIGNAL_WITH_VIO_SHUTDOWN 1
 
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine S_IROTH @S_IROTH@
@@ -545,7 +545,6 @@
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
-#cmakedefine USE_SYMDIR 1
 
 /*
    InnoDB config options
@@ -619,9 +618,7 @@
   WITH_<ENGINE>_STORAGE_ENGINE for the whole server)
 */
 #cmakedefine WITH_MYISAM_STORAGE_ENGINE 1
-#cmakedefine WITH_MYISAMMRG_STORAGE_ENGINE 1
 #cmakedefine WITH_HEAP_STORAGE_ENGINE 1
-#cmakedefine WITH_CSV_STORAGE_ENGINE 1
 #cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1

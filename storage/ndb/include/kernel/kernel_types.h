@@ -77,6 +77,13 @@ struct Local_key
   static bool isInvalid(Uint32 lk1, Uint32 lk2) {
     return ref(lk1, lk2) == ~Uint32(0);
   }
+
+  /**
+   * Can the local key be saved in one Uint32
+   */
+  static bool isShort(Uint32 pageId) {
+    return pageId < (1 << (32 - MAX_TUPLES_BITS));
+  }
 };
 
 class NdbOut&

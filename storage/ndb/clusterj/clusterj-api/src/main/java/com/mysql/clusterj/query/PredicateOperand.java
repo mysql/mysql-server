@@ -88,4 +88,16 @@ public interface PredicateOperand {
      */
     Predicate like(PredicateOperand other);
 
+    /** Return a Predicate representing comparing this to null.
+     *
+     * @return a new Predicate
+     */
+    Predicate isNull();
+
+    /** Return a Predicate representing comparing this to not null.
+     *
+     * @return a new Predicate
+     */
+    Predicate isNotNull();
+
 }

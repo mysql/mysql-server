@@ -965,6 +965,22 @@ fil_get_space_names(
 				/*!< in/out: Vector for collecting the names. */
 	__attribute__((warn_unused_result));
 
-#endif /* !UNIV_INNOCHECKSUM */
+/****************************************************************//**
+Generate redo logs for swapping two .ibd files */
+UNIV_INTERN
+void
+fil_mtr_rename_log(
+/*===============*/
+	ulint		old_space_id,	/*!< in: tablespace id of the old
+					table. */
+	const char*	old_name,	/*!< in: old table name */
+	ulint		new_space_id,	/*!< in: tablespace id of the new
+					table */
+	const char*	new_name,	/*!< in: new table name */
+	const char*	tmp_name,	/*!< in: temp table name used while
+					swapping */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 
-#endif
+#endif /* !UNIV_INNOCHECKSUM */
+#endif /* fil0fil_h */

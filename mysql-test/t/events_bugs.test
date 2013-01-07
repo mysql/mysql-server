@@ -127,7 +127,7 @@ let $fixed_bug41925= 0;
 #                 The session which will soon change its identity to event creator.
 #
 #    2. Reason two: If an event modifies a MyISAM table than a delayed visibilty of changes
-#                   might occur (concurrent_inserts=on or delayed inserts ...).
+#                   might occur (concurrent_inserts=on).
 #
 
 # Can't test with embedded server that doesn't support grants

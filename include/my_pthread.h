@@ -462,14 +462,12 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #ifdef HAVE_TIMESPEC_TS_SEC
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
-  (((TS1.ts_sec * 1000000000) + TS1.ts_nsec) - \
-   ((TS2.ts_sec * 1000000000) + TS2.ts_nsec))
+  ((TS1.ts_sec - TS2.ts_sec) * 1000000000ULL + TS1.ts_nsec - TS2.ts_nsec)
 #endif /* !diff_timespec */
 #else
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
-  (((TS1.tv_sec * 1000000000) + TS1.tv_nsec) - \
-   ((TS2.tv_sec * 1000000000) + TS2.tv_nsec))
+  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 #endif /* !diff_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
@@ -822,6 +820,14 @@ extern int pthread_dummy(int);
 struct st_my_thread_var
 {
   int thr_errno;
+#if defined(__WIN__)
+/*
+  thr_winerr is used for returning the original OS error-code in Windows,
+  my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
+  preserve the original Windows Error code in thr_winerr.
+*/
+  int thr_winerr;
+#endif
   mysql_cond_t suspend;
   mysql_mutex_t mutex;
   mysql_mutex_t * volatile current_mutex;
@@ -846,6 +852,10 @@ extern void **my_thread_var_dbug();
 extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
+
+#if defined(__WIN__)
+#define my_winerr my_thread_var->thr_winerr
+#endif
 /*
   Keep track of shutdown,signal, and main threads so that my_end() will not
   report errors with them
@@ -924,6 +934,14 @@ extern uint thd_lib_detected;
 #define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
 #define statistic_add_rwlock(V,C,L)     thread_safe_add_rwlock((V),(C),(L))
 #define statistic_sub_rwlock(V,C,L)     thread_safe_sub_rwlock((V),(C),(L))
+#define statistic_inc_set_big_rwlock(V,B,L) \
+  do {                                      \
+    mysql_rwlock_wrlock((L));               \
+    (V)++;                                  \
+    set_if_bigger((B),(V));                 \
+    mysql_rwlock_unlock((L));               \
+  } while(0)
+
 #else
 #define statistic_decrement(V,L) (V)--
 #define statistic_increment(V,L) (V)++
@@ -933,6 +951,12 @@ extern uint thd_lib_detected;
 #define statistic_sub(V,C,L)     (V)-=(C)
 #define statistic_add_rwlock(V,C,L)     (V)+=(C)
 #define statistic_sub_rwlock(V,C,L)     (V)-=(C)
+#define statistic_inc_set_big_rwlock(V,B,L) \
+  do {                                      \
+    (V)++;                                  \
+    set_if_bigger((B),(V));                 \
+  } while(0)
+
 #endif /* SAFE_STATISTICS */
 
 /*

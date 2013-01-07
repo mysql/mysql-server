@@ -216,6 +216,287 @@ BackupRestore::convert_integral(const void * source,
   return target;
 }
 
+static const uint
+truncate_fraction(uint f, uint n_old, uint n_new, bool& truncated)
+{
+  static const uint pow10[1 + 6] = {
+    1, 10, 100, 1000, 10000, 100000, 1000000
+  };
+  assert(n_old <= 6 && n_new <= 6);
+  if (n_old <= n_new)
+    return f;
+  uint k = n_old - n_new;
+  uint n = pow10[k];
+  uint g = f / n;
+  if (g * n != f)
+    truncated = true;
+  return g;
+}
+
+void *
+BackupRestore::convert_time_time2(const void * source,
+                                  void * target,
+                                  bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old == 0 && t->n_new <= 6);
+
+  NdbSqlUtil::Time ss;
+  NdbSqlUtil::Time2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_time(ss, s);
+
+  ts.sign = ss.sign;
+  ts.interval = 0;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  ts.fraction = 0;
+  NdbSqlUtil::pack_time2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_time2_time(const void * source,
+                                  void * target,
+                                  bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new == 0);
+
+  NdbSqlUtil::Time2 ss;
+  NdbSqlUtil::Time ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_time2(ss, s, t->n_old);
+  if (ss.fraction != 0)
+    truncated = true;
+
+  ts.sign = ss.sign;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  NdbSqlUtil::pack_time(ts, (uchar*)t->new_row);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_time2_time2(const void * source,
+                                   void * target,
+                                   bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new <= 6);
+
+  NdbSqlUtil::Time2 ss;
+  NdbSqlUtil::Time2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_time2(ss, s, t->n_old);
+  uint fraction = truncate_fraction(ss.fraction,
+                                    t->n_old, t->n_new, truncated);
+
+  ts.sign = ss.sign;
+  ts.interval = ss.interval;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  ts.fraction = fraction;
+  NdbSqlUtil::pack_time2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_datetime_datetime2(const void * source,
+                                          void * target,
+                                          bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old == 0 && t->n_new <= 6);
+
+  NdbSqlUtil::Datetime ss;
+  NdbSqlUtil::Datetime2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_datetime(ss, s);
+
+  ts.sign = 1;
+  ts.year = ss.year;
+  ts.month = ss.month;
+  ts.day = ss.day;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  ts.fraction = 0;
+  NdbSqlUtil::pack_datetime2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_datetime2_datetime(const void * source,
+                                          void * target,
+                                          bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new == 0);
+
+  NdbSqlUtil::Datetime2 ss;
+  NdbSqlUtil::Datetime ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_datetime2(ss, s, t->n_old);
+  if (ss.fraction != 0)
+    truncated = true;
+  if (ss.sign != 1) // should not happen
+    truncated = true;
+
+  ts.year = ss.year;
+  ts.month = ss.month;
+  ts.day = ss.day;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  NdbSqlUtil::pack_datetime(ts, (uchar*)t->new_row);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_datetime2_datetime2(const void * source,
+                                           void * target,
+                                           bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new <= 6);
+
+  NdbSqlUtil::Datetime2 ss;
+  NdbSqlUtil::Datetime2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_datetime2(ss, s, t->n_old);
+  uint fraction = truncate_fraction(ss.fraction,
+                                    t->n_old, t->n_new, truncated);
+
+  ts.sign = ss.sign;
+  ts.year = ss.year;
+  ts.month = ss.month;
+  ts.day = ss.day;
+  ts.hour = ss.hour;
+  ts.minute = ss.minute;
+  ts.second = ss.second;
+  ts.fraction = fraction;
+  NdbSqlUtil::pack_datetime2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_timestamp_timestamp2(const void * source,
+                                            void * target,
+                                            bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old == 0 && t->n_new <= 6);
+
+  NdbSqlUtil::Timestamp ss;
+  NdbSqlUtil::Timestamp2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_timestamp(ss, s);
+
+  ts.second = ss.second;
+  ts.fraction = 0;
+  NdbSqlUtil::pack_timestamp2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_timestamp2_timestamp(const void * source,
+                                            void * target,
+                                            bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new == 0);
+
+  NdbSqlUtil::Timestamp2 ss;
+  NdbSqlUtil::Timestamp ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_timestamp2(ss, s, t->n_old);
+  if (ss.fraction != 0)
+    truncated = true;
+
+  ts.second = ss.second;
+  NdbSqlUtil::pack_timestamp(ts, (uchar*)t->new_row);
+
+  return t->new_row;
+}
+
+void *
+BackupRestore::convert_timestamp2_timestamp2(const void * source,
+                                             void * target,
+                                             bool & truncated)
+{
+  if (!source || !target)
+    return NULL;
+
+  const uchar* s = (const uchar*)source;
+  char_n_padding_struct* t = (char_n_padding_struct*)target;
+  assert(t->n_old <= 6 && t->n_new <= 6);
+
+  NdbSqlUtil::Timestamp2 ss;
+  NdbSqlUtil::Timestamp2 ts;
+  truncated = false;
+
+  NdbSqlUtil::unpack_timestamp2(ss, s, t->n_old);
+  uint fraction = truncate_fraction(ss.fraction,
+                                    t->n_old, t->n_new, truncated);
+
+  ts.second = ss.second;
+  ts.fraction = fraction;
+  NdbSqlUtil::pack_timestamp2(ts, (uchar*)t->new_row, t->n_new);
+
+  return t->new_row;
+}
+
 // ----------------------------------------------------------------------
 // conversion rules
 // ----------------------------------------------------------------------
@@ -456,6 +737,26 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Bigunsigned,    NDBCOL::Int,            check_compat_lossy,
    convert_integral< Huint64, Hint32>},
 
+  // times with fractional seconds
+  {NDBCOL::Time,           NDBCOL::Time2,          check_compat_precision,
+   convert_time_time2},
+  {NDBCOL::Time2,          NDBCOL::Time,           check_compat_precision,
+   convert_time2_time},
+  {NDBCOL::Time2,          NDBCOL::Time2,          check_compat_precision,
+   convert_time2_time2},
+  {NDBCOL::Datetime,       NDBCOL::Datetime2,      check_compat_precision,
+   convert_datetime_datetime2},
+  {NDBCOL::Datetime2,      NDBCOL::Datetime,       check_compat_precision,
+   convert_datetime2_datetime},
+  {NDBCOL::Datetime2,      NDBCOL::Datetime2,      check_compat_precision,
+   convert_datetime2_datetime2},
+  {NDBCOL::Timestamp,      NDBCOL::Timestamp2,     check_compat_precision,
+   convert_timestamp_timestamp2},
+  {NDBCOL::Timestamp2,     NDBCOL::Timestamp,      check_compat_precision,
+   convert_timestamp2_timestamp},
+  {NDBCOL::Timestamp2,     NDBCOL::Timestamp2,     check_compat_precision,
+   convert_timestamp2_timestamp2},
+
   {NDBCOL::Undefined,      NDBCOL::Undefined,      NULL,                  NULL}
 };
 
@@ -679,7 +980,7 @@ BackupRestore::rebuild_indexes(const TableS& table)
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
 
   Vector<NdbDictionary::Index*> & indexes = m_index_per_table[id];
-  for(size_t i = 0; i<indexes.size(); i++)
+  for(unsigned i = 0; i<indexes.size(); i++)
   {
     const NdbDictionary::Index * const idx = indexes[i];
     const char * const idx_name = idx->getName();
@@ -818,7 +1119,7 @@ bool BackupRestore::search_replace(char *search_str, char **new_data,
                                    const char **data, const char *end_data,
                                    uint *new_data_len)
 {
-  uint search_str_len = strlen(search_str);
+  uint search_str_len = (uint)strlen(search_str);
   uint inx = 0;
   bool in_delimiters = FALSE;
   bool escape_char = FALSE;
@@ -969,7 +1270,7 @@ bool BackupRestore::translate_frm(NdbDictionary::Table *table)
   {
     DBUG_RETURN(TRUE);
   }
-  if (map_in_frm(new_data, (const char*)data, data_len, &new_data_len))
+  if (map_in_frm(new_data, (const char*)data, (uint)data_len, &new_data_len))
   {
     free(new_data);
     DBUG_RETURN(TRUE);
@@ -1729,6 +2030,27 @@ BackupRestore::table_compatible_check(const TableS & tableS)
       memset(s->new_row, 0 , m_attrSize * m_arraySize + 2);
       attr_desc->parameter = s;
     }
+    else if (type_in_backup == NDBCOL::Time ||
+             type_in_backup == NDBCOL::Datetime ||
+             type_in_backup == NDBCOL::Timestamp ||
+             type_in_backup == NDBCOL::Time2 ||
+             type_in_backup == NDBCOL::Datetime2 ||
+             type_in_backup == NDBCOL::Timestamp2)
+    {
+      const unsigned int maxdata = 8;
+      unsigned int size = sizeof(struct char_n_padding_struct) + maxdata;
+      struct char_n_padding_struct *s = (struct char_n_padding_struct *)
+        malloc(size);
+      if (!s)
+      {
+        err << "No more memory available!" << endl;
+        exitHandler();
+      }
+      s->n_old = col_in_backup->getPrecision();
+      s->n_new = col_in_kernel->getPrecision();
+      memset(s->new_row, 0 , maxdata);
+      attr_desc->parameter = s;
+    }
     else
     {
       unsigned int size = m_attrSize * m_arraySize;
@@ -1997,7 +2319,7 @@ BackupRestore::endOfTables(){
     return true;
 
   NdbDictionary::Dictionary* dict = m_ndb->getDictionary();
-  for(size_t i = 0; i<m_indexes.size(); i++){
+  for(unsigned i = 0; i<m_indexes.size(); i++){
     NdbTableImpl & indtab = NdbTableImpl::getImpl(* m_indexes[i]);
 
     BaseString db_name, schema_name, table_name;
@@ -2779,6 +3101,18 @@ BackupRestore::check_compat_sizes(const NDBCOL &old_col,
   }
 
   assert(new_size >= old_size && new_length >= old_length);
+  return ACT_PRESERVING;
+}
+
+AttrConvType
+BackupRestore::check_compat_precision(const NDBCOL &old_col,
+                                      const NDBCOL &new_col)
+{
+  Uint32 new_prec = new_col.getPrecision();
+  Uint32 old_prec = old_col.getPrecision();
+
+  if (new_prec < old_prec)
+    return ACT_LOSSY;
   return ACT_PRESERVING;
 }
 

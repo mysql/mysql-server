@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         // return null if the oid is null (this will be the case if a foreign key element is null)
         ClassMapping cls = vm.getDeclaredTypeMapping();
         NdbOpenJPADomainTypeHandlerImpl<?> domainTypeHandler = getDomainTypeHandler(cls);
-        Object handler = domainTypeHandler.createKeyValueHandler(oid);
+        Object handler = domainTypeHandler.createKeyValueHandler(oid, null);
         if (handler == null) {
             return null;
         }
@@ -251,7 +251,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
 //                    domainTypeHandler.createKeyValueHandler(id.getIdObject()));
                 // initialize via OpenJPA protocol
                 // select all columns from table
-                ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(id.getIdObject());
+                ValueHandler keyValueHandler = domainTypeHandler.createKeyValueHandler(id.getIdObject(), null);
                 ResultData resultData = session.selectUnique(domainTypeHandler,
                         keyValueHandler,
                         null);
@@ -584,6 +584,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
         session.startAutoTransaction();
         try {
             Operation op = session.getSelectOperation(storeTable);
+            op.beginDefinition();
             int[] keyFields = domainTypeHandler.getKeyFieldNumbers();
             BitSet fieldsInResult = new BitSet();
             for (int i : keyFields) {
@@ -597,6 +598,7 @@ public class NdbOpenJPAStoreManager extends JDBCStoreManager {
                 fieldHandler.operationGetValue(op);
                 fieldsInResult.set(fieldHandler.getFieldNumber());
             }
+            op.endDefinition();
             ResultData resultData = op.resultData();
             NdbOpenJPAResult result = new NdbOpenJPAResult(resultData, domainTypeHandler, fieldsInResult);
             session.endAutoTransaction();

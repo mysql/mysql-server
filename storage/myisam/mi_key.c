@@ -49,12 +49,12 @@ static int _mi_put_key_in_record(MI_INFO *info, uint keynr,
     Length of key
 */
 
-uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
+uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
 		  const uchar *record, my_off_t filepos)
 {
   uchar *pos;
   uchar *start;
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   my_bool is_ft= info->s->keyinfo[keynr].flag & HA_FULLTEXT;
   DBUG_ENTER("_mi_make_key");
 
@@ -216,7 +216,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
      last_use_keyseg    Store pointer to the keyseg after the last used one
 */
 
-uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
+uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key, uchar *old,
                   key_part_map keypart_map, HA_KEYSEG **last_used_keyseg)
 {
   uchar *start_key=key;
@@ -327,12 +327,12 @@ uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key, uchar *old,
    1   error
 */
 
-static int _mi_put_key_in_record(register MI_INFO *info, uint keynr, 
+static int _mi_put_key_in_record(MI_INFO *info, uint keynr, 
                                  my_bool unpack_blobs, uchar *record)
 {
-  reg2 uchar *key;
+  uchar *key;
   uchar *pos,*key_end;
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uchar *blob_ptr;
   DBUG_ENTER("_mi_put_key_in_record");
 
@@ -507,7 +507,7 @@ int _mi_read_key_record(MI_INFO *info, my_off_t filepos, uchar *buf)
     2   Index condition is not satisfied, end the scan. 
 */
 
-int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record)
+int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record)
 {
   if (_mi_put_key_in_record(info, keynr, FALSE, record))
   {

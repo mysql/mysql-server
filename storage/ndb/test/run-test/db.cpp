@@ -18,7 +18,6 @@
 #include "atrt.hpp"
 #include <NdbSleep.h>
 
-static bool connect_mysqld(atrt_process* proc);
 static bool populate_db(atrt_config&, atrt_process*);
 static bool setup_repl(atrt_config&);
 
@@ -132,7 +131,7 @@ setup_db(atrt_config& config)
     atrt_process * proc = config.m_processes[i];
     if (proc->m_type == atrt_process::AP_MYSQLD)
     {
-      if (!connect_mysqld(config.m_processes[i]))
+      if (!connect_mysqld(* config.m_processes[i]))
 	return false;
     }
   }    
@@ -177,16 +176,16 @@ find(atrt_process* proc, const char * key)
 }
 
 bool
-connect_mysqld(atrt_process* proc)
+connect_mysqld(atrt_process& proc)
 {
-  if ( !mysql_init(&proc->m_mysql))
+  if ( !mysql_init(&proc.m_mysql))
   {
     g_logger.error("Failed to init mysql");
     return false;
   }
 
-  const char * port = find(proc, "--port=");
-  const char * socket = find(proc, "--socket=");
+  const char * port = find(&proc, "--port=");
+  const char * socket = find(&proc, "--socket=");
   if (port == 0 && socket == 0)
   {
     g_logger.error("Neither socket nor port specified...cant connect to mysql");
@@ -198,10 +197,10 @@ connect_mysqld(atrt_process* proc)
     if (port)
     {
       mysql_protocol_type val = MYSQL_PROTOCOL_TCP;
-      mysql_options(&proc->m_mysql, MYSQL_OPT_PROTOCOL, &val);
+      mysql_options(&proc.m_mysql, MYSQL_OPT_PROTOCOL, &val);
     }
-    if (mysql_real_connect(&proc->m_mysql,
-			   proc->m_host->m_hostname.c_str(),
+    if (mysql_real_connect(&proc.m_mysql,
+			   proc.m_host->m_hostname.c_str(),
 			   "root", "", "test",
 			   port ? atoi(port) : 0,
 			   socket,
@@ -210,15 +209,22 @@ connect_mysqld(atrt_process* proc)
       return true;
     }
     g_logger.info("Retrying connect to %s:%u 3s",
-		  proc->m_host->m_hostname.c_str(),atoi(port));
-    NdbSleep_SecSleep(3); 
+		  proc.m_host->m_hostname.c_str(),atoi(port));
+    NdbSleep_SecSleep(3);
   }
-  
+
   g_logger.error("Failed to connect to mysqld err: >%s< >%s:%u:%s<",
-		 mysql_error(&proc->m_mysql),
-		 proc->m_host->m_hostname.c_str(), port ? atoi(port) : 0,
+		 mysql_error(&proc.m_mysql),
+		 proc.m_host->m_hostname.c_str(), port ? atoi(port) : 0,
 		 socket ? socket : "<null>");
   return false;
+}
+
+bool
+disconnect_mysqld(atrt_process& proc)
+{
+  mysql_close(&proc.m_mysql);
+  return true;
 }
 
 void

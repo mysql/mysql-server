@@ -49,7 +49,7 @@ public:
    * @param maxFileSize the maximum log file size before archiving.
    * @param maxLogEntries the maximum number of log entries before checking time to archive.
    */
-  FileLogHandler(const char* aFileName = "logger.log",
+  FileLogHandler(const char* aFileName,
 		 int maxNoFiles = 6,
 		 long maxFileSize = 1024000,
 		 unsigned int maxLogEntries = 10000);

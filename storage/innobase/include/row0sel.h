@@ -180,15 +180,6 @@ row_search_check_if_query_cache_permitted(
 	trx_t*		trx,		/*!< in: transaction object */
 	const char*	norm_name);	/*!< in: concatenation of database name,
 					'/' char, table name */
-void
-row_create_key(
-/*===========*/
-	dtuple_t*	tuple,		/* in: tuple where to build;
-					NOTE: we assume that the type info
-					in the tuple is already according
-					to index! */
-	dict_index_t*	index,		/* in: index of the key value */
-	doc_id_t*	doc_id);	/* in: doc id to lookup.*/
 /*******************************************************************//**
 Read the max AUTOINC value from an index.
 @return	DB_SUCCESS if all OK else error code */

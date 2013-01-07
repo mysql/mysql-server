@@ -1,0 +1,49 @@
+#
+# Test the behaviour of all SQL commands affected
+# by having MySQL privilege tables stored in NDB
+# This should yield the same result as when running
+# this test with default privilege tables
+
+--source include/not_embedded.inc
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+
+# Start replication
+--source include/master-slave.inc
+
+# Setup distributed privilege tables
+--disable_query_log
+let $expected_default_engine = MyISAM;
+let $default_engine= `select engine from information_schema.tables
+                        where table_schema = "mysql" and table_name = "user"`;
+if ($default_engine != $expected_default_engine)
+{
+  # Detect when default engine for system tables change
+  echo Default engine of MySQL System tables seems to have changed;
+  echo Expected: '$expected_default_engine', Got: '$default_engine';
+}
+alter table mysql.user engine = ndb;
+alter table mysql.db engine = ndb;
+alter table mysql.tables_priv engine = ndb;
+alter table mysql.columns_priv engine = ndb;
+alter table mysql.procs_priv engine = ndb;
+alter table mysql.proxies_priv engine = ndb;
+flush privileges;
+--enable_query_log
+
+# Create connections to different mysqld(s)
+--connect(server1,127.0.0.1,root,,test,$MASTER_MYPORT,)
+--connect(server2,127.0.0.1,root,,test,$MASTER_MYPORT1,)
+
+# Run the common test script
+--source ndb_dist_priv_common.inc
+
+# Cleanup distributed privilege tables
+# - Force restart since other tests depend on the _exact_
+#   order of rows in for example mysql.user and altering from
+#   NDB does not work on other than the server using the ALTER
+--source include/force_restart.inc
+
+# End replication
+--source include/rpl_end.inc
+

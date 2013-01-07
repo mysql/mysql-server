@@ -30,7 +30,7 @@ public class NdbInterpretedCode extends Wrapper implements NdbInterpretedCodeCon
     public final native NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ getTable() /*_const_*/;
     public final native NdbErrorConst/*_const NdbError &_*/ getNdbError() /*_const_*/;
     public final native int/*_Uint32_*/ getWordsUsed() /*_const_*/;
-    static public final native NdbInterpretedCode create(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table /*_= 0_*/, int[]/*_Uint32 *_*/ buffer /*_= 0_*/, int/*_Uint32_*/ buffer_word_size /*_= 0_*/);
+    static public final native NdbInterpretedCode create(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table /*_= 0_*/, ByteBuffer/*_Uint32 *_*/ buffer /*_= 0_*/, int/*_Uint32_*/ buffer_word_size /*_= 0_*/);
     static public final native void delete(NdbInterpretedCode p0);
     public final native int load_const_null(int/*_Uint32_*/ RegDest);
     public final native int load_const_u16(int/*_Uint32_*/ RegDest, int/*_Uint32_*/ Constant);

@@ -78,13 +78,17 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(TRANSPORTERS, 3) =
-{ { "transporters", 3, 0, "transporter status" },
+DECLARE_NDBINFO_TABLE(TRANSPORTERS, 6) =
+{ { "transporters", 6, 0, "transporter status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"remote_node_id",     Ndbinfo::Number, ""},
 
-    {"connection_status",  Ndbinfo::Number, ""}
+    {"connection_status",  Ndbinfo::Number, ""},
+    
+    {"remote_address",     Ndbinfo::String, ""},
+    {"bytes_sent",         Ndbinfo::Number64, ""},
+    {"bytes_received",     Ndbinfo::Number64, ""}
   }
 };
 
@@ -169,6 +173,95 @@ DECLARE_NDBINFO_TABLE(DISKPAGEBUFFER, 9) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(THREADBLOCKS, 4) =
+{ { "threadblocks", 4, 0, "which blocks are run in which threads" },
+  {
+    {"node_id",                     Ndbinfo::Number, "node id"},
+    {"thr_no",                      Ndbinfo::Number, "thread number"},
+    {"block_number",                Ndbinfo::Number, "block number"},
+    {"block_instance",              Ndbinfo::Number, "block instance"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(THREADSTAT, 18) =
+{ { "threadstat", 18, 0, "Statistics on execution threads" },
+  {
+    //{"0123456701234567"}
+    {"node_id",             Ndbinfo::Number, "node id"},
+    {"thr_no",              Ndbinfo::Number, "thread number"},
+    {"thr_nm",              Ndbinfo::String, "thread name"},
+    {"c_loop",              Ndbinfo::Number64,"No of loops in main loop"},
+    {"c_exec",              Ndbinfo::Number64,"No of signals executed"},
+    {"c_wait",              Ndbinfo::Number64,"No of times waited for more input"},
+    {"c_l_sent_prioa",      Ndbinfo::Number64,"No of prio A signals sent to own node"},
+    {"c_l_sent_priob",      Ndbinfo::Number64,"No of prio B signals sent to own node"},
+    {"c_r_sent_prioa",      Ndbinfo::Number64,"No of prio A signals sent to remote node"},
+    {"c_r_sent_priob",      Ndbinfo::Number64,"No of prio B signals sent to remote node"},
+    {"os_tid",              Ndbinfo::Number64,"OS thread id"},
+    {"os_now",              Ndbinfo::Number64,"OS gettimeofday (millis)"},
+    {"os_ru_utime",         Ndbinfo::Number64,"OS user CPU time (micros)"},
+    {"os_ru_stime",         Ndbinfo::Number64,"OS system CPU time (micros)"},
+    {"os_ru_minflt",        Ndbinfo::Number64,"OS page reclaims (soft page faults"},
+    {"os_ru_majflt",        Ndbinfo::Number64,"OS page faults (hard page faults)"},
+    {"os_ru_nvcsw",         Ndbinfo::Number64,"OS voluntary context switches"},
+    {"os_ru_nivcsw",        Ndbinfo::Number64,"OS involuntary context switches"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(TRANSACTIONS, 11) =
+{ { "transactions", 11, 0, "transactions" },
+  {
+    {"node_id",             Ndbinfo::Number, "node id"},
+    {"block_instance",      Ndbinfo::Number, "TC instance no"},
+    {"objid",               Ndbinfo::Number, "Object id of transaction object"},
+    {"apiref",              Ndbinfo::Number, "API reference"},
+    {"transid0",            Ndbinfo::Number, "Transaction id"},
+    {"transid1",            Ndbinfo::Number, "Transaction id"},
+    {"state",               Ndbinfo::Number, "Transaction state"},
+    {"flags",               Ndbinfo::Number, "Transaction flags"},
+    {"c_ops",               Ndbinfo::Number, "No of operations in transaction" },
+    {"outstanding",         Ndbinfo::Number, "Currently outstanding request" },
+    {"timer",               Ndbinfo::Number, "Timer (seconds)"},
+  }
+};
+
+DECLARE_NDBINFO_TABLE(OPERATIONS, 12) =
+{ { "operations", 12, 0, "operations" },
+  {
+    {"node_id",             Ndbinfo::Number, "node id"},
+    {"block_instance",      Ndbinfo::Number, "LQH instance no"},
+    {"objid",               Ndbinfo::Number, "Object id of operation object"},
+    {"tcref",               Ndbinfo::Number, "TC reference"},
+    {"apiref",              Ndbinfo::Number, "API reference"},
+    {"transid0",            Ndbinfo::Number, "Transaction id"},
+    {"transid1",            Ndbinfo::Number, "Transaction id"},
+    {"tableid",             Ndbinfo::Number, "Table id"},
+    {"fragmentid",          Ndbinfo::Number, "Fragment id"},
+    {"op",                  Ndbinfo::Number, "Operation type"},
+    {"state",               Ndbinfo::Number, "Operation state"},
+    {"flags",               Ndbinfo::Number, "Operation flags"}
+  }
+};
+
+DECLARE_NDBINFO_TABLE(MEMBERSHIP, 13) =
+{ { "membership", 13, 0, "membership" },
+  {
+    {"node_id",         Ndbinfo::Number, "node id"},
+    {"group_id",        Ndbinfo::Number, "node group id"},
+    {"left_node",       Ndbinfo::Number, "Left node in heart beat chain"},
+    {"right_node",      Ndbinfo::Number, "Right node in heart beat chain"},
+    {"president",       Ndbinfo::Number, "President nodeid"},
+    {"successor",       Ndbinfo::Number, "President successor"},
+    {"dynamic_id",      Ndbinfo::Number, "President, Configured_heartbeat order"},
+    {"arbitrator",      Ndbinfo::Number, "Arbitrator nodeid"},
+    {"arb_ticket",      Ndbinfo::String, "Arbitrator ticket"},
+    {"arb_state",       Ndbinfo::Number, "Arbitrator state"},
+    {"arb_connected",   Ndbinfo::Number, "Arbitrator connected"},
+    {"conn_rank1_arbs", Ndbinfo::String, "Connected rank 1 arbitrators"},
+    {"conn_rank2_arbs", Ndbinfo::String, "Connected rank 2 arbitrators"}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -188,7 +281,12 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(RESOURCES),
   DBINFOTBL(COUNTERS),
   DBINFOTBL(NODES),
-  DBINFOTBL(DISKPAGEBUFFER)
+  DBINFOTBL(DISKPAGEBUFFER),
+  DBINFOTBL(THREADBLOCKS),
+  DBINFOTBL(THREADSTAT),
+  DBINFOTBL(TRANSACTIONS),
+  DBINFOTBL(OPERATIONS),
+  DBINFOTBL(MEMBERSHIP)
 };
 
 static int no_ndbinfo_tables =

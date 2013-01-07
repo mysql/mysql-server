@@ -1,0 +1,43 @@
+--source include/not_embedded.inc
+--source include/have_multi_ndb.inc
+
+--source have_ndb_dist_priv.inc
+
+let $load_sql_file = $NDB_DIST_PRIV_SQL;
+
+connection server1;
+--disable_query_log
+--disable_result_log
+--exec $MYSQL < $load_sql_file
+ --enable_result_log
+ --enable_query_log
+
+connection server2;
+--disable_query_log
+--disable_result_log
+let $MYSQL2 = $EXE_MYSQL --defaults-file=$MYSQLTEST_VARDIR/my.cnf;
+let $MYSQL2 = $MYSQL2 --defaults-group-suffix=.2.1;
+--exec $MYSQL2 < $load_sql_file
+ --enable_result_log
+ --enable_query_log
+
+connection server2;
+--let $mysqld_name=mysqld.2.1
+--source suite/ndb/include/stop_mysqld.inc
+
+connection server1;
+call mysql.mysql_cluster_move_privileges();
+select mysql.mysql_cluster_privileges_are_distributed();
+
+CREATE USER 'billy1'@'127.0.0.1' IDENTIFIED by 'mypass';
+
+connection server2;
+--source suite/ndb/include/start_mysqld.inc
+
+--replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT1 MASTER_PORT1
+connect (server2_as_billy1,127.0.0.1,billy1,mypass,test,$MASTER_MYPORT1,);
+connection server2_as_billy1;
+SELECT USER();
+
+# Force restart (no cleanup)
+--source include/force_restart.inc

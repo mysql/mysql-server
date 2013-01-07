@@ -36,6 +36,7 @@
   See also YYMAXUTOK.
 */
 #define MY_MAX_TOKEN 1000
+/** Generated token. */
 struct gen_lex_token_string
 {
   const char *m_token_string;

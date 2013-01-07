@@ -18,7 +18,7 @@
 
 #include "heapdef.h"
 
-int hp_rectest(register HP_INFO *info, register const uchar *old)
+int hp_rectest(HP_INFO *info, const uchar *old)
 {
   DBUG_ENTER("hp_rectest");
 

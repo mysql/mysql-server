@@ -24,18 +24,17 @@
 
 void Dbacc::initData() 
 {
-  cdirarraysize = ZDIRARRAY;
   coprecsize = ZOPRECSIZE;
   cpagesize = ZPAGESIZE;
   ctablesize = ZTABLESIZE;
   cfragmentsize = ZFRAGMENTSIZE;
-  cdirrangesize = ZDIRRANGESIZE;
   coverflowrecsize = ZOVERFLOWRECSIZE;
   cscanRecSize = ZSCAN_REC_SIZE;
 
-  
-  dirRange = 0;
-  directoryarray = 0;
+  Pool_context pc;
+  pc.m_block = this;
+  directoryPool.init(RT_DBACC_DIRECTORY, pc);
+
   fragmentrec = 0;
   operationrec = 0;
   overflowRecord = 0;
@@ -43,7 +42,9 @@ void Dbacc::initData()
   scanRec = 0;
   tabrec = 0;
 
-  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = 0;
+  m_free_pct = 0;
+  m_oom = false;
+  cnoOfAllocatedPagesMax = cnoOfAllocatedPages = cpagesize = cpageCount = m_maxAllocPages = 0;
   // Records with constant sizes
 
   RSS_OP_COUNTER_INIT(cnoOfFreeFragrec);
@@ -93,19 +94,12 @@ void Dbacc::initRecords()
       if (ptrI + cnt > cpagesize)
         cpagesize = ptrI + cnt;
     }
+    m_maxAllocPages = cpagesize;
   }
 
   operationrec = (Operationrec*)allocRecord("Operationrec",
 					    sizeof(Operationrec),
 					    coprecsize);
-
-  dirRange = (DirRange*)allocRecord("DirRange",
-				    sizeof(DirRange), 
-				    cdirrangesize);
-
-  directoryarray = (Directoryarray*)allocRecord("Directoryarray",
-						sizeof(Directoryarray), 
-						cdirarraysize);
 
   fragmentrec = (Fragmentrec*)allocRecord("Fragmentrec",
 					  sizeof(Fragmentrec), 
@@ -157,21 +151,13 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_DROP_FRAG_REQ, &Dbacc::execDROP_FRAG_REQ);
 
   addRecSignal(GSN_DBINFO_SCANREQ, &Dbacc::execDBINFO_SCANREQ);
+  addRecSignal(GSN_NODE_STATE_REP, &Dbacc::execNODE_STATE_REP, true);
 
   initData();
 
 #ifdef VM_TRACE
   {
-    void* tmp[] = { &expDirRangePtr,
-		    &gnsDirRangePtr,
-		    &newDirRangePtr,
-		    &rdDirRangePtr,
-		    &nciOverflowrangeptr,
-                    &expDirptr,
-                    &rdDirptr,
-                    &sdDirptr,
-                    &nciOverflowDirptr,
-                    &fragrecptr,
+    void* tmp[] = { &fragrecptr,
                     &operationRecPtr,
                     &idrOperationRecPtr,
                     &mlpqOperPtr,
@@ -227,14 +213,6 @@ Dbacc::Dbacc(Block_context& ctx, Uint32 instanceNumber):
 
 Dbacc::~Dbacc() 
 {
-  deallocRecord((void **)&dirRange, "DirRange",
-		sizeof(DirRange), 
-		cdirrangesize);
-  
-  deallocRecord((void **)&directoryarray, "Directoryarray",
-		sizeof(Directoryarray), 
-		cdirarraysize);
-  
   deallocRecord((void **)&fragmentrec, "Fragmentrec",
 		sizeof(Fragmentrec), 
 		cfragmentsize);

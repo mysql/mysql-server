@@ -1,5 +1,7 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
 
 source include/have_semisync_plugin.inc;
 source include/not_embedded.inc;

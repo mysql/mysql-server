@@ -1,29 +1,27 @@
-==== Conditions for gtid_done ====
+==== Conditions for gtid_execute ====
 # Readable.
-SELECT @@GLOBAL.GTID_DONE;
-@@GLOBAL.GTID_DONE
+SELECT @@GLOBAL.GTID_EXECUTED;
+@@GLOBAL.GTID_EXECUTED
 
-SELECT @@SESSION.GTID_DONE;
-@@SESSION.GTID_DONE
+SELECT @@SESSION.GTID_EXECUTED;
+@@SESSION.GTID_EXECUTED
 
 # Read-only.
-SET @@GLOBAL.GTID_DONE= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
-ERROR HY000: Variable 'gtid_done' is a read only variable
-SET @@SESSION.GTID_DONE= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
-ERROR HY000: Variable 'gtid_done' is a read only variable
-==== Conditions for gtid_lost ====
+SET @@GLOBAL.GTID_EXECUTED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+ERROR HY000: Variable 'gtid_executed' is a read only variable
+SET @@SESSION.GTID_EXECUTED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+ERROR HY000: Variable 'gtid_executed' is a read only variable
+==== Conditions for gtid_purged ====
 # Readable global variable
-SELECT @@GLOBAL.GTID_LOST;
-@@GLOBAL.GTID_LOST
+SELECT @@GLOBAL.GTID_PURGED;
+@@GLOBAL.GTID_PURGED
 
 # Not a session variable
-SELECT @@SESSION.GTID_LOST;
-ERROR HY000: Variable 'gtid_lost' is a GLOBAL variable
+SELECT @@SESSION.GTID_PURGED;
+ERROR HY000: Variable 'gtid_purged' is a GLOBAL variable
 # Read-only.
-SET @@SESSION.GTID_LOST= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
-ERROR HY000: Variable 'gtid_lost' is a read only variable
-SET @@GLOBAL.GTID_LOST= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
-ERROR HY000: Variable 'gtid_lost' is a read only variable
+SET @@SESSION.GTID_PURGED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
+ERROR HY000: Variable 'gtid_purged' is a GLOBAL variable and should be set with SET GLOBAL
 ==== Conditions for gtid_owned ====
 # Readable.
 SELECT @@GLOBAL.GTID_OWNED;
@@ -49,24 +47,24 @@ AUTOMATIC
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:10
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= '
     aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa 	 : 	 10
     ';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:10
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0x10';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:16
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:010';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:8
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:8
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10#';
@@ -187,9 +185,9 @@ ROLLBACK;
 # can't set while owning a GTID
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
@@ -205,7 +203,7 @@ ERROR HY000: Cannot execute statements with implicit commit inside a transaction
 ROLLBACK;
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:15
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 DROP FUNCTION f;

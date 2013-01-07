@@ -25,8 +25,8 @@
 #include <my_global.h>
 #include "m_string.h"
 
-void bmove_upp(register uchar *dst, register const uchar *src,
-               register size_t len)
+void bmove_upp(uchar *dst, const uchar *src,
+               size_t len)
 {
   while (len-- != 0) *--dst = *--src;
 }

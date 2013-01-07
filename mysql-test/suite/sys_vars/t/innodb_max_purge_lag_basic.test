@@ -95,8 +95,7 @@ SET @@global.innodb_max_purge_lag = 1.1;
 SELECT @@global.innodb_max_purge_lag;
 
 
-SEt @@global.innodb_max_purge_lag = 4294967297;
-SELECT @@global.innodb_max_purge_lag;
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_max_purge_lag = ' ';
 SELECT @@global.innodb_max_purge_lag;

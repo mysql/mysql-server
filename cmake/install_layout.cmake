@@ -104,7 +104,10 @@ ENDIF()
 # just use if(INSTALL_PLUGINTESTDIR).
 # The plugin must set its own install path for tests
 #
-FILE(GLOB plugin_tests ${CMAKE_SOURCE_DIR}/plugin/*/tests)
+FILE(GLOB plugin_tests
+  ${CMAKE_SOURCE_DIR}/plugin/*/tests
+  ${CMAKE_SOURCE_DIR}/internal/plugin/*/tests
+)
 
 #
 # STANDALONE layout
@@ -135,7 +138,7 @@ SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 #
 # RPM layout
 #
-# See "SPECIFIC-ULN/mysql-5.5-libdir.patch" for the differences
+# See "packaging/rpm-uln/mysql-5.5-libdir.patch" for the differences
 # which apply to RPMs in ULN (Oracle Linux), that patch file will
 # be applied at build time via "rpmbuild".
 #

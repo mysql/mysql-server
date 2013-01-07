@@ -146,6 +146,10 @@ static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 
 #ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
+UNIV_INTERN mysql_pfs_key_t	io_ibuf_thread_key;
+UNIV_INTERN mysql_pfs_key_t	io_log_thread_key;
+UNIV_INTERN mysql_pfs_key_t	io_read_thread_key;
+UNIV_INTERN mysql_pfs_key_t	io_write_thread_key;
 UNIV_INTERN mysql_pfs_key_t	io_handler_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_lock_timeout_thread_key;
 UNIV_INTERN mysql_pfs_key_t	srv_error_monitor_thread_key;
@@ -470,7 +474,29 @@ DECLARE_THREAD(io_handler_thread)(
 #endif
 
 #ifdef UNIV_PFS_THREAD
-	pfs_register_thread(io_handler_thread_key);
+	/* For read only mode, we don't need ibuf and log I/O thread.
+	Please see innobase_start_or_create_for_mysql() */
+	ulint   start = (srv_read_only_mode) ? 0 : 2;
+
+	if (segment < start) {
+		if (segment == 0) {
+			pfs_register_thread(io_ibuf_thread_key);
+		} else {
+			ut_ad(segment == 1);
+			pfs_register_thread(io_log_thread_key);
+		}
+	} else if (segment >= start
+		   && segment < (start + srv_n_read_io_threads)) {
+			pfs_register_thread(io_read_thread_key);
+
+	} else if (segment >= (start + srv_n_read_io_threads)
+		   && segment < (start + srv_n_read_io_threads
+				 + srv_n_write_io_threads)) {
+		pfs_register_thread(io_write_thread_key);
+
+	} else {
+		pfs_register_thread(io_handler_thread_key);
+	}
 #endif /* UNIV_PFS_THREAD */
 
 	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
@@ -1876,11 +1902,11 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
 
-		n[i] = i;
+		n[t] = t;
 
-		os_thread_create(io_handler_thread, n + i, thread_ids + i);
+		os_thread_create(io_handler_thread, n + t, thread_ids + t);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE

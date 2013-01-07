@@ -400,12 +400,12 @@ vio_was_timeout(Vio *vio)
 }
 
 
-int vio_close(Vio * vio)
+int vio_shutdown(Vio * vio)
 {
   int r=0;
-  DBUG_ENTER("vio_close");
+  DBUG_ENTER("vio_shutdown");
 
- if (vio->type != VIO_CLOSED)
+ if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -422,7 +422,7 @@ int vio_close(Vio * vio)
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }
@@ -731,7 +731,7 @@ static my_bool socket_peek_read(Vio *vio, uint *bytes)
   @retval  1  The requested I/O event has occurred.
 */
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
 int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
 {
   int ret;
@@ -831,13 +831,20 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
 
   /* The first argument is ignored on Windows. */
-  ret= select(0, &readfds, &writefds, &exceptfds, (timeout >= 0) ? &tm : NULL);
+  ret= select(fd + 1, &readfds, &writefds, &exceptfds, 
+              (timeout >= 0) ? &tm : NULL);
 
   MYSQL_END_SOCKET_WAIT(locker, 0);
 
   /* Set error code to indicate a timeout error. */
   if (ret == 0)
+#if defined(_WIN32)
     WSASetLastError(SOCKET_ETIMEDOUT);
+#elif defined(__APPLE__)
+    errno= SOCKET_ETIMEDOUT;
+#else
+#error Oops...Wrong OS
+#endif
 
   /* Error or timeout? */
   if (ret <= 0)

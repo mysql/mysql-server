@@ -11,14 +11,15 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+*/
 
 #ifndef NDB_DBSPJ_PROXY_HPP
 #define NDB_DBSPJ_PROXY_HPP
 
-#include <LocalProxy.hpp>
+#include "../dbgdm/DbgdmProxy.hpp"
 
-class DbspjProxy : public LocalProxy {
+class DbspjProxy : public DbgdmProxy {
 public:
   DbspjProxy(Block_context& ctx);
   virtual ~DbspjProxy();

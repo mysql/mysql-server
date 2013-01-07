@@ -477,7 +477,8 @@ is the global server default. */
 #define HA_FTS_INVALID_DOCID      182    /* Invalid InnoDB Doc ID */
 #define HA_ERR_TABLE_IN_FK_CHECK  183    /* Table being used in foreign key check */
 #define HA_ERR_TABLESPACE_EXISTS  184    /* The tablespace existed in storage engine */
-#define HA_ERR_LAST               184    /* Copy of last error nr */
+#define HA_ERR_TOO_MANY_FIELDS    185    /* Table has too many columns */
+#define HA_ERR_LAST               185    /* Copy of last error nr */
 
 /* Number of different errors */
 #define HA_ERR_ERRORS            (HA_ERR_LAST - HA_ERR_FIRST + 1)

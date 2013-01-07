@@ -17,8 +17,8 @@
 #    logs are applied in N parallel connections.  In addition, for
 #    increased concurrency, we open N concurrent connections that
 #    repeatedly execute SHOW SLAVE STATUS, and N concurrent
-#    connections that repeatedly read @@GLOBAL.GTID_DONE and
-#    @@GLOBAL.GTID_LOST.
+#    connections that repeatedly read @@GLOBAL.GTID_EXECUTED and
+#    @@GLOBAL.GTID_PURGED.
 #
 # 3. Check that master and slave have the same data.
 #
@@ -57,12 +57,12 @@ BEGIN
   END WHILE;
 END|
 
-CREATE PROCEDURE read_gtid_done ()
+CREATE PROCEDURE read_gtid_executed ()
 BEGIN
   DECLARE name VARCHAR(100) DEFAULT('');
   DECLARE temp VARCHAR(10000) DEFAULT('');
   WHILE name = '' DO
-    SET temp = @@GLOBAL.GTID_DONE;
+    SET temp = @@GLOBAL.GTID_EXECUTED;
     SET temp = @@GLOBAL.GTID_OWNED;
     SELECT TABLE_NAME INTO name
       FROM INFORMATION_SCHEMA.TABLES
@@ -141,7 +141,7 @@ perl;
   my $n_forks= $ENV{_N_FORKS};
   my $n= $n_forks;
   my @cmd_lists= ( [ 'echo "USE test; CALL show_slave_status();"' ],
-                   [ 'echo "USE test; CALL read_gtid_done();"' ],
+                   [ 'echo "USE test; CALL read_gtid_executed();"' ],
                    \@mysqlbinlog_commands,
                    \@mysqlbinlog_commands );
   $n-- while $n && fork;
@@ -182,4 +182,4 @@ eval DROP TABLE t1_$t, t2_$t;
 --enable_query_log
 DROP TABLE t_end;
 DROP PROCEDURE show_slave_status;
-DROP PROCEDURE read_gtid_done;
+DROP PROCEDURE read_gtid_executed;

@@ -1,6 +1,5 @@
 /*
-Copyright 2010 Sun Microsystems, Inc.
-All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -110,6 +109,38 @@ public class QueryNullTest extends AbstractQueryTest {
     public void testNoneEqualNull() {
         equalQuery("int_not_null_none", "none", null);
         equalQuery("int_null_none", "none", null);
+        failOnError();        
+    }
+
+    public void testExtraIsNull() {
+        equalAnd1ExtraQuery("int_not_null_btree", 8, "int_null_none", extraIsNullPredicateProvider, "dummy unused value", "idx_int_not_null_btree");
+        equalAnd1ExtraQuery("int_not_null_hash", 8, "int_null_none", extraIsNullPredicateProvider, "dummy unused value", "none");
+        equalAnd1ExtraQuery("int_not_null_both", 8, "int_null_none", extraIsNullPredicateProvider, "dummy unused value", "idx_int_not_null_both");
+        equalAnd1ExtraQuery("int_not_null_none", 8, "int_null_none", extraIsNullPredicateProvider, "dummy unused value", "none");
+        failOnError();        
+    }
+
+    public void testBtreeIsNull() {
+        isNullQuery("int_not_null_btree", "none");
+        isNullQuery("int_null_btree", "none");
+        failOnError();        
+    }
+
+    public void testHashIsNull() {
+        isNullQuery("int_not_null_hash", "none");
+        isNullQuery("int_null_hash", "none");
+        failOnError();        
+    }
+
+    public void testBothIsNull() {
+        isNullQuery("int_not_null_both", "none");
+        isNullQuery("int_null_both", "none");
+        failOnError();        
+    }
+
+    public void testNoneIsNull() {
+        isNullQuery("int_not_null_none", "none");
+        isNullQuery("int_null_none", "none");
         failOnError();        
     }
 

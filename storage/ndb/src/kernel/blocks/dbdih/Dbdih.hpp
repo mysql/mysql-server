@@ -29,6 +29,7 @@
 #include <blocks/mutexes.hpp>
 #include <signaldata/LCP.hpp>
 #include <NdbSeqLock.hpp>
+#include <CountingSemaphore.hpp>
 
 #ifdef DBDIH_C
 
@@ -72,6 +73,11 @@
 #define ZREPLERROR2 307
 
 // --------------------------------------
+// Other DIH error codes
+// --------------------------------------
+#define ZLONG_MESSAGE_ERROR 312
+
+// --------------------------------------
 // Crash Codes
 // --------------------------------------
 #define ZCOULD_NOT_OCCUR_ERROR 300
@@ -100,11 +106,32 @@
 /*#########*/
 /* SIZES   */
 /*#########*/
-#define ZPAGEREC 100
+/*
+ * Pages are used for flushing table definitions during LCP,
+ * and for other operations such as metadata changes etc
+ * 
+ */
+#define MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES 4
+#define MAX_CONCURRENT_DIH_TAB_DEF_OPS (MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES + 2)
+#define ZPAGEREC (MAX_CONCURRENT_DIH_TAB_DEF_OPS * PACK_TABLE_PAGES)
 #define ZCREATE_REPLICA_FILE_SIZE 4
 #define ZPROXY_MASTER_FILE_SIZE 10
 #define ZPROXY_FILE_SIZE 10
 #endif
+
+/*
+ * Pack table into pages.
+ * See use of writePageWord() in
+ * packTableIntoPagesLab() and helper
+ * functions to determine the constants
+ * below.
+ */
+#define MAX_CRASHED_REPLICAS 8
+#define PACK_REPLICAS_WORDS (4 + 4 * MAX_LCP_STORED + 2 * MAX_CRASHED_REPLICAS)
+#define PACK_FRAGMENT_WORDS (6 + 2 * MAX_REPLICAS * PACK_REPLICAS_WORDS)
+#define PACK_TABLE_WORDS (10 + MAX_NDB_PARTITIONS * PACK_FRAGMENT_WORDS)
+#define PACK_TABLE_PAGE_WORDS (2048 - 32)
+#define PACK_TABLE_PAGES ((PACK_TABLE_WORDS + PACK_TABLE_PAGE_WORDS - 1) / PACK_TABLE_PAGE_WORDS)
 
 class Dbdih: public SimulatedBlock {
 #ifdef ERROR_INSERT
@@ -478,6 +505,7 @@ public:
     enum UpdateState {
       US_IDLE,
       US_LOCAL_CHECKPOINT,
+      US_LOCAL_CHECKPOINT_QUEUED,
       US_REMOVE_NODE,
       US_COPY_TAB_REQ,
       US_ADD_TABLE_MASTER,
@@ -515,12 +543,12 @@ public:
     Method method;
     Storage tabStorage;
 
-    Uint32 pageRef[32];
+    Uint32 pageRef[PACK_TABLE_PAGES]; // TODO: makedynamic
 //-----------------------------------------------------------------------------
 // Each entry in this array contains a reference to 16 fragment records in a
 // row. Thus finding the correct record is very quick provided the fragment id.
 //-----------------------------------------------------------------------------
-    Uint32 startFid[MAX_NDB_NODES * MAX_FRAG_PER_NODE / NO_OF_FRAGS_PER_CHUNK];
+    Uint32 startFid[(MAX_NDB_PARTITIONS - 1) / NO_OF_FRAGS_PER_CHUNK + 1];
 
     Uint32 tabFile[2];
     Uint32 connectrec;                                    
@@ -547,7 +575,7 @@ public:
 
     Uint8 kvalue;
     Uint8 noOfBackups;
-    Uint8 noPages;
+    Uint16 noPages;
     Uint16 tableType;
     Uint16 primaryTableId;
 
@@ -841,7 +869,7 @@ private:
   void sendINCL_NODEREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_GCPREQ(Signal *, Uint32 nodeId, Uint32);
   void sendMASTER_LCPREQ(Signal *, Uint32 nodeId, Uint32);
-  void sendMASTER_LCPCONF(Signal * signal);
+  void sendMASTER_LCPCONF(Signal * signal, Uint32 fromLine);
   void sendSTART_RECREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_INFOREQ(Signal *, Uint32 nodeId, Uint32);
   void sendSTART_TOREQ(Signal *, Uint32 nodeId, Uint32);
@@ -1127,7 +1155,9 @@ private:
   void allocStoredReplica(FragmentstorePtr regFragptr,
                           ReplicaRecordPtr& newReplicaPtr,
                           Uint32 nodeId);
-  Uint32 extractNodeInfo(const Fragmentstore * fragPtr, Uint32 nodes[]);
+  Uint32 extractNodeInfo(EmulatedJamBuffer *jambuf,
+                         const Fragmentstore * fragPtr,
+                         Uint32 nodes[]);
   bool findBestLogNode(CreateReplicaRecord* createReplica,
                        FragmentstorePtr regFragptr,
                        Uint32 startGci,
@@ -1324,6 +1354,7 @@ private:
     Uint32 clastVerifyQueue;
     Uint32 m_empty_done;
     Uint32 m_ref;
+    char pad[NDB_CL_PADSZ(sizeof(void*) + 4 * sizeof(Uint32))];
   };
 
   bool isEmpty(const DIVERIFY_queue&);
@@ -1332,7 +1363,7 @@ private:
   void emptyverificbuffer(Signal *, Uint32 q, bool aContintueB);
   void emptyverificbuffer_check(Signal*, Uint32, Uint32);
 
-  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_LQH_THREADS];
+  DIVERIFY_queue c_diverify_queue[MAX_NDBMT_TC_THREADS];
   Uint32 c_diverify_queue_cnt;
 
   /*------------------------------------------------------------------------*/
@@ -1582,6 +1613,11 @@ private:
   Uint32 c_newest_restorable_gci;
   Uint32 c_set_initial_start_flag;
   Uint64 c_current_time; // Updated approx. every 10ms
+
+  /* Limit the number of concurrent table definition writes during LCP
+   * This avoids exhausting the DIH page pool
+   */
+  CountingSemaphore c_lcpTabDefWritesControl;
 
 public:
   enum LcpMasterTakeOverState {
@@ -1886,14 +1922,20 @@ private:
   } m_local_lcp_state;
 
   // MT LQH
-  Uint32 c_fragments_per_node;
+  Uint32 c_fragments_per_node_;
+  Uint32 getFragmentsPerNode();
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + log_part_id % MAX_NDBMT_LQH_WORKERS;
+    Uint32 instanceKey = 1 + (log_part_id % NDBMT_MAX_BLOCK_INSTANCES);
     return instanceKey;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
+
+  /**
+   * Get minimum version of nodes in alive-list
+   */
+  Uint32 getMinVersion() const;
 
   bool c_2pass_inr;
 };

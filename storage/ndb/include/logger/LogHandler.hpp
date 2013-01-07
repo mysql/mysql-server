@@ -108,22 +108,7 @@ public:
    * @return the footer.
    */
   const char* getDefaultFooter() const;
-  
-  /**
-   * Returns the date and time format used by ctime().
-   *
-   * @return the date and time format.
-   */
-  const char* getDateTimeFormat() const;
-
-  /**
-   * Sets the date and time format. It needs to have the same arguments
-   * a ctime().
-   *
-   * @param pFormat  the date and time format.
-   */
-  void setDateTimeFormat(const char* pFormat);
-  
+    
   /**
    * Returns the error code.
    */
@@ -233,7 +218,6 @@ private:
   LogHandler* operator = (const LogHandler&);
   bool operator == (const LogHandler&);
 
-  const char* m_pDateTimeFormat;
   int m_errorCode;
   char* m_errorStr;
 

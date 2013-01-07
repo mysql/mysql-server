@@ -17,7 +17,7 @@
 
 #include "myisamdef.h"
 
-int mi_scan_init(register MI_INFO *info)
+int mi_scan_init(MI_INFO *info)
 {
   DBUG_ENTER("mi_scan_init");
   info->nextpos=info->s->pack.header_length;	/* Read first record */

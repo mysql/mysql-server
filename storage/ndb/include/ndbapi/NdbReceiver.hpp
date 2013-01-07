@@ -106,16 +106,13 @@ private:
 
   static
   void calculate_batch_size(const NdbImpl&,
-                            const NdbRecord *,
-                            const NdbRecAttr *first_rec_attr,
-                            Uint32, Uint32, Uint32&, Uint32&, Uint32&);
-
-  void calculate_batch_size(Uint32 key_size,
                             Uint32 parallelism,
                             Uint32& batch_size,
-                            Uint32& batch_byte_size,
-                            Uint32& first_batch_size,
-                            const NdbRecord *rec) const;
+                            Uint32& batch_byte_size);
+
+  void calculate_batch_size(Uint32 parallelism,
+                            Uint32& batch_size,
+                            Uint32& batch_byte_size) const;
 
   /*
     Set up buffers for receiving TRANSID_AI and KEYINFO20 signals

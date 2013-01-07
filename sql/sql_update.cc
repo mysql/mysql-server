@@ -482,7 +482,7 @@ int mysql_update(THD *thd,
 
       char buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
-                  (ulong) thd->get_stmt_da()->current_statement_warn_count());
+                  (ulong) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
       DBUG_PRINT("info",("0 records updated"));
@@ -736,7 +736,7 @@ int mysql_update(THD *thd,
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
-                                               TRG_EVENT_UPDATE))
+                                               TRG_EVENT_UPDATE, 0))
         break; /* purecov: inspected */
 
       found++;
@@ -880,7 +880,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
     if (thd->is_error())
     {
       error= 1;
@@ -993,7 +993,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->get_stmt_da()->current_statement_warn_count());
+                (ulong) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1172,7 +1172,8 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             // The primary key can cover multiple columns
             KEY key_info= table1->key_info[table1->s->primary_key];
             KEY_PART_INFO *key_part= key_info.key_part;
-            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+            KEY_PART_INFO *key_part_end= key_part +
+              key_info.user_defined_key_parts;
 
             for (;key_part != key_part_end; ++key_part)
             {
@@ -2010,7 +2011,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                *values_for_table[offset],
                                                false, // ignore_errors
                                                table->triggers,
-                                               TRG_EVENT_UPDATE))
+                                               TRG_EVENT_UPDATE, 0))
 	DBUG_RETURN(1);
 
       /*
@@ -2111,10 +2112,20 @@ bool multi_update::send_data(List<Item> &not_used_values)
         field_num++;
       } while ((tbl= tbl_it++));
 
+      /*
+        Enable temporary nullability for temporary table fields.
+      */
+      for (Field** modified_fields= tmp_table->field + 1 +
+                                    unupdated_check_opt_tables.elements;
+           *modified_fields; ++modified_fields)
+      {
+        (*modified_fields)->set_tmp_nullable();
+      }
+
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1, NULL);
+                  *values_for_table[offset], 1, NULL, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);

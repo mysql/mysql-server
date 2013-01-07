@@ -213,6 +213,10 @@ public:
   bool is_fields_updated_in_trigger(MY_BITMAP *used_fields,
                                     trg_event_type event_type,
                                     trg_action_time_type action_time);
+
+  void enable_fields_temporary_nullability(THD* thd);
+  void disable_fields_temporary_nullability();
+
 private:
   bool prepare_record1_accessors();
   LEX_STRING* change_table_name_in_trignames(const char *old_db_name,

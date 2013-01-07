@@ -27,7 +27,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-void bchange(register uchar *dst, size_t old_length, register const uchar *src,
+void bchange(uchar *dst, size_t old_length, const uchar *src,
 	     size_t new_length, size_t tot_length)
 {
   size_t rest=tot_length-old_length;

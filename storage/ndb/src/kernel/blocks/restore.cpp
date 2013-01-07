@@ -436,6 +436,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
     Uint32 left= file_ptr.p->m_bytes_left;
     if(left < 8)
     {
+      jam();
       /**
        * Not enought bytes to read header
        */
@@ -448,18 +449,22 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
     Uint32 pos= file_ptr.p->m_current_page_pos;
     if(status & File::READING_RECORDS)
     {
+      jam();
       /**
        * We are reading records
        */
       len= ntohl(* (page_ptr.p->data + pos)) + 1;
+      ndbrequire(len < GLOBAL_PAGE_SIZE_WORDS);
     }
     else
     {
+      jam();
       /**
        * Section length is in 2 word
        */
       if(pos + 1 == GLOBAL_PAGE_SIZE_WORDS)
       {
+        jam();
 	/**
 	 * But that's stored on next page...
 	 *   and since we have atleast 8 bytes left in buffer
@@ -473,18 +478,22 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       }
       else
       {
+        jam();
 	len= ntohl(* (page_ptr.p->data + pos + 1));
       }
     }
 
     if(file_ptr.p->m_status & File::FIRST_READ)
     {
+      jam();
       len= 3;
       file_ptr.p->m_status &= ~(Uint32)File::FIRST_READ;
     }
     
     if(4 * len > left)
     {
+      jam();
+
       /**
        * Not enought bytes to read "record"
        */
@@ -505,6 +514,7 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
 
     if(pos + len >= GLOBAL_PAGE_SIZE_WORDS)
     {
+      jam();
       /**
        * But it's split over pages
        */
@@ -519,13 +529,73 @@ Restore::restore_next(Signal* signal, FilePtr file_ptr)
       file_ptr.p->m_current_page_pos = (pos + len) - GLOBAL_PAGE_SIZE_WORDS;
       file_ptr.p->m_current_page_index = 
 	(file_ptr.p->m_current_page_index + 1) % page_count;
-      
-      Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
-      // wl4391_todo removing valgrind overlap warning for now
-      memmove(page_ptr.p, page_ptr.p->data+pos, 4 * first);
-      memcpy(page_ptr.p->data+first, next_page_ptr.p, 4 * (len - first));
-      data= page_ptr.p->data;
-    } 
+
+      if (len <= GLOBAL_PAGE_SIZE_WORDS)
+      {
+        jam();
+        Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
+        // wl4391_todo removing valgrind overlap warning for now
+        memmove(page_ptr.p, page_ptr.p->data+pos, 4 * first);
+        memcpy(page_ptr.p->data+first, next_page_ptr.p, 4 * (len - first));
+        data= page_ptr.p->data;
+      }
+      else
+      {
+        jam();
+        /**
+         * A table definition can be larger than one page...
+         * when that happens copy it out to side buffer
+         *
+         * First copy part belonging to page_ptr
+         * Then copy full middle pages (moving forward in page-list)
+         * Last copy last part
+         */
+        Uint32 save = len;
+        assert(len <= NDB_ARRAY_SIZE(m_table_buf));
+        Uint32 * dst = m_table_buf;
+
+        /**
+         * First
+         */
+        Uint32 first = (GLOBAL_PAGE_SIZE_WORDS - pos);
+        memcpy(dst, page_ptr.p->data+pos, 4 * first);
+        len -= first;
+        dst += first;
+
+        /**
+         * Middle
+         */
+        while (len > GLOBAL_PAGE_SIZE_WORDS)
+        {
+          jam();
+          memcpy(dst, next_page_ptr.p, 4 * GLOBAL_PAGE_SIZE_WORDS);
+          len -= GLOBAL_PAGE_SIZE_WORDS;
+          dst += GLOBAL_PAGE_SIZE_WORDS;
+
+          {
+            LocalDataBuffer<15> pages(m_databuffer_pool, file_ptr.p->m_pages);
+            Uint32 next_page = (file_ptr.p->m_current_page_index + 1) % page_count;
+            pages.position(it, next_page % page_count);
+            m_global_page_pool.getPtr(next_page_ptr, * it.data);
+
+            file_ptr.p->m_current_page_ptr_i = next_page_ptr.i;
+            file_ptr.p->m_current_page_index = next_page;
+          }
+        }
+
+        /**
+         * last
+         */
+        memcpy(dst, next_page_ptr.p, 4 * len);
+        file_ptr.p->m_current_page_pos = len;
+
+        /**
+         * Set pointer and len
+         */
+        len = save;
+        data = m_table_buf;
+      }
+    }
     else
     {
       file_ptr.p->m_current_page_pos = pos + len;

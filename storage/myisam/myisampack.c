@@ -784,7 +784,7 @@ static int create_dest_frm(char *source_table, char *dest_table)
   */
   (void) my_copy(source_name, dest_name, MYF(MY_DONT_OVERWRITE_FILE));
   
-  return 0;
+  DBUG_RETURN(0);
 }
 
 
@@ -792,8 +792,8 @@ static int create_dest_frm(char *source_table, char *dest_table)
 
 static HUFF_COUNTS *init_huff_count(MI_INFO *info,my_off_t records)
 {
-  reg2 uint i;
-  reg1 HUFF_COUNTS *count;
+  uint i;
+  HUFF_COUNTS *count;
   if ((count = (HUFF_COUNTS*) my_malloc(info->s->base.fields*
 					sizeof(HUFF_COUNTS),
 					MYF(MY_ZEROFILL | MY_WME))))
@@ -835,7 +835,7 @@ static void free_counts_and_tree_and_queue(HUFF_TREE *huff_trees, uint trees,
 					   HUFF_COUNTS *huff_counts,
 					   uint fields)
 {
-  register uint i;
+  uint i;
 
   if (huff_trees)
   {
@@ -1694,7 +1694,7 @@ static int make_huff_tree(HUFF_TREE *huff_tree, HUFF_COUNTS *huff_counts)
 }
 
 static int compare_tree(void* cmp_arg __attribute__((unused)),
-			register const uchar *s, register const uchar *t)
+			const uchar *s, const uchar *t)
 {
   uint length;
   for (length=global_count->field_length; length-- ;)
@@ -2062,7 +2062,7 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
 
 static void write_field_info(HUFF_COUNTS *counts, uint fields, uint trees)
 {
-  reg1 uint i;
+  uint i;
   uint huff_tree_bits;
   huff_tree_bits=max_bit(trees ? trees-1 : 0);
 
@@ -2425,9 +2425,9 @@ static uint *make_offset_code_tree(HUFF_TREE *huff_tree, HUFF_ELEMENT *element,
 
 	/* Get number of bits neaded to represent value */
 
-static uint max_bit(register uint value)
+static uint max_bit(uint value)
 {
-  reg2 uint power=1;
+  uint power=1;
 
   while ((value>>=1))
     power++;
@@ -2902,7 +2902,7 @@ static void end_file_buffer(void)
 
 	/* output `bits` low bits of `value' */
 
-static void write_bits(register ulonglong value, register uint bits)
+static void write_bits(ulonglong value, uint bits)
 {
   DBUG_ASSERT(((bits < 8 * sizeof(value)) && ! (value >> bits)) ||
               (bits == 8 * sizeof(value)));
@@ -2913,7 +2913,7 @@ static void write_bits(register ulonglong value, register uint bits)
   }
   else
   {
-    reg3 ulonglong bit_buffer;
+    ulonglong bit_buffer;
     bits= (uint) -file_buffer.bits;
     bit_buffer= (file_buffer.bitbucket |
                  ((bits != 8 * sizeof(value)) ? (value >> bits) : 0));

@@ -34,9 +34,9 @@ static int _mi_balance_page(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
 static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 				uchar *key, uint *return_key_length,
 				uchar **after_key);
-int _mi_ck_write_tree(register MI_INFO *info, uint keynr,uchar *key,
+int _mi_ck_write_tree(MI_INFO *info, uint keynr,uchar *key,
 		      uint key_length);
-int _mi_ck_write_btree(register MI_INFO *info, uint keynr,uchar *key,
+int _mi_ck_write_btree(MI_INFO *info, uint keynr,uchar *key,
 		       uint key_length);
 
 	/* Write new record to database */
@@ -253,7 +253,7 @@ int _mi_ck_write(MI_INFO *info, uint keynr, uchar *key, uint key_length)
  *                Normal insert code                                  *
  **********************************************************************/
 
-int _mi_ck_write_btree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_btree(MI_INFO *info, uint keynr, uchar *key,
 		       uint key_length)
 {
   int error;
@@ -332,7 +332,7 @@ int _mi_enlarge_root(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 		   1  = key should be stored in higher tree
 	*/
 
-static int w_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+static int w_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 		    uint comp_flag, uchar *key, uint key_length, my_off_t page,
 		    uchar *father_buff, uchar *father_keypos,
 		    my_off_t father_page, my_bool insert_last)
@@ -457,7 +457,7 @@ err:
     < 0         Error.
 */
 
-int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_insert(MI_INFO *info, MI_KEYDEF *keyinfo,
 	       uchar *key, uchar *anc_buff, uchar *key_pos, uchar *key_buff,
                uchar *father_buff, uchar *father_key_pos, my_off_t father_page,
 	       my_bool insert_last)
@@ -586,7 +586,7 @@ int _mi_insert(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* split a full page in two and assign emerging item to key */
 
-int _mi_split_page(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_split_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 		   uchar *key, uchar *buff, uchar *key_buff,
 		   my_bool insert_last_key)
 {
@@ -753,7 +753,7 @@ static uchar *_mi_find_last_pos(MI_KEYDEF *keyinfo, uchar *page,
 	/* Balance page with not packed keys with page on right/left */
 	/* returns 0 if balance was done */
 
-static int _mi_balance_page(register MI_INFO *info, MI_KEYDEF *keyinfo,
+static int _mi_balance_page(MI_INFO *info, MI_KEYDEF *keyinfo,
 			    uchar *key, uchar *curr_buff, uchar *father_buff,
 			    uchar *father_key_pos, my_off_t father_page)
 {
@@ -898,7 +898,7 @@ typedef struct {
   uint keynr;
 } bulk_insert_param;
 
-int _mi_ck_write_tree(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_write_tree(MI_INFO *info, uint keynr, uchar *key,
 		      uint key_length)
 {
   int error;

@@ -681,6 +681,14 @@ SHOW WARNINGS;
 DROP PREPARE stmt;
 DROP PROCEDURE mysql.warn_pre41_pwd;
 
+#
+# ndb_binlog_index table
+#
+ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_position BIGINT UNSIGNED NOT NULL;
+ALTER TABLE ndb_binlog_index
+  ADD COLUMN next_file VARCHAR(255) NOT NULL;
+
 --
 -- Check for non-empty host table and issue a warning
 --

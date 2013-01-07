@@ -20,6 +20,7 @@
 #include <util/ndb_opts.h>
 #include <util/NdbOut.hpp>
 #include <util/BaseString.hpp>
+#include <util/File.hpp>
 
 extern int g_mt;
 extern int g_mt_rr;
@@ -216,6 +217,24 @@ find(const char * hostname, Vector<atrt_host*> & hosts){
   return host;
 } 
 
+static
+char *
+dirname(const char * path)
+{
+  char * s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i<len; i++)
+  {
+    if (s[len - i] == '/')
+    {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
 static 
 bool 
 load_process(atrt_config& config, atrt_cluster& cluster, 
@@ -253,6 +272,18 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   proc.m_proc.m_env.appfmt(" MYSQL_HOME=%s", g_basedir);
   proc.m_proc.m_env.appfmt(" ATRT_PID=%u", (unsigned)proc_no);
   proc.m_proc.m_shutdown_options = "";
+
+  {
+    /**
+     * In 5.5...binaries aren't compiled with rpath
+     * So we need an explicit LD_LIBRARY_PATH
+     *
+     * Use path from libmysqlclient.so
+     */
+    char * dir = dirname(g_libmysqlclient_so_path);
+    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+    free(dir);
+  }
 
   int argc = 1;
   const char * argv[] = { "atrt", 0, 0 };
@@ -321,7 +352,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   case atrt_process::AP_NDB_MGMD:
   {
     proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndb_mgmd");
-    proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndb_mgmd");
+    proc.m_proc.m_path.assign(g_ndb_mgmd_bin_path);
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
@@ -336,13 +367,15 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   } 
   case atrt_process::AP_NDBD:
   {
-    if (g_mt == 0 || (g_mt == 1 && ((g_mt_rr++) & 1) == 0))
+    if (g_mt == 0 ||
+        (g_mt == 1 && ((g_mt_rr++) & 1) == 0) ||
+        g_ndbmtd_bin_path == 0)
     {
-      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbd");
+      proc.m_proc.m_path.assign(g_ndbd_bin_path);
     }
     else
     {
-      proc.m_proc.m_path.assign(g_prefix).append("/libexec/ndbmtd");
+      proc.m_proc.m_path.assign(g_ndbmtd_bin_path);
     }
     
     proc.m_proc.m_name.assfmt("%u-%s", proc_no, "ndbd");
@@ -350,7 +383,9 @@ load_process(atrt_config& config, atrt_cluster& cluster,
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=%s",
 			      cluster.m_name.c_str());
-    proc.m_proc.m_args.append(" --nodaemon --initial -n");
+    proc.m_proc.m_args.append(" --nodaemon -n");
+    if (!g_restart)
+      proc.m_proc.m_args.append(" --initial");
     if (g_fix_nodeid)
       proc.m_proc.m_args.appfmt(" --ndb-nodeid=%u", proc.m_nodeid);
     proc.m_proc.m_cwd.assfmt("%sndbd.%u", dir.c_str(), proc.m_index);
@@ -361,7 +396,7 @@ load_process(atrt_config& config, atrt_cluster& cluster,
   case atrt_process::AP_MYSQLD:
   {
     proc.m_proc.m_name.assfmt("%u-%s", proc_no, "mysqld");
-    proc.m_proc.m_path.assign(g_prefix).append("/libexec/mysqld");
+    proc.m_proc.m_path.assign(g_mysqld_bin_path);
     proc.m_proc.m_args.assfmt("--defaults-file=%s/my.cnf",
 			      proc.m_host->m_basedir.c_str());
     proc.m_proc.m_args.appfmt(" --defaults-group-suffix=.%d%s",
@@ -1037,3 +1072,34 @@ operator<<(NdbOut& out, const atrt_process& proc)
   return out;
 }
 
+char *
+find_bin_path(const char * exe)
+{
+  return find_bin_path(g_prefix, exe);
+}
+
+char *
+find_bin_path(const char * prefix, const char * exe)
+{
+  if (exe == 0)
+    return 0;
+
+  if (exe[0] == '/')
+  {
+    /**
+     * Trust that path is correct...
+     */
+    return strdup(exe);
+  }
+
+  for (int i = 0; g_search_path[i] != 0; i++)
+  {
+    BaseString p;
+    p.assfmt("%s/%s/%s", prefix, g_search_path[i], exe);
+    if (File_class::exists(p.c_str()))
+    {
+      return strdup(p.c_str());
+    }
+  }
+  return 0;
+}

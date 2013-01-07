@@ -1,0 +1,165 @@
+use test;
+create table parent(a int primary key, b int not null, key(b)) engine=myisam;
+create table child(a int, b int, primary key(a,b), key(b)) engine=myisam;
+insert into parent values (1,1), (2,2), (3,3), (4,4);
+insert into parent select a+4, b+4 from parent;
+insert into parent select a+8, b+8 from parent;
+insert into parent select a+16, b+16 from parent;
+insert into parent select a+32, b+32 from parent;
+insert into parent select a+64, b+64 from parent;
+insert into parent select a+128, b+128 from parent;
+insert into parent select a+256, b+256 from parent;
+insert into parent select a+512, b+512 from parent;
+insert into parent select a+1024, b+1024 from parent;
+insert into parent select a+(2*1024), b+(2*1024) from parent;
+insert into parent select a+(4*1024), b+(4*1024) from parent;
+insert into parent select a+(8*1024), b+(8*1024) from parent;
+insert into parent select a+(16*1024), b+(16*1024) from parent;
+insert into child select * from parent;
+alter table parent engine=ndb;
+alter table child engine=ndb;
+show variables like 'server_id';
+Variable_name	Value
+server_id	1
+set ndb_join_pushdown = true;
+============================================
+Early 'online' drop of REF'ed child's KEY b.
+============================================
+explain select straight_join count(*) 
+from parent join child
+on child.b = parent.a 
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	ref	b	b	4	test.parent.a	###	Child of 'parent' in pushed join@1
+alter online table child drop key b;
+commit;
+alter table child add key(b);
+============================================
+Late 'online' drop of REF'ed child's KEY b.
+============================================
+explain select straight_join count(*) 
+from parent join child
+on child.b = parent.a 
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	ref	b	b	4	test.parent.a	###	Child of 'parent' in pushed join@1
+alter online table child drop key b;
+commit;
+alter table child add key(b);
+============================================
+Early drop of EQ_REF'ed child's PRIMARY KEY.
+============================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter table child drop primary key;
+commit;
+alter table child add primary key(a,b);
+=============================================================
+Drop of EQ_REF'ed child's PRIMARY KEY after executed a while.
+=============================================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter table child drop primary key;
+commit;
+alter table child add primary key(a,b);
+===========================================================
+ONLINE ALTER: Rename table to make it go away - temporarily
+===========================================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter online table child rename to child_orig;
+commit;
+alter table child_orig rename to child;
+======================================*=====================
+OFFLINE ALTER: Rename table to make it go away - temporarily
+==========================================*=================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter offline table child rename to child_orig;
+commit;
+alter table child_orig rename to child;
+=================================================================
+ONLINE ALTER: drop + recreate table 'child' key b in use by query
+=================================================================
+explain select straight_join count(*) 
+from parent join child
+on child.b = parent.a 
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	ref	b	b	4	test.parent.a	###	Child of 'parent' in pushed join@1
+alter online table child drop key b;
+alter table child add key(b);
+==================================================================
+ONLINE ALTER: drop + recreate table 'parent' key b in use by query
+==================================================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter online table parent drop key b;
+alter table parent add key(b);
+===============================================
+OFFLINE ALTER: add + drop column c from 'child'
+===============================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+alter offline table child add column c int;
+alter table child drop column c;
+==========================================================
+OFFLINE ALTER: drop + recreate primary key(a,b) for 'child'
+==========================================================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a 
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	ref	PRIMARY	PRIMARY	4	test.parent.a	###	Child of 'parent' in pushed join@1
+alter offline table child drop primary key;
+alter table child add primary key(a,b);
+==================
+DROP TABLE 'child'
+==================
+explain select straight_join count(*) 
+from parent join child
+on child.a = parent.a and child.b = parent.b
+where parent.b > 5;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	range	PRIMARY,b	b	4	NULL	###	Parent of 2 pushed join@1; Using where with pushed condition
+1	SIMPLE	child	eq_ref	PRIMARY,b	PRIMARY	8	test.parent.a,test.parent.b	###	Child of 'parent' in pushed join@1
+drop table child;
+===========
+Cleaning up
+===========
+drop table if exists parent;

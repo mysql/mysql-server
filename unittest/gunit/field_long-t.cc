@@ -22,7 +22,7 @@
 
 #include "field.h"
 
-namespace {
+namespace field_long_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -47,9 +47,9 @@ class Mock_field_long : public Field_long
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, PACK_LENGTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 public:
   Mock_field_long()
@@ -66,6 +66,7 @@ public:
   }
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 
 };
 
@@ -105,6 +106,7 @@ TEST_F(FieldLongTest, StoreLegalIntValues)
   Fake_TABLE table(&field_long);
   table.in_use= thd();
   field_long.make_writable();
+  field_long.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   SCOPED_TRACE(""); test_store_long(&field_long, 0,   0, 0, TYPE_OK);
@@ -145,6 +147,7 @@ TEST_F(FieldLongTest, StoreOutOfRangeIntValues)
   Fake_TABLE table(&field_long);
   table.in_use= thd();
   field_long.make_writable();
+  field_long.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
 
@@ -188,6 +191,7 @@ TEST_F(FieldLongTest, StoreLegalStringValues)
   Fake_TABLE table(&field_long);
   table.in_use= thd();
   field_long.make_writable();
+  field_long.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   const char min_int[]= "-2147483648";
@@ -242,6 +246,7 @@ TEST_F(FieldLongTest, StoreIllegalStringValues)
   Fake_TABLE table(&field_long);
   table.in_use= thd();
   field_long.make_writable();
+  field_long.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   const char max_int_plus1[]=  "2147483648";
@@ -330,6 +335,7 @@ TEST_F(FieldLongTest, StoreNullValue)
   Fake_TABLE table(&field_long);
   table.in_use= thd();
   field_long.make_writable();
+  field_long.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   type_conversion_status err;
@@ -355,11 +361,14 @@ TEST_F(FieldLongTest, StoreNullValue)
   // Save NULL value in a field that can NOT have NULL value
   field_long.set_null_ptr(NULL, 0);
   {
-    Mock_error_handler error_handler(thd(), WARN_DATA_TRUNCATED);
+    Mock_error_handler error_handler(thd(), 0);
+    // Save NULL value in a field that can be set to NULL temporary
+    field_long.set_tmp_nullable();
     err= set_field_to_null(&field_long);
     EXPECT_EQ(0, field_long.val_int());
     EXPECT_EQ(TYPE_OK, err);
-    EXPECT_EQ(1, error_handler.handle_called());
+    EXPECT_EQ(0, error_handler.handle_called());
+    field_long.reset_tmp_nullable();
   }
 
   {
@@ -378,6 +387,5 @@ TEST_F(FieldLongTest, StoreNullValue)
     EXPECT_EQ(1, error_handler.handle_called());
   }
 }
-
 
 }

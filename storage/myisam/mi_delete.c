@@ -28,7 +28,7 @@ static int underflow(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *anc_buff,
 static uint remove_key(MI_KEYDEF *keyinfo,uint nod_flag,uchar *keypos,
 		       uchar *lastkey,uchar *page_end,
 		       my_off_t *next_block);
-static int _mi_ck_real_delete(register MI_INFO *info,MI_KEYDEF *keyinfo,
+static int _mi_ck_real_delete(MI_INFO *info,MI_KEYDEF *keyinfo,
 			      uchar *key, uint key_length, my_off_t *root);
 
 
@@ -135,7 +135,7 @@ err:
 
 	/* Remove a key from the btree index */
 
-int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
+int _mi_ck_delete(MI_INFO *info, uint keynr, uchar *key,
 		  uint key_length)
 {
   return _mi_ck_real_delete(info, info->s->keyinfo+keynr, key, key_length,
@@ -143,7 +143,7 @@ int _mi_ck_delete(register MI_INFO *info, uint keynr, uchar *key,
 } /* _mi_ck_delete */
 
 
-static int _mi_ck_real_delete(register MI_INFO *info, MI_KEYDEF *keyinfo,
+static int _mi_ck_real_delete(MI_INFO *info, MI_KEYDEF *keyinfo,
 			      uchar *key, uint key_length, my_off_t *root)
 {
   int error;
@@ -211,7 +211,7 @@ err:
 	** -1 on errors
 	*/
 
-static int d_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
                     uint comp_flag, uchar *key, uint key_length,
                     my_off_t page, uchar *anc_buff)
 {
@@ -399,7 +399,7 @@ err:
 
 	/* Remove a key that has a page-reference */
 
-static int del(register MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *key,
+static int del(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key,
 	       uchar *anc_buff, my_off_t leaf_page, uchar *leaf_buff,
 	       uchar *keypos,		/* Pos to where deleted key was */
 	       my_off_t next_block,
@@ -502,7 +502,7 @@ err:
 
 	/* Balances adjacent pages if underflow occours */
 
-static int underflow(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+static int underflow(MI_INFO *info, MI_KEYDEF *keyinfo,
 		     uchar *anc_buff,
 		     my_off_t leaf_page,/* Ancestor page and underflow page */
 		     uchar *leaf_buff,

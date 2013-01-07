@@ -108,7 +108,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     if (m_push_warnings)
     {
       // Append the error which caused the error to thd's warning list
-      push_warning(m_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning(m_thd, Sql_condition::SL_WARNING,
                    last_errno, last_errmsg);
     }
     else
@@ -122,7 +122,7 @@ Ndb_local_connection::execute_query(MYSQL_LEX_STRING sql_text,
     DBUG_RETURN(true);
   }
 
-  // Qeury returned ok, thd should have no error
+  // Query returned ok, thd should have no error
   assert(!m_thd->is_error());
 
   DBUG_RETURN(false); // Success
@@ -192,11 +192,11 @@ Ndb_local_connection::truncate_table(const char* db, size_t db_length,
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
 
   // Create the SQL string
-  String sql_text(db_length + table_length + 100);
+  String sql_text((uint32)(db_length + table_length + 100));
   sql_text.append(STRING_WITH_LEN("TRUNCATE TABLE "));
-  sql_text.append(db, db_length);
+  sql_text.append(db, (uint32)db_length);
   sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, table_length);
+  sql_text.append(table, (uint32)table_length);
 
   // Setup list of errors to ignore
   uint ignore_mysql_errors[2] = {0, 0};
@@ -217,11 +217,11 @@ Ndb_local_connection::flush_table(const char* db, size_t db_length,
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
 
   // Create the SQL string
-  String sql_text(db_length + table_length + 100);
+  String sql_text((uint32)(db_length + table_length + 100));
   sql_text.append(STRING_WITH_LEN("FLUSH TABLES "));
-  sql_text.append(db, db_length);
+  sql_text.append(db, (uint32)db_length);
   sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, table_length);
+  sql_text.append(table, (uint32)table_length);
 
   DBUG_RETURN(execute_query_iso(sql_text.lex_string(),
                                 NULL,
@@ -239,11 +239,11 @@ Ndb_local_connection::delete_rows(const char* db, size_t db_length,
   DBUG_PRINT("enter", ("db: '%s', table: '%s'", db, table));
 
   // Create the SQL string
-  String sql_text(db_length + table_length + 100);
+  String sql_text((uint32)(db_length + table_length + 100));
   sql_text.append(STRING_WITH_LEN("DELETE FROM "));
-  sql_text.append(db, db_length);
+  sql_text.append(db, (uint32)db_length);
   sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, table_length);
+  sql_text.append(table, (uint32)table_length);
   sql_text.append(" WHERE ");
 
   va_list args;
@@ -376,9 +376,9 @@ Ndb_local_connection::create_sys_table(const char* db, size_t db_length,
 
   if (create_if_not_exists)
     sql_text.append(STRING_WITH_LEN("IF NOT EXISTS "));
-  sql_text.append(db, db_length);
+  sql_text.append(db, (uint32)db_length);
   sql_text.append(STRING_WITH_LEN("."));
-  sql_text.append(table, table_length);
+  sql_text.append(table, (uint32)table_length);
 
   sql_text.append(STRING_WITH_LEN(" ( "));
   sql_text.append(create_definitions);

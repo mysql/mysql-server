@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -153,13 +153,13 @@ struct MyApiWrapper {
     }
 
     static void
-    A__del( A & obj, B0 & b )
+    A__del__0( A & obj, B0 & b ) // disambiguate overloaded function for MSVC
     {
         obj.del(b);
     }
 
     static void
-    A__del( A & obj, B1 & b )
+    A__del__1( A & obj, B1 & b ) // disambiguate overloaded function for MSVC
     {
         obj.del(b);
     }
@@ -393,13 +393,13 @@ struct MyApiWrapper {
 // ---------------------------------------------------------------------------
 
     static C1 *
-    C1__pass( C1 * c1 )
+    C1__pass__0( C1 * c1 ) // disambiguate overloaded function for MSVC
     {
         return C1::pass(c1);
     }
 
     static const C1 *
-    C1__pass( const C1 * c1 )
+    C1__pass__1( const C1 * c1 ) // disambiguate overloaded function for MSVC
     {
         return C1::pass(c1);
     }

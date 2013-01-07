@@ -295,6 +295,7 @@ sub collect_one_suite($)
 			      "storage/*/mtr",
 			      # Look in plugin specific suite dir
 			      "plugin/$suite/tests",
+			      "internal/plugin/$suite/tests",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;
@@ -986,18 +987,11 @@ sub collect_one_test_case {
   if ( $tinfo->{'ndb_test'} )
   {
     # This is a NDB test
-    if ( $::opt_skip_ndbcluster == 2 )
+    if ( $::ndbcluster_enabled == 0)
     {
-      # Ndb is not supported, skip it
+      # ndbcluster is disabled
       $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster support or ndb tests not enabled";
-      return $tinfo;
-    }
-    elsif ( $::opt_skip_ndbcluster )
-    {
-      # All ndb test's should be skipped
-      $tinfo->{'skip'}= 1;
-      $tinfo->{'comment'}= "No ndbcluster tests(--skip-ndbcluster)";
+      $tinfo->{'comment'}= "ndbcluster disabled";
       return $tinfo;
     }
   }

@@ -1,0 +1,25 @@
+-- source include/have_ndb.inc
+
+# Test is using error insert, check that binaries support it
+-- source suite/ndb/t/have_ndb_error_insert.inc
+
+# Use small LoadFactors to force sparse hash table
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 3003" >> $NDB_TOOLS_OUTPUT
+
+set max_heap_table_size = 286720000;
+create table t1 (a int key) engine=memory;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 columns terminated by ' ' (a, @col2);
+let $i = 9;
+let $b = 10000;
+while ($i)
+{
+--eval insert into t1 select a + $b from t1;
+  let $b = $b * 2;
+  dec $i;
+}
+select count(*) from t1;
+alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key() partitions 1;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all report memory" >> $NDB_TOOLS_OUTPUT
+alter table t1 engine=memory;
+select count(*) from t1;
+drop table t1;
