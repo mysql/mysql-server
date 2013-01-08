@@ -48,15 +48,12 @@ SET optimizer_switch=@save_optimizer_switch;
 drop table ts;
 show status like "sphinx_error%";
 Variable_name	Value
-sphinx_error_commits	0
-sphinx_error_group_commits	0
-sphinx_error_snapshot_file	
-sphinx_error_snapshot_position	0
+Sphinx_error	OFF
 show status like "sphinx_total%";
 Variable_name	Value
-sphinx_total	2
-sphinx_total_found	2
+Sphinx_total	2
+Sphinx_total_found	2
 show status like "sphinx_word%";
 Variable_name	Value
-sphinx_word_count	0
-sphinx_words	
+Sphinx_word_count	0
+Sphinx_words	

@@ -3591,12 +3591,12 @@ struct st_mysql_storage_engine sphinx_storage_engine =
 
 struct st_mysql_show_var sphinx_status_vars[] =
 {
-	{"sphinx_total",		(char *)sphinx_showfunc_total,			SHOW_FUNC},
-	{"sphinx_total_found",	(char *)sphinx_showfunc_total_found,	SHOW_FUNC},
-	{"sphinx_time",			(char *)sphinx_showfunc_time,			SHOW_FUNC},
-	{"sphinx_word_count",	(char *)sphinx_showfunc_word_count,		SHOW_FUNC},
-	{"sphinx_words",		(char *)sphinx_showfunc_words,			SHOW_FUNC},
-	{"sphinx_error",		(char *)sphinx_showfunc_error,			SHOW_FUNC},
+	{"Sphinx_total",		(char *)sphinx_showfunc_total,			SHOW_FUNC},
+	{"Sphinx_total_found",	(char *)sphinx_showfunc_total_found,	SHOW_FUNC},
+	{"Sphinx_time",			(char *)sphinx_showfunc_time,			SHOW_FUNC},
+	{"Sphinx_word_count",	(char *)sphinx_showfunc_word_count,		SHOW_FUNC},
+	{"Sphinx_words",		(char *)sphinx_showfunc_words,			SHOW_FUNC},
+	{"Sphinx_error",		(char *)sphinx_showfunc_error,			SHOW_FUNC},
 	{0, 0, (enum_mysql_show_type)0}
 };
 

@@ -6,8 +6,8 @@ File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	380		
 SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_snapshot_file	master-bin.000001
-binlog_snapshot_position	380
+Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_position	380
 BEGIN;
 INSERT INTO t1 VALUES (0, "");
 # Connection con1
@@ -37,8 +37,8 @@ a	b
 0	
 SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_snapshot_file	master-bin.000001
-binlog_snapshot_position	904
+Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_position	904
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000001	1316		
@@ -59,16 +59,16 @@ a	b
 0	
 SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_snapshot_file	master-bin.000001
-binlog_snapshot_position	904
+Binlog_snapshot_file	master-bin.000001
+Binlog_snapshot_position	904
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	245		
 COMMIT;
 SHOW STATUS LIKE 'binlog_snapshot_%';
 Variable_name	Value
-binlog_snapshot_file	master-bin.000002
-binlog_snapshot_position	245
+Binlog_snapshot_file	master-bin.000002
+Binlog_snapshot_position	245
 SHOW MASTER STATUS;
 File	Position	Binlog_Do_DB	Binlog_Ignore_DB
 master-bin.000002	245		

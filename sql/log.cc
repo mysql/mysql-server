@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010-2011 Monty Program Ab
+   Copyright (c) 2010, 2013 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7665,7 +7665,7 @@ static int show_binlog_vars(THD *thd, SHOW_VAR *var, char *buff)
 }
 
 static SHOW_VAR binlog_status_vars_top[]= {
-  {"binlog", (char *) &show_binlog_vars, SHOW_FUNC},
+  {"Binlog", (char *) &show_binlog_vars, SHOW_FUNC},
   {NullS, NullS, SHOW_LONG}
 };
 
