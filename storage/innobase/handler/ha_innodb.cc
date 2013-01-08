@@ -498,21 +498,6 @@ innodb_stopword_table_validate(
 	void*				save,	/*!< out: immediate result
 						for update function */
 	struct st_mysql_value*		value);	/*!< in: incoming string */
-/****************************************************************//**
-Update the session variable innodb_session_stopword_table
-with the "saved" stopword table name value. This function
-is registered as a callback with MySQL. */
-static
-void
-innodb_session_stopword_update(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save);	/*!< in: immediate result
-						from check function */
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
 system clustered index when there is no primary key. */
@@ -543,9 +528,10 @@ static MYSQL_THDVAR_ULONG(lock_wait_timeout, PLUGIN_VAR_RQCMDARG,
   "Timeout in seconds an InnoDB transaction may wait for a lock before being rolled back. Values above 100000000 disable the timeout.",
   NULL, NULL, 50, 1, 1024 * 1024 * 1024, 0);
 
-static MYSQL_THDVAR_STR(ft_user_stopword_table, PLUGIN_VAR_OPCMDARG,
+static MYSQL_THDVAR_STR(ft_user_stopword_table,
+  PLUGIN_VAR_OPCMDARG|PLUGIN_VAR_MEMALLOC,
   "User supplied stopword table name, effective in the session level.",
-  innodb_stopword_table_validate, innodb_session_stopword_update, NULL);
+  innodb_stopword_table_validate, NULL, NULL);
 
 static SHOW_VAR innodb_status_variables[]= {
   {"buffer_pool_dump_status",
@@ -14285,41 +14271,6 @@ innodb_internal_table_update(
 	fts_internal_tbl_name = *(char**) var_ptr;
 }
 
-/****************************************************************//**
-Update the session variable innodb_session_stopword_table
-with the "saved" stopword table name value. This function
-is registered as a callback with MySQL. */
-static
-void
-innodb_session_stopword_update(
-/*===========================*/
-	THD*				thd,	/*!< in: thread handle */
-	struct st_mysql_sys_var*	var,	/*!< in: pointer to
-						system variable */
-	void*				var_ptr,/*!< out: where the
-						formal string goes */
-	const void*			save)	/*!< in: immediate result
-						from check function */
-{
-	const char*	stopword_table_name;
-	char*		old;
-
-	ut_a(save != NULL);
-	ut_a(var_ptr != NULL);
-
-	stopword_table_name = *static_cast<const char*const*>(save);
-	old = *(char**) var_ptr;
-
-	if (stopword_table_name) {
-		*(char**) var_ptr =  my_strdup(stopword_table_name,  MYF(0));
-	} else {
-		*(char**) var_ptr = NULL;
-	}
-
-	if (old) {
-		my_free(old);
-	}
-}
 /****************************************************************//**
 Update the system variable innodb_adaptive_hash_index using the "saved"
 value. This function is registered as a callback with MySQL. */
