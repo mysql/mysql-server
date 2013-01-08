@@ -24,7 +24,7 @@
 static BOOL have_srwlock= FALSE;
 /* Prototypes and function pointers for windows  functions */
 typedef VOID (WINAPI* srw_func) (PSRWLOCK SRWLock);
-typedef BOOL (WINAPI* srw_bool_func) (PSRWLOCK SRWLock);
+typedef BOOLEAN (WINAPI* srw_bool_func) (PSRWLOCK SRWLock);
 
 static srw_func my_InitializeSRWLock;
 static srw_func my_AcquireSRWLockExclusive;

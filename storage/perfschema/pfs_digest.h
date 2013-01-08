@@ -110,7 +110,6 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
   }
   else
   {
-    DBUG_ASSERT(! from->m_full);
     DBUG_ASSERT(from->m_byte_count == 0);
     to->m_full= false;
     to->m_byte_count= 0;

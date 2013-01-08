@@ -4219,7 +4219,7 @@ QEP_tmp_table::prepare_tmp_table()
   JOIN *join= join_tab->join;
   int rc= 0;
 
-  if (!join_tab->table->created)
+  if (!join_tab->table->is_created())
   {
     if (instantiate_tmp_table(table, join_tab->tmp_table_param->keyinfo,
                               join_tab->tmp_table_param->start_recinfo,

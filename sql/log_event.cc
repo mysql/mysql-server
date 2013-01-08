@@ -692,6 +692,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case GTID_LOG_EVENT: return "Gtid";
   case ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
+  case HEARTBEAT_LOG_EVENT: return "Heartbeat";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -3077,11 +3078,19 @@ err:
   {
     DBUG_ASSERT(!worker);
 
-    // destroy buffered events of the current group prior to exit
+    /*
+      Destroy all deferred buffered events but the current prior to exit.
+      The current one will be deleted as an event never destined/assigned
+      to any Worker in Coordinator's regular execution path.
+    */
     for (uint k= 0; k < rli->curr_group_da.elements; k++)
-    { 
-      delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+    {
+      Log_event *ev_buf=
+        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      if (this != ev_buf)
+        delete ev_buf;
     }
+    rli->curr_group_da.elements= 0;
   }
   else
   {
@@ -4005,6 +4014,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_UPDATED_DB_NAMES:
     {
+      uchar i= 0;
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
       /* 
@@ -4020,11 +4030,22 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
       DBUG_ASSERT(mts_accessed_dbs != 0);
 
-      for (uchar i= 0; i < mts_accessed_dbs; i++)
+      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
       {
-        strcpy(mts_accessed_db_names[i], (char*) pos);
+        DBUG_EXECUTE_IF("query_log_event_mts_corrupt_db_names",
+                        {
+                          if (mts_accessed_dbs == 2)
+                          {
+                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
+                            ((char*) pos)[sizeof("d?") - 1]= 'a';
+                          }});
+        strncpy(mts_accessed_db_names[i], (char*) pos,
+                min<ulong>(NAME_LEN, start + status_vars_len - pos));
+        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
+      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+        DBUG_VOID_RETURN;
       break;
     }
     default:
@@ -5655,12 +5676,7 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 
 /**
-   Splits the event's 'server_version' string into three numeric pieces stored
-   into 'server_version_split':
-   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
-   X.Yabc -> {X,Y,0}
-   Xabc -> {X,0,0}
-   'server_version_split' is then used for lookups to find if the server which
+   'server_version_split' is used for lookups to find if the server which
    created this event has some known bug.
 */
 void Format_description_log_event::calc_server_version_split()
@@ -7202,7 +7218,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
   ulong gaq_idx= mts_group_idx;
   Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
 
-  if ((error= w->commit_positions(this, ptr_group, true)))
+  if ((error= w->commit_positions(this, ptr_group,
+                                  w->c_rli->is_transactional())))
     goto err;
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
@@ -7259,7 +7276,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   if (log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(log_pos);
   
-  if ((error= rli_ptr->flush_info(TRUE)))
+  if ((error= rli_ptr->flush_info(rli_ptr->is_transactional())))
     goto err;
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
@@ -7853,8 +7870,10 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     If we updated it, we will have incorrect master coordinates and this
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
+    The group position is always unchanged in MTS mode because the event
+    is never executed so can't be scheduled to a Worker.
   */
-  if (thd->variables.option_bits & OPTION_BEGIN)
+  if ((thd->variables.option_bits & OPTION_BEGIN) || rli->is_parallel_exec())
     rli->inc_event_relay_log_pos();
   else
   {
@@ -10808,15 +10827,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
 
-    /*
-      Note that unlike the other thd options set here, this one
-      comes from a global, and not from the incoming event.
-    */
-    if (opt_slave_allow_batching)
-      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
-    else
-      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-
     thd->binlog_row_event_extra_data = m_extra_row_data;
 
     /* A small test to verify that objects have consistent types */
@@ -11121,9 +11131,6 @@ AFTER_MAIN_EXEC_ROW_LOOP:
       error= 0;
     }
   } // if (table)
-
-  /* reset OPTION_ALLOW_BATCH as not affect later events */
-  thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
 
   if (error)
   {
@@ -13325,7 +13332,7 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE)
+   have_unflushed_events(FALSE), skipped_event_in_transaction(false)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

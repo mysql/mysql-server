@@ -2261,10 +2261,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  Query_arena backup;
-  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
-                      thd->activate_stmt_arena_if_needed(&backup) :
-                      NULL;
+  Prepared_stmt_arena_holder ps_arena_holder(
+    thd, thd->stmt_arena->is_stmt_prepare());
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -2332,8 +2330,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       break; // we cannot return here, we need to restore "arena".
     }
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
   return res;
 }
 
@@ -7277,13 +7274,15 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        Query_arena backup, *arena;
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-        fld= new Item_field(thd, last_checked_context, from_field);
-        if (arena)
-          thd->restore_active_arena(arena, &backup);
-        if (!fld)
-          goto error;
+
+        {
+          Prepared_stmt_arena_holder ps_arena_holder(thd);
+          fld= new Item_field(thd, last_checked_context, from_field);
+
+          if (!fld)
+            goto error;
+        }
+
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, this, fld);
@@ -8119,11 +8118,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
   else
   {
     // VALUES() is used out-of-scope - its value is always NULL
-    Query_arena backup;
-    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     Item *const item= new Item_null(this->item_name);
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     if (!item)
       return true;
     *reference= item;

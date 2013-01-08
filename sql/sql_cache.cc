@@ -2824,11 +2824,9 @@ void Query_cache::invalidate_table(THD *thd, TABLE_LIST *table_list)
     invalidate_table(thd, table_list->table);	// Table is open
   else
   {
-    char key[MAX_DBKEY_LENGTH];
+    const char *key;
     uint key_length;
-
-    key_length=(uint) (strmov(strmov(key,table_list->db)+1,
-			      table_list->table_name) -key)+ 1;
+    key_length= get_table_def_key(table_list, &key);
 
     // We don't store temporary tables => no key_length+=4 ...
     invalidate_table(thd, (uchar *)key, key_length);
@@ -2940,13 +2938,12 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     block_table->n= n;
     if (tables_used->view)
     {
-      char key[MAX_DBKEY_LENGTH];
+      const char *key;
       uint key_length;
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
-      key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
-                                 tables_used->view_name.str) - key) + 1;
+      key_length= get_table_def_key(tables_used, &key);
       /*
         There are not callback function for for VIEWs
       */
@@ -3056,7 +3053,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 */
 
 my_bool
-Query_cache::insert_table(uint key_len, char *key,
+Query_cache::insert_table(uint key_len, const char *key,
 			  Query_cache_block_table *node,
 			  uint32 db_length, uint8 cache_type,
                           qc_engine_callback callback,
@@ -4036,14 +4033,13 @@ my_bool Query_cache::move_by_type(uchar **border,
   case Query_cache_block::RESULT:
   {
     DBUG_PRINT("qcache", ("block 0x%lx RES* (%d)", (ulong) block,
-			(int) block->type));
+               (int) block->type));
     if (*border == 0)
       break;
-    Query_cache_block *query_block = block->result()->parent(),
-		      *next = block->next,
-		      *prev = block->prev;
-    Query_cache_block::block_type type = block->type;
+    Query_cache_block *query_block= block->result()->parent();
     BLOCK_LOCK_WR(query_block);
+    Query_cache_block *next= block->next, *prev= block->prev;
+    Query_cache_block::block_type type= block->type;
     ulong len = block->length, used = block->used;
     Query_cache_block *pprev = block->pprev,
 		      *pnext = block->pnext,
@@ -4205,8 +4201,10 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   *db_length= (filename - dbname) - 1;
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
-  DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
-			     filename) -key) + 1);
+  DBUG_RETURN(static_cast<uint>(strmake(strmake(key, dbname,
+                                                min<uint32>(*db_length,
+                                                            NAME_LEN)) + 1,
+                                filename, NAME_LEN) - key) + 1);
 }
 
 /****************************************************************************

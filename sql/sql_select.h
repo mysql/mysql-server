@@ -1317,8 +1317,9 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 bool test_if_subpart(ORDER *a,ORDER *b);
 void calc_group_buffer(JOIN *join,ORDER *group);
 bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
-			bool no_changes, const key_map *map);
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
+                        const bool no_changes, const key_map *map,
+                        const char *clause_type);
 bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables);
