@@ -616,6 +616,7 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
+	case DB_DICT_CHANGED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -956,22 +957,22 @@ row_get_prebuilt_insert_row(
 					handle */
 {
 	dict_table_t*		table	= prebuilt->table;
-	const dict_index_t*	last_index = dict_table_get_last_index(table);
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	/* Check if an index has been dropped or a new index has been
-	added that prebuilt does not know about. We may need to rebuild
-	the row insert template. */
-
 	if (prebuilt->ins_node != 0) {
 
-		if (prebuilt->trx_id >= last_index->trx_id
+		/* Check if indexes have been dropped or added and we
+		may need to rebuild the row insert template. */
+
+		if (prebuilt->trx_id == table->def_trx_id
 		    && UT_LIST_GET_LEN(prebuilt->ins_node->entry_list)
 		    == UT_LIST_GET_LEN(table->indexes)) {
 
 			return(prebuilt->ins_node->row);
 		}
+
+		ut_ad(prebuilt->trx_id < table->def_trx_id);
 
 		que_graph_free_recursive(prebuilt->ins_graph);
 
@@ -1009,14 +1010,7 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	/* The prebuilt->trx_id can be greater than the current last
-	index trx id for cases where the secondary index create failed
-	but the secondary index was visible briefly during the create
-	process. */
-
-	if (last_index->trx_id > prebuilt->trx_id) {
-		prebuilt->trx_id = last_index->trx_id;
-	}
+	prebuilt->trx_id = table->def_trx_id;
 
 	return(prebuilt->ins_node->row);
 }
@@ -2527,7 +2521,7 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, NULL, false, true);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -4974,7 +4968,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, NULL,
+			false, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

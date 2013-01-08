@@ -633,7 +633,8 @@ void Optimize_table_order::best_access_path(
                 in ReuseRangeEstimateForRef-3.
               */
               if (table->quick_keys.is_set(key) &&
-                  (const_part & ((1 << table->quick_key_parts[key])-1)) ==
+                  (const_part &
+                    (((key_part_map)1 << table->quick_key_parts[key])-1)) ==
                   (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
@@ -807,7 +808,8 @@ void Optimize_table_order::best_access_path(
               */
               if (table->quick_keys.is_set(key) &&
                   table->quick_key_parts[key] <= max_key_part &&
-                  const_part & (1 << table->quick_key_parts[key]) &&
+                  const_part &
+                    ((key_part_map)1 << table->quick_key_parts[key]) &&
                   table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
                                                          const_part) &&
                   records > (double) table->quick_rows[key])
@@ -2814,7 +2816,13 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
                        rowcount * inner_fanout * outer_fanout,
                        dst_pos, &loose_scan_pos);
       if (i == first_tab && loosescan)  // Use loose scan position
+      {
         *dst_pos= loose_scan_pos;
+        const double rows= rowcount * dst_pos->records_read;
+        dst_pos->set_prefix_costs(cost + dst_pos->read_time +
+                                  rows * ROW_EVALUATE_COST,
+                                  rows);
+      }
       pos= dst_pos;
     }
     else 

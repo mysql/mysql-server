@@ -3110,7 +3110,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
 
-  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION &&
+      part_info->is_auto_partitioned)
     DBUG_RETURN(false); /* Should not prune auto partitioned table */
 
   if (!pprune_cond)
@@ -9698,7 +9699,7 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   KEY_PART_INFO *curr_part, *end_part;
   const uchar* end_ptr= key + key_len;
   curr_part= key_info->key_part;
-  end_part= curr_part + key_info->key_parts;
+  end_part= curr_part + key_info->user_defined_key_parts;
 
   for (; curr_part != end_part && key < end_ptr; curr_part++)
   {
@@ -11448,7 +11449,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cur_parts have bits set for only used keyparts.
       */
       ulonglong all_parts, cur_parts;
-      all_parts= (1<<max_key_part) - 1;
+      all_parts= (1ULL << max_key_part) - 1;
       cur_parts= used_key_parts_map.to_ulonglong() >> 1;
       if (all_parts != cur_parts)
         goto next_index;

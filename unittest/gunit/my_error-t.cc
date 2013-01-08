@@ -21,7 +21,7 @@
 #include "my_base.h" // HA_ERR_KEY_NOT_FOUND
 #include <string.h>
 
-namespace {
+namespace my_error_unittest {
 
 TEST(MyErrorTest, MyStrErrorSystem)
 {

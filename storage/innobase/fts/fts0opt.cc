@@ -3032,8 +3032,6 @@ fts_optimize_thread(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "FTS optimize thread exiting.");
 
-	ib_wqueue_free(wq);
-
 	os_event_set(exit_event);
 
 	/* We count the number of threads in os_thread_exit(). A created
@@ -3106,6 +3104,9 @@ fts_optimize_start_shutdown(void)
 
 	os_event_wait(event);
 	os_event_free(event);
+
+	ib_wqueue_free(fts_optimize_wq);
+
 }
 
 /**********************************************************************//**

@@ -740,13 +740,11 @@ struct row_prebuilt_t {
 					columns in the table */
 	upd_node_t*	upd_node;	/*!< Innobase SQL update node used
 					to perform updates and deletes */
-	trx_id_t	trx_id;		/*!< The transaction id of the last
-					index of the table, when the insert
-					query graph was built. We use it for
-					checking whether the insert query
-					graphs needs to be rebuilt */
+	trx_id_t	trx_id;		/*!< The table->def_trx_id when
+					ins_graph was built */
 	que_fork_t*	ins_graph;	/*!< Innobase SQL query graph used
-					in inserts */
+					in inserts. Will be rebuilt on
+					trx_id or n_indexes mismatch. */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
 					in updates or deletes */
 	btr_pcur_t	pcur;		/*!< persistent cursor used in selects

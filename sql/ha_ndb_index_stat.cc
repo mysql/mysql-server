@@ -2133,7 +2133,7 @@ ha_ndbcluster::ndb_index_stat_set_rpk(uint inx)
   if (err == 0)
   {
     uint k;
-    for (k= 0; k < key_info->key_parts; k++)
+    for (k= 0; k < key_info->user_defined_key_parts; k++)
     {
       double rpk= -1.0;
       NdbIndexStat::get_rpk(stat, k, &rpk);

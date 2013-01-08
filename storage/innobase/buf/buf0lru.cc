@@ -161,6 +161,22 @@ buf_LRU_block_free_hashed_page(
 				be in a state where it can be freed */
 
 /******************************************************************//**
+Increases LRU size in bytes with zip_size for compressed page,
+UNIV_PAGE_SIZE for uncompressed page in inline function */
+static inline
+void
+incr_LRU_size_in_bytes(
+/*===================*/
+	buf_page_t*	bpage,		/*!< in: control block */
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	ut_ad(buf_pool_mutex_own(buf_pool));
+	ulint zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.LRU_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
+	ut_ad(buf_pool->stat.LRU_bytes <= buf_pool->curr_pool_size);
+}
+
+/******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
 instead of the general LRU list.
 @return	TRUE if should use unzip_LRU */
@@ -1493,6 +1509,7 @@ buf_LRU_remove_block(
 	buf_page_t*	bpage)	/*!< in: control block */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ulint		zip_size;
 
 	ut_ad(buf_pool);
 	ut_ad(bpage);
@@ -1527,6 +1544,9 @@ buf_LRU_remove_block(
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
+
+	zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.LRU_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1588,7 +1608,10 @@ buf_unzip_LRU_add_block(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list end. */
+Adds a block to the LRU list end. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INLINE
 void
 buf_LRU_add_block_to_end_low(
@@ -1606,6 +1629,8 @@ buf_LRU_add_block_to_end_low(
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	incr_LRU_size_in_bytes(bpage, buf_pool);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -1635,7 +1660,10 @@ buf_LRU_add_block_to_end_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. */
+Adds a block to the LRU list. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INLINE
 void
 buf_LRU_add_block_low(
@@ -1677,6 +1705,8 @@ buf_LRU_add_block_low(
 
 	ut_d(bpage->in_LRU_list = TRUE);
 
+	incr_LRU_size_in_bytes(bpage, buf_pool);
+
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
 		ut_ad(buf_pool->LRU_old);
@@ -1704,7 +1734,10 @@ buf_LRU_add_block_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. */
+Adds a block to the LRU list. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INTERN
 void
 buf_LRU_add_block(
@@ -1925,6 +1958,8 @@ func_exit:
 #endif
 			UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
 					     prev_b, b);
+
+			incr_LRU_size_in_bytes(b, buf_pool);
 
 			if (buf_page_is_old(b)) {
 				buf_pool->LRU_old_len++;

@@ -31,7 +31,9 @@ buffer_pool_read_ahead_evicted	disabled
 buffer_pool_pages_total	disabled
 buffer_pool_pages_misc	disabled
 buffer_pool_pages_data	disabled
+buffer_pool_bytes_data	disabled
 buffer_pool_pages_dirty	disabled
+buffer_pool_bytes_dirty	disabled
 buffer_pool_pages_free	disabled
 buffer_pages_created	disabled
 buffer_pages_written	disabled

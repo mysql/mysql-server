@@ -965,10 +965,11 @@ int ha_archive::write_row(uchar *buf)
   ha_statistic_increment(&SSV::ha_write_count);
   mysql_mutex_lock(&share->mutex);
 
-  if (!share->archive_write_open)
-    if (share->init_archive_writer())
-      DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
-
+  if (!share->archive_write_open && share->init_archive_writer())
+  {
+    rc= HA_ERR_CRASHED_ON_USAGE;
+    goto error;
+  }
 
   if (table->next_number_field && record == table->record[0])
   {
@@ -1049,8 +1050,8 @@ int ha_archive::write_row(uchar *buf)
   rc= real_write_row(buf,  &(share->archive_write));
 error:
   mysql_mutex_unlock(&share->mutex);
-  my_free(read_buf);
-
+  if (read_buf)
+    my_free(read_buf);
   DBUG_RETURN(rc);
 }
 

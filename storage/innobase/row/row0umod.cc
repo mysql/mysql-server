@@ -367,16 +367,27 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	log_free_check();
 	mtr_start(&mtr);
 
-	if (mode == BTR_MODIFY_LEAF) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
-	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
-	}
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		if (mode == BTR_MODIFY_LEAF) {
+			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			ut_ad(mode == BTR_MODIFY_TREE);
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_log_online_op_try(index, entry, 0)) {
-		goto func_exit_no_pcur;
+		if (row_log_online_op_try(index, entry, 0)) {
+			goto func_exit_no_pcur;
+		}
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -528,16 +539,27 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	log_free_check();
 	mtr_start(&mtr);
 
-	if (mode == BTR_MODIFY_LEAF) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
-	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
-	}
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		if (mode == BTR_MODIFY_LEAF) {
+			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			ut_ad(mode == BTR_MODIFY_TREE);
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_log_online_op_try(index, entry, trx->id)) {
-		goto func_exit_no_pcur;
+		if (row_log_online_op_try(index, entry, trx->id)) {
+			goto func_exit_no_pcur;
+		}
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
 	search_result = row_search_index_entry(index, entry, mode,
@@ -832,8 +854,12 @@ row_undo_mod_del_mark_sec(
 			row_undo_mod_sec_flag_corrupted(
 				thr_get_trx(thr), index);
 			err = DB_SUCCESS;
-			/* TODO: Bug#15920713 CREATE UNIQUE INDEX
-			REPORTS ER_INDEX_CORRUPT INSTEAD OF DUPLICATE */
+			/* Do not return any error to the caller. The
+			duplicate will be reported by ALTER TABLE or
+			CREATE UNIQUE INDEX. Unfortunately we cannot
+			report the duplicate key value to the DDL
+			thread, because the altered_table object is
+			private to its call stack. */
 		} else if (err != DB_SUCCESS) {
 			break;
 		}

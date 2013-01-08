@@ -119,7 +119,8 @@ row_upd_rec_sys_fields(
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const trx_t*	trx,	/*!< in: transaction */
-	roll_ptr_t	roll_ptr);/*!< in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr);/*!< in: roll ptr of the undo log record,
+				  can be 0 during IMPORT */
 /*********************************************************************//**
 Sets the trx id or roll ptr field of a clustered index entry. */
 UNIV_INTERN

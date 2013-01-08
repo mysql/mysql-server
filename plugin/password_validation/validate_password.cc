@@ -275,27 +275,86 @@ static int validate_password_deinit(void *arg __attribute__((unused)))
   return (0);
 }
 
+
+/*
+  update function for:
+  1. validate_password_length
+  2. validate_password_number_count
+  3. validate_password_mixed_case_count
+  4. validate_password_special_char_count
+*/
+static void
+length_update(MYSQL_THD thd __attribute__((unused)),
+              struct st_mysql_sys_var *var __attribute__((unused)),
+              void *var_ptr, const void *save)
+{
+  int new_validate_password_length;
+
+  /* check if there is an actual change */
+  if (*((int *)var_ptr) == *((int *)save))
+    return;
+
+  /*
+    set new value for system variable.
+    Note that we need not know for which of the above mentioned
+    variables, length_update() is called because var_ptr points
+    to the location at which corresponding static variable is
+    declared in this file.
+  */
+  *((int *)var_ptr)= *((int *)save);
+
+  /*
+    Any change in above mentioned system variables can trigger a change in
+    actual password length restriction applied by validate password plugin.
+    actual restriction on password length can be described as:
+
+    MAX(validate_password_length,
+        (validate_password_number_count +
+         2*validate_password_mixed_case_count +
+         validate_password_special_char_count))
+  */
+
+  new_validate_password_length= (validate_password_number_count +
+                                 (2 * validate_password_mixed_case_count) +
+                                 validate_password_special_char_count);
+
+  if (validate_password_length < new_validate_password_length)
+  {
+    /*
+       Raise a warning that effective restriction on password
+       length is changed.
+    */
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Effective value of validate_password_length is changed. New value is %d",
+                          new_validate_password_length);
+
+    validate_password_length= new_validate_password_length;
+  }
+}
+
+
+
 /* Plugin system variables */
 
 static MYSQL_SYSVAR_INT(length, validate_password_length,
   PLUGIN_VAR_RQCMDARG,
   "Password validate length to check for minimum password_length",
-  NULL, NULL, 8, 0, 0, 0);
+  NULL, length_update, 8, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(number_count, validate_password_number_count,
   PLUGIN_VAR_RQCMDARG,
   "password validate digit to ensure minimum numeric character in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(mixed_case_count, validate_password_mixed_case_count,
   PLUGIN_VAR_RQCMDARG,
   "Password validate mixed case to ensure minimum upper/lower case in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(special_char_count,
   validate_password_special_char_count, PLUGIN_VAR_RQCMDARG,
   "password validate special to ensure minimum special character in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_ENUM(policy, validate_password_policy,
   PLUGIN_VAR_RQCMDARG,

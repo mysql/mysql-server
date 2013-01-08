@@ -888,11 +888,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       else
       {
-	recinfo->null_bit= 1 << (null_count & 7);
+	recinfo->null_bit= (uint8)1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
       field->move_field(pos,null_flags+null_count/8,
-			1 << (null_count & 7));
+			(uint8)1 << (null_count & 7));
       null_count++;
     }
     else
@@ -1546,7 +1546,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
       {
         cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
         null_bit<<= 1;
-        if (null_bit == (1 << 8))
+        if (null_bit == (uint8)1 << 8)
         {
           ++null_pos;
           null_bit= 1;
@@ -1588,8 +1588,10 @@ bool open_tmp_table(TABLE *table)
     return(1);
   }
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
-  table->created= TRUE;
-  return(0);
+
+  table->set_created();
+
+  return false;
 }
 
 
@@ -1835,7 +1837,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   filesort_free_buffers(entry, true);
 
-  if (entry->file && entry->created)
+  if (entry->is_created())
   {
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
@@ -1843,9 +1845,9 @@ free_tmp_table(THD *thd, TABLE *entry)
       entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
     entry->file= NULL;
-    entry->created= FALSE;
-  }
 
+    entry->set_deleted();
+  }
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     (*ptr)->free();

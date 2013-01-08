@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,3 +23,29 @@ Database object creation
 Created 1/8/1996 Heikki Tuuri
 *******************************************************/
 
+#include "mem0mem.h"
+
+/********************************************************************//**
+Generate a foreign key constraint name when it was not named by the user.
+A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
+where the numbers start from 1, and are given locally for this table, that is,
+the number is not global, as it used to be before MySQL 4.0.18.  */
+UNIV_INLINE
+void
+dict_create_add_foreign_id(
+/*=======================*/
+	ulint*		id_nr,	/*!< in/out: number to use in id generation;
+				incremented if used */
+	const char*	name,	/*!< in: table name */
+	dict_foreign_t*	foreign)/*!< in/out: foreign key */
+{
+	if (foreign->id == NULL) {
+		/* Generate a new constraint id */
+		ulint	namelen	= strlen(name);
+		char*	id = static_cast<char*>(
+			mem_heap_alloc(foreign->heap, namelen + 20));
+		/* no overflow if number < 1e13 */
+		sprintf(id, "%s_ibfk_%lu", name, (ulong) (*id_nr)++);
+		foreign->id = id;
+	}
+}

@@ -623,10 +623,10 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
-SELECT title, 
-MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE)
+SELECT title,
+MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
 title	score
 MySQL Tutorial	0.22764469683170319
@@ -638,8 +638,8 @@ Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
 SELECT title,
-MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
+MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
 ORDER BY score DESC LIMIT 1;
 title	score
 MySQL Tutorial	0.22764469683170319
@@ -650,10 +650,10 @@ Sort_range	0
 Sort_rows	0
 Sort_scan	0
 FLUSH STATUS;
-SELECT FTS_DOC_ID docid, 
-MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10');
+SELECT FTS_DOC_ID docid,
+MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5');
 docid	score
 1	0.22764469683170319
 SHOW SESSION STATUS LIKE 'Handler_read%';
@@ -667,8 +667,8 @@ Handler_read_rnd	0
 Handler_read_rnd_next	0
 FLUSH STATUS;
 SELECT FTS_DOC_ID docid,
-MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE) AS score 
-FROM wp 
+MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE) AS score
+FROM wp
 ORDER BY score DESC LIMIT 1;
 docid	score
 1	0.22764469683170319
@@ -687,15 +687,15 @@ Sort_merge_passes	0
 Sort_range	0
 Sort_rows	0
 Sort_scan	0
-EXPLAIN SELECT COUNT(*) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE);
+EXPLAIN SELECT COUNT(*)
+FROM wp
+WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 FLUSH STATUS;
-SELECT COUNT(*) 
-FROM wp 
-WHERE MATCH(title,text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE);
+SELECT COUNT(*)
+FROM wp
+WHERE MATCH(title,text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE);
 COUNT(*)
 1
 SHOW STATUS LIKE 'Handler_read%';
@@ -707,9 +707,9 @@ Handler_read_next	0
 Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_next	0
-SELECT title, 
-MATCH(title, text) AGAINST ('database') AS score 
-FROM wp 
+SELECT title,
+MATCH(title, text) AGAINST ('database') AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 title	score
@@ -719,9 +719,9 @@ How To Use MySQL Well	0
 Optimizing MySQL	0
 1001 MySQL Tricks	0
 MySQL Security	0
-SELECT title, 
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
+SELECT title,
+MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
 WHERE MATCH(title, text) AGAINST ('MySQL database' WITH QUERY EXPANSION)
 ORDER BY score DESC;
 title	score
@@ -731,10 +731,10 @@ Optimizing MySQL	0.000000001885928302414186
 1001 MySQL Tricks	0.000000001885928302414186
 MySQL Tutorial	0
 MySQL vs. YourSQL	0
-SELECT title, 
-MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score 
-FROM wp 
-WHERE MATCH(title, text) AGAINST ('"MySQL database"@10' IN BOOLEAN MODE)
+SELECT title,
+MATCH(title, text) AGAINST ('+MySQL -database' IN BOOLEAN MODE) AS score
+FROM wp
+WHERE MATCH(title, text) AGAINST ('"MySQL database"@5' IN BOOLEAN MODE)
 ORDER BY score DESC;
 title	score
 MySQL Tutorial	0

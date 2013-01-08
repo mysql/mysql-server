@@ -4420,7 +4420,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
-
+  case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
+    if (*(my_bool*) arg)
+      mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    else
+      mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    break;
 
   default:
     DBUG_RETURN(1);
@@ -4731,9 +4736,13 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
         pkt_len != SCRAMBLE_LENGTH + 1)
         DBUG_RETURN(CR_SERVER_HANDSHAKE_ERR);
 
-    /* save it in MYSQL */
-    memcpy(mysql->scramble, pkt, pkt_len);
-    mysql->scramble[pkt_len] = 0;
+    /*
+      save it in MYSQL.
+      Copy data of length SCRAMBLE_LENGTH_323 or SCRAMBLE_LENGTH
+      to ensure that buffer overflow does not occur.
+    */
+    memcpy(mysql->scramble, pkt, (pkt_len - 1));
+    mysql->scramble[pkt_len-1] = 0;
   }
 
   if (mysql->passwd[0])

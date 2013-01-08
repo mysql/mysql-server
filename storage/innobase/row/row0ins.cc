@@ -1687,6 +1687,8 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
+		bool		verified = false;
+
 		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
@@ -1700,12 +1702,28 @@ do_possible_lock_wait:
 			goto exit_func;
 		}
 
-		if (trx->error_state == DB_SUCCESS) {
-
-			goto run_again;
+		/* We had temporarily released dict_operation_lock in
+		above lock sleep wait, now we have the lock again, and
+		we will need to re-check whether the foreign key has been
+		dropped */
+		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
+			table->referenced_list);
+		     check_foreign;
+		     check_foreign = UT_LIST_GET_NEXT(
+                                referenced_list, check_foreign)) {
+			if (check_foreign == foreign) {
+				verified = true;
+				break;
+			}
 		}
 
-		err = trx->error_state;
+		if (!verified) {
+			err = DB_DICT_CHANGED;
+		} else if (trx->error_state == DB_SUCCESS) {
+			goto run_again;
+		} else {
+			err = trx->error_state;
+		}
 	}
 
 exit_func:
@@ -1746,8 +1764,11 @@ row_ins_check_foreign_constraints(
 	while (foreign) {
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
+			dict_table_t*	foreign_table = foreign->foreign_table;
+			dict_table_t*	referenced_table
+						= foreign->referenced_table;
 
-			if (foreign->referenced_table == NULL) {
+			if (referenced_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
 					foreign->referenced_table_name_lookup,
@@ -1760,9 +1781,9 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
-			if (foreign->referenced_table) {
+			if (referenced_table) {
 				os_inc_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -1774,9 +1795,12 @@ row_ins_check_foreign_constraints(
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
 
-			if (foreign->referenced_table) {
+			DBUG_EXECUTE_IF("row_ins_dict_change_err",
+					err = DB_DICT_CHANGED;);
+
+			if (referenced_table) {
 				os_dec_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -2648,10 +2672,11 @@ row_ins_sec_index_entry_low(
 				mutex_exit(&dict_sys->mutex);
 				/* Do not return any error to the
 				caller. The duplicate will be reported
-				by ALTER TABLE or CREATE UNIQUE INDEX. */
-				/* TODO: Bug#15920713 CREATE UNIQUE INDEX
-				REPORTS ER_INDEX_CORRUPT
-				INSTEAD OF DUPLICATE */
+				by ALTER TABLE or CREATE UNIQUE INDEX.
+				Unfortunately we cannot report the
+				duplicate key value to the DDL thread,
+				because the altered_table object is
+				private to its call stack. */
 				err = DB_SUCCESS;
 			}
 			/* fall through */
