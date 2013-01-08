@@ -2,7 +2,7 @@
 #define SQL_ITEM_INCLUDED
 
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab
+   Copyright (c) 2009, 2013 Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -611,7 +611,11 @@ public:
      @see Query_arena::free_list
    */
   Item *next;
-  uint32 max_length;                    /* Maximum length, in bytes */
+  /*
+    The maximum value length in characters multiplied by collation->mbmaxlen.
+    Almost always it's the maximum value length in bytes.
+  */
+  uint32 max_length;
   /*
     TODO: convert name and name_length fields into LEX_STRING to keep them in
     sync (see bug #11829681/60295 etc). Then also remove some strlen(name)

@@ -1086,3 +1086,8 @@ ERROR HY000: Row 3 was cut by GROUP_CONCAT()
 SET group_concat_max_len = DEFAULT;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1, t2;
+create table t1 (a char(1) character set utf8);
+insert into t1 values ('a'),('b');
+select 1 from t1 where a in (select group_concat(a) from t1);
+1
+drop table t1;

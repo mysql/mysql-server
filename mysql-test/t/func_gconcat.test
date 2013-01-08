@@ -795,3 +795,11 @@ INSERT INTO t2 SELECT GROUP_CONCAT(a), b FROM t1 GROUP BY b;
 SET group_concat_max_len = DEFAULT;
 SET @@sql_mode = @old_sql_mode;
 DROP TABLE t1, t2;
+
+#
+# MDEV-3987 uninitialized read in Item_cond::fix_fields leads to crash: select .. where .. in ( select ... )
+#
+create table t1 (a char(1) character set utf8);
+insert into t1 values ('a'),('b');
+select 1 from t1 where a in (select group_concat(a) from t1);
+drop table t1;
