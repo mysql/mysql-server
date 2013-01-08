@@ -90,7 +90,7 @@ storageobjects = @condition_dependent_plugin_objects@
 storagesourceslinks = @condition_dependent_plugin_links@
 
 # automake misses these
-sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
+sql_yacc.cc sql_yacc.$(YACC_HEXT): $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.a \
