@@ -28,7 +28,7 @@ var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
-var stats_module = require(path.join(api_dir), "stats.js");
+var stats_module = require(path.join(api_dir, "stats.js"));
 var stats = stats_module.getWriter("spi","mysql","DBConnectionPool");
 
 
