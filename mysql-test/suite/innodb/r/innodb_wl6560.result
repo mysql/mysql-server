@@ -332,8 +332,6 @@ set global innodb_file_format = 'Barracuda';
 create temporary table t (
 i int)
 engine = innodb row_format = compressed key_block_size = 8;
-show warnings;
-Level	Code	Message
 #files in MYSQL_TMP_DIR
 #sql<temporary>.ibd
 drop table t;

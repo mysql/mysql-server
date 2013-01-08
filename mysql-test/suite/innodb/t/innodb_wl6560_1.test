@@ -329,7 +329,7 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 
 --echo # restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --echo # list_file ,no files expected - temp tablespace cleared on stopping server
@@ -370,7 +370,7 @@ DROP TABLE t1;
 
 --echo # restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 # Do something while server is down
  --enable_reconnect
