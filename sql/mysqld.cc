@@ -2660,6 +2660,21 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   remove_global_thread(thd);
+  if (kill_blocked_pthreads_flag)
+  {
+    // Do not block if we are about to shut down
+    block_pthread= false;
+  }
+
+  // Clean up errors now, before possibly waiting for a new connection.
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
+
+  /*
+    Using global resources (like mutexes) is unsafe once we have released
+    the mutex here: the server may be shutting down.
+   */
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
@@ -2673,9 +2688,6 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
-#ifndef EMBEDDED_LIBRARY
-  ERR_remove_state(0);
-#endif
   mysql_cond_broadcast(&COND_thread_count);
 
   pthread_exit(0);
