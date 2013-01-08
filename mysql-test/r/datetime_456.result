@@ -4,5 +4,5 @@ insert t1 values (addtime('9999-12-31 23:59:59', '00:00:01')),
 select * from t1;
 d
 NULL
-NULL
+0000-00-00 00:00:00
 drop table t1;

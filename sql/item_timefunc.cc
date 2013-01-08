@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2010, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1386,13 +1387,10 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
 
   if (get_date_from_daynr((long) value, &ltime->year, &ltime->month,
                           &ltime->day))
-    return (null_value= 1);
-
-  if ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)
-    return (null_value= 1);
+    return 0;
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return (null_value= 0);
+  return 0;
 }
 
 
