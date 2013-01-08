@@ -156,12 +156,12 @@ id	title	body
 5	MySQL vs. YourSQL	In the following database comparison ...
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"following comparison"@19' IN BOOLEAN MODE);
+AGAINST ('"following comparison"@3' IN BOOLEAN MODE);
 id	title	body
 5	MySQL vs. YourSQL	In the following database comparison ...
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"following comparison"@18' IN BOOLEAN MODE);
+AGAINST ('"following comparison"@2' IN BOOLEAN MODE);
 id	title	body
 SELECT * FROM articles
 WHERE MATCH (title,body)
@@ -172,59 +172,65 @@ INSERT INTO articles (title,body) VALUES
 ('test proximity search, test, proximity and phrase',
 'search, with proximity innodb');
 INSERT INTO articles (title,body) VALUES
-('test proximity fts search, test, proximity and phrase',
+('test my proximity fts new search, test, proximity and phrase',
 'search, with proximity innodb');
 INSERT INTO articles (title,body) VALUES
-('test more proximity fts search, test, more proximity and phrase',
+('test more of proximity fts search, test, more proximity and phrase',
 'search, with proximity innodb');
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
+id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test my proximity fts new search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 id	title	body
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
-id	title	body
-SELECT * FROM articles
-WHERE MATCH (title,body)
-AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@5' IN BOOLEAN MODE);
 id	title	body
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
-9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
-10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+9	test my proximity fts new search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
 id	title	body
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
-9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+9	test my proximity fts new search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('"test proximity"@1' IN BOOLEAN MODE);
+id	title	body
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('"test proximity"@4' IN BOOLEAN MODE);
 id	title	body
+8	test proximity search, test, proximity and phrase	search, with proximity innodb
+9	test my proximity fts new search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"test proximity"@10' IN BOOLEAN MODE);
+AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 id	title	body
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
-9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
-10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
+9	test my proximity fts new search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"test proximity"@9' IN BOOLEAN MODE);
+AGAINST ('"more test proximity"@4' IN BOOLEAN MODE);
 id	title	body
-8	test proximity search, test, proximity and phrase	search, with proximity innodb
-9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
-AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 id	title	body
-10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
-SELECT * FROM articles
-WHERE MATCH (title,body)
-AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
-id	title	body
+10	test more of proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM articles
 WHERE MATCH (title,body)
 AGAINST ('"more test proximity"' IN BOOLEAN MODE);

@@ -1,20 +1,20 @@
 select @@global.innodb_ft_cache_size;
 @@global.innodb_ft_cache_size
-32000000
+8000000
 select @@session.innodb_ft_cache_size;
 ERROR HY000: Variable 'innodb_ft_cache_size' is a GLOBAL variable
 show global variables like 'innodb_ft_cache_size';
 Variable_name	Value
-innodb_ft_cache_size	32000000
+innodb_ft_cache_size	8000000
 show session variables like 'innodb_ft_cache_size';
 Variable_name	Value
-innodb_ft_cache_size	32000000
+innodb_ft_cache_size	8000000
 select * from information_schema.global_variables where variable_name='innodb_ft_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_CACHE_SIZE	32000000
+INNODB_FT_CACHE_SIZE	8000000
 select * from information_schema.session_variables where variable_name='innodb_ft_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_FT_CACHE_SIZE	32000000
+INNODB_FT_CACHE_SIZE	8000000
 set global innodb_ft_cache_size=1;
 ERROR HY000: Variable 'innodb_ft_cache_size' is a read only variable
 set session innodb_ft_cache_size=1;

@@ -51,6 +51,7 @@
 #include "sql_time.h"                       // known_date_time_formats
 #include "sql_acl.h" // SUPER_ACL,
                      // mysql_user_table_is_in_short_password_format
+                     // disconnect_on_expired_password
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 #include "debug_sync.h"                         // DEBUG_SYNC
@@ -3604,6 +3605,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
   if (!path_length)
     return true;
 
+  if (!is_filename_allowed(var->save_result.string_value.str, 
+                           var->save_result.string_value.length, TRUE))
+  {
+     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), 
+              self->name.str, var->save_result.string_value.str);
+     return true;
+  }
+
   MY_STAT f_stat;
 
   if (my_stat(path, &f_stat, MYF(0)))
@@ -3927,6 +3936,13 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     if (active_mi->rli->slave_running)
     {
       my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      result= true;
+    }
+    if (gtid_mode == 3)
+    {
+      my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
+                 ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
+                 MYF(0));
       result= true;
     }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
@@ -4525,3 +4541,10 @@ static Sys_var_enum Sys_gtid_mode(
 #endif
 
 #endif // HAVE_REPLICATION
+
+
+static Sys_var_mybool Sys_disconnect_on_expired_password(
+       "disconnect_on_expired_password",
+       "Give clients that don't signal password expiration support execution time error(s) instead of connection error",
+       READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));

@@ -642,6 +642,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_client_cs_name;
   LEX_STRING *trg_connection_cl_name;
   LEX_STRING *trg_db_cl_name;
+  bool was_truncated;
 
   if (check_for_broken_triggers())
     return true;
@@ -750,11 +751,20 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                     tables->db, tables->table_name,
                                     TRG_EXT, 0);
   file.str= file_buff;
+
   trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                              tables->db,
                                              lex->spname->m_name.str,
-                                             TRN_EXT, 0);
+                                             TRN_EXT, 0, &was_truncated);
+  // Check if we hit FN_REFLEN bytes in path length
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(trigname_buff)-1,
+             trigname_buff);
+    return 1;
+  }
   trigname_file.str= trigname_buff;
+
 
   /* Use the filesystem to enforce trigger namespace constraints. */
   if (!access(trigname_buff, F_OK))

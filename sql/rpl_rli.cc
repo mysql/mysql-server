@@ -859,10 +859,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
-!is_intersection: %d",
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
+                        "!is_intersection_nonempty: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
-      !owned_gtids->is_intersection(&wait_gtid_set)));
+      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
     logged_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -871,7 +871,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       check if any GTID of wait_gtid_set is not yet committed.
     */
     if (wait_gtid_set.is_subset(logged_gtids) &&
-        !owned_gtids->is_intersection(&wait_gtid_set))
+        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -1274,7 +1274,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         global_sid_lock->wrlock();
         /* Check if until GTIDs were already applied. */
         const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        if (until_sql_gtids.is_intersection(logged_gtids))
+        if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
         {
           char *buffer= until_sql_gtids.to_string();
           global_sid_lock->unlock();

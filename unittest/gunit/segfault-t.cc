@@ -22,7 +22,7 @@
 #include "m_string.h"
 #include "hash_filo.h"
 
-namespace {
+namespace segfault_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

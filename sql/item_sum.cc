@@ -153,9 +153,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       If it is there under a construct where it is not allowed 
       we report an error. 
     */ 
-    invalid= !(allow_sum_func & (1 << max_arg_level));
+    invalid= !(allow_sum_func & ((nesting_map)1 << max_arg_level));
   }
-  else if (max_arg_level >= 0 || !(allow_sum_func & (1 << nest_level)))
+  else if (max_arg_level >= 0 ||
+           !(allow_sum_func & ((nesting_map)1 << nest_level)))
   {
     /*
       The set function can be aggregated only in outer subqueries.
@@ -164,7 +165,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     if (register_sum_func(thd, ref))
       return TRUE;
-    invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    invalid= aggr_level < 0 &&
+             !(allow_sum_func & ((nesting_map)1 << nest_level));
     if (!invalid && thd->variables.sql_mode & MODE_ANSI)
       invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
@@ -312,14 +314,15 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
        sl && sl->nest_level > max_arg_level;
        sl= sl->master_unit()->outer_select() )
   {
-    if (aggr_level < 0 && (allow_sum_func & (1 << sl->nest_level)))
+    if (aggr_level < 0 &&
+        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & (1 << sl->nest_level)))
+  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
   {
     /* 
       We reached the subquery of level max_arg_level and checked
@@ -541,7 +544,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
   }
 }
 

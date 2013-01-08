@@ -226,6 +226,7 @@ row_upd_check_references_constraints(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
+run_again:
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
@@ -274,8 +275,10 @@ row_upd_check_references_constraints(
 				dict_table_close(ref_table, FALSE, FALSE);
 			}
 
-			if (err != DB_SUCCESS) {
-
+			/* Some table foreign key dropped, try again */
+			if (err == DB_DICT_CHANGED) {
+				goto run_again;
+			} else if (err != DB_SUCCESS) {
 				goto func_exit;
 			}
 		}
@@ -1689,44 +1692,61 @@ row_upd_sec_index_entry(
 #endif /* UNIV_DEBUG */
 
 	mtr_start(&mtr);
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-	switch (dict_index_get_online_status(index)) {
-	case ONLINE_INDEX_COMPLETE:
-		/* This is a normal index. Do not log anything.
-		Perform the update on the index tree directly. */
-		break;
-	case ONLINE_INDEX_CREATION:
-		/* Log a DELETE and optionally INSERT. */
-		row_log_online_op(index, entry, 0);
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
 
-		if (!node->is_delete) {
-			mem_heap_empty(heap);
-			entry = row_build_index_entry(
-				node->upd_row, node->upd_ext, index, heap);
-			ut_a(entry);
-			row_log_online_op(index, entry, trx->id);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_COMPLETE:
+			/* This is a normal index. Do not log anything.
+			Perform the update on the index tree directly. */
+			break;
+		case ONLINE_INDEX_CREATION:
+			/* Log a DELETE and optionally INSERT. */
+			row_log_online_op(index, entry, 0);
+
+			if (!node->is_delete) {
+				mem_heap_empty(heap);
+				entry = row_build_index_entry(
+					node->upd_row, node->upd_ext,
+					index, heap);
+				ut_a(entry);
+				row_log_online_op(index, entry, trx->id);
+			}
+			/* fall through */
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			mtr_commit(&mtr);
+			goto func_exit;
 		}
-		/* fall through */
-	case ONLINE_INDEX_ABORTED:
-	case ONLINE_INDEX_ABORTED_DROPPED:
-		mtr_commit(&mtr);
-		goto func_exit;
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			| BTR_DELETE_MARK;
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF
+			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
-
-	/* We can only try to use the insert/delete buffer to buffer
-	delete-mark operations if the index we're modifying has no foreign
-	key constraints referring to it. */
-	if (referenced) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-	} else {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
-			| BTR_DELETE_MARK;
-	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);

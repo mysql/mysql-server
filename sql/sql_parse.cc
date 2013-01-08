@@ -2114,13 +2114,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)
@@ -6561,8 +6557,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                        MDL_TRANSACTION);
+
+  // Pure table aliases do not need to be locked:
+  if (!test(table_options & TL_OPTION_ALIAS))
+  {
+    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                          MDL_TRANSACTION);
+  }
   if (table->is_derived_table())
   {
     ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;

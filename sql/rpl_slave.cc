@@ -2531,6 +2531,8 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              sql_gtid_set_size));
+  field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2769,8 +2771,12 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_ca, &my_charset_bin);
     // Master_Ssl_Crlpath
     protocol->store(mi->ssl_capath, &my_charset_bin);
+    // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
+    // Executed_Gtid_Set
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
+    // Auto_Position
+    protocol->store(mi->is_auto_position() ? 1 : 0);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -3871,7 +3877,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 {
   mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
   thd->proc_info= messages[SLAVE_RECON_MSG_WAIT];
-#ifdef SIGNAL_WITH_VIO_CLOSE  
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN  
   thd->clear_active_vio();
 #endif
   end_server(mysql);
@@ -4279,11 +4285,11 @@ err:
       Here we need to clear the active VIO before closing the
       connection with the master.  The reason is that THD::awake()
       might be called from terminate_slave_thread() because somebody
-      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
       can be called in the middle of closing the VIO associated with
       the 'mysql' object, causing a crash.
     */
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->clear_active_vio();
 #endif
     mysql_close(mysql);
@@ -4328,6 +4334,7 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -4521,6 +4528,7 @@ err:
   }
 
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -5660,6 +5668,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
@@ -6297,6 +6306,43 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     mi->received_heartbeats++;
     mi->last_heartbeat= my_time(0);
+
+
+    /*
+      During GTID protocol, if the master skips transactions,
+      a heartbeat event is sent to the slave at the end of last
+      skipped transaction to update coordinates.
+
+      I/O thread receives the heartbeat event and updates mi
+      only if the received heartbeat position is greater than
+      mi->get_master_log_pos(). This event is written to the
+      relay log as an ignored Rotate event. SQL thread reads
+      the rotate event only to update the coordinates corresponding
+      to the last skipped transaction. Note that,
+      we update only the positions and not the file names, as a ROTATE
+      EVENT from the master prior to this will update the file name.
+    */
+    if (mi->is_auto_position()  && mi->get_master_log_pos() < hb.log_pos
+        &&  mi->get_master_log_name() != NULL)
+    {
+
+      DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
+                         hb.get_log_ident(), hb.get_ident_len()) == 0);
+
+      mi->set_master_log_pos(hb.log_pos);
+
+      /*
+         Put this heartbeat event in the relay log as a Rotate Event.
+      */
+      inc_pos= 0;
+      memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(),
+             FN_REFLEN);
+      rli->ign_master_log_pos_end = mi->get_master_log_pos();
+
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+        goto err;
+    }
+
     /* 
        compare local and event's versions of log_file, log_pos.
        
@@ -6514,7 +6560,7 @@ err:
 
 extern "C" void slave_io_thread_detach_vio()
 {
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
     thd->clear_active_vio();
@@ -6692,7 +6738,7 @@ replication resumed in log '%s' at position %s", mi->get_user(),
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->get_user(), mi->host, mi->port);
     }
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->set_active_vio(mysql->net.vio);
 #endif
   }
@@ -7660,6 +7706,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
         if (thd->lex->mi.pos)
         {
+          if (thd->lex->mi.relay_log_pos)
+            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_MASTER_POS;
           mi->rli->until_log_pos= thd->lex->mi.pos;
           /*
@@ -7671,6 +7719,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         }
         else if (thd->lex->mi.relay_log_pos)
         {
+          if (thd->lex->mi.pos)
+            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_RELAY_POS;
           mi->rli->until_log_pos= thd->lex->mi.relay_log_pos;
           strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
