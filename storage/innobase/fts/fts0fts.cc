@@ -3573,6 +3573,7 @@ fts_doc_fetch_by_doc_id(
 	pars_info_bind_function(info, "my_func", callback, arg);
 
 	select_str = fts_get_select_columns_str(index, info, info->heap);
+	pars_info_bind_id(info, TRUE, "table_name", index->table_name);
 
 	if (!get_doc || !get_doc->get_document_graph) {
 		if (option == FTS_FETCH_DOC_BY_ID_EQUAL) {
@@ -3582,7 +3583,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s FROM %s"
+					" SELECT %s FROM $table_name"
 					" WHERE %s = :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3594,8 +3595,7 @@ fts_doc_fetch_by_doc_id(
 					"  END IF;\n"
 					"END LOOP;\n"
 					"CLOSE c;",
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
@@ -3619,7 +3619,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s, %s FROM %s"
+					" SELECT %s, %s FROM $table_name"
 					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3632,8 +3632,7 @@ fts_doc_fetch_by_doc_id(
 					"END LOOP;\n"
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
 			get_doc->get_document_graph = graph;
