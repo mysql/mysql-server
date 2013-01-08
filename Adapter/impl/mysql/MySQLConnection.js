@@ -27,9 +27,9 @@
 var mysql  = require("mysql"),
     udebug = unified_debug.getLogger("MySQLConnection.js"),
     stats_module  = require(path.join(api_dir, "stats.js")),
-    session_stats  = stats_module.domain("spi","mysql","DBSession"),
-    transaction_stats = stats_module.domain("spi","mysql","DBTransactionHandler"),
-    op_stats = stats_module.domain("spi","mysql","DBOperation");
+    session_stats  = stats_module.getWriter("spi","mysql","DBSession"),
+    transaction_stats = stats_module.getWriter("spi","mysql","DBTransactionHandler"),
+    op_stats = stats_module.getWriter("spi","mysql","DBOperation");
     
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */

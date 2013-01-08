@@ -57,7 +57,7 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
 
   // Properties can be a string adapter name.  It defaults to 'ndb'.
   if(typeof properties === 'string') {
-    properties = this.ConnctionProperties(properties);
+    properties = this.ConnectionProperties(properties);
   }
   else if (properties === null) {
     properties = this.ConnectionProperties('ndb');

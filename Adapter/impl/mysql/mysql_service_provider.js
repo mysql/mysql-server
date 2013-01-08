@@ -23,12 +23,14 @@
 "use strict";
 
 var udebug = unified_debug.getLogger("mysql_service_provider.js");
+var saved_err;
 
 try {
-  var mysqlconnection = require("./MysqlConnectionPool.js");
+  /* Let unmet module dependencies be caught by loadRequiredModules() */
+  var mysqlconnection = require("./MySQLConnectionPool.js");
 }
 catch(e) {
-  /* Let unmet module dependencies be caught by loadRequiredModules() */
+  saved_err = e;
 }
 
 exports.loadRequiredModules = function() {
@@ -38,8 +40,11 @@ exports.loadRequiredModules = function() {
   }
   catch(e) {
     error = new Error("The mysql adapter requires node-mysql version 2.0");
-    error.cause = e;
     throw error;
+  }
+  
+  if(saved_err) {
+    throw saved_err;
   }
   
   return true;
