@@ -945,6 +945,8 @@ sync_array_print_long_waits(
 # define SYNC_ARRAY_TIMEOUT	240
 #endif
 
+	sync_array_enter(sync_primary_wait_array);
+
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
 		double	diff;
@@ -978,6 +980,8 @@ sync_array_print_long_waits(
 			*waiter = cell->thread;
 		}
 	}
+
+	sync_array_exit(sync_primary_wait_array);
 
 	if (noticed) {
 		fprintf(stderr,
