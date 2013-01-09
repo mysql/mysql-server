@@ -4,8 +4,12 @@
 
 --source include/have_innodb.inc
 #--source include/have_debug.inc
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
 # Embedded server does not support crashing
 --source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
 call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
 call mtr.add_suppression("The table 't1' is full");
@@ -327,6 +331,9 @@ UPDATE t2 SET a = a + 5;
 DELETE FROM t2 WHERE a > 6;
 SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 
+--mkdir $MYSQLTEST_VARDIR/tmp/testdir1
+--mkdir $MYSQLTEST_VARDIR/tmp/testdir2
+
 --echo # restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -334,8 +341,6 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 --echo # list_file ,no files expected - temp tablespace cleared on stopping server
 --list_files $MYSQL_TMP_DIR/ ibtmp1*
 #
---mkdir $MYSQLTEST_VARDIR/tmp/testdir1
---mkdir $MYSQLTEST_VARDIR/tmp/testdir2
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
