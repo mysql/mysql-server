@@ -69,6 +69,8 @@ UNINSTALL PLUGIN EXAMPLE;
 ERROR 42000: PLUGIN EXAMPLE does not exist
 UNINSTALL PLUGIN non_exist;
 ERROR 42000: PLUGIN non_exist does not exist
+UNINSTALL SONAME 'non_exist';
+ERROR 42000: SONAME non_exist.so does not exist
 #
 # Bug#32034: check_func_enum() does not check correct values but set it
 #            to impossible int val

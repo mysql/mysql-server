@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2005, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2010, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2260,11 +2260,19 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name,
   {
     fix_dl_name(thd->mem_root, &dl);
     st_plugin_dl *plugin_dl= plugin_dl_find(&dl);
-    struct st_maria_plugin *plugin;
-    for (plugin= plugin_dl->plugins; plugin->info; plugin++)
+    if (plugin_dl)
     {
-      LEX_STRING str= { const_cast<char*>(plugin->name), strlen(plugin->name) };
-      error|= do_uninstall(thd, table, &str);
+      for (struct st_maria_plugin *plugin= plugin_dl->plugins;
+           plugin->info; plugin++)
+      {
+        LEX_STRING str= { const_cast<char*>(plugin->name), strlen(plugin->name) };
+        error|= do_uninstall(thd, table, &str);
+      }
+    }
+    else
+    {
+      my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "SONAME", dl.str);
+      error= true;
     }
   }
   reap_plugins();

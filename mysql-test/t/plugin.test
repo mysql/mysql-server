@@ -4,14 +4,14 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
 DROP TABLE t1;
 
-eval INSTALL PLUGIN example SONAME 'ha_example';
+INSTALL PLUGIN example SONAME 'ha_example';
 --replace_regex /\.dll/.so/
 --error 1125
-eval INSTALL PLUGIN EXAMPLE SONAME 'ha_example';
+INSTALL PLUGIN EXAMPLE SONAME 'ha_example';
 
 UNINSTALL PLUGIN example;
 
-eval INSTALL SONAME 'ha_example';
+INSTALL SONAME 'ha_example';
 --replace_column 5 #
 --replace_regex /\.dll/.so/
 --query_vertical select * from information_schema.plugins where plugin_library like 'ha_example%'
@@ -28,7 +28,7 @@ set global example_enum_var= e1;
 show status like 'example%';
 show variables like 'example%';
 
-eval UNINSTALL SONAME 'ha_example';
+UNINSTALL SONAME 'ha_example';
 --replace_column 5 #
 --replace_regex /\.dll/.so/
 --query_vertical select * from information_schema.plugins where plugin_library like 'ha_example%'
@@ -41,12 +41,18 @@ UNINSTALL PLUGIN EXAMPLE;
 --error 1305
 UNINSTALL PLUGIN non_exist;
 
+#
+# MDEV-3985 crash: uninstall soname 'a'
+#
+--replace_regex /\.dll/.so/
+--error 1305
+UNINSTALL SONAME 'non_exist';
 
 --echo #
 --echo # Bug#32034: check_func_enum() does not check correct values but set it
 --echo #            to impossible int val
 --echo #
-eval INSTALL PLUGIN example SONAME 'ha_example';
+INSTALL PLUGIN example SONAME 'ha_example';
 
 SET GLOBAL example_enum_var= e1;
 SET GLOBAL example_enum_var= e2;
@@ -60,7 +66,7 @@ UNINSTALL PLUGIN example;
 #
 # Bug #32757 hang with sql_mode set when setting some global variables
 #
-eval INSTALL PLUGIN example SONAME 'ha_example';
+INSTALL PLUGIN example SONAME 'ha_example';
 
 select @@session.sql_mode into @old_sql_mode;
 
