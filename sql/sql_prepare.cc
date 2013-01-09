@@ -3141,8 +3141,12 @@ void Prepared_statement::setup_set_params()
   /*
     Decide if we have to expand the query (because we must write it to logs or
     because we want to look it up in the query cache) or not.
+    We don't have to substitute the params when bin-logging DML in RBL.
   */
-  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
+  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command) &&
+       (!thd->is_current_stmt_binlog_format_row() ||
+        ((sql_command_flags[lex->sql_command] & CF_AUTO_COMMIT_TRANS) ==
+         CF_AUTO_COMMIT_TRANS))) ||
       opt_log || opt_slow_log ||
       query_cache_is_cacheable_query(lex))
   {
