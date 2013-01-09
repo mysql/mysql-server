@@ -3665,7 +3665,7 @@ void handler::print_error(int error, myf errflag)
   {
     const char *ptr= "???";
     uint key_nr= table ? get_dup_key(error) : -1;
-    if ((int) key_nr >= 0)
+    if ((int) key_nr >= 0 && key_nr != MAX_KEY)
       ptr= table->key_info[key_nr].name;
     my_error(ER_DROP_INDEX_FK, errflag, ptr);
     DBUG_VOID_RETURN;
