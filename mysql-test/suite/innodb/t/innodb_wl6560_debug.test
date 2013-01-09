@@ -43,11 +43,11 @@ let crash = $args --innodb-force-recovery-crash;
 #
 --echo "testing creation of tablepsace by enabling error path"
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 --source include/shutdown_mysqld.inc
 --echo "Temp-tablespace removed on shutdown"
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 --echo --innodb-force-recovery-crash=100
 --echo "Next stmt will crash server"
 --error 3
@@ -59,7 +59,7 @@ let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
 --echo "restarting server in normal mode"
 --source include/start_mysqld.inc
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 use test;
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
 insert into t1 values (1, 'c', 'b');
@@ -72,7 +72,7 @@ drop table t1;
 #
 --echo "try hitting crash-point during table creation"
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 set session debug="+d,ib_ddl_crash_during_create";
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -84,7 +84,7 @@ create temporary table t1
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 use test;
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
