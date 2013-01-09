@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2011, Monty Program Ab
+   Copyright (c) 2010, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,39 +126,39 @@ enum enum_server_command
 #define FIELD_FLAGS_COLUMN_FORMAT 24    /* Field column format, bit 24-25,
                                            reserved by MySQL Cluster */
 
-#define REFRESH_GRANT		1	/* Refresh grant tables */
-#define REFRESH_LOG		2	/* Start on new log file */
-#define REFRESH_TABLES		4	/* close all tables */
-#define REFRESH_HOSTS		8	/* Flush host cache */
-#define REFRESH_STATUS		16	/* Flush status variables */
-#define REFRESH_THREADS		32	/* Flush thread cache */
-#define REFRESH_SLAVE           64      /* Reset master info and restart slave
-					   thread */
-#define REFRESH_MASTER          128     /* Remove all bin logs in the index
-					   and truncate the index */
+#define REFRESH_GRANT           (1UL << 0)  /* Refresh grant tables */
+#define REFRESH_LOG             (1UL << 1)  /* Start on new log file */
+#define REFRESH_TABLES          (1UL << 2)  /* close all tables */
+#define REFRESH_HOSTS           (1UL << 3)  /* Flush host cache */
+#define REFRESH_STATUS          (1UL << 4)  /* Flush status variables */
+#define REFRESH_THREADS         (1UL << 5)  /* Flush thread cache */
+#define REFRESH_SLAVE           (1UL << 6)  /* Reset master info and restart slave
+                                             thread */
+#define REFRESH_MASTER          (1UL << 7)  /* Remove all bin logs in the index
+                                             and truncate the index */
 
 /* The following can't be set with mysql_refresh() */
-#define REFRESH_ERROR_LOG       256 /* Rotate only the erorr log */
-#define REFRESH_ENGINE_LOG      512 /* Flush all storage engine logs */
-#define REFRESH_BINARY_LOG     1024 /* Flush the binary log */
-#define REFRESH_RELAY_LOG      2048 /* Flush the relay log */
-#define REFRESH_GENERAL_LOG    4096 /* Flush the general log */
-#define REFRESH_SLOW_LOG       8192 /* Flush the slow query log */
+#define REFRESH_ERROR_LOG       (1UL << 8)  /* Rotate only the erorr log */
+#define REFRESH_ENGINE_LOG      (1UL << 9)  /* Flush all storage engine logs */
+#define REFRESH_BINARY_LOG      (1UL << 10) /* Flush the binary log */
+#define REFRESH_RELAY_LOG       (1UL << 11) /* Flush the relay log */
+#define REFRESH_GENERAL_LOG     (1UL << 12) /* Flush the general log */
+#define REFRESH_SLOW_LOG        (1UL << 13) /* Flush the slow query log */
 
-#define REFRESH_READ_LOCK	16384	/* Lock tables for read */
-#define REFRESH_FAST		32768	/* Intern flag */
+#define REFRESH_READ_LOCK       (1UL << 14) /* Lock tables for read */
+#define REFRESH_CHECKPOINT      (1UL << 15) /* With REFRESH_READ_LOCK: block checkpoints too */
 
-/* RESET (remove all queries) from query cache */
-#define REFRESH_QUERY_CACHE	65536
-#define REFRESH_QUERY_CACHE_FREE 0x20000L /* pack query cache */
-#define REFRESH_DES_KEY_FILE	0x40000L
-#define REFRESH_USER_RESOURCES	0x80000L
-#define REFRESH_CHECKPOINT	0x100000L /* Don't do checkpoints */
+#define REFRESH_QUERY_CACHE     (1UL << 16) /* clear the query cache */
+#define REFRESH_QUERY_CACHE_FREE (1UL << 17) /* pack query cache */
+#define REFRESH_DES_KEY_FILE    (1UL << 18)
+#define REFRESH_USER_RESOURCES  (1UL << 19)
 
-#define REFRESH_TABLE_STATS     (1L << 20) /* Refresh table stats hash table */
-#define REFRESH_INDEX_STATS     (1L << 21) /* Refresh index stats hash table */
-#define REFRESH_USER_STATS      (1L << 22) /* Refresh user stats hash table */
-#define REFRESH_CLIENT_STATS    (1L << 23) /* Refresh client stats hash table */
+#define REFRESH_TABLE_STATS     (1UL << 20) /* Refresh table stats hash table */
+#define REFRESH_INDEX_STATS     (1UL << 21) /* Refresh index stats hash table */
+#define REFRESH_USER_STATS      (1UL << 22) /* Refresh user stats hash table */
+#define REFRESH_CLIENT_STATS    (1UL << 23) /* Refresh client stats hash table */
+
+#define REFRESH_FAST            (1UL << 31) /* Intern flag */
 
 #define CLIENT_LONG_PASSWORD	1	/* new more secure passwords */
 #define CLIENT_FOUND_ROWS	2	/* Found instead of affected rows */
