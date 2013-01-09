@@ -50,7 +50,7 @@ let rawdevice = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2
 # 1. creation of shared temp-tablespace.
 #
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 
 
 #-----------------------------------------------------------------------------
@@ -143,7 +143,7 @@ insert into t1 values (1, 'c', 'b');
 select * from t1;
 --source include/restart_mysqld.inc
 --echo # files in MYSQL_TMP_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp*
+--list_files $MYSQL_TMP_DIR/ ibtmp*
 use test;
 --error ER_NO_SUCH_TABLE
 select * from t1;

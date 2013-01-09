@@ -66,7 +66,7 @@ CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp1*
+--list_files $MYSQL_TMP_DIR/ ibtmp1*
 
 --echo # check no entries made INNODB_SYS_DATAFILES
 SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
@@ -212,7 +212,7 @@ DROP DATABASE test_db;
 USE test;
 --enable_query_log
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
---list_files $MYSQL_TMP_DIR/ ib*tmp1*
+--list_files $MYSQL_TMP_DIR/ ibtmp1*
 
 #-----------------------------------------------------------------------------
 #
@@ -286,7 +286,7 @@ DELETE FROM t4;
 SELECT * FROM t3,t4;
 UNLOCK TABLES;
 
---list_files $MYSQL_TMP_DIR/ ib*tmp1*
+--list_files $MYSQL_TMP_DIR/ ibtmp1*
 --list_files $MYSQL_DATA_DIR/test/ t4*ibd*
 DROP TABLE t1,t2,t3,t4;
 
@@ -331,20 +331,23 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
-# Do something while server is down
 --echo # list_file ,no files expected - temp tablespace cleared on stopping server
---list_files $MYSQL_TMP_DIR/ ib*tmp1*
-
---enable_reconnect
+--list_files $MYSQL_TMP_DIR/ ibtmp1*
+#
 --mkdir $MYSQLTEST_VARDIR/tmp/testdir1
 --mkdir $MYSQLTEST_VARDIR/tmp/testdir2
-# # Write file to make mysql-test-run.pl start up the server again
+# Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
 --source include/wait_until_connected_again.inc
+--disable_reconnect
+#
 --echo # list_file ,temp tablespace goes into 1st tmpdir if mutiple tmpdir listed
---list_files $MYSQLTEST_VARDIR/tmp/testdir1/ ib*tmp1*
+--list_files $MYSQLTEST_VARDIR/tmp/testdir1/ ibtmp1*
 --echo # list_file ,temp tablespace does not go into 2nd tmp dir
---list_files $MYSQLTEST_VARDIR/tmp/testdir2/ ib*tmp1*
+--list_files $MYSQLTEST_VARDIR/tmp/testdir2/ ibtmp1*
+
+
 #
 USE test;
 # check not temp table
@@ -372,16 +375,16 @@ DROP TABLE t1;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
-# Do something while server is down
- --enable_reconnect
-# # # Write file to make mysql-test-run.pl start up the server again
- --exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
- --source include/wait_until_connected_again.inc
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
 
- #
- USE test;
- # check not temp table
- SHOW TABLES;
+#
+USE test;
+# check not temp table
+SHOW TABLES;
 
 #-----------------------------------------------------------------------------
 #
