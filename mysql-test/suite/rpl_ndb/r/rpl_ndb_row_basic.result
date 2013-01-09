@@ -510,4 +510,4 @@ ERROR 23000: Duplicate entry '10' for key 'PRIMARY'
 INSERT INTO t1 VALUES (4);
 include/diff_tables.inc [master:t1, slave:t1]
 drop table t1;
-STOP SLAVE;
+include/rpl_end.inc

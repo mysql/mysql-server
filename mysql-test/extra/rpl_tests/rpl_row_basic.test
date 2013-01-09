@@ -692,5 +692,4 @@ drop table t1;
 sync_slave_with_master;
 
 } # End of tests not supported by NDB
-STOP SLAVE; # MCP_BUG16029263
 # MCP_BUG16029263
