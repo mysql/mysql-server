@@ -617,8 +617,10 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
+#ifndef DBUG_OFF
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
   void test_use_count(SEL_ARG *root);
+#endif
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -8350,8 +8352,9 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
-
+#endif
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
@@ -8447,7 +8450,9 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
     }
   }
   root->color=BLACK;
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
+#endif
   return root;
 }
 
@@ -8531,6 +8536,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 }
 
 
+#ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
 
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
@@ -8567,6 +8573,7 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   }
   return -1;					// Error, no more warnings
 }
+#endif
 
 
 /**
@@ -8628,6 +8635,7 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if SEL_ARG::use_count value is correct
 
@@ -8677,7 +8685,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
   }
 }
-
+#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
