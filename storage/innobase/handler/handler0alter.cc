@@ -66,7 +66,6 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	| Alter_inplace_info::ADD_COLUMN
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
-	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
 	*/
 	;
 
@@ -85,14 +84,20 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_FOREIGN_OPERATIONS
 	= Alter_inplace_info::DROP_FOREIGN_KEY
 	| Alter_inplace_info::ADD_FOREIGN_KEY;
 
-/** Operations that InnoDB can perform online */
-static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
-	= INNOBASE_INPLACE_IGNORE
-	| INNOBASE_ONLINE_CREATE
+/** Operations that InnoDB can perform inplace, without table rebuild */
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_NOREBUILD
+	= INNOBASE_ONLINE_CREATE
 	| INNOBASE_FOREIGN_OPERATIONS
 	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
-	| Alter_inplace_info::ALTER_COLUMN_NAME;
+	| Alter_inplace_info::ALTER_COLUMN_NAME
+	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
+
+/** ALTER TABLE operations that InnoDB supports with ALGORITHM=INPLACE */
+static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_SUPPORTED
+	= INNOBASE_INPLACE_IGNORE
+	| INNOBASE_INPLACE_NOREBUILD
+	| INNOBASE_INPLACE_REBUILD;
 
 /* Report an InnoDB error to the client by invoking my_error(). */
 static UNIV_COLD __attribute__((nonnull))
@@ -228,11 +233,9 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_read_only_mode) {
-		ha_alter_info->unsupported_reason =
-			innobase_get_err_msg(ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
+	if (srv_read_only_mode
+	    || srv_sys_space.created_new_raw()
+	    || srv_force_recovery) {
 		ha_alter_info->unsupported_reason =
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -251,11 +254,9 @@ ha_innobase::check_if_supported_inplace_alter(
 	update_thd();
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
-	if (ha_alter_info->handler_flags
-	    & ~(INNOBASE_ONLINE_OPERATIONS | INNOBASE_INPLACE_REBUILD)) {
+	if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_SUPPORTED) {
 		if (ha_alter_info->handler_flags
-			& (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
-			   | Alter_inplace_info::ALTER_COLUMN_TYPE))
+		    & Alter_inplace_info::ALTER_COLUMN_TYPE)
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -3447,11 +3448,8 @@ check_if_ok_to_rename:
 	n_drop_fk = 0;
 
 	if (ha_alter_info->handler_flags
-	    & (Alter_inplace_info::ALTER_COLUMN_NAME
-	       | Alter_inplace_info::ADD_FOREIGN_KEY
-	       | Alter_inplace_info::DROP_FOREIGN_KEY
-	       | Alter_inplace_info::DROP_INDEX
-	       | Alter_inplace_info::DROP_UNIQUE_INDEX
+	    & (INNOBASE_INPLACE_NOREBUILD
+	       | INNOBASE_INPLACE_REBUILD
 	       | INNOBASE_INPLACE_CREATE)) {
 
 		heap = mem_heap_create(1024);
@@ -4439,21 +4437,143 @@ processed_field:
 	return(false);
 }
 
-/** Rename columns in the data dictionary cache
+/** Enlarge a column in the data dictionary tables.
+@param user_table	InnoDB table that was being altered
+@param trx		data dictionary transaction
+@param table_name	Table name in MySQL
+@param nth_col		0-based index of the column
+@param new_len		new column length, in bytes
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_enlarge_column_try(
+/*========================*/
+	const dict_table_t*	user_table,
+	trx_t*			trx,
+	const char*		table_name,
+	ulint			nth_col,
+	ulint			new_len)
+{
+	pars_info_t*	info;
+	dberr_t		error;
+
+	DBUG_ENTER("innobase_enlarge_column_try");
+
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(dict_table_get_nth_col(user_table, nth_col)->len < new_len);
+#ifdef UNIV_DEBUG
+	switch (dict_table_get_nth_col(user_table, nth_col)->mtype) {
+	case DATA_MYSQL:
+		/* NOTE: we could allow this when !(prtype & DATA_BINARY_TYPE)
+		and ROW_FORMAT is not REDUNDANT and mbminlen<mbmaxlen.
+		That is, we treat a UTF-8 CHAR(n) column somewhat like
+		a VARCHAR. */
+		ut_error;
+	case DATA_BINARY:
+	case DATA_VARCHAR:
+	case DATA_VARMYSQL:
+	case DATA_DECIMAL:
+	case DATA_BLOB:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+	info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "tableid", user_table->id);
+	pars_info_add_int4_literal(info, "nth", nth_col);
+	pars_info_add_int4_literal(info, "new", new_len);
+
+	trx->op_info = "resizing column in SYS_COLUMNS";
+
+	error = que_eval_sql(
+		info,
+		"PROCEDURE RESIZE_SYS_COLUMNS_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_COLUMNS SET LEN=:new\n"
+		"WHERE TABLE_ID=:tableid AND POS=:nth;\n"
+		"END;\n",
+		FALSE, trx);
+
+	DBUG_EXECUTE_IF("ib_resize_column_error",
+			error = DB_OUT_OF_FILE_SPACE;);
+
+	trx->op_info = "";
+	trx->error_state = DB_SUCCESS;
+
+	if (error != DB_SUCCESS) {
+		my_error_innodb(error, table_name, 0);
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
+}
+
+/** Enlarge columns in the data dictionary tables.
+@param ha_alter_info	Data used during in-place alter.
+@param table		the TABLE
+@param user_table	InnoDB table that was being altered
+@param trx		data dictionary transaction
+@param table_name	Table name in MySQL
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_enlarge_columns_try(
+/*=========================*/
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		table,
+	const dict_table_t*	user_table,
+	trx_t*			trx,
+	const char*		table_name)
+{
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	ulint i = 0;
+
+	for (Field** fp = table->field; *fp; fp++, i++) {
+		cf_it.rewind();
+		while (Create_field* cf = cf_it++) {
+			if (cf->field == *fp) {
+				if ((*fp)->is_equal(cf)
+				    == IS_EQUAL_PACK_LENGTH
+				    && innobase_enlarge_column_try(
+					    user_table, trx, table_name,
+					    i, cf->length)) {
+					return(true);
+				}
+
+				break;
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Rename or enlarge columns in the data dictionary cache
 as part of commit_cache_norebuild().
 @param ha_alter_info	Data used during in-place alter.
 @param table		the TABLE
 @param user_table	InnoDB table that was being altered */
 static __attribute__((nonnull))
 void
-innobase_rename_columns_cache(
-/*==========================*/
+innobase_rename_or_enlarge_columns_cache(
+/*=====================================*/
 	Alter_inplace_info*	ha_alter_info,
 	const TABLE*		table,
 	dict_table_t*		user_table)
 {
 	if (!(ha_alter_info->handler_flags
-	      & Alter_inplace_info::ALTER_COLUMN_NAME)) {
+	      & (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+		 | Alter_inplace_info::ALTER_COLUMN_NAME))) {
 		return;
 	}
 
@@ -4462,23 +4582,25 @@ innobase_rename_columns_cache(
 	uint i = 0;
 
 	for (Field** fp = table->field; *fp; fp++, i++) {
-		if (!((*fp)->flags & FIELD_IS_RENAMED)) {
-			continue;
-		}
-
 		cf_it.rewind();
 		while (Create_field* cf = cf_it++) {
-			if (cf->field == *fp) {
-				dict_mem_table_col_rename(user_table, i,
-							  cf->field->field_name,
-							  cf->field_name);
-				goto processed_field;
+			if (cf->field != *fp) {
+				continue;
 			}
-		}
 
-		ut_error;
-processed_field:
-		continue;
+			if ((*fp)->is_equal(cf) == IS_EQUAL_PACK_LENGTH) {
+				dict_table_get_nth_col(
+					user_table, i)->len = cf->length;
+			}
+
+			if ((*fp)->flags & FIELD_IS_RENAMED) {
+				dict_mem_table_col_rename(
+					user_table, i,
+					cf->field->field_name, cf->field_name);
+			}
+
+			break;
+		}
 	}
 }
 
@@ -5010,14 +5132,23 @@ commit_try_norebuild(
 		}
 	}
 
-	if (!(ha_alter_info->handler_flags
-	      & Alter_inplace_info::ALTER_COLUMN_NAME)) {
-		DBUG_RETURN(false);
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_NAME)
+	    && innobase_rename_columns_try(ha_alter_info, false, old_table,
+					   ctx->indexed_table,
+					   trx, table_name)) {
+		DBUG_RETURN(true);
 	}
 
-	DBUG_RETURN(innobase_rename_columns_try(ha_alter_info, false,
-						old_table, ctx->indexed_table,
-						trx, table_name));
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH)
+	    && innobase_enlarge_columns_try(ha_alter_info, old_table,
+					    ctx->indexed_table,
+					    trx, table_name)) {
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
 }
 
 /** Commit the changes to the data dictionary cache
@@ -5113,7 +5244,8 @@ commit_cache_norebuild(
 		trx_commit_for_mysql(trx);
 	}
 
-	innobase_rename_columns_cache(ha_alter_info, table, user_table);
+	innobase_rename_or_enlarge_columns_cache(
+		ha_alter_info, table, user_table);
 
 	DBUG_RETURN(found);
 }
