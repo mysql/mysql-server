@@ -6999,6 +6999,10 @@ ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER 0Z002
 
 ER_WARN_LEGACY_SYNTAX_CONVERTED
   eng "%s is no longer supported. The statement was converted to %s."
+
+ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
+  eng "Statement is unsafe because it uses a fulltext parser plugin which may not return the same value on the slave."
+
 #
 #  End of 5.7 error messages.
 #
