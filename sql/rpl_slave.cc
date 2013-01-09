@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1623,6 +1623,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Free old mi_description_event (that is needed if we are in
     a reconnection).
   */
+  DBUG_EXECUTE_IF("unrecognized_master_version",
+                 {
+                   *mysql->server_version= '1';
+                 };);
   mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
 
@@ -1677,7 +1681,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   if (errmsg)
+  {
+    /* unlock the mutex on master info structure */
+    mysql_mutex_unlock(&mi->data_lock);
     goto err;
+  }
 
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
@@ -2148,7 +2156,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
-                   "an unknown GTID_MODE.");
+                   "an unknown @@GLOBAL.GTID_MODE.");
         DBUG_RETURN(1);
       }
       mi->master_gtid_mode= typelib_index - 1;
@@ -2158,8 +2166,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
         gtid_mode > mi->master_gtid_mode + 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and this server has GTID_MODE %s",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and this server has "
+                 "@@GLOBAL.GTID_MODE %s",
                  gtid_mode_names[mi->master_gtid_mode],
                  gtid_mode_names[gtid_mode]);
       DBUG_RETURN(1);
@@ -2167,8 +2176,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
     if (mi->is_auto_position() && mi->master_gtid_mode != 3)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and we are trying to connect using MASTER_AUTO_POSITION.",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and we are trying to connect "
+                 "using MASTER_AUTO_POSITION.",
                  gtid_mode_names[mi->master_gtid_mode]);
       DBUG_RETURN(1);
     }
