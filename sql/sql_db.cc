@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -880,7 +881,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error= 0;
-  char	path[FN_REFLEN+16];
+  char	path[FN_REFLEN + 16];
   MY_DIR *dirp;
   uint length;
   TABLE_LIST* dropped_tables= 0;
@@ -1018,7 +1019,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
-    query_pos= query_data_start= strmov(query,"drop table ");
+    query_pos= query_data_start= strmov(query,"DROP TABLE ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
 
