@@ -934,6 +934,14 @@ extern uint thd_lib_detected;
 #define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
 #define statistic_add_rwlock(V,C,L)     thread_safe_add_rwlock((V),(C),(L))
 #define statistic_sub_rwlock(V,C,L)     thread_safe_sub_rwlock((V),(C),(L))
+#define statistic_inc_set_big_rwlock(V,B,L) \
+  do {                                      \
+    mysql_rwlock_wrlock((L));               \
+    (V)++;                                  \
+    set_if_bigger((B),(V));                 \
+    mysql_rwlock_unlock((L));               \
+  } while(0)
+
 #else
 #define statistic_decrement(V,L) (V)--
 #define statistic_increment(V,L) (V)++
@@ -943,6 +951,12 @@ extern uint thd_lib_detected;
 #define statistic_sub(V,C,L)     (V)-=(C)
 #define statistic_add_rwlock(V,C,L)     (V)+=(C)
 #define statistic_sub_rwlock(V,C,L)     (V)-=(C)
+#define statistic_inc_set_big_rwlock(V,B,L) \
+  do {                                      \
+    (V)++;                                  \
+    set_if_bigger((B),(V));                 \
+  } while(0)
+
 #endif /* SAFE_STATISTICS */
 
 /*

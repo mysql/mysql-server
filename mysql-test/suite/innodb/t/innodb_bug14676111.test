@@ -11,6 +11,9 @@ if (`select count(*)=0 from information_schema.global_variables where variable_n
 --disable_query_log
 set @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
 set @old_innodb_stats_persistent = @@innodb_stats_persistent;
+set @old_innodb_undo_logs = @@innodb_undo_logs;
+# Limit undo segments for stable progress of purge.
+set global innodb_undo_logs = 1;
 --enable_query_log
 --disable_warnings
 drop table if exists t1;
@@ -138,4 +141,5 @@ drop table t1;
 --disable_query_log
 set global innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
 set global innodb_stats_persistent = @old_innodb_stats_persistent;
+set global innodb_undo_logs = @old_innodb_undo_logs;
 --enable_query_log

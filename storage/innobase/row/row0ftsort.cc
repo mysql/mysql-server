@@ -241,7 +241,10 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			row_merge_file_create(psort_info[j].merge_file[i]);
+			if (row_merge_file_create(psort_info[j].merge_file[i])
+			    < 0) {
+				goto func_exit;
+			}
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
@@ -563,7 +566,7 @@ fts_parallel_tokenization(
 	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
-	doc_id_t		last_doc_id;
+	doc_id_t		last_doc_id = 0;
 	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
@@ -745,7 +748,12 @@ loop:
 	}
 
 	if (doc_item) {
-		 prev_doc_item = doc_item;
+		prev_doc_item = doc_item;
+
+		if (last_doc_id != doc_item->doc_id) {
+			t_ctx.init_pos = 0;
+		}
+
 		retried = 0;
 	} else if (psort_info->state == FTS_PARENT_COMPLETE) {
 		retried++;
@@ -814,7 +822,11 @@ exit:
 			continue;
 		}
 
-		tmpfd[i] = innobase_mysql_tmpfile();
+		tmpfd[i] = row_merge_file_create_low();
+		if (tmpfd[i] < 0) {
+			goto func_exit;
+		}
+
 		row_merge_sort(psort_info->psort_common->trx,
 			       psort_info->psort_common->dup,
 			       merge_file[i], block[i], &tmpfd[i]);
@@ -822,6 +834,7 @@ exit:
 		close(tmpfd[i]);
 	}
 
+func_exit:
 	if (fts_enable_diag_print) {
 		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}
@@ -831,10 +844,6 @@ exit:
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
-
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
 
 	os_thread_exit(NULL);
 
@@ -854,9 +863,9 @@ row_fts_start_psort(
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		psort_info[i].thread_hdl = os_thread_create(
-			fts_parallel_tokenization,
-			(void*) &psort_info[i], &thd_id);
+		os_thread_create(fts_parallel_tokenization,
+				 (void*) &psort_info[i],
+				 &thd_id);
 	}
 }
 
@@ -884,10 +893,6 @@ fts_parallel_merge(
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -909,8 +914,9 @@ row_fts_start_parallel_merge(
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		merge_info[i].thread_hdl = os_thread_create(
-			fts_parallel_merge, (void*) &merge_info[i], &thd_id);
+		os_thread_create(fts_parallel_merge,
+				 (void*) &merge_info[i],
+				 &thd_id);
 	}
 }
 

@@ -25,6 +25,10 @@
   @{
 */
 
+/**
+  Position of a cursor on abstract table
+  PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS.
+*/
 struct pos_connect_attr_by_thread_by_attr
 : public PFS_double_index
 {

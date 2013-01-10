@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file storage/perfschema/table_file_summary.cc
+  @file storage/perfschema/table_file_summary_by_event_name.cc
   Table FILE_SUMMARY_BY_EVENT_NAME(implementation).
 */
 
@@ -232,7 +232,7 @@ int table_file_summary_by_event_name::rnd_pos(const void *pos)
 
 /**
   Build a row.
-  @param klass            the file class the cursor is reading
+  @param file_class            the file class the cursor is reading
 */
 void table_file_summary_by_event_name::make_row(PFS_file_class *file_class)
 {

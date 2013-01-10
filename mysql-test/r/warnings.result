@@ -119,13 +119,13 @@ Warning	1048	Column 'a' cannot be null
 Warning	1265	Data truncated for column 'b' at row 4
 insert into t2(b) values('mysqlab');
 Warnings:
-Warning	1364	Field 'a' doesn't have a default value
 Warning	1265	Data truncated for column 'b' at row 1
+Warning	1364	Field 'a' doesn't have a default value
 set sql_warnings=1;
 insert into t2(b) values('mysqlab');
 Warnings:
-Warning	1364	Field 'a' doesn't have a default value
 Warning	1265	Data truncated for column 'b' at row 1
+Warning	1364	Field 'a' doesn't have a default value
 set sql_warnings=0;
 drop table t1, t2;
 create table t1(a char(10));

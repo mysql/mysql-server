@@ -1309,13 +1309,15 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
-	buf_pool_stat_t	stat;
-	ulint		LRU_len;
-	ulint		free_len;
-	ulint		flush_list_len;
+	buf_pool_stat_t		stat;
+	buf_pools_list_size_t	buf_pools_list_size;
+	ulint			LRU_len;
+	ulint			free_len;
+	ulint			flush_list_len;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1363,7 +1365,14 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
 
+	export_vars.innodb_buffer_pool_bytes_data =
+		buf_pools_list_size.LRU_bytes
+		+ buf_pools_list_size.unzip_LRU_bytes;
+
 	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+
+	export_vars.innodb_buffer_pool_bytes_dirty =
+		buf_pools_list_size.flush_list_bytes;
 
 	export_vars.innodb_buffer_pool_pages_free = free_len;
 
@@ -1451,6 +1460,14 @@ srv_export_innodb_status(void)
 	} else {
 		export_vars.innodb_purge_trx_id_age =
 		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+	}
+
+	if (!purge_sys->view
+	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
 	}
 #endif /* UNIV_DEBUG */
 

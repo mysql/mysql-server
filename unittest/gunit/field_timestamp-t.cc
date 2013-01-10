@@ -21,7 +21,7 @@
 #include "mock_field_timestamp.h"
 #include "test_utils.h"
 
-namespace {
+namespace field_timestamp_unittests {
 
 
 using my_testing::Server_initializer;

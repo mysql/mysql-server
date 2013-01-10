@@ -6144,7 +6144,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = sf_a_from_t1b('1');
@@ -6230,7 +6230,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = CONCAT('+', b) WHERE a = 7 + sf_a_from_t1b('1');
@@ -6582,7 +6582,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = sf_a_from_t1b('1');
@@ -6668,7 +6668,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET b = sf_add_hello(b) WHERE a = 7 + sf_a_from_t1b('1');
@@ -7024,7 +7024,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = sf_a_from_t1b('1');
@@ -7112,7 +7112,7 @@ ROLLBACK;
 UNLOCK TABLES;
 EXPLAIN PARTITIONS UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b('1');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	p0,p1,p2	ALL	PRIMARY,b	PRIMARY	4	NULL	#	Using where; Using temporary
+1	SIMPLE	t2	p0,p1,p2	index	PRIMARY,b	PRIMARY	4	NULL	#	Using where; Using temporary
 FLUSH STATUS;
 START TRANSACTION;
 UPDATE t2 SET a = sf_add_1(a) + 4 WHERE a = 7 + sf_a_from_t1b('1');

@@ -359,7 +359,10 @@ DELETE FROM t1 WHERE a%2;
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE t1 ADD PRIMARY KEY (a,b(255),c(255)), ADD KEY (b(767));
+SET @@sql_mode = @old_sql_mode;
 SELECT COUNT(*) FROM t1 WHERE a=44;
 COUNT(*)
 5

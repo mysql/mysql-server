@@ -18,15 +18,9 @@
 #include <gtest/gtest.h>
 
 #include "sql_plist.h"
+#include "test_utils.h"
 
-namespace {
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
+namespace sql_plist_unittest {
 
 // A simple helper function to insert values into a List.
 template <class T, int size, class L>

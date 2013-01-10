@@ -446,6 +446,7 @@ struct PFS_statement_stat_row
   void set_field(uint index, Field *f);
 };
 
+/** Row fragment for connection statistics. */
 struct PFS_connection_stat_row
 {
   ulonglong m_current_connections;

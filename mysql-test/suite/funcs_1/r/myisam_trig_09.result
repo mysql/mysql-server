@@ -199,7 +199,7 @@ a	NULL	Test 3.5.9.4-trig	00000	999	NULL
 select  @tr_var_b4_118, @tr_var_b4_121, @tr_var_b4_122,
 @tr_var_b4_136, @tr_var_b4_151, @tr_var_b4_163;
 @tr_var_b4_118	@tr_var_b4_121	@tr_var_b4_122	@tr_var_b4_136	@tr_var_b4_151	@tr_var_b4_163
-a	NULL	Test 3.5.9.4-trig	0	999	NULL
+a	NULL	Test 3.5.9.4-trig	NULL	999	NULL
 select  @tr_var_af_118, @tr_var_af_121, @tr_var_af_122,
 @tr_var_af_136, @tr_var_af_151, @tr_var_af_163;
 @tr_var_af_118	@tr_var_af_121	@tr_var_af_122	@tr_var_af_136	@tr_var_af_151	@tr_var_af_163

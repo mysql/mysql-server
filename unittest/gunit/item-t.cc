@@ -26,7 +26,7 @@
 
 #include "mock_field_timestamp.h"
 
-namespace {
+namespace item_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -134,6 +134,7 @@ TEST_F(ItemTest, ItemEqual)
 {
   // Bug#13720201 VALGRIND: VARIOUS BLOCKS OF BYTES DEFINITELY LOST
   Mock_field_timestamp mft;
+  mft.make_readable();
   // foo is longer than STRING_BUFFER_USUAL_SIZE used by cmp_item_sort_string.
   const char foo[]=
     "0123456789012345678901234567890123456789"
@@ -142,6 +143,7 @@ TEST_F(ItemTest, ItemEqual)
   Item_equal *item_equal=
     new Item_equal(new Item_string(STRING_WITH_LEN(foo), &my_charset_bin),
                    new Item_field(&mft));
+  
   EXPECT_FALSE(item_equal->fix_fields(thd(), NULL));
   EXPECT_EQ(0, item_equal->val_int());
 }

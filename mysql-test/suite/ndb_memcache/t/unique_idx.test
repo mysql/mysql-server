@@ -8,7 +8,7 @@
 # (3) Updates that contain the PK column are allowed if the PK value 
 #     does not change, but attempts to change the PK fail with NOT_STORED.
 
-
+--source include/have_ndb.inc
 --source suite/ndb_memcache/include/have_memcache.inc
 --source suite/ndb_memcache/include/memcached_wait_for_ready.inc
 --source suite/ndb_memcache/include/misc_tables.inc

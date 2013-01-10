@@ -23,6 +23,8 @@
 */
 class Fake_TABLE_SHARE : public TABLE_SHARE
 {
+  uint32 all_set_buf;
+
 public:
   Fake_TABLE_SHARE(uint number_of_columns)
   {
@@ -34,6 +36,9 @@ public:
     db_low_byte_first= true;
     path.str= const_cast<char*>(fakepath);
     path.length= strlen(path.str);
+
+    EXPECT_EQ(0, bitmap_init(&all_set, &all_set_buf, fields, false));
+    bitmap_set_above(&all_set, 0, 1);
   }
   ~Fake_TABLE_SHARE() {}
 };
@@ -44,10 +49,18 @@ public:
 */
 class Fake_TABLE: public TABLE
 {
+  // make room for 8 indexes (mysql permits 64)
+  static const int max_keys= 8;
+  KEY m_keys[max_keys];
+  // make room for up to 8 keyparts per index
+  KEY_PART_INFO m_key_part_infos[max_keys][8];
+
   Fake_TABLE_SHARE table_share;
   MY_BITMAP write_set_struct;
   uint32 write_set_buf;
-  Field *field_array[32];
+  MY_BITMAP read_set_struct;
+  uint32 read_set_buf;
+  Field *m_field_array[32];
 
   void inititalize()
   {
@@ -55,11 +68,12 @@ class Fake_TABLE: public TABLE
     file= NULL;
     in_use= current_thd;
     null_row= '\0';
+    read_set= &read_set_struct;
     write_set= &write_set_struct;
-    read_set= NULL;
     next_number_field= NULL; // No autoinc column
 
     EXPECT_EQ(0, bitmap_init(write_set, &write_set_buf, s->fields, false));
+    EXPECT_EQ(0, bitmap_init(read_set, &read_set_buf, s->fields, false));
 
     static const char *table_name= "Fake";
     for (uint i= 0; i < s->fields; ++i)
@@ -70,19 +84,36 @@ class Fake_TABLE: public TABLE
     }
     const_table= true;
     maybe_null= 0;
+    this->TABLE::map= 1;                        /* ID bit of table */
+    this->TABLE::key_info= &m_keys[0];
+    for (int i= 0; i < max_keys; i++)
+      key_info[i].key_part= m_key_part_infos[i];
   }
 
 public:
+  Fake_TABLE(List<Field> fields)
+    : table_share(fields.elements)
+  {
+    field= m_field_array;
+
+    List_iterator<Field> it(fields);
+    int nbr_fields= 0;
+    for (Field *cur_field= it++; cur_field; cur_field= it++)
+      field[nbr_fields++]= cur_field;
+
+    inititalize();
+  }
+
   Fake_TABLE(Field *column1) : table_share(1)
   {
-    field= field_array;
+    field= m_field_array;
     field[0]= column1;
     inititalize();
   }
 
   Fake_TABLE(Field *column1, Field *column2) : table_share(2)
   {
-    field= field_array;
+    field= m_field_array;
     field[0]= column1;
     field[1]= column2;
     inititalize();
