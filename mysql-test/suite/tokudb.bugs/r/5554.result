@@ -1,0 +1,31 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS foo;
+set session autocommit=on;
+create table foo (a int);
+insert into foo values (1);
+select * from foo;
+a
+1
+begin;
+select * from foo;
+a
+1
+insert into foo values(2);
+select * from foo;
+a
+1
+2
+commit;
+set session autocommit=off;
+select * from foo;
+a
+1
+2
+insert into foo values(2);
+select * from foo;
+a
+1
+2
+2
+commit;
+DROP TABLE foo;
