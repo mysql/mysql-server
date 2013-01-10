@@ -1560,7 +1560,7 @@ btr_create(
 #ifdef UNIV_BLOB_DEBUG
 		/* The BLOB pointers can only exist in user records.
 		TRUNCATE gets rid of all user records. So we don't
-		need assign the BLOB pointers when applying
+		need to assign the BLOB pointers when applying
 		MLOG_FILE_TRUNCATE log record during recovery. */
 		if ((type & DICT_CLUSTERED) && index && !index->blobs) {
 			mutex_create(PFS_NOT_INSTRUMENTED,
@@ -1618,9 +1618,9 @@ btr_create(
 			redo_page_compress_t	page_comp_info;
 			page_comp_info.type = type;
 			page_comp_info.index_id = index_id;
-			page_comp_info.fields_num = btr_create_info->n_fields;
+			page_comp_info.n_fields = btr_create_info->n_fields;
 			page_comp_info.field_len = btr_create_info->field_len;
-			page_comp_info.field_buf = btr_create_info->fields;
+			page_comp_info.fields = btr_create_info->fields;
 			page = page_create_zip(block, NULL, 0, &page_comp_info,
 					       mtr);
 		}

@@ -24,7 +24,7 @@ count(*)
 drop table t1;
 # Verify that recovery works fine from a crash during
 # the drop of the second secondary to a table with
-# remote data directory.
+# remote data directory and dynamic format.
 drop table if exists t1;
 set global innodb_file_format='Barracuda';
 #
@@ -52,9 +52,18 @@ count(*)
 select count(*) from t1;
 count(*)
 20000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
+select count(*) from t1;
+count(*)
+17000
 drop table t1;
-# Verify that recovery works fine from a crash before
-# log checkpoint to a general table.
+# Verify that recovery works fine from a crash during the creation
+# of the second secondary to a table with redundant format.
 drop table if exists t1;
 create table t1(a int not null,
 b int not null,
@@ -62,7 +71,7 @@ c int not null,
 primary key (a),
 index (b),
 index (c))
-engine=innodb;
+engine=innodb row_format=redundant;
 select count(*) from t1;
 count(*)
 17000
@@ -77,9 +86,52 @@ count(*)
 select count(*) from t1;
 count(*)
 17000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
+select count(*) from t1;
+count(*)
+17000
 drop table t1;
-# Verify that recovery works fine from a crash during the
-# creation of the second secondary to a compressed table.
+# Verify that recovery works fine from a crash before
+# log checkpoint to a table with compact format.
+drop table if exists t1;
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+engine=innodb row_format=compact;
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+17000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
+select count(*) from t1;
+count(*)
+17000
+drop table t1;
+# Verify that recovery works fine from a crash after
+# log checkpoint to a table with 8k block size.
 drop table if exists t1;
 set global innodb_file_format='Barracuda';
 call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
@@ -101,6 +153,87 @@ ERROR HY000: Lost connection to MySQL server during query
 select count(*) from t1;
 count(*)
 0
+select count(*) from t1;
+count(*)
+17000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
+select count(*) from t1;
+count(*)
+17000
+drop table t1;
+# Verify that recovery works fine from a crash after physically
+# truncated the tablespace to a table with 4k block size.
+drop table if exists t1;
+set global innodb_file_format='Barracuda';
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+engine=innodb row_format=compressed key_block_size=4;
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+17000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
+select count(*) from t1;
+count(*)
+17000
+drop table t1;
+# Verify that recovery works fine from a crash after physically
+# truncated the tablespace to a table with 2k block size.
+drop table if exists t1;
+set global innodb_file_format='Barracuda';
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+engine=innodb row_format=compressed key_block_size=2;
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+17000
+# Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+# Verify that we can insert data into the truncated table normally.
 select count(*) from t1;
 count(*)
 17000

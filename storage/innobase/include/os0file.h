@@ -818,7 +818,7 @@ os_file_truncate(
 /*=============*/
 	const char*	pathname,	/*!< in: file path */
 	os_file_t	file,		/*!< in: file to be truncated */
-	ulint		size);		/*!< in: size preserved in bytes */
+	os_offset_t	size);		/*!< in: size preserved in bytes */
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
