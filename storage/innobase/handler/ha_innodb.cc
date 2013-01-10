@@ -5596,6 +5596,8 @@ ha_innobase::unlock_row(void)
 {
 	DBUG_ENTER("ha_innobase::unlock_row");
 
+	ut_ad(prebuilt->trx->conc_state == TRX_ACTIVE);
+
 	/* Consistent read does not take any locks, thus there is
 	nothing to unlock. */
 
