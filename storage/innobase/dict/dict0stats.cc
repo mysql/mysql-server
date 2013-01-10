@@ -3411,12 +3411,12 @@ UPDATE mysql.innodb_table_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_rename_in_table_stats() @{
+dict_stats_rename_table_in_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
-dict_stats_rename_in_table_stats(
-/*=============================*/
+dict_stats_rename_table_in_table_stats(
+/*===================================*/
 	const char*	old_dbname_utf8,/*!< in: database name, e.g. 'olddb' */
 	const char*	old_tablename_utf8,/*!< in: table name, e.g. 'oldtable' */
 	const char*	new_dbname_utf8,/*!< in: database name, e.g. 'newdb' */
@@ -3439,7 +3439,7 @@ dict_stats_rename_in_table_stats(
 
 	ret = dict_stats_exec_sql(
 		pinfo,
-		"PROCEDURE RENAME_IN_TABLE_STATS () IS\n"
+		"PROCEDURE RENAME_TABLE_IN_TABLE_STATS () IS\n"
 		"BEGIN\n"
 		"UPDATE \"" TABLE_STATS_NAME "\" SET\n"
 		"database_name = :new_dbname_utf8,\n"
@@ -3459,12 +3459,12 @@ UPDATE mysql.innodb_index_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_rename_in_index_stats() @{
+dict_stats_rename_table_in_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
-dict_stats_rename_in_index_stats(
-/*=============================*/
+dict_stats_rename_table_in_index_stats(
+/*===================================*/
 	const char*	old_dbname_utf8,/*!< in: database name, e.g. 'olddb' */
 	const char*	old_tablename_utf8,/*!< in: table name, e.g. 'oldtable' */
 	const char*	new_dbname_utf8,/*!< in: database name, e.g. 'newdb' */
@@ -3487,7 +3487,7 @@ dict_stats_rename_in_index_stats(
 
 	ret = dict_stats_exec_sql(
 		pinfo,
-		"PROCEDURE RENAME_IN_INDEX_STATS () IS\n"
+		"PROCEDURE RENAME_TABLE_IN_INDEX_STATS () IS\n"
 		"BEGIN\n"
 		"UPDATE \"" INDEX_STATS_NAME "\" SET\n"
 		"database_name = :new_dbname_utf8,\n"
@@ -3549,7 +3549,7 @@ dict_stats_rename_table(
 	do {
 		n_attempts++;
 
-		ret = dict_stats_rename_in_table_stats(
+		ret = dict_stats_rename_table_in_table_stats(
 			old_db_utf8, old_table_utf8,
 			new_db_utf8, new_table_utf8);
 
@@ -3605,7 +3605,7 @@ dict_stats_rename_table(
 	do {
 		n_attempts++;
 
-		ret = dict_stats_rename_in_index_stats(
+		ret = dict_stats_rename_table_in_index_stats(
 			old_db_utf8, old_table_utf8,
 			new_db_utf8, new_table_utf8);
 
