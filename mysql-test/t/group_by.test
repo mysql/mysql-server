@@ -1,3 +1,4 @@
+--source include/have_innodb.inc
 
 # Initialise
 --disable_warnings
@@ -1507,3 +1508,45 @@ SELECT f1,MIN(f2),MAX(f2) FROM t1 GROUP BY 1;
 
 DROP TABLE t1;
 --echo #End of test#49771
+
+--echo #
+--echo # Test of bug in GROUP_CONCAT with ROLLUP
+--echo #
+
+CREATE TABLE t1 ( b VARCHAR(8) NOT NULL, a INT NOT NULL ) ENGINE=MyISAM;
+INSERT INTO t1 (a,b) VALUES (1,'c'),(2,'v');
+
+CREATE TABLE t2 ( c VARCHAR(8), d INT, KEY (c, d) ) ENGINE=MyISAM;
+INSERT INTO t2 VALUES ('v',6),('c',4),('v',3);
+
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b;
+
+SELECT b, GROUP_CONCAT( a, b ORDER BY a, b )
+FROM t1 JOIN t2 ON c = b GROUP BY b WITH ROLLUP;
+
+DROP TABLE t1,t2;
+
+--echo #
+--echo # Test of MDEV-4002
+--echo #
+
+CREATE TABLE t1 ( 
+  pk INT NOT NULL PRIMARY KEY, 
+  d1 DOUBLE, 
+  d2 DOUBLE, 
+  i INT NOT NULL DEFAULT '0',
+  KEY (i)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,1.0,1.1,1),(2,2.0,2.2,2);
+
+PREPARE stmt FROM " 
+SELECT DISTINCT i, GROUP_CONCAT(  d1, d2 ORDER BY d1, d2 ) 
+FROM t1 a1 NATURAL JOIN t1 a2 GROUP BY i WITH ROLLUP 
+";
+
+EXECUTE stmt;
+EXECUTE stmt;
+
+DROP TABLE t1;
