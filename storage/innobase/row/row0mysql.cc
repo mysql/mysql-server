@@ -3521,6 +3521,8 @@ next_record:
 					DBUG_SUICIDE(););
 		}
 
+		DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+			root_page_no = FIL_NULL;);
 		if (root_page_no != FIL_NULL) {
 			/* We will need to commit and restart the
 			mini-transaction in order to avoid deadlocks.
@@ -3531,6 +3533,19 @@ next_record:
 			mtr_start(&mtr);
 			btr_pcur_restore_position(BTR_MODIFY_LEAF,
 						  &pcur, &mtr);
+		} else {
+			ulint	zip_size;
+			zip_size = fil_space_get_zip_size(table->space);
+			DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+                        zip_size = ULINT_UNDEFINED;);
+			if (zip_size == ULINT_UNDEFINED) {
+				/* Rollback the truncation and mark the table
+				as corrupt if the .ibd file is missing */
+				trx->error_state = DB_SUCCESS;
+				trx_rollback_to_savepoint(trx, NULL);
+				trx->error_state = DB_SUCCESS;
+				table->corrupted = true;
+			}
 		}
 
 next_rec:

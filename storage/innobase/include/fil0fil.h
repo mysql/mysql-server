@@ -463,6 +463,16 @@ struct truncate_rec_t {
 							information */
 };
 /*******************************************************************//**
+Check if an index tree is freed by a descriptor bit of a page.
+@return true if the index tree is freed */
+UNIV_INTERN
+bool
+fil_index_tree_is_freed(
+/*====================*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	root_page_no,	/*!< in: root page no of an index tree */
+	ulint	zip_size);	/*!< in: compressed page size in bytes */
+/*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
 must be cached in the memory cache.
 1) Check pending operations on a tablespace;

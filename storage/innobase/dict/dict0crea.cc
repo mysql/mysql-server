@@ -759,22 +759,10 @@ dict_drop_index_tree(
 		return;
 	}
 
-	if (is_drop) {
-		rw_lock_t*	latch;
-		mtr_t		mtr2;
-		xdes_t*		descr;
-		latch = fil_space_get_latch(space, NULL);
-		mtr_start(&mtr2);
-		mtr_x_lock(latch, &mtr2);
-		descr = xdes_get_descriptor(space, zip_size,
-					    root_page_no, &mtr2);
-		mtr_commit(&mtr2);
-		if (descr == NULL || (descr != NULL
-		    && xdes_get_bit(descr, XDES_FREE_BIT,
-				    root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
-			/* The tree has already been freed */
-			return;
-		}
+	if (is_drop
+	    && fil_index_tree_is_freed(space, root_page_no, zip_size)) {
+		/* The tree has already been freed */
+		return;
 	}
 
 	/* We free all the pages but the root page first; this operation
@@ -843,7 +831,7 @@ dict_free_index_tree(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to free a missing .ibd file "
 			"of table '%s'!", name);
-		ut_error;
+		return(FIL_NULL);
 	}
 
 	/* We free all the pages but the root page first; this operation

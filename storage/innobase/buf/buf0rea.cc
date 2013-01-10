@@ -104,9 +104,11 @@ static
 ulint
 buf_read_page_low(
 /*==============*/
-	dberr_t*	err,	/*!< out: DB_SUCCESS or DB_TABLESPACE_DELETED if we are
-			trying to read from a non-existent tablespace, or a
-			tablespace which is just now being dropped */
+	dberr_t*	err,	/*!< out: DB_SUCCESS, DB_TABLESPACE_DELETED
+			or DB_TABLESPACE_TRUNCATED if we are trying to read
+			from a non-existent tablespace, a tablespace which
+			is just now being dropped, or a tablespace which is
+			truncated */
 	ibool	sync,	/*!< in: TRUE if synchronous aio is desired */
 	ulint	mode,	/*!< in: BUF_READ_IBUF_PAGES_ONLY, ...,
 			ORed to OS_AIO_SIMULATED_WAKE_LATER (see below
