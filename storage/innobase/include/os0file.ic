@@ -386,4 +386,64 @@ pfs_os_file_rename_func(
 
 	return(result);
 }
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete(), not directly
+this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_func(
+/*====================*/
+	mysql_pfs_key_t key,		/*!< in: Performance Schema Key */
+	const char*	name,		/*!< in: file path as a null-terminated
+					string */
+	const char*	src_file,	/*!< in: file name where func invoked */
+	ulint		src_line)	/*!< in: line where the func invoked */
+{
+	bool	result;
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
+
+	register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE,
+				      name, src_file, src_line);
+
+	result = os_file_delete_func(name);
+
+	register_pfs_file_close_end(locker, 0);
+
+	return(result);
+}
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
+directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete_if_exists()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_if_exists_func(
+/*==============================*/
+	mysql_pfs_key_t key,		/*!< in: Performance Schema Key */
+	const char*	name,		/*!< in: file path as a null-terminated
+					string */
+	const char*	src_file,	/*!< in: file name where func invoked */
+	ulint		src_line)	/*!< in: line where the func invoked */
+{
+	bool	result;
+	struct PSI_file_locker*	locker = NULL;
+	PSI_file_locker_state	state;
+
+	register_pfs_file_close_begin(&state, locker, key, PSI_FILE_DELETE,
+				      name, src_file, src_line);
+
+	result = os_file_delete_if_exists_func(name);
+
+	register_pfs_file_close_end(locker, 0);
+
+	return(result);
+}
 #endif /* UNIV_PFS_IO */

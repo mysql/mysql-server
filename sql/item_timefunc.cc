@@ -2743,8 +2743,8 @@ void Item_func_add_time::print(String *str, enum_query_type query_type)
   time value between a start and end time.
 
   t and s: time_or_datetime_expression
-  @param  l_time3[OUT]   Result is stored here.
-  @param  flags[IN]      Not used in this class.
+  @param[out]  l_time3   Result is stored here.
+  @param[in]   flags     Not used in this class.
 
   @returns
   @retval   false  On succes

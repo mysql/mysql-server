@@ -265,6 +265,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
@@ -889,11 +890,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       else
       {
-	recinfo->null_bit= 1 << (null_count & 7);
+	recinfo->null_bit= (uint8)1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
       field->move_field(pos,null_flags+null_count/8,
-			1 << (null_count & 7));
+			(uint8)1 << (null_count & 7));
       null_count++;
     }
     else
@@ -918,11 +919,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
          inherit the default value that is defined for the field referred
          by the Item_field object from which 'field' has been created.
       */
-      my_ptrdiff_t diff;
       Field *orig_field= default_field[i];
       /* Get the value from default_values */
-      diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
-                            orig_field->table->record[0]);
+      my_ptrdiff_t diff= orig_field->table->default_values_offset();
       orig_field->move_field_offset(diff);      // Points now at default_values
       if (orig_field->is_real_null())
         field->set_null();
@@ -1547,7 +1546,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
       {
         cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
         null_bit<<= 1;
-        if (null_bit == (1 << 8))
+        if (null_bit == (uint8)1 << 8)
         {
           ++null_pos;
           null_bit= 1;
@@ -1589,8 +1588,10 @@ bool open_tmp_table(TABLE *table)
     return(1);
   }
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
-  table->created= TRUE;
-  return(0);
+
+  table->set_created();
+
+  return false;
 }
 
 
@@ -1836,7 +1837,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   filesort_free_buffers(entry, true);
 
-  if (entry->file && entry->created)
+  if (entry->is_created())
   {
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
@@ -1844,9 +1845,9 @@ free_tmp_table(THD *thd, TABLE *entry)
       entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
     entry->file= NULL;
-    entry->created= FALSE;
-  }
 
+    entry->set_deleted();
+  }
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     (*ptr)->free();

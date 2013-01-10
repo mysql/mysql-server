@@ -9343,6 +9343,7 @@ simple_expr:
             if (i1 == NULL)
               MYSQL_YYABORT;
             Select->add_ftfunc_to_list(i1);
+            Lex->set_using_match();
             $$= i1;
           }
         | BINARY simple_expr %prec NEG

@@ -52,11 +52,11 @@
 
 --let $uuida= aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa
 
-call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has GTID_MODE");
+call mtr.add_suppression("Slave I/O: The slave IO thread stops because the master has @@GLOBAL.GTID_MODE");
 call mtr.add_suppression("Error reading packet from server: Lost connection to MySQL");
 call mtr.add_suppression("Aborting");
-call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when GTID_MODE = ON.");
-call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF.");
+call mtr.add_suppression(".* CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON.");
+call mtr.add_suppression(".* Found a Gtid_log_event or Previous_gtids_log_event when @@GLOBAL.GTID_MODE = OFF.");
 call mtr.add_suppression(".* Failed to initialize the master info structure");
 
 --sync_slave_with_master

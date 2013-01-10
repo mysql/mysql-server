@@ -516,16 +516,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       If this is an ALTER VIEW then the current user should be set as
       the definer.
     */
-    Query_arena original_arena;
-    Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    if (!(lex->definer= create_default_definer(thd)))
-      res= TRUE;
+    lex->definer= create_default_definer(thd);
 
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
-
-    if (res)
+    if (!lex->definer)
       goto err;
   }
 
@@ -1239,10 +1234,10 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     be used here
   */
   DBUG_ASSERT(share->view_def != NULL);
-  if (share->view_def->parse((uchar*)table, thd->mem_root, view_parameters,
-                             required_view_parameters,
-                             &file_parser_dummy_hook))
-    goto err;
+  if ((result= share->view_def->parse((uchar*)table, thd->mem_root,
+                                      view_parameters, required_view_parameters,
+                                      &file_parser_dummy_hook)))
+    goto end;
 
   /*
     check old format view .frm
@@ -1305,6 +1300,11 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
     now Lex placed in statement memory
   */
   table->view= lex= thd->lex= (LEX*) new(thd->mem_root) st_lex_local;
+  if (!table->view)
+  {
+    result= true;
+    goto end;
+  }
 
   {
     char old_db_buf[NAME_LEN+1];

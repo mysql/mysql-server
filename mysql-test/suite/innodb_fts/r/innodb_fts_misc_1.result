@@ -72,10 +72,10 @@ id2
 6
 2
 4
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id1
 1
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id2
 1
 set global innodb_optimize_fulltext_only=1;
@@ -280,10 +280,10 @@ id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 3	Optimizing MySQL	In this tutorial we will show ...
 2	How To Use MySQL Well	After you went through a ...
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id1	a1	b1
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 id2	a2	b2
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root') ;
@@ -298,9 +298,9 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root' WITH QUERY EXPANSION) ;
 id1	a1	b1
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root' WITH QUERY EXPANSION) ;
 id2	a2	b2
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
 id1	a1	b1
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
 id2	a2	b2
 SELECT * FROM t1;
 id1	a1	b1
@@ -570,16 +570,16 @@ INSERT INTO t1 (a,b) VALUES
 'search, with proximity innodb');
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 id	a	b
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 id	a	b
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
@@ -590,19 +590,21 @@ AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
 id	a	b
 8	test proximity search, test, proximity and phrase	search, with proximity innodb
 9	test proximity fts search, test, proximity and phrase	search, with proximity innodb
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
+id	a	b
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 id	a	b
 10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+AGAINST ('"more fts proximity"@03' IN BOOLEAN MODE);
 id	a	b
-SELECT * FROM t1
-WHERE MATCH (a,b)
-AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
-id	a	b
+10	test more proximity fts search, test, more proximity and phrase	search, with proximity innodb
 UPDATE t1 SET a = UPPER(a) , b = UPPER(b) ;
 UPDATE t1 SET a = UPPER(a) , b = LOWER(b) ;
 select * from t1 where MATCH(a,b) AGAINST("+tutorial +dbms" IN BOOLEAN MODE);
@@ -684,38 +686,41 @@ id	a	b
 5	Sævör grét	áðan því úlpan var ónýt
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"γυαλιὰ χωρὶς"@21' IN BOOLEAN MODE);
+AGAINST ('"γυαλιὰ χωρὶς"@2' IN BOOLEAN MODE);
 id	a	b
 3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"query performace"@06' IN BOOLEAN MODE);
+AGAINST ('"query performace"@02' IN BOOLEAN MODE);
 id	a	b
 9	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"πάθω τίποτα"@18' IN BOOLEAN MODE);
+AGAINST ('"πάθω τίποτα"@2' IN BOOLEAN MODE);
 id	a	b
 3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"あさきゆめみじ　ゑひもせず"@50' IN BOOLEAN MODE);
+AGAINST ('"あさきゆめみじ ゑひもせず"@1' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"あさきゆめみじ　ゑひもせず"@6' IN BOOLEAN MODE);
+AGAINST ('"あさきゆめみじ ゑひもせず"@2' IN BOOLEAN MODE);
 id	a	b
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
 ALTER TABLE t1 DROP INDEX idx;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
-SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
 id	a	b
-UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
+UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
 UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "но фальшивый экземпляр! ёъ" WHERE MATCH(a,b) AGAINST ("вред*" IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
 id	a	b
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("łódź osiem");
 id	a	b
+7	Pchnąć w tę łódź jeża	lub osiem skrzyń fig
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("вред*" IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("фальшив*" IN BOOLEAN MODE);
@@ -726,8 +731,9 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"łódź jeża"@15' IN BOOLEAN MODE);
+AGAINST ('"łódź jeża"@2' IN BOOLEAN MODE);
 id	a	b
+7	Pchnąć w tę łódź jeża	lub osiem skrzyń fig
 SELECT * FROM t1;
 id	a	b
 1	В чащах юга жил-был цитрус? Да	но фальшивый экземпляр! ёъ
@@ -735,7 +741,7 @@ id	a	b
 3	Μπορῶ νὰ φάω σπασμένα	γυαλιὰ χωρὶς νὰ πάθω τίποτα
 4	Příliš žluťoučký kůň	úpěl ďábelské kódy
 6	うゐのおくやま	けふこえて
-7	いろはにほへど　ちりぬる	あさきゆめみじ　ゑひもせず
+7	Pchnąć w tę łódź jeża	lub osiem skrzyń fig
 8	MySQL Tutorial	request docteam@oraclehelp.com ...
 9	Trial version	query performace @1255 minute on 2.1Hz Memory 2GB...
 10	when To Use MySQL Well	for free faq  mail@xyz.com ...

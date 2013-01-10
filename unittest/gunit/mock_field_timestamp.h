@@ -34,7 +34,7 @@ class Mock_field_timestamp : public Field_timestamp
     EXPECT_FALSE(table == NULL) << "Out of memory";
     ptr= buffer;
     memset(buffer, 0, PACK_LENGTH);
-    null_ptr= &null_byte;
+    set_null_ptr(&null_byte, 1);
   }
 
 public:
@@ -73,6 +73,7 @@ public:
 
   /* Averts ASSERT_COLUMN_MARKED_FOR_WRITE assertion. */
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 
   void store_timestamp(const timeval *tm)
   {

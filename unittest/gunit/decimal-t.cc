@@ -30,7 +30,7 @@ int decimal_shift(decimal_t *dec, int shift);
 }
 
 
-namespace {
+namespace decimal_unittest {
 
 #define DIG_PER_DEC1 9
 #define DIG_BASE     1000000000

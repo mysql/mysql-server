@@ -64,6 +64,7 @@ using std::min;
 using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
+my_bool disconnect_on_expired_password= TRUE;
 bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
@@ -406,11 +407,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#if defined(HAVE_OPENSSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
-#endif
+
 static LEX_STRING validate_password_plugin_name= {
   C_STRING_WITH_LEN("validate_password")
 };
@@ -2065,10 +2065,19 @@ ulong acl_get(const char *host, const char *ip,
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   uint i;
-  size_t key_length;
+  size_t key_length, copy_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
+
+  copy_length= (size_t) (strlen(ip ? ip : "") +
+                 strlen(user ? user : "") +
+                 strlen(db ? db : ""));
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= ACL_KEY_LENGTH)
+    DBUG_RETURN(0);
 
   mysql_mutex_lock(&acl_cache->lock);
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
@@ -2359,6 +2368,19 @@ bool change_password(THD *thd, const char *host, const char *user,
   {
     acl_user->plugin.length= default_auth_plugin_name.length;
     acl_user->plugin.str= default_auth_plugin_name.str;
+  }
+
+  if (new_password_len == 0)
+  {
+    String *password_str= new (thd->mem_root) String(new_password,
+                                                     thd->variables.
+                                                     character_set_client);
+    if (check_password_policy(password_str))
+    {
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
   }
   
 #if defined(HAVE_OPENSSL)
@@ -5876,6 +5898,16 @@ bool check_grant_db(THD *thd,const char *db)
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
+  size_t copy_length;
+
+  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+                 strlen(db ? db : ""));
+
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
+    return 1;
 
   len= (uint) (strmov(strmov(helping, sctx->priv_user) + 1, db) - helping) + 1;
 
@@ -9677,6 +9709,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       DBUG_RETURN(1);
   }
+  else
+  {
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      mpvio->charset_adapter->charset()->csname);
+  }
 
 
   /* Convert database and user names to utf8 */
@@ -10003,7 +10041,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   {
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
     if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
     goto skip_to_ssl;
@@ -10040,7 +10081,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       Old clients didn't have their own charset. Instead the assumption
       was that they used what ever the server used.
     */
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
   }
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
@@ -10812,6 +10856,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
     res= do_auth_once(thd, &auth_plugin_name, &mpvio);
+    if (res <= CR_OK)
+    {
+      if (auth_plugin_name.str == native_password_plugin_name.str)
+        thd->variables.old_passwords= 0;
+      if (auth_plugin_name.str == old_password_plugin_name.str)
+        thd->variables.old_passwords= 1;
+      if (auth_plugin_name.str == sha256_password_plugin_name.str)
+        thd->variables.old_passwords= 2;
+    }
   }
 
   server_mpvio_update_thd(thd, &mpvio);
@@ -10841,6 +10894,24 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       general_log_print(thd, command, (char*) "%s@%s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
+  }
+
+  if (unlikely(acl_user && acl_user->password_expired
+               && !(mpvio.client_capabilities &
+                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+               && disconnect_on_expired_password))
+  {
+    /*
+      Clients that don't signal password expiration support
+      get a connect error.
+    */
+    res= CR_ERROR;
+    mpvio.status= MPVIO_EXT::FAILURE;
+
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
+    if (log_warnings > 1)
+      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11297,6 +11368,18 @@ void deinit_rsa_keys(void)
   g_rsa_keys.free_memory();  
 }
 
+// Wraps a FILE handle, to ensure we always close it when returning.
+class FileCloser
+{
+  FILE *m_file;
+public:
+  FileCloser(FILE *to_be_closed) : m_file(to_be_closed) {}
+  ~FileCloser()
+  {
+    if (m_file != NULL)
+      fclose(m_file);
+  }
+};
 
 /**
   Loads the RSA key pair from disk and store them in a global variable. 
@@ -11351,6 +11434,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_priv(priv_key_file);
 
   if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
       strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
@@ -11373,6 +11457,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_public(public_key_file);
 
   RSA *rsa_private_key= RSA_new();
   if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,
@@ -11723,7 +11808,7 @@ int check_password_strength(String *password)
 }
 
 /* called when new user is created or exsisting password is changed */
-void check_password_policy(String *password)
+int check_password_policy(String *password)
 {
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
@@ -11734,8 +11819,12 @@ void check_password_policy(String *password)
                       (st_mysql_validate_password *) plugin_decl(plugin)->info;
 
     if (!password_validate->validate_password(password))
+    {  
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-
+      plugin_unlock(0, plugin);
+      return (1);
+    }
     plugin_unlock(0, plugin);
   }
+  return (0);
 }

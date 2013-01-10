@@ -153,7 +153,8 @@ row_upd_rec_sys_fields(
 	dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	const trx_t*	trx,	/*!< in: transaction */
-	roll_ptr_t	roll_ptr)/*!< in: roll ptr of the undo log record */
+	roll_ptr_t	roll_ptr)/*!< in: roll ptr of the undo log record,
+				 can be 0 during IMPORT */
 {
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -172,8 +173,14 @@ row_upd_rec_sys_fields(
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
 # error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
 #endif
-		ut_ad(lock_check_trx_id_sanity(trx_read_trx_id(rec + offset),
-					       rec, index, offsets));
+		/* During IMPORT the trx id in the record can be in the
+		future, if the .ibd file is being imported from another
+		instance. During IMPORT roll_ptr will be 0. */
+		ut_ad(roll_ptr == 0
+		      || lock_check_trx_id_sanity(
+			      trx_read_trx_id(rec + offset),
+			      rec, index, offsets));
+
 		trx_write_trx_id(rec + offset, trx->id);
 		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	}

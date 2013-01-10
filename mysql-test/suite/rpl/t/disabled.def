@@ -12,6 +12,5 @@
 
 rpl_row_create_table      : Bug#11759274 2010-02-27 andrei failed different way than earlier with bug#45576
 rpl_delayed_slave         : Bug#11764654 2010-11-09 andrei rpl_delayed_slave fails sporadically in pb
-rpl_row_until             : BUG#12359942 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_stm_until             : BUG#12359942 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_row_binlog_max_cache_size : BUG#14126780 May 29 2012 Vasil Dimov timeout if est number of rows is 3 instead of 4

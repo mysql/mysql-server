@@ -1056,7 +1056,7 @@ void destroy_thread(PFS_thread *pfs)
 }
 
 /**
-  Get the hash pins for @filename_hash.
+  Get the hash pins for @c filename_hash.
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
@@ -1444,7 +1444,9 @@ void destroy_table(PFS_table *pfs)
 /**
   Create instrumentation for a socket instance.
   @param klass                        the socket class
-  @param identity                     the socket descriptor
+  @param fd                           the socket file descriptor
+  @param addr                         the socket address
+  @param addr_len                     the socket address length
   @return a socket instance, or NULL
 */
 PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
