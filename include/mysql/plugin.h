@@ -641,6 +641,17 @@ int mysql_tmpfile(const char *prefix);
 */
 int thd_killed(const MYSQL_THD thd);
 
+/**
+   Increase level of kill ; Ensures that thd_killed() returns true.
+
+   @param  thd  Thread connection handle
+
+   @details
+   Needed if storage engine wants to abort things because of a 'soft' (ie,
+   safe) kill but still uses thd_killed() to check if it's killed.
+**/
+
+void thd_mark_as_hard_kill(MYSQL_THD thd);
 
 /**
   Return the thread id of a user thread

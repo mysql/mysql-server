@@ -339,6 +339,7 @@ static PSI_file_info	all_innodb_files[] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
+static void innobase_kill_query(handlerton *hton, THD* thd, my_bool hard_kill);
 static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
@@ -917,8 +918,7 @@ convert_error_code_to_mysql(
 		return(0);
 
 	case DB_INTERRUPTED:
-		my_error(ER_QUERY_INTERRUPTED, MYF(0));
-		/* fall through */
+                return(HA_ERR_ABORTED_BY_USER);
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -2271,6 +2271,7 @@ innobase_init(
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
+	innobase_hton->kill_query = innobase_kill_query;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3171,6 +3172,36 @@ innobase_close_connection(
 	trx_free_for_mysql(trx);
 
 	DBUG_RETURN(0);
+}
+
+
+/*****************************************************************//**
+Cancel any pending lock request associated with the current THD. */
+static
+void
+innobase_kill_query(
+/*======================*/
+        handlerton*	hton,	/*!< in:  innobase handlerton */
+	THD*	thd,	/*!< in: handle to the MySQL thread being killed */
+        my_bool hard_kill)      /*!< in:  If hard kill */
+{
+	trx_t*	trx;
+	DBUG_ENTER("innobase_kill_query");
+	DBUG_ASSERT(hton == innodb_hton_ptr);
+
+	mutex_enter(&kernel_mutex);
+
+	trx = thd_to_trx(thd);
+
+	/* Cancel a pending lock request. */
+	if (trx && trx->wait_lock) {
+                thd_mark_as_hard_kill(thd);
+		lock_cancel_waiting_and_release(trx->wait_lock);
+	}
+
+	mutex_exit(&kernel_mutex);
+
+	DBUG_VOID_RETURN;
 }
 
 

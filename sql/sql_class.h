@@ -2703,6 +2703,19 @@ public:
   {
     return ::killed_errno(killed);
   }
+  inline void reset_killed()
+  {
+    /*
+      Resetting killed has to be done under a mutex to ensure
+      its not done during an awake() call.
+    */
+    if (killed != NOT_KILLED)
+    {
+      mysql_mutex_lock(&LOCK_thd_data);
+      killed= NOT_KILLED;
+      mysql_mutex_unlock(&LOCK_thd_data);
+    }
+  }
   inline void send_kill_message() const
   {
     int err= killed_errno();
@@ -2715,6 +2728,17 @@ public:
     return (abort_on_warning &&
             (!transaction.stmt.modified_non_trans_table ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
+  }
+  /*
+    Increase level of kill ; Ensures that thd_killed() returns true.
+
+    Needed if storage engine wants to abort things because of a 'soft' (ie,
+    safe) kill but still uses thd_killed() to check if it's killed.
+  */
+  inline void mark_as_hard_kill()
+  {
+    DBUG_ASSERT(killed != NOT_KILLED);
+    killed= (killed_state) (killed | KILL_HARD_BIT);
   }
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);

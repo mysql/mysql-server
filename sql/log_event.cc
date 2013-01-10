@@ -3884,7 +3884,7 @@ Default database: '%s'. Query: '%s'",
     {
       DBUG_PRINT("info",("error ignored"));
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
-      thd->killed= NOT_KILLED;
+      thd->reset_killed();
     }
     /*
       Other cases: mostly we expected no error and get one.

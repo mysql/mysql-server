@@ -14,7 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 
-#include "mdl.h"
+#include "sql_class.h"
 #include "debug_sync.h"
 #include <hash.h>
 #include <mysqld_error.h>
@@ -1185,7 +1185,7 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
                           wait_state_name);
 
   thd_wait_begin(thd, THD_WAIT_META_DATA_LOCK);
-  while (!m_wait_status && !thd_killed(thd) &&
+  while (!m_wait_status && !thd->killed &&
          wait_result != ETIMEDOUT && wait_result != ETIME)
   {
     wait_result= mysql_cond_timedwait(&m_COND_wait_status, &m_LOCK_wait_status,
@@ -1207,7 +1207,7 @@ MDL_wait::timed_wait(THD *thd, struct timespec *abs_timeout,
       false, which means that the caller intends to restart the
       wait.
     */
-    if (thd_killed(thd))
+    if (thd->killed)
       m_wait_status= KILLED;
     else if (set_status_on_timeout)
       m_wait_status= TIMEOUT;

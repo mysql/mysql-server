@@ -865,6 +865,13 @@ struct handlerton
    */
    int  (*close_connection)(handlerton *hton, THD *thd);
    /*
+     Tell handler that query has been killed.
+     hard_kill is set in case of HARD KILL (abort query even if
+     it may corrupt table).
+     Return 1 if the handler wants to upgrade the kill to a hard kill
+   */
+   void (*kill_query)(handlerton *hton, THD *thd, my_bool hard_kill);
+   /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
    */
@@ -2975,6 +2982,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB *ha_known_exts(void);
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_query(THD* thd, my_bool hard_kill);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 void ha_checkpoint_state(bool disable);

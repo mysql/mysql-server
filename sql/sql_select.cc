@@ -331,7 +331,7 @@ bool handle_select(THD *thd, LEX *lex, select_result *result,
                         ER(ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT),
                         thd->accessed_rows_and_keys,
                         thd->lex->limit_rows_examined->val_uint());
-    thd->killed= NOT_KILLED;
+    thd->reset_killed();
   }
   /* Disable LIMIT ROWS EXAMINED after query execution. */
   thd->lex->limit_rows_examined_cnt= ULONGLONG_MAX;
@@ -19213,7 +19213,7 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
   */
   thd->lex->limit_rows_examined_cnt= ULONGLONG_MAX;
   if (thd->killed == ABORT_QUERY)
-    thd->killed= NOT_KILLED;
+    thd->reset_killed();
   free_io_cache(entry);				// Safety
   entry->file->info(HA_STATUS_VARIABLE);
   if (entry->s->db_type() == heap_hton ||

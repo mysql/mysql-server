@@ -227,6 +227,7 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
 void thd_inc_row_count(void* thd);
 int mysql_tmpfile(const char *prefix);
 int thd_killed(const void* thd);
+void thd_mark_as_hard_kill(void* thd);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,

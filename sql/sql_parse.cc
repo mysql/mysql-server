@@ -4495,16 +4495,20 @@ finish:
 
   if (! thd->in_sub_stmt)
   {
-    /* report error issued during command execution */
-    if (thd->killed_errno())
+    if (thd->killed != NOT_KILLED)
     {
-      if (! thd->stmt_da->is_set())
-        thd->send_kill_message();
-    }
-    if (thd->killed < KILL_CONNECTION)
-    {
-      thd->killed= NOT_KILLED;
-      thd->mysys_var->abort= 0;
+      /* report error issued during command execution */
+      if (thd->killed_errno())
+      {
+        /* If we already sent 'ok', we can ignore any kill query statements */
+        if (! thd->stmt_da->is_set())
+          thd->send_kill_message();
+      }
+      if (thd->killed < KILL_CONNECTION)
+      {
+        thd->reset_killed();
+        thd->mysys_var->abort= 0;
+      }
     }
     if (thd->is_error() || (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);

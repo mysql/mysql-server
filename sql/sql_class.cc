@@ -701,7 +701,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     values doesn't have to very accurate and the memory it points to is static,
     but we need to attempt a snapshot on the pointer values to avoid using NULL
     values. The pointer to thd->query however, doesn't point to static memory
-    and has to be protected by LOCK_thread_count or risk pointing to
+    and has to be protected by thd->LOCK_thd_data or risk pointing to
     uninitialized memory.
   */
   const char *proc_info= thd->proc_info;
@@ -736,19 +736,20 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
     str.append(proc_info);
   }
 
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-
-  if (thd->query())
+  /* Don't wait if LOCK_thd_data is used as this could cause a deadlock */
+  if (!mysql_mutex_trylock(&thd->LOCK_thd_data))
   {
-    if (max_query_len < 1)
-      len= thd->query_length();
-    else
-      len= min(thd->query_length(), max_query_len);
-    str.append('\n');
-    str.append(thd->query(), len);
+    if (thd->query())
+    {
+      if (max_query_len < 1)
+        len= thd->query_length();
+      else
+        len= min(thd->query_length(), max_query_len);
+      str.append('\n');
+      str.append(thd->query(), len);
+    }
+    mysql_mutex_unlock(&thd->LOCK_thd_data);
   }
-
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
 
   if (str.c_ptr_safe() == buffer)
     return buffer;
@@ -1355,7 +1356,7 @@ void THD::change_user(void)
   mysql_mutex_unlock(&LOCK_status);
 
   cleanup();
-  killed= NOT_KILLED;
+  reset_killed();
   cleanup_done= 0;
   init();
   stmt_map.reset();
@@ -1609,6 +1610,10 @@ void THD::awake(killed_state state_to_set)
     if (!slave_thread)
       MYSQL_CALLBACK(scheduler, post_kill_notification, (this));
   }
+
+  /* Interrupt target waiting inside a storage engine. */
+  if (state_to_set != NOT_KILLED)
+    ha_kill_query(this, test(state_to_set & KILL_HARD_BIT));
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -3848,6 +3853,18 @@ extern "C" int thd_killed(const MYSQL_THD thd)
   return thd->killed;
 }
 
+/**
+  Change kill level to hard.
+  This ensures that thd_killed() will return true.
+  This is important for storage engines that uses thd_killed() to
+  verify if thread is killed.
+*/
+
+extern "C" void thd_mark_as_hard_kill(MYSQL_THD thd)
+{
+  thd->mark_as_hard_kill();
+}
+
 
 /**
    Send an out-of-band progress report to the client
@@ -5603,4 +5620,3 @@ bool Discrete_intervals_list::append(Discrete_interval *new_interval)
 }
 
 #endif /* !defined(MYSQL_CLIENT) */
-

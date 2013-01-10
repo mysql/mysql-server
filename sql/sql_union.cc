@@ -716,7 +716,7 @@ bool st_select_lex_unit::exec()
                             ER(ER_QUERY_EXCEEDED_ROWS_EXAMINED_LIMIT),
                             thd->accessed_rows_and_keys,
                             thd->lex->limit_rows_examined->val_uint());
-        thd->killed= NOT_KILLED;
+        thd->reset_killed();
         break;
       }
     }

@@ -2724,7 +2724,10 @@ pthread_handler_t handle_delayed_insert(void *arg)
   thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
   thd->set_current_time();
   threads.append(thd);
-  thd->killed=abort_loop ? KILL_CONNECTION : NOT_KILLED;
+  if (abort_loop)
+    thd->killed= KILL_CONNECTION;
+  else
+    thd->reset_killed();
   mysql_mutex_unlock(&LOCK_thread_count);
 
   mysql_thread_set_psi_id(thd->thread_id);
