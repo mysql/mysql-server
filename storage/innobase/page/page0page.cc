@@ -499,7 +499,9 @@ page_create_zip(
 	buf_block_t*		block,		/*!< in/out: a buffer frame
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
-						page */
+						page, or NULL when applying
+						MLOG_FILE_TRUNCATE redo
+						record during recovery */
 	ulint			level,		/*!< in: the B-tree level
 						of the page */
 	const redo_page_compress_t* page_comp_info,
@@ -523,6 +525,9 @@ page_create_zip(
 	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
 
 	if (fil_space_is_truncated(page_get_space_id(page))) {
+		/* Compress a page when applying MLOG_FILE_TRUNCATE
+		log record during recovery */
+		ut_ad(recv_recovery_on == TRUE);
 		if (!page_zip_compress(page_zip, page, index,
 				       page_compression_level,
 				       page_comp_info, NULL)) {

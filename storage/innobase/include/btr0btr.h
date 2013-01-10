@@ -408,7 +408,9 @@ btr_create(
 						in bytes or 0 for uncompressed
 						pages */
 	index_id_t		index_id,	/*!< in: index id */
-	dict_index_t*		index,		/*!< in: index */
+	dict_index_t*		index,		/*!< in: index, or NULL when
+						applying MLOG_FILE_TRUNCATE
+						redo record during recovery */
 	const btr_create_t*	btr_create_info,/*!< in: used for applying
 						MLOG_FILE_TRUNCATE redo record
 						during recovery */

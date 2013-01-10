@@ -776,7 +776,9 @@ page_create_zip(
 	buf_block_t*		block,		/*!< in/out: a buffer frame
 						where the page is created */
 	dict_index_t*		index,		/*!< in: the index of the
-						page */
+						page, or NULL when applying
+						MLOG_FILE_TRUNCATE redo
+						record during recovery */
 	ulint			level,		/*!< in: the B-tree level of
 						the page */
 	const redo_page_compress_t* page_comp_info,

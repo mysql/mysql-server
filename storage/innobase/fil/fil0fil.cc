@@ -3076,6 +3076,35 @@ fil_delete_tablespace(
 }
 
 /*******************************************************************//**
+Check if an index tree is freed by a descriptor bit of a page.
+@return true if the index tree is freed */
+UNIV_INTERN
+bool
+fil_index_tree_is_freed(
+/*====================*/
+	ulint	space_id,	/*!< in: space id */
+	ulint	root_page_no,	/*!< in: root page no of an index tree */
+	ulint	zip_size)	/*!< in: compressed page size in bytes */
+{
+	rw_lock_t*	latch;
+	mtr_t		mtr;
+	xdes_t*		descr;
+	latch = fil_space_get_latch(space_id, NULL);
+	mtr_start(&mtr);
+	mtr_x_lock(latch, &mtr);
+	descr = xdes_get_descriptor(space_id, zip_size,
+				    root_page_no, &mtr);
+		mtr_commit(&mtr);
+		if (descr == NULL || (descr != NULL
+		    && xdes_get_bit(descr, XDES_FREE_BIT,
+				    root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
+			/* The tree has already been freed */
+			return(true);
+		}
+	return(false);
+}
+
+/*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
 must be cached in the memory cache.
 1) Check pending operations on a tablespace;
