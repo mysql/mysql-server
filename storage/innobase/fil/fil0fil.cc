@@ -2184,10 +2184,10 @@ fil_op_write_log(
 		for (ulint i = 0; i < truncate_rec->n_index; i++) {
 			log_ptr = mlog_open(mtr, 12);
 			mach_write_to_8(log_ptr,
-					truncate_rec->index_id_buf[i]);
+					truncate_rec->indexes[i].id);
 			log_ptr += 8;
 			mach_write_to_4(log_ptr,
-					truncate_rec->type_buf[i]);
+					truncate_rec->indexes[i].type);
 			log_ptr += 4;
 			mlog_close(mtr, log_ptr);
 		}
@@ -2208,7 +2208,8 @@ fil_op_write_log(
 			for (ulint i = 0; i < truncate_rec->n_index; i++) {
 				log_ptr = mlog_open(mtr, 4);
 				mach_write_to_4(log_ptr,
-						truncate_rec->n_fields_buf[i]);
+						truncate_rec->indexes[i].
+						n_fields);
 				log_ptr += 4;
 				mlog_close(mtr, log_ptr);
 			}
@@ -2217,10 +2218,11 @@ fil_op_write_log(
 			for (ulint i = 0; i < truncate_rec->n_index; i++) {
 				log_ptr = mlog_open(mtr, 4);
 				mach_write_to_4(log_ptr,
-						truncate_rec->field_len_buf[i]);
+						truncate_rec->indexes[i].
+						field_len);
 				log_ptr += 4;
 				mlog_close(mtr, log_ptr);
-				len += truncate_rec->field_len_buf[i];
+				len += truncate_rec->indexes[i].field_len;
 			}
 			log_ptr = mlog_open(mtr, len + 1);
 			mlog_close(mtr, log_ptr);
@@ -2275,6 +2277,11 @@ fil_recreate_tablespace(
 	if (fil_truncate_tablespace(space_id, name,
 				    truncate_rec->dir_path, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+		/* The ut_error will not be executed, unless the ibd file
+		is deleted. But the ibd file will never be deleted as we
+		are rewriting the ibd file now for Internal InnoDB TRUNCATE
+		TABLE statement. It must be other fetal error if the ibd
+		file is delected, it's better to crash the server. */
 		ut_error;
 	}
 
@@ -2310,32 +2317,46 @@ fil_recreate_tablespace(
 		for (ulint i = 0; i < truncate_rec->n_index; i++) {
 			btr_create_info.format_flags = format_flags;
 			btr_create_info.n_fields =
-				truncate_rec->n_fields_buf[i];
+				truncate_rec->indexes[i].n_fields;
 			btr_create_info.field_len =
-				truncate_rec->field_len_buf[i];
+				truncate_rec->indexes[i].field_len;
 			btr_create_info.fields =
 				truncate_rec->fields + buf_index;
 			root_page_no = btr_create(
-				truncate_rec->type_buf[i], space_id,
-				zip_size, truncate_rec->index_id_buf[i],
+				truncate_rec->indexes[i].type, space_id,
+				zip_size, truncate_rec->indexes[i].id,
 				NULL, &btr_create_info, &mtr);
 			if (root_page_no == FIL_NULL) {
+				/* The ut_error will not be executed, unless
+				the ibd file is deleted. But the ibd file will
+				never be deleted as we are rewriting the ibd
+				file now for Internal InnoDB TRUNCATE TABLE
+				statement. It must be other fetal error if the
+				ibd file is delected, it's better to crash
+				the server. */
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Failed to create index for table "
 					"'%s' during recovery.", name);
 				ut_error;
 			}
-			buf_index += truncate_rec->field_len_buf[i];
+			buf_index += truncate_rec->indexes[i].field_len;
 		}
 	} else {
 		memset(&btr_create_info, 0, sizeof(btr_create_info));
 		btr_create_info.format_flags = format_flags;
 		for (ulint i = 0; i < truncate_rec->n_index; i++) {
 			root_page_no = btr_create(
-				truncate_rec->type_buf[i], space_id,
-				zip_size, truncate_rec->index_id_buf[i],
+				truncate_rec->indexes[i].type, space_id,
+				zip_size, truncate_rec->indexes[i].id,
 				NULL, &btr_create_info, &mtr);
 			if (root_page_no == FIL_NULL) {
+				/* The ut_error will not be executed, unless
+				the ibd file is deleted. But the ibd file will
+				never be deleted as we are rewriting the ibd
+				file now for Internal InnoDB TRUNCATE TABLE
+				statement. It must be other fetal error if the
+				ibd file is delected, it's better to crash
+				the server. */
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Failed to create index for table "
 					"'%s' during recovery.", name);
@@ -2414,9 +2435,9 @@ fil_parse_truncate_record(
 		if (*end_ptr < *ptr + 12) {
 			return(false);
 		}
-		truncate_rec->index_id_buf[i] = mach_read_from_8(*ptr);
+		truncate_rec->indexes[i].id = mach_read_from_8(*ptr);
 		*ptr += 8;
-		truncate_rec->type_buf[i] = mach_read_from_4(*ptr);
+		truncate_rec->indexes[i].type = mach_read_from_4(*ptr);
 		*ptr += 4;
 	}
 	/* Parse the remote directory from TRUNCATE log record */
@@ -2439,7 +2460,8 @@ fil_parse_truncate_record(
 			if (*end_ptr < *ptr + 4) {
 				return(false);
 			}
-			truncate_rec->n_fields_buf[i] = mach_read_from_4(*ptr);
+			truncate_rec->indexes[i].n_fields =
+				mach_read_from_4(*ptr);
 			*ptr += 4;
 		}
 		/* Parse index fields info encoded from TRUNCATE log record */
@@ -2448,9 +2470,10 @@ fil_parse_truncate_record(
 			if (*end_ptr < *ptr + 4) {
 				return(false);
 			}
-			truncate_rec->field_len_buf[i] = mach_read_from_4(*ptr);
+			truncate_rec->indexes[i].field_len =
+				mach_read_from_4(*ptr);
 			*ptr += 4;
-			len += truncate_rec->field_len_buf[i];
+			len += truncate_rec->indexes[i].field_len;
 		}
 		len++;
 		if (*end_ptr < *ptr + len) {
@@ -3208,7 +3231,9 @@ fil_truncate_tablespace(
 			size_bytes = UNIV_PAGE_SIZE * size;
 		}
 
-		success = os_file_truncate(path, node->handle, size_bytes);
+		success = os_file_truncate(
+			path, node->handle, max(size_bytes,
+			FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE));
 		if (success) {
 			space->size = node->size = size;
 		}

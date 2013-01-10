@@ -3326,6 +3326,7 @@ row_truncate_table_for_mysql(
 	    && !table->dir_path_of_temp_table) {
 		flags = fil_space_get_flags(table->space);
 		if (flags != ULINT_UNDEFINED) {
+			dict_get_and_save_data_dir_path(table, true);
 			err = fil_prepare_for_truncate(table->space);
 			if (err != DB_SUCCESS) {
 				goto funct_exit;
@@ -3363,8 +3364,8 @@ row_truncate_table_for_mysql(
 	    && !table->dir_path_of_temp_table
 	    && flags != ULINT_UNDEFINED) {
 		truncate_rec_t	truncate_rec;
-		ulint		trx_id_col[INDEX_ID_BUF_LEN];
-		byte		fields_buf[FIELDS_LEN];	/*!< index field
+		ulint		trx_id_col[MAX_REC_INDEXES];
+		byte		fields[FIELDS_LEN];	/*!< index field
 							information */
 		ind_count	= 0;
 		buf_index	= 0;
@@ -3379,7 +3380,7 @@ row_truncate_table_for_mysql(
 			const byte*	ptr;
 			ulint		type;
 			index_id_t	index_id;
-			byte		fields[FIELDS_LEN];
+			byte		ind_field[FIELDS_LEN];
 
 			if (!btr_pcur_is_on_user_rec(&pcur)) {
 				/* The end of SYS_INDEXES has been reached. */
@@ -3406,17 +3407,17 @@ row_truncate_table_for_mysql(
 				rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
 			ut_ad(len == 4);
 			type = mach_read_from_4(ptr);
-			truncate_rec.type_buf[ind_count] = type;
+			truncate_rec.indexes[ind_count].type = type;
 
 			ptr = rec_get_nth_field_old(
 				rec, DICT_FLD__SYS_INDEXES__ID, &len);
 			ut_ad(len == 8);
 			index_id = mach_read_from_8(ptr);
-			truncate_rec.index_id_buf[ind_count] = index_id;
+			truncate_rec.indexes[ind_count].id = index_id;
 
 			if (!fsp_flags_is_compressed(flags)) {
-				truncate_rec.n_fields_buf[ind_count] = 0;
-				truncate_rec.field_len_buf[ind_count] = 0;
+				truncate_rec.indexes[ind_count].n_fields = 0;
+				truncate_rec.indexes[ind_count].field_len = 0;
 				ind_count++;
 				/* Skip to collect compressed index info */
 				goto next_record;
@@ -3427,8 +3428,8 @@ row_truncate_table_for_mysql(
 			     index;
 			     index = UT_LIST_GET_NEXT(indexes, index)) {
 				if (index->id == index_id) {
-					truncate_rec.n_fields_buf[ind_count] =
-						dict_index_get_n_fields(index);
+					truncate_rec.indexes[ind_count].n_fields
+						= dict_index_get_n_fields(index);
 
 					if (dict_index_is_clust(index)) {
 						trx_id_col[ind_count] =
@@ -3442,32 +3443,34 @@ row_truncate_table_for_mysql(
 						trx_id_col[ind_count] = 0;
 					}
 
-					truncate_rec.field_len_buf[ind_count]
-						= page_zip_fields_encode(
+					truncate_rec.indexes[ind_count].
+						field_len =
+						page_zip_fields_encode(
 							truncate_rec.
-							n_fields_buf[ind_count],
+							indexes[ind_count].
+							n_fields,
 							index,
 							trx_id_col[ind_count],
-							fields);
-					memcpy(fields_buf + buf_index, fields,
-					       truncate_rec.
-					       field_len_buf[ind_count]);
+							ind_field);
+					memcpy(fields + buf_index,
+					       ind_field, truncate_rec.
+					       indexes[ind_count].field_len);
 					buf_index += truncate_rec.
-						field_len_buf[ind_count];
+						indexes[ind_count].field_len;
 				}
 			}
 			ind_count++;
 next_record:
 			btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 		}
-		fields_buf[buf_index + 1] = '\0';
+		fields[buf_index + 1] = '\0';
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 
 		truncate_rec.n_index = ind_count;
 		truncate_rec.dir_path = table->data_dir_path;
-		truncate_rec.fields = fields_buf;
+		truncate_rec.fields = fields;
 
 		fil_truncate_write_log(table->space, table->name, flags,
 				       table->flags, &truncate_rec);
@@ -3559,6 +3562,7 @@ next_rec:
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_MODIFY_LEAF, &pcur, &mtr);
 	/* Create new index trees associated with rows in SYS_INDEXES table */
+	ind_count = 0;
 	for (;;) {
 		rec_t*          rec;
 		const byte*     field;
@@ -3589,6 +3593,17 @@ next_rec:
 
 		root_page_no = dict_create_index_tree(table, table->space,
 						      &pcur, &mtr);
+
+		ind_count++;
+		/* Crash during the creation of the second secondary */
+		if (ind_count == INDEX_NUM_SECOND_SECONDARY) {
+			/* Waiting for MLOG_FILE_TRUNCATE record is written
+			into redo log before the crash. */
+			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
+				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
+				DBUG_SUICIDE(););
+		}
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -3760,7 +3775,12 @@ next_user_rec:
 		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
 				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
 		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
+
 		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+
+		DBUG_EXECUTE_IF("crash_after_log_checkpoint",
+				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
 
 		error = fil_truncate_tablespace(table->space, table->name,
 						table->data_dir_path, flags,

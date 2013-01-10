@@ -769,9 +769,9 @@ dict_drop_index_tree(
 		descr = xdes_get_descriptor(space, zip_size,
 					    root_page_no, &mtr2);
 		mtr_commit(&mtr2);
-		if (descr
+		if (descr == NULL || (descr != NULL
 		    && xdes_get_bit(descr, XDES_FREE_BIT,
-				    root_page_no % FSP_EXTENT_SIZE) == TRUE) {
+				    root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
 			/* The tree has already been freed */
 			return;
 		}
