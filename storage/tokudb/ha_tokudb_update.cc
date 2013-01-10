@@ -115,14 +115,29 @@ static Field *find_field_by_name(TABLE *table, Item *item) {
 // Return the starting offset in the value for a particular index (selected by idx) of a
 // particular field (selected by expand_field_num).
 // This only works for fixed length fields
-static uint32_t update_field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, int idx, int expand_field_num) {
+static uint32_t fixed_field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_info, uint idx, uint expand_field_num) {
     uint32_t offset = null_bytes;
-    for (int i = 0; i < expand_field_num; i++) {
-        if (bitmap_is_set(&kc_info->key_filters[idx], i)) // skip key fields
+    for (uint i = 0; i < expand_field_num; i++) {
+        if (bitmap_is_set(&kc_info->key_filters[idx], i))
             continue;
         offset += kc_info->field_lengths[i];
     }
     return offset;
+}
+
+static uint32_t var_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint idx, uint field_num) {
+    assert(field_num < table->s->fields);
+    uint v_index = 0;
+    for (uint i = 0; i < table->s->fields; i++) {
+        if (bitmap_is_set(&kc_info->key_filters[idx], i))
+            continue;
+        if (kc_info->length_bytes[i]) {
+            if (i == field_num)
+                break;
+            v_index++;
+        }
+    }
+    return v_index;    
 }
 
 // Determine if an update operation can be offloaded to the storage engine.
@@ -287,6 +302,10 @@ static bool check_simple_update_expression(Item *lhs_item, Item *rhs_item, TABLE
         if (rhs_type == Item::INT_ITEM || rhs_type == Item::STRING_ITEM) 
             return true;
         break;
+    case MYSQL_TYPE_VARCHAR:
+        if (rhs_type == Item::STRING_ITEM)
+            return true;
+        break;
     default:
         break;
     }
@@ -427,7 +446,7 @@ static bool is_strict_mode(THD *thd) {
 
 // Check if an update operation can be handled by this storage engine.  Return true if it can.
 bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds) {
-    // fast upserts disabled
+    // fast updates disabled
     if (!get_enable_fast_update(thd))
         return false;
 
@@ -450,10 +469,6 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
     if (clustering_keys_exist(table))
         return false;
 
-    // fast updates enabled with session variable
-    if (!get_enable_fast_update(thd))
-        return false;
-
     if (!check_all_update_expressions(fields, values, table))
         return false;
 
@@ -465,11 +480,11 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
 
 // Marshall a simple row descriptor to a buffer.
 static void marshall_simple_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO &kc_info, uint key_num) {
-    Simple_row_descriptor sd;
+    tokudb::simple_row_descriptor sd;
     sd.m_fixed_field_offset = table->s->null_bytes;
     sd.m_var_field_offset = sd.m_fixed_field_offset + kc_info.mcp_info[key_num].fixed_field_size;
-    sd.m_var_offset_bytes = kc_info.mcp_info[key_num].len_of_offsets;
-    sd.m_num_var_fields = sd.m_var_offset_bytes == 0 ? 0 : kc_info.mcp_info[key_num].len_of_offsets / sd.m_var_offset_bytes;
+    sd.m_var_offset_bytes = kc_info.mcp_info[key_num].len_of_offsets; // total length of the var offsets
+    sd.m_bytes_per_offset = sd.m_var_offset_bytes == 0 ? 0 : kc_info.num_offset_bytes; // bytes per var offset
     sd.append(b);
 }
 
@@ -483,11 +498,12 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
 
     // compute the update info
     uint32_t field_type;
-    uint32_t field_num = lhs_field->field_index;
     uint32_t field_null_num = 0;
-    if (lhs_field->real_maybe_null())
+    if (lhs_field->real_maybe_null()) {
+        uint32_t field_num = lhs_field->field_index;
         field_null_num = (1<<31) + (field_num/8)*8 + get_null_bit_position(lhs_field->null_bit);
-    uint32_t offset = update_field_offset(table->s->null_bytes, &share->kc_info, table->s->primary_key, lhs_field->field_index);
+    }
+    uint32_t offset;
     void *v_ptr = NULL;
     uint32_t v_length;
     uint32_t update_operation;
@@ -502,6 +518,7 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
     case MYSQL_TYPE_LONGLONG: {
         Field_num *lhs_num = static_cast<Field_num*>(lhs_field);
         field_type = lhs_num->unsigned_flag ? UPDATE_TYPE_UINT : UPDATE_TYPE_INT;
+        offset = fixed_field_offset(table->s->null_bytes, &share->kc_info, table->s->primary_key, lhs_field->field_index);
         switch (rhs_item->type()) {
         case Item::INT_ITEM: {
             update_operation = '=';
@@ -535,7 +552,8 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
 
     case MYSQL_TYPE_STRING: {
         update_operation = '=';
-        field_type = lhs_field->binary() ? UPDATE_TYPE_BINARY : UPDATE_TYPE_CHAR;        
+        field_type = lhs_field->binary() ? UPDATE_TYPE_BINARY : UPDATE_TYPE_CHAR;
+        offset = fixed_field_offset(table->s->null_bytes, &share->kc_info, table->s->primary_key, lhs_field->field_index);
         v_str = *rhs_item->val_str(&v_str);
         v_length = v_str.length();
         if (v_length >= lhs_field->pack_length()) {
@@ -549,6 +567,20 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
         v_ptr = v_str.c_ptr();
         break;
     }
+
+    case MYSQL_TYPE_VARCHAR: {
+        update_operation = '=';
+        field_type = lhs_field->binary() ? UPDATE_TYPE_VARBINARY : UPDATE_TYPE_VARCHAR;
+        offset = var_field_index(table, &share->kc_info, table->s->primary_key, lhs_field->field_index);
+        v_str = *rhs_item->val_str(&v_str);
+        v_length = v_str.length();
+        if (v_length >= lhs_field->row_pack_length()) {
+            v_length = lhs_field->row_pack_length();
+            v_str.length(v_length); // truncate
+        }
+        v_ptr = v_str.c_ptr();
+        break;
+    }
     default:
         assert(0);
     }
@@ -556,7 +588,8 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
     // marshall the update fields into the buffer
     b.append(&update_operation, sizeof update_operation);
     b.append(&field_type, sizeof field_type);
-    b.append(&field_num, sizeof field_num);
+    uint32_t unused = 0;
+    b.append(&unused, sizeof unused);
     b.append(&field_null_num, sizeof field_null_num);
     b.append(&offset, sizeof offset);
     b.append(&v_length, sizeof v_length);

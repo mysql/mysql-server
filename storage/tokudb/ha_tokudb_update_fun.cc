@@ -24,6 +24,8 @@ enum {
     UPDATE_TYPE_BINARY = 4,
     UPDATE_TYPE_VARCHAR = 5,
     UPDATE_TYPE_VARBINARY = 6,
+    UPDATE_TYPE_TEXT = 7,
+    UPDATE_TYPE_BLOB = 8,
 };
 
 #define UP_COL_ADD_OR_DROP UPDATE_OP_COL_ADD_OR_DROP
@@ -97,14 +99,14 @@ enum {
 //     fixed field offset 4 offset of the beginning of the fixed fields
 //     var field offset   4 offset of the variable length offsets
 //     var_offset_bytes   1 size of each variable length offset
-//     num_var_fields     4 number of variable length offsets
+//     bytes_per_offset   4 number of bytes per offset
 
 // Field descriptor:
 //     field type         4 see field types above
-//     field num          4 unused for fixed length fields
+//     unused             4 unused
 //     field null num     4 bit 31 is 1 if the field is nullible and the remaining bits contain the null bit number
 //     field offset       4 for fixed fields, this is the offset from begining of the row of the field
-//     field length       4 for fixed fields, this is the length of the field
+//                          for variable length fields, this is the index of the variable length field in the dictionary
 
 // Simple update operation:
 //     update operation   4 == { '=', '+', '-' }
@@ -112,7 +114,7 @@ enum {
 //         x = x + k
 //         x = x - k
 //     field descriptor
-//     optional value:
+//     value:
 //         value length   4 == N, length of the value
 //         value          N value to add or subtract
 
@@ -917,33 +919,8 @@ cleanup:
     return error;
 }
 
-class Simple_row_descriptor {
-public:
-    Simple_row_descriptor() : m_fixed_field_offset(0), m_var_field_offset(0), m_var_offset_bytes(0), m_num_var_fields(0) {
-    }
-    ~Simple_row_descriptor() {
-    }
-    void consume(tokudb::buffer &b) {
-        b.consume(&m_fixed_field_offset, sizeof m_fixed_field_offset);
-        b.consume(&m_var_field_offset, sizeof m_var_field_offset);
-        b.consume(&m_var_offset_bytes, sizeof m_var_offset_bytes);
-        b.consume(&m_num_var_fields, sizeof m_num_var_fields);
-    }
-    void append(tokudb::buffer &b) {
-        b.append(&m_fixed_field_offset, sizeof m_fixed_field_offset);
-        b.append(&m_var_field_offset, sizeof m_var_field_offset);
-        b.append(&m_var_offset_bytes, sizeof m_var_offset_bytes);
-        b.append(&m_num_var_fields, sizeof m_num_var_fields);
-    }
-public:
-    uint32_t m_fixed_field_offset;
-    uint32_t m_var_field_offset;
-    uint8_t  m_var_offset_bytes;
-    uint32_t m_num_var_fields;
-};
-
 // Update a fixed field: new_val@offset = extra_val
-static void set_fixed_field(uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+static void set_fixed_field(uint32_t the_offset, uint32_t length, uint32_t field_null_num,
                             tokudb::buffer &new_val, void *extra_val) {
     assert(the_offset + length <= new_val.size());
     new_val.replace(the_offset, length, extra_val, length);
@@ -951,8 +928,140 @@ static void set_fixed_field(uint32_t the_offset, uint32_t length, uint32_t field
         set_overall_null_position((uchar *) new_val.data(), field_null_num & ~(1<<31), false);
 }
 
+namespace tokudb {
+
+class simple_row_descriptor {
+public:
+    simple_row_descriptor() : m_fixed_field_offset(0), m_var_field_offset(0), m_var_offset_bytes(0), m_bytes_per_offset(0) {
+    }
+    ~simple_row_descriptor() {
+    }
+    void consume(tokudb::buffer &b) {
+        b.consume(&m_fixed_field_offset, sizeof m_fixed_field_offset);
+        b.consume(&m_var_field_offset, sizeof m_var_field_offset);
+        b.consume(&m_var_offset_bytes, sizeof m_var_offset_bytes);
+        b.consume(&m_bytes_per_offset, sizeof m_bytes_per_offset);
+    }
+    void append(tokudb::buffer &b) {
+        b.append(&m_fixed_field_offset, sizeof m_fixed_field_offset);
+        b.append(&m_var_field_offset, sizeof m_var_field_offset);
+        b.append(&m_var_offset_bytes, sizeof m_var_offset_bytes);
+        b.append(&m_bytes_per_offset, sizeof m_bytes_per_offset);
+    }
+public:
+    uint32_t m_fixed_field_offset;
+    uint32_t m_var_field_offset;
+    uint8_t  m_var_offset_bytes;
+    uint32_t m_bytes_per_offset;
+};
+
+class var_fields {
+public:
+    var_fields(uint32_t var_offset, uint32_t offset_bytes, uint32_t bytes_per_offset) {
+        assert(bytes_per_offset == 1 || bytes_per_offset == 2);
+        m_var_offset = var_offset;
+        m_val_offset = m_var_offset + offset_bytes;
+        m_bytes_per_offset = bytes_per_offset;
+        m_max_fields = offset_bytes / bytes_per_offset;
+    }
+    uint32_t value_offset(uint32_t var_index, void *base);
+    uint32_t value_length(uint32_t var_index, void *base);
+    void update_offsets(uint32_t var_index, uint32_t old_s, uint32_t new_s, void *base);
+private:
+    uint32_t read_offset(uint32_t var_index, void *base);
+    void write_offset(uint32_t var_index, uint32_t v, void *base);
+private:
+    uint32_t m_var_offset;
+    uint32_t m_val_offset;
+    uint32_t m_bytes_per_offset;
+    uint32_t m_max_fields;
+};
+
+// Return the ith variable length offset
+uint32_t var_fields::read_offset(uint32_t var_index, void *base) {
+    if (m_bytes_per_offset == 1) {
+        uint8_t offset;
+        memcpy(&offset, (char *)base + m_var_offset + var_index * m_bytes_per_offset, sizeof offset);
+        return offset;
+    } else {
+        uint16_t offset;
+        memcpy(&offset, (char *)base + m_var_offset + var_index * m_bytes_per_offset, sizeof offset);
+        return offset;
+    }
+}
+
+// Write the ith variable length offset with a new offset.
+void var_fields::write_offset(uint32_t var_index, uint32_t new_offset, void *base) {
+    if (m_bytes_per_offset == 1) {
+        assert(new_offset < (1<<8));
+        uint8_t offset = new_offset;
+        memcpy((char *)base + m_var_offset + var_index * m_bytes_per_offset, &offset, sizeof offset);
+    } else {
+        assert(new_offset < (1<<16));
+        uint16_t offset = new_offset;
+        memcpy((char *)base + m_var_offset + var_index * m_bytes_per_offset, &offset, sizeof offset);
+    }
+}
+
+// Return the offset of the ith variable length field
+uint32_t var_fields::value_offset(uint32_t var_index, void *base) {
+    assert(var_index < m_max_fields);
+    if (var_index == 0)
+        return m_val_offset;
+    else
+        return m_val_offset + read_offset(var_index-1, base);
+}
+
+// Return the length of the ith variable length field
+uint32_t var_fields::value_length(uint32_t var_index, void *base) {
+    assert(var_index < m_max_fields);
+    if (var_index == 0)
+        return read_offset(0, base);
+    else
+        return read_offset(var_index, base) - read_offset(var_index-1, base);
+}
+
+// The length of the ith variable length fields changed.  Update all of the subsequent offsets.
+void var_fields::update_offsets(uint32_t var_index, uint32_t old_s, uint32_t new_s, void *base) {
+    assert(var_index < m_max_fields);
+    if (old_s == new_s)
+        return;
+    for (uint i = var_index; i < m_max_fields; i++) {
+        uint32_t v = read_offset(i, base);
+        if (new_s > old_s)
+            write_offset(i, v + (new_s - old_s), base);
+        else
+            write_offset(i, v - (old_s - new_s), base);
+    }
+}
+
+}
+
+// Update a variable length field: new_val[i] = extra_val, where i is the ith variable length field.
+// Compute the offset from the var index
+// Replace the var value with the extra val
+// Update the var offsets
+// Reset the null bit
+static void set_var_field(uint32_t var_index, uint32_t length, uint32_t field_null_num,
+                          tokudb::buffer &new_val, void *extra_val, const tokudb::simple_row_descriptor &sd) {
+    tokudb::var_fields var_fields(sd.m_var_field_offset, sd.m_var_offset_bytes, sd.m_bytes_per_offset);
+
+    // replace the new val with the extra val
+    uint32_t the_offset = var_fields.value_offset(var_index, new_val.data());
+    uint32_t old_s = var_fields.value_length(var_index, new_val.data());
+    uint32_t new_s = length;
+    new_val.replace(the_offset, old_s, extra_val, new_s);
+
+    // update the var offsets
+    var_fields.update_offsets(var_index, old_s, new_s, new_val.data());
+
+    // reset null bit
+    if (field_null_num)
+        set_overall_null_position((uchar *) new_val.data(), field_null_num & ~(1<<31), false);
+}
+
 // Update an int field: signed newval@offset = old_val@offset OP extra_val
-static void int_op(uint32_t operation, uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+static void int_op(uint32_t operation, uint32_t the_offset, uint32_t length, uint32_t field_null_num,
                    tokudb::buffer &new_val, tokudb::buffer &old_val, void *extra_val) {
     assert(the_offset + length <= new_val.size());
     assert(the_offset + length <= old_val.size());
@@ -1001,7 +1110,7 @@ static void int_op(uint32_t operation, uint32_t the_offset, uint32_t length, uin
 }
 
 // Update an unsigned field: unsigned newval@offset = old_val@offset OP extra_val
-static void uint_op(uint32_t operation, uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+static void uint_op(uint32_t operation, uint32_t the_offset, uint32_t length, uint32_t field_null_num,
                     tokudb::buffer &new_val, tokudb::buffer &old_val, void *extra_val) {
     assert(the_offset + length <= new_val.size());
     assert(the_offset + length <= old_val.size());
@@ -1043,7 +1152,7 @@ static void uint_op(uint32_t operation, uint32_t the_offset, uint32_t length, ui
 
 // Decode and apply a sequence of update operations defined in the extra to the old value and put the result
 // in the new value.
-static void apply_updates(tokudb::buffer &new_val, tokudb::buffer &old_val, tokudb::buffer &extra_val, const Simple_row_descriptor &sd) {
+static void apply_updates(tokudb::buffer &new_val, tokudb::buffer &old_val, tokudb::buffer &extra_val, const tokudb::simple_row_descriptor &sd) {
     uint32_t num_updates;
     extra_val.consume(&num_updates, sizeof num_updates);
     for ( ; num_updates > 0; num_updates--) {
@@ -1052,8 +1161,8 @@ static void apply_updates(tokudb::buffer &new_val, tokudb::buffer &old_val, toku
         extra_val.consume(&update_operation, sizeof update_operation);
         uint32_t field_type;
         extra_val.consume(&field_type, sizeof field_type);
-        uint32_t field_num;
-        extra_val.consume(&field_num, sizeof field_num);
+        uint32_t unused;
+        extra_val.consume(&unused, sizeof unused);
         uint32_t field_null_num;
         extra_val.consume(&field_null_num, sizeof field_null_num);
         uint32_t the_offset;
@@ -1066,21 +1175,28 @@ static void apply_updates(tokudb::buffer &new_val, tokudb::buffer &old_val, toku
         switch (field_type) {
         case UPDATE_TYPE_INT:
             if (update_operation == '=')
-                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+                set_fixed_field(the_offset, length, field_null_num, new_val, extra_val_ptr);
             else
-                int_op(update_operation, the_offset, length, field_num, field_null_num, new_val, old_val, extra_val_ptr);
+                int_op(update_operation, the_offset, length, field_null_num, new_val, old_val, extra_val_ptr);
             break;
         case UPDATE_TYPE_UINT:
             if (update_operation == '=')
-                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+                set_fixed_field(the_offset, length, field_null_num, new_val, extra_val_ptr);
             else
-                uint_op(update_operation, the_offset, length, field_num, field_null_num, new_val, old_val, extra_val_ptr);
+                uint_op(update_operation, the_offset, length, field_null_num, new_val, old_val, extra_val_ptr);
             break;
         case UPDATE_TYPE_CHAR:
         case UPDATE_TYPE_BINARY:
             if (update_operation == '=')
-                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+                set_fixed_field(the_offset, length, field_null_num, new_val, extra_val_ptr);
             else 
+                assert(0);
+            break;
+        case UPDATE_TYPE_VARBINARY:
+        case UPDATE_TYPE_VARCHAR:
+            if (update_operation == '=') 
+                set_var_field(the_offset, length, field_null_num, new_val, extra_val_ptr, sd);
+            else
                 assert(0);
             break;
         default:
@@ -1110,7 +1226,7 @@ static int tokudb_simple_update_fun(
 
     if (old_val_dbt != NULL) {
         // get the simple descriptor
-        Simple_row_descriptor sd;
+        tokudb::simple_row_descriptor sd;
         sd.consume(extra_val);
 
         tokudb::buffer old_val(old_val_dbt->data, old_val_dbt->size, old_val_dbt->size);
@@ -1161,7 +1277,7 @@ static int tokudb_simple_upsert_fun(
         set_val(&new_val_dbt, set_extra);
     } else {
         // decode the simple descriptor
-        Simple_row_descriptor sd;
+        tokudb::simple_row_descriptor sd;
         sd.consume(extra_val);
 
         tokudb::buffer old_val(old_val_dbt->data, old_val_dbt->size, old_val_dbt->size);
