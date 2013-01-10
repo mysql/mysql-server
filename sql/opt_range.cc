@@ -617,8 +617,10 @@ public:
   SEL_ARG *find_range(SEL_ARG *key);
   SEL_ARG *rb_insert(SEL_ARG *leaf);
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
+#ifndef DBUG_OFF
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
   void test_use_count(SEL_ARG *root);
+#endif
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -903,6 +905,11 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
 static inline void dbug_print_tree(const char *tree_name,
                                    SEL_TREE *tree, 
                                    const RANGE_OPT_PARAM *param);
+
+static inline void print_tree(String *out,
+                              const char *tree_name,
+                              SEL_TREE *tree, 
+                              const RANGE_OPT_PARAM *param);
 
 void append_range(String *out,
                   const KEY_PART_INFO *key_parts,
@@ -3110,7 +3117,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
 
-  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION &&
+      part_info->is_auto_partitioned)
     DBUG_RETURN(false); /* Should not prune auto partitioned table */
 
   if (!pprune_cond)
@@ -6426,7 +6434,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   */
 
   // Note that value may be a stored function call, executed here.
-  const type_conversion_status err= value->save_in_field_no_warnings(field, 1);
+  const type_conversion_status err= value->save_in_field_no_warnings(field, true);
   field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   switch (err) {
@@ -8344,8 +8352,9 @@ SEL_ARG::tree_delete(SEL_ARG *key)
     DBUG_RETURN(0);				// Maybe root later
   if (remove_color == BLACK)
     root=rb_delete_fixup(root,nod,fix_par);
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
-
+#endif
   root->use_count=this->use_count;		// Fix root counters
   root->elements=this->elements-1;
   root->maybe_flag=this->maybe_flag;
@@ -8441,7 +8450,9 @@ SEL_ARG::rb_insert(SEL_ARG *leaf)
     }
   }
   root->color=BLACK;
+#ifndef DBUG_OFF
   test_rb_tree(root,root->parent);
+#endif
   return root;
 }
 
@@ -8525,6 +8536,7 @@ SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key,SEL_ARG *par)
 }
 
 
+#ifndef DBUG_OFF
 	/* Test that the properties for a red-black tree hold */
 
 int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
@@ -8561,6 +8573,7 @@ int test_rb_tree(SEL_ARG *element,SEL_ARG *parent)
   }
   return -1;					// Error, no more warnings
 }
+#endif
 
 
 /**
@@ -8622,6 +8635,7 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 }
 
 
+#ifndef DBUG_OFF
 /*
   Check if SEL_ARG::use_count value is correct
 
@@ -8671,7 +8685,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
   }
 }
-
+#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
@@ -10059,9 +10073,13 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
 
       do
       {
+        DBUG_EXECUTE_IF("innodb_quick_report_deadlock",
+                        DBUG_SET("+d,innodb_report_deadlock"););
         if ((error= quick->get_next()))
         {
-          quick_with_last_rowid->file->unlock_row();
+          /* On certain errors like deadlock, trx might be rolled back.*/
+          if (!current_thd->transaction_rollback_request)
+            quick_with_last_rowid->file->unlock_row();
           DBUG_RETURN(error);
         }
         quick->file->position(quick->record);
@@ -10084,7 +10102,9 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
             quick->file->unlock_row(); /* row not in range; unlock */
             if ((error= quick->get_next()))
             {
-              quick_with_last_rowid->file->unlock_row();
+              /* On certain errors like deadlock, trx might be rolled back.*/
+              if (!current_thd->transaction_rollback_request)
+                quick_with_last_rowid->file->unlock_row();
               DBUG_RETURN(error);
             }
           }
@@ -11448,7 +11468,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cur_parts have bits set for only used keyparts.
       */
       ulonglong all_parts, cur_parts;
-      all_parts= (1<<max_key_part) - 1;
+      all_parts= (1ULL << max_key_part) - 1;
       cur_parts= used_key_parts_map.to_ulonglong() >> 1;
       if (all_parts != cur_parts)
         goto next_index;
@@ -13621,8 +13641,6 @@ static void trace_range_all_keyparts(Opt_trace_array &trace_range,
 
 #endif //OPTIMIZER_TRACE
 
-#ifndef DBUG_OFF
-
 /**
   Traverse an R-B tree of range conditions and append all ranges for
   this keypart and consecutive keyparts to a String. See description
@@ -13701,8 +13719,6 @@ static void print_range_all_keyparts(String *range_result,
   }
 }
 
-#endif // DBUG_OFF
-
 /**
   Print the ranges in a SEL_TREE to debug log.
 
@@ -13715,53 +13731,107 @@ static inline void dbug_print_tree(const char *tree_name,
                                    const RANGE_OPT_PARAM *param)
 {
 #ifndef DBUG_OFF
+  print_tree(NULL, tree_name, tree, param);
+#endif
+}
+
+static inline void print_tree(String *out,
+                              const char *tree_name,
+                              SEL_TREE *tree,
+                              const RANGE_OPT_PARAM *param)
+{
   if (!param->using_real_indexes)
   {
-    DBUG_PRINT("info",
-               ("sel_tree: "
-                "%s uses a partitioned index and cannot be printed",
-                tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" uses a partitioned index and cannot be printed");
+    }
+    else
+      DBUG_PRINT("info",
+                 ("sel_tree: "
+                  "%s uses a partitioned index and cannot be printed",
+                  tree_name));
     return;
   }
 
   if (!tree)
   {
-    DBUG_PRINT("info", ("sel_tree: %s is NULL", tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" is NULL");
+    }
+    else
+      DBUG_PRINT("info", ("sel_tree: %s is NULL", tree_name));
     return;
   }
 
   if (tree->type == SEL_TREE::IMPOSSIBLE)
   {
-    DBUG_PRINT("info", ("sel_tree: %s is IMPOSSIBLE", tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" is IMPOSSIBLE");
+    }
+    else
+      DBUG_PRINT("info", ("sel_tree: %s is IMPOSSIBLE", tree_name));
     return;
   }
 
   if (tree->type == SEL_TREE::ALWAYS)
   {
-    DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" is ALWAYS");
+    }
+    else
+      DBUG_PRINT("info", ("sel_tree: %s is ALWAYS", tree_name));
     return;
   }
 
   if (tree->type == SEL_TREE::MAYBE)
   {
-    DBUG_PRINT("info", ("sel_tree: %s is MAYBE", tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" is MAYBE");
+    }
+    else
+      DBUG_PRINT("info", ("sel_tree: %s is MAYBE", tree_name));
     return;
   }
 
   if (!tree->merges.is_empty())
   {
-    DBUG_PRINT("info",
-               ("sel_tree: "
-                "%s contains the following merges", tree_name));
+    if (out)
+    {
+      out->append(tree_name);
+      out->append(" contains the following merges\n");
+    }
+    else
+      DBUG_PRINT("info",
+                 ("sel_tree: "
+                  "%s contains the following merges", tree_name));
 
     List_iterator<SEL_IMERGE> it(tree->merges);
-    int i= 0;
+    int i= 1;
     for (SEL_IMERGE *el= it++; el; el= it++, i++)
     {
+      if (out)
+      {
+        out->append(tree_name);
+        out->append(" --- alternative ");
+        out->append(i);
+        out->append(" ---\n");
+      }
+      else
+        DBUG_PRINT("info", ("sel_tree: --- alternative %d ---",i));
       for (SEL_TREE** current= el->trees;
            current != el->trees_next;
            current++)
-        dbug_print_tree("  merge_tree", *current, param);
+        print_tree(out, "  merge_tree", *current, param);
     }
   }
 
@@ -13794,11 +13864,24 @@ static inline void dbug_print_tree(const char *tree_name,
     print_range_all_keyparts(&range_result, &range_so_far,
                              tree->keys[i], key_part);
 
-    DBUG_PRINT("info",
-               ("sel_tree: %s->keys[%d(real_keynr: %d)]: %s",
-                tree_name, i, real_key_nr, range_result.ptr()));
+    if (out)
+    {
+      char istr[22];
+      if (i>0)
+        out->append("\n");
+
+      out->append(tree_name);
+      out->append(" keys[");
+      out->append(llstr(i, istr));
+      out->append("]: ");
+      out->append(range_result.ptr());
+    }
+    else
+      DBUG_PRINT("info",
+                 ("sel_tree: %p, type=%d, %s->keys[%u(%u)]: %s",
+                  tree->keys[i], tree->keys[i]->type, tree_name, i, 
+                  real_key_nr, range_result.ptr()));
   }
-#endif
 }
 
 /*****************************************************************************

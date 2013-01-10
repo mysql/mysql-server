@@ -21,10 +21,36 @@
 #include "sql_class.h"
 #include "set_var.h"
 
+extern pthread_key(MEM_ROOT**,THR_MALLOC);
+extern pthread_key(THD*, THR_THD);
+extern mysql_mutex_t LOCK_open;
+extern uint    opt_debug_sync_timeout;
+extern "C" void sql_alloc_error_handler(void);
+
+// A simple helper function to determine array size.
+template <class T, int size>
+int array_size(const T (&)[size])
+{
+  return size;
+}
+
 namespace my_testing {
+
+template<typename Container_type>
+void delete_container_pointers(Container_type &container)
+{
+  typename Container_type::iterator it1= container.begin();
+  typename Container_type::iterator it2= container.end();
+  for (; it1 != it2; ++it1)
+  {
+    delete (*it1);
+  }
+  container.clear();
+}
 
 void setup_server_for_unit_tests();
 void teardown_server_for_unit_tests();
+int chars_2_decimal(const char *chars, my_decimal *to);
 
 /*
   A class which wraps the necessary setup/teardown logic for

@@ -88,8 +88,8 @@
   This instrumentation marks the start of a wait event.
   @param PSI the instrumented table
   @param OP the table operation to be performed
-  @param INDEX the table index used if any, or MAY_KEY.
   @param FLAGS per table operation flags.
+  @param PAYLOAD the code to instrument.
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE

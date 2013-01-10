@@ -795,6 +795,12 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
+	trx_id_t	def_trx_id;
+				/*!< transaction id that last touched
+				the table definition, either when
+				loading the definition or CREATE
+				TABLE, or ALTER TABLE (prepare,
+				commit, and rollback phases) */
 	trx_id_t	query_cache_inv_trx_id;
 				/*!< transactions whose trx id is
 				smaller than this number are not

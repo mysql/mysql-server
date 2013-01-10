@@ -164,8 +164,7 @@ reap;
 
 connection default;
 --echo /* default reap */ ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx;
-# TODO (Bug#14529475): investigate why this is nondeterministic
---error 0,ER_LOCK_WAIT_TIMEOUT,ER_LOCK_DEADLOCK
+--error ER_LOCK_WAIT_TIMEOUT
 reap;
 SELECT * FROM child;
 

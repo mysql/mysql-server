@@ -47,15 +47,15 @@
 #define LEX_YYSTYPE YYSTYPE
 
 /**
-  Token array : 
-  Token array is an array of bytes to store tokens recieved during parsing.
+  Token array.
+  Token array is an array of bytes to store tokens received during parsing.
   Following is the way token array is formed.
-     
-      ...<non-id-token><non-id-token><id-token><id_len><id_text>...
 
-  For Ex:
+      ... &lt;non-id-token&gt; &lt;non-id-token&gt; &lt;id-token&gt; &lt;id_len&gt; &lt;id_text&gt; ...
+
+  For Example:
   SELECT * FROM T1;
-  <SELECT_TOKEN><*><FROM_TOKEN><ID_TOKEN><2><T1>
+  &lt;SELECT_TOKEN&gt; &lt;*&gt; &lt;FROM_TOKEN&gt; &lt;ID_TOKEN&gt; &lt;2&gt; &lt;T1&gt;
 */
 
 ulong digest_max= 0;
@@ -76,7 +76,7 @@ static bool digest_hash_inited= false;
 
 /**
   Initialize table EVENTS_STATEMENTS_SUMMARY_BY_DIGEST.
-  @param digest_sizing      
+  @param param performance schema sizing      
 */
 int init_digest(const PFS_global_param *param)
 {

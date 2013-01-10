@@ -52,6 +52,7 @@ struct row_session_connect_attrs
   ulong m_ordinal_position;
 };
 
+/** Abstract table PERFORMANCE_SCHEMA.SESSION_CONNECT_ATTRS. */
 class table_session_connect : public cursor_by_thread_connect_attr
 {
 protected:

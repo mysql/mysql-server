@@ -711,12 +711,12 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 #
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1028,12 +1028,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	100.00	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1239,8 +1239,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -1316,12 +1314,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	100.00	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1585,12 +1583,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	5	NULL
+1	SIMPLE	t2	index	a	a	6	NULL	5	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	5	100.00	NULL
+1	SIMPLE	t2	index	a	a	6	NULL	5	100.00	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -1687,8 +1685,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -1764,12 +1760,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	Using where; Using temporary
+1	SIMPLE	t2	index	a	a	15	NULL	17602	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	17602	100.00	Using where; Using temporary
+1	SIMPLE	t2	index	a	a	15	NULL	17602	100.00	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;
@@ -2033,12 +2029,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	5	Using temporary
+1	SIMPLE	t2	index	a	a	6	NULL	5	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	5	100.00	Using temporary
+1	SIMPLE	t2	index	a	a	6	NULL	5	100.00	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 FLUSH STATUS;

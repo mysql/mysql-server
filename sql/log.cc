@@ -274,9 +274,9 @@ sql_print_message_func sql_print_message_handlers[3] =
   This method forms a new path + file name for the
   log specified in @c name.
 
-  @param[IN] buff    Location for building new string.
-  @param[IN] name    Name of the log file.
-  @param[IN] log_ext The extension for the log (e.g. .log).
+  @param[in] buff    Location for building new string.
+  @param[in] name    Name of the log file.
+  @param[in] log_ext The extension for the log (e.g. .log).
 
   @returns Pointer to new string containing the name.
 */
@@ -2053,7 +2053,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }
@@ -2395,7 +2395,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   char format2[MYSQL_ERRMSG_SIZE];
   int ret;
   loglevel lvl;
-  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
+  struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
 
   DBUG_ASSERT(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);
@@ -2609,8 +2609,8 @@ void TC_LOG_MMAP::get_active_from_pool()
   active=*best_p;
   if (active->free == active->size) // we've chosen an empty page
   {
-    tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+    statistic_inc_set_big_rwlock(tc_log_cur_pages_used, tc_log_max_pages_used,
+                                 &LOCK_status);
   }
 
   if ((*best_p)->next)              // unlink the page from the pool

@@ -2253,10 +2253,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  Query_arena backup;
-  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
-                      thd->activate_stmt_arena_if_needed(&backup) :
-                      NULL;
+  Prepared_stmt_arena_holder ps_arena_holder(
+    thd, thd->stmt_arena->is_stmt_prepare());
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -2324,8 +2322,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       break; // we cannot return here, we need to restore "arena".
     }
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
   return res;
 }
 
@@ -2534,7 +2531,7 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
-  maybe_null=field->maybe_null();
+  maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
@@ -7262,13 +7259,15 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        Query_arena backup, *arena;
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-        fld= new Item_field(thd, last_checked_context, from_field);
-        if (arena)
-          thd->restore_active_arena(arena, &backup);
-        if (!fld)
-          goto error;
+
+        {
+          Prepared_stmt_arena_holder ps_arena_holder(thd);
+          fld= new Item_field(thd, last_checked_context, from_field);
+
+          if (!fld)
+            goto error;
+        }
+
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, this, fld);
@@ -7959,9 +7958,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (def_field == NULL)
     goto error;
 
-  def_field->move_field_offset((my_ptrdiff_t)
-                               (def_field->table->s->default_values -
-                                def_field->table->record[0]));
+  def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
   return FALSE;
 
@@ -8104,11 +8101,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
   else
   {
     // VALUES() is used out-of-scope - its value is always NULL
-    Query_arena backup;
-    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     Item *const item= new Item_null(this->item_name);
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     if (!item)
       return true;
     *reference= item;
@@ -8206,7 +8200,7 @@ bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 
   field->table->copy_blobs= true;
 
-  int err_code= item->save_in_field(field, 0);
+  int err_code= item->save_in_field(field, false);
 
   field->table->copy_blobs= copy_blobs_saved;
 
