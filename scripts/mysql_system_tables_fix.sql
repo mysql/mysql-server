@@ -621,29 +621,6 @@ ALTER TABLE user MODIFY Create_tablespace_priv enum('N','Y') COLLATE utf8_genera
 
 UPDATE user SET Create_tablespace_priv = Super_priv WHERE @hadCreateTablespacePriv = 0;
 
---
--- Unlike 'performance_schema', the 'mysql' database is reserved already,
--- so no user procedure is supposed to be there.
---
--- NOTE: until upgrade is finished, stored routines are not available,
--- because system tables (e.g. mysql.proc) might be not usable.
---
-drop procedure if exists mysql.die;
-create procedure mysql.die() signal sqlstate 'HY000' set message_text='Unexpected content found in the performance_schema database.';
-
---
--- For broken upgrades, SIGNAL the error
---
-
-SET @cmd="call mysql.die()";
-
-SET @str = IF(@broken_pfs > 0, @cmd, 'SET @dummy = 0');
-PREPARE stmt FROM @str;
-EXECUTE stmt;
-DROP PREPARE stmt;
-
-drop procedure mysql.die;
-
 ALTER TABLE user ADD plugin char(64) DEFAULT '',  ADD authentication_string TEXT;
 ALTER TABLE user MODIFY plugin char(64) CHARACTER SET latin1 DEFAULT '' NOT NULL;
 ALTER TABLE user MODIFY authentication_string TEXT NOT NULL;

@@ -22,7 +22,7 @@
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#define VER "1.2"
+#define VER "1.3"
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -148,6 +148,8 @@ static struct my_option my_long_options[]=
    &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Display more output about the process.",
    &opt_not_used, &opt_not_used, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
+  {"version", 'V', "Output version information and exit.", 0, 0, 0,
+   GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"write-binlog", OPT_WRITE_BINLOG,
    "All commands including mysqlcheck are binlogged. Enabled by default;"
    "use --skip-write-binlog when commands should not be sent to replication slaves.",
@@ -297,6 +299,11 @@ get_one_option(int optid, const struct my_option *opt,
       opt_silent= 1;
     }
     add_option= 0;
+    break;
+  case 'V':
+    printf("%s  Ver %s Distrib %s, for %s (%s)\n",
+           my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    die(0);
     break;
   case OPT_SILENT:
     opt_verbose= 0;

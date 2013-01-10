@@ -29,7 +29,7 @@ ENDIF()
 IF(CAT_EXECUTABLE)
   SET(CAT_COMMAND COMMAND 
     ${CMAKE_COMMAND} -E chdir  ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CAT_EXECUTABLE} mysql_system_tables.sql mysql_system_tables_fix.sql >
+    ${CAT_EXECUTABLE} mysql_system_tables.sql mysql_system_tables_fix.sql mysql_performance_tables.sql >
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables.sql
   )
 ELSEIF(WIN32)
@@ -37,7 +37,7 @@ ELSEIF(WIN32)
    native_outfile )
   SET(CAT_COMMAND
    COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_CURRENT_SOURCE_DIR}
-   cmd /c copy /b mysql_system_tables.sql + mysql_system_tables_fix.sql
+   cmd /c copy /b mysql_system_tables.sql + mysql_system_tables_fix.sql + mysql_performance_tables.sql 
    ${native_outfile} )
 ELSE()
   MESSAGE(FATAL_ERROR "Cannot concatenate files")
@@ -55,6 +55,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS comp_sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_fix.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_performance_tables.sql
 )
 
 # Add target for the above to be built
@@ -74,6 +75,7 @@ ENDIF()
 INSTALL(FILES 
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql 
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_performance_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
   ${FIX_PRIVILEGES_SQL}

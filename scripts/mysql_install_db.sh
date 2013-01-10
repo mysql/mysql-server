@@ -1,6 +1,6 @@
 #!/bin/sh
 # Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-# Copyright (c) 2009, 2011, Monty Program Ab
+# Copyright (c) 2009, 2011,2013 Monty Program Ab
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -305,9 +305,10 @@ fi
 # Set up paths to SQL scripts required for bootstrap
 fill_help_tables="$pkgdatadir/fill_help_tables.sql"
 create_system_tables="$pkgdatadir/mysql_system_tables.sql"
+create_system_tables2="$pkgdatadir/mysql_performance_tables.sql"
 fill_system_tables="$pkgdatadir/mysql_system_tables_data.sql"
 
-for f in "$fill_help_tables" "$create_system_tables" "$fill_system_tables"
+for f in "$fill_help_tables" "$create_system_tables" "$create_system_tables2" "$fill_system_tables"
 do
   if test ! -f "$f"
   then
@@ -424,7 +425,7 @@ mysqld_install_cmd_line()
 
 # Create the system and help tables by passing them to "mysqld --bootstrap"
 s_echo "Installing MariaDB/MySQL system tables in '$ldata' ..."
-if { echo "use mysql;"; cat "$create_system_tables" "$fill_system_tables"; } | eval "$filter_cmd_line" | mysqld_install_cmd_line > /dev/null
+if { echo "use mysql;"; cat "$create_system_tables" "$create_system_tables2" "$fill_system_tables"; } | eval "$filter_cmd_line" | mysqld_install_cmd_line > /dev/null
 then
   s_echo "OK"
 else

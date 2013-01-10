@@ -3229,6 +3229,8 @@ sub install_db ($$) {
   # for a production system
   mtr_appendfile_to_file("$path_sql_dir/mysql_system_tables.sql",
 			 $bootstrap_sql_file);
+  mtr_appendfile_to_file("$path_sql_dir/mysql_performance_tables.sql",
+			 $bootstrap_sql_file);
 
   # Add the mysql system tables initial data
   # for a production system
