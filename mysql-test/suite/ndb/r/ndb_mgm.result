@@ -91,6 +91,13 @@ Illegal argument -1
 ERROR: Illegal value '-1' in argument to signal.
 (Value must be between 0 and 0xffffffff.)
 
+Robustness issue with bug#14537622
+Data node must not crash here
+Sending dump signal with data:
+0x000003e8 0x000003e8 
+Sending dump signal with data:
+0x000003e8 0x000003e8 
+
 ALL DUMP 1
 Sending dump signal with data:
 0x00000001 

@@ -1461,6 +1461,19 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
     {
       // Dump data and index memory to specific ref
       Uint32 result_ref = signal->theData[1];
+      /* Validate ref */
+      {
+        Uint32 node = refToNode(result_ref);
+        if (node == 0 || 
+            node >= MAX_NODES)
+        {
+          ndbout_c("Bad node in ref to DUMP %u : %u %u",
+                   DumpStateOrd::DumpPageMemory,
+                   node,
+                   result_ref);
+          return;
+        }
+      }
       reportDMUsage(signal, 0, result_ref);
       reportIMUsage(signal, 0, result_ref);
       return;
