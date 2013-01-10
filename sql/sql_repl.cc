@@ -1541,6 +1541,31 @@ void kill_zombie_dump_threads(uint32 slave_server_id)
   }
 }
 
+/**
+   Get value for a string parameter with error checking
+
+   Note that in case of error the original string should not be updated!
+
+   @ret 0 ok
+   @ret 1 error
+*/
+
+static bool get_string_parameter(char *to, const char *from, size_t length,
+                                 const char *name)
+{
+  if (from)                                     // Empty paramaters allowed
+  {
+    size_t from_length;
+    if ((from_length= strlen(from)) > length)
+    {
+      my_error(ER_WRONG_STRING_LENGTH, MYF(0), from, name, (int) length);
+      return 1;
+    }
+    memcpy(to, from, from_length+1);
+  }
+  return 0;
+}
+
 
 /**
   Execute a CHANGE MASTER statement.
@@ -1633,12 +1658,17 @@ bool change_master(THD* thd, Master_info* mi)
   }
   DBUG_PRINT("info", ("master_log_pos: %lu", (ulong) mi->master_log_pos));
 
-  if (lex_mi->host)
-    strmake(mi->host, lex_mi->host, sizeof(mi->host)-1);
-  if (lex_mi->user)
-    strmake(mi->user, lex_mi->user, sizeof(mi->user)-1);
-  if (lex_mi->password)
-    strmake(mi->password, lex_mi->password, sizeof(mi->password)-1);
+  if (get_string_parameter(mi->host, lex_mi->host, sizeof(mi->host)-1,
+                           "MASTER_HOST") ||
+      get_string_parameter(mi->user, lex_mi->user, sizeof(mi->user)-1,
+                           "MASTER_USER") ||
+      get_string_parameter(mi->password, lex_mi->password,
+                           sizeof(mi->password)-1, "MASTER_PASSWORD"))
+  {
+    ret= TRUE;
+    goto err;
+  }
+
   if (lex_mi->port)
     mi->port = lex_mi->port;
   if (lex_mi->connect_retry)

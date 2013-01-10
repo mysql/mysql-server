@@ -462,14 +462,14 @@ if ($_tid)
 # Do not binlog the following statement because it will generate
 # different events for ROW and STATEMENT format
 set sql_log_bin=0;
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl_password';
 flush privileges;
 set sql_log_bin=1;
 connection slave;
 echo [ on slave ];
-grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl';
+grant replication slave on *.* to rpl@127.0.0.1 identified by 'rpl_password';
 flush privileges;
-change master to master_user='rpl',master_password='rpl';
+change master to master_user='rpl',master_password='rpl_password';
 source include/start_slave.inc;
 show status like 'Rpl_semi_sync_slave_status';
 connection master;
