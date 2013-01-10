@@ -9,6 +9,7 @@ libtaocrypt_la_SOURCES  = aes.cpp aestables.cpp algebra.cpp arc4.cpp \
         tftables.cpp twofish.cpp rabbit.cpp hc128.cpp
 
 libtaocrypt_la_CXXFLAGS = @yassl_taocrypt_extra_cxxflags@ -DYASSL_PURE_C \
-			  @yassl_thread_cxxflags@
-
+			  @yassl_thread_cxxflags@ \
+			  @SYMBOL_VISIBILITY@ @SYMBOL_VISIBILITY_INLINES@
+ 
 EXTRA_DIST = $(wildcard ../include/*.hpp)

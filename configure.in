@@ -13,7 +13,7 @@ dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
 
-AC_INIT([MariaDB Server], [5.3.11-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.3.12-MariaDB], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
@@ -2513,6 +2513,18 @@ if test "x$mysql_cv_bss_start" = xyes; then
   AC_DEFINE(HAVE_BSS_START, 1,
             [Define to 1 if compiler defines __bss_start.])
 fi
+
+# check for -fvisibility=hidden compiler support (GCC >= 4)
+saved_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -fvisibility=hidden -fvisibility-inlines-hidden"
+AC_MSG_CHECKING([if ${CXX} supports -fvisibility=hidden -fvisibility-inlines-hidden])
+AC_COMPILE_IFELSE([char foo;],
+      [ AC_MSG_RESULT([yes])
+        SYMBOL_VISIBILITY="-fvisibility=hidden" SYMBOL_VISIBILITY_INLINES="-fvisibility-inlines-hidden" ],
+        AC_MSG_RESULT([no]))
+CFLAGS="$saved_CFLAGS"
+AC_SUBST(SYMBOL_VISIBILITY)
+AC_SUBST(SYMBOL_VISIBILITY_INLINES)
 
 AC_LANG_SAVE
 AC_LANG_CPLUSPLUS

@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011, Monty Program Ab
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -296,7 +296,17 @@ static bool compare_hostname(const acl_host_and_ip *host,const char *hostname,
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
-
+/*
+ Enumeration of various ACL's and Hashes used in handle_grant_struct()
+*/
+enum enum_acl_lists
+{
+  USER_ACL= 0,
+  DB_ACL,
+  COLUMN_PRIVILEGES_HASH,
+  PROC_PRIVILEGES_HASH,
+  FUNC_PRIVILEGES_HASH
+};
 /*
   Convert scrambled password to binary form, according to scramble type, 
   Binary form is stored in user.salt.
@@ -498,7 +508,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void) strmov(tmp_name, host.db);
+      char *end = strnmov(tmp_name, host.db, sizeof(tmp_name));
+      if (end >= tmp_name + sizeof(tmp_name))
+      {
+        sql_print_warning(ER(ER_WRONG_DB_NAME), host.db);
+        continue;
+      }
       my_casedn_str(files_charset_info, host.db);
       if (strcmp(host.db, tmp_name) != 0)
         sql_print_warning("'host' entry '%s|%s' had database in mixed "
@@ -791,7 +806,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void)strmov(tmp_name, db.db);
+      char *end = strnmov(tmp_name, db.db, sizeof(tmp_name));
+      if (end >= tmp_name + sizeof(tmp_name))
+      {
+        sql_print_warning(ER(ER_WRONG_DB_NAME), db.db);
+        continue;
+      }
       my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
@@ -2505,15 +2525,23 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact, bool name_tolower)
 {
-  char helping [SAFE_NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  char helping[SAFE_NAME_LEN*2+USERNAME_LENGTH+3];
+  char *hend = helping + sizeof(helping);
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
-  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  char *db_ptr= strmov(helping, user) + 1;
+  char *tname_ptr= strnmov(db_ptr, db, hend - db_ptr) + 1;
+  if (tname_ptr > hend)
+    return 0; // invalid name = not found
+  char *end= strnmov(tname_ptr, tname, hend - tname_ptr) + 1;
+  if (end > hend)
+    return 0; // invalid name = not found
+
+  len  = (uint) (end - helping);
   if (name_tolower)
-    my_casedn_str(files_charset_info, name_ptr);
+    my_casedn_str(files_charset_info, tname_ptr);
   for (grant_name= (GRANT_NAME*) hash_first(name_hash, (uchar*) helping,
                                             len, &state);
        grant_name ;
@@ -3498,7 +3526,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    char *end= strnmov(tmp_db,db, sizeof(tmp_db));
+    if (end >= tmp_db + sizeof(tmp_db))
+    {
+      my_error(ER_WRONG_DB_NAME ,MYF(0), db);
+      DBUG_RETURN(TRUE);
+    }
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
@@ -5452,19 +5485,19 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     Delete from grant structure if drop is true.
     Update in grant structure if drop is false and user_to is not NULL.
     Search in grant structure if drop is false and user_to is NULL.
-    Structures are numbered as follows:
-    0 acl_users
-    1 acl_dbs
-    2 column_priv_hash
-    3 proc_priv_hash
-    4 func_priv_hash
+    Structures are enumerated as follows:
+    0 ACL_USER
+    1 ACL_DB
+    2 COLUMN_PRIVILEGES_HASH
+    3 PROC_PRIVILEGES_HASH
+    4 FUNC_PRIVILEGES_HASH
 
   @retval > 0  At least one element matched.
   @retval 0    OK, but no element matched.
-  @retval -1   Wrong arguments to function.
+  @retval -1   Wrong arguments to function or Out of Memory
 */
 
-static int handle_grant_struct(uint struct_no, bool drop,
+static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -5487,21 +5520,21 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
-  case 0:
+  case USER_ACL:
     elements= acl_users.elements;
     break;
-  case 1:
+  case DB_ACL:
     elements= acl_dbs.elements;
     break;
-  case 2:
+  case COLUMN_PRIVILEGES_HASH:
     grant_name_hash= &column_priv_hash;
     elements= grant_name_hash->records;
     break;
-  case 3:
+  case PROC_PRIVILEGES_HASH:
     grant_name_hash= &proc_priv_hash;
     elements= grant_name_hash->records;
     break;
-  case 4:
+  case FUNC_PRIVILEGES_HASH:
     grant_name_hash= &func_priv_hash;
     elements= grant_name_hash->records;
     break;
@@ -5520,21 +5553,21 @@ static int handle_grant_struct(uint struct_no, bool drop,
       Get a pointer to the element.
     */
     switch (struct_no) {
-    case 0:
+    case USER_ACL:
       acl_user= dynamic_element(&acl_users, idx, ACL_USER*);
       user= acl_user->user;
       host= acl_user->host.hostname;
     break;
 
-    case 1:
+    case DB_ACL:
       acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
       user= acl_db->user;
       host= acl_db->host.hostname;
       break;
 
-    case 2:
-    case 3:
-    case 4:
+    case COLUMN_PRIVILEGES_HASH:
+    case PROC_PRIVILEGES_HASH:
+    case FUNC_PRIVILEGES_HASH:
       grant_name= (GRANT_NAME*) hash_element(grant_name_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
@@ -5560,17 +5593,17 @@ static int handle_grant_struct(uint struct_no, bool drop,
     if ( drop )
     {
       switch ( struct_no ) {
-      case 0:
+      case USER_ACL:
         delete_dynamic_element(&acl_users, idx);
         break;
 
-      case 1:
+      case DB_ACL:
         delete_dynamic_element(&acl_dbs, idx);
         break;
 
-      case 2:
-      case 3:
-      case 4:
+      case COLUMN_PRIVILEGES_HASH:
+      case PROC_PRIVILEGES_HASH:
+      case FUNC_PRIVILEGES_HASH:
         hash_delete(grant_name_hash, (uchar*) grant_name);
 	break;
       }
@@ -5593,19 +5626,19 @@ static int handle_grant_struct(uint struct_no, bool drop,
     else if ( user_to )
     {
       switch ( struct_no ) {
-      case 0:
+      case USER_ACL:
         acl_user->user= strdup_root(&mem, user_to->user.str);
         acl_user->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
 
-      case 1:
+      case DB_ACL:
         acl_db->user= strdup_root(&mem, user_to->user.str);
         acl_db->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
 
-      case 2:
-      case 3:
-      case 4:
+      case COLUMN_PRIVILEGES_HASH:
+      case PROC_PRIVILEGES_HASH:
+      case FUNC_PRIVILEGES_HASH:
         {
           /*
             Save old hash key and its length to be able properly update
@@ -5626,8 +5659,8 @@ static int handle_grant_struct(uint struct_no, bool drop,
             is renamed, the hash key is changed. Update the hash to
             ensure that the position matches the new hash key value
           */
-          hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
-                      old_key_length);
+          my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
+                         old_key_length);
           /*
             hash_update() operation could have moved element from the tail
             of the hash to the current position. So we need to take a look
@@ -5696,7 +5729,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle user array. */
-    if ((handle_grant_struct(0, drop, user_from, user_to)) || found)
+    if ((handle_grant_struct(USER_ACL, drop, user_from, user_to)) || found)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
@@ -5714,7 +5747,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle db array. */
-    if (((handle_grant_struct(1, drop, user_from, user_to) && ! result) ||
+    if (((handle_grant_struct(DB_ACL, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
@@ -5733,7 +5766,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle procs array. */
-    if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
+    if (((handle_grant_struct(PROC_PRIVILEGES_HASH, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
@@ -5742,7 +5775,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
         goto end;
     }
     /* Handle funcs array. */
-    if (((handle_grant_struct(4, drop, user_from, user_to) && ! result) ||
+    if (((handle_grant_struct(FUNC_PRIVILEGES_HASH, drop, user_from, user_to) && ! result) ||
          found) && ! result)
     {
       result= 1; /* At least one record/element found. */
@@ -5777,7 +5810,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     else
     {
       /* Handle columns hash. */
-      if (((handle_grant_struct(2, drop, user_from, user_to) && ! result) ||
+      if (((handle_grant_struct(COLUMN_PRIVILEGES_HASH, drop, user_from, user_to) && ! result) ||
            found) && ! result)
         result= 1; /* At least one record/element found. */
     }

@@ -169,6 +169,7 @@ function ScrubSymbol(symbol)
 function IsCompilerDefinedSymbol(symbol)
 {
     return ((symbol.indexOf("__real@") != -1) ||
+    (symbol.indexOf("_xmm@") != -1) ||
     (symbol.indexOf("_RTC_") != -1) || 
     (symbol.indexOf("??_C@_") != -1) ||
     (symbol.indexOf("??_R") != -1) ||

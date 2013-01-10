@@ -311,5 +311,9 @@ SHOW TABLES IN connected_db;
 Tables_in_connected_db
 table_in_connected_db
 DROP DATABASE connected_db;
+create database `aa``bb````cc`;
+DATABASE()
+aa`bb``cc
+drop database `aa``bb````cc`;
 
 End of tests

@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4473,6 +4474,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       if (pending->write(&trx_data->trans_log))
       {
         set_write_error(thd);
+        delete pending;
+        trx_data->set_pending(NULL);
         DBUG_RETURN(1);
       }
     }
@@ -4485,6 +4488,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       {
         pthread_mutex_unlock(&LOCK_log);
         set_write_error(thd);
+        delete pending;
+        trx_data->set_pending(NULL);
         DBUG_RETURN(1);
       }
 

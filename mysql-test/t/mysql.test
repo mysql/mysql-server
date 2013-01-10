@@ -569,5 +569,17 @@ DROP DATABASE connected_db;
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_1.sql
 --remove_file $MYSQLTEST_VARDIR/tmp/one_db_2.sql
 
+#
+# USE and names with backticks
+#
+--write_file $MYSQLTEST_VARDIR/tmp/backticks.sql
+USE aa`bb``cc
+SELECT DATABASE();
+EOF
+create database `aa``bb````cc`;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/backticks.sql
+drop database `aa``bb````cc`;
+
+
 --echo
 --echo End of tests
