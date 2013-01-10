@@ -9299,7 +9299,11 @@ bool mysql_notify_thread_having_shared_lock(THD *thd, THD *in_use,
     in_use->killed= KILL_SYSTEM_THREAD;
     mysql_mutex_lock(&in_use->mysys_var->mutex);
     if (in_use->mysys_var->current_cond)
+    {
+      mysql_mutex_lock(in_use->mysys_var->current_mutex);
       mysql_cond_broadcast(in_use->mysys_var->current_cond);
+      mysql_mutex_unlock(in_use->mysys_var->current_mutex);
+    }
     mysql_mutex_unlock(&in_use->mysys_var->mutex);
     signalled= TRUE;
   }

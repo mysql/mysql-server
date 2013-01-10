@@ -2823,8 +2823,12 @@ pthread_handler_t handle_delayed_insert(void *arg)
         set_timespec(abstime, delayed_insert_timeout);
 
         /* Information for pthread_kill */
+        mysql_mutex_unlock(&di->mutex);
+        mysql_mutex_lock(&di->thd.mysys_var->mutex);
         di->thd.mysys_var->current_mutex= &di->mutex;
         di->thd.mysys_var->current_cond= &di->cond;
+        mysql_mutex_unlock(&di->thd.mysys_var->mutex);
+        mysql_mutex_lock(&di->mutex);
         thd_proc_info(&(di->thd), "Waiting for INSERT");
 
         DBUG_PRINT("info",("Waiting for someone to insert rows"));
