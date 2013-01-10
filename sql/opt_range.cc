@@ -10068,9 +10068,13 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
 
       do
       {
+        DBUG_EXECUTE_IF("innodb_quick_report_deadlock",
+                        DBUG_SET("+d,innodb_report_deadlock"););
         if ((error= quick->get_next()))
         {
-          quick_with_last_rowid->file->unlock_row();
+          /* On certain errors like deadlock, trx might be rolled back.*/
+          if (!current_thd->transaction_rollback_request)
+            quick_with_last_rowid->file->unlock_row();
           DBUG_RETURN(error);
         }
         quick->file->position(quick->record);
@@ -10093,7 +10097,9 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
             quick->file->unlock_row(); /* row not in range; unlock */
             if ((error= quick->get_next()))
             {
-              quick_with_last_rowid->file->unlock_row();
+              /* On certain errors like deadlock, trx might be rolled back.*/
+              if (!current_thd->transaction_rollback_request)
+                quick_with_last_rowid->file->unlock_row();
               DBUG_RETURN(error);
             }
           }
