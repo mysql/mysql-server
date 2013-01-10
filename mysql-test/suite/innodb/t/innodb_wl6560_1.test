@@ -333,16 +333,21 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 
 --mkdir $MYSQLTEST_VARDIR/tmp/testdir1
 --mkdir $MYSQLTEST_VARDIR/tmp/testdir2
-
+let $platform_windows = `select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`;
 --echo # restart server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 --echo # list_file ,no files expected - temp tablespace cleared on stopping server
 --list_files $MYSQL_TMP_DIR/ ibtmp1*
-#
-# Write file to make mysql-test-run.pl start up the server again
+
 --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# # Write file to make mysql-test-run.pl start up the server again
+if ($platform_windows!=0) {
+# write ';' instead of ':' for windows
+--exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/;$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+}
+
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
