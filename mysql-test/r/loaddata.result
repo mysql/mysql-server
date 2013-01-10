@@ -504,35 +504,6 @@ CREATE TABLE t1 (id INT NOT NULL);
 LOAD DATA LOCAL INFILE 'tb.txt' INTO TABLE t1;
 DROP TABLE t1;
 #
-# Bug #51876 : crash/memory underrun when loading data with ucs2 
-#   and reverse() function
-#
-# Problem # 1 (original report): wrong parsing of ucs2 data
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
-CREATE TABLE t1(a INT);
-LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
-(@b) SET a=REVERSE(@b);
-Warnings:
-Warning	1366	Incorrect integer value: '00' for column 'a' at row 1
-Warning	1366	Incorrect integer value: '10' for column 'a' at row 2
-# should return 2 zeroes (as the value is truncated)
-SELECT * FROM t1;
-a
-0
-0
-DROP TABLE t1;
-# Problem # 2 : if you write and read ucs2 data to a file they're lost
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
-CREATE TABLE t1(a INT);
-LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
-(@b) SET a=REVERSE(@b);
-# should return 0 and 1 (10 reversed)
-SELECT * FROM t1;
-a
-0
-1
-DROP TABLE t1;
-#
 # Bug#11765139  58069: LOAD DATA INFILE: VALGRIND REPORTS INVALID MEMORY READS AND WRITES WITH U
 #
 CREATE TABLE t1(f1 INT);

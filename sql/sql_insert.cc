@@ -3501,9 +3501,8 @@ int select_create::write_to_binlog(bool is_trans, int errcode)
       if (f != field)
         query.append(STRING_WITH_LEN(","));
 
-      query.append(STRING_WITH_LEN("`"));
-      query.append((*f)->field_name, strlen((*f)->field_name));
-      query.append(STRING_WITH_LEN("`"));
+      append_identifier(thd, &query, (*f)->field_name,
+                        strlen((*f)->field_name));
     }
     query.append(STRING_WITH_LEN(") "));
 

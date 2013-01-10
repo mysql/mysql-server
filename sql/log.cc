@@ -1,4 +1,5 @@
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4394,10 +4395,16 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
     /*
       Write pending event to log file or transaction cache
     */
+    DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                    {DBUG_SET("+d,simulate_file_write_error");});
     if (pending->write(file))
     {
       pthread_mutex_unlock(&LOCK_log);
       set_write_error(thd);
+      delete pending;
+      trx_data->set_pending(NULL);
+      DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                    {DBUG_SET("-d,simulate_file_write_error");});
       DBUG_RETURN(1);
     }
 

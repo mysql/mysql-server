@@ -1,0 +1,95 @@
+--source include/have_innodb.inc
+
+#
+# create test-bed to run test
+#
+use test;
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+create table t1 (id int primary key, value int, value2 int,
+value3 int, index(value,value2)) engine=innodb;
+
+insert into t1 values
+(10,10,10,10),(11,11,11,11),(12,12,12,12),(13,13,13,13),(14,14,14,14),
+(15,15,15,15),(16,16,16,16),(17,17,17,17),(18,18,18,18),(19,19,19,19),
+(20,20,20,20);
+let $ID= `SELECT @id := CONNECTION_ID()`;
+
+#
+# we need multiple connections as we need to keep one connection
+# active with trx requesting consistent read.
+#
+connect (conn1, localhost, root,,);
+connect (conn2, localhost, root,,);
+connect (conn3, localhost, root,,);
+
+#
+# start trx with consistent read
+#
+connection conn1;
+use test;
+
+start transaction with consistent snapshot;
+
+#
+# update table such that secondary index is updated.
+#
+connection conn2;
+use test;
+delimiter |;
+CREATE PROCEDURE update_t1()
+BEGIN
+	DECLARE i INT DEFAULT 1;
+	while (i <= 5000) DO
+		update test.t1 set value2=value2+1, value3=value3+1 where id=12;
+		SET i = i + 1;
+	END WHILE;
+END|
+
+delimiter ;|
+set autocommit=0;
+CALL update_t1();
+select * from t1;
+set autocommit=1;
+select * from t1;
+
+#
+# Now try to fire select query from connection-1 enforcing
+# use of secondary index.
+#
+connection conn1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+#--error ER_QUERY_INTERRUPTED
+--send
+select * from t1 force index(value) where value=12;
+
+#
+# select is going to take good time so let's kill query.
+#
+connection conn3;
+let $wait_condition=
+	select * from information_schema.processlist where state = 'Sending data' and
+	info = 'select * from t1 force index(value) where value=12';
+--source include/wait_condition.inc
+let $ignore= `SELECT @id := $ID`;
+kill query @id;
+
+#
+# reap the value of connection-1
+#
+connection conn1;
+--error ER_QUERY_INTERRUPTED
+reap;
+
+#
+# clean test-bed.
+#
+connection default;
+disconnect conn1;
+disconnect conn2;
+disconnect conn3;
+drop procedure if exists update_t1;
+drop table if exists t1;
+
+

@@ -196,10 +196,15 @@ struct dict_index_struct{
 	unsigned	space:32;
 				/* space where the index tree is placed */
 	unsigned	page:32;/* index tree root page number */
-	unsigned	trx_id_offset:10;/* position of the the trx id column
+#define MAX_KEY_LENGTH_BITS 12
+	unsigned	trx_id_offset:MAX_KEY_LENGTH_BITS;
+				/* position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
 				0 otherwise */
+#if (1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
+# error (1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
+#endif
 	unsigned	n_user_defined_cols:10;
 				/* number of columns the user defined to
 				be in the index: in the internal

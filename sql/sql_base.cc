@@ -4202,34 +4202,17 @@ retry:
       char query_buf[2*FN_REFLEN + 21];
       String query(query_buf, sizeof(query_buf), system_charset_info);
       query.length(0);
-      if (query.ptr())
-      {
-        /* this DELETE FROM is needed even with row-based binlogging */
-        query.append("DELETE FROM ");
-        append_identifier(thd, &query, share->db.str, share->db.length);
-        query.append(".");
-        append_identifier(thd, &query, share->table_name.str,
-                          share->table_name.length);
-        int errcode= query_error_code(thd, TRUE);
-        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                              query.ptr(), query.length(),
-                              FALSE, FALSE, errcode))
-          goto err;
-      }
-      else
-      {
-        /*
-          As replication is maybe going to be corrupted, we need to warn the
-          DBA on top of warning the client (which will automatically be done
-          because of MYF(MY_WME) in my_malloc() above).
-        */
-        sql_print_error("When opening HEAP table, could not allocate memory "
-                        "to write 'DELETE FROM %`s.%`s' to the binary log",
-                        table_list->db, table_list->table_name);
-        delete entry->triggers;
-        closefrm(entry, 0);
+      /* this DELETE FROM is needed even with row-based binlogging */
+      query.append("DELETE FROM ");
+      append_identifier(thd, &query, share->db.str, share->db.length);
+      query.append(".");
+      append_identifier(thd, &query, share->table_name.str,
+                        share->table_name.length);
+      int errcode= query_error_code(thd, TRUE);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            query.ptr(), query.length(),
+                            FALSE, FALSE, errcode))
         goto err;
-      }
     }
   }
   DBUG_RETURN(0);
