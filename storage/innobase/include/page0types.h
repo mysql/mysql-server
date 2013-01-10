@@ -67,10 +67,10 @@ ssize, which is the number of shifts from 512. */
 MLOG_FILE_TRUNCATE redo record during recovery */
 struct redo_page_compress_t {
 	ulint		type;		/*!< index type */
-	ulint		index_id;	/*!< index id */
-	ulint		fields_num;	/*!< number of index fields */
+	index_id_t	index_id;	/*!< index id */
+	ulint		n_fields;	/*!< number of index fields */
 	ulint		field_len;	/*!< the length of index field */
-	const byte*	field_buf;	/*!< index field information */
+	const byte*	fields;		/*!< index field information */
 };
 
 /** Compressed page descriptor */

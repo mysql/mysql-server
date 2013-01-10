@@ -2194,9 +2194,9 @@ UNIV_INTERN
 ibool
 os_file_truncate(
 /*=============*/
-	const char*     pathname,       /*!< in: file path */
+	const char*     pathname,	/*!< in: file path */
 	os_file_t       file,		/*!< in: file to be truncated */
-	ulint		size)		/*!< in: size preserved in bytes */
+	os_offset_t	size)		/*!< in: size preserved in bytes */
 {
 	int		res;
 	os_offset_t	size_bytes;

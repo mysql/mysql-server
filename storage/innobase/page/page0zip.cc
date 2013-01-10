@@ -1271,7 +1271,7 @@ page_zip_compress(
 
 	if (fil_space_is_truncated(page_get_space_id(page))) {
 		ut_ad(page_comp_info != NULL);
-		n_fields = page_comp_info->fields_num;
+		n_fields = page_comp_info->n_fields;
 		ind_id = page_comp_info->index_id;
 	} else {
 		if (page_is_leaf(page)) {
@@ -1395,7 +1395,7 @@ page_zip_compress(
 		ut_ad(page_comp_info != NULL);
 		c_stream.avail_in = page_comp_info->field_len;
 		for (ulint i = 0; i < page_comp_info->field_len; i++) {
-			fields[i] = page_comp_info->field_buf[i];
+			fields[i] = page_comp_info->fields[i];
 		}
 	} else {
 		c_stream.avail_in = page_zip_fields_encode(

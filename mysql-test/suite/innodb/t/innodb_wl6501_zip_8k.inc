@@ -1,29 +1,23 @@
 # =====================  purpose  =======================================
 # The test verifies that the internal InnoDB 'TRUNCATE TABLE' statement
-# is atomic. To table with a remote data directory, recovery works fine
-# from a crash during the truncation.
+# is atomic. To a compressed table with 8k block size, recovery works
+# fine from a crash during the truncation.
 #
 
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 set global innodb_file_format='Barracuda';
---echo #
---echo # Create and insert records into a table
---echo # that uses a remote DATA DIRECTORY.
---echo #
---mkdir $MYSQL_TMP_DIR/alt_dir
---replace_result $MYSQL_TMP_DIR mysql_tmp_dir
-eval create table t1(a int not null,
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
+create table t1(a int not null,
  b int not null,
  c int not null,
  primary key (a),
  index (b),
  index (c))
-row_format=dynamic engine=innodb $data_directory;
+engine=innodb row_format=compressed key_block_size=8;
 -- disable_query_log
 -- disable_result_log
-
 let $n=17000;
 while ($n)
 {
@@ -50,8 +44,8 @@ select count(*) from t1;
 
 -- disable_query_log
 -- disable_result_log
-let $n=20000;
-while ($n)
+let $n=32000;
+while ($n > 15000)
 {
   eval insert into t1 values($n,$n,$n);
   dec $n;
@@ -78,7 +72,4 @@ while ($n > 0)
 select count(*) from t1;
 
 drop table t1;
-
---rmdir $MYSQL_TMP_DIR/alt_dir/test
---rmdir $MYSQL_TMP_DIR/alt_dir
 

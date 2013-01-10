@@ -1,21 +1,21 @@
 # =====================  purpose  =======================================
 # The test verifies that the internal InnoDB 'TRUNCATE TABLE' statement
-# is atomic. To a compressed table, recovery works fine from a crash
-# during the truncation.
+# is atomic. To a general table with redundant format, recovery works
+# fine from a crash during the truncation.
 #
 
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
-set global innodb_file_format='Barracuda';
-call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
+
 create table t1(a int not null,
  b int not null,
  c int not null,
  primary key (a),
  index (b),
  index (c))
-engine=innodb row_format=compressed key_block_size=8;
+engine=innodb row_format=redundant;
+
 -- disable_query_log
 -- disable_result_log
 let $n=17000;
@@ -44,8 +44,25 @@ select count(*) from t1;
 
 -- disable_query_log
 -- disable_result_log
-let $n=32000;
-while ($n > 15000)
+let $n=34000;
+while ($n > 17000)
+{
+  eval insert into t1 values($n,$n,$n);
+  dec $n;
+}
+-- enable_result_log
+-- enable_query_log
+select count(*) from t1;
+
+-- echo # Verify that 'TRUNCATE TABLE' statement can empty a table normally.
+truncate table t1;
+select count(*) from t1;
+
+-- echo # Verify that we can insert data into the truncated table normally.
+-- disable_query_log
+-- disable_result_log
+let $n=17000;
+while ($n > 0)
 {
   eval insert into t1 values($n,$n,$n);
   dec $n;

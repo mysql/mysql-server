@@ -55,8 +55,8 @@ extern const char*	fil_path_to_mysql_datadir;
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
-/* The length of index id buffer */
-#define INDEX_ID_BUF_LEN		1024
+/* The max number of indexes of MLOG_FILE_TRUNCATE redo record */
+#define MAX_REC_INDEXES			1024
 /* The length of index fields encoded buffer */
 #define FIELDS_LEN			4096
 
@@ -444,23 +444,23 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
+/** The index information of MLOG_FILE_TRUNCATE redo record */
+struct truncate_index_t {
+	index_id_t	id;		/*!< index id */
+	ulint		type;		/*!< index type */
+	ulint		n_fields;	/*!< Number of index fields */
+	ulint		field_len;	/*!< index id */
+};
 /** The information of MLOG_FILE_TRUNCATE redo record */
 struct truncate_rec_t {
-	ulint		n_index;			/*!< the number
+	ulint			n_index;		/*!< the number
 							of index */
-	const char*	dir_path;			/*!< data dir
+	const char*		dir_path;		/*!< data dir
 							path of table */
-	const byte*	fields;			/*!< index field
+	const byte*		fields;			/*!< index field
 							information */
-	index_id_t	index_id_buf[INDEX_ID_BUF_LEN];	/*!< all the
-							index ids */
-	ulint		type_buf[INDEX_ID_BUF_LEN];	/*!< types for
-							all indexes */
-	ulint		n_fields_buf[INDEX_ID_BUF_LEN];	/*!< number of
-							index fields */
-	ulint		field_len_buf[INDEX_ID_BUF_LEN];
-							/*!< the length
-							of index field */
+	truncate_index_t	indexes[MAX_REC_INDEXES];/*!< indexes
+							information */
 };
 /*******************************************************************//**
 Prepare for truncating a single-table tablespace. The tablespace
@@ -498,7 +498,7 @@ fil_space_is_truncated(
 Reset truncated space id */
 UNIV_INTERN
 void
-fil_space_truncated_reset(void);
+fil_space_truncated_reset();
 /*============================*/
 /*******************************************************************//**
 Truncate a single-table tablespace. The tablespace must be cached
