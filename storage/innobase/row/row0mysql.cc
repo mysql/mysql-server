@@ -3545,6 +3545,7 @@ next_record:
 				mtr_commit(&mtr);
 				mem_heap_free(heap);
 				dict_table_x_unlock_indexes(table);
+
 				trx->error_state = DB_SUCCESS;
 				trx_rollback_to_savepoint(trx, NULL);
 				trx->error_state = DB_SUCCESS;
@@ -3645,23 +3646,22 @@ next_rec:
 		} else {
 			ulint	zip_size;
 			zip_size = fil_space_get_zip_size(table->space);
-                        DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
-                                        zip_size = ULINT_UNDEFINED;);
-                        if (zip_size == ULINT_UNDEFINED) {
-                                /* Rollback the truncation and mark the table
-                                as corrupt if the .ibd file is missing */
-                                btr_pcur_close(&pcur);
-                                mtr_commit(&mtr);
-                                mem_heap_free(heap);
-                                dict_table_x_unlock_indexes(table);
-                                trx->error_state = DB_SUCCESS;
-                                trx_rollback_to_savepoint(trx, NULL);
-                                trx->error_state = DB_SUCCESS;
-                                table->corrupted = true;
+			if (zip_size == ULINT_UNDEFINED) {
+				/* Rollback the truncation and mark the table
+				as corrupt if the .ibd file is missing */
+				btr_pcur_close(&pcur);
+				mtr_commit(&mtr);
+				mem_heap_free(heap);
+				dict_table_x_unlock_indexes(table);
 
-                                err = DB_ERROR;
-                                goto funct_exit;
-                        }
+				trx->error_state = DB_SUCCESS;
+				trx_rollback_to_savepoint(trx, NULL);
+				trx->error_state = DB_SUCCESS;
+				table->corrupted = true;
+
+				err = DB_ERROR;
+				goto funct_exit;
+			}
 		}
 
 next_user_rec:

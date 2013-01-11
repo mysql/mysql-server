@@ -2277,22 +2277,22 @@ fil_recreate_tablespace(
 	if (fil_truncate_tablespace(space_id, name,
 				    truncate_rec->dir_path, flags,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
-		/* The ut_error will not be executed, unless the ibd file
-		is deleted. But the ibd file will never be deleted as we
-		are rewriting the ibd file now for Internal InnoDB TRUNCATE
-		TABLE statement. It must be other fetal error if the ibd
-		file is delected, it's better to crash the server. */
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though we "
+			"cannot access the .ibd file of this table.",
+			srv_force_recovery);
+		return;
 	}
 
 	ulint zip_size = fil_space_get_zip_size(space_id);
 	if (zip_size == ULINT_UNDEFINED) {
-		/* It is a single table tablespace and the .ibd file
-		is missing: fatal error */
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to create index pages for a missing "
-			".ibd file of table '%s'!", name);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though we "
+			"cannot access the .ibd file of this table.",
+			srv_force_recovery);
+		return;
 	}
 
 	mtr_start(&mtr);
@@ -2327,17 +2327,12 @@ fil_recreate_tablespace(
 				zip_size, truncate_rec->indexes[i].id,
 				NULL, &btr_create_info, &mtr);
 			if (root_page_no == FIL_NULL) {
-				/* The ut_error will not be executed, unless
-				the ibd file is deleted. But the ibd file will
-				never be deleted as we are rewriting the ibd
-				file now for Internal InnoDB TRUNCATE TABLE
-				statement. It must be other fetal error if the
-				ibd file is delected, it's better to crash
-				the server. */
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to create index for table "
-					"'%s' during recovery.", name);
-				ut_error;
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"innodb_force_recovery was set to %lu. "
+					"Continuing crash recovery even though we "
+					"cannot access the .ibd file of this table.",
+					srv_force_recovery);
+				return;
 			}
 			buf_index += truncate_rec->indexes[i].field_len;
 		}
@@ -2350,17 +2345,12 @@ fil_recreate_tablespace(
 				zip_size, truncate_rec->indexes[i].id,
 				NULL, &btr_create_info, &mtr);
 			if (root_page_no == FIL_NULL) {
-				/* The ut_error will not be executed, unless
-				the ibd file is deleted. But the ibd file will
-				never be deleted as we are rewriting the ibd
-				file now for Internal InnoDB TRUNCATE TABLE
-				statement. It must be other fetal error if the
-				ibd file is delected, it's better to crash
-				the server. */
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Failed to create index for table "
-					"'%s' during recovery.", name);
-				ut_error;
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"innodb_force_recovery was set to %lu. "
+					"Continuing crash recovery even though we "
+					"cannot access the .ibd file of this table.",
+					srv_force_recovery);
+				return;
 			}
 		}
 	}
