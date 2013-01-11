@@ -2319,8 +2319,6 @@ files_checked:
 		/* We always try to do a recovery, even if the database had
 		been shut down normally: this is the normal startup path */
 
-		ib_logf(IB_LOG_LEVEL_INFO, "recovery start");
-
 		err = recv_recovery_from_checkpoint_start(
 			LOG_CHECKPOINT, IB_ULONGLONG_MAX,
 			min_flushed_lsn, max_flushed_lsn);

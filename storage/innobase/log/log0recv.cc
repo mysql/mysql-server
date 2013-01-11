@@ -2418,14 +2418,11 @@ loop:
 						"File op log record of type "
 						"%lu space %lu does not "
 						"complete in the parse/replay "
-						"phase. Path %s",
-						(ulint) type, space,
-						(char*)(body + 2));
+						"phase.", (ulint) type, space);
 
-					ut_error;
+				ut_error;
 			}
-		}
-		else if (type == MLOG_FILE_CREATE
+		} else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
 			   || type == MLOG_FILE_DELETE) {
