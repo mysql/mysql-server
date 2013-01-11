@@ -58,7 +58,7 @@ general_log	CREATE TABLE `general_log` (
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show fields from mysql.general_log;
 Field	Type	Null	Key	Default	Extra
@@ -67,7 +67,7 @@ user_host	mediumtext	NO		NULL
 thread_id	bigint(21) unsigned	NO		NULL	
 server_id	int(10) unsigned	NO		NULL	
 command_type	varchar(64)	NO		NULL	
-argument	mediumtext	NO		NULL	
+argument	mediumblob	NO		NULL	
 show create table mysql.slow_log;
 Table	Create Table
 slow_log	CREATE TABLE `slow_log` (
@@ -81,7 +81,7 @@ slow_log	CREATE TABLE `slow_log` (
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 show fields from mysql.slow_log;
@@ -96,7 +96,7 @@ db	varchar(512)	NO		NULL
 last_insert_id	int(11)	NO		NULL	
 insert_id	int(11)	NO		NULL	
 server_id	int(10) unsigned	NO		NULL	
-sql_text	mediumtext	NO		NULL	
+sql_text	mediumblob	NO		NULL	
 thread_id	bigint(21) unsigned	NO		NULL	
 flush logs;
 flush tables;
@@ -128,7 +128,7 @@ test
 select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	set names binary
-TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select _koi8r'\xD4\xC5\xD3\xD4' as test
+TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select _koi8r'тест' as test
 TIMESTAMP	USER_HOST	THREAD_ID	1	Query	select * from mysql.general_log
 set names utf8;
 truncate table mysql.general_log;
@@ -171,7 +171,7 @@ general_log	CREATE TABLE `general_log` (
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
@@ -186,7 +186,7 @@ slow_log	CREATE TABLE `slow_log` (
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log'
 alter table mysql.general_log engine=myisam;
@@ -199,7 +199,7 @@ general_log	CREATE TABLE `general_log` (
   `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
-  `argument` mediumtext NOT NULL
+  `argument` mediumblob NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='General log'
 show create table mysql.slow_log;
 Table	Create Table
@@ -214,7 +214,7 @@ slow_log	CREATE TABLE `slow_log` (
   `last_insert_id` int(11) NOT NULL,
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
-  `sql_text` mediumtext NOT NULL,
+  `sql_text` mediumblob NOT NULL,
   `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COMMENT='Slow log'
 set global general_log='ON';
@@ -270,7 +270,7 @@ ON UPDATE CURRENT_TIMESTAMP,
 `thread_id` bigint(21) unsigned NOT NULL,
 `server_id` int(10) unsigned NOT NULL,
 `command_type` varchar(64) NOT NULL,
-`argument` mediumtext NOT NULL
+`argument` mediumblob NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='General log';
 CREATE TABLE `slow_log` (
 `start_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -284,7 +284,7 @@ ON UPDATE CURRENT_TIMESTAMP,
 `last_insert_id` int(11) NOT NULL,
 `insert_id` int(11) NOT NULL,
 `server_id` int(10) unsigned NOT NULL,
-`sql_text` mediumtext NOT NULL,
+`sql_text` mediumblob NOT NULL,
 `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 set global general_log='ON';
@@ -468,7 +468,7 @@ CREATE TABLE `db_17876.slow_log_data` (
 `last_insert_id` int(11) default NULL,
 `insert_id` int(11) default NULL,
 `server_id` int(11) default NULL,
-`sql_text` mediumtext,
+`sql_text` mediumblob,
 `thread_id` bigint(21) unsigned not NULL
 );
 CREATE TABLE `db_17876.general_log_data` (
@@ -477,7 +477,7 @@ CREATE TABLE `db_17876.general_log_data` (
 `thread_id` bigint(21) unsigned not NULL,
 `server_id` int(11) DEFAULT NULL,
 `command_type` varchar(64) DEFAULT NULL,
-`argument` mediumtext
+`argument` mediumblob
 );
 CREATE procedure `db_17876.archiveSlowLog`()
 BEGIN
@@ -516,7 +516,8 @@ END //
 CREATE procedure `db_17876.archiveGeneralLog`()
 BEGIN
 DECLARE event_time CHAR(20);
-DECLARE user_host, argument MEDIUMTEXT;
+DECLARE user_host MEDIUMTEXT;
+DECLARE argument MEDIUMBLOB;
 DECLARE thread_id BIGINT UNSIGNED;
 DECLARE server_id INT;
 DECLARE sql_text BLOB;
