@@ -34,10 +34,6 @@
   into dst, which seems useful.
 */
 
-#include "strings_def.h"
-
-#ifndef strmov
-
 #if !defined(MC68000) && !defined(DS90)
 
 char *strmov(register char *dst, register const char *src)
@@ -60,5 +56,3 @@ char *strmov(dst, src)
 }
 
 #endif
-
-#endif /* strmov */
