@@ -57,7 +57,7 @@ def	mysql	func	dl	3		NO	char	128	384	NULL	NULL	NULL	utf8	utf8_bin	char(128)			se
 def	mysql	func	name	1		NO	char	64	192	NULL	NULL	NULL	utf8	utf8_bin	char(64)	PRI		select,insert,update,references	
 def	mysql	func	ret	2	0	NO	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references	
 def	mysql	func	type	4	NULL	NO	enum	9	27	NULL	NULL	NULL	utf8	utf8_general_ci	enum('function','aggregate')			select,insert,update,references	
-def	mysql	general_log	argument	6	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+def	mysql	general_log	argument	6	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references	
 def	mysql	general_log	command_type	5	NULL	NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select,insert,update,references	
 def	mysql	general_log	event_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 def	mysql	general_log	server_id	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
@@ -200,7 +200,7 @@ def	mysql	slow_log	query_time	3	NULL	NO	time	NULL	NULL	NULL	NULL	0	NULL	NULL	tim
 def	mysql	slow_log	rows_examined	6	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	mysql	slow_log	rows_sent	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	mysql	slow_log	server_id	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned			select,insert,update,references	
-def	mysql	slow_log	sql_text	11	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
+def	mysql	slow_log	sql_text	11	NULL	NO	mediumblob	16777215	16777215	NULL	NULL	NULL	NULL	NULL	mediumblob			select,insert,update,references	
 def	mysql	slow_log	start_time	1	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
 def	mysql	slow_log	thread_id	12	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select,insert,update,references	
 def	mysql	slow_log	user_host	2	NULL	NO	mediumtext	16777215	16777215	NULL	NULL	NULL	utf8	utf8_general_ci	mediumtext			select,insert,update,references	
@@ -284,6 +284,7 @@ ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 1.0000	blob	NULL	NULL
 1.0000	longblob	NULL	NULL
+1.0000	mediumblob	NULL	NULL
 1.0000	char	latin1	latin1_bin
 1.0000	char	latin1	latin1_swedish_ci
 1.0000	varchar	latin1	latin1_swedish_ci
@@ -401,7 +402,7 @@ NULL	mysql	general_log	event_time	timestamp	NULL	NULL	NULL	NULL	timestamp
 NULL	mysql	general_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	mysql	general_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 3.0000	mysql	general_log	command_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-1.0000	mysql	general_log	argument	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
+1.0000	mysql	general_log	argument	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 NULL	mysql	help_category	help_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
 3.0000	mysql	help_category	name	char	64	192	utf8	utf8_general_ci	char(64)
 NULL	mysql	help_category	parent_category_id	smallint	NULL	NULL	NULL	NULL	smallint(5) unsigned
@@ -541,7 +542,7 @@ NULL	mysql	slow_log	rows_examined	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	last_insert_id	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	insert_id	int	NULL	NULL	NULL	NULL	int(11)
 NULL	mysql	slow_log	server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
-1.0000	mysql	slow_log	sql_text	mediumtext	16777215	16777215	utf8	utf8_general_ci	mediumtext
+1.0000	mysql	slow_log	sql_text	mediumblob	16777215	16777215	NULL	NULL	mediumblob
 NULL	mysql	slow_log	thread_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	mysql	tables_priv	Host	char	60	180	utf8	utf8_bin	char(60)
 3.0000	mysql	tables_priv	Db	char	64	192	utf8	utf8_bin	char(64)

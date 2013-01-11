@@ -75,10 +75,10 @@ CHANGE MASTER TO MASTER_PASSWORD = <secret>
 SET PASSWORD FOR `test_user4`@`localhost`=<secret>
 ------ done ------
 ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET CHARACTER SET %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
 argument
 set character set 'hebrew'
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET NAMES %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','names %');
 argument
 set names 'latin1',@dummy='B'
 set names 'latin1' collate 'latin1_german2_ci'
