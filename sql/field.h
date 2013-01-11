@@ -4078,7 +4078,6 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 #define FIELDFLAG_NO_DEFAULT		16384   /* sql */
 #define FIELDFLAG_SUM			((uint) 32768)// predit: +#fieldflag
 #define FIELDFLAG_MAYBE_NULL		((uint) 32768)// sql
-#define FIELDFLAG_HEX_ESCAPE		((uint) 0x10000)
 #define FIELDFLAG_PACK_SHIFT		3
 #define FIELDFLAG_DEC_SHIFT		8
 #define FIELDFLAG_MAX_DEC		31
@@ -4104,6 +4103,5 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
 #define f_maybe_null(x)		(x & FIELDFLAG_MAYBE_NULL)
 #define f_no_default(x)		(x & FIELDFLAG_NO_DEFAULT)
 #define f_bit_as_char(x)        ((x) & FIELDFLAG_TREAT_BIT_AS_CHAR)
-#define f_is_hex_escape(x)      ((x) & FIELDFLAG_HEX_ESCAPE)
 
 #endif /* FIELD_INCLUDED */

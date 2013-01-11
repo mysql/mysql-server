@@ -93,8 +93,8 @@ SELECT argument FROM mysql.general_log WHERE argument LIKE '%PASSWORD %';
 --echo ------ done ------
 
 --echo ------ rewrite ------
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET CHARACTER SET %';
-SELECT argument FROM mysql.general_log WHERE argument LIKE 'SET NAMES %';
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','character set %');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('set ','names %');
 SELECT argument FROM mysql.general_log WHERE argument LIKE 'GRANT %';
 --echo ------ done ------ see log_tables.test for more proof! :)
 

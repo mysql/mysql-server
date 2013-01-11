@@ -7778,7 +7778,6 @@ Field_blob::store_to_mem(const char *from, uint length,
     queries having GROUP_CONCAT with ORDER BY or DISTINCT,
     hence some assersions:
   */
-  DBUG_ASSERT(!f_is_hex_escape(flags));
   DBUG_ASSERT(field_charset == cs);
   DBUG_ASSERT(length <= max_data_length());
 
@@ -7837,16 +7836,6 @@ Field_blob::store_internal(const char *from, uint length,
   if (value.alloc(new_length))
     goto oom_error;
   tmp= const_cast<char*>(value.ptr());
-
-  if (f_is_hex_escape(flags))
-  {
-    uint copy_length= my_copy_with_hex_escaping(field_charset,
-                                                tmp, new_length,
-                                                from, length);
-    store_ptr_and_length(tmp, copy_length);
-    return TYPE_OK;
-  }
-
 
   {
     const char *well_formed_error_pos;
