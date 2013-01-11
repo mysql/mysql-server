@@ -7159,14 +7159,18 @@ ha_innobase::unlock_row(void)
 {
 	DBUG_ENTER("ha_innobase::unlock_row");
 
-	ut_ad(trx_state_eq(prebuilt->trx, TRX_STATE_ACTIVE));
-
 	/* Consistent read does not take any locks, thus there is
 	nothing to unlock. */
 
 	if (prebuilt->select_lock_type == LOCK_NONE) {
 		DBUG_VOID_RETURN;
 	}
+
+	/* Ideally, this assert must be in the beginning of the function.
+	But there are some calls to this function from the SQL layer when the
+	transaction is in state TRX_STATE_NOT_STARTED.  The check on
+	prebuilt->select_lock_type above gets around this issue. */
+	ut_ad(trx_state_eq(prebuilt->trx, TRX_STATE_ACTIVE));
 
 	switch (prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
