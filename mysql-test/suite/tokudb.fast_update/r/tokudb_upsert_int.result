@@ -12,8 +12,6 @@ a char(32), aa varchar(32)
 insert noar into tt (id) values (1),(2),(3) on duplicate key update x=0;
 insert noar into tt (id) values (1) on duplicate key update y=0,z=42;
 insert noar into tt (id) values (1) on duplicate key update y=y+1,z=z+100;
-Warnings:
-Warning	1264	Out of range value for column 'z' at row 1
 insert noar into tt (id) values (1) on duplicate key update y=y-1;
 insert noar into tt (id) values (1) on duplicate key update z=z-100;
 create table ti like tt;
@@ -37,8 +35,6 @@ a char(32), aa varchar(32)
 insert noar into tt (id) values (1),(2),(3) on duplicate key update x=0;
 insert noar into tt (id) values (1) on duplicate key update y=0,z=42;
 insert noar into tt (id) values (1) on duplicate key update y=y+1,z=z+100;
-Warnings:
-Warning	1264	Out of range value for column 'z' at row 1
 insert noar into tt (id) values (1) on duplicate key update y=y-1;
 insert noar into tt (id) values (1) on duplicate key update z=z-100;
 create table ti like tt;
