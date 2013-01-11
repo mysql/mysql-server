@@ -222,6 +222,11 @@ foreach my $option (@ARGV)
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
       next;
   }
+  if ($option =~ /verbose/)
+  {
+      $cmakeargs = $cmakeargs." -DCMAKE_VERBOSE_MAKEFILE=1";
+      next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;

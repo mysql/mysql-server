@@ -30,6 +30,11 @@ Usage: $0 [-h|-n] [configure-options]
   -h, --help              Show this help message.
   -n, --just-print        Don't actually run any commands; just print them.
   -c, --just-configure    Stop after running configure.
+  --extra-configs=xxx     Add this to configure options
+  --extra-flags=xxx       Add this C and CXX flags
+  --extra-cflags=xxx      Add this to C flags
+  --extra-cxxflags=xxx    Add this to CXX flags
+  --verbose               Print out full compile lines
   --with-debug=full       Build with full debug(no optimizations, keep call stack).
   --warning-mode=[old|pedantic|maintainer]
                           Influences the debug flags. Old is default.
@@ -62,6 +67,8 @@ parse_options()
       just_configure=1;;
     -n | --just-print | --print)
       just_print=1;;
+    --verbose)
+      verbose_make=1;;
     -h | --help)
       usage
       exit 0;;
@@ -87,6 +94,7 @@ just_configure=
 warning_mode=
 maintainer_mode=
 full_debug=
+verbose_make=
 
 parse_options "$@"
 

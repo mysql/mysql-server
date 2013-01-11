@@ -13,7 +13,7 @@ INSERT INTO t1(k) VALUES (1), (2), (3) ON DUPLICATE KEY UPDATE c='1';
 #
 # Connection 2
 #
-SET DEBUG_SYNC='start_ha_write_row WAIT_FOR continue2';
+SET DEBUG_SYNC='ha_write_row_start WAIT_FOR continue2';
 affected rows: 0
 SET DEBUG_SYNC='after_mysql_insert SIGNAL continue1';
 affected rows: 0

@@ -188,7 +188,8 @@ a file name for --relay-log-index option", opt_relaylog_index_name);
     ln= rli->relay_log.generate_name(opt_relay_logname, "-relay-bin",
                                      1, buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
-    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
+    if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent &&
+        !opt_bootstrap)
     {
       /*
         User didn't give us info to name the relay log index file.

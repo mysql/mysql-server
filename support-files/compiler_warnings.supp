@@ -137,6 +137,11 @@ lock_xt\.cc : uninitialized local variable .* used
 restart_xt\.cc : dereferencing pointer .* does break strict-aliasing
 
 #
+# oqgraph errors that are hard to fix
+#
+oqgraph/graphcore\.cc : may be used uninitialized in this function
+
+#
 # I think these are due to mix of C and C++.
 #
 storage/pbxt/ : typedef.*was ignored in this declaration
@@ -152,6 +157,7 @@ include/runtime.hpp: .*pure_error.*
 .*/extra/yassl/taocrypt/src/file\.cpp: ignoring return value
 .*/extra/yassl/taocrypt/src/integer\.cpp: control reaches end of non-void function
 mySTL/algorithm\.hpp: is used uninitialized in this function
+include/pwdbased\.hpp: comparison of unsigned expression
 
 #
 # Groff warnings on OpenSUSE.
@@ -176,6 +182,7 @@ net_serv.cc : .*conversion from 'SOCKET' to 'int'.*
 # Ignorable warnings from header files
 #
 backward_warning\.h : This file includes at least one
+/usr/include/i386-linux-gnu/bits/string3\.h: memset used with constant zero length parameter
 
 # allow a little moving space for the warning below
 mi_packrec\.c : .*result of 32-bit shift implicitly converted to 64 bits.* : 560-600
@@ -190,8 +197,9 @@ ctype-simple\.c : .*unary minus operator applied to unsigned type, result still 
 # Wrong warning due to GCC bug: http://gcc.gnu.org/bugzilla/show_bug.cgi?id=29478
 regexec\.c : passing argument 3 of.*matcher.* discards qualifiers from pointer target type
 libmysql\.c: passing argument 2 of .*memcpy.* discards qualifiers from pointer target type : 3000-4000
-storage/xtradb/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
-storage/xtradb/sync/sync0rw\.c : passing argument 1 of .*memset.* discards qualifiers from pointer target type : 200-300
+storage/.*/dict/dict0dict\.c : passing argument 1 of .*strcpy.* discards qualifiers from pointer target type : 2500-3500
+storage/.*/sync/sync0rw\.c : passing argument 1 of .*memset.* discards qualifiers from pointer target type : 200-300
+storage/.*/btr/btr0sea\.c : passing argument 2 of .*btr_cur_position.* discards qualifiers from pointer
 
 #
 # Strange things from autoconf that is probably safe to ignore
@@ -199,3 +207,4 @@ storage/xtradb/sync/sync0rw\.c : passing argument 1 of .*memset.* discards quali
 
 configure.in : warning: AC_LANG_CONFTEST: no AC_LANG_SOURCE call detected in body
 configure.in : config/ac-macros/character_sets.m4.*prefer named diversions
+warning: File listed twice

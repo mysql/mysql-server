@@ -5125,6 +5125,7 @@ int handler::ha_write_row(uchar *buf)
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
+  DEBUG_SYNC_C("ha_write_row_start");
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();

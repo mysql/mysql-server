@@ -27,6 +27,11 @@ then
   configure="$configure --print"
 fi
 
+if test "$AM_EXTRA_MAKEFLAGS" = "VERBOSE=1" -o "$verbose_make" = "1"
+then
+  configure="$configure --verbose"
+fi
+
 commands="\
 /bin/rm -rf configure;
 /bin/rm -rf CMakeCache.txt CMakeFiles/
@@ -45,7 +50,7 @@ if [ -z "$just_configure" -a -z "$just_clean" ]
 then
   commands="$commands
 
-$make $AM_MAKEFLAGS"
+$make $AM_MAKEFLAGS $AM_EXTRA_MAKEFLAGS"
 
   if [ "x$strip" = "xyes" ]
   then

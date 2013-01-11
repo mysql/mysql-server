@@ -84,7 +84,7 @@ build-stamp: configure
 	@echo "RULES.$@"
 	dh_testdir
 
-	cd $(builddir) && $(MAKE) $(MAKE_J)
+	cd $(builddir) && $(MAKE) $(MAKE_J) $(AM_EXTRA_MAKEFLAGS)
 
 ifeq ($(findstring nocheck,$(DEB_BUILD_OPTIONS)),)
 	# Don't know why the following is necessary...

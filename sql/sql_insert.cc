@@ -2269,11 +2269,8 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
             want to send "Server shutdown in progress" in the
             INSERT THREAD.
           */
-          if (di->thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
-            my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
-          else
-            my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
-                       MYF(0));
+          my_message(di->thd.stmt_da->sql_errno(), di->thd.stmt_da->message(),
+                     MYF(0));
         }
         di->unlock();
         goto end_create;
@@ -2358,7 +2355,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         killed using mysql_notify_thread_having_shared_lock() or
         kill_delayed_threads_for_table().
       */
-      if (!thd.is_error() || thd.stmt_da->sql_errno() == ER_SERVER_SHUTDOWN)
+      if (!thd.is_error())
         my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
       else
         my_message(thd.stmt_da->sql_errno(), thd.stmt_da->message(), MYF(0));

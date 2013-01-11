@@ -706,8 +706,8 @@ char *opt_logname, *opt_slow_logname, *opt_bin_logname;
 
 static volatile sig_atomic_t kill_in_progress;
 my_bool opt_stack_trace;
-my_bool opt_expect_abort= 0;
-static my_bool opt_bootstrap, opt_myisam_log;
+my_bool opt_expect_abort= 0, opt_bootstrap= 0;
+static my_bool opt_myisam_log;
 static int cleanup_done;
 static ulong opt_specialflag;
 static char *opt_binlog_index_name;

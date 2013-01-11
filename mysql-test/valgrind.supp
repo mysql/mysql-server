@@ -637,6 +637,14 @@
    fun:kill_server
 }
 
+{
+   Aria checkpoint background thread not dying fast enough
+   Memcheck:Leak
+   fun:calloc
+   fun:my_thread_init
+   fun:ma_checkpoint_background
+}
+
 #
 # Warning caused by small memory leak in threaded dlopen
 #
