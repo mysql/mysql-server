@@ -49,3 +49,17 @@ select inserts,updates,deletes from
 mysql.ndb_binlog_index where epoch > @max_epoch and inserts > 0;
 inserts	updates	deletes
 2	0	0
+create table t1 (c1 int not null primary key, c2 blob default null) engine=ndbcluster default charset=latin1;
+insert into t1 values (1, null), (2, null), (3, null), (4, null);
+insert into t1 select c1+4,c2 from t1;
+insert into t1 select c1+8,c2 from t1;
+insert into t1 select c1+16,c2 from t1;
+insert into t1 select c1+32,c2 from t1;
+insert into t1 select c1+64,c2 from t1;
+insert into t1 select c1+128,c2 from t1;
+insert into t1 select c1+256,c2 from t1;
+insert into t1 select c1+512,c2 from t1;
+optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	status	OK
+drop table t1;

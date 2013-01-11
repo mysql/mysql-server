@@ -79,3 +79,43 @@ drop table t1;
 drop database mysqltest;
 select inserts,updates,deletes from 
   mysql.ndb_binlog_index where epoch > @max_epoch and inserts > 0;
+
+#
+# Check optimize table does not send any event to binlog
+#
+
+create table t1 (c1 int not null primary key, c2 blob default null) engine=ndbcluster default charset=latin1;
+insert into t1 values (1, null), (2, null), (3, null), (4, null);
+insert into t1 select c1+4,c2 from t1;
+insert into t1 select c1+8,c2 from t1;
+insert into t1 select c1+16,c2 from t1;
+insert into t1 select c1+32,c2 from t1;
+insert into t1 select c1+64,c2 from t1;
+insert into t1 select c1+128,c2 from t1;
+insert into t1 select c1+256,c2 from t1;
+insert into t1 select c1+512,c2 from t1;
+
+# wait for last gcp to complete, ensuring that we have
+# the expected data in the binlog
+save_master_pos;
+
+let $before = `select count(*)
+  from mysql.ndb_binlog_index
+  where epoch > @max_epoch and
+    (inserts > 0 or updates > 0 or deletes > 0)`;
+
+optimize table t1;
+save_master_pos;
+
+# Ensure that optimize have not sent any event to binlog
+let $optimize_diff = `select count(*) <> $before
+  from mysql.ndb_binlog_index
+  where epoch > @max_epoch and
+    (inserts > 0 or updates > 0 or deletes > 0)`;
+
+if ($optimize_diff)
+{
+  die Optimize table should not send any events to binlog;
+}
+
+drop table t1;

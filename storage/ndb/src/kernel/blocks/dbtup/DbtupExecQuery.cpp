@@ -626,6 +626,7 @@ void Dbtup::execTUPKEYREQ(Signal* signal)
 
    regOperPtr->m_copy_tuple_location.setNull();
    regOperPtr->tupVersion= ZNIL;
+   regOperPtr->op_struct.m_physical_only_op = 0;
 
    sig1= tupKeyReq->savePointId;
    sig2= tupKeyReq->primaryReplica;
