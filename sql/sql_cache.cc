@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2229,7 +2229,7 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   if (!(cache= (uchar *)
-        my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
+        my_malloc(query_cache_size+additional_data_size, MYF(0))))
     goto err;
 
   DBUG_PRINT("qcache", ("cache length %lu, min unit %lu, %u bins",
