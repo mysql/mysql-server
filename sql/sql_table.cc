@@ -2471,6 +2471,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                                             table->table_name);
         }
         error|= new_error;
+        /* Invalidate even if we failed to delete the .FRM file. */
+        query_cache_invalidate_single(thd, table, false);
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
     }
@@ -2522,8 +2524,6 @@ err:
   if (non_trans_tmp_table_deleted ||
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
-    query_cache_invalidate3(thd, tables, 0);
-
     if (non_trans_tmp_table_deleted ||
         trans_tmp_table_deleted)
       thd->transaction.stmt.mark_dropped_temp_table();
