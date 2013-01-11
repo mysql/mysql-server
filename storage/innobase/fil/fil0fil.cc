@@ -2426,7 +2426,7 @@ fil_parse_truncate_record(
 	ulint		dir_path_len;
 	ulint		len;
 	if (*end_ptr < *ptr + 4) {
-		return(NULL);
+		return(false);
 	}
 	truncate_rec->n_index = mach_read_from_4(*ptr);
 	*ptr += 4;
@@ -2559,10 +2559,10 @@ fil_op_log_parse_or_replay(
 
 	ptr += name_len;
 
-	if ((type == MLOG_FILE_TRUNCATE)
+	if (type == MLOG_FILE_TRUNCATE
 	    && !fil_parse_truncate_record(&ptr, &end_ptr, flags,
 					  &truncate_rec)) {
-			return(NULL);
+		return(NULL);
 	}
 
 	if (type == MLOG_FILE_RENAME) {
@@ -2594,7 +2594,7 @@ fil_op_log_parse_or_replay(
 	printf("new name %s\n", new_name);
 	}
 	*/
-	if (!space_id) {
+	if (space_id == TRX_SYS_SPACE) {
 		return(ptr);
 	}
 
@@ -3089,18 +3089,23 @@ fil_index_tree_is_freed(
 	rw_lock_t*	latch;
 	mtr_t		mtr;
 	xdes_t*		descr;
+
 	latch = fil_space_get_latch(space_id, NULL);
+
 	mtr_start(&mtr);
 	mtr_x_lock(latch, &mtr);
 	descr = xdes_get_descriptor(space_id, zip_size,
 				    root_page_no, &mtr);
-		mtr_commit(&mtr);
-		if (descr == NULL || (descr != NULL
-		    && xdes_get_bit(descr, XDES_FREE_BIT,
-				    root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
-			/* The tree has already been freed */
-			return(true);
-		}
+	mtr_commit(&mtr);
+
+	if (descr == NULL
+	    || (descr != NULL
+		&& xdes_get_bit(descr, XDES_FREE_BIT,
+			root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
+		/* The tree has already been freed */
+		return(true);
+	}
+
 	return(false);
 }
 
@@ -3188,7 +3193,7 @@ Reset truncated space id */
 UNIV_INTERN
 void
 fil_space_truncated_reset()
-/*===========================*/
+/*=======================*/
 {
 	fil_space_truncated = ULINT_UNDEFINED;
 }
@@ -3232,6 +3237,8 @@ fil_truncate_tablespace(
 	space = fil_space_get_by_id(id);
 	mutex_exit(&fil_system->mutex);
 
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
 
