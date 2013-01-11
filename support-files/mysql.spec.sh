@@ -361,7 +361,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:	MySQL - Shared libraries
 Group:		Applications/Databases
 Provides:	MySQL-shared
-Conflicts:	mysql-libs mysql-libs-advanced
 Obsoletes:	MySQL-shared-community MySQL-shared-advanced
 
 %description -n MySQL-shared%{product_suffix}
