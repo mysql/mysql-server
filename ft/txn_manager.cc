@@ -270,11 +270,18 @@ static TXNID get_oldest_referenced_xid_unlocked(TXN_MANAGER txn_manager) {
     // one live transaction
     invariant_zero(r);
 
-    struct referenced_xid_tuple* tuple;
     if (txn_manager->referenced_xids.size() > 0) {
+        struct referenced_xid_tuple* tuple;
         r = txn_manager->referenced_xids.fetch(0, &tuple);
         if (r == 0 && tuple->begin_id < oldest_referenced_xid) {
             oldest_referenced_xid = tuple->begin_id;
+        }
+    }
+    if (txn_manager->snapshot_txnids.size() > 0) {
+        TXNID id;
+        r = txn_manager->snapshot_txnids.fetch(0, &id);
+        if (r == 0 && id < oldest_referenced_xid) {
+            oldest_referenced_xid = id;
         }
     }
     return oldest_referenced_xid;
