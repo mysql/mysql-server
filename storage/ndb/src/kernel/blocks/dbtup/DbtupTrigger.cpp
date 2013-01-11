@@ -1637,6 +1637,27 @@ bool Dbtup::readTriggerInfo(TupTriggerData* const trigPtr,
   req_struct->check_offset[DD]= regTabPtr->get_check_offset(DD);
   req_struct->attr_descr= &tableDescriptor[descr_start];
 
+  if ((regOperPtr->op_struct.m_physical_only_op == 1) &&
+      (refToMain(trigPtr->m_receiverRef) == SUMA ||
+       refToMain(trigPtr->m_receiverRef) == BACKUP))
+  {
+    /* Operations that have no logical effect need not be backed up
+     * or sent as an event. Eg. OPTIMIZE TABLE is performed as a
+     * ZUPDATE operation on table records, moving the varpart 
+     * column-values between pages, to be storage-effective.
+     */
+    Uint32 changed_attribs = 0;
+    for (Uint32 i = 0; i < regTabPtr->m_no_of_attributes; i++) {
+      jam();
+      if (req_struct->changeMask.get(i)) {
+        jam();
+        changed_attribs++;
+      }
+    }
+    ndbrequire(changed_attribs == 0);
+    return false;
+  }
+
 //--------------------------------------------------------------------
 // Read Primary Key Values
 //--------------------------------------------------------------------
