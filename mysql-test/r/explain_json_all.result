@@ -1615,6 +1615,9 @@ EXPLAIN
         "table": {
           "table_name": "t1",
           "access_type": "range",
+          "possible_keys": [
+            "PRIMARY"
+          ] /* possible_keys */,
           "key": "PRIMARY",
           "used_key_parts": [
             "a"
@@ -1651,6 +1654,9 @@ EXPLAIN
             "table": {
               "table_name": "t1",
               "access_type": "ALL",
+              "possible_keys": [
+                "PRIMARY"
+              ] /* possible_keys */,
               "rows": 3,
               "filtered": 100
             } /* table */

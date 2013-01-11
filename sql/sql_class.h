@@ -2389,9 +2389,9 @@ public:
 #ifndef __WIN__
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
+
   Vio* active_vio;
-#endif
+
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
@@ -3009,21 +3009,22 @@ public:
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
+
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   inline void clear_active_vio()
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   void shutdown_active_vio();
-#endif
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
