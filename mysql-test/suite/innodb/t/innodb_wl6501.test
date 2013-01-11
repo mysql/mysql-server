@@ -93,6 +93,17 @@ set session debug="+d,crash_after_truncate_tablespace";
 set session debug="-d,crash_after_truncate_tablespace";
 --enable_query_log
 
+--disable_query_log
+set session debug="+d,crash_if_ibd_file_is_missing";
+--enable_query_log
+--echo # Verify that the TRUNCATE TABLE statement is rollbacked
+--echo # and the table is marked as corrupt when the .ibd file
+--echo # is missing.
+--source suite/innodb/t/innodb_wl6501_ibd_missing.inc
+--disable_query_log
+set session debug="-d,crash_if_ibd_file_is_missing";
+--enable_query_log
+
 -- disable_query_log
 eval set global innodb_file_format=$innodb_file_format_orig;
 eval set global innodb_file_format_max=$innodb_file_format_max_orig;
