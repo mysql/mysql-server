@@ -890,7 +890,7 @@ dict_create_index_tree(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"The .ibd file is missing of table '%s' "
 			"when creating index!", table->name);
-		ut_error;
+		return(FIL_NULL);
 	}
 
 	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
@@ -918,10 +918,8 @@ dict_create_index_tree(
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Failed to create index with index id %llu of table '%s' "
-		"from the data dictionary during TRUNCATE!",
-		(ullint) index_id,
-		table->name);
+		"Failed to create index with index id %llu of table '%s' ",
+		(ullint) index_id, table->name);
 
 	return(FIL_NULL);
 }

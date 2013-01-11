@@ -1,5 +1,5 @@
 call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
-call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test' from the data dictionary during TRUNCATE");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test'");
 CREATE TABLE fts_test (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 title VARCHAR(200),

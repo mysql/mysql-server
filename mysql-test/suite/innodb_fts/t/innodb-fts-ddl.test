@@ -1,7 +1,7 @@
 # This is the DDL function tests for innodb FTS
 
 call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
-call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test' from the data dictionary during TRUNCATE");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test'");
 -- source include/have_innodb.inc
 
 # Create FTS table
