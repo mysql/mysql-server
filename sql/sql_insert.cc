@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4127,6 +4127,7 @@ select_create::prepare2()
       extra_lock= 0;
     }
     drop_open_table(thd, table, create_table->db, create_table->table_name);
+    table= 0;
     DBUG_RETURN(1);
   }
   if (extra_lock)
