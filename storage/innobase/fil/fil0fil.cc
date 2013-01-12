@@ -2328,10 +2328,11 @@ fil_recreate_tablespace(
 		}
 
 		if (err != DB_SUCCESS) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to write page "
-				"%lu into ibd file "
-				"for tablespace %lu.",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"cannot write page %lu into the .ibd file "
+				"for tablespace %lu.", srv_force_recovery,
 				page_no, space_id);
 		}
 	}
@@ -2550,6 +2551,21 @@ fil_op_log_parse_or_replay(
 			fil_recreate_tablespace(
 				space_id, log_flags, flags, name,
 				&truncate_rec, recv_lsn);
+		} else {
+			/* Create the database directory for name, if it does
+			not exist yet */
+			fil_create_directory_for_tablename(name);
+
+			if (fil_create_new_single_table_tablespace(
+				    space_id, name, truncate_rec.dir_path,
+				    flags, DICT_TF2_USE_TABLESPACE,
+				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"innodb_force_recovery was set to %lu. "
+					"Continuing crash recovery even though "
+					"we failed to create a new tablespace.",
+					srv_force_recovery);
+			}
 		}
 
 		break;
