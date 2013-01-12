@@ -2127,24 +2127,21 @@ fil_op_write_log(
 /*=============*/
 	ulint		type,		/*!< in: MLOG_FILE_CREATE,
 					MLOG_FILE_CREATE2,
-					MLOG_FILE_TRUNCATE,
 					MLOG_FILE_DELETE, or
 					MLOG_FILE_RENAME */
 	ulint		space_id,	/*!< in: space id */
 	ulint		log_flags,	/*!< in: redo log flags (stored
-					in the page number field),
-					page format if type ==
-					MLOG_FILE_TRUNCATE */
+					in the page number field) */
 	ulint		flags,		/*!< in: compressed page size
 					and file format
-					if type == MLOG_FILE_CREATE2, or 0 */
-	const char*	name,		/*!< in: table name, or the file path
-					in the case of MLOG_FILE_DELETE */
+					if type==MLOG_FILE_CREATE2, or 0 */
+	const char*	name,		/*!< in: table name in the familiar
+					'databasename/tablename' format, or
+					the file path in the case of
+					MLOG_FILE_DELETE */
 	const char*	new_name,	/*!< in: if type is MLOG_FILE_RENAME,
-					the new table name */
-	const truncate_rec_t* truncate_rec,
-					/*!< out: The information of
-					MLOG_FILE_TRUNCATE record */
+					the new table name in the
+					'databasename/tablename' format */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction handle */
 {
 	byte*		log_ptr;
@@ -2160,7 +2157,7 @@ fil_op_write_log(
 
 	log_ptr = mlog_write_initial_log_record_for_file_op(
 		type, space_id, log_flags, log_ptr, mtr);
-	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
+	if (type == MLOG_FILE_CREATE2) {
 		mach_write_to_4(log_ptr, flags);
 		log_ptr += 4;
 	}
@@ -2174,62 +2171,6 @@ fil_op_write_log(
 	mlog_close(mtr, log_ptr);
 
 	mlog_catenate_string(mtr, (byte*) name, len);
-
-	if (type == MLOG_FILE_TRUNCATE) {
-		log_ptr = mlog_open(mtr, 4);
-		mach_write_to_4(log_ptr, truncate_rec->n_index);
-		log_ptr += 4;
-		mlog_close(mtr, log_ptr);
-		/* Write index ids and types into mtr log */
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-			log_ptr = mlog_open(mtr, 12);
-			mach_write_to_8(log_ptr,
-					truncate_rec->indexes[i].id);
-			log_ptr += 8;
-			mach_write_to_4(log_ptr,
-					truncate_rec->indexes[i].type);
-			log_ptr += 4;
-			mlog_close(mtr, log_ptr);
-		}
-		/* Write the remote directory of the table into mtr log */
-		if (truncate_rec->dir_path != NULL) {
-			len = strlen(truncate_rec->dir_path) + 1;
-			log_ptr = mlog_open(mtr, 2 + len);
-			ut_a(log_ptr);
-			mach_write_to_2(log_ptr, len);
-			log_ptr += 2;
-			mlog_close(mtr, log_ptr);
-
-			mlog_catenate_string(
-				mtr, (byte*) truncate_rec->dir_path, len);
-		}
-		if (fsp_flags_is_compressed(flags)) {
-			/* write the number of index fields into mtr log */
-			for (ulint i = 0; i < truncate_rec->n_index; i++) {
-				log_ptr = mlog_open(mtr, 4);
-				mach_write_to_4(log_ptr,
-						truncate_rec->indexes[i].
-						n_fields);
-				log_ptr += 4;
-				mlog_close(mtr, log_ptr);
-			}
-			/* Write the index fields info encoded into mtr log */
-			len = 0;
-			for (ulint i = 0; i < truncate_rec->n_index; i++) {
-				log_ptr = mlog_open(mtr, 4);
-				mach_write_to_4(log_ptr,
-						truncate_rec->indexes[i].
-						field_len);
-				log_ptr += 4;
-				mlog_close(mtr, log_ptr);
-				len += truncate_rec->indexes[i].field_len;
-			}
-			log_ptr = mlog_open(mtr, len + 1);
-			mlog_close(mtr, log_ptr);
-			mlog_catenate_string(mtr,
-					     truncate_rec->fields, len + 1);
-		}
-        }
 
 	if (type == MLOG_FILE_RENAME) {
 		len = strlen(new_name) + 1;
@@ -3053,8 +2994,7 @@ fil_delete_tablespace(
 		to write any log record */
 		mtr_start(&mtr);
 
-		fil_op_write_log(MLOG_FILE_DELETE, id, 0, 0, path, NULL,
-				 NULL, &mtr);
+		fil_op_write_log(MLOG_FILE_DELETE, id, 0, 0, path, NULL, &mtr);
 		mtr_commit(&mtr);
 #endif
 		err = DB_SUCCESS;
@@ -3149,18 +3089,86 @@ fil_truncate_write_log(
 						MLOG_FILE_TRUNCATE record */
 {
 #ifndef UNIV_HOTBACKUP
-	/* Write a log record about the truncation of the .ibd
-	file, so that ibbackup can replay it in the
-	--apply-log phase. We use a dummy mtr and the familiar
-	log write mechanism. */
-	mtr_t   mtr;
+	byte*	log_ptr;
+	ulint	len;
+	mtr_t	mtr;
 
-	/* When replaying the operation in ibbackup, do not try
-	to write any log record */
 	mtr_start(&mtr);
+	log_ptr = mlog_open(&mtr, 11 + 2 + 1);
 
-	fil_op_write_log(MLOG_FILE_TRUNCATE, space_id, format_flags,
-			 flags, tablename, NULL, truncate_rec, &mtr);
+	if (!log_ptr) {
+		/* Logging in mtr is switched off during crash recovery:
+		in that case mlog_open returns NULL */
+		return;
+	}
+
+	log_ptr = mlog_write_initial_log_record_for_file_op(
+		MLOG_FILE_TRUNCATE, space_id, format_flags, log_ptr, &mtr);
+
+	mach_write_to_4(log_ptr, flags);
+	log_ptr += 4;
+
+	/* Let us store the strings as null-terminated for easier readability
+	and handling */
+	len = strlen(tablename) + 1;
+
+	mach_write_to_2(log_ptr, len);
+	log_ptr += 2;
+	mlog_close(&mtr, log_ptr);
+
+	mlog_catenate_string(&mtr, (byte*) tablename, len);
+
+	log_ptr = mlog_open(&mtr, 4);
+	mach_write_to_4(log_ptr, truncate_rec->n_index);
+	log_ptr += 4;
+	mlog_close(&mtr, log_ptr);
+	/* Write index ids and types into mtr log */
+	for (ulint i = 0; i < truncate_rec->n_index; i++) {
+		log_ptr = mlog_open(&mtr, 12);
+		mach_write_to_8(log_ptr, truncate_rec->indexes[i].id);
+		log_ptr += 8;
+		mach_write_to_4(log_ptr, truncate_rec->indexes[i].type);
+		log_ptr += 4;
+		mlog_close(&mtr, log_ptr);
+	}
+
+	/* Write the remote directory of the table into mtr log */
+	if (truncate_rec->dir_path != NULL) {
+		len = strlen(truncate_rec->dir_path) + 1;
+		log_ptr = mlog_open(&mtr, 2 + len);
+		ut_a(log_ptr);
+		mach_write_to_2(log_ptr, len);
+		log_ptr += 2;
+		mlog_close(&mtr, log_ptr);
+
+		mlog_catenate_string(&mtr, (byte*) truncate_rec->dir_path,
+				     len);
+	}
+
+	if (fsp_flags_is_compressed(flags)) {
+		/* write the number of index fields into mtr log */
+		for (ulint i = 0; i < truncate_rec->n_index; i++) {
+			log_ptr = mlog_open(&mtr, 4);
+			mach_write_to_4(log_ptr,
+					truncate_rec->indexes[i].n_fields);
+			log_ptr += 4;
+			mlog_close(&mtr, log_ptr);
+		}
+		/* Write the index fields info encoded into mtr log */
+		len = 0;
+		for (ulint i = 0; i < truncate_rec->n_index; i++) {
+			log_ptr = mlog_open(&mtr, 4);
+			mach_write_to_4(log_ptr,
+					truncate_rec->indexes[i].field_len);
+			log_ptr += 4;
+			mlog_close(&mtr, log_ptr);
+			len += truncate_rec->indexes[i].field_len;
+		}
+		log_ptr = mlog_open(&mtr, len + 1);
+		mlog_close(&mtr, log_ptr);
+		mlog_catenate_string(&mtr, truncate_rec->fields, len + 1);
+	}
+
 	mtr_commit(&mtr);
 #endif /* !UNIV_HOTBACKUP */
 }
@@ -3640,7 +3648,7 @@ skip_second_rename:
 		mtr_start(&mtr);
 
 		fil_op_write_log(MLOG_FILE_RENAME, id, 0, 0, old_name, new_name,
-				 NULL, &mtr);
+				 &mtr);
 		mtr_commit(&mtr);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -4032,7 +4040,7 @@ fil_create_new_single_table_tablespace(
 				 ? MLOG_FILE_CREATE2
 				 : MLOG_FILE_CREATE,
 				 space_id, mlog_file_flag, flags,
-				 tablename, NULL, NULL, &mtr);
+				 tablename, NULL, &mtr);
 
 		mtr_commit(&mtr);
 	}
@@ -6790,9 +6798,9 @@ fil_mtr_rename_log(
 	mtr_t           mtr;
 	mtr_start(&mtr);
 	fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
-			 0, 0, old_name, tmp_name, NULL, &mtr);
+			 0, 0, old_name, tmp_name, &mtr);
 	fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
-			 0, 0, new_name, old_name, NULL, &mtr);
+			 0, 0, new_name, old_name, &mtr);
 	mtr_commit(&mtr);
 }
 
