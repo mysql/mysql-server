@@ -18371,8 +18371,9 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
             and as result we'll choose an index scan when using ref/range
             access + filesort will be cheaper.
 	  */
-          select_limit= (ha_rows) (select_limit < fanout ?
-                                   1 : select_limit/fanout);
+          if (select_limit_arg != HA_POS_ERROR)
+            select_limit= (ha_rows) (select_limit < fanout ?
+                                     1 : select_limit/fanout);
           /*
             We assume that each of the tested indexes is not correlated
             with ref_key. Thus, to select first N records we have to scan
