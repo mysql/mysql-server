@@ -2354,8 +2354,6 @@ fil_parse_truncate_record(
 	truncate_rec_t*	truncate_rec)	/*!< out: the information of
 					MLOG_FILE_TRUNCATE record */
 {
-	ulint		dir_path_len;
-	ulint		len;
 	if (*end_ptr < *ptr + 4) {
 		return(false);
 	}
@@ -2373,6 +2371,7 @@ fil_parse_truncate_record(
 	}
 	/* Parse the remote directory from TRUNCATE log record */
 	if (FSP_FLAGS_HAS_DATA_DIR(flags)) {
+		ulint	dir_path_len;
 		if (*end_ptr < *ptr + 2) {
 			return(false);
 		}
@@ -2381,11 +2380,12 @@ fil_parse_truncate_record(
 		if (*end_ptr < *ptr + dir_path_len) {
 			return(false);
 		}
-		truncate_rec->dir_path = (const char*) (*ptr);
+		truncate_rec->dir_path = reinterpret_cast<const char*>(*ptr);
 		*ptr += dir_path_len;
 
 	}
 	if (fsp_flags_is_compressed(flags)) {
+		ulint	len = 0;
 		/* Parse the number of index fields from TRUNCATE log record */
 		for (ulint i = 0; i < truncate_rec->n_index; i++) {
 			if (*end_ptr < *ptr + 4) {
@@ -2396,7 +2396,6 @@ fil_parse_truncate_record(
 			*ptr += 4;
 		}
 		/* Parse index fields info encoded from TRUNCATE log record */
-		len = 0;
 		for (ulint i = 0; i < truncate_rec->n_index; i++) {
 			if (*end_ptr < *ptr + 4) {
 				return(false);
@@ -3141,8 +3140,10 @@ fil_truncate_write_log(
 		log_ptr += 2;
 		mlog_close(&mtr, log_ptr);
 
-		mlog_catenate_string(&mtr, (byte*) truncate_rec->dir_path,
-				     len);
+		mlog_catenate_string(
+			&mtr,
+			reinterpret_cast<const byte*>(truncate_rec->dir_path),
+			len);
 	}
 
 	if (fsp_flags_is_compressed(flags)) {
