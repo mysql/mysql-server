@@ -3149,6 +3149,122 @@ run_again:
 }
 
 /*********************************************************************//**
+Creates a TRUNCATE log record with space id, table name, data
+directory path, tablespace flags, table format, index ids,
+index types, number of index fields and index field
+information of the table. */
+static
+void
+create_truncate_log_record(
+/*=======================*/
+	const dict_table_t*	table,	/*!< in: table handle */
+        btr_pcur_t*		pcur,	/*!< in/out: a b-tree cursor */
+	byte*			buf,	/*!< in/out: a heap buffer */
+	truncate_rec_t*	truncate_rec,	/*!< in/out: truncate record */
+	ulint			flags,	/*!< in: table flags */
+	mtr_t*			mtr)	/*!< in/out: mini-transaction handle */
+{
+	ulint			trx_id_col[MAX_REC_INDEXES];
+	byte			fields[FIELDS_LEN];
+	dict_index_t*		index;
+	ulint			ind_count = 0;
+	ulint			buf_index = 0;
+
+	for (;;) {
+		rec_t*		rec;
+		const byte*	field;
+		ulint		len;
+		const byte*	ptr;
+		ulint		type;
+		index_id_t	index_id;
+		byte		ind_field[FIELDS_LEN];
+
+		if (!btr_pcur_is_on_user_rec(pcur)) {
+			/* The end of SYS_INDEXES has been reached. */
+			break;
+		}
+
+		rec = btr_pcur_get_rec(pcur);
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+		ut_ad(len == 8);
+
+		if (memcmp(buf, field, len) != 0) {
+			/* End of indexes for the table
+			(TABLE_ID mismatch). */
+			break;
+		}
+		if (rec_get_deleted_flag(rec, FALSE)) {
+			/* The index has been dropped. */
+			goto next_record;
+		}
+
+		ptr = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
+		ut_ad(len == 4);
+		type = mach_read_from_4(ptr);
+		truncate_rec->indexes[ind_count].type = type;
+
+		ptr = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__ID, &len);
+		ut_ad(len == 8);
+		index_id = mach_read_from_8(ptr);
+		truncate_rec->indexes[ind_count].id = index_id;
+
+		if (!fsp_flags_is_compressed(flags)) {
+			truncate_rec->indexes[ind_count].n_fields = 0;
+			truncate_rec->indexes[ind_count].field_len = 0;
+			ind_count++;
+			/* Skip to collect compressed index info */
+			goto next_record;
+		}
+		/* Collects info for creating compressed index page
+		during recovery */
+		for (index = UT_LIST_GET_FIRST(table->indexes);
+		     index;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			if (index->id == index_id) {
+				truncate_rec->indexes[ind_count].n_fields
+					= dict_index_get_n_fields(index);
+
+				if (dict_index_is_clust(index)) {
+					trx_id_col[ind_count] =
+						dict_index_get_sys_col_pos(
+							index, DATA_TRX_ID);
+					ut_ad(trx_id_col[ind_count] > 0);
+					ut_ad(trx_id_col[ind_count] !=
+					      ULINT_UNDEFINED);
+				} else {
+					trx_id_col[ind_count] = 0;
+				}
+
+				truncate_rec->indexes[ind_count].field_len =
+					page_zip_fields_encode(
+						truncate_rec->
+							indexes[ind_count].
+							n_fields, index,
+							trx_id_col[ind_count],
+							ind_field);
+				memcpy(fields + buf_index, ind_field,
+				       truncate_rec->indexes[ind_count].
+				       field_len);
+				buf_index += truncate_rec->indexes[ind_count].
+					field_len;
+			}
+		}
+		ind_count++;
+next_record:
+		btr_pcur_move_to_next_user_rec(pcur, mtr);
+	}
+	fields[buf_index + 1] = '\0';
+
+	truncate_rec->n_index = ind_count;
+	truncate_rec->dir_path = table->data_dir_path;
+	truncate_rec->fields = fields;
+}
+
+/*********************************************************************//**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -3170,8 +3286,6 @@ row_truncate_table_for_mysql(
 	table_id_t	new_id;
 	pars_info_t*	info = NULL;
 	ibool		has_internal_doc_id;
-	dict_index_t*	index;
-	ulint		buf_index;
 	ulint		flags = ULINT_UNDEFINED;
 	ulint		ind_count;
 
@@ -3356,122 +3470,21 @@ row_truncate_table_for_mysql(
 	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
 	dict_index_copy_types(tuple, sys_index, 1);
 
-	/* Collects and writes space id, table name, data directory
-	path, tablespace flags, table format, index ids, index types,
-	number of index fields and index field information of the
-	table into the TRUNCATE log record. */
 	if (table->space != TRX_SYS_SPACE
 	    && !table->dir_path_of_temp_table
 	    && flags != ULINT_UNDEFINED) {
 		truncate_rec_t	truncate_rec;
-		ulint		trx_id_col[MAX_REC_INDEXES];
-		byte		fields[FIELDS_LEN];	/*!< index field
-							information */
-		ind_count	= 0;
-		buf_index	= 0;
-
 		mtr_start(&mtr);
 		btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 					  BTR_MODIFY_LEAF, &pcur, &mtr);
-		for (;;) {
-			rec_t*		rec;
-			const byte*	field;
-			ulint		len;
-			const byte*	ptr;
-			ulint		type;
-			index_id_t	index_id;
-			byte		ind_field[FIELDS_LEN];
 
-			if (!btr_pcur_is_on_user_rec(&pcur)) {
-				/* The end of SYS_INDEXES has been reached. */
-				break;
-			}
-
-			rec = btr_pcur_get_rec(&pcur);
-
-			field = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-			ut_ad(len == 8);
-
-			if (memcmp(buf, field, len) != 0) {
-				/* End of indexes for the table
-				(TABLE_ID mismatch). */
-				break;
-			}
-			if (rec_get_deleted_flag(rec, FALSE)) {
-				/* The index has been dropped. */
-				goto next_record;
-			}
-
-			ptr = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
-			ut_ad(len == 4);
-			type = mach_read_from_4(ptr);
-			truncate_rec.indexes[ind_count].type = type;
-
-			ptr = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_INDEXES__ID, &len);
-			ut_ad(len == 8);
-			index_id = mach_read_from_8(ptr);
-			truncate_rec.indexes[ind_count].id = index_id;
-
-			if (!fsp_flags_is_compressed(flags)) {
-				truncate_rec.indexes[ind_count].n_fields = 0;
-				truncate_rec.indexes[ind_count].field_len = 0;
-				ind_count++;
-				/* Skip to collect compressed index info */
-				goto next_record;
-			}
-			/* Collects info for creating compressed index page
-			during recovery */
-			for (index = UT_LIST_GET_FIRST(table->indexes);
-			     index;
-			     index = UT_LIST_GET_NEXT(indexes, index)) {
-				if (index->id == index_id) {
-					truncate_rec.indexes[ind_count].n_fields
-						= dict_index_get_n_fields(index);
-
-					if (dict_index_is_clust(index)) {
-						trx_id_col[ind_count] =
-						dict_index_get_sys_col_pos(
-							index, DATA_TRX_ID);
-						ut_ad(trx_id_col[ind_count]
-							> 0);
-						ut_ad(trx_id_col[ind_count]
-							!= ULINT_UNDEFINED);
-					} else {
-						trx_id_col[ind_count] = 0;
-					}
-
-					truncate_rec.indexes[ind_count].
-						field_len =
-						page_zip_fields_encode(
-							truncate_rec.
-							indexes[ind_count].
-							n_fields,
-							index,
-							trx_id_col[ind_count],
-							ind_field);
-					memcpy(fields + buf_index,
-					       ind_field, truncate_rec.
-					       indexes[ind_count].field_len);
-					buf_index += truncate_rec.
-						indexes[ind_count].field_len;
-				}
-			}
-			ind_count++;
-next_record:
-			btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-		}
-		fields[buf_index + 1] = '\0';
+		create_truncate_log_record(table, &pcur, buf,
+					   &truncate_rec, flags, &mtr);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
 
-		truncate_rec.n_index = ind_count;
-		truncate_rec.dir_path = table->data_dir_path;
-		truncate_rec.fields = fields;
-
+		/* Write the TRUNCATE log record into redo log */
 		fil_truncate_write_log(table->space, table->name, flags,
 				       table->flags, &truncate_rec);
 	}
