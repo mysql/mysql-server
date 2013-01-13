@@ -2563,7 +2563,7 @@ fil_op_log_parse_or_replay(
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"innodb_force_recovery was set to %lu. "
 					"Continuing crash recovery even though "
-					"we failed to create a new tablespace.",
+					"we cannot create a new tablespace.",
 					srv_force_recovery);
 			}
 		}
