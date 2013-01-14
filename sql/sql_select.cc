@@ -18144,7 +18144,15 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
         key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
 
-        for (; const_key_parts & 1 ; const_key_parts>>= 1)
+        /*
+          Check for constness only those keyparts of the PK suffix, that will
+          be used to extend the secondary key 'idx'. This handles the case when
+          some columns of the PK are used in the secondary index.
+        */
+        for (uint pk_part_idx= 0;
+             ((const_key_parts & 1) &&
+              (table->key_info[idx].ext_key_part_map & (1 << pk_part_idx)));
+             const_key_parts>>= 1, pk_part_idx++)
           key_part++; 
         /*
          The primary and secondary key parts were all const (i.e. there's
@@ -23009,7 +23017,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
                     if rec_per_key[0] != 0.
 	          */
                   DBUG_ASSERT(pkinfo->rec_per_key[i]);
-                  rec_per_key*= pkinfo->rec_per_key[i-1];
+                  rec_per_key*= (i == 0) ? table_records :
+                                           pkinfo->rec_per_key[i-1];
                   rec_per_key/= pkinfo->rec_per_key[i];
                 }
 	      }

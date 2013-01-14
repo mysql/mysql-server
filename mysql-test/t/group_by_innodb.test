@@ -1,0 +1,38 @@
+#
+# Test GROUP BY queries that utilize InnoDB extended keys
+#
+
+--source include/have_innodb.inc
+
+--echo #
+--echo # MDEV-3992 Server crash or valgrind errors in test_if_skip_sort_order/test_if_cheaper_ordering
+--echo # on GROUP BY with indexes on InnoDB table
+--echo #
+
+CREATE TABLE t1 (
+  pk INT PRIMARY KEY,
+  a VARCHAR(1) NOT NULL,
+  KEY (pk)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1,'a'),(2,'b');
+
+EXPLAIN
+SELECT COUNT(*), pk field1, pk AS field2
+FROM t1 WHERE a = 'r' OR pk = 183 
+GROUP BY field1, field2;
+
+SELECT COUNT(*), pk field1, pk AS field2
+FROM t1 WHERE a = 'r' OR pk = 183 
+GROUP BY field1, field2;
+
+EXPLAIN
+SELECT COUNT(*), pk field1 FROM t1
+WHERE a = 'r' OR pk = 183 GROUP BY field1, field1;
+
+SELECT COUNT(*), pk field1 FROM t1
+WHERE a = 'r' OR pk = 183 GROUP BY field1, field1;
+
+drop table t1;
+
+--echo End of 5.5 tests
