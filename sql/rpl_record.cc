@@ -67,7 +67,7 @@ pack_row(TABLE *table, MY_BITMAP const* cols,
   uchar *pack_ptr = row_data + null_byte_count;
   uchar *null_ptr = row_data;
   my_ptrdiff_t const rec_offset= record - table->record[0];
-  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
+  my_ptrdiff_t const def_offset= table->default_values_offset();
 
   DBUG_ENTER("pack_row");
 

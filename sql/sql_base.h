@@ -176,12 +176,14 @@ bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
                                           Table_triggers_list *triggers,
-                                          enum trg_event_type event);
+                                          enum trg_event_type event,
+                                          int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
                                           Table_triggers_list *triggers,
-                                          enum trg_event_type event);
+                                          enum trg_event_type event,
+                                          int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
@@ -191,9 +193,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap);
+                 bool ignore_errors, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap);
+                 bool ignore_errors, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,

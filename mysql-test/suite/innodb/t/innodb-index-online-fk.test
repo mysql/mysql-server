@@ -1,5 +1,4 @@
 --source include/have_innodb.inc
---source include/have_debug_sync.inc
 --source include/have_debug.inc
 
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
@@ -230,8 +229,7 @@ DROP TABLE child;
 
 DROP TABLE parent;
 
-# Add test for add FK on changing columns, currently, such action is disallowed
-# Look for Bug 14105491 for more details
+# Test ADD FOREIGN KEY together with renaming columns.
 CREATE TABLE parent (a INT PRIMARY KEY, b INT NOT NULL) ENGINE = InnoDB;
 
 INSERT INTO parent VALUES(1,2),(2,3);
@@ -252,18 +250,8 @@ ADD CONSTRAINT fk_1 FOREIGN KEY (a2) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 
-# It will not be able to find the index on changing column, this is being
-# followed by Bug 14105491
---error ER_FK_NO_INDEX_CHILD
 ALTER TABLE child CHANGE a2 a3 INT,
 ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
-ON DELETE SET NULL ON UPDATE CASCADE,
-ALGORITHM = INPLACE;
-
-# So appropriate way would be do it in two steps
-ALTER TABLE child CHANGE a2 a3 int;
-
-ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a3) REFERENCES parent(b)
 ON DELETE SET NULL ON UPDATE CASCADE,
 ALGORITHM = INPLACE;
 

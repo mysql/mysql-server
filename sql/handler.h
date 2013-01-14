@@ -3333,7 +3333,9 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info);
+		                bool update_create_info,
+                    bool is_temp_table= false);
+
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 
@@ -3409,15 +3411,16 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
-int ha_binlog_end(THD *thd);
 #else
 #define ha_reset_logs(a) do {} while (0)
 #define ha_binlog_index_purge_file(a,b) do {} while (0)
 #define ha_reset_slave(a) do {} while (0)
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
-#define ha_binlog_end(a)  do {} while (0)
 #endif
+
+/* It is required by basic binlog features on both MySQL server and libmysqld */
+int ha_binlog_end(THD *thd);
 
 const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,

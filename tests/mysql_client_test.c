@@ -7851,7 +7851,7 @@ static void test_cuted_rows()
   count= mysql_warning_count(mysql);
   if (!opt_silent)
     fprintf(stdout, "\n total warnings: %d", count);
-  DIE_UNLESS(count == 2);
+  DIE_UNLESS(count == 1);
 
   rc= mysql_query(mysql, "SHOW WARNINGS");
   myquery(rc);
@@ -7860,7 +7860,7 @@ static void test_cuted_rows()
   mytest(result);
 
   rc= my_process_result_set(result);
-  DIE_UNLESS(rc == 2);
+  DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
   rc= mysql_query(mysql, "INSERT INTO t1 VALUES('junk'), (876789)");

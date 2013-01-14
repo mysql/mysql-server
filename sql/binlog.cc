@@ -5582,7 +5582,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     is never used for relay logs.
   */
   DBUG_ASSERT(!is_relay_log);
-  DBUG_ASSERT(total_ha_2pc > 1);
+  DBUG_ASSERT(total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log));
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   if (!my_b_inited(&index_file))
@@ -6903,6 +6903,24 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     binlog_accessed_db_names->push_back(after_db, &main_mem_root);
 }
 
+/*
+  Function to check whether the table in query uses a fulltext parser
+  plugin or not.
+
+  @param s - table share pointer.
+
+  @retval TRUE - The table uses fulltext parser plugin.
+  @retval FALSE - Otherwise.
+*/
+static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
+{
+  for (unsigned int i= 0 ; i < s->keys ; i++)
+  {
+    if ((s->key_info[i].flags & HA_USES_PARSER) && s->keys_in_use.is_set(i))
+      return TRUE;
+  }
+  return FALSE;
+}
 
 /**
   Decide on logging format to use for the statement and issue errors
@@ -7179,7 +7197,23 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         is_write= TRUE;
 
         prev_write_table= table->table;
+
+        /*
+          It should be marked unsafe if a table which uses a fulltext parser
+          plugin is modified. See also bug#48183.
+        */
+        if (!lex->is_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN))
+        {
+          if (fulltext_unsafe_set(table->table->s))
+            lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+        }
       }
+      if(lex->get_using_match())
+      {
+        if (fulltext_unsafe_set(table->table->s))
+          lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+      }
+
       flags_access_some_set |= flags;
 
       if (lex->sql_command != SQLCOM_CREATE_TABLE ||

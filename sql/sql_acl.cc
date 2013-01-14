@@ -2369,6 +2369,19 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->plugin.length= default_auth_plugin_name.length;
     acl_user->plugin.str= default_auth_plugin_name.str;
   }
+
+  if (new_password_len == 0)
+  {
+    String *password_str= new (thd->mem_root) String(new_password,
+                                                     thd->variables.
+                                                     character_set_client);
+    if (check_password_policy(password_str))
+    {
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
+  }
   
 #if defined(HAVE_OPENSSL)
   /*
@@ -9696,6 +9709,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       DBUG_RETURN(1);
   }
+  else
+  {
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      mpvio->charset_adapter->charset()->csname);
+  }
 
 
   /* Convert database and user names to utf8 */
@@ -10022,7 +10041,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   {
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
     if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
     goto skip_to_ssl;
@@ -10059,7 +10081,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       Old clients didn't have their own charset. Instead the assumption
       was that they used what ever the server used.
     */
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
   }
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
@@ -11783,7 +11808,7 @@ int check_password_strength(String *password)
 }
 
 /* called when new user is created or exsisting password is changed */
-void check_password_policy(String *password)
+int check_password_policy(String *password)
 {
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
@@ -11794,8 +11819,12 @@ void check_password_policy(String *password)
                       (st_mysql_validate_password *) plugin_decl(plugin)->info;
 
     if (!password_validate->validate_password(password))
+    {  
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-
+      plugin_unlock(0, plugin);
+      return (1);
+    }
     plugin_unlock(0, plugin);
   }
+  return (0);
 }

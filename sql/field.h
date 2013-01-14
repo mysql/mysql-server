@@ -482,12 +482,40 @@ public:
 
   uchar		*ptr;			// Position to field in record
 
-protected:
+private:
   /**
      Byte where the @c NULL bit is stored inside a record. If this Field is a
      @c NOT @c NULL field, this member is @c NULL.
   */
-  uchar		*null_ptr;
+  uchar *m_null_ptr;
+
+  /**
+    Flag: if the NOT-NULL field can be temporary NULL.
+  */
+  bool m_is_tmp_nullable;
+
+  /**
+    This is a flag with the following semantics:
+      - it can be changed only when m_is_tmp_nullable is true;
+      - it specifies if this field in the first current record
+        (TABLE::record[0]) was set to NULL (temporary NULL).
+
+    This flag is used for trigger handling.
+  */
+  bool m_is_tmp_null;
+
+  /**
+    The value of THD::count_cuted_fields at the moment of setting
+    m_is_tmp_null attribute.
+  */
+  enum_check_fields m_count_cuted_fields_saved;
+
+protected:
+  const uchar *get_null_ptr() const
+  { return m_null_ptr; }
+
+  uchar *get_null_ptr() 
+  { return m_null_ptr; }
 
 public:
   /*
@@ -539,10 +567,74 @@ public:
    */
   bool is_created_from_null_item;
 
+private:
+  enum enum_pushed_warnings
+  {
+    BAD_NULL_ERROR_PUSHED= 1,
+    NO_DEFAULT_FOR_FIELD_PUSHED= 2,
+    NO_DEFAULT_FOR_VIEW_FIELD_PUSHED= 4
+  };
+
+  /*
+    Bitmask specifying which warnings have been already pushed in order
+    not to repeat the same warning for the collmn multiple times.
+    Uses values of enum_pushed_warnings to control pushed warnings.
+  */
+  unsigned int m_warnings_pushed;
+
+public:
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
-  virtual ~Field() {}
+
+  virtual ~Field()
+  { }
+
+  void reset_warnings()
+  { m_warnings_pushed= 0; }
+
+  /**
+    Turn on temporary nullability for the field.
+  */
+  void set_tmp_nullable()
+  {
+    m_is_tmp_nullable= true;
+  }
+
+  /**
+    Turn off temporary nullability for the field.
+  */
+  void reset_tmp_nullable()
+  {
+    m_is_tmp_nullable= false;
+  }
+
+  /**
+    Reset temporary NULL value for field
+  */
+  void reset_tmp_null()
+  {
+    m_is_tmp_null= false;
+  }
+
+  void set_tmp_null();
+
+  /**
+    @return temporary NULL-ability flag.
+    @retval true if NULL can be assigned temporary to the Field.
+    @retval false if NULL can not be assigned even temporary to the Field.
+  */
+  bool is_tmp_nullable() const
+  { return m_is_tmp_nullable; }
+
+  /**
+    @return whether Field has temporary value NULL.
+    @retval true if the Field has temporary value NULL.
+    @retval false if the Field's value is NOT NULL, or if the temporary
+    NULL-ability flag is reset.
+  */
+  bool is_tmp_null() const
+  { return is_tmp_nullable() && m_is_tmp_null; }
 
   /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual type_conversion_status store(const char *to, uint length,
@@ -673,7 +765,7 @@ public:
   static Item_result result_merge_type(enum_field_types);
   virtual bool eq(Field *field)
   {
-    return (ptr == field->ptr && null_ptr == field->null_ptr &&
+    return (ptr == field->ptr && m_null_ptr == field->m_null_ptr &&
             null_bit == field->null_bit && field->type() == type());
   }
   virtual bool eq_def(Field *field);
@@ -776,20 +868,13 @@ public:
     tm.tv_usec= 0;
     store_timestamp(&tm);
   }
+
   virtual void set_default()
   {
     if (has_insert_default_function())
-    {
       evaluate_insert_default_function();
-      return;
-    }
-
-    my_ptrdiff_t l_offset= (my_ptrdiff_t) (table->s->default_values -
-					  table->record[0]);
-    memcpy(ptr, ptr + l_offset, pack_length());
-    if (real_maybe_null())
-      *null_ptr= ((*null_ptr & (uchar) ~null_bit) |
-		  (null_ptr[l_offset] & null_bit));
+    else
+      copy_data(table->default_values_offset());
   }
 
 
@@ -869,6 +954,12 @@ public:
   bool is_temporal_with_date_and_time() const
   { return is_temporal_type_with_date_and_time(type()); }
 
+  /**
+    Check whether the full table's row is NULL or the Field has value NULL.
+
+    @return    true if the full table's row is NULL or the Field has value NULL
+               false if neither table's row nor the Field has value NULL
+  */
   bool is_null(my_ptrdiff_t row_offset= 0) const
   {
     /*
@@ -879,47 +970,79 @@ public:
       this is the case (in which TABLE::null_row is true), the field
       is considered to be NULL.
 
-      Otherwise, if the field is NULLable, it has a valid null_ptr
+      Otherwise, if the field is NULLable, it has a valid m_null_ptr
       pointer, and its NULLity is recorded in the "null_bit" bit of
-      null_ptr[row_offset].
+      m_null_ptr[row_offset].
     */
-    return table->null_row ? true : is_real_null(row_offset);
+    return table->null_row ?
+           true :
+           is_real_null(row_offset);
   }
 
+  /**
+    Check whether the Field has value NULL (temporary or actual).
+
+    @return   true if the Field has value NULL (temporary or actual)
+              false if the Field has value NOT NULL.
+  */
   bool is_real_null(my_ptrdiff_t row_offset= 0) const
-  { return real_maybe_null() ? test(null_ptr[row_offset] & null_bit) : false; }
+  {
+    if (real_maybe_null())
+      return test(m_null_ptr[row_offset] & null_bit);
 
+    if (is_tmp_nullable())
+      return m_is_tmp_null;
+
+    return false;
+  }
+
+  /**
+    Check if the Field has value NULL or the record specified by argument
+    has value NULL for this Field.
+
+    @return    true if the Field has value NULL or the record has value NULL
+               for thois Field.
+  */
   bool is_null_in_record(const uchar *record) const
-  { return real_maybe_null() ? test(record[null_offset()] & null_bit) : false; }
-
-  void set_null(my_ptrdiff_t row_offset= 0)
   {
     if (real_maybe_null())
-      null_ptr[row_offset]|= null_bit;
+      return test(record[null_offset()] & null_bit);
+
+    return is_tmp_nullable() ? m_is_tmp_null : false;
   }
 
-  void set_notnull(my_ptrdiff_t row_offset= 0)
-  {
-    if (real_maybe_null())
-      null_ptr[row_offset]&= (uchar) ~null_bit;
-  }
+  void set_null(my_ptrdiff_t row_offset= 0);
+
+  void set_notnull(my_ptrdiff_t row_offset= 0);
+
+  type_conversion_status check_constraints(int mysql_errno);
+
+  /**
+    Remember the value of THD::count_cuted_fields to handle possible
+    NOT-NULL constraint errors after BEFORE-trigger execution is finished.
+    We should save the value of THD::count_cuted_fields before starting
+    BEFORE-trigger processing since during triggers execution the
+    value of THD::count_cuted_fields could be changed.
+  */
+  void set_count_cuted_fields(enum_check_fields count_cuted_fields)
+  { m_count_cuted_fields_saved= count_cuted_fields; }
 
   bool maybe_null(void) const
   { return real_maybe_null() || table->maybe_null; }
 
   /// @return true if this field is NULL-able, false otherwise.
   bool real_maybe_null(void) const
-  { return null_ptr != 0; }
+  { return m_null_ptr != NULL; }
 
   uint null_offset(const uchar *record) const
-  { return (uint) (null_ptr - record); }
+  { return (uint) (m_null_ptr - record); }
 
   uint null_offset() const
   { return null_offset(table->record[0]); }
 
   void set_null_ptr(uchar *p_null_ptr, uint p_null_bit)
   {
-    null_ptr= p_null_ptr;
+    m_null_ptr= p_null_ptr;
     null_bit= p_null_bit;
   }
 
@@ -979,7 +1102,7 @@ public:
                                uint new_null_bit);
 
   Field *new_key_field(MEM_ROOT *root, TABLE *new_table, uchar *new_ptr)
-  { return new_key_field(root, new_table, new_ptr, null_ptr, null_bit); }
+  { return new_key_field(root, new_table, new_ptr, m_null_ptr, null_bit); }
 
   /**
      Makes a shallow copy of the Field object.
@@ -1002,23 +1125,30 @@ public:
      @param mem_root MEM_ROOT to use for memory allocation.
      @retval NULL If memory allocation failed.
    */
-  virtual Field *clone(MEM_ROOT *mem_root) const =0;
-  inline void move_field(uchar *ptr_arg,uchar *null_ptr_arg,uchar null_bit_arg)
+  virtual Field *clone(MEM_ROOT *mem_root) const = 0;
+
+  void move_field(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg)
   {
-    ptr=ptr_arg; null_ptr=null_ptr_arg; null_bit=null_bit_arg;
+    ptr= ptr_arg;
+    m_null_ptr= null_ptr_arg;
+    null_bit= null_bit_arg;
   }
-  inline void move_field(uchar *ptr_arg) { ptr=ptr_arg; }
+
+  void move_field(uchar *ptr_arg)
+  { ptr= ptr_arg; }
+
   virtual void move_field_offset(my_ptrdiff_t ptr_diff)
   {
-    ptr=ADD_TO_PTR(ptr,ptr_diff, uchar*);
-    if (null_ptr)
-      null_ptr=ADD_TO_PTR(null_ptr,ptr_diff,uchar*);
+    ptr= ADD_TO_PTR(ptr, ptr_diff, uchar*);
+    if (real_maybe_null())
+      m_null_ptr= ADD_TO_PTR(m_null_ptr, ptr_diff, uchar*);
   }
+
   virtual void get_image(uchar *buff, uint length, const CHARSET_INFO *cs)
-    { memcpy(buff,ptr,length); }
-  virtual void set_image(const uchar *buff,uint length,
-                         const CHARSET_INFO *cs)
-    { memcpy(ptr,buff,length); }
+  { memcpy(buff, ptr, length); }
+
+  virtual void set_image(const uchar *buff, uint length, const CHARSET_INFO *cs)
+  { memcpy(ptr, buff, length); }
 
 
   /*
@@ -1113,7 +1243,9 @@ public:
   {
     return (uint) (ptr - record);
   }
-  void copy_from_tmp(int offset);
+
+  void copy_data(my_ptrdiff_t src_record_offset);
+
   uint fill_cache_field(struct st_cache_field *copy);
   virtual bool get_date(MYSQL_TIME *ltime,uint fuzzydate);
   virtual bool get_time(MYSQL_TIME *ltime);
@@ -1137,8 +1269,37 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(Sql_condition::enum_severity_level, unsigned int code,
-                   int cuted_increment) const;
+
+  /**
+    Produce warning or note about data saved into field.
+
+    @param level            - level of message (Note/Warning/Error)
+    @param code             - error code of message to be produced
+    @param cut_increment    - whenever we should increase cut fields count
+
+    @note
+      This function won't produce warning and increase cut fields counter
+      if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+
+      if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+      This allows us to avoid notes in optimization, like
+      convert_constant_item().
+
+    @retval
+      1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+    @retval
+      0 otherwise
+  */
+  bool set_warning(Sql_condition::enum_severity_level level, unsigned int code,
+                   int cut_increment)
+  {
+    return set_warning(level, code, cut_increment, NULL, NULL);
+  }
+
+  bool set_warning(Sql_condition::enum_severity_level level, uint code,
+                   int cut_increment, const char *view_db,
+                   const char *view_name);
+
   inline bool check_overflow(int op_result)
   {
     return (op_result == E_DEC_OVERFLOW);
@@ -1493,14 +1654,14 @@ class Field_longstr :public Field_str
 protected:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
-                                                  bool count_spaces) const;
+                                                  bool count_spaces);
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
                             const char *from_end_pos,
                             const char *end,
                             bool count_spaces,
-                            const CHARSET_INFO *cs) const;
+                            const CHARSET_INFO *cs);
 public:
   Field_longstr(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                 uchar null_bit_arg, utype unireg_check_arg,
