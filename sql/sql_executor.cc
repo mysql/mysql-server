@@ -685,6 +685,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
+        stat[0].keys.merge(possible_keys);
 
         /*
           For each field in the multiple equality (for which we know that it 
