@@ -149,6 +149,8 @@ enum my_lex_states
 struct charset_info_st;
 
 
+extern int (*my_string_stack_guard)(int);
+
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
 {
