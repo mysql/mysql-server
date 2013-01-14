@@ -452,7 +452,7 @@ class Scheduler(Queue):
             debug('Scheduler stopped by someone else.  Joining threads.')
             self.join()
             if self.error:
-                send_mail(['leif@tokutek.com'], 'Stress tests scheduler stopped by something, on %s' % gethostname(), self.error)
+                send_mail(self.email, 'Stress tests scheduler stopped by something, on %s' % gethostname(), self.error)
                 sys.exit(77)
 
     def join(self):
@@ -482,7 +482,7 @@ class Scheduler(Queue):
         warning('%s FAILED %s', self.reportstr(), runner.infostr())
 
     def email_failure(self, runner, savedtarfile, commands, output):
-        if not self.email:
+        if self.email is None:
             return
 
         h = gethostname()
@@ -491,7 +491,7 @@ class Scheduler(Queue):
 The test was upgrading from %s.''' % runner.oldversionstr
         else:
             upgradestr = ''
-        send_mail(['tokueng@tokutek.com'],
+        send_mail(self.email,
                   'Stress test failure on %(hostname)s running %(branch)s.' % { 'hostname': h, 'branch': self.branch },
                   ('''A stress test failed on %(hostname)s running %(branch)s at svn revision %(rev)s after %(test_duration)d seconds.%(upgradestr)s
 Its environment is saved to %(tarfile)s on that machine.
@@ -688,7 +688,8 @@ if __name__ == '__main__':
     parser.add_option('-s', '--savedir', type='string', dest='savedir',
                       default='/tmp/run.stress-tests.failures',
                       help='where to save environments and extra data for failed tests')
-    parser.add_option('--no-email', action='store_false', dest='email', default=True, help='suppress emails on failure')
+    parser.add_option('--email', action='append', type='string', dest='email', default=[], help='where to send emails')
+    parser.add_option('--no-email', action'store_false', dest='send_emails', default=True, help='suppress emails on failure')
     default_toplevel = os.path.dirname(os.path.dirname(a0))
     parser.add_option('--tokudb', type='string', dest='tokudb',
                       default=default_toplevel,
@@ -778,6 +779,11 @@ if __name__ == '__main__':
             version_dir = os.path.join(opts.old_environments_dir, version)
             if not os.path.isdir(version_dir):
                 parser.error('You specified --run_upgrade but %s is not a directory.' % version_dir)
+
+    if not opts.send_emails:
+        opts.email = None
+    elif len(opts.email) == 0:
+        opts.email.append('tokueng@tokutek.com')
 
     if opts.debug:
         logging.basicConfig(level=logging.DEBUG)
