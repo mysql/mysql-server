@@ -4392,13 +4392,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-static inline bool
-thd_allow_batch(const THD* thd)
-{
-  return (thd_options(thd) & OPTION_ALLOW_BATCH);
-}
-
-
 #ifdef HAVE_NDB_BINLOG
 
 /**
@@ -6231,7 +6224,7 @@ static void get_default_value(void *def_val, Field *field)
 {
   DBUG_ASSERT(field != NULL);
 
-  my_ptrdiff_t src_offset= field->table->s->default_values - field->table->record[0];
+  my_ptrdiff_t src_offset= field->table->default_values_offset();
 
   {
     if (bitmap_is_set(field->table->read_set, field->field_index))
@@ -8631,8 +8624,7 @@ static int create_ndb_column(THD *thd,
       {
         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
         {
-          my_ptrdiff_t src_offset= field->table->s->default_values 
-            - field->table->record[0];
+          my_ptrdiff_t src_offset= field->table->default_values_offset();
           if ((! field->is_real_null(src_offset)) ||
               ((field->flags & NOT_NULL_FLAG)))
           {

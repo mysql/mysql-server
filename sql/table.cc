@@ -2306,7 +2306,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2314,6 +2314,9 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->def_fields_set_during_insert,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -3956,8 +3959,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->stmt_arena, backup;
-      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -3977,8 +3980,6 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
       }
       if (tbl == 0)
         *conds= and_conds(*conds, where->copy_andor_structure(thd));
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }
@@ -4070,8 +4071,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
   if (check_opt_type && !check_option_processed)
   {
-    Query_arena *arena= thd->stmt_arena, backup;
-    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (where)
     {
@@ -4089,10 +4089,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     check_option= and_conds(check_option,
                             merge_on_conds(thd, this, is_cascaded));
 
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     check_option_processed= TRUE;
-
   }
 
   if (check_option)
@@ -5117,6 +5114,9 @@ void TABLE::clear_column_bitmaps()
   */
   memset(def_read_set.bitmap, 0, s->column_bitmap_size*2);
   column_bitmaps_set(&def_read_set, &def_write_set);
+
+  bitmap_clear_all(&def_fields_set_during_insert);
+  fields_set_during_insert= &def_fields_set_during_insert;
 }
 
 

@@ -108,8 +108,8 @@ SELECT @@global.query_prealloc_size  ;
 
 SET @@global.query_prealloc_size   = -1024;
 SELECT @@global.query_prealloc_size  ;
-SET @@global.query_prealloc_size   = 429496729533;
-SELECT @@global.query_prealloc_size IN (429496728576,4294966272) ;
+#SET @@global.query_prealloc_size   = 429496729533;
+#SELECT @@global.query_prealloc_size IN (429496728576,4294966272) ;
 
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -146,8 +146,8 @@ SELECT @@session.query_prealloc_size  ;
 --Error  ER_WRONG_TYPE_FOR_VAR
 SET @@session.query_prealloc_size   = 65530.34;
 SELECT @@session.query_prealloc_size IN (429496728576,4294966272) ;
-SET @@session.query_prealloc_size   = 429496729533;
-SELECT @@global.query_prealloc_size IN (429496728576,4294966272);
+#SET @@session.query_prealloc_size   = 429496729533;
+#SELECT @@global.query_prealloc_size IN (429496728576,4294966272);
 
 
 --Error ER_WRONG_TYPE_FOR_VAR

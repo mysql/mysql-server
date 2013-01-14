@@ -621,7 +621,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         DBUG_RETURN(NESTED_LOOP_OK);
     }
     fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
-                1, NULL);
+                1, NULL, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))

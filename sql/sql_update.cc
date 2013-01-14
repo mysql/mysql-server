@@ -736,7 +736,7 @@ int mysql_update(THD *thd,
       store_record(table,record[1]);
       if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
                                                table->triggers,
-                                               TRG_EVENT_UPDATE))
+                                               TRG_EVENT_UPDATE, 0))
         break; /* purecov: inspected */
 
       found++;
@@ -2011,7 +2011,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
                                                *values_for_table[offset],
                                                false, // ignore_errors
                                                table->triggers,
-                                               TRG_EVENT_UPDATE))
+                                               TRG_EVENT_UPDATE, 0))
 	DBUG_RETURN(1);
 
       /*
@@ -2112,10 +2112,20 @@ bool multi_update::send_data(List<Item> &not_used_values)
         field_num++;
       } while ((tbl= tbl_it++));
 
+      /*
+        Enable temporary nullability for temporary table fields.
+      */
+      for (Field** modified_fields= tmp_table->field + 1 +
+                                    unupdated_check_opt_tables.elements;
+           *modified_fields; ++modified_fields)
+      {
+        (*modified_fields)->set_tmp_nullable();
+      }
+
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1, NULL);
+                  *values_for_table[offset], 1, NULL, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);

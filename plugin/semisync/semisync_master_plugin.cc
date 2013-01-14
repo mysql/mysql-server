@@ -124,19 +124,27 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
 }
 
 int repl_semi_after_send_event(Binlog_transmit_param *param,
-                               const char *event_buf, unsigned long len)
+                               const char *event_buf, unsigned long len,
+                               const char * skipped_log_file,
+                               my_off_t skipped_log_pos)
 {
   if (repl_semisync.is_semi_sync_slave())
   {
-    THD *thd= current_thd;
-    /*
-      Possible errors in reading slave reply are ignored deliberately
-      because we do not want dump thread to quit on this. Error
-      messages are already reported.
-    */
-    (void) repl_semisync.readSlaveReply(&thd->net,
-                                        param->server_id, event_buf);
-    thd->clear_error();
+    if(skipped_log_pos>0)
+      repl_semisync.skipSlaveReply(event_buf, param->server_id,
+                                   skipped_log_file, skipped_log_pos);
+    else
+    {
+      THD *thd= current_thd;
+      /*
+        Possible errors in reading slave reply are ignored deliberately
+        because we do not want dump thread to quit on this. Error
+        messages are already reported.
+      */
+      (void) repl_semisync.readSlaveReply(&thd->net,
+                                          param->server_id, event_buf);
+      thd->clear_error();
+    }
   }
   return 0;
 }

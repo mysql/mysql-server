@@ -2627,13 +2627,13 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
 static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
-
-  if(!var->value)
-    return false;
+  /* null value is not allowed */
+  if (check_not_null(self, thd, var))
+    return true;
 
   /** empty value ('') is not allowed */
-  res= var->value->val_str(&str);
-  if (res->is_empty())
+  res= var->value? var->value->val_str(&str) : NULL;
+  if (res && res->is_empty())
     return true;
 
   return false;
@@ -3623,6 +3623,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   if (!path_length)
     return true;
+
+  if (!is_filename_allowed(var->save_result.string_value.str, 
+                           var->save_result.string_value.length, TRUE))
+  {
+     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), 
+              self->name.str, var->save_result.string_value.str);
+     return true;
+  }
 
   MY_STAT f_stat;
 
