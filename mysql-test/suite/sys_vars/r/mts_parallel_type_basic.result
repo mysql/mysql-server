@@ -1,0 +1,41 @@
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= 'DB_NAME_BASED';
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= 'BGC_BASED';
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+BGC_BASED
+SET GLOBAL mts_parallel_type= DEFAULT;
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= NULL;
+ERROR 42000: Variable 'mts_parallel_type' can't be set to the value of 'NULL'
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= '';
+ERROR 42000: Variable 'mts_parallel_type' can't be set to the value of ''
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= '0';
+ERROR 42000: Variable 'mts_parallel_type' can't be set to the value of '0'
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= 'GARBAGE_BASED';
+ERROR 42000: Variable 'mts_parallel_type' can't be set to the value of 'GARBAGE_BASED'
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET SESSION mts_parallel_type= 'BGC_BASED';
+ERROR HY000: Variable 'mts_parallel_type' is a GLOBAL variable and should be set with SET GLOBAL
+SELECT @@global.mts_parallel_type;
+@@global.mts_parallel_type
+DB_NAME_BASED
+SET GLOBAL mts_parallel_type= 'DB_NAME_BASED';;

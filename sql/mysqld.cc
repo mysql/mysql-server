@@ -517,6 +517,7 @@ ulonglong slave_rows_search_algorithms_options;
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
+ulong mts_parallel_option;
 ulong binlog_cache_size=0;
 ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
