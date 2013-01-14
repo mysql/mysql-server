@@ -742,7 +742,13 @@ return_zero_rows(JOIN *join, List<Item> &fields)
         mark_as_null_row(table->table);
 
       // Calculate aggregate functions for no rows
-      List_iterator_fast<Item> it(fields);
+
+      /*
+        Must notify all fields that there are no rows (not only those
+        that will be returned) because join->having may refer to
+        fields that are not part of the result columns.
+       */
+      List_iterator_fast<Item> it(join->all_fields);
       Item *item;
       while ((item= it++))
         item->no_rows_in_result();
