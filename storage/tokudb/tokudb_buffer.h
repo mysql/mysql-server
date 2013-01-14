@@ -1,6 +1,8 @@
 #if !defined(_TOKUDB_BUFFER_H)
 #define _TOKUDB_BUFFER_H
 
+#include "tokudb_base128.h"
+
 namespace tokudb {
 
 // A Buffer manages a contiguous chunk of memory and supports appending new data to the end of the buffer, and
@@ -31,6 +33,12 @@ public:
         memcpy(append_ptr(s), p, s);
     }
 
+    void append_uint32(uint32_t n) {
+        maybe_realloc(5);
+        size_t s = tokudb::base128_encode_uint32(n, (char *) m_data + m_size, 5);
+        m_size += s;
+    }
+
     // Return a pointer to the next location in the buffer where bytes are consumed from.
     void *consume_ptr(size_t s) {
         if (m_size + s > m_limit)
@@ -43,6 +51,25 @@ public:
     // Consume bytes from the buffer.
     void consume(void *p, size_t s) {
         memcpy(p, consume_ptr(s), s);
+    }
+
+    uint32_t consume_uint32() {
+        uint32_t n;
+        size_t s = tokudb::base128_decode_uint32(&n, (char *) m_data + m_size, m_limit - m_size);
+        m_size += s;
+        return n;
+    }
+
+    // Write p_length bytes at an offset in the buffer
+    void write(void *p, size_t p_length, size_t offset) {
+        assert(offset + p_length <= m_size);
+        memcpy((char *)m_data + offset, p, p_length);
+    }
+
+    // Read p_length bytes at an offset in the buffer
+    void read(void *p, size_t p_length, size_t offset) {
+        assert(offset + p_length <= m_size);
+        memcpy(p, (char *)m_data + offset, p_length);
     }
 
     // Replace a field in the buffer with new data.  If the new data size is different, then readjust the 

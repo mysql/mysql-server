@@ -140,6 +140,17 @@ static uint32_t var_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint id
     return v_index;    
 }
 
+static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint idx, uint field_num) {
+    assert(field_num < table->s->fields);
+    uint b_index;
+    for (b_index = 0; b_index < kc_info->num_blobs; b_index++) {
+        if (kc_info->blob_fields[b_index] == field_num)
+            break;
+    }
+    assert(b_index < kc_info->num_blobs);
+    return b_index;
+}
+
 // Determine if an update operation can be offloaded to the storage engine.
 // The update operation consists of a list of update expressions (fields[i] = values[i]), and a list
 // of where conditions (conds).  The function returns 0 if the update is handled in the storage engine.
@@ -163,7 +174,7 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &upda
         line = __LINE__;
         goto return_error;
     }
-
+    
     if (!check_fast_update(thd, update_fields, update_values, conds)) {
         error = ENOTSUP;
         line = __LINE__;
@@ -303,6 +314,7 @@ static bool check_simple_update_expression(Item *lhs_item, Item *rhs_item, TABLE
             return true;
         break;
     case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_BLOB:
         if (rhs_type == Item::STRING_ITEM)
             return true;
         break;
@@ -478,14 +490,24 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
     return true;
 }
 
-// Marshall a simple row descriptor to a buffer.
-static void marshall_simple_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO &kc_info, uint key_num) {
-    tokudb::simple_row_descriptor sd;
-    sd.m_fixed_field_offset = table->s->null_bytes;
-    sd.m_var_field_offset = sd.m_fixed_field_offset + kc_info.mcp_info[key_num].fixed_field_size;
-    sd.m_var_offset_bytes = kc_info.mcp_info[key_num].len_of_offsets; // total length of the var offsets
-    sd.m_bytes_per_offset = sd.m_var_offset_bytes == 0 ? 0 : kc_info.num_offset_bytes; // bytes per var offset
-    sd.append(b);
+static void marshall_varchar_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO *kc_info, uint key_num) {
+    b.append_uint32('v');
+    b.append_uint32(table->s->null_bytes + kc_info->mcp_info[key_num].fixed_field_size);
+    uint32_t var_offset_bytes = kc_info->mcp_info[key_num].len_of_offsets;
+    b.append_uint32(var_offset_bytes);
+    b.append_uint32(var_offset_bytes == 0 ? 0 : kc_info->num_offset_bytes);
+}
+
+static void marshall_blobs_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_COL_INFO *kc_info) {
+    b.append_uint32('b');
+    uint32_t n = kc_info->num_blobs;
+    b.append_uint32(n);
+    for (uint i = 0; i < n; i++) {
+        uint blob_field_index = kc_info->blob_fields[i];
+        assert(blob_field_index < table->s->fields);
+        uint8_t blob_field_length = table->s->field[blob_field_index]->row_pack_length();
+        b.append(&blob_field_length, sizeof blob_field_length);
+    }
 }
 
 static inline uint32_t get_null_bit_position(uint32_t null_bit);
@@ -501,7 +523,7 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
     uint32_t field_null_num = 0;
     if (lhs_field->real_maybe_null()) {
         uint32_t field_num = lhs_field->field_index;
-        field_null_num = (1<<31) + (field_num/8)*8 + get_null_bit_position(lhs_field->null_bit);
+        field_null_num = ((field_num/8)*8 + get_null_bit_position(lhs_field->null_bit)) + 1;
     }
     uint32_t offset;
     void *v_ptr = NULL;
@@ -549,7 +571,6 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
         }
         break;
     }
-
     case MYSQL_TYPE_STRING: {
         update_operation = '=';
         field_type = lhs_field->binary() ? UPDATE_TYPE_BINARY : UPDATE_TYPE_CHAR;
@@ -567,7 +588,6 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
         v_ptr = v_str.c_ptr();
         break;
     }
-
     case MYSQL_TYPE_VARCHAR: {
         update_operation = '=';
         field_type = lhs_field->binary() ? UPDATE_TYPE_VARBINARY : UPDATE_TYPE_VARCHAR;
@@ -581,18 +601,29 @@ static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_
         v_ptr = v_str.c_ptr();
         break;
     }
+    case MYSQL_TYPE_BLOB: {
+        update_operation = '=';
+        field_type = lhs_field->binary() ? UPDATE_TYPE_BLOB : UPDATE_TYPE_TEXT;
+        offset = blob_field_index(table, &share->kc_info, table->s->primary_key, lhs_field->field_index);
+        v_str = *rhs_item->val_str(&v_str);
+        v_length = v_str.length();
+        if (v_length >= lhs_field->max_data_length()) {
+            v_length = lhs_field->max_data_length();
+            v_str.length(v_length); // truncate
+        }
+        v_ptr = v_str.c_ptr();
+        break;
+    }
     default:
         assert(0);
     }
 
     // marshall the update fields into the buffer
-    b.append(&update_operation, sizeof update_operation);
-    b.append(&field_type, sizeof field_type);
-    uint32_t unused = 0;
-    b.append(&unused, sizeof unused);
-    b.append(&field_null_num, sizeof field_null_num);
-    b.append(&offset, sizeof offset);
-    b.append(&v_length, sizeof v_length);
+    b.append_uint32(update_operation);
+    b.append_uint32(field_type);
+    b.append_uint32(field_null_num);
+    b.append_uint32(offset);
+    b.append_uint32(v_length);
     b.append(v_ptr, v_length);
 }
 
@@ -610,6 +641,19 @@ static int save_in_field(Item *item, TABLE *table) {
     int error = arguments[1]->save_in_field(field_item->field, 0);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     return error;
+}
+
+static void count_update_types(Field *lhs_field, uint *num_varchars, uint *num_blobs) {
+    switch (lhs_field->type()) {
+    case MYSQL_TYPE_VARCHAR:
+        *num_varchars += 1;
+        break;
+    case MYSQL_TYPE_BLOB:
+        *num_blobs += 1;
+        break;
+    default:
+        break;
+    }
 }
 
 // Generate an update message for an update operation and send it into the primary tree.  Return 0 if successful.
@@ -640,16 +684,36 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
     
     // construct the update message
     tokudb::buffer update_message;
-        
-    uchar operation = UPDATE_OP_SIMPLE_UPDATE;
+   
+    // update_message.append_uint32(UPDATE_OP_UPDATE_2);
+    uint8_t operation = UPDATE_OP_UPDATE_2;
     update_message.append(&operation, sizeof operation);
-    
-    // append the descriptor
-    marshall_simple_descriptor(update_message, table, share->kc_info, primary_key);    
+
+    uint32_t num_updates = update_fields.elements;
+    uint num_varchars = 0, num_blobs = 0;
+    if (1) {
+        List_iterator<Item> lhs_i(update_fields);
+        Item *lhs_item;
+        while ((lhs_item = lhs_i++)) {
+            if (lhs_item == NULL)
+                break;
+            Field *lhs_field = find_field_by_name(table, lhs_item);
+            assert(lhs_field); // we found it before, so this should work
+            count_update_types(lhs_field, &num_varchars, &num_blobs);
+        }
+        if (num_varchars > 0 || num_blobs > 0)
+            num_updates++;
+        if (num_blobs > 0)
+            num_updates++;
+    }
 
     // append the updates
-    uint32_t num_updates = update_fields.elements;
-    update_message.append(&num_updates, sizeof num_updates);
+    update_message.append_uint32(num_updates);
+    
+    if (num_varchars > 0 || num_blobs > 0) 
+        marshall_varchar_descriptor(update_message, table, &share->kc_info, table->s->primary_key);
+    if (num_blobs > 0)
+        marshall_blobs_descriptor(update_message, table, &share->kc_info);
 
     List_iterator<Item> lhs_i(update_fields);
     List_iterator<Item> rhs_i(update_values);
@@ -779,20 +843,39 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     tokudb::buffer update_message;
 
     // append the operation
-    uchar operation = UPDATE_OP_SIMPLE_UPSERT;
+    // update_message.append_uint32(UPDATE_OP_UPSERT_2);
+    uint8_t operation = UPDATE_OP_UPSERT_2;
     update_message.append(&operation, sizeof operation);
 
     // append the row
-    uint32_t row_length = row.size;
-    update_message.append(&row_length, sizeof row_length);
-    update_message.append(row.data, row_length);
+    update_message.append_uint32(row.size);
+    update_message.append(row.data, row.size);
 
-    // append the descriptor
-    marshall_simple_descriptor(update_message, table, share->kc_info, primary_key);
-
-    // append the update expressions
     uint32_t num_updates = update_fields.elements;
-    update_message.append(&num_updates, sizeof num_updates);
+    uint num_varchars = 0, num_blobs = 0;
+    if (1) {
+        List_iterator<Item> lhs_i(update_fields);
+        Item *lhs_item;
+        while ((lhs_item = lhs_i++)) {
+            if (lhs_item == NULL)
+                break;
+            Field *lhs_field = find_field_by_name(table, lhs_item);
+            assert(lhs_field); // we found it before, so this should work
+            count_update_types(lhs_field, &num_varchars, &num_blobs);
+        }
+        if (num_varchars > 0 || num_blobs > 0)
+            num_updates++;
+        if (num_blobs > 0)
+            num_updates++;
+    }
+
+    // append the updates
+    update_message.append_uint32(num_updates);
+    
+    if (num_varchars > 0 || num_blobs > 0) 
+        marshall_varchar_descriptor(update_message, table, &share->kc_info, table->s->primary_key);
+    if (num_blobs > 0)
+        marshall_blobs_descriptor(update_message, table, &share->kc_info);
 
     List_iterator<Item> lhs_i(update_fields);
     List_iterator<Item> rhs_i(update_values);
