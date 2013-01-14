@@ -2281,13 +2281,13 @@ deallocate prepare abc;
 create procedure proc_1() start slave;
 drop procedure proc_1;
 create function func_1() returns int begin start slave; return 1; end|
-drop function func_1;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "start slave";
 deallocate prepare abc;
 create procedure proc_1() stop slave;
 drop procedure proc_1;
 create function func_1() returns int begin stop slave; return 1; end|
-drop function func_1;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
 prepare abc from "stop slave";
 deallocate prepare abc;
 create procedure proc_1() show binlog events;
