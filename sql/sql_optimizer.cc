@@ -5635,8 +5635,6 @@ static void trace_indices_added_group_distinct(Opt_trace_context *trace,
 static void
 add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 {
-  DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys));
-
   List<Item_field> indexed_fields;
   List_iterator<Item_field> indexed_fields_it(indexed_fields);
   ORDER      *cur_group;
@@ -5711,7 +5709,6 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
     join_tab->keys.merge(possible_keys);
   }
 
-  DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys));
 }
 
 /**
@@ -7721,8 +7718,6 @@ static bool make_join_select(JOIN *join, Item *cond)
           */
           enum { DONT_RECHECK, NOT_FIRST_TABLE, LOW_LIMIT }
           recheck_reason= DONT_RECHECK;
-
-          DBUG_ASSERT(tab->const_keys.is_subset(tab->keys));
 
           if (cond &&                                                // 1a
               (tab->keys != tab->const_keys) &&                      // 1b
