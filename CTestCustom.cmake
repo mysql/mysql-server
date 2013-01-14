@@ -195,12 +195,18 @@ set(long_running_tests
   ft/upgrade_test_simple
   ydb/checkpoint_1.tdb
   ydb/checkpoint_stress.tdb
-  ydb/hot-optimize-table-tests.tdb
   ydb/hotindexer-with-queries.tdb
+  ydb/hot-optimize-table-tests.tdb
+  ydb/loader-cleanup-test0.tdb
+  ydb/loader-cleanup-test0z.tdb
+  ydb/loader-cleanup-test2.tdb
+  ydb/loader-cleanup-test2z.tdb
   ydb/loader-stress-test4.tdb
+  ydb/loader-stress-test4z.tdb
   ydb/manyfiles.tdb
   ydb/preload-db-nested.tdb
   ydb/recover_stress.tdb
+  ydb/recovery_fileops_unit.tdb
   ydb/root_fifo_1.tdb
   ydb/root_fifo_2.tdb
   ydb/root_fifo_31.tdb
