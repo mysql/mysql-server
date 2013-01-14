@@ -547,6 +547,13 @@ enum enum_binlog_format {
   BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
 };
 
+enum enum_mts_parallel_type {
+  /* Parallel slave based on Database name */
+  MTS_PARALLEL_TYPE_DB_NAME= 0,
+  /* Parallel slave based on group information from Binlog group commit */
+  MTS_PARALLEL_TYPE_BGC=     1
+};
+
 int query_error_code(THD *thd, bool not_killed);
 uint purge_log_get_error_code(int res);
 
