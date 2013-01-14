@@ -348,11 +348,11 @@ let $platform_windows = `select convert(@@version_compile_os using latin1) IN ("
 if ($platform_windows != 0) {
   # write ';' instead of ':' for windows
   --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/;$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --echo #restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/;$MYSQLTEST_VARDIR/tmp/testdir2
+  --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/;\$MYSQLTEST_VARDIR/tmp/testdir2
 }
 if ($platform_windows == 0) { 
   --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --echo #restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2
+  --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/:\$MYSQLTEST_VARDIR/tmp/testdir2
 }
 --enable_reconnect
 --source include/wait_until_connected_again.inc
