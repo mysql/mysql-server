@@ -2624,7 +2624,7 @@ static Sys_var_mybool Sys_slave_sql_verify_checksum(
        "log. Enabled by default.",
        GLOBAL_VAR(opt_slave_sql_verify_checksum), CMD_LINE(OPT_ARG), DEFAULT(TRUE));
 
-static bool slave_rows_search_algorithms_check(sys_var *self, THD *thd, set_var *var)
+static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 {
   String str, *res;
   /* null value is not allowed */
@@ -2652,7 +2652,19 @@ static Sys_var_set Slave_rows_search_algorithms(
        GLOBAL_VAR(slave_rows_search_algorithms_options), CMD_LINE(REQUIRED_ARG),
        slave_rows_search_algorithms_names,
        DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(slave_rows_search_algorithms_check), ON_UPDATE(NULL));
+       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+
+static const char *mts_parallel_type_names[]= {"DB_NAME_BASED", "BGC_BASED", 0};
+static Sys_var_enum Mts_parallel_type(
+       "mts_parallel_type",
+       "Option to set the slave parallel type to either database name(DB_NAME) "
+       "based or binlog group commit(BGC) based."
+       "(Default: DB_NAME_BASED).",
+       GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
+       mts_parallel_type_names,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)

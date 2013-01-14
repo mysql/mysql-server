@@ -1,0 +1,39 @@
+# SAVE INTITIAL VALUES 
+--let $saved_value= `SELECT @@global.mts_parallel_type`
+SELECT @@global.mts_parallel_type;
+
+# CORRECT VALUES
+SET GLOBAL mts_parallel_type= 'DB_NAME_BASED';
+SELECT @@global.mts_parallel_type;
+
+SET GLOBAL mts_parallel_type= 'BGC_BASED';
+SELECT @@global.mts_parallel_type;
+
+SET GLOBAL mts_parallel_type= DEFAULT;
+SELECT @@global.mts_parallel_type;
+
+
+# INCORRECT VAULES
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mts_parallel_type= NULL;
+SELECT @@global.mts_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mts_parallel_type= '';
+SELECT @@global.mts_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mts_parallel_type= '0';
+SELECT @@global.mts_parallel_type;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL mts_parallel_type= 'GARBAGE_BASED';
+SELECT @@global.mts_parallel_type;
+
+# THIS IS NOT A SESSION VARIABLES
+--error ER_GLOBAL_VARIABLE
+SET SESSION mts_parallel_type= 'BGC_BASED';
+SELECT @@global.mts_parallel_type;
+
+# RESTORE INITIAL VALUE
+--eval SET GLOBAL mts_parallel_type= '$saved_value';
