@@ -15,7 +15,7 @@ def main():
 
     nrows = 10
 
-    blob_types = [ 'tinyblob', 'blob', 'mediumblob', 'longblob' ]
+    blob_types = [ 'tinyblob', 'blob', 'mediumblob', 'longblob', 'text' ]
     for a in blob_types:
         for b in blob_types:
             for c in blob_types:
