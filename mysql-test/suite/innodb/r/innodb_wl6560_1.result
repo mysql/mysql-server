@@ -166,7 +166,7 @@ a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
 # shutting down the server
 # list_file ,no files expected - temp tablespace cleared on stopping server
 # restarting the server with following arguments: 
-#restart: --tmpdir=/opt/projects/innodb/codebase/mysql-tree/mysql-trunk-wl6560/bld/mysql-test/var/tmp/testdir1/:/opt/projects/innodb/codebase/mysql-tree/mysql-trunk-wl6560/bld/mysql-test/var/tmp/testdir2
+#restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2
 # list_file ,temp tablespace goes into 1st tmpdir if mutiple tmpdir listed
 ibtmp1
 # list_file ,temp tablespace does not go into 2nd tmp dir
