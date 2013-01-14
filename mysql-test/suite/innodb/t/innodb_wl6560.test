@@ -30,6 +30,8 @@ call mtr.add_suppression("The table 't1' is full");
 # 9.  tests for different row format types and key block sizes for
 #     compressed tables.
 # 10. try restarting server with raw device specified for temp-tablespace.
+# 11. try restarting server with temp-tablespace less than min. threshold
+# 12. no file specified for temp-tablespace.
 ################################################################################
 
 #-----------------------------------------------------------------------------
@@ -45,8 +47,12 @@ let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
 let $args = --loose-console > $SEARCH_FILE 2>&1;
 let crash = $args --innodb-force-recovery-crash;
 let readonly = $args --innodb_read_only;
-let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
-let rawdevice = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2:2Gnewraw";
+let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend:max:134217728" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
+let rawdevice1 = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2:2Gnewraw";
+let rawdevice2 = $args --innodb_temp_data_file_path="/dev/hdd1:3Graw;/dev/hdd2:2Graw";
+let sizeoftempfile1 = $args --innodb_temp_data_file_path="ibtmp1:2M:autoextend";
+let sizeoftempfile2 = $args --innodb_data_file_path="ibdata1:2M:autoextend";
+let notemptablespacefile = $args --innodb_temp_data_file_path="";
 
 #-----------------------------------------------------------------------------
 #
@@ -365,7 +371,17 @@ drop table t;
 --source include/shutdown_mysqld.inc
 --echo "testing temp tablespace non-support for raw device"
 --error 1
---exec $MYSQLD_CMD $rawdevice
+--exec $MYSQLD_CMD $rawdevice1
+let SEARCH_PATTERN = support raw device;
+--source ./include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+--source include/shutdown_mysqld.inc
+--echo "testing temp tablespace non-support for raw device"
+--error 1
+--exec $MYSQLD_CMD $rawdevice2
 let SEARCH_PATTERN = support raw device;
 --source ./include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
@@ -378,6 +394,58 @@ create temporary table t1 (
 	keyc int, c1 char(100), c2 char(100)
 	) engine = innodb;
 drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 11. try restarting server with temp-tablespace less than min. threshold
+#
+--source include/shutdown_mysqld.inc
+--echo "try starting server with temp-tablespace size < min. threshold"
+--error 1
+--exec $MYSQLD_CMD $sizeoftempfile1
+let SEARCH_PATTERN = Tablespace size must be at least;
+--source ./include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+--source include/shutdown_mysqld.inc
+--echo "try starting server with sys-tablespace size < min. threshold"
+--error 1
+--exec $MYSQLD_CMD $sizeoftempfile2
+let SEARCH_PATTERN = Tablespace size must be at least;
+--source ./include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+use test;
+show tables;
+create temporary table t1 (
+	keyc int, c1 char(100), c2 char(100)
+	) engine = innodb;
+drop table t1; 
+
+#-----------------------------------------------------------------------------
+#
+# 12. no file specified for temp-tablespace.
+#
+--source include/shutdown_mysqld.inc
+--echo "try starting server with no file specified for temp-tablespace"
+--error 1
+--exec $MYSQLD_CMD $notemptablespacefile
+let SEARCH_PATTERN = init function returned error;
+--source ./include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+use test;
+show tables;
+create temporary table t1 (
+	keyc int, c1 char(100), c2 char(100)
+	) engine = innodb;
+drop table t1; 
 
 #-----------------------------------------------------------------------------
 #
