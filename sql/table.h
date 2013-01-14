@@ -1047,7 +1047,31 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+
+  /**
+    Bitmap of table fields (columns), which are explicitly set in the
+    INSERT INTO statement. It is declared here to avoid memory allocation
+    on MEM_ROOT).
+
+    @sa fields_set_during_insert.
+  */
+  MY_BITMAP     def_fields_set_during_insert;
+
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+
+  /**
+    A pointer to the bitmap of table fields (columns), which are explicitly set
+    in the INSERT INTO statement.
+
+    fields_set_during_insert points to def_fields_set_during_insert
+    for base (non-temporary) tables. In other cases, it is NULL.
+    Triggers can not be defined for temporary tables, so this bitmap does not
+    matter for temporary tables.
+
+    @sa def_fields_set_during_insert.
+  */
+  MY_BITMAP     *fields_set_during_insert;
+
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -1249,6 +1273,9 @@ public:
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
+
+  my_ptrdiff_t default_values_offset() const
+  { return (my_ptrdiff_t) (s->default_values - record[0]); }
 
   /// Return true if table is instantiated, and false otherwise.
   bool is_created() const { return created; }
@@ -1965,7 +1992,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() { return view != NULL ? view_db.str : db; }
+  char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -1973,7 +2000,7 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();

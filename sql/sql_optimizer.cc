@@ -4112,7 +4112,7 @@ static void add_not_null_conds(JOIN *join)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
-        if (tab->ref.null_rejecting & (1 << keypart))
+        if (tab->ref.null_rejecting & ((key_part_map)1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
           Item *notnull;
@@ -4381,7 +4381,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           if (!(keyuse->used_tables & sj_inner_tables) &&
               !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
           {
-            bound_parts |= 1 << keyuse->keypart;
+            bound_parts|= (key_part_map)1 << keyuse->keypart;
           }
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
@@ -4531,8 +4531,9 @@ static bool pull_out_semijoin_tables(JOIN *join)
       List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL) ?
           &sj_nest->embedding->nested_join->join_list : 
           &join->select_lex->top_join_list;
-      Query_arena *arena, backup;
-      arena= join->thd->activate_stmt_arena_if_needed(&backup);
+
+      Prepared_stmt_arena_holder ps_arena_holder(join->thd);
+
       while ((tbl= child_li++))
       {
         if (tbl->table &&
@@ -4544,12 +4545,10 @@ static bool pull_out_semijoin_tables(JOIN *join)
             pointers.
           */
           child_li.remove();
+
           if (upper_join_list->push_back(tbl))
-          {
-            if (arena)
-              join->thd->restore_active_arena(arena, &backup);
             DBUG_RETURN(TRUE);
-          }
+
           tbl->join_list= upper_join_list;
           tbl->embedding= sj_nest->embedding;
         }
@@ -4566,9 +4565,6 @@ static bool pull_out_semijoin_tables(JOIN *join)
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
       }
-
-      if (arena)
-        join->thd->restore_active_arena(arena, &backup);
     }
   }
   DBUG_RETURN(FALSE);
@@ -5628,15 +5624,24 @@ static void trace_indices_added_group_distinct(Opt_trace_context *trace,
 
 
 /**
-  Discover the indexes that can be used for GROUP BY or DISTINCT queries.
+  Discover the indexes that might be used for GROUP BY or DISTINCT queries.
 
-  If the query has a GROUP BY clause, find all indexes that contain all
-  GROUP BY fields, and add those indexes to join->const_keys.
+  If the query has a GROUP BY clause, find all indexes that contain
+  all GROUP BY fields, and add those indexes to join_tab->const_keys
+  and join_tab->keys.
 
-  If the query has a DISTINCT clause, find all indexes that contain all
-  SELECT fields, and add those indexes to join->const_keys.
-  This allows later on such queries to be processed by a
-  QUICK_GROUP_MIN_MAX_SELECT.
+  If the query has a DISTINCT clause, find all indexes that contain
+  all SELECT fields, and add those indexes to join_tab->const_keys and
+  join_tab->keys. This allows later on such queries to be processed by
+  a QUICK_GROUP_MIN_MAX_SELECT.
+
+  Note that indexes that are not usable for resolving GROUP
+  BY/DISTINCT may also be added in some corner cases. For example, an
+  index covering 'a' and 'b' is not usable for the following query but
+  is still added: "SELECT DISTINCT a+b FROM t1". This is not a big
+  issue because a) although the optimizer will consider using the
+  index, it will not chose it (so minor calculation cost added but not
+  wrong result) and b) it applies only to corner cases.
 
   @param join
   @param join_tab
@@ -5648,11 +5653,12 @@ static void trace_indices_added_group_distinct(Opt_trace_context *trace,
 static void
 add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
 {
+  DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys));
+
   List<Item_field> indexed_fields;
   List_iterator<Item_field> indexed_fields_it(indexed_fields);
   ORDER      *cur_group;
   Item_field *cur_item;
-  key_map possible_keys;
   const char *cause;
 
   if (join->group_list)
@@ -5675,6 +5681,11 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   else if (join->tmp_table_param.sum_func_count &&
            is_indexed_agg_distinct(join, &indexed_fields))
   {
+    /* 
+      SELECT list with AGGFN(distinct col). The query qualifies for
+      loose index scan, and is_indexed_agg_distinct() has already
+      collected all referenced fields into indexed_fields.
+    */
     join->sort_and_group= 1;
     cause= "indexed_distinct_aggregate";
   }
@@ -5684,21 +5695,41 @@ add_group_and_distinct_keys(JOIN *join, JOIN_TAB *join_tab)
   if (indexed_fields.elements == 0)
     return;
 
+  key_map possible_keys;
+  possible_keys.set_all();
+
   /* Intersect the keys of all group fields. */
-  cur_item= indexed_fields_it++;
-  possible_keys.merge(cur_item->field->part_of_key);
   while ((cur_item= indexed_fields_it++))
   {
-    possible_keys.intersect(cur_item->field->part_of_key);
+    if (cur_item->used_tables() != join_tab->table->map)
+    {
+      /*
+        Doing GROUP BY or DISTINCT on a field in another table so no
+        index in this table is usable
+      */
+      return;
+    }
+    else
+      possible_keys.intersect(cur_item->field->part_of_key);
   }
 
+  /*
+    At this point, possible_keys has key bits set only for usable
+    indexes because indexed_fields is non-empty and if any of the
+    fields belong to a different table the function would exit in the
+    loop above.
+  */
+
   if (!possible_keys.is_clear_all() &&
-      !(possible_keys == join_tab->const_keys))
+      !possible_keys.is_subset(join_tab->const_keys))
   {
     trace_indices_added_group_distinct(&join->thd->opt_trace, join_tab,
                                        possible_keys, cause);
     join_tab->const_keys.merge(possible_keys);
+    join_tab->keys.merge(possible_keys);
   }
+
+  DBUG_ASSERT(join_tab->const_keys.is_subset(join_tab->keys));
 }
 
 /**
@@ -6867,7 +6898,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
 bool JOIN::flatten_subqueries()
 {
-  Query_arena *arena, backup;
   Item_exists_subselect **subq;
   Item_exists_subselect **subq_end;
   bool outer_join_objection= false;
@@ -6917,9 +6947,11 @@ bool JOIN::flatten_subqueries()
            sj_subselects.size(), sj_subselects.element_size(),
            reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   // #tables-in-parent-query + #tables-in-subquery + sj nests <= MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+
   uint table_count= tables;
   for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
@@ -7015,8 +7047,6 @@ bool JOIN::flatten_subqueries()
     }
   }
 
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   sj_subselects.clear();
   DBUG_RETURN(FALSE);
 }
@@ -7139,16 +7169,22 @@ void JOIN::drop_unused_derived_keys()
 
       table->use_index(keyuse ? keyuse->key : -1);
 
+      const bool key_is_const= keyuse && tab->const_keys.is_set(keyuse->key);
+      tab->const_keys.clear_all();
       tab->keys.clear_all();
+
       if (!keyuse)
         continue;
 
       /*
         Update the selected "keyuse" to point to key number 0.
         Notice that unused keyuse entries still point to the deleted
-        candidate keys. tab->keys should reference key object no. 0 as well.
+        candidate keys. tab->keys (and tab->const_keys if the chosen key
+        is constant) should reference key object no. 0 as well.
       */
       tab->keys.set_bit(0);
+      if (key_is_const)
+        tab->const_keys.set_bit(0);
 
       const uint oldkey= keyuse->key;
       for (; keyuse->table == table && keyuse->key == oldkey; keyuse++)
@@ -7707,8 +7743,10 @@ static bool make_join_select(JOIN *join, Item *cond)
           enum { DONT_RECHECK, NOT_FIRST_TABLE, LOW_LIMIT }
           recheck_reason= DONT_RECHECK;
 
+          DBUG_ASSERT(tab->const_keys.is_subset(tab->keys));
+
           if (cond &&                                                // 1a
-              !tab->keys.is_subset(tab->const_keys) &&               // 1b
+              (tab->keys != tab->const_keys) &&                      // 1b
               (i > 0 ||                                              // 1c
                (join->select_lex->master_unit()->item &&
                 cond->used_tables() & OUTER_REF_TABLE_BIT)))
@@ -8881,7 +8919,7 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Item *item= new Item_field(field);
     if (!item)
       DBUG_RETURN(NULL);
-    item= join_tab->ref.null_rejecting & (1 << i) ?
+    item= join_tab->ref.null_rejecting & ((key_part_map)1 << i) ?
             (Item *)new Item_func_eq(item, value) :
             (Item *)new Item_func_equal(item, value);
     if (!item)

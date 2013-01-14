@@ -4,10 +4,10 @@
 #
 
 --disable_warnings
-drop table if exists t1;
+drop table if exists tc;
 --enable_warnings
 
-create table t1(a int not null,
+create table tc(a int not null,
  b int not null,
  c int not null,
  primary key (a),
@@ -20,19 +20,19 @@ engine=innodb row_format=compact;
 let $n=100;
 while ($n)
 {
-  eval insert into t1 values($n,$n,$n);
+  eval insert into tc values($n,$n,$n);
   dec $n;
 }
 -- enable_result_log
 -- enable_query_log
-select count(*) from t1;
+select count(*) from tc;
 
 -- echo # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- echo # Run the crashing query
 #-- error 2013
 --error ER_GET_ERRNO
-truncate table t1;
+truncate table tc;
 
 -- enable_reconnect
 -- echo # Restart the MySQL server
@@ -40,7 +40,7 @@ truncate table t1;
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
 
-show create table t1;
+show create table tc;
 
-drop table t1;
+drop table tc;
 

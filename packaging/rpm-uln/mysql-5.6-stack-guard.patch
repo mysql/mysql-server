@@ -7,11 +7,14 @@ mysqld.cc; is it important to fix any of the others?
 
 Filed upstream at http://bugs.mysql.com/bug.php?id=35019
 
+   ===
 
-diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
---- mysql-5.1.30.orig/sql/mysqld.cc	2008-11-14 11:37:13.000000000 -0500
-+++ mysql-5.1.30/sql/mysqld.cc	2009-01-13 12:08:35.000000000 -0500
-@@ -2653,6 +2653,70 @@
+Joerg Bruehe, MySQL Build Team at Oracle: Third hunk adapted to code changes in MySQL 5.6
+
+diff -Naur mysql-5.6.9.orig/sql/mysqld.cc mysql-5.6.9/sql/mysqld.cc
+--- mysql-5.6.9.orig/sql/mysqld.cc	2008-11-14 11:37:13.000000000 -0500
++++ mysql-5.6.9/sql/mysqld.cc	2009-01-13 12:08:35.000000000 -0500
+@@ -2970,6 +2970,70 @@
  }
  
  
@@ -63,7 +66,7 @@ diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
 +      real_stack_size -= guard_size;
 +      if (real_stack_size < stacksize)
 +      {
-+	if (global_system_variables.log_warnings)
++	if (log_warnings)
 +	  sql_print_warning("Asked for %ld thread stack, but got %ld",
 +			    (long) stacksize, (long) real_stack_size);
 +	stacksize= real_stack_size;
@@ -82,7 +85,7 @@ diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
  static void start_signal_handler(void)
  {
    int error;
-@@ -2663,15 +2727,7 @@
+@@ -2980,15 +3044,7 @@
  #if !defined(HAVE_DEC_3_2_THREADS)
    pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
    (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
@@ -99,10 +102,10 @@ diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
  #endif
  
    mysql_mutex_lock(&LOCK_thread_count);
-@@ -4445,37 +4501,7 @@
-     unireg_abort(1);				// Will do exit
-
-   init_signals();
+@@ -5243,37 +5307,7 @@
+     unireg_abort(1);        // Will do exit
+ 
+   my_init_signals();
 -#if defined(__ia64__) || defined(__ia64)
 -  /*
 -    Peculiar things with ia64 platforms - it seems we only have half the
@@ -123,9 +126,9 @@ diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
 -    /* We must check if stack_size = 0 as Solaris 2.9 can return 0 here */
 -    if (stack_size && stack_size < my_thread_stack_size)
 -    {
--      if (global_system_variables.log_warnings)
--	sql_print_warning("Asked for %lu thread stack, but got %ld",
--			  my_thread_stack_size, (long) stack_size);
+-      if (log_warnings)
+-  sql_print_warning("Asked for %lu thread stack, but got %ld",
+-        my_thread_stack_size, (long) stack_size);
 -#if defined(__ia64__) || defined(__ia64)
 -      my_thread_stack_size= stack_size*2;
 -#else
@@ -136,5 +139,5 @@ diff -Naur mysql-5.1.30.orig/sql/mysqld.cc mysql-5.1.30/sql/mysqld.cc
 -#endif
 +  my_thread_stack_size = my_setstacksize(&connection_attrib,my_thread_stack_size);
  
-   (void) thr_setconcurrency(concurrency);	// 10 by default
+   (void) thr_setconcurrency(concurrency); // 10 by default
  

@@ -370,7 +370,7 @@ protected:
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(uint key_len, char *key,
+  my_bool insert_table(uint key_len, const char *key,
 		       Query_cache_block_table *node,
 		       uint32 db_length, uint8 cache_type,
 		       qc_engine_callback callback,
@@ -465,6 +465,9 @@ protected:
   */
   int send_result_to_client(THD *thd, char *query, uint query_length);
 
+  /* Remove all queries that use the given table */
+  void invalidate_single(THD* thd, TABLE_LIST *table_used,
+                         my_bool using_transactions);
   /* Remove all queries that uses any of the listed following tables */
   void invalidate(THD* thd, TABLE_LIST *tables_used,
 		  my_bool using_transactions);
@@ -550,6 +553,7 @@ struct Query_cache_query_flags
 #define query_cache_init() query_cache.init()
 #define query_cache_resize(A) query_cache.resize(A)
 #define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
+#define query_cache_invalidate_single(A, B, C) query_cache.invalidate_single(A, B, C)
 #define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
 #define query_cache_invalidate1(A) query_cache.invalidate(A)
 #define query_cache_send_result_to_client(A, B, C) \
@@ -570,6 +574,7 @@ struct Query_cache_query_flags
 #define query_cache_init()
 #define query_cache_resize(A)
 #define query_cache_set_min_res_unit(A)
+#define query_cache_invalidate_single(A, B, C)
 #define query_cache_invalidate3(A, B, C)
 #define query_cache_invalidate1(A)
 #define query_cache_send_result_to_client(A, B, C) 0

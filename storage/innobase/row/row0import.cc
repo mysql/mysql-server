@@ -376,7 +376,7 @@ public:
 		:
 		m_trx(trx),
 		m_space(ULINT_UNDEFINED),
-		m_xdes(0),
+		m_xdes(),
 		m_xdes_page_no(ULINT_UNDEFINED),
 		m_space_flags(ULINT_UNDEFINED),
 		m_table_flags(ULINT_UNDEFINED) UNIV_NOTHROW { }
@@ -457,21 +457,20 @@ protected:
 		ulint		page_no,
 		const page_t*	page) UNIV_NOTHROW
 	{
-		const xdes_t*	xdesc = xdes(page_no, page);
-
-		ulint		state;
-
 		m_xdes_page_no = page_no;
 
 		delete[] m_xdes;
 
 		m_xdes = 0;
 
+		ulint		state;
+		const xdes_t*	xdesc = page + XDES_ARR_OFFSET;
+
 		state = mach_read_ulint(xdesc + XDES_STATE, MLOG_4BYTES);
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow) xdes_t[XDES_SIZE];
+			m_xdes = new(std::nothrow) xdes_t[m_page_size];
 
 			/* Trigger OOM */
 			DBUG_EXECUTE_IF("ib_import_OOM_13",
@@ -481,7 +480,7 @@ protected:
 				return(DB_OUT_OF_MEMORY);
 			}
 
-			memcpy(m_xdes, xdesc, XDES_SIZE);
+			memcpy(m_xdes, page, m_page_size);
 		}
 
 		return(DB_SUCCESS);
@@ -507,9 +506,10 @@ protected:
 		     == m_xdes_page_no);
 
 		if (m_xdes != 0) {
-			ulint	pos = page_no % FSP_EXTENT_SIZE;
+			const xdes_t*	xdesc = xdes(page_no, m_xdes);
+			ulint		pos = page_no % FSP_EXTENT_SIZE;
 
-			return(xdes_get_bit(m_xdes, XDES_FREE_BIT, pos));
+			return(xdes_get_bit(xdesc, XDES_FREE_BIT, pos));
 		}
 
 		/* If the current xdes was free, the page must be free. */
@@ -729,12 +729,19 @@ FetchIndexRootPages::operator() (
 	const page_t*	page = get_frame(block);
 
 	ulint	page_type = fil_page_get_type(page);
-	ulint	xdes = (ulint) (offset / m_page_size);
 
-	if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(xdes, page);
+	if (block->page.offset * m_page_size != offset) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page offset doesn't match file offset: "
+			"page offset: %lu, file offset: %lu",
+			(ulint) block->page.offset,
+			(ulint) (offset / m_page_size));
+
+		err = DB_CORRUPTION;
+	} else if (page_type == FIL_PAGE_TYPE_XDES) {
+		err = set_current_xdes(block->page.offset, page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(xdes)
+		   && !is_free(block->page.offset)
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);

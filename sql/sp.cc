@@ -2541,6 +2541,15 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DROP_EVENT:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_ALTER_DB_UPGRADE:
+  case SQLCOM_ALTER_DB:
+  case SQLCOM_ALTER_USER:
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:
@@ -2679,7 +2688,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   /* Save the value in the field. Convert the value if needed. */
 
-  expr_item->save_in_field(result_field, 0);
+  expr_item->save_in_field(result_field, false);
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
