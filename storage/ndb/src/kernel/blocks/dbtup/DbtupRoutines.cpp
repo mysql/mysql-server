@@ -1743,6 +1743,11 @@ int Dbtup::updateAttributes(KeyReqStruct *req_struct,
         AttributeHeader::OPTIMIZE_OPTIONS_MASK;
       inBufIndex += 1 + sz;
       req_struct->in_buf_index = inBufIndex;
+      if (inBufIndex == 1 + sz && inBufIndex == inBufLen)
+      {
+        // No table attributes are updated. Optimize op only.
+        regOperPtr->op_struct.m_physical_only_op = 1;
+      }
     }
     else if (attributeId == AttributeHeader::ROW_AUTHOR)
     {
