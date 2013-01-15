@@ -779,12 +779,9 @@ fil_node_open_file(
 
 		os_file_close(node->handle);
 
-		if (!fsp_flags_is_compressed(flags)) {
-			min_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
-		} else {
-			min_size = FIL_IBD_FILE_INITIAL_SIZE
-				* fsp_flags_get_zip_size(flags);
-		}
+		min_size = FIL_IBD_FILE_INITIAL_SIZE
+			   * (fsp_flags_is_compressed(flags)
+			      ? fsp_flags_get_zip_size(flags) : UNIV_PAGE_SIZE);
 
 		if (size_bytes < min_size) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -2234,9 +2231,10 @@ fil_recreate_tablespace(
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though we "
-			"cannot access the .ibd file of this table.",
-			srv_force_recovery);
+			"Continuing crash recovery even though we cannot"
+			"access the .ibd file of the tablespace %lu when"
+			"truncating the table during recovery",
+			srv_force_recovery, space_id);
 		return;
 	}
 
@@ -2244,9 +2242,9 @@ fil_recreate_tablespace(
 	if (zip_size == ULINT_UNDEFINED) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though we "
-			"cannot access the .ibd file of this table.",
-			srv_force_recovery);
+			"Continuing crash recovery even though the "
+			".ibd file of the tablespace %lu is missing",
+			srv_force_recovery, space_id);
 		return;
 	}
 
@@ -2284,9 +2282,12 @@ fil_recreate_tablespace(
 			if (root_page_no == FIL_NULL) {
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though we "
-					"cannot access the .ibd file of this table.",
-					srv_force_recovery);
+					"Continuing crash recovery even though "
+					"we failed to create index %lu for "
+					"compressed table '%s' during recovery",
+					srv_force_recovery,
+					truncate_rec->indexes[i].id,
+					name);
 				return;
 			}
 			buf_index += truncate_rec->indexes[i].field_len;
@@ -2302,9 +2303,12 @@ fil_recreate_tablespace(
 			if (root_page_no == FIL_NULL) {
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though we "
-					"cannot access the .ibd file of this table.",
-					srv_force_recovery);
+					"Continuing crash recovery even though "
+					"we failed to create index %lu for "
+					"table '%s' during recovery",
+					srv_force_recovery,
+					truncate_rec->indexes[i].id,
+					name);
 				return;
 			}
 		}
@@ -2346,7 +2350,8 @@ fil_recreate_tablespace(
 				"innodb_force_recovery was set to %lu. "
 				"Continuing crash recovery even though we "
 				"cannot write page %lu into the .ibd file "
-				"for tablespace %lu.", srv_force_recovery,
+				"for tablespace %lu during recovery.",
+				srv_force_recovery,
 				page_no, space_id);
 		}
 	}
@@ -3056,15 +3061,16 @@ fil_index_tree_is_freed(
 	mtr_x_lock(latch, &mtr);
 	descr = xdes_get_descriptor(space_id, zip_size,
 				    root_page_no, &mtr);
-	mtr_commit(&mtr);
 
 	if (descr == NULL
 	    || (descr != NULL
 		&& xdes_get_bit(descr, XDES_FREE_BIT,
 			root_page_no % FSP_EXTENT_SIZE)) == TRUE) {
+		mtr_commit(&mtr);
 		/* The tree has already been freed */
 		return(true);
 	}
+	mtr_commit(&mtr);
 
 	return(false);
 }
@@ -3354,11 +3360,7 @@ fil_tablespace_is_being_deleted(
 
 	ut_a(space != NULL);
 
-	if (space->stop_new_ops && !space->is_being_truncated) {
-		is_being_deleted = TRUE;
-	} else {
-		is_being_deleted = FALSE;
-	}
+	is_being_deleted = (space->stop_new_ops && !space->is_being_truncated);
 
 	mutex_exit(&fil_system->mutex);
 
@@ -5878,7 +5880,7 @@ fil_io(
 	operations on that. However, we do allow write operations. */
 	if (space == 0
 	    || (type == OS_FILE_READ
-	    && space->stop_new_ops && !space->is_being_truncated)) {
+		&& space->stop_new_ops && !space->is_being_truncated)) {
 		mutex_exit(&fil_system->mutex);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,

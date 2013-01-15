@@ -63,6 +63,13 @@ Created 9/17/2000 Heikki Tuuri
 #include "m_string.h"
 #include "my_sys.h"
 
+#ifdef UNIV_DEBUG
+/** The index number of the second secondary */
+#define INDEX_NUM_SECOND_SECONDARY	3
+/** The time of waiting for redo record is written into redo log */
+#define TIME_WAIT_RECORD_INTO_REDO_LOG	50
+#endif /* UNIV_DEBUG */
+
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
@@ -3524,6 +3531,8 @@ row_truncate_table_for_mysql(
 		root_page_no = dict_free_index_tree(table->name, table->space,
 						    &pcur, &mtr);
 		ind_count++;
+
+#ifdef UNIV_DEBUG
 		/* Crash during the drop of the second secondary */
 		if (ind_count == INDEX_NUM_SECOND_SECONDARY) {
 			/* Waiting for MLOG_FILE_TRUNCATE record is written
@@ -3533,6 +3542,7 @@ row_truncate_table_for_mysql(
 			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
 					DBUG_SUICIDE(););
 		}
+#endif /* UNIV_DEBUG */
 
 		DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
 			root_page_no = FIL_NULL;);
@@ -3631,6 +3641,8 @@ next_rec:
 						      &pcur, &mtr);
 
 		ind_count++;
+
+#ifdef UNIV_DEBUG
 		/* Crash during the creation of the second secondary */
 		if (ind_count == INDEX_NUM_SECOND_SECONDARY) {
 			/* Waiting for MLOG_FILE_TRUNCATE record is written
@@ -3640,6 +3652,7 @@ next_rec:
 			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
 				DBUG_SUICIDE(););
 		}
+#endif /* UNIV_DEBUG */
 
 		rec = btr_pcur_get_rec(&pcur);
 
