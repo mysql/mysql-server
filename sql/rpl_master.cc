@@ -1472,6 +1472,19 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
             mysql_mutex_unlock(log_lock);
+            DBUG_EXECUTE_IF("inject_hb_event_on_mysqlbinlog_dump_thread",
+            {
+              /*
+                Send one HB event (with anything in it, content is irrelevant).
+                We just want to check that mysqlbinlog will be able to ignore it.
+
+                Suicide on failure, since if it happens the entire purpose of the
+                test is comprimised.
+               */
+              if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg) ||
+                  send_heartbeat_event(net, packet, p_coord, current_checksum_alg))
+                DBUG_SUICIDE();
+            });
 	    goto end;
 	  }
 
