@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ Created April 08, 2011 Vasil Dimov
 
 #include "univ.i"
 
+#include <algorithm>
 #include <stdarg.h> /* va_* */
 #include <string.h> /* strerror() */
 
@@ -39,7 +40,6 @@ Created April 08, 2011 Vasil Dimov
 #include "srv0start.h" /* srv_shutdown_state */
 #include "sync0rw.h" /* rw_lock_s_lock() */
 #include "ut0byte.h" /* ut_ull_create() */
-#include "ut0sort.h" /* UT_SORT_FUNCTION_BODY */
 
 enum status_severity {
 	STATUS_INFO,
@@ -325,42 +325,6 @@ buf_dump(
 }
 
 /*****************************************************************//**
-Compare two buffer pool dump entries, used to sort the dump on
-space_no,page_no before loading in order to increase the chance for
-sequential IO.
-@return -1/0/1 if entry 1 is smaller/equal/bigger than entry 2 */
-static
-lint
-buf_dump_cmp(
-/*=========*/
-	const buf_dump_t	d1,	/*!< in: buffer pool dump entry 1 */
-	const buf_dump_t	d2)	/*!< in: buffer pool dump entry 2 */
-{
-	if (d1 < d2) {
-		return(-1);
-	} else if (d1 == d2) {
-		return(0);
-	} else {
-		return(1);
-	}
-}
-
-/*****************************************************************//**
-Sort a buffer pool dump on space_no, page_no. */
-static
-void
-buf_dump_sort(
-/*==========*/
-	buf_dump_t*	dump,	/*!< in/out: buffer pool dump to sort */
-	buf_dump_t*	tmp,	/*!< in/out: temp storage */
-	ulint		low,	/*!< in: lowest index (inclusive) */
-	ulint		high)	/*!< in: highest index (non-inclusive) */
-{
-	UT_SORT_FUNCTION_BODY(buf_dump_sort, dump, tmp, low, high,
-			      buf_dump_cmp);
-}
-
-/*****************************************************************//**
 Perform a buffer pool load from the file specified by
 innodb_buffer_pool_filename. If any errors occur then the value of
 innodb_buffer_pool_load_status will be set accordingly, see buf_load_status().
@@ -375,7 +339,6 @@ buf_load()
 	char		now[32];
 	FILE*		f;
 	buf_dump_t*	dump;
-	buf_dump_t*	dump_tmp;
 	ulint		dump_n;
 	ulint		total_buffer_pools_pages;
 	ulint		i;
@@ -446,19 +409,6 @@ buf_load()
 		return;
 	}
 
-	dump_tmp = static_cast<buf_dump_t*>(
-		ut_malloc(dump_n * sizeof(*dump_tmp)));
-
-	if (dump_tmp == NULL) {
-		ut_free(dump);
-		fclose(f);
-		buf_load_status(STATUS_ERR,
-				"Cannot allocate " ULINTPF " bytes: %s",
-				(ulint) (dump_n * sizeof(*dump_tmp)),
-				strerror(errno));
-		return;
-	}
-
 	rewind(f);
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
@@ -472,7 +422,6 @@ buf_load()
 			/* else */
 
 			ut_free(dump);
-			ut_free(dump_tmp);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
 					"Error parsing '%s', unable "
@@ -483,7 +432,6 @@ buf_load()
 
 		if (space_id > ULINT32_MASK || page_no > ULINT32_MASK) {
 			ut_free(dump);
-			ut_free(dump_tmp);
 			fclose(f);
 			buf_load_status(STATUS_ERR,
 					"Error parsing '%s': bogus "
@@ -516,10 +464,8 @@ buf_load()
 	}
 
 	if (!SHUTTING_DOWN()) {
-		buf_dump_sort(dump, dump_tmp, 0, dump_n);
+		std::sort(dump, dump + dump_n);
 	}
-
-	ut_free(dump_tmp);
 
 	for (i = 0; i < dump_n && !SHUTTING_DOWN(); i++) {
 
