@@ -10610,7 +10610,6 @@ void JOIN::cleanup(bool full)
         filesort_free_buffers(first_tab->table, full);
       }
     }
-
     if (full)
     {
       JOIN_TAB *sort_tab= first_linear_tab(this, WITHOUT_CONST_TABLES);
@@ -15721,11 +15720,11 @@ do_select(JOIN *join,List<Item> *fields,TABLE *table,Procedure *procedure)
     if (table->group && join->tmp_table_param.sum_func_count &&
         table->s->keys && !table->file->inited)
     {
-      int tmp_error;
-      if ((tmp_error= table->file->ha_index_init(0, 0)))
+      rc= table->file->ha_index_init(0, 0);
+      if (rc)
       {
-        table->file->print_error(tmp_error, MYF(0)); /* purecov: inspected */
-        DBUG_RETURN(-1);                             /* purecov: inspected */
+        table->file->print_error(rc, MYF(0));
+        DBUG_RETURN(-1);
       }
     }
   }
@@ -16751,7 +16750,12 @@ int join_read_key2(THD *thd, JOIN_TAB *tab, TABLE *table, TABLE_REF *table_ref)
   int error;
   if (!table->file->inited)
   {
-    table->file->ha_index_init(table_ref->key, (tab ? tab->sorted : TRUE));
+    error= table->file->ha_index_init(table_ref->key, tab ? tab->sorted : TRUE);
+    if (error)
+    {
+      (void) report_error(table, error);
+      return 1;
+    }
   }
 
   /* TODO: Why don't we do "Late NULLs Filtering" here? */
@@ -16842,8 +16846,8 @@ join_read_always_key(JOIN_TAB *tab)
   {
     if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
     {
-      table->file->print_error(error, MYF(0));/* purecov: inspected */
-      return(1);                              /* purecov: inspected */
+      (void) report_error(table, error);
+      return 1;
     }
   }
 
@@ -16873,14 +16877,13 @@ join_read_last_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (!table->file->inited)
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    if ((error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
-    {
-      table->file->print_error(error, MYF(0));/* purecov: inspected */
-      return(1);                              /* purecov: inspected */
-    }
+    (void) report_error(table, error);
+    return 1;
   }
+
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
   if ((error= table->file->ha_index_read_map(table->record[0],
@@ -17091,9 +17094,10 @@ join_ft_read_first(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, 1)))
   {
-    table->file->print_error(error, MYF(0));  /* purecov: inspected */
-    return(1);                                /* purecov: inspected */
+    (void) report_error(table, error);
+    return 1;
   }
+
   table->file->ft_init();
 
   if ((error= table->file->ha_ft_read(table->record[0])))
@@ -17498,9 +17502,10 @@ end_update(JOIN *join, JOIN_TAB *join_tab __attribute__((unused)),
     /* Change method to update rows */
     if ((error= table->file->ha_index_init(0, 0)))
     {
-      table->file->print_error(error, MYF(0));/* purecov: inspected */
-      DBUG_RETURN(NESTED_LOOP_ERROR);         /* purecov: inspected */
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(NESTED_LOOP_ERROR);
     }
+
     join->join_tab[join->top_join_tab_count-1].next_select=end_unique_update;
   }
   join->send_records++;

@@ -1,5 +1,10 @@
 -- source include/have_innodb.inc
 
+if (`select plugin_auth_version <= "1.1.8-29.1" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB 1.1.8-29.1 or earlier
+}
+
 let $per_table=`select @@innodb_file_per_table`;
 let $format=`select @@innodb_file_format`;
 let $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;

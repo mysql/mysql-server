@@ -1404,7 +1404,6 @@ os_file_create_func(
 		SetLastError(ERROR_DISK_FULL);
 		return((os_file_t) -1);
 	);
-
 try_again:
 	ut_a(name);
 
@@ -1526,7 +1525,6 @@ try_again:
 		errno = ENOSPC;
 		return((os_file_t) -1);
 	);
-
 try_again:
 	ut_a(name);
 

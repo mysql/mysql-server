@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -100,7 +100,10 @@ ENDIF()
 # just use if(INSTALL_PLUGINTESTDIR).
 # The plugin must set its own install path for tests
 #
-FILE(GLOB plugin_tests ${CMAKE_SOURCE_DIR}/plugin/*/tests)
+FILE(GLOB plugin_tests
+  ${CMAKE_SOURCE_DIR}/plugin/*/tests
+  ${CMAKE_SOURCE_DIR}/internal/plugin/*/tests
+)
 
 #
 # STANDALONE layout

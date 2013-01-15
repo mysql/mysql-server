@@ -58,6 +58,46 @@ typedef struct
   uint index;
 } sp_active_handler_t;
 
+
+class Sql_condition_info : public Sql_alloc
+{
+public:
+  /** SQL error code. */
+  uint m_sql_errno;
+
+  /** Error level. */
+  MYSQL_ERROR::enum_warning_level m_level;
+
+  /** SQLSTATE. */
+  char m_sql_state[SQLSTATE_LENGTH + 1];
+
+  /** Text message. */
+  char m_message[MYSQL_ERRMSG_SIZE];
+
+  void set(uint sql_errno, const char* sqlstate,
+           MYSQL_ERROR::enum_warning_level level,
+           const char* msg)
+  {
+    m_sql_errno= sql_errno;
+    m_level= level;
+
+    memcpy(m_sql_state, sqlstate, SQLSTATE_LENGTH);
+    m_sql_state[SQLSTATE_LENGTH]= '\0';
+
+    strncpy(m_message, msg, MYSQL_ERRMSG_SIZE);
+  }
+
+  void clear()
+  {
+    m_sql_errno= 0;
+    m_level= MYSQL_ERROR::WARN_LEVEL_ERROR;
+
+    m_sql_state[0]= '\0';
+    m_message[0]= '\0';
+  }
+};
+
+
 /*
   This class is a runtime context of a Stored Routine. It is used in an
   execution and is intended to contain all dynamic objects (i.e.  objects, which
@@ -146,8 +186,7 @@ class sp_rcontext : public Sql_alloc
                MYSQL_ERROR::enum_warning_level level,
                const char *msg);
 
-  MYSQL_ERROR *
-  raised_condition() const;
+  Sql_condition_info *raised_condition() const;
 
   void
   push_hstack(uint h);
@@ -232,7 +271,7 @@ private:
     SQL conditions caught by each handler.
     This is an array indexed by handler index.
   */
-  MYSQL_ERROR *m_raised_conditions;
+  Sql_condition_info *m_raised_conditions;
 
   uint m_hcount;                // Stack pointer for m_handler
   uint *m_hstack;               // Return stack for continue handlers

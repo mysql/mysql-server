@@ -24,7 +24,7 @@
 #include "sql_acl.h"     // DROP_ACL
 #include "sql_parse.h"   // check_one_table_access()
 #include "sql_truncate.h"
-#include "sql_show.h"
+#include "sql_show.h"    //append_identifier()
 
 
 /**

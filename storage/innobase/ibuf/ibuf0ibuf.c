@@ -2868,6 +2868,14 @@ ibuf_get_volume_buffered_count_func(
 	ut_a(len == 1);
 	ut_ad(trx_sys_multiple_tablespace_format);
 
+	if (rec_get_deleted_flag(rec, 0)) {
+		/* This record has been merged already,
+		but apparently the system crashed before
+		the change was discarded from the buffer.
+		Pretend that the record does not exist. */
+		return(0);
+	}
+
 	types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
@@ -4176,11 +4184,11 @@ ibuf_delete(
 					page, 1);
 		}
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(!page_zip || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(!page_zip || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 		if (page_zip) {
@@ -4295,7 +4303,7 @@ ibuf_delete_rec(
 		an assertion failure after crash recovery. */
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
-		mtr_commit(mtr);
+		ibuf_mtr_commit(mtr);
 		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 		DBUG_SUICIDE();
 	}

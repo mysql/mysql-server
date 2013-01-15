@@ -725,7 +725,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     int error;
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+    {
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
+    }
 
   /*
     Don't print debug messages when running valgrind since they can
@@ -858,7 +861,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
       default:
         table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
         DBUG_RETURN(error);
       }
     }
@@ -2428,7 +2431,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           continue;
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
-        table->file->ha_index_end();
+        (void) table->file->ha_index_end();
         DBUG_RETURN(error);
       }
     }

@@ -50,6 +50,7 @@
 #include "sql_connect.h"
 #include "hostname.h"
 #include "sql_db.h"
+#include "sql_array.h"
 
 bool mysql_user_table_is_in_short_password_format= false;
 
@@ -570,8 +571,9 @@ enum enum_acl_lists
   COLUMN_PRIVILEGES_HASH,
   PROC_PRIVILEGES_HASH,
   FUNC_PRIVILEGES_HASH,
-  ACL_PROXY_USERS
+  PROXY_USERS_ACL
 };
+
 /*
   Convert scrambled password to binary form, according to scramble type, 
   Binary form is stored in user.salt.
@@ -2722,7 +2724,13 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   get_grantor(thd, grantor);
 
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("ha_index_init error"));
+    DBUG_RETURN(-1);
+  }
+
   if (table->file->ha_index_read_map(table->record[0], user_key,
                                      HA_WHOLE_KEY,
                                      HA_READ_KEY_EXACT))
@@ -2964,7 +2972,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    col_privs->file->ha_index_init(0, 1);
+    if (col_privs->file->ha_index_init(0, 1))
+    {
+      cols= 0;
+      return;
+    }
+
     if (col_privs->file->ha_index_read_map(col_privs->record[0], (uchar*) key,
                                            (key_part_map)15,
                                            HA_READ_KEY_EXACT))
@@ -3104,7 +3117,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				const char *db, const char *table_name,
 				ulong rights, bool revoke_grant)
 {
-  int error=0,result=0;
+  int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   KEY_PART_INFO *key_part= table->key_info->key_part;
@@ -3131,7 +3144,13 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  table->file->ha_index_init(0, 1);
+  int error= table->file->ha_index_init(0, 1);
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(-1);
+  }
+
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -4257,7 +4276,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
                       0,0);
-  p_table->file->ha_index_init(0, 1);
+
+  if (p_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(TRUE);
+
   p_table->use_all_columns();
 
   if (!p_table->file->ha_index_first(p_table->record[0]))
@@ -4358,7 +4380,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  t_table->file->ha_index_init(0, 1);
+
+  if (t_table->file->ha_index_init(0, 1))
+    goto end_index_init;
+
   t_table->use_all_columns();
   c_table->use_all_columns();
 
@@ -4403,9 +4428,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
-  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+end_index_init:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 
@@ -6098,11 +6124,10 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     2 COLUMN_PRIVILEGES_HASH
     3 PROC_PRIVILEGES_HASH
     4 FUNC_PRIVILEGES_HASH
-    5 ACL_PROXY_USERS
+    5 PROXY_USERS_ACL
 
   @retval > 0  At least one element matched.
   @retval 0    OK, but no element matched.
-  @retval -1   Wrong arguments to function or Out of Memory
 */
 
 static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
@@ -6147,10 +6172,11 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     grant_name_hash= &func_priv_hash;
     elements= grant_name_hash->records;
     break;
-  case 5:
+  case PROXY_USERS_ACL:
     elements= acl_proxy_users.elements;
     break;
   default:
+    DBUG_ASSERT(0);
     return -1;
   }
 
@@ -6185,7 +6211,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       host= grant_name->host.hostname;
       break;
 
-    case 5:
+    case PROXY_USERS_ACL:
       acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
       user= acl_proxy_user->get_user();
       host= acl_proxy_user->get_host();
@@ -6225,7 +6251,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
         my_hash_delete(grant_name_hash, (uchar*) grant_name);
 	break;
 
-      case 5:
+      case PROXY_USERS_ACL:
         delete_dynamic_element(&acl_proxy_users, idx);
         break;
 
@@ -6297,11 +6323,10 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           break;
         }
 
-      case 5:
+      case PROXY_USERS_ACL:
         acl_proxy_user->set_user (&mem, user_to->user.str);
         acl_proxy_user->set_host (&mem, user_to->host.str);
         break;
-
       }
     }
     else
@@ -6448,7 +6473,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   /* Handle proxies_priv table. */
   if (tables[5].table)
   {
-    if ((found= handle_grant_table(tables, ACL_PROXY_USERS, drop, user_from, user_to)) < 0)
+    if ((found= handle_grant_table(tables, 5, drop, user_from, user_to)) < 0)
     {
       /* Handle of table failed, don't touch the in-memory array. */
       result= -1;
@@ -6456,7 +6481,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     else
     {
       /* Handle proxies_priv array. */
-      if ((handle_grant_struct(ACL_PROXY_USERS, drop, user_from, user_to) && !result) ||
+      if ((handle_grant_struct(PROXY_USERS_ACL, drop, user_from, user_to) && !result) ||
           found)
         result= 1; /* At least one record/element found. */
     }
@@ -7278,14 +7303,25 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
     DBUG_RETURN(FALSE);
   }
 
-  /* one can grant proxy to himself to others */
-  if (!strcmp(thd->security_ctx->user, user) &&
+  /*
+    one can grant proxy for self to others.
+    Security context in THD contains two pairs of (user,host):
+    1. (user,host) pair referring to inbound connection.
+    2. (priv_user,priv_host) pair obtained from mysql.user table after doing
+        authnetication of incoming connection.
+    Privileges should be checked wrt (priv_user, priv_host) tuple, because
+    (user,host) pair obtained from inbound connection may have different
+    values than what is actually stored in mysql.user table and while granting
+    or revoking proxy privilege, user is expected to provide entries mentioned
+    in mysql.user table.
+  */
+  if (!strcmp(thd->security_ctx->priv_user, user) &&
       !my_strcasecmp(system_charset_info, host,
-                     thd->security_ctx->host))
+                     thd->security_ctx->priv_host))
   {
     DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal", 
-                        thd->security_ctx->user, user,
-                        host, thd->security_ctx->host));
+                        thd->security_ctx->priv_user, user,
+                        host, thd->security_ctx->priv_host));
     DBUG_RETURN(FALSE);
   }
 

@@ -117,6 +117,7 @@
 #include "records.h"          // init_read_record, end_read_record
 #include <m_ctype.h>
 #include "sql_select.h"
+#include "filesort.h"         // filesort_free_buffers
 
 #ifndef EXTRA_DEBUG
 #define test_rb_tree(A,B) {}
@@ -1892,7 +1893,8 @@ int QUICK_INDEX_SORT_SELECT::init()
 int QUICK_INDEX_SORT_SELECT::reset()
 {
   DBUG_ENTER("QUICK_INDEX_SORT_SELECT::reset");
-  DBUG_RETURN(read_keys_and_merge());
+  const int retval= read_keys_and_merge();
+  DBUG_RETURN(retval);
 }
 
 bool
@@ -2138,8 +2140,9 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if (quick->init_ror_merged_scan(TRUE))
-      DBUG_RETURN(1);
+    int error= quick->init_ror_merged_scan(TRUE);
+    if (error)
+      DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while ((cur= quick_it++))
@@ -2322,8 +2325,8 @@ int QUICK_ROR_UNION_SELECT::reset()
   List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
   while ((quick= it++))
   {
-    if (quick->reset())
-      DBUG_RETURN(1);
+    if ((error= quick->reset()))
+      DBUG_RETURN(error);
     if ((error= quick->get_next()))
     {
       if (error == HA_ERR_END_OF_FILE)
@@ -2334,10 +2337,10 @@ int QUICK_ROR_UNION_SELECT::reset()
     queue_insert(&queue, (uchar*)quick);
   }
 
-  if (head->file->ha_rnd_init_with_error(1))
+  if ((error= head->file->ha_rnd_init(1)))
   {
     DBUG_PRINT("error", ("ROR index_merge rnd_init call failed"));
-    DBUG_RETURN(1);
+    DBUG_RETURN(error);
   }
 
   DBUG_RETURN(0);
@@ -10604,7 +10607,10 @@ int read_keys_and_merge_scans(THD *thd,
     *unique_ptr= unique;
   }
   else
+  {
     unique->reset();
+    filesort_free_buffers(head, false);
+  }
 
   DBUG_ASSERT(file->ref_length == unique->get_size());
   DBUG_ASSERT(thd->variables.sortbuff_size == unique->get_max_in_memory_size());
@@ -10763,6 +10769,13 @@ int QUICK_INDEX_INTERSECT_SELECT::get_next()
     If a Clustered PK scan is present, it is used only to check if row
     satisfies its condition (and never used for row retrieval).
 
+    Locking: to ensure that exclusive locks are only set on records that
+    are included in the final result we must release the lock
+    on all rows we read but do not include in the final result. This
+    must be done on each index that reads the record and the lock
+    must be released using the same handler (the same quick object) as
+    used when reading the record.
+
   RETURN
    0     - Ok
    other - Error code if any error occurred.
@@ -10773,6 +10786,12 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
   List_iterator_fast<QUICK_SELECT_WITH_RECORD> quick_it(quick_selects);
   QUICK_SELECT_WITH_RECORD *qr;
   QUICK_RANGE_SELECT* quick;
+
+  /* quick that reads the given rowid first. This is needed in order
+  to be able to unlock the row using the same handler object that locked
+  it */
+  QUICK_RANGE_SELECT* quick_with_last_rowid;
+
   int error, cmp;
   uint last_rowid_count=0;
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::get_next");
@@ -10786,7 +10805,10 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
     if (cpk_quick)
     {
       while (!error && !cpk_quick->row_in_ranges())
+      {
+        quick->file->unlock_row(); /* row not in range; unlock */
         error= quick->get_next();
+      }
     }
     if (error)
       DBUG_RETURN(error);
@@ -10798,6 +10820,7 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
     quick->file->position(quick->record);
     memcpy(last_rowid, quick->file->ref, head->file->ref_length);
     last_rowid_count= 1;
+    quick_with_last_rowid= quick;
 
     while (last_rowid_count < quick_selects.elements)
     {
@@ -10811,9 +10834,17 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
       do
       {
         if ((error= quick->get_next()))
+        {
+          quick_with_last_rowid->file->unlock_row();
           DBUG_RETURN(error);
+        }
         quick->file->position(quick->record);
         cmp= head->file->cmp_ref(quick->file->ref, last_rowid);
+        if (cmp < 0)
+        {
+          /* This row is being skipped.  Release lock on it. */
+          quick->file->unlock_row();
+        }
       } while (cmp < 0);
 
       key_copy(qr->key_tuple, record, head->key_info + quick->index,
@@ -10827,13 +10858,19 @@ int QUICK_ROR_INTERSECT_SELECT::get_next()
         {
           while (!cpk_quick->row_in_ranges())
           {
+            quick->file->unlock_row(); /* row not in range; unlock */
             if ((error= quick->get_next()))
+            {
+              quick_with_last_rowid->file->unlock_row();
               DBUG_RETURN(error);
+            }
           }
           quick->file->position(quick->record);
         }
         memcpy(last_rowid, quick->file->ref, head->file->ref_length);
+        quick_with_last_rowid->file->unlock_row();
         last_rowid_count= 1;
+        quick_with_last_rowid= quick;
 
         //save the fields here
         key_copy(qr->key_tuple, record, head->key_info + quick->index,
@@ -10956,8 +10993,14 @@ int QUICK_RANGE_SELECT::reset()
   {
     if (in_ror_merged_scan)
       head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
+
+    DBUG_EXECUTE_IF("bug14365043_2",
+                    DBUG_SET("+d,ha_index_init_fail"););
     if ((error= file->ha_index_init(index,1)))
+    {
+        file->print_error(error, MYF(0));
         DBUG_RETURN(error);
+    }
   }
 
   /* Allocate buffer if we need one but haven't allocated it yet */
@@ -13161,7 +13204,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::reset(void)
     head->enable_keyread(); /* We need only the key attributes */
   }
   if ((result= file->ha_index_init(index,1)))
+  {
+    head->file->print_error(result, MYF(0));
     DBUG_RETURN(result);
+  }
   if (quick_prefix_select && quick_prefix_select->reset())
     DBUG_RETURN(1);
   result= file->ha_index_last(record);

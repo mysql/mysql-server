@@ -4,6 +4,11 @@
 #   .\sync\sync0sync.c line 324
 # is fixed
 
+if (`select plugin_auth_version <= "1.1.8-29.1" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB 1.1.8-29.1 or earlier
+}
+
 #######################################################################
 #                                                                     #
 # Please, DO NOT TOUCH this file as well as the innodb.result file.   #

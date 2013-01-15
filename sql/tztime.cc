@@ -1718,14 +1718,11 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
   }
 
   table= tz_tables[0].table;
-  /*
-    It is OK to ignore ha_index_init()/ha_index_end() return values since
-    mysql.time_zone* tables are MyISAM and these operations always succeed
-    for MyISAM.
-  */
-  (void)table->file->ha_index_init(0, 1);
-  table->use_all_columns();
 
+  if (table->file->ha_index_init(0, 1))
+    goto end_with_close;
+
+  table->use_all_columns();
   tz_leapcnt= 0;
 
   res= table->file->ha_index_first(table->record[0]);
@@ -1913,12 +1910,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   tz_tables= tz_tables->next_local;
   table->field[0]->store(tz_name->ptr(), tz_name->length(),
                          &my_charset_latin1);
-  /*
-    It is OK to ignore ha_index_init()/ha_index_end() return values since
-    mysql.time_zone* tables are MyISAM and these operations always succeed
-    for MyISAM.
-  */
-  (void)table->file->ha_index_init(0, 1);
+  if (table->file->ha_index_init(0, 1))
+    goto end;
 
   if (table->file->ha_index_read_map(table->record[0], table->field[0]->ptr,
                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT))
@@ -1951,7 +1944,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   field->get_key_image(keybuff,
                        min(field->key_length(), sizeof(keybuff)),
                        Field::itRAW);
-  (void)table->file->ha_index_init(0, 1);
+  if (table->file->ha_index_init(0, 1))
+    goto end;
 
   if (table->file->ha_index_read_map(table->record[0], keybuff,
                                      HA_WHOLE_KEY, HA_READ_KEY_EXACT))
@@ -1983,7 +1977,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   field->get_key_image(keybuff,
                        min(field->key_length(), sizeof(keybuff)),
                        Field::itRAW);
-  (void)table->file->ha_index_init(0, 1);
+  if (table->file->ha_index_init(0, 1))
+    goto end;
 
   res= table->file->ha_index_read_map(table->record[0], keybuff,
                                       (key_part_map)1, HA_READ_KEY_EXACT);
@@ -2053,7 +2048,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
   */
   table= tz_tables->table; 
   table->field[0]->store((longlong) tzid, TRUE);
-  (void)table->file->ha_index_init(0, 1);
+  if (table->file->ha_index_init(0, 1))
+    goto end;
 
   res= table->file->ha_index_read_map(table->record[0], keybuff,
                                       (key_part_map)1, HA_READ_KEY_EXACT);
@@ -2187,8 +2183,8 @@ tz_load_from_open_tables(const String *tz_name, TABLE_LIST *tz_tables)
 
 end:
 
-  if (table)
-    (void)table->file->ha_index_end();
+  if (table && table->file->inited)
+    (void) table->file->ha_index_end();
 
   DBUG_RETURN(return_val);
 }

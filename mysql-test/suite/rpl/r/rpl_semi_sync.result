@@ -93,7 +93,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	301
+Rpl_semi_sync_master_yes_tx	11
 [ on slave ]
 [ slave status after replicated inserts ]
 show status like 'Rpl_semi_sync_slave_status';
@@ -101,13 +101,13 @@ Variable_name	Value
 Rpl_semi_sync_slave_status	ON
 select count(distinct a) from t1;
 count(distinct a)
-300
+10
 select min(a) from t1;
 min(a)
 1
 select max(a) from t1;
 max(a)
-300
+10
 
 # BUG#50157
 # semi-sync replication crashes when replicating a transaction which
@@ -133,6 +133,7 @@ SET SESSION AUTOCOMMIT= 1;
 #
 include/stop_slave.inc
 [ on master ]
+set global rpl_semi_sync_master_timeout= 5000;
 [ master status should be ON ]
 show status like 'Rpl_semi_sync_master_status';
 Variable_name	Value
@@ -142,7 +143,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	0
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	14
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -157,7 +158,7 @@ Variable_name	Value
 Rpl_semi_sync_master_no_tx	1
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	14
 insert into t1 values (100);
 [ master status should be OFF ]
 show status like 'Rpl_semi_sync_master_status';
@@ -165,10 +166,10 @@ Variable_name	Value
 Rpl_semi_sync_master_status	OFF
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	302
+Rpl_semi_sync_master_no_tx	12
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	14
 #
 # Test semi-sync status on master will be ON again when slave catches up
 #
@@ -198,10 +199,10 @@ Variable_name	Value
 Rpl_semi_sync_master_status	ON
 show status like 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	302
+Rpl_semi_sync_master_no_tx	12
 show status like 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	304
+Rpl_semi_sync_master_yes_tx	14
 show status like 'Rpl_semi_sync_master_clients';
 Variable_name	Value
 Rpl_semi_sync_master_clients	1
@@ -217,10 +218,10 @@ include/stop_slave.inc
 [ Semi-sync master status variables before FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';
 Variable_name	Value
-Rpl_semi_sync_master_no_tx	302
+Rpl_semi_sync_master_no_tx	12
 SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx';
 Variable_name	Value
-Rpl_semi_sync_master_yes_tx	305
+Rpl_semi_sync_master_yes_tx	15
 FLUSH NO_WRITE_TO_BINLOG STATUS;
 [ Semi-sync master status variables after FLUSH STATUS ]
 SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx';

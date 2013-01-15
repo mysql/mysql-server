@@ -1843,6 +1843,7 @@ public:
   int ha_open(TABLE *table, const char *name, int mode, uint test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
+    DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
     int result;
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
@@ -1867,6 +1868,7 @@ public:
   virtual int prepare_index_scan() { return 0; }
   int ha_rnd_init(bool scan) __attribute__ ((warn_unused_result))
   {
+    DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
     int result;
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));
@@ -2748,7 +2750,7 @@ private:
   */
 
   virtual int open(const char *name, int mode, uint test_if_locked)=0;
-  /* Note: ha_index_read_idx_map() may buypass index_init() */
+  /* Note: ha_index_read_idx_map() may bypass index_init() */
   virtual int index_init(uint idx, bool sorted) { return 0; }
   virtual int index_end() { return 0; }
   /**

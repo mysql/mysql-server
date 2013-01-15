@@ -1009,11 +1009,23 @@ convert_error_code_to_mysql(
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	case DB_TOO_BIG_RECORD:
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(flags
-						      & DICT_TF_COMPACT) / 2);
+	case DB_TOO_BIG_RECORD: {
+		/* If prefix is true then a 768-byte prefix is stored
+		locally for BLOB fields. Refer to dict_table_get_format() */
+		bool prefix = ((flags & DICT_TF_FORMAT_MASK)
+		 	       >> DICT_TF_FORMAT_SHIFT) < UNIV_FORMAT_B;
+		my_printf_error(ER_TOO_BIG_ROWSIZE,
+			"Row size too large (> %lu). Changing some columns "
+			"to TEXT or BLOB %smay help. In current row "
+			"format, BLOB prefix of %d bytes is stored inline.",
+			MYF(0),
+			page_get_free_space_of_empty(flags &
+				DICT_TF_COMPACT) / 2,
+			prefix ? "or using ROW_FORMAT=DYNAMIC "
+			"or ROW_FORMAT=COMPRESSED ": "",
+			prefix ? DICT_MAX_FIXED_COL_LEN : 0);
 		return(HA_ERR_TO_BIG_ROW);
+        }
 
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
@@ -1483,19 +1495,19 @@ innobase_next_autoinc(
         */
         max_value= (~(ulonglong) 0);
 
-	/* Current value should never be greater than the maximum. */
-	ut_a(current <= max_value);
-
 	/* According to MySQL documentation, if the offset is greater than
 	the step then the offset is ignored. */
 	if (offset > block) {
 		offset = 0;
 	}
 
-	/* Check for overflow. */
+	/* Check for overflow. Current can be > max_value if the value is
+	in reality a negative value.The visual studio compilers converts
+	large double values automatically into unsigned long long datatype
+	maximum value */
 	if (block >= max_value
 	    || offset > max_value
-	    || current == max_value
+	    || current >= max_value
 	    || max_value - offset <= offset) {
 
 		next_value = max_value;

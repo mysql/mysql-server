@@ -2487,6 +2487,9 @@ row_sel_convert_mysql_key_to_innobase(
 		dfield++;
 	}
 
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
+		ut_a(buf == (original_buf + buf_len)););
+
 	ut_a(buf <= original_buf + buf_len);
 
 	/* We set the length of tuple to n_fields: we assume that the memory

@@ -4110,9 +4110,9 @@ sp_head::merge_table_list(THD *thd, TABLE_LIST *table, LEX *lex_for_tmp_check)
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
       */
-      if ((tab= (SP_TABLE *)my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
+      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
                                            tname.length())) ||
-          ((tab= (SP_TABLE *)my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
+          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
                                             temp_table_key_length)) &&
            tab->temp))
       {

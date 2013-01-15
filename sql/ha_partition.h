@@ -182,6 +182,9 @@ private:
   static int compare_number_of_records(ha_partition *me,
                                        const uint32 *a,
                                        const uint32 *b);
+  /** partitions that returned HA_ERR_KEY_NOT_FOUND. */
+  MY_BITMAP m_key_not_found_partitions;
+  bool m_key_not_found;
 public:
   handler *clone(const char *name, MEM_ROOT *mem_root);
   virtual void set_part_info(partition_info *part_info)
@@ -516,6 +519,7 @@ private:
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
   int handle_ordered_index_scan(uchar * buf, bool reverse_order);
+  int handle_ordered_index_scan_key_not_found();
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
   void return_top_record(uchar * buf);
