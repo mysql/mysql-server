@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9202,6 +9202,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   m_type= event_type;
   
   uint8 const post_header_len= description_event->post_header_len[event_type-1];
+  memset(&m_cols, 0, sizeof(m_cols));
 
   DBUG_PRINT("enter",("event_len: %u  common_header_len: %d  "
 		      "post_header_len: %d",
@@ -9233,7 +9234,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
       which includes length bytes
     */
     var_header_len= uint2korr(post_start);
-    assert(var_header_len >= 2);
+    if (var_header_len < 2)
+      DBUG_VOID_RETURN;
+
     var_header_len-= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
@@ -9246,9 +9249,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
       case RW_V_EXTRAINFO_TAG:
       {
         /* Have an 'extra info' section, read it in */
-        assert((end - pos) >= EXTRA_ROW_INFO_HDR_BYTES);
+        if ((end - pos) < EXTRA_ROW_INFO_HDR_BYTES)
+          DBUG_VOID_RETURN;
+
         uint8 infoLen= pos[EXTRA_ROW_INFO_LEN_OFFSET];
-        assert((end - pos) >= infoLen);
+        if ((end - pos) < infoLen)
+          DBUG_VOID_RETURN;
+
         /* Just store/use the first tag of this type, skip others */
         if (likely(!m_extra_row_data))
         {
@@ -9354,8 +9361,10 @@ Rows_log_event::~Rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free(m_rows_buf);
-  my_free(m_extra_row_data);
+  if (m_rows_buf)
+    my_free(m_rows_buf);
+  if (m_extra_row_data)
+    my_free(m_extra_row_data);
 }
 
 int Rows_log_event::get_data_size()
