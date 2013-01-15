@@ -868,7 +868,6 @@ struct handlerton
      Tell handler that query has been killed.
      hard_kill is set in case of HARD KILL (abort query even if
      it may corrupt table).
-     Return 1 if the handler wants to upgrade the kill to a hard kill
    */
    void (*kill_query)(handlerton *hton, THD *thd, my_bool hard_kill);
    /*

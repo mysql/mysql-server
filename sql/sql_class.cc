@@ -3853,18 +3853,6 @@ extern "C" int thd_killed(const MYSQL_THD thd)
   return thd->killed;
 }
 
-/**
-  Change kill level to hard.
-  This ensures that thd_killed() will return true.
-  This is important for storage engines that uses thd_killed() to
-  verify if thread is killed.
-*/
-
-extern "C" void thd_mark_as_hard_kill(MYSQL_THD thd)
-{
-  thd->mark_as_hard_kill();
-}
-
 
 /**
    Send an out-of-band progress report to the client

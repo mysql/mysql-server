@@ -2729,17 +2729,6 @@ public:
             (!transaction.stmt.modified_non_trans_table ||
              (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
-  /*
-    Increase level of kill ; Ensures that thd_killed() returns true.
-
-    Needed if storage engine wants to abort things because of a 'soft' (ie,
-    safe) kill but still uses thd_killed() to check if it's killed.
-  */
-  inline void mark_as_hard_kill()
-  {
-    DBUG_ASSERT(killed != NOT_KILLED);
-    killed= (killed_state) (killed | KILL_HARD_BIT);
-  }
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
   void restore_backup_open_tables_state(Open_tables_backup *backup);

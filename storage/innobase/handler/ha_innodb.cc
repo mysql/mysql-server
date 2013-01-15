@@ -3195,7 +3195,7 @@ innobase_kill_query(
 
 	/* Cancel a pending lock request. */
 	if (trx && trx->wait_lock) {
-                thd_mark_as_hard_kill(thd);
+                //trx->killed= 1;
 		lock_cancel_waiting_and_release(trx->wait_lock);
 	}
 
