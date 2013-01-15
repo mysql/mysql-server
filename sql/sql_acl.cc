@@ -2891,7 +2891,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       if (digest_password(thd, combo))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), CRYPT_MAX_PASSWORD_SIZE);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), CRYPT_MAX_PASSWORD_SIZE);
         error= 1;
         goto end;
       }
