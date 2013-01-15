@@ -3297,18 +3297,27 @@ fil_truncate_tablespace(
 	}
 
 	if (node->size > size) {
+		ulint zip_size = 0;
+		ulint min_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
+
 		if (fsp_flags_is_compressed(flags)) {
-			size_bytes = fil_space_get_zip_size(id) * size;
+			zip_size = fil_space_get_zip_size(id);
+			size_bytes = zip_size * size;
 		} else {
 			size_bytes = UNIV_PAGE_SIZE * size;
 		}
 
-		success = os_file_truncate(
-			path, node->handle, max(size_bytes,
-			FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE));
+		success = os_file_truncate(path, node->handle,
+					   max(size_bytes, min_size));
+
 		if (success) {
-			space->size = node->size = size;
+			if (min_size > size_bytes && zip_size != 0) {
+				space->size = node->size = min_size/zip_size;
+			} else {
+				space->size = node->size = size;
+			}
 		}
+
 	} else {
 		success = TRUE;
 	}
