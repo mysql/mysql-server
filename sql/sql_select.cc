@@ -18139,26 +18139,36 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
           table->s->primary_key != MAX_KEY &&
           table->s->primary_key != idx)
       {
+        KEY_PART_INFO *start,*end;
+        uint pk_part_idx= 0;
         on_pk_suffix= TRUE;
-        key_part= table->key_info[table->s->primary_key].key_part;
-        key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
+        start= key_part= table->key_info[table->s->primary_key].key_part;
         const_key_parts=table->const_key_parts[table->s->primary_key];
 
         /*
-          Check for constness only those keyparts of the PK suffix, that will
-          be used to extend the secondary key 'idx'. This handles the case when
-          some columns of the PK are used in the secondary index.
+          Calculate true key_part_end and const_key_parts
+          (we have to stop as first not continous primary key part)
         */
-        for (uint pk_part_idx= 0;
-             ((const_key_parts & 1) &&
-              (table->key_info[idx].ext_key_part_map & (1 << pk_part_idx)));
-             const_key_parts>>= 1, pk_part_idx++)
-          key_part++; 
+        for (key_part_end= key_part,
+             end= key_part+table->key_info[table->s->primary_key].key_parts;
+             key_part_end < end; key_part_end++, pk_part_idx++)
+        {
+          /* Found hole in the pk_parts; Abort */
+          if (!(table->key_info[idx].ext_key_part_map &
+                (((key_part_map) 1) << pk_part_idx)))
+            break;
+        }
+        /* Adjust const_key_parts */
+        const_key_parts&= (((key_part_map) 1) << pk_part_idx) -1;
+
+         for (; const_key_parts & 1 ; const_key_parts>>= 1)
+           key_part++; 
         /*
-         The primary and secondary key parts were all const (i.e. there's
-         one row).  The sorting doesn't matter.
+          Test if the primary key parts were all const (i.e. there's one row).
+          The sorting doesn't matter.
         */
-        if (key_part == key_part_end && reverse == 0)
+        if (key_part == start+table->key_info[table->s->primary_key].key_parts &&
+            reverse == 0)
         {
           key_parts= 0;
           reverse= 1;
@@ -18178,7 +18188,8 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
     if (reverse && flag != reverse)
       DBUG_RETURN(0);
     reverse=flag;				// Remember if reverse
-    key_part++;
+    if (key_part < key_part_end)
+      key_part++;
   }
   if (on_pk_suffix)
   {
@@ -22940,7 +22951,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   {
     int direction;
     ha_rows select_limit= select_limit_arg;
-    uint used_key_parts;
+    uint used_key_parts= 0;
 
     if (keys.is_set(nr) &&
         (direction= test_if_order_by_key(order, table, nr, &used_key_parts)))
@@ -23017,8 +23028,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
                     if rec_per_key[0] != 0.
 	          */
                   DBUG_ASSERT(pkinfo->rec_per_key[i]);
-                  rec_per_key*= (i == 0) ? table_records :
-                                           pkinfo->rec_per_key[i-1];
+                  DBUG_ASSERT(i > 0);
+                  rec_per_key*= pkinfo->rec_per_key[i-1];
                   rec_per_key/= pkinfo->rec_per_key[i];
                 }
 	      }
