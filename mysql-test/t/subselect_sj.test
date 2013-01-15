@@ -2462,5 +2462,55 @@ HAVING t1sum <> 1;
 
 DROP TABLE t1, t2;
 
+--echo #
+--echo # MySQL Bug#13340270: assertion table->sort.record_pointers == __null
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_key int DEFAULT NULL,
+  col_varchar_key varchar(1) DEFAULT NULL,
+  col_varchar_nokey varchar(1) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key, col_int_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES
+(10,8,'x','x'),
+(11,7,'d','d'),
+(12,1,'r','r'),
+(13,7,'f','f'),
+(14,9,'y','y'),
+(15,NULL,'u','u'),
+(16,1,'m','m'),
+(17,9,NULL,NULL),
+(18,2,'o','o'),
+(19,9,'w','w'),
+(20,2,'m','m'),
+(21,4,'q','q');
+
+let $query=
+  SELECT alias1.col_varchar_nokey AS field1
+  FROM t1 AS alias1 JOIN t1 AS alias2
+    ON alias2.col_int_key = alias1.pk OR
+       alias2.col_int_key = alias1.col_int_key
+  WHERE alias1.pk = 58 OR alias1.col_varchar_key = 'o'
+;
+
+eval CREATE TABLE t2
+  $query
+;
+
+eval EXPLAIN SELECT *
+FROM t2
+WHERE (field1) IN ($query);
+
+eval SELECT *
+FROM t2
+WHERE (field1) IN ($query);
+
+DROP TABLE t1, t2;
+
 # The following command must be the last one the file 
 set optimizer_switch=@subselect_sj_tmp;
