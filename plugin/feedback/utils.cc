@@ -44,6 +44,12 @@ static const char *get_os_version_name(OSVERSIONINFOEX *ver)
   DWORD major = ver->dwMajorVersion;
   DWORD minor = ver->dwMinorVersion;
 
+  if (major == 6 && minor == 2)
+  {
+    return (ver->wProductType == VER_NT_WORKSTATION)?
+      "Windows 8":"Windows Server 2012";    
+  }
+  
   if (major == 6 && minor == 1)
   {
     return (ver->wProductType == VER_NT_WORKSTATION)?

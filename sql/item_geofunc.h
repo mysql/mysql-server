@@ -89,7 +89,7 @@ public:
   {
     // "GeometryCollection" is the longest
     fix_length_and_charset(20, default_charset());
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   };
 };
 
@@ -224,7 +224,7 @@ public:
   {
     Item_func::print(str, query_type);
   }
-  void fix_length_and_dec() { maybe_null= 1; }
+  void fix_length_and_dec() { set_persist_maybe_null(1); }
   bool is_null() { (void) val_int(); return null_value; }
 };
 
@@ -251,7 +251,7 @@ public:
     Item_func::print(str, query_type);
   }
 
-  void fix_length_and_dec() { maybe_null= 1; }
+  void fix_length_and_dec() { set_persist_maybe_null(1); }
   bool is_null() { (void) val_int(); return null_value; }
 };
 
@@ -342,7 +342,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isempty"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  void fix_length_and_dec() { set_persist_maybe_null(1); }
 };
 
 class Item_func_issimple: public Item_bool_func
@@ -356,7 +356,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_issimple"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  void fix_length_and_dec() { set_persist_maybe_null(1); }
 };
 
 class Item_func_isclosed: public Item_bool_func
@@ -366,7 +366,7 @@ public:
   longlong val_int();
   optimize_type select_optimize() const { return OPTIMIZE_NONE; }
   const char *func_name() const { return "st_isclosed"; }
-  void fix_length_and_dec() { maybe_null= 1; }
+  void fix_length_and_dec() { set_persist_maybe_null(1); }
 };
 
 class Item_func_dimension: public Item_int_func
@@ -376,7 +376,7 @@ public:
   Item_func_dimension(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "st_dimension"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  void fix_length_and_dec() { max_length= 10; set_persist_maybe_null(1); }
 };
 
 class Item_func_x: public Item_real_func
@@ -389,7 +389,7 @@ public:
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    set_persist_maybe_null(1);
   }
 };
 
@@ -404,7 +404,7 @@ public:
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    set_persist_maybe_null(1);
   }
 };
 
@@ -416,7 +416,7 @@ public:
   Item_func_numgeometries(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "st_numgeometries"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  void fix_length_and_dec() { max_length= 10; set_persist_maybe_null(1); }
 };
 
 
@@ -427,7 +427,7 @@ public:
   Item_func_numinteriorring(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "st_numinteriorrings"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  void fix_length_and_dec() { max_length= 10; set_persist_maybe_null(1); }
 };
 
 
@@ -438,7 +438,7 @@ public:
   Item_func_numpoints(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "st_numpoints"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  void fix_length_and_dec() { max_length= 10; set_persist_maybe_null(1); }
 };
 
 
@@ -452,7 +452,7 @@ public:
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    set_persist_maybe_null(1);
   }
 };
 
@@ -467,7 +467,7 @@ public:
   void fix_length_and_dec() 
   { 
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    set_persist_maybe_null(1);
   }
 };
 
@@ -479,7 +479,7 @@ public:
   Item_func_srid(Item *a): Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "srid"; }
-  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
+  void fix_length_and_dec() { max_length= 10; set_persist_maybe_null(1); }
 };
 
 

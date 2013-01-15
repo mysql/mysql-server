@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2010, 2012, Monty Program Ab
+   Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@
 #include "rpl_record.h"
 #include "transaction.h"
 #include <my_dir.h>
-#include "sql_show.h"
+#include "sql_show.h"    // append_identifier
 
 #endif /* MYSQL_CLIENT */
 
@@ -91,6 +91,23 @@ TYPELIB binlog_checksum_typelib=
   exponent digits + '\0'
 */
 #define FMT_G_BUFSIZE(PREC) (3 + (PREC) + 5 + 1)
+
+/*
+  Explicit instantiation to unsigned int of template available_buffer
+  function.
+*/
+template unsigned int available_buffer<unsigned int>(const char*,
+                                                     const char*,
+                                                     unsigned int);
+
+/*
+  Explicit instantiation to unsigned int of template valid_buffer_range
+  function.
+*/
+template bool valid_buffer_range<unsigned int>(unsigned int,
+                                               const char*,
+                                               const char*,
+                                               unsigned int);
 
 /* 
    replication event checksum is introduced in the following "checksum-home" version.
@@ -1572,7 +1589,7 @@ Log_event* Log_event::read_log_event(const char* buf, uint event_len,
       ev = new Rand_log_event(buf, description_event);
       break;
     case USER_VAR_EVENT:
-      ev = new User_var_log_event(buf, description_event);
+      ev = new User_var_log_event(buf, event_len, description_event);
       break;
     case FORMAT_DESCRIPTION_EVENT:
       ev = new Format_description_log_event(buf, event_len, description_event);
@@ -2297,7 +2314,7 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   for (const uchar *value= m_rows_buf; value < m_rows_end; )
   {
     size_t length;
-    my_b_printf(file, "### %s %s.%s\n",
+    my_b_printf(file, "### %s %`s.%`s\n",
                       sql_command,
                       map->get_db_name(), map->get_table_name());
     /* Print the first image */
@@ -2463,7 +2480,7 @@ void Query_log_event::pack_info(THD *thd, Protocol *protocol)
   {
     buf.append(STRING_WITH_LEN("use "));
     append_identifier(thd, &buf, db, db_len);
-    buf.append("; ");
+    buf.append(STRING_WITH_LEN("; "));
   }
   if (query && q_len)
     buf.append(query, q_len);
@@ -3333,17 +3350,11 @@ void Query_log_event::print_query_header(IO_CACHE* file,
   }
   else if (db)
   {
-    /* Room for expand ` to `` + initial/final ` + \0 */
-    char buf[FN_REFLEN*2+3];
-
     different_db= memcmp(print_event_info->db, db, db_len + 1);
     if (different_db)
       memcpy(print_event_info->db, db, db_len + 1);
     if (db[0] && different_db) 
-    {
-      my_snprintf(buf, sizeof(buf), "%`s", db);
-      my_b_printf(file, "use %s%s\n", buf, print_event_info->delimiter);
-    }
+      my_b_printf(file, "use %`s%s\n", db, print_event_info->delimiter);
   }
 
   end=int10_to_str((long) when, strmov(buff,"SET TIMESTAMP="),10);
@@ -5175,7 +5186,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
   }
   
   if (db && db[0] && different_db)
-    my_b_printf(&cache, "%suse %s%s\n", 
+    my_b_printf(&cache, "%suse %`s%s\n",
             commented ? "# " : "",
             db, print_event_info->delimiter);
 
@@ -5227,7 +5238,7 @@ void Load_log_event::print(FILE* file_arg, PRINT_EVENT_INFO* print_event_info,
     {
       if (i)
         my_b_printf(&cache, ",");
-      my_b_printf(&cache, "%s", field);
+      my_b_printf(&cache, "%`s", field);
 
       field += field_lens[i]  + 1;
     }
@@ -6287,19 +6298,35 @@ void User_var_log_event::pack_info(THD *thd, Protocol* protocol)
 
 
 User_var_log_event::
-User_var_log_event(const char* buf,
+User_var_log_event(const char* buf, uint event_len,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
 #ifndef MYSQL_CLIENT
   , deferred(false)
 #endif
 {
+  bool error= false;
+  const char* buf_start= buf;
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   const char *start= buf;
   buf+= description_event->common_header_len +
     description_event->post_header_len[USER_VAR_EVENT-1];
   name_len= uint4korr(buf);
   name= (char *) buf + UV_NAME_LEN_SIZE;
+
+  /*
+    We don't know yet is_null value, so we must assume that name_len
+    may have the bigger value possible, is_null= True and there is no
+    payload for val.
+  */
+  if (0 == name_len ||
+      !valid_buffer_range<uint>(name_len, buf_start, name,
+                                event_len - UV_VAL_IS_NULL))
+  {
+    error= true;
+    goto err;
+  }
+
   buf+= UV_NAME_LEN_SIZE + name_len;
   is_null= (bool) *buf;
   flags= User_var_log_event::UNDEF_F;    // defaults to UNDEF_F
@@ -6312,12 +6339,26 @@ User_var_log_event(const char* buf,
   }
   else
   {
+    if (!valid_buffer_range<uint>(UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE
+                                  + UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE,
+                                  buf_start, buf, event_len))
+    {
+      error= true;
+      goto err;
+    }
+
     type= (Item_result) buf[UV_VAL_IS_NULL];
     charset_number= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE);
     val_len= uint4korr(buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
                        UV_CHARSET_NUMBER_SIZE);
     val= (char *) (buf + UV_VAL_IS_NULL + UV_VAL_TYPE_SIZE +
                    UV_CHARSET_NUMBER_SIZE + UV_VAL_LEN_SIZE);
+
+    if (!valid_buffer_range<uint>(val_len, buf_start, val, event_len))
+    {
+      error= true;
+      goto err;
+    }
 
     /**
       We need to check if this is from an old server
@@ -6353,6 +6394,10 @@ User_var_log_event(const char* buf,
                     val_len);
     }
   }
+
+err:
+  if (error)
+    name= 0;
 }
 
 
@@ -6498,8 +6543,9 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
       char *hex_str;
       CHARSET_INFO *cs;
 
-      if (!(hex_str= (char *)my_alloca(2*val_len+1+2))) // 2 hex digits / byte
-        break; // no error, as we are 'void'
+      hex_str= (char *)my_malloc(2*val_len+1+2,MYF(MY_WME)); // 2 hex digits / byte
+      if (!hex_str)
+        return;
       str_to_hex(hex_str, val, val_len);
       /*
         For proper behaviour when mysqlbinlog|mysql, we need to explicitely
@@ -6517,7 +6563,7 @@ void User_var_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
         my_b_printf(&cache, ":=_%s %s COLLATE `%s`%s\n",
                     cs->csname, hex_str, cs->name,
                     print_event_info->delimiter);
-      my_afree(hex_str);
+      my_free(hex_str);
     }
       break;
     case ROW_RESULT:
@@ -7756,9 +7802,9 @@ void Execute_load_query_log_event::pack_info(THD *thd, Protocol *protocol)
   buf.real_alloc(9 + db_len + q_len + 10 + 21);
   if (db && db_len)
   {
-    if (buf.append("use ") ||
+    if (buf.append(STRING_WITH_LEN("use ")) ||
         append_identifier(thd, &buf, db, db_len) ||
-        buf.append("; "))
+        buf.append(STRING_WITH_LEN("; ")))
       return;
   }
   if (query && q_len && buf.append(query, q_len))

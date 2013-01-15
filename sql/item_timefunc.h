@@ -82,7 +82,7 @@ public:
   { 
     decimals=0; 
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    set_persist_maybe_null(1);
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
@@ -105,7 +105,7 @@ public:
   { 
     decimals=0; 
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    set_persist_maybe_null(1);
   }
   enum_monotonicity_info get_monotonicity_info() const;
   longlong val_int_endpoint(bool left_endp, bool *incl_endp);
@@ -138,7 +138,7 @@ public:
   { 
     decimals=0; 
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1; 
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -170,7 +170,7 @@ public:
   { 
     decimals= 0;
     fix_char_length(2);
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -208,7 +208,7 @@ public:
   { 
     decimals= 0;
     fix_char_length(3);
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -229,7 +229,7 @@ public:
   {
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -250,7 +250,7 @@ public:
   {
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -271,7 +271,7 @@ public:
   { 
      decimals=0;
      max_length=1*MY_CHARSET_BIN_MB_MAXLEN;
-     maybe_null=1;
+     set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -292,7 +292,7 @@ public:
   { 
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -313,7 +313,7 @@ public:
   { 
     decimals=0;
     max_length=2*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
 };
 
@@ -327,7 +327,7 @@ public:
   { 
     decimals=0;
     max_length=6*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -350,7 +350,7 @@ public:
   { 
     decimals=0;
     max_length=4*MY_CHARSET_BIN_MB_MAXLEN;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -384,7 +384,7 @@ public:
   {
     decimals= 0;
     fix_char_length(1);
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -419,7 +419,7 @@ public:
       decimals= args[0]->decimals;
     set_if_smaller(decimals, TIME_SECOND_PART_DIGITS);
     max_length=17 + (decimals ? decimals + 1 : 0);
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   void find_num_type() { hybrid_type= decimals ? DECIMAL_RESULT : INT_RESULT; }
   double real_op() { DBUG_ASSERT(0); return 0; }
@@ -466,7 +466,7 @@ public:
   const char *func_name() const { return "time_to_sec"; }
   void fix_num_length_and_dec()
   {
-    maybe_null= true;
+    set_persist_maybe_null(1);
     Item_func_seconds_hybrid::fix_num_length_and_dec();
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
@@ -537,7 +537,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_timefunc::fix_length_and_dec();
-    maybe_null= false;
+    set_persist_maybe_null(0);
   }
   bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   /* 
@@ -619,7 +619,7 @@ public:
   {
     store_now_in_TIME(&ltime);
     Item_temporal_func::fix_length_and_dec();
-    maybe_null= false;
+    set_persist_maybe_null(0);
   }
   bool get_date(MYSQL_TIME *res, ulonglong fuzzy_date);
   virtual void store_now_in_TIME(MYSQL_TIME *now_time)=0;
@@ -664,7 +664,7 @@ public:
   void update_used_tables()
   {
     Item_func_now::update_used_tables();
-    maybe_null= false;
+    set_persist_maybe_null(0);
     used_tables_cache|= RAND_TABLE_BIT;
   }
 };
@@ -959,7 +959,7 @@ public:
   void fix_length_and_dec() 
   { 
     decimals=0;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
   bool check_vcol_func_processor(uchar *int_arg) { return FALSE;}
@@ -981,7 +981,7 @@ public:
   void fix_length_and_dec()
   {
     decimals=0;
-    maybe_null=1;
+    set_persist_maybe_null(1);
   }
   virtual void print(String *str, enum_query_type query_type);
 };
@@ -1003,7 +1003,7 @@ public:
   const char *func_name() const { return "get_format"; }
   void fix_length_and_dec()
   {
-    maybe_null= 1;
+    set_persist_maybe_null(1);
     decimals=0;
     fix_length_and_charset(17, default_charset());
   }

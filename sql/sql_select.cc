@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2012 Oracle and/or its affiliates.
-   Copyright (c) 2009, 2012, Monty Program Ab
+   Copyright (c) 2009, 2013 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2004,6 +2004,8 @@ bool JOIN::setup_subquery_caches()
 */
 void JOIN::restore_tmp()
 {
+  DBUG_PRINT("info", ("restore_tmp this %p tmp_join %p", this, tmp_join));
+  DBUG_ASSERT(tmp_join != this);
   memcpy(tmp_join, this, (size_t) sizeof(JOIN));
 }
 
@@ -7609,8 +7611,9 @@ get_best_combination(JOIN *join)
     if ( !(keyuse= join->best_positions[tablenr].key))
     {
       j->type=JT_ALL;
-      if (tablenr != join->const_tables)
-	join->full_join=1;
+      if (join->best_positions[tablenr].use_join_buffer &&
+          tablenr != join->const_tables)
+	join->full_join= 1;
     }
 
     /*if (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN)
@@ -8591,7 +8594,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           We will use join cache here : prevent sorting of the first
           table only and sort at the end.
         */
-        if (i != join->const_tables && join->table_count > join->const_tables + 1)
+        if (i != join->const_tables &&
+            join->table_count > join->const_tables + 1 &&
+            join->best_positions[i].use_join_buffer)
           join->full_join= 1;
       }
 
@@ -10640,21 +10645,19 @@ void JOIN::cleanup(bool full)
       }
     }
   }
-  /*
-    We are not using tables anymore
-    Unlock all tables. We may be in an INSERT .... SELECT statement.
-  */
   if (full)
   {
-    if (tmp_join)
-      tmp_table_param.copy_field= 0;
-    group_fields.delete_elements();
     /* 
-      Ensure that the above delete_elements() would not be called
+      Ensure that the following delete_elements() would not be called
       twice for the same list.
     */
-    if (tmp_join && tmp_join != this)
-      tmp_join->group_fields= group_fields;
+    if (tmp_join && tmp_join != this &&
+        tmp_join->group_fields == this->group_fields)
+      tmp_join->group_fields.empty();
+
+    // Run Cached_item DTORs!
+    group_fields.delete_elements();
+
     /*
       We can't call delete_elements() on copy_funcs as this will cause
       problems in free_elements() as some of the elements are then deleted.

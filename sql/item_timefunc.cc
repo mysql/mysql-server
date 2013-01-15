@@ -1,6 +1,6 @@
 /*
    Copyright (c) 2000, 2012, Oracle and/or its affiliates.
-   Copyright (c) 2009, 2011, Monty Program Ab
+   Copyright (c) 2009, 2013, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -945,7 +945,7 @@ void Item_func_monthname::fix_length_and_dec()
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   decimals=0;
   max_length= locale->max_month_name_length * collation.collation->mbmaxlen;
-  maybe_null=1; 
+  set_persist_maybe_null(1);
 }
 
 
@@ -1095,7 +1095,7 @@ void Item_func_dayname::fix_length_and_dec()
   collation.set(cs, DERIVATION_COERCIBLE, repertoire);
   decimals=0;
   max_length= locale->max_day_name_length * collation.collation->mbmaxlen;
-  maybe_null=1; 
+  set_persist_maybe_null(1);
 }
 
 
@@ -1446,7 +1446,7 @@ void Item_temporal_func::fix_length_and_dec()
   { MAX_DATETIME_WIDTH, MAX_DATETIME_WIDTH, MAX_DATE_WIDTH,
     MAX_DATETIME_WIDTH, MIN_TIME_WIDTH };
 
-  maybe_null= true;
+  set_persist_maybe_null(1);
   max_length= max_time_type_width[mysql_type_to_time_type(field_type())+2];
   if (decimals)
   {
@@ -1501,13 +1501,10 @@ bool Item_func_from_days::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   bzero(ltime, sizeof(MYSQL_TIME));
   if (get_date_from_daynr((long) value, &ltime->year, &ltime->month,
                           &ltime->day))
-    return (null_value= 1);
-
-  if ((fuzzy_date & TIME_NO_ZERO_DATE) && ltime->year == 0)
-    return (null_value= 1);
+    return 0;
 
   ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return (null_value= 0);
+  return 0;
 }
 
 
@@ -1519,7 +1516,7 @@ void Item_func_curdate::fix_length_and_dec()
   ltime.hour= ltime.minute= ltime.second= 0;
   ltime.time_type= MYSQL_TIMESTAMP_DATE;
   Item_datefunc::fix_length_and_dec();
-  maybe_null= false;
+  set_persist_maybe_null(0);
 }
 
 /**
@@ -1758,7 +1755,7 @@ void Item_func_date_format::fix_length_and_dec()
                    collation.collation->mbmaxlen;
     set_if_smaller(max_length,MAX_BLOB_WIDTH);
   }
-  maybe_null=1;					// If wrong date
+  set_persist_maybe_null(1);				// If wrong date
 }
 
 
@@ -2102,7 +2099,7 @@ void Item_extract::print(String *str, enum_query_type query_type)
 
 void Item_extract::fix_length_and_dec()
 {
-  maybe_null=1;					// If wrong date
+  set_persist_maybe_null(1);					// If wrong date
   switch (int_type) {
   case INTERVAL_YEAR:		max_length=4; date_value=1; break;
   case INTERVAL_YEAR_MONTH:	max_length=6; date_value=1; break;

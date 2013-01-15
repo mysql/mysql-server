@@ -4703,6 +4703,32 @@ drop view v2;
 drop table t1,t2;
 
 --echo #
+--echo # MDEV-3914: Wrong result (NULLs instead of real values)
+--echo # with INNER and RIGHT JOIN in a FROM subquery, derived_merge=on
+--echo # (fix of above MDEV-486 fix)
+--echo #
+SET @save_optimizer_switch_MDEV_3914=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (3),(4);
+
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (5),(6);
+
+SELECT * FROM ( SELECT c FROM ( t1 INNER JOIN t2 ) RIGHT JOIN t3 ON a = c ) AS alias;
+
+SET optimizer_switch = 'derived_merge=off';
+
+SELECT * FROM ( SELECT c FROM ( t1 INNER JOIN t2 ) RIGHT JOIN t3 ON a = c ) AS alias;
+
+SET optimizer_switch=@save_optimizer_switch_MDEV_3914;
+drop table t1,t2,t3;
+
+--echo #
 --echo # MDEV-589 (LP BUG#1007647) :
 --echo # Assertion `vcol_table == 0 || vcol_table == table' failed in
 --echo # fill_record(THD*, List<Item>&, List<Item>&, bool)
@@ -4746,6 +4772,27 @@ SELECT * FROM (
 
 drop tables t1,t2;
 
+
+--echo #
+--echo # MDEV-3876 Wrong result (extra rows) with ALL subquery
+--echo # from a MERGE view (duplicate of MDEV-3873)
+--echo #
+
+CREATE TABLE t1 (a INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+
+CREATE TABLE t2 (b INT NOT NULL) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1),(3);
+
+CREATE OR REPLACE ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t2;
+
+SELECT a FROM t1 AS alias
+WHERE a >= ALL ( 
+SELECT b FROM t1 LEFT JOIN v1 ON (a = b) 
+WHERE a = alias.a );
+
+drop view v1;
+drop table t1,t2;
 
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.

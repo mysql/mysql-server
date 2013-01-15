@@ -461,3 +461,16 @@ SHOW CREATE EVENT TESTE_bug11763507;
 
 DROP EVENT teste_bug11763507;
 --echo #END OF BUG#11763507 test.
+
+--echo # ------------------------------------------------------------------
+--echo # -- End of 5.1 tests
+--echo # ------------------------------------------------------------------
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

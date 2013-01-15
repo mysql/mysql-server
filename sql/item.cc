@@ -8851,9 +8851,10 @@ int Item_cache_temporal::save_in_field(Field *field, bool no_conversions)
 }
 
 
-void Item_cache_temporal::store_packed(longlong val_arg)
+void Item_cache_temporal::store_packed(longlong val_arg, Item *example)
 {
   /* An explicit values is given, save it. */
+  store(example);
   value_cached= true;
   value= val_arg;
   null_value= false;
@@ -9599,11 +9600,18 @@ table_map Item_ref::used_tables() const
 
 
 void Item_ref::update_used_tables() 
-{ 
+{
   if (!get_depended_from())
-    (*ref)->update_used_tables(); 
+    (*ref)->update_used_tables();
+  maybe_null= (*ref)->maybe_null;
 }
 
+void Item_direct_view_ref::update_used_tables()
+{
+  Item_ref::update_used_tables();
+  if (view->table && view->table->maybe_null)
+    maybe_null= TRUE;
+}
 
 table_map Item_direct_view_ref::used_tables() const
 {

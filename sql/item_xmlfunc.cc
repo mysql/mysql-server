@@ -2604,6 +2604,7 @@ void Item_xml_str_func::fix_length_and_dec()
   status_var_increment(current_thd->status_var.feature_xml);
 
   nodeset_func= 0;
+  set_persist_maybe_null(1);
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count))
     return;

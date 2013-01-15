@@ -34,14 +34,10 @@ protected:
 public:
   Item_xml_str_func(Item *a, Item *b): 
     Item_str_func(a,b) 
-  {
-    maybe_null= TRUE;
-  }
+  {}
   Item_xml_str_func(Item *a, Item *b, Item *c): 
     Item_str_func(a,b,c) 
-  {
-    maybe_null= TRUE;
-  }
+  {}
   void fix_length_and_dec();
   String *parse_xml(String *raw_xml, String *parsed_xml_buf);
   bool check_vcol_func_processor(uchar *int_arg) 

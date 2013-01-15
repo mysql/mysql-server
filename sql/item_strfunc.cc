@@ -1,5 +1,6 @@
 /*
    Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2013, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -466,7 +467,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
-   maybe_null= 1;
+   set_persist_maybe_null(1);
 }
 
 
@@ -2410,7 +2411,7 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(decimals,args[i]->decimals);
   }
   fix_char_length(char_length);
-  maybe_null=1;					// NULL if wrong first arg
+  set_persist_maybe_null(1);			  // NULL if wrong first arg
 }
 
 
@@ -2658,7 +2659,7 @@ void Item_func_repeat::fix_length_and_dec()
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -2735,7 +2736,7 @@ void Item_func_rpad::fix_length_and_dec()
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -2839,7 +2840,7 @@ void Item_func_lpad::fix_length_and_dec()
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -3798,7 +3799,7 @@ bool Item_func_dyncol_create::fix_fields(THD *thd, Item **ref)
 
 void Item_func_dyncol_create::fix_length_and_dec()
 {
-  maybe_null= TRUE;
+  set_persist_maybe_null(1);
   collation.set(&my_charset_bin);
   decimals= 0;
 }

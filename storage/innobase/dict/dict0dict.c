@@ -487,10 +487,12 @@ Looks for column n in an index.
 ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
+dict_index_get_nth_col_or_prefix_pos(
+/*=================================*/
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			n,		/*!< in: column number */
+	ibool			inc_prefix)	/*!< in: TRUE=consider
+						column prefixes too */
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -512,13 +514,28 @@ dict_index_get_nth_col_pos(
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
 
-		if (col == field->col && field->prefix_len == 0) {
+		if (col == field->col
+		    && (inc_prefix || field->prefix_len == 0)) {
 
 			return(pos);
 		}
 	}
 
 	return(ULINT_UNDEFINED);
+}
+
+/********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INTERN
+ulint
+dict_index_get_nth_col_pos(
+/*=======================*/
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			n)	/*!< in: column number */
+{
+	return(dict_index_get_nth_col_or_prefix_pos(index, n, FALSE));
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -2017,7 +2034,6 @@ dict_index_build_internal_clust(
 {
 	dict_index_t*	new_index;
 	dict_field_t*	field;
-	ulint		fixed_size;
 	ulint		trx_id_pos;
 	ulint		i;
 	ibool*		indexed;
@@ -2094,7 +2110,7 @@ dict_index_build_internal_clust(
 
 		for (i = 0; i < trx_id_pos; i++) {
 
-			fixed_size = dict_col_get_fixed_size(
+			ulint	fixed_size = dict_col_get_fixed_size(
 				dict_index_get_nth_col(new_index, i),
 				dict_table_is_comp(table));
 
@@ -2111,7 +2127,20 @@ dict_index_build_internal_clust(
 				break;
 			}
 
-			new_index->trx_id_offset += (unsigned int) fixed_size;
+			/* Add fixed_size to new_index->trx_id_offset.
+			Because the latter is a bit-field, an overflow
+			can theoretically occur. Check for it. */
+			fixed_size += new_index->trx_id_offset;
+
+			new_index->trx_id_offset = fixed_size;
+
+			if (new_index->trx_id_offset != fixed_size) {
+				/* Overflow. Pretend that this is a
+				variable-length PRIMARY KEY. */
+				ut_ad(0);
+				new_index->trx_id_offset = 0;
+				break;
+			}
 		}
 
 	}

@@ -242,7 +242,7 @@ the read requests for the whole area.
 
 #ifndef UNIV_HOTBACKUP
 /** Value in microseconds */
-static const int WAIT_FOR_READ	= 5000;
+static const int WAIT_FOR_READ	= 100;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
@@ -2582,8 +2582,9 @@ wait_until_unfixed:
 				mutex_exit(&block->mutex);
 
 				if (io_fix == BUF_IO_READ) {
-
-					os_thread_sleep(WAIT_FOR_READ);
+					/* wait by temporaly s-latch */
+					rw_lock_s_lock(&(block->lock));
+					rw_lock_s_unlock(&(block->lock));
 				} else {
 					break;
 				}

@@ -1,5 +1,5 @@
 /* Copyright (c) 2000, 2010, Oracle and/or its affiliates.
-   Copyright (c) 2009-2011 Monty Program Ab
+   Copyright (c) 2009, 2013 Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -154,7 +154,7 @@ bool get_date_from_daynr(long daynr,uint *ret_year,uint *ret_month,
   uchar *month_pos;
   DBUG_ENTER("get_date_from_daynr");
 
-  if (daynr < 365 || daynr > MAX_DAY_NUMBER)
+  if (daynr < 366 || daynr > MAX_DAY_NUMBER)
     DBUG_RETURN(1);
 
   year= (uint) (daynr*100 / 36525L);
