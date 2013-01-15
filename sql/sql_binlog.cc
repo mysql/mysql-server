@@ -107,7 +107,7 @@ void mysql_client_binlog_statement(THD* thd)
         rli->relay_log.description_event_for_exec &&
         buf))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 1);  /* needed 1 bytes */
     goto end;
   }
 
