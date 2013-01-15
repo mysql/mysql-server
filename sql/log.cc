@@ -2070,15 +2070,17 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   binlog_trans_log_savepos(thd, (my_off_t*) sv);
   /* Write it to the binary log */
 
-  String log_query;
-  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
+  char buf[1024];
+  String log_query(buf, sizeof(buf), &my_charset_bin);
+  if (log_query.copy(STRING_WITH_LEN("SAVEPOINT "), &my_charset_bin) ||
       append_identifier(thd, &log_query,
                         thd->lex->ident.str, thd->lex->ident.length))
     DBUG_RETURN(1);
   int errcode= query_error_code(thd, thd->killed == NOT_KILLED);
   Query_log_event qinfo(thd, log_query.ptr(), log_query.length(),
                         TRUE, FALSE, TRUE, errcode);
-  DBUG_RETURN(mysql_bin_log.write(&qinfo));
+  int ret= mysql_bin_log.write(&qinfo);
+  DBUG_RETURN(ret);
 }
 
 static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
@@ -2093,8 +2095,9 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   if (unlikely(trans_has_updated_non_trans_table(thd) ||
                (thd->variables.option_bits & OPTION_KEEP_LOG)))
   {
-    String log_query;
-    if (log_query.append(STRING_WITH_LEN("ROLLBACK TO ")) ||
+    char buf[1024];
+    String log_query(buf, sizeof(buf), &my_charset_bin);
+    if (log_query.copy(STRING_WITH_LEN("ROLLBACK TO "), &my_charset_bin) ||
         append_identifier(thd, &log_query,
                           thd->lex->ident.str, thd->lex->ident.length))
       DBUG_RETURN(1);

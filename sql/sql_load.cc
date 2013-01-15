@@ -741,14 +741,14 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     List_iterator<Item> lu(thd->lex->update_list);
     List_iterator<Item> lv(thd->lex->value_list);
 
-    query_str.append(" SET ");
+    query_str.append(STRING_WITH_LEN(" SET "));
     n= 0;
 
     while ((item= lu++))
     {
       val= lv++;
       if (n++)
-        query_str.append(", ");
+        query_str.append(STRING_WITH_LEN(", "));
       append_identifier(thd, &query_str, item->name, strlen(item->name));
       query_str.append(val->name);
     }
