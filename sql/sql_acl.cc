@@ -11013,10 +11013,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       */
       Host_errors errors;
 
-      my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-      general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
+      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+      general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
       if (log_warnings > 1)
-        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
+        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+
       errors.m_authentication= 1;
       inc_host_errors(mpvio.ip, &errors);
       DBUG_RETURN(1);
