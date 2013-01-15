@@ -1498,11 +1498,6 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   if (gtid_mode > 0)
@@ -1526,6 +1521,11 @@ void THD::cleanup(void)
    */
   if (tc_log)
     tc_log->commit(this, true);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
   cleanup_done=1;
   DBUG_VOID_RETURN;
