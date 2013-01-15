@@ -2018,7 +2018,7 @@ static bool finalize_install(THD *thd, TABLE *table, const LEX_STRING *name)
   struct st_plugin_int *tmp= plugin_find_internal(name, MYSQL_ANY_PLUGIN);
   int error;
   DBUG_ASSERT(tmp);
-  mysql_mutex_assert_owner(&LOCK_plugin);
+  mysql_mutex_assert_owner(&LOCK_plugin); // because of tmp->state
 
   if (tmp->state == PLUGIN_IS_DISABLED)
   {
@@ -2105,8 +2105,12 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name,
 
     This hack should be removed when LOCK_plugin is fixed so it
     protects only what it supposed to protect.
+
+    See also mysql_uninstall_plugin() and initialize_audit_plugin()
   */
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE] =
+  { MYSQL_AUDIT_GENERAL_CLASSMASK };
+  mysql_audit_acquire_plugins(thd, event_class_mask);
 
   mysql_mutex_lock(&LOCK_plugin);
   mysql_rwlock_wrlock(&LOCK_system_variables_hash);
@@ -2249,8 +2253,15 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name,
     When audit event is triggered during [UN]INSTALL PLUGIN, plugin
     list iterator acquires the same lock (within the same thread)
     second time.
+
+    This hack should be removed when LOCK_plugin is fixed so it
+    protects only what it supposed to protect.
+
+    See also mysql_install_plugin() and initialize_audit_plugin()
   */
-  mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE] =
+  { MYSQL_AUDIT_GENERAL_CLASSMASK };
+  mysql_audit_acquire_plugins(thd, event_class_mask);
 
   mysql_mutex_lock(&LOCK_plugin);
 

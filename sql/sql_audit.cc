@@ -132,11 +132,8 @@ static const uint audit_handlers_count=
 
 static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
 {
-  uint event_class= *(uint*) arg;
-  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  ulong *event_class_mask= (ulong*) arg;
   st_mysql_audit *data= plugin_data(plugin, struct st_mysql_audit *);
-
-  set_audit_mask(event_class_mask, event_class);
 
   /* Check if this plugin is interested in the event */
   if (check_audit_mask(data->class_mask, event_class_mask))
@@ -176,15 +173,13 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   @details Ensure that audit plugins interested in given event
   class are locked by current thread.
 */
-void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+void mysql_audit_acquire_plugins(THD *thd, ulong *event_class_mask)
 {
-  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
   DBUG_ENTER("mysql_audit_acquire_plugins");
-  set_audit_mask(event_class_mask, event_class);
   if (thd && !check_audit_mask(mysql_global_audit_mask, event_class_mask) &&
       check_audit_mask(thd->audit_class_mask, event_class_mask))
   {
-    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, &event_class);
+    plugin_foreach(thd, acquire_plugins, MYSQL_AUDIT_PLUGIN, event_class_mask);
     add_audit_mask(thd->audit_class_mask, event_class_mask);
   }
   DBUG_VOID_RETURN;
@@ -206,7 +201,9 @@ void mysql_audit_notify(THD *thd, uint event_class, uint event_subtype, ...)
   va_list ap;
   audit_handler_t *handlers= audit_handlers + event_class;
   DBUG_ASSERT(event_class < audit_handlers_count);
-  mysql_audit_acquire_plugins(thd, event_class);
+  unsigned long event_class_mask[MYSQL_AUDIT_CLASS_MASK_SIZE];
+  set_audit_mask(event_class_mask, event_class);
+  mysql_audit_acquire_plugins(thd, event_class_mask);
   va_start(ap, event_subtype);  
   (*handlers)(thd, event_subtype, ap);
   va_end(ap);
@@ -364,6 +361,34 @@ int initialize_audit_plugin(st_plugin_int *plugin)
   add_audit_mask(mysql_global_audit_mask, data->class_mask);
   mysql_mutex_unlock(&LOCK_audit_mask);
 
+  /*
+    Pre-acquire the newly inslalled audit plugin for events that
+    may potentially occur further during INSTALL PLUGIN.
+
+    When audit event is triggered, audit subsystem acquires interested
+    plugins by walking through plugin list. Evidently plugin list
+    iterator protects plugin list by acquiring LOCK_plugin, see
+    plugin_foreach_with_mask().
+
+    On the other hand [UN]INSTALL PLUGIN is acquiring LOCK_plugin
+    rather for a long time.
+
+    When audit event is triggered during [UN]INSTALL PLUGIN, plugin
+    list iterator acquires the same lock (within the same thread)
+    second time.
+
+    This hack should be removed when LOCK_plugin is fixed so it
+    protects only what it supposed to protect.
+
+    See also mysql_install_plugin() and mysql_uninstall_plugin()
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    acquire_plugins(thd, plugin_int_to_ref(plugin), data->class_mask);
+    add_audit_mask(thd->audit_class_mask, data->class_mask);
+  }
+
   return 0;
 }
 
@@ -494,7 +519,7 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
 #else /* EMBEDDED_LIBRARY */
 
 
-void mysql_audit_acquire_plugins(THD *thd, uint event_class)
+void mysql_audit_acquire_plugins(THD *thd, ulong *event_class_mask)
 {
 }
 
