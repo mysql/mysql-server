@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2049,6 +2049,21 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
 
     type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
+
+    /*
+      Ignore HEARBEAT events. They can show up if mysqlbinlog is
+      running with:
+
+        --read-from-remote-server
+        --read-from-remote-master=BINLOG-DUMP-GTIDS'
+        --stop-never
+        --stop-never-slave-server-id
+
+      i.e., acting as a fake slave.
+    */
+    if (type == HEARTBEAT_LOG_EVENT)
+      continue;
+
     if (!raw_mode || (type == ROTATE_EVENT) || (type == FORMAT_DESCRIPTION_EVENT))
     {
       if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
