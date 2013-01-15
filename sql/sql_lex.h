@@ -1370,6 +1370,11 @@ public:
     */
     BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST,
 
+    /**
+       Using a plugin is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
@@ -1393,6 +1398,11 @@ public:
   */
   inline bool is_stmt_unsafe() const {
     return get_stmt_unsafe_flags() != 0;
+  }
+
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe)
+  {
+    return binlog_stmt_flags & (1 << unsafe);
   }
 
   /**
@@ -1671,6 +1681,8 @@ public:
   bool uses_stored_routines() const
   { return sroutines_list.elements != 0; }
 
+  void set_using_match() { using_match= TRUE; }
+  bool get_using_match() { return using_match; }
 private:
 
   /**
@@ -1711,6 +1723,11 @@ private:
     be accessed while executing a statement.
   */
   uint32 stmt_accessed_table_flag;
+
+  /**
+     It will be set TRUE if 'MATCH () AGAINST' is used in the statement.
+  */
+  bool using_match;
 };
 
 
