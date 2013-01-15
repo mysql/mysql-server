@@ -259,8 +259,9 @@ btr_cur_update_alloc_zip(
 	ulint		length,	/*!< in: size needed */
 	ibool		create,	/*!< in: TRUE=delete-and-insert,
 				FALSE=update-in-place */
-	mtr_t*		mtr)	/*!< in: mini-transaction */
-	__attribute__((nonnull, warn_unused_result));
+	mtr_t*		mtr,	/*!< in: mini-transaction */
+	trx_t*		trx)	/*!< in: NULL or transaction */
+    __attribute__((nonnull (1, 2, 3, 6), warn_unused_result));
 /*************************************************************//**
 Updates a record when the update causes no size changes in its fields.
 @return	DB_SUCCESS or error number */

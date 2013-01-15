@@ -2018,7 +2018,8 @@ row_upd_clust_rec(
 	the same transaction do not modify the record in the meantime.
 	Therefore we can assert that the restoration of the cursor succeeds. */
 
-	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes ? BTR_SEARCH_LEAF : BTR_MODIFY_TREE,
+	ut_a(btr_pcur_restore_position(thr_get_trx(thr)->fake_changes
+				       ? BTR_SEARCH_TREE : BTR_MODIFY_TREE,
 				       pcur, mtr));
 
 	ut_ad(!rec_get_deleted_flag(btr_pcur_get_rec(pcur),

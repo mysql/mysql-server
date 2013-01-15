@@ -1276,17 +1276,19 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
-	prebuilt->table->stat_n_rows++;
+	if (UNIV_LIKELY(!(trx->fake_changes))) {
 
-	srv_n_rows_inserted++;
+		prebuilt->table->stat_n_rows++;
 
-	if (prebuilt->table->stat_n_rows == 0) {
-		/* Avoid wrap-over */
-		prebuilt->table->stat_n_rows--;
+		if (prebuilt->table->stat_n_rows == 0) {
+			/* Avoid wrap-over */
+			prebuilt->table->stat_n_rows--;
+		}
+
+		srv_n_rows_inserted++;
+		row_update_statistics_if_needed(prebuilt->table);
 	}
 
-	if (!(trx->fake_changes))
-	row_update_statistics_if_needed(prebuilt->table);
 	trx->op_info = "";
 
 	return((int) err);
@@ -1533,6 +1535,11 @@ run_again:
 
 	que_thr_stop_for_mysql_no_error(thr, trx);
 
+	if (UNIV_UNLIKELY(trx->fake_changes)) {
+		trx->op_info = "";
+		return((int) err);
+	}
+
 	if (node->is_delete) {
 		if (prebuilt->table->stat_n_rows > 0) {
 			prebuilt->table->stat_n_rows--;
@@ -1547,7 +1554,6 @@ run_again:
 	that changes indexed columns, UPDATEs that change only non-indexed
 	columns would not affect statistics. */
 	if (node->is_delete || !(node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
-		if (!(trx->fake_changes))
 		row_update_statistics_if_needed(prebuilt->table);
 	}
 
@@ -1755,6 +1761,11 @@ run_again:
 		return(err);
 	}
 
+	if (UNIV_UNLIKELY((trx->fake_changes))) {
+
+		return(err);
+	}
+
 	if (node->is_delete) {
 		if (table->stat_n_rows > 0) {
 			table->stat_n_rows--;
@@ -1765,7 +1776,6 @@ run_again:
 		srv_n_rows_updated++;
 	}
 
-	if (!(trx->fake_changes))
 	row_update_statistics_if_needed(table);
 
 	return(err);

@@ -49,6 +49,19 @@ ut_max(
 	return((n1 <= n2) ? n2 : n1);
 }
 
+/******************************************************//**
+Calculates the maximum of two ib_uint64_t values.
+@return	the maximum */
+UNIV_INLINE
+ib_uint64_t
+ut_max_uint64(
+/*==========*/
+	ib_uint64_t	n1,	/*!< in: first number */
+	ib_uint64_t	n2)	/*!< in: second number */
+{
+	return((n1 <= n2) ? n2 : n1);
+}
+
 /****************************************************************//**
 Calculates minimum of two ulint-pairs. */
 UNIV_INLINE

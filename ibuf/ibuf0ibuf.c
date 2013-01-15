@@ -4044,7 +4044,7 @@ updated_in_place:
 							    update)
 		    && (!page_zip || btr_cur_update_alloc_zip(
 				page_zip, block, index,
-				rec_offs_size(offsets), FALSE, mtr))) {
+				rec_offs_size(offsets), FALSE, mtr, NULL))) {
 			/* This is the easy case. Do something similar
 			to btr_cur_update_in_place(). */
 			row_upd_rec_in_place(rec, index, offsets,
