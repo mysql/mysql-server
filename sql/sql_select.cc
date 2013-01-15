@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1829,6 +1829,8 @@ JOIN::exec()
 {
   List<Item> *columns_list= &fields_list;
   int      tmp_error;
+  bool     sort_index_created= false;
+
   DBUG_ENTER("JOIN::exec");
 
   thd_proc_info(thd, "executing");
@@ -2123,6 +2125,7 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
+        sort_index_created= true;
         sortorder= curr_join->sortorder;
       }
       
@@ -2350,6 +2353,7 @@ JOIN::exec()
 			     HA_POS_ERROR : unit->select_limit_cnt),
                             curr_join->group_list ? TRUE : FALSE))
 	DBUG_VOID_RETURN;
+      sort_index_created= true;
       sortorder= curr_join->sortorder;
       if (curr_join->const_tables != curr_join->tables &&
           !curr_join->join_tab[curr_join->const_tables].table->sort.io_cache)
@@ -2381,6 +2385,16 @@ JOIN::exec()
   error= do_select(curr_join, curr_fields_list, NULL, procedure);
   thd->limit_found_rows= curr_join->send_records;
 
+  if (sort_index_created && curr_join->tables != curr_join->const_tables )
+  {
+    // Restore the original "select" used by create_sort_index():
+    JOIN_TAB *const tab= curr_join->join_tab + curr_join->const_tables;
+    if (tab->saved_select)
+    {
+      tab->select= tab->saved_select;
+      tab->saved_select= NULL;
+    }
+  }
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
@@ -14134,7 +14148,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab=    join->join_tab + join->const_tables;
   table=  tab->table;
   select= tab->select;
-
+  tab->saved_select= NULL;
   /* 
     If we have a select->quick object that is created outside of
     create_sort_index() and this is part of a subquery that
@@ -14233,16 +14247,28 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     if (!keep_quick)
     {
       select->cleanup();
-      /*
-        The select object should now be ready for the next use. If it
-        is re-used then there exists a backup copy of this join tab
-        which has the pointer to it. The join tab will be restored in
-        JOIN::reset(). So here we just delete the pointer to it.
-      */
-      tab->select= NULL;
-      // If we deleted the quick select object we need to clear quick_keys
+
+      // If we deleted the quick object we need to clear quick_keys
       table->quick_keys.clear_all();
     }
+    else
+    {
+      // Need to close the index scan in order to re-use the handler
+      tab->select->quick->range_end();
+    }
+
+    /*
+      The select object is now ready for the next use. To avoid that
+      the select object is used when reading the records in sorted
+      order we set the pointer to it to NULL. The select pointer will
+      be restored from the saved_select pointer when this select
+      operation is completed (@see JOIN::exec). This ensures that it
+      will be re-used when filesort is used by subqueries that are
+      executed multiple times.
+    */
+    tab->saved_select= tab->select;
+    tab->select= NULL;
+
     // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }
