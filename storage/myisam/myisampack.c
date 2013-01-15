@@ -2151,7 +2151,8 @@ static my_off_t write_huff_tree(HUFF_TREE *huff_tree, uint trees)
   */
   if (!(packed_tree=(uint*) my_alloca(sizeof(uint)*length*2)))
   {
-    my_error(EE_OUTOFMEMORY,MYF(ME_BELL),sizeof(uint)*length*2);
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR), 
+             sizeof(uint)*length*2);
     return 0;
   }
 
