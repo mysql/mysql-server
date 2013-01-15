@@ -30,6 +30,9 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+/* These two header files are necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -37,6 +40,13 @@
 #include "hash.h"
 #include "rpl_tblmap.h"
 #include "rpl_tblmap.cc"
+
+/*
+  Variable to suppress the USE <DATABASE> command when using the
+  new mysqlbinlog option
+*/
+bool option_rewrite_set= FALSE;
+extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
 
 #ifdef MYSQL_SERVER
