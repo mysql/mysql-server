@@ -1,0 +1,73 @@
+#
+# WL#6469: Optimizing CREATE/DROP performance for temporary tables
+#
+
+--source include/have_innodb.inc
+
+# Must have debug code to use SET SESSION debug
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+
+#########################################################################
+#									#
+# Will test following scenarios:					#
+# 1. Effect of errors on temp-table					#
+#########################################################################
+
+
+#-------------------------------------------------------------
+#
+# create test-bed.
+#
+let $per_table = `select @@innodb_file_per_table`;
+let $format = `select @@innodb_file_format`;
+set global innodb_file_per_table = 0;
+
+#------------------------------------------------------------
+#
+# 1. Effect of errors on temp-table
+#
+set global innodb_file_per_table = 1;
+call mtr.add_suppression("No space left on device");
+call mtr.add_suppression("table.+ full");
+call mtr.add_suppression("Cannot create file");
+#
+set session debug="+d,ib_create_table_fail_disk_full";
+--error ER_RECORD_FILE_FULL
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+--error ER_NO_SUCH_TABLE
+insert into t1 values (10, 11);
+set session debug="-d,ib_create_table_fail_disk_full";
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+#
+set session debug="+d,ib_create_table_fail_at_create_index";
+--error ER_INDEX_COLUMN_TOO_LONG
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+--error ER_NO_SUCH_TABLE
+insert into t1 values (10, 11);
+set session debug="-d,ib_create_table_fail_at_create_index";
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+
+
+#-------------------------------------------------------------
+#
+# remove test-bed.
+#
+eval set global innodb_file_format = $format;
+eval set global innodb_file_per_table = $per_table;
+
+
+

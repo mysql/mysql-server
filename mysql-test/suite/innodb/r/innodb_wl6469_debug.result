@@ -1,0 +1,29 @@
+set global innodb_file_per_table = 0;
+set global innodb_file_per_table = 1;
+call mtr.add_suppression("No space left on device");
+call mtr.add_suppression("table.+ full");
+call mtr.add_suppression("Cannot create file");
+set session debug="+d,ib_create_table_fail_disk_full";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: The table 't1' is full
+insert into t1 values (10, 11);
+ERROR 42S02: Table 'test.t1' doesn't exist
+set session debug="-d,ib_create_table_fail_disk_full";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+set session debug="+d,ib_create_table_fail_at_create_index";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+insert into t1 values (10, 11);
+ERROR 42S02: Table 'test.t1' doesn't exist
+set session debug="-d,ib_create_table_fail_at_create_index";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (10, 11);
+drop table t1;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;
