@@ -969,7 +969,6 @@ innobase_start_or_create_for_mysql(void)
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
-	unsigned	i;
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
@@ -977,6 +976,7 @@ innobase_start_or_create_for_mysql(void)
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
+	unsigned	i		= 0;
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
