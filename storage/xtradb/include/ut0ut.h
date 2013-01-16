@@ -122,6 +122,15 @@ ut_max(
 /*===*/
 	ulint	 n1,	/*!< in: first number */
 	ulint	 n2);	/*!< in: second number */
+/******************************************************//**
+Calculates the maximum of two ib_uint64_t values.
+@return	the maximum */
+UNIV_INLINE
+ib_uint64_t
+ut_max_uint64(
+/*==========*/
+	ib_uint64_t	n1,	/*!< in: first number */
+	ib_uint64_t	n2);	/*!< in: second number */
 /****************************************************************//**
 Calculates minimum of two ulint-pairs. */
 UNIV_INLINE

@@ -179,7 +179,13 @@ UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
 
+UNIV_INTERN ib_uint64_t	srv_max_bitmap_file_size = 100 * 1024 * 1024;
+
 UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
+
+/** When TRUE, fake change transcations take S rather than X row locks.
+    When FALSE, row locks are not taken at all. */
+UNIV_INTERN my_bool	srv_fake_changes_locks = TRUE;
 
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;

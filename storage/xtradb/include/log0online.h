@@ -27,6 +27,16 @@ Online database log parsing for changed page tracking
 #include "univ.i"
 #include "os0file.h"
 
+/** Single bitmap file information */
+typedef struct log_online_bitmap_file_struct log_online_bitmap_file_t;
+
+/** A set of bitmap files containing some LSN range */
+typedef struct log_online_bitmap_file_range_struct
+log_online_bitmap_file_range_t;
+
+/** An iterator over changed page info */
+typedef struct log_bitmap_iterator_struct log_bitmap_iterator_t;
+
 /*********************************************************************//**
 Initializes the online log following subsytem. */
 UNIV_INTERN
@@ -49,45 +59,32 @@ void
 log_online_follow_redo_log();
 /*=========================*/
 
-/** The iterator through all bits of changed pages bitmap blocks */
-struct log_bitmap_iterator_struct
-{
-	char		in_name[FN_REFLEN]; /*!< the file name for bitmap
-					    input */
-	os_file_t	in;                 /*!< the bitmap input file */
-	ib_uint64_t	in_offset;          /*!< the next write position in the
-					    bitmap output file */
-	ib_uint32_t	bit_offset;         /*!< bit offset inside of bitmap
-					    block*/
-	ib_uint64_t	start_lsn;          /*!< Start lsn of the block */
-	ib_uint64_t	end_lsn;            /*!< End lsn of the block */
-	ib_uint32_t	space_id;           /*!< Block space id */
-	ib_uint32_t	first_page_id;      /*!< First block page id */
-	ibool		changed;            /*!< true if current page was changed */
-	byte*		page;               /*!< Bitmap block */
-};
-
-typedef struct log_bitmap_iterator_struct log_bitmap_iterator_t;
-
 #define LOG_BITMAP_ITERATOR_START_LSN(i) \
-        ((i).start_lsn)
+	((i).start_lsn)
 #define LOG_BITMAP_ITERATOR_END_LSN(i) \
-        ((i).end_lsn)
+	((i).end_lsn)
 #define LOG_BITMAP_ITERATOR_SPACE_ID(i) \
-        ((i).space_id)
+	((i).space_id)
 #define LOG_BITMAP_ITERATOR_PAGE_NUM(i) \
-        ((i).first_page_id + (i).bit_offset)
+	((i).first_page_id + (i).bit_offset)
 #define LOG_BITMAP_ITERATOR_PAGE_CHANGED(i) \
-        ((i).changed)
+	((i).changed)
 
 /*********************************************************************//**
-Initializes log bitmap iterator.
+Initializes log bitmap iterator.  The minimum LSN is used for finding the
+correct starting file with records and it there may be records returned by
+the iterator that have LSN less than start_lsn.
+
 @return TRUE if the iterator is initialized OK, FALSE otherwise. */
 UNIV_INTERN
 ibool
 log_online_bitmap_iterator_init(
 /*============================*/
-	log_bitmap_iterator_t *i); /*!<in/out:  iterator */
+	log_bitmap_iterator_t	*i,		/*!<in/out:  iterator */
+	ib_uint64_t		min_lsn,	/*!<in: start LSN for the
+						iterator */
+	ib_uint64_t		max_lsn);	/*!<in: end LSN for the
+						iterator */
 
 /*********************************************************************//**
 Releases log bitmap iterator. */
@@ -107,5 +104,58 @@ ibool
 log_online_bitmap_iterator_next(
 /*============================*/
 	log_bitmap_iterator_t *i); /*!<in/out: iterator */
+
+/** Struct for single bitmap file information */
+struct log_online_bitmap_file_struct {
+	char		name[FN_REFLEN];	/*!< Name with full path */
+	os_file_t	file;			/*!< Handle to opened file */
+	ib_uint64_t	size;			/*!< Size of the file */
+	ib_uint64_t	offset;			/*!< Offset of the next read,
+						or count of already-read bytes
+						*/
+};
+
+/** Struct for a set of bitmap files containing some LSN range */
+struct log_online_bitmap_file_range_struct {
+	size_t	count;					/*!< Number of files */
+	/*!< Dynamically-allocated array of info about individual files */
+	struct {
+		char		name[FN_REFLEN];	/*!< Name of a file */
+		ib_uint64_t	start_lsn;		/*!< Starting LSN of
+						        data in	this file */
+		ulong		seq_num;		/*!< Sequence number of
+							this file */
+	}	*files;
+};
+
+/** Struct for an iterator through all bits of changed pages bitmap blocks */
+struct log_bitmap_iterator_struct
+{
+	log_online_bitmap_file_range_t	in_files;	/*!< The bitmap files
+							for this iterator */
+	size_t				in_i;		/*!< Currently read
+							file index in in_files
+							*/
+	log_online_bitmap_file_t	in;		/*!< Currently read
+							file */
+	ib_uint32_t			bit_offset;	/*!< bit offset inside
+							the current bitmap
+							block */
+	ib_uint64_t			start_lsn;	/*!< Start LSN of the
+							current bitmap block */
+	ib_uint64_t			end_lsn;	/*!< End LSN of the
+							current bitmap block */
+	ib_uint32_t			space_id;	/*!< Current block
+							space id */
+	ib_uint32_t			first_page_id;	/*!< Id of the first
+							page in the current
+							block */
+	ibool				last_page_in_run;/*!< "Last page in
+							run" flag value for the
+							current block */
+	ibool				changed;	/*!< true if current
+							page was changed */
+	byte*				page;		/*!< Bitmap block */
+};
 
 #endif

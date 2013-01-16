@@ -3031,7 +3031,11 @@ try_again:
 	some of them will contain extent descriptor pages, and therefore
 	will not be free extents */
 
-	n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	if (size <= free_limit) {
+		n_free_up = 0;
+	} else {
+		n_free_up = (size - free_limit) / FSP_EXTENT_SIZE;
+	}
 
 	if (n_free_up > 0) {
 		n_free_up--;

@@ -65,7 +65,10 @@ enum btr_latch_mode {
 	/** Search the previous record. */
 	BTR_SEARCH_PREV = 35,
 	/** Modify the previous record. */
-	BTR_MODIFY_PREV = 36
+	BTR_MODIFY_PREV = 36,
+	/** Weaker BTR_MODIFY_TREE that does not lock the leaf page siblings,
+	used for fake changes.  */
+	BTR_SEARCH_TREE = 37 /* BTR_MODIFY_TREE | 4 */
 };
 
 /* BTR_INSERT, BTR_DELETE and BTR_DELETE_MARK are mutually exclusive. */

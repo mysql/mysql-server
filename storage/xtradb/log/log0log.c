@@ -248,7 +248,7 @@ log_check_tracking_margin(
 				checked for the already-written log. */
 {
 	ib_uint64_t	tracked_lsn;
-	ulint		tracked_lsn_age;
+	ib_uint64_t	tracked_lsn_age;
 
 	if (!srv_track_changed_pages) {
 		return FALSE;
@@ -460,7 +460,7 @@ log_close(void)
 	ib_uint64_t	oldest_lsn;
 	ib_uint64_t	lsn;
 	ib_uint64_t	tracked_lsn;
-	ulint		tracked_lsn_age;
+	ib_uint64_t	tracked_lsn_age;
 	log_t*		log	= log_sys;
 	ib_uint64_t	checkpoint_age;
 

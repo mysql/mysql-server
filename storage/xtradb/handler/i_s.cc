@@ -7147,29 +7147,38 @@ static ST_FIELD_INFO	i_s_innodb_changed_pages_info[] =
 };
 
 /***********************************************************************
-  This function parses condition and gets upper bounds for start and end LSN's
-  if condition corresponds to certain pattern.
+  This function implements ICP for I_S.INNODB_CHANGED_PAGES by parsing a
+  condition and getting lower and upper bounds for start and end LSNs if the
+  condition corresponds to a certain pattern.
 
-  We can't know right position to avoid scanning bitmap files from the beginning
-  to the lower bound. But we can stop scanning bitmap files if we reach upper bound.
+  In the most general form, we understand queries like
 
-  It's expected the most used queries will be like the following:
+  SELECT * FROM INNODB_CHANGED_PAGES
+      WHERE START_LSN > num1 AND START_LSN < num2
+            AND END_LSN > num3 AND END_LSN < num4;
 
-  SELECT * FROM INNODB_CHANGED_PAGES WHERE START_LSN > num1 AND start_lsn < num2;
-
-  That's why the pattern is:
+  That's why the pattern syntax is:
 
   pattern:  comp | and_comp;
   comp:     lsn <  int_num | lsn <= int_num | int_num > lsn  | int_num >= lsn;
   lsn:	    start_lsn | end_lsn;
-  and_comp: some_expression AND some_expression  | some_expression AND and_comp;
-  some_expression: comp	| any_other_expression;
+  and_comp: expression AND expression | expression AND and_comp;
+  expression: comp | any_other_expression;
 
-  Suppose the condition is start_lsn < 100, this means we have to read all
-  blocks with start_lsn < 100. Which is equivalent to reading all the blocks
-  with end_lsn <= 99, or just end_lsn < 100. That's why it's enough to find
-  maximum lsn value, doesn't matter if this is start or end lsn and compare
-  it with "start_lsn" field.
+  The two bounds are handled differently: the lower bound is used to find the
+  correct starting _file_, the upper bound the last _block_ that needs reading.
+
+  Lower bound conditions are handled in the following way: start_lsn >= X
+  specifies that the reading must start from the file that has the highest
+  starting LSN less than or equal to X. start_lsn > X is equivalent to
+  start_lsn >= X + 1.  For end_lsn, end_lsn >= X is treated as
+  start_lsn >= X - 1 and end_lsn > X as start_lsn >= X.
+
+  For the upper bound, suppose the condition is start_lsn < 100, this means we
+  have to read all blocks with start_lsn < 100. Which is equivalent to reading
+  all the blocks with end_lsn <= 99, or just end_lsn < 100. That's why it's
+  enough to find maximum lsn value, doesn't matter if this is start or end lsn
+  and compare it with "start_lsn" field. LSN <= 100 is treated as LSN < 101.
 
   Example:
 
@@ -7180,92 +7189,130 @@ static ST_FIELD_INFO	i_s_innodb_changed_pages_info[] =
     555 > end_lsn   AND
     page_id = 100;
 
-  max_lsn will be set to 555.
+  end_lsn will be set to 555, start_lsn will be set 11.
+
+  Support for other functions (equal, NULL-safe equal, BETWEEN, IN, etc.) will
+  be added on demand.
+
 */
 static
 void
 limit_lsn_range_from_condition(
 /*===========================*/
-	TABLE*		table,   /*!<in: table */
-	COND*		cond,    /*!<in: condition */
-	ib_uint64_t*	max_lsn) /*!<in/out: maximum LSN
-				 (must be initialized with maximum
-				 available value) */
+	TABLE*		table,		/*!<in: table */
+	COND*		cond,		/*!<in: condition */
+	ib_uint64_t*	start_lsn,	/*!<in/out: minumum LSN */
+	ib_uint64_t*	end_lsn)	/*!<in/out: maximum LSN */
 {
+	enum Item_func::Functype	func_type;
+
 	if (cond->type() != Item::COND_ITEM &&
 	    cond->type() != Item::FUNC_ITEM)
 		return;
 
-	switch (((Item_func*) cond)->functype())
+	func_type = ((Item_func*) cond)->functype();
+
+	switch (func_type)
 	{
-		case Item_func::COND_AND_FUNC:
-		{
-			List_iterator<Item>	li(*((Item_cond*) cond)->
-						   argument_list());
-			Item			*item;
-			while ((item= li++))
-				limit_lsn_range_from_condition(table,
-							       item,
-							       max_lsn);
-			break;
+	case Item_func::COND_AND_FUNC:
+	{
+		List_iterator<Item>	li(*((Item_cond*) cond)
+					   ->argument_list());
+		Item			*item;
+
+		while ((item= li++)) {
+			limit_lsn_range_from_condition(table, item, start_lsn,
+						       end_lsn);
 		}
-		case Item_func::LT_FUNC:
-		case Item_func::LE_FUNC:
-		case Item_func::GT_FUNC:
-		case Item_func::GE_FUNC:
-		{
-			Item			*left;
-			Item			*right;
-			Item_field		*item_field;
-			ib_uint64_t		tmp_result;
+		break;
+	}
+	case Item_func::LT_FUNC:
+	case Item_func::LE_FUNC:
+	case Item_func::GT_FUNC:
+	case Item_func::GE_FUNC:
+	{
+		Item		*left;
+		Item		*right;
+		Item_field	*item_field;
+		ib_uint64_t	tmp_result;
+		ibool		is_end_lsn;
 
-			/*
-			   a <= b equals to b >= a that's why we just exchange
-			   "left" and "right" in the case of ">" or ">="
-			   function
-			*/
-			if (((Item_func*) cond)->functype() ==
-				Item_func::LT_FUNC ||
-			    ((Item_func*) cond)->functype() ==
-				Item_func::LE_FUNC)
-			{
-				left = ((Item_func*) cond)->arguments()[0];
-				right = ((Item_func*) cond)->arguments()[1];
-			} else {
-				left = ((Item_func*) cond)->arguments()[1];
-				right = ((Item_func*) cond)->arguments()[0];
-			}
+		/* a <= b equals to b >= a that's why we just exchange "left"
+		and "right" in the case of ">" or ">=" function.  We don't
+		touch the operation itself.  */
+		if (((Item_func*) cond)->functype() == Item_func::LT_FUNC
+		    || ((Item_func*) cond)->functype() == Item_func::LE_FUNC) {
+			left = ((Item_func*) cond)->arguments()[0];
+			right = ((Item_func*) cond)->arguments()[1];
+		} else {
+			left = ((Item_func*) cond)->arguments()[1];
+			right = ((Item_func*) cond)->arguments()[0];
+		}
 
-			if (!left || !right)
-				return;
-			if (left->type() != Item::FIELD_ITEM)
-				return;
-			if (right->type() != Item::INT_ITEM)
-				return;
+		if (left->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)left;
+		} else if (right->type() == Item::FIELD_ITEM) {
+			item_field = (Item_field *)right;
+		} else {
+			return;
+		}
 
-			item_field = (Item_field*)left;
+		/* Check if the current field belongs to our table */
+		if (table != item_field->field->table) {
+			return;
+		}
 
-			if (/* START_LSN */
-			    table->field[2] != item_field->field &&
-			    /* END_LSN */
-			    table->field[3] != item_field->field)
-			{
-				return;
-			}
+		/* Check if the field is START_LSN or END_LSN */
+		/* END_LSN */
+		is_end_lsn = table->field[3]->eq(item_field->field);
 
-			/* Check if the current field belongs to our table */
-			if (table != item_field->field->table)
-				return;
+		if (/* START_LSN */ !table->field[2]->eq(item_field->field)
+		    && !is_end_lsn) {
+			return;
+		}
+
+		if (left->type() == Item::FIELD_ITEM
+		    && right->type() == Item::INT_ITEM) {
+
+			/* The case of start_lsn|end_lsn <|<= const, i.e. the
+			upper bound.  */
 
 			tmp_result = right->val_int();
-			if (tmp_result < *max_lsn)
-				*max_lsn = tmp_result;
+			if (((func_type == Item_func::LE_FUNC)
+			     || (func_type == Item_func::GE_FUNC))
+			    && (tmp_result != IB_ULONGLONG_MAX)) {
 
-			break;
+				tmp_result++;
+			}
+			if (tmp_result < *end_lsn) {
+				*end_lsn = tmp_result;
+			}
+
+		} else if (left->type() == Item::INT_ITEM
+			   && right->type() == Item::FIELD_ITEM) {
+
+			/* The case of const <|<= start_lsn|end_lsn, i.e. the
+			lower bound */
+
+			tmp_result = left->val_int();
+			if (is_end_lsn && tmp_result != 0) {
+				tmp_result--;
+			}
+			if (((func_type == Item_func::LT_FUNC)
+			     || (func_type == Item_func::GT_FUNC))
+			    && (tmp_result != IB_ULONGLONG_MAX)) {
+
+				tmp_result++;
+			}
+			if (tmp_result > *start_lsn) {
+				*start_lsn = tmp_result;
+			}
 		}
-		default:;
-	}
 
+		break;
+	}
+	default:;
+	}
 }
 
 /***********************************************************************
@@ -7282,40 +7329,55 @@ i_s_innodb_changed_pages_fill(
 	TABLE*			table = (TABLE *) tables->table;
 	log_bitmap_iterator_t	i;
 	ib_uint64_t		output_rows_num = 0UL;
-	ib_uint64_t		max_lsn = ~0ULL;
+	ib_uint64_t		max_lsn = IB_ULONGLONG_MAX;
+	ib_uint64_t		min_lsn = 0ULL;
 
-	if (!srv_track_changed_pages)
-		return 0;
+	DBUG_ENTER("i_s_innodb_changed_pages_fill");
 
-	if (!log_online_bitmap_iterator_init(&i))
-		return 1;
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
 
-	if (cond)
-		limit_lsn_range_from_condition(table, cond, &max_lsn);
+		DBUG_RETURN(0);
+	}
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+	if (!srv_track_changed_pages) {
+		DBUG_RETURN(0);
+	}
+
+	if (cond) {
+		limit_lsn_range_from_condition(table, cond, &min_lsn,
+					       &max_lsn);
+	}
+
+	if (!log_online_bitmap_iterator_init(&i, min_lsn, max_lsn)) {
+		DBUG_RETURN(1);
+	}
 
 	while(log_online_bitmap_iterator_next(&i) &&
 	      (!srv_changed_pages_limit ||
 	       output_rows_num < srv_changed_pages_limit) &&
 	      /*
-	        There is no need to compare both start LSN and end LSN fields
-	        with maximum value. It's enough to compare only start LSN.
-	        Example:
+		There is no need to compare both start LSN and end LSN fields
+		with maximum value. It's enough to compare only start LSN.
+		Example:
 
-	                              max_lsn = 100
-	        \\\\\\\\\\\\\\\\\\\\\\\\\|\\\\\\\\        - Query 1
-	        I------I I-------I I-------------I I----I
-		//////////////////       |                - Query 2
-	           1        2             3          4
+				      max_lsn = 100
+		\\\\\\\\\\\\\\\\\\\\\\\\\|\\\\\\\\	  - Query 1
+		I------I I-------I I-------------I I----I
+		//////////////////	 |		  - Query 2
+		   1	    2		  3	     4
 
-	        Query 1:
-	        SELECT * FROM INNODB_CHANGED_PAGES WHERE start_lsn < 100
-	        will select 1,2,3 bitmaps
-	        Query 2:
-	        SELECT * FROM INNODB_CHANGED_PAGES WHERE end_lsn < 100
-	        will select 1,2 bitmaps
+		Query 1:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE start_lsn < 100
+		will select 1,2,3 bitmaps
+		Query 2:
+		SELECT * FROM INNODB_CHANGED_PAGES WHERE end_lsn < 100
+		will select 1,2 bitmaps
 
-	        The condition start_lsn <= 100 will be false after reading
-	        1,2,3 bitmaps which suits for both cases.
+		The condition start_lsn <= 100 will be false after reading
+		1,2,3 bitmaps which suits for both cases.
 	      */
 	      LOG_BITMAP_ITERATOR_START_LSN(i) <= max_lsn)
 	{
@@ -7330,10 +7392,10 @@ i_s_innodb_changed_pages_fill(
 				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
 		/* START_LSN */
 		table->field[2]->store(
-				       LOG_BITMAP_ITERATOR_START_LSN(i));
+				       LOG_BITMAP_ITERATOR_START_LSN(i), true);
 		/* END_LSN */
 		table->field[3]->store(
-				       LOG_BITMAP_ITERATOR_END_LSN(i));
+				       LOG_BITMAP_ITERATOR_END_LSN(i), true);
 
 		/*
 		  I_S tables are in-memory tables. If bitmap file is big enough
@@ -7353,14 +7415,14 @@ i_s_innodb_changed_pages_fill(
 		if (schema_table_store_record(thd, table))
 		{
 			log_online_bitmap_iterator_release(&i);
-			return 1;
+			DBUG_RETURN(1);
 		}
 
 		++output_rows_num;
 	}
 
 	log_online_bitmap_iterator_release(&i);
-	return 0;
+	DBUG_RETURN(0);
 }
 
 static

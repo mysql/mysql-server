@@ -47,6 +47,7 @@ btr_pcur_create_for_mysql(void)
 
 	pcur->btr_cur.index = NULL;
 	btr_pcur_init(pcur);
+	pcur->btr_cur.tree_height = ULINT_UNDEFINED;
 
 	return(pcur);
 }
