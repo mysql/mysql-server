@@ -1001,7 +1001,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   return_val= acl_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -5111,7 +5111,7 @@ my_bool grant_init()
   return_val=  grant_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -5136,8 +5136,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
@@ -5152,7 +5151,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_NAME *mem_check;
@@ -5208,7 +5207,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
 
@@ -5234,8 +5233,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= 1;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -5255,7 +5253,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
@@ -5294,7 +5292,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -11105,7 +11103,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_user_host)
+  PSI_THREAD_CALL(set_thread_account)
     (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
     thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
 #endif
