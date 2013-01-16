@@ -45,16 +45,10 @@ var errorClassificationMap = {
 };
 
 function DBOperationError(ndb_error) {
-  this.ndb_error = ndb_error;
   var mappedCode = errorClassificationMap[ndb_error.classification];
-  if(mappedCode) {
-    this.code = mappedCode;
-    this.message = ndb_error.message;
-  }
-  else {
-    this.code = "NDB00";
-    this.message = "See ndb_error for details";
-  }
+  this.ndb_error = ndb_error;
+  this.message = ndb_error.message + " [" + ndb_error.code + "]";
+  this.code = mappedCode ? mappedCode : "NDB00";
 }
 
 DBOperationError.prototype = doc.DBOperationError;
@@ -152,6 +146,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
   for(i = 0 ; i < nfields ; i++) {
     value = keys[i];
     if(value !== null) {
+      record.setNotNull(i, op.buffers.key);
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
       encoder.write(col[i], value, op.buffers.key, offset);
