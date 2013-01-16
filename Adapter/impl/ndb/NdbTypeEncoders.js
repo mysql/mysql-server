@@ -19,6 +19,7 @@
  */
 
 /*global unified_debug, build_dir, path */
+/*jslint bitwise: true */
 
 "use strict";
 

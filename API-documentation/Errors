@@ -22,7 +22,8 @@ Errors = {
   "22003" : "Numeric value out of range",
   "22008" : "Invalid datetime",
   
-  // Constraint violations, e.g. duplicate primary key
+  // Constraint violations
+  // 23000 includes both duplicate primary key and duplicate unique key
   "23000" : "Integrity Constraint Violation",
 
   // misc. errors
