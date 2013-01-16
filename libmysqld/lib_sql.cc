@@ -517,6 +517,20 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char fake_name[]= "fake_name";
   my_bool acl_error;
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    It makes no sense to build with both:
+    - WITH_EMBEDDED_SERVER
+    - WITH_PERFSCHEMA_STORAGE_ENGINE
+    because nobody is going to look at performance_schema.* tables
+    in a server that can not be connected to.
+    Now, if the build really uses both (this is not prevented),
+    the performance schema must have the very basic initialization
+    done to make sure that calls compiled statically don't fail.
+  */
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
   if (my_thread_init())
     return 1;
 
