@@ -56,6 +56,7 @@ Created 10/25/1995 Heikki Tuuri
 # include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
+#include<set>
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -132,7 +133,7 @@ UNIV_INTERN ulint	fil_n_file_opened			= 0;
 /** The space is truncated. We don't need protect the global variable
 by a mutex, since it is updated at the start and end of the recovery
 in scan phase, only read during apply phase. */
-static ulint	fil_space_truncated = ULINT_UNDEFINED;
+static std::set<ulint>	fil_space_truncated;
 
 /** The null file address */
 UNIV_INTERN fil_addr_t	fil_addr_null = {FIL_NULL, 0};
@@ -2222,7 +2223,7 @@ fil_recreate_tablespace(
 	ulint			buf_index;
 	btr_create_t		btr_create_info;
 
-	fil_space_truncated = space_id;
+	fil_space_truncated.insert(space_id);
 	/* Invalidate in the buffer pool all pages belonging
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
@@ -3221,7 +3222,7 @@ fil_space_is_truncated(
 /*===================*/
 	ulint		id)	/* !< in: space id */
 {
-	return(fil_space_truncated == id);
+	return(fil_space_truncated.count(id) == 1);
 }
 
 /*******************************************************************//**
@@ -3231,7 +3232,7 @@ void
 fil_space_truncated_reset()
 /*=======================*/
 {
-	fil_space_truncated = ULINT_UNDEFINED;
+	fil_space_truncated.clear();
 }
 
 /*******************************************************************//**
@@ -3252,7 +3253,6 @@ fil_truncate_tablespace(
 					tablespace file in pages */
 {
 	char*		path;
-	ulint		size_bytes;
 	fil_space_t*	space;
 	fil_node_t*	node;
 	ibool		success;
@@ -3297,25 +3297,12 @@ fil_truncate_tablespace(
 	}
 
 	if (node->size > size) {
-		ulint zip_size = 0;
-		ulint min_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
-
-		if (fsp_flags_is_compressed(flags)) {
-			zip_size = fil_space_get_zip_size(id);
-			size_bytes = zip_size * size;
-		} else {
-			size_bytes = UNIV_PAGE_SIZE * size;
-		}
 
 		success = os_file_truncate(path, node->handle,
-					   max(size_bytes, min_size));
+					   size * UNIV_PAGE_SIZE);
 
 		if (success) {
-			if (min_size > size_bytes && zip_size != 0) {
-				space->size = node->size = min_size/zip_size;
-			} else {
-				space->size = node->size = size;
-			}
+			space->size = node->size = size;
 		}
 
 	} else {
