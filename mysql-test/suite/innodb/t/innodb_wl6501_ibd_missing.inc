@@ -3,11 +3,9 @@
 # and the table is marked as corrupt when the .ibd file is missing.
 #
 
---disable_warnings
-drop table if exists tc;
---enable_warnings
+CREATE DATABASE wl6501;
 
-create table tc(a int not null,
+create table wl6501.t1(a int not null,
  b int not null,
  c int not null,
  primary key (a),
@@ -20,19 +18,19 @@ engine=innodb row_format=compact;
 let $n=100;
 while ($n)
 {
-  eval insert into tc values($n,$n,$n);
+  eval insert into wl6501.t1 values($n,$n,$n);
   dec $n;
 }
 -- enable_result_log
 -- enable_query_log
-select count(*) from tc;
+select count(*) from wl6501.t1;
 
 -- echo # Write file to make mysql-test-run.pl expect crash and restart
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- echo # Run the crashing query
 #-- error 2013
 --error ER_GET_ERRNO
-truncate table tc;
+truncate table wl6501.t1;
 
 -- enable_reconnect
 -- echo # Restart the MySQL server
@@ -40,7 +38,8 @@ truncate table tc;
 -- source include/wait_until_connected_again.inc
 -- disable_reconnect
 
-show create table tc;
+show create table wl6501.t1;
 
-drop table tc;
+drop table wl6501.t1;
+drop database wl6501;
 
