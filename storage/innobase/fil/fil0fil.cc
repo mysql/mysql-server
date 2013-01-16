@@ -3302,7 +3302,9 @@ fil_truncate_tablespace(
 					   size * UNIV_PAGE_SIZE);
 
 		if (success) {
+			mutex_enter(&fil_system->mutex);
 			space->size = node->size = size;
+			mutex_exit(&fil_system->mutex);
 		}
 
 	} else {
