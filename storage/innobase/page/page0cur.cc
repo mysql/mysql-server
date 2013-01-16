@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -227,10 +227,10 @@ page_cur_rec_field_extends(
 		if (dfield_get_len(dfield) != UNIV_SQL_NULL
 		    && rec_f_len != UNIV_SQL_NULL
 		    && rec_f_len >= dfield_get_len(dfield)
-		    && !cmp_data_data_slow(type->mtype, type->prtype,
-					   dfield_get_data(dfield),
-					   dfield_get_len(dfield),
-					   rec_f, dfield_get_len(dfield))) {
+		    && !cmp_data_data(type->mtype, type->prtype,
+				      dfield_get_data(dfield),
+				      dfield_get_len(dfield),
+				      rec_f, dfield_get_len(dfield))) {
 
 			return(TRUE);
 		}

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2891,7 +2891,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       if (digest_password(thd, combo))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), CRYPT_MAX_PASSWORD_SIZE);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), CRYPT_MAX_PASSWORD_SIZE);
         error= 1;
         goto end;
       }
@@ -10896,24 +10896,6 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                         mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
-  if (unlikely(acl_user && acl_user->password_expired
-               && !(mpvio.client_capabilities &
-                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
-               && disconnect_on_expired_password))
-  {
-    /*
-      Clients that don't signal password expiration support
-      get a connect error.
-    */
-    res= CR_ERROR;
-    mpvio.status= MPVIO_EXT::FAILURE;
-
-    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
-    if (log_warnings > 1)
-      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
-  }
-
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
   {
     Host_errors errors;
@@ -11018,6 +11000,26 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       inc_host_errors(mpvio.ip, &errors);
       if (!thd->is_error())
         login_failed_error(&mpvio, thd->password);
+      DBUG_RETURN(1);
+    }
+
+    if (unlikely(acl_user && acl_user->password_expired
+        && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+        && disconnect_on_expired_password))
+    {
+      /*
+        Clients that don't signal password expiration support
+        get a connect error.
+      */
+      Host_errors errors;
+
+      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+      general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      if (log_warnings > 1)
+        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+
+      errors.m_authentication= 1;
+      inc_host_errors(mpvio.ip, &errors);
       DBUG_RETURN(1);
     }
 
