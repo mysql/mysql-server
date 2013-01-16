@@ -55,3 +55,9 @@ create table IF NOT EXISTS tbl3 (
   c varchar(120) 
   ) engine = ndb;
 
+create table IF NOT EXISTS tbl4 (
+  i int primary key not null,
+  k int,
+  c varchar(120),
+  unique key (k)
+  ) engine = ndb;

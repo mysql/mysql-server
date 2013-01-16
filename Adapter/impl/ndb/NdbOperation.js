@@ -37,8 +37,28 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 var DBResult = function() {};
 DBResult.prototype = doc.DBResult;
 
-var DBOperationError = function() {};
+// DBOperationError
+var errorClassificationMap = {
+  "ConstraintViolation" : "23000",
+  "NoDataFound"         : "02000",
+  "UnknownResultError"  : "08000"
+};
+
+function DBOperationError(ndb_error) {
+  this.ndb_error = ndb_error;
+  var mappedCode = errorClassificationMap[ndb_error.classification];
+  if(mappedCode) {
+    this.code = mappedCode;
+    this.message = ndb_error.message;
+  }
+  else {
+    this.code = "NDB00";
+    this.message = "See ndb_error for details";
+  }
+}
+
 DBOperationError.prototype = doc.DBOperationError;
+exports.DBOperationError = DBOperationError;
 
 var DBOperation = function(opcode, tx, tableHandler) {
   assert(doc.OperationCodes.indexOf(opcode) !== -1);
@@ -194,44 +214,35 @@ function readResultRow(op) {
   op.result.value = resultRow;
 }
 
-var errorMap = {
-  "ConstraintViolation" : "23000",
-  "NoDataFound"         : "02000",
-  "UnknownResultError"  : "08000"
-};
-
-function mapError(opError) {
-  udebug.log("mapError " + JSON.stringify(opError.ndb_error));
-  var mappedCode = errorMap[opError.ndb_error.classification];
-  if(mappedCode) {
-    opError.code = mappedCode;
-    opError.message = opError.ndb_error.message;
-  }
-  else {
-    opError.code = "NDB00";
-    opError.message = "See ndb_error for details";
-  }
-}
-
 function completeExecutedOps(txError, txOperations) {
   udebug.log("completeExecutedOps", txOperations.length);
-  var i, op, ndberror;
+  var i, op, op_ndb_error, result_code;
   for(i = 0; i < txOperations.length ; i++) {
     op = txOperations[i];
     if(op.state === "PREPARED") {
       udebug.log("completeExecutedOps op",i, op.state);
       op.result = new DBResult();
-      ndberror = op.ndbop.getNdbError();
-      stats.incr("result_code", ndberror.code);
-      if(ndberror.code === 0) {
+      op_ndb_error = op.ndbop.getNdbError();
+      result_code = op_ndb_error.code;
+      if(result_code === 0 && txError === null) {
         op.result.success = true;
       }
       else {
+      /* If the whole transaction failed, but this operation does not have 
+         an error code, then attach the transaction's error to it.
+      */
         op.result.success = false;
-        op.result.error = new DBOperationError();
-        op.result.error.ndb_error = ndberror;
-        mapError(op.result.error);
+        if(result_code !== 0) {
+          op.result.error = new DBOperationError(op_ndb_error);
+        }
+        else {
+          op.result.error = new DBOperationError(txError.ndb_error);
+          result_code = txError.ndb_error.code;
+          stats.incr("applied_tx_error_to_operation", result_code);
+        }
       }
+      stats.incr("result_code", result_code);
+
       udebug.log_detail("completeExecutedOps op", i, "result", op.result);
            
       //still to do: insert_id
