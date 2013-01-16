@@ -2851,14 +2851,8 @@ row_ins_clust_index_entry(
 	err = row_ins_clust_index_entry_low(
 		0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
 
-#ifdef UNIV_DEBUG
-	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
-	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!thr_get_trx(thr)->ddl) {
-		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-				    "after_row_ins_clust_index_entry_leaf");
-	}
-#endif /* UNIV_DEBUG */
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_ins_clust_index_entry_leaf");
 
 	if (err != DB_FAIL) {
 		DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
@@ -3022,14 +3016,8 @@ row_ins_index_entry_step(
 
 	err = row_ins_index_entry(node->index, node->entry, thr);
 
-#ifdef UNIV_DEBUG
-	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
-	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!thr_get_trx(thr)->ddl) {
-		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-				    "after_row_ins_index_entry_step");
-	}
-#endif /* UNIV_DEBUG */
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_ins_index_entry_step");
 
 	return(err);
 }

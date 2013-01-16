@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,6 +65,11 @@ using std::max;
 #define INTVAR_DYNAMIC_INIT	16
 #define INTVAR_DYNAMIC_INCR	1
 
+/*
+  The character set used should be equal to the one used in mysqld.cc for
+  server rewrite-db
+*/
+#define mysqld_charset &my_charset_latin1
 
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
@@ -119,6 +124,7 @@ static enum enum_remote_proto {
 static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
+static char *rewrite= 0;
 static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
@@ -159,6 +165,18 @@ Checkable_rwlock *global_sid_lock= NULL;
 Gtid_set *gtid_set_included= NULL;
 Gtid_set *gtid_set_excluded= NULL;
 
+/**
+  Function to add a new member in the binlog_rewrite_db list
+  in the form of from_db, to_db pair
+
+  @param from_db    database to be rewritten.
+  @param to_db      new database name to replace from_db.
+ */
+void add_binlog_db_rewrite(const char* from_db, const char* to_db)
+{
+  i_string_pair *db_pair = new i_string_pair(from_db, to_db);
+  binlog_rewrite_db.push_back(db_pair);
+}
 
 /**
   Pointer to the Format_description_log_event of the currently active binlog.
@@ -1276,6 +1294,9 @@ static struct my_option my_long_options[] =
   {"database", 'd', "List entries for just this database (local log only).",
    &database, &database, 0, GET_STR_ALLOC, REQUIRED_ARG,
    0, 0, 0, 0, 0, 0},
+  {"rewrite-db", OPT_REWRITE_DB, "Rewrite the row event to point so that "
+   "it can be applied to a new database", &rewrite, &rewrite, 0,
+   GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log.", &default_dbug_option,
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
@@ -1611,6 +1632,35 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'd':
     one_database = 1;
     break;
+  case OPT_REWRITE_DB:
+  {
+    char *from_db= argument, *p, *to_db;
+    if (!(p= strstr(argument, "->")))
+    {
+      sql_print_error("Bad syntax in mysqlbinlog-rewrite-db - missing '->'!\n");
+      return 1;
+    }
+    to_db= p + 2;
+    while(p > argument && my_isspace(mysqld_charset, p[-1]))
+      p--;
+    *p= 0;
+    if (!*from_db)
+    {
+      sql_print_error("Bad syntax in mysqlbinlog-rewrite-db - empty FROM db!\n");
+      return 1;
+    }
+    while (*to_db && my_isspace(mysqld_charset, *to_db))
+      to_db++;
+    if (!*to_db)
+    {
+      sql_print_error("Bad syntax in mysqlbinlog-rewrite-db - empty TO db!\n");
+      return 1;
+    }
+    option_rewrite_set= TRUE;
+    add_binlog_db_rewrite(from_db, to_db); //add the new from_db, to_db pair in
+                                           // I_List ie. binlog_rewrite_db.
+    break;
+  }
   case 'p':
     if (argument == disabled_my_option)
       argument= (char*) "";                     // Don't require password
@@ -2055,6 +2105,21 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
 
     type= (Log_event_type) net->read_pos[1 + EVENT_TYPE_OFFSET];
+
+    /*
+      Ignore HEARBEAT events. They can show up if mysqlbinlog is
+      running with:
+
+        --read-from-remote-server
+        --read-from-remote-master=BINLOG-DUMP-GTIDS'
+        --stop-never
+        --stop-never-slave-server-id
+
+      i.e., acting as a fake slave.
+    */
+    if (type == HEARTBEAT_LOG_EVENT)
+      continue;
+
     if (!raw_mode || (type == ROTATE_EVENT) || (type == FORMAT_DESCRIPTION_EVENT))
     {
       if (!(ev= Log_event::read_log_event((const char*) net->read_pos + 1 ,
