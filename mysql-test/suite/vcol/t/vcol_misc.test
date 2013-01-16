@@ -178,3 +178,21 @@ insert into t2(a,b) values (7,0), (2,3), (0,1);
 select * from t2;
 
 drop table t1,t2;
+
+#
+# Bug mdev-3938: INSERT DELAYED for a table with virtual columns
+#
+
+CREATE TABLE t1 (
+ ts TIMESTAMP,
+ tsv TIMESTAMP AS (ADDDATE(ts, INTERVAL 1 DAY)) VIRTUAL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (tsv) VALUES (DEFAULT);
+
+INSERT DELAYED INTO t1 (tsv) VALUES (DEFAULT);
+
+SELECT COUNT(*) FROM t1;
+
+DROP TABLE t1;
+

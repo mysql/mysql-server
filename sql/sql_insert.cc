@@ -2084,6 +2084,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
 {
   my_ptrdiff_t adjust_ptrs;
   Field **field,**org_field, *found_next_number_field;
+  Field **vfield;
   TABLE *copy;
   TABLE_SHARE *share;
   uchar *bitmap;
@@ -2127,12 +2128,20 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   if (!copy_tmp)
     goto error;
 
+  if (share->vfields)
+  {
+    vfield= (Field **) client_thd->alloc((share->vfields+1)*sizeof(Field*));
+    if (!vfield)
+      goto error;
+  }
+
   /* Copy the TABLE object. */
   copy= new (copy_tmp) TABLE;
   *copy= *table;
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
+  copy->vfield= vfield;
   bitmap= (uchar*) (field + share->fields + 1);
   copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
@@ -2155,6 +2164,26 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       (*field)->table->found_next_number_field= *field;
   }
   *field=0;
+
+  if (table->vfield)
+  {
+    for (field= copy->field; *field; field++)
+    {
+      if ((*field)->vcol_info)
+      {
+        bool error_reported= FALSE;
+        if (unpack_vcol_info_from_frm(client_thd,
+                                      client_thd->mem_root,
+                                      copy,
+                                      *field,
+                                      &(*field)->vcol_info->expr_str,
+                                      &error_reported))
+          goto error;
+        *vfield++= *field;
+      }
+    }
+    *vfield= 0; 
+  }
 
   /* Adjust timestamp */
   if (table->timestamp_field)
