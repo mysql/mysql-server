@@ -1836,8 +1836,48 @@ err:
 }
 
 
-/*
-  Remove all cached queries that uses any of the tables in the list
+/**
+  Remove all cached queries that use the given table.
+
+  @param thd                 Thread handle
+  @param table_used          TABLE_LIST representing the table to be
+                             invalidated.
+  @param using_transactions  If we are inside a transaction only add
+                             the table to a list of changed tables for now,
+                             don't invalidate directly. The table will instead
+                             be invalidated once the transaction commits.
+*/
+
+void Query_cache::invalidate_single(THD *thd, TABLE_LIST *table_used,
+                                    my_bool using_transactions)
+{
+  DBUG_ENTER("Query_cache::invalidate_single (table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
+  DBUG_ASSERT(!using_transactions || table_used->table!=0);
+  if (table_used->derived)
+    DBUG_VOID_RETURN;
+  if (using_transactions &&
+      (table_used->table->file->table_cache_type() ==
+       HA_CACHE_TBL_TRANSACT))
+    /*
+      table_used->table can't be 0 in transaction.
+      Only 'drop' invalidate not opened table, but 'drop'
+      force transaction finish.
+    */
+    thd->add_changed_table(table_used->table);
+  else
+    invalidate_table(thd, table_used);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Remove all cached queries that use any of the tables in the list.
+
+  @see Query_cache::invalidate_single().
 */
 
 void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
@@ -1849,22 +1889,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
   using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
   for (; tables_used; tables_used= tables_used->next_local)
-  {
-    DBUG_ASSERT(!using_transactions || tables_used->table!=0);
-    if (tables_used->derived)
-      continue;
-    if (using_transactions &&
-        (tables_used->table->file->table_cache_type() ==
-        HA_CACHE_TBL_TRANSACT))
-      /*
-        tables_used->table can't be 0 in transaction.
-        Only 'drop' invalidate not opened table, but 'drop'
-        force transaction finish.
-      */
-      thd->add_changed_table(tables_used->table);
-    else
-      invalidate_table(thd, tables_used);
-  }
+    invalidate_single(thd, tables_used, using_transactions);
 
   DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
 
