@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -469,7 +469,8 @@ handler *get_ha_partition(partition_info *part_info)
   }
   else
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(ha_partition)));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+             static_cast<int>(sizeof(ha_partition)));
   }
   DBUG_RETURN(((handler*) partition));
 }
@@ -1586,7 +1587,12 @@ int ha_rollback_trans(THD *thd, bool all)
   if (all)
     thd->transaction_rollback_request= FALSE;
 
-  gtid_rollback(thd);
+  /*
+    Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
+    complete transaction is being rollback or autocommit=1.
+  */
+  if (all || 0 == thd->transaction.all.ha_list)
+    gtid_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
