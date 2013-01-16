@@ -46,9 +46,10 @@
 #define LFACTOR1  ULL(10000000000)
 #define LFACTOR2  ULL(100000000000)
 
+#if defined(HAVE_CHARSET_utf32) || defined(HAVE_CHARSET_mb2)
 static unsigned long lfactor[9]=
 { 1L, 10L, 100L, 1000L, 10000L, 100000L, 1000000L, 10000000L, 100000000L };
-
+#endif
 
 
 #ifdef HAVE_CHARSET_mb2_or_mb4
