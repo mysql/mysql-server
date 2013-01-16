@@ -412,11 +412,36 @@ static const char * orig_env_ver_key = "original_version";
 static const char * curr_env_ver_key = "current_version";  
 // Following keys added in version 14, add more keys for future versions
 static const char * creation_time_key         = "creation_time";
-static const char * last_lsn_of_v13_key       = "last_lsn_of_v13";
-//static const char * upgrade_v14_time_key      = "upgrade_v14_time";      
-//static const char * upgrade_v14_footprint_key = "upgrade_v14_footprint";
-static const char * upgrade_v19_time_key      = "upgrade_v19_time";      
-static const char * upgrade_v19_footprint_key = "upgrade_v19_footprint";
+
+static char * get_upgrade_time_key(int version) {
+    static char upgrade_time_key[sizeof("upgrade_v_time") + 12];
+    {
+        int n;
+        n = snprintf(upgrade_time_key, sizeof(upgrade_time_key), "upgrade_v%d_time", version);
+        assert(n >= 0 && n < (int)sizeof(upgrade_time_key));
+    }
+    return &upgrade_time_key[0];
+}
+
+static char * get_upgrade_footprint_key(int version) {
+    static char upgrade_footprint_key[sizeof("upgrade_v_footprint") + 12];
+    {
+        int n;
+        n = snprintf(upgrade_footprint_key, sizeof(upgrade_footprint_key), "upgrade_v%d_footprint", version);
+        assert(n >= 0 && n < (int)sizeof(upgrade_footprint_key));
+    }
+    return &upgrade_footprint_key[0];
+}
+
+static char * get_upgrade_last_lsn_key(int version) {
+    static char upgrade_last_lsn_key[sizeof("upgrade_v_last_lsn") + 12];
+    {
+        int n;
+        n = snprintf(upgrade_last_lsn_key, sizeof(upgrade_last_lsn_key), "upgrade_v%d_last_lsn", version);
+        assert(n >= 0 && n < (int)sizeof(upgrade_last_lsn_key));
+    }
+    return &upgrade_last_lsn_key[0];
+}
 
 // Values read from (or written into) persistent environment,
 // kept here for read-only access from engine status.
@@ -492,26 +517,40 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
         r = toku_db_put(persistent_environment, txn, &key, &val, 0, false);
         assert_zero(r);
 
-        // although the variable name is last_lsn_of_v13, this key really represents
-        // the last lsn of whatever we upgraded from, may be be v13 or 14, or in the
-        // future, something else
-        uint64_t last_lsn_of_v13_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
-        toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
-        toku_fill_dbt(&val, &last_lsn_of_v13_d, sizeof(last_lsn_of_v13_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, 0, false);
-        assert_zero(r);
-        
-        time_t upgrade_v19_time_d = toku_htod64(time(NULL));
-        toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
-        toku_fill_dbt(&val, &upgrade_v19_time_d, sizeof(upgrade_v19_time_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, false);
-        assert_zero(r);
+        time_t upgrade_time_d = toku_htod64(time(NULL));
+        uint64_t upgrade_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
+        uint64_t upgrade_last_lsn_d = toku_htod64(last_lsn_of_clean_shutdown_read_from_log.lsn);
+        for (int version = stored_env_version+1; version <= FT_LAYOUT_VERSION; version++) {
+            uint32_t put_flag = DB_NOOVERWRITE;
+            if (version <= FT_LAYOUT_VERSION_19) {
+                // See #5902.
+                // To prevent a crash (and any higher complexity code) we'll simply
+                // silently not overwrite anything if it exists.
+                // The keys existing for version <= 19 is not necessarily an error.
+                // If this happens for versions > 19 it IS an error and we'll use DB_NOOVERWRITE.
+                put_flag = DB_NOOVERWRITE_NO_ERROR;
+            }
 
-        uint64_t upgrade_v19_footprint_d = toku_htod64(toku_log_upgrade_get_footprint());
-        toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
-        toku_fill_dbt(&val, &upgrade_v19_footprint_d, sizeof(upgrade_v19_footprint_d));
-        r = toku_db_put(persistent_environment, txn, &key, &val, DB_NOOVERWRITE, false);
-        assert_zero(r);
+
+            char* upgrade_time_key = get_upgrade_time_key(version);
+            toku_fill_dbt(&key, upgrade_time_key, strlen(upgrade_time_key));
+            toku_fill_dbt(&val, &upgrade_time_d, sizeof(upgrade_time_d));
+            r = toku_db_put(persistent_environment, txn, &key, &val, put_flag, false);
+            assert_zero(r);
+
+            char* upgrade_footprint_key = get_upgrade_footprint_key(version);
+            toku_fill_dbt(&key, upgrade_footprint_key, strlen(upgrade_footprint_key));
+            toku_fill_dbt(&val, &upgrade_footprint_d, sizeof(upgrade_footprint_d));
+            r = toku_db_put(persistent_environment, txn, &key, &val, put_flag, false);
+            assert_zero(r);
+
+            char* upgrade_last_lsn_key = get_upgrade_last_lsn_key(version);
+            toku_fill_dbt(&key, upgrade_last_lsn_key, strlen(upgrade_last_lsn_key));
+            toku_fill_dbt(&val, &upgrade_last_lsn_d, sizeof(upgrade_last_lsn_d));
+            r = toku_db_put(persistent_environment, txn, &key, &val, put_flag, false);
+            assert_zero(r);
+        }
+
     }
     return r;
 }
@@ -526,14 +565,14 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
     toku_fill_dbt(&key, curr_env_ver_key, strlen(curr_env_ver_key));
     toku_init_dbt(&val);
     r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-    assert(r == 0);
+    assert_zero(r);
     uint32_t curr_env_version = toku_dtoh32(*(uint32_t*)val.data);
     assert(curr_env_version == FT_LAYOUT_VERSION);
 
     toku_fill_dbt(&key, orig_env_ver_key, strlen(orig_env_ver_key));
     toku_init_dbt(&val);
     r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-    assert(r == 0);
+    assert_zero(r);
     uint64_t persistent_original_env_version = toku_dtoh32(*(uint32_t*)val.data);
     PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION) = persistent_original_env_version;
     assert(persistent_original_env_version <= curr_env_version);
@@ -543,30 +582,33 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
         toku_fill_dbt(&key, creation_time_key, strlen(creation_time_key));
         toku_init_dbt(&val);
         r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-        assert(r == 0);
+        assert_zero(r);
         STATUS_VALUE(YDB_LAYER_TIME_CREATION) = toku_dtoh64((*(time_t*)val.data));
     }
 
     if (persistent_original_env_version != curr_env_version) {
         // an upgrade was performed at some time, capture info about the upgrade
-        
-        toku_fill_dbt(&key, last_lsn_of_v13_key, strlen(last_lsn_of_v13_key));
-        toku_init_dbt(&val);
-        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-        assert(r == 0);
-        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint32_t*)val.data);
 
-        toku_fill_dbt(&key, upgrade_v19_time_key, strlen(upgrade_v19_time_key));
+        char * last_lsn_key = get_upgrade_last_lsn_key(curr_env_version);
+        toku_fill_dbt(&key, last_lsn_key, strlen(last_lsn_key));
         toku_init_dbt(&val);
         r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-        assert(r == 0);
-        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64((*(time_t*)val.data));
+        assert_zero(r);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_LAST_LSN_OF_V13) = toku_dtoh64(*(uint64_t*)val.data);
 
-        toku_fill_dbt(&key, upgrade_v19_footprint_key, strlen(upgrade_v19_footprint_key));
+        char * time_key = get_upgrade_time_key(curr_env_version);
+        toku_fill_dbt(&key, time_key, strlen(time_key));
         toku_init_dbt(&val);
         r = toku_db_get(persistent_environment, txn, &key, &val, 0);
-        assert(r == 0);
-        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_FOOTPRINT) = toku_dtoh64((*(uint64_t*)val.data));
+        assert_zero(r);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_TIME) = toku_dtoh64(*(time_t*)val.data);
+
+        char * footprint_key = get_upgrade_footprint_key(curr_env_version);
+        toku_fill_dbt(&key, footprint_key, strlen(footprint_key));
+        toku_init_dbt(&val);
+        r = toku_db_get(persistent_environment, txn, &key, &val, 0);
+        assert_zero(r);
+        PERSISTENT_UPGRADE_STATUS_VALUE(PERSISTENT_UPGRADE_V14_FOOTPRINT) = toku_dtoh64(*(uint64_t*)val.data);
     }
 
 }
