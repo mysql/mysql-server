@@ -126,7 +126,6 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       this.ndbop = helper.writeTuple(ndbTransaction);
       break;
   }
-
   this.state = doc.OperationStates[1];  // PREPARED
 };
 
@@ -216,14 +215,17 @@ function readResultRow(op) {
 
 function completeExecutedOps(txError, txOperations) {
   udebug.log("completeExecutedOps", txOperations.length);
-  var i, op, op_ndb_error, result_code;
+  var i, op, op_ndb_error;
+  var result_code = -1;
   for(i = 0; i < txOperations.length ; i++) {
     op = txOperations[i];
     if(op.state === "PREPARED") {
       udebug.log("completeExecutedOps op",i, op.state);
       op.result = new DBResult();
-      op_ndb_error = op.ndbop.getNdbError();
-      result_code = op_ndb_error.code;
+      if(op.ndbop) {
+        op_ndb_error = op.ndbop.getNdbError();
+        result_code = op_ndb_error.code;
+      }
       if(result_code === 0 && txError === null) {
         op.result.success = true;
       }
@@ -232,7 +234,7 @@ function completeExecutedOps(txError, txOperations) {
          an error code, then attach the transaction's error to it.
       */
         op.result.success = false;
-        if(result_code !== 0) {
+        if(result_code > 0) {
           op.result.error = new DBOperationError(op_ndb_error);
         }
         else {

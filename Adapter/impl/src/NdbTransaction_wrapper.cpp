@@ -44,6 +44,7 @@ public:
     DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute); 
     DEFINE_JS_FUNCTION(Envelope::stencil, "close", close);
     DEFINE_JS_FUNCTION(Envelope::stencil, "commitStatus", commitStatus);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<NdbTransaction>);
   }
 };
 

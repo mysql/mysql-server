@@ -86,10 +86,18 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
   function prepareOperationsAndExecute() {
     udebug.log("execute prepareOperationsAndExecute");
-    var i;
+    var i, op, fatalError;
     for(i = 0 ; i < dbOperationList.length; i++) {
-      dbOperationList[i].prepare(self.ndbtx);
-      self.executedOperations.push(dbOperationList[i]);
+      op = dbOperationList[i];
+      op.prepare(self.ndbtx);
+      if(op.ndbop) {
+        self.executedOperations.push(dbOperationList[i]);
+      }
+      else {
+        fatalError = self.ndbtx.getNdbError();
+        callback(new ndboperation.DBOperationError(fatalError), self);
+        return;
+      }
     }
 
     self.ndbtx.execute(execMode, abortFlag, 0, onCompleteTx);    

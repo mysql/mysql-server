@@ -52,9 +52,12 @@ Envelope NdbIndexScanOperationEnvelope("NdbIndexScanOperation");
 
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *op) {
   HandleScope scope;
-  Local<Object> jsobj = NdbOperationEnvelope.newWrapper();
-  wrapPointerInObject(op, NdbOperationEnvelope, jsobj);
-  return scope.Close(jsobj);
+  if(op) {
+    Local<Object> jsobj = NdbOperationEnvelope.newWrapper();
+    wrapPointerInObject(op, NdbOperationEnvelope, jsobj);
+    return scope.Close(jsobj);
+  }
+  return Null();
 }
 
 
