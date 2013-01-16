@@ -2141,7 +2141,6 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   /* We don't need to change the file handler here */
   /* Assign the pointers for the field pointers array and the record. */
   field= copy->field= (Field**) (copy + 1);
-  copy->vfield= vfield;
   bitmap= (uchar*) (field + share->fields + 1);
   copy->record[0]= (bitmap + share->column_bitmap_size*3);
   memcpy((char*) copy->record[0], (char*) table->record[0], share->reclength);
@@ -2165,8 +2164,9 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   }
   *field=0;
 
-  if (table->vfield)
+  if (share->vfields)
   {
+    copy->vfield= vfield;
     for (field= copy->field; *field; field++)
     {
       if ((*field)->vcol_info)
