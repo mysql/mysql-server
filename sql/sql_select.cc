@@ -13797,10 +13797,20 @@ create_tmp_table(THD *thd, TMP_TABLE_PARAM *param, List<Item> &fields,
 
   if (group)
   {
+    ORDER **prev= &group;
     if (!param->quick_group)
       group=0;					// Can't use group key
     else for (ORDER *tmp=group ; tmp ; tmp=tmp->next)
     {
+      /* Exclude found constant from the list */
+      if ((*tmp->item)->const_item())
+      {
+        *prev= tmp->next;
+        param->group_parts--;
+        continue;
+      }
+      else
+        prev= &(tmp->next);
       /*
         marker == 4 means two things:
         - store NULLs in the key, and
