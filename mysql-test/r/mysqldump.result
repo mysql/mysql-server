@@ -1988,7 +1988,7 @@ DROP TABLE IF EXISTS `v2`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v2` (
-  `a` varchar(30)
+ `a` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
@@ -2082,7 +2082,7 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v1` (
-  `a` int(11)
+ `a` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
@@ -2156,7 +2156,7 @@ DROP TABLE IF EXISTS `v2`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v2` (
-  `a` varchar(30)
+ `a` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
@@ -2270,9 +2270,9 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v1` (
-  `a` int(11),
-  `b` int(11),
-  `c` varchar(30)
+ `a` tinyint NOT NULL,
+  `b` tinyint NOT NULL,
+  `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `v2`;
@@ -2280,7 +2280,7 @@ DROP TABLE IF EXISTS `v2`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v2` (
-  `a` int(11)
+ `a` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `v3`;
@@ -2288,9 +2288,9 @@ DROP TABLE IF EXISTS `v3`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v3` (
-  `a` int(11),
-  `b` int(11),
-  `c` varchar(30)
+ `a` tinyint NOT NULL,
+  `b` tinyint NOT NULL,
+  `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP TABLE IF EXISTS `v1`*/;
@@ -3027,9 +3027,9 @@ DROP TABLE IF EXISTS `v0`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v0` (
-  `a` int(11),
-  `b` varchar(32),
-  `c` varchar(32)
+ `a` tinyint NOT NULL,
+  `b` tinyint NOT NULL,
+  `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `v1`;
@@ -3037,9 +3037,9 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v1` (
-  `a` int(11),
-  `b` varchar(32),
-  `c` varchar(32)
+ `a` tinyint NOT NULL,
+  `b` tinyint NOT NULL,
+  `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 DROP TABLE IF EXISTS `v2`;
@@ -3047,9 +3047,9 @@ DROP TABLE IF EXISTS `v2`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v2` (
-  `a` int(11),
-  `b` varchar(32),
-  `c` varchar(32)
+ `a` tinyint NOT NULL,
+  `b` tinyint NOT NULL,
+  `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 
@@ -3429,7 +3429,7 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v1` (
-  `id` int(11)
+ `id` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 
@@ -3489,7 +3489,7 @@ USE `mysqldump_views`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `nasishnasifu` (
-  `id` bigint(20) unsigned
+ `id` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 
@@ -3882,7 +3882,7 @@ DROP TABLE IF EXISTS `v2`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v2` (
-  `c` int(11)
+ `c` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 /*!50001 DROP TABLE IF EXISTS `v2`*/;
@@ -4299,7 +4299,7 @@ DROP TABLE IF EXISTS `v1`;
 SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE TABLE `v1` (
-  `id` int(11)
+ `id` tinyint NOT NULL
 ) ENGINE=MyISAM */;
 SET character_set_client = @saved_cs_client;
 
