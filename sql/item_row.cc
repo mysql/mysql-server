@@ -139,11 +139,13 @@ void Item_row::update_used_tables()
 {
   used_tables_cache= 0;
   const_item_cache= 1;
+  maybe_null= 0;
   for (uint i= 0; i < arg_count; i++)
   {
     items[i]->update_used_tables();
     used_tables_cache|= items[i]->used_tables();
     const_item_cache&= items[i]->const_item();
+    maybe_null|= items[i]->maybe_null;
   }
 }
 

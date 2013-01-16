@@ -2305,5 +2305,26 @@ SELECT a3 FROM t3 WHERE b2 = b1 AND b2 <= b1 ORDER BY b3
 );
 a1	b1
 drop table t1, t2, t3;
+#
+# MDEV-4056:Server crashes in Item_func_trig_cond::val_int
+# with FROM and NOT IN subqueries, LEFT JOIN, derived_merge+in_to_exists
+#
+set @optimizer_switch_MDEV4056 = @@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on,in_to_exists=on';
+CREATE TABLE t1 (a VARCHAR(1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('x'),('d');
+CREATE TABLE t2 (pk INT PRIMARY KEY, b INT, c VARCHAR(1))  ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,2,'v'),(2,150,'v');
+SELECT * FROM t1 LEFT JOIN (  
+SELECT * FROM t2 WHERE ( pk, pk ) NOT IN ( 
+SELECT MIN(b), SUM(pk) FROM t1
+) 
+) AS alias1 ON (a = c) 
+WHERE b IS NULL OR a < 'u';
+a	pk	b	c
+x	NULL	NULL	NULL
+d	NULL	NULL	NULL
+drop table t1,t2;
+set @@optimizer_switch = @optimizer_switch_MDEV4056;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;
