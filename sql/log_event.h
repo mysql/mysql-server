@@ -4743,7 +4743,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
                                                        bool flush_stream)
 {
   return         
-    my_b_copy_to_file(cache, file) || 
+    my_b_copy_to_file(cache, file) ||
     (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
