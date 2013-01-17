@@ -2334,9 +2334,9 @@ t2	CREATE TABLE `t2` (
 # Combining with non-inplace operation results in the whole ALTER
 # becoming non-inplace. 
 alter table t1 algorithm=inplace, rename key k to kk, add column j int;
-ERROR 42000: This version of MySQL doesn't yet support 'alter table t1 algorithm=inplace, rename key k to kk, add column j int'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter table t2 algorithm=inplace, rename key k to kk, add column j int;
-ERROR 42000: This version of MySQL doesn't yet support 'alter table t2 algorithm=inplace, rename key k to kk, add column j int'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 drop table t1, t2;
 # 3.b) Test coverage for InnoDB. InnoDB SE doesn't support in-place
 #      renaming of indexes yet. Once this will be changed the below
@@ -2345,7 +2345,7 @@ create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
 # InnoDB can't handle renaming of indexes in-place yet.
 alter table t1 algorithm=inplace, rename key k to kk;
-ERROR 42000: This version of MySQL doesn't yet support 'alter table t1 algorithm=inplace, rename key k to kk'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
