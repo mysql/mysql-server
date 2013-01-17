@@ -1043,6 +1043,9 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
+#ifndef MYSQL_CLIENT
+  prepare_seq_written= false;
+#endif
 }
 
 

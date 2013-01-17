@@ -26,6 +26,23 @@ class Master_info;
 class Format_description_log_event;
 
 /**
+  Logical timestamp generator for binlog Prepare stage.
+ */
+class Logical_clock_state
+{
+private:
+  my_atomic_rwlock_t state_LOCK;
+  volatile int64 state;
+  int64 step;
+protected:
+  inline void init(){ state= 1; step= 1;}
+public:
+  Logical_clock_state(){init();}
+  int64 step_clock();
+  int64 get_timestamp();
+};
+
+/**
   Class for maintaining the commit stages for binary log group commit.
  */
 class Stage_manager {
@@ -265,7 +282,6 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   mysql_cond_t update_cond;
   ulonglong bytes_written;
   IO_CACHE index_file;
-  char index_file_name[FN_REFLEN];
   /*
     crash_safe_index_file is temp file used for guaranteeing
     index file crash safe when master server restarts.
@@ -374,6 +390,15 @@ public:
   bool is_relay_log;
   ulong signal_cnt;  // update of the counter is checked by heartbeat
   uint8 checksum_alg_reset; // to contain a new value when binlog is rotated
+
+  /* clock to timestamp the binlog prepares */
+  Logical_clock_state prepare_clock;
+
+  /* Clock to timestamp the commits */
+  Logical_clock_state commit_clock;
+
+  char index_file_name[FN_REFLEN];
+
   /*
     Holds the last seen in Relay-Log FD's checksum alg value.
     The initial value comes from the slave's local FD that heads
@@ -560,7 +585,7 @@ public:
 
   bool write_event(Log_event* event_info);
   bool write_cache(THD *thd, class binlog_cache_data *binlog_cache_data);
-  int  do_write_cache(IO_CACHE *cache);
+  int  do_write_cache(THD* thd, IO_CACHE *cache);
 
   void set_write_error(THD *thd, bool is_transactional);
   bool check_write_error(THD *thd);

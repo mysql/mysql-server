@@ -303,6 +303,7 @@ struct sql_ex_info
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
+                                   1U+ 8U + 8U     /* type, prepare & commit timestamp */ + \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -389,6 +390,15 @@ struct sql_ex_info
 #define Q_UPDATED_DB_NAMES 12
 
 #define Q_MICROSECONDS 13
+
+/*
+  Q_PREPARE_TS and Q_COMMIT_TS status variables stores the pepare
+  timestamp when the transaction entered the binlog prepare and commit
+  phases respectively. These wll be used to apply transactions in parallel
+  on the slave.
+ */
+#define Q_PREPARE_TS 14
+#define Q_COMMIT_TS 15
 
 /* Intvar event post-header */
 

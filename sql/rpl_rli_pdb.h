@@ -152,7 +152,6 @@ typedef struct st_slave_job_group
   my_off_t group_relay_log_pos;  // filled by W
   ulong worker_id;
   Slave_worker *worker;
-  ulonglong total_seqno;
 
   my_off_t master_log_pos;       // B-event log_pos
   /* checkpoint coord are reset by periodical and special (Rotate event) CP:s */
@@ -164,7 +163,11 @@ typedef struct st_slave_job_group
   volatile uchar done;  // Flag raised by W,  read and reset by Coordinator
   ulong    shifted;     // shift the last CP bitmap at receiving a new CP
   time_t   ts;          // Group's timestampt to update Seconds_behind_master
-
+  /**
+    BGC-based parallelization
+  */
+  ulonglong parent_seqno; // parent group id
+  ulonglong total_seqno;  // current group id
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
@@ -183,6 +186,7 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
+    parent_seqno= 0;
   }
 } Slave_job_group;
 

@@ -98,8 +98,9 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    checkpoint_group(opt_mts_checkpoint_group), 
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
-   mts_group_status(MTS_NOT_IN_GROUP), reported_unsafe_warning(false),
-   rli_description_event(NULL),
+   mts_group_status(MTS_NOT_IN_GROUP),
+   mts_parallel_type(MTS_PARALLEL_TYPE_DB_NAME),
+   reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
@@ -151,7 +152,9 @@ void Relay_log_info::init_workers(ulong n_workers)
     Parallel slave parameters initialization is done regardless
     whether the feature is or going to be active or not.
   */
-  mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
+  mts_last_known_parent_group_id=
+    mts_groups_assigned= mts_events_assigned=
+      pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
   mts_last_online_stat= 0;
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
