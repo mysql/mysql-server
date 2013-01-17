@@ -2085,6 +2085,14 @@ env_crash(DB_ENV * UU(db_env), const char* msg, const char * fun, const char* fi
 }
 
 static int
+env_get_cursor_for_persistent_environment(DB_ENV* env, DB_TXN* txn, DBC** c) {
+    if (!env_opened(env)) {
+        return EINVAL;
+    }
+    return toku_db_cursor(env->i->persistent_environment, txn, c, 0);
+}
+
+static int
 env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
     if (!env_opened(env)) {
         return EINVAL;
@@ -2159,6 +2167,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(log_flush);
     USENV(log_archive);
     USENV(create_loader);
+    USENV(get_cursor_for_persistent_environment);
     USENV(get_cursor_for_directory);
 #undef USENV
     
