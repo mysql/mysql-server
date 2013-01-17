@@ -45,6 +45,8 @@
 #include <signaldata/CreateHashMap.hpp>
 #include <signaldata/ApiRegSignalData.hpp>
 #include <signaldata/NodeFailRep.hpp>
+#include <signaldata/CreateFK.hpp>
+#include <signaldata/DropFK.hpp>
 
 #define DEBUG_PRINT 0
 #define INCOMPATIBLE_VERSION -2
@@ -2284,6 +2286,20 @@ NdbDictInterface::execSignal(void* dictImpl,
   case GSN_CREATE_HASH_MAP_CONF:
     tmp->execCREATE_HASH_MAP_CONF(signal, ptr);
     break;
+  case GSN_CREATE_FK_REF:
+    tmp->execCREATE_FK_REF(signal, ptr);
+    break;
+  case GSN_CREATE_FK_CONF:
+    tmp->execCREATE_FK_CONF(signal, ptr);
+    break;
+
+  case GSN_DROP_FK_REF:
+    tmp->execDROP_FK_REF(signal, ptr);
+    break;
+  case GSN_DROP_FK_CONF:
+    tmp->execDROP_FK_CONF(signal, ptr);
+    break;
+
   case GSN_NODE_FAILREP:
   {
     const NodeFailRep *rep = CAST_CONSTPTR(NodeFailRep,
@@ -2675,6 +2691,10 @@ objectTypeMapping[] = {
   { DictTabInfo::Datafile,           NdbDictionary::Object::Datafile },
   { DictTabInfo::Undofile,           NdbDictionary::Object::Undofile },
   { DictTabInfo::ReorgTrigger,       NdbDictionary::Object::ReorgTrigger },
+
+  { DictTabInfo::ForeignKey,         NdbDictionary::Object::ForeignKey },
+  { DictTabInfo::FKParentTrigger,    NdbDictionary::Object::FKParentTrigger },
+  { DictTabInfo::FKChildTrigger,     NdbDictionary::Object::FKChildTrigger },
   { -1, -1 }
 };
 
@@ -3930,16 +3950,32 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
   }
 
   List list;
-  if ((res = listIndexes(list, impl.m_id)) == -1){
+  if ((res = listDependentObjects(list, impl.m_id)) == -1){
     return -1;
   }
+
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
-    // hence compare with != 0
-    if ((res = dropIndex(element.name, name)) != 0)
+    if (DictTabInfo::isIndex(element.type))
     {
-      return -1;
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      if ((res = dropIndex(element.name, name)) != 0)
+      {
+        return -1;
+      }
+    }
+    else if (DictTabInfo::isForeignKey(element.type))
+    {
+      NdbDictionary::ForeignKey fk;
+      if ((res = getForeignKey(fk, element.name)) != 0)
+      {
+        return -1;
+      }
+      if ((res = dropForeignKey(fk)) != 0)
+      {
+        return -1;
+      }
     }
   }
   
@@ -3974,26 +4010,44 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
   DBUG_ASSERT(impl.m_indexType == NdbDictionary::Object::TypeUndefined);
 
   List list;
-  if ((res = listIndexes(list, impl.m_id)) == -1){
+  if ((res = listDependentObjects(list, impl.m_id)) == -1){
     ERR_RETURN(getNdbError(), -1);
   }
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    NdbIndexImpl *idx= getIndexGlobal(element.name, impl);
-    if (idx == NULL)
+    if (DictTabInfo::isIndex(element.type))
     {
-      ERR_RETURN(getNdbError(), -1);
-    }
-    // note can also return -2 in error case(INCOMPATIBLE_VERSION),
-    // hence compare with != 0
-    if ((res = dropIndexGlobal(*idx)) != 0)
-    {
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      NdbIndexImpl *idx= getIndexGlobal(element.name, impl);
+      if (idx == NULL)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      if ((res = dropIndexGlobal(*idx)) != 0)
+      {
+        releaseIndexGlobal(*idx, 1);
+        ERR_RETURN(getNdbError(), -1);
+      }
       releaseIndexGlobal(*idx, 1);
-      ERR_RETURN(getNdbError(), -1);
     }
-    releaseIndexGlobal(*idx, 1);
+    else if (DictTabInfo::isForeignKey(element.type))
+    {
+      NdbDictionary::ForeignKey fk;
+      if ((res = getForeignKey(fk, element.name)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+      if ((res = dropForeignKey(fk)) != 0)
+      {
+        ERR_RETURN(getNdbError(), -1);
+      }
+    }
   }
-  
+
   if (impl.m_noOfBlobs != 0) {
     if (dropBlobTables(impl) != 0){
       ERR_RETURN(getNdbError(), -1);
@@ -5614,6 +5668,18 @@ NdbDictionaryImpl::listIndexes(List& list, Uint32 indexId)
   req.setTableType(0);
   req.setListNames(true);
   req.setListIndexes(true);
+  return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
+}
+
+int
+NdbDictionaryImpl::listDependentObjects(List& list, Uint32 tableId)
+{
+  ListTablesReq req;
+  req.init();
+  req.setTableId(tableId);
+  req.setTableType(0);
+  req.setListNames(true);
+  req.setListDependent(true);
   return m_receiver.listObjects(list, req, m_ndb.usingFullyQualifiedNames());
 }
 
@@ -8315,6 +8381,358 @@ NdbDictInterface::execCREATE_HASH_MAP_CONF(const NdbApiSignal * signal,
   data[0] = conf->objectId;
   data[1] = conf->objectVersion;
 
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+/**
+ * ForeignKey
+ */
+NdbForeignKeyImpl::NdbForeignKeyImpl()
+  : NdbDictionary::ForeignKey(* this),
+    NdbDictObjectImpl(NdbDictionary::Object::ForeignKey), m_facade(this)
+{
+  init();
+}
+
+NdbForeignKeyImpl::NdbForeignKeyImpl(NdbDictionary::ForeignKey & f)
+  : NdbDictionary::ForeignKey(* this),
+    NdbDictObjectImpl(NdbDictionary::Object::ForeignKey), m_facade(&f)
+{
+  init();
+}
+
+NdbForeignKeyImpl::~NdbForeignKeyImpl()
+{
+}
+
+void
+NdbForeignKeyImpl::init()
+{
+  m_parent_columns.clear();
+  m_child_columns.clear();
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_references); i++)
+  {
+    m_references[i].m_objectId = RNIL;
+    m_references[i].m_objectVersion = RNIL;
+  }
+}
+
+int
+NdbForeignKeyImpl::assign(const NdbForeignKeyImpl& org)
+{
+  m_id = org.m_id;
+  m_version = org.m_version;
+  m_status = org.m_status;
+  m_type = org.m_type;
+
+  if (!m_name.assign(org.m_name))
+    return -1;
+
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(m_references); i++)
+  {
+    if (!m_references[i].m_name.assign(org.m_references[i].m_name))
+      return -1;
+
+    m_references[i].m_objectId = org.m_references[i].m_objectId;
+    m_references[i].m_objectVersion = org.m_references[i].m_objectVersion;
+  }
+
+  m_parent_columns.clear();
+  for (unsigned i = 0; i < org.m_parent_columns.size(); i++)
+    m_parent_columns.push_back(org.m_parent_columns[i]);
+
+  m_child_columns.clear();
+  for (unsigned i = 0; i < org.m_child_columns.size(); i++)
+    m_child_columns.push_back(org.m_child_columns[i]);
+
+  return 0;
+}
+
+int
+NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
+                            NdbDictObjectImpl* obj,
+                            Uint32 flags)
+{
+  DictForeignKeyInfo::ForeignKey fk; fk.init();
+  BaseString::snprintf(fk.Name, sizeof(fk.Name),
+                       "%s", src.getName());
+
+  BaseString::snprintf(fk.ParentTableName, sizeof(fk.ParentTableName),
+                       "%s", src.getParentTable());
+
+  BaseString::snprintf(fk.ChildTableName, sizeof(fk.ChildTableName),
+                       "%s", src.getChildTable());
+
+  fk.ParentIndexName[0] = 0;
+  if (src.getParentIndex())
+  {
+    BaseString::snprintf(fk.ParentIndexName, sizeof(fk.ParentIndexName),
+                         "%s", src.getParentIndex());
+  }
+
+  fk.ChildIndexName[0] = 0;
+  if (src.getChildIndex())
+  {
+    BaseString::snprintf(fk.ChildIndexName, sizeof(fk.ChildIndexName),
+                         "%s", src.getChildIndex());
+  }
+  fk.ParentTableId = src.m_references[0].m_objectId;
+  fk.ParentTableVersion = src.m_references[0].m_objectVersion;
+  fk.ChildTableId = src.m_references[1].m_objectId;
+  fk.ChildTableVersion = src.m_references[1].m_objectVersion;
+  fk.ParentIndexId = src.m_references[2].m_objectId;
+  fk.ParentIndexVersion = src.m_references[2].m_objectVersion;
+  fk.ChildIndexId = src.m_references[3].m_objectId;
+  fk.ChildIndexVersion = src.m_references[3].m_objectVersion;
+  fk.OnUpdateAction = (Uint32)src.m_on_update_action;
+  fk.OnDeleteAction = (Uint32)src.m_on_delete_action;
+  for (unsigned i = 0; i < src.m_parent_columns.size(); i++)
+    fk.ParentColumns[i] = src.m_parent_columns[i];
+  fk.ParentColumnsLength = 4 * src.m_parent_columns.size(); // bytes :(
+  for (unsigned i = 0; i < src.m_child_columns.size(); i++)
+    fk.ChildColumns[i] = src.m_child_columns[i];
+  fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
+
+  SimpleProperties::UnpackStatus s;
+  UtilBufferWriter w(m_buffer);
+  s = SimpleProperties::pack(w,
+                             &fk,
+                             DictForeignKeyInfo::Mapping,
+                             DictForeignKeyInfo::MappingSize, true);
+
+  if (s != SimpleProperties::Eof)
+  {
+    abort();
+  }
+
+  NdbApiSignal tSignal(m_reference);
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber = GSN_CREATE_FK_REQ;
+  tSignal.theLength = CreateFKReq::SignalLength;
+
+  CreateFKReq* req = CAST_PTR(CreateFKReq, tSignal.getDataPtrSend());
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->requestInfo = flags;
+  req->requestInfo |= m_tx.requestFlags();
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+
+  LinearSectionPtr ptr[3];
+  ptr[0].p = (Uint32*)m_buffer.get_data();
+  ptr[0].sz = m_buffer.length() / 4;
+
+  int err[]= { CreateTableRef::Busy, CreateTableRef::NotMaster, 0 };
+
+  /*
+    Send signal without time-out since creating files can take a very long
+    time if the file is very big.
+  */
+  Uint32 seccnt = 1;
+  int ret = dictSignal(&tSignal, ptr, seccnt,
+		       0, // master
+		       WAIT_CREATE_INDX_REQ,
+		       -1, 100,
+		       err);
+
+  if (ret == 0 && obj)
+  {
+    Uint32* data = (Uint32*)m_buffer.get_data();
+    obj->m_id = data[0];
+    obj->m_version = data[1];
+  }
+
+  return ret;
+}
+
+void
+NdbDictInterface::execCREATE_FK_REF(const NdbApiSignal * signal,
+                                          const LinearSectionPtr ptr[3])
+{
+  const CreateFKRef* ref = CAST_CONSTPTR(CreateFKRef, signal->getDataPtr());
+  m_error.code = ref->errorCode;
+  m_masterNodeId = ref->masterNodeId;
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execCREATE_FK_CONF(const NdbApiSignal * signal,
+                                           const LinearSectionPtr ptr[3])
+{
+  const CreateFKConf* conf= CAST_CONSTPTR(CreateFKConf, signal->getDataPtr());
+  m_buffer.grow(4 * 2); // 2 words
+  Uint32* data = (Uint32*)m_buffer.get_data();
+  data[0] = conf->fkId;
+  data[1] = conf->fkVersion;
+
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+int
+NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
+                         const char * name)
+{
+  DBUG_ENTER("NdbDictInterface::get_file");
+  NdbApiSignal tSignal(m_reference);
+  GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
+
+  Uint32 strLen = (Uint32)strlen(name) + 1;
+
+  req->senderRef = m_reference;
+  req->senderData = 0;
+  req->requestType =
+    GetTabInfoReq::RequestByName | GetTabInfoReq::LongSignalConf;
+  req->tableNameLen = strLen;
+  req->schemaTransId = m_tx.transId();
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_GET_TABINFOREQ;
+  tSignal.theLength = GetTabInfoReq::SignalLength;
+
+  LinearSectionPtr ptr[1];
+  ptr[0].p  = (Uint32*)name;
+  ptr[0].sz = (strLen + 3)/4;
+
+#ifndef IGNORE_VALGRIND_WARNINGS
+  if (strLen & 3)
+  {
+    Uint32 pad = 0;
+    m_buffer.clear();
+    m_buffer.append(name, strLen);
+    m_buffer.append(&pad, 4);
+    ptr[0].p = (Uint32*)m_buffer.get_data();
+  }
+#endif
+
+  int r = dictSignal(&tSignal, ptr, 1,
+		     -1, // any node
+		     WAIT_GET_TAB_INFO_REQ,
+		     DICT_WAITFOR_TIMEOUT, 100);
+  if (r)
+  {
+    DBUG_PRINT("info", ("get_file failed dictSignal"));
+    DBUG_RETURN(-1);
+  }
+
+  m_error.code = parseForeignKeyInfo(dst,
+                                     (Uint32*)m_buffer.get_data(),
+                                     m_buffer.length() / 4);
+
+  if (m_error.code)
+  {
+    DBUG_PRINT("info", ("get_file failed parseFileInfo %d",
+                         m_error.code));
+    DBUG_RETURN(m_error.code);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
+NdbDictInterface::parseForeignKeyInfo(NdbForeignKeyImpl &dst,
+                                      const Uint32 * data, Uint32 len)
+{
+  SimplePropertiesLinearReader it(data, len);
+
+  SimpleProperties::UnpackStatus status;
+  DictForeignKeyInfo::ForeignKey fk; fk.init();
+  status = SimpleProperties::unpack(it, &fk,
+				    DictForeignKeyInfo::Mapping,
+				    DictForeignKeyInfo::MappingSize,
+				    true, true);
+
+  if(status != SimpleProperties::Eof)
+  {
+    return CreateFilegroupRef::InvalidFormat;
+  }
+
+  dst.m_id = fk.ForeignKeyId;
+  dst.m_version = fk.ForeignKeyVersion;
+  dst.m_type = NdbDictionary::Object::ForeignKey;
+  dst.m_status = NdbDictionary::Object::Retrieved;
+
+  if (!dst.m_name.assign(fk.Name))
+    return 4000;
+
+  dst.m_references[0].m_name.assign(fk.ParentTableName);
+  dst.m_references[0].m_objectId = fk.ParentTableId;
+  dst.m_references[0].m_objectVersion = fk.ParentTableVersion;
+  dst.m_references[1].m_name.assign(fk.ChildTableName);
+  dst.m_references[1].m_objectId = fk.ChildTableId;
+  dst.m_references[1].m_objectVersion = fk.ChildTableVersion;
+  if (fk.ParentIndexName[0] != 0)
+  {
+    dst.m_references[2].m_name.assign(fk.ParentIndexName);
+  }
+  dst.m_references[2].m_objectId = fk.ParentIndexId;
+  dst.m_references[2].m_objectVersion = fk.ParentIndexVersion;
+  if (fk.ChildIndexName[0] != 0)
+  {
+    dst.m_references[3].m_name.assign(fk.ChildIndexName);
+  }
+  dst.m_references[3].m_objectId = fk.ChildIndexId;
+  dst.m_references[3].m_objectVersion = fk.ChildIndexVersion;
+  dst.m_on_update_action =
+    static_cast<NdbDictionary::ForeignKey::FkAction>(fk.OnUpdateAction);
+  dst.m_on_delete_action =
+    static_cast<NdbDictionary::ForeignKey::FkAction>(fk.OnDeleteAction);
+
+  dst.m_parent_columns.clear();
+  for (unsigned i = 0; i < fk.ParentColumnsLength / 4; i++)
+    dst.m_parent_columns.push_back(fk.ParentColumns[i]);
+
+  dst.m_child_columns.clear();
+  for (unsigned i = 0; i < fk.ChildColumnsLength / 4; i++)
+    dst.m_child_columns.push_back(fk.ChildColumns[i]);
+
+  return 0;
+}
+
+int
+NdbDictInterface::drop_fk(const NdbDictObjectImpl & impl)
+{
+  NdbApiSignal tSignal(m_reference);
+  tSignal.theReceiversBlockNumber = DBDICT;
+  tSignal.theVerId_signalNumber   = GSN_DROP_FK_REQ;
+  tSignal.theLength = DropFKReq::SignalLength;
+
+  DropFKReq * req = CAST_PTR(DropFKReq, tSignal.getDataPtrSend());
+  req->clientRef = m_reference;
+  req->clientData = 0;
+  req->transId = m_tx.transId();
+  req->transKey = m_tx.transKey();
+  req->requestInfo = 0;
+  req->requestInfo |= m_tx.requestFlags();
+  req->fkId = impl.m_id;
+  req->fkVersion = impl.m_version;
+
+  int errCodes[] =
+    { DropTableRef::NoDropTableRecordAvailable,
+      DropTableRef::NotMaster,
+      DropTableRef::Busy, 0 };
+
+  return dictSignal(&tSignal, 0, 0,
+                    0, // master
+                    WAIT_DROP_TAB_REQ,
+                    DICT_WAITFOR_TIMEOUT, 100,
+                    errCodes);
+}
+
+void
+NdbDictInterface::execDROP_FK_CONF(const NdbApiSignal * signal,
+                                   const LinearSectionPtr ptr[3])
+{
+  //DropTableConf* const conf = CAST_CONSTPTR(DropTableConf, signal->getDataPtr());
+
+  m_impl->theWaiter.signal(NO_WAIT);
+}
+
+void
+NdbDictInterface::execDROP_FK_REF(const NdbApiSignal * signal,
+                                  const LinearSectionPtr ptr[3])
+{
+  const DropFKRef* ref = CAST_CONSTPTR(DropFKRef, signal->getDataPtr());
+  m_error.code= ref->errorCode;
+  m_masterNodeId = ref->masterNodeId;
   m_impl->theWaiter.signal(NO_WAIT);
 }
 
