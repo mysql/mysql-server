@@ -2800,43 +2800,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 }
 
 
-bool auth_plugin_is_built_in(const char *plugin_name)
-{
- return (plugin_name == native_password_plugin_name.str ||
-#if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
-#endif
-         plugin_name == old_password_plugin_name.str);
-}
-
-void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
-{
-#if defined(HAVE_OPENSSL)
-  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= sha256_password_plugin_name.str;
-    plugin_name->length= sha256_password_plugin_name.length;
-  }
-  else
-#endif
-  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= native_password_plugin_name.str;
-    plugin_name->length= native_password_plugin_name.length;
-  }
-  else
-  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= old_password_plugin_name.str;
-    plugin_name->length= old_password_plugin_name.length;
-  }
-
-  DBUG_ASSERT(auth_plugin_is_built_in(native_password_plugin_name.str));
-}
-
 /****************************************************************************
   Handle GRANT commands
 ****************************************************************************/
@@ -9196,6 +9159,41 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
   int vio_is_encrypted;
 };
 
+bool auth_plugin_is_built_in(const char *plugin_name)
+{
+ return (plugin_name == native_password_plugin_name.str ||
+#if defined(HAVE_OPENSSL)
+         plugin_name == sha256_password_plugin_name.str ||
+#endif
+         plugin_name == old_password_plugin_name.str);
+}
+
+void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
+{
+#if defined(HAVE_OPENSSL)
+  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= sha256_password_plugin_name.str;
+    plugin_name->length= sha256_password_plugin_name.length;
+  }
+  else
+#endif
+  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= native_password_plugin_name.str;
+    plugin_name->length= native_password_plugin_name.length;
+  }
+  else
+  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= old_password_plugin_name.str;
+    plugin_name->length= old_password_plugin_name.length;
+  }
+}
+
 /**
  Sets the default default auth plugin value if no option was specified.
 */
@@ -9219,12 +9217,12 @@ void init_default_auth_plugin()
 
 int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
 {
-#if defined(HAVE_OPENSSL)
   default_auth_plugin_name.str= plugin_name;
   default_auth_plugin_name.length= plugin_name_length;
-  
+
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
- 
+
+#if defined(HAVE_OPENSSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -9233,7 +9231,11 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
+  else
 #endif
+  if (default_auth_plugin_name.str != native_password_plugin_name.str)
+    return 1;
+
   return 0;
 }
 
