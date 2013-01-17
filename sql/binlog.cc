@@ -1200,11 +1200,15 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   /*
-    do nothing.
     just pretend we can do 2pc, so that MySQL won't
-    switch to 1pc.
-    real work will be done in MYSQL_BIN_LOG::commit()
+    switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
+    We will however step the prepare clock here.
   */
+  if (!thd->prepare_seq_written)
+  {
+    thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
+    thd->prepare_seq_written= true;
+  }
   return 0;
 }
 
@@ -4998,7 +5002,7 @@ uint MYSQL_BIN_LOG::next_file_id()
     events prior to fill in the binlog cache.
 */
 
-int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
+int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
 
@@ -5022,6 +5026,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
   ha_checksum crc= 0, crc_0= 0; // assignments to keep compiler happy
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
+  bool pc_fixed= false;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5173,6 +5178,18 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
           uint event_len= uint4korr(ev + EVENT_LEN_OFFSET); // netto len
           uchar *log_pos= ev + LOG_POS_OFFSET;
 
+          /* fix prepare & commit (pc) timestamp */
+          if (!pc_fixed)
+          {
+            uchar* pc_ptr= ev + QUERY_HEADER_LEN + thd->prepare_commit_offset;
+            // fix prepare ts
+            int8store(pc_ptr, thd->prepare_seq_no);
+            pc_ptr+= 8;
+            //fix commit ts
+            int8store(pc_ptr, thd->commit_seq_no);
+            pc_fixed= true;
+          }
+
           /* fix end_log_pos */
           val= uint4korr(log_pos) + group +
             (end_log_pos_inc += (do_checksum ? BINLOG_CHECKSUM_LEN : 0));
@@ -5214,6 +5231,7 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
       */
       hdr_offs -= length;
     }
+
 
     /* Write the entire buf to the binary log file */
     if (!do_checksum)
@@ -5342,7 +5360,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
     {
       DBUG_EXECUTE_IF("crash_before_writing_xid",
                       {
-                        if ((write_error= do_write_cache(cache)))
+                        if ((write_error= do_write_cache(thd, cache)))
                           DBUG_PRINT("info", ("error writing binlog cache: %d",
                                                write_error));
                         flush_and_sync(true);
@@ -5350,7 +5368,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
                         DBUG_SUICIDE();
                       });
 
-      if ((write_error= do_write_cache(cache)))
+      if ((write_error= do_write_cache(thd, cache)))
         goto err;
 
       if (incident && write_incident(thd, false/*need_lock_log=false*/,
@@ -6744,7 +6762,9 @@ static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event)
     Query_log_event qinfo(thd, STRING_WITH_LEN("BEGIN"),
                           is_transactional, FALSE, TRUE, 0, TRUE);
     if (cache_data->write_event(thd, &qinfo))
+    {
       DBUG_RETURN(1);
+    }
   }
 
   DBUG_RETURN(0);
@@ -8211,6 +8231,38 @@ void THD::issue_unsafe_warnings()
     }
   }
   DBUG_VOID_RETURN;
+}
+
+/**
+SYNOPSIS:
+  Atomically steps state clock.
+  @parms: NONE
+  @ret_val: current timestamp
+ */
+int64
+Logical_clock_state::step_clock()
+{
+  int64 retval;
+  DBUG_ENTER("Logical_clock_state::step_clock");
+  my_atomic_rwlock_wrlock(&state_LOCK);
+  (void) my_atomic_add64(&state, step);
+  retval= my_atomic_load64(&state);
+  my_atomic_rwlock_wrunlock(&state_LOCK);
+  DBUG_RETURN(retval);
+}
+
+/**
+SYNOPSIS:
+  Atomically fetch the current state
+ */
+int64
+Logical_clock_state::get_timestamp()
+{
+  int64 retval= 0;
+  my_atomic_rwlock_rdlock(&state_LOCK);
+  retval= my_atomic_load64(&state);
+  my_atomic_rwlock_rdunlock(&state_LOCK);
+  return retval;
 }
 
 /**

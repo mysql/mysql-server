@@ -582,7 +582,7 @@ public:
     MTS statistics: 
   */
   ulonglong mts_events_assigned; // number of events (statements) scheduled
-  ulong mts_groups_assigned; // number of groups (transactions) scheduled
+  ulonglong  mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
   /*
@@ -600,6 +600,14 @@ public:
   DYNAMIC_ARRAY least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
+
+  /* MTS type  */
+  enum_mts_parallel_type mts_parallel_type;
+  /*
+    Slave side local seq_no identifying a parent group that being
+    the scheduled transaction is considered to be dependent
+   */
+  ulonglong mts_last_known_parent_group_id;
 
   /* most of allocation in the coordinator rli is there */
   void init_workers(ulong);

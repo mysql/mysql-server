@@ -1843,7 +1843,9 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     worker->curr_group_seen_begin= true; // The current group is started with B-event
     worker->end_group_sets_max_dbs= true;
   }
-  else if (!is_gtid_event(ev))
+  else if (!is_gtid_event(ev) &&
+          // no need to address partioning in BGC mode
+          (rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))

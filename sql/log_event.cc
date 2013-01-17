@@ -3458,6 +3458,22 @@ bool Query_log_event::write(IO_CACHE* file)
   }
 
   /*
+    We store 0 in the following two status vars since we don't have the prepare
+    and the commit timestamps. The locgical timestamps will be updated in the
+    do_write_cache.
+  */
+  if (thd)
+  {
+    thd->prepare_commit_offset= (int)(start-start_of_status);
+    *start++= Q_PREPARE_TS;
+    memset(start, 0, 8);
+    start+= 8;
+
+    *start++= Q_COMMIT_TS;
+    memset(start,0,8);
+    start+= 8;
+  }
+  /*
     NOTE: When adding new status vars, please don't forget to update
     the MAX_SIZE_LOG_EVENT_STATUS in log_event.h and update the function
     code_name() in this file.
@@ -3832,6 +3848,8 @@ code_name(int code)
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   case Q_MICROSECONDS: return "Q_MICROSECONDS";
+  case Q_PREPARE_TS: return "Q_PREPARE_TS";
+  case Q_COMMIT_TS: return "Q_COMMIT_TS";
   }
   sprintf(buf, "CODE#%d", code);
   return buf;

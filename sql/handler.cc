@@ -1423,6 +1423,17 @@ int ha_commit_trans(THD *thd, bool all)
     error= 1;
     goto end;
   }
+
+  /*
+     Here we step the commit clock to keep a track of all committed
+     transactions
+   */
+  if (!error && (all || trans->has_modified_non_trans_table()))
+  {
+    thd->commit_seq_no= mysql_bin_log.commit_clock.step_clock();
+    thd->prepare_seq_written= false;
+  }
+
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
