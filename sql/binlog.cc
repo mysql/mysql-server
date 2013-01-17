@@ -1204,11 +1204,6 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
     We will however step the prepare clock here.
   */
-  if (!thd->prepare_seq_written)
-  {
-    thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
-    thd->prepare_seq_written= true;
-  }
   return 0;
 }
 
