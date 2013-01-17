@@ -48,7 +48,7 @@ function DBOperationError(ndb_error) {
   var mappedCode = errorClassificationMap[ndb_error.classification];
   this.ndb_error = ndb_error;
   this.message = ndb_error.message + " [" + ndb_error.code + "]";
-  this.code = mappedCode ? mappedCode : "NDB00";
+  this.code = mappedCode || "NDB00";
 }
 
 DBOperationError.prototype = doc.DBOperationError;
