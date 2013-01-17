@@ -2195,6 +2195,12 @@ public:        /* !!! Public in this patch to allow old usage */
       !strncasecmp(query, "SAVEPOINT", 9) ||
       !strncasecmp(query, "ROLLBACK", 8);
   }
+  /*
+    Prepare and commit sequence number. will be set to 0 if the event is not a
+    transaction starter.
+   */
+  int64 prepare_seq_no;
+  int64 commit_seq_no;
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
      and identification of such single-query group
