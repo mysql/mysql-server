@@ -72,16 +72,23 @@ inline size_t Record::getBufferSize() const {
 }
 
 inline void Record::setNull(int idx, char * data) const {
-  *(data + specs[idx].nullbit_byte_offset) |= 
-    (1 << specs[idx].nullbit_bit_in_byte);
+  if(specs[idx].column->getNullable()) {
+    *(data + specs[idx].nullbit_byte_offset) |= 
+      (1 << specs[idx].nullbit_bit_in_byte);
+  }
 }
 
 inline void Record::setNotNull(int idx, char * data) const {
-  *(data +specs[idx].nullbit_byte_offset) &=
-    (0xFF ^ (1 << specs[idx].nullbit_bit_in_byte));
+  if(specs[idx].column->getNullable()) {
+    *(data +specs[idx].nullbit_byte_offset) &=
+      (0xFF ^ (1 << specs[idx].nullbit_bit_in_byte));
+  }
 }
 
 inline uint32_t Record::isNull(int idx, char * data) const {
-  return (*(data + specs[idx].nullbit_byte_offset) &
-           (1 << specs[idx].nullbit_bit_in_byte));
+  if(specs[idx].column->getNullable()) {
+    return (*(data + specs[idx].nullbit_byte_offset) &
+             (1 << specs[idx].nullbit_bit_in_byte));
+  }
+  else return 0;
 }
