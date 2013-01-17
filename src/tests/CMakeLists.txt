@@ -513,7 +513,12 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif ()
   endforeach(src)
 
+  declare_custom_tests(dump-env.tdb)
   configure_file(run_with_env.sh . COPYONLY)
+  add_test(
+    NAME ydb/dump-env.tdb
+    COMMAND ${CMAKE_CFG_INTDIR}/run_with_env.sh $<TARGET_FILE:dump-env.tdb> ${TOKU_SVNROOT}/tokudb.data/test_5902 dir.dump-env.tdb
+    )
 
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case
   #declare_custom_tests(test_thread_stack.tdb)
