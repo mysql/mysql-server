@@ -760,7 +760,7 @@ public:
   void update_used_tables()
   {
     Item_func_coalesce::update_used_tables();
-    maybe_null= args[1]->maybe_null;
+    maybe_null|= args[1]->maybe_null;
   }
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
@@ -787,7 +787,7 @@ public:
   void update_used_tables()
   {
     Item_func::update_used_tables();
-    maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+    maybe_null|= args[1]->maybe_null || args[2]->maybe_null;
   }
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
