@@ -9603,7 +9603,7 @@ void Item_ref::update_used_tables()
 {
   if (!get_depended_from())
     (*ref)->update_used_tables();
-  maybe_null= (*ref)->maybe_null;
+  maybe_null|= (*ref)->maybe_null;
 }
 
 void Item_direct_view_ref::update_used_tables()

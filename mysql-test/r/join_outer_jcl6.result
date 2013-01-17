@@ -2030,10 +2030,10 @@ SELECT t1.pk FROM t2 LEFT JOIN t1 ON t2.pk = t1.a
 WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
 ORDER BY t1.pk;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	const	PRIMARY	PRIMARY	4	const	1	100.00	
+1	SIMPLE	t1	const	PRIMARY,idx	PRIMARY	4	const	1	100.00	
 1	SIMPLE	t2	const	PRIMARY	PRIMARY	4	const	1	100.00	Using index
 Warnings:
-Note	1003	select 5 AS `pk` from `test`.`t2` join `test`.`t1` where (1) order by 5
+Note	1003	select 5 AS `pk` from `test`.`t2` join `test`.`t1` where ((((1 between 5 and 6) and isnull(5)) or 1)) order by 5
 SELECT t1.pk FROM t2 LEFT JOIN t1 ON t2.pk = t1.a
 WHERE t1.b BETWEEN 5 AND 6 AND t1.pk IS NULL OR t1.pk = 5
 ORDER BY t1.pk;
@@ -2069,10 +2069,10 @@ SELECT t1.b, t2.c, t2.d FROM t2 LEFT JOIN t1 ON t2.c = t1.a
 WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
 ORDER BY t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ref	idx	idx	4	const	2	100.00	Using where
+1	SIMPLE	t1	ref	PRIMARY,idx	idx	4	const	2	100.00	Using where; Using filesort
 1	SIMPLE	t2	ref	c	c	5	test.t1.a	2	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (`test`.`t1`.`b` = 5)) order by `test`.`t1`.`b`
+Note	1003	select `test`.`t1`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`c` = `test`.`t1`.`a`) and (((`test`.`t1`.`pk` between 5 and 6) and isnull(`test`.`t1`.`b`)) or (`test`.`t1`.`b` = 5))) order by `test`.`t1`.`b`
 SELECT t1.b, t2.c, t2.d FROM t2 LEFT JOIN t1 ON t2.c = t1.a
 WHERE t1.pk BETWEEN 5 AND 6 AND t1.b IS NULL OR t1.b = 5
 ORDER BY t1.b;
