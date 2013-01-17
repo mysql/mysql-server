@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -e -u
 
 if [[ $# -lt 3 ]]; then exit 1; fi
 
