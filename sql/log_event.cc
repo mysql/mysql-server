@@ -2656,8 +2656,59 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
   return res;
 }
 
+/*
+  The function is called when being assigned group's descriptor
+  is just allocated. It fills in the descriptor struct an identifier
+  of the parent group using the  prepare_seq_no and commit_seq_no.
+*/
+inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
+{
+  Slave_committed_queue *gaq= rli->gaq;
+
+  if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
+  {
+    /*
+      A group id updater must satisfy the following:
+        - A query log event ("BEGIN" )
+        - ev->prepare_seq_no > 0
+        - ev->commit_seq_no > 0
+TODO: The code below is an outline marker and later we will use the
+taxonomical inferences from the two seq_numbers that we got from the master
+during BGC to assign the slave side group id.
+     */
+    if (ev->get_type_code() == QUERY_EVENT)
+    {
+      rli->mts_last_known_parent_group_id=
+        gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+        rli->mts_groups_assigned - 1;
+    }
+    else
+    {
+      gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+        rli->mts_last_known_parent_group_id;
+    }
+  }
+}
+
 /**
    The method maps the event to a Worker and return a pointer to it.
+   The rest of sending the event to the Worker is done by the caller.
+
+   Irrespective of the type of Group marking (DB partioned or BGC) the
+   following holds truw:
+
+   - to recognize the beginning of a group to allocate the group descriptor
+        and queue it;
+   - to associate an event with a Worker (which also handles possible conflicts
+     detection and waiting for their termination);
+   - to finalize the group assignement when the group closing event is met.
+
+   When parallelization mode is BGC-based the partitioning info in the event
+   is simply ignored. Thereby association with a Worker does not require
+   Assigned Partition Hash of the partitioned method.
+   This method is not interested in all the taxonomy of the event group
+   property, what we care about is  the boundaries of the group.
+
    As a part of the group, an event belongs to one of the following types:
 
    B - beginning of a group of events (BEGIN query_log_event)
@@ -2691,6 +2742,7 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
          There's few memory allocations commented where to be freed.
    
    @return a pointer to the Worker struct or NULL.
+   TODO:The BGC-based parallelization still has to address lookup for temp tables.
 */
 
 Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
@@ -2752,8 +2804,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           // mark the current group as started with explicit B-event
           rli->mts_end_group_sets_max_dbs= true;
           rli->curr_group_seen_begin= true;
+          mts_assign_parent_group_id(this, rli);
         }
-     
+
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
@@ -2763,20 +2816,47 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     }
     else
     {
+      // The block is a result of not making GTID event as group starter.
+      // TODO: Make GITD event as B-event that is starts_group() to
+      // return true.
+
       Log_event *ptr_curr_ev= this;
       // B-event is appended to the Deferred Array associated with GCAP
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
+      mts_assign_parent_group_id(this, rli);
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
       return ret_worker;
     }
   }
 
-  // mini-group representative
-
-  if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
+  if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
+  {
+    ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+    
+    /*
+      data_lock is held for short time of updating exec coordinates.
+      An alternative could be run a lighter version of the funcition
+      that would defer exec coordinates updating, e.g raising a
+      special flag in rli->gam.lwm.
+      TODO: check once per group
+    */
+    while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
+      (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
+ 
+    // compute worker, todo: consider to generelize get_least_occupied_worker()
+    ret_worker= (rli->last_assigned_worker) ? rli->last_assigned_worker :
+      *(Slave_worker **) dynamic_array_ptr(&rli->least_occupied_workers, 0);
+    if (!ret_worker)
+      ret_worker= get_least_occupied_worker(&rli->workers);
+    ptr_group->worker_id= ret_worker->id;
+    // "fixing" temp tables:
+    if (get_type_code() == QUERY_EVENT)
+      static_cast<Query_log_event*>(this)->mts_accessed_dbs= 0;
+  }
+  else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
     int i= 0;
     num_dbs= mts_number_dbs();
@@ -4112,6 +4192,17 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         DBUG_VOID_RETURN;
       break;
     }
+
+    case Q_PREPARE_TS:
+      CHECK_SPACE(pos, end, 8);
+      prepare_seq_no= (int64)uint8korr(pos);
+      pos+= 8;
+
+    case Q_COMMIT_TS:
+      CHECK_SPACE(pos, end, 8);
+      commit_seq_no= (int64)uint8korr(pos);
+      pos+= 8;
+
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\

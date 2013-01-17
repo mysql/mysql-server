@@ -1414,6 +1414,12 @@ int ha_commit_trans(THD *thd, bool all)
       goto end;
     }
 
+    if (!thd->prepare_seq_written)
+    {
+      thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
+      thd->prepare_seq_written= true;
+    }
+
     if (!trans->no_2pc && (rw_ha_count > 1))
       error= tc_log->prepare(thd, all);
   }
