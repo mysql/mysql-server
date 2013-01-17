@@ -1769,9 +1769,9 @@ show create table t1;
 show create table t2;
 --echo # Combining with non-inplace operation results in the whole ALTER
 --echo # becoming non-inplace. 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 algorithm=inplace, rename key k to kk, add column j int;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t2 algorithm=inplace, rename key k to kk, add column j int;
 drop table t1, t2;
 
@@ -1781,7 +1781,7 @@ drop table t1, t2;
 create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
 --echo # InnoDB can't handle renaming of indexes in-place yet.
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 algorithm=inplace, rename key k to kk;
 show create table t1;
 --echo # So by default copy algorithm should be chosen.
