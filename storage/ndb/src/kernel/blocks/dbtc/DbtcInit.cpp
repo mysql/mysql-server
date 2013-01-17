@@ -183,7 +183,8 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
   c_theIndexes(c_theIndexPool),
   c_maxNumberOfIndexes(0),
   c_maxNumberOfIndexOperations(0),
-  m_commitAckMarkerHash(m_commitAckMarkerPool)
+  m_commitAckMarkerHash(m_commitAckMarkerPool),
+  c_fk_hash(c_fk_pool)
 {
   BLOCK_CONSTRUCTOR(Dbtc);
   
@@ -301,6 +302,13 @@ Dbtc::Dbtc(Block_context& ctx, Uint32 instanceNo):
 
   addRecSignal(GSN_FIRE_TRIG_REF, &Dbtc::execFIRE_TRIG_REF);
   addRecSignal(GSN_FIRE_TRIG_CONF, &Dbtc::execFIRE_TRIG_CONF);
+
+  addRecSignal(GSN_CREATE_FK_IMPL_REQ, &Dbtc::execCREATE_FK_IMPL_REQ);
+  addRecSignal(GSN_DROP_FK_IMPL_REQ, &Dbtc::execDROP_FK_IMPL_REQ);
+
+  addRecSignal(GSN_SCAN_TABREF, &Dbtc::execSCAN_TABREF);
+  addRecSignal(GSN_SCAN_TABCONF, &Dbtc::execSCAN_TABCONF);
+  addRecSignal(GSN_KEYINFO20, &Dbtc::execKEYINFO20);
 
   cacheRecord = 0;
   apiConnectRecord = 0;

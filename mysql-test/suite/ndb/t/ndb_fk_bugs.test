@@ -1,0 +1,364 @@
+-- source include/have_ndb.inc
+
+-- disable_warnings
+drop table if exists t2, t1;
+-- enable_warnings
+
+# BUG 14095785 - DROPPING FK WITHOUT LABEL CAUSED MYSQLD TO CRASH
+-- echo # bug#14095785
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+alter table t2
+  add constraint foreign key (b) references t1 (b);
+
+-- error ER_PARSE_ERROR
+alter table t2
+  drop foreign key;
+
+drop table t2, t1;
+
+# BUG 14095838 - CHANGING PK CAUSES CASCADE FK TO DELETE ROWS
+-- echo # bug#14095838
+
+create table t1 (
+  a int not null,
+  primary key using hash (a)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+-- error 150
+alter table t2
+  add constraint fk1 foreign key (b) references t1 (a)
+  on delete cascade on update cascade;
+show warnings;
+
+alter table t2
+  add constraint fk1 foreign key (b) references t1 (a)
+  on delete cascade on update restrict;
+
+drop table t2, t1;
+
+# Bug #14195170  	FAILING CREATE TABLE WITH FK CONSTRAINTS LEAVES ORPHANED .FRM
+--echo # bug#14195170
+
+CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=NDB;
+
+CREATE TABLE product (category INT NOT NULL, id INT NOT NULL,
+                      price DECIMAL, PRIMARY KEY(category, id)) ENGINE=NDB;
+
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+show warnings;
+
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+show warnings;
+
+DROP TABLE customer, product;
+
+# Bug #14124623 - CREATING TABLE WITH FK CONSTRAINT FAILS AND LEAVES DB CORRUPT
+--echo # bug#14124623
+
+CREATE TABLE counties (county VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX county_country_index(country)) ENGINE=ndb;
+
+INSERT INTO counties VALUES
+('Berkshire','England'),('Shropshire','England'),('Oxfordshire','England'),('Buckinghamshire','England');
+
+CREATE TABLE towns (town VARCHAR(30) NOT NULL PRIMARY KEY, county
+VARCHAR(30), INDEX county_county_index (county), CONSTRAINT county_town
+FOREIGN KEY (county) REFERENCES counties(county) ON DELETE RESTRICT ON UPDATE
+RESTRICT) ENGINE=ndb;
+
+INSERT INTO towns VALUES
+('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
+,('Oxford','Oxfordshire');
+
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+show warnings;
+
+--error ER_CANNOT_ADD_FOREIGN
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+show warnings;
+
+CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
+
+drop table languages, towns, counties;
+
+--echo # test: child vs parent column types
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b char(20) not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b char(10) not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 150
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2, t1;
+
+--echo # test: parent table not exist
+
+--error ER_NO_SUCH_TABLE
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 155
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2;
+
+--echo # test: parent column not exist
+
+create table t1 (
+  a int not null,
+  primary key using hash (a)
+) engine ndb;
+
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 150
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2, t1;
+
+--echo # test: parent key no index
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a)
+) engine ndb;
+
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 150
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2, t1;
+
+--echo # test: parent key no unique index
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 150
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2, t1;
+
+--echo # test: child column not exist
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (c) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error ER_KEY_COLUMN_DOES_NOT_EXITS
+alter online table t2
+  add constraint fk1 foreign key (c) references t1 (b);
+show warnings;
+
+drop table t2, t1;
+
+--echo # test: child column no index
+--echo # no error - server creates KEY
+
+create table t1 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  unique key using hash (b)
+) engine ndb;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+
+drop table t2;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a)
+) engine ndb;
+
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+
+drop table t2, t1;
+
+--echo # test: child vs parent column count
+
+create table t1 (
+  a int not null,
+  b int not null,
+  c int not null,
+  primary key using hash (a),
+  unique key using hash (b, c)
+) engine ndb;
+
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b),
+  constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+show warnings;
+
+create table t2 (
+  a int not null,
+  b int not null,
+  primary key using hash (a),
+  key (b)
+) engine ndb;
+
+--error 150
+alter online table t2
+  add constraint fk1 foreign key (b) references t1 (b);
+show warnings;
+
+drop table t2, t1;

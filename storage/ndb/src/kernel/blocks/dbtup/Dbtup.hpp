@@ -1549,8 +1549,10 @@ typedef Ptr<HostBuffer> HostBufferPtr;
   {
     KRS_PREPARE = 0,
     KRS_COMMIT = 1,
-    KRS_PRE_COMMIT0 = 2, // There can be multiple pre commit phases...
-    KRS_PRE_COMMIT1 = 3
+    KRS_PRE_COMMIT_BASE = 2,
+    KRS_UK_PRE_COMMIT0 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_0,
+    KRS_UK_PRE_COMMIT1 = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::UK_PASS_1,
+    KRS_FK_PRE_COMMIT  = KRS_PRE_COMMIT_BASE + TriggerPreCommitPass::FK_PASS_0
   };
 
 struct KeyReqStruct {

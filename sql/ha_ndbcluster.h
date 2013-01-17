@@ -230,6 +230,12 @@ public:
   uint max_supported_key_length() const;
   uint max_supported_key_part_length() const;
 
+  virtual bool is_fk_defined_on_table_or_index(uint index);
+  virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO>*f_key_list);
+  virtual uint referenced_by_foreign_key();
+  virtual char* get_foreign_key_create_info();
+  virtual void free_foreign_key_create_info(char* str);
+
   int rename_table(const char *from, const char *to);
   int delete_table(const char *name);
   int create(const char *name, TABLE *form, HA_CREATE_INFO *info);
@@ -404,6 +410,11 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
+  int create_fks(THD *thd, Ndb *ndb, TABLE *tab);
+  int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
+  int drop_fk_for_online_alter(THD*, NdbDictionary::Dictionary*,
+                               const NdbDictionary::Table*);
+
   int check_default_values(const NdbDictionary::Table* ndbtab);
   int get_metadata(THD *thd, const char* path);
   void release_metadata(THD *thd, Ndb *ndb);

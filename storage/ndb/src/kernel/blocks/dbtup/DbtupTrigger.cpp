@@ -114,6 +114,34 @@ Dbtup::findTriggerList(Tablerec* table,
       break;
     }
     break;
+  case TriggerType::FK_PARENT:
+  case TriggerType::FK_CHILD:
+    switch (tevent) {
+    case TriggerEvent::TE_INSERT:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredInsertTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterInsertTriggers;
+      break;
+    case TriggerEvent::TE_UPDATE:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredUpdateTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterUpdateTriggers;
+      break;
+    case TriggerEvent::TE_DELETE:
+      jam();
+      if (ttime == TriggerActionTime::TA_DEFERRED)
+        tlist = &table->deferredDeleteTriggers;
+      else if (ttime == TriggerActionTime::TA_AFTER)
+        tlist = &table->afterDeleteTriggers;
+      break;
+    default:
+      break;
+    }
+    break;
   default:
     break;
   }
@@ -326,6 +354,20 @@ Dbtup::createTrigger(Tablerec* table,
     tmp[1].event = TriggerEvent::TE_UPDATE;
     tmp[2].event = TriggerEvent::TE_DELETE;
   }
+  else if (ttype == TriggerType::FK_PARENT)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_UPDATE;
+    tmp[1].event = TriggerEvent::TE_DELETE;
+  }
+  else if (ttype == TriggerType::FK_CHILD)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
+  }
   else
   {
     jam();
@@ -471,6 +513,20 @@ Dbtup::dropTrigger(Tablerec* table, const DropTrigImplReq* req, BlockNumber rece
     tmp[1].event = TriggerEvent::TE_UPDATE;
     tmp[2].event = TriggerEvent::TE_DELETE;
   }
+  else if (ttype == TriggerType::FK_PARENT)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_UPDATE;
+    tmp[1].event = TriggerEvent::TE_DELETE;
+  }
+  else if (ttype == TriggerType::FK_CHILD)
+  {
+    jam();
+    cnt = 2;
+    tmp[0].event = TriggerEvent::TE_INSERT;
+    tmp[1].event = TriggerEvent::TE_UPDATE;
+  }
   else
   {
     jam();
@@ -534,7 +590,9 @@ Dbtup::execFIRE_TRIG_REQ(Signal* signal)
   FragrecordPtr regFragPtr;
   OperationrecPtr regOperPtr;
   TablerecPtr regTabPtr;
-  KeyReqStruct req_struct(this, (When)(KRS_PRE_COMMIT0 + pass));
+  KeyReqStruct req_struct(this,
+                          (When)(KRS_PRE_COMMIT_BASE +
+                                 (pass % TriggerPreCommitPass::TPCP_PASS_MAX)));
 
   regOperPtr.i = opPtrI;
 
@@ -738,8 +796,19 @@ Dbtup::checkDeferredTriggersDuringPrepare(KeyReqStruct *req_struct,
         trigPtr.p->attributeMask.overlaps(req_struct->changeMask))
     {
       jam();
-      NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
-      return;
+      switch(trigPtr.p->triggerType){
+      case TriggerType::SECONDARY_INDEX:
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+        break;
+      case TriggerType::FK_PARENT:
+      case TriggerType::FK_CHILD:
+        NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+        break;
+      default:
+        ndbassert(false);
+      }
+      if (NoOfFiredTriggers::getDeferredAllSet(req_struct->no_fired_triggers))
+        return;
     }
     triggerList.next(trigPtr);
   }
@@ -972,7 +1041,10 @@ static
 bool
 is_constraint(const Dbtup::TupTriggerData * trigPtr)
 {
-  return trigPtr->triggerType == TriggerType::SECONDARY_INDEX;
+  return
+    (trigPtr->triggerType == TriggerType::SECONDARY_INDEX) ||
+    (trigPtr->triggerType == TriggerType::FK_PARENT) ||
+    (trigPtr->triggerType == TriggerType::FK_CHILD);
 }
 
 void 
@@ -993,7 +1065,17 @@ Dbtup::fireImmediateTriggers(KeyReqStruct *req_struct,
           req_struct->m_deferred_constraints &&
           is_constraint(trigPtr.p))
       {
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        switch(trigPtr.p->triggerType){
+        case TriggerType::SECONDARY_INDEX:
+          NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
+          break;
+        case TriggerType::FK_PARENT:
+        case TriggerType::FK_CHILD:
+          NoOfFiredTriggers::setDeferredFKBit(req_struct->no_fired_triggers);
+          break;
+        default:
+          ndbassert(false);
+        }
       }
       else
       {
@@ -1321,6 +1403,8 @@ out:
     // fall-through
   }
   case (TriggerType::REORG_TRIGGER):
+  case (TriggerType::FK_PARENT):
+  case (TriggerType::FK_CHILD):
     jam();
     ref = req_struct->TC_ref;
     executeDirect = false;
@@ -1358,15 +1442,15 @@ out:
       req_struct->m_when != KRS_PREPARE)
   {
     ndbrequire(req_struct->m_deferred_constraints);
-    if (req_struct->m_when == KRS_PRE_COMMIT0)
+    if (req_struct->m_when == KRS_UK_PRE_COMMIT0)
     {
       switch(regOperPtr->op_struct.op_type){
       case ZINSERT:
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
         return;
         break;
       case ZUPDATE:
-        NoOfFiredTriggers::setDeferredBit(req_struct->no_fired_triggers);
+        NoOfFiredTriggers::setDeferredUKBit(req_struct->no_fired_triggers);
         noAfterWords = 0;
         break;
       case ZDELETE:
@@ -1375,9 +1459,8 @@ out:
         ndbrequire(false);
       }
     }
-    else
+    else if (req_struct->m_when == KRS_UK_PRE_COMMIT1)
     {
-      ndbrequire(req_struct->m_when == KRS_PRE_COMMIT1);
       switch(regOperPtr->op_struct.op_type){
       case ZINSERT:
         break;
@@ -1389,6 +1472,21 @@ out:
       default:
         ndbrequire(false);
       }
+    }
+    else
+    {
+      ndbassert(req_struct->m_when == KRS_FK_PRE_COMMIT);
+      return;
+    }
+  }
+
+  if ((triggerType == TriggerType::FK_PARENT ||
+       triggerType == TriggerType::FK_CHILD) &&
+      req_struct->m_when != KRS_PREPARE)
+  {
+    if (req_struct->m_when != KRS_FK_PRE_COMMIT)
+    {
+      return;
     }
   }
 
@@ -1502,6 +1600,8 @@ out:
   switch(trigPtr->triggerType) {
   case (TriggerType::SECONDARY_INDEX):
   case (TriggerType::REORG_TRIGGER):
+  case (TriggerType::FK_PARENT):
+  case (TriggerType::FK_CHILD):
     jam();
     fireTrigOrd->m_triggerType = trigPtr->triggerType;
     fireTrigOrd->m_transId1 = req_struct->trans_id1;
