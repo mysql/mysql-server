@@ -8450,7 +8450,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_DEFAULT_AUTH:
-    set_default_auth_plugin(argument, strlen(argument));
+    if (set_default_auth_plugin(argument, strlen(argument)))
+    {
+      sql_print_error("Can't start server: "
+                      "Invalid value for --default-authentication-plugin");
+      return 1;
+    }
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)
