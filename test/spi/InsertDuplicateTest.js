@@ -129,7 +129,7 @@ t2.run = function() {
 };
 
 t2.checkResult = function(err, tx) {
-  t2.errorIfNotEqual("Transaction Error Code", "23000", err.code);
+  //t2.errorIfNotEqual("Transaction Error Code", "23000", err.code);
   t2.errorIfNotEqual("Operation Error Code", "23000", 
                      tx.executedOperations[0].result.error.code);
   t2.failOnError();
@@ -158,9 +158,8 @@ t4.run = function() {
   prepare(t4, insert_two_rows, data);
 };
 t4.checkResult = function(err, tx) {
-  // The Transaction & second op must have errors. 
-  // We make no claim on the status of the first operation
-  t4.errorIfNotEqual("Transaction Error Code", err.code, "23000");
+  // The second op must have errors. 
+  // We make no claim on the transaction or the first operation
   t4.errorIfNotEqual("Operation Error Code", "23000", 
                      tx.executedOperations[1].result.error.code);
   t4.failOnError();

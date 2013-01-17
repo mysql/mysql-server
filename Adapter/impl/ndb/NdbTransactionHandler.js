@@ -175,12 +175,12 @@ proto.execute = function(dbOperationList, userCallback) {
     udebug.log(" -- AutoCommit");
     stats.incr("execute","commit");
     ndbsession.closeActiveTransaction(this);
-    execute(this, COMMIT, AO_DEFAULT, dbOperationList, onExecCommit);
+    execute(this, COMMIT, AO_IGNORE, dbOperationList, onExecCommit);
   }
   else {
     udebug.log(" -- NoCommit");
     stats.incr("execute","no_commit");
-    execute(this, NOCOMMIT, AO_DEFAULT, dbOperationList, userCallback);
+    execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
 };
 
@@ -256,7 +256,7 @@ proto.rollback = function rollback(callback) {
     
     if(err) {
       self.success = false;
-      err = new DBOperationError(err.ndb_error);
+      err = new ndboperation.DBOperationError(err.ndb_error);
     }
     else {
       self.success = true;
