@@ -6978,6 +6978,10 @@ ER_IDENT_CAUSES_TOO_LONG_PATH
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL
   eng "cannot silently convert NULL values, as required in this SQL_MODE"
 
+ER_MUST_CHANGE_PASSWORD_LOGIN
+  eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
+  bgn "Паролата ви е изтекла. За да влезете трябва да я смените използвайки клиент който поддрържа такива пароли."
+
 #
 #  End of 5.6 error messages.
 #
