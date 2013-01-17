@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,7 +25,7 @@ Created June 2005 by Marko Makela
 *******************************************************/
 
 #include <map>
-using namespace std;
+#include <algorithm>
 
 #define THIS_MODULE
 #include "page0zip.h"
@@ -35,7 +35,6 @@ using namespace std;
 #undef THIS_MODULE
 #include "page0page.h"
 #include "mtr0log.h"
-#include "ut0sort.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
 #include "page0types.h"
@@ -1566,34 +1565,6 @@ err_exit:
 }
 
 /**********************************************************************//**
-Compare two page directory entries.
-@return	positive if rec1 > rec2 */
-UNIV_INLINE
-ibool
-page_zip_dir_cmp(
-/*=============*/
-	const rec_t*	rec1,	/*!< in: rec1 */
-	const rec_t*	rec2)	/*!< in: rec2 */
-{
-	return(rec1 > rec2);
-}
-
-/**********************************************************************//**
-Sort the dense page directory by address (heap_no). */
-static
-void
-page_zip_dir_sort(
-/*==============*/
-	rec_t**	arr,	/*!< in/out: dense page directory */
-	rec_t**	aux_arr,/*!< in/out: work area */
-	ulint	low,	/*!< in: lower bound of the sorting area, inclusive */
-	ulint	high)	/*!< in: upper bound of the sorting area, exclusive */
-{
-	UT_SORT_FUNCTION_BODY(page_zip_dir_sort, arr, aux_arr, low, high,
-			      page_zip_dir_cmp);
-}
-
-/**********************************************************************//**
 Deallocate the index information initialized by page_zip_fields_decode(). */
 static
 void
@@ -1730,7 +1701,7 @@ page_zip_fields_decode(
 /**********************************************************************//**
 Populate the sparse page directory from the dense directory.
 @return	TRUE on success, FALSE on failure */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 page_zip_dir_decode(
 /*================*/
@@ -1741,9 +1712,8 @@ page_zip_dir_decode(
 					filled in */
 	rec_t**			recs,	/*!< out: dense page directory sorted by
 					ascending address (and heap_no) */
-	rec_t**			recs_aux,/*!< in/out: scratch area */
 	ulint			n_dense)/*!< in: number of user records, and
-					size of recs[] and recs_aux[] */
+					size of recs[] */
 {
 	ulint	i;
 	ulint	n_recs;
@@ -1818,9 +1788,7 @@ page_zip_dir_decode(
 		recs[i] = page + offs;
 	}
 
-	if (UNIV_LIKELY(n_dense > 1)) {
-		page_zip_dir_sort(recs, recs_aux, 0, n_dense);
-	}
+	std::sort(recs, recs + n_dense);
 	return(TRUE);
 }
 
@@ -2996,7 +2964,7 @@ page_zip_decompress(
 	heap = mem_heap_create(n_dense * (3 * sizeof *recs) + UNIV_PAGE_SIZE);
 
 	recs = static_cast<rec_t**>(
-		mem_heap_alloc(heap, n_dense * (2 * sizeof *recs)));
+		mem_heap_alloc(heap, n_dense * sizeof *recs));
 
 	if (all) {
 		/* Copy the page header. */
@@ -3031,7 +2999,7 @@ page_zip_decompress(
 
 	/* Copy the page directory. */
 	if (UNIV_UNLIKELY(!page_zip_dir_decode(page_zip, page, recs,
-					       recs + n_dense, n_dense))) {
+					       n_dense))) {
 zlib_error:
 		mem_heap_free(heap);
 		return(FALSE);

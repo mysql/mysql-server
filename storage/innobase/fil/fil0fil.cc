@@ -3298,14 +3298,13 @@ fil_truncate_tablespace(
 
 	if (node->size > size) {
 
+		mutex_enter(&fil_system->mutex);
 		success = os_file_truncate(path, node->handle,
 					   size * UNIV_PAGE_SIZE);
-
 		if (success) {
-			mutex_enter(&fil_system->mutex);
 			space->size = node->size = size;
-			mutex_exit(&fil_system->mutex);
 		}
+		mutex_exit(&fil_system->mutex);
 
 	} else {
 		success = TRUE;
@@ -5920,7 +5919,8 @@ fil_io(
 		} else {
 			if (space->id != TRX_SYS_SPACE
 			    && UT_LIST_GET_LEN(space->chain) == 1
-			    && fil_space_is_truncated(space->id)
+			    && (fil_space_is_truncated(space->id)
+				|| space->is_being_truncated)
 			    && type == OS_FILE_READ) {
 				/* Handle page which is outside the truncated
 				tablespace bounds when recovering from a crash
