@@ -1134,8 +1134,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
-          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+          if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                                   result_file, stop_never /* flush result_file */) ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
+                                                  result_file, stop_never /* flush result_file */)))
             goto err;
       }
 
@@ -1177,8 +1179,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       if (stmt_end)
       {
         print_event_info->have_unflushed_events= FALSE;
-        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+        if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
+                                                result_file, stop_never /* flush result file */) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache,
+                                                result_file, stop_never /* flush result file */))
           goto err;
         goto end;
       }
@@ -1218,7 +1222,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     }
     /* Flush head cache to result_file for every event */
     if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache,
-                                            result_file))
+                                            result_file, stop_never /* flush result_file */))
       goto err;
   }
 
