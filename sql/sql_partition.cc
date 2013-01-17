@@ -4710,8 +4710,22 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   if (table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
                            alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
-    my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-    DBUG_RETURN(TRUE);
+    /*
+      Circumvent hardcoded "Foreign keys not supported on partitioned tables"
+      for engines which uses auto partitioning and table is using HASH
+     */
+    if (table->part_info->part_type == HASH_PARTITION &&
+        table->part_info->use_default_num_partitions &&
+        table->s->db_type()->partition_flags &&
+        table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    {
+      ; // Allow this ALTER to continue in the function
+    }
+    else
+    {
+      my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+      DBUG_RETURN(TRUE);
+    }
   }
   /* Remove partitioning on a not partitioned table is not possible */
   if (!table->part_info && (alter_info->flags &

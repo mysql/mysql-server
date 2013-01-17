@@ -1,0 +1,99 @@
+create table parent (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+create table child (
+a int primary key auto_increment,
+b int not null,
+c int not null,
+unique(b) using hash,
+index(c)) engine = ndb;
+alter online table child add constraint fk1 foreign key (a) references parent(a);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter online table child add constraint fk2 foreign key (b) references parent(a);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+alter online table child add constraint fk3 foreign key (c) references parent(a);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk1` FOREIGN KEY(`a`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter online table child drop foreign key fk1;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk2` FOREIGN KEY(`b`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION,
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter online table child drop foreign key fk2;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`),
+ CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+alter online table child drop foreign key fk3;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+show create table child;
+Table	Create Table
+child	CREATE TABLE `child` (
+  `a` int(11) NOT NULL AUTO_INCREMENT,
+  `b` int(11) NOT NULL,
+  `c` int(11) NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `b` (`b`) USING HASH,
+  KEY `c` (`c`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+drop table parent, child;
+CREATE TABLE bug46599a (
+b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
+CREATE TABLE bug46599b (b VARCHAR(2),
+FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
+INSERT INTO bug46599a VALUES ('b');
+INSERT INTO bug46599b VALUES ('b'), (NULL);
+INSERT INTO bug46599b VALUES ('');
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (Unknown error code)
+SELECT * FROM bug46599a;
+b
+b
+SELECT * FROM bug46599b;
+b
+NULL
+b
+ALTER TABLE bug46599b MODIFY COLUMN b VARCHAR(2) NOT NULL DEFAULT '';
+ERROR HY000: Cannot change column 'b': used in a foreign key constraint 'FK_10_13'
+SELECT * FROM bug46599b;
+b
+NULL
+b
+DROP TABLE bug46599b,bug46599a;

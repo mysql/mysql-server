@@ -725,8 +725,14 @@ private:
   static Uint32 getDeferredUKBit(Uint32 v) {
     return NoOfFiredTriggers::getDeferredUKBit(v);
   }
-  static void setDeferredBit(Uint32 & v) {
-    NoOfFiredTriggers::setDeferredBit(v);
+  static void setDeferredUKBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredUKBit(v);
+  }
+  static Uint32 getDeferredFKBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredFKBit(v);
+  }
+  static void setDeferredFKBit(Uint32 & v) {
+    NoOfFiredTriggers::setDeferredFKBit(v);
   }
 };
 

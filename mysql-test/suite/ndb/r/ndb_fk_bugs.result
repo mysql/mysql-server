@@ -1,0 +1,343 @@
+drop table if exists t2, t1;
+# bug#14095785
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter table t2
+add constraint foreign key (b) references t1 (b);
+alter table t2
+drop foreign key;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '' at line 2
+drop table t2, t1;
+# bug#14095838
+create table t1 (
+a int not null,
+primary key using hash (a)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter table t2
+add constraint fk1 foreign key (b) references t1 (a)
+on delete cascade on update cascade;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21000 'Create foreign key failed - parent key is primary key and on-update-cascade is not allowed' from NDB
+Error	150	Cannot add foreign key constraint
+alter table t2
+add constraint fk1 foreign key (b) references t1 (a)
+on delete cascade on update restrict;
+drop table t2, t1;
+# bug#14195170
+CREATE TABLE customer (id INT NOT NULL, PRIMARY KEY (id)) ENGINE=NDB;
+CREATE TABLE product (category INT NOT NULL, id INT NOT NULL,
+price DECIMAL, PRIMARY KEY(category, id)) ENGINE=NDB;
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21000 'Create foreign key failed - parent key is primary key and on-update-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
+CREATE TABLE product_order (no INT NOT NULL AUTO_INCREMENT, product_category INT NOT NULL, product_id INT NOT NULL, customer_id INT NOT NULL, PRIMARY KEY(no), INDEX (product_category, product_id), FOREIGN KEY (product_category, product_id) REFERENCES product(category, id) ON UPDATE CASCADE ON DELETE RESTRICT, INDEX (customer_id), FOREIGN KEY (customer_id) REFERENCES customer(id)) ENGINE=ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21000 'Create foreign key failed - parent key is primary key and on-update-cascade is not allowed' from NDB
+Error	1215	Cannot add foreign key constraint
+DROP TABLE customer, product;
+# bug#14124623
+CREATE TABLE counties (county VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX county_country_index(country)) ENGINE=ndb;
+INSERT INTO counties VALUES
+('Berkshire','England'),('Shropshire','England'),('Oxfordshire','England'),('Buckinghamshire','England');
+CREATE TABLE towns (town VARCHAR(30) NOT NULL PRIMARY KEY, county
+VARCHAR(30), INDEX county_county_index (county), CONSTRAINT county_town
+FOREIGN KEY (county) REFERENCES counties(county) ON DELETE RESTRICT ON UPDATE
+RESTRICT) ENGINE=ndb;
+INSERT INTO towns VALUES
+('Maidenhead','Berkshire'),('Reading','Berkshire'),('Shrewsbury','Shropshire')
+,('Oxford','Oxfordshire');
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	1215	Cannot add foreign key constraint
+CREATE TABLE languages (language VARCHAR(30) NOT NULL PRIMARY KEY,
+country VARCHAR(30), INDEX lang_country_index(country), CONSTRAINT
+country_language FOREIGN KEY (country) REFERENCES counties(country) ON DELETE
+RESTRICT ON UPDATE RESTRICT) engine=ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	1215	Cannot add foreign key constraint
+CREATE TABLE languages (id INT NOT NULL PRIMARY KEY) engine=ndb;
+drop table languages, towns, counties;
+# test: child vs parent column types
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b char(20) not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1215	Parent column t1.b is incompatible with child column t2.b in NDB
+Error	1215	Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b char(10) not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Warning	1215	Parent column t1.b is incompatible with child column t2.b in NDB
+Error	150	Cannot add foreign key constraint
+drop table t2, t1;
+# test: parent table not exist
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR 42S02: Table 'test.t2' doesn't exist
+show warnings;
+Level	Code	Message
+Error	1146	Table 'test.t2' doesn't exist
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: No such table: '(null)'
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Error	155	No such table: '(null)'
+drop table t2;
+# test: parent column not exist
+create table t1 (
+a int not null,
+primary key using hash (a)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1215	Parent table t1 has no column b in NDB
+Error	1215	Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Warning	1215	Parent table t1 has no column b in NDB
+Error	150	Cannot add foreign key constraint
+drop table t2, t1;
+# test: parent key no index
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1215	Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	150	Cannot add foreign key constraint
+drop table t2, t1;
+# test: parent key no unique index
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	1215	Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
+Error	150	Cannot add foreign key constraint
+drop table t2, t1;
+# test: child column not exist
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (c) references t1 (b)
+) engine ndb;
+ERROR 42000: Key column 'c' doesn't exist in table
+show warnings;
+Level	Code	Message
+Error	1072	Key column 'c' doesn't exist in table
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (c) references t1 (b);
+ERROR 42000: Key column 'c' doesn't exist in table
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Error	1072	Key column 'c' doesn't exist in table
+drop table t2, t1;
+# test: child column no index
+# no error - server creates KEY
+create table t1 (
+a int not null,
+b int not null,
+primary key using hash (a),
+unique key using hash (b)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+drop table t2;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+drop table t2, t1;
+# test: child vs parent column count
+create table t1 (
+a int not null,
+b int not null,
+c int not null,
+primary key using hash (a),
+unique key using hash (b, c)
+) engine ndb;
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b),
+constraint fk1 foreign key (b) references t1 (b)
+) engine ndb;
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	1215	Cannot add foreign key constraint
+create table t2 (
+a int not null,
+b int not null,
+primary key using hash (a),
+key (b)
+) engine ndb;
+alter online table t2
+add constraint fk1 foreign key (b) references t1 (b);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
+Warning	1215	Parent table t1 foreign key columns match no index in NDB
+Error	150	Cannot add foreign key constraint
+drop table t2, t1;

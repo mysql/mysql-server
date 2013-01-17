@@ -2194,6 +2194,278 @@ retry:
 }
 
 /*****************************************************************
+ * ForeignKey facade
+ */
+NdbDictionary::ForeignKey::ForeignKey()
+  : m_impl(* new NdbForeignKeyImpl(* this))
+{
+}
+
+NdbDictionary::ForeignKey::ForeignKey(NdbForeignKeyImpl & impl)
+  : m_impl(impl)
+{
+}
+
+NdbDictionary::ForeignKey::ForeignKey(const NdbDictionary::ForeignKey & org)
+  : Object(org), m_impl(* new NdbForeignKeyImpl(* this))
+{
+  m_impl.assign(org.m_impl);
+}
+
+NdbDictionary::ForeignKey::~ForeignKey(){
+  NdbForeignKeyImpl * tmp = &m_impl;
+  if(this != tmp){
+    delete tmp;
+  }
+}
+
+const char *
+NdbDictionary::ForeignKey::getName() const
+{
+  return m_impl.m_name.c_str();
+}
+
+NdbDictionary::Object::Status
+NdbDictionary::ForeignKey::getObjectStatus() const {
+  return m_impl.m_status;
+}
+
+int
+NdbDictionary::ForeignKey::getObjectVersion() const {
+  return m_impl.m_version;
+}
+
+int
+NdbDictionary::ForeignKey::getObjectId() const {
+  return m_impl.m_id;
+}
+
+void
+NdbDictionary::ForeignKey::setName(const char * name)
+{
+  m_impl.m_name.assign(name);
+}
+
+void
+NdbDictionary::ForeignKey::setParent(const Table& tab,
+                                     const Index * idx,
+                                     const Column * cols[])
+{
+  m_impl.m_references[0].m_name.assign(tab.getName());
+  m_impl.m_references[0].m_objectId = RNIL;
+  m_impl.m_references[0].m_objectVersion = RNIL;
+  m_impl.m_references[2].m_name.clear();
+  m_impl.m_references[2].m_objectId = RNIL;
+  m_impl.m_references[2].m_objectVersion = RNIL;
+
+  switch(tab.getObjectStatus()) {
+  case NdbDictionary::Object::New:
+    break;
+  default:
+    m_impl.m_references[0].m_objectId = tab.getObjectId();
+    m_impl.m_references[0].m_objectVersion = tab.getObjectVersion();
+    break;
+  }
+
+  if (idx)
+  {
+    m_impl.m_references[2].m_name.assign(idx->getName());
+    switch(idx->getObjectStatus()){
+    case NdbDictionary::Object::New:
+      break;
+    default:
+      m_impl.m_references[2].m_objectId = idx->getObjectId();
+      m_impl.m_references[2].m_objectVersion = idx->getObjectVersion();
+    }
+  }
+
+  m_impl.m_parent_columns.clear();
+  if (cols)
+  {
+    for (Uint32 i = 0; cols[i] != 0; i++)
+    {
+      m_impl.m_parent_columns.push_back(cols[i]->getColumnNo());
+    }
+  }
+  else if (idx == 0)
+  {
+    for (int i = 0; i < tab.getNoOfColumns(); i++)
+    {
+      if (tab.getColumn(i)->getPrimaryKey())
+      {
+        m_impl.m_parent_columns.push_back(tab.getColumn(i)->getColumnNo());
+      }
+    }
+  }
+  else
+  {
+    for (unsigned i = 0; i < idx->getNoOfColumns(); i++)
+    {
+      const Column * idxcol = idx->getColumn(i);
+      const Column * tabcol = tab.getColumn(idxcol->getName());
+      if (tabcol)
+      {
+        // no way of reporting error...just add the if...
+        // and let dict complain at ::create()
+        m_impl.m_parent_columns.push_back(tabcol->getColumnNo());
+      }
+    }
+  }
+}
+
+const char *
+NdbDictionary::ForeignKey::getParentTable() const
+{
+  return m_impl.m_references[0].m_name.c_str();
+}
+
+const char *
+NdbDictionary::ForeignKey::getParentIndex() const
+{
+  if (m_impl.m_references[2].m_name.empty())
+    return 0;
+  return m_impl.m_references[2].m_name.c_str();
+}
+
+void
+NdbDictionary::ForeignKey::setChild(const Table& tab,
+                                     const Index * idx,
+                                     const Column * cols[])
+{
+  m_impl.m_references[1].m_name.assign(tab.getName());
+  m_impl.m_references[1].m_objectId = RNIL;
+  m_impl.m_references[1].m_objectVersion = RNIL;
+  m_impl.m_references[3].m_name.clear();
+  m_impl.m_references[3].m_objectId = RNIL;
+  m_impl.m_references[3].m_objectVersion = RNIL;
+
+  switch(tab.getObjectStatus()) {
+  case NdbDictionary::Object::New:
+    break;
+  default:
+    m_impl.m_references[1].m_objectId = tab.getObjectId();
+    m_impl.m_references[1].m_objectVersion = tab.getObjectVersion();
+    break;
+  }
+
+  if (idx)
+  {
+    m_impl.m_references[3].m_name.assign(idx->getName());
+    switch(idx->getObjectStatus()){
+    case NdbDictionary::Object::New:
+      break;
+    default:
+      m_impl.m_references[3].m_objectId = idx->getObjectId();
+      m_impl.m_references[3].m_objectVersion = idx->getObjectVersion();
+    }
+  }
+
+  m_impl.m_child_columns.clear();
+  if (cols)
+  {
+    for (Uint32 i = 0; cols[i] != 0; i++)
+    {
+      m_impl.m_child_columns.push_back(cols[i]->getColumnNo());
+    }
+  }
+  else if (idx == 0)
+  {
+    for (int i = 0; i < tab.getNoOfColumns(); i++)
+    {
+      if (tab.getColumn(i)->getPrimaryKey())
+      {
+        m_impl.m_child_columns.push_back(tab.getColumn(i)->getColumnNo());
+      }
+    }
+  }
+  else
+  {
+    for (unsigned i = 0; i < idx->getNoOfColumns(); i++)
+    {
+      const Column * idxcol = idx->getColumn(i);
+      const Column * tabcol = tab.getColumn(idxcol->getName());
+      if (tabcol)
+      {
+        // no way of reporting error...just add the if...
+        // and let dict complain at ::create()
+        m_impl.m_child_columns.push_back(tabcol->getColumnNo());
+      }
+    }
+  }
+}
+
+const char *
+NdbDictionary::ForeignKey::getChildTable() const
+{
+  return m_impl.m_references[1].m_name.c_str();
+}
+
+const char *
+NdbDictionary::ForeignKey::getChildIndex() const
+{
+  if (m_impl.m_references[3].m_name.empty())
+    return 0;
+  return m_impl.m_references[3].m_name.c_str();
+}
+
+
+NdbDictionary::ForeignKey::FkAction
+NdbDictionary::ForeignKey::getOnUpdateAction() const
+{
+  return m_impl.m_on_update_action;
+}
+
+void
+NdbDictionary::ForeignKey::setOnUpdateAction(FkAction _action)
+{
+  m_impl.m_on_update_action = _action;
+}
+
+NdbDictionary::ForeignKey::FkAction
+NdbDictionary::ForeignKey::getOnDeleteAction() const
+{
+  return m_impl.m_on_delete_action;
+}
+
+void
+NdbDictionary::ForeignKey::setOnDeleteAction(FkAction _action)
+{
+  m_impl.m_on_delete_action = _action;
+}
+
+unsigned
+NdbDictionary::ForeignKey::getParentColumnCount() const
+{
+  return m_impl.m_parent_columns.size();
+}
+
+int
+NdbDictionary::ForeignKey::getParentColumnNo(unsigned no) const
+{
+  if (no < m_impl.m_parent_columns.size())
+  {
+    return (int)m_impl.m_parent_columns[no];
+  }
+  return -1;
+}
+
+unsigned
+NdbDictionary::ForeignKey::getChildColumnCount() const
+{
+  return m_impl.m_child_columns.size();
+}
+
+int
+NdbDictionary::ForeignKey::getChildColumnNo(unsigned no) const
+{
+  if (no < m_impl.m_child_columns.size())
+  {
+    return (int)m_impl.m_child_columns[no];
+  }
+  return -1;
+}
+
+/*****************************************************************
  * Dictionary facade
  */
 NdbDictionary::Dictionary::Dictionary(Ndb & ndb)
@@ -2917,6 +3189,14 @@ NdbDictionary::Dictionary::listIndexes(List& list,
 				       const NdbDictionary::Table &table) const
 {
   return m_impl.listIndexes(list, table.getTableId());
+}
+
+int
+NdbDictionary::Dictionary::listDependentObjects(List& list,
+                                                const NdbDictionary::Table&tab)
+  const
+{
+  return m_impl.listDependentObjects(list, tab.getTableId());
 }
 
 const struct NdbError & 
@@ -3739,6 +4019,45 @@ NdbDictionary::Dictionary::createHashMap(const HashMap& map, ObjectId * dst)
   return ret;
 }
 
+int
+NdbDictionary::Dictionary::createForeignKey(const ForeignKey& fk,
+                                            ObjectId * dst)
+{
+  ObjectId tmp;
+  if (dst == 0)
+    dst = &tmp;
+
+  if (fk.getParentIndex() == 0 // primary key
+      && fk.getOnUpdateAction() == NdbDictionary::ForeignKey::Cascade)
+  {
+    m_impl.m_error.code = 21000;
+    return -1;
+  }
+
+  int ret;
+  DO_TRANS(ret,
+           m_impl.m_receiver.create_fk(NdbForeignKeyImpl::getImpl(fk),
+                                       &NdbDictObjectImpl::getImpl(*dst),
+                                       0));
+  return ret;
+}
+
+int
+NdbDictionary::Dictionary::getForeignKey(ForeignKey& fk,
+                                         const char * name)
+{
+  return m_impl.m_receiver.get_fk(NdbForeignKeyImpl::getImpl(fk), name);
+}
+
+int
+NdbDictionary::Dictionary::dropForeignKey(const ForeignKey& fk)
+{
+  int ret;
+  DO_TRANS(ret,
+           m_impl.m_receiver.drop_fk(NdbForeignKeyImpl::getImpl(fk)));
+  return ret;
+}
+
 NdbOut& operator <<(NdbOut& ndbout, NdbDictionary::Object::FragmentType const fragtype)
 {
   switch (fragtype)
@@ -3989,4 +4308,3 @@ void NdbDictionary::Dictionary::print(NdbOut& ndbout, NdbDictionary::Table const
   else assert(false);
 #endif
 }
-

@@ -99,6 +99,7 @@ static const char* empty_string = "";
  * 4800 - API, QueryBuilder
  * 5000 - Management server
  * 20000 - SPJ
+ * 21000 - DICT FK
  */
 
 static
@@ -121,6 +122,8 @@ ErrorBundle ErrorCodes[] = {
   { 839,  DMEC, CV, "Illegal null attribute" },
   { 840,  DMEC, CV, "Trying to set a NOT NULL attribute to NULL" },
   { 893,  HA_ERR_FOUND_DUPP_KEY, CV, "Constraint violation e.g. duplicate value in unique index" },
+  { 255,  HA_ERR_NO_REFERENCED_ROW, CV, "Foreign key constraint violated: No parent row found" },
+  { 256,  HA_ERR_ROW_IS_REFERENCED, CV, "Foreign key constraint violated: Referenced row exists" },
 
   /**
    * Node recovery errors
@@ -169,6 +172,32 @@ ErrorBundle ErrorCodes[] = {
   { 20020, HA_ERR_NO_SUCH_TABLE, SE, "Query table is being dropped" },
   { 20021, HA_ERR_TABLE_DEF_CHANGED, SE, "Query table definition has changed" },
 
+  /**
+   * DICT FK kernel and ndbapi error codes
+   */
+  { 21000, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed - parent key is primary key and on-update-cascade is not allowed" },
+  /* CreateFKRef + CreateFKImplRef */
+  { 21020, DMEC, TR, "Create foreign key failed in NDB - no more object records" },
+  { 21021, DMEC, IE, "Create foreign key failed in NDB - invalid request" },
+  { 21022, DMEC, SE, "Create foreign key failed in NDB - parent table is not table" },
+  { 21023, DMEC, SE, "Create foreign key failed in NDB - invalid parent table version" },
+  { 21024, DMEC, SE, "Create foreign key failed in NDB - child table is not table" },
+  { 21025, DMEC, SE, "Create foreign key failed in NDB - invalid child table version" },
+  { 21026, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - parent index is not unique index" },
+  { 21027, DMEC, SE, "Create foreign key failed in NDB - invalid parent index version" },
+  { 21028, DMEC, SE, "Create foreign key failed in NDB - child index is not index" },
+  { 21029, DMEC, SE, "Create foreign key failed in NDB - invalid child index version" },
+  { 21030, DMEC, IE, "Create foreign key failed in NDB - object already exists in TC" },
+  { 21031, DMEC, IE, "Create foreign key failed in NDB - no more object records in TC" },
+  { 21032, DMEC, IE, "Create foreign key failed in NDB - invalid request to TC" },
+  /* DropFKRef + DropFKImplRef */
+  { 21040, DMEC, AE, "Drop foreign key failed in NDB - foreign key not found" },
+  { 21041, DMEC, SE, "Drop foreign key failed in NDB - invalid foreign key version" },
+  { 21042, DMEC, SE, "Drop foreign key failed in NDB - foreign key not found in TC" },
+  /* BuildFKRef + BuildFKImplRef */
+  { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
+  { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
+  
   /**
    * Node shutdown
    */

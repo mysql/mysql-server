@@ -6591,6 +6591,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   uint used_fields= create_info->used_fields;
   KEY *key_info=table->key_info;
   bool rc= TRUE;
+  uint drop_fk_count= 0;
 
   DBUG_ENTER("mysql_prepare_alter_table");
 
@@ -6946,8 +6947,24 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
     }
   }
 
-  if (alter_info->drop_list.elements)
+
   {
+    /*
+      Count the number of DROP FOREIGN KEY still in the list,
+      it's not an error to have them there
+    */
+    drop_it.rewind();
+    Alter_drop *drop;
+    while ((drop=drop_it++))
+    {
+      if (drop->type == Alter_drop::FOREIGN_KEY)
+        drop_fk_count++;
+    }
+  }
+
+  if (alter_info->drop_list.elements > drop_fk_count)
+  {
+    // This is to pass better name to ER_CANT_DROP_FIELD_OR_KEY
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++)) {
