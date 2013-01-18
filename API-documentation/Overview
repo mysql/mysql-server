@@ -1,48 +1,48 @@
-1) PUBLIC API
 
-Clusterj:
-  ConnectionProperties returns a properties object filled in with default 
-    connection properties for an implementation
-  Annotations() creates an Annotations object.
-  connect() and connectSync() connect to a cluster and returns a SessionFactory.
+Mynode:
+  ConnectionProperties()
+  Annotations()
+  connect()
+  connectSync()
+  openSession()
+  getOpenSessionFactories()
 
-Annotations:
+SessionFactory:
   mapClass()
-  mapField()
-  registerFieldConverter()
-  registerTypeConverter()
-  
-Converter:
-  a converter implements either readFromString() + writeToString()
-  or readFromBuffer() + writeToBuffer()
+  openSession()
+  getOpenSessions()
+  close()
 
 Session:
-  find()
-  load()
-  found()
-  newInstance()
-  makePersistent()
-  persist()
-  makePersistentAll()
-  deletePersistent()
-  remove()
-  deletePersistentAll()
-  updatePersistent()
-  updatePersistentAll()
-  savePersistent()
-  savePersistentAll()
+  mapClass()
+  getMapping()
+  createBatch()
+  listBatches()
   currentTransaction()
   close()
   isClosed()
-  flush()
   setPartitionKey()
   setLockMode()
-  markModified()
-  unloadSchema()
+  isBatch()
 
-SessionFactory:
+  find()     
+  load()
+  persist()
+  update()
+  remove()
+  save()
+
+Batch:
+  execute()
+  clear()
   getSession()
-  close()
+
+  find()     
+  load()
+  persist()
+  update()
+  remove()
+  save()
 
 Transaction:
   begin()
@@ -52,29 +52,18 @@ Transaction:
   setRollbackOnly()
   getRollbackOnly()
 
-
-2) STORAGE SPI
-
-
-/// FIXME THIS IS OUT OF DATE
-DBDictionary:
-  listTables()
-  getTable()
-
-DBSession:
-  read()
-  insert()
-  update()
-  write()
-  delete()
-  execute()
-  setPartitionKey()
-  setLockMode()
+Annotations:
+  newTableMapping()
+  newFieldMapping()
+  strict()
+  mapAllTables()
+  mapClass()
+  mapField()
+  registerFieldConverter()
+  registerTypeConverter()
   
-DBTransactionHandler:
-  getStatus()
-  close()
-  setUserData()
-  getUserData()
+Converter:
+  a converter implements either readFromString() + writeToString()
+  or readFromBuffer() + writeToBuffer()
 
-  
+
