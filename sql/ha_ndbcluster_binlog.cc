@@ -7318,6 +7318,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
+      commit_to_binlog:
           if (!ndb_log_empty_epochs())
           {
             /*
@@ -7347,7 +7348,6 @@ restart_cluster_failure:
               break;
             }
           }
-      commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
           if (int r= trans.commit())
           {
