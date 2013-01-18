@@ -157,7 +157,6 @@ static uint32_t blob_field_index(TABLE *table, KEY_AND_COL_INFO *kc_info, uint i
 // Otherwise, an error is returned.
 int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds) {
     TOKUDB_DBUG_ENTER("ha_tokudb::fast_update");
-
     int error = 0;
     unsigned line = 0; // debug
 
@@ -285,7 +284,7 @@ static bool check_decr_floor_expression(Field *lhs_field, Item *item) {
 }
 
 // Check if lhs = rhs expression is simple.  Return true if it is.
-static bool check_simple_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table) {
+static bool check_update_expression(Item *lhs_item, Item *rhs_item, TABLE *table) {
     Field *lhs_field = find_field_by_name(table, lhs_item);
     if (lhs_field == NULL)
         return false;
@@ -335,7 +334,7 @@ static bool check_all_update_expressions(List<Item> &fields, List<Item> &values,
         Item *rhs_item = rhs_i++;
         if (rhs_item == NULL)
             assert(0); // can not happen
-        if (!check_simple_update_expression(lhs_item, rhs_item, table))
+        if (!check_update_expression(lhs_item, rhs_item, table))
             return false;
     }
     return true;
@@ -458,10 +457,6 @@ static bool is_strict_mode(THD *thd) {
 
 // Check if an update operation can be handled by this storage engine.  Return true if it can.
 bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds) {
-    // fast updates disabled
-    if (!get_enable_fast_update(thd))
-        return false;
-
     if (!transaction)
         return false;
 
@@ -474,7 +469,8 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
         return false;
     
     // no binlog
-    if (mysql_bin_log.is_open())
+    if (mysql_bin_log.is_open() && 
+        !(thd->variables.binlog_format == BINLOG_FORMAT_STMT || thd->variables.binlog_format == BINLOG_FORMAT_MIXED))
         return false;
 
     // no clustering keys (need to broadcast an increment into the clustering keys since we are selecting with the primary key)
@@ -513,7 +509,7 @@ static void marshall_blobs_descriptor(tokudb::buffer &b, TABLE *table, KEY_AND_C
 static inline uint32_t get_null_bit_position(uint32_t null_bit);
 
 // Marshall update operatins to a buffer.
-static void marshall_simple_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, TABLE *table, TOKUDB_SHARE *share) {
+static void marshall_update(tokudb::buffer &b, Item *lhs_item, Item *rhs_item, TABLE *table, TOKUDB_SHARE *share) {
     // figure out the update operation type (again)
     Field *lhs_field = find_field_by_name(table, lhs_item);
     assert(lhs_field); // we found it before, so this should work
@@ -685,9 +681,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
     // construct the update message
     tokudb::buffer update_message;
    
-    // update_message.append_uint32(UPDATE_OP_UPDATE_2);
-    uint8_t operation = UPDATE_OP_UPDATE_2;
-    update_message.append(&operation, sizeof operation);
+    update_message.append_uint32(UPDATE_OP_UPDATE_2);
 
     uint32_t num_updates = update_fields.elements;
     uint num_varchars = 0, num_blobs = 0;
@@ -724,7 +718,7 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
         Item *rhs_item = rhs_i++;
         if (rhs_item == NULL)
             assert(0); // can not happen
-        marshall_simple_update(update_message, lhs_item, rhs_item, table, share);
+        marshall_update(update_message, lhs_item, rhs_item, table, share);
     }
 
     rw_rdlock(&share->num_DBs_lock);
@@ -792,10 +786,6 @@ return_error:
 
 // Check if an upsert can be handled by this storage engine.  Return trus if it can.
 bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values) {
-    // fast upserts disabled
-    if (!get_enable_fast_upsert(thd))
-        return false;
-
     if (!transaction)
         return false;
 
@@ -806,10 +796,6 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &up
     // no triggers
     if (table->triggers) 
         return false;
-    
-    // no binlog
-    if (mysql_bin_log.is_open())
-        return false;
 
     // primary key must exist
     if (table->s->primary_key >= table->s->keys)
@@ -817,6 +803,11 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &up
 
     // no secondary keys
     if (table->s->keys > 1)
+        return false;
+
+    // no binlog
+    if (mysql_bin_log.is_open() &&
+        !(thd->variables.binlog_format == BINLOG_FORMAT_STMT || thd->variables.binlog_format == BINLOG_FORMAT_MIXED))
         return false;
 
     if (!check_all_update_expressions(update_fields, update_values, table))
@@ -843,9 +834,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     tokudb::buffer update_message;
 
     // append the operation
-    // update_message.append_uint32(UPDATE_OP_UPSERT_2);
-    uint8_t operation = UPDATE_OP_UPSERT_2;
-    update_message.append(&operation, sizeof operation);
+    update_message.append_uint32(UPDATE_OP_UPSERT_2);
 
     // append the row
     update_message.append_uint32(row.size);
@@ -886,7 +875,7 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
         Item *rhs_item = rhs_i++;
         if (rhs_item == NULL)
             assert(0); // can not happen
-        marshall_simple_update(update_message, lhs_item, rhs_item, table, share);
+        marshall_update(update_message, lhs_item, rhs_item, table, share);
     }
 
     rw_rdlock(&share->num_DBs_lock);
