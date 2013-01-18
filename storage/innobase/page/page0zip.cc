@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -508,8 +508,7 @@ page_zip_fields_encode(
 			const dict_col_t*	column
 				= dict_field_get_col(field);
 
-			if (UNIV_UNLIKELY(column->len > 255)
-			    || UNIV_UNLIKELY(column->mtype == DATA_BLOB)) {
+			if (DATA_BIG_COL(column)) {
 				val |= 0x7e; /* max > 255 bytes */
 			}
 

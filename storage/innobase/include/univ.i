@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -231,6 +231,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 						dict0stats.c */
 #define FTS_INTERNAL_DIAG_PRINT                 /* FTS internal debugging
                                                 info output */
+#define GIS_INTERNAL_DIAG_PRINT                 /* GIS internal debugging
+                                                info output */
 #endif
 
 #define UNIV_BTR_DEBUG				/* check B-tree links */
@@ -256,6 +258,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed
