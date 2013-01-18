@@ -25,6 +25,7 @@
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndbsession     = require("./NdbSession.js"),
     dbtablehandler = require("../common/DBTableHandler.js"),
+    ndbencoders    = require("./NdbTypeEncoders.js"),
     udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
     ndb_is_initialized = false,
     stats_module   = require(path.join(api_dir,"stats.js")),
@@ -365,18 +366,41 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
   assert(dbname && tabname && user_callback);
   dictSession = dbSession || this.dict_sess; 
   tableKey = dbname + "." + tabname;
+  
+  function drColumn(c) {
+    if(c.ndbRawDefaultValue) {
+      var enc = ndbencoders.defaultForType[c.ndbTypeId];
+      c.defaultValue = enc.read(c, c.ndbRawDefaultValue, 0);
+    }       
+    else if(c.isNullable) {
+      c.defaultValue = null;
+    }
+    else {
+      c.defaultValue = undefined;
+    }
+    // This could be done to clean up the structure:
+    // delete(c.ndbRawDefaultValue);
+  }
 
-  // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
+  function makeInternalCallback(user_function) {
+    // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
+    return function(err, table) {
+      // Walk the table and create defaultValue from ndbRawDefaultValue
+      table.columns.forEach(drColumn);
+      user_callback(err, table);  
+    }
+  }
 
+  var our_callback = makeInternalCallback(user_callback);
 
   if(this.pendingGetMetadata[tableKey]) {
     // This request is already running, so add our own callback to its list
     udebug.log("getTableMetadata", tableKey, "Adding request to pending group");
-    this.pendingGetMetadata[tableKey].push(user_callback);
+    this.pendingGetMetadata[tableKey].push(our_callback);
   }
   else {
     this.pendingGetMetadata[tableKey] = [];
-    this.pendingGetMetadata[tableKey].push(user_callback);
+    this.pendingGetMetadata[tableKey].push(our_callback);
     dictionaryCall = makeGetTableCall(dictSession, this, dbname, tabname);
   
     if(getDictionaryLock(dictSession)) { // Make the call directly
