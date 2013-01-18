@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -7324,6 +7324,7 @@ restart_cluster_failure:
 
         while (trans.good())
         {
+      commit_to_binlog:
           if (!ndb_log_empty_epochs())
           {
             /*
@@ -7353,7 +7354,6 @@ restart_cluster_failure:
               break;
             }
           }
-      commit_to_binlog:
           thd->proc_info= "Committing events to binlog";
           if (int r= trans.commit())
           {
