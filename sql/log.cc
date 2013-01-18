@@ -7460,8 +7460,9 @@ TC_LOG_BINLOG::log_and_order(THD *thd, my_xid xid, bool all,
   int err;
   DBUG_ENTER("TC_LOG_BINLOG::log_and_order");
 
-  binlog_cache_mngr *cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *cache_mngr= thd->binlog_setup_trx_data();
+  if (!cache_mngr)
+    DBUG_RETURN(0);
 
   cache_mngr->using_xa= TRUE;
   cache_mngr->xa_xid= xid;
