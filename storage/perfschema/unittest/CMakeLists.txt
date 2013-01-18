@@ -68,9 +68,9 @@ TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys zlib)
 ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
 
-ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
-TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
-ADD_TEST(pfs_benchmark pfs_benchmark-t)
+# ADD_EXECUTABLE(pfs_benchmark-t pfs_benchmark-t.cc pfs_benchmark_helper.cc)
+# TARGET_LINK_LIBRARIES(pfs_benchmark-t mytap perfschema mysys pfs_server_stubs)
+# ADD_TEST(pfs_benchmark pfs_benchmark-t)
 
 # On windows, pfs_connect_attr-t may depend on openssl dlls.
 COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)
