@@ -52,11 +52,6 @@ function verify(property, value, strict) {
         return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
       }
       break;
-    case "actionOnNull":
-      if(validActions.indexOf(value) < 0)                   {
-        return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
-      }
-      break;
     case "notPersistent": 
       if(! (value === true || value === false))             {
         return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;

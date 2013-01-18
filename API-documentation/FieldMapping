@@ -1,12 +1,6 @@
 /** FieldMapping object
  *  Describes the mapping of each field in a domain object to a column
  *  in the database.
- * 
- *  actionOnNull describes the desired behavior when an object is written
- *               to the database and this field is Null.  One of:
- *               "NONE":    do not write this field to the database
- *               "ERROR":   raise an error condition to the application
- *               "DEFAULT": write the column's default value 
  *  
  *  column       Defaults to a column with the same name as the field.  
  */
@@ -14,7 +8,6 @@
  FieldMapping = {
     fieldName     :  ""    , // Name of the field in the domain object
     columnName    :  ""    , // Column name where this field is stored  
-    actionOnNull  : "NONE" , // One of NONE, ERROR, or DEFAULT
     notPersistent : false  , // Boolean TRUE if this field should *not* be stored
     converter     : null     // Converter class to use with this field  
   };

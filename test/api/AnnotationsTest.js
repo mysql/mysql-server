@@ -58,7 +58,6 @@ t4.run = function() {
     "mapAllColumns" : false,
     "fields" : {
       "fieldName" : "id",
-      "actionOnNull" : "NONE",
       "columnName" : "id",
       "notPersistent" : false
     }
