@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -319,8 +319,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
   Ndb_event_data *event_data= share->event_data= new Ndb_event_data(share);
   DBUG_ENTER("ndb_binlog_open_shadow_table");
 
-  MEM_ROOT **root_ptr=
-    my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+  MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
   MEM_ROOT *old_root= *root_ptr;
   init_sql_alloc(&event_data->mem_root, 1024, 0);
   *root_ptr= &event_data->mem_root;
@@ -6997,8 +6996,7 @@ restart_cluster_failure:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
-    MEM_ROOT **root_ptr=
-      my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    MEM_ROOT **root_ptr= my_pthread_get_THR_MALLOC();
     MEM_ROOT *old_root= *root_ptr;
     MEM_ROOT mem_root;
     init_sql_alloc(&mem_root, 4096, 0);

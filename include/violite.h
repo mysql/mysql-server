@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,8 +22,10 @@
 #define	vio_violite_h_
 
 #include "my_net.h"   /* needed because of struct in_addr */
+#include <my_pthread.h> /* For pthread_t */
+#include <mysql/psi/psi.h>
+#include <pfs_socket_provider.h>
 #include <mysql/psi/mysql_socket.h>
-
 
 /* Simple vio interface in C;  The functions are implemented in violite.c */
 
