@@ -196,7 +196,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       this.resolvedMapping.fields[i].columnName = f.columnName;
       this.resolvedMapping.fields[i].fieldName = f.fieldName;
       this.resolvedMapping.fields[i].notPersistent = false;
-      this.resolvedMapping.fields[i].actionOnNull = 'NONE';
     }
   }  
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);

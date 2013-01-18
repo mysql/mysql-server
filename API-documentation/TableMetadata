@@ -25,6 +25,8 @@ ColumnMetadata = {
   isInPrimaryKey   : false ,  // true if column is part of PK
   isInPartitionKey : false ,  // true if column is part of partition key
   columnSpace      : 0     ,  // buffer space required for encoded stored value
+  defaultValue     : null  ,  // default value for column: 
+                              // null for default NULL; undefined for no default.
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
