@@ -3583,7 +3583,10 @@ const_table_extraction_done:
       for (uint j=0; j < sargables->num_values; j++)
         is_const&= sargables->arg_value[j]->const_item();
       if (is_const)
-        join_tab[0].const_keys.merge(possible_keys);
+      {
+        join_tab->const_keys.merge(possible_keys);
+        join_tab->keys.merge(possible_keys);
+      }
     }
   }
 
