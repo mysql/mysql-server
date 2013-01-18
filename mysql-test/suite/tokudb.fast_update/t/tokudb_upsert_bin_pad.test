@@ -6,7 +6,6 @@ disable_warnings;
 drop table if exists t0, t1;
 enable_warnings;
 
-set tokudb_enable_fast_upsert=1;
 set tokudb_disable_slow_upsert=1;
 
 create table t0 (id int primary key, b binary(32));

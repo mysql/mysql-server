@@ -1,6 +1,5 @@
 set default_storage_engine='tokudb';
 drop table if exists t;
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint);
 update noar t set x=x+1 where ida=1;

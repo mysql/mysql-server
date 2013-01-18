@@ -26,7 +26,6 @@ def test_int(t, u, n):
     print "insert into t values (1,0),(2,0),(3,0);"
     print "select * from t;"
 
-    print "set tokudb_enable_fast_update=1;"
     print "set tokudb_disable_slow_update=1;"
 
     # set is fast

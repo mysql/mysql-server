@@ -8,7 +8,6 @@ drop table if exists t;
 
 create table t (id int primary key, b int, key(b));
 
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 
 replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;

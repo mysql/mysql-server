@@ -12,12 +12,10 @@ insert into t (id) values (1),(2);
 connect (conn1,localhost,root,,);
 
 connection default;
-set session tokudb_enable_fast_update=1;
 begin;
 update noar t set b=b+1 where id=1;
 
 connection conn1;
-set session tokudb_enable_fast_update=1;
 begin;
 update noar t set b=b-1 where id=2;
 

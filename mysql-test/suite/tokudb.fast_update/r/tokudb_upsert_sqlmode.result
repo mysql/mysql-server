@@ -1,6 +1,5 @@
 set default_storage_engine='tokudb';
 drop table if exists t;
-set tokudb_enable_fast_upsert=1;
 set tokudb_disable_slow_upsert=1;
 create table t (id int primary key, x int not null);
 insert noar into t values (1,0);

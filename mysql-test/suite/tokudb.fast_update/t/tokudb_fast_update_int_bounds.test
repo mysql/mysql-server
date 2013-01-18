@@ -13,7 +13,6 @@ create table ti like tt;
 alter table ti engine=innodb;
 insert into ti select * from tt;
 
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 
 update noar tt set x=x+1 where id=1;
