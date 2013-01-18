@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1344,7 +1344,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #ifdef _WIN32
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_getspecific_ptr(THD*,THR_THD);
+  return my_pthread_get_THR_THD();
 }
 #endif
 /*
@@ -1869,8 +1869,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_setspecific_ptr(THR_THD,  this) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
+  if (my_pthread_set_THR_THD(this) ||
+      my_pthread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -1909,11 +1909,11 @@ bool THD::restore_globals()
     to track stack overrun.
   */
   DBUG_ASSERT(thread_stack);
-  
+
   /* Undocking the thread specific data. */
-  my_pthread_setspecific_ptr(THR_THD, NULL);
-  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
-  
+  my_pthread_set_THR_THD(NULL);
+  my_pthread_set_THR_MALLOC(NULL);
+
   return 0;
 }
 
