@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1040,6 +1040,7 @@ innobase_col_to_mysql(
 		memcpy(dest, data, len);
 		break;
 
+	case DATA_GEOMETRY:
 	case DATA_BLOB:
 		/* Skip MySQL BLOBs when reporting an erroneous row
 		during index creation or table rebuild. */
@@ -1377,7 +1378,7 @@ innobase_create_index_field_def(
 
 	col_type = get_innobase_type_from_mysql_type(&is_unsigned, field);
 
-	if (DATA_BLOB == col_type
+	if (DATA_LARGE_MTYPE(col_type)
 	    || (key_part->length < field->pack_length()
 		&& field->type() != MYSQL_TYPE_VARCHAR)
 	    || (field->type() == MYSQL_TYPE_VARCHAR

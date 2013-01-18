@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -276,6 +276,9 @@ dtype_get_pad_char(
 		strings, and starting from 5.0.3, also for TEXT strings. */
 
 		return(0x20);
+	case DATA_GEOMETRY:
+                /* DATA_GEOMETRY is binary data, not ASCII-based. */
+	        return(ULINT_UNDEFINED);
 	case DATA_BLOB:
 		if (!(prtype & DATA_BINARY_TYPE)) {
 			return(0x20);
@@ -483,6 +486,9 @@ dtype_sql_name(
 	case DATA_BINARY:
 		ut_snprintf(name, name_sz, "VARBINARY(%u)", len);
 		break;
+	case DATA_GEOMETRY:
+		ut_snprintf(name, name_sz, "GEOMETRY");
+		break;
 	case DATA_BLOB:
 		switch (len) {
 		case 9:
@@ -596,6 +602,7 @@ dtype_get_fixed_size_low(
 	case DATA_BINARY:
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
+	case DATA_GEOMETRY:
 	case DATA_BLOB:
 		return(0);
 	default:
@@ -664,6 +671,7 @@ dtype_get_min_size_low(
 	case DATA_BINARY:
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
+	case DATA_GEOMETRY:
 	case DATA_BLOB:
 		return(0);
 	default:
@@ -697,6 +705,7 @@ dtype_get_max_size_low(
 	case DATA_DECIMAL:
 	case DATA_VARMYSQL:
 		return(len);
+	case DATA_GEOMETRY:
 	case DATA_BLOB:
 		break;
 	default:
