@@ -1595,7 +1595,7 @@ bool mysql_show_relaylog_events(THD* thd)
 
   if (active_mi == NULL)
   {
-    my_eof(thd);
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     DBUG_RETURN(true);
   }
   
