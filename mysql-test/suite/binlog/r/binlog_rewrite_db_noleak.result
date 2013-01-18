@@ -20,8 +20,8 @@ CREATE DATABASE db3;
 DROP DATABASE db2;
 [The sql file will be applied on the current database]
 [The content of table db3.t1 and db2.t1 will be different confirming no leak]
-include/assert.inc [The content of the table t1 in database db3 and db2 is different.]
-include/assert.inc [Table t1 in db3 have different row count than t1 in db2.]
+include/assert.inc [The content of the table t1 in database db3 and db2 is different]
+include/assert.inc [Table t1 in db3 have different row count than t1 in db2]
 CLEANUP
 DROP DATABASE db1;
 DROP DATABASE db2;
