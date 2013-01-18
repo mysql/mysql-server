@@ -693,6 +693,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("int log_compare (const DB_LSN*, const DB_LSN *) %s;\n", VISIBLE);
     printf("int toku_set_trace_file (const char *fname) %s;\n", VISIBLE);
     printf("int toku_close_trace_file (void) %s;\n", VISIBLE);
+    printf("void db_env_set_direct_io (bool direct_io_on) %s;\n", VISIBLE);
     printf("void db_env_set_func_fsync (int (*)(int)) %s;\n", VISIBLE);
     printf("void db_env_set_func_free (void (*)(void*)) %s;\n", VISIBLE);
     printf("void db_env_set_func_malloc (void *(*)(size_t)) %s;\n", VISIBLE);

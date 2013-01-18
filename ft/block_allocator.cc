@@ -58,6 +58,7 @@ block_allocator_print (BLOCK_ALLOCATOR ba) {
 
 void
 create_block_allocator (BLOCK_ALLOCATOR *ba, uint64_t reserve_at_beginning, uint64_t alignment) {
+    assert(alignment>=512 && 0==(alignment%512)); // the alignment must be at least 512 and aligned with 512 to make DIRECT_IO happy.
     BLOCK_ALLOCATOR XMALLOC(result);
     result->reserve_at_beginning = reserve_at_beginning;
     result->alignment = alignment;
@@ -176,8 +177,9 @@ align (uint64_t value, BLOCK_ALLOCATOR ba)
     return ((value+ba->alignment-1)/ba->alignment)*ba->alignment;
 }
 
-void
-block_allocator_alloc_block (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *offset) {
+void block_allocator_alloc_block(BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *offset)
+// Effect: Allocate a block. The resulting block must be aligned on the ba->alignment (which to make direct_io happy must be a positive multiple of 512).
+{
     invariant(size > 0); //Allocator does not support size 0 blocks. See block_allocator_free_block.
     grow_blocks_array(ba);
     ba->n_bytes_in_use += size;

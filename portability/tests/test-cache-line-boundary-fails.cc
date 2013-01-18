@@ -50,9 +50,8 @@ int test_main(int UU(argc), char *const argv[] UU()) {
     }
 
     {
-        struct unpackedsevenbytestruct *usevenbytestructs;
-        int r = posix_memalign((void **) &usevenbytestructs, cachelinesize, sizeof(unpackedsevenbytestruct) * 10);
-        if (r) {
+        struct unpackedsevenbytestruct *MALLOC_N_ALIGNED(cachelinesize, 10, usevenbytestructs);
+        if (usevenbytestructs == NULL) {
             // this test is supposed to crash, so exiting cleanly is a failure
             perror("posix_memalign");
             exit(EXIT_FAILURE);
@@ -65,8 +64,9 @@ int test_main(int UU(argc), char *const argv[] UU()) {
         toku_free(usevenbytestructs);
     }
 
-    int r = posix_memalign((void **) &psevenbytestructs, cachelinesize, sizeof(packedsevenbytestruct) * 10);
-    if (r) {
+    
+    MALLOC_N_ALIGNED(cachelinesize, 10, psevenbytestructs);
+    if (psevenbytestructs == NULL) {
         // this test is supposed to crash, so exiting cleanly is a failure
         perror("posix_memalign");
         exit(EXIT_FAILURE);

@@ -3397,6 +3397,20 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *ft_handle_
     return r;
 }
 
+static bool use_direct_io = true;
+
+void toku_ft_set_direct_io (bool direct_io_on) {
+    use_direct_io = direct_io_on;
+}
+
+static inline int ft_open_maybe_direct(const char *filename, int oflag, int mode) {
+    if (use_direct_io) {
+        return toku_os_open_direct(filename, oflag, mode);
+    } else {
+        return toku_os_open(filename, oflag, mode);
+    }
+}
+
 // open a file for use by the brt
 // Requires:  File does not exist.
 static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
@@ -3404,12 +3418,12 @@ static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
     int r;
     int fd;
     int er;
-    fd = open(fname, O_RDWR | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, mode);
     assert(fd==-1);
     if ((er = get_maybe_error_errno()) != ENOENT) {
         return er;
     }
-    fd = open(fname, O_RDWR | O_CREAT | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_CREAT | O_BINARY, mode);
     if (fd==-1) {
         r = get_error_errno();
         return r;
@@ -3426,7 +3440,7 @@ static int ft_create_file(FT_HANDLE UU(brt), const char *fname, int *fdp) {
 static int ft_open_file(const char *fname, int *fdp) {
     mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
     int fd;
-    fd = open(fname, O_RDWR | O_BINARY, mode);
+    fd = ft_open_maybe_direct(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
         return get_error_errno();
     }

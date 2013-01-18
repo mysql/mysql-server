@@ -7,6 +7,7 @@
 #include <test.h>
 #include <fcntl.h>
 #include <toku_assert.h>
+#include <memory.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -28,8 +29,9 @@ int test_main(int argc, char *const argv[]) {
     unlink(fname);
     int fd = open(fname, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
-    char buf[] = "hello";
-    int64_t offset = (1LL<<32) + 100;
+    char *XMALLOC_N_ALIGNED(512, 512, buf);
+    strcpy(buf, "hello");
+    int64_t offset = (1LL<<32) + 512;
     toku_os_full_pwrite(fd, buf, sizeof buf, offset);
     char newbuf[sizeof buf];
     r = pread(fd, newbuf, sizeof newbuf, 100);
@@ -42,6 +44,7 @@ int test_main(int argc, char *const argv[]) {
     r = toku_os_get_file_size(fd, &fsize);
     assert(r == 0);
     assert(fsize > 100 + (signed)sizeof(buf));
+    toku_free(buf);
     r = close(fd);
     assert(r==0);
     return 0;

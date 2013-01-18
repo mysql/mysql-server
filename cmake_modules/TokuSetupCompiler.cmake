@@ -108,7 +108,7 @@ set_ldflags_if_supported(
 ## set extra debugging flags and preprocessor definitions
 set(CMAKE_C_FLAGS_DEBUG "-g3 -O0 ${CMAKE_C_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_DEBUG "-g3 -O0 ${CMAKE_CXX_FLAGS_DEBUG}")
-set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG _FORTIFY_SOURCE=2)
+#set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG _FORTIFY_SOURCE=2)
 
 ## set extra release flags
 if (APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL Clang)

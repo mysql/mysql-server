@@ -39,8 +39,11 @@ void
 toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset) {
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
+    int64_t size_aligned = roundup_to_multiple(512, size);
     struct wbuf w;
-    wbuf_init(&w, toku_xmalloc(size), size);
+    char *XMALLOC_N_ALIGNED(512, size_aligned, aligned_buf);
+    for (int64_t i=size; i<size_aligned; i++) aligned_buf[i] = 0;
+    wbuf_init(&w, aligned_buf, size);
     toku_serialize_descriptor_contents_to_wbuf(&w, desc);
     {
         //Add checksum
@@ -50,7 +53,7 @@ toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF 
     lazy_assert(w.ndone==w.size);
     {
         //Actual Write translation table
-        toku_os_full_pwrite(fd, w.buf, size, offset);
+        toku_os_full_pwrite(fd, w.buf, size_aligned, offset);
     }
     toku_free(w.buf);
 }
@@ -88,10 +91,12 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
     if (size > 0) {
         lazy_assert(size>=4); //4 for checksum
         {
-            XMALLOC_N(size, dbuf);
+            ssize_t size_to_malloc = roundup_to_multiple(512, size);
+            XMALLOC_N_ALIGNED(512, size_to_malloc, dbuf);
             {
-                ssize_t sz_read = toku_os_pread(fd, dbuf, size, offset);
-                lazy_assert(sz_read==size);
+
+                ssize_t sz_read = toku_os_pread(fd, dbuf, size_to_malloc, offset);
+                lazy_assert(sz_read==size_to_malloc);
             }
             {
                 // check the checksum
@@ -118,9 +123,9 @@ exit:
     return r;
 }
 
-// We only deserialize brt header once and then share everything with all the brts.
-int
-deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
+int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
+// Effect: Deserialize the ft header.
+//   We deserialize brt header only once and then share everything with all the brts.
 {
     int r;
     FT ft = NULL;
@@ -179,14 +184,16 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 
     //Load translation table
     {
-        unsigned char *XMALLOC_N(translation_size_on_disk, tbuf);
+        size_t size_to_read = roundup_to_multiple(512, translation_size_on_disk);
+        unsigned char *XMALLOC_N_ALIGNED(512, size_to_read, tbuf);
         {
             // This cast is messed up in 32-bits if the block translation
             // table is ever more than 4GB.  But in that case, the
             // translation table itself won't fit in main memory.
-            ssize_t readsz = toku_os_pread(fd, tbuf, translation_size_on_disk,
+            ssize_t readsz = toku_os_pread(fd, tbuf, size_to_read,
                                            translation_address_on_disk);
-            lazy_assert(readsz == translation_size_on_disk);
+            assert(readsz >= translation_size_on_disk);
+            assert(readsz <= (ssize_t)size_to_read);
         }
         // Create table and read in data.
         r = toku_blocktable_create_from_buffer(fd,
@@ -427,28 +434,30 @@ serialize_ft_min_size (uint32_t version) {
     return size;
 }
 
-// Simply reading the raw bytes of the header into an rbuf is insensitive
-// to disk format version.  If that ever changes, then modify this.
+int deserialize_ft_from_fd_into_rbuf(int fd,
+                                     toku_off_t offset_of_header,
+                                     struct rbuf *rb,
+                                     uint64_t *checkpoint_count,
+                                     LSN *checkpoint_lsn,
+                                     uint32_t * version_p)
+// Effect: Read and parse the header of a fractalal tree
 //
-// TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the
-// file AND the header is useless
-int
-deserialize_ft_from_fd_into_rbuf(int fd,
-                                 toku_off_t offset_of_header,
-                                 struct rbuf *rb,
-                                 uint64_t *checkpoint_count,
-                                 LSN *checkpoint_lsn,
-                                 uint32_t * version_p)
+//  Simply reading the raw bytes of the header into an rbuf is insensitive
+//  to disk format version.  If that ever changes, then modify this.
+//
+//  TOKUDB_DICTIONARY_NO_HEADER means we can overwrite everything in the
+//  file AND the header is useless
 {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
                                 4 + // version
                                 4 + // build_id
                                 4;  // size
-    unsigned char prefix[prefix_size];
+    const int64_t read_size = roundup_to_multiple(512, prefix_size);
+    unsigned char *XMALLOC_N_ALIGNED(512, read_size, prefix);
     rb->buf = NULL;
-    int64_t n = toku_os_pread(fd, prefix, prefix_size, offset_of_header);
-    if (n != prefix_size) {
+    int64_t n = toku_os_pread(fd, prefix, read_size, offset_of_header);
+    if (n != read_size) {
         if (n==0) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
         } else if (n<0) {
@@ -504,16 +513,21 @@ deserialize_ft_from_fd_into_rbuf(int fd,
 
     lazy_assert(rb->ndone==prefix_size);
     rb->size = size;
-    XMALLOC_N(rb->size, rb->buf);
+    {
+        toku_free(rb->buf);
+        uint32_t size_to_read = roundup_to_multiple(512, size);
+        XMALLOC_N_ALIGNED(512, size_to_read, rb->buf);
 
-    n = toku_os_pread(fd, rb->buf, rb->size, offset_of_header);
-    if (n != rb->size) {
-        if (n < 0) {
-            r = get_error_errno();
-        } else {
-            r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
+        assert(offset_of_header%512==0);
+        n = toku_os_pread(fd, rb->buf, size_to_read, offset_of_header);
+        if (n != size_to_read) {
+            if (n < 0) {
+                r = get_error_errno();
+            } else {
+                r = EINVAL; //Header might be useless (wrong size) or could be a disk read error.
+            }
+            goto exit;
         }
-        goto exit;
     }
     //It's version 14 or later.  Magic looks OK.
     //We have an rbuf that represents the header.
@@ -549,9 +563,7 @@ deserialize_ft_from_fd_into_rbuf(int fd,
 
 exit:
     if (r != 0 && rb->buf != NULL) {
-        if (rb->buf != prefix) { // don't free prefix, it's stack alloc'd
-            toku_free(rb->buf);
-        }
+        toku_free(rb->buf);
         rb->buf = NULL;
     }
     return r;
@@ -718,16 +730,23 @@ void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFIL
     toku_serialize_translation_to_wbuf(blocktable, fd, &w_translation,
                                                &address_translation,
                                                &size_translation);
-    lazy_assert(size_translation == w_translation.size);
+    assert(size_translation == w_translation.ndone); // the bytes written are the size
+    assert(w_translation.size % 512 == 0);           // the number of bytes available in the buffer is 0 mod 512, and those last bytes are all initialized.
 
     struct wbuf w_main;
-    size_t size_main = toku_serialize_ft_size(h);
-    wbuf_init(&w_main, toku_xmalloc(size_main), size_main);
+    size_t size_main       = toku_serialize_ft_size(h);
+    size_t size_main_aligned = roundup_to_multiple(512, size_main);
+    assert(size_main_aligned<BLOCK_ALLOCATOR_HEADER_RESERVE);
+    char *XMALLOC_N_ALIGNED(512, size_main_aligned, mainbuf);
+    for (size_t i=size_main; i<size_main_aligned; i++) mainbuf[i]=0; // initialize the end of the buffer with zeros
+    wbuf_init(&w_main, mainbuf, size_main);
     toku_serialize_ft_to_wbuf(&w_main, h, address_translation, size_translation);
     lazy_assert(w_main.ndone == size_main);
 
-    //Actual Write translation table
-    toku_os_full_pwrite(fd, w_translation.buf, size_translation, address_translation);
+    // Actually write translation table
+    // This write is guaranteed to read good data at the end of the buffer, since the
+    // w_translation.buf is padded with zeros to a 512-byte boundary.
+    toku_os_full_pwrite(fd, w_translation.buf, roundup_to_multiple(512, size_translation), address_translation);
 
     //Everything but the header MUST be on disk before header starts.
     //Otherwise we will think the header is good and some blocks might not
@@ -746,7 +765,7 @@ void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFIL
     //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
     toku_off_t main_offset;
     main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
-    toku_os_full_pwrite(fd, w_main.buf, w_main.ndone, main_offset);
+    toku_os_full_pwrite(fd, w_main.buf, size_main_aligned, main_offset);
     toku_free(w_main.buf);
     toku_free(w_translation.buf);
 }

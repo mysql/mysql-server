@@ -2102,6 +2102,7 @@ static void allocate_node (struct subtrees_info *sts, int64_t b) {
     sts->n_subtrees++;
 }
 
+// dbuf will always contained 512-byte aligned buffer, but the length might not be a multiple of 512 bytes.  If that's what you want, then pad it.
 struct dbuf {
     unsigned char *buf;
     int buflen;
@@ -2225,7 +2226,7 @@ static void putbuf_bytes (struct dbuf *dbuf, const void *bytes, int nbytes) {
         int oldbuflen = dbuf->buflen;
         dbuf->buflen += dbuf->off + nbytes;
         dbuf->buflen *= 2;
-        REALLOC_N(dbuf->buflen, dbuf->buf);
+        REALLOC_N_ALIGNED(512, dbuf->buflen, dbuf->buf);
         if (dbuf->buf == NULL) {
             dbuf->error = get_error_errno();
             dbuf->buf = oldbuf;
@@ -2905,9 +2906,17 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
     }
     unsigned int checksum = x1764_memory(ttable.buf, ttable.off);
     putbuf_int32(&ttable, checksum);
+    // pad it to 512 zeros
+    long long encoded_length = ttable.off;
+    {
+        int nbytes_to_add = roundup_to_multiple(512, ttable.off) - encoded_length;
+        char zeros[nbytes_to_add];
+        for (int i=0; i<nbytes_to_add; i++) zeros[i]=0;
+        putbuf_bytes(&ttable, zeros, nbytes_to_add);
+    }
     int result = ttable.error;
     if (result == 0) {
-        invariant(bt_size_on_disk==ttable.off);
+        invariant(bt_size_on_disk==encoded_length);
         result = toku_os_pwrite(out->fd, ttable.buf, ttable.off, off_of_translation);
     }
     dbuf_destroy(&ttable);
@@ -2919,18 +2928,22 @@ static int
 write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk) {
     int result = 0;
     size_t size = toku_serialize_ft_size(out->h->h);
+    size_t alloced_size = roundup_to_multiple(512, size);
     struct wbuf wbuf;
-    char *MALLOC_N(size, buf);
+    char *MALLOC_N_ALIGNED(512, alloced_size, buf);
     if (buf == NULL) {
         result = get_error_errno();
     } else {
         wbuf_init(&wbuf, buf, size);
         out->h->h->on_disk_stats = out->h->in_memory_stats;
         toku_serialize_ft_to_wbuf(&wbuf, out->h->h, translation_location_on_disk, translation_size_on_disk);
+        for (size_t i=size; i<alloced_size; i++) buf[i]=0; // initialize all those unused spots to zero
         if (wbuf.ndone != size)
             result = EINVAL;
-        else
-            result = toku_os_pwrite(out->fd, wbuf.buf, wbuf.ndone, 0);
+        else {
+            assert(wbuf.ndone <= alloced_size);
+            result = toku_os_pwrite(out->fd, wbuf.buf, alloced_size, 0);
+        }
         toku_free(buf);
     }
     return result;

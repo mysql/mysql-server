@@ -459,9 +459,11 @@ pair_is_unallocated(struct block_translation_pair *pair) {
     return pair->size == 0 && pair->u.diskoff == diskoff_unused;
 }
 
-// Purpose of this function is to figure out where to put the inprogress btt on disk, allocate space for it there.
-static void
-blocknum_alloc_translation_on_disk_unlocked (BLOCK_TABLE bt) {
+static void blocknum_alloc_translation_on_disk_unlocked(BLOCK_TABLE bt)
+// Effect: figure out where to put the inprogress btt on disk, allocate space for it there.
+//   The space must be 512-byte aligned (both the starting address and the size).
+//   As a result, the allcoated space may be a little bit bigger (up to the next 512-byte boundary) than the actual btt.
+{
     toku_mutex_assert_locked(&bt->mutex);
 
     struct translation *t = &bt->inprogress;
@@ -479,24 +481,29 @@ PRNTF("blokAllokator", 1L, size, offset, bt);
     t->block_translation[b.b].size      = size;
 }
 
-//Fills wbuf with bt
-//A clean shutdown runs checkpoint start so that current and inprogress are copies.
-void
-toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
-                                            int64_t *address, int64_t *size) {
+void toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
+                                        int64_t *address, int64_t *size) 
+// Effect: Fills wbuf (which starts uninitialized) with bt
+//   A clean shutdown runs checkpoint start so that current and inprogress are copies.
+//   The resulting wbuf buffer is guaranteed to be be 512-byte aligned and the total length is a multiple of 512 (so we pad with zeros at the end if needd)
+//   The address is guaranteed to be 512-byte aligned, but the size is not guaranteed.
+//   It *is* guaranteed that we can read up to the next 512-byte boundary, however
+{
     lock_for_blocktable(bt);
     struct translation *t = &bt->inprogress;
 
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_TRANSLATION);
-    blocknum_alloc_translation_on_disk_unlocked(bt);
+    blocknum_alloc_translation_on_disk_unlocked(bt); // The allocated block must be 512-byte aligned to make O_DIRECT happy.
+    uint64_t size_translation = calculate_size_on_disk(t);
+    uint64_t size_aligned     = roundup_to_multiple(512, size_translation);
+    assert((int64_t)size_translation==t->block_translation[b.b].size);
     {
         //Init wbuf
-        uint64_t size_translation = calculate_size_on_disk(t);
-        assert((int64_t)size_translation==t->block_translation[b.b].size);
         if (0)
             printf("%s:%d writing translation table of size_translation %" PRIu64 " at %" PRId64 "\n", __FILE__, __LINE__, size_translation, t->block_translation[b.b].u.diskoff);
-        wbuf_init(w, toku_malloc(size_translation), size_translation);
-        assert(w->size==size_translation);
+        char *XMALLOC_N_ALIGNED(512, size_aligned, buf);
+        for (uint64_t i=size_translation; i<size_aligned; i++) buf[i]=0; // fill in the end of the buffer with zeros.
+        wbuf_init(w, buf, size_aligned);
     }
     wbuf_BLOCKNUM(w, t->smallest_never_used_blocknum); 
     wbuf_BLOCKNUM(w, t->blocknum_freelist_head); 
@@ -510,9 +517,10 @@ toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
     uint32_t checksum = x1764_finish(&w->checksum);
     wbuf_int(w, checksum);
     *address = t->block_translation[b.b].u.diskoff;
-    *size    = t->block_translation[b.b].size;
+    *size    = size_translation;
+    assert((*address)%512 == 0);
 
-    ensure_safe_write_unlocked(bt, fd, *size, *address);
+    ensure_safe_write_unlocked(bt, fd, size_aligned, *address);
     unlock_for_blocktable(bt);
 }
 

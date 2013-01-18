@@ -134,7 +134,9 @@ toku_maybe_preallocate_in_file (int fd, int64_t size, int64_t expected_size, int
         to_write += alignup64(min64(file_size + to_write, FILE_CHANGE_INCREMENT), stripe_width);
     }
     if (to_write > 0) {
-        char *XCALLOC_N(to_write, wbuf);
+        assert(to_write%512==0);
+        char *XMALLOC_N_ALIGNED(512, to_write, wbuf);
+        memset(wbuf, 0, to_write);
         toku_off_t start_write = alignup64(file_size, stripe_width);
         invariant(start_write >= file_size);
         toku_os_full_pwrite(fd, wbuf, to_write, start_write);
@@ -773,20 +775,21 @@ serialize_and_compress_sb_node_info(FTNODE node, struct sub_block *sb,
     st->compress_time += t2 - t1;
 }
 
-// Writes out each child to a separate malloc'd buffer, then compresses
-// all of them, and writes the uncompressed header, to bytes_to_write,
-// which is malloc'd.
+int toku_serialize_ftnode_to_memory(FTNODE node,
+                                    FTNODE_DISK_DATA* ndd,
+                                    unsigned int basementnodesize,
+                                    enum toku_compression_method compression_method,
+                                    bool do_rebalancing,
+                                    bool in_parallel, // for loader is true, for toku_ftnode_flush_callback, is false
+                            /*out*/ size_t *n_bytes_to_write,
+                            /*out*/ size_t *n_uncompressed_bytes,
+                            /*out*/ char  **bytes_to_write)
+// Effect: Writes out each child to a separate malloc'd buffer, then compresses
+//   all of them, and writes the uncompressed header, to bytes_to_write,
+//   which is malloc'd.
 //
-int
-toku_serialize_ftnode_to_memory (FTNODE node,
-                                  FTNODE_DISK_DATA* ndd,
-                                  unsigned int basementnodesize,
-                                  enum toku_compression_method compression_method,
-                                  bool do_rebalancing,
-                                  bool in_parallel, // for loader is true, for toku_ftnode_flush_callback, is false
-                          /*out*/ size_t *n_bytes_to_write,
-                          /*out*/ size_t *n_uncompressed_bytes,
-                          /*out*/ char  **bytes_to_write)
+//   The resulting buffer is guaranteed to be 512-byte aligned and the total length is a multiple of 512 (so we pad with zeros at the end if needed).
+//   512-byte padding is for O_DIRECT to work.
 {
     toku_assert_entire_node_in_memory(node);
 
@@ -849,7 +852,9 @@ toku_serialize_ftnode_to_memory (FTNODE node,
         total_uncompressed_size += sb[i].uncompressed_size + 4;
     }
 
-    char *XMALLOC_N(total_node_size, data);
+    uint32_t total_buffer_size = roundup_to_multiple(512, total_node_size); // make the buffer be 512 bytes.
+    
+    char *XMALLOC_N_ALIGNED(512, total_buffer_size, data);
     char *curr_ptr = data;
     // now create the final serialized node
 
@@ -874,9 +879,14 @@ toku_serialize_ftnode_to_memory (FTNODE node,
         *(uint32_t *)curr_ptr = toku_htod32(sb[i].xsum);
         curr_ptr += sizeof(sb[i].xsum);
     }
+    // Zero the rest of the buffer
+    for (uint32_t i=total_node_size; i<total_buffer_size; i++) {
+        data[i]=0;
+    }
+            
     assert(curr_ptr - data == total_node_size);
     *bytes_to_write = data;
-    *n_bytes_to_write = total_node_size;
+    *n_bytes_to_write = total_buffer_size;
     *n_uncompressed_bytes = total_uncompressed_size;
 
     //
@@ -890,6 +900,8 @@ toku_serialize_ftnode_to_memory (FTNODE node,
         toku_free(sb[i].uncompressed_ptr);
     }
 
+    assert(0 == (*n_bytes_to_write)%512);
+    assert(0 == ((unsigned long long)(*bytes_to_write))%512);
     toku_free(sb);
     return 0;
 }
@@ -1152,11 +1164,13 @@ void read_block_from_fd_into_rbuf(
     // get the file offset and block size for the block
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
-    uint8_t *XMALLOC_N(size, raw_block);
+    DISKOFF size_aligned = roundup_to_multiple(512, size);
+    uint8_t *XMALLOC_N_ALIGNED(512, size_aligned, raw_block);
     rbuf_init(rb, raw_block, size);
     // read the block
-    ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
-    lazy_assert((DISKOFF)rlen == size);
+    ssize_t rlen = toku_os_pread(fd, raw_block, size_aligned, offset);
+    assert((DISKOFF)rlen >= size);
+    assert((DISKOFF)rlen <= size_aligned);
 }
 
 static const int read_header_heuristic_max = 32*1024;
@@ -1170,8 +1184,8 @@ static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKN
 {
     DISKOFF offset, size;
     toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
-    DISKOFF read_size = MIN(read_header_heuristic_max, size);
-    uint8_t *XMALLOC_N(size, raw_block);
+    DISKOFF read_size = roundup_to_multiple(512, MIN(read_header_heuristic_max, size));
+    uint8_t *XMALLOC_N_ALIGNED(512, roundup_to_multiple(512, size), raw_block);
     rbuf_init(rb, raw_block, read_size);
 
     // read the block
@@ -2418,14 +2432,20 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     uint32_t curr_size   = BP_SIZE (ndd, childnum);
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
-    uint8_t *XMALLOC_N(curr_size, raw_block);
-    rbuf_init(&rb, raw_block, curr_size);
+    uint32_t pad_at_beginning = (node_offset+curr_offset)%512;
+    uint32_t padded_size = roundup_to_multiple(512, pad_at_beginning + curr_size);
 
+    uint8_t *XMALLOC_N_ALIGNED(512, padded_size, raw_block);
+    rbuf_init(&rb, pad_at_beginning+raw_block, curr_size);
     tokutime_t t0 = toku_time_now();
 
-    // read
-    ssize_t rlen = toku_os_pread(fd, raw_block, curr_size, node_offset+curr_offset);
-    lazy_assert((DISKOFF)rlen == curr_size);
+    // read the block
+    assert(0==((unsigned long long)raw_block)%512); // for O_DIRECT
+    assert(0==(padded_size)%512);
+    assert(0==(node_offset+curr_offset-pad_at_beginning)%512);
+    ssize_t rlen = toku_os_pread(fd, raw_block, padded_size, node_offset+curr_offset-pad_at_beginning);
+    assert((DISKOFF)rlen >= pad_at_beginning + curr_size); // we read in at least enough to get what we wanted
+    assert((DISKOFF)rlen <= padded_size);                  // we didn't read in too much.
 
     tokutime_t t1 = toku_time_now();
 
@@ -2627,12 +2647,14 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        struct sub_block sub_block[/*n_sub_blocks*/],
                                        enum toku_compression_method method,
                                /*out*/ size_t *n_bytes_to_write,
-                               /*out*/ char  **bytes_to_write) {
+                               /*out*/ char  **bytes_to_write)
+// Guarantees that the malloc'd BYTES_TO_WRITE is 512-byte aligned (so that O_DIRECT will work)
+{
     // allocate space for the compressed uncompressed_buf
     size_t compressed_len = get_sum_compressed_size_bound(n_sub_blocks, sub_block, method);
     size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
     size_t header_len = node_header_overhead + sub_block_header_len + sizeof (uint32_t); // node + sub_block + checksum
-    char *XMALLOC_N(header_len + compressed_len, compressed_buf);
+    char *XMALLOC_N_ALIGNED(512, roundup_to_multiple(512, header_len + compressed_len), compressed_buf);
 
     // copy the header
     memcpy(compressed_buf, uncompressed_buf, node_header_overhead);
@@ -2662,7 +2684,12 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
     uint32_t xsum = x1764_memory(compressed_buf, header_length);
     *ptr = toku_htod32(xsum);
 
-    *n_bytes_to_write = header_len + compressed_len;
+    uint32_t padded_len = roundup_to_multiple(512, header_len + compressed_len);
+    // Zero out padding.
+    for (uint32_t i = header_len+compressed_len; i < padded_len; i++) {
+        compressed_buf[i] = 0;
+    }
+    *n_bytes_to_write = padded_len;
     *bytes_to_write   = compressed_buf;
 }
 
@@ -2933,11 +2960,13 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
     int r = 0;
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
 
-    uint8_t *XMALLOC_N(size, raw_block);
+    DISKOFF size_aligned = roundup_to_multiple(512, size);
+    uint8_t *XMALLOC_N_ALIGNED(512, size, raw_block);
     {
         // read the (partially compressed) block
-        ssize_t rlen = toku_os_pread(fd, raw_block, size, offset);
-        lazy_assert((DISKOFF)rlen == size);
+        ssize_t rlen = toku_os_pread(fd, raw_block, size_aligned, offset);
+        lazy_assert((DISKOFF)rlen >= size);
+        lazy_assert((DISKOFF)rlen <= size_aligned);
     }
     // get the layout_version
     int layout_version;

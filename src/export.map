@@ -4,6 +4,7 @@
    db_env_create;
    db_strerror;
    db_version;
+   db_env_set_direct_io;
    db_env_set_func_fsync;
    db_env_set_func_malloc;
    db_env_set_func_realloc;
