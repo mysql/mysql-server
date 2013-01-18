@@ -507,7 +507,8 @@ protected:
   void cache_dump();
   void queries_dump();
   void tables_dump();
-  my_bool check_integrity(bool not_locked);
+  enum enum_qcci_lock_mode { CALLER_HOLDS_LOCK, LOCK_WHILE_CHECKING };
+  bool check_integrity(enum_qcci_lock_mode locking);
   my_bool in_list(Query_cache_block * root, Query_cache_block * point,
 		  const char *name);
   my_bool in_table_list(Query_cache_block_table * root,
