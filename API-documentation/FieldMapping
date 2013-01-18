@@ -2,7 +2,7 @@
  *  Describes the mapping of each field in a domain object to a column
  *  in the database.
  *  
- *  column       Defaults to a column with the same name as the field.  
+ *  columnName   Defaults to a column with the same name as the field.  
  */
 
  FieldMapping = {
