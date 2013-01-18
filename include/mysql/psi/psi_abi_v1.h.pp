@@ -135,48 +135,56 @@ struct PSI_mutex_info_v1
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_mutex_info_v1 PSI_mutex_info_v1;
 struct PSI_rwlock_info_v1
 {
   PSI_rwlock_key *m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 struct PSI_cond_info_v1
 {
   PSI_cond_key *m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_cond_info_v1 PSI_cond_info_v1;
 struct PSI_thread_info_v1
 {
   PSI_thread_key *m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_thread_info_v1 PSI_thread_info_v1;
 struct PSI_file_info_v1
 {
   PSI_file_key *m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_file_info_v1 PSI_file_info_v1;
 struct PSI_stage_info_v1
 {
   PSI_stage_key m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
 struct PSI_statement_info_v1
 {
   PSI_statement_key m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 struct PSI_socket_info_v1
 {
   PSI_socket_key *m_key;
   const char *m_name;
   int m_flags;
 };
+typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
 struct PSI_idle_locker_state_v1
 {
   uint m_flags;
@@ -185,6 +193,7 @@ struct PSI_idle_locker_state_v1
   ulonglong (*m_timer)(void);
   void *m_wait;
 };
+typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
 struct PSI_mutex_locker_state_v1
 {
   uint m_flags;
@@ -195,6 +204,7 @@ struct PSI_mutex_locker_state_v1
   ulonglong (*m_timer)(void);
   void *m_wait;
 };
+typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
 struct PSI_rwlock_locker_state_v1
 {
   uint m_flags;
@@ -205,6 +215,7 @@ struct PSI_rwlock_locker_state_v1
   ulonglong (*m_timer)(void);
   void *m_wait;
 };
+typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;
 struct PSI_cond_locker_state_v1
 {
   uint m_flags;
@@ -216,6 +227,7 @@ struct PSI_cond_locker_state_v1
   ulonglong (*m_timer)(void);
   void *m_wait;
 };
+typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
 struct PSI_file_locker_state_v1
 {
   uint m_flags;
@@ -229,6 +241,7 @@ struct PSI_file_locker_state_v1
   ulonglong (*m_timer)(void);
   void *m_wait;
 };
+typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 struct PSI_table_locker_state_v1
 {
   uint m_flags;
@@ -241,6 +254,7 @@ struct PSI_table_locker_state_v1
   void *m_wait;
   uint m_index;
 };
+typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
 struct PSI_digest_storage
 {
   my_bool m_full;
@@ -284,6 +298,7 @@ struct PSI_statement_locker_state_v1
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
 };
+typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 struct PSI_socket_locker_state_v1
 {
   uint m_flags;
@@ -297,6 +312,7 @@ struct PSI_socket_locker_state_v1
   int m_src_line;
   void *m_wait;
 };
+typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
 typedef void (*register_mutex_v1_t)
   (const char *category, struct PSI_mutex_info_v1 *info, int count);
 typedef void (*register_rwlock_v1_t)
@@ -351,8 +367,8 @@ typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
                                    ulonglong id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
-typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
-                                          const char *host, int host_len);
+typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
+                                        const char *host, int host_len);
 typedef void (*set_thread_db_v1_t)(const char* db, int db_len);
 typedef void (*set_thread_command_v1_t)(int command);
 typedef void (*set_thread_start_time_v1_t)(time_t start_time);
@@ -543,7 +559,7 @@ struct PSI_v1
   set_thread_id_v1_t set_thread_id;
   get_thread_v1_t get_thread;
   set_thread_user_v1_t set_thread_user;
-  set_thread_user_host_v1_t set_thread_user_host;
+  set_thread_account_v1_t set_thread_account;
   set_thread_db_v1_t set_thread_db;
   set_thread_command_v1_t set_thread_command;
   set_thread_start_time_v1_t set_thread_start_time;
