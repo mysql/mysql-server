@@ -119,3 +119,58 @@ if ($optimize_diff)
 }
 
 drop table t1;
+
+#
+# Make binlog to ignore an empty blob column update
+# having before- and after-values 'null'
+# when performed in a separate epoch and
+# empty epochs are not logged.
+# Run the test twice, with ndb_log_empty_epochs ON and OFF.
+#  
+
+let $repetitions=2;
+SET GLOBAL ndb_log_empty_epochs=ON;
+while ($repetitions)
+{
+  SHOW VARIABLES LIKE 'ndb_log_empty_epochs';
+  create table t1 (c1 int not null primary key, c2 blob default null) engine=ndbcluster default charset=latin1;
+  insert into t1 values (1, null);
+
+  # Avoid the following update being performed within the same epoch by
+  # synchronising with Binlog
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  update t1 set c2=null;
+  select * from t1;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  optimize table t1;
+  select * from t1;
+  drop table t1;
+
+  create table t1 (c1 int not null primary key, c2 varchar(1024) default null) engine=ndbcluster default charset=latin1;
+  insert into t1 values (3, null);
+  select * from t1;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  optimize table t1;
+  select * from t1;
+  drop table t1;
+
+  # Repeat the test with
+  SET GLOBAL ndb_log_empty_epochs=OFF;
+
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+
+  dec $repetitions;
+}
