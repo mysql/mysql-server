@@ -1531,10 +1531,7 @@ binlog_trans_log_savepos(THD *thd, my_off_t *pos)
 {
   DBUG_ENTER("binlog_trans_log_savepos");
   DBUG_ASSERT(pos != NULL);
-  if (thd_get_ha_data(thd, binlog_hton) == NULL)
-    thd->binlog_setup_trx_data();
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd->binlog_setup_trx_data();
   DBUG_ASSERT(mysql_bin_log.is_open());
   *pos= cache_mngr->trx_cache.get_byte_position();
   DBUG_PRINT("return", ("*pos: %lu", (ulong) *pos));
@@ -4719,14 +4716,14 @@ bool stmt_has_updated_non_trans_table(const THD* thd)
   binlog_hton, which has internal linkage.
 */
 
-int THD::binlog_setup_trx_data()
+binlog_cache_mngr *THD::binlog_setup_trx_data()
 {
   DBUG_ENTER("THD::binlog_setup_trx_data");
   binlog_cache_mngr *cache_mngr=
     (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
 
   if (cache_mngr)
-    DBUG_RETURN(0);                             // Already set up
+    DBUG_RETURN(cache_mngr);                             // Already set up
 
   cache_mngr= (binlog_cache_mngr*) my_malloc(sizeof(binlog_cache_mngr), MYF(MY_ZEROFILL));
   if (!cache_mngr ||
@@ -4736,18 +4733,18 @@ int THD::binlog_setup_trx_data()
                        LOG_PREFIX, binlog_cache_size, MYF(MY_WME)))
   {
     my_free(cache_mngr);
-    DBUG_RETURN(1);                      // Didn't manage to set it up
+    DBUG_RETURN(0);                      // Didn't manage to set it up
   }
   thd_set_ha_data(this, binlog_hton, cache_mngr);
 
-  cache_mngr= new (thd_get_ha_data(this, binlog_hton))
+  cache_mngr= new (cache_mngr)
               binlog_cache_mngr(max_binlog_stmt_cache_size,
                                 max_binlog_cache_size,
                                 &binlog_stmt_cache_use,
                                 &binlog_stmt_cache_disk_use,
                                 &binlog_cache_use,
                                 &binlog_cache_disk_use);
-  DBUG_RETURN(0);
+  DBUG_RETURN(cache_mngr);
 }
 
 /*
@@ -4830,9 +4827,7 @@ binlog_start_consistent_snapshot(handlerton *hton, THD *thd)
   int err= 0;
   DBUG_ENTER("binlog_start_consistent_snapshot");
 
-  thd->binlog_setup_trx_data();
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= thd->binlog_setup_trx_data();
 
   /* Server layer calls us with LOCK_commit_ordered locked, so this is safe. */
   strmake(cache_mngr->last_commit_pos_file, mysql_bin_log.last_commit_pos_file,
@@ -4944,11 +4939,7 @@ THD::binlog_get_pending_rows_event(bool is_transactional) const
 void
 THD::binlog_set_pending_rows_event(Rows_log_event* ev, bool is_transactional)
 {
-  if (thd_get_ha_data(this, binlog_hton) == NULL)
-    binlog_setup_trx_data();
-
-  binlog_cache_mngr *const cache_mngr=
-    (binlog_cache_mngr*) thd_get_ha_data(this, binlog_hton);
+  binlog_cache_mngr *const cache_mngr= binlog_setup_trx_data();
 
   DBUG_ASSERT(cache_mngr);
 
@@ -5119,11 +5110,9 @@ bool MYSQL_BIN_LOG::write(Log_event *event_info, my_bool *with_annotate)
     }
     else
     {
-      if (thd->binlog_setup_trx_data())
+      binlog_cache_mngr *const cache_mngr= thd->binlog_setup_trx_data();
+      if (!cache_mngr)
         goto err;
-
-      binlog_cache_mngr *const cache_mngr=
-        (binlog_cache_mngr*) thd_get_ha_data(thd, binlog_hton);
 
       is_trans_cache= use_trans_cache(thd, using_trans);
       file= cache_mngr->get_binlog_cache_log(is_trans_cache);

@@ -4909,7 +4909,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
     There is no good place to set up the transactional data, so we
     have to do it here.
   */
-  if (binlog_setup_trx_data())
+  if (binlog_setup_trx_data() == NULL)
     DBUG_RETURN(NULL);
 
   Rows_log_event* pending= binlog_get_pending_rows_event(is_transactional);

@@ -1734,7 +1734,7 @@ public:
   bool save_prep_leaf_list;
 
 #ifndef MYSQL_CLIENT
-  int binlog_setup_trx_data();
+  binlog_cache_mngr *  binlog_setup_trx_data();
 
   /*
     Public interface to write RBR events to the binlog
