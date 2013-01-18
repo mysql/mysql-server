@@ -386,9 +386,11 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
     // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
     return function(err, table) {
       // Walk the table and create defaultValue from ndbRawDefaultValue
-      table.columns.forEach(drColumn);
+      if(table) {
+        table.columns.forEach(drColumn);
+      }
       user_callback(err, table);  
-    }
+    };
   }
 
   var our_callback = makeInternalCallback(user_callback);

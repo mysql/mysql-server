@@ -123,6 +123,8 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   this.state = doc.OperationStates[1];  // PREPARED
 };
 
+// TODO: Improve handing of NULL and UNDEFINED in both
+// encodeKeyBuffer and encodeRowBuffer
 
 function encodeKeyBuffer(indexHandler, op, keys) {
   udebug.log("encodeKeyBuffer with keys", keys);
