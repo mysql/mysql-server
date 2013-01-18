@@ -29,7 +29,7 @@ DELETE FROM t1 WHERE i=2;
 
 # Reading binlog file with the rewrite-db option.
 --echo [The use <db_name> is suppressed on using rewrite-db option of mysqlbinlog]
---exec $MYSQL_BINLOG --force-if-open --rewrite-db='db1->db2' $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
+--exec $MYSQL_BINLOG --force-if-open --rewrite-db="db1->db2" $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let GREP_FILE=$MYSQLTEST_VARDIR/tmp/row_event_rewrite.sql
 --let GREP_PATTERN=use `db1`
 --source ../internal/mysql-test/extra/rpl_tests/grep_pattern.inc
