@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -30,20 +30,20 @@
 #include "pfs_atomic.h"
 #include "m_string.h"
 
-ulong events_statements_history_long_size= 0;
+PFS_ALIGNED ulong events_statements_history_long_size= 0;
 /** Consumer flag for table EVENTS_STATEMENTS_CURRENT. */
-bool flag_events_statements_current= false;
+PFS_ALIGNED bool flag_events_statements_current= false;
 /** Consumer flag for table EVENTS_STATEMENTS_HISTORY. */
-bool flag_events_statements_history= false;
+PFS_ALIGNED bool flag_events_statements_history= false;
 /** Consumer flag for table EVENTS_STATEMENTS_HISTORY_LONG. */
-bool flag_events_statements_history_long= false;
+PFS_ALIGNED bool flag_events_statements_history_long= false;
 
 /** True if EVENTS_STATEMENTS_HISTORY_LONG circular buffer is full. */
-bool events_statements_history_long_full= false;
+PFS_ALIGNED bool events_statements_history_long_full= false;
 /** Index in EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
-volatile uint32 events_statements_history_long_index= 0;
+PFS_ALIGNED volatile uint32 events_statements_history_long_index= 0;
 /** EVENTS_STATEMENTS_HISTORY_LONG circular buffer. */
-PFS_events_statements *events_statements_history_long_array= NULL;
+PFS_ALIGNED PFS_events_statements *events_statements_history_long_array= NULL;
 
 /**
   Initialize table EVENTS_STATEMENTS_HISTORY_LONG.
