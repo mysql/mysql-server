@@ -4952,9 +4952,7 @@ commit_try_norebuild(
 				DBUG_RETURN(true);
 			}
 		}
-	}
 
-	if (ctx) {
 		dberr_t	error;
 
 		if (innobase_update_foreign_try(
