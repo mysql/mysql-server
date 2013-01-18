@@ -1613,7 +1613,7 @@ void THD::awake(killed_state state_to_set)
 
   /* Interrupt target waiting inside a storage engine. */
   if (state_to_set != NOT_KILLED)
-    ha_kill_query(this, test(state_to_set & KILL_HARD_BIT));
+    ha_kill_query(this, thd_kill_level(this));
 
   /* Broadcast a condition to kick the target if it is waiting on it. */
   if (mysys_var)
@@ -3834,15 +3834,13 @@ void THD::restore_backup_open_tables_state(Open_tables_backup *backup)
   DBUG_VOID_RETURN;
 }
 
+#if MARIA_PLUGIN_INTERFACE_VERSION < 0x0200
 /**
-  Check the killed state of a user thread
-  @param thd  user thread
-  @retval 0 the user thread is active
-  @retval 1 the user thread has been killed
-
-  This is used to signal a storage engine if it should be killed.
+  This is a backward compatibility method, made obsolete
+  by the thd_kill_statement service. Keep it here to avoid breaking the
+  ABI in case some binary plugins still use it.
 */
-
+#undef thd_killed
 extern "C" int thd_killed(const MYSQL_THD thd)
 {
   if (!thd)
@@ -3850,9 +3848,26 @@ extern "C" int thd_killed(const MYSQL_THD thd)
 
   if (!(thd->killed & KILL_HARD_BIT))
     return 0;
-  return thd->killed;
+  return thd->killed != 0;
 }
+#else
+#error now thd_killed() function can go away
+#endif
 
+/*
+  return thd->killed status to the client,
+  mapped to the API enum thd_kill_levels values.
+*/
+extern "C" enum thd_kill_levels thd_kill_level(const MYSQL_THD thd)
+{
+  if (!thd)
+    thd= current_thd;
+
+  if (likely(thd->killed == NOT_KILLED))
+    return THD_IS_NOT_KILLED;
+
+  return thd->killed & KILL_HARD_BIT ? THD_ABORT_ASAP : THD_ABORT_SOFTLY;
+}
 
 /**
    Send an out-of-band progress report to the client

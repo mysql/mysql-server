@@ -24,6 +24,7 @@ extern "C" {
 #include <mysql/service_thread_scheduler.h>
 #include <mysql/service_progress_report.h>
 #include <mysql/service_debug_sync.h>
+#include <mysql/service_kill_statement.h>
 
 #ifdef __cplusplus
 }

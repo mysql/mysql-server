@@ -82,6 +82,16 @@ const char *set_thd_proc_info(void*, const char * info, const char *func,
                               const char *file, unsigned int line);
 #include <mysql/service_debug_sync.h>
 extern void (*debug_sync_C_callback_ptr)(void*, const char *, size_t);
+#include <mysql/service_kill_statement.h>
+enum thd_kill_levels {
+  THD_IS_NOT_KILLED=0,
+  THD_ABORT_SOFTLY=50,
+  THD_ABORT_ASAP=100,
+};
+extern struct kill_statement_service_st {
+  enum thd_kill_levels (*thd_kill_level_func)(const void*);
+} *thd_kill_statement_service;
+enum thd_kill_levels thd_kill_level(const void*);
 struct st_mysql_xid {
   long formatID;
   long gtrid_length;
@@ -179,7 +189,6 @@ char *thd_security_context(void* thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 void thd_inc_row_count(void* thd);
 int mysql_tmpfile(const char *prefix);
-int thd_killed(const void* thd);
 unsigned long thd_get_thread_id(const void* thd);
 void thd_get_xid(const void* thd, MYSQL_XID *xid);
 void mysql_query_cache_invalidate4(void* thd,

@@ -673,21 +673,20 @@ void ha_close_connection(THD* thd)
 }
 
 static my_bool kill_handlerton(THD *thd, plugin_ref plugin,
-                               void *hard_kill)
+                               void *level)
 {
   handlerton *hton= plugin_data(plugin, handlerton *);
 
   if (hton->state == SHOW_OPTION_YES && hton->kill_query &&
       thd_get_ha_data(thd, hton))
-    hton->kill_query(hton, thd, * (my_bool*) hard_kill);
+    hton->kill_query(hton, thd, *(enum thd_kill_levels *) level);
   return FALSE;
 }
 
-void ha_kill_query(THD* thd, my_bool hard_kill)
+void ha_kill_query(THD* thd, enum thd_kill_levels level)
 {
   DBUG_ENTER("ha_kill_query");
-  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
-                 &hard_kill);
+  plugin_foreach(thd, kill_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &level);
   DBUG_VOID_RETURN;
 }
 
@@ -4721,7 +4720,9 @@ extern "C" enum icp_result handler_index_cond_check(void* h_arg)
   THD *thd= h->table->in_use;
   enum icp_result res;
 
-  if (thd_killed(thd))
+  enum thd_kill_levels abort_at= h->has_transactions() ?
+    THD_ABORT_SOFTLY : THD_ABORT_ASAP;
+  if (thd_kill_level(thd) > abort_at)
     return ICP_ABORTED_BY_USER;
 
   if (h->end_range && h->compare_key2(h->end_range) > 0)

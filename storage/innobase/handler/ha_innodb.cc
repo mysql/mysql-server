@@ -339,7 +339,7 @@ static PSI_file_info	all_innodb_files[] = {
 static INNOBASE_SHARE *get_share(const char *table_name);
 static void free_share(INNOBASE_SHARE *share);
 static int innobase_close_connection(handlerton *hton, THD* thd);
-static void innobase_kill_query(handlerton *hton, THD* thd, my_bool hard_kill);
+static void innobase_kill_query(handlerton *hton, THD* thd, enum thd_kill_levels level);
 static void innobase_commit_ordered(handlerton *hton, THD* thd, bool all);
 static int innobase_commit(handlerton *hton, THD* thd, bool all);
 static int innobase_rollback(handlerton *hton, THD* thd, bool all);
@@ -2153,7 +2153,7 @@ trx_is_interrupted(
 /*===============*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	return(trx && trx->mysql_thd && thd_killed((THD*) trx->mysql_thd));
+	return(trx && trx->mysql_thd && thd_kill_level((THD*) trx->mysql_thd));
 }
 
 /**********************************************************************//**
@@ -2283,7 +2283,7 @@ innobase_init(
         innobase_hton->flags=HTON_NO_FLAGS;
         innobase_hton->release_temporary_latches=innobase_release_temporary_latches;
 	innobase_hton->alter_table_flags = innobase_alter_table_flags;
-	innobase_hton->kill_query = innobase_kill_query;
+        innobase_hton->kill_query = innobase_kill_query;
 
 	ut_a(DATA_MYSQL_TRUE_VARCHAR == (ulint)MYSQL_TYPE_VARCHAR);
 
@@ -3193,9 +3193,9 @@ static
 void
 innobase_kill_query(
 /*======================*/
-        handlerton*	hton,	/*!< in:  innobase handlerton */
-	THD*	thd,	/*!< in: handle to the MySQL thread being killed */
-        my_bool hard_kill)      /*!< in:  If hard kill */
+        handlerton*	hton,	    /*!< in: innobase handlerton */
+	THD*	thd,	            /*!< in: MySQL thread being killed */
+        enum thd_kill_levels level) /*!< in: kill level */
 {
 	trx_t*	trx;
 	DBUG_ENTER("innobase_kill_query");
@@ -3207,7 +3207,6 @@ innobase_kill_query(
 
 	/* Cancel a pending lock request. */
 	if (trx && trx->wait_lock) {
-                //trx->killed= 1;
 		lock_cancel_waiting_and_release(trx->wait_lock);
 	}
 
@@ -8724,7 +8723,7 @@ ha_innobase::check(
 			row_mysql_unlock_data_dictionary(prebuilt->trx);
 		}
 
-		if (thd_killed(user_thd)) {
+		if (thd_kill_level(user_thd)) {
 			break;
 		}
 
@@ -8781,7 +8780,7 @@ ha_innobase::check(
 	mutex_exit(&kernel_mutex);
 
 	prebuilt->trx->op_info = "";
-	if (thd_killed(user_thd)) {
+	if (thd_kill_level(user_thd)) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 	}
 

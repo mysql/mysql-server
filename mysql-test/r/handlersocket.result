@@ -5,7 +5,7 @@ plugin_version	1.0
 plugin_status	ACTIVE
 plugin_type	DAEMON
 plugin_library	handlersocket.so
-plugin_library_version	1.3
+plugin_library_version	1.4
 plugin_author	higuchi dot akira at dena dot jp
 plugin_description	Direct access into InnoDB
 plugin_license	BSD

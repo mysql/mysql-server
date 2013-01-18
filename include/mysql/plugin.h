@@ -72,7 +72,7 @@ typedef struct st_mysql_xid MYSQL_XID;
 #define MYSQL_PLUGIN_INTERFACE_VERSION 0x0103
 
 /* MariaDB plugin interface version */
-#define MARIA_PLUGIN_INTERFACE_VERSION 0x0103
+#define MARIA_PLUGIN_INTERFACE_VERSION 0x0104
 
 /*
   The allowable types of plugins
@@ -624,22 +624,6 @@ void thd_inc_row_count(MYSQL_THD thd);
   @retval >= 0  a file handle that can be passed to dup or my_close
 */
 int mysql_tmpfile(const char *prefix);
-
-/**
-  Check the killed state of a connection
-
-  @details
-  In MySQL support for the KILL statement is cooperative. The KILL
-  statement only sets a "killed" flag. This function returns the value
-  of that flag.  A thread should check it often, especially inside
-  time-consuming loops, and gracefully abort the operation if it is
-  non-zero.
-
-  @param thd  user thread connection handle
-  @retval 0  the connection is active
-  @retval 1  the connection has been killed
-*/
-int thd_killed(const MYSQL_THD thd);
 
 /**
   Return the thread id of a user thread

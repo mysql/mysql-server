@@ -1872,8 +1872,11 @@ static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
   DBUG_RETURN(FALSE);
 error:
   mysql_mutex_unlock(&LOCK_plugin);
-  sql_print_error("Couldn't load plugin named '%s' with soname '%s'.",
-                  name.str, dl.str);
+  if (name.str)
+    sql_print_error("Couldn't load plugin '%s' from '%s'.",
+                    name.str, dl.str);
+  else
+    sql_print_error("Couldn't load plugins from '%s'.", dl.str);
   DBUG_RETURN(TRUE);
 }
 
