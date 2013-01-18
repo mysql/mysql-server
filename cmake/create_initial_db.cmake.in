@@ -31,7 +31,7 @@ ENDIF()
 
 # Create bootstrapper SQL script
 FILE(WRITE bootstrap.sql "use mysql;\n" )
-FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql)
+FOREACH(FILENAME mysql_system_tables.sql mysql_system_tables_data.sql mysql_performance_tables.sql)
    FILE(STRINGS ${CMAKE_SOURCE_DIR}/scripts/${FILENAME} CONTENTS)
    FOREACH(STR ${CONTENTS})
     IF(NOT STR MATCHES "@current_hostname")
