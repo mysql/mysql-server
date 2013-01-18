@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -294,6 +294,8 @@ cmp_whole_field(
 			       (int)(prtype & DATA_MYSQL_TYPE_MASK),
 			       (uint) dtype_get_charset_coll(prtype),
 			       a, a_length, b, b_length));
+	case DATA_GEOMETRY:
+		return(0);
 	default:
 		fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
@@ -431,8 +433,7 @@ cmp_data_data_slow(
 		}
 
 		if (mtype <= DATA_CHAR
-		    || (mtype == DATA_BLOB
-			&& 0 == (prtype & DATA_BINARY_TYPE))) {
+		    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 			data1_byte = cmp_collate(data1_byte);
 			data2_byte = cmp_collate(data2_byte);
@@ -808,8 +809,7 @@ cmp_dtuple_rec_with_match_low(
 			}
 
 			if (mtype <= DATA_CHAR
-			    || (mtype == DATA_BLOB
-				&& !(prtype & DATA_BINARY_TYPE))) {
+			    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 				rec_byte = cmp_collate(rec_byte);
 				dtuple_byte = cmp_collate(dtuple_byte);
@@ -999,8 +999,7 @@ cmp_rec_rec_simple_field(
 		}
 
 		if (col->mtype <= DATA_CHAR
-		    || (col->mtype == DATA_BLOB
-			&& !(col->prtype & DATA_BINARY_TYPE))) {
+		    || DATA_LARGE_BINARY(col->mtype, col->prtype)) {
 
 			rec1_byte = cmp_collate(rec1_byte);
 			rec2_byte = cmp_collate(rec2_byte);
@@ -1297,8 +1296,7 @@ cmp_rec_rec_with_match(
 			}
 
 			if (mtype <= DATA_CHAR
-			    || (mtype == DATA_BLOB
-				&& !(prtype & DATA_BINARY_TYPE))) {
+			    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 				rec1_byte = cmp_collate(rec1_byte);
 				rec2_byte = cmp_collate(rec2_byte);

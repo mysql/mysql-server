@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -459,7 +459,7 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
 
 		if (ifield->fixed_len) {
 			ut_ad(len == ifield->fixed_len);
@@ -467,7 +467,7 @@ row_merge_buf_add(
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
-			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
+			   || (!DATA_BIG_COL(col))) {
 			extra_size++;
 		} else {
 			/* For variable-length columns, we look up the

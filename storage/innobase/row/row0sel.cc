@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2427,8 +2427,11 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-
-		if (type == DATA_BLOB) {
+                /* Temporarily, prefix index on geometry data follow
+                the current behavior (currently geometry is treated as
+                BLOB), and it will be replaced by R-tree index in another
+                worklog. */
+		if (DATA_LARGE_MTYPE(type)) {
 			/* The key field is a column prefix of a BLOB or
 			TEXT */
 
@@ -2723,6 +2726,12 @@ row_sel_field_store_in_mysql_format_func(
 					 len);
 		break;
 
+	case DATA_GEOMETRY:
+		/* We store geometry data as BLOB data. */
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data,
+					 len);
+		break;
+
 	case DATA_MYSQL:
 		memcpy(dest, data, len);
 
@@ -2831,7 +2840,7 @@ row_sel_store_mysql_field_func(
 		ut_a(!prebuilt->trx->has_search_latch);
 		ut_ad(field_no == templ->clust_rec_field_no);
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
@@ -2897,7 +2906,7 @@ row_sel_store_mysql_field_func(
 			return(TRUE);
 		}
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 
 			/* It is a BLOB field locally stored in the
 			InnoDB record: we MUST copy its contents to
