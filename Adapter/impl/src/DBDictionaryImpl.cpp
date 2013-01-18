@@ -64,6 +64,7 @@ Envelope NdbDictIndexEnv("NdbDictionary::Index");
 
 Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
+Handle<Value> getDefaultValue(const NdbDictionary::Column *);
 
 
 /*** DBDictionary.listTables()
@@ -386,7 +387,7 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
 
   obj->Set(String::NewSymbol("columnSpace"),
            v8::Int32::New(col->getSizeInBytes()),
-           ReadOnly);
+           ReadOnly);           
 
   /* Implementation-specific properties */
   
@@ -394,6 +395,9 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
            v8::Int32::New(static_cast<int>(col->getType())),
            ReadOnly);
 
+  obj->Set(String::NewSymbol("ndbRawDefaultValue"),
+           getDefaultValue(col), 
+           ReadOnly);
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
@@ -521,6 +525,38 @@ Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *col) {
     default:
       return scope.Close(Boolean::New(false));
   }
+}
+
+Handle<Value> createJsBuffer(node::Buffer *b, int len) {
+  HandleScope scope;
+  Local<Object> global = v8::Context::GetCurrent()->Global();
+  Local<Function> bufferConstructor = 
+    Local<Function>::Cast(global->Get(String::New("Buffer")));
+  Handle<Value> args[3];
+  args[0] = b->handle_;
+  args[1] = Integer::New(len);
+  args[2] = Integer::New(0);
+  
+  Local<Object> jsBuffer = bufferConstructor->NewInstance(3, args);
+
+  return scope.Close(jsBuffer);
+}
+
+
+Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
+  HandleScope scope;
+  Handle<Value> v;
+  unsigned int defaultLen = 0;
+  
+  const void* dictDefaultBuff = col->getDefaultValue(& defaultLen);
+  if(defaultLen) {
+    node::Buffer *buf = node::Buffer::New((char *) dictDefaultBuff, defaultLen);
+    v = createJsBuffer(buf, defaultLen);
+  }
+  else {
+    v = v8::Null();
+  }
+  return scope.Close(v);
 }
 
 
