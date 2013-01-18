@@ -11,7 +11,6 @@ def main():
     print "drop table if exists tt, ti;"
     print "enable_warnings;"
 
-    print "set tokudb_enable_fast_update=1;"
     print "set tokudb_disable_slow_update=1;"
 
     for t in [ 'tinyint', 'smallint', 'mediumint', 'int', 'bigint' ]:

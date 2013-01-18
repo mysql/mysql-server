@@ -1,31 +1,53 @@
+source include/master-slave.inc;
 source include/have_binlog_format_statement.inc;
 source include/have_tokudb.inc;
 
 set default_storage_engine='tokudb';
 create table tt (id int primary key, x int);
 
-set session tokudb_enable_fast_upsert=1;
 set session tokudb_disable_slow_upsert=1;
 
-insert noar into tt values (1,0);
+connection master;
+show variables like 'binlog_format';
+show variables like 'server_id';
 
-replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
-error ER_UNSUPPORTED_EXTENSION;
-insert noar into tt values (1,0) on duplicate key update x=x+1;
+connection slave;
+show variables like 'binlog_format';
+show variables like 'server_id';
 
-replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
-error ER_UNSUPPORTED_EXTENSION;
-insert noar into tt values (2,0) on duplicate key update x=x+1;
+connection master;
 
-set session tokudb_enable_fast_update=1;
-set session tokudb_disable_slow_update=1;
+let $n=100;
 
-replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
-error ER_UNSUPPORTED_EXTENSION;
-update noar tt set x=x+1 where id=1;
+# insert a bunch of new rows
+let $i=0;
+while ($i < $n) {
+        eval insert into tt values ($i,0) on duplicate key update x=x+1;
+        inc $i;
+}
 
-replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
-error ER_UNSUPPORTED_EXTENSION;
-update noar tt set x=x+1 where id=2;
+# upsert a bunch of rows
+let $i=0;
+while ($i < $n) {
+        eval insert into tt values ($i,0) on duplicate key update x=x+1;
+        inc $i;
+}
 
+# update a bunch of rows
+let $i=0;
+while ($i < $n) {
+        eval update noar tt set x=x+1 where id=$i;
+        inc $i;
+}
+select * from tt where x != 2;
+
+sync_slave_with_master;
+
+let $diff_tables= master:test.tt, slave:test.tt;
+source include/diff_tables.inc;
+
+connection master;
 drop table tt;
+
+source include/rpl_end.inc;
+

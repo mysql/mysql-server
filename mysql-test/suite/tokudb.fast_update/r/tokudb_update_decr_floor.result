@@ -1,6 +1,5 @@
 set default_storage_engine='tokudb';
 drop table if exists t;
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 create table tt (
 id tinyint  null primary key,

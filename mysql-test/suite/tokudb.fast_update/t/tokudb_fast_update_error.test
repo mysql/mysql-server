@@ -9,7 +9,6 @@ disable_warnings;
 drop table if exists tt;
 enable_warnings;
 
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 
 create table tt (id int primary key, x int);

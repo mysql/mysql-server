@@ -10,7 +10,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -67,7 +66,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -124,7 +122,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -181,7 +178,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -238,7 +234,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -295,7 +290,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -352,7 +346,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -409,7 +402,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -466,7 +458,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -523,7 +514,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -580,7 +570,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -637,7 +626,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -694,7 +682,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -751,7 +738,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -808,7 +794,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -865,7 +850,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -922,7 +906,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -979,7 +962,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -1036,7 +1018,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
@@ -1093,7 +1074,6 @@ id	x
 1	0
 2	0
 3	0
-set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update noar t set x=100 where id=2;
 select * from t;
