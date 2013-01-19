@@ -465,6 +465,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
         } else {
             r = EINVAL;
         }
+        toku_free(prefix);
         goto exit;
     }
 
