@@ -3589,19 +3589,10 @@ next_rec:
 	if (table->space != TRX_SYS_SPACE
 	    && !table->dir_path_of_temp_table
 	    && flags != ULINT_UNDEFINED) {
-		/* Invalidate in the buffer pool all pages belonging to the
-		tablespace */
-		buf_LRU_flush_or_remove_pages(table->space,
-			BUF_REMOVE_ALL_NO_WRITE, 0);
-		/* Remove all insert buffer entries for the tablespace */
-		ibuf_delete_for_discarded_space(table->space);
-
-		mtr_start(&mtr);
-		fsp_header_init(
+		fil_reinit_space_header(
 			table->space,
 			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1,
 			&mtr);
-		mtr_commit(&mtr);
 	}
 
 	mtr_start(&mtr);
@@ -3851,9 +3842,7 @@ next_user_rec:
 		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
 
 		err = fil_truncate_tablespace(table->space, table->name,
-					      table->data_dir_path, flags,
-					      table->indexes.count +
-					      FIL_IBD_FILE_INITIAL_SIZE + 1);
+					      table->data_dir_path, flags);
 	}
 
 	DBUG_EXECUTE_IF("crash_after_truncate_tablespace", DBUG_SUICIDE(););

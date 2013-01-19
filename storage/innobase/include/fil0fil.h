@@ -509,7 +509,17 @@ Reset truncated space id */
 UNIV_INTERN
 void
 fil_space_truncated_reset();
-/*============================*/
+/*========================*/
+/**********************************************************************//**
+Reinitialize the original tablespace header with the same space id
+for single tablespace */
+UNIV_INTERN
+void
+fil_reinit_space_header(
+/*====================*/
+	ulint		id,	/*!< in: space id */
+	ulint		size,	/*!< in: size in blocks */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 /*******************************************************************//**
 Truncate a single-table tablespace. The tablespace must be cached
 in the memory cache.
@@ -523,9 +533,7 @@ fil_truncate_tablespace(
 					databasename/tablename format
 					of InnoDB */
 	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags,		/*!< in: tablespace flags */
-	ulint		size);		/*!< in: the reserved size of the
-					tablespace file in pages */
+	ulint		flags);		/*!< in: tablespace flags */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
