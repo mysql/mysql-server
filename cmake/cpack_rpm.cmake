@@ -64,10 +64,29 @@ SET(CPACK_RPM_SPEC_MORE_DEFINE "${CPACK_RPM_SPEC_MORE_DEFINE}
 
 SET(CPACK_RPM_PACKAGE_REQUIRES "MariaDB-common")
 
-SET(CPACK_RPM_server_USER_FILELIST "%ignore /etc" "%ignore /etc/init.d" "%config(noreplace) /etc/my.cnf.d/*")
-SET(CPACK_RPM_common_USER_FILELIST "%config(noreplace) /etc/my.cnf")
-SET(CPACK_RPM_shared_USER_FILELIST "%config(noreplace) /etc/my.cnf.d/*")
-SET(CPACK_RPM_client_USER_FILELIST "%config(noreplace) /etc/my.cnf.d/*")
+SET(ignored
+  "%ignore /etc"
+  "%ignore /etc/init.d"
+  "%ignore /etc/logrotate.d"
+  "%ignore /usr"
+  "%ignore /usr/bin"
+  "%ignore /usr/include"
+  "%ignore /usr/lib64"
+  "%ignore /usr/sbin"
+  "%ignore /usr/share"
+  "%ignore /usr/share/aclocal"
+  "%ignore /usr/share/doc"
+  "%ignore /usr/share/man"
+  "%ignore /usr/share/man/man1*"
+  "%ignore /usr/share/man/man8*"
+  )
+
+SET(CPACK_RPM_server_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")
+SET(CPACK_RPM_common_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf")
+SET(CPACK_RPM_shared_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")
+SET(CPACK_RPM_client_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")
+SET(CPACK_RPM_devel_USER_FILELIST ${ignored})
+SET(CPACK_RPM_test_USER_FILELIST ${ignored})
 
 SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
 SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client")
@@ -97,7 +116,7 @@ SET(CPACK_RPM_test_PACKAGE_OBSOLETES "mysql-test MySQL-test MySQL-OurDelta-test"
 SET(CPACK_RPM_test_PACKAGE_PROVIDES "MariaDB-test MySQL-test mysql-test")
 
 # workaround for lots of perl dependencies added by rpmbuild
-SET(CPACK_RPM_test_PACKAGE_PROVIDES "${CPACK_RPM_test_PACKAGE_PROVIDES} perl(lib::mtr_gcov.pl) perl(lib::mtr_gprof.pl) perl(lib::mtr_io.pl) perl(lib::mtr_misc.pl) perl(lib::mtr_process.pl) perl(lib::v1/mtr_cases.pl) perl(lib::v1/mtr_gcov.pl) perl(lib::v1/mtr_gprof.pl) perl(lib::v1/mtr_im.pl) perl(lib::v1/mtr_io.pl) perl(lib::v1/mtr_match.pl) perl(lib::v1/mtr_misc.pl) perl(lib::v1/mtr_process.pl) perl(lib::v1/mtr_report.pl) perl(lib::v1/mtr_stress.pl) perl(lib::v1/mtr_timer.pl) perl(lib::v1/mtr_unique.pl) perl(mtr_misc.pl)")
+SET(CPACK_RPM_test_PACKAGE_PROVIDES "${CPACK_RPM_test_PACKAGE_PROVIDES} perl(lib::mtr_gcov.pl) perl(lib::mtr_gprof.pl) perl(lib::mtr_io.pl) perl(lib::mtr_misc.pl) perl(lib::mtr_process.pl) perl(lib::v1/mtr_cases.pl) perl(lib::v1/mtr_gcov.pl) perl(lib::v1/mtr_gprof.pl) perl(lib::v1/mtr_im.pl) perl(lib::v1/mtr_io.pl) perl(lib::v1/mtr_match.pl) perl(lib::v1/mtr_misc.pl) perl(lib::v1/mtr_process.pl) perl(lib::v1/mtr_report.pl) perl(lib::v1/mtr_stress.pl) perl(lib::v1/mtr_timer.pl) perl(lib::v1/mtr_unique.pl) perl(mtr_cases) perl(mtr_io.pl) perl(mtr_match) perl(mtr_misc.pl) perl(mtr_report) perl(mtr_results) perl(mtr_unique)")
 
 # If we want to build build MariaDB-shared-compat,
 # extract compat libraries from MariaDB-shared-5.3 rpm
