@@ -1,0 +1,8 @@
+select variable_name from information_schema.session_status where variable_name =
+(select variable_name from information_schema.session_status where variable_name = 'uptime');
+variable_name
+UPTIME
+select variable_name from information_schema.session_variables where variable_name =
+(select variable_name from information_schema.session_variables where variable_name = 'basedir');
+variable_name
+BASEDIR

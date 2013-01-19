@@ -1445,7 +1445,6 @@ public:
   */
   virtual bool is_outer_field() const { DBUG_ASSERT(fixed); return FALSE; }
   Item* set_expr_cache(THD *thd);
-  virtual Item *get_cached_item() { return NULL; }
 
   virtual Item_equal *get_item_equal() { return NULL; }
   virtual void set_item_equal(Item_equal *item_eq) {};
