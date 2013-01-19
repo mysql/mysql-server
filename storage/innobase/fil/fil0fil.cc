@@ -2228,8 +2228,8 @@ fil_recreate_tablespace(
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 	if (fil_truncate_tablespace(space_id, name,
-				    truncate_rec->dir_path, flags,
-				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
+				    truncate_rec->dir_path,
+				    flags) != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
 			"Continuing crash recovery even though we cannot"
@@ -3235,6 +3235,42 @@ fil_space_truncated_reset()
 	fil_space_truncated.clear();
 }
 
+/**********************************************************************//**
+Reinitialize the original tablespace header with the same space id
+for single tablespace */
+UNIV_INTERN
+void
+fil_reinit_space_header(
+/*====================*/
+	ulint		id,	/*!< in: space id */
+	ulint		size,	/*!< in: size in blocks */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	fil_space_t*	space;
+	fil_node_t*	node;
+
+	ut_a(id != TRX_SYS_SPACE);
+
+	/* Invalidate in the buffer pool all pages belonging
+	to the tablespace */
+	buf_LRU_flush_or_remove_pages(id, BUF_REMOVE_ALL_NO_WRITE, 0);
+	/* Remove all insert buffer entries for the tablespace */
+	ibuf_delete_for_discarded_space(id);
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(id);
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+	node = UT_LIST_GET_FIRST(space->chain);
+	space->size = node->size = size;
+	mutex_exit(&fil_system->mutex);
+
+	mtr_start(mtr);
+	fsp_header_init(id, size, mtr);
+	mtr_commit(mtr);
+}
+
 /*******************************************************************//**
 Truncate a single-table tablespace. The tablespace must be cached
 in the memory cache.
@@ -3248,9 +3284,7 @@ fil_truncate_tablespace(
 					databasename/tablename format
 					of InnoDB */
 	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags,		/*!< in: tablespace flags */
-	ulint		size)		/*!< in: the reserved size of the
-					tablespace file in pages */
+	ulint		flags)		/*!< in: tablespace flags */
 {
 	char*		path;
 	fil_space_t*	space;
@@ -3258,6 +3292,7 @@ fil_truncate_tablespace(
 	ibool		success;
 	ibool		ret;
 	bool		open;
+	ulint		trunc_size;
 	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
 
 	ut_a(id != TRX_SYS_SPACE);
@@ -3271,12 +3306,14 @@ fil_truncate_tablespace(
 
 	mutex_enter(&fil_system->mutex);
 	space = fil_space_get_by_id(id);
-	mutex_exit(&fil_system->mutex);
-
 	/* The following code must change when InnoDB supports
 	multiple datafiles per tablespace. */
 	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
 	node = UT_LIST_GET_FIRST(space->chain);
+	if (recv_recovery_on) {
+		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
+	}
+	mutex_exit(&fil_system->mutex);
 
 	if (!node->open) {
 		mutex_enter(&fil_system->mutex);
@@ -3296,19 +3333,10 @@ fil_truncate_tablespace(
 		open = false;
 	}
 
-	if (node->size > size) {
+	trunc_size = recv_recovery_on ? FIL_IBD_FILE_INITIAL_SIZE : space->size;
+	success = os_file_truncate(path, node->handle,
+				   trunc_size * UNIV_PAGE_SIZE);
 
-		mutex_enter(&fil_system->mutex);
-		success = os_file_truncate(path, node->handle,
-					   size * UNIV_PAGE_SIZE);
-		if (success) {
-			space->size = node->size = size;
-		}
-		mutex_exit(&fil_system->mutex);
-
-	} else {
-		success = TRUE;
-	}
 	mutex_enter(&fil_system->mutex);
 	space->is_being_truncated = false;
 	space->stop_new_ops = FALSE;
