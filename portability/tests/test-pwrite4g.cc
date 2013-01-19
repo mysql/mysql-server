@@ -32,8 +32,8 @@ int test_main(int argc, char *const argv[]) {
     char *XMALLOC_N_ALIGNED(512, 512, buf);
     strcpy(buf, "hello");
     int64_t offset = (1LL<<32) + 512;
-    toku_os_full_pwrite(fd, buf, sizeof buf, offset);
-    char newbuf[sizeof buf];
+    toku_os_full_pwrite(fd, buf, 512, offset);
+    char newbuf[512];
     r = pread(fd, newbuf, sizeof newbuf, 100);
     assert(r==sizeof newbuf);
     assert(iszero(newbuf, sizeof newbuf));
@@ -43,7 +43,7 @@ int test_main(int argc, char *const argv[]) {
     int64_t fsize;
     r = toku_os_get_file_size(fd, &fsize);
     assert(r == 0);
-    assert(fsize > 100 + (signed)sizeof(buf));
+    assert(fsize > 100 + 512);
     toku_free(buf);
     r = close(fd);
     assert(r==0);
