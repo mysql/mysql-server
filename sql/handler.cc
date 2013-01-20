@@ -1414,12 +1414,6 @@ int ha_commit_trans(THD *thd, bool all)
       goto end;
     }
 
-    if (!thd->prepare_seq_written)
-    {
-      thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
-      thd->prepare_seq_written= true;
-    }
-
     if (!trans->no_2pc && (rw_ha_count > 1))
       error= tc_log->prepare(thd, all);
   }
@@ -1430,15 +1424,6 @@ int ha_commit_trans(THD *thd, bool all)
     goto end;
   }
 
-  /*
-     Here we step the commit clock to keep a track of all committed
-     transactions
-   */
-  if (!error && (all || trans->has_modified_non_trans_table()))
-  {
-    thd->commit_seq_no= mysql_bin_log.commit_clock.step_clock();
-    thd->prepare_seq_written= false;
-  }
 
   DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
 end:

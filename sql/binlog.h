@@ -35,7 +35,7 @@ private:
   volatile int64 state;
   int64 step;
 protected:
-  inline void init(){ state= 1; step= 1;}
+  inline void init(){ state= 0; step= 1;}
 public:
   Logical_clock_state(){init();}
   int64 step_clock();
@@ -391,12 +391,6 @@ public:
   ulong signal_cnt;  // update of the counter is checked by heartbeat
   uint8 checksum_alg_reset; // to contain a new value when binlog is rotated
 
-  /* clock to timestamp the binlog prepares */
-  Logical_clock_state prepare_clock;
-
-  /* Clock to timestamp the commits */
-  Logical_clock_state commit_clock;
-
   char index_file_name[FN_REFLEN];
 
   /*
@@ -473,6 +467,13 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
+
+  /* clock to timestamp the binlog prepares */
+  Logical_clock_state prepare_clock;
+
+  /* Clock to timestamp the commits */
+  Logical_clock_state commit_clock;
+
   /**
     Reads the set of all GTIDs in the binary log, and the set of all
     lost GTIDs in the binary log, and stores each set in respective

@@ -1204,6 +1204,11 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
     We will however step the prepare clock here.
   */
+  if (!thd->prepare_seq_written)
+  {
+    thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
+    thd->prepare_seq_written= true;
+  }
   return 0;
 }
 
@@ -5022,6 +5027,9 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
   bool pc_fixed= false;
+  uint pc_offset= LOG_EVENT_HEADER_LEN + QUERY_HEADER_LEN +
+    thd->prepare_commit_offset;
+  uint pc_end_offset= pc_offset+ PREPARE_COMMIT_SEQ_LEN;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5053,6 +5061,34 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
 
   do
   {
+
+    if (!pc_fixed)
+    {
+      /*TODO; move this back to the next "if block" */
+      if (likely (length >= pc_end_offset))
+      {
+        /* step the commit clock */
+        thd->commit_seq_no= commit_clock.step_clock();
+        thd->prepare_seq_written= false;
+        DBUG_PRINT("info", ("MTS:: PTS:=%lld, CTS:=%lld",
+                   thd->prepare_seq_no, thd->commit_seq_no));
+        uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
+        pc_ptr++;
+        // fix prepare ts
+        int8store(pc_ptr, thd->prepare_seq_no);
+        pc_ptr+= PREPARE_COMMIT_SEQ_LEN;
+        pc_ptr++;
+        //fix commit ts
+        int8store(pc_ptr, thd->commit_seq_no);
+        pc_fixed= true;
+
+      }
+      else
+      {
+        pc_end_offset-= length;
+        pc_offset= pc_end_offset -2 * PREPARE_COMMIT_SEQ_LEN;
+      }
+    }
     /*
       if we only got a partial header in the last iteration,
       get the other half now and process a full header.
@@ -5173,17 +5209,6 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
           uint event_len= uint4korr(ev + EVENT_LEN_OFFSET); // netto len
           uchar *log_pos= ev + LOG_POS_OFFSET;
 
-          /* fix prepare & commit (pc) timestamp */
-          if (!pc_fixed)
-          {
-            uchar* pc_ptr= ev + QUERY_HEADER_LEN + thd->prepare_commit_offset;
-            // fix prepare ts
-            int8store(pc_ptr, thd->prepare_seq_no);
-            pc_ptr+= 8;
-            //fix commit ts
-            int8store(pc_ptr, thd->commit_seq_no);
-            pc_fixed= true;
-          }
 
           /* fix end_log_pos */
           val= uint4korr(log_pos) + group +
@@ -8254,10 +8279,11 @@ int64
 Logical_clock_state::get_timestamp()
 {
   int64 retval= 0;
+  DBUG_ENTER("Logical_clock_state::step_clock");
   my_atomic_rwlock_rdlock(&state_LOCK);
   retval= my_atomic_load64(&state);
   my_atomic_rwlock_rdunlock(&state_LOCK);
-  return retval;
+  DBUG_RETURN(retval);
 }
 
 /**

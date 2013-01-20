@@ -285,6 +285,9 @@ struct sql_ex_info
 */
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
+/* size of prepare and commit sequence numbers in the status vars */
+#define PREPARE_COMMIT_SEQ_LEN  8/*bytes*/
+
 /* 
   Max number of possible extra bytes in a replication event compared to a
   packet (i.e. a query) sent from client to master;
@@ -303,7 +306,8 @@ struct sql_ex_info
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
-                                   1U+ 8U + 8U     /* type, prepare & commit timestamp */ + \
+                                                   /* type, prepare & commit timestamp */ + \
+                                   1U+ 2 * PREPARE_COMMIT_SEQ_LEN + \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
