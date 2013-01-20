@@ -44,7 +44,6 @@
 #include <my_dir.h>
 #include "rpl_rli_pdb.h"
 #include "sql_show.h"    // append_identifier
-
 #endif /* MYSQL_CLIENT */
 
 #include <base64.h>
@@ -2783,7 +2782,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
-    
+
       DBUG_ASSERT(gaq_idx != MTS_WORKER_UNDEF && gaq_idx < gaq->size);
       DBUG_ASSERT(gaq->get_job_group(rli->gaq->assigned_group_index)->
                   group_relay_log_name == NULL);
@@ -2846,7 +2845,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
       (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
  
-    // compute worker, todo: consider to generelize get_least_occupied_worker()
+    // compute worker, todo: consider to generalize get_least_occupied_worker()
     ret_worker= (rli->last_assigned_worker) ? rli->last_assigned_worker :
       *(Slave_worker **) dynamic_array_ptr(&rli->least_occupied_workers, 0);
     if (!ret_worker)
@@ -2978,7 +2977,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     }
   }
 
-  // T-event: Commit, Xid, a DDL query or dml query of B-less group.
+  // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
   if (ends_group() || !rli->curr_group_seen_begin)
   {
     // index of GAQ that this terminal event belongs to
@@ -3539,19 +3538,19 @@ bool Query_log_event::write(IO_CACHE* file)
 
   /*
     We store 0 in the following two status vars since we don't have the prepare
-    and the commit timestamps. The locgical timestamps will be updated in the
+    and the commit timestamps. The logical timestamps will be updated in the
     do_write_cache.
   */
   if (thd)
   {
     thd->prepare_commit_offset= (int)(start-start_of_status);
     *start++= Q_PREPARE_TS;
-    memset(start, 0, 8);
-    start+= 8;
+    int8store(start, 0);
+    start+= PREPARE_COMMIT_SEQ_LEN;
 
     *start++= Q_COMMIT_TS;
-    memset(start,0,8);
-    start+= 8;
+    int8store(start, 0);
+    start+= PREPARE_COMMIT_SEQ_LEN;
   }
   /*
     NOTE: When adding new status vars, please don't forget to update
@@ -4194,15 +4193,18 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
 
     case Q_PREPARE_TS:
-      CHECK_SPACE(pos, end, 8);
+      CHECK_SPACE(pos, end, PREPARE_COMMIT_SEQ_LEN);
       prepare_seq_no= (int64)uint8korr(pos);
-      pos+= 8;
+      pos+= PREPARE_COMMIT_SEQ_LEN;
+      DBUG_PRINT("info", ("MTS:: Pts= %lld", prepare_seq_no));
+      break;
 
     case Q_COMMIT_TS:
-      CHECK_SPACE(pos, end, 8);
+      CHECK_SPACE(pos, end, PREPARE_COMMIT_SEQ_LEN);
       commit_seq_no= (int64)uint8korr(pos);
-      pos+= 8;
-
+      pos+= PREPARE_COMMIT_SEQ_LEN;
+      DBUG_PRINT("info", ("MTS:: Cts= %lld", commit_seq_no));
+      break;
     default:
       /* That's why you must write status vars in growing order of code */
       DBUG_PRINT("info",("Query_log_event has unknown status vars (first has\

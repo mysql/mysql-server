@@ -2639,6 +2639,15 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
+static bool update_rli_mts_type(sys_var *self, THD *thd, enum_var_type val)
+{
+  if (!active_mi || !active_mi->rli)
+    //todo: print error since we have not configured this as a slave
+    return true;
+  active_mi->rli->mts_parallel_type= (enum_mts_parallel_type)val;
+  return true;
+}
+
 static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};
 static Sys_var_set Slave_rows_search_algorithms(
        "slave_rows_search_algorithms", 
@@ -2662,8 +2671,9 @@ static Sys_var_enum Mts_parallel_type(
        "(Default: DB_NAME_BASED).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
+       DEFAULT(MTS_PARALLEL_TYPE_BGC),  NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty),
+       ON_UPDATE(update_rli_mts_type));
 
 #endif
 

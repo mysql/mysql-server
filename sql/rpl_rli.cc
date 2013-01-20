@@ -99,7 +99,6 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
-   mts_parallel_type(MTS_PARALLEL_TYPE_DB_NAME),
    reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
@@ -127,6 +126,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   until_log_name[0]= ign_master_log_name_end[0]= 0;
   set_timespec_nsec(last_clock, 0);
   memset(&cache_buf, 0, sizeof(cache_buf));
+  mts_parallel_type= (enum_mts_parallel_type)mts_parallel_option;
   cached_charset_invalidate();
 
   mysql_mutex_init(key_relay_log_info_log_space_lock,
