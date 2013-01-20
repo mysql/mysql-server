@@ -30,6 +30,7 @@ int test_main(int argc, char *const argv[]) {
     int fd = open(fname, O_RDWR | O_CREAT | O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(fd>=0);
     char *XMALLOC_N_ALIGNED(512, 512, buf);
+    memset(buf, 512, 0);
     strcpy(buf, "hello");
     int64_t offset = (1LL<<32) + 512;
     toku_os_full_pwrite(fd, buf, 512, offset);
