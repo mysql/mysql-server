@@ -1,0 +1,17 @@
+#
+# MDEV-3934 Assertion `((keypart_map+1) & keypart_map) == 0' failed in _mi_pack_key with an index on a POINT column
+#
+
+CREATE TABLE t1 (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      point_data POINT NOT NULL,
+      PRIMARY KEY (id),
+      KEY idx_point_data(point_data)
+) ENGINE=MyISAM;
+INSERT t1 (point_data) VALUES
+    (GeomFromText('Point(37.0248492 23.8512726)')),
+    (GeomFromText('Point(38.0248492 23.8512726)'));
+SELECT id FROM t1
+WHERE ST_Contains(point_data, GeomFromText('Point(38.0248492 23.8512726)'));
+DROP TABLE t1;
+

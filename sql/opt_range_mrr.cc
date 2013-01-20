@@ -248,6 +248,7 @@ walk_up_n_right:
     /* Here minimum contains also function code bits, and maximum is +inf */
     range->start_key.key=    seq->param->min_key;
     range->start_key.length= min_key_length;
+    range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
     range->start_key.flag=  (ha_rkey_function) (cur->min_key_flag ^ GEOM_FLAG);
   }
   else
