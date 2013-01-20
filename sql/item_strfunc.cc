@@ -4192,8 +4192,7 @@ String *Item_dyncol_get::val_str(String *str_result)
   case DYN_COL_DECIMAL:
   {
     int res;
-    int length=
-      my_decimal_string_length((const my_decimal*)&val.x.decimal.value);
+    int length= decimal_string_size(&val.x.decimal.value);
     if (str_result->alloc(length))
       goto null;
     if ((res= decimal2string(&val.x.decimal.value, (char*) str_result->ptr(),
