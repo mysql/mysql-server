@@ -1658,9 +1658,8 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+
+	turn_off_logging_if_temp_table(is_temp_table, &mtr);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
@@ -1684,9 +1683,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(is_temp_table, &mtr);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);

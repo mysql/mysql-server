@@ -56,7 +56,6 @@ mtr_start(
 	mtr->inside_ibuf = FALSE;
 	mtr->modifications = FALSE;
 	mtr->made_dirty = FALSE;
-	mtr->ignore_log_recs = FALSE;
 	mtr->n_log_recs = 0;
 	mtr->n_freed_pages = 0;
 
