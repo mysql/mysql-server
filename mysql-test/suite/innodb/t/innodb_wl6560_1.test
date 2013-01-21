@@ -22,23 +22,23 @@ call mtr.add_suppression("The table 't1' is full");
 # 1. ddl + dml operation involving temp-tablespace.
 #    a) insert/delete/update/transacion/select
 #    b) create index/drop index/add column/drop column
-#    c) alter inplace/copy on temp table  
+#    c) alter inplace/copy on temp table 
 
 # 2. ddl + dml operation on temp table from 2 sessions.
 #    a) Both session create 20 tables each of same name.
-#    b) No error expected across session as temp tables are not be 
+#    b) No error expected across session as temp tables are not be
 #    visible across session.
 #    c) create drop same table multiple time
 
-# 3. Temp table operation - 
+# 3. Temp table operation -
 #    a) can not create temp table with partition
 #    b) can not create/drop view on temp tables.
 #    c) select/join on temp tables.
-#    d) Lock/flush on tables  
+#    d) Lock/flush on tables 
 #    e) create temp table as select
 
 
-# 4. Temp table operation - 
+# 4. Temp table operation -
 #    a) restart on existing datadir and see ibtmp1 removed on clean shutdown
 #    b) check temp tablesace created in 1st tmpdir if multiple specified
 #
@@ -59,14 +59,14 @@ let $MYSQL_TMP_DIR = `select @@tmpdir`;
 # 1. ddl + dml operation involving temp-tablespace.
 #    a) insert/delete/update/transacion/select
 #    b) create index/drop index/add column/drop column
-#    c) alter inplace/copy on temp table    
+#    c) alter inplace/copy on temp table   
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 SELECT @@global.innodb_file_per_table;
 --replace_column 1 NUM
 SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
-CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3), 
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
@@ -112,7 +112,7 @@ DROP TABLE t1;
 #
 # 2. ddl + dml operation on temp table from 2 sessions.
 #    a) Both session create 20 tables each of same name.
-#    b) No error expected across session as temp tables are not be 
+#    b) No error expected across session as temp tables are not be
 #    visible across session.
 #    c) create drop same table multiple time
 #
@@ -135,7 +135,7 @@ while ($counter<23) {
 # create table from con1 connection
 connection con1;
 USE test_db;
-EVAL CREATE TEMPORARY TABLE t$counter (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3), 
+EVAL CREATE TEMPORARY TABLE t$counter (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 EVAL INSERT INTO t$counter(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
 REPEAT('a1',50));
@@ -220,11 +220,11 @@ USE test;
 
 #-----------------------------------------------------------------------------
 #
-# 3. Temp table operation - 
+# 3. Temp table operation -
 #    a) can not create temp table with partition
 #    b) can not create/drop view on temp tables.
 #    c) select/join on temp tables.
-#    d) Lock/flush on tables  
+#    d) Lock/flush on tables 
 #    e) create temp table as select
 #
 --disable_warnings
@@ -253,7 +253,7 @@ REPEAT('a2',50));
 INSERT INTO t2(b,c,d,e) VALUES (11.111,REPEAT('t2',50),REPEAT('t2',50),
 REPEAT('a2',50));
 
-# Check with join of 
+# Check with join of
 SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c LIKE t2.c;
 SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
 
@@ -262,12 +262,12 @@ SELECT t1.a,t2.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 WHERE t1.c NOT LIKE t2
 CREATE OR REPLACE VIEW vw1 AS SELECT * FROM t1;
 
 # Check with create temp as <select>
-CREATE TEMPORARY TABLE t3 AS 
-SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 
+CREATE TEMPORARY TABLE t3 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
 SELECT * FROM t3;
-CREATE TABLE t4 AS 
-SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 
+CREATE TABLE t4 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
 SELECT * FROM t4;
 # join on temp and non temp table
@@ -297,7 +297,7 @@ DROP TABLE t1,t2,t3,t4;
 
 #-----------------------------------------------------------------------------
 #
-# 4. Temp table operation - 
+# 4. Temp table operation -
 #    a) restart on existing datadir and see ibtmp1 removed on clean shutdown
 #    b) check temp tablesace created in 1st tmpdir if multiple specified
 #
@@ -342,7 +342,7 @@ let $platform_windows = `select convert(@@version_compile_os using latin1) IN ("
 --echo # list_file ,no files expected - temp tablespace cleared on stopping server
 --list_files $MYSQL_TMP_DIR/ ibtmp1*
 
---echo # restarting the server with following arguments: 
+--echo # restarting the server with following arguments:
 
 # Write file to make mysql-test-run.pl start up the server again
 if ($platform_windows != 0) {
@@ -350,7 +350,7 @@ if ($platform_windows != 0) {
   --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/;$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
   --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>\$MYSQLTEST_VARDIR/tmp/testdir2
 }
-if ($platform_windows == 0) { 
+if ($platform_windows == 0) {
   --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
   --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>\$MYSQLTEST_VARDIR/tmp/testdir2
 }
