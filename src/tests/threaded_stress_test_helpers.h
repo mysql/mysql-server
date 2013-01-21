@@ -105,12 +105,12 @@ struct cli_args {
     bool print_thread_performance;
     bool print_iteration_performance;
     enum perf_output_format perf_output_format;
+    enum toku_compression_method compression_method; // the compression method to use on newly created DBs
     int performance_period;
     uint32_t txn_size; // specifies number of updates/puts/whatevers per txn
     uint32_t key_size; // number of bytes in vals. Must be at least 4
     uint32_t val_size; // number of bytes in vals. Must be at least 4
-    double compressibility; // how much of each key/val (as a fraction in [0,1]) can be compressed away
-                            // First 4-8 bytes of key may be ignored
+    double compressibility; // the row values should compress down to this fraction
     struct env_args env_args; // specifies environment variables
     bool single_txn;
     bool warm_cache; // warm caches before running stress_table
@@ -1659,6 +1659,8 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         CKERR(r);
         r = db->set_readpagesize(db, env_args.basement_node_size);
         CKERR(r);
+        r = db->set_compression_method(db, cli_args->compression_method);
+        CKERR(r);
         const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
         r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666);
         CKERR(r);
@@ -1928,6 +1930,7 @@ static struct cli_args UU() get_default_args(void) {
         .print_thread_performance = true,
         .print_iteration_performance = true,
         .perf_output_format = HUMAN,
+        .compression_method = TOKU_DEFAULT_COMPRESSION_METHOD,
         .performance_period = 1,
         .txn_size = 1000,
         .key_size = min_key_size,
@@ -2277,6 +2280,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         MAKE_LOCAL_ARG(name_string, type_string, s, default, variable, "", "", "")
 
     const char *perf_format_s = nullptr;
+    const char *compression_method_s = nullptr;
     struct arg_type arg_types[] = {
         INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
         INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
@@ -2334,7 +2338,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
 
         STRING_ARG("--envdir",                        env_args.envdir),
 
-        LOCAL_STRING_ARG("--perf_format",             perf_format_s,                 "human"),
+        LOCAL_STRING_ARG("--perf_format",             perf_format_s,                "human"),
+        LOCAL_STRING_ARG("--compression_method",      compression_method_s,         "quicklz"),
         //TODO(add --quiet, -v, -h)
     };
 #undef UINT32_ARG
@@ -2387,6 +2392,21 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
                 do_usage(argv0, num_arg_types, arg_types);
                 exit(EINVAL);
             }
+        }
+    }
+    if (compression_method_s != nullptr) {
+        if (strcmp(compression_method_s, "quicklz") == 0) {
+            args->compression_method = TOKU_QUICKLZ_METHOD;
+        } else if (strcmp(compression_method_s, "zlib") == 0) {
+            args->compression_method = TOKU_ZLIB_METHOD;
+        } else if (strcmp(compression_method_s, "lzma") == 0) {
+            args->compression_method = TOKU_LZMA_METHOD;
+        } else if (strcmp(compression_method_s, "none") == 0) {
+            args->compression_method = TOKU_NO_COMPRESSION;
+        } else {
+            fprintf(stderr, "valid values for --compression_method are \"quicklz\", \"zlib\", \"lzma\" and \"none\"\n");
+            do_usage(argv0, num_arg_types, arg_types);
+            exit(EINVAL);
         }
     }
     if (perf_format_s != nullptr) {
