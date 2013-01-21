@@ -340,10 +340,8 @@ dict_build_tablespace(
 		}
 
 		mtr_start(&mtr);
-
-		if (dict_table_is_temporary(table)) {
-			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-		}
+		turn_off_logging_if_temp_table(
+			dict_table_is_temporary(table), &mtr);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
@@ -808,11 +806,8 @@ dict_create_index_tree(
 	sys_indexes */
 
 	mtr_start(&mtr);
-
-	/* If temporary table then disable redo logging */
-	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	dberr_t		err = DB_SUCCESS;
 	ulint		zip_size = dict_table_zip_size(index->table);
@@ -922,9 +917,8 @@ dict_drop_index_tree(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	root_page_no = page_no;
 	space = index->space;
@@ -1104,9 +1098,8 @@ dict_truncate_index_tree(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	type = index->type;
 
@@ -1153,10 +1146,8 @@ dict_truncate_index_tree(
 	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
-
-	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	root_page_no = btr_create(type, space, zip_size,
 				  index->id, index, &mtr);

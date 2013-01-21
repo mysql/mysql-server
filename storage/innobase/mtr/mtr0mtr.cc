@@ -341,6 +341,21 @@ mtr_commit(
 	ut_d(mtr->state = MTR_COMMITTED);
 }
 
+/***************************************************************//**
+Turn off redo logging if table is temp-table. */
+UNIV_INTERN
+void
+turn_off_logging_if_temp_table(
+/*===========================*/
+	bool	is_temp,	/*!< in: true if temp-table */
+	mtr_t*	mtr)		/*!< out: mini-transaction */
+{
+	if (is_temp) {
+		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
+	}
+	return;
+}
+
 #ifndef UNIV_HOTBACKUP
 /***************************************************//**
 Releases an object in the memo stack. */
