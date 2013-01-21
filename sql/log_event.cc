@@ -360,7 +360,7 @@ static void set_thd_db(THD *thd, const char *db, uint32 db_len)
   char lcase_db_buf[NAME_LEN +1]; 
   LEX_STRING new_db;
   new_db.length= db_len;
-  if (lower_case_table_names == 1)
+  if (lower_case_table_names)
   {
     strmov(lcase_db_buf, db); 
     my_casedn_str(system_charset_info, lcase_db_buf);
@@ -6532,7 +6532,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
     strmov(table_buf, table_name);
-    if (lower_case_table_names == 1)
+    if (lower_case_table_names)
       my_casedn_str(system_charset_info, table_buf);
     tables.init_one_table(thd->strmake(thd->db, thd->db_length),
                           thd->db_length,
@@ -12034,7 +12034,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   strmov(db_mem, m_dbnam);
   strmov(tname_mem, m_tblnam);
 
-  if (lower_case_table_names == 1)
+  if (lower_case_table_names)
   {
     my_casedn_str(system_charset_info, db_mem);
     my_casedn_str(system_charset_info, tname_mem);
@@ -12050,6 +12050,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
+  table_list->required_type= FRMTYPE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
   enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
   if (tblmap_status == OK_TO_PROCESS)
