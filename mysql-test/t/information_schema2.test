@@ -1,0 +1,9 @@
+
+#
+# MDEV-4029 SELECT on information_schema using a subquery locks up the information_schema table due to incorrect mutexes handling 
+#
+select variable_name from information_schema.session_status where variable_name =
+(select variable_name from information_schema.session_status where variable_name = 'uptime');
+select variable_name from information_schema.session_variables where variable_name =
+(select variable_name from information_schema.session_variables where variable_name = 'basedir');
+
