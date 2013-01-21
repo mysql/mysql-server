@@ -5074,9 +5074,7 @@ commit_try_norebuild(
 				DBUG_RETURN(true);
 			}
 		}
-	}
 
-	if (ctx) {
 		dberr_t	error;
 
 		if (innobase_update_foreign_try(
@@ -5250,11 +5248,14 @@ commit_cache_norebuild(
 	DBUG_RETURN(found);
 }
 
-/** Update the index cardinality statistics
-after a successful commit_try_norebuild() call.
+/** Do the necessary changes in the persistent stats tables
+after committing changes to the data dictionary.
 @param ha_alter_info	Data used during in-place alter
 @param altered_table	MySQL table that is being altered
 @param user_table	InnoDB table that was altered
+@param rebuild_internal	true if this ALTER has caused a
+			table rebuild and the old table had a PK defined
+			internally in InnoDB (GEN_CLUST_INDEX)
 @param thd		MySQL connection
 */
 static __attribute__((nonnull))
@@ -5264,6 +5265,7 @@ commit_update_stats(
 	Alter_inplace_info*	ha_alter_info,
 	TABLE*			altered_table,
 	dict_table_t*		user_table,
+	bool			rebuild_internal,
 	THD*			thd)
 {
 	ha_innobase_inplace_ctx*	ctx
@@ -5281,14 +5283,25 @@ commit_update_stats(
 	orphaned rows may be left in the statistics table if the
 	system crashes. */
 
-	for (uint i = 0; i < ha_alter_info->index_drop_count; i++) {
-		const KEY*	key
-			= ha_alter_info->index_drop_buffer[i];
-		dberr_t		ret;
-		char		errstr[1024];
+	for (uint i = 0;
+	     i < ha_alter_info->index_drop_count + rebuild_internal;
+	     i++) {
+
+		const char*	index_name;
+
+		if (i < ha_alter_info->index_drop_count) {
+			index_name = ha_alter_info->index_drop_buffer[i]->name;
+		} else {
+			/* The last iteration of the loop is exploited to
+			drop the InnoDB generated primary key, if any. */
+			index_name = innobase_index_reserve_name;
+		}
+
+		dberr_t	ret;
+		char	errstr[1024];
 
 		ret = dict_stats_drop_index(
-			user_table->name, key->name, errstr, sizeof errstr);
+			user_table->name, index_name, errstr, sizeof errstr);
 
 		if (ret != DB_SUCCESS) {
 			push_warning(thd,
@@ -5647,8 +5660,11 @@ foreign_fail:
 		/* TODO: The following code could be executed while
 		allowing concurrent access to the table (MDL downgrade). */
 		commit_update_stats(
-			ha_alter_info, altered_table,
-			prebuilt->table, user_thd);
+			ha_alter_info,
+			altered_table,
+			prebuilt->table,
+			new_clustered && table->s->primary_key == MAX_KEY,
+			user_thd);
 		/* TODO: Also perform DROP TABLE and DROP INDEX after
 		the MDL downgrade. */
 	}
