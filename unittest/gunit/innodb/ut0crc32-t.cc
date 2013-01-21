@@ -21,7 +21,7 @@
 
 #include "ut0crc32.h"
 
-TEST(crc32, simple)
+TEST(ut0crc32, ut_crc32)
 {
 	ut_crc32_init();
 

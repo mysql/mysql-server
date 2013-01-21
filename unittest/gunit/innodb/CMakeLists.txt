@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(
 
 SET(TESTS
 	#example
-	crc32
+	ut0crc32
 	ut0mem
 )
 
