@@ -1,4 +1,5 @@
 # test cases for strmov(tmp_db, db) -> strnmov replacement in sql_acl.cc
+--source include/not_embedded.inc
 
 #
 # http://seclists.org/fulldisclosure/2012/Dec/4

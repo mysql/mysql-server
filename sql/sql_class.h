@@ -3008,6 +3008,8 @@ class Unique :public Sql_alloc
   bool flush();
   uint size;
 
+  bool merge(TABLE *table, uchar *buff, bool without_last_merge);
+
 public:
   ulong elements;
   Unique(qsort_cmp2 comp_func, void *comp_func_fixed_arg,
@@ -3035,7 +3037,7 @@ public:
   }
 
   void reset();
-  bool walk(tree_walk_action action, void *walk_action_arg);
+  bool walk(TABLE *table, tree_walk_action action, void *walk_action_arg);
 
   uint get_size() const { return size; }
   ulonglong get_max_in_memory_size() const { return max_in_memory_size; }
