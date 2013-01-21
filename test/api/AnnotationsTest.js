@@ -61,7 +61,8 @@ t4.run = function() {
       "columnName" : "id",
       "notPersistent" : false
     }
-  });
+  });  
+  
   return true; // test is complete
 };
 
@@ -72,6 +73,27 @@ t5.run = function() {
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(annotations, "Annotations");
   tester.test(functionList, t5);
-}
+};
 
-module.exports.tests = [t1,t2,t3,t4,t5];
+var t6 = new harness.ConcurrentTest("TableMapping PublicFunctions");
+t6.run = function() {
+  var annotations = new mynode.Annotations();
+  var tableMapping = annotations.newTableMapping("t_basic");
+  var tableMappingDocumentedFunctions = doc_parser.listFunctions(
+    path.join(api_doc_dir, "TableMapping"));
+  var tester = new doc_parser.ClassTester(tableMapping, "TableMapping");
+  tester.test(tableMappingDocumentedFunctions, t6);
+};
+
+var t7 = new harness.ConcurrentTest("FieldMapping PublicFunctions");
+t7.run = function() {
+  var annotations = new mynode.Annotations();
+  var fieldMapping = annotations.newFieldMapping("id");
+  var fieldMappingDocumentedFunctions = doc_parser.listFunctions(
+    path.join(api_doc_dir, "FieldMapping"));
+  var tester = new doc_parser.ClassTester(fieldMapping, "FieldMapping");
+  tester.test(fieldMappingDocumentedFunctions, t7);
+};
+
+
+module.exports.tests = [t1,t2,t3,t4,t5,t6,t7];

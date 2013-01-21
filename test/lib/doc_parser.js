@@ -133,10 +133,15 @@ ClassTester.prototype.test = function(functionList, testCase) {
   var msg = "";
   var missing = 0;
   var firstMissing = null;
+  var documentedFunctions = {};
+  var i;
 
   udebug.log("verifying",functionList.length,"functions");
-  while(name = functionList.pop()) {
+  // Test missing functions 
+  for(i = 0 ; i < functionList.length ; i++) { 
+    name = functionList[i];
     func = this.class[name];
+    documentedFunctions[name] = func;
     if(typeof func !== 'function') {
       udebug.log("MISSING FUNCTION", this.file, name);
       if(! firstMissing) { firstMissing = name; }
@@ -147,6 +152,18 @@ ClassTester.prototype.test = function(functionList, testCase) {
     msg = "Missing " + firstMissing;
     if(missing > 1)  { msg += " and " + (missing-1) + " other function"; }
     if(missing > 2)  { msg += "s"; }
+  }
+  
+  // Test undocumented functions
+  for(name in this.class) {
+    if(this.class.hasOwnProperty(name)) {
+      if(typeof this.class[name] === 'function') {
+        if(! documentedFunctions[name]) {
+          if(msg.length) msg += "; "
+          msg += name + " undocumented";
+        }
+      }
+    }
   }
 
   if(msg) {
