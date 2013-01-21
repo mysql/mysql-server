@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -48,12 +48,9 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-#include "srv0start.h"
-
+#include "srv0space.h"
 
 #ifndef UNIV_HOTBACKUP
-/** Flag to indicate if we have printed the tablespace full error. */
-static ibool fsp_tbs_full_error_printed = FALSE;
 
 /**********************************************************************//**
 Returns an extent to the free list of a space. */
@@ -759,11 +756,13 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
-	if (space == 0) {
+	if (space == srv_sys_space.space_id()) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, DICT_IBUF_ID_MIN + space,
 			   dict_ind_redundant, NULL, mtr);
+	} else if (space == srv_tmp_space.space_id()) {
+		fsp_fill_free_list(FALSE, space, header, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
@@ -902,7 +901,7 @@ fsp_try_extend_data_file_with_pages(
 	ulint	actual_size;
 	ulint	size;
 
-	ut_a(space != 0);
+	ut_a(!Tablespace::is_system_tablespace(space));
 
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 
@@ -944,20 +943,36 @@ fsp_try_extend_data_file(
 
 	*actual_increase = 0;
 
-	if (space == 0 && !srv_auto_extend_last_data_file) {
+	if (space == srv_sys_space.space_id()
+	    && !srv_sys_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
 		spamming the error log. Note that we don't need
-		to reset the flag to FALSE as dealing with this
+		to reset the flag to false as dealing with this
 		error requires server restart. */
-		if (fsp_tbs_full_error_printed == FALSE) {
-			fprintf(stderr,
+		if (srv_sys_space.get_tablespace_full_status() == false) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"InnoDB: Error: Data file(s) ran"
-				" out of space.\n"
+				" out of space."
 				"Please add another data file or"
 				" use \'autoextend\' for the last"
-				" data file.\n");
-			fsp_tbs_full_error_printed = TRUE;
+				" data file.");
+			srv_sys_space.set_tablespace_full_status(true);
+		}
+		return(FALSE);
+	} else if (space == srv_tmp_space.space_id()
+		   && !srv_tmp_space.can_auto_extend_last_file()) {
+
+		/* We print the error message only once to avoid
+		spamming the error log. Note that we don't need
+		to reset the flag to false as dealing with this
+		error requires server restart. */
+		if (srv_tmp_space.get_tablespace_full_status() == false) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Temp-Data file(s) ran out of space."
+				" Please add another temp-data file or"
+				" use \'autoextend\' for the last data file");
+			srv_tmp_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
 	}
@@ -968,27 +983,14 @@ fsp_try_extend_data_file(
 
 	old_size = size;
 
-	if (space == 0) {
-		if (!srv_last_file_size_max) {
-			size_increase = SRV_AUTO_EXTEND_INCREMENT;
-		} else {
-			if (srv_last_file_size_max
-			    < srv_data_file_sizes[srv_n_data_files - 1]) {
+	if (space == srv_sys_space.space_id()) {
 
-				fprintf(stderr,
-					"InnoDB: Error: Last data file size"
-					" is %lu, max size allowed %lu\n",
-					(ulong) srv_data_file_sizes[
-						srv_n_data_files - 1],
-					(ulong) srv_last_file_size_max);
-			}
+		size_increase = srv_sys_space.get_increment();
 
-			size_increase = srv_last_file_size_max
-				- srv_data_file_sizes[srv_n_data_files - 1];
-			if (size_increase > SRV_AUTO_EXTEND_INCREMENT) {
-				size_increase = SRV_AUTO_EXTEND_INCREMENT;
-			}
-		}
+	} else if (space == srv_tmp_space.space_id()) {
+
+		size_increase = srv_tmp_space.get_increment();
+
 	} else {
 		/* We extend single-table tablespaces first one extent
 		at a time, but 4 at a time for bigger tablespaces. It is
@@ -1109,15 +1111,19 @@ fsp_fill_free_list(
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
-	if (space == 0 && srv_auto_extend_last_data_file
-	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
+	if (((space == srv_sys_space.space_id()
+	      && srv_sys_space.can_auto_extend_last_file())
+	     || (space == srv_tmp_space.space_id()
+		 && srv_tmp_space.can_auto_extend_last_file()))
+	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 		/* Try to increase the last data file size */
 		fsp_try_extend_data_file(&actual_increase, space, header, mtr);
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	}
 
-	if (space != 0 && !init_space
+	if (!Tablespace::is_system_tablespace(space)
+	    && !init_space
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
 		/* Try to increase the .ibd file size */
@@ -1449,7 +1455,7 @@ fsp_alloc_free_page(
 		/* It must be that we are extending a single-table tablespace
 		whose size is still < 64 pages */
 
-		ut_a(space != 0);
+		ut_a(!Tablespace::is_system_tablespace(space));
 		if (page_no >= FSP_EXTENT_SIZE) {
 			fprintf(stderr,
 				"InnoDB: Error: trying to extend a"
@@ -2556,7 +2562,7 @@ take_hinted_page:
 		return(NULL);
 	}
 
-	if (space != 0) {
+	if (!Tablespace::is_system_tablespace(space)) {
 		space_size = fil_space_get_size(space);
 
 		if (space_size <= ret_page) {
@@ -2703,7 +2709,7 @@ fsp_reserve_free_pages(
 	xdes_t*	descr;
 	ulint	n_used;
 
-	ut_a(space != 0);
+	ut_a(!Tablespace::is_system_tablespace(space));
 	ut_a(size < FSP_EXTENT_SIZE / 2);
 
 	descr = xdes_get_descriptor_with_space_hdr(space_header, space, 0,
@@ -2946,8 +2952,8 @@ fsp_get_available_space_in_free_extents(
 	mtr_commit(&mtr);
 
 	if (size < FSP_EXTENT_SIZE) {
-		ut_a(space != 0);	/* This must be a single-table
-					tablespace */
+		/* This must be a single-table tablespace */
+		ut_a(!Tablespace::is_system_tablespace(space));
 
 		return(0);		/* TODO: count free frag pages and
 					return a value based on that */
@@ -3793,7 +3799,7 @@ fsp_validate(
 
 	if (UNIV_UNLIKELY(free_limit > size)) {
 
-		ut_a(space != 0);
+		ut_a(!Tablespace::is_system_tablespace(space));
 		ut_a(size < FSP_EXTENT_SIZE);
 	}
 
