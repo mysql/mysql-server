@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -10926,6 +10926,55 @@ innodb_change_buffering_update(
 		 *static_cast<const char*const*>(save);
 }
 
+#ifndef DBUG_OFF
+static char* srv_buffer_pool_evict;
+
+/****************************************************************//**
+Called on SET GLOBAL innodb_buffer_pool_evict=...
+Handles some values specially, to evict pages from the buffer pool.
+SET GLOBAL innodb_buffer_pool_evict='uncompressed'
+evicts all uncompressed page frames of compressed tablespaces. */
+static
+void
+innodb_buffer_pool_evict_update(
+/*============================*/
+	THD*			thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*var,	/*!< in: pointer to system variable */
+	void*			var_ptr,/*!< out: ignored */
+	const void*		save)	/*!< in: immediate result
+					from check function */
+{
+	if (const char* op = *static_cast<const char*const*>(save)) {
+		if (!strcmp(op, "uncompressed")) {
+			/* Evict all uncompressed pages of compressed
+			tables from the buffer pool. Keep the compressed
+			pages in the buffer pool. */
+
+			buf_pool_mutex_enter();
+
+			for (buf_block_t* block = UT_LIST_GET_LAST(
+				     buf_pool->unzip_LRU);
+			     block != NULL; ) {
+
+				buf_block_t*	prev_block
+					= UT_LIST_GET_PREV(unzip_LRU, block);
+				ut_ad(buf_block_get_state(block)
+				      == BUF_BLOCK_FILE_PAGE);
+				ut_ad(block->in_unzip_LRU_list);
+				ut_ad(block->page.in_LRU_list);
+
+				mutex_enter(&block->mutex);
+				buf_LRU_free_block(&block->page, FALSE);
+				mutex_exit(&block->mutex);
+				block = prev_block;
+			}
+
+			buf_pool_mutex_exit();
+		}
+	}
+}
+#endif /* !DBUG_OFF */
+
 static int show_innodb_vars(THD *thd, SHOW_VAR *var, char *buff)
 {
   innodb_export_status();
@@ -11128,6 +11177,13 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment, srv_auto_extend_increment,
   "Data file autoextend increment in megabytes",
   NULL, NULL, 8L, 1L, 1000L, 0);
 
+#ifndef DBUG_OFF
+static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
+  PLUGIN_VAR_RQCMDARG,
+  "Evict pages from the InnoDB buffer pool.",
+  NULL, innodb_buffer_pool_evict_update, "");
+#endif /* !DBUG_OFF */
+
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -11300,6 +11356,9 @@ static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
+#ifndef DBUG_OFF
+  MYSQL_SYSVAR(buffer_pool_evict),
+#endif /* !DBUG_OFF */
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
