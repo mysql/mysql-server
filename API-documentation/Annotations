@@ -81,6 +81,6 @@
    *  IMMEDIATE
    *  Register a converter for a SQL data type 
    *
-   *  @param type is a column type as defined in SPI-Documentation/DBDictionary 
+   *  @param type is a column type as defined in TableMetadata
    */
   registerTypeConverter(string typeName, Converter c);
