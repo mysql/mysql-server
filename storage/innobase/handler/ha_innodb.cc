@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 Copyright (c) 2012, Facebook Inc.
@@ -14826,6 +14826,59 @@ innodb_srv_buf_dump_filename_validate(
 # define innodb_srv_buf_dump_filename_validate NULL
 #endif /* __WIN__ */
 
+#ifdef UNIV_DEBUG
+static char* srv_buffer_pool_evict;
+
+/****************************************************************//**
+Called on SET GLOBAL innodb_buffer_pool_evict=...
+Handles some values specially, to evict pages from the buffer pool.
+SET GLOBAL innodb_buffer_pool_evict='uncompressed'
+evicts all uncompressed page frames of compressed tablespaces. */
+static
+void
+innodb_buffer_pool_evict_update(
+/*============================*/
+	THD*			thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*var,	/*!< in: pointer to system variable */
+	void*			var_ptr,/*!< out: ignored */
+	const void*		save)	/*!< in: immediate result
+					from check function */
+{
+	if (const char* op = *static_cast<const char*const*>(save)) {
+		if (!strcmp(op, "uncompressed")) {
+			/* Evict all uncompressed pages of compressed
+			tables from the buffer pool. Keep the compressed
+			pages in the buffer pool. */
+
+			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+
+				buf_pool_mutex_enter(buf_pool);
+
+				for (buf_block_t* block = UT_LIST_GET_LAST(
+					     buf_pool->unzip_LRU);
+				     block != NULL; ) {
+
+					buf_block_t*	prev_block
+						= UT_LIST_GET_PREV(unzip_LRU,
+								   block);
+					ut_ad(buf_block_get_state(block)
+					      == BUF_BLOCK_FILE_PAGE);
+					ut_ad(block->in_unzip_LRU_list);
+					ut_ad(block->page.in_LRU_list);
+
+					buf_LRU_free_block(&block->page,
+							   FALSE);
+					block = prev_block;
+				}
+
+				buf_pool_mutex_exit(buf_pool);
+			}
+		}
+	}
+}
+#endif /* UNIV_DEBUG */
+
 /****************************************************************//**
 Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
@@ -15649,6 +15702,13 @@ static MYSQL_SYSVAR_BOOL(buffer_pool_dump_at_shutdown, srv_buffer_pool_dump_at_s
   "Dump the buffer pool into a file named @@innodb_buffer_pool_filename",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_STR(buffer_pool_evict, srv_buffer_pool_evict,
+  PLUGIN_VAR_RQCMDARG,
+  "Evict pages from the buffer pool",
+  NULL, innodb_buffer_pool_evict_update, "");
+#endif /* UNIV_DEBUG */
+
 static MYSQL_SYSVAR_BOOL(buffer_pool_load_now, innodb_buffer_pool_load_now,
   PLUGIN_VAR_RQCMDARG,
   "Trigger an immediate load of the buffer pool from a file named @@innodb_buffer_pool_filename",
@@ -16072,6 +16132,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(buffer_pool_filename),
   MYSQL_SYSVAR(buffer_pool_dump_now),
   MYSQL_SYSVAR(buffer_pool_dump_at_shutdown),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(buffer_pool_evict),
+#endif /* UNIV_DEBUG */
   MYSQL_SYSVAR(buffer_pool_load_now),
   MYSQL_SYSVAR(buffer_pool_load_abort),
   MYSQL_SYSVAR(buffer_pool_load_at_startup),
