@@ -56,6 +56,7 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0priv.h"
 #include "btr0btr.h"
 #include "page0zip.h"
+#include "srv0space.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -4251,7 +4252,7 @@ innodb_temp_table_populate_cache(
 
 	cache->m_space_id = table->space;
 
-	if (table->space == TRX_SYS_SPACE) {
+	if (table->space == srv_tmp_space.space_id()) {
 		strcpy(cache->m_per_table_tablespace, "FALSE");
 	} else {
 		strcpy(cache->m_per_table_tablespace, "TRUE");
