@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,7 +58,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "srv0start.h"
+#include "srv0space.h"
 #include "row0import.h"
 #include "m_string.h"
 #include "my_sys.h"
@@ -1268,7 +1268,7 @@ row_insert_for_mysql(
 		mem_analyze_corruption(prebuilt);
 
 		ut_error;
-	} else if (srv_created_new_raw || srv_force_recovery) {
+	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -1653,7 +1653,7 @@ row_update_for_mysql(
 		ut_error;
 	}
 
-	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
+	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -2140,7 +2140,7 @@ row_create_table_for_mysql(
 		goto err_exit;
 	);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -2248,7 +2248,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(table->space)) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -2835,7 +2835,7 @@ row_discard_tablespace_begin(
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
-		ut_a(table->space != TRX_SYS_SPACE);
+		ut_a(!Tablespace::is_system_tablespace(table->space));
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
 
@@ -3070,7 +3070,7 @@ row_discard_tablespace_for_mysql(
 
 		err = DB_ERROR;
 
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (table->space == srv_sys_space.space_id()) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -3464,7 +3464,7 @@ row_truncate_table_for_mysql(
 
 	ut_ad(table);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -3583,9 +3583,7 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	/* TODO: Post WL6560 merge fix this to even consider
-	shared-temp-tablespace. */
-	if (table->space != TRX_SYS_SPACE
+	if (!Tablespace::is_system_tablespace(table->space)
 	    && table->dir_path_of_temp_table == NULL) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
@@ -3797,7 +3795,7 @@ row_drop_table_for_mysql(
 
 	ut_a(name != NULL);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -4329,7 +4327,8 @@ check_next_foreign:
 		a temp table or if the tablesace has been discarded. */
 		print_msg = !(is_temp || ibd_file_missing);
 
-		if (err == DB_SUCCESS && space_id > TRX_SYS_SPACE) {
+		if (err == DB_SUCCESS
+		    && !Tablespace::is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 					space_id, tablename, FALSE,
@@ -4339,7 +4338,8 @@ check_next_foreign:
 				err = DB_SUCCESS;
 
 				if (print_msg) {
-					char msg_tablename[MAX_FULL_NAME_LEN + 1];
+					char msg_tablename[
+						MAX_FULL_NAME_LEN + 1];
 
 					innobase_format_name(
 						msg_tablename, sizeof(tablename),
@@ -4809,7 +4809,7 @@ row_rename_table_for_mysql(
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -4929,7 +4929,7 @@ row_rename_table_for_mysql(
 	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
 	which have space IDs > 0. */
 	if (err == DB_SUCCESS
-	    && table->space != TRX_SYS_SPACE
+	    && !Tablespace::is_system_tablespace(table->space)
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);

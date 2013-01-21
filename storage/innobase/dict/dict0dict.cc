@@ -73,6 +73,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "my_sys.h"
 #include "mysqld.h" /* system_charset_info */
 #include "strfunc.h" /* strconvert() */
+#include "srv0space.h"
 
 #include <ctype.h>
 
@@ -1446,7 +1447,7 @@ dict_table_rename_in_cache(
 		ibool		exists;
 		char*		filepath;
 
-		ut_ad(table->space != TRX_SYS_SPACE);
+		ut_ad(!Tablespace::is_system_tablespace(table->space));
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 
@@ -1473,7 +1474,7 @@ dict_table_rename_in_cache(
 
 		mem_free(filepath);
 
-	} else if (table->space != TRX_SYS_SPACE) {
+	} else if (!Tablespace::is_system_tablespace(table->space)) {
 		char*	new_path = NULL;
 
 		if (table->dir_path_of_temp_table != NULL) {

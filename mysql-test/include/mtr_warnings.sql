@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -98,6 +98,8 @@ INSERT INTO global_suppressions VALUES
  ("Failed to open the existing master info file"),
  ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
+
+ ("innodb-page-size has been changed"),
 
  /*
    Due to timing issues, it might be that this warning
