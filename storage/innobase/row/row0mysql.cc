@@ -3171,7 +3171,7 @@ create_truncate_log_record(
 	ulint			flags,	/*!< in: table flags */
 	mtr_t*			mtr)	/*!< in/out: mini-transaction handle */
 {
-	ulint			trx_id_col[MAX_REC_INDEXES];
+	ulint			trx_id_col[MAX_INDEXES];
 	byte			fields[FIELDS_LEN];
 	dict_index_t*		index;
 	ulint			ind_count = 0;
