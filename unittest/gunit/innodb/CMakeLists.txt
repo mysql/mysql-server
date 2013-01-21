@@ -23,6 +23,7 @@ INCLUDE_DIRECTORIES(
 SET(TESTS
 	#example
 	crc32
+	ut0mem
 )
 
 FOREACH(test ${TESTS})
