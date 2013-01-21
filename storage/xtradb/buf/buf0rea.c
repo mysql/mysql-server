@@ -235,6 +235,9 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
+	if(sync) {
+		thd_wait_end(NULL);
+	}
 
 	if (*err == DB_TABLESPACE_DELETED) {
 		buf_read_page_handle_error(bpage);
@@ -250,7 +253,6 @@ not_to_recover:
 	}
 
 	if (sync) {
-		thd_wait_end(NULL);
 		/* The i/o is already completed when we arrive from
 		fil_read */
 		if (!buf_page_io_complete(bpage)) {
