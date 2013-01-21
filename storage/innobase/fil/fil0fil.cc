@@ -6156,12 +6156,12 @@ fil_mtr_rename_log(
 					swapping */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	if (old_space_id != srv_sys_space.space_id()) {
+	if (!Tablespace::is_system_tablespace(old_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
 				 0, 0, old_name, tmp_name, mtr);
 	}
 
-	if (new_space_id != srv_sys_space.space_id()) {
+	if (!Tablespace::is_system_tablespace(new_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
 				 0, 0, new_name, old_name, mtr);
 	}

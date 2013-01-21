@@ -100,9 +100,7 @@ dict_hdr_get_new_id(
 		x (original) and x+2 (new) and disk hdr will be updated
 		to reflect x + 2 entry.
 		We cannot allocate the same space id to different objects. */
-	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
-	}
+	turn_off_logging_if_temp_table(is_temp_table, &mtr);
 
 	dict_hdr = dict_hdr_get(&mtr);
 

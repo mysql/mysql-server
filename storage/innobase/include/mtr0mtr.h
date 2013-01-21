@@ -218,6 +218,14 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
+/***************************************************************//**
+Turn off redo logging if table is temp-table. */
+UNIV_INTERN
+void
+turn_off_logging_if_temp_table(
+/*===========================*/
+	bool	is_temp,	/*!< in: true if temp-table */
+	mtr_t*	mtr);		/*!< out: mini-transaction */
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
@@ -389,10 +397,6 @@ struct mtr_t{
 	unsigned	made_dirty:1;
 				/*!< TRUE if mtr has made at least
 				one buffer pool page dirty */
-	unsigned	ignore_log_recs:1;
-				/*!< If TRUE, ignore n_log_recs and signal block
-				change notification for adding them to
-				flush-list based on mtr->modification only. */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
