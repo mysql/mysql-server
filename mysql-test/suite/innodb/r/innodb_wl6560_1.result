@@ -8,7 +8,7 @@ SELECT @@global.innodb_file_per_table;
 SELECT @mycount_SYS_DATAFILES:=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
 @mycount_SYS_DATAFILES:=COUNT(*)
 NUM
-CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3), 
+CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 # creation of shared temp-tablespace in MYSQL_DATA_DIR
 ibtmp1
@@ -91,14 +91,14 @@ a	a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
 1	1	a1a1a1a1a1	t1t1t1t1t1
 CREATE OR REPLACE VIEW vw1 AS SELECT * FROM t1;
 ERROR HY000: View's SELECT refers to a temporary table 't1'
-CREATE TEMPORARY TABLE t3 AS 
-SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 
+CREATE TEMPORARY TABLE t3 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
 SELECT * FROM t3;
 a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
 1	a1a1a1a1a1	t1t1t1t1t1
-CREATE TABLE t4 AS 
-SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2 
+CREATE TABLE t4 AS
+SELECT t1.a,RIGHT(t1.c,10),RIGHT(t2.c,10) FROM t1,t2
 WHERE t1.c NOT LIKE t2.c AND t1.a=t2.a;
 SELECT * FROM t4;
 a	RIGHT(t1.c,10)	RIGHT(t2.c,10)
@@ -165,7 +165,7 @@ a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
 6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
 # shutting down the server
 # list_file ,no files expected - temp tablespace cleared on stopping server
-# restarting the server with following arguments: 
+# restarting the server with following arguments:
 #restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>$MYSQLTEST_VARDIR/tmp/testdir2
 # list_file ,temp tablespace goes into 1st tmpdir if mutiple tmpdir listed
 ibtmp1
