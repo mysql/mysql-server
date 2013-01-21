@@ -344,7 +344,7 @@ mtr_commit(
 }
 
 /***************************************************************//**
-Turn off redo logging if table is temp. */
+Turn off redo logging if table is temp-table. */
 UNIV_INTERN
 void
 turn_off_logging_if_temp_table(
