@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -76,7 +76,7 @@ extern ulint	os_n_pending_writes;
 #  define OS_FILE_PATH_SEPARATOR	'\\'
 #else
 #  define OS_FILE_PATH_SEPARATOR	'/'
-#endif
+#endif /* __WIN__ */
 
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;

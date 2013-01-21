@@ -424,7 +424,7 @@ show tables;
 create temporary table t1 (
 	keyc int, c1 char(100), c2 char(100)
 	) engine = innodb;
-drop table t1; 
+drop table t1;
 
 #-----------------------------------------------------------------------------
 #
@@ -445,7 +445,7 @@ show tables;
 create temporary table t1 (
 	keyc int, c1 char(100), c2 char(100)
 	) engine = innodb;
-drop table t1; 
+drop table t1;
 
 #-----------------------------------------------------------------------------
 #
