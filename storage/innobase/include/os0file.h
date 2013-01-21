@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -71,6 +71,13 @@ extern ulint	os_n_pending_writes;
 
 #endif
 
+/* path name separator character */
+#ifdef __WIN__
+#  define OS_FILE_PATH_SEPARATOR	'\\'
+#else
+#  define OS_FILE_PATH_SEPARATOR	'/'
+#endif /* __WIN__ */
+
 /** File offset in bytes */
 typedef ib_uint64_t os_offset_t;
 #ifdef __WIN__
@@ -136,6 +143,7 @@ enum os_file_create_t {
 /** Types for file create @{ */
 #define	OS_DATA_FILE			100
 #define OS_LOG_FILE			101
+#define OS_DATA_TEMP_FILE		102
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */

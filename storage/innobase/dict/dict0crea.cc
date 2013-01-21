@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
+#include "srv0space.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -321,6 +322,12 @@ dict_build_table_def_step(
 		features by keeping only the first bit which says whether
 		the row format is redundant or compact */
 		table->flags &= DICT_TF_COMPACT;
+
+		/* All non-compressed temporary tables are stored in
+		shared temp-tablespace */
+		if (dict_table_is_temporary(table)) {
+			table->space = srv_tmp_space.space_id();
+		}
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -1068,6 +1075,7 @@ dict_create_table_step(
 		/* thr->run_node = node->commit_node;
 
 		return(thr); */
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 	}
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
