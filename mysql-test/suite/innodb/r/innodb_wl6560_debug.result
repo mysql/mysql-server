@@ -19,8 +19,7 @@ drop table t1;
 "try hitting crash-point during table creation"
 # files in MYSQL_TMP_DIR
 ibtmp1
-set session debug="+d,ib_ddl_crash_during_create";
-set session debug="+d,ib_ddl_crash_during_create";
+set session debug="+d,ib_ddl_crash_during_create2";
 create temporary table t1
 (a int, b int, primary key(a), index(b)) engine = innodb;
 ERROR HY000: Lost connection to MySQL server during query
