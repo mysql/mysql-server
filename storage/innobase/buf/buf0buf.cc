@@ -1964,7 +1964,7 @@ buf_block_try_discard_uncompressed(
 	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (bpage) {
-		buf_LRU_free_block(bpage, FALSE);
+		buf_LRU_free_page(bpage, false);
 	}
 
 	buf_pool_mutex_exit(buf_pool);
@@ -2802,7 +2802,7 @@ wait_until_unfixed:
 		relocated or enter or exit the buf_pool while we
 		are holding the buf_pool->mutex. */
 
-		if (buf_LRU_free_block(&block->page, TRUE)) {
+		if (buf_LRU_free_page(&block->page, true)) {
 			buf_pool_mutex_exit(buf_pool);
 			rw_lock_x_lock(hash_lock);
 
@@ -4400,7 +4400,7 @@ assert_s_latched:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
-			/* In buf_LRU_free_block(), we temporarily set
+			/* In buf_LRU_free_page(), we temporarily set
 			b->io_fix = BUF_IO_READ for a newly allocated
 			control block in order to prevent
 			buf_page_get_gen() from decompressing the block. */

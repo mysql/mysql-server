@@ -14867,8 +14867,7 @@ innodb_buffer_pool_evict_update(
 					ut_ad(block->in_unzip_LRU_list);
 					ut_ad(block->page.in_LRU_list);
 
-					buf_LRU_free_block(&block->page,
-							   FALSE);
+					buf_LRU_free_page(&block->page, false);
 					block = prev_block;
 				}
 
