@@ -73,10 +73,8 @@ drop table t1;
 --echo "try hitting crash-point during table creation"
 --echo # files in MYSQL_TMP_DIR
 --list_files $MYSQL_TMP_DIR/ ibtmp*
-set session debug="+d,ib_ddl_crash_during_create";
-
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-set session debug="+d,ib_ddl_crash_during_create";
+set session debug="+d,ib_ddl_crash_during_create2";
 --error 2013
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
