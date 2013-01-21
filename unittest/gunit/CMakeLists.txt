@@ -300,7 +300,8 @@ IF (MERGE_UNITTESTS)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
   ENDIF()
 
   ADD_TEST(merge_large_tests merge_large_tests-t)
