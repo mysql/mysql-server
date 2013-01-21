@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -291,6 +291,17 @@ SectionHandle::getSection(SegmentedSectionPtr& ptr, Uint32 no)
   }
 
   return false;
+}
+
+inline
+SectionHandle::~SectionHandle()
+{
+  if (unlikely(m_cnt))
+  {
+    ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
+                               "Unhandled sections(handle) after execute",
+                               "");
+  }
 }
 
 #endif
