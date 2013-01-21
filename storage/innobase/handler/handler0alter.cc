@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,7 +38,7 @@ Smart ALTER TABLE
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "srv0srv.h"
+#include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "ha_prototypes.h"
@@ -233,7 +233,9 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_read_only_mode || srv_created_new_raw || srv_force_recovery) {
+	if (srv_read_only_mode
+	    || srv_sys_space.created_new_raw()
+	    || srv_force_recovery) {
 		ha_alter_info->unsupported_reason =
 			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
