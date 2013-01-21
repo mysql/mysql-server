@@ -219,7 +219,7 @@ mtr_commit(
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
 /***************************************************************//**
-Turn off redo logging if table is temp + undo if autocommit=on. */
+Turn off redo logging if table is temp-table. */
 UNIV_INTERN
 void
 turn_off_logging_if_temp_table(
