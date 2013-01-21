@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -297,45 +297,34 @@ SimulatedBlock::signal_error(Uint32 gsn, Uint32 len, Uint32 recBlockNo,
 
 extern class SectionSegmentPool g_sectionSegmentPool;
 
-#define check_sections(signal, cnt, cnt2) do { if (unlikely(cnt)) { handle_invalid_sections_in_send_signal(signal); } else if (unlikely(cnt2 == 0 && (signal->header.m_fragmentInfo != 0 && signal->header.m_fragmentInfo != 3))) { handle_invalid_fragmentInfo(signal); } } while(0)
-
 void
-SimulatedBlock::handle_invalid_sections_in_send_signal(Signal* signal) const
+SimulatedBlock::handle_invalid_sections_in_send_signal(const Signal* signal) 
+const
 {
-  //Uint32 cnt = signal->header.m_noOfSections;
-#if defined VM_TRACE || defined ERROR_INSERT
+  char errMsg[160];
+  BaseString::snprintf(errMsg, sizeof errMsg,
+                       "Unhandled sections in sendSignal for GSN %u (%s).", 
+                       signal->header.theVerId_signalNumber,
+                       getSignalName(signal->header.theVerId_signalNumber));
+  // Print message and terminate.
   ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
-			     "Unhandled sections in sendSignal",
-			     "");
-#else
-  infoEvent("Unhandled sections in sendSignal!!");
-#endif
+                             errMsg,
+                             "");
 }
 
 void
-SimulatedBlock::handle_lingering_sections_after_execute(Signal* signal) const
+SimulatedBlock::handle_lingering_sections_after_execute(const Signal* signal)
+const
 {
-  //Uint32 cnt = signal->header.m_noOfSections;
-#if defined VM_TRACE || defined ERROR_INSERT
+  char errMsg[160];
+  BaseString::snprintf(errMsg, sizeof errMsg,
+                      "Unhandled sections after execute for GSN %u (%s).", 
+                      signal->header.theVerId_signalNumber,
+                      getSignalName(signal->header.theVerId_signalNumber));
+  // Print message and terminate.
   ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
-			     "Unhandled sections after execute",
-			     "");
-#else
-  infoEvent("Unhandled sections after execute");
-#endif
-}
-
-void
-SimulatedBlock::handle_lingering_sections_after_execute(SectionHandle* handle) const
-{
-  //Uint32 cnt = signal->header.m_noOfSections;
-#if defined VM_TRACE || defined ERROR_INSERT
-  ErrorReporter::handleError(NDBD_EXIT_BLOCK_BNR_ZERO,
-			     "Unhandled sections(handle) after execute",
-			     "");
-#else
-  infoEvent("Unhandled sections(handle) after execute");
-#endif
+                             errMsg,
+                             "");
 }
 
 void
@@ -510,18 +499,17 @@ SimulatedBlock::sendSignal(BlockReference ref,
 
   BlockReference sendBRef = reference();
   
-  Uint32 noOfSections = signal->header.m_noOfSections;
   Uint32 recBlock = refToBlock(ref);
   Uint32 recNode   = refToNode(ref);
   Uint32 ourProcessor         = globalData.ownId;
   
+  check_sections(signal, signal->header.m_noOfSections, 0);
+
   signal->header.theLength = length;
   signal->header.theVerId_signalNumber = gsn;
   signal->header.theReceiversBlockNumber = recBlock;
   signal->header.m_noOfSections = 0;
 
-  check_sections(signal, noOfSections, 0);
-  
   Uint32 tSignalId = signal->header.theSignalId;
   
   if ((length == 0) || length > 25 || (recBlock == 0)) {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -359,9 +359,8 @@ protected:
   bool dupSection(Uint32& copyFirstIVal, Uint32 srcFirstIVal);
   bool writeToSection(Uint32 firstSegmentIVal, Uint32 offset, const Uint32* src, Uint32 len);
 
-  void handle_invalid_sections_in_send_signal(Signal*) const;
-  void handle_lingering_sections_after_execute(Signal*) const;
-  void handle_lingering_sections_after_execute(SectionHandle*) const;
+  void handle_invalid_sections_in_send_signal(const Signal*) const;
+  void handle_lingering_sections_after_execute(const Signal*) const;
   void handle_invalid_fragmentInfo(Signal*) const;
   void handle_send_failed(SendStatus, Signal*) const;
   void handle_out_of_longsignal_memory(Signal*) const;
@@ -912,6 +911,9 @@ private:
   void execUTIL_UNLOCK_REF(Signal* signal);
   void execUTIL_UNLOCK_CONF(Signal* signal);
 
+  void check_sections(Signal* signal, 
+                      Uint32 oldSecCount, 
+                      Uint32 newSecCount) const;
 protected:
 
   void fsRefError(Signal* signal, Uint32 line, const char *msg);
@@ -1296,6 +1298,25 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #endif
 }
 
+// Do a consictency check before reusing a signal.
+inline void 
+SimulatedBlock::check_sections(Signal* signal, 
+                               Uint32 oldSecCount, 
+                               Uint32 newSecCount) const
+{ 
+  // Sections from previous use should have been consumed by now.
+  if (unlikely(oldSecCount != 0))
+  { 
+    handle_invalid_sections_in_send_signal(signal); 
+  } 
+  else if (unlikely(newSecCount == 0 &&
+                    signal->header.m_fragmentInfo != 0 && 
+                    signal->header.m_fragmentInfo != 3))
+  { 
+    handle_invalid_fragmentInfo(signal); 
+  }
+}
+
 /**
  * Defines for backward compatiblility
  */
@@ -1319,15 +1340,6 @@ BLOCK::addRecSignal(GlobalSignalNumber gsn, ExecSignalLocal f, bool force){ \
 }
 
 #include "Mutex.hpp"
-
-inline
-SectionHandle::~SectionHandle()
-{
-  if (unlikely(m_cnt))
-  {
-    m_block->handle_lingering_sections_after_execute(this);
-  }
-}
 
 #ifdef ERROR_INSERT
 #define RSS_AP_SNAPSHOT(x) Uint32 rss_##x
