@@ -784,7 +784,7 @@ dict_drop_index_tree(
 
 /*******************************************************************//**
 Frees the index tree associated with a row in SYS_INDEXES table.
-@return root page number freed, or FIL_NULL on failure */
+@return freed root page number, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
 dict_free_index_tree(

@@ -130,9 +130,9 @@ UNIV_INTERN ulint	fil_n_pending_tablespace_flushes	= 0;
 /** Number of files currently open */
 UNIV_INTERN ulint	fil_n_file_opened			= 0;
 
-/** The space is truncated. We don't need protect the global variable
-by a mutex, since it is updated at the start and end of the recovery
-in scan phase, only read during apply phase. */
+/** The spaces are truncated. We don't need protect the global variable
+by a mutex, since it is only updated in scan phase, and read in apply
+phase during recovery. */
 static std::set<ulint>	fil_space_truncated;
 
 /** The null file address */
@@ -2234,8 +2234,8 @@ fil_recreate_tablespace(
 			"innodb_force_recovery was set to %lu. "
 			"Continuing crash recovery even though we cannot"
 			"access the .ibd file of the tablespace %lu when"
-			"truncating the table during recovery",
-			srv_force_recovery, space_id);
+			"truncating the table '%s' during recovery",
+			srv_force_recovery, space_id, name);
 		return;
 	}
 
@@ -2244,8 +2244,9 @@ fil_recreate_tablespace(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
 			"Continuing crash recovery even though the "
-			".ibd file of the tablespace %lu is missing",
-			srv_force_recovery, space_id);
+			".ibd file of the table '%s' with tablespace "
+			"%lu is missing",
+			srv_force_recovery, name, space_id);
 		return;
 	}
 
@@ -2285,10 +2286,11 @@ fil_recreate_tablespace(
 					"innodb_force_recovery was set to %lu. "
 					"Continuing crash recovery even though "
 					"we failed to create index %lu for "
-					"compressed table '%s' during recovery",
+					"compressed table '%s' with tablespace "
+					"%lu during recovery",
 					srv_force_recovery,
 					truncate_rec->indexes[i].id,
-					name);
+					name, space_id);
 				return;
 			}
 			buf_index += truncate_rec->indexes[i].field_len;
@@ -2306,10 +2308,11 @@ fil_recreate_tablespace(
 					"innodb_force_recovery was set to %lu. "
 					"Continuing crash recovery even though "
 					"we failed to create index %lu for "
-					"table '%s' during recovery",
+					"table '%s' with tablespace %lu "
+					"during recovery",
 					srv_force_recovery,
 					truncate_rec->indexes[i].id,
-					name);
+					name, space_id);
 				return;
 			}
 		}
@@ -2351,9 +2354,9 @@ fil_recreate_tablespace(
 				"innodb_force_recovery was set to %lu. "
 				"Continuing crash recovery even though we "
 				"cannot write page %lu into the .ibd file "
-				"for tablespace %lu during recovery.",
-				srv_force_recovery,
-				page_no, space_id);
+				"of table '%s' for tablespace %lu during "
+				"recovery.", srv_force_recovery, page_no,
+				name, space_id);
 		}
 	}
 	mtr_commit(&mtr);
@@ -3099,7 +3102,7 @@ fil_prepare_for_truncate(
 
 	mem_free(path);
 
-	if (err != DB_SUCCESS) {
+	if (err == DB_TABLESPACE_NOT_FOUND) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot truncate tablespace %lu because it is "
 			"not found in the tablespace memory cache.",
