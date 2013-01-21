@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
+#include "srv0space.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -352,6 +353,15 @@ dict_build_tablespace(
 		features by keeping only the first bit which says whether
 		the row format is redundant or compact */
 		table->flags &= DICT_TF_COMPACT;
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
+				DBUG_SUICIDE(););
+
+		/* All non-compressed temporary tables are stored in
+		shared temp-tablespace */
+		if (dict_table_is_temporary(table)) {
+			table->space = srv_tmp_space.space_id();
+		}
 	}
 
 	return(DB_SUCCESS);
@@ -1314,6 +1324,7 @@ dict_create_table_step(
 		/* thr->run_node = node->commit_node;
 
 		return(thr); */
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 	}
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
@@ -2041,7 +2052,7 @@ dict_create_add_tablespace_to_dictionary(
 
 	pars_info_t*	info = pars_info_create();
 
-	ut_a(space > TRX_SYS_SPACE);
+	ut_a(space > srv_sys_space.space_id());
 
 	pars_info_add_int4_literal(info, "space", space);
 
