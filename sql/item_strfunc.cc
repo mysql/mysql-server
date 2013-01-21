@@ -341,7 +341,7 @@ String *Item_func_sha2::val_str_ascii(String *str)
 
 void Item_func_sha2::fix_length_and_dec()
 {
-  maybe_null = 1;
+  set_persist_maybe_null(1);
   max_length = 0;
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
