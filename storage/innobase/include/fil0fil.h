@@ -55,8 +55,6 @@ extern const char*	fil_path_to_mysql_datadir;
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
-/* The max number of indexes of MLOG_FILE_TRUNCATE redo record */
-#define MAX_REC_INDEXES			1024
 /* The length of index fields encoded buffer */
 #define FIELDS_LEN			4096
 
@@ -459,7 +457,7 @@ struct truncate_rec_t {
 							path of table */
 	const byte*		fields;			/*!< index field
 							information */
-	truncate_index_t	indexes[MAX_REC_INDEXES];/*!< indexes
+	truncate_index_t	indexes[MAX_INDEXES];	/*!< indexes
 							information */
 };
 /*******************************************************************//**
