@@ -1,3 +1,4 @@
+SET SESSION debug="+d,row_print_geometry_data";
 CREATE TABLE t_wl6455 ( i INT, g GEOMETRY NOT NULL) ENGINE=InnoDB;
 SHOW CREATE TABLE t_wl6455;
 Table	Create Table
