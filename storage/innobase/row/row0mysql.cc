@@ -32,12 +32,8 @@ Created 9/17/2000 Heikki Tuuri
 
 #include <debug_sync.h>
 #include <my_dbug.h>
-
-#ifdef GIS_INTERNAL_DIAG_PRINT
 #include <gstream.h>
 #include <spatial.h>
-#endif
-
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -328,22 +324,26 @@ row_mysql_store_geometry(
 
 	memcpy(dest + dest_len - 8, &src, sizeof src);
 
-#ifdef GIS_INTERNAL_DIAG_PRINT
-	String  res;
-	Geometry_buffer buffer;
-	String  wkt;
-	const char* end;
+	DBUG_EXECUTE_IF("row_print_geometry_data",
+	{
+		String  res;
+		Geometry_buffer buffer;
+		String  wkt;
+		const char* end;
 
-	/** Show the meaning of geometry data. */
-	Geometry* g = Geometry::construct(&buffer,
-					 (const char*)src,
-					 src_len);
+		/** Show the meaning of geometry data. */
+		Geometry* g = Geometry::construct(&buffer,
+						 (const char*)src,
+						 src_len);
 
-	g->as_wkt(&wkt, &end);
-	fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
-			"InnoDB: as wkt: %s.\n",
-			wkt.ptr());
-#endif
+		if (g)
+		{
+			g->as_wkt(&wkt, &end);
+			fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
+					"InnoDB: as wkt: %s.\n",
+				wkt.ptr());
+		}
+	});
 }
 
 /*******************************************************************//**
@@ -363,22 +363,26 @@ row_mysql_read_geometry(
 
 	memcpy(&data, ref + col_len - 8, sizeof data);
 
-#ifdef GIS_INTERNAL_DIAG_PRINT
-	String  res;
-	Geometry_buffer buffer;
-	String  wkt;
-	const char* end;
+	DBUG_EXECUTE_IF("row_print_geometry_data",
+	{
+		String  res;
+		Geometry_buffer buffer;
+		String  wkt;
+		const char* end;
 
-	/** Show the meaning of geometry data. */
-	Geometry* g = Geometry::construct(&buffer,
-					 (const char*)data,
-					 *len);
+		/** Show the meaning of geometry data. */
+		Geometry* g = Geometry::construct(&buffer,
+						 (const char*)data,
+						 *len);
 
-	g->as_wkt(&wkt, &end);
-	fprintf(stderr, "InnoDB: read a new geometry data from MySQL.\n"
-			"InnoDB: as wkt: %s.\n",
-			wkt.ptr());
-#endif
+		if (g)
+		{
+			g->as_wkt(&wkt, &end);
+			fprintf(stderr, "InnoDB: read a new geometry data from MySQL.\n"
+					"InnoDB: as wkt: %s.\n",
+					wkt.ptr());
+		}
+	});
 
 	return(data);
 }
