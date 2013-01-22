@@ -2129,6 +2129,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
 {
   my_ptrdiff_t adjust_ptrs;
   Field **field,**org_field, *found_next_number_field;
+  Field **vfield;
   TABLE *copy;
   TABLE_SHARE *share;
   uchar *bitmap;
@@ -2172,6 +2173,13 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
   if (!copy_tmp)
     goto error;
 
+  if (share->vfields)
+  {
+    vfield= (Field **) client_thd->alloc((share->vfields+1)*sizeof(Field*));
+    if (!vfield)
+      goto error;
+  }
+
   /* Copy the TABLE object. */
   copy= new (copy_tmp) TABLE;
   *copy= *table;
@@ -2200,6 +2208,27 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
       (*field)->table->found_next_number_field= *field;
   }
   *field=0;
+
+  if (share->vfields)
+  {
+    copy->vfield= vfield;
+    for (field= copy->field; *field; field++)
+    {
+      if ((*field)->vcol_info)
+      {
+        bool error_reported= FALSE;
+        if (unpack_vcol_info_from_frm(client_thd,
+                                      client_thd->mem_root,
+                                      copy,
+                                      *field,
+                                      &(*field)->vcol_info->expr_str,
+                                      &error_reported))
+          goto error;
+        *vfield++= *field;
+      }
+    }
+    *vfield= 0; 
+  }
 
   /* Adjust timestamp */
   if (table->timestamp_field)

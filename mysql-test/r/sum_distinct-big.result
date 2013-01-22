@@ -103,5 +103,20 @@ sm
 10323810
 10325070
 10326330
+# 
+# Bug mdev-4063: SUM(DISTINCT...) with small'max_heap_table_size 
+# (bug #56927)
+# 
+SET max_heap_table_size=default;
+INSERT INTO t1 SELECT id+16384 FROM t1;
+DELETE FROM t2;
+INSERT INTO t2 SELECT id FROM t1 ORDER BY id*rand();
+SELECT SUM(DISTINCT id) sm FROM t2;
+sm
+536887296
+SET max_heap_table_size=16384;
+SELECT SUM(DISTINCT id) sm FROM t2;
+sm
+536887296
 DROP TABLE t1;
 DROP TABLE t2;

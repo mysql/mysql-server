@@ -2472,6 +2472,9 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg);
 int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
+bool unpack_vcol_info_from_frm(THD *thd, MEM_ROOT *mem_root,
+                               TABLE *table, Field *field,
+                               LEX_STRING *vcol_expr, bool *error_reported);
 int readfrm(const char *name, uchar **data, size_t *length);
 int writefrm(const char* name, const uchar* data, size_t len);
 int closefrm(TABLE *table, bool free_share);

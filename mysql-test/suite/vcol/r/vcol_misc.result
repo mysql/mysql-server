@@ -182,6 +182,17 @@ a	b	c
 2	3	y
 0	1	y,n
 drop table t1,t2;
+CREATE TABLE t1 (
+ts TIMESTAMP,
+tsv TIMESTAMP AS (ADDDATE(ts, INTERVAL 1 DAY)) VIRTUAL
+) ENGINE=MyISAM;
+INSERT INTO t1 (tsv) VALUES (DEFAULT);
+INSERT DELAYED INTO t1 (tsv) VALUES (DEFAULT);
+FLUSH TABLES;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2
+DROP TABLE t1;
 create table t1 (a int, b int);
 insert into t1 values (3, 30), (4, 20), (1, 20);
 create table t2 (c int, d int, v int as (d+1), index idx(c));

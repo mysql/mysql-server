@@ -2654,7 +2654,6 @@ static bool show_status_array(THD *thd, const char *wild,
   int len;
   LEX_STRING null_lex_str;
   SHOW_VAR tmp, *var;
-  COND *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   bool res= FALSE;
   CHARSET_INFO *charset= system_charset_info;
@@ -2668,7 +2667,6 @@ static bool show_status_array(THD *thd, const char *wild,
   if (*prefix)
     *prefix_end++= '_';
   len=name_buffer + sizeof(name_buffer) - prefix_end;
-  partial_cond= make_cond_for_info_schema(cond, table->pos_in_table_list);
 
   for (; variables->name; variables++)
   {
@@ -2691,13 +2689,13 @@ static bool show_status_array(THD *thd, const char *wild,
     if (show_type == SHOW_ARRAY)
     {
       show_status_array(thd, wild, (SHOW_VAR *) var->value, value_type,
-                        status_var, name_buffer, table, ucase_names, partial_cond);
+                        status_var, name_buffer, table, ucase_names, cond);
     }
     else
     {
       if (!(wild && wild[0] && wild_case_compare(system_charset_info,
                                                  name_buffer, wild)) &&
-          (!partial_cond || partial_cond->val_int()))
+          (!cond || cond->val_int()))
       {
         char *value=var->value;
         const char *pos, *end;                  // We assign a lot of const's
@@ -6280,9 +6278,12 @@ int fill_variables(THD *thd, TABLE_LIST *tables, COND *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
+  COND *partial_cond= make_cond_for_info_schema(cond, tables);
+
   rw_rdlock(&LOCK_system_variables_hash);
   res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars),
-                         option_type, NULL, "", tables->table, upper_case_names, cond);
+                         option_type, NULL, "", tables->table, upper_case_names,
+                         partial_cond);
   rw_unlock(&LOCK_system_variables_hash);
   DBUG_RETURN(res);
 }
@@ -6319,13 +6320,18 @@ int fill_status(THD *thd, TABLE_LIST *tables, COND *cond)
     tmp1= &thd->status_var;
   }
 
+  COND *partial_cond= make_cond_for_info_schema(cond, tables);
+  // Evaluate and cache const subqueries now, before the mutex.
+  if (partial_cond)
+    partial_cond->val_int();
+
   pthread_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
-                         upper_case_names, cond);
+                         upper_case_names, partial_cond);
   pthread_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }

@@ -1120,7 +1120,7 @@ void Item_sum_distinct::calculate_val_and_count()
     if (tree)
     {
       table->field[0]->set_notnull();
-      tree->walk(item_sum_distinct_walk, (void*) this);
+      tree->walk(table, item_sum_distinct_walk, (void*) this);
     }
     is_evaluated= TRUE;
   }
@@ -2621,7 +2621,7 @@ longlong Item_sum_count_distinct::val_int()
     if (tree->elements == 0)
       return (longlong) tree->elements_in_tree(); // everything fits in memory
     count= 0;
-    tree->walk(count_distinct_walk, (void*) &count);
+    tree->walk(table, count_distinct_walk, (void*) &count);
     is_evaluated= TRUE;
     return (longlong) count;
   }
