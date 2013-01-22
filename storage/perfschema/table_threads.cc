@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_start_time= pfs->m_start_time;
 
   /* Protect this reader against attribute changes. */
-  pfs->m_lock.begin_optimistic_lock(&processlist_lock);
+  pfs->m_processlist_lock.begin_optimistic_lock(&processlist_lock);
 
   /* FIXME: need to copy it ? */
   m_row.m_processlist_state_ptr= pfs->m_processlist_state_ptr;
@@ -178,7 +178,7 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_processlist_info_ptr= pfs->m_processlist_info_ptr;
   m_row.m_processlist_info_length= pfs->m_processlist_info_length;
 
-  if (! pfs->m_lock.end_optimistic_lock(& processlist_lock))
+  if (! pfs->m_processlist_lock.end_optimistic_lock(& processlist_lock))
   {
     /*
       Columns PROCESSLIST_STATE or PROCESSLIST_INFO are being
