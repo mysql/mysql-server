@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -464,7 +464,7 @@ bool Rpl_info_table_access::drop_thd(THD *thd)
   if (saved_current_thd != current_thd)
   {
     delete thd;
-    my_pthread_setspecific_ptr(THR_THD,  NULL);
+    my_pthread_set_THR_THD(NULL);
   }
 
   DBUG_RETURN(FALSE);

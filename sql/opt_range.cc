@@ -619,8 +619,8 @@ public:
   friend SEL_ARG *rb_delete_fixup(SEL_ARG *root,SEL_ARG *key, SEL_ARG *par);
 #ifndef DBUG_OFF
   friend int test_rb_tree(SEL_ARG *element,SEL_ARG *parent);
-  void test_use_count(SEL_ARG *root);
 #endif
+  bool test_use_count(SEL_ARG *root);
   SEL_ARG *first();
   SEL_ARG *last();
   void make_root();
@@ -8635,7 +8635,6 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
 }
 
 
-#ifndef DBUG_OFF
 /*
   Check if SEL_ARG::use_count value is correct
 
@@ -8648,19 +8647,23 @@ static ulong count_key_part_usage(SEL_ARG *root, SEL_ARG *key)
   DESCRIPTION
     Check if SEL_ARG::use_count value is correct. See the definition of
     use_count for what is "correct".
+
+  RETURN
+    true    an incorrect SEL_ARG::use_count is found,
+    false   otherwise
 */
 
-void SEL_ARG::test_use_count(SEL_ARG *root)
+bool SEL_ARG::test_use_count(SEL_ARG *root)
 {
   uint e_count=0;
   if (this == root && use_count != 1)
   {
     sql_print_information("Use_count: Wrong count %lu for root",use_count);
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
-    return;
+    return true;
   }
   if (this->type != SEL_ARG::KEY_RANGE)
-    return;
+    return false;
   for (SEL_ARG *pos=first(); pos ; pos=pos->next)
   {
     e_count++;
@@ -8673,7 +8676,7 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
                               "should be %lu", (long unsigned int)pos,
                               pos->next_key_part->use_count, count);
         // DBUG_ASSERT(false); // Todo - enable and clean up mess
-	return;
+	return true;
       }
       pos->next_key_part->test_use_count(root);
     }
@@ -8683,9 +8686,10 @@ void SEL_ARG::test_use_count(SEL_ARG *root)
     sql_print_warning("Wrong use count: %u (should be %u) for tree at 0x%lx",
                       e_count, elements, (long unsigned int) this);
     // DBUG_ASSERT(false); // Todo - enable and clean up mess
+    return true;
   }
+  return false;
 }
-#endif
 
 /****************************************************************************
   MRR Range Sequence Interface implementation that walks a SEL_ARG* tree.
@@ -11874,7 +11878,7 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     key_infix              [out] Infix of constants to be used for index lookup
     key_infix_len          [out] Lenghth of the infix
     first_non_infix_part   [out] The first keypart after the infix (if any)
-    
+
   DESCRIPTION
     Test conditions (NGA1, NGA2) from get_best_group_min_max(). Namely,
     for each keypart field NGF_i not in GROUP-BY, check that there is a
@@ -11930,9 +11934,6 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       }
     }
 
-    /* Check that the current range tree is a single point interval. */
-    if (cur_range->prev || cur_range->next)
-      return FALSE; /* This is not the only range predicate for the field. */
     if ((cur_range->min_flag & NO_MIN_RANGE) ||
         (cur_range->max_flag & NO_MAX_RANGE) ||
         (cur_range->min_flag & NEAR_MIN) || (cur_range->max_flag & NEAR_MAX))
@@ -13808,7 +13809,7 @@ static inline void print_tree(String *out,
     if (out)
     {
       out->append(tree_name);
-      out->append(" contains the following merges\n");
+      out->append(" contains the following merges");
     }
     else
       DBUG_PRINT("info",
@@ -13821,9 +13822,9 @@ static inline void print_tree(String *out,
     {
       if (out)
       {
-        out->append(tree_name);
-        out->append(" --- alternative ");
-        out->append(i);
+        out->append("\n--- alternative ");
+        char istr[22];
+        out->append(llstr(i, istr));
         out->append(" ---\n");
       }
       else
@@ -13867,14 +13868,13 @@ static inline void print_tree(String *out,
     if (out)
     {
       char istr[22];
-      if (i>0)
-        out->append("\n");
 
       out->append(tree_name);
       out->append(" keys[");
       out->append(llstr(i, istr));
       out->append("]: ");
       out->append(range_result.ptr());
+      out->append("\n");
     }
     else
       DBUG_PRINT("info",
