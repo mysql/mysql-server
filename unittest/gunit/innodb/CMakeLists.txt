@@ -22,10 +22,10 @@ INCLUDE_DIRECTORIES(
 )
 
 SET(TESTS
-	#example
-	ha_innodb
-	ut0crc32
-	ut0mem
+  #example
+  ha_innodb
+  ut0crc32
+  ut0mem
 )
 
 FOREACH(test ${TESTS})
@@ -47,7 +47,7 @@ FOREACH(test ${TESTS})
   )
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
+    TARGET_LINK_LIBRARIES(${test}-t perfschema)
   ENDIF()
 
   ADD_TEST(${test} ${test}-t)
