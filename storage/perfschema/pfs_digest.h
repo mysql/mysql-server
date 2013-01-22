@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -83,13 +83,6 @@ void reset_esms_by_digest();
 
 /* Exposing the data directly, for iterators. */
 extern PFS_statements_digest_stat *statements_digest_stat_array;
-
-/* Instrumentation callbacks for pfs.cc */
-
-struct PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
-PSI_digest_locker *pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                                           uint token,
-                                           OPAQUE_LEX_YYSTYPE *yylval);
 
 static inline void digest_reset(PSI_digest_storage *digest)
 {
