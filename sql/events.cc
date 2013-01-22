@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -924,7 +924,7 @@ end:
   }
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  NULL);
+  my_pthread_set_THR_THD(NULL);
 
   DBUG_RETURN(res);
 }
