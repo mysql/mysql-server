@@ -49,7 +49,11 @@ INSERT INTO t_wl6455 VALUES(5, GeomFromText(@gc));
 SELECT AsText(g) FROM t_wl6455;
 
 # Test create prefix index.
-CREATE INDEX i_p ON t_wl6455 (g(4));
+CREATE INDEX i_p ON t_wl6455 (g(10));
+
+# Select on prefix index.
+EXPLAIN SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 
 # Test crash and recover.
 # Request a crash, and restart the server.
