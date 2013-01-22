@@ -2183,7 +2183,6 @@ void pfs_set_thread_info_v1(const char* info, int info_len)
   PFS_thread *pfs= my_pthread_get_THR_PFS();
 
   DBUG_ASSERT((info != NULL) || (info_len == 0));
-  DBUG_ASSERT((info == NULL) || (info_len != 0));
 
   if (likely(pfs != NULL))
   {
