@@ -3288,20 +3288,19 @@ fil_truncate_tablespace(
 	if (recv_recovery_on) {
 		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
 	}
-	mutex_exit(&fil_system->mutex);
 
 	if (!node->open) {
-		mutex_enter(&fil_system->mutex);
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_file_data_key, path, OS_FILE_OPEN,
 			OS_FILE_READ_WRITE, &ret);
-		mutex_exit(&fil_system->mutex);
+
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to open tablespace file %s.", path);
 			mem_free(path);
 			return(DB_ERROR);
 		}
+
 		node->open = TRUE;
 		open = true;
 	} else {
@@ -3312,7 +3311,6 @@ fil_truncate_tablespace(
 	success = os_file_truncate(path, node->handle,
 				   trunc_size * UNIV_PAGE_SIZE);
 
-	mutex_enter(&fil_system->mutex);
 	space->is_being_truncated = false;
 	space->stop_new_ops = FALSE;
 	mutex_exit(&fil_system->mutex);
