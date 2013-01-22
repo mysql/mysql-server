@@ -51,6 +51,7 @@ volatile bool run_test; // should be volatile since we are communicating through
 typedef struct arg *ARG;
 typedef int (*operation_t)(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra);
 
+// TODO: Properly define these in db.h so we don't have to copy them here
 typedef int (*test_update_callback_f)(DB *, const DBT *key, const DBT *old_val, const DBT *extra, void (*set_val)(const DBT *new_val, void *set_extra), void *set_extra);
 typedef int (*test_generate_row_for_put_callback)(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_data, const DBT *src_key, const DBT *src_data);
 typedef int (*test_generate_row_for_del_callback)(DB *dest_db, DB *src_db, DBT *dest_key, const DBT *src_key, const DBT *src_data);
@@ -98,8 +99,7 @@ struct cli_args {
     int num_update_threads; // number of threads running updates
     int num_put_threads; // number of threads running puts
     bool serial_insert;
-    bool interleave; // for insert benchmarks, whether to interleave
-                     // separate threads' puts (or segregate them)
+    bool interleave; // for insert benchmarks, whether to interleave separate threads' puts (or segregate them)
     bool crash_on_operation_failure; 
     bool print_performance;
     bool print_thread_performance;
@@ -123,6 +123,7 @@ struct cli_args {
     bool prelock_updates; // update threads perform serial updates on a prelocked range
     bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
     bool direct_io; // use direct I/O
+    const char *print_engine_status; // print engine status rows matching a simple regex "a|b|c", matching strings where a or b or c is a subtring.
 };
 
 struct arg {
@@ -1383,6 +1384,44 @@ static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operat
     return 0;
 }
 
+// For each line of engine status output, look for lines that contain substrings
+// that match any of the strings in the pattern string. The pattern string contains
+// 0 or more strings separated by the '|' character, kind of like a regex.
+static void print_matching_engine_status_rows(DB_ENV *env, const char *pattern) {
+    uint64_t num_rows;
+    env->get_engine_status_num_rows(env, &num_rows);
+    uint64_t buf_size = num_rows * 128;
+    const char *row;
+    char *row_r;
+
+    char *pattern_copy = toku_xstrdup(pattern);
+    int num_patterns = 1;
+    for (char *p = pattern_copy; *p != '\0'; p++) {
+        if (*p == '|') {
+            *p = '\0';
+            num_patterns++;
+        }
+    }
+
+    char *XMALLOC_N(buf_size, buf);
+    int r = env->get_engine_status_text(env, buf, buf_size);
+    invariant_zero(r);
+
+    const char newline[2] = { '\n', '\0' };
+    for (row = strtok_r(buf, newline, &row_r); row != nullptr; row = strtok_r(nullptr, newline, &row_r)) {
+        const char *p = pattern_copy;
+        for (int i = 0; i < num_patterns; i++, p += strlen(p) + 1) {
+            if (strstr(row, p) != nullptr) {
+                printf("%s\n", row);
+            }
+        }
+    }
+
+    toku_free(pattern_copy);
+    toku_free(buf);
+}
+
+// TODO: stuff like this should be in a generalized header somwhere
 static inline int
 intmin(const int a, const int b)
 {
@@ -1393,6 +1432,7 @@ intmin(const int a, const int b)
 }
 
 struct test_time_extra {
+    DB_ENV *env;
     int num_seconds;
     bool crash_at_end;
     struct worker_extra *wes;
@@ -1402,6 +1442,7 @@ struct test_time_extra {
 
 static void *test_time(void *arg) {
     struct test_time_extra* CAST_FROM_VOIDP(tte, arg);
+    DB_ENV *env = tte->env;
     int num_seconds = tte->num_seconds;
     const struct perf_formatter *perf_formatter = &perf_formatters[tte->cli_args->perf_output_format];
 
@@ -1440,6 +1481,9 @@ static void *test_time(void *arg) {
         }
         if (tte->cli_args->print_performance && tte->cli_args->print_iteration_performance) {
             perf_formatter->iteration(tte->cli_args, i, last_counter_values, counters, tte->num_wes);
+        }
+        if (tte->cli_args->print_engine_status != nullptr) {
+            print_matching_engine_status_rows(env, tte->cli_args->print_engine_status);
         }
     }
 
@@ -1519,6 +1563,7 @@ static int run_workers(
     // allocate worker_extra's on cache line boundaries
     struct worker_extra *XMALLOC_N_ALIGNED(64, num_threads, worker_extra);
     struct test_time_extra tte;
+    tte.env = thread_args[0].env;
     tte.num_seconds = num_seconds;
     tte.crash_at_end = crash_at_end;
     tte.wes = worker_extra;
@@ -1955,7 +2000,6 @@ static struct cli_args UU() get_default_args(void) {
 static struct cli_args UU() get_default_args_for_perf(void) {
     struct cli_args args = get_default_args();
     args.num_elements = 1000000; //default of 1M
-    //args.print_performance = true;
     args.env_args = DEFAULT_PERF_ENV_ARGS;
     return args;
 }
@@ -2281,6 +2325,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
 
     const char *perf_format_s = nullptr;
     const char *compression_method_s = nullptr;
+    const char *print_engine_status_s = nullptr;
     struct arg_type arg_types[] = {
         INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
         INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
@@ -2302,9 +2347,6 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_R("--join_timeout",                 join_timeout,                  "s", 1, INT32_MAX),
         INT32_ARG_R("--performance_period",           performance_period,            "s", 1, INT32_MAX),
 
-        // TODO: John thinks the cachetable size should be in megabytes
-        // and that lock memory should be in kilobytes. Is it worth the
-        // inconsitency for a bit of convenience when running tests?
         UINT64_ARG("--cachetable_size",               env_args.cachetable_size,      " bytes"),
         UINT64_ARG("--lk_max_memory",                 env_args.lk_max_memory,        " bytes"),
 
@@ -2340,6 +2382,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
 
         LOCAL_STRING_ARG("--perf_format",             perf_format_s,                "human"),
         LOCAL_STRING_ARG("--compression_method",      compression_method_s,         "quicklz"),
+        LOCAL_STRING_ARG("--print_engine_status",     print_engine_status_s,        nullptr),
         //TODO(add --quiet, -v, -h)
     };
 #undef UINT32_ARG
@@ -2394,6 +2437,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
             }
         }
     }
+    args->print_engine_status = print_engine_status_s;
     if (compression_method_s != nullptr) {
         if (strcmp(compression_method_s, "quicklz") == 0) {
             args->compression_method = TOKU_QUICKLZ_METHOD;
