@@ -30,7 +30,13 @@ MULTILINESTRING((1 1,2 2,3 3),(4 4,5 5))
 POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
 MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
-CREATE INDEX i_p ON t_wl6455 (g(4));
+CREATE INDEX i_p ON t_wl6455 (g(10));
+EXPLAIN SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t_wl6455	ALL	i_p	NULL	NULL	NULL	9	Using where
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+AsText(g)
+POINT(2 2)
 SET DEBUG='+d,crash_commit_before';
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
 ERROR HY000: Lost connection to MySQL server during query
