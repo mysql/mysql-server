@@ -11,6 +11,9 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+# Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+
 # Test GEOMETRY datatype.
 CREATE TABLE t_wl6455 ( i INT, g GEOMETRY NOT NULL) ENGINE=InnoDB;
 SHOW CREATE TABLE t_wl6455;
