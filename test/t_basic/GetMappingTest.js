@@ -28,7 +28,7 @@ var expectedMappingFor_t_basic = {
     "autoIncrementBatchSize" : 1,
     "fields" : [{
       "fieldName"    : "id",
-      "defaultValue" : "NONE",
+      "defaultValue" : undefined,
       "columnName"   : "id",
       "notPersistent" : false
     }]
@@ -42,6 +42,7 @@ var verifyMapping = function(testCase, expected, result) {
   testCase.errorIfNotEqual('Mapping.fields.fieldName mismatch', expected.fields[0].fieldName, result.fields[0].fieldName);
   testCase.errorIfNotEqual('Mapping.fields.columnName mismatch', expected.fields[0].columnName, result.fields[0].columnName);
   testCase.errorIfNotEqual('Mapping.fields.notPersistent mismatch', expected.fields[0].notPersistent, result.fields[0].notPersistent);
+  testCase.errorIfNotEqual('Mapping.fields.defaultValue mismatch', expected.fields[0].defaultValue, result.fields[0].defaultValue);
 };
 
 var t1 = new harness.SerialTest("getMappingForConstructor");

@@ -252,11 +252,11 @@ Suite.prototype.createTests = function() {
     this.path = path.dirname(testFile);
     try {
       this.addTestsFromFile(path.join(this.path, "SmokeTest.js"));
-    } catch(e) {};
+    } catch(e1) {}
     this.addTestsFromFile(testFile);
     try {
       this.addTestsFromFile(path.join(this.path, "ClearSmokeTest.js"));
-    } catch(e) {};
+    } catch(e2) {}
   }
   else if(stat.isDirectory()) {
     var files = fs.readdirSync(this.path);
