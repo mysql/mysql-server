@@ -3832,6 +3832,10 @@ next_user_rec:
 
 	trx_commit_for_mysql(trx);
 
+funct_exit:
+
+	row_mysql_unlock_data_dictionary(trx);
+
 	if (table->space != TRX_SYS_SPACE
 	    && !table->dir_path_of_temp_table
 	    && flags != ULINT_UNDEFINED
@@ -3850,13 +3854,9 @@ next_user_rec:
 
 		err = fil_truncate_tablespace(table->space, table->name,
 					      table->data_dir_path, flags);
+		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
+				DBUG_SUICIDE(););
 	}
-
-	DBUG_EXECUTE_IF("crash_after_truncate_tablespace", DBUG_SUICIDE(););
-
-funct_exit:
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
 
