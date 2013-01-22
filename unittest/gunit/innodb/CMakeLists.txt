@@ -16,12 +16,14 @@
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
+  ${CMAKE_SOURCE_DIR}/sql
   ${CMAKE_SOURCE_DIR}/storage/innobase/include
   ${CMAKE_SOURCE_DIR}/unittest/gunit
 )
 
 SET(TESTS
 	#example
+	ha_innodb
 	ut0crc32
 	ut0mem
 )
