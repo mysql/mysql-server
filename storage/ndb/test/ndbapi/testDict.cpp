@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -9304,7 +9304,7 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
     { "Extend hashmap",
       3, 120, 7, NDB_DEFAULT_HASHMAP_BUCKETS, NDB_DEFAULT_HASHMAP_BUCKETS },
     { "Keep old hashmap size since old size not multiple of old fragment count",
-      7, 120, 10, 60, 120 },
+      5, 84, 7, 42, 84 },
     { "Shrink hashmap",
       3, 120, 6, 60, 60 },
   };
