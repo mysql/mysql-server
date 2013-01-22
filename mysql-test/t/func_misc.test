@@ -348,6 +348,25 @@ SELECT 1 from t1 HAVING NAME_CONST('', a);
 
 DROP TABLE t1;
 
+--echo #
+--echo # Test or correct maybe_null of last_value
+--echo #
+CREATE TABLE t1 (a char(2) not null );
+INSERT INTO t1 VALUES (4),(7),(1);
+set @optimizer_switch_save= @@optimizer_switch;
+set optimizer_switch='materialization=off';
+CREATE TABLE tv (e char(2) not null ) engine=mysql;
+INSERT INTO tv VALUES (1);
+CREATE ALGORITHM=MERGE VIEW v_merge AS SELECT * FROM tv;
+CREATE ALGORITHM=MERGE VIEW vm AS SELECT * FROM tv;
+explain extended
+select a from t1 left join v_merge on (a=e) where last_value(NULL,e) not in (select last_value(NULL,e) from vm);
+explain extended
+select a from t1 left join v_merge on (a=e) where e not in (select last_value(NULL,e) from vm);
+set optimizer_switch=@optimizer_switch_save;
+drop view  v_merge, vm;
+drop table t1,tv;
+
 
 --echo #
 --echo # End of 5.5 tests

@@ -2053,9 +2053,9 @@ public:
   enum_field_types field_type() const { return last_value->field_type(); }
   bool const_item() const { return 0; }
   void evaluate_sideeffects();
-  void update_uesd_tables()
+  void update_used_tables()
   {
-    Item_func_last_value::update_used_tables();
+    Item_func::update_used_tables();
     maybe_null= last_value->maybe_null;
   }
 };
