@@ -16476,6 +16476,128 @@ innobase_undo_logs_init_default_max()
 		= srv_available_undo_logs;
 }
 
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+struct innobase_convert_name_test_t {
+	char*		buf;
+	ulint		buflen;
+	const char*	id;
+	ulint		idlen;
+	void*		thd;
+	ibool		file_id;
+
+	const char*	expected;
+};
+
+void
+test_innobase_convert_name()
+{
+	char	buf[1024];
+	ulint	i;
+
+	innobase_convert_name_test_t test_input[] = {
+		{buf, sizeof(buf), "abcd", 4, NULL, TRUE, "\"abcd\""},
+		{buf, 7, "abcd", 4, NULL, TRUE, "\"abcd\""},
+		{buf, 6, "abcd", 4, NULL, TRUE, "\"abcd\""},
+		{buf, 5, "abcd", 4, NULL, TRUE, "\"abc\""},
+		{buf, 4, "abcd", 4, NULL, TRUE, "\"ab\""},
+
+		{buf, sizeof(buf), "ab@0060cd", 9, NULL, TRUE, "\"ab`cd\""},
+		{buf, 9, "ab@0060cd", 9, NULL, TRUE, "\"ab`cd\""},
+		{buf, 8, "ab@0060cd", 9, NULL, TRUE, "\"ab`cd\""},
+		{buf, 7, "ab@0060cd", 9, NULL, TRUE, "\"ab`cd\""},
+		{buf, 6, "ab@0060cd", 9, NULL, TRUE, "\"ab`c\""},
+		{buf, 5, "ab@0060cd", 9, NULL, TRUE, "\"ab`\""},
+		{buf, 4, "ab@0060cd", 9, NULL, TRUE, "\"ab\""},
+
+		{buf, sizeof(buf), "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\"\"cd\""},
+		{buf, 17, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\"\"cd\""},
+		{buf, 16, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\"\"c\""},
+		{buf, 15, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\"\"\""},
+		{buf, 14, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\""},
+		{buf, 13, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#ab\""},
+		{buf, 12, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#a\""},
+		{buf, 11, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50#\""},
+		{buf, 10, "ab\"cd", 5, NULL, TRUE,
+			"\"#mysql50\""},
+
+		{buf, sizeof(buf), "ab/cd", 5, NULL, TRUE, "\"ab\".\"cd\""},
+		{buf, 9, "ab/cd", 5, NULL, TRUE, "\"ab\".\"cd\""},
+		{buf, 8, "ab/cd", 5, NULL, TRUE, "\"ab\".\"c\""},
+		{buf, 7, "ab/cd", 5, NULL, TRUE, "\"ab\".\"\""},
+		{buf, 6, "ab/cd", 5, NULL, TRUE, "\"ab\"."},
+		{buf, 5, "ab/cd", 5, NULL, TRUE, "\"ab\"."},
+		{buf, 4, "ab/cd", 5, NULL, TRUE, "\"ab\""},
+		{buf, 3, "ab/cd", 5, NULL, TRUE, "\"a\""},
+		{buf, 2, "ab/cd", 5, NULL, TRUE, "\"\""},
+		/* XXX probably "" is a better result in this case
+		{buf, 1, "ab/cd", 5, NULL, TRUE, "."},
+		*/
+		{buf, 0, "ab/cd", 5, NULL, TRUE, ""},
+	};
+
+	for (i = 0; i < sizeof(test_input) / sizeof(test_input[0]); i++) {
+
+		char*	end;
+		ibool	ok = TRUE;
+		size_t	res_len;
+
+		fprintf(stderr, "TESTING %lu, %s, %lu, %s\n",
+			test_input[i].buflen,
+			test_input[i].id,
+			test_input[i].idlen,
+			test_input[i].expected);
+
+		end = innobase_convert_name(
+			test_input[i].buf,
+			test_input[i].buflen,
+			test_input[i].id,
+			test_input[i].idlen,
+			test_input[i].thd,
+			test_input[i].file_id);
+
+		res_len = (size_t) (end - test_input[i].buf);
+
+		if (res_len != strlen(test_input[i].expected)) {
+
+			fprintf(stderr, "unexpected len of the result: %u, "
+				"expected: %u\n", (unsigned) res_len,
+				(unsigned) strlen(test_input[i].expected));
+			ok = FALSE;
+		}
+
+		if (memcmp(test_input[i].buf,
+			   test_input[i].expected,
+			   strlen(test_input[i].expected)) != 0
+		    || !ok) {
+
+			fprintf(stderr, "unexpected result: %.*s, "
+				"expected: %s\n", (int) res_len,
+				test_input[i].buf,
+				test_input[i].expected);
+			ok = FALSE;
+		}
+
+		if (ok) {
+			fprintf(stderr, "OK: res: %.*s\n\n", (int) res_len,
+				buf);
+		} else {
+			fprintf(stderr, "FAILED\n\n");
+			return;
+		}
+	}
+}
+
+#endif /* UNIV_COMPILE_TEST_FUNCS */
+
 /****************************************************************************
  * DS-MRR implementation
  ***************************************************************************/
