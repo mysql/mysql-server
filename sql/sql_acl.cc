@@ -5709,6 +5709,15 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
       return TRUE;
     }
   }
+  else if (table_ref->nested_join)
+  {
+    bool error= FALSE;
+    List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
+    TABLE_LIST *table;
+    while (!error && (table= it++))
+      error|= check_column_grant_in_table_ref(thd, table, name, length);
+    return error;
+  }
   else
   {
     /* Normal or temporary table. */

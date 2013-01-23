@@ -7083,7 +7083,22 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     if (report_error == REPORT_ALL_ERRORS ||
         report_error == REPORT_EXCEPT_NON_UNIQUE)
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+    {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* We now know that this column does not exist in any table_list
+         of the query. If user does not have grant, then we should throw
+         error stating 'access denied'. If user does have right then we can
+         give proper error like column does not exist. Following is check
+         to see if column has wrong grants and avoids error like 'bad field'
+         and throw column access error.
+      */
+      if (!first_table ||
+          !(thd->lex->sql_command == SQLCOM_SHOW_FIELDS ? 
+            false : check_privileges) ||
+          !check_column_grant_in_table_ref(thd, first_table, name, length))
+#endif
+             my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+    }
     else
       found= not_found_field;
   }
