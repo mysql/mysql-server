@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -323,6 +323,7 @@ var QueryHandler = function(dbTableHandler, predicate) {
   });
   if (topScore > 0) {
     this.candidateIndex = bestCandidateInstance;
+    this.dbIndexHandler = candidateIndex.dbIndexHandler;
     this.queryType = 2; // index scan
   } else {
     this.queryType = 3; // table scan
