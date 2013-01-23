@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+/* TODO: replace qint.mynode_query_domain_type.queryType with appropriate EXPLAIN once EXPLAIN is implemented */
+
 /***** Query by primary key id ***/
 var t1 = new harness.ConcurrentTest("testQueryByConstructorAndPrimaryKey");
 t1.run = function() {
@@ -33,9 +35,9 @@ t1.run = function() {
         return;
       }
       var p_id = qint.param('p_id');
-      qint.where(
-        qint.id.eq(p_id))
-        .execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, true);
+      qint.where(qint.id.eq(p_id));
+      testCase.errorIfNotEqual('Incorrect queryType', 0, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, true);
     });
   });
 };
@@ -55,9 +57,9 @@ t2.run = function() {
         return;
       }
       var p_int = qint.param('p_int');
-      qint.where(
-        qint.tint.eq(p_int))
-        .execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, true);
+      qint.where(qint.tint.eq(p_int));
+      testCase.errorIfNotEqual('Incorrect queryType', 1, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, true);
     });
   });
 };
@@ -77,9 +79,9 @@ t3.run = function() {
         return;
       }
       var p_id = qint.param('p_id');
-      qint.where(
-        qint.id.eq(p_id))
-        .execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, true);
+      qint.where(qint.id.eq(p_id));
+      testCase.errorIfNotEqual('Incorrect queryType', 0, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, true);
     });
   });
 };
@@ -99,9 +101,9 @@ t4.run = function() {
         return;
       }
       var p_int = qint.param('p_int');
-      qint.where(
-        qint.tint.eq(p_int))
-        .execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, true);
+      qint.where(qint.tint.eq(p_int));
+      testCase.errorIfNotEqual('Incorrect queryType', 1, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, true);
     });
   });
 };
@@ -121,9 +123,9 @@ t5.run = function() {
         return;
       }
       var p_id = qint.param('p_id');
-      qint.where(
-        qint.id.eq(p_id))
-        .execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, false);
+      qint.where(qint.id.eq(p_id));
+      testCase.errorIfNotEqual('Incorrect queryType', 0, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_id: key}, fail_verify_integraltypes_array, [key], testCase, false);
     });
   });
 };
@@ -143,9 +145,9 @@ t6.run = function() {
         return;
       }
       var p_int = qint.param('p_int');
-      qint.where(
-        qint.tint.eq(p_int))
-        .execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, false);
+      qint.where(qint.tint.eq(p_int));
+      testCase.errorIfNotEqual('Incorrect queryType', 1, qint.mynode_query_domain_type.queryType);
+      qint.execute({p_int: key}, fail_verify_integraltypes_array, [key], testCase, false);
     });
   });
 };
