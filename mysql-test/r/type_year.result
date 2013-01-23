@@ -389,6 +389,7 @@ select a from t1 where a=(select 2000 from dual where 1);
 a
 select a from t1 where a=y2k();
 a
+00
 select a from t1 where a=b;
 a
 drop table t1;

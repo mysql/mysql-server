@@ -391,4 +391,22 @@ select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 gr
 1
 1
 drop table t1;
+#
+# MDEV-3988 crash in create_tmp_table
+#
+drop table if exists `t1`,`t2`;
+Warnings:
+Note	1051	Unknown table 't1'
+Note	1051	Unknown table 't2'
+create table `t1`(`a` char(1) character set utf8)engine=innodb;
+create table `t2`(`b` char(1) character set utf8)engine=memory;
+select distinct (select 1 from `t2` where `a`) `d2` from `t1`;
+d2
+select distinct (select 1 from `t2` where `a`) `d2`, a from `t1`;
+d2	a
+select distinct a, (select 1 from `t2` where `a`) `d2` from `t1`;
+a	d2
+select distinct (1 + (select 1 from `t2` where `a`)) `d2` from `t1`;
+d2
+drop table t1,t2;
 set optimizer_switch=@subselect_innodb_tmp;

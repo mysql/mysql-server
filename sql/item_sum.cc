@@ -1086,7 +1086,7 @@ void Aggregator_distinct::endup()
   {
     /* go over the tree of distinct keys and calculate the aggregate value */
     use_distinct_values= TRUE;
-    tree->walk(item_sum_distinct_walk, (void*) this);
+    tree->walk(table, item_sum_distinct_walk, (void*) this);
     use_distinct_values= FALSE;
   }
   /* prevent consecutive recalculations */

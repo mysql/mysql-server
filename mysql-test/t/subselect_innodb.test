@@ -377,4 +377,18 @@ select 1 from t1 where 1 like (select 1 from t1 where 1 <=> (select 1 from t1 gr
 drop table t1;
 
 
+--echo #
+--echo # MDEV-3988 crash in create_tmp_table
+--echo #
+
+drop table if exists `t1`,`t2`;
+create table `t1`(`a` char(1) character set utf8)engine=innodb;
+create table `t2`(`b` char(1) character set utf8)engine=memory;
+select distinct (select 1 from `t2` where `a`) `d2` from `t1`;
+select distinct (select 1 from `t2` where `a`) `d2`, a from `t1`;
+select distinct a, (select 1 from `t2` where `a`) `d2` from `t1`;
+select distinct (1 + (select 1 from `t2` where `a`)) `d2` from `t1`;
+
+drop table t1,t2;
+
 set optimizer_switch=@subselect_innodb_tmp;

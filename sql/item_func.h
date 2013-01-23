@@ -1907,7 +1907,8 @@ private:
   bool init_result_field(THD *thd);
 
 protected:
-  bool is_expensive_processor(uchar *arg) { return TRUE; }
+  bool is_expensive_processor(uchar *arg)
+  { return is_expensive(); }
   
 public:
 
@@ -1986,7 +1987,7 @@ public:
 
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec(void);
-  bool is_expensive() { return 1; }
+  bool is_expensive();
 
   inline Field *get_sp_result_field()
   {

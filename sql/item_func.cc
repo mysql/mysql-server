@@ -6525,6 +6525,19 @@ Item_func_sp::init_result_field(THD *thd)
 
 
 /**
+  @note
+  Deterministic stored procedures are considered inexpensive.
+  Consequently such procedures may be evaluated during optimization,
+  if they are constant (checked by the optimizer).
+*/
+
+bool Item_func_sp::is_expensive()
+{
+  return !(m_sp->m_chistics->detistic);
+}
+
+
+/**
   @brief Initialize local members with values from the Field interface.
 
   @note called from Item::fix_fields.

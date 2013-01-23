@@ -9151,6 +9151,26 @@ CALL p1(1);
 
 DROP PROCEDURE p1; 
 
+--echo
+--echo MDEV-3900 Optimizer difference between MySQL and MariaDB with stored functions in WHERE clause of UPDATE or DELETE statements
+--echo
+
+CREATE FUNCTION tdn() RETURNS int(7) DETERMINISTIC RETURN to_days(now());
+
+CREATE TABLE t1 (pk INT NOT NULL AUTO_INCREMENT PRIMARY KEY, daynum INT, a CHAR(1), INDEX(daynum), INDEX(a)) ENGINE=MyISAM;
+INSERT INTO t1 (daynum) VALUES (1),(2),(3),(4),(5),(TO_DAYS(NOW())),(7),(8);
+INSERT INTO t1 (daynum) SELECT a1.daynum FROM t1 a1, t1 a2, t1 a3, t1 a4, t1 a5;
+
+FLUSH TABLES;
+FLUSH STATUS;
+
+SHOW STATUS LIKE '%Handler_read%';
+UPDATE t1 SET a = '+' WHERE daynum=tdn();
+SHOW STATUS LIKE '%Handler_read%';
+
+drop function tdn;
+drop table t1;
+
 --echo #
 --echo # lp:1002157 : testing stored function
 --echo # bug#62125        result for null incorrectly yields 1292 warning.
