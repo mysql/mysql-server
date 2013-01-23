@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1146,33 +1146,40 @@ btr_cur_optimistic_insert(
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
 		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, zip_size) - 1;
+			cursor->index->n_fields, zip_size);
 		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
 
 		ut_ad(dict_table_is_comp(index->table));
 
-		/* There should be enough room for two node pointer
-		records on an empty non-leaf page.  This prevents
-		infinite page splits. */
-
-		if (UNIV_LIKELY(entry->n_fields >= n_uniq)
-		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
-				     + rec_get_converted_size_comp_prefix(
-					     index, entry->fields, n_uniq,
-					     NULL)
-				     /* On a compressed page, there is
-				     a two-byte entry in the dense
-				     page directory for every record.
-				     But there is no record header. */
-				     - (REC_N_NEW_EXTRA_BYTES - 2)
-				     > free_space_zip / 2)) {
-
+		if (free_space_zip == 0) {
+too_big:
 			if (big_rec_vec) {
 				dtuple_convert_back_big_rec(
 					index, entry, big_rec_vec);
 			}
 
 			return(DB_TOO_BIG_RECORD);
+		}
+
+		/* Subtract one byte for the encoded heap_no in the
+		modification log. */
+		free_space_zip--;
+
+		/* There should be enough room for two node pointer
+		records on an empty non-leaf page.  This prevents
+		infinite page splits. */
+
+		if (entry->n_fields >= n_uniq
+		    && (REC_NODE_PTR_SIZE
+			+ rec_get_converted_size_comp_prefix(
+				index, entry->fields, n_uniq, NULL)
+			/* On a compressed page, there is
+			a two-byte entry in the dense
+			page directory for every record.
+			But there is no record header. */
+			- (REC_N_NEW_EXTRA_BYTES - 2)
+			> free_space_zip / 2)) {
+			goto too_big;
 		}
 	}
 
