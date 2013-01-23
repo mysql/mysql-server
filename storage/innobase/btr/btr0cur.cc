@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 Copyright (c) 2012, Facebook Inc.
 
@@ -4253,12 +4253,12 @@ btr_blob_free(
 	    && buf_block_get_space(block) == space
 	    && buf_block_get_page_no(block) == page_no) {
 
-		if (!buf_LRU_free_block(&block->page, all)
+		if (!buf_LRU_free_page(&block->page, all)
 		    && all && block->page.zip.data) {
 			/* Attempt to deallocate the uncompressed page
 			if the whole block cannot be deallocted. */
 
-			buf_LRU_free_block(&block->page, FALSE);
+			buf_LRU_free_page(&block->page, false);
 		}
 	}
 
