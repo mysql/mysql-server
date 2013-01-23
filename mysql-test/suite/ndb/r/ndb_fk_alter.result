@@ -78,7 +78,7 @@ drop table parent, child;
 CREATE TABLE bug46599a (
 b VARCHAR(2), PRIMARY KEY(b)) ENGINE=ndb;
 CREATE TABLE bug46599b (b VARCHAR(2),
-FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
+CONSTRAINT fk1 FOREIGN KEY (b) REFERENCES bug46599a (b)) ENGINE=Ndb;
 INSERT INTO bug46599a VALUES ('b');
 INSERT INTO bug46599b VALUES ('b'), (NULL);
 INSERT INTO bug46599b VALUES ('');
@@ -91,7 +91,7 @@ b
 NULL
 b
 ALTER TABLE bug46599b MODIFY COLUMN b VARCHAR(2) NOT NULL DEFAULT '';
-ERROR HY000: Cannot change column 'b': used in a foreign key constraint 'FK_10_13'
+ERROR HY000: Cannot change column 'b': used in a foreign key constraint 'fk1'
 SELECT * FROM bug46599b;
 b
 NULL
