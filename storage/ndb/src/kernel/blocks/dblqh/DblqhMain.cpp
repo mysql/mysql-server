@@ -2787,6 +2787,16 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
 
   ndbrequire(Tlength <= 25);
   MEMCOPY_NO_WORDS(&TpackedData[0], &signal->theData[0], Tlength);
+
+  if (VERIFY_PACKED_RECEIVE)
+  {
+    ndbrequire(PackedSignal::verify(&TpackedData[0], 
+                                    Tlength, 
+                                    cownref,
+                                    LQH_RECEIVE_TYPES, 
+                                    TcommitLen));
+  }
+
   while (Tlength > Tstep) {
     switch (TpackedData[Tstep] >> 28) {
     case ZCOMMIT:
@@ -3115,6 +3125,14 @@ void Dblqh::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
   MEMCOPY_NO_WORDS(&signal->theData[0],
                    &ahostptr->packedWordsLqh[0],
                    noOfWords);
+  if (VERIFY_PACKED_SEND)
+  {
+    ndbrequire(PackedSignal::verify(&signal->theData[0],
+                                    noOfWords,
+                                    hostRef,
+                                    LQH_RECEIVE_TYPES,
+                                    5)); /* Commit signal length */
+  }
   sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
   ahostptr->noOfPackedWordsLqh = 0;
 }//Dblqh::sendPackedSignalLqh()
@@ -3126,6 +3144,14 @@ void Dblqh::sendPackedSignalTc(Signal* signal, HostRecord * ahostptr)
   MEMCOPY_NO_WORDS(&signal->theData[0],
                    &ahostptr->packedWordsTc[0],
                    noOfWords);
+  if (VERIFY_PACKED_SEND)
+  {
+    ndbrequire(PackedSignal::verify(&signal->theData[0],
+                                    noOfWords,
+                                    hostRef,
+                                    TC_RECEIVE_TYPES,
+                                    0)); /* Irrelevant for TC */
+  }
   sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
   ahostptr->noOfPackedWordsTc = 0;
 }//Dblqh::sendPackedSignalTc()

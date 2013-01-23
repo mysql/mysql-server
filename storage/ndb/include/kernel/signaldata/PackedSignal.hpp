@@ -29,8 +29,21 @@
 #define ZLQHKEYCONF 4
 #define ZREMOVE_MARKER 5
 
-class PackedSignal {
+// Definitions for verification of packed signals
+static const int VERIFY_PACKED_SEND = 1;
+#ifdef VM_TRACE
+static const int VERIFY_PACKED_RECEIVE = 1;
+#else
+static const int VERIFY_PACKED_RECEIVE = 0;
+#endif
+static const int LQH_RECEIVE_TYPES = ((1 << ZCOMMIT) + (1 << ZCOMPLETE) + (1 << ZLQHKEYCONF) + (1 << ZREMOVE_MARKER));
+static const int TC_RECEIVE_TYPES = ((1 << ZCOMMITTED) + (1 << ZCOMPLETED) + (1 << ZLQHKEYCONF));
 
+class PackedSignal {
+public:
+  static bool verify(const Uint32* data, Uint32 len, Uint32 typesExpected, Uint32 commitLen, Uint32 receiverBlockNo);
+
+private:
   static Uint32 getSignalType(Uint32 data);
 
   /**
