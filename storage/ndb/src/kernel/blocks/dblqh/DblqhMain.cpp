@@ -3348,6 +3348,16 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
 
   ndbrequire(Tlength <= 25);
   MEMCOPY_NO_WORDS(&TpackedData[0], &signal->theData[0], Tlength);
+
+  if (VERIFY_PACKED_RECEIVE)
+  {
+    ndbrequire(PackedSignal::verify(&TpackedData[0], 
+                                    Tlength, 
+                                    cownref,
+                                    LQH_RECEIVE_TYPES, 
+                                    TcommitLen));
+  }
+
   while (Tlength > Tstep) {
     switch (TpackedData[Tstep] >> 28) {
     case ZCOMMIT:
@@ -3746,6 +3756,17 @@ void Dblqh::sendPackedSignal(Signal* signal,
   MEMCOPY_NO_WORDS(&signal->theData[0],
                    &container->packedWords[0],
                    noOfWords);
+  if (VERIFY_PACKED_SEND)
+  {
+    int receiveTypes = (refToMain(hostRef) == DBLQH)?
+      LQH_RECEIVE_TYPES:
+      TC_RECEIVE_TYPES;
+    ndbrequire(PackedSignal::verify(&signal->theData[0],
+                                    noOfWords,
+                                    hostRef,
+                                    receiveTypes,
+                                    5)); /* Commit signal length */
+  }
   sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
 }
 
