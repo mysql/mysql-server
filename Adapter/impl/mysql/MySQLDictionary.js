@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -82,8 +82,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     var result = [];
     var i, j;
     for (i = 0; i < columnNames.length; ++i) {
-      udebug.log_detail('convertColumnNamesToNumbers looking for: ', 
-                         columnNames[i],' in ', columns);
+      udebug.log_detail('convertColumnNamesToNumbers looking for: ', columnNames[i]);
       for (j = 0; j < columns.length; ++j) {
         if (columnNames[i] == columns[j].name) {
           result.push(j);
@@ -109,7 +108,13 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     var columnNumber = 0;
     // first line has table name which we ignore because we already know it
     for (i = 1; i < lines.length; ++i) {
+      var defaultValue;    // if DEFAULT is not specified, defaultValue is undefined
+      var rawDefaultValue; // if DEFAULT is specified, this is the raw text following DEFAULT
       var line = lines[i];
+      if (line[line.length - 1] === ',') {
+        // remove trailing comma from line
+        line = line.substr(0, line.length - 1);
+      }
       udebug.log_detail('\n parseCreateTable:', line);
       var tokens = line.split(' ');
       var j = 0; // index into tokens in the line
@@ -125,17 +130,17 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // found primary key definition
         j+= 2; // skip 'PRIMARY KEY'
         var index = {};
-        index['name'] = 'PRIMARY';
+        index.name = 'PRIMARY';
         udebug.log_detail('parseCreateTable PRIMARY:', token);
-        index['isPrimaryKey'] = true;
-        index['isUnique'] = true;
-        index['isOrdered'] = true;
+        index.isPrimaryKey = true;
+        index.isUnique = true;
+        index.isOrdered = true;
         var columnNames = tokens[j];
         var indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNames:', indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNumbers: ', indexColumnNumbers);
-        index['columnNumbers'] = indexColumnNumbers;
+        index.columnNumbers = indexColumnNumbers;
         // mark primary key index columns with 'isInPrimaryKey'
         for (var columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
           var columnNumber = indexColumnNumbers[columnNumberIndex];
@@ -159,9 +164,9 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // found key definition, same as unique
         var index = {};
         var indexName = tokens[j].split('`')[1];
-        index['name'] = indexName;
+        index.name = indexName;
         if (unique) {
-          index['isUnique'] = true;
+          index.isUnique = true;
         }
         // get column names
         var columnNames = tokens[++j];
@@ -169,7 +174,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         udebug.log_detail('parseCreateTable KEY indexColumnNames:', indexColumnNames);
         var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
         udebug.log_detail('parseCreateTable KEY indexColumnNumbers:', indexColumnNumbers);
-        index['columnNumbers'] = indexColumnNumbers;
+        index.columnNumbers = indexColumnNumbers;
 
         var usingHash = false;
         // get using statement
@@ -182,7 +187,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           // only HASH
         } else {
           // btree or both
-          index['isOrdered'] = true;
+          index.isOrdered = true;
         }
         udebug.log_detail('parseCreateTable for ', indexName, 'KEY USING HASH:', usingHash);
         indexes.push(index);
@@ -224,6 +229,34 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         udebug.log_detail('parseCreateTable for:', columnName, ': unsigned: ', unsigned);
         column.isUnsigned = unsigned;
 
+        // add extra metadata specific to type
+        switch (columnType) {
+        case 'tinyint':   column.intSize = 1; column.isIntegral = true; break;
+        case 'smallint':  column.intSize = 2; column.isIntegral = true; break;
+        case 'mediumint': column.intSize = 3; column.isIntegral = true; break;
+        case 'int':       column.intSize = 4; column.isIntegral = true; break;
+        case 'bigint':    column.intSize = 8; column.isIntegral = true; break;
+
+        case 'decimal' :
+          column.precision = getPrecision(columnSize); 
+          column.scale = getScale(columnSize); 
+          break;
+        case 'binary':
+        case 'varbinary':
+          column.isBinary = true;
+          column.length = parseInt(columnSize);
+          break;
+        case 'char':
+        case 'varchar':
+          column.length = parseInt(columnSize);
+          break;
+        case 'blob':
+          column.isBinary = true;
+          break;
+        }
+        
+        // continue parsing the rest of the column definition line
+
         // check for character set
         if (tokens[j] == 'CHARACTER') {
           var charset = tokens[j + 2];
@@ -234,7 +267,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           if (tokens[j] == 'COLLATE') {
             var collation = tokens[j + 1];
             udebug.log_detail('parseCreateTable for: ', columnName, ': collation: ', collation);
-            column['collationName'] = collation;
+            column.collationName = collation;
             j+= 2; // skip 'COLLATE collation'
           }
         }
@@ -245,33 +278,24 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         udebug.log_detail('parseCreateTable for: ', columnName, ' NOT NULL: ', !nullable);
         column.isNullable = nullable;
         if (tokens[j] == 'DEFAULT') {
-          udebug.log_detail('parseCreateTable for: ', columnName, ': DEFAULT: ', tokens[j]);
+          rawDefaultValue = tokens[j + 1];
+          if (rawDefaultValue === 'NULL') {
+            // default value is null
+            defaultValue = null;
+          } else if (rawDefaultValue[0] === '\'') {
+            // default value is a quoted string; strip leading and trailing quotes
+            defaultValue = rawDefaultValue.substr(1, rawDefaultValue.length -2);
+            if (column.isIntegral) {
+              defaultValue = parseInt(defaultValue);
+            }
+          }
+          udebug.log_detail('parseCreateTable for:', columnName,
+              'DEFAULT:', rawDefaultValue, 'defaultValue:', typeof(defaultValue), defaultValue);
+          // add defaultValue to model
+          column.defaultValue = defaultValue;
+          j += 2; // skip 'DEFAULT <value>'
         }
 
-        // add extra metadata specific to type
-        switch (columnType) {
-        case 'tinyint':   column['intSize'] = 1; column['isIntegral'] = true; break;
-        case 'smallint':  column['intSize'] = 2; column['isIntegral'] = true; break;
-        case 'mediumint': column['intSize'] = 3; column['isIntegral'] = true; break;
-        case 'int':       column['intSize'] = 4; column['isIntegral'] = true; break;
-        case 'bigint':    column['intSize'] = 8; column['isIntegral'] = true; break;
-
-        case 'decimal' :
-          column['precision'] = getPrecision(columnSize); 
-          column['scale'] = getScale(columnSize); 
-          break;
-        case 'binary':
-        case 'varbinary':
-          column['isBinary'] = true;
-          // continue to set columnSize
-        case 'char':
-        case 'varchar':
-          column['length'] = parseInt(columnSize);
-          break;
-        case 'blob':
-          column['isBinary'] = true;
-          break;
-        }
         // add the column description metadata
         columns.push(column);
         break;
