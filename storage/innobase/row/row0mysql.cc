@@ -66,8 +66,6 @@ Created 9/17/2000 Heikki Tuuri
 #ifdef UNIV_DEBUG
 /** The index number of the second secondary */
 #define INDEX_NUM_SECOND_SECONDARY	3
-/** The time of waiting for redo record is written into redo log */
-#define TIME_WAIT_RECORD_INTO_REDO_LOG	90
 #endif /* UNIV_DEBUG */
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
@@ -3545,7 +3543,7 @@ row_truncate_table_for_mysql(
 			/* Waiting for MLOG_FILE_TRUNCATE record is written
 			into redo log before the crash. */
 			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
-					sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+					log_buffer_flush_to_disk(););
 			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
 					DBUG_SUICIDE(););
 		}
@@ -3646,7 +3644,7 @@ next_rec:
 			/* Waiting for MLOG_FILE_TRUNCATE record is written
 			into redo log before the crash. */
 			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
-				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+				log_buffer_flush_to_disk(););
 			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
 				DBUG_SUICIDE(););
 		}
@@ -3843,13 +3841,13 @@ funct_exit:
 		/* Waiting for MLOG_FILE_TRUNCATE record is written into
 		redo log before the crash. */
 		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
-				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+				log_buffer_flush_to_disk(););
 		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
 
+		/* TODO: do not need to make the checkpoint after
+		global data dictionary is introduced. */
 		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
 
-		DBUG_EXECUTE_IF("crash_after_log_checkpoint",
-				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
 		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
 
 		err = fil_truncate_tablespace(table->space, table->name,
