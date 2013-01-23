@@ -2442,7 +2442,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         if (strcmp(compression_method_s, "quicklz") == 0) {
             args->compression_method = TOKU_QUICKLZ_METHOD;
         } else if (strcmp(compression_method_s, "zlib") == 0) {
-            args->compression_method = TOKU_ZLIB_METHOD;
+            args->compression_method = TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
         } else if (strcmp(compression_method_s, "lzma") == 0) {
             args->compression_method = TOKU_LZMA_METHOD;
         } else if (strcmp(compression_method_s, "none") == 0) {

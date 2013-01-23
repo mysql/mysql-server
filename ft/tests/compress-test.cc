@@ -22,6 +22,7 @@ static void test_compress_buf_method (unsigned char *buf, int i, enum toku_compr
 
 static void test_compress_buf (unsigned char *buf, int i) {
     test_compress_buf_method(buf, i, TOKU_ZLIB_METHOD);
+    test_compress_buf_method(buf, i, TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD);
     test_compress_buf_method(buf, i, TOKU_QUICKLZ_METHOD);
     test_compress_buf_method(buf, i, TOKU_LZMA_METHOD);
 }

@@ -115,6 +115,7 @@ test_main(int argc, char *const argv[])
     parse_args(argc, argv);
     run_test(TOKU_NO_COMPRESSION);
     run_test(TOKU_ZLIB_METHOD);
+    run_test(TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD);
     run_test(TOKU_QUICKLZ_METHOD);
     run_test(TOKU_LZMA_METHOD);
     return 0;
