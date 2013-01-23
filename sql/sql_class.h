@@ -2298,7 +2298,6 @@ public:
 
   /* MTS: Trans prepare timestamp  */
   int64 prepare_seq_no;
-  bool prepare_seq_written;
 
   /* MTS: Trans commit timestamp */
   int64 commit_seq_no;
