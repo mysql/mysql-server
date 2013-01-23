@@ -254,16 +254,6 @@ bool trans_commit_implicit(THD *thd)
   if (trans_check(thd))
     DBUG_RETURN(TRUE);
 
-  /*
-     Theres is no prepare stage in case of implicit commit. We still fetch the
-     prepare seq timestamp nevertheless.
-   */
-  if (!thd->prepare_seq_written)
-  {
-     thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
-     thd->prepare_seq_written= true;
-  }
-
   if (thd->in_multi_stmt_transaction_mode() ||
       (thd->variables.option_bits & OPTION_TABLE_LOCK))
   {

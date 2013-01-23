@@ -1202,12 +1202,11 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   /*
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
-    We will however step the prepare clock here.
   */
-  if (!thd->prepare_seq_written)
+  if (thd->prepare_seq_no == -1)
   {
     thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
-    thd->prepare_seq_written= true;
+    thd->commit_seq_no= mysql_bin_log.commit_clock.get_timestamp();
   }
   return 0;
 }
@@ -5068,20 +5067,21 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
       if (likely (length >= pc_end_offset))
       {
         /* step the commit clock */
-        thd->commit_seq_no= commit_clock.step_clock();
-        thd->prepare_seq_written= false;
         DBUG_PRINT("info", ("MTS:: PTS:=%lld, CTS:=%lld",
                    thd->prepare_seq_no, thd->commit_seq_no));
         uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
         pc_ptr++;
+
         // fix prepare ts
         int8store(pc_ptr, thd->prepare_seq_no);
         pc_ptr+= PREPARE_COMMIT_SEQ_LEN;
         pc_ptr++;
+
         //fix commit ts
         int8store(pc_ptr, thd->commit_seq_no);
+        thd->commit_seq_no= -1;
+        thd->prepare_seq_no= -1;
         pc_fixed= true;
-
       }
       else
       {
@@ -5941,6 +5941,19 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
+    /*
+      Implicit commits like ddl do not have binlog prepare stage
+      so we must fetch the prepare and commit timestamps for these
+      here. We will assume this is where the transaction entered the prepare
+      phase. Other transactions entering here will have thd->prepare_seq_no
+      already written in function ha_commit_trans and will not step the prepare
+      clock or overwrite the commit parent timestamp.
+     */
+    if (thd->prepare_seq_no == -1)
+    {
+      thd->prepare_seq_no= prepare_clock.step_clock();
+      thd->commit_seq_no= commit_clock.get_timestamp();
+    }
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
@@ -6442,7 +6455,11 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     Howver, since we are keeping the lock from the previous stage, we
     need to unlock it if we skip the stage.
+    We must also step commit_clock before the ha_commit_low() is called
+    either in ordered fashion(by the leader of this stage) or by the tread
+    themselves.
    */
+  mysql_bin_log.commit_clock.step_clock();
   if (opt_binlog_order_commits)
   {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,
