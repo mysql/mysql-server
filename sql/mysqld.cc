@@ -774,7 +774,7 @@ int orig_argc;
 char **orig_argv;
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-int init_rsa_keys(void);
+bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 #endif
@@ -4304,6 +4304,7 @@ static void openssl_lock(int mode, openssl_lock_t *lock, const char *file,
 static int init_ssl()
 {
 #ifdef HAVE_OPENSSL
+  ssl_start();
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
 #endif
