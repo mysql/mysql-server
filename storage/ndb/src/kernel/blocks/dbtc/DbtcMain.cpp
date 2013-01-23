@@ -3748,6 +3748,15 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
     TpackDataPtr[2] = Tdata3;
     TpackDataPtr[3] = Tdata4;
   }//for
+
+  if (VERIFY_PACKED_RECEIVE)
+  {
+    ndbrequire(PackedSignal::verify(&TpackedData[0],
+                                    Tlength,
+                                    cownref,
+                                    TC_RECEIVE_TYPES,
+                                    0)); /* Irrelevant */
+  }
   while (Tlength > Tstep) {
 
     TpackDataPtr = &TpackedData[Tstep];
@@ -4325,6 +4334,15 @@ void Dbtc::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
     signal->theData[Tj + 3] = sig3;
   }//for
   ahostptr->noOfPackedWordsLqh = 0;
+  if (VERIFY_PACKED_SEND)
+  {
+    ndbrequire(Tj >= TnoOfWords - 1);
+    ndbrequire(PackedSignal::verify(&signal->theData[0],
+                                    TnoOfWords,
+                                    ahostptr->hostLqhBlockRef,
+                                    LQH_RECEIVE_TYPES,
+                                    5)); /* Commit signal length */
+  }
   sendSignal(ahostptr->hostLqhBlockRef,
              GSN_PACKED_SIGNAL,
              signal,
