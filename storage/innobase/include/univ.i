@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -151,6 +151,13 @@ be excluded from instrumentation. */
 # define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
 
 # define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
+/* For PSI_MUTEX_CALL() and similar. */
+#include "pfs_thread_provider.h"
+#include "mysql/psi/mysql_thread.h"
+/* For PSI_FILE_CALL(). */
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #endif /* HAVE_PSI_INTERFACE */
 
