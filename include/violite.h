@@ -173,6 +173,7 @@ void free_vio_ssl_acceptor_fd(struct st_VioSSLFd *fd);
 #endif /* ! EMBEDDED_LIBRARY */
 #endif /* HAVE_OPENSSL */
 
+void ssl_start(void);
 void vio_end(void);
 
 #ifdef  __cplusplus
