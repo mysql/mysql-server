@@ -22,9 +22,11 @@ create table product_order (
   customer_id int not null,
   primary key(no),
   index (product_category, product_id),
+  constraint fk1
   foreign key (product_category, product_id) references product(category, id)
     on update restrict on delete cascade,
   index (customer_id),
+  constraint fk2
   foreign key (customer_id) references customer(id))
 engine=ndb;
 

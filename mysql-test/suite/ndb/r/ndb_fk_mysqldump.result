@@ -15,9 +15,11 @@ product_id int not null,
 customer_id int not null,
 primary key(no),
 index (product_category, product_id),
+constraint fk1
 foreign key (product_category, product_id) references product(category, id)
 on update restrict on delete cascade,
 index (customer_id),
+constraint fk2
 foreign key (customer_id) references customer(id))
 engine=ndb;
 show create table product;
@@ -44,8 +46,8 @@ product_order	CREATE TABLE `product_order` (
   PRIMARY KEY (`no`),
   KEY `product_category` (`product_category`,`product_id`),
   KEY `customer_id` (`customer_id`),
- CONSTRAINT `FK_10_16` FOREIGN KEY(`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
- CONSTRAINT `FK_12_17` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+ CONSTRAINT `fk1` FOREIGN KEY(`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+ CONSTRAINT `fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 insert into product values (1,1,5);
 insert into customer value (1);
@@ -74,7 +76,7 @@ product_order	CREATE TABLE `product_order` (
   PRIMARY KEY (`no`),
   KEY `product_category` (`product_category`,`product_id`),
   KEY `customer_id` (`customer_id`),
- CONSTRAINT `FK_10_16` FOREIGN KEY(`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
- CONSTRAINT `FK_12_17` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
+ CONSTRAINT `fk1` FOREIGN KEY(`product_category`,`product_id`) REFERENCES `product` (`category`,`id`) ON DELETE CASCADE ON UPDATE RESTRICT,
+ CONSTRAINT `fk2` FOREIGN KEY(`customer_id`) REFERENCES `customer` (`id`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster AUTO_INCREMENT=2 DEFAULT CHARSET=latin1
 drop table product, customer, product_order;
