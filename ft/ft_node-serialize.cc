@@ -1720,7 +1720,9 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     r = 0;
 
 cleanup:
-    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
+    if (r == 0) {
+        toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
+    }
     if (r != 0) {
         if (node) {
             toku_free(*ndd);
@@ -2386,11 +2388,11 @@ deserialize_ftnode_from_rbuf(
     r = 0;
 
 cleanup:
-
-    t1 = toku_time_now();
-    deserialize_time = (t1 - t0) - decompress_time;
-    toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
-
+    if (r == 0) {
+        t1 = toku_time_now();
+        deserialize_time = (t1 - t0) - decompress_time;
+        toku_ft_status_update_deserialize_times(node, deserialize_time, decompress_time);
+    }
     if (r != 0) {
         // NOTE: Right now, callers higher in the stack will assert on
         // failure, so this is OK for production.  However, if we
@@ -2400,7 +2402,6 @@ cleanup:
             toku_free(node);
         }
     }
-
     return r;
 }
 
