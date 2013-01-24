@@ -1064,7 +1064,7 @@ log-bin (No default value)
 log-bin-index (No default value)
 log-bin-trust-function-creators FALSE
 log-bin-use-v1-row-events FALSE
-log-error 
+log-error STDERR
 log-isam myisam.log
 log-output FILE
 log-queries-not-using-indexes FALSE
