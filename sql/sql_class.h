@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,9 +37,15 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 
+#include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+
+#include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
+
+#include <pfs_idle_provider.h>
 #include <mysql/psi/mysql_idle.h>
+
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
 
@@ -2389,9 +2395,9 @@ public:
 #ifndef __WIN__
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
+
   Vio* active_vio;
-#endif
+
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
@@ -3009,21 +3015,22 @@ public:
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
+
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   inline void clear_active_vio()
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   void shutdown_active_vio();
-#endif
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */

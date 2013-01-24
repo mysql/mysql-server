@@ -45,7 +45,9 @@ struct OSBasicMutex {
 
 	~OSBasicMutex() UNIV_NOTHROW
 	{
-		ut_ad(m_freed || srv_force_recovery_crash);
+		// FIXME: This invariant doesn't hold if we exit
+		// without invoking the shutdown code.
+		//ut_ad((m_freed);
 	}
 
 	/** Required for os_event_t */
@@ -601,7 +603,9 @@ struct TTASWaitMutex {
  
 	~TTASWaitMutex()
 	{
-		ut_ad(m_event == 0 || srv_force_recovery_crash);
+		// FIXME: This invariant doesn't hold if we exit
+		// without invoking the shutdown code.
+		//ut_ad(m_event == 0 || srv_force_recovery_crash);
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
  

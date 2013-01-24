@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -960,11 +960,15 @@ sync_array_print_long_waits(
 
 		sync_array_t*	arr = sync_wait_array[i];
 
+		sync_array_enter(arr);
+
 		if (sync_array_print_long_waits_low(
 				arr, waiter, sema, &noticed)) {
 
 			fatal = TRUE;
 		}
+
+		sync_array_exit(arr);
 	}
 
 	if (noticed) {

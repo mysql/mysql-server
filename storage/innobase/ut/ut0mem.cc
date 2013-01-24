@@ -41,12 +41,12 @@ if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
 UNIV_INTERN ulint		ut_total_allocated_memory	= 0;
 
 /** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
-UNIV_INTERN SysMutex	ut_list_mutex;
+UNIV_INTERN SysMutex		ut_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	ut_list_mutex_key;
-#endif
+#endif /* UNIV_PFS_MUTEX */
 
 /** Dynamically allocated memory block */
 struct ut_mem_block_t{

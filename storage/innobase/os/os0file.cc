@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -1714,7 +1714,9 @@ os_file_create_func(
 		return((os_file_t) -1);
 	}
 
-	ut_a(type == OS_LOG_FILE || type == OS_DATA_FILE);
+	ut_a(type == OS_LOG_FILE
+	     || type == OS_DATA_FILE
+	     || type == OS_DATA_TEMP_FILE);
 	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);
 
 #ifdef O_SYNC
@@ -1759,7 +1761,7 @@ os_file_create_func(
 
 	if (!srv_read_only_mode
 	    && *success
-	    && type != OS_LOG_FILE
+	    && (type != OS_LOG_FILE && type != OS_DATA_TEMP_FILE)
 	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
 		|| srv_unix_file_flush_method == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
@@ -3270,13 +3272,6 @@ os_file_get_status(
 
 	return(DB_SUCCESS);
 }
-
-/* path name separator character */
-#ifdef __WIN__
-#  define OS_FILE_PATH_SEPARATOR	'\\'
-#else
-#  define OS_FILE_PATH_SEPARATOR	'/'
-#endif
 
 /****************************************************************//**
 This function returns a new path name after replacing the basename

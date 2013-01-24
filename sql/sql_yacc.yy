@@ -9333,6 +9333,7 @@ simple_expr:
             if (i1 == NULL)
               MYSQL_YYABORT;
             Select->add_ftfunc_to_list(i1);
+            Lex->set_using_match();
             $$= i1;
           }
         | BINARY simple_expr %prec NEG
@@ -11497,7 +11498,7 @@ procedure_analyse_clause:
 
             if ((lex->proc_analyse= new Proc_analyse_params) == NULL)
             {
-              my_error(ER_OUTOFMEMORY, MYF(0));
+              my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR));
               MYSQL_YYABORT;
             }
             
