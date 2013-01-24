@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -141,17 +141,16 @@ class Thread_excursion
 public:
   Thread_excursion(THD *thd)
     : m_original_thd(thd)
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    , m_saved_psi(PSI_server ? PSI_server->get_thread() : NULL)
-#endif
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    , m_saved_psi(PSI_THREAD_CALL(get_thread)())
+#endif /* HAVE_PSI_THREAD_INTERFACE */
   {
   }
 
   ~Thread_excursion() {
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    if (PSI_server)
-      PSI_server->set_thread(m_saved_psi);
-#endif
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread)(m_saved_psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (unlikely(setup_thread_globals(m_original_thd)))
       DBUG_ASSERT(0);                           // Out of memory?!
@@ -163,17 +162,15 @@ public:
    */
   int attach_to(THD *thd)
   {
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-    if (PSI_server)
-      PSI_server->set_thread(thd_get_psi(thd));
-#endif
+#ifdef HAVE_PSI_THREAD_INTERFACE
+    PSI_THREAD_CALL(set_thread)(thd_get_psi(thd));
+#endif /* HAVE_PSI_THREAD_INTERFACE */
 #ifndef EMBEDDED_LIBRARY
     if (unlikely(setup_thread_globals(thd)))
     {
-#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
-      if (PSI_server)
-        PSI_server->set_thread(m_saved_psi);
-#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+#ifdef HAVE_PSI_THREAD_INTERFACE
+      PSI_THREAD_CALL(set_thread)(m_saved_psi);
+#endif /* HAVE_PSI_THREAD_INTERFACE */
       /*
         Indirectly uses pthread_setspecific, which can only return
         ENOMEM or EINVAL. Since store_globals are using correct keys,
@@ -189,19 +186,19 @@ private:
 
   int setup_thread_globals(THD *thd) const {
     int error= 0;
-    THD *original_thd= my_pthread_getspecific(THD*, THR_THD);
-    MEM_ROOT* original_mem_root= my_pthread_getspecific(MEM_ROOT*, THR_MALLOC);
-    if ((error= my_pthread_setspecific_ptr(THR_THD, thd)))
+    THD *original_thd= my_pthread_get_THR_THD();
+    MEM_ROOT ** original_mem_root= my_pthread_get_THR_MALLOC();
+    if ((error= my_pthread_set_THR_THD(thd)))
       goto exit0;
-    if ((error= my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root)))
+    if ((error= my_pthread_set_THR_MALLOC(&thd->mem_root)))
       goto exit1;
     if ((error= set_mysys_var(thd->mysys_var)))
       goto exit2;
     goto exit0;
 exit2:
-    error= my_pthread_setspecific_ptr(THR_MALLOC,  original_mem_root);
+    error= my_pthread_set_THR_MALLOC(original_mem_root);
 exit1:
-    error= my_pthread_setspecific_ptr(THR_THD,  original_thd);
+    error= my_pthread_set_THR_THD(original_thd);
 exit0:
     return error;
   }
@@ -6903,6 +6900,24 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     binlog_accessed_db_names->push_back(after_db, &main_mem_root);
 }
 
+/*
+  Function to check whether the table in query uses a fulltext parser
+  plugin or not.
+
+  @param s - table share pointer.
+
+  @retval TRUE - The table uses fulltext parser plugin.
+  @retval FALSE - Otherwise.
+*/
+static bool inline fulltext_unsafe_set(TABLE_SHARE *s)
+{
+  for (unsigned int i= 0 ; i < s->keys ; i++)
+  {
+    if ((s->key_info[i].flags & HA_USES_PARSER) && s->keys_in_use.is_set(i))
+      return TRUE;
+  }
+  return FALSE;
+}
 
 /**
   Decide on logging format to use for the statement and issue errors
@@ -7179,7 +7194,23 @@ int THD::decide_logging_format(TABLE_LIST *tables)
         is_write= TRUE;
 
         prev_write_table= table->table;
+
+        /*
+          It should be marked unsafe if a table which uses a fulltext parser
+          plugin is modified. See also bug#48183.
+        */
+        if (!lex->is_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN))
+        {
+          if (fulltext_unsafe_set(table->table->s))
+            lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+        }
       }
+      if(lex->get_using_match())
+      {
+        if (fulltext_unsafe_set(table->table->s))
+          lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN);
+      }
+
       flags_access_some_set |= flags;
 
       if (lex->sql_command != SQLCOM_CREATE_TABLE ||

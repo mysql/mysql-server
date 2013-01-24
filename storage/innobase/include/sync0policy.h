@@ -185,8 +185,10 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	/** Destructor */
 	~DebugPolicy() UNIV_NOTHROW
 	{
-		ut_a(m_magic_n == 0 || srv_force_recovery_crash);
-		ut_ad(m_thread_id == 0 || srv_force_recovery_crash);
+		// FIXME: This invariant doesn't hold if we exit
+		// without invoking the shutdown code.
+		//ut_a(m_magic_n == 0 || srv_force_recovery_crash);
+		//ut_ad(m_thread_id == 0 || srv_force_recovery_crash);
 	}
 
 	/** Mutex is being destroyed. */

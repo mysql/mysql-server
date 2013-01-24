@@ -2114,6 +2114,8 @@ lock_rec_lock_fast(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(LOCK_REC_FAIL););
+
 	lock = lock_rec_get_first_on_page(block);
 
 	trx = thr_get_trx(thr);
@@ -2191,8 +2193,9 @@ lock_rec_lock_slow(
 	      || mode - (LOCK_MODE_MASK & mode) == LOCK_REC_NOT_GAP);
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
 
-	trx = thr_get_trx(thr);
+	DBUG_EXECUTE_IF("innodb_report_deadlock", return(DB_DEADLOCK););
 
+	trx = thr_get_trx(thr);
 	trx_mutex_enter(trx);
 
 	lock = lock_rec_has_expl(mode, block, heap_no, trx);

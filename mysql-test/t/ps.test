@@ -2341,9 +2341,10 @@ deallocate prepare abc;
 create procedure proc_1() start slave;
 drop procedure proc_1;
 delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin start slave; return 1; end|
 delimiter ;|
-drop function func_1;
+
 prepare abc from "start slave";
 deallocate prepare abc;
 
@@ -2351,9 +2352,10 @@ deallocate prepare abc;
 create procedure proc_1() stop slave;
 drop procedure proc_1;
 delimiter |;
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
 create function func_1() returns int begin stop slave; return 1; end|
 delimiter ;|
-drop function func_1;
+
 prepare abc from "stop slave";
 deallocate prepare abc;
 
