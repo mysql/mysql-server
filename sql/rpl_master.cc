@@ -843,7 +843,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
-  bool binlog_can_be_corrupted= FALSE;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
 
@@ -1077,8 +1076,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                             "slaves that cannot process them");
           GOTO_ERR;
         }
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
         /*
           mark that this event with "log_pos=0", so the slave
@@ -1196,8 +1193,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                             "slaves that cannot process them");
           GOTO_ERR;
         }
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
         /*
           Fixes the information on the checksum algorithm when a new
@@ -1250,8 +1245,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         break;
 
       case STOP_EVENT:
-        binlog_can_be_corrupted= false;
-        /* FALLTHROUGH */
       case INCIDENT_EVENT:
         skip_group= searching_first_gtid;
         break;
@@ -1291,28 +1284,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       DBUG_PRINT("info", ("EVENT_TYPE %d SEARCHING %d SKIP_GROUP %d file %s pos %lld\n",
                  event_type, searching_first_gtid, skip_group, log_file_name,
                  my_b_tell(&log)));
-
-      /*
-        Introduced this code to make the gcc 4.6.1 compiler happy. When
-        warnings are converted to errors, the compiler complains about
-        the fact that binlog_can_be_corrupted is defined but never used.
-
-        We need to check if this is a dead code or if someone removed any
-        code by mistake.
-
-        /Alfranio
-      */
-      if (binlog_can_be_corrupted)
-      {
-        /*
-           Don't try to print out warning messages because this generates
-           erroneous messages in the error log and causes performance
-           problems.
-
-           /Alfranio
-        */
-      }
-
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, 0/*flags*/, packet, log_file_name, pos)))
@@ -1472,6 +1443,19 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 	  if (thd->server_id==0) // for mysqlbinlog (mysqlbinlog.server_id==0)
 	  {
             mysql_mutex_unlock(log_lock);
+            DBUG_EXECUTE_IF("inject_hb_event_on_mysqlbinlog_dump_thread",
+            {
+              /*
+                Send one HB event (with anything in it, content is irrelevant).
+                We just want to check that mysqlbinlog will be able to ignore it.
+
+                Suicide on failure, since if it happens the entire purpose of the
+                test is comprimised.
+               */
+              if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg) ||
+                  send_heartbeat_event(net, packet, p_coord, current_checksum_alg))
+                DBUG_SUICIDE();
+            });
 	    goto end;
 	  }
 
@@ -1588,8 +1572,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
             break;
 
           case STOP_EVENT:
-            binlog_can_be_corrupted= false;
-            /* FALLTHROUGH */
           case INCIDENT_EVENT:
             skip_group= searching_first_gtid;
             break;

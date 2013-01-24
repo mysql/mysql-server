@@ -2453,6 +2453,10 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
   }
 done:
   my_afree(tmp1);
+  tmp1= remove_leading_zeroes(to, &to->intg);
+  if(to->buf != tmp1)
+    memmove(to->buf, tmp1,
+            (ROUND_UP(to->intg) + ROUND_UP(to->frac)) * sizeof(dec1));
   return error;
 }
 
