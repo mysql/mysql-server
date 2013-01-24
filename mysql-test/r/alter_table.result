@@ -2372,3 +2372,71 @@ t1	CREATE TABLE `t1` (
   KEY `kkk` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 drop table t1;
+#
+# 4) Additional coverage for complex cases in which code
+#    in ALTER TABLE comparing old and new table version
+#    got confused.
+#
+# Once InnoDB starts to support in-place index renaming the result
+# of below statements should stay the same. Information about
+# indexes returned by SHOW CREATE TABLE (from .FRM) and by
+# InnoDB (from InnoDB data-dictionary) should be consistent.
+#
+create table t1 ( a int, b int, c int, d int,
+primary key (a), index i1 (b), index i2 (c) ) engine=innodb;
+alter table t1 add index i1 (d), rename index i1 to x;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `x` (`b`),
+  KEY `i2` (`c`),
+  KEY `i1` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
+information_schema.innodb_sys_indexes as i,
+information_schema.innodb_sys_fields as f
+where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
+order by k, c;
+k	c
+i1	d
+i2	c
+PRIMARY	a
+x	b
+drop table t1;
+create table t1 (a int, b int, c int, d int,
+primary key (a), index i1 (b), index i2 (c)) engine=innodb;
+alter table t1 add index i1 (d), rename index i1 to i2, drop index i2;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i2` (`b`),
+  KEY `i1` (`d`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
+information_schema.innodb_sys_indexes as i,
+information_schema.innodb_sys_fields as f
+where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
+order by k, c;
+k	c
+i1	d
+i2	b
+PRIMARY	a
+drop table t1;
+#
+# The below ALTER TABLE statement should either drop and recreate key
+# under new name, or simply rename it. It should not bring .FRM and
+# InnoDB data-dictionary out of sync thus causing asserts.
+#
+create table t1 (i int, key x(i)) engine=InnoDB;
+alter table t1 drop key x, add key X(i), alter column i set default 10;
+drop table t1;
