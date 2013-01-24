@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -84,6 +84,7 @@
 
 #include "sql_base.h"                           // close_thread_tables
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include "log.h"
 
 /**
   @addtogroup Performance_schema_engine

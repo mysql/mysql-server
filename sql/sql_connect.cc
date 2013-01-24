@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
+#include "log.h"
 
 #include <algorithm>
 
