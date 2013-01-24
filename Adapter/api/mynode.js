@@ -86,7 +86,7 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
       connection.factories[database] = factory;
       connection.count++;
     }
-    user_callback(error, factory); //todo: extra parameters
+    user_callback(error, factory, extra1, extra2, extra3, extra4);
   };
 
   if(typeof(connection) === 'undefined') {
