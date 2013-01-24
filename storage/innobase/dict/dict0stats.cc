@@ -3265,7 +3265,7 @@ dict_stats_delete_from_table_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3305,7 +3305,7 @@ dict_stats_delete_from_index_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3347,7 +3347,7 @@ dict_stats_drop_table(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
@@ -3427,7 +3427,7 @@ dict_stats_rename_in_table_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3475,7 +3475,7 @@ dict_stats_rename_in_index_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3524,7 +3524,7 @@ dict_stats_rename_table(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */

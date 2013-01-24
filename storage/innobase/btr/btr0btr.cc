@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1240,15 +1240,14 @@ btr_page_free_for_ibuf(
 
 /**************************************************************//**
 Frees a file page used in an index tree. Can be used also to (BLOB)
-external storage pages, because the page level 0 can be given as an
-argument. */
+external storage pages. */
 UNIV_INTERN
 void
 btr_page_free_low(
 /*==============*/
 	dict_index_t*	index,	/*!< in: index tree */
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
-	ulint		level,	/*!< in: page level */
+	ulint		level,	/*!< in: page level (ULINT_UNDEFINED=BLOB) */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	fseg_header_t*	seg_header;
@@ -1270,7 +1269,7 @@ btr_page_free_low(
 
 	root = btr_root_get(index, mtr);
 
-	if (level == 0) {
+	if (level == 0 || level == ULINT_UNDEFINED) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 	} else {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
@@ -1278,7 +1277,8 @@ btr_page_free_low(
 
 	fseg_free_page(seg_header,
 		       buf_block_get_space(block),
-		       buf_block_get_page_no(block), mtr);
+		       buf_block_get_page_no(block),
+		       level != ULINT_UNDEFINED, mtr);
 
 	/* The page was marked free in the allocation bitmap, but it
 	should remain buffer-fixed until mtr_commit(mtr) or until it
@@ -1305,6 +1305,7 @@ btr_page_free(
 	ulint		level	= btr_page_get_level(page, mtr);
 
 	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
+	ut_ad(level != ULINT_UNDEFINED);
 	btr_page_free_low(index, block, level, mtr);
 }
 
@@ -1674,7 +1675,7 @@ leaf_loop:
 	fsp0fsp. */
 
 	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF,
-				  &mtr);
+				  true, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1693,7 +1694,7 @@ top_loop:
 #endif /* UNIV_BTR_DEBUG */
 
 	finished = fseg_free_step_not_header(
-		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
+		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, true, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1727,7 +1728,7 @@ btr_free_root(
 	ut_a(btr_root_fseg_validate(header, space));
 #endif /* UNIV_BTR_DEBUG */
 
-	while (!fseg_free_step(header, mtr)) {
+	while (!fseg_free_step(header, true, mtr)) {
 		/* Free the entire segment in small steps. */
 	}
 }

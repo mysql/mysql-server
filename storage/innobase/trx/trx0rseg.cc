@@ -23,8 +23,6 @@ Rollback segment
 Created 3/26/1996 Heikki Tuuri
 *******************************************************/
 
-#include <algorithm>
-
 #include "trx0rseg.h"
 
 #ifdef UNIV_NONINL
@@ -37,6 +35,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "ut0bh.h"
 #include "srv0mon.h"
+
+#include <algorithm>
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register rseg_mutex_key with performance schema */
