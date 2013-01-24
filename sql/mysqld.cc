@@ -80,10 +80,13 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
+#include <pfs_idle_provider.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_statement.h>
+
 #include "mysql_com_server.h"
 
 #include "keycaches.h"
@@ -691,7 +694,9 @@ SHOW_COMP_OPTION have_profiling;
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
+bool THR_MALLOC_initialized= false;
 pthread_key(THD*, THR_THD);
+bool THR_THD_initialized= false;
 mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
@@ -1868,11 +1873,17 @@ void clean_up(bool print_message)
 #endif
   free_list(opt_plugin_load_list_ptr);
 
-  if (THR_THD)
+  if (THR_THD_initialized)
+  {
     (void) pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
+  }
 
-  if (THR_MALLOC)
+  if (THR_MALLOC_initialized)
+  {
     (void) pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
+  }
 
   /*
     The following lines may never be executed as the main thread may have
@@ -4174,12 +4185,16 @@ static int init_thread_environment()
              PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
+  DBUG_ASSERT(! THR_THD_initialized);
+  DBUG_ASSERT(! THR_MALLOC_initialized);
   if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
     return 1;
   }
+  THR_THD_initialized= true;
+  THR_MALLOC_initialized= true;
   return 0;
 }
 
@@ -4341,7 +4356,7 @@ static int generate_server_uuid()
   func_uuid->val_str(&uuid);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
 
   strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
   server_uuid[UUID_LENGTH]= '\0';
@@ -5125,14 +5140,18 @@ int mysqld_main(int argc, char **argv)
 #ifdef HAVE_NPTL
   ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
 #endif
+
 #ifndef _WIN32
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
   {
     fprintf(stderr, "my_init() failed.");
     return 1;
   }
-#endif
+#endif /* _WIN32 */
 
   orig_argc= argc;
   orig_argv= argv;
@@ -5751,6 +5770,10 @@ int mysqld_main(int argc, char **argv)
 
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   if (my_init())
   {
@@ -8416,7 +8439,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_DEFAULT_AUTH:
-    set_default_auth_plugin(argument, strlen(argument));
+    if (set_default_auth_plugin(argument, strlen(argument)))
+    {
+      sql_print_error("Can't start server: "
+                      "Invalid value for --default-authentication-plugin");
+      return 1;
+    }
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)

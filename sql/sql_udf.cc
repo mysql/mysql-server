@@ -250,7 +250,7 @@ end:
   close_mysql_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 
