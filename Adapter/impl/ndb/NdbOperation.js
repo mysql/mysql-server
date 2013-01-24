@@ -189,7 +189,6 @@ function readResultRow(op) {
   udebug.log("readResultRow");
   var i, offset, encoder, value;
   var dbt             = op.tableHandler;
-  // FIXME: Get the mapped record, not the table record
   var record          = dbt.dbTable.record;
   var nfields         = dbt.getMappedFieldCount();
   var col             = dbt.getColumnMetadata();
