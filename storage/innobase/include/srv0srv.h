@@ -829,6 +829,9 @@ struct export_var_t{
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
 	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id
 						- purged view's min trx_id */
+	ulint innodb_ahi_drop_lookups;		/*!< number of adaptive hash
+						index lookups when freeing
+						file pages */
 #endif /* UNIV_DEBUG */
 };
 
