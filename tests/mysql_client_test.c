@@ -15386,6 +15386,7 @@ static void test_change_user()
   const char *pw= "password";
   const char *db= "mysqltest_user_test_database";
   int rc;
+  MYSQL*       conn;
 
   DBUG_ENTER("test_change_user");
   myheader("test_change_user");
@@ -15429,149 +15430,173 @@ static void test_change_user()
   rc= mysql_query(mysql, buff);
   myquery(rc);
 
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
 
   /* Try some combinations */
-  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  rc= mysql_change_user(conn, NULL, NULL, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
 
-  rc= mysql_change_user(mysql, "", NULL, NULL);
+  rc= mysql_change_user(conn, "", NULL, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", "", NULL);
+  rc= mysql_change_user(conn, "", "", NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", "", "");
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, "", "", "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, NULL, "", "");
+  rc= mysql_change_user(conn, NULL, "", "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
 
-  rc= mysql_change_user(mysql, NULL, NULL, "");
+  rc= mysql_change_user(conn, NULL, NULL, "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", NULL, "");
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, "", NULL, "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, NULL, "");
+  rc= mysql_change_user(conn, user_pw, NULL, "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, "", "");
+  rc= mysql_change_user(conn, user_pw, "", "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, "", NULL);
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, user_pw, "", NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, NULL, NULL);
+  rc= mysql_change_user(conn, user_pw, NULL, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, "", db);
+  rc= mysql_change_user(conn, user_pw, "", db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, NULL, db);
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, user_pw, NULL, db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_pw, pw, db);
+  rc= mysql_change_user(conn, user_pw, pw, db);
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_pw, pw, NULL);
+  rc= mysql_change_user(conn, user_pw, pw, NULL);
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_pw, pw, "");
+  rc= mysql_change_user(conn, user_pw, pw, "");
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_no_pw, pw, db);
+  rc= mysql_change_user(conn, user_no_pw, pw, db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_no_pw, pw, "");
+  rc= mysql_change_user(conn, user_no_pw, pw, "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_no_pw, pw, NULL);
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, user_no_pw, pw, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, user_no_pw, "", NULL);
+  rc= mysql_change_user(conn, user_no_pw, "", NULL);
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_no_pw, "", "");
+  rc= mysql_change_user(conn, user_no_pw, "", "");
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_no_pw, "", db);
+  rc= mysql_change_user(conn, user_no_pw, "", db);
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user_no_pw, NULL, db);
+  rc= mysql_change_user(conn, user_no_pw, NULL, db);
   myquery(rc);
 
-  rc= mysql_change_user(mysql, "", pw, db);
+  rc= mysql_change_user(conn, "", pw, db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", pw, "");
+  rc= mysql_change_user(conn, "", pw, "");
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", pw, NULL);
-  DIE_UNLESS(rc);
-  if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
 
-  rc= mysql_change_user(mysql, NULL, pw, NULL);
+  rc= mysql_change_user(conn, "", pw, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, NULL, NULL, db);
+  rc= mysql_change_user(conn, NULL, pw, NULL);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, NULL, "", db);
+  rc= mysql_change_user(conn, NULL, NULL, db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
-  rc= mysql_change_user(mysql, "", "", db);
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, NULL, "", db);
   DIE_UNLESS(rc);
   if (! opt_silent)
-    printf("Got error (as expected): %s\n", mysql_error(mysql));
+    printf("Got error (as expected): %s\n", mysql_error(conn));
+
+  rc= mysql_change_user(conn, "", "", db);
+  DIE_UNLESS(rc);
+  if (! opt_silent)
+    printf("Got error (as expected): %s\n", mysql_error(conn));
 
   /* Cleanup the environment */
 
-  mysql_change_user(mysql, opt_user, opt_password, current_db);
+  mysql_change_user(conn, opt_user, opt_password, current_db);
+
+  mysql_close(conn);
 
   sprintf(buff, "drop database %s", db);
   rc= mysql_query(mysql, buff);
@@ -16234,29 +16259,35 @@ static void test_bug31669()
   static char db[NAME_CHAR_LEN+1];
   static char query[LARGE_BUFFER_SIZE*2];
 #endif
+  MYSQL* conn;
 
   DBUG_ENTER("test_bug31669");
   myheader("test_bug31669");
 
-  rc= mysql_change_user(mysql, NULL, NULL, NULL);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, NULL, NULL, NULL);
   DIE_UNLESS(rc);
 
-  rc= mysql_change_user(mysql, "", "", "");
+  rc= mysql_change_user(conn, "", "", "");
   DIE_UNLESS(rc);
 
   memset(buff, 'a', sizeof(buff));
 
-  rc= mysql_change_user(mysql, buff, buff, buff);
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+
+  rc= mysql_change_user(conn, buff, buff, buff);
   DIE_UNLESS(rc);
 
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  rc = mysql_change_user(conn, opt_user, opt_password, current_db);
   DIE_UNLESS(!rc);
 
 #ifndef EMBEDDED_LIBRARY
   memset(db, 'a', sizeof(db));
   db[NAME_CHAR_LEN]= 0;
   strxmov(query, "CREATE DATABASE IF NOT EXISTS ", db, NullS);
-  rc= mysql_query(mysql, query);
+  rc= mysql_query(conn, query);
   myquery(rc);
 
   memset(user, 'b', sizeof(user));
@@ -16265,53 +16296,58 @@ static void test_bug31669()
   buff[LARGE_BUFFER_SIZE]= 0;
   strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'%' IDENTIFIED BY "
                  "'", buff, "' WITH GRANT OPTION", NullS);
-  rc= mysql_query(mysql, query);
+  rc= mysql_query(conn, query);
   myquery(rc);
 
   strxmov(query, "GRANT ALL PRIVILEGES ON *.* TO '", user, "'@'localhost' IDENTIFIED BY "
                  "'", buff, "' WITH GRANT OPTION", NullS);
-  rc= mysql_query(mysql, query);
+  rc= mysql_query(conn, query);
   myquery(rc);
 
-  rc= mysql_query(mysql, "FLUSH PRIVILEGES");
+  rc= mysql_query(conn, "FLUSH PRIVILEGES");
   myquery(rc);
 
-  rc= mysql_change_user(mysql, user, buff, db);
+  rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(!rc);
 
   user[USERNAME_CHAR_LENGTH-1]= 'a';
-  rc= mysql_change_user(mysql, user, buff, db);
+  rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(rc);
 
   user[USERNAME_CHAR_LENGTH-1]= 'b';
   buff[LARGE_BUFFER_SIZE-1]= 'd';
-  rc= mysql_change_user(mysql, user, buff, db);
+  rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(rc);
 
   buff[LARGE_BUFFER_SIZE-1]= 'c';
   db[NAME_CHAR_LEN-1]= 'e';
-  rc= mysql_change_user(mysql, user, buff, db);
+  rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(rc);
+
+  mysql_close(conn);
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
 
   db[NAME_CHAR_LEN-1]= 'a';
-  rc= mysql_change_user(mysql, user, buff, db);
+  rc= mysql_change_user(conn, user, buff, db);
   DIE_UNLESS(!rc);
 
-  rc= mysql_change_user(mysql, user + 1, buff + 1, db + 1);
+  rc= mysql_change_user(conn, user + 1, buff + 1, db + 1);
   DIE_UNLESS(rc);
 
-  rc = mysql_change_user(mysql, opt_user, opt_password, current_db);
+  rc = mysql_change_user(conn, opt_user, opt_password, current_db);
   DIE_UNLESS(!rc);
 
   strxmov(query, "DROP DATABASE ", db, NullS);
-  rc= mysql_query(mysql, query);
+  rc= mysql_query(conn, query);
   myquery(rc);
 
   strxmov(query, "DELETE FROM mysql.user WHERE User='", user, "'", NullS);
-  rc= mysql_query(mysql, query);
+  rc= mysql_query(conn, query);
   myquery(rc);
-  DIE_UNLESS(mysql_affected_rows(mysql) == 2);
+  DIE_UNLESS(mysql_affected_rows(conn) == 2);
 #endif
+
+  mysql_close(conn);
 
   DBUG_VOID_RETURN;
 }
