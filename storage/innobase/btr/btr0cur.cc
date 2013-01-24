@@ -437,6 +437,7 @@ btr_cur_search_to_nth_level(
 	s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
 
 	ut_ad(!s_latch_by_caller
+	      || srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				   MTR_MEMO_S_LOCK));
 
@@ -550,7 +551,7 @@ btr_cur_search_to_nth_level(
 					MTR_MEMO_X_LOCK));
 		break;
 	default:
-		if (!s_latch_by_caller) {
+		if (!s_latch_by_caller && !srv_read_only_mode) {
 			mtr_s_lock(dict_index_get_lock(index), mtr);
 		}
 	}
@@ -736,7 +737,7 @@ retry_page_get:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
-			if (!s_latch_by_caller) {
+			if (!s_latch_by_caller && !srv_read_only_mode) {
 				/* Release the tree s-latch */
 				mtr_release_s_latch_at_savepoint(
 					mtr, savepoint,
@@ -885,7 +886,9 @@ btr_cur_open_at_index_side_func(
 					MTR_MEMO_S_LOCK));
 		break;
 	default:
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -926,7 +929,7 @@ btr_cur_open_at_index_side_func(
 				latch_mode & ~BTR_ALREADY_S_LATCHED,
 				cursor, mtr);
 
-			if (height == 0) {
+			if (height == 0 && !srv_read_only_mode) {
 				/* In versions <= 3.23.52 we had
 				forgotten to release the tree latch
 				here. If in an index scan we had to
@@ -1022,7 +1025,9 @@ btr_cur_open_at_rnd_pos_func(
 		break;
 	default:
 		ut_ad(latch_mode != BTR_CONT_MODIFY_TREE);
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -4171,7 +4176,8 @@ btr_push_update_extern_fields(
 				InnoDB writes a longer prefix of externally
 				stored columns, so that column prefixes
 				in secondary indexes can be reconstructed. */
-				dfield_set_data(field, (byte*) dfield_get_data(field)
+				dfield_set_data(field,
+						(byte*) dfield_get_data(field)
 						+ dfield_get_len(field)
 						- BTR_EXTERN_FIELD_REF_SIZE,
 						BTR_EXTERN_FIELD_REF_SIZE);

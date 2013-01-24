@@ -7471,14 +7471,12 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-
 		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
 			srv_stats.n_rows_read.inc();
 		} else if (++prebuilt->n_rows_read > 10000) {
 			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
 			prebuilt->n_rows_read = 0;
 		}
-
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;

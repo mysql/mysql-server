@@ -142,7 +142,7 @@ public:
 	void inc() UNIV_NOTHROW { add(1); }
 
 	/** If you can't use a good index id.
-	* @param n  - is the amount to increment */
+	@param n  - is the amount to increment */
 	void add(Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(m_policy.get_rnd_index());
 
@@ -151,7 +151,7 @@ public:
 		m_counter[i] += n;
 	}
 
-	/** Use this if you can use a unique indentifier, saves a
+	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
 	@param i - index into a slot
 	@param n - amount to increment */
@@ -167,7 +167,7 @@ public:
 	void dec() UNIV_NOTHROW { sub(1); }
 
 	/** If you can't use a good index id.
-	* @param - n is the amount to decrement */
+	@param - n is the amount to decrement */
 	void sub(Type n) UNIV_NOTHROW {
 		size_t	i = m_policy.offset(m_policy.get_rnd_index());
 
@@ -176,7 +176,7 @@ public:
 		m_counter[i] -= n;
 	}
 
-	/** Use this if you can use a unique indentifier, saves a
+	/** Use this if you can use a unique identifier, saves a
 	call to get_rnd_index().
 	@param i - index into a slot
 	@param n - amount to decrement */
