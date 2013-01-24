@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@ uint my_get_large_page_size(void)
 /*
   General large pages allocator.
   Tries to allocate memory from large pages pool and falls back to
-  my_malloc_lock() in case of failure
+  my_malloc() in case of failure
 */
 
 uchar* my_large_malloc(size_t size, myf my_flags)
@@ -61,13 +61,13 @@ uchar* my_large_malloc(size_t size, myf my_flags)
       fprintf(stderr, "Warning: Using conventional memory pool\n");
   }
       
-  DBUG_RETURN(my_malloc_lock(size, my_flags));
+  DBUG_RETURN(my_malloc(size, my_flags));
 }
 
 /*
   General large pages deallocator.
   Tries to deallocate memory as if it was from large pages pool and falls back
-  to my_free_lock() in case of failure
+  to my_free() in case of failure
  */
 
 void my_large_free(uchar* ptr)
@@ -76,11 +76,11 @@ void my_large_free(uchar* ptr)
   
   /*
     my_large_free_int() can only fail if ptr was not allocated with
-    my_large_malloc_int(), i.e. my_malloc_lock() was used so we should free it
-    with my_free_lock()
+    my_large_malloc_int(), i.e. my_malloc() was used so we should free it
+    with my_free()
   */
   if (!my_use_large_pages || !my_large_page_size || !my_large_free_int(ptr))
-    my_free_lock(ptr);
+    my_free(ptr);
 
   DBUG_VOID_RETURN;
 }

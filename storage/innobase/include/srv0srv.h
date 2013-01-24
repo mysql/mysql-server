@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -155,8 +155,7 @@ extern char		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
-#define SRV_AUTO_EXTEND_INCREMENT	\
-	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
+#define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
 
 /** Mutex protecting page_zip_stat_per_index */
 extern ib_mutex_t	page_zip_stat_per_index_mutex;
@@ -236,19 +235,9 @@ extern ulint	srv_undo_tablespaces_open;
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
-extern ulint	srv_n_data_files;
-extern char**	srv_data_file_names;
-extern ulint*	srv_data_file_sizes;
-extern ulint*	srv_data_file_is_raw_partition;
-
-extern ibool	srv_auto_extend_last_data_file;
-extern ulint	srv_last_file_size_max;
 extern char*	srv_log_group_home_dir;
+
 #ifndef UNIV_HOTBACKUP
-extern ulong	srv_auto_extend_increment;
-
-extern ibool	srv_created_new_raw;
-
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
@@ -478,14 +467,6 @@ do {								\
 # endif /* UNIV_PFS_THREAD */
 
 #endif /* !UNIV_HOTBACKUP */
-
-/** Types of raw partitions in innodb_data_file_path */
-enum {
-	SRV_NOT_RAW = 0,	/*!< Not a raw partition */
-	SRV_NEW_RAW,		/*!< A 'newraw' partition, only to be
-				initialized */
-	SRV_OLD_RAW		/*!< An initialized raw partition */
-};
 
 /** Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */

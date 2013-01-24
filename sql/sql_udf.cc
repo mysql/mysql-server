@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -249,7 +249,7 @@ end:
   close_mysql_tables(new_thd);
   delete new_thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 

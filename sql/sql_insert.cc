@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1289,6 +1289,20 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
 	error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
 	goto err;
       }
+      /*
+        key index value is either valid in the range [0-MAX_KEY) or
+        has value MAX_KEY as a marker for the case when no information
+        about key can be found. In the last case we have to require
+        that storage engine has the flag HA_DUPLICATE_POS turned on.
+        If this invariant is false then DBUG_ASSERT will crash
+        the server built in debug mode. For the server that was built
+        without DEBUG we have additional check for the value of key_nr
+        in the code below in order to report about error in any case.
+      */
+      DBUG_ASSERT(key_nr != MAX_KEY ||
+                  (key_nr == MAX_KEY &&
+                   (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+
       DEBUG_SYNC(thd, "write_row_replace");
 
       /* Read all columns for the row we are going to replace */
@@ -1308,7 +1322,11 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         if (table->file->ha_rnd_pos(table->record[1],table->file->dup_ref))
           goto err;
       }
-      else
+      /*
+        If the key index is equal to MAX_KEY it's treated as unknown key case
+        and we shouldn't try to locate key info.
+      */
+      else if (key_nr < MAX_KEY)
       {
 	if (table->file->extra(HA_EXTRA_FLUSH_CACHE)) /* Not needed with NISAM */
 	{
@@ -1330,6 +1348,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                        (uchar*) key, HA_WHOLE_KEY,
                                                        HA_READ_KEY_EXACT))))
 	  goto err;
+      }
+      else
+      {
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;         /* Database can't find key */
+        goto err;
       }
       if (duplicate_handling == DUP_UPDATE)
       {
@@ -2404,6 +2431,7 @@ select_create::prepare2()
       extra_lock= 0;
     }
     drop_open_table(thd, table, create_table->db, create_table->table_name);
+    table= 0;
     DBUG_RETURN(1);
   }
   if (extra_lock)
