@@ -1928,8 +1928,7 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -1951,8 +1950,8 @@ btr_cur_update_in_place(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
@@ -2060,7 +2059,7 @@ btr_cur_optimistic_update(
 				cursor stays valid and positioned on the
 				same record */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to NULL or memory heap */
 	const upd_t*	update,	/*!< in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
@@ -2096,8 +2095,8 @@ btr_cur_optimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -2377,8 +2376,8 @@ btr_cur_pessimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
