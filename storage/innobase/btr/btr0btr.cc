@@ -763,10 +763,11 @@ btr_height_get(
 	ulint		height;
 	buf_block_t*	root_block;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK)
+	ut_ad(srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+				   MTR_MEMO_S_LOCK)
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
 
         /* S latches the page */
         root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
@@ -1184,8 +1185,9 @@ btr_get_size(
 	ulint		n;
 	ulint		dummy;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+	ut_ad(srv_read_only_mode
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_S_LOCK));
 
 	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
 	    || *index->name == TEMP_INDEX_PREFIX) {
@@ -1394,8 +1396,9 @@ btr_page_get_father_node_ptr_func(
 	page_no = buf_block_get_page_no(btr_cur_get_block(cursor));
 	index = btr_cur_get_index(cursor);
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(srv_read_only_mode
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
 
 	ut_ad(dict_index_get_page(index) != page_no);
 
@@ -2894,7 +2897,9 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	}
 
-	if (insert_will_fit && page_is_leaf(page)
+	if (!srv_read_only_mode
+	    && insert_will_fit
+	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
 
 		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
@@ -4383,7 +4388,9 @@ btr_validate_level(
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
 	page = buf_block_get_frame(block);
@@ -4447,7 +4454,9 @@ btr_validate_level(
 loop:
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 #ifdef UNIV_ZIP_DEBUG
 	page_zip = buf_block_get_page_zip(block);
@@ -4781,7 +4790,9 @@ btr_validate_index(
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 	bool	ok = true;
 	page_t*	root = btr_root_get(index, &mtr);

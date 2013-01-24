@@ -603,8 +603,14 @@ thread stays suspended (we do not protect our operation with the kernel
 mutex, for performace reasons). */
 UNIV_INTERN
 void
-srv_active_wake_master_thread(void);
-/*===============================*/
+srv_active_wake_master_thread_low(void);
+/*===================================*/
+#define srv_active_wake_master_thread()					\
+	do {								\
+		if (!srv_read_only_mode) {				\
+			srv_active_wake_master_thread_low();		\
+		}							\
+	} while (0)
 /*******************************************************************//**
 Wakes up the master thread if it is suspended or being suspended. */
 UNIV_INTERN
