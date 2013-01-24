@@ -117,4 +117,19 @@ Session extends Context
      */
     void setLockMode(String lockmode);
 
+  
+    /** listTables(database, callback) 
+     *  ASYNC
+     *  
+     *  list tables in database
+     */
+    listTables(databaseName, callback);
+    
+    
+    /** getTableMetadata(databaseName, tableName, callback) 
+     *  ASYNC
+     *
+     *  Fetch metadata for table 
+     */
+    getTableMetadata(databaseName, tableName, callback);
 }

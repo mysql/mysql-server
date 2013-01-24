@@ -40,7 +40,7 @@ function Session(index, sessionFactory, dbSession) {
 exports.Session = Session;
 
 exports.Session.prototype.getTableMetadata = function() {
-  var context = new userContext.UserContext(arguments, 4, 2, this, this.sessionFactory);
+  var context = new userContext.UserContext(arguments, 3, 2, this, this.sessionFactory);
   // delegate to context's getTableMetadata for execution
   context.getTableMetadata();
 };

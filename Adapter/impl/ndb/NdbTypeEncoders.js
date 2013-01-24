@@ -23,10 +23,9 @@
 
 "use strict";
 
-var // util = require(path.join(build_dir, "ndb_adapter.node")).ndb.util,
+var nativeEnc = require(path.join(build_dir, "ndb_adapter.node")).ndb.encoders,
     // charsetMap = null,
     udebug     = unified_debug.getLogger("NdbTypeEncoders.js");
-
 
 function init() {
   udebug.log("init()");
@@ -84,6 +83,29 @@ bigIntEncoder.read = function(col, buffer, offset) {
    var value = buffer.readInt32LE(offset);
    return value.toString();
 };
+
+
+/* FLOAT */
+var floatEncoder = new NdbEncoder();
+floatEncoder.write = function write(col, value, buffer, offset) {
+  nativeEnc.writeFloat(value, buffer, offset);
+};
+
+floatEncoder.read = function read(col, buffer, offset) {
+  return nativeEnc.readFloat(buffer, offset);
+};
+
+
+/* DOUBLE */
+var doubleEncoder = new NdbEncoder();
+doubleEncoder.write = function write(col, value, buffer, offset) {
+  nativeEnc.writeDouble(value, buffer, offset);
+};
+
+doubleEncoder.read = function read(col, buffer, offset) {
+  return nativeEnc.readDouble(buffer, offset);
+};
+
 
 // pad string with spaces for CHAR column
 var spaces = String('                                             ');
@@ -232,8 +254,8 @@ var defaultTypeEncoders = [
   makeIntEncoder("UInt",32),              // 8  UNSIGNED
   bigIntEncoder,         /*fixme*/        // 9  BIGINT
   bigIntEncoder,         /*fixme*/        // 10 BIG UNSIGNED
-  null,                                   // 11
-  null,                                   // 12
+  floatEncoder,                           // 11 FLOAT
+  doubleEncoder,                          // 12 DOUBLE
   null,                                   // OLDDECIMAL
   CharEncoder,                            // 14 CHAR
   VarcharEncoder,                         // 15 VARCHAR
