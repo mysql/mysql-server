@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5948,6 +5948,31 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
 
 
 /**
+  Initialize TABLE::field for the new table with appropriate
+  column defaults. Can be default values from TABLE_SHARE or
+  function defaults from Create_field.
+
+  @param altered_table  TABLE object for the new version of the table.
+  @param create         Create_field containing function defaults.
+*/
+
+static void set_column_defaults(TABLE *altered_table,
+                                List<Create_field> &create)
+{
+  // Initialize TABLE::field default values
+  restore_record(altered_table, s->default_values);
+
+  List_iterator<Create_field> iter(create);
+  for (uint i= 0; i < altered_table->s->fields; ++i)
+  {
+    const Create_field *definition= iter++;
+    if (definition->field == NULL) // this column didn't exist in old table.
+      altered_table->field[i]->evaluate_insert_default_function();
+  }
+}
+
+
+/**
   Compare two tables to see if their metadata are compatible.
   One table specified by a TABLE instance, the other using Alter_info
   and HA_CREATE_INFO.
@@ -8007,6 +8032,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     altered_table->column_bitmaps_set_no_signal(&altered_table->s->all_set,
                                                 &altered_table->s->all_set);
 
+    set_column_defaults(altered_table, alter_info->create_list);
+
     if (ha_alter_info.handler_flags == 0)
     {
       /*
@@ -8649,7 +8676,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (ignore && !alter_ctx->fk_error_if_delete_row)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->get_stmt_da()->reset_current_row_for_warning();
-  restore_record(to, s->default_values);        // Create empty record
+
+  set_column_defaults(to, create);
+
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -8677,19 +8706,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-
-    /* Set the function defaults. */
-    List_iterator<Create_field> iter(create);
-    for (uint i= 0; i < to->s->fields; ++i)
-    {
-      const Create_field *definition= iter++;
-      if (definition->field == NULL) // this column didn't exist in old table.
-      {
-        Field *column= to->field[i];
-        if (column->has_insert_default_function())
-          column->evaluate_insert_default_function();
-      }            
-    }
 
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;
