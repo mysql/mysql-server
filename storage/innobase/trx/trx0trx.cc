@@ -1366,7 +1366,10 @@ trx_assign_read_view(
 {
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (trx->read_view != NULL) {
+	if (srv_read_only_mode) {
+		ut_ad(trx->read_view == 0);
+		return(NULL);
+	} else if (trx->read_view != NULL) {
 		return(trx->read_view);
 	}
 
