@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2069,8 +2069,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
-    if (check_if_log_table(table->db_length, table->db,
-                           table->table_name_length, table->table_name, true))
+    if (query_logger.check_if_log_table(table, true))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
@@ -7560,14 +7559,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     it is the case.
     TODO: this design is obsolete and will be removed.
   */
-  int table_kind= check_if_log_table(table_list->db_length, table_list->db,
-                                     table_list->table_name_length,
-                                     table_list->table_name, false);
+  enum_log_table_type table_kind=
+    query_logger.check_if_log_table(table_list, false);
 
-  if (table_kind)
+  if (table_kind != QUERY_LOG_NONE)
   {
-    /* Disable alter of enabled log tables */
-    if (logger.is_log_table_enabled(table_kind))
+    /* Disable alter of enabled query log tables */
+    if (query_logger.is_log_table_enabled(table_kind))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
       DBUG_RETURN(true);
