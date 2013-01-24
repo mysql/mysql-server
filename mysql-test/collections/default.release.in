@@ -5,7 +5,7 @@
 # include default.weekly
 
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=debug      --vardir=var-debug --skip-rpl --report-features --debug-server
-perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features
+perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=normal     --vardir=var-normal --report-features --unit-tests
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=ps         --vardir=var-ps --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs1+ps  --vardir=var-funcs_1_ps --suite=funcs_1  --ps-protocol
 perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collections/default.experimental --comment=funcs2     --vardir=var-funcs2     --suite=funcs_2

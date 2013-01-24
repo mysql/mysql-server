@@ -27,12 +27,10 @@ Created June 2005 by Marko Makela
 #include <map>
 #include <algorithm>
 
-#define THIS_MODULE
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
-#undef THIS_MODULE
 #include "page0page.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
