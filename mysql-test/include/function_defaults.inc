@@ -1044,7 +1044,7 @@ SET TIME_ZONE = "+03:00";
 --echo # 1970-01-01 03:16:40
 SET TIMESTAMP = 1000.123456;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp) ENGINE = INNODB;
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp);
 
 SHOW CREATE TABLE t1;
 
@@ -1101,10 +1101,10 @@ eval CREATE TABLE t1 (
   b INT,
   ts $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   PRIMARY KEY ( a, ts )
-) ENGINE = INNODB;
+);
 INSERT INTO t1( a, b, ts ) VALUES ( 1, 0, '2000-09-28 17:44:34' );
 
-eval CREATE TABLE t2 ( a INT ) ENGINE = INNODB;
+CREATE TABLE t2 ( a INT );
 INSERT INTO t2 VALUES ( 1 );
 
 UPDATE t1 STRAIGHT_JOIN t2
@@ -1122,7 +1122,7 @@ DROP TABLE t1, t2;
 SET timestamp = 1000;
 
 CREATE TABLE t1 ( b INT );
-INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (1),(2);
 
 eval ALTER TABLE t1 ADD COLUMN a6 $datetime DEFAULT $now ON UPDATE $now FIRST;
 eval ALTER TABLE t1 ADD COLUMN a5 $datetime DEFAULT $now FIRST;
