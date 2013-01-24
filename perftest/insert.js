@@ -26,10 +26,11 @@ var mynode = require(".."),
 
 function usage() {
   var msg = "" +
-  "Usage:  node ndb_loader [options] control-file\n"
-  "   -d    :  Enable debug output\n"
-  "   -l    :  Test latency\n"
-  "   -t    :  Test throughput\n"
+  "Usage:  node insert [options]\n" +
+  "   -d    :  Enable debug output\n" +
+  "   -l    :  Test latency\n" +
+  "   -t    :  Test throughput\n" +
+  "   -f    :  Test find()\n"
   ;
   console.log(msg);
   process.exit(1);
@@ -51,6 +52,9 @@ function parse_command_line() {
       case '-l':
         options.mode = "latency";
         break;
+      case '-f':
+         options.mode = "find";
+         break;
       default:
         usage();
     }  
@@ -138,6 +142,33 @@ function doSingleInserts(error, session, count, timeInterval) {
 }
 
 
+function doFindTest(err, session, count, timeInterval) {
+  var n = 0;
+  
+  function onRowFound(error, data) {
+    n += 1;
+    var key = Math.floor(Math.random() * count);
+    if(n >= count) {
+      var r = timeInterval("Find completed.");
+      console.log("Avg. Latency", r / count, "ms. per operation");
+      console.log("Throughput", (count * 10000) / r, " rows per sec.");
+    }
+    else {
+      session.find("a", key, onRowFound);
+    }
+  }
+  
+  function onTable(err, metadata) {
+    var key = Math.floor(Math.random() * count);
+    timeInterval("Starting find.");
+    session.find("a", key, onRowFound);
+  }
+  
+  /* doFindTest() starts here */
+  session.getTableMetadata("jscrund", "a", onTable);
+}
+
+  
 function main() {
   var options = parse_command_line();
   var properties = new mynode.ConnectionProperties("ndb");
@@ -153,6 +184,9 @@ function main() {
       break;
     case "latency":
       mynode.openSession(properties, null, doSingleInserts, 4000, intervalTimer);
+      break;
+    case "find":
+      mynode.openSession(properties, null, doFindTest, 4000, intervalTimer);
       break;
     default:
       usage();
