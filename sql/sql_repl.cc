@@ -452,7 +452,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
 
-  bool binlog_can_be_corrupted= FALSE;
 #ifndef DBUG_OFF
   int left_events = max_binlog_dump_events;
 #endif
@@ -621,8 +620,6 @@ impossible position";
                    (*packet)[EVENT_TYPE_OFFSET+ev_offset]));
        if ((*packet)[EVENT_TYPE_OFFSET+ev_offset] == FORMAT_DESCRIPTION_EVENT)
        {
-         binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                       LOG_EVENT_BINLOG_IN_USE_F);
          (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
          /*
            mark that this event with "log_pos=0", so the slave
@@ -711,34 +708,8 @@ impossible position";
                       });
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
       }
-      else if (event_type == STOP_EVENT)
-        binlog_can_be_corrupted= FALSE;
-
-      /*
-        Introduced this code to make the gcc 4.6.1 compiler happy. When
-        warnings are converted to errors, the compiler complains about
-        the fact that binlog_can_be_corrupted is defined but never used.
-
-        We need to check if this is a dead code or if someone removed any
-        code by mistake.
-
-        /Alfranio
-      */
-      if (binlog_can_be_corrupted)
-      {
-        /*
-           Don't try to print out warning messages because this generates
-           erroneous messages in the error log and causes performance
-           problems.
-
-           /Alfranio
-        */
-      }
-      
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, flags, packet, log_file_name, pos)))
