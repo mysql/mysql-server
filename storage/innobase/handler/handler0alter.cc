@@ -1518,7 +1518,7 @@ innobase_fts_check_doc_id_col(
 	uint i;
 
 	for (i = 0; i < n_cols; i++) {
-		const Field*	field = altered_table->s->field[i];
+		const Field*	field = altered_table->field[i];
 
 		if (my_strcasecmp(system_charset_info,
 				  field->field_name, FTS_DOC_ID_COL_NAME)) {
@@ -2373,7 +2373,7 @@ innobase_build_col_map(
 
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
-			altered_table->s->field[i],
+			altered_table->field[i],
 			dict_table_is_comp(new_table));
 found_col:
 		i++;
