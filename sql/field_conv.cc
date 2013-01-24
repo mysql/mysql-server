@@ -179,7 +179,10 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     ((Field_timestamp*) field)->set_time();
     return 0;					// Ok to set time to NULL
   }
+  
+  // Note: we ignore any potential failure of reset() here.
   field->reset();
+
   if (field == field->table->next_number_field)
   {
     field->table->auto_increment_field_not_null= FALSE;
