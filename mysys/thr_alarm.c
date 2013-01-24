@@ -51,6 +51,8 @@ static QUEUE alarm_queue;
 static uint max_used_alarms=0;
 pthread_t alarm_thread;
 
+#define MY_THR_ALARM_QUEUE_EXTENT 10
+
 #ifdef USE_ALARM_THREAD
 static void *alarm_handler(void *arg);
 #define reschedule_alarms() mysql_cond_signal(&COND_alarm)
@@ -73,8 +75,8 @@ void init_thr_alarm(uint max_alarms)
   DBUG_ENTER("init_thr_alarm");
   alarm_aborted=0;
   next_alarm_expire_time= ~ (time_t) 0;
-  init_queue(&alarm_queue,max_alarms+1,offsetof(ALARM,expire_time),0,
-	     compare_ulong,NullS);
+  init_queue_ex(&alarm_queue, max_alarms + 1, offsetof(ALARM,expire_time), 0,
+                compare_ulong, NullS, MY_THR_ALARM_QUEUE_EXTENT);
   sigfillset(&full_signal_set);			/* Neaded to block signals */
   mysql_mutex_init(key_LOCK_alarm, &LOCK_alarm, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_alarm, &COND_alarm, NULL);
@@ -125,7 +127,10 @@ void resize_thr_alarm(uint max_alarms)
     than max_alarms
   */
   if (alarm_queue.elements < max_alarms)
+  {
     resize_queue(&alarm_queue,max_alarms+1);
+    max_used_alarms= alarm_queue.elements;
+  }
   mysql_mutex_unlock(&LOCK_alarm);
 }
 
@@ -180,17 +185,6 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
 
   if (alarm_queue.elements >= max_used_alarms)
   {
-    if (alarm_queue.elements == alarm_queue.max_elements)
-    {
-      DBUG_PRINT("info", ("alarm queue full"));
-      fprintf(stderr,"Warning: thr_alarm queue is full\n");
-      *alrm= 0;					/* No alarm */
-      mysql_mutex_unlock(&LOCK_alarm);
-#ifndef USE_ONE_SIGNAL_HAND
-      pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
-      DBUG_RETURN(1);
-    }
     max_used_alarms=alarm_queue.elements+1;
   }
   reschedule= (ulong) next_alarm_expire_time > (ulong) now + sec;
@@ -214,7 +208,7 @@ my_bool thr_alarm(thr_alarm_t *alrm, uint sec, ALARM *alarm_data)
   alarm_data->alarmed=0;
   alarm_data->thread=    current_my_thread_var->pthread_self;
   alarm_data->thread_id= current_my_thread_var->id;
-  queue_insert(&alarm_queue,(uchar*) alarm_data);
+  queue_insert_safe(&alarm_queue, (uchar*) alarm_data);
 
   /* Reschedule alarm if the current one has more than sec left */
   if (reschedule)
