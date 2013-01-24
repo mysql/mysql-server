@@ -49,6 +49,9 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   Local<String> K_lock_mode  = String::New("lock_mode");
   Local<String> K_mask       = String::New("mask");
 
+// TODO: Options
+
+
   for(int i = 0 ; i < args.Length() ; i++) {
     if(args[i]->IsObject()) {
       const Local<Object> obj = args[i]->ToObject();
