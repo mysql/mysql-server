@@ -568,7 +568,7 @@ static ulonglong get_heartbeat_period(THD * thd)
     the dump thread.
 */
 static int send_heartbeat_event(NET* net, String* packet,
-                                const struct event_coordinates *coord,
+                                const struct rpl_event_coordinates *coord,
                                 uint8 checksum_alg_arg)
 {
   DBUG_ENTER("send_heartbeat_event");
@@ -636,7 +636,7 @@ static int send_heartbeat_event(NET* net, String* packet,
    @retval          -1                  error
 */
 static int send_last_skip_group_heartbeat(THD *thd, NET* net, String *packet,
-                                          const struct event_coordinates *last_skip_coord,
+                                          const struct rpl_event_coordinates *last_skip_coord,
                                           ulong *ev_offset,
                                           uint8 checksum_alg_arg, const char **errmsg)
 {
@@ -741,8 +741,8 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
 
-  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
-                    packet + 10, (long) pos);
+  query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
+                                 packet + 10, (long) pos);
   mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
@@ -794,8 +794,9 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
-  general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
-                    name, pos, gtid_string);
+  query_logger.general_log_print(thd, thd->get_command(),
+                                 "Log: '%s' Pos: %llu GTIDs: '%s'",
+                                 name, pos, gtid_string);
   my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed);
 

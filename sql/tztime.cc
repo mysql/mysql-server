@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #include "sql_time.h"                           // localtime_to_TIME
 #include "sql_base.h"                           // open_system_tables_for_read,
                                                 // close_system_tables
+#include "log.h"
 #else
 #include <my_time.h>
 #include "tztime.h"
