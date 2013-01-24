@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1685,7 +1685,7 @@ delete_insert:
 		| BTR_KEEP_POS_FLAG,
 		btr_pcur_get_btr_cur(&pcur),
 		&cur_offsets, &offsets_heap, heap, &big_rec,
-		update, 0, NULL, 0, &mtr);
+		update, 0, thr, 0, &mtr);
 
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
