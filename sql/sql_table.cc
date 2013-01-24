@@ -5454,6 +5454,67 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 
 
 /**
+  Look-up KEY object by index name using case-insensitive comparison.
+
+  @param key_name   Index name.
+  @param key_start  Start of array of KEYs for table.
+  @param key_end    End of array of KEYs for table.
+
+  @note Skips indexes which are marked as renamed.
+  @note Case-insensitive comparison is necessary to correctly
+        handle renaming of keys.
+
+  @retval non-NULL - pointer to KEY object for index found.
+  @retval NULL     - no index with such name found (or it is marked
+                     as renamed).
+*/
+
+static KEY* find_key_ci(const char *key_name, KEY *key_start, KEY *key_end)
+{
+  for (KEY *key= key_start; key < key_end; key++)
+  {
+    /* Skip already renamed keys. */
+    if (! (key->flags & HA_KEY_RENAMED) &&
+        ! my_strcasecmp(system_charset_info, key_name, key->name))
+      return key;
+  }
+  return NULL;
+}
+
+
+/**
+  Look-up KEY object by index name using case-sensitive comparison.
+
+  @param key_name   Index name.
+  @param key_start  Start of array of KEYs for table.
+  @param key_end    End of array of KEYs for table.
+
+  @note Skips indexes which are marked as renamed.
+  @note Case-sensitive comparison is necessary to correctly
+        handle: ALTER TABLE t1 DROP KEY x, ADD KEY X(c).
+        where new and old index are identical except case
+        of their names (in this case index still needs
+        to be re-created to keep case of the name in .FRM
+        and storage-engine in sync).
+
+  @retval non-NULL - pointer to KEY object for index found.
+  @retval NULL     - no index with such name found (or it is marked
+                     as renamed).
+*/
+
+static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
+{
+  for (KEY *key= key_start; key < key_end; key++)
+  {
+    /* Skip renamed keys. */
+    if (! (key->flags & HA_KEY_RENAMED) && ! strcmp(key_name, key->name))
+      return key;
+  }
+  return NULL;
+}
+
+
+/**
   Check if index has changed in a new version of table (ignore
   possible rename of index).
 
@@ -5780,77 +5841,64 @@ static bool fill_alter_inplace_info(THD *thd,
                       table->s->keys, ha_alter_info->key_count));
 
   /*
-    Step through all keys of the old table and search matching new keys.
+    First, we need to handle keys being renamed, otherwise code handling
+    dropping/addition of keys might be confused in some situations.
   */
-  ha_alter_info->index_drop_count= 0;
-  ha_alter_info->index_add_count= 0;
   for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    table_key->flags&= ~HA_KEY_RENAMED;
+  for (new_key= ha_alter_info->key_info_buffer;
+       new_key < new_key_end; new_key++)
+    new_key->flags&= ~HA_KEY_RENAMED;
+
+  List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
+                                                     alter_rename_key_list);
+  Alter_rename_key *rename_key;
+
+  while ((rename_key= rename_key_it++))
   {
-    const char *key_name= table_key->name;
+    table_key= find_key_ci(rename_key->old_name, table->key_info, table_key_end);
+    new_key= find_key_ci(rename_key->new_name, ha_alter_info->key_info_buffer,
+                         new_key_end);
 
-    /*
-      Check if the key was renamed so we need to look it up in new
-      version of table under new name.
-    */
-    List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
-                                                       alter_rename_key_list);
-    Alter_rename_key *rename_key;
+    table_key->flags|= HA_KEY_RENAMED;
+    new_key->flags|= HA_KEY_RENAMED;
 
-    while ((rename_key= rename_key_it++))
+    if (! has_index_def_changed(alter_info, table_key, new_key))
     {
-      if (! my_strcasecmp(system_charset_info, key_name,
-                          rename_key->old_name))
-      {
-        key_name= rename_key->new_name;
-        break;
-      }
-    }
-
-    /* Search a new key with the same (or new) name. */
-    for (new_key= ha_alter_info->key_info_buffer;
-         new_key < new_key_end;
-         new_key++)
-    {
-      if (! strcmp(key_name, new_key->name))
-        break;
-    }
-    if (new_key >= new_key_end)
-    {
-      /* Key not found. Add the key to the drop buffer. */
-      ha_alter_info->index_drop_buffer
-        [ha_alter_info->index_drop_count++]=
-        table_key;
-      DBUG_PRINT("info", ("index dropped: '%s'", table_key->name));
-      continue;
-    }
-
-    if (has_index_def_changed(alter_info, table_key, new_key))
-    {
-      /* Key modified. Add the key / key offset to both buffers. */
-      ha_alter_info->index_drop_buffer
-        [ha_alter_info->index_drop_count++]=
-        table_key;
-      ha_alter_info->index_add_buffer
-        [ha_alter_info->index_add_count++]=
-        new_key - ha_alter_info->key_info_buffer;
-      DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
-    }
-    else if (key_name != table_key->name)
-    {
-      /*
-        Key was not modified but still was renamed. Add it to the
-        array of renamed keys.
-      */
+      /* Key was not modified but still was renamed. */
       ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
-      KEY_PAIR *key_pair= ha_alter_info->index_rename_buffer +
-                          ha_alter_info->index_rename_count++;
-      key_pair->old_key= table_key;
-      key_pair->new_key= new_key;
-      DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
-                          table_key->name, key_name));
+      ha_alter_info->add_renamed_key(table_key, new_key);
+    }
+    else
+    {
+      /* Key was modified. */
+      ha_alter_info->add_modified_key(table_key, new_key);
     }
   }
-  /*end of for (; table_key < table_key_end;) */
+
+  /*
+    Step through all keys of the old table and search matching new keys.
+  */
+  for (table_key= table->key_info; table_key < table_key_end; table_key++)
+  {
+    /* Skip renamed keys. */
+    if (table_key->flags & HA_KEY_RENAMED)
+      continue;
+
+    new_key= find_key_cs(table_key->name, ha_alter_info->key_info_buffer,
+                         new_key_end);
+
+    if (new_key == NULL)
+    {
+      /* Matching new key not found. This means the key should be dropped. */
+      ha_alter_info->add_dropped_key(table_key);
+    }
+    else if (has_index_def_changed(alter_info, table_key, new_key))
+    {
+      /* Key was modified. */
+      ha_alter_info->add_modified_key(table_key, new_key);
+    }
+  }
 
   /*
     Step through all keys of the new table and find matching old keys.
@@ -5859,36 +5907,14 @@ static bool fill_alter_inplace_info(THD *thd,
        new_key < new_key_end;
        new_key++)
   {
-    const char *key_name= new_key->name;
-    /*
-      First, check if the key was renamed so we need to look it up in
-      old version of the table under its old name.
-    */
-    List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
-                                                       alter_rename_key_list);
-    Alter_rename_key *rename_key;
-    while ((rename_key= rename_key_it++))
-    {
-      if (! my_strcasecmp(system_charset_info, key_name, rename_key->new_name))
-      {
-        key_name= rename_key->old_name;
-        break;
-      }
-    }
+    /* Skip renamed keys. */
+    if (new_key->flags & HA_KEY_RENAMED)
+      continue;
 
-    /* Search an old key with the same (or old) name. */
-    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    if (! find_key_cs(new_key->name, table->key_info, table_key_end))
     {
-      if (! strcmp(table_key->name, key_name))
-        break;
-    }
-    if (table_key >= table_key_end)
-    {
-      /* Key not found. Add the offset of the key to the add buffer. */
-      ha_alter_info->index_add_buffer
-        [ha_alter_info->index_add_count++]=
-        new_key - ha_alter_info->key_info_buffer;
-      DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+      /* Matching old key not found. This means the key should be added. */
+      ha_alter_info->add_added_key(new_key);
     }
   }
 

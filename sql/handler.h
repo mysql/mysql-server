@@ -1376,6 +1376,41 @@ public:
   */
   void report_unsupported_error(const char *not_supported,
                                 const char *try_instead);
+
+  /** Add old and new version of key to array of indexes to be renamed. */
+  void add_renamed_key(KEY *old_key, KEY *new_key)
+  {
+    KEY_PAIR *key_pair= index_rename_buffer + index_rename_count++;
+    key_pair->old_key= old_key;
+    key_pair->new_key= new_key;
+    DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
+                        old_key->name, new_key->name));
+  }
+
+  /**
+    Add old and new version of modified key to arrays of indexes to
+    be dropped and added (correspondingly).
+  */
+  void add_modified_key(KEY *old_key, KEY *new_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    DBUG_PRINT("info", ("index changed: '%s'", old_key->name));
+  }
+
+  /** Drop key to array of indexes to be dropped. */
+  void add_dropped_key(KEY *old_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    DBUG_PRINT("info", ("index dropped: '%s'", old_key->name));
+  }
+
+  /** Add key to array of indexes to be added. */
+  void add_added_key(KEY *new_key)
+  {
+    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+  }
 };
 
 
