@@ -1794,3 +1794,42 @@ show create table t1;
 alter table t1 algorithm=copy, rename key kk to kkk;
 show create table t1;
 drop table t1;
+
+--echo #
+--echo # 4) Additional coverage for complex cases in which code
+--echo #    in ALTER TABLE comparing old and new table version
+--echo #    got confused.
+--echo #
+--echo # Once InnoDB starts to support in-place index renaming the result
+--echo # of below statements should stay the same. Information about
+--echo # indexes returned by SHOW CREATE TABLE (from .FRM) and by
+--echo # InnoDB (from InnoDB data-dictionary) should be consistent.
+--echo #
+create table t1 ( a int, b int, c int, d int,
+                  primary key (a), index i1 (b), index i2 (c) ) engine=innodb;
+alter table t1 add index i1 (d), rename index i1 to x;
+show create table t1;
+select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
+                                     information_schema.innodb_sys_indexes as i,
+                                     information_schema.innodb_sys_fields as f
+where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
+order by k, c;
+drop table t1;
+create table t1 (a int, b int, c int, d int,
+                 primary key (a), index i1 (b), index i2 (c)) engine=innodb;
+alter table t1 add index i1 (d), rename index i1 to i2, drop index i2;
+show create table t1;
+select i.name as k, f.name as c from information_schema.innodb_sys_tables as t,
+                                     information_schema.innodb_sys_indexes as i,
+                                     information_schema.innodb_sys_fields as f
+where t.name='test/t1' and t.table_id = i.table_id and i.index_id = f.index_id
+order by k, c;
+drop table t1;
+--echo #
+--echo # The below ALTER TABLE statement should either drop and recreate key
+--echo # under new name, or simply rename it. It should not bring .FRM and
+--echo # InnoDB data-dictionary out of sync thus causing asserts.
+--echo #
+create table t1 (i int, key x(i)) engine=InnoDB;
+alter table t1 drop key x, add key X(i), alter column i set default 10;
+drop table t1;
