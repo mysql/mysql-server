@@ -7471,6 +7471,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+  thd->password= passwd_len > 0;
   if (find_mpvio_user(mpvio, sctx))
     return 1;
 
