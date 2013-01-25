@@ -150,12 +150,13 @@ ENDIF()
 # async (*_start/*_cont functions)
 
 SET(EMBEDDED_API)
-FOREACH(f ${CLIENT_API})
+
+FOREACH(f ${CLIENT_API_FUNCTIONS})
+  #IF(NOT(f MATCHES "plugin") AND NOT (f MATCHES "_start$") AND NOT (f MATCHES "_cont$"))
   IF(NOT(f MATCHES "plugin|_start$|_cont$"))
-    SET(EMBEDDED_API ${EMBEDDED_API) ${f})
+    SET(EMBEDDED_API ${EMBEDDED_API} ${f})
   ENDIF()	
 ENDFOREACH()
-MESSAGE("embedded api=${EMBEDDED_API}")
 
 IF(NOT DISABLE_SHARED)
   MERGE_LIBRARIES(libmysqld SHARED mysqlserver EXPORTS ${EMBEDDED_API}
