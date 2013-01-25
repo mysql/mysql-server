@@ -812,6 +812,7 @@ THD::THD()
    warning_info(&main_warning_info),
    stmt_da(&main_da),
    global_disable_checkpoint(0),
+   failed_com_change_user(0),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),

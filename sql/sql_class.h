@@ -2200,6 +2200,7 @@ public:
 
   bool	     no_errors;
   uint8      password;
+  uint8      failed_com_change_user;
 
   /**
     Set to TRUE if execution of the current compound statement

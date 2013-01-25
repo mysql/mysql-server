@@ -1,0 +1,21 @@
+optimize table mysql.user;
+Table	Op	Msg_type	Msg_text
+mysql.user	optimize	status	OK
+insert mysql.user (user,plugin) values ('foo','bar'),('bar','bar'),('baz','bar');
+Warnings:
+Warning	1364	Field 'ssl_cipher' doesn't have a default value
+Warning	1364	Field 'x509_issuer' doesn't have a default value
+Warning	1364	Field 'x509_subject' doesn't have a default value
+Warning	1364	Field 'authentication_string' doesn't have a default value
+flush privileges;
+connect(localhost,u1,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR HY000: Plugin 'bar' is not loaded
+connect(localhost,u2,,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'u2'@'localhost' (using password: NO)
+connect(localhost,u2,password,test,MASTER_PORT,MASTER_SOCKET);
+ERROR 28000: Access denied for user 'u2'@'localhost' (using password: YES)
+ERROR HY000: Plugin 'bar' is not loaded
+ERROR 28000: Access denied for user 'u2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'u2'@'localhost' (using password: YES)
+delete from mysql.user where plugin = 'bar';
+flush privileges;

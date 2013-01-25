@@ -1,0 +1,5 @@
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'foo'@'localhost' (using password: YES)
+ERROR 08S01: Unknown command
+ERROR 08S01: Unknown command

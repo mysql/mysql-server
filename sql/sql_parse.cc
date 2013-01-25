@@ -976,7 +976,18 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->security_ctx->user= 0;
     thd->user_connect= 0;
 
-    rc= acl_authenticate(thd, 0, packet_length);
+    /*
+      to limit COM_CHANGE_USER ability to brute-force passwords,
+      we only allow three unsuccessful COM_CHANGE_USER per connection.
+    */
+    if (thd->failed_com_change_user >= 3)
+    {
+      my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
+      rc= 1;
+    }
+    else
+      rc= acl_authenticate(thd, 0, packet_length);
+
     MYSQL_AUDIT_NOTIFY_CONNECTION_CHANGE_USER(thd);
     if (rc)
     {
@@ -991,6 +1002,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->variables.collation_connection= save_collation_connection;
       thd->variables.character_set_results= save_character_set_results;
       thd->update_charset();
+      thd->failed_com_change_user++;
+      my_sleep(1000000);
     }
     else
     {
