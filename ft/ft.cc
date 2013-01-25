@@ -543,10 +543,11 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
     CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
     int r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
-    assert_zero(r);
-    assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
+    if (r == 0) {
+        assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
+        *new_ftp = t;
+    }
 
-    *new_ftp = t;
     return r;
 }
 
@@ -567,7 +568,9 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     // their headers point to dst_h instead of src_h
     FT_HANDLE tmp_dst_ft = NULL;
     r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_h);
-    assert_zero(r);
+    if (r != 0) {
+        goto cleanup;
+    }
     dst_h = tmp_dst_ft->ft;
 
     // some sanity checks on dst_filenum
@@ -584,7 +587,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
         src_handle = toku_list_struct(list, struct ft_handle, live_ft_handle_link);
 
         toku_list_remove(&src_handle->live_ft_handle_link);
-        
+
         toku_ft_note_ft_handle_open(dst_h, src_handle);
         if (src_handle->redirect_callback) {
             src_handle->redirect_callback(src_handle, src_handle->redirect_callback_extra);
@@ -598,6 +601,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     toku_ft_handle_close(tmp_dst_ft);
 
     *dst_hp = dst_h;
+cleanup:
     return r;
 }
 
@@ -623,8 +627,9 @@ toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
     FT dst_h;
     // redirect back from new_h to old_h
     r = dictionary_redirect_internal(old_fname_in_env, new_h, txn, &dst_h);
-    assert_zero(r);
-    assert(dst_h == old_h);
+    if (r == 0) {
+        assert(dst_h == old_h);
+    }
     return r;
 }
 
@@ -688,7 +693,9 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKU
 
     FT new_ft;
     r = dictionary_redirect_internal(dst_fname_in_env, old_ft, txn, &new_ft);
-    assert_zero(r);
+    if (r != 0) {
+        goto cleanup;
+    }
 
     // make rollback log entry
     if (txn) {
