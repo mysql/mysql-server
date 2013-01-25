@@ -3042,7 +3042,10 @@ int ha_maria::create(const char *name, register TABLE *table_arg,
                               ha_create_info->transactional != HA_CHOICE_NO);
 
   if (ha_create_info->options & HA_LEX_CREATE_TMP_TABLE)
+  {
     create_flags|= HA_CREATE_TMP_TABLE;
+    create_info.transactional= 0;
+  }
   if (ha_create_info->options & HA_CREATE_KEEP_FILES)
     create_flags|= HA_CREATE_KEEP_FILES;
   if (options & HA_OPTION_PACK_RECORD)
