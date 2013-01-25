@@ -152,7 +152,6 @@ ENDIF()
 SET(EMBEDDED_API)
 
 FOREACH(f ${CLIENT_API_FUNCTIONS})
-  #IF(NOT(f MATCHES "plugin") AND NOT (f MATCHES "_start$") AND NOT (f MATCHES "_cont$"))
   IF(NOT(f MATCHES "plugin|_start$|_cont$"))
     SET(EMBEDDED_API ${EMBEDDED_API} ${f})
   ENDIF()	
