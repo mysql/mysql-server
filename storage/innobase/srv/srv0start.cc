@@ -117,6 +117,32 @@ UNIV_INTERN ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool		srv_start_has_been_called = FALSE;
 
+/** Server thread starting stage.
+Threads are started in server in following phases.
+Phase-0: No threads started.
+Phase-1: Started Lock-timeout thread.
+Phase-2: Started IO thread(s)
+Phase-3: Started monitoring threads
+Phase-4: Started master thread.
+Phase-5: Started purge (co-ordinator + worker) thread.
+Phase-6: Started buf-dump, dict-stat and fts thread.
+Will trace completion of each phase using this enum so that
+on init_abort we know which all threads needs cleanup. */
+enum srv_start_state_t {
+	SRV_START_STATE_NONE = 0,		/*!< No thread started */
+	SRV_START_STATE_LOCK_SYS = 1,		/*!< Started lock-timeout
+						thrd. */
+	SRV_START_STATE_IO = 2,			/*!< Started IO thrds */
+	SRV_START_STATE_MONITOR = 4,		/*!< Started montior thrds */
+	SRV_START_STATE_MASTER = 8,		/*!< Started master thrd. */
+	SRV_START_STATE_PURGE = 16,		/*!< Started purge-* */
+	SRV_START_STATE_STAT = 32,		/*!< Started bufdump + dict stat
+						and fts optimize thrd. */
+};
+
+/** Track server thrd starting phases */
+static ulint	srv_startup_status = SRV_START_STATE_NONE;
+
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
 UNIV_INTERN enum srv_shutdown_state	srv_shutdown_state = SRV_SHUTDOWN_NONE;
@@ -950,6 +976,130 @@ srv_open_tmp_tablespace(
 
 	return(err);
 }
+
+/****************************************************************//**
+Set state to indicate start of particular group of threads in InnoDB. */
+UNIV_INLINE
+void
+srv_set_startup_state(
+/*==================*/
+	srv_start_state_t state)	/*!< in: indicate current state of
+					thread startup */
+{
+	srv_startup_status |= state;
+}
+
+/****************************************************************//**
+Check if following group of threads is started.
+@return true if started */
+UNIV_INLINE
+bool
+srv_is_startup_state_set(
+/*======================*/
+	srv_start_state_t state)	/*!< in: state to check for */
+{
+	return(srv_startup_status & state);
+}
+
+/****************************************************************//**
+Shutdown all background threads created by InnoDB. */
+UNIV_INTERN
+void
+srv_shutdown_all_bg_threads()
+/*=========================*/
+{
+	ulint	i;
+
+	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
+
+	if (!srv_startup_status) {
+		return;
+	}
+
+	/* All threads end up waiting for certain events. Put those events
+	to the signaled state. Then the threads will exit themselves after
+	os_event_wait(). */
+	for (i = 0; i < 1000; i++) {
+		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
+		HERE OR EARLIER */
+
+		if (!srv_read_only_mode) {
+			if (srv_is_startup_state_set(
+				SRV_START_STATE_LOCK_SYS)) {
+				/* a. Let the lock timeout thread exit */
+				os_event_set(lock_sys->timeout_event);
+			}
+
+			/* b. srv error monitor thread exits automatically,
+			no need to do anything here */
+
+			if (srv_is_startup_state_set(SRV_START_STATE_MASTER)) {
+				/* c. We wake the master thread so that
+				it exits */
+				srv_wake_master_thread();
+			}
+
+			if (srv_is_startup_state_set(SRV_START_STATE_PURGE)) {
+				/* d. Wakeup purge threads. */
+				srv_purge_wakeup();
+			}
+		}
+
+		if (srv_is_startup_state_set(SRV_START_STATE_IO)) {
+			/* e. Exit the i/o threads */
+			os_aio_wake_all_threads_at_shutdown();
+		}
+
+		/* f. dict_stats_thread is signaled from
+		logs_empty_and_mark_files_at_shutdown() and should have
+		already quit or is quitting right now. */
+
+		os_mutex_enter(os_sync_mutex);
+
+		if (os_thread_count == 0) {
+			/* All the threads have exited or are just exiting;
+			NOTE that the threads may not have completed their
+			exit yet. Should we use pthread_join() to make sure
+			they have exited? If we did, we would have to
+			remove the pthread_detach() from
+			os_thread_exit().  Now we just sleep 0.1
+			seconds and hope that is enough! */
+
+			os_mutex_exit(os_sync_mutex);
+
+			os_thread_sleep(100000);
+
+			break;
+		}
+
+		os_mutex_exit(os_sync_mutex);
+
+		os_thread_sleep(100000);
+	}
+
+	if (i == 1000) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"%lu threads created by InnoDB"
+			" had not exited at shutdown!",
+			(ulong) os_thread_count);
+	} else {
+		srv_startup_status = SRV_START_STATE_NONE;
+	}
+}
+
+/********************************************************************
+Innobase start-up aborted. Perform cleanup actions.
+@return DB_SUCCESS or error code. */
+static
+dberr_t
+srv_init_abort(
+/*===========*/
+	dberr_t	err)	/*!< in: reason for abort */
+{
+	srv_shutdown_all_bg_threads();
+	return(err);
+}
+
 /********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
@@ -1210,7 +1360,7 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unrecognized value %s for innodb_flush_method",
 			srv_file_flush_method_str);
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	/* Note that the call srv_boot() also changes the values of
@@ -1267,14 +1417,14 @@ innobase_start_or_create_for_mysql(void)
 					srv_monitor_file_name,
 					strerror(errno));
 
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 		} else {
 			srv_monitor_file_name = NULL;
 			srv_monitor_file = os_file_create_tmpfile();
 
 			if (!srv_monitor_file) {
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 		}
 
@@ -1284,7 +1434,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_dict_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_dict_tmpfile) {
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 
 		mutex_create(srv_misc_tmpfile_mutex_key,
@@ -1293,7 +1443,7 @@ innobase_start_or_create_for_mysql(void)
 		srv_misc_tmpfile = os_file_create_tmpfile();
 
 		if (!srv_misc_tmpfile) {
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 	}
 
@@ -1342,7 +1492,7 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Fatal : Cannot initialize AIO sub-system");
 
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	fil_init(srv_file_per_table ? 50000 : 5000, srv_max_n_open_files);
@@ -1368,7 +1518,7 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot allocate memory for the buffer pool");
 
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1392,6 +1542,7 @@ innobase_start_or_create_for_mysql(void)
 	log_init();
 
 	lock_sys_create(srv_lock_table_size);
+	srv_set_startup_state(SRV_START_STATE_LOCK_SYS);
 
 	/* Create i/o-handler threads: */
 
@@ -1401,6 +1552,7 @@ innobase_start_or_create_for_mysql(void)
 
 		os_thread_create(io_handler_thread, n + t, thread_ids + t);
 	}
+	srv_set_startup_state(SRV_START_STATE_IO);
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (0 != ut_strcmp(srv_log_group_home_dir, srv_arch_dir)) {
@@ -1409,7 +1561,7 @@ innobase_start_or_create_for_mysql(void)
 		ut_print_timestamp(stderr);
 		fprintf(stderr, " InnoDB: the same as log arch dir.\n");
 
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 #endif /* UNIV_LOG_ARCHIVE */
 
@@ -1423,7 +1575,7 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Combined size of log files must be < 512 GB");
 
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	if (srv_n_log_files * srv_log_file_size >= ULINT_MAX) {
@@ -1438,7 +1590,7 @@ innobase_start_or_create_for_mysql(void)
 			" must be < %lu GB\n",
 			ULINT_MAX / 1073741824 * UNIV_PAGE_SIZE);
 
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	srv_normalize_path_for_win(srv_data_home);
@@ -1447,7 +1599,7 @@ innobase_start_or_create_for_mysql(void)
 	err = srv_sys_space.check_file_spec(&create_new_db, 10 * 1024 * 1024);
 
 	if (err != DB_SUCCESS) {
-		return(DB_ERROR);
+		return(srv_init_abort(DB_ERROR));
 	}
 
 	/* Open or create the data files. */
@@ -1470,7 +1622,7 @@ innobase_start_or_create_for_mysql(void)
 			"them in any way. But be careful: do not remove "
 			"old data files which contain your precious data!");
 
-		return(err);
+		return(srv_init_abort(err));
 	}
 
 	if (!create_new_db) {
@@ -1478,7 +1630,7 @@ innobase_start_or_create_for_mysql(void)
 		err = srv_sys_space.read_lsn_and_check_flags(
 			&min_flushed_lsn, &max_flushed_lsn);
 		if (err != DB_SUCCESS) {
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 	}
 
@@ -1505,7 +1657,7 @@ innobase_start_or_create_for_mysql(void)
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
 
 		if (err != DB_SUCCESS) {
-			return(err);
+			return(srv_init_abort(err));
 		}
 	} else {
 		for (i = 0; i < SRV_N_LOG_FILES_MAX; i++) {
@@ -1529,7 +1681,8 @@ innobase_start_or_create_for_mysql(void)
 							" corrupt or"
 							" not in sync"
 							" with each other");
-						return(DB_ERROR);
+						return(srv_init_abort(
+							DB_ERROR));
 					}
 
 					if (max_flushed_lsn < (lsn_t) 1000) {
@@ -1542,7 +1695,8 @@ innobase_start_or_create_for_mysql(void)
 							" shut down cleanly"
 							" after creating"
 							" the data files.");
-						return(DB_ERROR);
+						return(srv_init_abort(
+							DB_ERROR));
 					}
 
 					err = create_log_files(
@@ -1550,7 +1704,7 @@ innobase_start_or_create_for_mysql(void)
 						max_flushed_lsn, logfile0);
 
 					if (err != DB_SUCCESS) {
-						return(err);
+						return(srv_init_abort(err));
 					}
 
 					create_log_files_rename(
@@ -1566,7 +1720,7 @@ innobase_start_or_create_for_mysql(void)
 					/* must have at least 2 log files */
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Only one log file found.");
-					return(err);
+					return(srv_init_abort(err));
 				}
 
 				/* opened all files */
@@ -1574,13 +1728,13 @@ innobase_start_or_create_for_mysql(void)
 			}
 
 			if (!srv_file_check_mode(logfilename)) {
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 
 			err = open_log_file(&files[i], logfilename, &size);
 
 			if (err != DB_SUCCESS) {
-				return(err);
+				return(srv_init_abort(err));
 			}
 
 			ut_a(size != (os_offset_t) -1);
@@ -1591,7 +1745,7 @@ innobase_start_or_create_for_mysql(void)
 					UINT64PF " is not a multiple of"
 					" innodb_page_size",
 					logfilename, size);
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 
 			size >>= UNIV_PAGE_SIZE_SHIFT;
@@ -1608,7 +1762,7 @@ innobase_start_or_create_for_mysql(void)
 					size << UNIV_PAGE_SIZE_SHIFT,
 					(os_offset_t) srv_log_file_size
 					<< UNIV_PAGE_SIZE_SHIFT);
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 		}
 
@@ -1635,7 +1789,7 @@ innobase_start_or_create_for_mysql(void)
 			if (!fil_node_create(logfilename,
 					     (ulint) srv_log_file_size,
 					     SRV_LOG_SPACE_FIRST_ID, FALSE)) {
-				return(DB_ERROR);
+				return(srv_init_abort(DB_ERROR));
 			}
 		}
 
@@ -1668,7 +1822,7 @@ files_checked:
 	if (err != DB_SUCCESS
 	    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
 
-		return(err);
+		return(srv_init_abort(err));
 	}
 
 	/* Initialize objects used by dict stats gathering thread, which
@@ -1707,7 +1861,7 @@ files_checked:
 		err = dict_create();
 
 		if (err != DB_SUCCESS) {
-			return(err);
+			return(srv_init_abort(err));
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
@@ -1737,7 +1891,7 @@ files_checked:
 			min_arch_log_no);
 		if (err != DB_SUCCESS) {
 
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 		/* Since ibuf init is in dict_boot, and ibuf is needed
 		in any disk i/o, first call dict_boot */
@@ -1745,7 +1899,7 @@ files_checked:
 		err = dict_boot();
 
 		if (err != DB_SUCCESS) {
-			return(err);
+			return(srv_init_abort(err));
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
@@ -1777,7 +1931,7 @@ files_checked:
 			srv_max_file_format_at_startup);
 
 		if (err != DB_SUCCESS) {
-			return(err);
+			return(srv_init_abort(err));
 		}
 
 		/* Invalidate the buffer pool to ensure that we reread
@@ -1796,7 +1950,7 @@ files_checked:
 
 		if (err != DB_SUCCESS) {
 
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 
 		/* Since the insert buffer init is in dict_boot, and the
@@ -1808,7 +1962,7 @@ files_checked:
 		err = dict_boot();
 
 		if (err != DB_SUCCESS) {
-			return(err);
+			return(srv_init_abort(err));
 		}
 
 		ib_bh = trx_sys_init_at_db_start();
@@ -1854,7 +2008,7 @@ files_checked:
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Cannot resize log files "
 					"in read-only mode.");
-				return(DB_READ_ONLY);
+				return(srv_init_abort(DB_READ_ONLY));
 			}
 
 			/* Clean the buffer pool. */
@@ -1921,7 +2075,7 @@ files_checked:
 					       max_flushed_lsn, logfile0);
 
 			if (err != DB_SUCCESS) {
-				return(err);
+				return(srv_init_abort(err));
 			}
 
 			create_log_files_rename(logfilename, dirnamelen,
@@ -1957,7 +2111,7 @@ files_checked:
 	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
 	if (err != DB_SUCCESS) {
-		return(err);
+		return(srv_init_abort(err));
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -2036,18 +2190,20 @@ files_checked:
 		os_thread_create(
 			srv_monitor_thread,
 			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
+
+		srv_set_startup_state(SRV_START_STATE_MONITOR);
 	}
 
 	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
 	err = dict_create_or_check_foreign_constraint_tables();
 	if (err != DB_SUCCESS) {
-		return(err);
+		return(srv_init_abort(err));
 	}
 
 	/* Create the SYS_TABLESPACES system table */
 	err = dict_create_or_check_sys_tablespace();
 	if (err != DB_SUCCESS) {
-		return(err);
+		return(srv_init_abort(err));
 	}
 
 	srv_is_being_started = FALSE;
@@ -2062,6 +2218,8 @@ files_checked:
 		os_thread_create(
 			srv_master_thread,
 			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
+
+		srv_set_startup_state(SRV_START_STATE_MASTER);
 	}
 
 	if (!srv_read_only_mode
@@ -2083,6 +2241,7 @@ files_checked:
 
 		srv_start_wait_for_purge_to_start();
 
+		srv_set_startup_state(SRV_START_STATE_PURGE);
 	} else {
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
@@ -2140,7 +2299,7 @@ files_checked:
 				" InnoDB: a startup if you are trying"
 				" to recover a badly corrupt database.\n");
 
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 	}
 
@@ -2182,7 +2341,7 @@ files_checked:
 				" InnoDB: a startup if you are trying to"
 				" recover a badly corrupt database.\n");
 
-			return(DB_ERROR);
+			return(srv_init_abort(DB_ERROR));
 		}
 	}
 
@@ -2238,10 +2397,11 @@ files_checked:
 
 		/* Create the thread that will optimize the FTS sub-system. */
 		fts_optimize_init();
+
+		srv_set_startup_state(SRV_START_STATE_STAT);
 	}
 
 	srv_was_started = TRUE;
-
 	return(DB_SUCCESS);
 }
 
@@ -2283,8 +2443,6 @@ dberr_t
 innobase_shutdown_for_mysql(void)
 /*=============================*/
 {
-	ulint	i;
-
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
 			ib_logf(IB_LOG_LEVEL_WARN,
@@ -2317,68 +2475,7 @@ innobase_shutdown_for_mysql(void)
 	}
 
 	/* 2. Make all threads created by InnoDB to exit */
-
-	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
-
-	/* All threads end up waiting for certain events. Put those events
-	to the signaled state. Then the threads will exit themselves after
-	os_event_wait(). */
-
-	for (i = 0; i < 1000; i++) {
-		/* NOTE: IF YOU CREATE THREADS IN INNODB, YOU MUST EXIT THEM
-		HERE OR EARLIER */
-
-		if (!srv_read_only_mode) {
-			/* a. Let the lock timeout thread exit */
-			os_event_set(lock_sys->timeout_event);
-
-			/* b. srv error monitor thread exits automatically,
-			no need to do anything here */
-
-			/* c. We wake the master thread so that it exits */
-			srv_wake_master_thread();
-
-			/* d. Wakeup purge threads. */
-			srv_purge_wakeup();
-		}
-
-		/* e. Exit the i/o threads */
-
-		os_aio_wake_all_threads_at_shutdown();
-
-		/* f. dict_stats_thread is signaled from
-		logs_empty_and_mark_files_at_shutdown() and should have
-		already quit or is quitting right now. */
-
-		os_mutex_enter(os_sync_mutex);
-
-		if (os_thread_count == 0) {
-			/* All the threads have exited or are just exiting;
-			NOTE that the threads may not have completed their
-			exit yet. Should we use pthread_join() to make sure
-			they have exited? If we did, we would have to
-			remove the pthread_detach() from
-			os_thread_exit().  Now we just sleep 0.1
-			seconds and hope that is enough! */
-
-			os_mutex_exit(os_sync_mutex);
-
-			os_thread_sleep(100000);
-
-			break;
-		}
-
-		os_mutex_exit(os_sync_mutex);
-
-		os_thread_sleep(100000);
-	}
-
-	if (i == 1000) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"%lu threads created by InnoDB"
-			" had not exited at shutdown!",
-			(ulong) os_thread_count);
-	}
+	srv_shutdown_all_bg_threads();
 
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
