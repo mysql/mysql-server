@@ -107,8 +107,8 @@ SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
 SET(CPACK_RPM_server_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postun.sh)
 
-SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared")
-SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MariaDB-shared MySQL-shared mysql-shared libmysqlclient.so.18 libmysqlclient.so.18(libmysqlclient_16) libmysqlclient.so.18(libmysqlclient_18) libmysqlclient_r.so.18 libmysqlclient_r.so.18(libmysqlclient_18)")
+SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared mysql-libs")
+SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MariaDB-shared MySQL-shared mysql-shared libmysqlclient.so.18 libmysqlclient.so.18(libmysqlclient_16) libmysqlclient.so.18(libmysqlclient_18) libmysqlclient_r.so.18 libmysqlclient_r.so.18(libmysqlclient_18) mysql-libs")
 SET(CPACK_RPM_shared_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 SET(CPACK_RPM_shared_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/shared-post.sh)
 
