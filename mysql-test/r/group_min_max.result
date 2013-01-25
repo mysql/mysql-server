@@ -2780,6 +2780,13 @@ ORDER BY min_a;
 min_a
 NULL
 DROP TABLE t1;
+create table t1 (a int, b varchar(1), key(b,a)) engine=myisam;
+insert t1 values (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'f'),(7,'g'),(8,'h'),(null,'i');
+select min(a), b from t1 where a=7 or b='z' group by b;
+min(a)	b
+7	g
+flush tables;
+drop table t1;
 #
 # LP BUG#888456 Wrong result with DISTINCT , ANY , subquery_cache=off , NOT NULL
 #
