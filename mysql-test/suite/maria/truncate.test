@@ -45,3 +45,16 @@ select * from t1;
 truncate t1;
 select count(*) from t1;
 drop table t1,t2;
+
+#
+# MDEV-3890
+# Server crash inserting record on a temporary table after truncating it
+#
+CREATE TEMPORARY TABLE t1 ( i int) ENGINE=aria;
+SHOW CREATE TABLE t1;
+TRUNCATE TABLE t1;
+INSERT INTO t1 (i) VALUES (1);
+lock table t1 write;
+truncate table t1;
+unlock tables;
+drop table t1;

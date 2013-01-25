@@ -35,3 +35,15 @@ select count(*) from t1;
 count(*)
 0
 drop table t1,t2;
+CREATE TEMPORARY TABLE t1 ( i int) ENGINE=aria;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `i` int(11) DEFAULT NULL
+) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0
+TRUNCATE TABLE t1;
+INSERT INTO t1 (i) VALUES (1);
+lock table t1 write;
+truncate table t1;
+unlock tables;
+drop table t1;
