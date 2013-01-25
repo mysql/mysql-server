@@ -2032,6 +2032,7 @@ public:
   bool	     no_errors, password;
   bool       extra_port;                        /* If extra connection */
 
+  uint8      failed_com_change_user;
   /**
     Set to TRUE if execution of the current compound statement
     can not continue. In particular, disables activation of
