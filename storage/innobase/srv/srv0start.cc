@@ -117,31 +117,23 @@ UNIV_INTERN ibool	srv_was_started = FALSE;
 /** TRUE if innobase_start_or_create_for_mysql() has been called */
 static ibool		srv_start_has_been_called = FALSE;
 
-/** Server thread starting stage.
-Threads are started in server in following phases.
-Phase-0: No threads started.
-Phase-1: Started Lock-timeout thread.
-Phase-2: Started IO thread(s)
-Phase-3: Started monitoring threads
-Phase-4: Started master thread.
-Phase-5: Started purge (co-ordinator + worker) thread.
-Phase-6: Started buf-dump, dict-stat and fts thread.
-Will trace completion of each phase using this enum so that
-on init_abort we know which all threads needs cleanup. */
+/** Bit flags for tracking background thread creation. They are used to
+determine which threads need to be stopped if we need to abort during
+the initialisation step. */
 enum srv_start_state_t {
 	SRV_START_STATE_NONE = 0,		/*!< No thread started */
 	SRV_START_STATE_LOCK_SYS = 1,		/*!< Started lock-timeout
-						thrd. */
-	SRV_START_STATE_IO = 2,			/*!< Started IO thrds */
-	SRV_START_STATE_MONITOR = 4,		/*!< Started montior thrds */
-	SRV_START_STATE_MASTER = 8,		/*!< Started master thrd. */
-	SRV_START_STATE_PURGE = 16,		/*!< Started purge-* */
-	SRV_START_STATE_STAT = 32,		/*!< Started bufdump + dict stat
-						and fts optimize thrd. */
+						thread. */
+	SRV_START_STATE_IO = 2,			/*!< Started IO threads */
+	SRV_START_STATE_MONITOR = 4,		/*!< Started montior thread */
+	SRV_START_STATE_MASTER = 8,		/*!< Started master threadd. */
+	SRV_START_STATE_PURGE = 16,		/*!< Started purge thread(s) */
+	SRV_START_STATE_STAT = 32		/*!< Started bufdump + dict stat
+						and FTS optimize thread. */
 };
 
 /** Track server thrd starting phases */
-static ulint	srv_startup_status = SRV_START_STATE_NONE;
+static ulint	srv_start_state;
 
 /** At a shutdown this value climbs from SRV_SHUTDOWN_NONE to
 SRV_SHUTDOWN_CLEANUP and then to SRV_SHUTDOWN_LAST_PHASE, and so on */
@@ -981,12 +973,12 @@ srv_open_tmp_tablespace(
 Set state to indicate start of particular group of threads in InnoDB. */
 UNIV_INLINE
 void
-srv_set_startup_state(
+srv_start_state_set(
 /*==================*/
 	srv_start_state_t state)	/*!< in: indicate current state of
 					thread startup */
 {
-	srv_startup_status |= state;
+	srv_start_state |= state;
 }
 
 /****************************************************************//**
@@ -994,11 +986,11 @@ Check if following group of threads is started.
 @return true if started */
 UNIV_INLINE
 bool
-srv_is_startup_state_set(
+srv_start_state_is_set(
 /*======================*/
 	srv_start_state_t state)	/*!< in: state to check for */
 {
-	return(srv_startup_status & state);
+	return(srv_start_state & state);
 }
 
 /****************************************************************//**
@@ -1012,7 +1004,7 @@ srv_shutdown_all_bg_threads()
 
 	srv_shutdown_state = SRV_SHUTDOWN_EXIT_THREADS;
 
-	if (!srv_startup_status) {
+	if (!srv_start_state) {
 		return;
 	}
 
@@ -1024,8 +1016,8 @@ srv_shutdown_all_bg_threads()
 		HERE OR EARLIER */
 
 		if (!srv_read_only_mode) {
-			if (srv_is_startup_state_set(
-				SRV_START_STATE_LOCK_SYS)) {
+
+			if (srv_start_state_is_set(SRV_START_STATE_LOCK_SYS)) {
 				/* a. Let the lock timeout thread exit */
 				os_event_set(lock_sys->timeout_event);
 			}
@@ -1033,19 +1025,19 @@ srv_shutdown_all_bg_threads()
 			/* b. srv error monitor thread exits automatically,
 			no need to do anything here */
 
-			if (srv_is_startup_state_set(SRV_START_STATE_MASTER)) {
+			if (srv_start_state_is_set(SRV_START_STATE_MASTER)) {
 				/* c. We wake the master thread so that
 				it exits */
 				srv_wake_master_thread();
 			}
 
-			if (srv_is_startup_state_set(SRV_START_STATE_PURGE)) {
+			if (srv_start_state_is_set(SRV_START_STATE_PURGE)) {
 				/* d. Wakeup purge threads. */
 				srv_purge_wakeup();
 			}
 		}
 
-		if (srv_is_startup_state_set(SRV_START_STATE_IO)) {
+		if (srv_start_state_is_set(SRV_START_STATE_IO)) {
 			/* e. Exit the i/o threads */
 			os_aio_wake_all_threads_at_shutdown();
 		}
@@ -1083,7 +1075,7 @@ srv_shutdown_all_bg_threads()
 			" had not exited at shutdown!",
 			(ulong) os_thread_count);
 	} else {
-		srv_startup_status = SRV_START_STATE_NONE;
+		srv_start_state = SRV_START_STATE_NONE;
 	}
 }
 
@@ -1127,6 +1119,8 @@ innobase_start_or_create_for_mysql(void)
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
 	unsigned	i		= 0;
+
+	srv_start_state_set(SRV_START_STATE_NONE);
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
@@ -1542,7 +1536,7 @@ innobase_start_or_create_for_mysql(void)
 	log_init();
 
 	lock_sys_create(srv_lock_table_size);
-	srv_set_startup_state(SRV_START_STATE_LOCK_SYS);
+	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
 
 	/* Create i/o-handler threads: */
 
@@ -1552,7 +1546,8 @@ innobase_start_or_create_for_mysql(void)
 
 		os_thread_create(io_handler_thread, n + t, thread_ids + t);
 	}
-	srv_set_startup_state(SRV_START_STATE_IO);
+
+	srv_start_state_set(SRV_START_STATE_IO);
 
 #ifdef UNIV_LOG_ARCHIVE
 	if (0 != ut_strcmp(srv_log_group_home_dir, srv_arch_dir)) {
@@ -2191,7 +2186,7 @@ files_checked:
 			srv_monitor_thread,
 			NULL, thread_ids + 4 + SRV_MAX_N_IO_THREADS);
 
-		srv_set_startup_state(SRV_START_STATE_MONITOR);
+		srv_start_state_set(SRV_START_STATE_MONITOR);
 	}
 
 	/* Create the SYS_FOREIGN and SYS_FOREIGN_COLS system tables */
@@ -2219,7 +2214,7 @@ files_checked:
 			srv_master_thread,
 			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
 
-		srv_set_startup_state(SRV_START_STATE_MASTER);
+		srv_start_state_set(SRV_START_STATE_MASTER);
 	}
 
 	if (!srv_read_only_mode
@@ -2241,7 +2236,7 @@ files_checked:
 
 		srv_start_wait_for_purge_to_start();
 
-		srv_set_startup_state(SRV_START_STATE_PURGE);
+		srv_start_state_set(SRV_START_STATE_PURGE);
 	} else {
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
@@ -2398,7 +2393,7 @@ files_checked:
 		/* Create the thread that will optimize the FTS sub-system. */
 		fts_optimize_init();
 
-		srv_set_startup_state(SRV_START_STATE_STAT);
+		srv_start_state_set(SRV_START_STATE_STAT);
 	}
 
 	srv_was_started = TRUE;
