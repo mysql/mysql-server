@@ -1062,6 +1062,21 @@ bool Field::type_can_have_key_part(enum enum_field_types type)
 }
 
 
+void Field::make_sort_key(uchar *buff,uint length)
+{
+  if (maybe_null())
+  {
+    if (is_null())
+    {
+      bzero(buff, length + 1);
+      return;
+    }
+    *buff++= 1;
+  }
+  sort_string(buff, length);
+}
+
+
 /**
   Numeric fields base class constructor.
 */

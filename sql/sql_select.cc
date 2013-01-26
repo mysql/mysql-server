@@ -204,7 +204,7 @@ static int create_sort_index(THD *thd, JOIN *join, ORDER *order,
 static int remove_duplicates(JOIN *join,TABLE *entry,List<Item> &fields,
 			     Item *having);
 static int remove_dup_with_compare(THD *thd, TABLE *entry, Field **field,
-				   ulong offset,Item *having);
+				   Item *having);
 static int remove_dup_with_hash_index(THD *thd,TABLE *table,
 				      uint field_count, Field **first_field,
 				      ulong key_length,Item *having);
@@ -18891,19 +18891,24 @@ static bool fix_having(JOIN *join, Item **having)
 #endif
 
 
-/*****************************************************************************
-  Remove duplicates from tmp table
-  This should be recoded to add a unique index to the table and remove
-  duplicates
-  Table is a locked single thread table
-  fields is the number of fields to check (from the end)
-*****************************************************************************/
+/**
+  Compare fields from table->record[0] and table->record[1],
+  possibly skipping few first fields.
 
+  @param table
+  @param ptr                    field to start the comparison from,
+                                somewhere in the table->field[] array
+
+  @retval 1     different
+  @retval 0     identical
+*/
 static bool compare_record(TABLE *table, Field **ptr)
 {
   for (; *ptr ; ptr++)
   {
-    if ((*ptr)->cmp_offset(table->s->rec_buff_length))
+    Field *f= *ptr;
+    if (f->is_null() != f->is_null(table->s->rec_buff_length) ||
+        (!f->is_null() && f->cmp_offset(table->s->rec_buff_length)))
       return 1;
   }
   return 0;
@@ -18931,15 +18936,15 @@ static void free_blobs(Field **ptr)
 
 
 static int
-remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
+remove_duplicates(JOIN *join, TABLE *table, List<Item> &fields, Item *having)
 {
   int error;
-  ulong reclength,offset;
+  ulong keylength= 0;
   uint field_count;
   THD *thd= join->thd;
   DBUG_ENTER("remove_duplicates");
 
-  entry->reginfo.lock_type=TL_WRITE;
+  table->reginfo.lock_type=TL_WRITE;
 
   /* Calculate how many saved fields there is in list */
   field_count=0;
@@ -18956,24 +18961,21 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
     join->unit->select_limit_cnt= 1;		// Only send first row
     DBUG_RETURN(0);
   }
-  Field **first_field=entry->field+entry->s->fields - field_count;
-  offset= (field_count ? 
-           entry->field[entry->s->fields - field_count]->
-           offset(entry->record[0]) : 0);
-  reclength=entry->s->reclength-offset;
 
-  free_io_cache(entry);				// Safety
-  entry->file->info(HA_STATUS_VARIABLE);
-  if (entry->s->db_type() == heap_hton ||
-      (!entry->s->blob_fields &&
-       ((ALIGN_SIZE(reclength) + HASH_OVERHEAD) * entry->file->stats.records <
+  Field **first_field=table->field+table->s->fields - field_count;
+  for (Field **ptr=first_field; *ptr; ptr++)
+    keylength+= (*ptr)->sort_length() + (*ptr)->maybe_null();
+
+  free_io_cache(table);				// Safety
+  table->file->info(HA_STATUS_VARIABLE);
+  if (table->s->db_type() == heap_hton ||
+      (!table->s->blob_fields &&
+       ((ALIGN_SIZE(keylength) + HASH_OVERHEAD) * table->file->stats.records <
 	thd->variables.sortbuff_size)))
-    error=remove_dup_with_hash_index(join->thd, entry,
-				     field_count, first_field,
-				     reclength, having);
+    error=remove_dup_with_hash_index(join->thd, table, field_count, first_field,
+				     keylength, having);
   else
-    error=remove_dup_with_compare(join->thd, entry, first_field, offset,
-				  having);
+    error=remove_dup_with_compare(join->thd, table, first_field, having);
 
   free_blobs(first_field);
   DBUG_RETURN(error);
@@ -18981,17 +18983,12 @@ remove_duplicates(JOIN *join, TABLE *entry,List<Item> &fields, Item *having)
 
 
 static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
-				   ulong offset, Item *having)
+				   Item *having)
 {
   handler *file=table->file;
-  char *org_record,*new_record;
-  uchar *record;
+  uchar *record=table->record[0];
   int error;
-  ulong reclength= table->s->reclength-offset;
   DBUG_ENTER("remove_dup_with_compare");
-
-  org_record=(char*) (record=table->record[0])+offset;
-  new_record=(char*) table->record[1]+offset;
 
   if (file->ha_rnd_init_with_error(1))
     DBUG_RETURN(1);
@@ -19029,7 +19026,7 @@ static int remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
       error=0;
       goto err;
     }
-    memcpy(new_record,org_record,reclength);
+    store_record(table,record[1]);
 
     /* Read through rest of file and mark duplicated rows deleted */
     bool found=0;
@@ -19088,8 +19085,9 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
   int error;
   handler *file= table->file;
   ulong extra_length= ALIGN_SIZE(key_length)-key_length;
-  uint *field_lengths,*field_length;
+  uint *field_lengths, *field_length;
   HASH hash;
+  Field **ptr;
   DBUG_ENTER("remove_dup_with_hash_index");
 
   if (!my_multi_malloc(MYF(MY_WME),
@@ -19101,21 +19099,8 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
 		       NullS))
     DBUG_RETURN(1);
 
-  {
-    Field **ptr;
-    ulong total_length= 0;
-    for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
-    {
-      uint length= (*ptr)->sort_length();
-      (*field_length++)= length;
-      total_length+= length;
-    }
-    DBUG_PRINT("info",("field_count: %u  key_length: %lu  total_length: %lu",
-                       field_count, key_length, total_length));
-    DBUG_ASSERT(total_length <= key_length);
-    key_length= total_length;
-    extra_length= ALIGN_SIZE(key_length)-key_length;
-  }
+  for (ptr= first_field, field_length=field_lengths ; *ptr ; ptr++)
+    (*field_length++)= (*ptr)->sort_length();
 
   if (hash_init(&hash, &my_charset_bin, (uint) file->stats.records, 0, 
 		key_length, (hash_get_key) 0, 0, 0))
@@ -19155,13 +19140,13 @@ static int remove_dup_with_hash_index(THD *thd, TABLE *table,
     /* copy fields to key buffer */
     org_key_pos= key_pos;
     field_length=field_lengths;
-    for (Field **ptr= first_field ; *ptr ; ptr++)
+    for (ptr= first_field ; *ptr ; ptr++)
     {
-      (*ptr)->sort_string(key_pos,*field_length);
-      key_pos+= *field_length++;
+      (*ptr)->make_sort_key(key_pos, *field_length);
+      key_pos+= (*ptr)->maybe_null() + *field_length++;
     }
     /* Check if it exists before */
-    if (hash_search(&hash, org_key_pos, key_length))
+    if (my_hash_search(&hash, org_key_pos, key_length))
     {
       /* Duplicated found ; Remove the row */
       if ((error= file->ha_delete_row(record)))

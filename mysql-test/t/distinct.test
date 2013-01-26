@@ -658,3 +658,27 @@ select time(f1) from t1 ;
 select distinct time(f1) from t1 ;
 drop table t1;
 
+#
+# MDEV-3875 Wrong result (missing row) on a DISTINCT query with the same subquery in the SELECT list and GROUP BY
+# MySQL Bug#66896 Distinct not distinguishing 0 from NULL when GROUP BY is used
+#
+create table t1(i int, g int); # remove_dup_with_hash_index
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+drop table t1;
+
+create table t1(i int, g blob); # remove_dup_with_compare
+insert into t1 values (null, 1), (0, 2);
+select distinct i from t1 group by g;
+drop table t1;
+
+create table t1 (a int) engine=myisam;
+insert into t1 values (0),(7);
+create table t2 (b int) engine=myisam;
+insert into t2 values (7),(0),(3);
+create algorithm=temptable view v as
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+select * from v;
+select distinct (select max(a) from t1 where alias.b = a) as field1 from t2 as alias group by field1;
+drop view v;
+drop table t1, t2;
