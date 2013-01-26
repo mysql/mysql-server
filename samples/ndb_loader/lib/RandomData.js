@@ -95,13 +95,13 @@ function RandomGeneratorForColumn(column) {
   var g = {},
       min, max, bits;
 
-  switch(column.columnType) {
+  switch(column.columnType.toLocaleUpperCase()) {
     case "TINYINT":
     case "SMALLINT":
     case "MEDIUMINT":
     case "INT":
     case "BIGINT":
-      if(column.isPrimaryKey) {  /// isInPrimaryKey ???
+      if(column.isPrimaryKey || column.isInPrimaryKey) {  // fixme!
         g = new SequentialIntGenerator(0);
       }
       else {
@@ -138,6 +138,8 @@ function RandomGeneratorForColumn(column) {
     case "BIT":
     case "BINARY":
     case "VARBINARY":
+    default:
+      throw("UNSUPPORTED COLUMN TYPE " + column.columnType);
       break;
   }
 

@@ -22,7 +22,8 @@
 
 var mynode = require(".."),
     random = require("../samples/ndb_loader/lib/RandomData"),
-    udebug  = require("../Adapter/api/unified_debug");
+    udebug = require("../Adapter/api/unified_debug"),
+    stats  = require("../Adapter/api/stats");
 
 function usage() {
   var msg = "" +
@@ -30,15 +31,17 @@ function usage() {
   "   -d    :  Enable debug output\n" +
   "   -l    :  Test latency\n" +
   "   -t    :  Test throughput\n" +
-  "   -f    :  Test find()\n"
+  "   -f    :  Test find()\n" +
+  "   -n    :  Use ndb adapter (default)\n" +
+  "   -m    :  Use mysql adapter\n"
   ;
   console.log(msg);
   process.exit(1);
 }
 
 
-function parse_command_line() {
-  var i, len, val, options = {};
+function parse_command_line(options) {
+  var i, len, val;
   len = process.argv.length;
   for(i = 2 ; i < len; i++) {
     val = process.argv[i];
@@ -53,13 +56,18 @@ function parse_command_line() {
         options.mode = "latency";
         break;
       case '-f':
-         options.mode = "find";
-         break;
+        options.mode = "find";
+        break;
+      case '-n':
+        options.adapter = "ndb";
+        break;
+      case '-m':
+        options.adapter = "mysql";
+        break;
       default:
         usage();
     }  
   }
-  return options;
 }
 
 function Row() {
@@ -81,6 +89,7 @@ function getIntervalTimer() {
 function doThroughputTest(error, session, batchSize, timeInterval) {
 
   function onDone(error) {
+    stats.peek();
     var r = timeInterval("Batch completed.");
     console.log("Avg. Latency", r / batchSize, "ms. per operation");
     console.log("Throughput", (batchSize * 10000) / r, " rows per sec.");
@@ -170,13 +179,17 @@ function doFindTest(err, session, count, timeInterval) {
 
   
 function main() {
-  var options = parse_command_line();
-  var properties = new mynode.ConnectionProperties("ndb");
+  var options = {  /* Default options: */
+    "adapter" : "ndb"
+  };
+  parse_command_line(options);
+  var properties = new mynode.ConnectionProperties(options.adapter);
   var a = new mynode.Annotations();
   var tm = a.newTableMapping("a");
   var intervalTimer = getIntervalTimer();
   a.mapClass(Row, a);
   properties.database = "jscrund";
+  properties.mysql_user = "root";
 
   switch(options.mode) {
     case "throughput":

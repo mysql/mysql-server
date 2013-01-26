@@ -25,28 +25,40 @@ var sys = require('util'),
     mynode = require(".."),
     stats = require("../Adapter/api/stats");
 
-function startWebServer(err, session) {
+function startWebServer(err, sessionFactory) {
   function runServer(req, res) {
-    function respond(err, data) {
-      if(err || ! data) {
+
+    function onSession(err, session) {
+      function onClose() {};
+
+      function respond(err, data) {
+        if(err || ! data) {
+          res.writeHead(500);
+          console.log("find error!");
+        }
+        else {
+          res.writeHead(200, {'Content-Type': 'text/html'});
+          res.write(data.id +"\t" + data.cint + "\n");
+        }
+        res.end();
+        session.close(onClose);
+      }
+
+      if(err || !session) {
         res.writeHead(500);
+        console.log("openSession error!");
+        res.end();
       }
       else {
-        res.writeHead(200, {'Content-Type': 'text/html'});
-        res.write(data.id +"\t" + data.cint + "\n");
+        session.find("a", Math.floor(Math.random()*4000), respond);
       }
-      res.end();
     }
 
     /* runServer() starts here */  
-    var r = session.find("a", Math.floor(Math.random()*4000), respond);
+    sessionFactory.openSession(null, onSession);
   }
 
   /* startWebServer() starts here */
-  if(err || ! session) {
-    console.log(err);
-    process.exit(1);
-  }
   http.createServer(runServer).listen(8080);
   console.log("Server started");
 }
@@ -61,7 +73,7 @@ function main() {
   properties.database = "jscrund";
   properties.mysql_user = "root";
   process.on('SIGINT', showStatsOnExit); 
-  mynode.openSession(properties, null, startWebServer);
+  mynode.connect(properties, null, startWebServer);
 }
 
 main();

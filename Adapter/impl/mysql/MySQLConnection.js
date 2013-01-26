@@ -695,7 +695,8 @@ exports.DBSession.prototype.close = function(callback) {
     // TODO put the pooled connection back into the pool instead of ending it
     this.pooledConnection.end();
     this.pooledConnection = null;
-    this.connectionPool.pooledConnections[this.index] = null;
+    // Not ready for this yet:
+    // this.connectionPool.pooledConnections[this.index] = null;
   }
   if (callback) {
     callback(null, null);
