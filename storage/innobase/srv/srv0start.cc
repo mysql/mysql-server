@@ -1075,6 +1075,7 @@ srv_shutdown_all_bg_threads()
 			" had not exited at shutdown!",
 			(ulong) os_thread_count);
 	} else {
+		/* Reset the start state. */
 		srv_start_state = SRV_START_STATE_NONE;
 	}
 }
@@ -1118,9 +1119,9 @@ innobase_start_or_create_for_mysql(void)
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
-	unsigned	i		= 0;
 
-	srv_start_state_set(SRV_START_STATE_NONE);
+	/* Reset the start state. */
+	srv_start_state = SRV_START_STATE_NONE;
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
