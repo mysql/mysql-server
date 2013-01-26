@@ -1119,6 +1119,7 @@ innobase_start_or_create_for_mysql(void)
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
+	unsigned	i = 0;
 
 	/* Reset the start state. */
 	srv_start_state = SRV_START_STATE_NONE;
