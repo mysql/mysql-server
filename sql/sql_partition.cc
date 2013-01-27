@@ -4710,6 +4710,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
   if (table->part_info && (alter_info->flags & Alter_info::ADD_FOREIGN_KEY ||
                            alter_info->flags & Alter_info::DROP_FOREIGN_KEY))
   {
+#ifndef MCP_WL6244
     /*
       Circumvent hardcoded "Foreign keys not supported on partitioned tables"
       for engines which uses auto partitioning and table is using HASH
@@ -4722,6 +4723,7 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       ; // Allow this ALTER to continue in the function
     }
     else
+#endif
     {
       my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
       DBUG_RETURN(TRUE);
