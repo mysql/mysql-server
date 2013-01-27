@@ -19,8 +19,8 @@ disable_query_log;
 
 # find nc
 
---error 0,127
---exec nc -h > $_outfile 2>&1
+--error 0,1,127
+--exec nc1 -h > $_outfile 2>&1
 --eval SET @content = LOAD_FILE('$_outfile')
 --remove_file $_outfile
 
@@ -32,7 +32,7 @@ if (`SELECT LOCATE('usage', @content) > 0`) {
 # find netcat
 
 if (`SELECT '$nc' = ''`) {
-  --error 0,127
+  --error 0,1,127
   --exec netcat -h > $_outfile 2>&1
   --eval SET @content = LOAD_FILE('$_outfile')
   --remove_file $_outfile
