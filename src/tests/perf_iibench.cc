@@ -153,19 +153,6 @@ stress_table(DB_ENV* env, DB **dbs, struct cli_args *cli_args) {
         myargs[i].operation_extra = &iib_extra;
     }
 
-    for (int i = 0; i < iibench_num_dbs; i++) {
-        DB *db = dbs[i];
-        DBT desc_dbt;
-        desc_dbt.data = &i;
-        desc_dbt.size = sizeof(i);
-        desc_dbt.ulen = 0;
-        desc_dbt.flags = 0;
-        int r = db->change_descriptor(db, nullptr, &desc_dbt, 0);
-        invariant_zero(r);
-    }
-    // Close and reopen the tables to get the descriptors to change properly
-    close_and_reopen_tables(env, dbs, cli_args);
-
     const bool crash_at_end = false;
     run_workers(myargs, num_threads, cli_args->num_seconds, crash_at_end, cli_args);
 }
@@ -194,12 +181,28 @@ static int iibench_generate_row_for_put(DB *dest_db, DB *src_db, DBT *dest_key, 
     int64_t *CAST_FROM_VOIDP(dest_key_buf, dest_key->data);
     memcpy(&dest_key_buf[0], &secondary_key, sizeof(secondary_key));
     memcpy(&dest_key_buf[1], src_key->data, src_key->size);
-    *dest_val = *src_val;
+    dest_val->data = nullptr;
+    dest_val->size = 0;
     return 0;
 }
 
-int
-test_main(int argc, char *const argv[]) {
+// After each DB opens, set the descriptor to store the DB idx value.
+// Close and reopen the DB so we can use db->cmp_descriptor during comparisons.
+static DB *iibench_set_descriptor_after_db_opens(DB_ENV *env, DB *db, int idx, reopen_db_fn reopen, struct cli_args *cli_args) {
+    int r;
+    DBT desc_dbt;
+    desc_dbt.data = &idx;
+    desc_dbt.size = sizeof(idx);
+    desc_dbt.ulen = 0;
+    desc_dbt.flags = 0;
+    r = db->change_descriptor(db, nullptr, &desc_dbt, 0); CKERR(r);
+    r = db->close(db, 0); CKERR(r);
+    r = db_create(&db, env, 0); CKERR(r);
+    reopen(db, idx, cli_args);
+    return db;
+}
+
+int test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
     args.num_elements = 0;  // want to start with empty DBs
     // Puts per transaction is configurable. It defaults to 1k.
@@ -215,6 +218,7 @@ test_main(int argc, char *const argv[]) {
         args.crash_on_operation_failure = false;
     }
     args.env_args.generate_put_callback = iibench_generate_row_for_put;
+    after_db_open_hook = iibench_set_descriptor_after_db_opens;
     perf_test_main(&args);
     return 0;
 }

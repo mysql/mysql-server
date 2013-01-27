@@ -75,7 +75,7 @@ struct env_args {
     const char *envdir;
     test_update_callback_f update_function; // update callback function
     test_generate_row_for_put_callback generate_put_callback;
-    test_generate_row_for_del_callback generate_del_callback;    
+    test_generate_row_for_del_callback generate_del_callback;
 };
 
 enum perf_output_format {
@@ -840,6 +840,7 @@ static int UU() loader_op(DB_TXN* txn, ARG UU(arg), void* UU(operation_extra), v
         uint32_t dbt_flags = 0;
         r = db_create(&db_load, env, 0);
         assert(r == 0);
+        // TODO: Need to call before_db_open_hook() and after_db_open_hook()
         r = db_load->open(db_load, txn, "loader-db", nullptr, DB_BTREE, DB_CREATE, 0666);
         assert(r == 0);
         DB_LOADER *loader;
@@ -1434,6 +1435,7 @@ static int UU() remove_and_recreate_me(DB_TXN *UU(txn), ARG arg, void* UU(operat
 
     r = db_create(&(arg->dbp[db_index]), arg->env, 0);
     assert(r == 0);
+    // TODO: Need to call before_db_open_hook() and after_db_open_hook()
     r = arg->dbp[db_index]->open(arg->dbp[db_index], null_txn, name, nullptr, DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
     return 0;
@@ -1706,6 +1708,40 @@ static int run_workers(
     return r;
 }
 
+// Pre-open hook
+static void do_nothing_before_db_open(DB *UU(db), int UU(idx)) { }
+// Requires: DB is created (allocated) but not opened. idx is the index
+//           into the DBs array.
+static void (*before_db_open_hook)(DB *db, int idx) = do_nothing_before_db_open;
+
+// Post-open hook
+typedef void (*reopen_db_fn)(DB *db, int idx, struct cli_args *cli_args);
+static DB *do_nothing_after_db_open(DB_ENV *UU(env), DB *db, int UU(idx), reopen_db_fn UU(reopen), struct cli_args *UU(cli_args)) { return db; }
+// Requires: DB is opened and is the 'idx' db in the DBs array.
+// Note: Reopen function may be used to open a db if the given one was closed.
+// Returns: An opened db.
+static DB *(*after_db_open_hook)(DB_ENV *env, DB *db, int idx, reopen_db_fn reopen, struct cli_args *cli_args) = do_nothing_after_db_open;
+
+static void open_db_for_create(DB *db, int idx, struct cli_args *cli_args) {
+    int r;
+    char name[30];
+    memset(name, 0, sizeof(name));
+    get_ith_table_name(name, sizeof(name), idx);
+    r = db->set_flags(db, 0); CKERR(r);
+    r = db->set_pagesize(db, cli_args->env_args.node_size); CKERR(r);
+    r = db->set_readpagesize(db, cli_args->env_args.basement_node_size); CKERR(r);
+    const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
+    r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666); CKERR(r);
+}
+
+static void open_db(DB *db, int idx, struct cli_args *cli_args) {
+    int r;
+    char name[30];
+    memset(name, 0, sizeof(name));
+    get_ith_table_name(name, sizeof(name), idx);
+    const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
+    r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666); CKERR(r);
+}
 
 static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
                         int (*bt_compare)(DB *, const DBT *, const DBT *),
@@ -1748,23 +1784,10 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
 
     for (int i = 0; i < num_DBs; i++) {
         DB *db;
-        char name[30];
-        memset(name, 0, sizeof(name));
-        get_ith_table_name(name, sizeof(name), i);
-        r = db_create(&db, env, 0);
-        CKERR(r);
-        r = db->set_flags(db, 0);
-        CKERR(r);
-        r = db->set_pagesize(db, env_args.node_size);
-        CKERR(r);
-        r = db->set_readpagesize(db, env_args.basement_node_size);
-        CKERR(r);
-        r = db->set_compression_method(db, cli_args->compression_method);
-        CKERR(r);
-        const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
-        r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666);
-        CKERR(r);
-        db_res[i] = db;
+        r = db_create(&db, env, 0); CKERR(r);
+        before_db_open_hook(db, i);
+        open_db_for_create(db, i, cli_args);
+        db_res[i] = after_db_open_hook(env, db, i, open_db_for_create, cli_args);
     }
     return r;
 }
@@ -1955,15 +1978,10 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
 
     for (int i = 0; i < num_DBs; i++) {
         DB *db;
-        char name[30];
-        memset(name, 0, sizeof(name));
-        get_ith_table_name(name, sizeof(name), i);
-        r = db_create(&db, env, 0);
-        CKERR(r);
-        const int flags = cli_args->blackhole ? DB_BLACKHOLE : 0;
-        r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666);
-        CKERR(r);
-        db_res[i] = db;
+        r = db_create(&db, env, 0); CKERR(r);
+        before_db_open_hook(db, i);
+        open_db(db, i, cli_args);
+        db_res[i] = after_db_open_hook(env, db, i, open_db, cli_args);
     }
     return r;
 }
