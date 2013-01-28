@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4102,7 +4102,6 @@ longlong Item_master_gtid_set_wait::val_int()
   return event_count;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Return 1 if both arguments are Gtid_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
@@ -4138,7 +4137,6 @@ longlong Item_func_gtid_subset::val_int()
   }
   DBUG_RETURN(ret);
 }
-#endif
 
 
 /**
