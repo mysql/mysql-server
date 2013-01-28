@@ -125,7 +125,7 @@ static void iibench_rangequery_cb(DB *db, const DBT *key, const DBT *val, void *
     }
 }
 
-struct iibench_op_extra {
+struct iibench_put_op_extra {
     uint64_t autoincrement;
 };
 
@@ -153,7 +153,7 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
-        struct iibench_op_extra *CAST_FROM_VOIDP(info, operation_extra);
+        struct iibench_put_op_extra *CAST_FROM_VOIDP(info, operation_extra);
 
         // Get a random primary key, generate secondary key columns in valbuf
         uint64_t pk = toku_sync_fetch_and_add(&info->autoincrement, 1);
@@ -271,10 +271,44 @@ static int iibench_compare_keys(DB *db, const DBT *a, const DBT *b) {
     }
 }
 
+static void iibench_rangequery_db(DB *db, DB_TXN *txn, ARG arg, uint64_t max_pk) {
+    const int limit = arg->cli->range_query_limit;
+
+    int r;
+    DBC *cursor;
+
+    // Get a random key no greater than max pk
+    DBT start_key, end_key;
+    uint64_t start_k = myrandom_r(arg->random_data) % max_pk;
+    uint64_t end_k = start_k + limit;
+    dbt_init(&start_key, &start_k, 8);
+    dbt_init(&end_key, &end_k, 8);
+
+    r = db->cursor(db, txn, &cursor, 0); CKERR(r);
+    r = cursor->c_pre_acquire_range_lock(cursor, &start_key, &end_key); CKERR(r);
+    struct rangequery_cb_extra extra = {
+        .rows_read = 0,
+        .limit = limit,
+        .cb = iibench_rangequery_cb,
+        .db = db,
+        .cb_extra = nullptr,
+    };
+    r = cursor->c_getf_set(cursor, 0, &start_key, rangequery_cb, &extra);
+    while (r == 0 && extra.rows_read < extra.limit && run_test) {
+        r = cursor->c_getf_next(cursor, 0, rangequery_cb, &extra);
+    }
+
+    r = cursor->c_close(cursor); CKERR(r);
+}
+
 // Do a range query over the primary index, verifying the contents of the rows
-static int iibench_rangequery_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
+static int iibench_rangequery_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
+    struct iibench_put_op_extra *CAST_FROM_VOIDP(info, operation_extra);
     DB *db = arg->dbp[0];
-    rangequery_db(db, txn, arg, iibench_rangequery_cb, nullptr);
+
+    // Do a sync fetch and add of 0 to silence race detection tools
+    uint64_t max_pk = toku_sync_fetch_and_add(&info->autoincrement, 0);
+    iibench_rangequery_db(db, txn, arg, max_pk);
     increment_counter(stats_extra, PTQUERIES, 1);
     return 0;
 }
@@ -288,7 +322,7 @@ stress_table(DB_ENV* env, DB **dbs, struct cli_args *cli_args) {
     // Put threads do iibench-like inserts with an auto-increment primary key
     // Query threads do range queries of a certain size, verifying row contents.
 
-    struct iibench_op_extra put_extra = {
+    struct iibench_put_op_extra put_extra = {
         .autoincrement = 0
     };
     for (int i = 0; i < num_threads; i++) {
@@ -298,7 +332,7 @@ stress_table(DB_ENV* env, DB **dbs, struct cli_args *cli_args) {
             myargs[i].operation_extra = &put_extra;
         } else {
             myargs[i].operation = iibench_rangequery_op;
-            myargs[i].operation_extra = nullptr;
+            myargs[i].operation_extra = &put_extra;
             myargs[i].txn_flags |= DB_TXN_READ_ONLY;
             myargs[i].sleep_ms = 1000; // 1 second between range queries
         }
