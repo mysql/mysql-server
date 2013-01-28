@@ -2129,7 +2129,7 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
 {
   my_ptrdiff_t adjust_ptrs;
   Field **field,**org_field, *found_next_number_field;
-  Field **vfield;
+  Field **UNINIT_VAR(vfield);
   TABLE *copy;
   TABLE_SHARE *share;
   uchar *bitmap;

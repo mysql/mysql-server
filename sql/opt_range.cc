@@ -13160,9 +13160,10 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
     */
     if (min_max_arg_part && min_max_arg_part->field->is_null())
     {
+      uchar *tmp_key_buff= (uchar*)my_alloca(max_used_key_length);
       /* Find the first subsequent record without NULL in the MIN/MAX field. */
-      key_copy(tmp_record, record, index_info, max_used_key_length);
-      result= file->ha_index_read_map(record, tmp_record,
+      key_copy(tmp_key_buff, record, index_info, max_used_key_length);
+      result= file->ha_index_read_map(record, tmp_key_buff,
                                       make_keypart_map(real_key_parts),
                                       HA_READ_AFTER_KEY);
       /*
@@ -13178,10 +13179,11 @@ int QUICK_GROUP_MIN_MAX_SELECT::next_min()
       if (!result)
       {
         if (key_cmp(index_info->key_part, group_prefix, real_prefix_len))
-          key_restore(record, tmp_record, index_info, 0);
+          key_restore(record, tmp_key_buff, index_info, 0);
       }
       else if (result == HA_ERR_KEY_NOT_FOUND || result == HA_ERR_END_OF_FILE)
         result= 0; /* There is a result in any case. */
+      my_afree(tmp_key_buff);
     }
   }
 
