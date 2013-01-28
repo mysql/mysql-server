@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2242,9 +2242,9 @@ join_read_last_key(JOIN_TAB *tab)
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
-  if ((error=table->file->index_read_last_map(table->record[0],
-                                              tab->ref.key_buff,
-                                              make_prev_keypart_map(tab->ref.key_parts))))
+  if ((error=table->file->ha_index_read_last_map(table->record[0],
+                                                 tab->ref.key_buff,
+                                                 make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_handler_error(table, error);
