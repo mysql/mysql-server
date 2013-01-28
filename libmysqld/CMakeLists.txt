@@ -152,7 +152,9 @@ ENDIF()
 SET(EMBEDDED_API)
 
 FOREACH(f ${CLIENT_API_FUNCTIONS})
-  IF(NOT(f MATCHES "plugin|_start$|_cont$"))
+  IF(f MATCHES "plugin|_start$|_cont$")
+    # Ignore functions, embedded does not export them
+  ELSE()
     SET(EMBEDDED_API ${EMBEDDED_API} ${f})
   ENDIF()	
 ENDFOREACH()
