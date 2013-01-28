@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5729,10 +5729,9 @@ User_var_log_event(const char* buf, uint event_len,
   /*
     We don't know yet is_null value, so we must assume that name_len
     may have the bigger value possible, is_null= True and there is no
-    payload for val.
+    payload for val, or even that name_len is 0.
   */
-  if (0 == name_len ||
-      !valid_buffer_range<uint>(name_len, buf_start, name,
+  if (!valid_buffer_range<uint>(name_len, buf_start, name,
                                 event_len - UV_VAL_IS_NULL))
   {
     error= true;
