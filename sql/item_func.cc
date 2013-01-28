@@ -5557,7 +5557,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name);
+  append_identifier(current_thd, str, name);
   str->append(')');
 }
 
@@ -5654,7 +5654,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
-  str->append(name);
+  append_identifier(current_thd, str, name);
 }
 
 
