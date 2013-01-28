@@ -201,10 +201,12 @@ buf_read_page_low(
 			truncated tablespace bounds when recovering
 			from a crash happened during a truncation */
 			buf_read_page_handle_error(bpage);
-			mutex_enter(&recv_sys->mutex);
-			ut_ad(recv_sys->n_addrs > 0);
-			recv_sys->n_addrs--;
-			mutex_exit(&recv_sys->mutex);
+			if (recv_recovery_on) {
+				mutex_enter(&recv_sys->mutex);
+				ut_ad(recv_sys->n_addrs > 0);
+				recv_sys->n_addrs--;
+				mutex_exit(&recv_sys->mutex);
+			}
 			return(0);
 		} else if (ignore_nonexistent_pages
 			   || *err == DB_TABLESPACE_DELETED) {
