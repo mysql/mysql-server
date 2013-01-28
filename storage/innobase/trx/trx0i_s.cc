@@ -477,10 +477,10 @@ fill_trx_row(
 
 	ut_ad(lock_mutex_own());
 
-	/* RO and transaction's whose intentions are unknown (whether they
+	/* RO and transactions whose intentions are unknown (whether they
 	will eventually do a WRITE) don't have an ID assigned to them. For
 	such transactions we print the transaction instance pointer. */
-	
+
 	row->trx_id = trx->id > 0 ? trx->id : (ulint) trx;
 
 	row->trx_started = (ib_time_t) trx->start_time;

@@ -5266,8 +5266,8 @@ public:
 		ulint	i = 0;
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-			lock && (i < m_index);
-			lock = UT_LIST_GET_NEXT(trx_locks, lock), ++i) {
+		     lock != NULL && (i < m_index);
+		     lock = UT_LIST_GET_NEXT(trx_locks, lock), ++i) {
 
 			/* No op */
 		}
@@ -5356,8 +5356,8 @@ private:
 		the current transaction. ie. reposition/restore */
 
 		for (i = 0, trx = UT_LIST_GET_FIRST(*m_trx_list);
-		     trx && (i < m_index);
-		     trx = UT_LIST_GET_NEXT(trx_list, trx), ++i) { 
+		     trx != NULL && (i < m_index);
+		     trx = UT_LIST_GET_NEXT(trx_list, trx), ++i) {
 
 			assert_trx_in_list(trx);
 		}
@@ -5454,7 +5454,7 @@ lock_rec_fetch_page(
 }
 
 /*********************************************************************//**
-Prints info of locks for a transaction. 
+Prints info of locks for a transaction.
 @return true if all printed, false if latches were release. */
 static
 bool
@@ -5478,7 +5478,7 @@ lock_trx_print_locks(
 				release both the lock mutex and the
 				trx_sys_t::mutex if it does a read
 				from disk. We have to reposition
-				the transaction transaction "cursor". */
+				the transaction "cursor". */
 
 				if (lock_rec_fetch_page(lock)) {
 					/* We need to resync the

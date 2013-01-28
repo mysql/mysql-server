@@ -1268,8 +1268,7 @@ static
 bool
 trx_sys_validate_trx_list_low(
 /*===========================*/
-	trx_list_t*	trx_list)	/*!< in: &trx_sys->ro_trx_list
-					or &trx_sys->rw_trx_list */
+	trx_list_t*	trx_list)	/*!< in: &trx_sys->rw_trx_list */
 {
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
@@ -1290,8 +1289,8 @@ trx_sys_validate_trx_list_low(
 }
 
 /*************************************************************//**
-Validate the trx_sys_t::ro_trx_list and trx_sys_t::rw_trx_list.
-@return TRUE if lists are valid. */
+Validate the trx_sys_t::rw_trx_list.
+@return true if the list is valid. */
 UNIV_INTERN
 bool
 trx_sys_validate_trx_list()
