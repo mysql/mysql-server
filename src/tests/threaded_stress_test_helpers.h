@@ -1731,7 +1731,7 @@ static void open_db_for_create(DB *db, int idx, struct cli_args *cli_args) {
     r = db->set_pagesize(db, cli_args->env_args.node_size); CKERR(r);
     r = db->set_readpagesize(db, cli_args->env_args.basement_node_size); CKERR(r);
     const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
-    r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666); CKERR(r);
+    r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666); CKERR(r);
 }
 
 static void open_db(DB *db, int idx, struct cli_args *cli_args) {
@@ -1740,7 +1740,7 @@ static void open_db(DB *db, int idx, struct cli_args *cli_args) {
     memset(name, 0, sizeof(name));
     get_ith_table_name(name, sizeof(name), idx);
     const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
-    r = db->open(db, null_txn, name, NULL, DB_BTREE, flags, 0666); CKERR(r);
+    r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666); CKERR(r);
 }
 
 static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
