@@ -451,7 +451,8 @@ trx_sys_file_format_id_to_name(
 
 #ifdef UNIV_DEBUG
 /*************************************************************//**
-Validate the trx_sys_t::trx_list. */
+Validate the trx_sys_t::rw_trx_list.
+@return true if the list is valid */
 UNIV_INTERN
 bool
 trx_sys_validate_trx_list();
