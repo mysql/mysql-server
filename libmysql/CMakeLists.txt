@@ -213,6 +213,16 @@ mysql_stmt_store_result_cont
 mysql_stmt_store_result_start
 mysql_store_result_cont
 mysql_store_result_start
+#dynamic columns api
+dynamic_column_create
+dynamic_column_create_many
+dynamic_column_update
+dynamic_column_update_many
+dynamic_column_delete
+dynamic_column_exists
+dynamic_column_list
+dynamic_column_get
+dynamic_column_prepare_decimal
 )
 
 SET(CLIENT_API_FUNCTIONS
