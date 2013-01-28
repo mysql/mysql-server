@@ -1,6 +1,7 @@
 #
 # Problem with range optimizer
 #
+--source include/have_innodb.inc
 
 --disable_warnings
 drop table if exists t1, t2, t3, t10, t100;
@@ -1549,3 +1550,57 @@ SELECT * FROM t1 ignore index(d) WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' 
 SELECT * FROM t1 force index(d)  WHERE d = 'q' OR d >= 'q' OR (d IN ( 'j' , 's' , 'i' ) AND ( b = 102 ));
 
 DROP TABLE t1;
+
+--disable_parsing
+# MariaDB: Moved the following to partition.test
+--echo #
+--echo # BUG#12912171 - ASSERTION FAILED: QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET
+--echo #
+CREATE TABLE t1 (
+ a INT,
+ b INT,
+ c INT,
+ PRIMARY KEY (c,a), KEY (a),KEY (a)
+) ENGINE=INNODB PARTITION BY KEY () PARTITIONS 2;
+INSERT INTO t1 VALUES (1,5,1),(2,4,1),(3,3,1),(4,2,1),(5,1,1);
+UPDATE t1 SET b = 0, c=1 WHERE a <=>0;
+SELECT * FROM t1;
+DROP TABLE t1;
+--enable_parsing
+
+--echo #
+--echo # BUG#13256446 - ASSERTION QUICK->HEAD->READ_SET ==
+--echo # SAVE_READ_SET' FAILED IN OPT_RANGE.CC:1606 
+--echo #
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f2=103;
+INSERT INTO t1 VALUES (154,0,NULL,0),(0,NULL,9,0),
+ (NULL,102,NULL,3),(0,3,NULL,0), (9,0,NULL,0),(0,9,NULL,157);
+SELECT * FROM v2;
+UPDATE v2 SET f4=0, f2=NULL, f1=NULL WHERE f1 > 16 ORDER BY f1;
+SELECT * FROM v2;
+DROP TABLE t1;
+DROP VIEW v2;
+
+CREATE TABLE t1 (
+ f1 INT AUTO_INCREMENT,
+ f2 INT,
+ f3 INT,
+ f4 INT,
+ PRIMARY KEY (f1),KEY(f2)
+) ENGINE=INNODB;
+INSERT INTO t1 VALUES(1,NULL,NULL,0), (2,2,0,3), (9,0,107,18),
+ (10,0,0,0), (231,0,0,0), (232,0,8,0), (234,0,0,NULL), (235,8,0,3);
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT f1,f2,f3,f4 FROM t1 WHERE f1<=85 ;
+SELECT * FROM v3;
+UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1; 
+SELECT * FROM v3;
+DROP TABLE t1;
+DROP VIEW v3;

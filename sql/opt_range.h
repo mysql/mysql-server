@@ -430,7 +430,7 @@ protected:
 
   /* Members to deal with case when this quick select is a ROR-merged scan */
   bool in_ror_merged_scan;
-  MY_BITMAP column_bitmap, *save_read_set, *save_write_set;
+  MY_BITMAP column_bitmap;
   bool free_file;   /* TRUE <=> this->file is "owned" by this quick select */
 
   /* Range pointers to be used when not using MRR interface */

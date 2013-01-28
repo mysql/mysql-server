@@ -1789,8 +1789,6 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
     bzero((char*) &alloc,sizeof(alloc));
   file= head->file;
   record= head->record[0];
-  save_read_set= head->read_set;
-  save_write_set= head->write_set;
 
   /* Allocate a bitmap for used columns (Q: why not on MEM_ROOT?) */
   if (!(bitmap= (my_bitmap_map*) my_malloc(head->s->column_bitmap_size,
@@ -1860,7 +1858,6 @@ QUICK_RANGE_SELECT::~QUICK_RANGE_SELECT()
     free_root(&alloc,MYF(0));
     my_free(column_bitmap.bitmap);
   }
-  head->column_bitmaps_set(save_read_set, save_write_set);
   my_free(mrr_buf_desc);
   DBUG_VOID_RETURN;
 }
@@ -2004,6 +2001,8 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   handler *save_file= file, *org_file;
   my_bool org_key_read;
   THD *thd= head->in_use;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::init_ror_merged_scan");
 
   in_ror_merged_scan= 1;
@@ -2054,6 +2053,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   last_rowid= file->ref;
 
 end:
+  DBUG_ASSERT(head->read_set == &column_bitmap);
   /*
     We are only going to read key fields and call position() on 'file'
     The following sets head->tmp_set to only use this key and then updates
@@ -2067,7 +2067,8 @@ end:
   if (!head->no_keyread)
   {
     doing_key_read= 1;
-    head->mark_columns_used_by_index(index);
+    head->mark_columns_used_by_index_no_reset(index, head->read_set);
+    head->enable_keyread();
   }
 
   head->prepare_for_position();
@@ -2089,8 +2090,9 @@ end:
 
   head->file= org_file;
   head->key_read= org_key_read;
-  bitmap_copy(&column_bitmap, head->read_set);
-  head->column_bitmaps_set(&column_bitmap, &column_bitmap);
+
+  /* Restore head->read_set (and write_set) to what they had before the call */
+  head->column_bitmaps_set(save_read_set, save_write_set);
  
   if (reset())
   {
@@ -2148,9 +2150,19 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
   while ((cur= quick_it++))
   {
     quick= cur->quick;
+#ifndef DBUG_OFF
+    const MY_BITMAP * const save_read_set= quick->head->read_set;
+    const MY_BITMAP * const save_write_set= quick->head->write_set;
+#endif
     if (quick->init_ror_merged_scan(FALSE))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
+
+    // Sets are shared by all members of "quick_selects" so must not change
+#ifndef DBUG_OFF
+    DBUG_ASSERT(quick->head->read_set == save_read_set);
+    DBUG_ASSERT(quick->head->write_set == save_write_set);
+#endif
     /* All merged scans share the same record buffer in intersection. */
     quick->record= head->record[0];
   }
@@ -10978,9 +10990,15 @@ int QUICK_RANGE_SELECT::reset()
   uchar *mrange_buff;
   int   error;
   HANDLER_BUFFER empty_buf;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
+  RANGE_SEQ_IF seq_funcs= {NULL, quick_range_seq_init, quick_range_seq_next, 0, 0};
+
+  if (in_ror_merged_scan)
+    head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
   
   if (file->inited == handler::RND)
   {
@@ -10991,15 +11009,12 @@ int QUICK_RANGE_SELECT::reset()
 
   if (file->inited == handler::NONE)
   {
-    if (in_ror_merged_scan)
-      head->column_bitmaps_set_no_signal(&column_bitmap, &column_bitmap);
-
     DBUG_EXECUTE_IF("bug14365043_2",
                     DBUG_SET("+d,ha_index_init_fail"););
     if ((error= file->ha_index_init(index,1)))
     {
         file->print_error(error, MYF(0));
-        DBUG_RETURN(error);
+        goto err;
     }
   }
 
@@ -11035,10 +11050,14 @@ int QUICK_RANGE_SELECT::reset()
   if (!mrr_buf_desc)
     empty_buf.buffer= empty_buf.buffer_end= empty_buf.end_of_used_area= NULL;
  
-  RANGE_SEQ_IF seq_funcs= {NULL, quick_range_seq_init, quick_range_seq_next, 0, 0};
   error= file->multi_range_read_init(&seq_funcs, (void*)this, ranges.elements,
                                      mrr_flags, mrr_buf_desc? mrr_buf_desc: 
                                                               &empty_buf);
+err:
+  /* Restore bitmaps set on entry */
+  if (in_ror_merged_scan)
+    head->column_bitmaps_set_no_signal(save_read_set, save_write_set);
+
   DBUG_RETURN(error);
 }
 
@@ -11061,6 +11080,9 @@ int QUICK_RANGE_SELECT::reset()
 int QUICK_RANGE_SELECT::get_next()
 {
   range_id_t dummy;
+  MY_BITMAP * const save_read_set= head->read_set;
+  MY_BITMAP * const save_write_set= head->write_set;
+
   DBUG_ENTER("QUICK_RANGE_SELECT::get_next");
   if (in_ror_merged_scan)
   {
