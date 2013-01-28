@@ -802,11 +802,6 @@ struct trx_t{
 					transaction has been registered with
 					the coordinator using the XA API, and
 					is set to 0 after commit or rollback. */
-	bool		owns_prepare_mutex;
-					/* 1 if owns prepare mutex, if
-					this is set to 1 then registered should
-					also be set to 1. This is used in the
-					XA code */
 	/*------------------------------*/
 	ulint		check_unique_secondary;
 					/*!< normally TRUE, but if the user

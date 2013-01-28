@@ -2047,7 +2047,6 @@ trx_register_for_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 1;
-	ut_ad(trx->owns_prepare_mutex == 0);
 }
 
 /*********************************************************************//**
@@ -2059,7 +2058,6 @@ trx_deregister_from_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 0;
-	trx->owns_prepare_mutex = 0;
 }
 
 
