@@ -798,10 +798,11 @@ struct trx_t{
 	commit between multiple storage engines and the binary log. When
 	an engine participates in a transaction, it's responsible for
 	registering itself using the trans_register_ha() API. */
-	bool		is_registered;	/* This flag is set to 1 after the
+	bool		is_registered;	/* This flag is set to true after the
 					transaction has been registered with
 					the coordinator using the XA API, and
-					is set to 0 after commit or rollback. */
+					is set to false  after commit or
+					rollback. */
 	/*------------------------------*/
 	ulint		check_unique_secondary;
 					/*!< normally TRUE, but if the user
@@ -909,8 +910,8 @@ struct trx_t{
 	/** The following two fields are mutually exclusive. */
 	/* @{ */
 
-	bool		in_ro_trx_list;	/*!< TRUE if in trx_sys->ro_trx_list */
-	bool		in_rw_trx_list;	/*!< TRUE if in trx_sys->rw_trx_list */
+	bool		in_ro_trx_list;	/*!< true if in trx_sys->ro_trx_list */
+	bool		in_rw_trx_list;	/*!< true if in trx_sys->rw_trx_list */
 	/* @} */
 #endif /* UNIV_DEBUG */
 	UT_LIST_NODE_T(trx_t)
@@ -918,7 +919,7 @@ struct trx_t{
 					MySQL; protected by trx_sys->mutex */
 #ifdef UNIV_DEBUG
 	bool		in_mysql_trx_list;
-					/*!< TRUE if in
+					/*!< true if in
 					trx_sys->mysql_trx_list */
 #endif /* UNIV_DEBUG */
 	/*------------------------------*/
@@ -1000,7 +1001,7 @@ struct trx_t{
 					when the trx instance is destroyed.
 					Protected by lock_sys->mutex. */
 	/*------------------------------*/
-	bool		read_only;	/*!< TRUE if transaction is flagged
+	bool		read_only;	/*!< true if transaction is flagged
 					as a READ-ONLY transaction.
 					if !auto_commit || will_lock > 0
 					then it will added to the list
@@ -1009,7 +1010,7 @@ struct trx_t{
 					UNDO log. Non-locking auto-commit
 					read-only transaction will not be on
 					either list. */
-	bool		auto_commit;	/*!< TRUE if it is an autocommit */
+	bool		auto_commit;	/*!< true if it is an autocommit */
 	ulint		will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
