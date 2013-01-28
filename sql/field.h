@@ -410,6 +410,7 @@ public:
     return bytes;
   }
 
+  void make_sort_key(uchar *buff, uint length);
   virtual void make_field(Send_field *);
   virtual void sort_string(uchar *buff,uint length)=0;
   virtual bool optimize_range(uint idx, uint part);

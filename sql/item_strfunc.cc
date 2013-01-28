@@ -1337,7 +1337,7 @@ void Item_str_func::left_right_max_length()
   if (args[1]->const_item())
   {
     int length= (int) args[1]->val_int();
-    if (length <= 0)
+    if (args[1]->null_value || length <= 0)
       char_length=0;
     else
       set_if_smaller(char_length, (uint) length);
@@ -1444,7 +1444,9 @@ void Item_func_substr::fix_length_and_dec()
   if (args[1]->const_item())
   {
     int32 start= (int32) args[1]->val_int();
-    if (start < 0)
+    if (args[1]->null_value)
+      max_length= 0;
+    else if (start < 0)
       max_length= ((uint)(-start) > max_length) ? 0 : (uint)(-start);
     else
       max_length-= min((uint)(start - 1), max_length);
@@ -1452,7 +1454,7 @@ void Item_func_substr::fix_length_and_dec()
   if (arg_count == 3 && args[2]->const_item())
   {
     int32 length= (int32) args[2]->val_int();
-    if (length <= 0)
+    if (args[2]->null_value || length <= 0)
       max_length=0; /* purecov: inspected */
     else
       set_if_smaller(max_length,(uint) length);
@@ -2650,7 +2652,9 @@ void Item_func_repeat::fix_length_and_dec()
 
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
-    if (count > INT_MAX32)
+    if (args[1]->null_value)
+      count= 0;
+    else if (count > INT_MAX32)
       count= INT_MAX32;
 
     ulonglong char_length= (ulonglong) args[0]->max_char_length() * count;
@@ -2729,7 +2733,9 @@ void Item_func_rpad::fix_length_and_dec()
     DBUG_ASSERT(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
-    if (char_length > INT_MAX32)
+    if (args[1]->null_value)
+      char_length= 0;
+    else if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
   }
@@ -2833,7 +2839,9 @@ void Item_func_lpad::fix_length_and_dec()
     DBUG_ASSERT(collation.collation->mbmaxlen > 0);
     /* Assumes that the maximum length of a String is < INT_MAX32. */
     /* Set here so that rest of code sees out-of-bound value as such. */
-    if (char_length > INT_MAX32)
+    if (args[1]->null_value)
+      char_length= 0;
+    else if (char_length > INT_MAX32)
       char_length= INT_MAX32;
     fix_char_length_ulonglong(char_length);
   }

@@ -2463,6 +2463,25 @@ HAVING t1sum <> 1;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # MDEV-3911: Assertion `fixed == 0' failed in Item_field::fix_fields
+--echo # on 2nd execution of PS with semijoin=on and IN subquery
+--echo #
+
+CREATE TABLE t1 (a INT, b INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (0,4),(8,6);
+						
+CREATE TABLE t2 (c INT, d INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7,1),(0,7);
+						
+eval PREPARE stmt FROM ' SELECT * FROM t1 WHERE ( a, b ) IN ( SELECT c, d FROM t2 ) ';
+
+execute stmt;
+execute stmt;
+
+deallocate prepare stmt;
+drop table t1,t2;
+
+--echo #
 --echo # MySQL Bug#13340270: assertion table->sort.record_pointers == __null
 --echo #
 
