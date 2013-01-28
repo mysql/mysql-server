@@ -2676,6 +2676,20 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_RETURN(result);
 }
 
+int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
+                                    key_part_map keypart_map)
+{
+  int result;
+  DBUG_ENTER("handler::ha_index_read_last_map");
+  DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
+              m_lock_type != F_UNLCK);
+  DBUG_ASSERT(inited == INDEX);
+
+  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+    { result= index_read_last_map(buf, key, keypart_map); })
+  DBUG_RETURN(result);
+}
+
 
 /**
   Initializes an index and read it.
