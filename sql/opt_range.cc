@@ -734,6 +734,23 @@ public:
   }
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
+    Possible ways to read rows using a single index because the
+    conditions of the query consists of single-index conjunctions:
+
+       (ranges_for_idx_1) AND (ranges_for_idx_2) AND ...
+
+    The SEL_ARG graph for each non-NULL element in keys[] may consist
+    of many single-index ranges (disjunctions), so ranges_for_idx_1
+    may e.g. be:
+
+       "idx_field1 = 1 OR (idx_field1 > 5 AND idx_field2 = 10)"
+
+    assuming that index1 is a composite index covering
+    (idx_field1,...,idx_field2,..)
+
+    Index merge intersection intersects ranges on SEL_ARGs from two or
+    more indexes.
+
     Note: there may exist SEL_TREE objects with sel_tree->type=KEY and
     keys[i]=0 for all i. (SergeyP: it is not clear whether there is any
     merit in range analyzer functions (e.g. get_mm_parts) returning a
@@ -743,8 +760,14 @@ public:
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
-    Possible ways to read rows using index_merge. The list is non-empty only
-    if type==KEY. Currently can be non empty only if keys_map.is_clear_all().
+    Possible ways to read rows using Index merge (sort) union.
+
+    Each element in 'merges' consists of multi-index disjunctions,
+    which means that Index merge (sort) union must be applied to read
+    rows. The nodes in the 'merges' list forms a conjunction of such
+    multi-index disjunctions.
+
+    The list is non-empty only if type==KEY.
   */
   List<SEL_IMERGE> merges;
 
@@ -1084,7 +1107,10 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
+    {
+      keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
+    }
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -6100,8 +6126,39 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   DBUG_RETURN(ftree);
 }
 
-	/* make a select tree of all keys in condition */
+/**
+  The Range Analysis Module, which finds range access alternatives
+  applicable to single or multi-index (UNION) access. The function
+  does not calculate or care about the cost of the different
+  alternatives.
 
+  get_mm_tree() employs a relaxed boolean algebra where the solution
+  may be bigger than what the rules of boolean algebra accept. In
+  other words, get_mm_tree() may return range access plans that will
+  read more rows than the input conditions dictate. In it's simplest
+  form, consider a condition on two fields indexed by two different
+  indexes:
+
+     "WHERE fld1 > 'x' AND fld2 > 'y'"
+
+  In this case, there are two single-index range access alternatives.
+  No matter which access path is chosen, rows that are not in the
+  result set may be read.
+
+  In the case above, get_mm_tree() will create range access
+  alternatives for both indexes, so boolean algebra is still correct.
+  In other cases, however, the conditions are too complex to be used
+  without relaxing the rules. This typically happens when ORing a
+  conjunction to a multi-index disjunctions (@see e.g.
+  imerge_list_or_tree()). When this happens, the range optimizer may
+  choose to ignore conjunctions (any condition connected with AND). The
+  effect of this is that the result includes a "bigger" solution than
+  neccessary. This is OK since all conditions will be used as filters
+  after row retrieval.
+
+  @see SEL_TREE::keys and SEL_TREE::merges for details of how single
+  and multi-index range access alternatives are stored.
+*/
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 {
   SEL_TREE *tree=0;
