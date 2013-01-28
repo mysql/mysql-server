@@ -77,7 +77,7 @@ explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Note	1003	select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
 1.23456
