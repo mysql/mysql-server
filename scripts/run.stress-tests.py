@@ -740,7 +740,7 @@ if __name__ == '__main__':
                            help='skip the svn up and build phase before testing [default=False]')
     build_group.add_option('--rebuild_period', type='int', dest='rebuild_period', default=60 * 60 * 24,
                            help='how many seconds between doing an svn up and rebuild, 0 means never rebuild [default=24 hours]')
-    default_toku_svnroot = os.path.relpath(os.path.join(default_toplevel, '../..'))
+    default_toku_svnroot = os.path.abspath(os.path.join(default_toplevel, '..', '..'))
     build_group.add_option('--toku_svnroot', type='string', dest='toku_svnroot', default=default_toku_svnroot,
                            help='passed to cmake as TOKU_SVNROOT [default=%s]' % default_toku_svnroot)
     build_group.add_option('--cc', type='string', dest='cc', default='gcc47',
