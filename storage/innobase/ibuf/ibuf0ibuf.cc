@@ -4787,6 +4787,16 @@ loop:
 				      == page_no);
 				ut_ad(ibuf_rec_get_space(&mtr, rec) == space);
 
+				/* Mark the change buffer record processed,
+				so that it will not be merged again in case
+				the server crashes between the following
+				mtr_commit() and the subsequent mtr_commit()
+				of deleting the change buffer record. */
+
+				btr_cur_set_deleted_flag_for_ibuf(
+					btr_pcur_get_rec(&pcur), NULL,
+					TRUE, &mtr);
+
 				btr_pcur_store_position(&pcur, &mtr);
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 

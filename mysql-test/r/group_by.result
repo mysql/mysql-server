@@ -2447,8 +2447,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.pk' of SELECT #2 was resolved in SELECT #1
-Note	1276	Field or reference 'test.t1.pk' of SELECT #4 was resolved in SELECT #1
 Note	1276	Field or reference 'test.t1.pk' of SELECT #3 was resolved in SELECT #1
+Note	1276	Field or reference 'test.t1.pk' of SELECT #4 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `t1`.`pk` AS `foo`,`t1`.`col_int_key` AS `foo`,(/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) AS `foo` from `test`.`t1` group by `t1`.`pk`,`t1`.`col_int_key`,(/* select#3 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`)) order by `t1`.`pk`,`t1`.`col_int_key`,(/* select#4 */ select `test`.`t2`.`a` from `test`.`t2` where (`test`.`t2`.`a` = `t1`.`pk`))
 DROP TABLE t1,t2;
 #
