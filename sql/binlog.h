@@ -686,7 +686,9 @@ extern bool opt_binlog_order_commits;
 
 /**
   Turns a relative log binary log path into a full path, based on the
-  opt_bin_logname or opt_relay_logname.
+  opt_bin_logname or opt_relay_logname. Also trims the cr-lf at the
+  end of the full_path before return to avoid any server startup
+  problem on windows.
 
   @param from         The log name we want to make into an absolute path.
   @param to           The buffer where to put the results of the 
@@ -735,10 +737,28 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   }
 
   DBUG_ASSERT(ptr);
-
   if (ptr)
-    strmake(to, ptr, strlen(ptr));
+  {
+    uint length= strlen(ptr);
 
+    // Strips the CR+LF at the end of log name and \0-terminates it.
+    if (length && ptr[length-1] == '\n')
+    {
+      ptr[length-1]= 0;
+      length--;
+      if (length && ptr[length-1] == '\r')
+      {
+        ptr[length-1]= 0;
+        length--;
+      }
+    }
+    if (!length)
+    {
+      error= true;
+      goto end;
+    }
+    strmake(to, ptr, length);
+  }
 end:
   DBUG_RETURN(error);
 }
