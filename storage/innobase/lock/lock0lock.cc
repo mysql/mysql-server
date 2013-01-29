@@ -4835,16 +4835,15 @@ class TrxLockIterator {
 public:
 	TrxLockIterator() { rewind(); }
 
-	/** Get the m_index of a transaction.
+	/** Get the m_index(th) lock  of a transaction.
 	@return current lock or 0 */
-
-	lock_t*	current(const trx_t* trx)
+	const lock_t* current(const trx_t* trx) const
 	{
 		lock_t*	lock;
 		ulint	i = 0;
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
-		     lock != NULL && (i < m_index);
+		     lock != NULL && i < m_index;
 		     lock = UT_LIST_GET_NEXT(trx_locks, lock), ++i) {
 
 			/* No op */
@@ -4854,7 +4853,6 @@ public:
 	}
 
 	/** Set the ordinal value to 0 */
-
 	void rewind()
 	{
 		m_index = 0;
@@ -4862,7 +4860,6 @@ public:
 
 	/** Increment the ordinal value.
 	@retun the current index value */
-
 	ulint next()
 	{
 		return(++m_index);
@@ -4878,7 +4875,7 @@ track where the iterator was up to and we do that using an ordinal value. */
 
 class TrxListIterator {
 public:
-	TrxListIterator() : m_index(0)
+	TrxListIterator() : m_index()
 	{
 		/* We iterate over the RW trx list first. */
 
@@ -4888,9 +4885,9 @@ public:
 	/** Get the current transaction whose ordinality is m_index.
 	@return current transaction or 0 */
 
-	const trx_t*	current()
+	const trx_t* current()
 	{
-		trx_t*	trx = reposition();
+		const trx_t* trx = reposition();
 
 		/* Check the read-only transaction list next. */
 
@@ -4925,7 +4922,7 @@ private:
 	first transaction.
 
 	@return transaction instance or 0 */
-	trx_t*	reposition()
+	const trx_t* reposition() const
 	{
 		ulint	i;
 		trx_t*	trx;
@@ -5005,7 +5002,7 @@ lock_rec_fetch_page(
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
 	ulint	space	= lock->un_member.rec_lock.space;
-	ulint	zip_size= fil_space_get_zip_size(space);
+	ulint	zip_size = fil_space_get_zip_size(space);
 	ulint	page_no = lock->un_member.rec_lock.page_no;
 
 	if (zip_size != ULINT_UNDEFINED) {
@@ -5033,7 +5030,7 @@ lock_rec_fetch_page(
 
 /*********************************************************************//**
 Prints info of locks for a transaction.
-@return true if all printed, false if latches were release. */
+@return true if all printed, false if latches were released. */
 static
 bool
 lock_trx_print_locks(
@@ -5046,6 +5043,7 @@ lock_trx_print_locks(
 {
 	const lock_t* lock;
 
+	/* Iterate over the transaction's locks. */
 	while ((lock = iter.current(trx)) != 0) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
@@ -5130,35 +5128,47 @@ lock_print_info_all_transactions(
 		&trx_t::mysql_trx_list, PrintNotStarted(file));
 
 	const trx_t*	trx;
-	TrxListIterator	iter;
+	TrxListIterator	trx_iter;
 	const trx_t*	prev_trx = 0;
 	bool		load_block = true;
 
-	while ((trx = iter.current()) != 0) {
+	while ((trx = trx_iter.current()) != 0) {
 
 		assert_trx_in_list(trx);
 
 		if (trx != prev_trx) {
 			lock_trx_print_wait_and_mvcc_state(file, trx);
 			prev_trx = trx;
+
+			/* The transaction that read in the page is no
+			longer the one that read the page in. We need to
+			force a page read. */
+
+			load_block = true;
 		}
 
 		if (!srv_print_innodb_lock_monitor) {
-			iter.next();
+			trx_iter.next();
 			load_block = true;
 			continue;
 		}
 
-		TrxLockIterator& lock_iter = iter.lock_iter();
+		TrxLockIterator& lock_iter = trx_iter.lock_iter();
 
 		if (!lock_trx_print_locks(file, trx, lock_iter, load_block)) {
 
-			/* Resync iterator, the trx_sys->mutex and
-			the lock mutex were released. */
+			/* Resync trx_iter, the trx_sys->mutex and the lock
+			mutex were released. A page was successfully read in.
+			We need to print its contents on the next call to
+			lock_trx_print_locks(). */
 
 			load_block = false;
 		} else {
-			iter.next();
+			/* All record lock details were printed without
+			fetching a page from disk. */
+			trx_iter.next();
+
+			/* Force read of next record lock, if any. */
 			load_block = true;
 		}
 	}

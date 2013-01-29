@@ -2499,7 +2499,7 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
-                        ut_ad(0);
+			ut_ad(0);
 		}
 
 		n_fields++;
@@ -5184,9 +5184,8 @@ row_search_check_if_query_cache_permitted(
 	/* If there are locks on the table or some trx has invalidated the
 	cache before this transaction started then this transaction cannot
 	read/write from/to the cache.
-	
-	FIXME: Time is too coarse a check, need to find a better mechanism.	
-	*/
+
+	FIXME: Time is too coarse a check, need to find a better mechanism. */
 
 	if (lock_table_get_n_locks(table) == 0
 	    && trx->start_time >= table->query_cache_inv_time) {

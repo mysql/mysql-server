@@ -796,8 +796,8 @@ struct dict_table_t{
 				there are foreign key checks running on
 				it! */
 	time_t		query_cache_inv_time;
-				/*!< transactions whose start time greater
-				this number are not allowed to store to the
+				/*!< transactions whose start time is greater
+				than this number are not allowed to store to the
 				MySQL query cache or retrieve from it; when
 				a trx with undo logs commits, it sets this
 				to the value of the current time. */
