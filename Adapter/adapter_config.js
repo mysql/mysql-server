@@ -18,10 +18,6 @@
  02110-1301  USA
 */
 
-/* TODO: The build_dir might vary depending on platform and type of build
-   (gyp vs. waf vs. CMake); this file should be home for the logic to find 
-   it no matter where it ended up.
-*/
 
 global.path            = require("path");
 global.fs              = require("fs");
@@ -32,14 +28,27 @@ global.adapter_dir     = __dirname;
 global.parent_dir      = path.dirname(adapter_dir);
 global.api_dir         = path.join(adapter_dir, "api");
 global.spi_dir         = path.join(adapter_dir, "impl");
-global.build_dir       = path.join(spi_dir, "build", "Release");
 global.spi_doc_dir     = path.join(spi_dir, "SPI-documentation");
 global.api_doc_dir     = path.join(parent_dir, "API-documentation");
 
 global.spi_module      = path.join(spi_dir, "SPI.js");
 global.api_module      = path.join(api_dir, "mynode.js");
 global.udebug_module   = path.join(api_dir, "unified_debug.js");
-
 global.unified_debug   = require(udebug_module);
+
+
+/* Find the build directory */
+var build1 = path.join(spi_dir, "build", "Release");
+var build2 = path.join(parent_dir, "build", "Release");
+var existsSync = fs.existsSync || path.existsSync;
+
+if(existsSync(path.join(build1, "ndb_adapter.node"))) {
+  global.build_dir = build1;
+}
+else if(existsSync(path.join(build2, "ndb_adapter.node"))) {
+  global.build_dir = build2;
+}
+
+
 
 
