@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -236,7 +236,7 @@ static void set_thread_state_noop(const char* state NNN)
   return;
 }
 
-static void set_thread_info_noop(const char* info NNN, int info_len NNN)
+static void set_thread_info_noop(const char* info NNN, uint info_len NNN)
 {
   return;
 }
