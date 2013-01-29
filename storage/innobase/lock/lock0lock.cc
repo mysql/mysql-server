@@ -5153,6 +5153,7 @@ lock_print_info_all_transactions(
 			continue;
 		}
 
+		/* Now print the locks owned by the current transaction. */
 		TrxLockIterator& lock_iter = trx_iter.lock_iter();
 
 		if (!lock_trx_print_locks(file, trx, lock_iter, load_block)) {
