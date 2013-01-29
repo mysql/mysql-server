@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -353,7 +353,7 @@ TODO list:
 using std::min;
 using std::max;
 
-#if !defined(EXTRA_DBUG) && !defined(DBUG_OFF)
+#if defined(EXTRA_DEBUG) && !defined(DBUG_OFF)
 #define RW_WLOCK(M) {DBUG_PRINT("lock", ("rwlock wlock 0x%lx",(ulong)(M))); \
   if (!mysql_rwlock_wrlock(M)) DBUG_PRINT("lock", ("rwlock wlock ok")); \
   else DBUG_PRINT("lock", ("rwlock wlock FAILED %d", errno)); }
@@ -950,7 +950,8 @@ Query_cache::insert(Query_cache_tls *query_cache_tls,
   header->result(result);
   header->last_pkt_nr= pkt_nr;
   BLOCK_UNLOCK_WR(query_block);
-  DBUG_EXECUTE("check_querycache",check_integrity(0););
+
+  DBUG_EXECUTE("check_querycache", check_integrity(LOCK_WHILE_CHECKING););
 
   DBUG_VOID_RETURN;
 }
@@ -982,7 +983,7 @@ Query_cache::abort(Query_cache_tls *query_cache_tls)
     // The following call will remove the lock on query_block
     free_query(query_block);
     query_cache_tls->first_query_block= NULL;
-    DBUG_EXECUTE("check_querycache", check_integrity(1););
+    DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   }
 
   unlock();
@@ -1062,7 +1063,7 @@ void Query_cache::end_of_result(THD *thd)
     header->writer(0);
     query_cache_tls->first_query_block= NULL;
     BLOCK_UNLOCK_WR(query_block);
-    DBUG_EXECUTE("check_querycache", check_integrity(1););
+    DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   }
 
   unlock();
@@ -1072,7 +1073,6 @@ void Query_cache::end_of_result(THD *thd)
 void query_cache_invalidate_by_MyISAM_filename(const char *filename)
 {
   query_cache.invalidate_by_MyISAM_filename(filename);
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(0););
 }
 
 
@@ -1157,7 +1157,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
   new_query_cache_size= init_cache();
 
   if (new_query_cache_size)
-    DBUG_EXECUTE("check_querycache",check_integrity(1););
+    DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
 
   unlock();
   DBUG_RETURN(new_query_cache_size);
@@ -1836,8 +1836,48 @@ err:
 }
 
 
-/*
-  Remove all cached queries that uses any of the tables in the list
+/**
+  Remove all cached queries that use the given table.
+
+  @param thd                 Thread handle
+  @param table_used          TABLE_LIST representing the table to be
+                             invalidated.
+  @param using_transactions  If we are inside a transaction only add
+                             the table to a list of changed tables for now,
+                             don't invalidate directly. The table will instead
+                             be invalidated once the transaction commits.
+*/
+
+void Query_cache::invalidate_single(THD *thd, TABLE_LIST *table_used,
+                                    my_bool using_transactions)
+{
+  DBUG_ENTER("Query_cache::invalidate_single (table list)");
+  if (is_disabled())
+    DBUG_VOID_RETURN;
+
+  using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
+  DBUG_ASSERT(!using_transactions || table_used->table!=0);
+  if (table_used->derived)
+    DBUG_VOID_RETURN;
+  if (using_transactions &&
+      (table_used->table->file->table_cache_type() ==
+       HA_CACHE_TBL_TRANSACT))
+    /*
+      table_used->table can't be 0 in transaction.
+      Only 'drop' invalidate not opened table, but 'drop'
+      force transaction finish.
+    */
+    thd->add_changed_table(table_used->table);
+  else
+    invalidate_table(thd, table_used);
+
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Remove all cached queries that use any of the tables in the list.
+
+  @see Query_cache::invalidate_single().
 */
 
 void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
@@ -1849,22 +1889,7 @@ void Query_cache::invalidate(THD *thd, TABLE_LIST *tables_used,
 
   using_transactions= using_transactions && thd->in_multi_stmt_transaction_mode();
   for (; tables_used; tables_used= tables_used->next_local)
-  {
-    DBUG_ASSERT(!using_transactions || tables_used->table!=0);
-    if (tables_used->derived)
-      continue;
-    if (using_transactions &&
-        (tables_used->table->file->table_cache_type() ==
-        HA_CACHE_TBL_TRANSACT))
-      /*
-        tables_used->table can't be 0 in transaction.
-        Only 'drop' invalidate not opened table, but 'drop'
-        force transaction finish.
-      */
-      thd->add_changed_table(tables_used->table);
-    else
-      invalidate_table(thd, tables_used);
-  }
+    invalidate_single(thd, tables_used, using_transactions);
 
   DEBUG_SYNC(thd, "wait_after_query_cache_invalidate");
 
@@ -2046,6 +2071,7 @@ void Query_cache::invalidate_by_MyISAM_filename(const char *filename)
   uint key_length= filename_2_table_key(key, filename, &db_length);
   THD *thd= current_thd;
   invalidate_table(thd,(uchar *)key, key_length);
+  DBUG_EXECUTE("check_querycache", check_integrity(LOCK_WHILE_CHECKING););
   DBUG_VOID_RETURN;
 }
 
@@ -2067,7 +2093,7 @@ void Query_cache::flush()
     DUMP(this);
   }
 
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+  DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   unlock();
   DBUG_VOID_RETURN;
 }
@@ -2229,7 +2255,7 @@ ulong Query_cache::init_cache()
   query_cache_size -= additional_data_size;
 
   if (!(cache= (uchar *)
-        my_malloc_lock(query_cache_size+additional_data_size, MYF(0))))
+        my_malloc(query_cache_size+additional_data_size, MYF(0))))
     goto err;
 
   DBUG_PRINT("qcache", ("cache length %lu, min unit %lu, %u bins",
@@ -3807,7 +3833,7 @@ void Query_cache::pack_cache()
 {
   DBUG_ENTER("Query_cache::pack_cache");
 
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+  DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
 
   uchar *border = 0;
   Query_cache_block *before = 0;
@@ -3839,7 +3865,7 @@ void Query_cache::pack_cache()
     DUMP(this);
   }
 
-  DBUG_EXECUTE("check_querycache",query_cache.check_integrity(1););
+  DBUG_EXECUTE("check_querycache", check_integrity(CALLER_HOLDS_LOCK););
   DBUG_VOID_RETURN;
 }
 
@@ -4207,17 +4233,17 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   Functions to be used when debugging
 ****************************************************************************/
 
-#if defined(DBUG_OFF) && !defined(USE_QUERY_CACHE_INTEGRITY_CHECK)
+#if defined(DBUG_OFF) || !defined(EXTRA_DEBUG)
 
-void wreck(uint line, const char *message) { query_cache_size = 0; }
-void bins_dump() {}
-void cache_dump() {}
-void queries_dump() {}
-void tables_dump() {}
-my_bool check_integrity(bool not_locked) { return 0; }
-my_bool in_list(Query_cache_block * root, Query_cache_block * point,
-		const char *name) { return 0;}
-my_bool in_blocks(Query_cache_block * point) { return 0; }
+void Query_cache::wreck(uint line, const char *message) { query_cache_size = 0; }
+void Query_cache::bins_dump() {}
+void Query_cache::cache_dump() {}
+void Query_cache::queries_dump() {}
+void Query_cache::tables_dump() {}
+bool Query_cache::check_integrity(enum_qcci_lock_mode locking) { return false; }
+my_bool Query_cache::in_list(Query_cache_block *root, Query_cache_block *point,
+                             const char *name) { return 0;}
+my_bool Query_cache::in_blocks(Query_cache_block * point) { return 0; }
 
 #else
 
@@ -4245,7 +4271,6 @@ void Query_cache::wreck(uint line, const char *message)
   if (thd)
     thd->killed= THD::KILL_CONNECTION;
   cache_dump();
-  /* check_integrity(0); */ /* Can't call it here because of locks */
   bins_dump();
   DBUG_VOID_RETURN;
 }
@@ -4416,30 +4441,37 @@ void Query_cache::tables_dump()
 /**
   Checks integrity of the various linked lists
 
+  @param locking  CALLER_HOLDS_LOCK | LOCK_WHILE_CHECKING  Who does locking?
+
   @return Error status code
-    @retval FALSE Query cache is operational.
-    @retval TRUE Query cache is broken.
+    @retval false Query cache is operational.
+    @retval true  Query cache is broken.
 */
 
-my_bool Query_cache::check_integrity(bool locked)
+bool Query_cache::check_integrity(enum_qcci_lock_mode locking)
 {
-  my_bool result = 0;
+  bool result= false;
   uint i;
+
   DBUG_ENTER("check_integrity");
 
-  if (!locked)
-    lock_and_suspend();
+  /*
+    If we can't get a lock here, it means someone's throwing out the cache so
+    there's nothing to check, anyway, so that's OK.
+  */
+  if ((locking == LOCK_WHILE_CHECKING) && (try_lock()))
+    DBUG_RETURN(false);
 
   if (my_hash_check(&queries))
   {
     DBUG_PRINT("error", ("queries hash is damaged"));
-    result = 1;
+    result= true;
   }
 
   if (my_hash_check(&tables))
   {
     DBUG_PRINT("error", ("tables hash is damaged"));
-    result = 1;
+    result= true;
   }
 
   DBUG_PRINT("qcache", ("physical address check ..."));
@@ -4460,7 +4492,7 @@ my_bool Query_cache::check_integrity(bool locked)
       DBUG_PRINT("error",
 		 ("block 0x%lx do not aligned by %d", (ulong) block,
 		  (int) ALIGN_SIZE(1)));
-      result = 1;
+      result= true;
     }
     // Check memory allocation
     if (block->pnext == first_block) // Is it last block?
@@ -4473,7 +4505,7 @@ my_bool Query_cache::check_integrity(bool locked)
 		    (ulong) block, (uint) block->type, 
 		    (ulong) (((uchar*)block) + block->length),
 		    (ulong) (((uchar*)first_block) + query_cache_size)));
-	result = 1;
+	result= true;
       }
     }
     else
@@ -4504,27 +4536,27 @@ my_bool Query_cache::check_integrity(bool locked)
 		    (ulong) bin,
 		    (ulong) bins,
 		    (ulong) first_block));
-	result = 1;
+	result= true;
       }
       else
       {
 	int idx = (((uchar*)bin) - ((uchar*)bins)) /
 	  sizeof(Query_cache_memory_bin);
 	if (in_list(bins[idx].free_blocks, block, "free memory"))
-	  result = 1;
+	  result= true;
       }
       break;
     }
     case Query_cache_block::TABLE:
       if (in_list(tables_blocks, block, "tables"))
-	result = 1;
+        result= true;
       if (in_table_list(block->table(0),  block->table(0), "table list root"))
-	result = 1;
+        result= true;
       break;
     case Query_cache_block::QUERY:
     {
       if (in_list(queries_blocks, block, "query"))
-	result = 1;
+        result = true;
       for (TABLE_COUNTER_TYPE j=0; j < block->n_tables; j++)
       {
 	Query_cache_block_table *block_table = block->table(j);
@@ -4532,9 +4564,9 @@ my_bool Query_cache::check_integrity(bool locked)
 	  (Query_cache_block_table *) 
 	  (((uchar*)block_table->parent) -
 	   ALIGN_SIZE(sizeof(Query_cache_block_table)));
-	
-    	if (in_table_list(block_table, block_table_root, "table list"))
-    	  result = 1;
+
+        if (in_table_list(block_table, block_table_root, "table list"))
+          result= true;
       }
       break;
     }
@@ -4555,16 +4587,16 @@ my_bool Query_cache::check_integrity(bool locked)
 		    (ulong) query_block,
 		    (ulong) first_block,
 		    (ulong) (((uchar*)first_block) + query_cache_size)));
-	result = 1;
+	result= true;
       }
       else
       {
 	BLOCK_LOCK_RD(query_block);
 	if (in_list(queries_blocks, query_block, "query from results"))
-	  result = 1;
+	  result= true;
 	if (in_list(query_block->query()->result(), block,
 		    "results"))
-	  result = 1;
+	  result= true;
 	BLOCK_UNLOCK_RD(query_block);
       }
       break;
@@ -4572,26 +4604,26 @@ my_bool Query_cache::check_integrity(bool locked)
     default:
       DBUG_PRINT("error", ("block 0x%lx have incorrect type %u",
                            (long) block, block->type));
-      result = 1;
+      result= true;
     }
-    
+
     block = block->pnext;
   } while (block != first_block);
-  
+
   if (used + free != query_cache_size)
   {
     DBUG_PRINT("error",
 	       ("used memory (%lu) + free memory (%lu) !=  query_cache_size (%lu)",
 		used, free, query_cache_size));
-    result = 1;
+    result= true;
   }
-  
+
   if (free != free_memory)
   {
     DBUG_PRINT("error",
 	       ("free memory (%lu) != free_memory (%lu)",
 		free, free_memory));
-    result = 1;
+    result= true;
   }
 
   DBUG_PRINT("qcache", ("check queries ..."));
@@ -4610,7 +4642,7 @@ my_bool Query_cache::check_integrity(bool locked)
 			     (ulong) block, (ulong) val));
       }
       if (in_blocks(block))
-	result = 1;
+        result= true;
       Query_cache_block * results = block->query()->result();
       if (results)
       {
@@ -4620,7 +4652,7 @@ my_bool Query_cache::check_integrity(bool locked)
 	  DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 				(ulong) block, (uint) block->type));
 	  if (in_blocks(result_block))
-	    result = 1;
+	    result= true;
 
 	  result_block = result_block->next;
 	} while (result_block != results);
@@ -4644,9 +4676,9 @@ my_bool Query_cache::check_integrity(bool locked)
 	DBUG_PRINT("error", ("block 0x%lx found in tables hash like 0x%lx",
 			     (ulong) block, (ulong) val));
       }
-      
+
       if (in_blocks(block))
-	result = 1;
+        result= true;
       block=block->next;
     } while (block != tables_blocks);
   }
@@ -4662,8 +4694,8 @@ my_bool Query_cache::check_integrity(bool locked)
 	DBUG_PRINT("qcache", ("block 0x%lx, type %u...", 
 			      (ulong) block, (uint) block->type));
 	if (in_blocks(block))
-	  result = 1;
-	
+	  result= true;
+
 	count++;
 	block=block->next;
       } while (block != bins[i].free_blocks);
@@ -4671,13 +4703,15 @@ my_bool Query_cache::check_integrity(bool locked)
       {
 	DBUG_PRINT("error", ("bins[%d].number= %d, but bin have %d blocks",
 			     i, bins[i].number,  count));
-	result = 1;
+	result= true;
       }
     }
   }
   DBUG_ASSERT(result == 0);
-  if (!locked)
+
+  if (locking == LOCK_WHILE_CHECKING)
     unlock();
+
   DBUG_RETURN(result);
 }
 

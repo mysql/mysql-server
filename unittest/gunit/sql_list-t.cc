@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,13 +75,17 @@ protected:
   static void SetUpTestCase()
   {
     ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    THR_THD_initialized= true;
     ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
     pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
     pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
   }
 
   MEM_ROOT m_mem_root;

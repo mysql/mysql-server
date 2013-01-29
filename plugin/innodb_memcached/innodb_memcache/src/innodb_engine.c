@@ -471,6 +471,7 @@ innodb_conn_clean_data(
 
 	if (conn_data->crsr_trx) {
 		innodb_cb_trx_commit(conn_data->crsr_trx);
+		conn_data->crsr_trx = NULL;
 	}
 
 	if (conn_data->mysql_tbl) {

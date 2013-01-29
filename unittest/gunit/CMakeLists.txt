@@ -160,6 +160,13 @@ IF(NOT GMOCK_FOUND)
   RETURN()
 ENDIF()
 
+SET(GMOCK_INCLUDE_DIRS
+  ${GMOCK_SOURCE_DIR}
+  ${GMOCK_SOURCE_DIR}/include
+  ${GTEST_SOURCE_DIR}
+  ${GTEST_SOURCE_DIR}/include
+  CACHE INTERNAL "")
+
 # Build gmock/gtest libraries.
 INCLUDE_DIRECTORIES(
   ${GMOCK_SOURCE_DIR}
@@ -299,6 +306,11 @@ IF (MERGE_UNITTESTS)
     gunit_large strings dbug regex mysys)
   TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
 
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(merge_large_tests-t perfschema)
+    TARGET_LINK_LIBRARIES(merge_small_tests-t perfschema pfs_server_stubs)
+  ENDIF()
+
   ADD_TEST(merge_large_tests merge_large_tests-t)
   ADD_TEST(merge_small_tests merge_small_tests-t)
 
@@ -307,6 +319,9 @@ ELSE()
   FOREACH(test ${TESTS})
     ADD_EXECUTABLE(${test}-t ${test}-t.cc)
     TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema pfs_server_stubs)
+    ENDIF()
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()
   
@@ -326,6 +341,11 @@ ELSE()
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
     TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    ENDIF()
+
     ADD_TEST(${test} ${test}-t)
   ENDFOREACH()
 
