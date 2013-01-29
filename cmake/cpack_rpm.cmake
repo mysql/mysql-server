@@ -71,6 +71,7 @@ SET(ignored
   "%ignore /usr"
   "%ignore /usr/bin"
   "%ignore /usr/include"
+  "%ignore /usr/lib"
   "%ignore /usr/lib64"
   "%ignore /usr/sbin"
   "%ignore /usr/share"
