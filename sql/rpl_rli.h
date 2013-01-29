@@ -652,14 +652,6 @@ public:
   /*
    * End of MTS section ******************************************************/
 
-  /* 
-     Returns true if the argument event resides in the containter;
-     more specifically, the checking is done against the last added event.
-  */
-  bool is_deferred_event(Log_event * ev)
-  {
-    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
-  };
   /* The general cleanup that slave applier may need at the end of query. */
   inline void cleanup_after_query()
   {

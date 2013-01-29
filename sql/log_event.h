@@ -1133,6 +1133,8 @@ public:
 
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
+    Additionally the member serves to tag deferred (IRU) events to avoid
+    the event regular time destruction.
   */
   Relay_log_info *worker;
 
