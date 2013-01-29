@@ -734,6 +734,23 @@ public:
   }
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
+    Possible ways to read rows using a single index because the
+    conditions of the query consists of single-index conjunctions:
+
+       (ranges_for_idx_1) AND (ranges_for_idx_2) AND ...
+
+    The SEL_ARG graph for each non-NULL element in keys[] may consist
+    of many single-index ranges (disjunctions), so ranges_for_idx_1
+    may e.g. be:
+
+       "idx_field1 = 1 OR (idx_field1 > 5 AND idx_field2 = 10)"
+
+    assuming that index1 is a composite index covering
+    (idx_field1,...,idx_field2,..)
+
+    Index merge intersection intersects ranges on SEL_ARGs from two or
+    more indexes.
+
     Note: there may exist SEL_TREE objects with sel_tree->type=KEY and
     keys[i]=0 for all i. (SergeyP: it is not clear whether there is any
     merit in range analyzer functions (e.g. get_mm_parts) returning a
@@ -743,8 +760,14 @@ public:
   key_map keys_map;        /* bitmask of non-NULL elements in keys */
 
   /*
-    Possible ways to read rows using index_merge. The list is non-empty only
-    if type==KEY. Currently can be non empty only if keys_map.is_clear_all().
+    Possible ways to read rows using Index merge (sort) union.
+
+    Each element in 'merges' consists of multi-index disjunctions,
+    which means that Index merge (sort) union must be applied to read
+    rows. The nodes in the 'merges' list forms a conjunction of such
+    multi-index disjunctions.
+
+    The list is non-empty only if type==KEY.
   */
   List<SEL_IMERGE> merges;
 
@@ -1089,7 +1112,10 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
     if ((keys[idx]= arg->keys[idx]))
+    {
+      keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
+    }
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -6105,8 +6131,39 @@ static SEL_TREE *get_full_func_mm_tree(RANGE_OPT_PARAM *param,
   DBUG_RETURN(ftree);
 }
 
-	/* make a select tree of all keys in condition */
+/**
+  The Range Analysis Module, which finds range access alternatives
+  applicable to single or multi-index (UNION) access. The function
+  does not calculate or care about the cost of the different
+  alternatives.
 
+  get_mm_tree() employs a relaxed boolean algebra where the solution
+  may be bigger than what the rules of boolean algebra accept. In
+  other words, get_mm_tree() may return range access plans that will
+  read more rows than the input conditions dictate. In it's simplest
+  form, consider a condition on two fields indexed by two different
+  indexes:
+
+     "WHERE fld1 > 'x' AND fld2 > 'y'"
+
+  In this case, there are two single-index range access alternatives.
+  No matter which access path is chosen, rows that are not in the
+  result set may be read.
+
+  In the case above, get_mm_tree() will create range access
+  alternatives for both indexes, so boolean algebra is still correct.
+  In other cases, however, the conditions are too complex to be used
+  without relaxing the rules. This typically happens when ORing a
+  conjunction to a multi-index disjunctions (@see e.g.
+  imerge_list_or_tree()). When this happens, the range optimizer may
+  choose to ignore conjunctions (any condition connected with AND). The
+  effect of this is that the result includes a "bigger" solution than
+  neccessary. This is OK since all conditions will be used as filters
+  after row retrieval.
+
+  @see SEL_TREE::keys and SEL_TREE::merges for details of how single
+  and multi-index range access alternatives are stored.
+*/
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 {
   SEL_TREE *tree=0;
@@ -11114,13 +11171,15 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     NGA1.If in the index I there is a gap between the last GROUP attribute G_k,
          and the MIN/MAX attribute C, then NGA must consist of exactly the
          index attributes that constitute the gap. As a result there is a
-         permutation of NGA that coincides with the gap in the index
-         <B_1, ..., B_m>.
+         permutation of NGA, BA=<B_1,...,B_m>, that coincides with the gap
+         in the index.
     NGA2.If BA <> {}, then the WHERE clause must contain a conjunction EQ of
          equality conditions for all NG_i of the form (NG_i = const) or
          (const = NG_i), such that each NG_i is referenced in exactly one
          conjunct. Informally, the predicates provide constants to fill the
          gap in the index.
+    NGA3.If BA <> {}, there can only be one range. TODO: This is a code
+         limitation and is not strictly needed. See BUG#15947433
     WA1. There are no other attributes in the WHERE clause except the ones
          referenced in predicates RNG, PA, PC, EQ defined above. Therefore
          WA is subset of (GA union NGA union C) for GA,NGA,C that pass the
@@ -11865,6 +11924,84 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
 
 /*
+  Get SEL_ARG tree, if any, for the keypart covering non grouping
+  attribute (NGA) field 'nga_field'.
+
+  This function enforces the NGA3 test: If 'keypart_tree' contains a
+  condition for 'nga_field', there can only be one range. In the
+  opposite case, this function returns with error and 'cur_range'
+  should not be used.
+
+  Note that the NGA1 and NGA2 requirements, like whether or not the
+  range predicate for 'nga_field' is equality, is not tested by this
+  function.
+
+  @param[in]   nga_field      The NGA field we want the SEL_ARG tree for
+  @param[in]   keypart_tree   Root node of the SEL_ARG* tree for the index
+  @param[out]  cur_range      The SEL_ARG tree, if any, for the keypart
+                              covering field 'keypart_field'
+  @retval true   'keypart_tree' contained a predicate for 'nga_field' but
+                  multiple ranges exists. 'cur_range' should not be used.
+  @retval false  otherwise
+*/
+
+static bool
+get_sel_arg_for_keypart(Field *nga_field,
+                        SEL_ARG *keypart_tree,
+                        SEL_ARG **cur_range)
+{
+  if(keypart_tree ==NULL)
+    return false;
+  if(keypart_tree->type != SEL_ARG::KEY_RANGE)
+  {
+    /*
+      A range predicate not usable by Loose Index Scan is found.
+      Predicates for keypart 'keypart_tree->part' and later keyparts
+      cannot be used.
+    */
+    *cur_range= keypart_tree;
+    return false;
+  }
+  if(keypart_tree->field->eq(nga_field))
+  {
+    /*
+      Enforce NGA3: If a condition for nga_field has been found, only
+      a single range is allowed.
+    */
+    if (keypart_tree->prev || keypart_tree->next)
+      return true; // There are multiple ranges
+
+    *cur_range= keypart_tree;
+    return false;
+  }
+
+  SEL_ARG *found_tree= NULL;
+  SEL_ARG *first_kp=  keypart_tree->first();
+
+  for (SEL_ARG *cur_kp= first_kp; cur_kp && !found_tree;
+       cur_kp= cur_kp->next)
+  {
+    if (cur_kp->next_key_part)
+    {
+      if (get_sel_arg_for_keypart(nga_field,
+                                  cur_kp->next_key_part,
+                                  &found_tree))
+        return true;
+
+    }
+    /*
+       Enforce NGA3: If a condition for nga_field has been found,only
+       a single range is allowed.
+    */
+    if (found_tree && found_tree->type == SEL_ARG::KEY_RANGE && first_kp->next)
+      return true; // There are multiple ranges
+  }
+  *cur_range= found_tree;
+  return false;
+}
+
+
+/*
   Extract a sequence of constants from a conjunction of equality predicates.
 
   SYNOPSIS
@@ -11916,13 +12053,9 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
       Find the range tree for the current keypart. We assume that
       index_range_tree points to the leftmost keypart in the index.
     */
-    for (cur_range= index_range_tree;
-         cur_range && cur_range->type == SEL_ARG::KEY_RANGE;
-         cur_range= cur_range->next_key_part)
-    {
-      if (cur_range->field->eq(cur_part->field))
-        break;
-    }
+    if(get_sel_arg_for_keypart(cur_part->field, index_range_tree, &cur_range))
+      return false;
+
     if (!cur_range || cur_range->type != SEL_ARG::KEY_RANGE)
     {
       if (min_max_arg_part)
