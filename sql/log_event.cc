@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -50,9 +50,29 @@
 #include <base64.h>
 #include <my_bitmap.h>
 #include "rpl_utility.h"
+/* This is necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
 
 using std::min;
 using std::max;
+
+#if defined(MYSQL_CLIENT)
+
+/*
+  A I_List variable to store the string pair for rewriting the database
+  name for an event that is read from the binlog using mysqlbinlog, so
+  it can be applied to the new database.
+ */
+I_List<i_string_pair> binlog_rewrite_db;
+/*
+  A constant character pointer to store the to_db name from the
+  "from_db->to_db" during the transformation of the database name
+  of the event read from the binlog.
+*/
+const char* rewrite_to_db;
+
+#endif
 
 /**
   BINLOG_CHECKSUM variable.
@@ -105,6 +125,109 @@ template bool valid_buffer_range<unsigned int>(unsigned int,
                                                const char*,
                                                const char*,
                                                unsigned int);
+
+#if defined(MYSQL_CLIENT)
+
+/**
+  Function to extract the to_db name from the list of the
+  from_db and to_db pairs.
+
+  from_db1 -> to_db1
+  from_db2 -> to_db2
+
+  stored in the I_List (binlog_rewrite_db).
+
+  At the same time it also sets the option_rewrite_db to 1
+  if the to_db value is found for the supplied from_db name.
+
+  @param[in] db     The database name to be replaced.
+
+  @retval    true   success that a the to_db name is found from the list.
+  @retval    false  the to_db name for the corresponding db is not found.
+
+*/
+bool get_binlog_rewrite_db(const char* db)
+{
+  if (binlog_rewrite_db.is_empty() || !db)
+    return false;
+  I_List_iterator<i_string_pair> it(binlog_rewrite_db);
+  i_string_pair* tmp;
+
+  while ((tmp=it++))
+  {
+    if (!strncmp(tmp->key, db, NAME_LEN+1))
+    {
+      rewrite_to_db= (const char*) my_malloc(strlen(tmp->val)+1, MYF(MY_WME));
+      strncpy(const_cast<char*>(rewrite_to_db), tmp->val, strlen(tmp->val)+1);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+  Function to rewrite the buffer to a new temorary buffer so that the ROW event can
+  be written on to the new database.
+
+  The TABLE_MAP event buffer structure :
+
+  Before Rewriting :
+
+    +-------------+-----------+-------------+----------+----------+
+    |common_header|post_header|database_info|table_info|extra_info|
+    +-------------+-----------+-------------+----------+----------+
+
+  After Rewriting :
+
+    +-------------+-----------+-----------------+----------+----------+
+    |common_header|post_header|new_database_info|table_info|extra_info|
+    +-------------+-----------+-----------------+----------+----------+
+
+    @param[in,out] buf                event buffer to be processes
+    @param[in]     event_len          length of the event
+    @param[in]     description_event  error, warning or info
+
+    @retval        true               returns if the space is not allocated.
+    @retval        false              if rewrite is successful or no rewrite
+                                      for the event.
+
+*/
+bool rewrite_buffer(char **buf, int event_len,
+                    const Format_description_log_event
+                    *description_event)
+{
+  uint8 common_header_len= description_event->common_header_len;
+  uint8 post_header_len= description_event->post_header_len[TABLE_MAP_EVENT -1];
+  char* temp_rewrite_buf= 0;
+  const char *const temp_vpart= *buf + common_header_len + post_header_len;
+  uchar const *const ptr_dblen= (uchar const*)temp_vpart + 0;
+
+  if(!(get_binlog_rewrite_db((const char*)ptr_dblen + 1)))
+    return false;
+  int temp_length_l= common_header_len + post_header_len;
+  size_t old_db_len= *(uchar*) ptr_dblen;
+  size_t rewrite_db_len= strlen(rewrite_to_db);
+
+  uchar const *const ptr_tbllen= ptr_dblen + old_db_len + 2;
+  int replace_segment= rewrite_db_len - old_db_len;
+  if (!(temp_rewrite_buf= (char*) my_malloc(event_len + replace_segment,
+                                            MYF(MY_WME))))
+    return true;
+
+  memcpy(temp_rewrite_buf, *buf, temp_length_l);
+  char* temp_ptr=temp_rewrite_buf + temp_length_l + 0;
+
+  *temp_ptr++= strlen(rewrite_to_db);
+  strncpy(temp_ptr, (const char*)rewrite_to_db, rewrite_db_len + 1);
+  char* temp_ptr_tbllen= temp_ptr + rewrite_db_len + 1;
+  uint8 temp_length= event_len - (temp_length_l + old_db_len +2);
+  memcpy(temp_ptr_tbllen, ptr_tbllen, temp_length);
+
+  *buf= temp_rewrite_buf;
+  return false;
+}
+
+#endif
 
 /* 
    replication event checksum is introduced in the following "checksum-home" version.
@@ -237,7 +360,7 @@ static void set_thd_db(THD *thd, const char *db, uint32 db_len)
   char lcase_db_buf[NAME_LEN +1]; 
   LEX_STRING new_db;
   new_db.length= db_len;
-  if (lower_case_table_names == 1)
+  if (lower_case_table_names)
   {
     strmov(lcase_db_buf, db); 
     my_casedn_str(system_charset_info, lcase_db_buf);
@@ -1368,6 +1491,18 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
     error = "read error";
     goto err;
   }
+
+#if defined(MYSQL_CLIENT)
+  if(option_rewrite_set && buf[EVENT_TYPE_OFFSET] == TABLE_MAP_EVENT)
+  {
+    if (rewrite_buffer(&buf, data_len, description_event))
+    {
+      error= "Out of memory";
+      goto err;
+    }
+  }
+#endif
+
   if ((res= read_log_event(buf, data_len, &error, description_event, crc_check)))
     res->register_temp_buf(buf);
 
@@ -4216,7 +4351,14 @@ void Query_log_event::print_query_header(IO_CACHE* file,
     if (!is_trans_keyword())
       print_event_info->db[0]= '\0';
   }
-  else if (db)
+
+/*
+  option_rewrite_set is used to check whether the USE DATABASE command needs
+  to be suppressed or not.
+  Suppress if the --rewrite-db  option in use.
+  Skip otherwise.
+*/
+  else if (db && !option_rewrite_set)
   {
 #ifdef MYSQL_SERVER
     quoted_len= my_strmov_quoted_identifier(this->thd, (char*)quoted_id, db, 0);
@@ -6390,7 +6532,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
     strmov(table_buf, table_name);
-    if (lower_case_table_names == 1)
+    if (lower_case_table_names)
       my_casedn_str(system_charset_info, table_buf);
     tables.init_one_table(thd->strmake(thd->db, thd->db_length),
                           thd->db_length,
@@ -7475,10 +7617,9 @@ User_var_log_event(const char* buf, uint event_len,
   /*
     We don't know yet is_null value, so we must assume that name_len
     may have the bigger value possible, is_null= True and there is no
-    payload for val.
+    payload for val, or even that name_len is 0.
   */
-  if (0 == name_len ||
-      !valid_buffer_range<uint>(name_len, buf_start, name,
+  if (!valid_buffer_range<uint>(name_len, buf_start, name,
                                 event_len - UV_VAL_IS_NULL))
   {
     error= true;
@@ -11892,7 +12033,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
   strmov(db_mem, m_dbnam);
   strmov(tname_mem, m_tblnam);
 
-  if (lower_case_table_names == 1)
+  if (lower_case_table_names)
   {
     my_casedn_str(system_charset_info, db_mem);
     my_casedn_str(system_charset_info, tname_mem);
@@ -11908,6 +12049,7 @@ int Table_map_log_event::do_apply_event(Relay_log_info const *rli)
 
   table_list->table_id= DBUG_EVALUATE_IF("inject_tblmap_same_id_maps_diff_table", 0, m_table_id);
   table_list->updating= 1;
+  table_list->required_type= FRMTYPE_TABLE;
   DBUG_PRINT("debug", ("table: %s is mapped to %u", table_list->table_name, table_list->table_id));
   enum_tbl_map_status tblmap_status= check_table_map(rli, table_list);
   if (tblmap_status == OK_TO_PROCESS)
@@ -12373,6 +12515,19 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
       goto error;
     }
     /*
+      key index value is either valid in the range [0-MAX_KEY) or
+      has value MAX_KEY as a marker for the case when no information
+      about key can be found. In the last case we have to require
+      that storage engine has the flag HA_DUPLICATE_POS turned on.
+      If this invariant is false then DBUG_ASSERT will crash
+      the server built in debug mode. For the server that was built
+      without DEBUG we have additional check for the value of key index
+      in the code below in order to report about error in any case.
+    */
+    DBUG_ASSERT(keynum != MAX_KEY ||
+                (keynum == MAX_KEY &&
+                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+    /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
@@ -12431,12 +12586,22 @@ Write_rows_log_event::write_row(const Relay_log_info *const rli,
         }
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
-               0);
-      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                (const uchar*)key.get(),
-                                                HA_WHOLE_KEY,
-                                                HA_READ_KEY_EXACT);
+      if ((uint)keynum < MAX_KEY)
+      {
+        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+                 0);
+        error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                  (const uchar*)key.get(),
+                                                  HA_WHOLE_KEY,
+                                                  HA_READ_KEY_EXACT);
+      }
+      else
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;
+
       if (error)
       {
         DBUG_PRINT("info",("ha_index_read_idx_map() returns %s", HA_ERR(error)));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -988,9 +988,7 @@ THD::THD(bool enable_plugins)
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.flags.enabled= true;
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   active_vio = 0;
-#endif
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1255,12 +1253,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
-  cond= DBUG_EVALUATE_IF(
-    "simulate_out_of_memory",
-    NULL,
-    da->push_warning(this, sql_errno, sqlstate, level, msg));
-
   if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
@@ -1291,6 +1283,16 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
   query_cache_abort(&query_cache_tls);
 
+  DBUG_ASSERT(!(sql_errno == EE_OUTOFMEMORY || sql_errno == ER_OUTOFMEMORY) 
+              || is_fatal_error);
+  /* 
+     Avoid pushing a condition for out of memory errors as this will require
+     memory allocation and therefore might fail.
+  */
+  if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUTOFMEMORY)
+  {
+    cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
+  }
   DBUG_RETURN(cond);
 }
 
@@ -1342,7 +1344,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #ifdef _WIN32
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_getspecific_ptr(THD*,THR_THD);
+  return my_pthread_get_THR_THD();
 }
 #endif
 /*
@@ -1500,11 +1502,6 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   if (gtid_mode > 0)
@@ -1528,6 +1525,11 @@ void THD::cleanup(void)
    */
   if (tc_log)
     tc_log->commit(this, true);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
   cleanup_done=1;
   DBUG_VOID_RETURN;
@@ -1711,7 +1713,6 @@ void THD::awake(THD::killed_state state_to_set)
 
   if (state_to_set != THD::KILL_QUERY)
   {
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     if (this != current_thd)
     {
       /*
@@ -1742,7 +1743,6 @@ void THD::awake(THD::killed_state state_to_set)
 
       shutdown_active_vio();
     }
-#endif
 
     /* Mark the target thread's alarm request expired, and signal alarm. */
     thr_alarm_kill(thread_id);
@@ -1809,7 +1809,6 @@ void THD::disconnect()
 
   killed= THD::KILL_CONNECTION;
 
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   /*
     Since a active vio might might have not been set yet, in
     any case save a reference to avoid closing a inexistent
@@ -1817,7 +1816,6 @@ void THD::disconnect()
   */
   vio= active_vio;
   shutdown_active_vio();
-#endif
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio && net.vio != NULL)
@@ -1871,8 +1869,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_setspecific_ptr(THR_THD,  this) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
+  if (my_pthread_set_THR_THD(this) ||
+      my_pthread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -1911,11 +1909,11 @@ bool THD::restore_globals()
     to track stack overrun.
   */
   DBUG_ASSERT(thread_stack);
-  
+
   /* Undocking the thread specific data. */
-  my_pthread_setspecific_ptr(THR_THD, NULL);
-  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
-  
+  my_pthread_set_THR_THD(NULL);
+  my_pthread_set_THR_MALLOC(NULL);
+
   return 0;
 }
 
@@ -2209,7 +2207,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
              ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
@@ -2269,7 +2267,6 @@ int THD::send_explain_fields(select_result *result)
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
-#ifdef SIGNAL_WITH_VIO_SHUTDOWN
 void THD::shutdown_active_vio()
 {
   DBUG_ENTER("shutdown_active_vio");
@@ -2283,7 +2280,6 @@ void THD::shutdown_active_vio()
 #endif
   DBUG_VOID_RETURN;
 }
-#endif
 
 
 /*
@@ -2781,7 +2777,7 @@ bool select_export::send_data(List<Item> &items)
       set_if_smaller(estimated_bytes, UINT_MAX32);
       if (cvt_str.realloc((uint32) estimated_bytes))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
       }
 
@@ -3547,11 +3543,11 @@ void Statement_map::reset()
 
 Statement_map::~Statement_map()
 {
-  /* Must go first, hash_free will reset st_hash.records */
-  mysql_mutex_lock(&LOCK_prepared_stmt_count);
-  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-  prepared_stmt_count-= st_hash.records;
-  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
+  /*
+    We do not want to grab the global LOCK_prepared_stmt_count mutex here.
+    reset() should already have been called to maintain prepared_stmt_count.
+   */
+  DBUG_ASSERT(st_hash.records == 0);
 
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);

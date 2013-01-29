@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,9 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+/* These two header files are necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -37,6 +40,13 @@
 #include "hash.h"
 #include "rpl_tblmap.h"
 #include "rpl_tblmap.cc"
+
+/*
+  Variable to suppress the USE <DATABASE> command when using the
+  new mysqlbinlog option
+*/
+bool option_rewrite_set= FALSE;
+extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
 
 #ifdef MYSQL_SERVER
@@ -1138,6 +1148,8 @@ public:
 
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
+    Additionally the member serves to tag deferred (IRU) events to avoid
+    the event regular time destruction.
   */
   Relay_log_info *worker;
 
@@ -4744,10 +4756,12 @@ private:
 
 
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
-                                                       FILE *file)
+                                                       FILE *file,
+                                                       bool flush_stream)
 {
   return         
     my_b_copy_to_file(cache, file) ||
+    (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
 

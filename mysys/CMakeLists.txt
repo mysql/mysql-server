@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,10 +53,6 @@ ENDIF()
 
 IF(HAVE_LARGE_PAGES)
  SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_largepage.c)
-ENDIF()
-
-IF(HAVE_MLOCK)
- SET(MYSYS_SOURCES ${MYSYS_SOURCES} my_lockmem.c)
 ENDIF()
 
 ADD_CONVENIENCE_LIBRARY(mysys ${MYSYS_SOURCES})
