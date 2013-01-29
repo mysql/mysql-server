@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -604,7 +604,7 @@ JOIN::optimize()
   }
   if (group_list || tmp_table_param.sum_func_count)
   {
-    if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
+    if (hidden_group_field_count == 0 && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
   else if (select_distinct &&
@@ -6311,26 +6311,46 @@ static bool test_if_ref(Item *root_cond,
       if (right_item->const_item() && !(right_item->is_null()))
       {
         /*
-          We can remove all fields except float. The reason is that
-          comparison of float can differ:
-          1. When we search "WHERE field=value" using an index,
+          We can remove all fields except:
+          1. String data types:
+           - For CHAR/VARCHAR fields with equality against a string
+             that is longer than the field: In this case ref access
+             will return all rows that matches on a prefix of the
+             string and the condition needs to be evaluated by the
+             server. The call to save_in_field_no_warnings() returns
+             OK in this case. @todo Consider if it would be more
+             correct if save_in_field_no_warnings() should return
+             something else than OK for this case or if it would be
+             possible to filter such conditions out during the
+             optimization phase (since it will always be false).
+           - For BINARY/VARBINARY fields with equality against a
+             string: Ref access can return more rows than matche the
+             string. The reason seems to be that the string constant
+             is not "padded" to the full length of the field when
+             setting up ref access. @todo Change how ref access for
+             BINARY/VARBINARY fields are done so that only qualifying
+             rows are returned from the storage engine.
+          2. Float data type: Comparison of float can differ
+           - When we search "WHERE field=value" using an index,
              the "value" side is converted from double to float by
              Field_float::store(), then two floats are compared.
-          2. When we search "WHERE field=value" without indexes,
+           - When we search "WHERE field=value" without indexes,
              the "field" side is converted from float to double by
              Field_float::val_real(), then two doubles are compared.
-
           Note about string data types: All currently existing
           collations have "PAD SPACE" style. If we introduce "NO PAD"
-          collations we have to change to return false for such
+          collations this function must return false for such
           collations, because trailing space compression for indexes
           makes the table value and the index value not equal to each
           other in "NO PAD" collations. As index lookup strips
           trailing spaces, it can return false candidates. Further
           comparison of the actual table values is required.
         */
-        if (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0)
+        if (field->type() != MYSQL_TYPE_STRING &&
+            field->type() != MYSQL_TYPE_VARCHAR &&
+            (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
         {
+          DBUG_ASSERT(field->binary());
           return !right_item->save_in_field_no_warnings(field, true);
         }
       }

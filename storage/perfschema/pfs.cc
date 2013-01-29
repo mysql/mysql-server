@@ -2167,10 +2167,10 @@ void pfs_set_thread_state_v1(const char* state)
   {
     int state_len= state ? strlen(state) : 0;
 
-    pfs->m_processlist_lock.allocated_to_dirty();
+    pfs->m_processlist_state_lock.allocated_to_dirty();
     pfs->m_processlist_state_ptr= state;
     pfs->m_processlist_state_length= state_len;
-    pfs->m_processlist_lock.dirty_to_allocated();
+    pfs->m_processlist_state_lock.dirty_to_allocated();
   }
 }
 
@@ -2178,16 +2178,30 @@ void pfs_set_thread_state_v1(const char* state)
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_info.
 */
-void pfs_set_thread_info_v1(const char* info, int info_len)
+void pfs_set_thread_info_v1(const char* info, uint info_len)
 {
   PFS_thread *pfs= my_pthread_get_THR_PFS();
 
+  DBUG_ASSERT((info != NULL) || (info_len == 0));
+
   if (likely(pfs != NULL))
   {
-    pfs->m_processlist_lock.allocated_to_dirty();
-    pfs->m_processlist_info_ptr= info;
-    pfs->m_processlist_info_length= info_len;
-    pfs->m_processlist_lock.dirty_to_allocated();
+    if ((info != NULL) && (info_len > 0))
+    {
+      if (info_len > sizeof(pfs->m_processlist_info))
+        info_len= sizeof(pfs->m_processlist_info);
+
+      pfs->m_processlist_info_lock.allocated_to_dirty();
+      memcpy(pfs->m_processlist_info, info, info_len);
+      pfs->m_processlist_info_length= info_len;
+      pfs->m_processlist_info_lock.dirty_to_allocated();
+    }
+    else
+    {
+      pfs->m_processlist_info_lock.allocated_to_dirty();
+      pfs->m_processlist_info_length= 0;
+      pfs->m_processlist_info_lock.dirty_to_allocated();
+    }
   }
 }
 

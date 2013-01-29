@@ -1831,13 +1831,10 @@ thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
 UNIV_INTERN
 void
-srv_active_wake_master_thread(void)
-/*===============================*/
+srv_active_wake_master_thread_low(void)
+/*===================================*/
 {
-	if (srv_read_only_mode) {
-		return;
-	}
-
+	ut_ad(!srv_read_only_mode);
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2508,7 +2505,9 @@ srv_do_purge(
 	}
 
 	do {
-		if (trx_sys->rseg_history_len > rseg_history_len) {
+		if (trx_sys->rseg_history_len > rseg_history_len
+		    || (srv_max_purge_lag > 0
+			&& rseg_history_len > srv_max_purge_lag)) {
 
 			/* History length is now longer than what it was
 			when we took the last snapshot. Use more threads. */
