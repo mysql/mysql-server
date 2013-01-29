@@ -530,16 +530,19 @@ lock_clust_rec_cons_read_sees(
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec, index) */
 	read_view_t*	view)	/*!< in: consistent read view */
 {
-	trx_id_t	trx_id;
-
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
+	if (srv_read_only_mode) {
+		ut_ad(view == 0);
+		return(true);
+	}
+
 	/* NOTE that we call this function while holding the search
 	system latch. */
 
-	trx_id = row_get_rec_trx_id(rec, index, offsets);
+	trx_id_t	trx_id = row_get_rec_trx_id(rec, index, offsets);
 
 	return(read_view_sees_trx_id(view, trx_id));
 }
@@ -2103,10 +2106,12 @@ lock_rec_lock_fast(
 	enum lock_rec_req_status status = LOCK_REC_SUCCESS;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
-	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX));
+	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IX)
+	      || srv_read_only_mode);
 	ut_ad((LOCK_MODE_MASK & mode) == LOCK_S
 	      || (LOCK_MODE_MASK & mode) == LOCK_X);
 	ut_ad(mode - (LOCK_MODE_MASK & mode) == LOCK_GAP
@@ -2182,6 +2187,7 @@ lock_rec_lock_slow(
 	dberr_t			err = DB_SUCCESS;
 
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
@@ -2277,6 +2283,7 @@ lock_rec_lock(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_X
@@ -4415,7 +4422,7 @@ lock_table(
 
 	ut_ad(table && thr);
 
-	if (flags & BTR_NO_LOCKING_FLAG) {
+	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
 
 		return(DB_SUCCESS);
 	}
@@ -6259,7 +6266,7 @@ lock_sec_rec_read_check_and_lock(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
-	if (flags & BTR_NO_LOCKING_FLAG) {
+	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
 
 		return(DB_SUCCESS);
 	}
@@ -6337,14 +6344,14 @@ lock_clust_rec_read_check_and_lock(
 	      || gap_mode == LOCK_REC_NOT_GAP);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (flags & BTR_NO_LOCKING_FLAG) {
+	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
 
 		return(DB_SUCCESS);
 	}
 
 	heap_no = page_rec_get_heap_no(rec);
 
-	if (UNIV_LIKELY(heap_no != PAGE_HEAP_NO_SUPREMUM)) {
+	if (heap_no != PAGE_HEAP_NO_SUPREMUM) {
 
 		lock_rec_convert_impl_to_expl(block, rec, index, offsets);
 	}
@@ -6356,8 +6363,7 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(mode != LOCK_S
 	      || lock_table_has(thr_get_trx(thr), index->table, LOCK_IS));
 
-	err = lock_rec_lock(FALSE, mode | gap_mode,
-			    block, heap_no, index, thr);
+	err = lock_rec_lock(FALSE, mode | gap_mode, block, heap_no, index, thr);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK_REQ);
 

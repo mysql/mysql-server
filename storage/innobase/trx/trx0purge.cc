@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -333,7 +333,7 @@ trx_purge_free_segment(
 		}
 
 		if (fseg_free_step_not_header(
-			seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr)) {
+			    seg_hdr + TRX_UNDO_FSEG_HEADER, false, &mtr)) {
 
 			break;
 		}
@@ -372,7 +372,7 @@ trx_purge_free_segment(
 		is not flooded with bufferfixed pages: see the note in
 		fsp0fsp.cc. */
 
-	} while(!fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, &mtr));
+	} while (!fseg_free_step(seg_hdr + TRX_UNDO_FSEG_HEADER, false, &mtr));
 
 	hist_size = mtr_read_ulint(rseg_hdr + TRX_RSEG_HISTORY_SIZE,
 				   MLOG_4BYTES, &mtr);
