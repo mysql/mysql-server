@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -604,7 +604,7 @@ JOIN::optimize()
   }
   if (group_list || tmp_table_param.sum_func_count)
   {
-    if (! hidden_group_fields && rollup.state == ROLLUP::STATE_NONE)
+    if (hidden_group_field_count == 0 && rollup.state == ROLLUP::STATE_NONE)
       select_distinct=0;
   }
   else if (select_distinct &&

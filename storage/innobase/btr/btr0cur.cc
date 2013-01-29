@@ -437,6 +437,7 @@ btr_cur_search_to_nth_level(
 	s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
 
 	ut_ad(!s_latch_by_caller
+	      || srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				   MTR_MEMO_S_LOCK));
 
@@ -550,7 +551,7 @@ btr_cur_search_to_nth_level(
 					MTR_MEMO_X_LOCK));
 		break;
 	default:
-		if (!s_latch_by_caller) {
+		if (!s_latch_by_caller && !srv_read_only_mode) {
 			mtr_s_lock(dict_index_get_lock(index), mtr);
 		}
 	}
@@ -736,7 +737,7 @@ retry_page_get:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
-			if (!s_latch_by_caller) {
+			if (!s_latch_by_caller && !srv_read_only_mode) {
 				/* Release the tree s-latch */
 				mtr_release_s_latch_at_savepoint(
 					mtr, savepoint,
@@ -885,7 +886,9 @@ btr_cur_open_at_index_side_func(
 					MTR_MEMO_S_LOCK));
 		break;
 	default:
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -926,7 +929,7 @@ btr_cur_open_at_index_side_func(
 				latch_mode & ~BTR_ALREADY_S_LATCHED,
 				cursor, mtr);
 
-			if (height == 0) {
+			if (height == 0 && !srv_read_only_mode) {
 				/* In versions <= 3.23.52 we had
 				forgotten to release the tree latch
 				here. If in an index scan we had to
@@ -1022,7 +1025,9 @@ btr_cur_open_at_rnd_pos_func(
 		break;
 	default:
 		ut_ad(latch_mode != BTR_CONT_MODIFY_TREE);
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1928,8 +1933,7 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -1951,8 +1955,8 @@ btr_cur_update_in_place(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
@@ -2060,7 +2064,7 @@ btr_cur_optimistic_update(
 				cursor stays valid and positioned on the
 				same record */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to NULL or memory heap */
 	const upd_t*	update,	/*!< in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
@@ -2096,8 +2100,8 @@ btr_cur_optimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -2377,8 +2381,8 @@ btr_cur_pessimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
@@ -4169,7 +4173,8 @@ btr_push_update_extern_fields(
 				InnoDB writes a longer prefix of externally
 				stored columns, so that column prefixes
 				in secondary indexes can be reconstructed. */
-				dfield_set_data(field, (byte*) dfield_get_data(field)
+				dfield_set_data(field,
+						(byte*) dfield_get_data(field)
 						+ dfield_get_len(field)
 						- BTR_EXTERN_FIELD_REF_SIZE,
 						BTR_EXTERN_FIELD_REF_SIZE);
