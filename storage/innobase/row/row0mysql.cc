@@ -1971,7 +1971,11 @@ run_again:
 
 		que_thr_stop_for_mysql(thr);
 
+		thr->lock_state = QUE_THR_LOCK_ROW;
+
 		lock_wait_suspend_thread(thr);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		/* Note that a lock wait may also end in a lock wait timeout,
 		or this transaction is picked as a victim in selective

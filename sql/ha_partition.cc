@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5768,9 +5768,9 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       reverse_order= TRUE;
       break;
     case partition_index_read_last:
-      error= file->index_read_last_map(rec_buf_ptr,
-                                       m_start_key.key,
-                                       m_start_key.keypart_map);
+      error= file->ha_index_read_last_map(rec_buf_ptr,
+                                          m_start_key.key,
+                                          m_start_key.keypart_map);
       reverse_order= TRUE;
       break;
     case partition_read_range:
