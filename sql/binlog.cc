@@ -3225,11 +3225,10 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 
     // if the log entry matches, null string matching anything
     if (!log_name ||
-       (log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
-        !memcmp(full_fname, full_log_name, log_name_len)))
+       (log_name_len == fname_len &&
+       !memcmp(full_fname, full_log_name, log_name_len)))
     {
       DBUG_PRINT("info", ("Found log file entry"));
-      full_fname[fname_len-1]= 0;                      // remove last \n
       linfo->index_file_start_offset= offset;
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
@@ -3294,7 +3293,6 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
     length= strlen(full_fname);
   }
 
-  full_fname[length-1]= 0;                     // kill \n
   linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
