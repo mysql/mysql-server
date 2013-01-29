@@ -85,6 +85,7 @@ SET(CPACK_RPM_server_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/
 SET(CPACK_RPM_common_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf")
 SET(CPACK_RPM_shared_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")
 SET(CPACK_RPM_client_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")
+SET(CPACK_RPM_compat_USER_FILELIST ${ignored})
 SET(CPACK_RPM_devel_USER_FILELIST ${ignored})
 SET(CPACK_RPM_test_USER_FILELIST ${ignored})
 
