@@ -11941,7 +11941,7 @@ get_sel_arg_for_keypart(Field *nga_field,
                         SEL_ARG *keypart_tree,
                         SEL_ARG **cur_range)
 {
-  if(keypart_tree ==NULL)
+  if(keypart_tree == NULL)
     return false;
   if(keypart_tree->type != SEL_ARG::KEY_RANGE)
   {
@@ -12040,6 +12040,7 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
   uchar *key_ptr= key_infix;
   for (cur_part= first_non_group_part; cur_part != end_part; cur_part++)
   {
+    cur_range= NULL;
     /*
       Find the range tree for the current keypart. We assume that
       index_range_tree points to the leftmost keypart in the index.
