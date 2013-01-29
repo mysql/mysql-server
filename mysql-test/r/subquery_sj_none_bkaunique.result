@@ -6302,7 +6302,7 @@ EXPLAIN
               ],
               "rows": 1,
               "filtered": 100,
-              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
             }
           }
         },
