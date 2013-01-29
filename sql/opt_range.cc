@@ -9870,6 +9870,8 @@ get_sel_arg_for_keypart(Field *nga_field,
                         SEL_ARG *keypart_tree,
                         SEL_ARG **cur_range)
 {
+  if(keypart_tree == NULL)
+    return false;
   if(keypart_tree->field->eq(nga_field))
   {
     /*
