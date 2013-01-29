@@ -1847,13 +1847,10 @@ thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
 UNIV_INTERN
 void
-srv_active_wake_master_thread(void)
+srv_active_wake_master_thread_low()
 /*===============================*/
 {
-	if (srv_read_only_mode) {
-		return;
-	}
-
+	ut_ad(!srv_read_only_mode);
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();

@@ -381,6 +381,8 @@ read_view_open_now(
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
+	ut_ad(!srv_read_only_mode);
+
 	read_view_t*	view;
 
 	trx_sys_mutex_enter();
@@ -485,14 +487,15 @@ read_view_close_for_mysql(
 /*======================*/
 	trx_t*		trx)	/*!< in: trx which has a read view */
 {
-	ut_a(trx->global_read_view);
+	if (!srv_read_only_mode) {
 
-	read_view_remove(trx->global_read_view, false);
+		read_view_remove(trx->global_read_view, false);
 
-	mem_heap_empty(trx->global_read_view_heap);
+		mem_heap_empty(trx->global_read_view_heap);
 
-	trx->read_view = NULL;
-	trx->global_read_view = NULL;
+		trx->read_view = NULL;
+		trx->global_read_view = NULL;
+	}
 }
 
 /*********************************************************************//**
@@ -612,9 +615,8 @@ read_cursor_view_close_for_mysql(
 	trx_t*		trx,	/*!< in: trx */
 	cursor_view_t*	curview)/*!< in: cursor view to be closed */
 {
-	ut_a(curview);
-	ut_a(curview->read_view);
 	ut_a(curview->heap);
+	ut_a(curview->read_view);
 
 	/* Add cursor's tables to the global count of active tables that
 	belong to this transaction */

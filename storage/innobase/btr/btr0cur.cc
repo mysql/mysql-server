@@ -437,6 +437,7 @@ btr_cur_search_to_nth_level(
 	s_latch_by_caller = latch_mode & BTR_ALREADY_S_LATCHED;
 
 	ut_ad(!s_latch_by_caller
+	      || srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
 				   MTR_MEMO_S_LOCK));
 
@@ -550,7 +551,7 @@ btr_cur_search_to_nth_level(
 					MTR_MEMO_X_LOCK));
 		break;
 	default:
-		if (!s_latch_by_caller) {
+		if (!s_latch_by_caller && !srv_read_only_mode) {
 			mtr_s_lock(dict_index_get_lock(index), mtr);
 		}
 	}
@@ -736,7 +737,7 @@ retry_page_get:
 		case BTR_CONT_MODIFY_TREE:
 			break;
 		default:
-			if (!s_latch_by_caller) {
+			if (!s_latch_by_caller && !srv_read_only_mode) {
 				/* Release the tree s-latch */
 				mtr_release_s_latch_at_savepoint(
 					mtr, savepoint,
@@ -885,7 +886,9 @@ btr_cur_open_at_index_side_func(
 					MTR_MEMO_S_LOCK));
 		break;
 	default:
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -926,7 +929,7 @@ btr_cur_open_at_index_side_func(
 				latch_mode & ~BTR_ALREADY_S_LATCHED,
 				cursor, mtr);
 
-			if (height == 0) {
+			if (height == 0 && !srv_read_only_mode) {
 				/* In versions <= 3.23.52 we had
 				forgotten to release the tree latch
 				here. If in an index scan we had to
@@ -1022,7 +1025,9 @@ btr_cur_open_at_rnd_pos_func(
 		break;
 	default:
 		ut_ad(latch_mode != BTR_CONT_MODIFY_TREE);
-		mtr_s_lock(dict_index_get_lock(index), mtr);
+		if (!srv_read_only_mode) {
+			mtr_s_lock(dict_index_get_lock(index), mtr);
+		}
 	}
 
 	page_cursor = btr_cur_get_page_cur(cursor);
@@ -1314,33 +1319,40 @@ btr_cur_optimistic_insert(
 		Subtract one byte for the encoded heap_no in the
 		modification log. */
 		ulint	free_space_zip = page_zip_empty_size(
-			cursor->index->n_fields, zip_size) - 1;
+			cursor->index->n_fields, zip_size);
 		ulint	n_uniq = dict_index_get_n_unique_in_tree(index);
 
 		ut_ad(dict_table_is_comp(index->table));
 
-		/* There should be enough room for two node pointer
-		records on an empty non-leaf page.  This prevents
-		infinite page splits. */
-
-		if (UNIV_LIKELY(entry->n_fields >= n_uniq)
-		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
-				     + rec_get_converted_size_comp_prefix(
-					     index, entry->fields, n_uniq,
-					     NULL)
-				     /* On a compressed page, there is
-				     a two-byte entry in the dense
-				     page directory for every record.
-				     But there is no record header. */
-				     - (REC_N_NEW_EXTRA_BYTES - 2)
-				     > free_space_zip / 2)) {
-
+		if (free_space_zip == 0) {
+too_big:
 			if (big_rec_vec) {
 				dtuple_convert_back_big_rec(
 					index, entry, big_rec_vec);
 			}
 
 			return(DB_TOO_BIG_RECORD);
+		}
+
+		/* Subtract one byte for the encoded heap_no in the
+		modification log. */
+		free_space_zip--;
+
+		/* There should be enough room for two node pointer
+		records on an empty non-leaf page.  This prevents
+		infinite page splits. */
+
+		if (entry->n_fields >= n_uniq
+		    && (REC_NODE_PTR_SIZE
+			+ rec_get_converted_size_comp_prefix(
+				index, entry->fields, n_uniq, NULL)
+			/* On a compressed page, there is
+			a two-byte entry in the dense
+			page directory for every record.
+			But there is no record header. */
+			- (REC_N_NEW_EXTRA_BYTES - 2)
+			> free_space_zip / 2)) {
+			goto too_big;
 		}
 	}
 
@@ -1921,8 +1933,7 @@ btr_cur_update_in_place(
 	const upd_t*	update,	/*!< in: update vector */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
-	que_thr_t*	thr,	/*!< in: query thread, or NULL if
-				appropriate flags are set */
+	que_thr_t*	thr,	/*!< in: query thread */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -1944,8 +1955,8 @@ btr_cur_update_in_place(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(btr_cur_get_page(cursor)) == FIL_PAGE_INDEX);
@@ -2053,7 +2064,7 @@ btr_cur_optimistic_update(
 				cursor stays valid and positioned on the
 				same record */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
-	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
+	mem_heap_t**	heap,	/*!< in/out: pointer to NULL or memory heap */
 	const upd_t*	update,	/*!< in: update vector; this must also
 				contain trx id and roll ptr fields */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
@@ -2089,8 +2100,8 @@ btr_cur_optimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -2370,8 +2381,8 @@ btr_cur_pessimistic_update(
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
-	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
-	ut_ad(thr || (flags & ~BTR_KEEP_POS_FLAG)
+	ut_ad(thr_get_trx(thr)->id == trx_id
+	      || (flags & ~BTR_KEEP_POS_FLAG)
 	      == (BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
 		  | BTR_CREATE_FLAG | BTR_KEEP_SYS_FLAG));
 
@@ -4161,7 +4172,8 @@ btr_push_update_extern_fields(
 				InnoDB writes a longer prefix of externally
 				stored columns, so that column prefixes
 				in secondary indexes can be reconstructed. */
-				dfield_set_data(field, (byte*) dfield_get_data(field)
+				dfield_set_data(field,
+						(byte*) dfield_get_data(field)
 						+ dfield_get_len(field)
 						- BTR_EXTERN_FIELD_REF_SIZE,
 						BTR_EXTERN_FIELD_REF_SIZE);
@@ -4722,7 +4734,8 @@ func_exit:
 		ut_ad(btr_blob_op_is_update(op));
 
 		for (i = 0; i < n_freed_pages; i++) {
-			btr_page_free_low(index, freed_pages[i], 0, alloc_mtr);
+			btr_page_free_low(index, freed_pages[i],
+					  ULINT_UNDEFINED, alloc_mtr);
 		}
 	}
 
@@ -4947,7 +4960,8 @@ btr_free_externally_stored_field(
 			}
 			next_page_no = mach_read_from_4(page + FIL_PAGE_NEXT);
 
-			btr_page_free_low(index, ext_block, 0, &mtr);
+			btr_page_free_low(index, ext_block, ULINT_UNDEFINED,
+					  &mtr);
 
 			if (page_zip != NULL) {
 				mach_write_to_4(field_ref + BTR_EXTERN_PAGE_NO,
@@ -4974,11 +4988,8 @@ btr_free_externally_stored_field(
 				page + FIL_PAGE_DATA
 				+ BTR_BLOB_HDR_NEXT_PAGE_NO);
 
-			/* We must supply the page level (= 0) as an argument
-			because we did not store it on the page (we save the
-			space overhead from an index page header. */
-
-			btr_page_free_low(index, ext_block, 0, &mtr);
+			btr_page_free_low(index, ext_block, ULINT_UNDEFINED,
+					  &mtr);
 
 			mlog_write_ulint(field_ref + BTR_EXTERN_PAGE_NO,
 					 next_page_no,
