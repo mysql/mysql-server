@@ -1407,7 +1407,7 @@ typedef void (*set_thread_state_v1_t)(const char* state);
   @param info the process into string
   @param info_len the process into string length
 */
-typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
 
 /**
   Attach a thread instrumentation to the running thread.
