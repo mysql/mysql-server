@@ -94,7 +94,8 @@ struct os_event {
 /** Operating system mutex handle */
 typedef struct os_mutex_t*	os_ib_mutex_t;
 
-/** Mutex protecting counts and the event and OS 'slow' mutex lists */
+/** Mutex protecting counts and the event and OS 'slow' mutex lists
+as well as the win_thread_map. */
 extern os_ib_mutex_t	os_sync_mutex;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in

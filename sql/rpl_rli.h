@@ -240,6 +240,14 @@ protected:
 
 private:
   Gtid_set gtid_set;
+  /*
+    Identifies when this object belongs to the SQL thread and was not
+    created for a client thread or some other purpose including
+    Slave_worker instance initializations. Ends up serving the same
+    purpose as the belongs_to_client method, but its value is set
+    earlier on in the class constructor.
+  */
+  bool rli_fake;
 
 public:
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
@@ -660,14 +668,6 @@ public:
   /*
    * End of MTS section ******************************************************/
 
-  /* 
-     Returns true if the argument event resides in the containter;
-     more specifically, the checking is done against the last added event.
-  */
-  bool is_deferred_event(Log_event * ev)
-  {
-    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
-  };
   /* The general cleanup that slave applier may need at the end of query. */
   inline void cleanup_after_query()
   {
@@ -848,7 +848,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                 , uint param_id
+                 , uint param_id, bool is_rli_fake
                 );
   virtual ~Relay_log_info();
 

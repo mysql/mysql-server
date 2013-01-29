@@ -225,7 +225,9 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                                 &key_relay_log_info_stop_cond,
                                 &key_relay_log_info_sleep_cond
 #endif
-                                , instances
+                                , instances,
+                                (rli_option != INFO_REPOSITORY_TABLE
+                                 && rli_option != INFO_REPOSITORY_FILE)
                                 )))
   {
     msg= msg_alloc;

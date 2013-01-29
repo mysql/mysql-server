@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1785,8 +1785,8 @@ end:
   else
   {
     /* Remember that we don't have a THD */
-    my_pthread_setspecific_ptr(THR_THD,  0);
-    my_pthread_setspecific_ptr(THR_MALLOC,  0);
+    my_pthread_set_THR_THD(0);
+    my_pthread_set_THR_MALLOC(0);
   }
   
   default_tz= default_tz_name ? global_system_variables.time_zone
