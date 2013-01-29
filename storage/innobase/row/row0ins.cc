@@ -1694,7 +1694,11 @@ do_possible_lock_wait:
 
 		que_thr_stop_for_mysql(thr);
 
+		thr->lock_state = QUE_THR_LOCK_ROW;
+
 		lock_wait_suspend_thread(thr);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (check_table->to_be_dropped) {
 			/* The table is being dropped. We shall timeout

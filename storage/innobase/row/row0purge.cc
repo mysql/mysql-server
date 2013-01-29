@@ -773,8 +773,15 @@ row_purge_parse_undo_rec(
 
 	node->table = dict_table_open_on_id(table_id, FALSE, FALSE);
 
-	if (node->table == NULL || dict_table_is_temporary(node->table)) {
+	if (node->table == NULL) {
 		/* The table has been dropped: no need to do purge */
+		goto err_exit;
+	}
+
+	/* Disable purging for temp-tables as they are short-lived
+	and no point in re-organzing such short lived tables */
+	if (dict_table_is_temporary(node->table)) {
+		dict_table_close(node->table, FALSE, FALSE);
 		goto err_exit;
 	}
 
