@@ -2535,7 +2535,9 @@ srv_do_purge(
 	}
 
 	do {
-		if (trx_sys->rseg_history_len > rseg_history_len) {
+		if (trx_sys->rseg_history_len > rseg_history_len
+		    || (srv_max_purge_lag > 0
+			&& rseg_history_len > srv_max_purge_lag)) {
 
 			/* History length is now longer than what it was
 			when we took the last snapshot. Use more threads. */
