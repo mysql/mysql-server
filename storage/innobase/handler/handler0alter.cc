@@ -170,16 +170,16 @@ my_error_innodb(
 }
 
 /** Determine if fulltext indexes exist in a given table.
-@param table_share	MySQL table
+@param table		MySQL table
 @return			whether fulltext indexes exist on the table */
 static
 bool
 innobase_fulltext_exist(
 /*====================*/
-	const TABLE_SHARE*	table_share)
+	const TABLE*	table)
 {
-	for (uint i = 0; i < table_share->keys; i++) {
-		if (table_share->key_info[i].flags & HA_FULLTEXT) {
+	for (uint i = 0; i < table->s->keys; i++) {
+		if (table->key_info[i].flags & HA_FULLTEXT) {
 			return(true);
 		}
 	}
@@ -379,7 +379,7 @@ ha_innobase::check_if_supported_inplace_alter(
 			/* We cannot replace a hidden FTS_DOC_ID
 			with a user-visible FTS_DOC_ID. */
 			if (prebuilt->table->fts
-			    && innobase_fulltext_exist(altered_table->s)
+			    && innobase_fulltext_exist(altered_table)
 			    && !my_strcasecmp(
 				    system_charset_info,
 				    key_part->field->field_name,
@@ -412,7 +412,7 @@ ha_innobase::check_if_supported_inplace_alter(
 		    < dict_table_get_n_user_cols(prebuilt->table));
 
 	if (prebuilt->table->fts
-	    && innobase_fulltext_exist(altered_table->s)) {
+	    && innobase_fulltext_exist(altered_table)) {
 		/* FULLTEXT indexes are supposed to remain. */
 		/* Disallow DROP INDEX FTS_DOC_ID_INDEX */
 
@@ -456,7 +456,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	} else if (((ha_alter_info->handler_flags
 		     & Alter_inplace_info::ADD_PK_INDEX)
 		    || innobase_need_rebuild(ha_alter_info))
-		   && (innobase_fulltext_exist(altered_table->s)
+		   && (innobase_fulltext_exist(altered_table)
 		       || (prebuilt->table->flags2
 			   & DICT_TF2_FTS_HAS_DOC_ID))) {
 		/* Refuse to rebuild the table online, if
@@ -1595,7 +1595,7 @@ innobase_fts_check_doc_id_index(
 		FTS_DOC_ID_INDEX_NAME is being created. */
 
 		for (uint i = 0; i < altered_table->s->keys; i++) {
-			const KEY& key = altered_table->s->key_info[i];
+			const KEY& key = altered_table->key_info[i];
 
 			if (innobase_strcasecmp(
 				    key.name, FTS_DOC_ID_INDEX_NAME)) {
@@ -2548,7 +2548,7 @@ prepare_inplace_alter_table_dict(
 	DBUG_ASSERT(!ctx->num_to_drop_fk == !ctx->drop_fk);
 	DBUG_ASSERT(!add_fts_doc_id || add_fts_doc_id_idx);
 	DBUG_ASSERT(!add_fts_doc_id_idx
-		    || innobase_fulltext_exist(altered_table->s));
+		    || innobase_fulltext_exist(altered_table));
 	DBUG_ASSERT(!ctx->add_cols);
 	DBUG_ASSERT(!ctx->add);
 	DBUG_ASSERT(!ctx->add_key_numbers);
@@ -2588,7 +2588,7 @@ prepare_inplace_alter_table_dict(
 	} else if (ctx->add_autoinc == ULINT_UNDEFINED
 		   && num_fts_index == 0
 		   && (!innobase_need_rebuild(ha_alter_info)
-		       || !innobase_fulltext_exist(altered_table->s))) {
+		       || !innobase_fulltext_exist(altered_table))) {
 		/* InnoDB can perform an online operation (LOCK=NONE). */
 	} else {
 		/* This should have been blocked in
@@ -2851,7 +2851,7 @@ prepare_inplace_alter_table_dict(
 		DBUG_ASSERT(!innobase_need_rebuild(ha_alter_info));
 
 		if (!ctx->indexed_table->fts
-		    && innobase_fulltext_exist(altered_table->s)) {
+		    && innobase_fulltext_exist(altered_table)) {
 			ctx->indexed_table->fts = fts_create(
 				ctx->indexed_table);
 			ctx->indexed_table->fts->doc_col = fts_doc_id_col;
@@ -3262,10 +3262,7 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
-
-	if (srv_read_only_mode) {
-		DBUG_RETURN(false);
-	}
+	DBUG_ASSERT(!srv_read_only_mode);
 
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
@@ -3356,7 +3353,7 @@ check_if_ok_to_rename:
 			if (!my_strcasecmp(system_charset_info,
 					   (*fp)->field_name,
 					   FTS_DOC_ID_COL_NAME)
-			    && innobase_fulltext_exist(altered_table->s)) {
+			    && innobase_fulltext_exist(altered_table)) {
 				my_error(ER_INNODB_FT_WRONG_DOCID_COLUMN,
 					 MYF(0), name);
 				goto err_exit_no_heap;
@@ -3560,8 +3557,8 @@ found_fk:
 		internal FTS_DOC_ID_INDEX as well, unless it exists in
 		the table. */
 
-		if (innobase_fulltext_exist(table->s)
-		    && !innobase_fulltext_exist(altered_table->s)
+		if (innobase_fulltext_exist(table)
+		    && !innobase_fulltext_exist(altered_table)
 		    && !DICT_TF2_FLAG_IS_SET(
 			indexed_table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			dict_index_t*	fts_doc_index
@@ -3579,7 +3576,7 @@ found_fk:
 				if (!my_strcasecmp(
 					    system_charset_info,
 					    FTS_DOC_ID_INDEX_NAME,
-					    table->s->key_info[i].name)) {
+					    table->key_info[i].name)) {
 					/* The index exists in the MySQL
 					data dictionary. Do not drop it,
 					even though it is no longer needed
@@ -3707,7 +3704,7 @@ func_exit:
 	/* If we are to build a full-text search index, check whether
 	the table already has a DOC ID column.  If not, we will need to
 	add a Doc ID hidden column and rebuild the primary index */
-	if (innobase_fulltext_exist(altered_table->s)) {
+	if (innobase_fulltext_exist(altered_table)) {
 		ulint	doc_col_no;
 
 		if (!innobase_fts_check_doc_id_col(
@@ -3831,10 +3828,7 @@ ha_innobase::inplace_alter_table(
 	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
-
-	if (srv_read_only_mode) {
-		DBUG_RETURN(false);
-	}
+	DBUG_ASSERT(!srv_read_only_mode);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -3987,7 +3981,7 @@ innobase_online_rebuild_log_free(
 /** Rollback a secondary index creation, drop the indexes with
 temparary index prefix
 @param prebuilt		the prebuilt struct
-@param table_share	the TABLE_SHARE
+@param table		the TABLE
 @param trx		the transaction
 */
 static __attribute__((nonnull))
@@ -3995,7 +3989,7 @@ void
 innobase_rollback_sec_index(
 /*========================*/
 	row_prebuilt_t*		prebuilt,
-	const TABLE_SHARE*	table_share,
+	const TABLE*		table,
 	trx_t*			trx)
 {
 	row_merge_drop_indexes(trx, prebuilt->table, FALSE);
@@ -4005,7 +3999,7 @@ innobase_rollback_sec_index(
 	if (prebuilt->table->fts
 	    && !DICT_TF2_FLAG_IS_SET(prebuilt->table,
 				     DICT_TF2_FTS_HAS_DOC_ID)
-	    && !innobase_fulltext_exist(table_share)) {
+	    && !innobase_fulltext_exist(table)) {
 		fts_free(prebuilt->table);
 	}
 }
@@ -4028,7 +4022,7 @@ bool
 rollback_inplace_alter_table(
 /*=========================*/
 	Alter_inplace_info*	ha_alter_info,
-	const TABLE_SHARE*	table_share,
+	const TABLE*		table,
 	row_prebuilt_t*		prebuilt)
 {
 	bool	fail	= false;
@@ -4065,7 +4059,7 @@ rollback_inplace_alter_table(
 
 			if (err != DB_SUCCESS) {
 				my_error_innodb(
-					err, table_share->table_name.str,
+					err, table->s->table_name.str,
 					flags);
 				fail = true;
 			}
@@ -4088,7 +4082,7 @@ rollback_inplace_alter_table(
 		case DB_SUCCESS:
 			break;
 		default:
-			my_error_innodb(err, table_share->table_name.str,
+			my_error_innodb(err, table->s->table_name.str,
 					flags);
 			fail = true;
 		}
@@ -4098,7 +4092,7 @@ rollback_inplace_alter_table(
 
 		trx_start_for_ddl(ctx->trx, TRX_DICT_OP_INDEX);
 
-		innobase_rollback_sec_index(prebuilt, table_share, ctx->trx);
+		innobase_rollback_sec_index(prebuilt, table, ctx->trx);
 	}
 
 	trx_commit_for_mysql(ctx->trx);
@@ -5375,7 +5369,7 @@ ha_innobase::commit_inplace_alter_table(
 		be dropped, they would actually be dropped in this
 		method if commit=true. */
 		DBUG_RETURN(rollback_inplace_alter_table(
-				    ha_alter_info, table_share, prebuilt));
+				    ha_alter_info, table, prebuilt));
 	}
 
 	ulonglong	max_autoinc = commit_get_autoinc(
@@ -5598,7 +5592,7 @@ foreign_fail:
 		} else {
 			trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 			innobase_rollback_sec_index(
-				prebuilt, table_share, trx);
+				prebuilt, table, trx);
 			trx_commit_for_mysql(trx);
 		}
 
