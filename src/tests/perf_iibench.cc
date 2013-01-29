@@ -313,8 +313,12 @@ static int iibench_rangequery_op(DB_TXN *txn, ARG arg, void *operation_extra, vo
     struct iibench_put_op_extra *CAST_FROM_VOIDP(info, operation_extra);
     DB *db = arg->dbp[0];
 
-    // Do a sync fetch and add of 0 to silence race detection tools
-    uint64_t max_pk = toku_sync_fetch_and_add(&info->autoincrement, 0);
+    // Assume the max PK is the table size. If it isn't specified, do a
+    // safe read of the current autoincrement key from the put thread.
+    uint64_t max_pk = arg->cli->num_elements;
+    if (max_pk == 0) {
+        max_pk = toku_sync_fetch_and_add(&info->autoincrement, 0);
+    }
     iibench_rangequery_db(db, txn, arg, max_pk);
     increment_counter(stats_extra, PTQUERIES, 1);
     return 0;
