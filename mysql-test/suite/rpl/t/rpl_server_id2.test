@@ -3,8 +3,6 @@
 
 source include/master-slave.inc;
 connection slave;
---let $saved_slave_gtid_next= `SELECT @@GTID_NEXT`
-SET GTID_NEXT=ANONYMOUS;
 create table t1 (n int);
 reset master;
 # replicate ourselves
@@ -66,8 +64,6 @@ connection master;
 drop table t1;
 drop table t2;
 sync_slave_with_master;
-
---eval SET GTID_NEXT=$saved_slave_gtid_next
 
 # End of tests
 --source include/rpl_end.inc

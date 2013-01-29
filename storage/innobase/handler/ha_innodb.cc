@@ -645,6 +645,8 @@ static SHOW_VAR innodb_status_variables[]= {
   (char*) &export_vars.innodb_purge_trx_id_age,           SHOW_LONG},
   {"purge_view_trx_id_age",
   (char*) &export_vars.innodb_purge_view_trx_id_age,      SHOW_LONG},
+  {"ahi_drop_lookups",
+  (char*) &export_vars.innodb_ahi_drop_lookups,           SHOW_LONG},
 #endif /* UNIV_DEBUG */
   {NullS, NullS, SHOW_LONG}
 };
@@ -7469,7 +7471,12 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add((size_t) prebuilt->trx->id, 1);
+		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+			srv_stats.n_rows_read.inc();
+		} else if (++prebuilt->n_rows_read > 10000) {
+			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
+			prebuilt->n_rows_read = 0;
+		}
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_KEY_NOT_FOUND;
@@ -7721,7 +7728,12 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add((size_t) prebuilt->trx->id, 1);
+		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+			srv_stats.n_rows_read.inc();
+		} else if (++prebuilt->n_rows_read > 10000) {
+			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
+			prebuilt->n_rows_read = 0;
+		}
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
@@ -9577,7 +9589,7 @@ ha_innobase::create(
 
 		/* Check whether there already exists FTS_DOC_ID_INDEX */
 		ret = innobase_fts_check_doc_id_index_in_def(
-			form->s->keys, form->s->key_info);
+			form->s->keys, form->key_info);
 
 		switch (ret) {
 		case FTS_INCORRECT_DOC_ID_INDEX:

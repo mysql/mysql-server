@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -763,10 +763,11 @@ btr_height_get(
 	ulint		height;
 	buf_block_t*	root_block;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK)
+	ut_ad(srv_read_only_mode
 	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+				   MTR_MEMO_S_LOCK)
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
 
         /* S latches the page */
         root_block = btr_root_block_get(index, RW_S_LATCH, mtr);
@@ -1184,8 +1185,9 @@ btr_get_size(
 	ulint		n;
 	ulint		dummy;
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_S_LOCK));
+	ut_ad(srv_read_only_mode
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_S_LOCK));
 
 	if (index->page == FIL_NULL || dict_index_is_online_ddl(index)
 	    || *index->name == TEMP_INDEX_PREFIX) {
@@ -1240,15 +1242,14 @@ btr_page_free_for_ibuf(
 
 /**************************************************************//**
 Frees a file page used in an index tree. Can be used also to (BLOB)
-external storage pages, because the page level 0 can be given as an
-argument. */
+external storage pages. */
 UNIV_INTERN
 void
 btr_page_free_low(
 /*==============*/
 	dict_index_t*	index,	/*!< in: index tree */
 	buf_block_t*	block,	/*!< in: block to be freed, x-latched */
-	ulint		level,	/*!< in: page level */
+	ulint		level,	/*!< in: page level (ULINT_UNDEFINED=BLOB) */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	fseg_header_t*	seg_header;
@@ -1270,7 +1271,7 @@ btr_page_free_low(
 
 	root = btr_root_get(index, mtr);
 
-	if (level == 0) {
+	if (level == 0 || level == ULINT_UNDEFINED) {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_LEAF;
 	} else {
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
@@ -1278,7 +1279,8 @@ btr_page_free_low(
 
 	fseg_free_page(seg_header,
 		       buf_block_get_space(block),
-		       buf_block_get_page_no(block), mtr);
+		       buf_block_get_page_no(block),
+		       level != ULINT_UNDEFINED, mtr);
 
 	/* The page was marked free in the allocation bitmap, but it
 	should remain buffer-fixed until mtr_commit(mtr) or until it
@@ -1305,6 +1307,7 @@ btr_page_free(
 	ulint		level	= btr_page_get_level(page, mtr);
 
 	ut_ad(fil_page_get_type(block->frame) == FIL_PAGE_INDEX);
+	ut_ad(level != ULINT_UNDEFINED);
 	btr_page_free_low(index, block, level, mtr);
 }
 
@@ -1393,8 +1396,9 @@ btr_page_get_father_node_ptr_func(
 	page_no = buf_block_get_page_no(btr_cur_get_block(cursor));
 	index = btr_cur_get_index(cursor);
 
-	ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-				MTR_MEMO_X_LOCK));
+	ut_ad(srv_read_only_mode
+	      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+				   MTR_MEMO_X_LOCK));
 
 	ut_ad(dict_index_get_page(index) != page_no);
 
@@ -1668,7 +1672,7 @@ leaf_loop:
 	fsp0fsp. */
 
 	finished = fseg_free_step(root + PAGE_HEADER + PAGE_BTR_SEG_LEAF,
-				  &mtr);
+				  true, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1686,7 +1690,7 @@ top_loop:
 #endif /* UNIV_BTR_DEBUG */
 
 	finished = fseg_free_step_not_header(
-		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, &mtr);
+		root + PAGE_HEADER + PAGE_BTR_SEG_TOP, true, &mtr);
 	mtr_commit(&mtr);
 
 	if (!finished) {
@@ -1720,7 +1724,7 @@ btr_free_root(
 	ut_a(btr_root_fseg_validate(header, space));
 #endif /* UNIV_BTR_DEBUG */
 
-	while (!fseg_free_step(header, mtr)) {
+	while (!fseg_free_step(header, true, mtr)) {
 		/* Free the entire segment in small steps. */
 	}
 }
@@ -2893,7 +2897,9 @@ insert_empty:
 						offsets, tuple, n_ext, heap);
 	}
 
-	if (insert_will_fit && page_is_leaf(page)
+	if (!srv_read_only_mode
+	    && insert_will_fit
+	    && page_is_leaf(page)
 	    && !dict_index_is_online_ddl(cursor->index)) {
 
 		mtr_memo_release(mtr, dict_index_get_lock(cursor->index),
@@ -4382,7 +4388,9 @@ btr_validate_level(
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 	block = btr_root_block_get(index, RW_X_LATCH, &mtr);
 	page = buf_block_get_frame(block);
@@ -4446,7 +4454,9 @@ btr_validate_level(
 loop:
 	mem_heap_empty(heap);
 	offsets = offsets2 = NULL;
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 #ifdef UNIV_ZIP_DEBUG
 	page_zip = buf_block_get_page_zip(block);
@@ -4780,7 +4790,9 @@ btr_validate_index(
 
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (!srv_read_only_mode) {
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
 	bool	ok = true;
 	page_t*	root = btr_root_get(index, &mtr);

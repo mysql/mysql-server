@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -238,6 +238,13 @@ my_set_command_get_one_option(int optid,
     tty_password= 1;
     break;
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
@@ -255,6 +262,13 @@ my_remove_command_get_one_option(int optid,
 {
   switch(optid) {
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
@@ -272,6 +286,13 @@ my_print_command_get_one_option(int optid,
 {
   switch(optid) {
   case 'G':
+    if (login_path_specified)
+    {
+      /* Error, we do not support multiple login paths. */
+      my_perror("Error: Use of multiple login paths is not supported. "
+                "Exiting..");
+      return 1;
+    }
     login_path_specified= TRUE;
     break;
   case '?':
