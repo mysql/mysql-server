@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -496,6 +496,54 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
     }
   }
   return (this->*processor)(argument);
+}
+
+
+/**
+  Remove the item from the list of inner aggregation functions in the
+  SELECT_LEX it was moved to by Item_sum::register_sum_func().
+
+  This is done to undo some of the effects of
+  Item_sum::register_sum_func() so that the item may be removed from
+  the query.
+
+  @note This doesn't completely undo Item_sum::register_sum_func(), as
+  with_sum_func information is left untouched. This means that if this
+  item is removed, aggr_sel and all Item_subselects between aggr_sel
+  and this item may be left with with_sum_func set to true, even if
+  there are no aggregation functions. To our knowledge, this has no
+  impact on the query result.
+
+  @see Item_sum::register_sum_func()
+  @see remove_redundant_subquery_clauses()
+ */
+bool Item_sum::clean_up_after_removal(uchar *arg)
+{
+  /*
+    Sometimes we remove unresolved items. This may happen if an
+    expression occurs twice in the same query. In that case, the whole
+    item tree for the second occurence is replaced by the item tree
+    for the first occurence, without calling fix_fields() on the
+    second tree. Therefore there's nothing to clean up.
+  */
+  if (!fixed)
+    return false;
+
+  if (aggr_sel && aggr_sel->inner_sum_func_list)
+  {
+    if (next == this)
+      aggr_sel->inner_sum_func_list= NULL;
+    else
+    {
+      Item_sum *prev;
+      for (prev= this; prev->next != this; prev= prev->next)
+        ;
+      prev->next= next;
+      if (aggr_sel->inner_sum_func_list == this)
+        aggr_sel->inner_sum_func_list= prev;
+    }
+  }
+  return false;
 }
 
 
