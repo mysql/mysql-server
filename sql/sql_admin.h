@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,8 @@
 #ifndef SQL_TABLE_MAINTENANCE_H
 #define SQL_TABLE_MAINTENANCE_H
 
+/* Must be able to hold ALTER TABLE t PARTITION BY ... KEY ALGORITHM = 1 ... */
+#define SQL_ADMIN_MSG_TEXT_SIZE 128 * 1024
 
 bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* table_list,
                               LEX_STRING *key_cache_name);
