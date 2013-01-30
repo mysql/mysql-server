@@ -3720,6 +3720,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       mysql_mutex_unlock(&rli->data_lock);
     */
 
+    /* For deferred events, the ptr_ev is set to NULL
+        in Deferred_log_events::add() function.
+        Hence deferred events wont be deleted here.
+        They will be deleted in Deferred_log_events::rewind() funciton.
+    */
     if (*ptr_ev)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator

@@ -3262,10 +3262,7 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ENTER("prepare_inplace_alter_table");
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
-
-	if (srv_read_only_mode) {
-		DBUG_RETURN(false);
-	}
+	DBUG_ASSERT(!srv_read_only_mode);
 
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
@@ -3831,10 +3828,7 @@ ha_innobase::inplace_alter_table(
 	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
-
-	if (srv_read_only_mode) {
-		DBUG_RETURN(false);
-	}
+	DBUG_ASSERT(!srv_read_only_mode);
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
