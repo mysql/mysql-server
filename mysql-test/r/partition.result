@@ -94,7 +94,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) NOT NULL,
   `b` int(11) NOT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 PARTITIONS 2 */
 SELECT * FROM t1;
 a	b
@@ -188,7 +188,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`ID`,`aaaa,aaaaa`,`ddddddddd`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (ID)
-SUBPARTITION BY LINEAR KEY (ID,`aaaa,aaaaa`)
+SUBPARTITION BY LINEAR KEY ALGORITHM = 2 (ID,`aaaa,aaaaa`)
 SUBPARTITIONS 2
 (PARTITION p01 VALUES LESS THAN (100) ENGINE = MyISAM,
  PARTITION p11 VALUES LESS THAN (200) ENGINE = MyISAM,
@@ -763,7 +763,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY KEY (a)
+SUBPARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (2) ENGINE = MyISAM) */
 alter table t1 reorganize partition p1 into (partition p1 values less than (3));
@@ -773,7 +773,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (a)
-SUBPARTITION BY KEY (a)
+SUBPARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 VALUES LESS THAN (1) ENGINE = MyISAM,
  PARTITION p1 VALUES LESS THAN (3) ENGINE = MyISAM) */
 drop table t1;
@@ -794,7 +794,7 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`a`,`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a) */
 drop table t1;
 CREATE TABLE t1 (
 a int not null,
@@ -1115,7 +1115,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 alter table t1;
@@ -1124,7 +1124,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 alter table t1 engine=myisam;
@@ -1133,7 +1133,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 alter table t1 engine=heap;
@@ -1142,7 +1142,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 alter table t1 remove partitioning;
@@ -1162,7 +1162,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 alter table t1 add column b int remove partitioning;
@@ -1182,7 +1182,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 alter table t1
@@ -1195,7 +1195,7 @@ t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL,
   `b` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 alter table t1 engine=myisam, add column c int remove partitioning;
@@ -1217,7 +1217,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 alter table t1
@@ -1230,7 +1230,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 alter table t1
@@ -1244,7 +1244,7 @@ t1	CREATE TABLE `t1` (
   `b` int(11) DEFAULT NULL,
   `c` int(11) DEFAULT NULL
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MEMORY,
  PARTITION p1 ENGINE = MEMORY) */
 alter table t1
@@ -1414,14 +1414,14 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a) */
 alter table t1 add partition (partition p1);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0 ENGINE = MyISAM,
  PARTITION p1 ENGINE = MyISAM) */
 drop table t1;
@@ -1521,7 +1521,7 @@ t2	CREATE TABLE `t2` (
   `c` char(10) DEFAULT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COMMENT='no comment'
-/*!50100 PARTITION BY KEY (a) */
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a) */
 drop table t2;
 create table t1 (f1 int) partition by hash (f1) as select 1;
 drop table t1;
@@ -1756,7 +1756,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` int(11) DEFAULT NULL
 )
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 (PARTITION p0) */
 set session sql_mode='';
 drop table t1;
@@ -1772,7 +1772,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` varchar(1) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a) */
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a) */
 drop table t1;
 CREATE TABLE t1 (a int) ENGINE = MYISAM PARTITION BY KEY(a);
 INSERT into t1 values (1), (2);
@@ -1799,13 +1799,13 @@ engine=MEMORY
 partition by key (a);
 REPAIR TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 OPTIMIZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	note	The storage engine for the table doesn't support optimize
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
-test.t1	check	note	The storage engine for the table doesn't support check
+test.t1	check	status	OK
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	note	The storage engine for the table doesn't support analyze
@@ -1845,7 +1845,7 @@ t1	CREATE TABLE `t1` (
   `a` bigint(20) unsigned NOT NULL,
   PRIMARY KEY (`a`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a)
 PARTITIONS 10 */
 insert into t1 values (18446744073709551615), (0xFFFFFFFFFFFFFFFE),
 (18446744073709551613), (18446744073709551612);

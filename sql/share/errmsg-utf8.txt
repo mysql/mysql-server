@@ -7038,6 +7038,10 @@ ER_MUST_CHANGE_PASSWORD_LOGIN
   eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
   bgn "Паролата ви е изтекла. За да влезете трябва да я смените използвайки клиент който поддрържа такива пароли."
 
+ER_ROW_IN_WRONG_PARTITION
+  eng "Found a row in wrong partition %s"
+  swe "Hittade en rad i fel partition %s"
+
 #
 #  End of 5.6 error messages.
 #
