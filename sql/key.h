@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,6 +32,8 @@ void key_restore(uchar *to_record, uchar *from_key, KEY *key_info,
                  uint key_length);
 bool key_cmp_if_same(TABLE *form,const uchar *key,uint index,uint key_length);
 void key_unpack(String *to,TABLE *form,uint index);
+void field_unpack(String *to, Field *field, const uchar *rec, uint max_length,
+                  bool prefix_key);
 bool is_key_used(TABLE *table, uint idx, const MY_BITMAP *fields);
 int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length);
 extern "C" int key_rec_cmp(void *key_info, uchar *a, uchar *b);
