@@ -45,6 +45,7 @@ static char *opt_password = 0, *current_user = 0,
 	    *default_charset= 0, *current_host= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
 static int first_error = 0;
+static char *opt_skip_database;
 DYNAMIC_ARRAY tables4repair, tables4rebuild;
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -175,6 +176,9 @@ static struct my_option my_long_options[] =
 #endif
   {"silent", 's', "Print only error messages.", &opt_silent,
    &opt_silent, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"skip_database", 0, "Don't process the database specified as argument", 
+   &opt_skip_database, &opt_skip_database, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -399,6 +403,7 @@ static int get_options(int *argc, char ***argv)
 	   my_progname);
     return 1;
   }
+
   if (*argc < 1 && !opt_alldbs)
   {
     printf("You forgot to give the arguments! Please see %s --help\n",
@@ -658,6 +663,10 @@ static int rebuild_table(char *name)
 
 static int process_one_db(char *database)
 {
+  if (opt_skip_database && opt_alldbs &&
+      !strcmp(database, opt_skip_database))
+    return 0;
+
   if (what_to_do == DO_UPGRADE)
   {
     int rc= 0;
