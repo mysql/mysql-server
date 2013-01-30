@@ -159,6 +159,10 @@ echo Illegal argument -1;
 --error 255
 exec $mgm_cmd -e "1 DUMP -1";
 
+echo Robustness issue with bug#14537622;
+echo Data node must not crash here;
+exec $mgm_cmd -e "ALL DUMP 1000 1000";
+
 echo ALL DUMP 1;
 exec $mgm_cmd -e "ALL DUMP 1 ";
 

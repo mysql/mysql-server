@@ -22,6 +22,9 @@
 #include <ndbapi/NdbDictionary.hpp>
 #include <ndbapi/NdbTransaction.hpp>
 
+#include <mysql_com.h>       // NAME_CHAR_LEN
+#include <sql_const.h>       // MAX_REF_PARTS
+
 enum enum_conflict_fn_type
 {
   CFT_NDB_UNDEF = 0
