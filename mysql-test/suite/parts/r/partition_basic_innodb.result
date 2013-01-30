@@ -498,7 +498,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -528,7 +528,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1)
 PARTITIONS 5 */
 
 unified filelist
@@ -953,7 +953,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1423,7 +1423,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -1887,7 +1887,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2351,7 +2351,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -2390,7 +2390,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -2824,7 +2824,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3303,7 +3303,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -3338,7 +3338,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -3766,7 +3766,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4223,7 +4223,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -4253,7 +4253,7 @@ t1	CREATE TABLE `t1` (
   `f_char2` char(20) DEFAULT NULL,
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1,f_int2)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1,f_int2)
 PARTITIONS 5 */
 
 unified filelist
@@ -4678,7 +4678,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5148,7 +5148,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -5612,7 +5612,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6074,7 +6074,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -6113,7 +6113,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -6547,7 +6547,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7022,7 +7022,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7057,7 +7057,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -7485,7 +7485,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -7983,7 +7983,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8015,7 +8015,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1)
 PARTITIONS 5 */
 
 unified filelist
@@ -8475,7 +8475,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -8982,7 +8982,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9483,7 +9483,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -9984,7 +9984,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -10025,7 +10025,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -10494,7 +10494,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11010,7 +11010,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -11047,7 +11047,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -11510,7 +11510,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12003,7 +12003,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -12035,7 +12035,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1)
 PARTITIONS 5 */
 
 unified filelist
@@ -12495,7 +12495,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13002,7 +13002,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -13503,7 +13503,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14004,7 +14004,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -14045,7 +14045,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -14514,7 +14514,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15030,7 +15030,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -15067,7 +15067,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -15530,7 +15530,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -16039,7 +16039,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -16071,7 +16071,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1)
 PARTITIONS 5 */
 
 unified filelist
@@ -16547,7 +16547,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -17070,7 +17070,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -17587,7 +17587,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -18104,7 +18104,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -18145,7 +18145,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -18630,7 +18630,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -19162,7 +19162,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -19199,7 +19199,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int1)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int1)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -19678,7 +19678,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -20176,7 +20176,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -20208,7 +20208,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f_int2`,`f_int1`),
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1,f_int2)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1,f_int2)
 PARTITIONS 5 */
 
 unified filelist
@@ -20668,7 +20668,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -21175,7 +21175,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -21676,7 +21676,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -22175,7 +22175,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -22216,7 +22216,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -22685,7 +22685,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -23197,7 +23197,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -23234,7 +23234,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -23697,7 +23697,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -24190,7 +24190,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -24222,7 +24222,7 @@ t1	CREATE TABLE `t1` (
   PRIMARY KEY (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1,f_int2)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1,f_int2)
 PARTITIONS 5 */
 
 unified filelist
@@ -24682,7 +24682,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -25189,7 +25189,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -25690,7 +25690,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -26189,7 +26189,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -26230,7 +26230,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -26699,7 +26699,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -27211,7 +27211,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -27248,7 +27248,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -27711,7 +27711,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -28220,7 +28220,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -28252,7 +28252,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx1` (`f_int1`,`f_int2`),
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (f_int1,f_int2)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (f_int1,f_int2)
 PARTITIONS 5 */
 
 unified filelist
@@ -28728,7 +28728,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -29251,7 +29251,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -29768,7 +29768,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -30283,7 +30283,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -30324,7 +30324,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (f_int1)
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 (PARTITION part1 VALUES LESS THAN (0)
  (SUBPARTITION subpart11 ENGINE = InnoDB,
   SUBPARTITION subpart12 ENGINE = InnoDB),
@@ -30809,7 +30809,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -31337,7 +31337,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
@@ -31374,7 +31374,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `uidx2` (`f_int2`,`f_int1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY LIST (ABS(MOD(f_int1,2)))
-SUBPARTITION BY KEY (f_int2)
+SUBPARTITION BY KEY ALGORITHM = 2 (f_int2)
 SUBPARTITIONS 3
 (PARTITION part1 VALUES IN (0) ENGINE = InnoDB,
  PARTITION part2 VALUES IN (1) ENGINE = InnoDB,
@@ -31853,7 +31853,7 @@ test.t1	optimize	status	OK
 # check layout success:    1
 REPAIR   TABLE t1 EXTENDED;
 Table	Op	Msg_type	Msg_text
-test.t1	repair	note	The storage engine for the table doesn't support repair
+test.t1	repair	status	OK
 # check layout success:    1
 TRUNCATE t1;
 	
