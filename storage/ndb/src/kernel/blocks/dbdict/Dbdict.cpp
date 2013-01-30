@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010-2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11256,6 +11256,14 @@ Dbdict::createIndex_toCreateTable(Signal* signal, SchemaOpPtr op_ptr)
     w.add(DictTabInfo::TableTemporaryFlag, (Uint32)flag);
   }
   w.add(DictTabInfo::FragmentTypeVal, createIndexPtr.p->m_fragmentType);
+  // Inherit fragment count if main table is also hashmap partitioned.
+  // Otherwise better do use default.
+  if ((DictTabInfo::FragmentType)createIndexPtr.p->m_fragmentType == tablePtr.p->fragmentType &&
+      tablePtr.p->fragmentType == DictTabInfo::HashMapPartition)
+  {
+    w.add(DictTabInfo::FragmentCount, tablePtr.p->fragmentCount);
+  }
+
   w.add(DictTabInfo::TableTypeVal, createIndexPtr.p->m_request.indexType);
   { LocalRope name(c_rope_pool, tablePtr.p->tableName);
     char tableName[MAX_TAB_NAME_SIZE];
