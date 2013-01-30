@@ -1,0 +1,40 @@
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+
+# Test is using error insert, check that binaries support it
+--source suite/ndb/t/have_ndb_error_insert.inc
+
+# Use small LoadFactors to force sparse hash table
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all error 3003" >> $NDB_TOOLS_OUTPUT
+
+set max_heap_table_size = 286720000;
+create table t1 (a int primary key) engine=memory;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 columns terminated by ' ' (a, @col2);
+let $i = 4;
+let $b = 10000;
+while ($i)
+{
+--eval insert into t1 select a + $b from t1;
+  let $b = $b * 2;
+  dec $i;
+}
+select count(*) from t1;
+alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key() partitions 1;
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all report memory" >> $NDB_TOOLS_OUTPUT
+create table t2 (a int primary key) engine=memory;
+insert into t2 select a from t1;
+
+--echo the left join below should result in scanning t2 and do pk lookups in t1
+--replace_column 9 #
+explain select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+--echo the result rows with missed equal to NULL should count all rows (160000)
+--echo the other rows are the failed lookups and there should not be any such
+select if(isnull(t1.a),t2.a,NULL) missed, count(*) rows from t2 left join t1 on t1.a=t2.a group by if(isnull(t1.a),t2.a,NULL);
+
+--echo verify that it is not possible to reinsert all rows in t1 to itself
+--echo affected rows should be zero
+--enable_info
+insert ignore into t1 select a from t1;
+--disable_info
+
+drop table t1, t2;

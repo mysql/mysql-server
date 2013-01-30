@@ -834,6 +834,11 @@ struct Operationrec {
     unsigned int m_load_diskpage_on_commit : 1;
     unsigned int m_wait_log_buffer : 1;
     unsigned int m_gci_written : 1;
+    /* If the op has no logical effect, it should not be logged
+     * or sent as an event. Example op is OPTIMIZE table,
+     * which uses ZUPDATE to move varpart values physically.
+     */
+    unsigned int m_physical_only_op : 1;
   };
   union {
     OpBitFields op_struct;
