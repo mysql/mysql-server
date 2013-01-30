@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,10 +70,10 @@ public:
   table_mapping();
   ~table_mapping();
 
-  TABLE* get_table(ulong table_id);
+  TABLE* get_table(ulonglong table_id);
 
-  int       set_table(ulong table_id, TABLE* table);
-  int       remove_table(ulong table_id);
+  int       set_table(ulonglong table_id, TABLE* table);
+  int       remove_table(ulonglong table_id);
   void      clear_tables();
   ulong     count() const { return m_table_ids.records; }
 
@@ -83,14 +83,14 @@ private:
     it, which only works for PODs)
   */
   struct entry { 
-    ulong table_id;
+    ulonglong table_id;
     union {
       TABLE *table;
       entry *next;
     };
   };
 
-  entry *find_entry(ulong table_id)
+  entry *find_entry(ulonglong table_id)
   {
     return (entry *) my_hash_search(&m_table_ids,
                                     (uchar*)&table_id,
