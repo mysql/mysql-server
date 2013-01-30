@@ -5487,7 +5487,7 @@ void Dbacc::expandcontainer(Signal* signal)
     {
       jam();
       idrOperationRecPtr.p->reducedHashValue =
-        fragrecptr.p->level.reduce(getElementHash(idrOperationRecPtr));
+        fragrecptr.p->level.reduceForSplit(getElementHash(idrOperationRecPtr));
     }
   }
   else
@@ -5501,7 +5501,7 @@ void Dbacc::expandcontainer(Signal* signal)
     {
       jam();
       reducedHashValue =
-        fragrecptr.p->level.reduce(getElementHash(&excPageptr.p->word32[cexcElementptr], cexcForward));
+        fragrecptr.p->level.reduceForSplit(getElementHash(&excPageptr.p->word32[cexcElementptr], cexcForward));
     }
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
@@ -5586,7 +5586,7 @@ void Dbacc::expandcontainer(Signal* signal)
     {
       jam();
       idrOperationRecPtr.p->reducedHashValue =
-        fragrecptr.p->level.reduce(getElementHash(idrOperationRecPtr));
+        fragrecptr.p->level.reduceForSplit(getElementHash(idrOperationRecPtr));
     }
   }
   else
@@ -5600,7 +5600,7 @@ void Dbacc::expandcontainer(Signal* signal)
     {
       jam();
       reducedHashValue =
-        fragrecptr.p->level.reduce(getElementHash(&lastPageptr.p->word32[tlastElementptr], tlastForward));
+        fragrecptr.p->level.reduceForSplit(getElementHash(&lastPageptr.p->word32[tlastElementptr], tlastForward));
     }
     tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
   }
