@@ -3556,11 +3556,10 @@ int MYSQL_BIN_LOG::find_log_pos(LOG_INFO *linfo, const char *log_name,
 
     // if the log entry matches, null string matching anything
     if (!log_name ||
-       (log_name_len == fname_len-1 && full_fname[log_name_len] == '\n' &&
-        !memcmp(full_fname, full_log_name, log_name_len)))
+       (log_name_len == fname_len &&
+       !memcmp(full_fname, full_log_name, log_name_len)))
     {
       DBUG_PRINT("info", ("Found log file entry"));
-      full_fname[fname_len-1]= 0;                      // remove last \n
       linfo->index_file_start_offset= offset;
       linfo->index_file_offset = my_b_tell(&index_file);
       break;
@@ -3625,7 +3624,6 @@ int MYSQL_BIN_LOG::find_next_log(LOG_INFO* linfo, bool need_lock_index)
     length= strlen(full_fname);
   }
 
-  full_fname[length-1]= 0;                     // kill \n
   linfo->index_file_offset= my_b_tell(&index_file);
 
 err:
@@ -7125,13 +7123,13 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%lu)",
+  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%llu)",
                        (long) table, table->s->table_name.str,
-                       table->s->table_map_id));
+                       table->s->table_map_id.id()));
 
   /* Pre-conditions */
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(table->s->table_map_id.is_valid());
 
   Table_map_log_event
     the_event(this, table, table->s->table_map_id, is_transactional);
@@ -7933,8 +7931,6 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
-  /* Pre-conditions */
-  DBUG_ASSERT(table->s->table_map_id != ~0UL);
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const general_type_code= RowsEventT::TYPE_CODE;
