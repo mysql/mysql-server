@@ -5132,6 +5132,7 @@ lock_print_info_all_transactions(
 
 	/* Control whether a block should be fetched from the buffer pool. */
 	bool		load_block = true;
+	bool		monitor = srv_print_innodb_lock_monitor;
 
 	while ((trx = trx_iter.current()) != 0) {
 
@@ -5149,7 +5150,7 @@ lock_print_info_all_transactions(
 
 		/* If we need to print the locked record contents then we
 		need to fetch the containing block from the buffer pool. */
-		if (srv_print_innodb_lock_monitor) {
+		if (monitor) {
 
 			/* Print the locks owned by the current transaction. */
 			TrxLockIterator& lock_iter = trx_iter.lock_iter();
