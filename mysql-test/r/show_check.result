@@ -15,7 +15,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	27	Y	0	31	8
+def					Msg_text	250	393216	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 fast;
@@ -23,7 +23,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	27	Y	0	31	8
+def					Msg_text	250	393216	27	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	Table is already up to date
 check table t1 changed;
@@ -31,7 +31,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 insert into t1 values (5,5,5);
@@ -40,7 +40,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 medium;
@@ -48,7 +48,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 check table t1 extended;
@@ -56,7 +56,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	5	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 show index from t1;
@@ -88,7 +88,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	8	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	optimize	status	OK
 optimize table t1;
@@ -160,7 +160,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	7	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 show index from t1;
@@ -177,7 +177,7 @@ Catalog	Database	Table	Table_alias	Column	Column_alias	Type	Length	Max length	Is
 def					Table	253	128	7	Y	0	31	8
 def					Op	253	10	6	Y	0	31	8
 def					Msg_type	253	10	6	Y	0	31	8
-def					Msg_text	253	255	2	Y	0	31	8
+def					Msg_text	250	393216	2	Y	0	31	8
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
 show index from t1;
