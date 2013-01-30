@@ -13,7 +13,7 @@ t1	CREATE TABLE `t1` (
   `d` enum('m','w') NOT NULL DEFAULT 'm',
   PRIMARY KEY (`a`,`b`,`c`,`d`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a,b,c,d)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a,b,c,d)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
@@ -55,7 +55,7 @@ t1	CREATE TABLE `t1` (
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a,b,c,d,e,f,g,h)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
@@ -105,7 +105,7 @@ t1	CREATE TABLE `t1` (
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`,`a1`,`b1`,`c1`,`d1`,`e1`,`f1`,`g1`,`h1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a,b,c,d,e,f,g,h,a1,b1,c1,d1,e1,f1,g1,h1)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,
@@ -178,7 +178,7 @@ t1	CREATE TABLE `t1` (
   `i` char(255) DEFAULT NULL,
   PRIMARY KEY (`a`,`b`,`c`,`d`,`e`,`f`,`g`,`h`,`a1`,`b1`,`c1`,`d1`,`e1`,`f1`,`g1`,`h1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-/*!50100 PARTITION BY KEY (a,b,c,d,e,f,g,h)
+/*!50100 PARTITION BY KEY ALGORITHM = 2 (a,b,c,d,e,f,g,h)
 (PARTITION pa1 MAX_ROWS = 20 MIN_ROWS = 2 ENGINE = InnoDB,
  PARTITION pa2 MAX_ROWS = 30 MIN_ROWS = 3 ENGINE = InnoDB,
  PARTITION pa3 MAX_ROWS = 30 MIN_ROWS = 4 ENGINE = InnoDB,

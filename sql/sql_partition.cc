@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,9 @@ const LEX_STRING partition_keywords[]=
   { C_STRING_WITH_LEN("KEY") },
   { C_STRING_WITH_LEN("MAXVALUE") },
   { C_STRING_WITH_LEN("LINEAR ") },
-  { C_STRING_WITH_LEN(" COLUMNS") }
+  { C_STRING_WITH_LEN(" COLUMNS") },
+  { C_STRING_WITH_LEN("ALGORITHM") }
+
 };
 static const char *part_str= "PARTITION";
 static const char *sub_str= "SUB";
@@ -368,7 +370,7 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   longlong old_func_value;
   DBUG_ENTER("get_parts_for_update");
 
-  DBUG_ASSERT(new_data == rec0);
+  DBUG_ASSERT(new_data == rec0);             // table->record[0]
   set_field_ptr(part_field_array, old_data, rec0);
   error= part_info->get_partition_id(part_info, old_part_id,
                                      &old_func_value);
@@ -526,12 +528,12 @@ static bool set_up_field_array(TABLE *table,
   }
   if (num_fields > MAX_REF_PARTS)
   {
-    char *ptr;
+    char *err_str;
     if (is_sub_part)
-      ptr= (char*)"subpartition function";
+      err_str= (char*)"subpartition function";
     else
-      ptr= (char*)"partition function";
-    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), ptr);
+      err_str= (char*)"partition function";
+    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), err_str);
     DBUG_RETURN(TRUE);
   }
   if (num_fields == 0)
@@ -2489,6 +2491,17 @@ char *generate_partition_syntax(partition_info *part_info,
       if (part_info->list_of_part_fields)
       {
         err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+        if (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)
+        {
+          /*
+            Can't add a !50530 comment, since we are already within a comment!
+          */
+          err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
+          err+= add_equal(fptr);
+          err+= add_space(fptr);
+          err+= add_int(fptr, part_info->key_algorithm);
+          err+= add_space(fptr);
+        }
         err+= add_part_field_list(fptr, part_info->part_field_list);
       }
       else
@@ -2529,6 +2542,17 @@ char *generate_partition_syntax(partition_info *part_info,
     if (part_info->list_of_subpart_fields)
     {
       add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+      if (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)
+      {
+        /*
+          Can't add a !50530 comment, since we are already within a comment!
+        */
+        err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
+        err+= add_equal(fptr);
+        err+= add_space(fptr);
+        err+= add_int(fptr, part_info->key_algorithm);
+        err+= add_space(fptr);
+      }
       add_part_field_list(fptr, part_info->subpart_field_list);
     }
     else
@@ -2738,10 +2762,82 @@ static uint32 calculate_key_value(Field **field_array)
 {
   ulong nr1= 1;
   ulong nr2= 4;
+  bool use_51_hash;
+  use_51_hash= test((*field_array)->table->part_info->key_algorithm ==
+                    partition_info::KEY_ALGORITHM_51);
 
   do
   {
     Field *field= *field_array;
+    if (use_51_hash)
+    {
+      switch (field->real_type()) {
+      case MYSQL_TYPE_TINY:
+      case MYSQL_TYPE_SHORT:
+      case MYSQL_TYPE_LONG:
+      case MYSQL_TYPE_FLOAT:
+      case MYSQL_TYPE_DOUBLE:
+      case MYSQL_TYPE_NEWDECIMAL:
+      case MYSQL_TYPE_TIMESTAMP:
+      case MYSQL_TYPE_LONGLONG:
+      case MYSQL_TYPE_INT24:
+      case MYSQL_TYPE_TIME:
+      case MYSQL_TYPE_DATETIME:
+      case MYSQL_TYPE_YEAR:
+      case MYSQL_TYPE_NEWDATE:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_bin.coll->hash_sort(&my_charset_bin, field->ptr, len,
+                                         &nr1, &nr2);
+          /* Done with this field, continue with next one. */
+          continue;
+        }
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_BIT:
+        /* Not affected, same in 5.1 and 5.5 */
+        break;
+      /*
+        ENUM/SET uses my_hash_sort_simple in 5.1 (i.e. my_charset_latin1)
+        and my_hash_sort_bin in 5.5!
+      */
+      case MYSQL_TYPE_ENUM:
+      case MYSQL_TYPE_SET:
+        {
+          if (field->is_null())
+          {
+            nr1^= (nr1 << 1) | 1;
+            continue;
+          }
+          /* Force this to my_hash_sort_bin, which was used in 5.1! */
+          uint len= field->pack_length();
+          my_charset_latin1.coll->hash_sort(&my_charset_latin1, field->ptr,
+                                            len, &nr1, &nr2);
+          continue;
+        }
+      /* These types should not be allowed for partitioning! */
+      case MYSQL_TYPE_NULL:
+      case MYSQL_TYPE_DECIMAL:
+      case MYSQL_TYPE_DATE:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_GEOMETRY:
+        /* fall through. */
+      default:
+        DBUG_ASSERT(0);                    // New type?
+        /* Fall through for default hashing (5.5). */
+      }
+      /* fall through, use collation based hashing. */
+    }
     field->hash(&nr1, &nr2);
   } while (*(++field_array));
   return (uint32) nr1;
@@ -5484,13 +5580,24 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->work_part_info != table->part_info)
+      if (part_info != table->part_info)
       {
-        DBUG_PRINT("info", ("partition changed"));
-        *partition_changed= TRUE;
-        if (thd->work_part_info->fix_parser_data(thd))
+        if (part_info->fix_parser_data(thd))
         {
           goto err;
+        }
+        /*
+          Compare the old and new part_info. If only key_algorithm
+          change is done, don't consider it as changed partitioning (to avoid
+          rebuild). This is to handle KEY (numeric_cols) partitioned tables
+          created in 5.1. For more info, see bug#14521864.
+        */
+        if (alter_info->flags != ALTER_PARTITION ||
+            !table->part_info ||
+            !table->part_info->has_same_partitioning(part_info))
+        {
+          DBUG_PRINT("info", ("partition changed"));
+          *partition_changed= true;
         }
       }
       /*

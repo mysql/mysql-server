@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5176,6 +5176,8 @@ int handler::ha_write_row(uchar *buf)
   int error;
   Log_func *log_func= Write_rows_log_event::binlog_row_logging_function;
   DBUG_ENTER("handler::ha_write_row");
+  DBUG_EXECUTE_IF("inject_error_ha_write_row",
+                  DBUG_RETURN(HA_ERR_INTERNAL_ERROR); );
 
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -5203,6 +5205,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
     (and the old record is in record[1]).
    */
   DBUG_ASSERT(new_data == table->record[0]);
+  DBUG_ASSERT(old_data == table->record[1]);
 
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
@@ -5220,6 +5223,13 @@ int handler::ha_delete_row(const uchar *buf)
 {
   int error;
   Log_func *log_func= Delete_rows_log_event::binlog_row_logging_function;
+  /*
+    Normally table->record[0] is used, but sometimes table->record[1] is used.
+  */
+  DBUG_ASSERT(buf == table->record[0] ||
+              buf == table->record[1]);
+  DBUG_EXECUTE_IF("inject_error_ha_delete_row",
+                  return HA_ERR_INTERNAL_ERROR; );
 
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
