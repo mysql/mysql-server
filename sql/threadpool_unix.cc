@@ -1247,11 +1247,12 @@ static void connection_abort(connection_t *connection)
   DBUG_ENTER("connection_abort");
   thread_group_t *group= connection->thread_group;
   
+  threadpool_remove_connection(connection->thd); 
+  
   mysql_mutex_lock(&group->mutex);
   group->connection_count--;
   mysql_mutex_unlock(&group->mutex);
-
-  threadpool_remove_connection(connection->thd); 
+  
   my_free(connection);
   DBUG_VOID_RETURN;
 }
