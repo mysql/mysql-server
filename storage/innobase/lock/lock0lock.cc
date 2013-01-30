@@ -5053,8 +5053,7 @@ lock_trx_print_locks(
 				/* Note: lock_rec_fetch_page() will
 				release both the lock mutex and the
 				trx_sys_t::mutex if it does a read
-				from disk. We have to reposition
-				the transaction "cursor". */
+				from disk. */
 
 				if (lock_rec_fetch_page(lock)) {
 					/* We need to resync the
@@ -5130,6 +5129,8 @@ lock_print_info_all_transactions(
 	const trx_t*	trx;
 	TrxListIterator	trx_iter;
 	const trx_t*	prev_trx = 0;
+
+	/* Control whether a block should be fetched from the buffer pool. */
 	bool		load_block = true;
 
 	while ((trx = trx_iter.current()) != 0) {
@@ -5143,35 +5144,37 @@ lock_print_info_all_transactions(
 			/* The transaction that read in the page is no
 			longer the one that read the page in. We need to
 			force a page read. */
-
 			load_block = true;
 		}
 
-		if (!srv_print_innodb_lock_monitor) {
-			trx_iter.next();
-			load_block = true;
-			continue;
+		/* If we need to print the locked record contents then we
+		need to fetch the containing block from the buffer pool. */
+		if (srv_print_innodb_lock_monitor) {
+
+			/* Print the locks owned by the current transaction. */
+			TrxLockIterator& lock_iter = trx_iter.lock_iter();
+
+			if (!lock_trx_print_locks(
+					file, trx, lock_iter, load_block)) {
+
+				/* Resync trx_iter, the trx_sys->mutex and
+				the lock mutex were released. A page was
+				successfully read in.  We need to print its
+				contents on the next call to
+				lock_trx_print_locks(). On the next call to
+				lock_trx_print_locks() we should simply print
+				the contents of the page just read in.*/
+				load_block = false;
+
+				continue;
+			}
 		}
 
-		/* Now print the locks owned by the current transaction. */
-		TrxLockIterator& lock_iter = trx_iter.lock_iter();
+		load_block = true;
 
-		if (!lock_trx_print_locks(file, trx, lock_iter, load_block)) {
-
-			/* Resync trx_iter, the trx_sys->mutex and the lock
-			mutex were released. A page was successfully read in.
-			We need to print its contents on the next call to
-			lock_trx_print_locks(). */
-
-			load_block = false;
-		} else {
-			/* All record lock details were printed without
-			fetching a page from disk. */
-			trx_iter.next();
-
-			/* Force read of next record lock, if any. */
-			load_block = true;
-		}
+		/* All record lock details were printed without fetching
+		a page from disk, or we didn't need to print the detail. */
+		trx_iter.next();
 	}
 
 	lock_mutex_exit();
