@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4102,7 +4102,6 @@ longlong Item_master_gtid_set_wait::val_int()
   return event_count;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Return 1 if both arguments are Gtid_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
@@ -4138,7 +4137,6 @@ longlong Item_func_gtid_subset::val_int()
   }
   DBUG_RETURN(ret);
 }
-#endif
 
 
 /**
@@ -5559,7 +5557,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name);
+  append_identifier(current_thd, str, name);
   str->append(')');
 }
 
@@ -5656,7 +5654,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
-  str->append(name);
+  append_identifier(current_thd, str, name);
 }
 
 
