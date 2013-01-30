@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -771,7 +771,13 @@ int set_var_password::check(THD *thd)
       user->host.length= 1;
     }
   }
-  if (user->user.length == 0)
+  /*
+    In case of anonymous user, user->user is set to empty string with length 0.
+    But there might be case when user->user.str could be NULL. For Ex:
+    "set password for current_user() = password('xyz');". In this case,
+    set user information as of the current user.
+  */
+  if (!user->user.str)
   {
     DBUG_ASSERT(thd->security_ctx->user);
     user->user.str= (char *) thd->security_ctx->user;
