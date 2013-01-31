@@ -1,5 +1,9 @@
+
 # This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
 --source include/have_myisam.inc
+
+
+--source include/big_test.inc
 
 --source include/master-slave.inc
 --source include/have_binlog_format_mixed_or_row.inc
@@ -141,7 +145,6 @@ while ($i) {
 --disable_warnings
 --source include/start_slave.inc
 --enable_warnings
---sync_with_master
 
 #cleanup
 
@@ -154,8 +157,12 @@ while ($i) {
 
 SET @@global.default_storage_engine= @save_default_storage_engine;
 
---sync_slave_with_master
-
---source include/stop_slave.inc
+--connection slave
 SET @@global.default_storage_engine= @save_default_storage_engine;
 SET GLOBAL slave_parallel_workers= @save_slave_parallel_workers;
+
+# It may generate a big delay between master and slave, that will need more time
+# to sync data
+
+--let slave-timeout= 3600
+--source include/rpl_end.inc

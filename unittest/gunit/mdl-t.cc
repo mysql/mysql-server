@@ -1647,16 +1647,16 @@ TEST_F(MDLKeyDeathTest, DieWhenNamesAreTooLong)
     "0123456789";
 
   EXPECT_DEATH(MDL_key key0(MDL_key::TABLE, too_long_name, ""),
-               ".*Assertion.*strlen.*failed.*");
+               ".*Assertion.*strlen.*");
   EXPECT_DEATH(MDL_key key1(MDL_key::TABLE, "", too_long_name),
-               ".*Assertion.*strlen.*failed.*");
+               ".*Assertion.*strlen.*");
 
   MDL_key key2;
 
   EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, too_long_name, ""),
-               ".*Assertion.*strlen.*failed.*");
+               ".*Assertion.*strlen.*");
   EXPECT_DEATH(key2.mdl_key_init(MDL_key::TABLE, "", too_long_name),
-               ".*Assertion.*strlen.*failed.*");
+               ".*Assertion.*strlen.*");
 
 }
 #endif  // GTEST_HAS_DEATH_TEST && !defined(DBUG_OFF)

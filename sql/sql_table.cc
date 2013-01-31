@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1715,7 +1715,7 @@ void execute_ddl_log_recovery()
   mysql_mutex_unlock(&LOCK_gdl);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 
@@ -2471,6 +2471,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
                                                             table->table_name);
         }
         error|= new_error;
+        /* Invalidate even if we failed to delete the .FRM file. */
+        query_cache_invalidate_single(thd, table, false);
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
     }
@@ -2522,8 +2524,6 @@ err:
   if (non_trans_tmp_table_deleted ||
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
-    query_cache_invalidate3(thd, tables, 0);
-
     if (non_trans_tmp_table_deleted ||
         trans_tmp_table_deleted)
       thd->transaction.stmt.mark_dropped_temp_table();

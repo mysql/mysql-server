@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -99,6 +99,8 @@ INSERT INTO global_suppressions VALUES
  ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
 
+ ("innodb-page-size has been changed"),
+
  /*
    Due to timing issues, it might be that this warning
    is printed when the server shuts down and the
@@ -178,7 +180,8 @@ INSERT INTO global_suppressions VALUES
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
- ("Although a path was specified for the .* option, log tables are used"),
+ ("Although a path was specified for the --general-log-file option, log tables are used"),
+ ("Although a path was specified for the --slow-query-log-file option, log tables are used"),
  ("Backup: Operation aborted"),
  ("Restore: Operation aborted"),
  ("Restore: The grant .* was skipped because the user does not exist"),

@@ -52,11 +52,6 @@ IF(NOT SYSTEM_TYPE)
   ENDIF()
 ENDIF()
 
-# As a consequence of ALARMs no longer being used, thread
-# notification for KILL must close the socket to wake up
-# other threads.
-SET(SIGNAL_WITH_VIO_CLOSE 1)
-
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-unused-parameter")

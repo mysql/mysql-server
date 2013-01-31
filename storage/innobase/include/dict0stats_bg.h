@@ -44,14 +44,12 @@ Add a table to the recalc pool, which is processed by the
 background stats gathering thread. Only the table id is added to the
 list, so the table can be closed after being enqueued and it will be
 opened when needed. If the table does not exist later (has been DROPped),
-then it will be removed from the pool and skipped.
-dict_stats_recalc_pool_add() @{ */
+then it will be removed from the pool and skipped. */
 UNIV_INTERN
 void
 dict_stats_recalc_pool_add(
 /*=======================*/
 	const dict_table_t*	table);	/*!< in: table to add */
-/* @} */
 
 /*****************************************************************//**
 Delete a given table from the auto recalc pool.
@@ -61,7 +59,6 @@ void
 dict_stats_recalc_pool_del(
 /*=======================*/
 	const dict_table_t*	table);	/*!< in: table to remove */
-/* @} */
 
 /*****************************************************************//**
 Wait until background stats thread has stopped using the specified table(s).
@@ -71,8 +68,7 @@ and restore the lock before it exits.
 The background stats thead is guaranteed not to start using the specified
 tables after this function returns and before the caller unlocks the data
 dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
-under dict_sys->mutex.
-dict_stats_wait_bg_to_stop_using_table() @{ */
+under dict_sys->mutex. */
 UNIV_INTERN
 void
 dict_stats_wait_bg_to_stop_using_tables(
@@ -81,33 +77,27 @@ dict_stats_wait_bg_to_stop_using_tables(
 	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
 	trx_t*		trx);	/*!< in/out: transaction to use for
 				unlocking/locking the data dict */
-/* @} */
 
 /*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread().
-Must be called before dict_stats_thread() is started.
-dict_stats_thread_init() @{ */
+Must be called before dict_stats_thread() is started. */
 UNIV_INTERN
 void
 dict_stats_thread_init();
 /*====================*/
-/* @} */
 
 /*****************************************************************//**
 Free resources allocated by dict_stats_thread_init(), must be called
-after dict_stats_thread() has exited.
-dict_stats_thread_deinit() @{ */
+after dict_stats_thread() has exited. */
 UNIV_INTERN
 void
 dict_stats_thread_deinit();
 /*======================*/
-/* @} */
 
 /*****************************************************************//**
 This is the thread for background stats gathering. It pops tables, from
 the auto recalc list and proceeds them, eventually recalculating their
 statistics.
-dict_stats_thread() @{
 @return this function does not return, it calls os_thread_exit() */
 extern "C" UNIV_INTERN
 os_thread_ret_t
@@ -115,6 +105,5 @@ DECLARE_THREAD(dict_stats_thread)(
 /*==============================*/
 	void*	arg);	/*!< in: a dummy parameter
 			required by os_thread_create */
-/* @} */
 
 #endif /* dict0stats_bg_h */

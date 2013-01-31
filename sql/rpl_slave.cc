@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1623,6 +1623,10 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     Free old mi_description_event (that is needed if we are in
     a reconnection).
   */
+  DBUG_EXECUTE_IF("unrecognized_master_version",
+                 {
+                   *mysql->server_version= '1';
+                 };);
   mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
 
@@ -1677,7 +1681,11 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
 
   if (errmsg)
+  {
+    /* unlock the mutex on master info structure */
+    mysql_mutex_unlock(&mi->data_lock);
     goto err;
+  }
 
   /* as we are here, we tried to allocate the event */
   if (mi->get_mi_description_event() == NULL)
@@ -2148,7 +2156,7 @@ when it try to get the value of TIME_ZONE global variable from master.";
       {
         mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
                    "The slave IO thread stops because the master has "
-                   "an unknown GTID_MODE.");
+                   "an unknown @@GLOBAL.GTID_MODE.");
         DBUG_RETURN(1);
       }
       mi->master_gtid_mode= typelib_index - 1;
@@ -2158,8 +2166,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
         gtid_mode > mi->master_gtid_mode + 1)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and this server has GTID_MODE %s",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and this server has "
+                 "@@GLOBAL.GTID_MODE %s",
                  gtid_mode_names[mi->master_gtid_mode],
                  gtid_mode_names[gtid_mode]);
       DBUG_RETURN(1);
@@ -2167,8 +2176,9 @@ when it try to get the value of TIME_ZONE global variable from master.";
     if (mi->is_auto_position() && mi->master_gtid_mode != 3)
     {
       mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 "The slave IO thread stops because the master has GTID_MODE "
-                 "%s and we are trying to connect using MASTER_AUTO_POSITION.",
+                 "The slave IO thread stops because the master has "
+                 "@@GLOBAL.GTID_MODE %s and we are trying to connect "
+                 "using MASTER_AUTO_POSITION.",
                  gtid_mode_names[mi->master_gtid_mode]);
       DBUG_RETURN(1);
     }
@@ -2531,6 +2541,8 @@ bool show_slave_status(THD* thd, Master_info* mi)
                                              io_gtid_set_size));
   field_list.push_back(new Item_empty_string("Executed_Gtid_Set",
                                              sql_gtid_set_size));
+  field_list.push_back(new Item_return_int("Auto_Position", sizeof(ulong),
+                                           MYSQL_TYPE_LONG));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -2770,8 +2782,12 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_ca, &my_charset_bin);
     // Master_Ssl_Crlpath
     protocol->store(mi->ssl_capath, &my_charset_bin);
+    // Retrieved_Gtid_Set
     protocol->store(io_gtid_set_buffer, &my_charset_bin);
+    // Executed_Gtid_Set
     protocol->store(sql_gtid_set_buffer, &my_charset_bin);
+    // Auto_Position
+    protocol->store(mi->is_auto_position() ? 1 : 0);
 
     mysql_mutex_unlock(&mi->rli->err_lock);
     mysql_mutex_unlock(&mi->err_lock);
@@ -3704,6 +3720,11 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
       mysql_mutex_unlock(&rli->data_lock);
     */
 
+    /* For deferred events, the ptr_ev is set to NULL
+        in Deferred_log_events::add() function.
+        Hence deferred events wont be deleted here.
+        They will be deleted in Deferred_log_events::rewind() funciton.
+    */
     if (*ptr_ev)
     {
       DBUG_ASSERT(*ptr_ev == ev); // event remains to belong to Coordinator
@@ -3877,9 +3898,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 {
   mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
   thd->proc_info= messages[SLAVE_RECON_MSG_WAIT];
-#ifdef SIGNAL_WITH_VIO_CLOSE  
   thd->clear_active_vio();
-#endif
   end_server(mysql);
   if ((*retry_count)++)
   {
@@ -4285,13 +4304,11 @@ err:
       Here we need to clear the active VIO before closing the
       connection with the master.  The reason is that THD::awake()
       might be called from terminate_slave_thread() because somebody
-      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
       can be called in the middle of closing the VIO associated with
       the 'mysql' object, causing a crash.
     */
-#ifdef SIGNAL_WITH_VIO_CLOSE
     thd->clear_active_vio();
-#endif
     mysql_close(mysql);
     mi->mysql=0;
   }
@@ -6316,6 +6333,43 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     mi->received_heartbeats++;
     mi->last_heartbeat= my_time(0);
+
+
+    /*
+      During GTID protocol, if the master skips transactions,
+      a heartbeat event is sent to the slave at the end of last
+      skipped transaction to update coordinates.
+
+      I/O thread receives the heartbeat event and updates mi
+      only if the received heartbeat position is greater than
+      mi->get_master_log_pos(). This event is written to the
+      relay log as an ignored Rotate event. SQL thread reads
+      the rotate event only to update the coordinates corresponding
+      to the last skipped transaction. Note that,
+      we update only the positions and not the file names, as a ROTATE
+      EVENT from the master prior to this will update the file name.
+    */
+    if (mi->is_auto_position()  && mi->get_master_log_pos() < hb.log_pos
+        &&  mi->get_master_log_name() != NULL)
+    {
+
+      DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
+                         hb.get_log_ident(), hb.get_ident_len()) == 0);
+
+      mi->set_master_log_pos(hb.log_pos);
+
+      /*
+         Put this heartbeat event in the relay log as a Rotate Event.
+      */
+      inc_pos= 0;
+      memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(),
+             FN_REFLEN);
+      rli->ign_master_log_pos_end = mi->get_master_log_pos();
+
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+        goto err;
+    }
+
     /* 
        compare local and event's versions of log_file, log_pos.
        
@@ -6533,11 +6587,9 @@ err:
 
 extern "C" void slave_io_thread_detach_vio()
 {
-#ifdef SIGNAL_WITH_VIO_CLOSE
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
     thd->clear_active_vio();
-#endif
 }
 
 
@@ -6711,9 +6763,8 @@ replication resumed in log '%s' at position %s", mi->get_user(),
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->get_user(), mi->host, mi->port);
     }
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
     thd->set_active_vio(mysql->net.vio);
-#endif
   }
   mysql->reconnect= 1;
   DBUG_PRINT("exit",("slave_was_killed: %d", slave_was_killed));

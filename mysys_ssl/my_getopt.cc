@@ -40,6 +40,9 @@ static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
 static void print_cmdline_password_warning();
+static my_bool get_bool_argument(const struct my_option *opts,
+                                 const char *argument,
+                                 bool *error);
 
 /*
   The following three variables belong to same group and the number and
@@ -419,21 +422,25 @@ int my_handle_options(int *argc, char ***argv,
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	    */
-	    (*argc)--;
-	    if (!optend || *optend == '1' ||
-		!my_strcasecmp(&my_charset_latin1, optend, "true"))
-	      *((my_bool*) value)= (my_bool) 1;
-	    else if (*optend == '0' ||
-		     !my_strcasecmp(&my_charset_latin1, optend, "false"))
-	      *((my_bool*) value)= (my_bool) 0;
-	    else
-	    {
-	      my_getopt_error_reporter(WARNING_LEVEL,
-				       "%s: ignoring option '--%s' "
-                                       "due to invalid value '%s'",
-				       my_progname, optp->name, optend);
-	      continue;
-	    }
+            (*argc)--;
+            if(!optend)
+              *((my_bool*) value)= (my_bool) 1;
+            else
+            {
+              my_bool ret= 0;
+              bool error= 0;
+              ret= get_bool_argument(optp, optend, &error);
+              if(error)
+              {
+                my_getopt_error_reporter(WARNING_LEVEL,
+                                         "%s: ignoring option '--%s' "
+                                         "due to invalid value '%s'",
+                                         my_progname, optp->name, optend);
+                continue;
+              }
+              else
+                *((my_bool*) value)= ret;
+            }
             if (get_one_option && get_one_option(optp->id, optp,
                                *((my_bool*) value) ?
                                enabled_my_option : disabled_my_option))
@@ -688,7 +695,8 @@ static char *check_struct_option(char *cur_arg, char *key_name)
    @return boolean value
 */
 static my_bool get_bool_argument(const struct my_option *opts,
-                                 const char *argument)
+                                 const char *argument,
+                                 bool *error)
 {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
@@ -698,9 +706,8 @@ static my_bool get_bool_argument(const struct my_option *opts,
       !my_strcasecmp(&my_charset_latin1, argument, "off") ||
       !my_strcasecmp(&my_charset_latin1, argument, "0"))
     return 0;
-  my_getopt_error_reporter(WARNING_LEVEL,
-      "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
-      opts->name, argument);
+  else
+    *error= 1;
   return 0;
 }
 
@@ -715,6 +722,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0, res= 0;
+  bool error= 0;
 
   if (!argument)
     argument= enabled_my_option;
@@ -731,7 +739,11 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= get_bool_argument(opts, argument);
+      *((my_bool*) value)= get_bool_argument(opts, argument, &error);
+      if(error)
+        my_getopt_error_reporter(WARNING_LEVEL,
+            "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
+            opts->name, argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);

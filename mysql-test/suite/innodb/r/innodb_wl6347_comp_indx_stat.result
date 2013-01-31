@@ -4625,14 +4625,11 @@ Message	Unknown table 'test.tab5'
 SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags 
-SET GLOBAL innodb_log_compressed_pages=0;
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
 @@innodb_cmp_per_index_enabled	1
-SELECT @@innodb_log_compressed_pages;
-@@innodb_log_compressed_pages	0
 SELECT @@innodb_compression_failure_threshold_pct;
 @@innodb_compression_failure_threshold_pct	0
 SELECT @@innodb_file_format;
@@ -4963,7 +4960,6 @@ The size of the tab5.ibd file: 65536
 # set the flag on (default off)
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 # set the flags 
-SET GLOBAL innodb_log_compressed_pages=0;
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
@@ -6302,13 +6298,10 @@ SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
-SET GLOBAL innodb_log_compressed_pages=Default;
 SET GLOBAL innodb_compression_level=Default;
 # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
 @@innodb_cmp_per_index_enabled	1
-SELECT @@innodb_log_compressed_pages;
-@@innodb_log_compressed_pages	1
 SELECT @@innodb_compression_failure_threshold_pct;
 @@innodb_compression_failure_threshold_pct	10
 SELECT @@innodb_file_format;
@@ -8031,5 +8024,4 @@ SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
 SET GLOBAL innodb_compression_level=default;
-SET GLOBAL innodb_log_compressed_pages=default;
 SET GLOBAL innodb_compression_failure_threshold_pct=default;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -80,10 +80,13 @@
 
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "../storage/perfschema/pfs_server.h"
+#include <pfs_idle_provider.h>
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+
 #include <mysql/psi/mysql_idle.h>
 #include <mysql/psi/mysql_socket.h>
 #include <mysql/psi/mysql_statement.h>
+
 #include "mysql_com_server.h"
 
 #include "keycaches.h"
@@ -694,7 +697,9 @@ SHOW_COMP_OPTION have_profiling;
 /* Thread specific variables */
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
+bool THR_MALLOC_initialized= false;
 pthread_key(THD*, THR_THD);
+bool THR_THD_initialized= false;
 mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
@@ -1873,11 +1878,17 @@ void clean_up(bool print_message)
 #endif
   free_list(opt_plugin_load_list_ptr);
 
-  if (THR_THD)
+  if (THR_THD_initialized)
+  {
     (void) pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
+  }
 
-  if (THR_MALLOC)
+  if (THR_MALLOC_initialized)
+  {
     (void) pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
+  }
 
   /*
     The following lines may never be executed as the main thread may have
@@ -2616,7 +2627,7 @@ static bool block_until_new_connection()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= thd->start_utime= my_micro_time();
       add_global_thread(thd);
       mysql_mutex_unlock(&LOCK_thread_count);
       return true;
@@ -2660,6 +2671,21 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   */
   DBUG_EXECUTE_IF("sleep_after_lock_thread_count_before_delete_thd", sleep(5););
   remove_global_thread(thd);
+  if (kill_blocked_pthreads_flag)
+  {
+    // Do not block if we are about to shut down
+    block_pthread= false;
+  }
+
+  // Clean up errors now, before possibly waiting for a new connection.
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
+
+  /*
+    Using global resources (like mutexes) is unsafe once we have released
+    the mutex here: the server may be shutting down.
+   */
   mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
@@ -2673,9 +2699,6 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
-#ifndef EMBEDDED_LIBRARY
-  ERR_remove_state(0);
-#endif
   mysql_cond_broadcast(&COND_thread_count);
 
   pthread_exit(0);
@@ -3982,9 +4005,24 @@ int init_common_variables()
   /* Set collactions that depends on the default collation */
   global_system_variables.collation_server=  default_charset_info;
   global_system_variables.collation_database=  default_charset_info;
-  global_system_variables.collation_connection=  default_charset_info;
-  global_system_variables.character_set_results= default_charset_info;
-  global_system_variables.character_set_client=  default_charset_info;
+
+  if (is_supported_parser_charset(default_charset_info))
+  {
+    global_system_variables.collation_connection= default_charset_info;
+    global_system_variables.character_set_results= default_charset_info;
+    global_system_variables.character_set_client= default_charset_info;
+  }
+  else
+  {
+    sql_print_information("'%s' can not be used as client character set. "
+                          "'%s' will be used as default client character set.",
+                          default_charset_info->csname,
+                          my_charset_latin1.csname);
+    global_system_variables.collation_connection= &my_charset_latin1;
+    global_system_variables.character_set_results= &my_charset_latin1;
+    global_system_variables.character_set_client= &my_charset_latin1;
+  }
+
   if (!(character_set_filesystem=
         get_charset_by_csname(character_set_filesystem_name,
                               MY_CS_PRIMARY, MYF(MY_WME))))
@@ -4003,13 +4041,13 @@ int init_common_variables()
   if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
       !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
-                      "--log option, log tables are used. "
-                      "To enable logging to files use the --log-output option.");
+                      "--general-log-file option, log tables are used. "
+                      "To enable logging to files use the --log-output=file option.");
 
   if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
       && !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
-                      "--log-slow-queries option, log tables are used. "
+                      "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
@@ -4175,12 +4213,16 @@ static int init_thread_environment()
              PTHREAD_CREATE_DETACHED);
   pthread_attr_setscope(&connection_attrib, PTHREAD_SCOPE_SYSTEM);
 
+  DBUG_ASSERT(! THR_THD_initialized);
+  DBUG_ASSERT(! THR_MALLOC_initialized);
   if (pthread_key_create(&THR_THD,NULL) ||
       pthread_key_create(&THR_MALLOC,NULL))
   {
     sql_print_error("Can't create thread-keys");
     return 1;
   }
+  THR_THD_initialized= true;
+  THR_MALLOC_initialized= true;
   return 0;
 }
 
@@ -4342,7 +4384,7 @@ static int generate_server_uuid()
   func_uuid->val_str(&uuid);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
 
   strncpy(server_uuid, uuid.c_ptr(), UUID_LENGTH);
   server_uuid[UUID_LENGTH]= '\0';
@@ -4826,7 +4868,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!DEFAULT_ERRMSGS[0][0])
+  {
+    sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
+  }
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
@@ -4835,7 +4880,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
   else
@@ -4869,10 +4913,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
   }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
 
   /*
     Set the default storage engines
@@ -5128,14 +5168,18 @@ int mysqld_main(int argc, char **argv)
 #ifdef HAVE_NPTL
   ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
 #endif
+
 #ifndef _WIN32
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
   {
     fprintf(stderr, "my_init() failed.");
     return 1;
   }
-#endif
+#endif /* _WIN32 */
 
   orig_argc= argc;
   orig_argv= argv;
@@ -5463,6 +5507,7 @@ int mysqld_main(int argc, char **argv)
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();       // Creates pidfile
+  sql_print_warning_hook = sql_print_warning;
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
@@ -5753,6 +5798,10 @@ int mysqld_main(int argc, char **argv)
 
   /* Must be initialized early for comparison of service name */
   system_charset_info= &my_charset_utf8_general_ci;
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
 
   if (my_init())
   {
@@ -8418,7 +8467,12 @@ mysqld_get_one_option(int optid,
     opt_plugin_load_list_ptr->push_back(new i_string(argument));
     break;
   case OPT_DEFAULT_AUTH:
-    set_default_auth_plugin(argument, strlen(argument));
+    if (set_default_auth_plugin(argument, strlen(argument)))
+    {
+      sql_print_error("Can't start server: "
+                      "Invalid value for --default-authentication-plugin");
+      return 1;
+    }
     break;
   case OPT_SECURE_AUTH:
     if (opt_secure_auth == 0)
@@ -8615,7 +8669,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
-    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+    sql_print_warning("options --log-slow-admin-statements, "
+                      "--log-queries-not-using-indexes and "
+                      "--log-slow-slave-statements have no effect if "
+                      "--slow-query-log is not set");
   if (global_system_variables.net_buffer_length >
       global_system_variables.max_allowed_packet)
   {
