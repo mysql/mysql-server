@@ -2302,9 +2302,9 @@ bool mysql_show_binlog_events(THD* thd)
 MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
                              enum cache_type io_cache_type_arg)
   :name(NULL), write_error(false), inited(false),
-   log_state(LOG_CLOSED), io_cache_type(io_cache_type_arg)
+   log_state(LOG_CLOSED), io_cache_type(io_cache_type_arg),
 #ifdef HAVE_PSI_INTERFACE
-   ,m_key_LOCK_log(key_LOG_LOCK_log),
+   m_key_LOCK_log(key_LOG_LOCK_log),
 #endif
    bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
