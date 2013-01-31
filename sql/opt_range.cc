@@ -9481,6 +9481,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
         else
           goto next_index;
       }
+      /*
+        This function is called on the precondition that the index is covering.
+        Therefore if the GROUP BY list contains more elements than the index,
+        these are duplicates. The GROUP BY list cannot be a prefix of the index.
+      */
+      if (cur_part == end_part && tmp_group)
+        goto next_index;
     }
     /*
       Check (GA2) if this is a DISTINCT query.

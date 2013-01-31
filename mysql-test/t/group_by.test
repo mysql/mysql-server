@@ -1315,4 +1315,78 @@ SELECT 1 FROM t1 GROUP BY SUBSTRING(SYSDATE() FROM 'K' FOR 'jxW<');
 DROP TABLE t1;
 SET SQL_BIG_TABLES=0;
 
+--echo #
+--echo # MDEV-641 LP:1002108 - Wrong result (or crash) from a query with duplicated field in the group list and a limit clause
+--echo # Bug#11761078: 53534: INCORRECT 'SELECT SQL_BIG_RESULT...' 
+--echo #               WITH GROUP BY ON DUPLICATED FIELDS
+--echo #
+
+CREATE TABLE t1(
+ col1 int, 
+ UNIQUE INDEX idx (col1));
+
+INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
+   (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
+
+let $query0=SELECT col1 AS field1, col1 AS field2
+            FROM t1 GROUP BY field1, field2;
+
+# Needs to be range to exercise bug
+--eval EXPLAIN $query0;
+FLUSH STATUS;
+--eval $query0;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+
+let $query=SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+           FROM t1 GROUP BY field1, field2;
+
+# Needs to be range to exercise bug
+--eval EXPLAIN $query;
+FLUSH STATUS;
+--eval $query;
+SHOW SESSION STATUS LIKE 'Sort_scan%';
+
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
+FROM v1 
+GROUP BY field1, field2; 
+
+SELECT SQL_BIG_RESULT tbl1.col1 AS field1, tbl2.col1 AS field2
+FROM t1 as tbl1, t1 as tbl2 
+GROUP BY field1, field2 
+LIMIT 3;
+
+explain
+select col1 f1, col1 f2 from t1 order by f2, f1;
+select col1 f1, col1 f2 from t1 order by f2, f1;
+
+explain
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+select col1 f1, col1 f2 from t1 group by f2 order by f2, f1;
+
+explain
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+select col1 f1, col1 f2 from t1 group by f1, f2 order by f2, f1;
+
+CREATE TABLE t2(
+ col1 int, 
+ col2 int, 
+ UNIQUE INDEX idx (col1, col2));
+
+INSERT INTO t2(col1, col2) VALUES
+   (1,20),(2,19),(3,18),(4,17),(5,16),(6,15),(7,14),(8,13),(9,12),(10,11),
+   (11,10),(12,9),(13,8),(14,7),(15,6),(16,5),(17,4),(18,3),(19,2),(20,1);
+
+explain
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 group by f1, f2, f3;
+
+explain
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
+select col1 f1, col2 f2, col1 f3 from t2 order by f1, f2, f3;
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
 --echo # End of 5.1 tests
