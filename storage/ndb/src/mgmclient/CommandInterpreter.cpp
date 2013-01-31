@@ -536,6 +536,8 @@ static const char* helpTextReport =
 "        node, or for all data nodes using ALL\n"
 ;
 static void helpTextReportFn();
+static void helpTextReportTypeOptionFn();
+
 
 static const char* helpTextQuit =
 "---------------------------------------------------------------------------\n"
@@ -1566,6 +1568,8 @@ CommandInterpreter::executeHelp(char* parameters)
       }
     }
     ndbout << endl;
+
+    helpTextReportTypeOptionFn();
 
     ndbout << "<level>    = " << "0 - 15" << endl;
     ndbout << "<id>       = " << "ALL | Any database node id" << endl;
@@ -2668,6 +2672,18 @@ helpTextReportFn()
     ndbout_c("    %s\t- %s", report_cmd->name, report_cmd->help);
 }
 
+static void 
+helpTextReportTypeOptionFn()
+{
+  ndbout << "<report-type> = ";
+  const st_report_cmd* report_cmd = report_cmds;
+  for (; report_cmd->name; report_cmd++){
+    if (report_cmd != report_cmds)
+      ndbout << " | ";
+    ndbout << BaseString(report_cmd->name).ndb_toupper().c_str();
+  }
+  ndbout << endl;
+}
 
 //*****************************************************************************
 //*****************************************************************************
