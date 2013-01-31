@@ -31,20 +31,9 @@ SET(TESTS
 FOREACH(test ${TESTS})
   ADD_EXECUTABLE(${test}-t ${test}-t.cc)
 
-  # (unfortunately) the order of the libraries matters
-  TARGET_LINK_LIBRARIES(${test}-t
-    gunit_large
-    strings
-    dbug
-    regex
-    mysys
-    innobase
-    sql
-    binlog
-    rpl
-    master
-    slave
-  )
+  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(${test}-t perfschema)
