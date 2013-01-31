@@ -3171,6 +3171,10 @@ public:
   Field *get_tmp_table_field()
   { return result_field ? result_field : (*ref)->get_tmp_table_field(); }
   Item *get_tmp_table_item(THD *thd);
+  bool const_item() const
+  {
+    return (*ref)->const_item() && (used_tables() == 0);
+  }
   table_map used_tables() const		
   {
     return depended_from ? OUTER_REF_TABLE_BIT : (*ref)->used_tables(); 
