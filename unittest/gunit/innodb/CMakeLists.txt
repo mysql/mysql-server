@@ -28,16 +28,48 @@ SET(TESTS
   ut0mem
 )
 
-FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+IF (MERGE_UNITTESTS)
+  SET(MERGE_INNODB_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_innodb_tests-t.cc)
+  SET_SOURCE_FILES_PROPERTIES(MERGE_INNODB_TESTS PROPERTIES GENERATED 1)
 
-  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
-  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
-    TARGET_LINK_LIBRARIES(${test}-t perfschema)
+  FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
+
+  FOREACH(test ${TESTS})
+    FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")
+  ENDFOREACH()
+
+  IF(WIN32)
+    LIST(APPEND MERGE_INNODB_TESTS ../../../sql/nt_servc.cc)
   ENDIF()
 
-  ADD_TEST(${test} ${test}-t)
-ENDFOREACH()
+  ADD_EXECUTABLE(merge_innodb_tests-t ${MERGE_INNODB_TESTS})
+
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t sql binlog rpl master slave sql)
+
+  IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+    TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
+  ENDIF()
+
+  ADD_TEST(merge_innodb_tests merge_innodb_tests-t)
+
+ELSE()
+
+  FOREACH(test ${TESTS})
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+
+    IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
+      TARGET_LINK_LIBRARIES(${test}-t perfschema)
+    ENDIF()
+
+    ADD_TEST(${test} ${test}-t)
+  ENDFOREACH()
+
+ENDIF()
