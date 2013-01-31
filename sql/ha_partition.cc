@@ -82,7 +82,6 @@ using std::max;
 #define PARTITION_DISABLED_TABLE_FLAGS (HA_CAN_GEOMETRY | \
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
-                                        HA_CAN_SQL_HANDLER | \
                                         HA_READ_BEFORE_WRITE_REMOVAL)
 static const char *ha_par_ext= ".par";
 
@@ -5120,7 +5119,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
 {
   int error;
   uint UNINIT_VAR(key_len); /* used if have_start_key==TRUE */
-  bool reverse_order= FALSE;
+  m_reverse_order= false;
   DBUG_ENTER("ha_partition::common_index_read");
 
   DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u",
@@ -5141,11 +5140,12 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
   }
 
   if (have_start_key && 
-      (m_start_key.flag == HA_READ_PREFIX_LAST ||
+      (m_start_key.flag == HA_READ_KEY_OR_PREV ||
+       m_start_key.flag == HA_READ_PREFIX_LAST ||
        m_start_key.flag == HA_READ_PREFIX_LAST_OR_PREV ||
        m_start_key.flag == HA_READ_BEFORE_KEY))
   {
-    reverse_order= TRUE;
+    m_reverse_order= true;
     m_ordered_scan_ongoing= TRUE;
   }
   DBUG_PRINT("info", ("m_ordered %u m_o_scan_ong %u have_start_key %u",
@@ -5168,7 +5168,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
       In all other cases we will use the ordered index scan. This will use
       the partition set created by the get_partition_set method.
     */
-    error= handle_ordered_index_scan(buf, reverse_order);
+    error= handle_ordered_index_scan(buf);
   }
   DBUG_RETURN(error);
 }
@@ -5201,6 +5201,7 @@ int ha_partition::index_first(uchar * buf)
 
   end_range= 0;
   m_index_scan_type= partition_index_first;
+  m_reverse_order= false;
   DBUG_RETURN(common_first_last(buf));
 }
 
@@ -5231,8 +5232,10 @@ int ha_partition::index_last(uchar * buf)
   DBUG_ENTER("ha_partition::index_last");
 
   m_index_scan_type= partition_index_last;
+  m_reverse_order= true;
   DBUG_RETURN(common_first_last(buf));
 }
+
 
 /*
   Common routine for index_first/index_last
@@ -5246,13 +5249,14 @@ int ha_partition::index_last(uchar * buf)
 int ha_partition::common_first_last(uchar *buf)
 {
   int error;
+  DBUG_ENTER("ha_partition::common_first_last");
 
   if ((error= partition_scan_set_up(buf, FALSE)))
-    return error;
+    DBUG_RETURN(error);
   if (!m_ordered_scan_ongoing &&
       m_index_scan_type != partition_index_last)
-    return handle_unordered_scan_next_partition(buf);
-  return handle_ordered_index_scan(buf, FALSE);
+    DBUG_RETURN(handle_unordered_scan_next_partition(buf));
+  DBUG_RETURN(handle_ordered_index_scan(buf));
 }
 
 
@@ -5376,7 +5380,8 @@ int ha_partition::index_next(uchar * buf)
     and if direction changes, we must step back those partitions in
     the record queue so we don't return a value from the wrong direction.
   */
-  DBUG_ASSERT(m_index_scan_type != partition_index_last);
+  DBUG_ASSERT(m_index_scan_type != partition_index_last ||
+              table->open_by_handler);
   if (!m_ordered_scan_ongoing)
   {
     DBUG_RETURN(handle_unordered_next(buf, FALSE));
@@ -5435,7 +5440,8 @@ int ha_partition::index_prev(uchar * buf)
   DBUG_ENTER("ha_partition::index_prev");
 
   /* TODO: read comment in index_next */
-  DBUG_ASSERT(m_index_scan_type != partition_index_first);
+  DBUG_ASSERT(m_index_scan_type != partition_index_first ||
+              table->open_by_handler);
   DBUG_RETURN(handle_ordered_prev(buf));
 }
 
@@ -5624,8 +5630,8 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
 
   if (m_part_spec.start_part >= m_tot_parts)
   {
-    /* Should never happen! */
-    DBUG_ASSERT(0);
+    /* Should only happen with SQL HANDLER! */
+    DBUG_ASSERT(table->open_by_handler);
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
   file= m_file[m_part_spec.start_part];
@@ -5637,6 +5643,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
 
   if (m_index_scan_type == partition_read_range)
   {
+    DBUG_ASSERT(buf == m_rec0);
     if (!(error= file->read_range_next()))
     {
       m_last_part= m_part_spec.start_part;
@@ -5707,6 +5714,7 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     m_part_spec.start_part= i;
     switch (m_index_scan_type) {
     case partition_read_range:
+      DBUG_ASSERT(buf == m_rec0);
       DBUG_PRINT("info", ("read_range_first on partition %d", i));
       error= file->read_range_first(m_start_key.key? &m_start_key: NULL,
                                     end_range, eq_range, FALSE);
@@ -5729,6 +5737,8 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
         order.
       */
       DBUG_PRINT("info", ("read_range_first on partition %d", i));
+      /* TODO: If always true, remove change of table->record[0]. */
+      DBUG_ASSERT(buf == m_rec0);
       table->record[0]= buf;
       error= file->read_range_first(0, end_range, eq_range, 0);
       table->record[0]= m_rec0;
@@ -5786,7 +5796,7 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     entries.
 */
 
-int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
+int ha_partition::handle_ordered_index_scan(uchar *buf)
 {
   uint i;
   uint j= 0;
@@ -5794,11 +5804,13 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
   uchar *part_rec_buf_ptr= m_ordered_rec_buffer;
   int saved_error= HA_ERR_END_OF_FILE;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan");
+  DBUG_ASSERT(part_rec_buf_ptr);
 
   if (m_key_not_found)
   {
     m_key_not_found= false;
     bitmap_clear_all(&m_key_not_found_partitions);
+    DBUG_PRINT("info", ("Cleared m_key_not_found_partitions"));
   }
   m_top_entry= NO_CURRENT_PART_ID;
   queue_remove_all(&m_queue);
@@ -5829,6 +5841,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     uchar *rec_buf_ptr= part_rec_buf_ptr + PARTITION_BYTES_IN_POS;
     int error;
     handler *file= m_file[i];
+    DBUG_PRINT("info", ("part %u, scan_type %d", i, m_index_scan_type));
 
     switch (m_index_scan_type) {
     case partition_index_read:
@@ -5839,17 +5852,14 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       break;
     case partition_index_first:
       error= file->ha_index_first(rec_buf_ptr);
-      reverse_order= FALSE;
       break;
     case partition_index_last:
       error= file->ha_index_last(rec_buf_ptr);
-      reverse_order= TRUE;
       break;
     case partition_index_read_last:
       error= file->ha_index_read_last_map(rec_buf_ptr,
                                           m_start_key.key,
                                           m_start_key.keypart_map);
-      reverse_order= TRUE;
       break;
     case partition_read_range:
     {
@@ -5860,7 +5870,6 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       error= file->read_range_first(m_start_key.key? &m_start_key: NULL,
                                     end_range, eq_range, TRUE);
       memcpy(rec_buf_ptr, table->record[0], m_rec_length);
-      reverse_order= FALSE;
       break;
     }
     default:
@@ -5894,7 +5903,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
       We found at least one partition with data, now sort all entries and
       after that read the first entry and copy it to the buffer to return in.
     */
-    queue_set_max_at_top(&m_queue, reverse_order);
+    queue_set_max_at_top(&m_queue, m_reverse_order);
     queue_set_cmp_arg(&m_queue, (void*)m_curr_key_info);
     m_queue.elements= j;
     queue_fix(&m_queue);
@@ -5947,6 +5956,7 @@ int ha_partition::handle_ordered_index_scan_key_not_found()
   uchar *curr_rec_buf= NULL;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan_key_not_found");
   DBUG_ASSERT(m_key_not_found);
+  DBUG_ASSERT(part_buf);
   /*
     Loop over all used partitions to get the correct offset
     into m_ordered_rec_buffer.
@@ -5962,9 +5972,14 @@ int ha_partition::handle_ordered_index_scan_key_not_found()
         in index_read_map.
       */
       curr_rec_buf= part_buf + PARTITION_BYTES_IN_POS;
-      error= m_file[i]->ha_index_next(curr_rec_buf);
+      if (m_reverse_order)
+        error= m_file[i]->ha_index_prev(curr_rec_buf);
+      else
+        error= m_file[i]->ha_index_next(curr_rec_buf);
       /* HA_ERR_KEY_NOT_FOUND is not allowed from index_next! */
       DBUG_ASSERT(error != HA_ERR_KEY_NOT_FOUND);
+      DBUG_PRINT("info", ("Filling from partition %u reverse %u error %d",
+                         i, m_reverse_order, error));
       if (!error)
         queue_insert(&m_queue, part_buf);
       else if (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND)
@@ -6005,6 +6020,21 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
   handler *file;
   DBUG_ENTER("ha_partition::handle_ordered_next");
   
+  if (m_reverse_order)
+  {
+    /*
+      TODO: To support change of direction (index_prev -> index_next,
+      index_read_map(HA_READ_KEY_EXACT) -> index_prev etc.)
+      We would need to:
+      - Step back all cursors we have a buffered row from a previous next/prev
+        call (i.e. for all partitions we previously called index_prev, we must
+        call index_next and skip that row.
+      - empty the priority queue and initialize it again with reverse ordering.
+    */
+    DBUG_ASSERT(table->open_by_handler);
+    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  }
+
   if (m_key_not_found)
   {
     if (is_next_same)
@@ -6028,14 +6058,16 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
       if (old_elements != m_queue.elements && part_id != m_top_entry)
       {
         return_top_record(buf);
+        DBUG_PRINT("info", ("Returning row from part %u (prev KEY_NOT_FOUND)",
+                            m_top_entry));
         DBUG_RETURN(0);
       }
     }
   }
   if (part_id >= m_tot_parts)
   {
-    /* This should never happen! */
-    DBUG_ASSERT(0);
+    /* This should never happen, except for SQL HANDLER calls! */
+    DBUG_ASSERT(table->open_by_handler);
     DBUG_RETURN(HA_ERR_END_OF_FILE);
   }
 
@@ -6056,7 +6088,8 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
     if (error == HA_ERR_END_OF_FILE)
     {
       /* Return next buffered row */
-      queue_remove(&m_queue, (uint) 0);
+      if (m_queue.elements)
+        queue_remove(&m_queue, (uint) 0);
       if (m_queue.elements)
       {
          DBUG_PRINT("info", ("Record returned from partition %u (2)",
@@ -6093,14 +6126,55 @@ int ha_partition::handle_ordered_prev(uchar *buf)
   int error;
   uint part_id= m_top_entry;
   uchar *rec_buf= queue_top(&m_queue) + PARTITION_BYTES_IN_POS;
-  handler *file= m_file[part_id];
+  handler *file;
   DBUG_ENTER("ha_partition::handle_ordered_prev");
+
+  if (!m_reverse_order)
+  {
+    /* TODO: See comment in handle_ordered_next(). */
+    DBUG_ASSERT(table->open_by_handler);
+    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+  }
+
+  if (m_key_not_found)
+  {
+    /* There are partitions not included in the index record queue. */
+    uint old_elements= m_queue.elements;
+    if ((error= handle_ordered_index_scan_key_not_found()))
+      DBUG_RETURN(error);
+    if (old_elements != m_queue.elements && part_id != m_top_entry)
+    {
+      /*
+        Should only be possible for when HA_READ_KEY_EXACT was previously used,
+        which is not supported to have a subsequent call for PREV.
+        I.e. HA_READ_KEY_EXACT is considered to not have reverse order!
+      */
+      DBUG_ASSERT(0);
+      /*
+        If the queue top changed, i.e. one of the partitions that gave
+        HA_ERR_KEY_NOT_FOUND in index_read_map found the next record,
+        return it.
+        Otherwise replace the old with a call to index_next (fall through).
+      */
+      return_top_record(buf);
+      DBUG_RETURN(0);
+    }
+  }
+ 
+  if (part_id >= m_tot_parts)
+  {
+    /* This should never happen, except for SQL HANDLER calls! */
+    DBUG_ASSERT(table->open_by_handler);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  file= m_file[part_id];
 
   if ((error= file->ha_index_prev(rec_buf)))
   {
     if (error == HA_ERR_END_OF_FILE)
     {
-      queue_remove(&m_queue, (uint) 0);
+      if (m_queue.elements)
+        queue_remove(&m_queue, (uint) 0);
       if (m_queue.elements)
       {
 	return_top_record(buf);
@@ -8461,6 +8535,11 @@ void ha_partition::release_auto_increment()
 
 void ha_partition::init_table_handle_for_HANDLER()
 {
+  uint i;
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+    m_file[i]->init_table_handle_for_HANDLER();
   return;
 }
 
