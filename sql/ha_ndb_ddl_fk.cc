@@ -189,7 +189,7 @@ private:
  * also...they have changed between 5.1 and 5.5...
  * add a small compability-kit
  */
-inline
+static inline
 const char *
 lex2str(const LEX_STRING& str, char buf[], size_t len)
 {
@@ -197,21 +197,21 @@ lex2str(const LEX_STRING& str, char buf[], size_t len)
   return buf;
 }
 
-inline
+static inline
 const char *
 lex2str(const char * str, char buf[], size_t len)
 {
   return str;
 }
 
-inline
+static inline
 bool
 isnull(const LEX_STRING& str)
 {
   return str.str == 0 || str.length == 0;
 }
 
-inline
+static inline
 bool
 isnull(const char * str)
 {
@@ -640,6 +640,23 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
                                                   (uint)strlen(name), 1);
     }
 
+    {
+      char parent_db_and_name[FN_LEN + 1];
+      const char * parent_name = fk_split_name(parent_db_and_name,
+                                               fk.getParentTable());
+
+      /* Referenced (parent) database name */
+      f_key_info.referenced_db =
+        thd_make_lex_string(thd, 0, parent_db_and_name,
+                            (uint)strlen(parent_db_and_name),
+                            1);
+      /* Referenced (parent) table name */
+      f_key_info.referenced_table =
+        thd_make_lex_string(thd, 0, parent_name,
+                            (uint)strlen(parent_name),
+                            1);
+    }
+
     for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
     {
       const NdbDictionary::Column * col =
@@ -658,9 +675,15 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
       char child_db_and_name[FN_LEN + 1];
       const char * child_name = fk_split_name(child_db_and_name,
                                               fk.getChildTable());
-      f_key_info.referenced_db =
+      /* Dependent (child) database name */
+      f_key_info.foreign_db =
         thd_make_lex_string(thd, 0, child_db_and_name,
                             (uint)strlen(child_db_and_name),
+                            1);
+      /* Dependent (child) table name */
+      f_key_info.foreign_table =
+        thd_make_lex_string(thd, 0, child_name,
+                            (uint)strlen(child_name),
                             1);
 
       Ndb_db_guard db_guard(ndb);
@@ -687,7 +710,7 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     }
 
     {
-      const char *update_method = 0;
+      const char *update_method = "";
       switch(fk.getOnUpdateAction()){
       case NdbDictionary::ForeignKey::NoAction:
         update_method = "NO ACTION";
