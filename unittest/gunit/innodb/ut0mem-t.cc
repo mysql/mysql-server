@@ -21,6 +21,8 @@
 
 #include "ut0mem.h"
 
+namespace innodb_ut0crc32_unittest {
+
 TEST(ut0mem, ut_str_sql_format)
 {
 	const char*	buf_initial = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
@@ -84,4 +86,6 @@ TEST(ut0mem, ut_str_sql_format)
 		EXPECT_EQ(test_data[i].ret_expected, ret);
 		EXPECT_STREQ(test_data[i].buf_expected, buf);
 	}
+}
+
 }
