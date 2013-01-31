@@ -7,6 +7,10 @@ if (`select count(*)=0 from information_schema.global_variables where variable_n
   --skip Test requires InnoDB built with UNIV_DEBUG definition.
 }
 
+# Don't test under valgrind, undo slots of the previous test might exist still
+# and cause unstable result.
+--source include/not_valgrind.inc
+
 call mtr.add_suppression("InnoDB: Warning: cannot find a free slot for an undo log. Do you have too");
 
 --disable_query_log
