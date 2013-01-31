@@ -12,7 +12,7 @@
 #include <db.h>
 
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 DB_ENV *env;
 DB *db;
@@ -21,11 +21,10 @@ DB_TXN* null_txn = NULL;
 int
 test_main (int UU(argc), char UU(*const argv[])) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);    CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->open(env, ENVDIR, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, TOKU_TEST_FILENAME, DB_PRIVATE|DB_INIT_MPOOL|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r = db->open(db, null_txn, "foo.db", "main", DB_BTREE, DB_CREATE, 0666); CKERR(r);
     DBC *cursor;

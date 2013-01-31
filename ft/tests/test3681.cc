@@ -23,7 +23,7 @@ volatile bool done = false;
 
 static void setup (void) {
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    char fname[] = __SRCFILE__ "test1.dat";
+    const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
     { int r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);         assert(r==0); }
 }

@@ -69,9 +69,8 @@ test_main(int argc, char *const argv[]) {
     my_t n = 1000000;
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int i;
     for (i=1; i<argc; i++) {
@@ -99,7 +98,7 @@ test_main(int argc, char *const argv[]) {
 
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_cachesize(env, 0, 128000000, 1); assert(r == 0);
-    r = env->open(env, ENVDIR, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE + DB_THREAD + DB_PRIVATE + DB_INIT_MPOOL + DB_INIT_LOCK, S_IRWXU+S_IRWXG+S_IRWXO); assert(r == 0);
 
     DB *db;
 

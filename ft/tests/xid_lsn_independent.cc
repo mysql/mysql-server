@@ -9,10 +9,7 @@
 #include "toku_os.h"
 #include "checkpoint.h"
 
-
-#define TESTDIR __SRCFILE__ ".dir"
-#define FILENAME "test0.ft"
-
+#define ENVDIR TOKU_TEST_FILENAME
 #include "test-ft-txns.h"
 
 static void do_txn(TOKULOGGER logger, bool readonly) {
@@ -33,17 +30,17 @@ static void do_txn(TOKULOGGER logger, bool readonly) {
 static void test_xid_lsn_independent(int N) {
     TOKULOGGER logger;
     CACHETABLE ct;
-    test_setup(&logger, &ct);
+    int r;
+
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
 
     FT_HANDLE brt;
-
-    int r;
 
     TOKUTXN txn;
     r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_NONE, false);
     CKERR(r);
 
-    r = toku_open_ft_handle(FILENAME, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
+    r = toku_open_ft_handle("ftfile", 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
     CKERR(r);
 
     r = toku_txn_commit_txn(txn, false, NULL, NULL);
@@ -105,9 +102,9 @@ logger_get_last_xid(TOKULOGGER logger) {
 static void test_xid_lsn_independent_crash_recovery(int N) {
     TOKULOGGER logger;
     CACHETABLE ct;
-    test_setup(&logger, &ct);
-
     int r;
+
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
 
     for (int i=0; i < N - 1; i++) {
         do_txn(logger, true);
@@ -126,7 +123,7 @@ static void test_xid_lsn_independent_crash_recovery(int N) {
     logger = NULL;
 
     // "Recover"
-    test_setup_and_recover(&logger, &ct);
+    test_setup_and_recover(TOKU_TEST_FILENAME, &logger, &ct);
 
     TXNID last_xid_after = logger_get_last_xid(logger);
 
@@ -138,7 +135,7 @@ static void test_xid_lsn_independent_crash_recovery(int N) {
 static void test_xid_lsn_independent_shutdown_recovery(int N) {
     TOKULOGGER logger;
     CACHETABLE ct;
-    test_setup(&logger, &ct);
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
 
     for (int i=0; i < N - 1; i++) {
         do_txn(logger, true);
@@ -152,7 +149,7 @@ static void test_xid_lsn_independent_shutdown_recovery(int N) {
     // Did a clean shutdown.
 
     // "Recover"
-    test_setup_and_recover(&logger, &ct);
+    test_setup_and_recover(TOKU_TEST_FILENAME, &logger, &ct);
 
     TXNID last_xid_after = logger_get_last_xid(logger);
 
@@ -172,7 +169,7 @@ static void test_xid_lsn_independent_parents(int N) {
 
     int num_non_cascade = N;
     do {
-        test_setup(&logger, &ct);
+        test_setup(TOKU_TEST_FILENAME, &logger, &ct);
         ZERO_ARRAY(txns_hack);
 
         for (int i = 0; i < N; i++) {

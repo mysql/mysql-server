@@ -10,9 +10,9 @@ if(BUILD_TESTING)
     target_link_libraries(${test} util ${LIBTOKUPORTABILITY})
   endforeach(test)
 
-  add_helgrind_test(util/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
-  add_helgrind_test(util/helgrind_test_circular_buffer $<TARGET_FILE:test_circular_buffer>)
-  add_helgrind_test(util/helgrind_test_partitioned_counter_5833 $<TARGET_FILE:test_partitioned_counter_5833>)
+  add_helgrind_test(util helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
+  add_helgrind_test(util helgrind_test_circular_buffer $<TARGET_FILE:test_circular_buffer>)
+  add_helgrind_test(util helgrind_test_partitioned_counter_5833 $<TARGET_FILE:test_partitioned_counter_5833>)
 
   foreach(test ${tests})
     add_test(util/${test} ${test})

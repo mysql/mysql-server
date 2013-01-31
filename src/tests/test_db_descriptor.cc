@@ -13,7 +13,7 @@
 
 #include "test.h"
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 #define FNAME       "foo.tokudb"
 const char *name = NULL;
 
@@ -158,7 +158,7 @@ setup_data(void) {
     int r = db_env_create(&env, 0);                                           CKERR(r);
     r = env->set_default_bt_compare(env, verify_int_cmp);                     CKERR(r);
     const int envflags = DB_CREATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOCK |DB_THREAD |DB_PRIVATE;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
     int i;
     for (i=0; i < NUM; i++) {
         length[i] = i * MAX_LENGTH / (NUM-1);
@@ -216,9 +216,8 @@ test_insert (int n, int which) {
 static void
 runtest(void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
     setup_data();
     permute_order();
 

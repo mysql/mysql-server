@@ -13,7 +13,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-char fname[]= __SRCFILE__ ".ft_handle";
+const char *fname = TOKU_TEST_FILENAME;
 CACHETABLE ct;
 FT_HANDLE t;
 int keysize = 9;

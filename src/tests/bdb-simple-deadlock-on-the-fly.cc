@@ -159,7 +159,7 @@ static void simple_deadlock(DB_ENV *db_env) {
 int test_main(int argc, char * const argv[]) {
     uint64_t cachesize = 0;
     int do_txn = 1;
-    const char *db_env_dir = ENVDIR;
+    const char *db_env_dir = TOKU_TEST_FILENAME;
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 
     // parse_args(argc, argv);

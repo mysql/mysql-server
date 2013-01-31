@@ -10,7 +10,7 @@
 #include <db.h>
 
 static int loader_flags = 0;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 
 static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *UU(dest_key), DBT *UU(dest_val), const DBT *UU(src_key), const DBT *UU(src_val)) {
     return ENOMEM;

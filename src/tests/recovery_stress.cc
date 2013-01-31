@@ -402,7 +402,7 @@ static void run_test (int iter) {
     int i, r;
 
     if (iter == 0)
-	dir_create();  // create directory if first time through
+	dir_create(TOKU_TEST_FILENAME);  // create directory if first time through
     
     // Run with cachesize of 256 bytes per iteration
     // to force lots of disk I/O
@@ -434,7 +434,7 @@ static void run_test (int iter) {
         }
     }
 
-    env_startup(cachebytes, recovery_flags);
+    env_startup(TOKU_TEST_FILENAME, cachebytes, recovery_flags);
 
     // logic below counts on a mapping of 'iter' to dictionary values
     // since crashes in recovery do not modify dictionary values

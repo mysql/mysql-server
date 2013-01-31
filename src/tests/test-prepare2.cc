@@ -51,7 +51,7 @@ static void test (void) {
 
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env_and_prepare(&env, ENVDIR, false);
+	setup_env_and_prepare(&env, TOKU_TEST_FILENAME, false);
 	{
 	    DB_PREPLIST l[1];
 	    long count=-1;
@@ -71,7 +71,7 @@ static void test (void) {
     // Now run recovery and crash on purpose.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 
 	// make sure there is 1 prepared txn.
 	{
@@ -97,7 +97,7 @@ static void test (void) {
 
     // Now see if recovery works the second time.
     DB_ENV *env;
-    setup_env(&env, ENVDIR);
+    setup_env(&env, TOKU_TEST_FILENAME);
     {
 	DB_PREPLIST l[1];
 	long count=-1;

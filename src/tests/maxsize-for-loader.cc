@@ -221,7 +221,7 @@ static void test_loader_maxsize(DB **dbs, DB **check_dbs)
 }
 
 char *free_me = NULL;
-const char *env_dir = ENVDIR; // the default env_dir
+const char *env_dir = TOKU_TEST_FILENAME; // the default env_dir
 
 static void create_and_open_dbs(DB **dbs, const char *suffix, int *idx) {
     int r;
@@ -255,13 +255,7 @@ static void run_test(uint32_t nr, uint32_t wdb, uint32_t wrow, enum how_to_fail 
     num_rows = nr; which_db_to_fail = wdb; which_row_to_fail = wrow; how_to_fail = htf;
 
     int r;
-    {
-	int len = strlen(env_dir) + 20;
-	char syscmd[len];
-	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
-	assert(r<len);
-	r = system(syscmd);                                                                                   CKERR(r);
-    }
+    toku_os_recursive_delete(env_dir);
     r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
@@ -330,7 +324,7 @@ static void do_args(int argc, char * const argv[]) {
         if (strcmp(argv[0], "-h")==0) {
             resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: %s [-h] [-v] [-q] [-p] [-f] [ -e <envdir> ]\n", cmd);
+	    fprintf(stderr, "Usage: %s [-h] [-v] [-q] [-p] [-f]\n", cmd);
 	    fprintf(stderr, " where -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "       -h               help\n");
 	    fprintf(stderr, "       -v               verbose\n");
@@ -339,15 +333,6 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "       -c               compare with regular dbs\n");
 	    fprintf(stderr, "       -f               fast (suitable for vgrind)\n");
 	    exit(resultcode);
-	} else if (strcmp(argv[0], "-e")==0) {
-            argc--; argv++;
-	    if (free_me) toku_free(free_me);
-	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
-	    char full_env_dir[len];
-	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
-	    assert(r<len);
-	    env_dir = toku_strdup(full_env_dir);
-            free_me = (char *) env_dir;
 	} else if (strcmp(argv[0], "-c")==0) {
 	    do_check = true;
 	} else if (strcmp(argv[0], "-v")==0) {

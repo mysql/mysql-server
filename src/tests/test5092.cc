@@ -6,8 +6,6 @@
 #include "test.h"
 #include <sys/wait.h>
 
-#define ENVDIR2 ENVDIR "2"
-
 static void clean_env (const char *envdir) {
     const int len = strlen(envdir)+100;
     char cmd[len];
@@ -46,7 +44,7 @@ static void setup_env_and_prepare (DB_ENV **envp, const char *envdir, bool commi
 int test_main (int argc, char *const argv[]) {
     default_parse_args(argc, argv);
     DB_ENV *env;
-    setup_env_and_prepare(&env, ENVDIR, true);
+    setup_env_and_prepare(&env, TOKU_TEST_FILENAME, true);
     { int chk_r = env ->close(env,  0); CKERR(chk_r); }
     return 0;
 }

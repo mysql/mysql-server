@@ -9,7 +9,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static char fname[] = __SRCFILE__ ".ft_handle";
+static const char *fname = TOKU_TEST_FILENAME;
 
 static void test_dump_empty_db (void) {
     FT_HANDLE t;
@@ -28,14 +28,16 @@ static void test_dump_empty_db (void) {
 
 /* Test running multiple trees in different files */
 static void test_multiple_files_of_size (int size) {
-    const char *n0 = __SRCFILE__ "test0.ft_handle";
-    const char *n1 = __SRCFILE__ "test1.ft_handle";
+    char n0[TOKU_PATH_MAX+1];
+    toku_path_join(n0, 2, TOKU_TEST_FILENAME, "test0.dat");
+    char n1[TOKU_PATH_MAX+1];
+    toku_path_join(n1, 2, TOKU_TEST_FILENAME, "test1.dat");
     CACHETABLE ct;
     FT_HANDLE t0,t1;
     int r,i;
     if (verbose) printf("test_multiple_files_of_size(%d)\n", size);
-    unlink(n0);
-    unlink(n1);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
     
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(n0, 1, &t0, size, size / 4, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
@@ -63,7 +65,7 @@ static void test_multiple_files_of_size (int size) {
     /* Now see if the data is all there. */
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
     r = toku_open_ft_handle(n0, 0, &t0, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
-    if (verbose) printf("%s:%d r=%d\n", __SRCFILE__, __LINE__,r);
+    if (verbose) printf("%s:%d r=%d\n", __FILE__, __LINE__,r);
     assert(r==0);
     r = toku_open_ft_handle(n1, 0, &t1, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
@@ -80,6 +82,7 @@ static void test_multiple_files_of_size (int size) {
     r = toku_close_ft_handle_nolsn(t1, 0); assert(r==0);
     toku_cachetable_close(&ct);
     
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 }
 
 static void test_multiple_files (void) {
@@ -215,7 +218,7 @@ static void  test_read_what_was_written (void) {
     }
 
     r = toku_close_ft_handle_nolsn(brt, 0); assert(r==0);
-    if (verbose) printf("%s:%d About to close %p\n", __SRCFILE__, __LINE__, ct);
+    if (verbose) printf("%s:%d About to close %p\n", __FILE__, __LINE__, ct);
     toku_cachetable_close(&ct);
 
     
@@ -252,11 +255,11 @@ static void test_cursor_last_empty(void) {
     if (verbose) printf("%s", __FUNCTION__);
     unlink(fname);
     
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_ft_cursor(brt, &cursor, NULL, false, false);            assert(r==0);
     {
 	struct check_pair pair = {0,0,0,0,0};
@@ -272,9 +275,9 @@ static void test_cursor_last_empty(void) {
     }
     toku_ft_cursor_close(cursor);
     r = toku_close_ft_handle_nolsn(brt, 0);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_cachetable_close(&ct);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     
 }
 
@@ -288,23 +291,23 @@ static void test_cursor_next (void) {
     unlink(fname);
     
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_ft_insert(brt, toku_fill_dbt(&kbt, "hello", 6), toku_fill_dbt(&vbt, "there", 6), null_txn);
     toku_ft_insert(brt, toku_fill_dbt(&kbt, "byebye", 7), toku_fill_dbt(&vbt, "byenow", 7), null_txn);
-    if (verbose) printf("%s:%d calling toku_ft_cursor(...)\n", __SRCFILE__, __LINE__);
+    if (verbose) printf("%s:%d calling toku_ft_cursor(...)\n", __FILE__, __LINE__);
     r = toku_ft_cursor(brt, &cursor, NULL, false, false);            assert(r==0);
     toku_init_dbt(&kbt);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_init_dbt(&vbt);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
 
-    if (verbose) printf("%s:%d calling toku_ft_cursor_get(...)\n", __SRCFILE__, __LINE__);
+    if (verbose) printf("%s:%d calling toku_ft_cursor_get(...)\n", __FILE__, __LINE__);
     {
 	struct check_pair pair = {7, "byebye", 7, "byenow", 0};
 	r = toku_ft_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
-	if (verbose) printf("%s:%d called toku_ft_cursor_get(...)\n", __SRCFILE__, __LINE__);
+	if (verbose) printf("%s:%d called toku_ft_cursor_get(...)\n", __FILE__, __LINE__);
 	assert(r==0);
 	assert(pair.call_count==1);
     }
@@ -324,9 +327,9 @@ static void test_cursor_next (void) {
 
     toku_ft_cursor_close(cursor);
     r = toku_close_ft_handle_nolsn(brt, 0);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     toku_cachetable_close(&ct);
-    //printf("%s:%d %d alloced\n", __SRCFILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
+    //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     
 
 }
@@ -364,7 +367,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
     }
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
-    //printf("%s:%d WRONG=%d\n", __SRCFILE__, __LINE__, wrong_p);
+    //printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
 
     if (0) { // ???? Why is this commented out?
         r = toku_open_ft_handle(fname, 1, &brt, 1<<20, 1<<17, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, wrong_p ? wrong_compare_fun : toku_builtin_compare_fun);  assert(r==0);
@@ -379,7 +382,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	DBT vbt;
         toku_fill_dbt(&vbt, b, sizeof b);
 	if (verbose)
-	    printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __SRCFILE__, __LINE__,
+	    printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
 		   ((char*)kbt.data)[0], ((char*)kbt.data)[1], ((char*)kbt.data)[2], ((char*)kbt.data)[3],
 		   ((char*)vbt.data)[0], ((char*)vbt.data)[1], ((char*)vbt.data)[2], ((char*)vbt.data)[3]);
 	toku_ft_insert(brt, &kbt, &vbt, null_txn);
@@ -420,7 +423,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
             toku_fill_dbt(&kbt, a, sizeof a);
 	    DBT vbt;
             toku_fill_dbt(&vbt, b, sizeof b);
-	    if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __SRCFILE__, __LINE__,
+	    if (0) printf("%s:%d insert: %02x%02x%02x%02x -> %02x%02x%02x%02x\n", __FILE__, __LINE__,
 			  ((unsigned char*)kbt.data)[0], ((unsigned char*)kbt.data)[1], ((unsigned char*)kbt.data)[2], ((unsigned char*)kbt.data)[3],
 			  ((unsigned char*)vbt.data)[0], ((unsigned char*)vbt.data)[1], ((unsigned char*)vbt.data)[2], ((unsigned char*)vbt.data)[3]);
 	    toku_ft_insert(brt, &kbt, &vbt, null_txn);

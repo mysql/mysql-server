@@ -19,9 +19,8 @@ static void do_test1753 (int do_create_on_reopen) {
     }
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     // Create an empty file
     {
@@ -31,7 +30,7 @@ static void do_test1753 (int do_create_on_reopen) {
 	const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_PRIVATE ;
 
 	r = db_env_create(&env, 0);                                           CKERR(r);
-	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
+	r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);        CKERR(r);
 
 	r = db_create(&db, env, 0);                                           CKERR(r);
 	r = db->open(db, null_txn, "main", 0,     DB_BTREE, DB_CREATE, 0666); CKERR(r);
@@ -47,7 +46,7 @@ static void do_test1753 (int do_create_on_reopen) {
 	
 	r = db_env_create(&env, 0);                                           CKERR(r);
 	env->set_errfile(env, 0);
-	r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
+	r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
 	if (do_create_on_reopen) CKERR(r);
         else CKERR2(r, ENOENT);
 	r = env->close(env, 0);                                               CKERR(r);

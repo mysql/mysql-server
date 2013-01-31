@@ -16,26 +16,25 @@ const char *nameb="b.db";
 
 static void run_test (void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
     DB_ENV *env;
     DB *dba;
 
     // create logfile 0
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     r = env->close(env, 0);                                        CKERR(r);
 
     // create logfile 1
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
     r = env->close(env, 0);                                        CKERR(r);
 
     // create logfile 2
     r = db_env_create(&env, 0);                                                         CKERR(r);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
@@ -58,25 +57,32 @@ static void run_recover (void) {
     DB_ENV *env;
     int r;
 
-    r = system("rm -rf " ENVDIR "/savedlogs");
-    CKERR(r);
-    r = toku_os_mkdir(ENVDIR "/savedlogs", S_IRWXU+S_IRWXG+S_IRWXO);
+    char savedlogs[TOKU_PATH_MAX+1];
+    toku_path_join(savedlogs, 2, TOKU_TEST_FILENAME, "savedlogs");
+    toku_os_recursive_delete(savedlogs);
+    r = toku_os_mkdir(savedlogs, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
-    r = system("mv " ENVDIR "/*.tokulog* " ENVDIR "/savedlogs/");
+    char glob[TOKU_PATH_MAX+1];
+    toku_path_join(glob, 2, TOKU_TEST_FILENAME, "*.tokulog*");
+    char cmd[2 * TOKU_PATH_MAX + sizeof("mv  ")];
+    snprintf(cmd, sizeof(cmd), "mv %s %s", glob, savedlogs);
+    r = system(cmd);
     CKERR(r);
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR2(r, ENOENT);
 
-    r = system("rm -rf " ENVDIR "/*.tokulog*");
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", glob);
+    r = system(cmd);
     CKERR(r);
 
-    r = system("mv "  ENVDIR "/savedlogs/*.tokulog* " ENVDIR "/");
+    snprintf(cmd, sizeof(cmd), "mv %s/*.tokulog* %s", savedlogs, TOKU_TEST_FILENAME);
+    r = system(cmd);
     CKERR(r);
 
-    r = env->open(env, ENVDIR, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags + DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);             CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }
@@ -86,7 +92,7 @@ static void run_no_recover (void) {
     int r;
 
     r = db_env_create(&env, 0);                                                             CKERR(r);
-    r = env->open(env, ENVDIR, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags & ~DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO);            CKERR(r);
     r = env->close(env, 0);                                                                 CKERR(r);
     exit(0);
 }

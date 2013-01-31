@@ -5,19 +5,6 @@
 
 #include "test.h"
 
-
-#if defined(HAVE_LIMITS_H)
-# include <limits.h>
-#endif
-#if defined(HAVE_SYS_SYSLIMITS_H)
-# include <sys/syslimits.h>
-#endif
-
-#ifndef dname
-#define dname __SRCFILE__ ".dir"
-#endif
-#define rmrf "rm -rf " dname "/"
-
 // create and close, making sure that everything is deallocated properly.
 
 #define LSIZE 100
@@ -26,9 +13,8 @@ int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
     TOKULOGGER logger;
     r = toku_logger_create(&logger);
     assert(r == 0);
@@ -38,7 +24,7 @@ test_main (int argc __attribute__((__unused__)),
 	r = toku_logger_get_lg_max(logger, &n);
 	assert(n==LSIZE);
     }
-    r = toku_logger_open(dname, logger);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger);
     assert(r == 0);
 
     {
@@ -68,12 +54,11 @@ test_main (int argc __attribute__((__unused__)),
     {
         char logname[PATH_MAX];
 	toku_struct_stat statbuf;
-        sprintf(logname, dname "/log000000000000.tokulog%d", TOKU_LOG_VERSION);
+        sprintf(logname, "%s/log000000000000.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
 	r = toku_stat(logname, &statbuf);
 	assert(r==0);
 	assert(statbuf.st_size<=LSIZE);
     }
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
     return 0;
 }

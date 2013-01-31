@@ -7,7 +7,7 @@
 
 static DB_ENV *env = NULL;
 static DB *db = NULL;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 
 static void setup_env (void) {
     const int len = strlen(envdir)+100;

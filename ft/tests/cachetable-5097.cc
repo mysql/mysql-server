@@ -86,10 +86,13 @@ cachetable_test (void) {
     toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
     evictor_test_helpers::disable_ev_thread(&ct->ev); // disable eviction thread
     
-    char fname1[] = __SRCFILE__ "test1.dat";
-    unlink(fname1);
-    char fname2[] = __SRCFILE__ "test2.dat";
-    unlink(fname2);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
+    char fname1[TOKU_PATH_MAX + 1];
+    unlink(toku_path_join(fname1, 2, TOKU_TEST_FILENAME, "test1.dat"));
+    char fname2[TOKU_PATH_MAX + 1];
+    unlink(toku_path_join(fname2, 2, TOKU_TEST_FILENAME, "test2.dat"));
 
     r = toku_cachetable_openf(&f1, ct, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO); 
     assert(r == 0);

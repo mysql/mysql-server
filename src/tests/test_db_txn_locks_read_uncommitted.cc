@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 static DB *db;
 static DB_TXN* txns[(int)256];
@@ -86,9 +86,8 @@ static void
 setup_dbs (void) {
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     dbenv   = NULL;
     db      = NULL;
     /* Open/create primary */
@@ -100,7 +99,7 @@ setup_dbs (void) {
 #endif
     uint32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
     uint32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
-	r = dbenv->open(dbenv, ENVDIR, env_open_flags | env_txn_flags, 0600);
+	r = dbenv->open(dbenv, TOKU_TEST_FILENAME, env_open_flags | env_txn_flags, 0600);
         CKERR(r);
     
     r = db_create(&db, dbenv, 0);

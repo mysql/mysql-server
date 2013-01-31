@@ -23,7 +23,7 @@ static int my_compare (DB *db, const DBT *a, const DBT *b) {
 
 DB_ENV *env;
 DB     *db;
-const char   *env_dir = ENVDIR;
+const char   *env_dir = TOKU_TEST_FILENAME;
 volatile int done = 0;
 
 static void *startA (void *ignore __attribute__((__unused__))) {

@@ -29,7 +29,7 @@ run_test (void) {
     r = db_env_create(&env, 0);        assert(r == 0);
     env->set_errfile(env, stderr);
     // no need to run with logging, so DB_INIT_LOG not passed in
-    r = env->open(env, ENVDIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_THREAD, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0); assert(r == 0);
     db->set_errfile(db,stderr); // Turn off those annoying errors
     r = db->open(db, NULL, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
@@ -58,10 +58,8 @@ test_main(int argc, char *const argv[]) {
 
     parse_args(argc, argv);
   
-    int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     
     run_test();
 

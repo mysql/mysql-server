@@ -120,7 +120,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     int r;
 
     // cleanup
-    char fname[]= __SRCFILE__ ".ft_handle";
+    const char *fname = TOKU_TEST_FILENAME;
     r = unlink(fname);
     assert(r == 0 || (r == -1 && errno == ENOENT));
 

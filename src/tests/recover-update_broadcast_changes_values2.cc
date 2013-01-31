@@ -75,13 +75,13 @@ static void checkpoint_callback_1(void * extra) {
 
 static void run_test(void)
 {
-    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
-    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     db_env_set_checkpoint_callback2(checkpoint_callback_1, NULL);
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
     IN_TXN_COMMIT(env, NULL, txn_1, 0, {
             { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
@@ -126,7 +126,7 @@ static void run_recover(void)
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     env->set_update(env, update_fun);
-    { int chk_r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = db_create(&db, env, 0); CKERR(chk_r); }
     { int chk_r = db->open(db, NULL, "foo.db", NULL, DB_BTREE, DB_AUTO_COMMIT, 0666); CKERR(chk_r); }
     { int chk_r = verify_updated(); CKERR(chk_r); }

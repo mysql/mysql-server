@@ -524,14 +524,17 @@ test_main(int argc, char * const argv[]) {
         break;
     }
 
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
+    assert_zero(r);
     for (r = 0 ; r == 0 && i < argc; i++) {
         char *testname = argv[i];
-        char envdir[strlen(ENVDIR) + 1 + 32 + 1];
-        sprintf(envdir, "%s.%d", ENVDIR, toku_os_getpid());
+        char pid[10];
+        sprintf(pid, "%d", toku_os_getpid());
+        char envdir[TOKU_PATH_MAX+1];
+        toku_path_join(envdir, 2, TOKU_TEST_FILENAME, pid);
 
-        char syscmd[32 + strlen(envdir)];
-        sprintf(syscmd, "rm -rf %s", envdir);
-        r = system(syscmd); assert_zero(r);
+        toku_os_recursive_delete(envdir);
         r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
         r = run_test(envdir, testname);

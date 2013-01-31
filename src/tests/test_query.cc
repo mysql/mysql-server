@@ -154,13 +154,13 @@ static void init_env(DB_ENV ** env, size_t ct_size)
 
     printf("initializing environment\n");
 
-    r = system("rm -rf " ENVDIR); { int chk_r = r; CKERR(chk_r); }
-    r = toku_os_mkdir(ENVDIR, 0755); { int chk_r = r; CKERR(chk_r); }
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); { int chk_r = r; CKERR(chk_r); }
 
     r = db_env_create(env, 0); { int chk_r = r; CKERR(chk_r); }
     assert(ct_size < 1024 * 1024 * 1024L);
     r = (*env)->set_cachesize(*env, 0, ct_size, 1); { int chk_r = r; CKERR(chk_r); }
-    r = (*env)->open(*env, ENVDIR, envflags, 0755); { int chk_r = r; CKERR(chk_r); }
+    r = (*env)->open(*env, TOKU_TEST_FILENAME, envflags, 0755); { int chk_r = r; CKERR(chk_r); }
 }
 
 static void init_db(DB_ENV * env, DB ** db)

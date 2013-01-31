@@ -284,18 +284,12 @@ static void test_loader(DB **dbs)
 }
 
 char *free_me = NULL;
-const char *env_dir = ENVDIR; // the default env_dir
+const char *env_dir = TOKU_TEST_FILENAME; // the default env_dir
 
 static void run_test(void) 
 {
     int r;
-    {
-	int len = strlen(env_dir) + 20;
-	char syscmd[len];
-	r = snprintf(syscmd, len, "rm -rf %s", env_dir);
-	assert(r<len);
-	r = system(syscmd);                                                                                   CKERR(r);
-    }
+    toku_os_recursive_delete(env_dir);
     r = toku_os_mkdir(env_dir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
     r = db_env_create(&env, 0);                                                                               CKERR(r);
@@ -373,21 +367,12 @@ static void do_args(int argc, char * const argv[]) {
         if (strcmp(argv[0], "-h")==0) {
             resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d [ -e <envdir> ]\n", cmd, NUM_DBS, NUM_ROWS);
+	    fprintf(stderr, "Usage: %s -h -c -d %d -r %d\n", cmd, NUM_DBS, NUM_ROWS);
 	    fprintf(stderr, " where -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "       -s               use size factor of 1 (makes internal loader buffers small so certain cases are easier to test)\n");
 	    fprintf(stderr, "       -E               duplicate the first row at the end (not the beginning).\n");
 	    fprintf(stderr, "       -D <rid>         use row id <rid> when duplicating.  (Default is 1 if inserting at end, <numrows> if inserting at beginning\n");
 	    exit(resultcode);
-	} else if (strcmp(argv[0], "-e")==0) {
-            argc--; argv++;
-	    if (free_me) toku_free(free_me);
-	    int len = strlen(ENVDIR) + strlen(argv[0]) + 2;
-	    char full_env_dir[len];
-	    int r = snprintf(full_env_dir, len, "%s.%s", ENVDIR, argv[0]);
-	    assert(r<len);
-	    env_dir = toku_strdup(full_env_dir);
-            free_me = (char *) env_dir;
 	} else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {

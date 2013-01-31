@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <libgen.h>
 #include <sys/time.h>
+#include <portability/toku_path.h>
 #include "test.h"
 
 #include "ft-flusher.h"
@@ -116,10 +117,10 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
 }
 
 #define TMPFTFMT "%s-tmpdata.ft"
-static const char *origft_6_0 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.6.0.gz";
-static const char *origft_5_0 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.5.0.gz";
-static const char *origft_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.gz";
-static const char *not_flat_4_2 = TOKUSVNROOT "/tokudb.data/upgrade_test_data.ft.4.2.not.flat.gz";
+static const char *origft_6_0 = "upgrade_test_data.ft.6.0.gz";
+static const char *origft_5_0 = "upgrade_test_data.ft.5.0.gz";
+static const char *origft_4_2 = "upgrade_test_data.ft.4.2.gz";
+static const char *not_flat_4_2 = "upgrade_test_data.ft.4.2.not.flat.gz";
 
 static int
 run_test(const char *prog, const char *origft) {
@@ -133,9 +134,13 @@ run_test(const char *prog, const char *origft) {
     snprintf(tempft, templen + 1, TMPFTFMT, prog);
     toku_free(fullprog);
     {
-        size_t len = 13 + strlen(origft) + strlen(tempft);
+        char origbuf[TOKU_PATH_MAX + 1];
+        char *svnroot = getenv("TOKU_SVNROOT");
+        invariant_notnull(svnroot);
+        toku_path_join(origbuf, 3, svnroot, "tokudb.data", origft);
+        size_t len = 13 + strlen(origbuf) + strlen(tempft);
         char buf[len + 1];
-        snprintf(buf, len + 1, "gunzip -c %s > %s", origft, tempft);
+        snprintf(buf, len + 1, "gunzip -c %s > %s", origbuf, tempft);
         r = system(buf);
         CKERR(r);
     }

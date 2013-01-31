@@ -36,14 +36,13 @@ setup (uint32_t flags) {
     int r;
     if (env)
         test_shutdown();
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
     r=db_env_create(&env, 0); 
     CKERR(r);
     env->set_errfile(env, stderr);
-    r=env->open(env, ENVDIR, flags, mode); 
+    r=env->open(env, TOKU_TEST_FILENAME, flags, mode); 
     CKERR(r);
 }
 
@@ -64,14 +63,14 @@ reopen_env(uint32_t flags, int expected_r) {
         test_shutdown();
     r = db_env_create(&env, 0);                                           
     CKERR(r);
-    r = env->open(env, ENVDIR, flags, mode);
+    r = env->open(env, TOKU_TEST_FILENAME, flags, mode);
     CKERR2(r, expected_r);
 }
 
 static void
 delete_persistent(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "tokudb.environment");
+    sprintf(cmd, "rm -rf %s%s%s", TOKU_TEST_FILENAME, "/", "tokudb.environment");
     int r = system(cmd);
     CKERR(r);
 }
@@ -80,7 +79,7 @@ delete_persistent(void) {
 static void
 delete_directory(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "tokudb.directory");
+    sprintf(cmd, "rm -rf %s%s%s", TOKU_TEST_FILENAME, "/", "tokudb.directory");
     int r = system(cmd);
     CKERR(r);
 }
@@ -89,7 +88,7 @@ delete_directory(void) {
 static void
 delete_log(void) {
     char cmd[1024];
-    sprintf(cmd, "rm -rf %s%s%s", ENVDIR, "/", "*.tokulog*");
+    sprintf(cmd, "rm -rf %s%s%s", TOKU_TEST_FILENAME, "/", "*.tokulog*");
     int r = system(cmd);
     CKERR(r);
 }

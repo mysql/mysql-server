@@ -5,13 +5,6 @@
 
 #include "test.h"
 
-
-
-#ifndef dname
-#define dname __SRCFILE__ ".dir"
-#endif
-#define rmrf "rm -rf " dname "_*/"
-
 // create and close, making sure that everything is deallocated properly.
 
 #define LSIZE 100
@@ -19,9 +12,11 @@
 TOKULOGGER logger[NUM_LOGGERS];
 
 static void setup_logger(int which) {
-    char dnamewhich[200];
+    char logname[10];
+    snprintf(logname, sizeof(logname), "log%d", which);
+    char dnamewhich[TOKU_PATH_MAX+1];
     int r;
-    snprintf(dnamewhich, sizeof(dnamewhich), "%s_%d", dname, which);
+    toku_path_join(dnamewhich, 2, TOKU_TEST_FILENAME, logname);
     r = toku_os_mkdir(dnamewhich, S_IRWXU);
     if (r!=0) {
         int er = get_error_errno();
@@ -75,16 +70,15 @@ test_main (int argc __attribute__((__unused__)),
     int i;
     int loop;
     const int numloops = 100;
-    int r;
     for (loop = 0; loop < numloops; loop++) {
-        r = system(rmrf);
-        CKERR(r);
+        toku_os_recursive_delete(TOKU_TEST_FILENAME);
+        int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+        assert_zero(r);
         for (i = 0; i < NUM_LOGGERS; i++) setup_logger(i);
         for (i = 0; i < NUM_LOGGERS; i++) play_with_logger(i);
         for (i = 0; i < NUM_LOGGERS; i++) tear_down_logger(i);
     }
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

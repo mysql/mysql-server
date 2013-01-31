@@ -16,6 +16,7 @@
 
 #include "memory.h"
 #include "toku_time.h"
+#include "toku_path.h"
 #include <portability/toku_atomic.h>
 
 static int toku_assert_on_write_enospc = 0;
@@ -344,6 +345,14 @@ toku_os_pread (int fd, void *buf, size_t count, off_t offset) {
 	r = pread(fd, buf, count, offset);
     }
     return r;
+}
+
+void toku_os_recursive_delete(const char *path) {
+    char buf[TOKU_PATH_MAX + sizeof("rm -rf ")];
+    strcpy(buf, "rm -rf ");
+    strncat(buf, path, TOKU_PATH_MAX);
+    int r = system(buf);
+    assert_zero(r);
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

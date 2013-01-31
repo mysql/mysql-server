@@ -167,11 +167,6 @@ test_main (int argc, const char *argv[]) {
             }
         } else if (strcmp(arg, "--noserial") == 0) {
             do_serial = 0;
-        } else if (strcmp(arg, "--fname") == 0) {
-            if (i+1 < argc) {
-                i++;
-                fname = argv[i];
-            }
         } else if (strcmp(arg, "--norandom") == 0) {
             do_random = 0;
 	} else if (strcmp(arg, "-v")==0) {
@@ -183,6 +178,7 @@ test_main (int argc, const char *argv[]) {
 	    return 1;
 	}
     }
+    fname = TOKU_TEST_FILENAME;
 
     struct timeval t1,t2,t3;
     long long total_n_items;

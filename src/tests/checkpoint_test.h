@@ -1,4 +1,4 @@
-/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */ 
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
@@ -17,7 +17,7 @@ enum {NUM_FIXED_ROWS=1025};   // 4K + 1
 typedef struct {
     DB*       db;
     uint32_t flags;
-    char      filename[MAX_NAME]; //Relative to ENVDIR/
+    char      filename[MAX_NAME]; //Relative to envdir/
     int       num;
 } DICTIONARY_S, *DICTIONARY;
 
@@ -87,17 +87,16 @@ compare_dbs(DB *compare_db1, DB *compare_db2) {
 
 
 static void UU()
-dir_create(void) {
+dir_create(const char *envdir) {
     int r;
-    r = system("rm -rf " ENVDIR);
-        CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-        CKERR(r);
+    toku_os_recursive_delete(envdir);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
 }
 
 // pass in zeroes for default cachesize
 static void  UU()
-    env_startup(int64_t bytes, int recovery_flags) {
+env_startup(const char *envdir, int64_t bytes, int recovery_flags) {
     int r;
     r = db_env_create(&env, 0);
         CKERR(r);
@@ -109,7 +108,7 @@ static void  UU()
         CKERR(r);
     }
     int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | recovery_flags;
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
         CKERR(r);
     env->set_errfile(env, stderr);
     r = env->checkpointing_set_period(env, 0); //Disable auto-checkpointing.
@@ -134,9 +133,9 @@ fill_name(DICTIONARY d, char *buf, int bufsize) {
 }
 
 static void UU()
-fill_full_name(DICTIONARY d, char *buf, int bufsize) {
+fill_full_name(const char *envdir, DICTIONARY d, char *buf, int bufsize) {
     int bytes;
-    bytes = snprintf(buf, bufsize, "%s/%s_%08x", ENVDIR, d->filename, d->num);
+    bytes = snprintf(buf, bufsize, "%s/%s_%08x", envdir, d->filename, d->num);
         assert(bytes>0);
         assert(bytes>(int)strlen(d->filename));
         assert(bytes<bufsize);
@@ -213,7 +212,7 @@ db_delete(DICTIONARY d) {
 //  copy file (by iname) of src to dest
 //  open dest dictionary
 static void UU()
-dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
+dbcpy(const char *envdir, DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
     int r;
 
     assert(dest->db == NULL);
@@ -252,8 +251,8 @@ dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
 
     int bytes;
 
-    char command[sizeof("cp -f ") + strlen(src_iname)+ strlen(ENVDIR "/ " ENVDIR "/ ") + strlen(dest_iname)];
-    bytes = snprintf(command, sizeof(command), "cp -f " ENVDIR "/%s " ENVDIR "/%s", src_iname, dest_iname);
+    char command[sizeof("cp -f ") + strlen(src_iname)+ 2 * (strlen(envdir) + strlen("/ ")) + strlen(dest_iname)];
+    bytes = snprintf(command, sizeof(command), "cp -f %s/%s %s/%s", envdir, src_iname, envdir, dest_iname);
     assert(bytes<(int)sizeof(command));
 
     toku_free(src_iname);
@@ -265,14 +264,14 @@ dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
 }
 
 static void UU()
-db_replace(DICTIONARY d, DB_TXN *open_txn) {
+db_replace(const char *envdir, DICTIONARY d, DB_TXN *open_txn) {
     //Replaces a dictionary with a physical copy that is reopened.
     //Filename is changed by incrementing the number.
     //This should be equivalent to 'rollback to checkpoint'.
     //The DB* disappears.
     DICTIONARY_S temp;
     null_dictionary(&temp);
-    dbcpy(&temp, d, open_txn);
+    dbcpy(envdir, &temp, d, open_txn);
     db_delete(d);
     *d = temp;
 }

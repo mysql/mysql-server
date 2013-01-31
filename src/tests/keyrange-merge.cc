@@ -20,7 +20,7 @@ static DB_TXN *txn = NULL;
 static DB *db = NULL;
 static uint32_t db_page_size = 4096;
 static uint32_t db_basement_size = 4096;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 static uint64_t nrows = 0;
 
 static uint64_t 

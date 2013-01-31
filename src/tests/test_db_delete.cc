@@ -45,9 +45,8 @@ test_db_delete (int n, int dup_mode) {
     const char * const fname = "test.db.delete.ft_handle";
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
     DB_ENV *env;
@@ -55,7 +54,7 @@ test_db_delete (int n, int dup_mode) {
 #ifdef TOKUDB
     r = env->set_redzone(env, 0); assert(r == 0);
 #endif
-    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
     r = db_create(&db, env, 0);
@@ -118,9 +117,8 @@ test_db_get_datasize0 (void) {
     const char * const fname = "test.db_delete.ft_handle";
     int r;
 
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     /* create the dup database file */
     DB_ENV *env;
@@ -128,7 +126,7 @@ test_db_get_datasize0 (void) {
 #ifdef TOKUDB
     r = env->set_redzone(env, 0); assert(r == 0);
 #endif
-    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
     r = db_create(&db, env, 0);

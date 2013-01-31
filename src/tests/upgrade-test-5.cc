@@ -25,7 +25,7 @@ int SRC_VERSION = 4;
 #define MAXDEPTH 64
 #define OLDDATADIR "../../../../tokudb.data/"
 
-char *env_dir = ENVDIR; // the default env_dir.
+char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 char *db_v5_dir = "dir.preload-db-nested.c.tdb";
 char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.nested.cleanshutdown";
 

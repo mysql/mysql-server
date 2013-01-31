@@ -24,15 +24,14 @@ const size_t numrows = (numleaves * nodesize + rowsize) / rowsize;
 
 static void test_seqinsert(bool asc) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
     DB_ENV *env;
     r = db_env_create(&env, 0);
     CKERR(r);
-    r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
 
     DB *db;

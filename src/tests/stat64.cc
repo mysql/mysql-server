@@ -15,9 +15,8 @@ test_stat64 (unsigned int N) {
     if (verbose) printf("%s:%d\n", __FUNCTION__, __LINE__);
 
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     
     DB_ENV *env;
     DB *db;
@@ -26,7 +25,7 @@ test_stat64 (unsigned int N) {
     r = env->set_redzone(env, 0);                                         CKERR(r);
 
     r = env->set_cachesize(env, 0, 20*1000000, 1);
-    r = env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = db_create(&db, env, 0);                                           CKERR(r);
 
     {
@@ -64,7 +63,9 @@ test_stat64 (unsigned int N) {
         DB_BTREE_STAT64 s;
         r=db->stat64(db, txn, &s); CKERR(r);
         if (verbose) {
-            r = system("ls -l " ENVDIR);
+            char cmd[sizeof("ls -l ") + TOKU_PATH_MAX];
+            snprintf(cmd, sizeof(cmd), "ls -l %s", TOKU_TEST_FILENAME);
+            r = system(cmd);
             CKERR(r);
 	    printf("N=%d\n", N);
             printf("nkeys=%" PRIu64 "\nndata=%" PRIu64 "\ndsize=%" PRIu64 "\n",
@@ -100,7 +101,9 @@ test_stat64 (unsigned int N) {
         DB_BTREE_STAT64 s;
         r=db->stat64(db, txn, &s); CKERR(r);
         if (verbose) {
-            r = system("ls -l " ENVDIR);
+            char cmd[sizeof("ls -l ") + TOKU_PATH_MAX];
+            snprintf(cmd, sizeof(cmd), "ls -l %s", TOKU_TEST_FILENAME);
+            r = system(cmd);
             CKERR(r);
 	    printf("N=%d\n", N);
             printf("nkeys=%" PRIu64 "\nndata=%" PRIu64 "\ndsize=%" PRIu64 "\n",

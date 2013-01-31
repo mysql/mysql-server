@@ -1,6 +1,23 @@
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
 if(BUILD_TESTING OR BUILD_SRC_TESTS)
+  function(add_ydb_test bin)
+    add_toku_test(ydb ${bin} ${ARGN})
+  endfunction(add_ydb_test)
+  function(add_ydb_test_aux name bin)
+    add_toku_test_aux(ydb ${name} ${bin} ${ARGN})
+  endfunction(add_ydb_test_aux)
+
+  function(add_ydb_helgrind_test bin)
+    add_helgrind_test(ydb helgrind_${bin} $<TARGET_FILE:${bin}> ${ARGN})
+  endfunction(add_ydb_helgrind_test)
+  function(add_ydb_drd_test_aux name bin)
+    add_drd_test(ydb ${name} $<TARGET_FILE:${bin}> ${ARGN})
+  endfunction(add_ydb_drd_test_aux)
+  function(add_ydb_drd_test bin)
+    add_ydb_drd_test_aux(drd_${bin} ${bin} ${ARGN})
+  endfunction(add_ydb_drd_test)
+
   file(GLOB transparent_upgrade_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" upgrade*.cc)
 
   file(GLOB tdb_dontrun_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" bdb-simple-deadlock*.cc)
@@ -338,10 +355,9 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_executable(test-5138.tdb test-5138)
   target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static z ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
   set_property(TARGET test-5138.tdb APPEND PROPERTY
-    COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.test-5138.tdb")
-  add_common_options_to_binary_targets(test-5138.tdb)
-  add_test(ydb/test-5138.tdb test-5138.tdb)
+    COMPILE_DEFINITIONS "USE_TDB;IS_TDB=1;TOKUDB=1")
+  add_space_separated_property(TARGET test-5138.tdb COMPILE_FLAGS -fvisibility=hidden)
+  add_ydb_test(test-5138.tdb)
 
   foreach(bin ${tdb_bins})
     get_filename_component(base ${bin} NAME_WE)
@@ -353,9 +369,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     # some of those things (i.e. kibbutz in the threaded tests).
     target_link_libraries(${base}.tdb util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
-    add_common_options_to_binary_targets(${base}.tdb)
+      COMPILE_DEFINITIONS "USE_TDB;IS_TDB=1;TOKUDB=1")
+    add_space_separated_property(TARGET ${base}.tdb COMPILE_FLAGS -fvisibility=hidden)
   endforeach(bin)
 
   if(BDB_FOUND)
@@ -364,12 +379,11 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
       add_executable(${base}.bdb ${base})
       set_property(TARGET ${base}.bdb APPEND PROPERTY
-        COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
+        COMPILE_DEFINITIONS "USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
       set_target_properties(${base}.bdb PROPERTIES
         INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
       target_link_libraries(${base}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
-      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
-      add_common_options_to_binary_targets(${base}.bdb)
+      add_space_separated_property(TARGET ${base}.bdb COMPILE_FLAGS -fvisibility=hidden)
     endforeach(bin)
   endif()
 
@@ -384,15 +398,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endforeach(test)
   endmacro(declare_custom_tests)
 
-  function(add_custom_executable prefix binary source)
-    add_executable(${prefix}_${binary} ${source})
-    target_link_libraries(${prefix}_${binary} util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
-    set_target_properties(${prefix}_${binary} PROPERTIES
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
-    add_common_options_to_binary_targets(${prefix}_${binary})
-  endfunction(add_custom_executable)
-
   declare_custom_tests(test1426.tdb)
   if(BDB_FOUND)
     macro(declare_custom_bdb_tests)
@@ -406,6 +411,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     add_test(NAME ydb/test1426.tdb
       COMMAND run_test1426.sh
           $<TARGET_FILE:test1426.tdb> $<TARGET_FILE:test1426.bdb>
+          "test1426.tdb.ctest-data" "test1426.bdb.ctest-data"
           $<TARGET_FILE:tokudb_dump> "${BDB_INCLUDE_DIR}/../bin/db_dump")
     add_dependencies(test1426.tdb tokudb_dump)
   endif()
@@ -420,23 +426,76 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   configure_file(run_checkpoint_stress_test.sh . COPYONLY)
   add_test(NAME ydb/checkpoint_stress.tdb
     COMMAND run_checkpoint_stress_test.sh $<TARGET_FILE:checkpoint_stress.tdb> 5 5001 137)
+  setup_toku_test_properties(ydb/checkpoint_stress.tdb checkpoint_stress.tdb)
 
-  declare_custom_tests(recover_stress.tdb)
-  add_custom_executable(recover stress.tdb checkpoint_stress)
   configure_file(run_recover_stress_test.sh . COPYONLY)
   add_test(NAME ydb/recover_stress.tdb
-    COMMAND run_recover_stress_test.sh $<TARGET_FILE:recover_stress.tdb> 5 5001 137)
+    COMMAND run_recover_stress_test.sh $<TARGET_FILE:checkpoint_stress.tdb> 5 5001 137)
+  setup_toku_test_properties(ydb/recover_stress.tdb recover_stress.tdb)
 
   declare_custom_tests(diskfull.tdb)
   configure_file(run_diskfull_test.sh . COPYONLY)
   add_test(NAME ydb/diskfull.tdb
     COMMAND run_diskfull_test.sh $<TARGET_FILE:diskfull.tdb> 134)
+  setup_toku_test_properties(ydb/diskfull.tdb diskfull.tdb)
 
   declare_custom_tests(recovery_fileops_unit.tdb)
-  configure_file(run_recovery_fileops_unit_test.sh . COPYONLY)
-  add_test(NAME ydb/recovery_fileops_unit.tdb
-    COMMAND run_recovery_fileops_unit_test.sh $<TARGET_FILE:recovery_fileops_unit.tdb> 137)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.recovery_fileops_unit.cc.errors")
+  configure_file(run_recovery_fileops_unit.sh . COPYONLY)
+  file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/recovery_fileops_unit_dir")
+  foreach(ov c d r)
+
+    if (ov STREQUAL c)
+      set(gset 0)
+      set(hset 0)
+    else ()
+      set(gset 0 1 2 3 4 5)
+      set(hset 0 1)
+    endif ()
+
+    foreach(av 0 1)
+      foreach(bv 0 1)
+
+        if (bv)
+          set(dset 0 1)
+          set(eset 0 1)
+        else ()
+          set(dset 0)
+          set(eset 0)
+        endif ()
+
+        foreach(cv 0 1 2)
+          foreach(dv ${dset})
+            foreach(ev ${eset})
+              foreach(fv 0 1)
+                foreach(gv ${gset})
+                  foreach(hv ${hset})
+
+                    if ((NOT ov STREQUAL c) AND (NOT cv) AND ((NOT bv) OR (NOT ev) OR (dv)))
+                      set(iset 0 1)
+                    else ()
+                      set(iset 0)
+                    endif ()
+
+                    foreach(iv ${iset})
+                      set(testname "ydb/recovery_fileops_unit.${ov}${av}${bv}${cv}${dv}${ev}${fv}${gv}${hv}${iv}")
+                      set(envdir "recovery_fileops_unit_dir/${ov}${av}${bv}${cv}${dv}${ev}${fv}${gv}${hv}${iv}")
+                      set(errfile "recovery_fileops_unit_dir/${ov}${av}${bv}${cv}${dv}${ev}${fv}${gv}${hv}${iv}.ctest-errors")
+                      add_test(NAME ${testname}
+                        COMMAND run_recovery_fileops_unit.sh $<TARGET_FILE:recovery_fileops_unit.tdb> ${errfile} 137
+                        -O ${ov} -A ${av} -B ${bv} -C ${cv} -D ${dv} -E ${ev} -F ${fv} -G ${gv} -H ${hv} -I ${iv}
+                        )
+                      setup_toku_test_properties(${testname} ${envdir})
+                      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${errfile}")
+                    endforeach(iv)
+                  endforeach(hv)
+                endforeach(gv)
+              endforeach(fv)
+            endforeach(ev)
+          endforeach(dv)
+        endforeach(cv)
+      endforeach(bv)
+    endforeach(av)
+  endforeach(ov)
 
   if (NOT (CMAKE_SYSTEM_NAME MATCHES Darwin OR
            (CMAKE_CXX_COMPILER_ID STREQUAL Intel AND
@@ -445,77 +504,94 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     declare_custom_tests(helgrind1.tdb)
     add_test(NAME ydb/helgrind_helgrind1.tdb
       COMMAND valgrind --quiet --tool=helgrind --error-exitcode=1 --log-file=helgrind1.tdb.deleteme $<TARGET_FILE:helgrind1.tdb>)
+    setup_toku_test_properties(ydb/helgrind_helgrind1.tdb helgrind_helgrind1.tdb)
     set_tests_properties(ydb/helgrind_helgrind1.tdb PROPERTIES WILL_FAIL TRUE)
   endif()
   declare_custom_tests(helgrind2.tdb)
   declare_custom_tests(helgrind3.tdb)
-  add_helgrind_test(ydb/helgrind_helgrind2.tdb $<TARGET_FILE:helgrind2.tdb>)
-  add_helgrind_test(ydb/helgrind_helgrind3.tdb $<TARGET_FILE:helgrind3.tdb>)
+  add_ydb_helgrind_test(helgrind2.tdb)
+  add_ydb_helgrind_test(helgrind3.tdb)
 
   declare_custom_tests(test_groupcommit_count.tdb)
-  add_test(ydb/test_groupcommit_count.tdb test_groupcommit_count.tdb -n 1 -p vgrind)
+  add_ydb_test(test_groupcommit_count.tdb -n 1)
+  add_ydb_helgrind_test(test_groupcommit_count.tdb -n 1)
+  add_ydb_drd_test(test_groupcommit_count.tdb -n 1)
 
-  add_custom_executable(helgrind test_groupcommit_count.tdb test_groupcommit_count)
-  add_helgrind_test(ydb/helgrind_test_groupcommit_count.tdb $<TARGET_FILE:helgrind_test_groupcommit_count.tdb> -n 1 -p hgrind)
+  add_ydb_drd_test(test_4015.tdb)
 
-  add_custom_executable(drd test_groupcommit_count.tdb test_groupcommit_count)
-  add_drd_test(ydb/drd_test_groupcommit_count.tdb $<TARGET_FILE:drd_test_groupcommit_count.tdb> -n 1 -p drd)
+  # We link the locktree so that stress test 0 can call some
+  # functions (ie: lock escalation) directly.
+  target_link_libraries(test_stress0.tdb locktree)
 
-  add_custom_executable(drd test_4015.tdb test_4015)
-  add_drd_test(ydb/drd_test_4015.tdb $<TARGET_FILE:drd_test_4015.tdb>)
-
-  # Set up drd tests. Exclude hot_index.
-  configure_file(run_stress_test.sh . COPYONLY)
+  # Set up default stress tests and drd tests. Exclude hot_index.
   foreach(src ${stress_test_srcs})
     if(NOT ${src} MATCHES hot_index)
       get_filename_component(base ${src} NAME_WE)
       set(test ${base}.tdb)
 
-      if (NOT ${src} MATCHES test_stress0)
-        add_test(ydb/${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:${test}> 150000 1000 600)
+      if (${src} MATCHES test_stress0)
+        add_ydb_test(${test} --num_elements 512 --num_seconds 1000 --join_timeout 600)
+      else ()
+        add_ydb_test(${test} --num_elements 150000 --num_seconds 1000 --join_timeout 600)
       endif ()
 
-      add_custom_executable(tiny ${test} ${base})
-      add_drd_test(ydb/drd_tiny_${test} $<TARGET_FILE:tiny_${test}> --num_seconds 5 --num_elements 150 --join_timeout 3000)
+      add_ydb_drd_test_aux(drd_tiny_${test} ${test} --num_seconds 5 --num_elements 150 --join_timeout 3000)
       set_tests_properties(ydb/drd_tiny_${test} PROPERTIES TIMEOUT 3600)
-      add_custom_executable(mid ${test} ${base})
-      add_drd_test(ydb/drd_mid_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:mid_${test}> 10000 100 14400)
-      set_tests_properties(ydb/drd_mid_${test} PROPERTIES TIMEOUT 15000)
-      add_custom_executable(large ${test} ${base})
-      add_drd_test(ydb/drd_large_${test} ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:large_${test}> 150000 1000 28800)
-      set_tests_properties(ydb/drd_large_${test} PROPERTIES TIMEOUT 30000)
+
+      add_test(ydb/drd_mid_${test}/prepare ${test} --only_create --num_elements 10000)
+      setup_toku_test_properties(ydb/drd_mid_${test}/prepare drd_mid_${test})
+      add_ydb_drd_test_aux(drd_mid_${test} ${test} --only_stress --num_elements 10000 --num_seconds 100 --join_timeout 14400)
+      set_tests_properties(ydb/drd_mid_${test} PROPERTIES
+        DEPENDS ydb/drd_mid_${test}/prepare
+        REQUIRED_FILES "drd_mid_${test}.ctest-data"
+        TIMEOUT 15000
+        )
+
+      add_test(ydb/drd_large_${test}/prepare ${test} --only_create --num_elements 150000)
+      setup_toku_test_properties(ydb/drd_large_${test}/prepare drd_large_${test})
+      add_ydb_drd_test_aux(drd_large_${test} ${test} --only_stress --num_elements 150000 --num_seconds 1000 --join_timeout 28800)
+      set_tests_properties(ydb/drd_large_${test} PROPERTIES
+        DEPENDS ydb/drd_large_${test}/prepare
+        REQUIRED_FILES "drd_large_${test}.ctest-data"
+        TIMEOUT 30000
+        )
     endif()
   endforeach(src)
 
-  # We link the locktree so that stress test 0 can call some
-  # functions (ie: lock escalation) directly.
-  target_link_libraries(test_stress0.tdb locktree)
-  target_link_libraries(tiny_test_stress0.tdb locktree)
-  target_link_libraries(mid_test_stress0.tdb locktree)
-  target_link_libraries(large_test_stress0.tdb locktree)
-
-  # Run test_stress0 with a special size
-  add_test(ydb/test_stress0.tdb ${CMAKE_CFG_INTDIR}/run_stress_test.sh $<TARGET_FILE:test_stress0.tdb> 512 1000 600)
-
   # Set up upgrade tests. Exclude test_stress_openclose
-  configure_file(run_upgrade_stress_test.sh . COPYONLY)
   foreach(src ${stress_test_srcs})
     if (NOT ${src} MATCHES test_stress_openclose)
       get_filename_component(base ${src} NAME_WE)
       set(test ${base}.tdb)
 
       foreach(oldver 4.2.0 5.0.8 5.2.7 6.0.0 6.1.0 6.5.1 6.6.3)
+        set(versiondir ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver})
+        if (NOT EXISTS "${versiondir}/")
+          message(WARNING "Test data for upgrade tests for version ${oldver} doesn't exist, check out ${versiondir}/*-2000-dir first or upgrade stress tests may fail.")
+        endif ()
         foreach(p_or_s pristine stressed)
           if (NOT (${base} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
             foreach(size 2000)
-              add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${base})
-              if (src MATCHES stress0)
-                target_link_libraries(upgrade_${oldver}_${p_or_s}_${size}_${test} locktree)
-              endif ()
-              add_test(
-                NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
-                COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${base}.tdb ${size} 600 7200)
-              set_tests_properties(ydb/${test}/upgrade/${oldver}/${p_or_s}/${size} PROPERTIES TIMEOUT 10800)
+              set(oldenvdir "${versiondir}/saved${p_or_s}-${size}-dir")
+              set(envdirbase "${upgrade}_${oldver}_${p_or_s}_${size}_${test}")
+              set(envdir "${envdirbase}.ctest-data")
+              set(testnamebase ydb/${test}/upgrade/${oldver}/${p_or_s}/${size})
+
+              add_test(NAME ${testnamebase}/remove
+                COMMAND ${CMAKE_COMMAND} -E remove_directory "${envdir}")
+              add_test(NAME ${testnamebase}/copy
+                COMMAND ${CMAKE_COMMAND} -E copy_directory "${oldenvdir}" "${envdir}")
+              set_tests_properties(${testnamebase}/copy PROPERTIES
+                DEPENDS ${testnamebase}/remove
+                REQUIRED_FILES "${oldenvdir}")
+
+              add_test(NAME ${testnamebase}
+                COMMAND ${test} --only_stress --num_elements ${size} --num_seconds 600 --join_timeout 7200)
+              setup_toku_test_properties(${testnamebase} "${envdirbase}")
+              set_tests_properties(${testnamebase} PROPERTIES
+                DEPENDS ${testnamebase}/copy
+                REQUIRED_FILES "${envdir}"
+                TIMEOUT 10800)
             endforeach(size)
           endif ()
         endforeach(p_or_s)
@@ -523,12 +599,21 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif ()
   endforeach(src)
 
+  if (NOT EXISTS "${TOKU_SVNROOT}/tokudb.data/test_5902/")
+    message(WARNING "Test data for dump-env.tdb doesn't exist, check out ${TOKU_SVNROOT}/tokudb.data/test_5902 first or dump-env.tdb may fail.")
+  endif ()
   declare_custom_tests(dump-env.tdb)
-  configure_file(run_with_env.sh . COPYONLY)
-  add_test(
-    NAME ydb/dump-env.tdb
-    COMMAND ${CMAKE_CFG_INTDIR}/run_with_env.sh $<TARGET_FILE:dump-env.tdb> ${TOKU_SVNROOT}/tokudb.data/test_5902 dir.dump-env.tdb
-    )
+  add_test(NAME ydb/dump-env.tdb/remove
+    COMMAND ${CMAKE_COMMAND} -E remove_directory "dump-env.tdb.ctest-data")
+  add_test(NAME ydb/dump-env.tdb/copy
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${TOKU_SVNROOT}/tokudb.data/test_5902" "dump-env.tdb.ctest-data")
+  set_tests_properties(ydb/dump-env.tdb/copy PROPERTIES
+    DEPENDS ydb/dump-env.tdb/remove
+    REQUIRED_FILES "${TOKU_SVNROOT}/tokudb.data/test_5902")
+  add_ydb_test(dump-env.tdb)
+  set_tests_properties(ydb/dump-env.tdb PROPERTIES
+    DEPENDS ydb/dump-env.tdb/copy
+    REQUIRED_FILES "dump-env.tdb.ctest-data")
 
   ## for some reason this rule doesn't run with the makefile and it crashes with this rule, so I'm disabling this special case
   #declare_custom_tests(test_thread_stack.tdb)
@@ -541,126 +626,88 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
   declare_custom_tests(root_fifo_41.tdb)
   foreach(num RANGE 1 100)
-    add_test(ydb/root_fifo_41_${num}_populate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_populate.tdbdir -populate)
-    add_test(ydb/root_fifo_41_${num}_nopopulate.tdb root_fifo_41.tdb -n ${num} -h root_fifo_41_${num}_nopopulate.tdbdir)
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-      root_fifo_41_${num}_populate.tdbdir
-      root_fifo_41_${num}_nopopulate.tdbdir
-      )
+    add_ydb_test_aux(root_fifo_41_${num}_populate.tdb root_fifo_41.tdb -n ${num} -populate)
+    add_ydb_test_aux(root_fifo_41_${num}_nopopulate.tdb root_fifo_41.tdb -n ${num})
   endforeach(num)
 
-  declare_custom_tests(test3039.tdb)
-  configure_file(run_test3039.sh . COPYONLY)
-  add_test(NAME ydb/test3039.tdb
-    COMMAND run_test3039.sh $<TARGET_FILE:test3039.tdb>)
+  add_ydb_test_aux(test3039_small.tdb test3039.tdb -n 1000)
 
   declare_custom_tests(test_abort4.tdb)
   foreach(num RANGE -1 19)
-    add_test(ydb/test_abort4_${num}_0.tdb test_abort4.tdb -e dir.test_abort4_${num}_0.tdb -c 0 -l ${num})
-    add_test(ydb/test_abort4_${num}_1.tdb test_abort4.tdb -e dir.test_abort4_${num}_1.tdb -c 1 -l ${num})
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES dir.test_abort4_${num}_0.tdb dir.test_abort4_${num}_1.tdb)
+    add_ydb_test_aux(test_abort4_${num}_0.tdb test_abort4.tdb -c 0 -l ${num})
+    add_ydb_test_aux(test_abort4_${num}_1.tdb test_abort4.tdb -c 1 -l ${num})
   endforeach(num)
 
-  set_property(SOURCE loader-stress-test APPEND PROPERTY COMPILE_DEFINITIONS
-    "OLDDATADIR=\"${TOKU_SVNROOT}/tokudb.data/\"")
+  set(old_loader_upgrade_data "${TOKU_SVNROOT}/tokudb.data/env_preload.4.2.0.emptydictionaries.cleanshutdown")
+  if (NOT EXISTS "${old_loader_upgrade_data}/")
+    message(WARNING "Test data for loader upgrade tests doesn't exist, check out ${old_loader_upgrade_data} first, or loader-stress-test3.tdb may fail.")
+  endif ()
+  function(add_loader_upgrade_test name bin)
+    add_test(NAME ydb/${name}/remove
+      COMMAND ${CMAKE_COMMAND} -E remove_directory "${name}.ctest-data")
+    add_test(NAME ydb/${name}/copy
+      COMMAND ${CMAKE_COMMAND} -E copy_directory "${old_loader_upgrade_data}" "${name}.ctest-data")
+    set_tests_properties(ydb/${name}/copy PROPERTIES
+      DEPENDS ydb/${name}/remove
+      REQUIRED_FILES "${old_loader_upgrade_data}")
+    add_ydb_test_aux(${name} ${bin} -u ${ARGN})
+    set_tests_properties(ydb/${name} PROPERTIES
+      DEPENDS ydb/${name}/copy
+      REQUIRED_FILES "${name}.ctest-data")
+  endfunction(add_loader_upgrade_test)
+
   list(REMOVE_ITEM loader_tests loader-stress-test.loader)
-  add_test(ydb/loader-stress-test0.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0.tdb)
-  add_test(ydb/loader-stress-test1.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1.tdb)
-  add_test(ydb/loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2.tdb)
-  add_test(ydb/loader-stress-test3.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3.tdb)
-  add_test(ydb/loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4.tdb)
-  add_test(ydb/loader-stress-test0z.tdb loader-stress-test.tdb -c -e dir.loader-stress-test0z.tdb -z)
-  add_test(ydb/loader-stress-test1z.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1z.tdb -z)
-  add_test(ydb/loader-stress-test2z.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2z.tdb -z)
-  add_test(ydb/loader-stress-test3z.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3z.tdb -z)
-  add_test(ydb/loader-stress-test4z.tdb loader-stress-test.tdb -r 500000 -c -e dir.loader-stress-test4z.tdb -z --valsize 28)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.loader-stress-test0.tdb
-    dir.loader-stress-test1.tdb
-    dir.loader-stress-test2.tdb
-    dir.loader-stress-test3.tdb
-    dir.loader-stress-test4.tdb
-    dir.loader-stress-test0z.tdb
-    dir.loader-stress-test1z.tdb
-    dir.loader-stress-test2z.tdb
-    dir.loader-stress-test3z.tdb
-    dir.loader-stress-test4z.tdb
-    )
+  add_ydb_test_aux(loader-stress-test0.tdb loader-stress-test.tdb -c)
+  add_ydb_test_aux(loader-stress-test1.tdb loader-stress-test.tdb -c -p)
+  add_ydb_test_aux(loader-stress-test2.tdb loader-stress-test.tdb -r 5000 -s)
+  add_loader_upgrade_test(loader-stress-test3.tdb loader-stress-test.tdb -c)
+  add_ydb_test_aux(loader-stress-test4.tdb loader-stress-test.tdb -r 10000000 -c)
+  add_ydb_test_aux(loader-stress-test0z.tdb loader-stress-test.tdb -c -z)
+  add_ydb_test_aux(loader-stress-test1z.tdb loader-stress-test.tdb -c -p -z)
+  add_ydb_test_aux(loader-stress-test2z.tdb loader-stress-test.tdb -r 5000 -s -z)
+  add_loader_upgrade_test(loader-stress-test3z.tdb loader-stress-test.tdb -c -z)
+  add_ydb_test_aux(loader-stress-test4z.tdb loader-stress-test.tdb -r 500000 -c -z --valsize 28)
 
   list(REMOVE_ITEM loader_tests loader-dup-test.loader)
-  add_test(ydb/loader-dup-test0.tdb loader-dup-test.tdb -e dir.loader-dup-test0.tdb)
-  add_test(ydb/loader-dup-test1.tdb loader-dup-test.tdb -d 1 -r 500000 -e dir.loader-dup-test1.tdb)
-  add_test(ydb/loader-dup-test2.tdb loader-dup-test.tdb -d 1 -r 1000000 -e dir.loader-dup-test2.tdb)
-  add_test(ydb/loader-dup-test3.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3.tdb)
-  add_test(ydb/loader-dup-test4.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4.tdb)
-  add_test(ydb/loader-dup-test5.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5.tdb)
-  add_test(ydb/loader-dup-test0z.tdb loader-dup-test.tdb -e dir.loader-dup-test0z.tdb -z)
-  add_test(ydb/loader-dup-test1z.tdb loader-dup-test.tdb -d 1 -r 500000 -e dir.loader-dup-test1z.tdb -z)
-  add_test(ydb/loader-dup-test2z.tdb loader-dup-test.tdb -d 1 -r 1000000 -e dir.loader-dup-test2z.tdb -z)
-  add_test(ydb/loader-dup-test3z.tdb loader-dup-test.tdb -d 1 -s -r 100 -e dir.loader-dup-test3z.tdb -z)
-  add_test(ydb/loader-dup-test4z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -e dir.loader-dup-test4z.tdb -z)
-  add_test(ydb/loader-dup-test5z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -e dir.loader-dup-test5z.tdb -z)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.loader-dup-test0.tdb
-    dir.loader-dup-test1.tdb
-    dir.loader-dup-test2.tdb
-    dir.loader-dup-test3.tdb
-    dir.loader-dup-test4.tdb
-    dir.loader-dup-test5.tdb
-    dir.loader-dup-test0z.tdb
-    dir.loader-dup-test1z.tdb
-    dir.loader-dup-test2z.tdb
-    dir.loader-dup-test3z.tdb
-    dir.loader-dup-test4z.tdb
-    dir.loader-dup-test5z.tdb
-    )
+  add_ydb_test_aux(loader-dup-test0.tdb loader-dup-test.tdb)
+  add_ydb_test_aux(loader-dup-test1.tdb loader-dup-test.tdb -d 1 -r 500000)
+  add_ydb_test_aux(loader-dup-test2.tdb loader-dup-test.tdb -d 1 -r 1000000)
+  add_ydb_test_aux(loader-dup-test3.tdb loader-dup-test.tdb -d 1 -s -r 100)
+  add_ydb_test_aux(loader-dup-test4.tdb loader-dup-test.tdb -d 1 -s -r 1000)
+  add_ydb_test_aux(loader-dup-test5.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E)
+  add_ydb_test_aux(loader-dup-test0z.tdb loader-dup-test.tdb -z)
+  add_ydb_test_aux(loader-dup-test1z.tdb loader-dup-test.tdb -d 1 -r 500000 -z)
+  add_ydb_test_aux(loader-dup-test2z.tdb loader-dup-test.tdb -d 1 -r 1000000 -z)
+  add_ydb_test_aux(loader-dup-test3z.tdb loader-dup-test.tdb -d 1 -s -r 100 -z)
+  add_ydb_test_aux(loader-dup-test4z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -z)
+  add_ydb_test_aux(loader-dup-test5z.tdb loader-dup-test.tdb -d 1 -s -r 1000 -E -z)
 
   ## as part of #4503, we took out test 1 and 3
   list(REMOVE_ITEM loader_tests loader-cleanup-test.loader)
-  add_test(ydb/loader-cleanup-test0.tdb loader-cleanup-test.tdb -s -r 800 -e dir.loader-cleanup-test0.tdb)
-  #add_test(ydb/loader-cleanup-test1.tdb loader-cleanup-test.tdb -s -r 800 -p -e dir.loader-cleanup-test1.tdb)
-  add_test(ydb/loader-cleanup-test2.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2.tdb)
-  #add_test(ydb/loader-cleanup-test3.tdb loader-cleanup-test.tdb -s -r 8000 -p -e dir.loader-cleanup-test3.tdb)
-  add_test(ydb/loader-cleanup-test0z.tdb loader-cleanup-test.tdb -s -r 800 -e dir.loader-cleanup-test0z.tdb -z)
-  add_test(ydb/loader-cleanup-test2z.tdb loader-cleanup-test.tdb -s -r 8000 -e dir.loader-cleanup-test2z.tdb -z)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.loader-cleanup-test0.tdb
-    dir.loader-cleanup-test1.tdb
-    dir.loader-cleanup-test2.tdb
-    dir.loader-cleanup-test3.tdb
-    )
+  add_ydb_test_aux(loader-cleanup-test0.tdb loader-cleanup-test.tdb -s -r 800)
+  #add_ydb_test_aux(loader-cleanup-test1.tdb loader-cleanup-test.tdb -s -r 800 -p)
+  add_ydb_test_aux(loader-cleanup-test2.tdb loader-cleanup-test.tdb -s -r 8000)
+  #add_ydb_test_aux(loader-cleanup-test3.tdb loader-cleanup-test.tdb -s -r 8000 -p)
+  add_ydb_test_aux(loader-cleanup-test0z.tdb loader-cleanup-test.tdb -s -r 800 -e -z)
+  add_ydb_test_aux(loader-cleanup-test2z.tdb loader-cleanup-test.tdb -s -r 8000 -e -z)
 
   declare_custom_tests(keyrange.tdb)
-  add_test(ydb/keyrange-get0.tdb keyrange.tdb --get 0 --envdir dir.keyrange-get0.tdb)
-  add_test(ydb/keyrange-get1.tdb keyrange.tdb --get 1 --envdir dir.keyrange-get1.tdb)
+  add_ydb_test_aux(keyrange-get0.tdb keyrange.tdb --get 0)
+  add_ydb_test_aux(keyrange-get1.tdb keyrange.tdb --get 1)
   if (0)
-    add_test(ydb/keyrange-random-get0.tdb keyrange.tdb --get 0 --random_keys 1 --envdir dir.keyrange-random-get0.tdb)
-    add_test(ydb/keyrange-random-get1.tdb keyrange.tdb --get 1 --random_keys 1 --envdir dir.keyrange-random-get1.tdb)
+    add_ydb_test_aux(keyrange-random-get0.tdb keyrange.tdb --get 0 --random_keys 1)
+    add_ydb_test_aux(keyrange-random-get1.tdb keyrange.tdb --get 1 --random_keys 1)
   else ()
     message(WARNING "TODO(leif): re-enable keyrange tests, see #5666")
   endif ()
-  add_test(ydb/keyrange-loader-get0.tdb keyrange.tdb --get 0 --loader 1 --envdir dir.keyrange-loader-get0.tdb)
-  add_test(ydb/keyrange-loader-get1.tdb keyrange.tdb --get 1 --loader 1 --envdir dir.keyrange-loader-get1.tdb)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.keyrange-get0.tdb
-    dir.keyrange-get1.tdb
-    dir.keyrange-random-get0.tdb
-    dir.keyrange-random-get1.tdb
-    dir.keyrange-loader-get0.tdb
-    dir.keyrange-loader-get1.tdb
-    )
+  add_ydb_test_aux(keyrange-loader-get0.tdb keyrange.tdb --get 0 --loader 1)
+  add_ydb_test_aux(keyrange-loader-get1.tdb keyrange.tdb --get 1 --loader 1)
 
   declare_custom_tests(maxsize-for-loader.tdb)
-  add_test(ydb/maxsize-for-loader-A.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-A.tdb -f -c)
-  add_test(ydb/maxsize-for-loader-B.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-B.tdb -c)
-  add_test(ydb/maxsize-for-loader-Az.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-Az.tdb -f -z -c)
-  add_test(ydb/maxsize-for-loader-Bz.tdb maxsize-for-loader.tdb -e dir.maxsize-for-loader-Bz.tdb -z -c)
-  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.maxsize-for-loader-A.tdb
-    dir.maxsize-for-loader-B.tdb
-    dir.maxsize-for-loader-Az.tdb
-    dir.maxsize-for-loader-Bz.tdb
-    )
+  add_ydb_test_aux(maxsize-for-loader-A.tdb maxsize-for-loader.tdb -f -c)
+  add_ydb_test_aux(maxsize-for-loader-B.tdb maxsize-for-loader.tdb -c)
+  add_ydb_test_aux(maxsize-for-loader-Az.tdb maxsize-for-loader.tdb -f -z -c)
+  add_ydb_test_aux(maxsize-for-loader-Bz.tdb maxsize-for-loader.tdb -z -c)
 
   declare_custom_tests(hotindexer-undo-do-test.tdb)
   file(GLOB hotindexer_tests RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "hotindexer-undo-do-tests/*.test")
@@ -672,37 +719,54 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   foreach(test ${hotindexer_tests})
     configure_file(${test} ${test} COPYONLY)
     add_test(NAME ydb/${test} COMMAND run-hotindexer-undo-do-tests.bash ${test})
+    setup_toku_test_properties(ydb/${test} ${test})
   endforeach()
 
   foreach(test ${tdb_tests} ${bdb_tests})
-    add_test(ydb/${test} ${test})
+    add_ydb_test(${test})
   endforeach(test)
 
   configure_file(run_recover_test.sh . COPYONLY)
   foreach(recover_test ${recover_tests})
     get_filename_component(base ${recover_test} NAME_WE)
     add_test(NAME ydb/${recover_test}
-      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump>)
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.tdb" "dir.${base}.tdb.recover")
+      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "${recover_test}.ctest-data" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump>)
+    setup_toku_test_properties(ydb/${recover_test} ${recover_test})
   endforeach(recover_test)
 
   configure_file(run_abortrecover_test.sh . COPYONLY)
   foreach(abortrecover_test ${abortrecover_tests})
     get_filename_component(base ${abortrecover_test} NAME_WE)
-    add_test(NAME ydb/${base}.abortrecover
+    add_test(NAME ydb/${abortrecover_test}
       COMMAND run_abortrecover_test.sh $<TARGET_FILE:${base}.tdb>)
+    setup_toku_test_properties(ydb/${abortrecover_test} ${abortrecover_test})
   endforeach(abortrecover_test)
+  ## alternate implementation, doesn't work because the abort phase crashes and we can't tell cmake that's expected
+  # foreach(abortrecover_test ${abortrecover_tests})
+  #   get_filename_component(base ${abortrecover_test} NAME_WE)
+  #   set(test ${base}.tdb)
+  #   add_test(NAME ydb/${test}/abort
+  #     COMMAND ${test} --test)
+  #   setup_toku_test_properties(ydb/${test}/abort ${abortrecover_test})
+  #   set_tests_properties(ydb/${test}/abort PROPERTIES WILL_FAIL TRUE)
+
+  #   add_test(NAME ydb/${test}/recover
+  #     COMMAND ${test} --recover)
+  #   setup_toku_test_properties(ydb/${test}/recover ${abortrecover_test})
+  #   set_tests_properties(ydb/${test}/recover PROPERTIES
+  #     DEPENDS ydb/${test}/abort
+  #     REQUIRED_FILES "${abortrecover_test}.ctest-data")
+  # endforeach(abortrecover_test)
 
   foreach(loader_test ${loader_tests})
     get_filename_component(base ${loader_test} NAME_WE)
-    add_test(ydb/${base}.nop.loader ${base}.tdb -e "dir.${base}.nop.loader")
-    add_test(ydb/${base}.p.loader ${base}.tdb -p -e "dir.${base}.p.loader")
-    add_test(ydb/${base}.comp.loader ${base}.tdb -z -e "dir.${base}.comp.loader")
+    add_ydb_test_aux(${base}.nop.loader ${base}.tdb)
+    add_ydb_test_aux(${base}.p.loader ${base}.tdb -p)
+    add_ydb_test_aux(${base}.comp.loader ${base}.tdb -z)
     if("${tdb_tests_that_should_fail}" MATCHES "${base}.loader")
       list(REMOVE_ITEM tdb_tests_that_should_fail ${base}.loader)
       list(APPEND tdb_tests_that_should_fail ${base}.nop.loader ${base}.p.loader ${base}.comp.loader)
     endif()
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.nop.loader" "dir.${base}.p.loader" "dir.${base}.comp.loader")
   endforeach(loader_test)
 
   set(tdb_tests_that_should_fail "ydb/${tdb_tests_that_should_fail}")
@@ -778,7 +842,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-test4.tdb
     ydb/loader-stress-test4z.tdb
     ydb/recover_stress.tdb
-    ydb/recovery_fileops_unit.tdb
     ydb/test3529.tdb
     )
   if (BDB_FOUND)

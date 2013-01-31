@@ -20,15 +20,14 @@ test_abort_close (void) {
     if (verbose) fprintf(stderr, "%s does not work for BDB %d.%d.   Not running\n", __FILE__, DB_VERSION_MAJOR, DB_VERSION_MINOR);
     return;
 #else
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     int r;
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
-    r = env->set_data_dir(env, ENVDIR);
-    r = env->set_lg_dir(env, ENVDIR);
+    r = env->set_data_dir(env, TOKU_TEST_FILENAME);
+    r = env->set_lg_dir(env, TOKU_TEST_FILENAME);
     env->set_errfile(env, stdout);
     r = env->open(env, 0, DB_INIT_MPOOL + DB_INIT_LOG + DB_INIT_LOCK + DB_INIT_TXN + DB_PRIVATE + DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
     if (r != 0) printf("%s:%d:%d:%s\n", __FILE__, __LINE__, r, db_strerror(r));
@@ -43,7 +42,8 @@ test_abort_close (void) {
 
     {
 	toku_struct_stat statbuf;
-	r = toku_stat(ENVDIR "/test.db", &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, "test.db"), &statbuf);
 	assert(r==0);
     }
 
@@ -56,7 +56,8 @@ test_abort_close (void) {
 
     {
 	toku_struct_stat statbuf;
-	r = toku_stat(ENVDIR "/test.db", &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, "test.db"), &statbuf);
 	assert(r!=0);
     }
 #endif

@@ -10,6 +10,7 @@
 #include "test.h"
 #include "ftloader-internal.h"
 #include <inttypes.h>
+#include <portability/toku_path.h>
 
 
 static void traceit(const char *s) {
@@ -227,8 +228,7 @@ int test_main (int argc, const char *argv[]) {
         }
 	argc--; argv++;
     }
-    assert(argc == 1); // argv[1] is the directory in which to do the test.
-    const char* directory = argv[0];
+    const char* directory = TOKU_TEST_FILENAME;
     char unlink_all[strlen(directory)+20];
     snprintf(unlink_all, strlen(directory)+20, "rm -rf %s", directory);
     int r;

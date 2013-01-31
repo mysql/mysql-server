@@ -85,10 +85,10 @@ static void test_nested_pin (void) {
     int i0, i1;
     int r;
     void *vv,*vv2;
-    char fname[] = __SRCFILE__ "test_ct.dat";
+    const char *fname = TOKU_TEST_FILENAME;
     if (verbose) printf("creating cachetable\n");
     toku_cachetable_create(&t, 1, ZERO_LSN, NULL_LOGGER);
-    unlink(fname);
+    toku_os_recursive_delete(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
     expect_f = f;
@@ -161,10 +161,15 @@ PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
 static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
-    char fname1[]= __SRCFILE__ "test_ct.dat";
-    char fname2[]= __SRCFILE__ "test2_ct.dat";
-    char fname3[]= __SRCFILE__ "test3_ct.dat";
-    int r;
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    int r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);
+    assert_zero(r);
+    char fname1[TOKU_PATH_MAX+1];
+    char fname2[TOKU_PATH_MAX+1];
+    char fname3[TOKU_PATH_MAX+1];
+    toku_path_join(fname1, 2, TOKU_TEST_FILENAME, "test1_ct.dat");
+    toku_path_join(fname2, 2, TOKU_TEST_FILENAME, "test2_ct.dat");
+    toku_path_join(fname3, 2, TOKU_TEST_FILENAME, "test3_ct.dat");
     void *v;
     unlink(fname1);
     unlink(fname2);
@@ -241,8 +246,8 @@ static void test_dirty(void) {
 
     toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
 
-    const char *fname = __SRCFILE__ "test.dat";
-    unlink(fname);
+    const char *fname = TOKU_TEST_FILENAME;
+    toku_os_recursive_delete(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
 
@@ -371,7 +376,7 @@ static void test_size_resize(void) {
 
     toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
 
-    const char *fname = __SRCFILE__ "test.dat";
+    const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);
@@ -425,7 +430,7 @@ static void test_size_flush(void) {
     long long size = 1*1024*1024;
     toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
 
-    const char *fname = __SRCFILE__ "test.dat";
+    const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r == 0);

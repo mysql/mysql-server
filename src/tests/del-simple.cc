@@ -59,7 +59,7 @@ test_del(int nrows) {
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0); assert_zero(r);
 
-    r = env->open(env, ENVDIR, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     DB *db = NULL;
     r = db_create(&db, env, 0); assert_zero(r);
@@ -109,8 +109,8 @@ test_main(int argc, char * const argv[]) {
         }
     }
 
-    r = system("rm -rf " ENVDIR); assert_zero(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
 
     test_del(nrows);
 

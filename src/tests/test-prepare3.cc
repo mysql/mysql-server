@@ -199,7 +199,7 @@ static void test (void) {
 
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env_and_prepare(&env, ENVDIR);
+	setup_env_and_prepare(&env, TOKU_TEST_FILENAME);
 	enum prepared_state prepared[NTXNS]={COMMITTED,ABORTED,PREPARED,PREPARED,PREPARED,PREPARED};
 	check_prepared_txns(env, prepared);
 	exit(0);
@@ -208,7 +208,7 @@ static void test (void) {
     // Now run recovery and crash on purpose.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	enum prepared_state prepared[NTXNS]={COMMITTED,ABORTED,PREPARED,PREPARED,PREPARED,PREPARED};
 	check_prepared_txns(env, prepared);
 	exit(0);
@@ -218,7 +218,7 @@ static void test (void) {
     // Now see if recovery works the second time.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	enum prepared_state prepared[NTXNS]={COMMITTED,ABORTED,PREPARED,PREPARED,PREPARED,PREPARED};
 	check_prepared_txns(env, prepared);
 	exit(0);
@@ -228,7 +228,7 @@ static void test (void) {
     // Now see if recovery works the third time.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	enum prepared_state prepared[NTXNS]={COMMITTED,ABORTED,PREPARED,PREPARED,PREPARED,PREPARED};
 	DB_PREPLIST l[NTXNS];
 	long count=-1;
@@ -242,7 +242,7 @@ static void test (void) {
     // Now see if recovery works a third time, with number 2 and 3 no longer in the prepared state.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	enum prepared_state prepared[NTXNS]={COMMITTED,ABORTED,MAYBE_COMMITTED,MAYBE_ABORTED,PREPARED,PREPARED};
 	DB_PREPLIST l[NTXNS];
 	long count=-1;
@@ -256,7 +256,7 @@ static void test (void) {
     // This time we'll do get_prepared with a short count.
     if (0==(pid=fork())) {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	//printf("%s:%d count=%ld\n", __FILE__, __LINE__, count); // it's a little bit funky that the committed transactions in BDB (from commit_number(2,...) above) don't stay committed.  But whatever...
 
 	long actual_count=0;
@@ -287,7 +287,7 @@ static void test (void) {
     // Now we should end up with nothing in the recovery list.
     {
 	DB_ENV *env;
-	setup_env(&env, ENVDIR);
+	setup_env(&env, TOKU_TEST_FILENAME);
 	long count=-1;
 	DB_PREPLIST l[1];
 	CKERR(env->txn_recover(env, l, 1, &count, DB_FIRST));

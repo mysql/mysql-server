@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <memory.h>
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 int
 test_main(int argc, char*const* argv) {
@@ -21,17 +21,16 @@ test_main(int argc, char*const* argv) {
     int r;
     if (argc == 2 && !strcmp(argv[1], "-v")) verbose = 1;
     
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     r = db_env_create(&dbenv, 0);
     assert(r == 0);
 
-    r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
     assert(r == 0);
 
-    r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
     if (verbose) printf("r=%d\n", r);
 #ifdef USE_TDB
     assert(r == EINVAL);

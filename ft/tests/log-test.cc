@@ -5,53 +5,38 @@
 
 #include "test.h"
 
-
-#if defined(HAVE_LIMITS_H)
-# include <limits.h>
-#endif
-#if defined(HAVE_SYS_SYSLIMITS_H)
-# include <sys/syslimits.h>
-#endif
-
-#ifndef dname
-#define dname __SRCFILE__ ".dir"
-#endif
-#define rmrf "rm -rf " dname "/"
-
 int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
     long long lognum;
-    char logname[PATH_MAX];
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
-    r = toku_logger_find_next_unused_log_file(dname,&lognum);
+    char logname[TOKU_PATH_MAX+1];
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
+    r = toku_logger_find_next_unused_log_file(TOKU_TEST_FILENAME,&lognum);
     assert(r==0 && lognum==0LL);
 
     mode_t mode = S_IRWXU + S_IRWXG + S_IRWXO;
-    sprintf(logname, dname "/log01.tokulog%d", TOKU_LOG_VERSION);
+    sprintf(logname, "%s/log01.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
     r = open(logname, O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
 
-    r = toku_logger_find_next_unused_log_file(dname,&lognum);
+    r = toku_logger_find_next_unused_log_file(TOKU_TEST_FILENAME,&lognum);
     assert(r==0 && lognum==2LL);
     
-    sprintf(logname, dname "/log123456789012345.tokulog%d", TOKU_LOG_VERSION);
+    sprintf(logname, "%s/log123456789012345.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
     r = open(logname, O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
-    r = toku_logger_find_next_unused_log_file(dname,&lognum);
+    r = toku_logger_find_next_unused_log_file(TOKU_TEST_FILENAME,&lognum);
     assert(r==0 && lognum==123456789012346LL);
 
-    sprintf(logname, dname "/log3.tokulog%d", TOKU_LOG_VERSION);
+    sprintf(logname, "%s/log3.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
     r = open(logname, O_WRONLY + O_CREAT + O_BINARY, mode); assert(r>=0);
     r = close(r); assert(r==0);
-    r = toku_logger_find_next_unused_log_file(dname,&lognum);
+    r = toku_logger_find_next_unused_log_file(TOKU_TEST_FILENAME,&lognum);
     assert(r==0 && lognum==123456789012346LL);
 
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

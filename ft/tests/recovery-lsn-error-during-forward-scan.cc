@@ -7,20 +7,12 @@
 
 #include "test.h"
 
-#if defined(HAVE_LIMITS_H)
-# include <limits.h>
-#endif
-#if defined(HAVE_SYS_SYSLIMITS_H)
-# include <sys/syslimits.h>
-#endif
-
-#define TESTDIR __SRCFILE__ ".dir"
 
 static void recover_callback_at_turnaround(void *UU(arg)) {
     // change the LSN in the first log entry of log 2.  this will cause an LSN error during the forward scan.
     int r;
-    char logname[PATH_MAX];
-    sprintf(logname, "%s/log000000000002.tokulog%d", TESTDIR, TOKU_LOG_VERSION);
+    char logname[TOKU_PATH_MAX+1];
+    sprintf(logname, "%s/log000000000002.tokulog%d", TOKU_TEST_FILENAME, TOKU_LOG_VERSION);
     FILE *f = fopen(logname, "r+b"); assert(f);
     r = fseek(f, 025, SEEK_SET); assert(r == 0);
     char c = 100;
@@ -33,14 +25,13 @@ run_test(void) {
     int r;
 
     // setup the test dir
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
-    r = toku_os_mkdir(TESTDIR, S_IRWXU); assert(r == 0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
 
     // log 1 has the checkpoint
     TOKULOGGER logger;
     r = toku_logger_create(&logger); assert(r == 0);
-    r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger); assert(r == 0);
 
     LSN beginlsn;
     toku_log_begin_checkpoint(logger, &beginlsn, true, 0, 0);
@@ -50,7 +41,7 @@ run_test(void) {
 
     // log 2 has hello
     r = toku_logger_create(&logger); assert(r == 0);
-    r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger); assert(r == 0);
 
     BYTESTRING hello  = { (uint32_t) strlen("hello"), (char *) "hello" };
     toku_log_comment(logger, NULL, true, 0, hello);
@@ -59,7 +50,7 @@ run_test(void) {
 
     // log 3 has there
     r = toku_logger_create(&logger); assert(r == 0);
-    r = toku_logger_open(TESTDIR, logger); assert(r == 0);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger); assert(r == 0);
 
     BYTESTRING there  = { (uint32_t) strlen("there"), (char *) "there" };
     toku_log_comment(logger, NULL, true, 0, there);
@@ -79,11 +70,10 @@ run_test(void) {
     r = tokudb_recover(NULL,
 		       NULL_prepared_txn_callback,
 		       NULL_keep_cachetable_callback,
-		       NULL_logger, TESTDIR, TESTDIR, 0, 0, 0, NULL, 0); 
+		       NULL_logger, TOKU_TEST_FILENAME, TOKU_TEST_FILENAME, 0, 0, 0, NULL, 0); 
     assert(r != 0);
 
-    r = system("rm -rf " TESTDIR);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

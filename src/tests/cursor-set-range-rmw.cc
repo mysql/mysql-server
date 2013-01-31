@@ -68,7 +68,7 @@ static void test_set_rmw(DB_ENV *env, DB *db, int k, uint32_t txn1_flags, uint32
 int test_main(int argc, char * const argv[]) {
     int r;
 
-    const char *env_dir = ENVDIR;
+    const char *env_dir = TOKU_TEST_FILENAME;
     const char *db_filename = "rmwtest";
 
     parse_args(argc, argv);

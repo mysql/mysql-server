@@ -16,7 +16,7 @@ static int NUM_DBS=10;
 static int DISALLOW_PUTS=0;
 static int COMPRESS=0;
 static int USE_REGION=0;
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 
 static int generate_rows_for_region(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused)); 
 static int generate_rows_for_lineitem(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) __attribute__((unused));

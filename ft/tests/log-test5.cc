@@ -5,13 +5,6 @@
 
 #include "test.h"
 
-
-
-#ifndef dname
-#define dname __SRCFILE__ ".dir"
-#endif
-#define rmrf "rm -rf " dname "/"
-
 // create and close, making sure that everything is deallocated properly.
 
 #define LSIZE 100
@@ -20,9 +13,8 @@ int
 test_main (int argc __attribute__((__unused__)),
 	  const char *argv[] __attribute__((__unused__))) {
     int r;
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
     TOKULOGGER logger;
     r = toku_logger_create(&logger);
     assert(r == 0);
@@ -32,7 +24,7 @@ test_main (int argc __attribute__((__unused__)),
 	r = toku_logger_get_lg_max(logger, &n);
 	assert(n==LSIZE);
     }
-    r = toku_logger_open(dname, logger);
+    r = toku_logger_open(TOKU_TEST_FILENAME, logger);
     assert(r == 0);
     int i;
     for (i=0; i<1000; i++) {
@@ -51,13 +43,13 @@ test_main (int argc __attribute__((__unused__)),
     assert(r == 0);
 
     {
-	DIR *dir=opendir(dname);
+	DIR *dir=opendir(TOKU_TEST_FILENAME);
 	assert(dir);
 	struct dirent *dirent;
 	while ((dirent=readdir(dir))) {
 	    if (strncmp(dirent->d_name, "log", 3)!=0) continue;
-	    char fname[sizeof(dname)+256+1];
-	    snprintf(fname, sizeof(fname), "%s/%s", dname, dirent->d_name);
+	    char fname[TOKU_PATH_MAX+1];
+            toku_path_join(fname, 2, TOKU_TEST_FILENAME, dirent->d_name);
 	    toku_struct_stat statbuf;
 	    r = toku_stat(fname, &statbuf);
 	    assert(r==0);
@@ -66,7 +58,6 @@ test_main (int argc __attribute__((__unused__)),
 	r = closedir(dir);
 	assert(r==0);
     }
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
     return 0;
 }

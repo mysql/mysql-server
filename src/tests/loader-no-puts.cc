@@ -8,7 +8,7 @@
 #include <db.h>
 #include <sys/stat.h>
 
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 
 DB_ENV *env;
 int DISALLOW_PUTS=0;

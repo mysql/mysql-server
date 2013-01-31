@@ -16,7 +16,7 @@ static void test5 (void) {
     int *values;
     int i;
     CACHETABLE ct;
-    char fname[]= __SRCFILE__ ".ft_handle";
+    const char *fname = TOKU_TEST_FILENAME;
     
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;

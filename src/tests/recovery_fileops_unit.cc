@@ -215,14 +215,14 @@ static void env_startup(void) {
     int recover_flag = do_crash ? 0 : DB_RECOVER;
     if (do_crash) {
         db_env_set_checkpoint_callback(checkpoint_callback_maybe_crash, NULL);
-        r = system("rm -rf " ENVDIR);                                                                     CKERR(r);
-        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);                                               CKERR(r);
+        toku_os_recursive_delete(TOKU_TEST_FILENAME);
+        r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);                                               CKERR(r);
     }
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | recover_flag;
     r = db_env_create(&env, 0);
     CKERR(r);
     env->set_errfile(env, stderr);
-    r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
     //Disable auto-checkpointing.
     r = env->checkpointing_set_period(env, 0);

@@ -15,8 +15,8 @@ for (( i = 1; i < $runs; i++ ))
 do
     echo -n "$i: " && date
     set +e
-    $bin -c -i $i -n $size -X novalgrind 2>dir.checkpoint_stress.tdb/error.$i
+    $bin -c -i $i -n $size -X novalgrind 2>$TOKU_TEST_FILENAME/error.$i
     test $? -eq $abortcode || exit 1
     set -e
-    grep -q 'HAPPY CRASH' dir.checkpoint_stress.tdb/error.$i
+    grep -q 'HAPPY CRASH' $TOKU_TEST_FILENAME/error.$i
 done

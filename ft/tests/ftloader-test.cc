@@ -11,6 +11,7 @@
 #include <unistd.h>
 #include "ftloader-internal.h"
 #include "memory.h"
+#include <portability/toku_path.h>
 
 
 static int qsort_compare_ints (const void *a, const void *b) {
@@ -356,24 +357,19 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
 
 /* Test to see if we can open temporary files. */
 int test_main (int argc, const char *argv[]) {
-    const char *progname=argv[0];
     argc--; argv++;
     while (argc>0) {
 	if (strcmp(argv[0],"-v")==0) {
 	    verbose=1;
 	} else if (strcmp(argv[0],"-q")==0) {
 	    verbose=0;
-	} else if (argc!=1) {
-	    fprintf(stderr, "Usage:\n %s [-v] [-q] directory\n", progname);
-	    exit(1);
 	}
         else {
             break;
         }
 	argc--; argv++;
     }
-    assert(argc==1); // argv[1] is the directory in which to do the test.
-    const char* directory = argv[0];
+    const char* directory = TOKU_TEST_FILENAME;
     int r = toku_os_mkdir(directory, 0755);
     if (r!=0) CKERR2(errno, EEXIST);
 

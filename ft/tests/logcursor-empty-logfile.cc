@@ -8,17 +8,13 @@
 
 const int N = 2;
 
-#define dname __SRCFILE__ ".dir"
-#define rmrf "rm -rf " dname "/"
-
 int
 test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
 
     int r;
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
     TOKULOGGER logger;
     LSN lsn = ZERO_LSN;
 
@@ -29,7 +25,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_create(&logger);
         assert(r == 0);
 
-        r = toku_logger_open(dname, logger);
+        r = toku_logger_open(TOKU_TEST_FILENAME, logger);
         assert(r == 0);
 
         char str[32];
@@ -46,7 +42,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_create(&logger);
         assert(r == 0);
 
-        r = toku_logger_open(dname, logger);
+        r = toku_logger_open(TOKU_TEST_FILENAME, logger);
         assert(r == 0);
 
         r = toku_logger_close(&logger);
@@ -58,7 +54,7 @@ test_main (int argc, const char *argv[]) {
         r = toku_logger_create(&logger);
         assert(r == 0);
 
-        r = toku_logger_open(dname, logger);
+        r = toku_logger_open(TOKU_TEST_FILENAME, logger);
         assert(r == 0);
 
         char str[32];
@@ -74,7 +70,7 @@ test_main (int argc, const char *argv[]) {
     TOKULOGCURSOR lc = NULL;
     struct log_entry *le;
 
-    r = toku_logcursor_create(&lc, dname);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0 && lc != NULL);
 
     helloseq = 0;
@@ -94,7 +90,7 @@ test_main (int argc, const char *argv[]) {
     assert(r == 0 && lc == NULL);
 
     // verify the log backwards
-    r = toku_logcursor_create(&lc, dname);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0 && lc != NULL);
 
     helloseq = 2*N;
@@ -113,8 +109,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logcursor_destroy(&lc);
     assert(r == 0 && lc == NULL);
 
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

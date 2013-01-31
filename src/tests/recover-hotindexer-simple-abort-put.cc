@@ -28,7 +28,7 @@ run_test(void) {
 
     r = env->set_generate_row_callback_for_put(env, put_callback); assert_zero(r);
 
-    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 
     DB *src_db = NULL;
     r = db_create(&src_db, env, 0); assert_zero(r);
@@ -69,7 +69,7 @@ run_recover(void) {
     DB_ENV *env;
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
-    { int chk_r = env->open(env, ENVDIR, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = env->close(env, 0); CKERR(chk_r); }
 }
 
@@ -92,8 +92,8 @@ test_main(int argc, char * const argv[]) {
 
     if (do_test) {
         int r;
-        r = system("rm -rf " ENVDIR); assert_zero(r);
-        r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
+        toku_os_recursive_delete(TOKU_TEST_FILENAME);
+        r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); assert_zero(r);
         run_test();
     }
     if (do_recover) {

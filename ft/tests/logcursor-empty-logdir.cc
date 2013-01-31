@@ -6,9 +6,6 @@
 #include "logcursor.h"
 #include "test.h"
 
-#define dname __SRCFILE__ ".dir"
-#define rmrf "rm -rf " dname "/"
-
 // a logcursor in an empty directory should not find any log entries
 
 int
@@ -16,16 +13,15 @@ test_main (int argc, const char *argv[]) {
     default_parse_args(argc, argv);
 
     int r;
-    r = system(rmrf);
-    CKERR(r);
-    r = toku_os_mkdir(dname, S_IRWXU);    assert(r==0);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU);    assert(r==0);
 
     // verify the log is empty
 
     TOKULOGCURSOR lc = NULL;
     struct log_entry *le;
     
-    r = toku_logcursor_create(&lc, dname);
+    r = toku_logcursor_create(&lc, TOKU_TEST_FILENAME);
     assert(r == 0 && lc != NULL);
 
     r = toku_logcursor_next(lc, &le);
@@ -37,8 +33,7 @@ test_main (int argc, const char *argv[]) {
     r = toku_logcursor_destroy(&lc);
     assert(r == 0 && lc == NULL);
 
-    r = system(rmrf);
-    CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     return 0;
 }

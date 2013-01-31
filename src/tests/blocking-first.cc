@@ -113,7 +113,7 @@ int test_main(int argc, char * const argv[]) {
     uint64_t nrows = 10;
     int nthreads = 2;
     long sleeptime = 100000;
-    const char *db_env_dir = ENVDIR;
+    const char *db_env_dir = TOKU_TEST_FILENAME;
     const char *db_filename = "test.db";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
 

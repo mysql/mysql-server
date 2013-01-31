@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <db.h>
 #include <toku_byteswap.h>
+#include <portability/toku_path.h>
 
 static int verbose = 0;
 static uint64_t maxk = 100000;
@@ -105,8 +106,10 @@ int main(int argc, char *argv[]) {
         return usage(argv[0]);
     }
 
-    const char *envdir = ENVDIR;
-    r = system("rm -rf " ENVDIR);
+    const char *envdir = TOKU_TEST_FILENAME;
+    char cmd[TOKU_PATH_MAX+sizeof("rm -rf ")];
+    snprintf(cmd, sizeof(cmd), "rm -rf %s", TOKU_TEST_FILENAME);
+    r = system(cmd);
     assert(r == 0);
     r = mkdir(envdir, 0777);
     assert(r == 0);

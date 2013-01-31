@@ -105,24 +105,39 @@ if (BUILD_TESTING OR BUILD_FT_TESTS OR BUILD_SRC_TESTS)
   cmake_dependent_option(RUN_HELGRIND_TESTS "Run some tests under helgrind." ON
     "${helgrind_drd_depend_conditions}" OFF)
 
+  macro(setup_toku_test_properties test str)
+    set_tests_properties(${test} PROPERTIES ENVIRONMENT "TOKU_TEST_FILENAME=${str}.ctest-data")
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "${str}.ctest-data")
+  endmacro(setup_toku_test_properties)
+
+  macro(add_toku_test_aux pfx name bin)
+    add_test(${pfx}/${name} ${bin} ${ARGN})
+    setup_toku_test_properties(${pfx}/${name} ${name})
+  endmacro(add_toku_test_aux)
+  macro(add_toku_test pfx bin)
+    add_toku_test_aux(${pfx} ${bin} ${bin} ${ARGN})
+  endmacro(add_toku_test)
+
   ## setup a function to write tests that will run with helgrind
   set(CMAKE_HELGRIND_COMMAND_STRING "valgrind --quiet --tool=helgrind --error-exitcode=1 --soname-synonyms=somalloc=*tokuportability* --suppressions=${TokuDB_SOURCE_DIR}/src/tests/helgrind.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
-  function(add_helgrind_test name)
+  function(add_helgrind_test pfx name)
     separate_arguments(CMAKE_HELGRIND_COMMAND_STRING)
     add_test(
-      NAME ${name}
+      NAME ${pfx}/${name}
       COMMAND ${CMAKE_HELGRIND_COMMAND_STRING} ${ARGN}
       )
+    setup_toku_test_properties(${pfx}/${name} ${name})
   endfunction(add_helgrind_test)
 
   ## setup a function to write tests that will run with drd
   set(CMAKE_DRD_COMMAND_STRING "valgrind --quiet --tool=drd --error-exitcode=1 --soname-synonyms=somalloc=*tokuportability* --suppressions=${TokuDB_SOURCE_DIR}/src/tests/drd.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
-  function(add_drd_test name)
+  function(add_drd_test pfx name)
     separate_arguments(CMAKE_DRD_COMMAND_STRING)
     add_test(
-      NAME ${name}
+      NAME ${pfx}/${name}
       COMMAND ${CMAKE_DRD_COMMAND_STRING} ${ARGN}
       )
+    setup_toku_test_properties(${pfx}/${name} ${name})
   endfunction(add_drd_test)
 
   option(RUN_LONG_TESTS "If set, run all tests, even the ones that take a long time to complete." OFF)

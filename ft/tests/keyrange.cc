@@ -13,7 +13,7 @@
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;
 
-static char fname[]= __SRCFILE__ ".ft_handle";
+static const char *fname = TOKU_TEST_FILENAME;
 static CACHETABLE ct;
 static FT_HANDLE t;
 

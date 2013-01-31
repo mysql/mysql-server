@@ -1,5 +1,4 @@
-/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
@@ -204,7 +203,7 @@ run_test (int iter, int die) {
     int i;
 
     if (iter == 0)
-	dir_create();  // create directory if first time through
+	dir_create(TOKU_TEST_FILENAME);  // create directory if first time through
     
     // Run with cachesize of 256 bytes per iteration
     // to force lots of disk I/O
@@ -225,7 +224,7 @@ run_test (int iter, int die) {
         if ( iter != 0 )
             recovery_flags += DB_RECOVER;
     }
-    env_startup(cachebytes, recovery_flags);
+    env_startup(TOKU_TEST_FILENAME, cachebytes, recovery_flags);
 
     // create array of dictionaries
     // for each dictionary verify previous iterations and perform new inserts

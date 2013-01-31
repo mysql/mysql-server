@@ -285,6 +285,7 @@ int toku_os_close(int fd);
 int toku_os_fclose(FILE * stream);
 ssize_t toku_os_read(int fd, void *buf, size_t count);
 ssize_t toku_os_pread(int fd, void *buf, size_t count, off_t offset);
+void toku_os_recursive_delete(const char *path);
 
 // wrapper around fsync
 void toku_file_fsync_without_accounting(int fd);

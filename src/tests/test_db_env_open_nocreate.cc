@@ -22,7 +22,7 @@
 
 #include <unistd.h>
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 int
 test_main(int argc, char *const argv[]) {
@@ -39,20 +39,18 @@ test_main(int argc, char *const argv[]) {
 #endif
 	int private_flags = do_private ? (DB_CREATE|DB_PRIVATE) : 0;
 	
-	r = system("rm -rf " ENVDIR);
-	CKERR(r);
+	toku_os_recursive_delete(TOKU_TEST_FILENAME);
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
-	r = dbenv->open(dbenv, ENVDIR, private_flags|DB_INIT_MPOOL, 0);
+	r = dbenv->open(dbenv, TOKU_TEST_FILENAME, private_flags|DB_INIT_MPOOL, 0);
 	assert(r==ENOENT);
 	dbenv->close(dbenv,0); // free memory
 	
-	r = system("rm -rf " ENVDIR);
-	CKERR(r);
-	toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+	toku_os_recursive_delete(TOKU_TEST_FILENAME);
+	toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 	r = db_env_create(&dbenv, 0);
 	CKERR(r);
-	r = dbenv->open(dbenv, ENVDIR, private_flags|DB_INIT_MPOOL, 0);
+	r = dbenv->open(dbenv, TOKU_TEST_FILENAME, private_flags|DB_INIT_MPOOL, 0);
 #ifdef USE_TDB
 	// TokuDB has no trouble opening an environment if the directory exists.
 	CKERR(r);
@@ -67,12 +65,11 @@ test_main(int argc, char *const argv[]) {
 #ifndef USE_TDB
     // Now make sure that if we have a non-private DB that we can tell if it opened or not.
     DB *db;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     r = db_env_create(&dbenv, 0);
     CKERR(r);
-    r = dbenv->open(dbenv, ENVDIR, DB_CREATE|DB_INIT_MPOOL, 0);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL, 0);
     CKERR(r);
     r=db_create(&db, dbenv, 0);
     CKERR(r);
@@ -80,7 +77,7 @@ test_main(int argc, char *const argv[]) {
     dbenv->close(dbenv,0); // free memory
     r = db_env_create(&dbenv, 0);
     CKERR(r);
-    r = dbenv->open(dbenv, ENVDIR, DB_INIT_MPOOL, 0);
+    r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_INIT_MPOOL, 0);
     CKERR(r);
     dbenv->close(dbenv,0); // free memory
 #endif

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include "test.h"
+#include <portability/toku_path.h>
+#include <limits.h>
 
 static int verbose = 0;
 
@@ -27,17 +29,15 @@ int test_main(int argc, char *const argv[]) {
         }
     }
 
-    r = system("rm -rf " ENVDIR);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
-    CKERR(r);
-    r = toku_os_mkdir(ENVDIR "/test", S_IRWXU+S_IRWXG+S_IRWXO);
-    CKERR(r);
-
+    char buf[TOKU_PATH_MAX + 1];
+    r = toku_os_mkdir(toku_path_join(buf, 2, TOKU_TEST_FILENAME, "test"), S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = toku_fsync_directory(""); CKERR(r);
     r = toku_fsync_directory("."); CKERR(r);
-    r = toku_fsync_directory(ENVDIR "/test/a"); CKERR(r);
-    r = toku_fsync_directory("./" ENVDIR "/test/a"); CKERR(r);
+    r = toku_fsync_directory(toku_path_join(buf, 3, TOKU_TEST_FILENAME, "test", "a")); CKERR(r);
+    r = toku_fsync_directory(toku_path_join(buf, 4, ".", TOKU_TEST_FILENAME, "test", "a")); CKERR(r);
     r = toku_fsync_directory("/tmp/x"); CKERR(r);
 
     return 0;

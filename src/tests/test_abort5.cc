@@ -16,7 +16,7 @@
 #include <stdio.h>
 
 
-// ENVDIR is defined in the Makefile
+// TOKU_TEST_FILENAME is defined in the Makefile
 
 DB_ENV *env;
 DB *db;
@@ -28,11 +28,10 @@ uint32_t find_num;
 static void
 init(void) {
     int r;
-    r = system("rm -rf " ENVDIR);
-    CKERR(r);
-    r=toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_env_create(&env, 0); CKERR(r);
-    r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=db->open(db, null_txn, "foo.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     CKERR(r);
@@ -163,11 +162,10 @@ verify_and_tear_down(int close_first) {
         filename = toku_xstrdup("foo.db");
 #endif
 	toku_struct_stat statbuf;
-        char fullfile[strlen(filename) + sizeof(ENVDIR "/")];
-        snprintf(fullfile, sizeof(fullfile), ENVDIR "/%s", filename);
-        toku_free(filename);
-	r = toku_stat(fullfile, &statbuf);
+        char fullfile[TOKU_PATH_MAX+1];
+	r = toku_stat(toku_path_join(fullfile, 2, TOKU_TEST_FILENAME, filename), &statbuf);
 	assert(r==0);
+        toku_free(filename);
     }
     if (close_first) {
         r=db->close(db, 0); CKERR(r);

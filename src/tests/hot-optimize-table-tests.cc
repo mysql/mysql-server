@@ -61,15 +61,15 @@ hot_test_setup(void)
 {
     int r = 0;
     // Remove any previous environment.
-    { int chk_r = system("rm -rf " ENVDIR); CKERR(chk_r); }
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
 
     // Set up a new TokuDB.
-    { int chk_r = toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     env->set_errfile(env, stderr);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);CKERR(r);
     env->set_update(env, update_func);
-    { int chk_r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
+    { int chk_r = env->open(env, TOKU_TEST_FILENAME, envflags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 
 static void

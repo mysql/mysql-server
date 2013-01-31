@@ -23,7 +23,7 @@ if(BDB_FOUND)
     set_target_properties(${bdb_bin}-bdb PROPERTIES
       INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../portability;${CMAKE_CURRENT_SOURCE_DIR}/..")
     target_link_libraries(${bdb_bin}-bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
-    add_common_options_to_binary_targets(${bdb_bin}-bdb)
+    add_space_separated_property(TARGET ${bdb_bin}-bdb COMPILE_FLAGS -fvisibility=hidden)
   endforeach(bdb_bin)
 endif()
 
@@ -32,5 +32,5 @@ foreach(tokudb_bin ${both_bins} ${tokudbonly_bins})
   set_property(TARGET ${tokudb_bin}-tokudb APPEND PROPERTY
     COMPILE_DEFINITIONS "TOKUDB;ENVDIR=\"${tokudb_bin}.cc.tdb\"")
   target_link_libraries(${tokudb_bin}-tokudb ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
-  add_common_options_to_binary_targets(${tokudb_bin}-tokudb)
+  add_space_separated_property(TARGET ${tokudb_bin}-tokudb COMPILE_FLAGS -fvisibility=hidden)
 endforeach(tokudb_bin)

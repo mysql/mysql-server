@@ -30,7 +30,7 @@ static void test_shutdown(void);
 
 #define OLDDATADIR "../../../../tokudb.data/"
 
-static char *env_dir = ENVDIR; // the default env_dir.
+static char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 
 static char * dir_v41_clean = OLDDATADIR "env_simple.4.1.1.cleanshutdown";
 static char * dir_v42_clean = OLDDATADIR "env_simple.4.2.0.cleanshutdown";
@@ -61,7 +61,7 @@ setup (uint32_t flags, bool clean, bool too_old, char * src_db_dir) {
     r=db_env_create(&env, 0); 
     CKERR(r);
     env->set_errfile(env, stderr);
-    r=env->open(env, ENVDIR, flags, mode); 
+    r=env->open(env, TOKU_TEST_FILENAME, flags, mode); 
     if (clean)
 	CKERR(r);
     else {

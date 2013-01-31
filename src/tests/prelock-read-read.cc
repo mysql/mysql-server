@@ -40,7 +40,7 @@ static void test_read_read(DB_ENV *env, DB *db, uint32_t iso_flags, int expect_r
 int test_main(int argc, char * const argv[]) {
     int r;
 
-    const char *env_dir = ENVDIR;
+    const char *env_dir = TOKU_TEST_FILENAME;
     const char *db_filename = "prelocktest";
 
     parse_args(argc, argv);

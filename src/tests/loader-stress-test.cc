@@ -459,51 +459,22 @@ static void test_loader(DB **dbs)
     }
 }
 
-static const char *envdir = ENVDIR;
+static const char *envdir = TOKU_TEST_FILENAME;
 const char *tmp_subdir = "tmp.subdir";
-
-#ifndef OLDDATADIR
-#define OLDDATADIR "../../../../tokudb.data/"
-#endif
-const char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.emptydictionaries.cleanshutdown";
-
-static void setup(void) {
-    int r;
-    int len = 256;
-    char syscmd[len];
-    const char * src_db_dir;
-
-    src_db_dir = db_v4_dir;
-
-    r = snprintf(syscmd, len, "cp -r %s %s", src_db_dir, envdir);
-    assert(r<len);
-    r = system(syscmd);                                                                                 
-    CKERR(r);
-}
 
 static void run_test(void) 
 {
     int r;
-    
-    int cmdlen = strlen(envdir) + strlen(tmp_subdir) + 10;
-    char tmpdir[cmdlen];
-    r = snprintf(tmpdir, cmdlen, "%s/%s", envdir, tmp_subdir);
-    assert(r<cmdlen);
-    
-    // first delete anything left from previous run of this test
-    {
-	int len = strlen(envdir) + 20;
-	char syscmd[len];
-	r = snprintf(syscmd, len, "rm -rf %s", envdir);
-	assert(r<len);
-	r = system(syscmd);                                                                                   CKERR(r);
-    }
+
     if (upgrade_test) {
-	setup();
+        // cmake set up the environment
     }
     else {
+        toku_os_recursive_delete(envdir);
 	r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                      CKERR(r);
-	r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
+        char tmpdir[TOKU_PATH_MAX+1];
+        toku_path_join(tmpdir, 2, envdir, tmp_subdir);
+        r = toku_os_mkdir(tmpdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                   CKERR(r);
     }
 
     r = db_env_create(&env, 0);                                                                           CKERR(r);
@@ -617,7 +588,6 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "Usage: -h -c -d <num_dbs> -r <num_rows> [ -b <num_calls> ] [-m <megabytes>] [-M]\n%s\n", cmd);
 	    fprintf(stderr, "  where -d <num_dbs>     is the number of dictionaries to build (primary & secondary).  (Default=%d)\n", NUM_DBS);
 	    fprintf(stderr, "        -b <num_calls>   causes the poll function to return nonzero after <num_calls>\n");
-	    fprintf(stderr, "        -e <env>         uses <env> to construct the directory (so that different tests can run concurrently)\n");
 	    fprintf(stderr, "        -m <m>           use m MB of memory for the cachetable (default is %d MB)\n", CACHESIZE);
             fprintf(stderr, "        -M               use %d MB of memory for the cachetable\n", old_default_cachesize);
 	    fprintf(stderr, "        -s               use size factor of 1 and count temporary files\n");
@@ -631,9 +601,6 @@ static void do_args(int argc, char * const argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
-	} else if (strcmp(argv[0], "-e")==0) {
-            argc--; argv++;
-            envdir = argv[0];
         } else if (strcmp(argv[0], "-v")==0) {
 	    verbose++;
 	} else if (strcmp(argv[0],"-q")==0) {

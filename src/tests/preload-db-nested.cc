@@ -189,7 +189,7 @@ nested_insert(DB ** dbs, uint depth,  DB_TXN *parent_txn, uint k, uint generated
 
 
 char *free_me = NULL;
-const char *env_dir = ENVDIR; // the default env_dir.
+const char *env_dir = TOKU_TEST_FILENAME; // the default env_dir.
 
 static void run_test(void) 
 {

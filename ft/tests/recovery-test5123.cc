@@ -9,15 +9,12 @@
 #include "toku_os.h"
 #include "checkpoint.h"
 
-#define TESTDIR __SRCFILE__ ".dir"
-#define FILENAME "test0.ft"
-
 #include "test-ft-txns.h"
 
 static void test_5123(void) {
     TOKULOGGER logger;
     CACHETABLE ct;
-    test_setup(&logger, &ct);
+    test_setup(TOKU_TEST_FILENAME, &logger, &ct);
 
     int r;
     TXNID_PAIR one = {.parent_id64 = (TXNID)1, TXNID_NONE};
@@ -40,7 +37,7 @@ static void test_5123(void) {
     logger = NULL;
 
     // "Recover"
-    test_setup_and_recover(&logger, &ct);
+    test_setup_and_recover(TOKU_TEST_FILENAME, &logger, &ct);
 
     shutdown_after_recovery(&logger, &ct);
 }
