@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4257,7 +4257,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       const_item_cache= FALSE;
     }  
     with_sum_func=	    with_sum_func || item->with_sum_func;
-    with_subselect|=        item->with_subselect;
+    with_subselect|=        item->has_subquery();
     if (item->maybe_null)
       maybe_null=1;
   }
@@ -4582,7 +4582,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache && !with_subselect)
+  if (const_item_cache)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -4591,7 +4591,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
+  if (const_item_cache)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
@@ -4612,10 +4612,12 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
+  const_item_cache= false;
   if (!args[0]->maybe_null)
   {
     used_tables_cache= 0;			/* is always true */
     cached_value= (longlong) 1;
+    const_item_cache= true;
   }
   else
   {
@@ -4624,6 +4626,7 @@ void Item_is_not_null_test::update_used_tables()
     {
       /* Remember if the value is always NULL or never NULL */
       cached_value= (longlong) !args[0]->is_null();
+      const_item_cache= true;
     }
   }
 }
@@ -4879,6 +4882,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
        args[1]->fix_fields(thd, args + 1)) || args[1]->check_cols(1))
     return TRUE;				/* purecov: inspected */
   with_sum_func=args[0]->with_sum_func || args[1]->with_sum_func;
+  with_subselect= args[0]->has_subquery() || args[1]->has_subquery();
   max_length= 1;
   decimals= 0;
 
