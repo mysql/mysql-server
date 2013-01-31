@@ -360,7 +360,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
       elsewhere, and then assign a table map id inside open_table()
       under the protection of the LOCK_open mutex.
     */
-    share->table_map_id= ~0UL;
+    share->table_map_id= ~0ULL;
     share->cached_row_logging_check= -1;
 
     share->m_flush_tickets.empty();
@@ -428,7 +428,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     table_map_id is also used for MERGE tables to suppress repeated
     compatibility checks.
   */
-  share->table_map_id= (ulong) thd->query_id;
+  share->table_map_id= (ulonglong) thd->query_id;
 
   share->m_flush_tickets.empty();
 
