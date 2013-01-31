@@ -23,7 +23,8 @@
 
 namespace innodb_ut0crc32_unittest {
 
-TEST(ut0mem, ut_str_sql_format)
+/* test ut_str_sql_format() */
+TEST(ut0mem, utstrsqlformat)
 {
 	const char*	buf_initial = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 	ulint		buf_initial_sz = strlen(buf_initial) + 1;
