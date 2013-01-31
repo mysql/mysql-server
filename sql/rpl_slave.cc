@@ -6760,8 +6760,8 @@ replication resumed in log '%s' at position %s", mi->get_user(),
     }
     else
     {
-      general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
-                        mi->get_user(), mi->host, mi->port);
+      query_logger.general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
+                                     mi->get_user(), mi->host, mi->port);
     }
 
     thd->set_active_vio(mysql->net.vio);
