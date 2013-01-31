@@ -531,7 +531,7 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Test of CREATE TABLE SELECT.
 --echo #
---echo # We test that the columns of the source table are not used to determine
+--echo # We test that the columns of the source table are used to determine
 --echo # function defaults for the receiving table.
 --echo #
 
@@ -583,7 +583,10 @@ SELECT * FROM t1;
 
 SHOW CREATE TABLE t12;
 
-DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12;
+--echo # No function default for non-column expressions:
+eval CREATE TABLE t13  SELECT COALESCE(a,a) FROM t1; SHOW CREATE TABLE t13;  SELECT * FROM t13;
+
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13;
 
 --echo # 1970-04-11 20:13:57 UTC
 SET TIMESTAMP = 8712837.164953;
@@ -620,11 +623,15 @@ eval CREATE TABLE t6 SELECT e FROM t1;
 SHOW CREATE TABLE t6;
 SELECT * FROM t6;
 
-DROP TABLE t1, t2, t3, t4, t5, t6;
+--echo # Test CREATE TABLE LIKE
+CREATE TABLE t7 LIKE t1;
+SHOW CREATE TABLE t7;
+
+DROP TABLE t1, t2, t3, t4, t5, t6, t7;
 
 --echo #
 --echo # Test of a CREATE TABLE SELECT that also declared columns. In this case
---echo # the function default should be de-activated during the execution of the
+--echo # the function default for them should be activated during the execution of the
 --echo # CREATE TABLE statement.
 --echo #
 --echo # 1970-01-01 03:16:40
