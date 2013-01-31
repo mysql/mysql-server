@@ -23,7 +23,8 @@
 
 namespace innodb_ha_innodb_unittest {
 
-TEST(ha_innodb, innobase_convert_name)
+/* test innobase_convert_name() */
+TEST(hainnodb, innobaseconvertname)
 {
 	char	buf[64];
 	struct {

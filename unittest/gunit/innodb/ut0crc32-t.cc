@@ -23,7 +23,8 @@
 
 namespace innodb_ut0crc32_unittest {
 
-TEST(ut0crc32, ut_crc32)
+/* test ut_crc32() */
+TEST(ut0crc32, utcrc32)
 {
 	ut_crc32_init();
 
