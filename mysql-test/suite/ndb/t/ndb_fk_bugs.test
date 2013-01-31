@@ -362,3 +362,26 @@ alter online table t2
 show warnings;
 
 drop table t2, t1;
+
+# Bug 16246874 - MYSQLD CRASH WHEN QUERYING KEY_COLUMN_USAGE IF NDB FOREIGN KEYS DEFINED
+--echo # bug#16246874
+create table t1 (
+  id int primary key
+) engine=ndb;
+
+create table t2 (
+  id int,
+  foreign key(id) references t1(id)
+) engine=ndb;
+
+# Run failing query, discard result since it will vary
+--disable_result_log
+select * from information_schema.key_column_usage;
+--enable_result_log
+
+# Show that t2 references test.t1.id
+select REFERENCED_TABLE_SCHEMA, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+  from information_schema.key_column_usage
+    where TABLE_SCHEMA = 'test' and TABLE_NAME = 't2';
+
+drop table t2, t1;
