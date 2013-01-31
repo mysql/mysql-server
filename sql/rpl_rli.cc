@@ -63,7 +63,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_stop_cond,
                                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                               , uint param_id
+                               , uint param_id, bool is_rli_fake
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
@@ -81,6 +81,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   rli_fake(is_rli_fake),
    is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
@@ -128,13 +129,18 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   memset(&cache_buf, 0, sizeof(cache_buf));
   cached_charset_invalidate();
 
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+  }
+
+
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
-  my_atomic_rwlock_init(&slave_open_temp_tables_lock);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
@@ -175,7 +181,12 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
-  my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+  }
+
   relay_log.cleanup();
   set_rli_description_event(NULL);
 
@@ -864,10 +875,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
-!is_intersection: %d",
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
+                        "!is_intersection_nonempty: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
-      !owned_gtids->is_intersection(&wait_gtid_set)));
+      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
     logged_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -876,7 +887,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       check if any GTID of wait_gtid_set is not yet committed.
     */
     if (wait_gtid_set.is_subset(logged_gtids) &&
-        !owned_gtids->is_intersection(&wait_gtid_set))
+        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -1285,7 +1296,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         global_sid_lock->wrlock();
         /* Check if until GTIDs were already applied. */
         const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        if (until_sql_gtids.is_intersection(logged_gtids))
+        if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
         {
           char *buffer= until_sql_gtids.to_string();
           global_sid_lock->unlock();
@@ -1606,7 +1617,7 @@ bool mysql_show_relaylog_events(THD* thd)
 
   if (active_mi == NULL)
   {
-    my_eof(thd);
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     DBUG_RETURN(true);
   }
   

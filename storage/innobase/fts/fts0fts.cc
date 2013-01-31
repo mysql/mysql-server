@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,6 +47,13 @@ Full Text Search interface
 /** This is maximum FTS cache for each table and would be
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
+
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+UNIV_INTERN bool	fts_need_sync = false;
+
+/** Variable specifying the total memory allocated for FTS cache */
+UNIV_INTERN ulong	fts_max_total_cache_size;
 
 /** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
@@ -922,6 +929,8 @@ fts_que_graph_free_check_lock(
 		mutex_enter(&dict_sys->mutex);
 	}
 
+	ut_ad(mutex_own(&dict_sys->mutex));
+
 	que_graph_free(graph);
 
 	if (!has_dict) {
@@ -1116,6 +1125,8 @@ fts_cache_clear(
 
 	mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
 	cache->sync_heap->arg = NULL;
+
+	fts_need_sync = false;
 
 	cache->total_size = 0;
 	cache->deleted_doc_ids = NULL;
@@ -3416,7 +3427,13 @@ fts_add_doc_by_id(
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
-				if (cache->total_size > fts_max_cache_size) {
+				DBUG_EXECUTE_IF(
+					"fts_instrument_sync",
+					fts_sync(cache->sync);
+				);
+
+				if (cache->total_size > fts_max_cache_size
+				    || fts_need_sync) {
 					fts_sync(cache->sync);
 				}
 
@@ -3585,6 +3602,7 @@ fts_doc_fetch_by_doc_id(
 	pars_info_bind_function(info, "my_func", callback, arg);
 
 	select_str = fts_get_select_columns_str(index, info, info->heap);
+	pars_info_bind_id(info, TRUE, "table_name", index->table_name);
 
 	if (!get_doc || !get_doc->get_document_graph) {
 		if (option == FTS_FETCH_DOC_BY_ID_EQUAL) {
@@ -3594,7 +3612,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s FROM %s"
+					" SELECT %s FROM $table_name"
 					" WHERE %s = :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3606,8 +3624,7 @@ fts_doc_fetch_by_doc_id(
 					"  END IF;\n"
 					"END LOOP;\n"
 					"CLOSE c;",
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
@@ -3631,7 +3648,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s, %s FROM %s"
+					" SELECT %s, %s FROM $table_name"
 					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3644,8 +3661,7 @@ fts_doc_fetch_by_doc_id(
 					"END LOOP;\n"
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
 			get_doc->get_document_graph = graph;
@@ -4315,6 +4331,10 @@ fts_sync(
 			break;
 		}
 	}
+
+	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
+			 sync->interrupted = true;
+	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
@@ -5856,7 +5876,8 @@ fts_check_and_drop_orphaned_tables(
 				path = fil_make_ibd_name(
 					aux_table->name, false);
 
-				os_file_delete_if_exists(path);
+				os_file_delete_if_exists(innodb_file_data_key,
+							 path);
 
 				mem_free(path);
 			}

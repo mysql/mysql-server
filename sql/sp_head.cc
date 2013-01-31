@@ -1884,7 +1884,6 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
                                             TABLE_LIST ***query_tables_last_ptr,
                                             TABLE_LIST *belong_to_view)
 {
-  Query_arena *arena, backup;
   bool result= false;
 
   /*
@@ -1895,7 +1894,7 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
     This will be fixed by introducing of proper invalidation mechanism
     once new TDC is ready.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   for (uint i= 0; i < m_sptabs.records; i++)
   {
@@ -1944,9 +1943,6 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
       result= true;
     }
   }
-
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
 
   return result;
 }

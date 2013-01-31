@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -212,8 +212,8 @@ extern uchar * my_large_malloc(size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
 #else
 #define my_get_large_page_size() (0)
-#define my_large_malloc(A,B) my_malloc_lock((A),(B))
-#define my_large_free(A) my_free_lock((A))
+#define my_large_malloc(A,B) my_malloc((A),(B))
+#define my_large_free(A) my_free((A))
 #endif /* HAVE_LARGE_PAGES */
 
 #ifdef HAVE_ALLOCA
@@ -247,6 +247,7 @@ extern char curr_dir[];		/* Current directory for user */
 extern void (*error_handler_hook)(uint my_err, const char *str,myf MyFlags);
 extern void (*fatal_error_handler_hook)(uint my_err, const char *str,
 				       myf MyFlags);
+extern void(*sql_print_warning_hook)(const char *format,...);
 extern uint my_file_limit;
 extern ulong my_thread_stack_size;
 
@@ -627,6 +628,13 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
+#ifdef __WIN__
+extern my_bool is_filename_allowed(const char *name, size_t length,
+                   my_bool allow_current_dir);
+#else /* __WIN__ */
+# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+#endif /* __WIN__ */ 
+
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
 #define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
@@ -664,6 +672,7 @@ extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
                              int first, int last);
+extern void my_printf_warning (const char * format, ...);
 extern const char **my_error_unregister(int first, int last);
 extern void my_message(uint my_err, const char *str,myf MyFlags);
 extern void my_message_stderr(uint my_err, const char *str, myf MyFlags);
@@ -817,13 +826,6 @@ extern my_bool dynstr_set(DYNAMIC_STRING *str, const char *init_str);
 extern my_bool dynstr_realloc(DYNAMIC_STRING *str, size_t additional_size);
 extern my_bool dynstr_trunc(DYNAMIC_STRING *str, size_t n);
 extern void dynstr_free(DYNAMIC_STRING *str);
-#ifdef HAVE_MLOCK
-extern void *my_malloc_lock(size_t length,myf flags);
-extern void my_free_lock(void *ptr);
-#else
-#define my_malloc_lock(A,B) my_malloc((A),(B))
-#define my_free_lock(A) my_free((A))
-#endif
 #define alloc_root_inited(A) ((A)->min_malloc != 0)
 #define ALLOC_ROOT_MIN_BLOCK_SIZE (MALLOC_OVERHEAD + sizeof(USED_MEM) + 8)
 #define clear_alloc_root(A) do { (A)->free= (A)->used= (A)->pre_alloc= 0; (A)->min_malloc=0;} while(0)

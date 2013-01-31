@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1685,7 +1685,7 @@ delete_insert:
 		| BTR_KEEP_POS_FLAG,
 		btr_pcur_get_btr_cur(&pcur),
 		&cur_offsets, &offsets_heap, heap, &big_rec,
-		update, 0, NULL, 0, &mtr);
+		update, 0, thr, 0, &mtr);
 
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
@@ -2465,6 +2465,10 @@ row_log_allocate(
 	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
 	log->size = size;
 	log->fd = row_merge_file_create_low();
+	if (log->fd < 0) {
+		os_mem_free_large(buf, size);
+		return(false);
+	}
 	mutex_create(index_online_log_key, &log->mutex,
 		     SYNC_INDEX_ONLINE_LOG);
 	log->trx_rb = NULL;

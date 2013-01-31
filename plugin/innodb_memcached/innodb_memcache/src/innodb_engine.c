@@ -376,6 +376,12 @@ innodb_initialize(
 
 	my_eng_config = (eng_config_info_t*) config_str;
 
+	/* If no call back function registered (InnoDB engine failed to load),
+	load InnoDB Memcached engine should fail too */
+	if (!my_eng_config->cb_ptr) {
+		return(ENGINE_TMPFAIL);
+	}
+
 	/* Register the call back function */
 	register_innodb_cb((void*) my_eng_config->cb_ptr);
 
@@ -471,6 +477,7 @@ innodb_conn_clean_data(
 
 	if (conn_data->crsr_trx) {
 		innodb_cb_trx_commit(conn_data->crsr_trx);
+		conn_data->crsr_trx = NULL;
 	}
 
 	if (conn_data->mysql_tbl) {

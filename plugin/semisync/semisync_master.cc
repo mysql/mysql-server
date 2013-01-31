@@ -505,8 +505,9 @@ bool ReplSemiSyncMaster::is_semi_sync_slave()
 }
 
 int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
-					  const char *log_file_name,
-					  my_off_t log_file_pos)
+                                          const char *log_file_name,
+                                          my_off_t log_file_pos,
+                                          bool skipped_event)
 {
   const char *kWho = "ReplSemiSyncMaster::reportReplyBinlog";
   int   cmp;
@@ -565,8 +566,14 @@ int ReplSemiSyncMaster::reportReplyBinlog(uint32 server_id,
     active_tranxs_->clear_active_tranx_nodes(log_file_name, log_file_pos);
 
     if (trace_level_ & kTraceDetail)
-      sql_print_information("%s: Got reply at (%s, %lu)", kWho,
+    {
+      if(!skipped_event)
+        sql_print_information("%s: Got reply at (%s, %lu)", kWho,
                             log_file_name, (unsigned long)log_file_pos);
+      else
+        sql_print_information("%s: Transaction skipped at (%s, %lu)", kWho,
+                            log_file_name, (unsigned long)log_file_pos);
+    }
   }
 
   if (rpl_semi_sync_master_wait_sessions > 0)
@@ -1051,6 +1058,29 @@ int ReplSemiSyncMaster::writeTranxInBinlog(const char* log_file_name,
   unlock();
 
   return function_exit(kWho, result);
+}
+
+int ReplSemiSyncMaster::skipSlaveReply(const char *event_buf,
+                                       uint32 server_id,
+                                       const char* skipped_log_file,
+                                       my_off_t skipped_log_pos)
+{
+  const char *kWho = "ReplSemiSyncMaster::skipSlaveReply";
+
+  function_enter(kWho);
+
+  assert((unsigned char)event_buf[1] == kPacketMagicNum);
+  if ((unsigned char)event_buf[2] != kPacketFlagSync)
+  {
+    /* current event would not require a reply anyway */
+    goto l_end;
+  }
+
+  reportReplyBinlog(server_id, skipped_log_file,
+                    skipped_log_pos, true);
+
+ l_end:
+  return function_exit(kWho, 0);
 }
 
 int ReplSemiSyncMaster::readSlaveReply(NET *net, uint32 server_id,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1561,10 +1561,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         and flushes tables.
       */
       bool res;
-      my_pthread_setspecific_ptr(THR_THD, NULL);
+      my_pthread_set_THR_THD(NULL);
       res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
                                 NULL, &not_used);
-      my_pthread_setspecific_ptr(THR_THD, thd);
+      my_pthread_set_THR_THD(thd);
       if (res)
         break;
     }
@@ -2116,13 +2116,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)

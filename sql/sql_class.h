@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,9 +37,15 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 
+#include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+
+#include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
+
+#include <pfs_idle_provider.h>
 #include <mysql/psi/mysql_idle.h>
+
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
 
@@ -2389,9 +2395,9 @@ public:
 #ifndef __WIN__
   sigset_t signals;
 #endif
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   Vio* active_vio;
-#endif
+
   /*
     This is to track items changed during execution of a prepared
     statement/stored procedure. It's created by
@@ -3009,21 +3015,22 @@ public:
   void cleanup_after_query();
   bool store_globals();
   bool restore_globals();
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   inline void set_active_vio(Vio* vio)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = vio;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
+
   inline void clear_active_vio()
   {
     mysql_mutex_lock(&LOCK_thd_data);
     active_vio = 0;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void close_active_vio();
-#endif
+
+  void shutdown_active_vio();
   void awake(THD::killed_state state_to_set);
 
   /** Disconnect the associated communication endpoint. */
@@ -3394,20 +3401,6 @@ public:
   inline const CHARSET_INFO *charset()
   { return variables.character_set_client; }
   void update_charset();
-
-  inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
-  {
-    /*
-      Use the persistent arena if we are in a prepared statement or a stored
-      procedure statement and we have not already changed to use this arena.
-    */
-    if (!stmt_arena->is_conventional() && mem_root != stmt_arena->mem_root)
-    {
-      set_n_backup_active_arena(stmt_arena, backup);
-      return stmt_arena;
-    }
-    return 0;
-  }
 
   void change_item_tree(Item **place, Item *new_value)
   {
@@ -3946,6 +3939,59 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+};
+
+
+/**
+  A simple holder for the Prepared Statement Query_arena instance in THD.
+  The class utilizes RAII technique to not forget to restore the THD arena.
+*/
+class Prepared_stmt_arena_holder
+{
+public:
+  /**
+    Constructs a new object, activates the persistent arena if requested and if
+    a prepared statement or a stored procedure statement is being executed.
+
+    @param thd                    Thread context.
+    @param activate_now_if_needed Attempt to activate the persistent arena in
+                                  the constructor or not.
+  */
+  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed= true)
+   :m_thd(thd),
+    m_arena(NULL)
+  {
+    if (activate_now_if_needed &&
+        !m_thd->stmt_arena->is_conventional() &&
+        m_thd->mem_root != m_thd->stmt_arena->mem_root)
+    {
+      m_thd->set_n_backup_active_arena(m_thd->stmt_arena, &m_backup);
+      m_arena= m_thd->stmt_arena;
+    }
+  }
+
+  /**
+    Deactivate the persistent arena (restore the previous arena) if it has
+    been activated.
+  */
+  ~Prepared_stmt_arena_holder()
+  {
+    if (is_activated())
+      m_thd->restore_active_arena(m_arena, &m_backup);
+  }
+
+  bool is_activated() const
+  { return m_arena != NULL; }
+
+private:
+  /// The thread context to work with.
+  THD *const m_thd;
+
+  /// The arena set by this holder (by activate()).
+  Query_arena *m_arena;
+
+  /// The arena state to be restored.
+  Query_arena m_backup;
 };
 
 

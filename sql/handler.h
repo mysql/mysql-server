@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1939,6 +1939,8 @@ public:
   int ha_index_read_map(uchar *buf, const uchar *key,
                         key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
+  int ha_index_read_last_map(uchar * buf, const uchar * key,
+                             key_part_map keypart_map);
   int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                            key_part_map keypart_map,
                            enum ha_rkey_function find_flag);
@@ -2183,6 +2185,7 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle
@@ -2199,7 +2202,6 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
-protected:
   /**
      @brief
      Positions an index cursor to the index specified in argument. Fetches
@@ -2222,7 +2224,6 @@ protected:
   /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-public:
   /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
@@ -2237,6 +2238,7 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);

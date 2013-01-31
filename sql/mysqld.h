@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,6 +21,7 @@
 #include "my_decimal.h"                         /* my_decimal */
 #include "mysql_com.h"                     /* SERVER_VERSION_LENGTH */
 #include "my_atomic.h"                     /* my_atomic_rwlock_t */
+#include "pfs_file_provider.h"
 #include "mysql/psi/mysql_file.h"          /* MYSQL_FILE */
 #include "sql_list.h"                      /* I_List */
 #include "sql_cmd.h"                       /* SQLCOM_END */
@@ -292,6 +293,21 @@ extern ulong log_warnings;
   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
 */
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
+extern bool THR_MALLOC_initialized;
+
+static inline MEM_ROOT **
+my_pthread_get_THR_MALLOC()
+{
+  DBUG_ASSERT(THR_MALLOC_initialized);
+  return my_pthread_getspecific(MEM_ROOT **, THR_MALLOC);
+}
+
+static inline int
+my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
+{
+  DBUG_ASSERT(THR_MALLOC_initialized);
+  return my_pthread_setspecific_ptr(THR_MALLOC, hdl);
+}
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
@@ -580,6 +596,21 @@ extern char *opt_ssl_ca, *opt_ssl_capath, *opt_ssl_cert, *opt_ssl_cipher,
             *opt_ssl_key, *opt_ssl_crl, *opt_ssl_crlpath;
 
 extern MYSQL_PLUGIN_IMPORT pthread_key(THD*, THR_THD);
+extern bool THR_THD_initialized;
+
+static inline THD *
+my_pthread_get_THR_THD()
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return my_pthread_getspecific(THD *, THR_THD);
+}
+
+static inline int
+my_pthread_set_THR_THD(THD *thd)
+{
+  DBUG_ASSERT(THR_THD_initialized);
+  return my_pthread_setspecific_ptr(THR_THD, thd);
+}
 
 /**
   only options that need special treatment in get_one_option() deserve
@@ -735,9 +766,10 @@ extern "C" THD *_current_thd_noinline();
   using my_pthread_setspecific_ptr()/my_thread_getspecific_ptr().
 */
 extern pthread_key(THD*, THR_THD);
+extern bool THR_THD_initialized;
 inline THD *_current_thd(void)
 {
-  return my_pthread_getspecific_ptr(THD*,THR_THD);
+  return my_pthread_get_THR_THD();
 }
 #endif
 #define current_thd _current_thd()

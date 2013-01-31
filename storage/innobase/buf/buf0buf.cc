@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1964,7 +1964,7 @@ buf_block_try_discard_uncompressed(
 	bpage = buf_page_hash_get(buf_pool, space, offset);
 
 	if (bpage) {
-		buf_LRU_free_block(bpage, FALSE);
+		buf_LRU_free_page(bpage, false);
 	}
 
 	buf_pool_mutex_exit(buf_pool);
@@ -2590,6 +2590,7 @@ got_block:
 		/* The page is being read to buffer pool,
 		but we cannot wait around for the read to
 		complete. */
+null_exit:
 		mutex_exit(block_mutex);
 
 		return(NULL);
@@ -2603,6 +2604,14 @@ got_block:
 
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
+		if (mode == BUF_PEEK_IF_IN_POOL) {
+			/* This mode is only used for dropping an
+			adaptive hash index.  There cannot be an
+			adaptive hash index for a compressed-only
+			page, so do not bother decompressing the page. */
+			goto null_exit;
+		}
+
 		bpage = &block->page;
 
 		if (bpage->buf_fix_count
@@ -2708,25 +2717,33 @@ wait_until_unfixed:
 		UNIV_MEM_INVALID(bpage, sizeof *bpage);
 
 		rw_lock_x_unlock(hash_lock);
+
+		buf_pool->n_pend_unzip++;
+		buf_pool_mutex_exit(buf_pool);
+
+		access_time = buf_page_is_accessed(&block->page);
 		mutex_exit(&block->mutex);
 		mutex_exit(&buf_pool->zip_mutex);
-		buf_pool->n_pend_unzip++;
-
-		buf_pool_mutex_exit(buf_pool);
 
 		buf_page_free_descriptor(bpage);
 
-		/* Decompress the page and apply buffered operations
-		while not holding buf_pool->mutex or block->mutex. */
+		/* Decompress the page while not holding
+		buf_pool->mutex or block->mutex. */
 
 		/* Page checksum verification is already done when
 		the page is read from disk. Hence page checksum
-		verification is not necesary when decompressing the page. */
+		verification is not necessary when decompressing the page. */
 		ut_a(buf_zip_decompress(block, FALSE));
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
-			ibuf_merge_or_delete_for_page(block, space, offset,
-						      zip_size, TRUE);
+			if (access_time) {
+#ifdef UNIV_IBUF_COUNT_DEBUG
+				ut_a(ibuf_count_get(space, offset) == 0);
+#endif /* UNIV_IBUF_COUNT_DEBUG */
+			} else {
+				ibuf_merge_or_delete_for_page(
+					block, space, offset, zip_size, TRUE);
+			}
 		}
 
 		/* Unfix and unlatch the block. */
@@ -2785,7 +2802,7 @@ wait_until_unfixed:
 		relocated or enter or exit the buf_pool while we
 		are holding the buf_pool->mutex. */
 
-		if (buf_LRU_free_block(&block->page, TRUE)) {
+		if (buf_LRU_free_page(&block->page, true)) {
 			buf_pool_mutex_exit(buf_pool);
 			rw_lock_x_lock(hash_lock);
 
@@ -4383,7 +4400,7 @@ assert_s_latched:
 			/* All clean blocks should be I/O-unfixed. */
 			break;
 		case BUF_IO_READ:
-			/* In buf_LRU_free_block(), we temporarily set
+			/* In buf_LRU_free_page(), we temporarily set
 			b->io_fix = BUF_IO_READ for a newly allocated
 			control block in order to prevent
 			buf_page_get_gen() from decompressing the block. */

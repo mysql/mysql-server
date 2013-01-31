@@ -2278,7 +2278,7 @@ drop table if exists t1;
 create table t1 (i int, j int);
 
 create trigger t1_bi before insert on t1 for each row begin end;
---error ER_NOT_SUPPORTED_YET
+--error ER_TRG_ALREADY_EXISTS
 create trigger t1_bi before insert on t1 for each row begin end;
 drop trigger t1_bi;
 --error ER_TRG_DOES_NOT_EXIST
@@ -2664,4 +2664,53 @@ SELECT * FROM t2;
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
 
---echo End of 6.0 tests.
+--echo #
+--echo # Bug#15985318 - ASSERTION FAILED: ! thd->in_sub_stmt with certain
+--echo #                                    commands in triggers
+--echo #
+
+CREATE TABLE t1(a INT);
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW START SLAVE;
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW STOP SLAVE;
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (USER 'Remote',
+                                                    HOST '192.168.1.106',
+                                                    DATABASE 'test');
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+ALTER SERVER s OPTIONS (password '1');
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+DROP SERVER IF EXISTS s;
+
+CREATE DATABASE db1;
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+ALTER DATABASE db1 CHARACTER SET latin1;
+
+DROP DATABASE db1;
+
+CREATE USER 'u1'@'localhost' IDENTIFIED BY 'pass';
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
+
+DROP USER 'u1'@'localhost';
+
+--error ER_COMMIT_NOT_ALLOWED_IN_SF_OR_TRG
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+CHANGE MASTER TO MASTER_SSL = 0;
+
+DROP TABLE t1;
+
+--echo End of 5.7 tests.
