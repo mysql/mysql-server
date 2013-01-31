@@ -21,6 +21,8 @@
 
 #include "ha_prototypes.h"
 
+namespace innodb_ha_innodb_unittest {
+
 TEST(ha_innodb, innobase_convert_name)
 {
 	char	buf[64];
@@ -91,4 +93,6 @@ TEST(ha_innodb, innobase_convert_name)
 		EXPECT_EQ(strlen(test_data[i].buf_expected), res_len);
 		EXPECT_STREQ(test_data[i].buf_expected, buf);
 	}
+}
+
 }

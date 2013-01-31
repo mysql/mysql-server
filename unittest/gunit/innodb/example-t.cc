@@ -17,6 +17,8 @@
 
 #include <gtest/gtest.h>
 
+namespace innodb_example_unittest {
+
 TEST(foo, willsucceed)
 {
 	EXPECT_EQ(5, 5);
@@ -27,4 +29,6 @@ TEST(foo, willfail)
 {
 	EXPECT_EQ(5, 6);
 	EXPECT_TRUE(123 == 456);
+}
+
 }

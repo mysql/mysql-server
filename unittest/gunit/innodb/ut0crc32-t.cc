@@ -21,6 +21,8 @@
 
 #include "ut0crc32.h"
 
+namespace innodb_ut0crc32_unittest {
+
 TEST(ut0crc32, ut_crc32)
 {
 	ut_crc32_init();
@@ -30,4 +32,6 @@ TEST(ut0crc32, ut_crc32)
 	result = ut_crc32((const byte*) "innodb", 6);
 
 	EXPECT_EQ(result, 1090276284U);
+}
+
 }
