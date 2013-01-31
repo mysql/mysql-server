@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -928,6 +928,8 @@ fts_que_graph_free_check_lock(
 	if (!has_dict) {
 		mutex_enter(&dict_sys->mutex);
 	}
+
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	que_graph_free(graph);
 
@@ -3425,6 +3427,11 @@ fts_add_doc_by_id(
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
+				DBUG_EXECUTE_IF(
+					"fts_instrument_sync",
+					fts_sync(cache->sync);
+				);
+
 				if (cache->total_size > fts_max_cache_size
 				    || fts_need_sync) {
 					fts_sync(cache->sync);
@@ -4324,6 +4331,10 @@ fts_sync(
 			break;
 		}
 	}
+
+	DBUG_EXECUTE_IF("fts_instrument_sync_interrupted",
+			 sync->interrupted = true;
+	);
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
