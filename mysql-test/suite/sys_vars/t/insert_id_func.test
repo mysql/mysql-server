@@ -50,7 +50,7 @@ INSERT into t1(name) values('Record_1');
 INSERT into t1(name) values('Record_2');	
 
 --echo ## Verifying rows in table ##
-SELECT * from t1;
+SELECT * from t1 order by name;
 SELECT @@session.insert_id;
 
 INSERT into t1(name) values('Record_3');
@@ -75,7 +75,7 @@ INSERT into t1(name) values('Record_4');
 INSERT into t1(name) values('Record_5');	
 INSERT into t1(name) values('Record_6');
 
-SELECT * from t1;
+SELECT * from t1 order by name;
 
 --echo 'Bug#35376	Value of insert_id automatically resets to 0 after inserting
 --echo ' 1st row'
@@ -97,7 +97,7 @@ INSERT into t1(name) values('Record_7');
 INSERT into t1(name) values('Record_8');
 
 --echo ## Verifying data in table t1 ##
-SELECT * from t1;
+SELECT * from t1 order by name;
 
 
 --echo ## Dropping table t1 ##
