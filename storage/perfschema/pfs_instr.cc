@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,47 +37,47 @@
 */
 
 /** Size of the mutex instances array. @sa mutex_array */
-ulong mutex_max;
+ulong mutex_max= 0;
 /** Number of mutexes instance lost. @sa mutex_array */
-ulong mutex_lost;
+ulong mutex_lost= 0;
 /** Size of the rwlock instances array. @sa rwlock_array */
-ulong rwlock_max;
+ulong rwlock_max= 0;
 /** Number or rwlock instances lost. @sa rwlock_array */
-ulong rwlock_lost;
+ulong rwlock_lost= 0;
 /** Size of the conditions instances array. @sa cond_array */
-ulong cond_max;
+ulong cond_max= 0;
 /** Number of conditions instances lost. @sa cond_array */
-ulong cond_lost;
+ulong cond_lost= 0;
 /** Size of the thread instances array. @sa thread_array */
-ulong thread_max;
+ulong thread_max= 0;
 /** Number or thread instances lost. @sa thread_array */
-ulong thread_lost;
+ulong thread_lost= 0;
 /** Size of the file instances array. @sa file_array */
-ulong file_max;
+ulong file_max= 0;
 /** Number of file instances lost. @sa file_array */
-ulong file_lost;
+ulong file_lost= 0;
 /**
   Size of the file handle array. @sa file_handle_array.
   Signed value, for easier comparisons with a file descriptor number.
 */
-long file_handle_max;
+long file_handle_max= 0;
 /** Number of file handle lost. @sa file_handle_array */
-ulong file_handle_lost;
+ulong file_handle_lost= 0;
 /** Size of the table instances array. @sa table_array */
-ulong table_max;
+ulong table_max= 0;
 /** Number of table instances lost. @sa table_array */
-ulong table_lost;
+ulong table_lost= 0;
 /** Size of the socket instances array. @sa socket_array */
-ulong socket_max;
+ulong socket_max= 0;
 /** Number of socket instances lost. @sa socket_array */
-ulong socket_lost;
+ulong socket_lost= 0;
 /** Number of EVENTS_WAITS_HISTORY records per thread. */
-ulong events_waits_history_per_thread;
+ulong events_waits_history_per_thread= 0;
 /** Number of EVENTS_STAGES_HISTORY records per thread. */
-ulong events_stages_history_per_thread;
+ulong events_stages_history_per_thread= 0;
 /** Number of EVENTS_STATEMENTS_HISTORY records per thread. */
-ulong events_statements_history_per_thread;
-uint statement_stack_max;
+ulong events_statements_history_per_thread= 0;
+uint statement_stack_max= 0;
 /** Number of locker lost. @sa LOCKER_STACK_SIZE. */
 ulong locker_lost= 0;
 /** Number of statement lost. @sa STATEMENT_STACK_SIZE. */
@@ -149,9 +149,9 @@ PFS_statement_stat *global_instr_class_statements_array= NULL;
 
 static volatile uint64 thread_internal_id_counter= 0;
 
-static uint thread_instr_class_waits_sizing;
-static uint thread_instr_class_stages_sizing;
-static uint thread_instr_class_statements_sizing;
+static uint thread_instr_class_waits_sizing= 0;
+static uint thread_instr_class_stages_sizing= 0;
+static uint thread_instr_class_statements_sizing= 0;
 static PFS_single_stat *thread_instr_class_waits_array= NULL;
 static PFS_stage_stat *thread_instr_class_stages_array= NULL;
 static PFS_statement_stat *thread_instr_class_statements_array= NULL;
@@ -862,9 +862,10 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_start_time= 0;
         pfs->m_processlist_state_ptr= NULL;
         pfs->m_processlist_state_length= 0;
-        pfs->m_processlist_info_ptr= NULL;
+        pfs->m_processlist_info[0]= '\0';
         pfs->m_processlist_info_length= 0;
-        pfs->m_processlist_lock.set_allocated();
+        pfs->m_processlist_state_lock.set_allocated();
+        pfs->m_processlist_info_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;

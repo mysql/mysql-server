@@ -762,8 +762,14 @@ int DoProcessReply(SSL& ssl)
 
         while (buffer.get_current() < hdr.length_ + RECORD_HEADER + offset) {
             // each message in record, can be more than 1 if not encrypted
-            if (ssl.getSecurity().get_parms().pending_ == false) // cipher on
+            if (ssl.getSecurity().get_parms().pending_ == false) { // cipher on
+                // sanity check for malicious/corrupted/illegal input
+                if (buffer.get_remaining() < hdr.length_) {
+                    ssl.SetError(bad_input);
+                    return 0;
+                }
                 decrypt_message(ssl, buffer, hdr.length_);
+            }
                 
             mySTL::auto_ptr<Message> msg(mf.CreateObject(hdr.type_));
             if (!msg.get()) {

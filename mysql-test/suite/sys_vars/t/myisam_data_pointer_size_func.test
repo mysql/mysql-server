@@ -2,6 +2,7 @@
 --source include/have_myisam.inc
 
 #Want to skip this test from daily Valgrind execution
+--source include/have_myisam.inc
 --source include/no_valgrind_without_big.inc
 ############## mysql-test\t\myisam_data_pointer_size_func.test  ################
 #                                                                              #

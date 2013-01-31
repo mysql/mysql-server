@@ -109,7 +109,7 @@ insert into t1 (b) values ("hello"),("my"),("world");
 create table t2 (key (b)) select * from t1;
 explain select * from t2 where b="world";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	B	B	21	const	1	NULL
+1	SIMPLE	t2	ref	B	B	21	const	1	Using index condition
 select * from t2 where b="world";
 a	B
 3	world
@@ -2102,7 +2102,7 @@ CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN 
 UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
 END ;|
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR HY000: Trigger already exists
 DROP TABLE t1;
 DROP TABLE B;
 #

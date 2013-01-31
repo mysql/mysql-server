@@ -1468,7 +1468,8 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+             static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
@@ -1870,7 +1871,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
   stmt->thd->lex->current_select= &stmt->thd->lex->select_lex;
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 0);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     goto error;
   }
 
@@ -2644,7 +2645,7 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, uint packet_length)
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
 
   /* Close connection socket; for use with client testing (Bug#43560). */
-  DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_close(thd->net.vio););
+  DBUG_EXECUTE_IF("close_conn_after_stmt_execute", vio_shutdown(thd->net.vio););
 
   DBUG_VOID_RETURN;
 }
@@ -3830,7 +3831,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       alloc_query(thd, (char*) expanded_query->ptr(),
                   expanded_query->length()))
   {
-    my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     goto error;
   }
   /*

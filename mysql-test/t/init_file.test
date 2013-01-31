@@ -36,4 +36,7 @@ drop table t1, t2;
 # MTR will restart server anyway, but by forcing it we avoid being warned
 # about the apparent side effect
 
+# The below force start is giving warnings in the server logs hence disabling warnings specifically
+--disable_warnings
 --source include/force_restart.inc
+--enable_warnings
