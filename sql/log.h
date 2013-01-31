@@ -238,12 +238,18 @@ class File_query_log
 {
   static const uint MAX_TIME_SIZE= 32;
 
-  File_query_log(enum_log_table_type log_type, PSI_file_key log_file_key)
+  File_query_log(enum_log_table_type log_type)
   : m_log_type(log_type), name(NULL), write_error(false), log_open(false),
-    last_time(0), m_log_file_key(log_file_key)
+    last_time(0)
   {
     memset(&log_file, 0, sizeof(log_file));
     mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+#ifdef HAVE_PSI_INTERFACE
+    if (log_type == QUERY_LOG_GENERAL)
+      m_log_file_key= key_file_general_log;
+    else if (log_type == QUERY_LOG_SLOW)
+      m_log_file_key= key_file_slow_log;
+#endif
   }
 
   ~File_query_log()
@@ -350,8 +356,10 @@ private:
   /** Last timestamp printed. */
   time_t last_time;
 
+#ifdef HAVE_PSI_INTERFACE
   /** Instrumentation key to use for file io in @c log_file */
   PSI_file_key m_log_file_key;
+#endif
 
   friend class Log_to_file_event_handler;
   friend class Query_logger;
@@ -494,8 +502,8 @@ public:
 
 private:
   Log_to_file_event_handler()
-    : mysql_general_log(QUERY_LOG_GENERAL, key_file_general_log),
-    mysql_slow_log(QUERY_LOG_SLOW, key_file_slow_log)
+    : mysql_general_log(QUERY_LOG_GENERAL),
+    mysql_slow_log(QUERY_LOG_SLOW)
   { }
 
   /** Close slow and general log files. */
