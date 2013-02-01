@@ -46,8 +46,10 @@ public:
    *
    * The method may either execute the signal immediately (NDB API), or
    * queue it for later execution (kernel).
+   *
+   * @returns true if no more signals should be delivered
    */
-  virtual void deliver_signal(SignalHeader * const header,
+  virtual bool deliver_signal(SignalHeader * const header,
                               Uint8 prio,
                               Uint32 * const signalData,
                               LinearSectionPtr ptr[3]) = 0;

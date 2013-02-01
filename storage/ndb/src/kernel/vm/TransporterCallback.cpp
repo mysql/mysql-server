@@ -133,7 +133,7 @@ void mt_init_receiver_cache(){}
 void mt_set_section_chunk_size(){}
 #endif
 
-void
+bool
 TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                                                Uint8 prio,
                                                Uint32 * const theData,
@@ -198,7 +198,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
                 header, theData, secPtrI);
 
 #endif
-    return;
+    return false;
   }
   
   /**
@@ -234,6 +234,7 @@ TransporterReceiveHandleKernel::deliver_signal(SignalHeader * const header,
     sendprioa(m_thr_no /* self */,
               header, theData, NULL);
 #endif
+  return false;
 }
 
 NdbOut & 

@@ -91,6 +91,51 @@ const char *Ndb_cluster_connection::get_connected_host() const
   return 0;
 }
 
+int
+Ndb_cluster_connection::unset_recv_thread_cpu(Uint32 recv_thread_id)
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->unset_recv_thread_cpu(recv_thread_id);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::set_recv_thread_cpu(Uint16 *cpuid_array,
+                                            Uint32 array_len,
+                                            Uint32 recv_thread_id)
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->set_recv_thread_cpu(cpuid_array,
+                                                            array_len,
+                                                            recv_thread_id);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::set_recv_thread_activation_threshold(Uint32 threshold)
+{
+  TransporterFacade *fac = m_impl.m_transporter_facade;
+  if (fac)
+  {
+    return fac->set_recv_thread_activation_threshold(threshold);
+  }
+  return -1;
+}
+
+int
+Ndb_cluster_connection::get_recv_thread_activation_threshold() const
+{
+  if (m_impl.m_transporter_facade)
+  {
+    return m_impl.m_transporter_facade->get_recv_thread_activation_threshold();
+  }
+  return -1;
+}
+
 const char *Ndb_cluster_connection::get_connectstring(char *buf,
 						      int buf_sz) const
 {
@@ -204,13 +249,13 @@ Ndb_cluster_connection_impl::get_next_alive_node(Ndb_cluster_connection_node_ite
 
   while ((id = get_next_node(iter)))
   {
-    tp->lock_mutex();
+    tp->lock_poll_mutex();
     if (tp->get_node_alive(id) != 0)
     {
-      tp->unlock_mutex();
+      tp->unlock_poll_mutex();
       return id;
     }
-    tp->unlock_mutex();
+    tp->unlock_poll_mutex();
   }
   return 0;
 }
@@ -235,7 +280,7 @@ Ndb_cluster_connection::max_nodegroup()
     return 0;
 
   Bitmask<MAX_NDB_NODES> ng;
-  tp->lock_mutex();
+  tp->lock_poll_mutex();
   for(unsigned i= 0; i < no_db_nodes(); i++)
   {
     //************************************************
@@ -245,7 +290,7 @@ Ndb_cluster_connection::max_nodegroup()
     if (n.is_confirmed() && n.m_state.nodeGroup <= MAX_NDB_NODES)
       ng.set(n.m_state.nodeGroup);
   }
-  tp->unlock_mutex();
+  tp->unlock_poll_mutex();
 
   if (ng.isclear())
     return 0;
@@ -267,7 +312,7 @@ int Ndb_cluster_connection::get_no_ready()
     return -1;
 
   unsigned int foundAliveNode = 0;
-  tp->lock_mutex();
+  tp->lock_poll_mutex();
   for(unsigned i= 0; i < no_db_nodes(); i++)
   {
     //************************************************
@@ -277,7 +322,7 @@ int Ndb_cluster_connection::get_no_ready()
       foundAliveNode++;
     }
   }
-  tp->unlock_mutex();
+  tp->unlock_poll_mutex();
 
   return foundAliveNode;
 }

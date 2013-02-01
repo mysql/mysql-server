@@ -131,6 +131,8 @@ ndb_mgmd_host	#
 ndb_nodeid	#
 ndb_optimization_delay	#
 ndb_optimized_node_selection	#
+ndb_recv_thread_activation_threshold	#
+ndb_recv_thread_cpu_mask	#
 ndb_report_thresh_binlog_epoch_slip	#
 ndb_report_thresh_binlog_mem_usage	#
 ndb_table_no_logging	#
