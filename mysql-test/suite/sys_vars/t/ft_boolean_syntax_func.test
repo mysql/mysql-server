@@ -18,6 +18,7 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
+--source include/have_myisam.inc
 --echo '#--------------------FN_DYNVARS_033_01-------------------------#'
 ###################################################################
 # Check if setting ft_boolean_syntax is changed in new connection # 
@@ -56,7 +57,7 @@ CREATE TABLE articles (
    title VARCHAR(200),
    body TEXT,
    FULLTEXT (title,body)
-);
+)ENGINE=MyISAM;
 
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...'),
@@ -87,6 +88,7 @@ SELECT id,title,body, (MATCH (title,body)
 AGAINST ('+security configuring' IN BOOLEAN MODE)) AS relevance
 FROM articles WHERE MATCH (title,body) 
 AGAINST ('+security configuring' IN BOOLEAN MODE);
+
 
 SELECT * FROM articles WHERE MATCH (title,body)
 AGAINST ('"faster than"' IN BOOLEAN MODE);
