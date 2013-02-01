@@ -115,13 +115,11 @@ SELECT * FROM t1 ORDER BY a COLLATE latin1_german1_ci;
 #==============================================================================
 SET @@session.collation_database = latin1_swedish_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
 SELECT * FROM t1 ORDER BY a;
 
 ALTER TABLE t1 DROP PRIMARY KEY;
 SET @@session.collation_database = latin1_german1_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
 SELECT * FROM t1 ORDER BY a;
 
 # clean up
