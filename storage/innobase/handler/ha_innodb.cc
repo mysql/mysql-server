@@ -34,7 +34,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include <sql_table.h>	// explain_filename, nz2, EXPLAIN_PARTITIONS_AS_COMMENT,
 			// EXPLAIN_FILENAME_MAX_EXTRA_LENGTH
-
+#include <log.h>
 #include <sql_acl.h>	// PROCESS_ACL
 #include <debug_sync.h> // DEBUG_SYNC
 #include <my_base.h>	// HA_OPTION_*
