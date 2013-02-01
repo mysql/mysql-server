@@ -341,3 +341,18 @@ Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Ple
 Warning	1215	Parent table t1 foreign key columns match no index in NDB
 Error	150	Cannot add foreign key constraint
 drop table t2, t1;
+# bug#16246874
+create table t1 (
+id int primary key
+) engine=ndb;
+create table t2 (
+id int,
+foreign key(id) references t1(id)
+) engine=ndb;
+select * from information_schema.key_column_usage;
+select REFERENCED_TABLE_SCHEMA, REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME
+from information_schema.key_column_usage
+where TABLE_SCHEMA = 'test' and TABLE_NAME = 't2';
+REFERENCED_TABLE_SCHEMA	REFERENCED_TABLE_NAME	REFERENCED_COLUMN_NAME
+test	t1	id
+drop table t2, t1;
