@@ -39,4 +39,14 @@ from information_schema.table_constraints
 where table_schema = 'test'
 order by table_name, constraint_type, constraint_name;
 
+--disable_query_log
+select CONCAT_WS('.', TABLE_NAME, COLUMN_NAME) as COL,
+       ORDINAL_POSITION,
+       POSITION_IN_UNIQUE_CONSTRAINT,
+       CONCAT_WS('.', REFERENCED_TABLE_NAME, REFERENCED_COLUMN_NAME) as REFERENCED_COL
+from information_schema.key_column_usage
+where table_schema = 'test'
+order by COL, ORDINAL_POSITION;
+--enable_query_log
+
 drop table product_order, customer, product, emp;
