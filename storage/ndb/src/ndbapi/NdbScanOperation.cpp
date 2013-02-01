@@ -1684,7 +1684,6 @@ NdbScanOperation::executeCursor(int nodeId)
    * Call finaliseScanOldApi() for old style scans before
    * proceeding
    */  
-  bool locked = false;
   NdbImpl* theImpl = theNdb->theImpl;
 
   int res = 0;
@@ -1695,9 +1694,7 @@ NdbScanOperation::executeCursor(int nodeId)
   }
 
   {
-    locked = true;
     NdbTransaction * tCon = theNdbCon;
-    theImpl->lock();
     
     Uint32 seq = tCon->theNodeSequence;
     
@@ -1747,9 +1744,6 @@ done:
     m_current_api_receiver = theParallelism;
     m_api_receivers_count = theParallelism;
   }
-
-  if (locked)
-    theImpl->unlock();
 
   return res;
 }

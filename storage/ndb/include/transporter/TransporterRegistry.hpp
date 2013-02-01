@@ -478,13 +478,15 @@ private:
                 Uint32 * readPtr,
                 Uint32 bufferSize,
                 NodeId remoteNodeId,
-                IOState state);
+                IOState state,
+		bool & stopReceiving);
 
   Uint32 * unpack(TransporterReceiveHandle&,
                   Uint32 * readPtr,
                   Uint32 * eodPtr,
                   NodeId remoteNodeId,
-                  IOState state);
+                  IOState state,
+		  bool & stopReceiving);
 
   static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
   /** 
@@ -521,6 +523,7 @@ private:
   void updateWritePtr(TransporterSendBufferHandle *handle,
                       NodeId node, Uint32 lenBytes, Uint32 prio);
 
+public:
   /**
    * TransporterSendBufferHandle implementation.
    *

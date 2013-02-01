@@ -99,6 +99,7 @@ public:
 private:
   int m_blockNo;
   TransporterFacade * theFacade;
+  bool m_locked;
   
 public:
   /**

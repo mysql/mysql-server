@@ -733,27 +733,6 @@ NdbTransaction::executeAsynchPrepare(NdbTransaction::ExecType aTypeOfExec,
     releaseCompletedQueries();
   }
 
-  NdbScanOperation* tcOp = m_theFirstScanOperation;
-  if (tcOp != 0){
-    // Execute any cursor operations
-    while (tcOp != NULL) {
-      int tReturnCode;
-      tReturnCode = tcOp->executeCursor(theDBnode);
-      if (tReturnCode == -1) {
-        DBUG_VOID_RETURN;
-      }//if
-      tcOp->postExecuteRelease(); // Release unneeded resources
-                                  // outside TP mutex
-      tcOp = (NdbScanOperation*)tcOp->next();
-    } // while
-    m_theLastScanOperation->next(m_firstExecutedScanOp);
-    m_firstExecutedScanOp = m_theFirstScanOperation;
-    // Discard cursor operations, since these are also
-    // in the complete operations list we do not need
-    // to release them.
-    m_theFirstScanOperation = m_theLastScanOperation = NULL;
-  }
-
   bool tTransactionIsStarted = theTransactionIsStarted;
   NdbOperation*	tLastOp = theLastOpInList;
   Ndb* tNdb = theNdb;
@@ -1013,6 +992,7 @@ NdbTransaction::sendTC_HBREP()		// Send a TC_HBREP signal;
  
   tNdb->theImpl->lock();
   const int res = tNdb->theImpl->sendSignal(tSignal,theDBnode);
+  tNdb->theImpl->flush_send_buffers();
   tNdb->theImpl->unlock();
   tNdb->releaseSignal(tSignal);
 
@@ -1040,6 +1020,34 @@ NdbTransaction::doSend()
   This method assumes that at least one operation or query have been defined.
   This is ensured by the caller of this routine (=execute).
   */
+  NdbScanOperation* tcOp = m_theFirstScanOperation;
+  if (tcOp != 0){
+    // Execute any cursor operations
+    while (tcOp != NULL) {
+      int tReturnCode;
+      tReturnCode = tcOp->executeCursor(theDBnode);
+      /**
+        Previously this code executed in executeAsynchPrepare and we
+        had no way of reporting an error. Thus this particular failure
+        won't immediately cause a transaction failure in the old code.
+        To retain this old behaviour we don't cause a transaction
+        failure here either. We avoid postExecuteRelease in the
+        failure case just in case we want to analyse the error a
+        bit more.
+      */
+      if (tReturnCode != -1) {
+        tcOp->postExecuteRelease(); // Release unneeded resources
+                                    // outside TP mutex
+      }//if
+      tcOp = (NdbScanOperation*)tcOp->next();
+    } // while
+    m_theLastScanOperation->next(m_firstExecutedScanOp);
+    m_firstExecutedScanOp = m_theFirstScanOperation;
+    // Discard cursor operations, since these are also
+    // in the complete operations list we do not need
+    // to release them.
+    m_theFirstScanOperation = m_theLastScanOperation = NULL;
+  }
 
   switch(theSendStatus){
   case sendOperations: {
