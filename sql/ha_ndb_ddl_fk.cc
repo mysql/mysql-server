@@ -630,7 +630,9 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     int res= dict->getForeignKey(fk, obj_list.elements[i].name);
     if (res != 0)
     {
-      DBUG_RETURN(1); // TODO suitable error code
+      // Return code is usually ignored
+      DBUG_ASSERT(false);
+      DBUG_RETURN(1);
     }
 
     {
@@ -638,37 +640,6 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
       const char * name = fk_split_name(fk_full_name, fk.getName());
       f_key_info.foreign_id = thd_make_lex_string(thd, 0, name,
                                                   (uint)strlen(name), 1);
-    }
-
-    {
-      char parent_db_and_name[FN_LEN + 1];
-      const char * parent_name = fk_split_name(parent_db_and_name,
-                                               fk.getParentTable());
-
-      /* Referenced (parent) database name */
-      f_key_info.referenced_db =
-        thd_make_lex_string(thd, 0, parent_db_and_name,
-                            (uint)strlen(parent_db_and_name),
-                            1);
-      /* Referenced (parent) table name */
-      f_key_info.referenced_table =
-        thd_make_lex_string(thd, 0, parent_name,
-                            (uint)strlen(parent_name),
-                            1);
-    }
-
-    for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
-    {
-      const NdbDictionary::Column * col =
-        m_table->getColumn(fk.getParentColumnNo(i));
-      if (col == 0)
-      {
-        DBUG_RETURN(1); // TODO suitable error code
-      }
-      LEX_STRING * name = thd_make_lex_string(thd, 0,
-                                              col->getName(),
-                                              (uint)strlen(col->getName()), 1);
-      f_key_info.foreign_fields.push_back(name);
     }
 
     {
@@ -686,27 +657,64 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
                             (uint)strlen(child_name),
                             1);
 
-      Ndb_db_guard db_guard(ndb);
-      setDbName(ndb, child_db_and_name);
-      Ndb_table_guard child_tab(dict, child_name);
-      if (child_tab.get_table() == 0)
-      {
-        ERR_RETURN(dict->getNdbError());
-      }
-
       for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
       {
         const NdbDictionary::Column * col =
-          child_tab.get_table()->getColumn(fk.getChildColumnNo(i));
+          m_table->getColumn(fk.getChildColumnNo(i));
         if (col == 0)
         {
-          DBUG_RETURN(1); // TODO suitable error code
+          // Return code is usually ignored
+          DBUG_ASSERT(false);
+          DBUG_RETURN(1);
+        }
+        LEX_STRING * name =
+          thd_make_lex_string(thd, 0, col->getName(),
+                              (uint)strlen(col->getName()), 1);
+        f_key_info.foreign_fields.push_back(name);
+      }
+    }
+
+    {
+      char parent_db_and_name[FN_LEN + 1];
+      const char * parent_name = fk_split_name(parent_db_and_name,
+                                               fk.getParentTable());
+
+      /* Referenced (parent) database name */
+      f_key_info.referenced_db =
+        thd_make_lex_string(thd, 0, parent_db_and_name,
+                            (uint)strlen(parent_db_and_name),
+                            1);
+      /* Referenced (parent) table name */
+      f_key_info.referenced_table =
+        thd_make_lex_string(thd, 0, parent_name,
+                            (uint)strlen(parent_name),
+                            1);
+
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, parent_db_and_name);
+      Ndb_table_guard parent_tab(dict, parent_name);
+      if (parent_tab.get_table() == 0)
+      {
+        DBUG_ASSERT(false);
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
+      {
+        const NdbDictionary::Column * col =
+          parent_tab.get_table()->getColumn(fk.getParentColumnNo(i));
+        if (col == 0)
+        {
+          // Return code is usually ignored
+          DBUG_ASSERT(false);
+          DBUG_RETURN(1);
         }
         LEX_STRING * name =
           thd_make_lex_string(thd, 0, col->getName(),
                               (uint)strlen(col->getName()), 1);
         f_key_info.referenced_fields.push_back(name);
       }
+
     }
 
     {
@@ -770,9 +778,6 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     {
       f_key_info.referenced_key_name = 0;
     }
-
-    List<LEX_STRING> foreign_fields;
-    List<LEX_STRING> referenced_fields;
 
     FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
       thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
