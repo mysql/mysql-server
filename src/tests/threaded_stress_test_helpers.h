@@ -1476,18 +1476,18 @@ static void print_matching_engine_status_rows(DB_ENV *env, const char *pattern) 
     int r = env->get_engine_status_text(env, buf, buf_size);
     invariant_zero(r);
 
-    const char newline[2] = { '\n', '\0' };
-    for (row = strtok_r(buf, newline, &row_r); row != nullptr; row = strtok_r(nullptr, newline, &row_r)) {
+    for (row = strtok_r(buf, "\n", &row_r); row != nullptr; row = strtok_r(nullptr, "\n", &row_r)) {
         const char *p = pattern_copy;
         for (int i = 0; i < num_patterns; i++, p += strlen(p) + 1) {
             if (strstr(row, p) != nullptr) {
-                printf("%s\n", row);
+                fprintf(stderr, "%s\n", row);
             }
         }
     }
 
     toku_free(pattern_copy);
     toku_free(buf);
+    fflush(stderr);
 }
 
 // TODO: stuff like this should be in a generalized header somwhere
