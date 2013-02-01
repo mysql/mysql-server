@@ -347,19 +347,21 @@ dict_build_tablespace(
 
 		mtr_commit(&mtr);
 	} else {
-		/* Create in the system tablespace: disallow Barracuda
-		features by keeping only the first bit which says whether
-		the row format is redundant or compact */
-		table->flags &= DICT_TF_COMPACT;
+		/* All non-compressed temporary tables are stored in 
+		shared temp-tablespace. Note: Even if table is residing
+		in temp-tablespace row_format is honored as against
+		over-written in non-temp-table case */
+		if (dict_table_is_temporary(table)) {
+			table->space = srv_tmp_space.space_id();
+		} else {
+			/* Create in the system tablespace: disallow Barracuda
+			features by keeping only the first bit which says
+			whether the row format is redundant or compact */
+			table->flags &= DICT_TF_COMPACT;
+		}
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_during_tablespace_alloc",
 				DBUG_SUICIDE(););
-
-		/* All non-compressed temporary tables are stored in
-		shared temp-tablespace */
-		if (dict_table_is_temporary(table)) {
-			table->space = srv_tmp_space.space_id();
-		}
 	}
 
 	return(DB_SUCCESS);
