@@ -237,8 +237,36 @@ i
 7
 drop table t2;
 use test;
+create temporary table t (
+a int not null,
+b blob not null, 
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+drop table t;
 set global innodb_file_per_table = 1;
+create temporary table t (
+a int not null,
+b blob not null, 
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Warning	1478	InnoDB: assuming ROW_FORMAT=COMPACT.
+drop table t;
 set global innodb_file_format = 'barracuda';
+create temporary table t (
+a int not null,
+b blob not null, 
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
+Warnings:
+Warning	1071	Specified key was too long; max key length is 767 bytes
+drop table t;
 set global innodb_large_prefix = 1;
 create temporary table t (
 a int not null,
@@ -246,39 +274,30 @@ b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
-show warnings;
-Level	Code	Message
-Error	1709	Index column size too large. The maximum column size is 767 bytes.
-Error	1709	Index column size too large. The maximum column size is 47244888 bytes.
 create temporary table t (
 a int not null,
 b blob not null, 
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
-show warnings;
-Level	Code	Message
-show create table t;
-Table	Create Table
-t	CREATE TEMPORARY TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` blob NOT NULL,
-  KEY `sk` (`b`(3021))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
 drop table t;
 create temporary table t (
 a int not null,
 b blob not null, 
 index sk (b(3021))
 ) row_format = compressed engine=innodb;
-show warnings;
-Level	Code	Message
-show create table t;
-Table	Create Table
-t	CREATE TEMPORARY TABLE `t` (
-  `a` int(11) NOT NULL,
-  `b` blob NOT NULL,
-  KEY `sk` (`b`(3021))
-) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED
+drop table t;
+set global innodb_file_per_table = 0;
+create temporary table t (
+a int not null,
+b blob not null, 
+index sk (b(3021))
+) row_format = compact engine=innodb;
+ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
+create temporary table t (
+a int not null,
+b blob not null, 
+index sk (b(3021))
+) row_format = dynamic engine=innodb;
 drop table t;
 set global innodb_large_prefix = 0;
 set global innodb_file_format = Antelope;
