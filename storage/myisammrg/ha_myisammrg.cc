@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -650,9 +650,9 @@ extern "C" MI_INFO *myisammrg_attach_children_callback(void *callback_param)
     from a different share than last time it was used with this MERGE
     table.
   */
-  DBUG_PRINT("myrg", ("table_def_version last: %lu  current: %lu",
-                      (ulong) mrg_child_def->get_child_def_version(),
-                      (ulong) child->s->get_table_def_version()));
+  DBUG_PRINT("myrg", ("table_def_version last: %llu  current: %llu",
+                      mrg_child_def->get_child_def_version(),
+                      child->s->get_table_def_version()));
   if (mrg_child_def->get_child_def_version() != child->s->get_table_def_version())
     param->need_compat_check= TRUE;
 

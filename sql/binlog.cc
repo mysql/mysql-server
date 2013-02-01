@@ -31,6 +31,7 @@
 #include "rpl_mi.h"
 #include <list>
 #include <string>
+#include <m_ctype.h>				// For is_number
 
 using std::max;
 using std::min;
@@ -64,7 +65,7 @@ bool opt_binlog_order_commits= true;
 const char *log_bin_index= 0;
 const char *log_bin_basename= 0;
 
-MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period);
+MYSQL_BIN_LOG mysql_bin_log(&sync_binlog_period, WRITE_CACHE);
 
 static int binlog_init(void *p);
 static int binlog_start_trans_and_stmt(THD *thd, Log_event *start_event);
@@ -1663,6 +1664,35 @@ static int binlog_savepoint_rollback(handlerton *hton, THD *thd, void *sv)
   DBUG_RETURN(0);
 }
 
+/**
+   purge logs, master and slave sides both, related error code
+   convertor.
+   Called from @c purge_error_message(), @c MYSQL_BIN_LOG::reset_logs()
+
+   @param  res  an error code as used by purging routines
+
+   @return the user level error code ER_*
+*/
+static uint purge_log_get_error_code(int res)
+{
+  uint errcode= 0;
+
+  switch (res)  {
+  case 0: break;
+  case LOG_INFO_EOF:	errcode= ER_UNKNOWN_TARGET_BINLOG; break;
+  case LOG_INFO_IO:	errcode= ER_IO_ERR_LOG_INDEX_READ; break;
+  case LOG_INFO_INVALID:errcode= ER_BINLOG_PURGE_PROHIBITED; break;
+  case LOG_INFO_SEEK:	errcode= ER_FSEEK_FAIL; break;
+  case LOG_INFO_MEM:	errcode= ER_OUT_OF_RESOURCES; break;
+  case LOG_INFO_FATAL:	errcode= ER_BINLOG_PURGE_FATAL_ERR; break;
+  case LOG_INFO_IN_USE: errcode= ER_LOG_IN_USE; break;
+  case LOG_INFO_EMFILE: errcode= ER_BINLOG_PURGE_EMFILE; break;
+  default:		errcode= ER_LOG_PURGE_UNKNOWN_ERR; break;
+  }
+
+  return errcode;
+}
+
 #ifdef HAVE_REPLICATION
 
 /*
@@ -2269,8 +2299,14 @@ bool mysql_show_binlog_events(THD* thd)
 #endif /* HAVE_REPLICATION */
 
 
-MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
-  :bytes_written(0), file_id(1), open_count(1),
+MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
+                             enum cache_type io_cache_type_arg)
+  :name(NULL), write_error(false), inited(false),
+   log_state(LOG_CLOSED), io_cache_type(io_cache_type_arg),
+#ifdef HAVE_PSI_INTERFACE
+   m_key_LOCK_log(key_LOG_LOCK_log),
+#endif
+   bytes_written(0), file_id(1), open_count(1),
    sync_period_ptr(sync_period), sync_counter(0),
    m_prep_xids(0),
    is_relay_log(0), signal_cnt(0),
@@ -2284,6 +2320,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period)
     called only in main(). Doing initialization here would make it happen
     before main().
   */
+  memset(&log_file, 0, sizeof(log_file));
   index_file_name[0] = 0;
   memset(&index_file, 0, sizeof(index_file));
   memset(&purge_index_file, 0, sizeof(purge_index_file));
@@ -2314,7 +2351,9 @@ void MYSQL_BIN_LOG::cleanup()
 
 void MYSQL_BIN_LOG::init_pthread_objects()
 {
-  MYSQL_LOG::init_pthread_objects();
+  DBUG_ASSERT(inited == 0);
+  inited= 1;
+  mysql_mutex_init(m_key_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_index, &LOCK_index, MY_MUTEX_INIT_SLOW);
   mysql_mutex_init(m_key_LOCK_commit, &LOCK_commit, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
@@ -2330,6 +2369,300 @@ void MYSQL_BIN_LOG::init_pthread_objects()
 #endif
                    );
 }
+
+
+/**
+  Check if a string is a valid number.
+
+  @param str			String to test
+  @param res			Store value here
+  @param allow_wildcards	Set to 1 if we should ignore '%' and '_'
+
+  @note
+    For the moment the allow_wildcards argument is not used
+    Should be moved to some other file.
+
+  @retval
+    1	String is a number
+  @retval
+    0	String is not a number
+*/
+
+static bool is_number(const char *str,
+                      ulong *res, bool allow_wildcards)
+{
+  int flag;
+  const char *start;
+  DBUG_ENTER("is_number");
+
+  flag=0; start=str;
+  while (*str++ == ' ') ;
+  if (*--str == '-' || *str == '+')
+    str++;
+  while (my_isdigit(files_charset_info,*str) ||
+	 (allow_wildcards && (*str == wild_many || *str == wild_one)))
+  {
+    flag=1;
+    str++;
+  }
+  if (*str == '.')
+  {
+    for (str++ ;
+	 my_isdigit(files_charset_info,*str) ||
+	   (allow_wildcards && (*str == wild_many || *str == wild_one)) ;
+	 str++, flag=1) ;
+  }
+  if (*str != 0 || flag == 0)
+    DBUG_RETURN(0);
+  if (res)
+    *res=atol(start);
+  DBUG_RETURN(1);			/* Number ok */
+} /* is_number */
+
+
+/*
+  Maximum unique log filename extension.
+  Note: setting to 0x7FFFFFFF due to atol windows
+        overflow/truncate.
+ */
+#define MAX_LOG_UNIQUE_FN_EXT 0x7FFFFFFF
+
+/*
+   Number of warnings that will be printed to error log
+   before extension number is exhausted.
+*/
+#define LOG_WARN_UNIQUE_FN_EXT_LEFT 1000
+
+/**
+  Find a unique filename for 'filename.#'.
+
+  Set '#' to the highest existing log file extension plus one.
+
+  This function will return nonzero if: (i) the generated name
+  exceeds FN_REFLEN; (ii) if the number of extensions is exhausted;
+  or (iii) some other error happened while examining the filesystem.
+
+  @return
+    nonzero if not possible to get unique filename.
+*/
+
+static int find_uniq_filename(char *name)
+{
+  uint                  i;
+  char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
+  struct st_my_dir     *dir_info;
+  struct fileinfo *file_info;
+  ulong                 max_found= 0, next= 0, number= 0;
+  size_t		buf_length, length;
+  char			*start, *end;
+  int                   error= 0;
+  DBUG_ENTER("find_uniq_filename");
+
+  length= dirname_part(buff, name, &buf_length);
+  start=  name + length;
+  end=    strend(start);
+
+  *end='.';
+  length= (size_t) (end - start + 1);
+
+  if ((DBUG_EVALUATE_IF("error_unique_log_filename", 1, 
+      !(dir_info= my_dir(buff,MYF(MY_DONT_SORT))))))
+  {						// This shouldn't happen
+    strmov(end,".1");				// use name+1
+    DBUG_RETURN(1);
+  }
+  file_info= dir_info->dir_entry;
+  for (i= dir_info->number_off_files ; i-- ; file_info++)
+  {
+    if (memcmp(file_info->name, start, length) == 0 &&
+	is_number(file_info->name+length, &number,0))
+    {
+      set_if_bigger(max_found,(ulong) number);
+    }
+  }
+  my_dirend(dir_info);
+
+  /* check if reached the maximum possible extension number */
+  if (max_found == MAX_LOG_UNIQUE_FN_EXT)
+  {
+    sql_print_error("Log filename extension number exhausted: %06lu. \
+Please fix this by archiving old logs and \
+updating the index files.", max_found);
+    error= 1;
+    goto end;
+  }
+
+  next= max_found + 1;
+  if (sprintf(ext_buf, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
+  *end++='.';
+
+  /* 
+    Check if the generated extension size + the file name exceeds the
+    buffer size used. If one did not check this, then the filename might be
+    truncated, resulting in error.
+   */
+  if (((strlen(ext_buf) + (end - name)) >= FN_REFLEN))
+  {
+    sql_print_error("Log filename too large: %s%s (%zu). \
+Please fix this by archiving old logs and updating the \
+index files.", name, ext_buf, (strlen(ext_buf) + (end - name)));
+    error= 1;
+    goto end;
+  }
+
+  if (sprintf(end, "%06lu", next)<0)
+  {
+    error= 1;
+    goto end;
+  }
+
+  /* print warning if reaching the end of available extensions. */
+  if ((next > (MAX_LOG_UNIQUE_FN_EXT - LOG_WARN_UNIQUE_FN_EXT_LEFT)))
+    sql_print_warning("Next log extension: %lu. \
+Remaining log filename extensions: %lu. \
+Please consider archiving some logs.", next, (MAX_LOG_UNIQUE_FN_EXT - next));
+
+end:
+  DBUG_RETURN(error);
+}
+
+
+int MYSQL_BIN_LOG::generate_new_name(char *new_name, const char *log_name)
+{
+  fn_format(new_name, log_name, mysql_data_home, "", 4);
+  if (!fn_ext(log_name)[0])
+  {
+    if (find_uniq_filename(new_name))
+    {
+      my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                      MYF(ME_FATALERROR), log_name);
+      sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+
+/**
+  @todo
+  The following should be using fn_format();  We just need to
+  first change fn_format() to cut the file name if it's too long.
+*/
+const char *MYSQL_BIN_LOG::generate_name(const char *log_name,
+                                         const char *suffix,
+                                         char *buff)
+{
+  if (!log_name || !log_name[0])
+  {
+    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
+    return (const char *)
+      fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
+  }
+  // get rid of extension to avoid problems
+
+  char *p= fn_ext(log_name);
+  uint length= (uint) (p - log_name);
+  strmake(buff, log_name, min<size_t>(length, FN_REFLEN-1));
+  return (const char*)buff;
+}
+
+
+bool MYSQL_BIN_LOG::init_and_set_log_file_name(const char *log_name,
+                                               const char *new_name)
+{
+  if (new_name && !strmov(log_file_name, new_name))
+    return TRUE;
+  else if (!new_name && generate_new_name(log_file_name, log_name))
+    return TRUE;
+
+  return FALSE;
+}
+
+
+/**
+  Open the logfile and init IO_CACHE.
+
+  @param log_name            The name of the log to open
+  @param new_name            The new name for the logfile.
+                             NULL forces generate_new_name() to be called.
+
+  @return true if error, false otherwise.
+*/
+
+bool MYSQL_BIN_LOG::open(
+#ifdef HAVE_PSI_INTERFACE
+                     PSI_file_key log_file_key,
+#endif
+                     const char *log_name,
+                     const char *new_name)
+{
+  File file= -1;
+  my_off_t pos= 0;
+  int open_flags= O_CREAT | O_BINARY;
+  DBUG_ENTER("MYSQL_BIN_LOG::open");
+
+  write_error= 0;
+
+  if (!(name= my_strdup(log_name, MYF(MY_WME))))
+  {
+    name= (char *)log_name; // for the error message
+    goto err;
+  }
+
+  if (init_and_set_log_file_name(name, new_name))
+    goto err;
+
+  if (io_cache_type == SEQ_READ_APPEND)
+    open_flags |= O_RDWR | O_APPEND;
+  else
+    open_flags |= O_WRONLY;
+
+  db[0]= 0;
+
+#ifdef HAVE_PSI_INTERFACE
+  /* Keep the key for reopen */
+  m_log_file_key= log_file_key;
+#endif
+
+  if ((file= mysql_file_open(log_file_key,
+                             log_file_name, open_flags,
+                             MYF(MY_WME | ME_WAITTANG))) < 0)
+    goto err;
+
+  if ((pos= mysql_file_tell(file, MYF(MY_WME))) == MY_FILEPOS_ERROR)
+  {
+    if (my_errno == ESPIPE)
+      pos= 0;
+    else
+      goto err;
+  }
+
+  if (init_io_cache(&log_file, file, IO_SIZE, io_cache_type, pos, 0,
+                    MYF(MY_WME | MY_NABP | MY_WAIT_IF_FULL)))
+    goto err;
+
+  log_state= LOG_OPENED;
+  DBUG_RETURN(0);
+
+err:
+  sql_print_error("Could not use %s for logging (error %d). \
+Turning logging off for the whole duration of the MySQL server process. \
+To turn it on again: fix the cause, \
+shutdown the MySQL server and restart it.", name, errno);
+  if (file >= 0)
+    mysql_file_close(file, MYF(0));
+  end_io_cache(&log_file);
+  my_free(name);
+  name= NULL;
+  log_state= LOG_CLOSED;
+  DBUG_RETURN(1);
+}
+
 
 bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
                                     const char *log_name, bool need_lock_index)
@@ -2725,7 +3058,6 @@ end:
 
 bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 const char *new_name,
-                                enum cache_type io_cache_type_arg,
                                 ulong max_size_arg,
                                 bool null_created_arg,
                                 bool need_lock_index,
@@ -2739,8 +3071,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
   DBUG_PRINT("enter",("name: %s", log_name));
 
-  if (init_and_set_log_file_name(log_name, new_name, LOG_BIN,
-                                 io_cache_type_arg))
+  if (init_and_set_log_file_name(log_name, new_name))
   {
     sql_print_error("MYSQL_BIN_LOG::open failed to generate new file name.");
     DBUG_RETURN(1);
@@ -2758,7 +3089,7 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       it may be good to consider what actually happens when
       open_purge_index_file succeeds but register or sync fails.
 
-      Perhaps we might need the code below in MYSQL_LOG_BIN::cleanup
+      Perhaps we might need the code below in MYSQL_BIN_LOG::cleanup
       for "real life" purposes as well? 
     */
     DBUG_EXECUTE_IF("fault_injection_registering_index", {
@@ -2778,11 +3109,11 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   write_error= 0;
 
   /* open the main log file */
-  if (MYSQL_LOG::open(
+  if (open(
 #ifdef HAVE_PSI_INTERFACE
                       m_key_file_log,
 #endif
-                      log_name, LOG_BIN, new_name, io_cache_type_arg))
+                      log_name, new_name))
   {
 #ifdef HAVE_REPLICATION
     close_purge_index_file();
@@ -3446,7 +3777,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
 #endif
 
   if (!open_index_file(index_file_name, 0, false/*need_lock_index=false*/))
-    if ((error= open_binlog(save_name, 0, io_cache_type,
+    if ((error= open_binlog(save_name, 0,
                             max_size, false,
                             false/*need_lock_index=false*/,
                             false/*need_sid_lock=false*/,
@@ -4427,7 +4758,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   {
     /* reopen the binary log file. */
     file_to_open= new_name_ptr;
-    error= open_binlog(old_name, new_name_ptr, io_cache_type,
+    error= open_binlog(old_name, new_name_ptr,
                        max_size, true,
                        false/*need_lock_index=false*/,
                        true/*need_sid_lock=true*/,
@@ -5505,7 +5836,30 @@ void MYSQL_BIN_LOG::close(uint exiting)
     }
 
     /* this will cleanup IO_CACHE, sync and close the file */
-    MYSQL_LOG::close(exiting);
+    if (log_state == LOG_OPENED)
+    {
+      end_io_cache(&log_file);
+
+      if (mysql_file_sync(log_file.file, MYF(MY_WME)) && ! write_error)
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        write_error= 1;
+        sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
+                        my_strerror(errbuf, sizeof(errbuf), errno));
+      }
+
+      if (mysql_file_close(log_file.file, MYF(MY_WME)) && ! write_error)
+      {
+        char errbuf[MYSYS_STRERROR_SIZE];
+        write_error= 1;
+        sql_print_error(ER_DEFAULT(ER_ERROR_ON_WRITE), name, errno,
+                        my_strerror(errbuf, sizeof(errbuf), errno));
+      }
+    }
+
+    log_state= (exiting & LOG_CLOSE_TO_BE_OPENED) ? LOG_TO_BE_OPENED : LOG_CLOSED;
+    my_free(name);
+    name= NULL;
   }
 
   /*
@@ -5590,7 +5944,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
   if (using_heuristic_recover())
   {
     /* generate a new binlog to mask a corrupted one */
-    open_binlog(opt_name, 0, WRITE_CACHE, max_binlog_size, false,
+    open_binlog(opt_name, 0, max_binlog_size, false,
                 true/*need_lock_index=true*/,
                 true/*need_sid_lock=true*/,
                 NULL);
@@ -6769,13 +7123,13 @@ int THD::binlog_write_table_map(TABLE *table, bool is_transactional,
 {
   int error;
   DBUG_ENTER("THD::binlog_write_table_map");
-  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%lu)",
+  DBUG_PRINT("enter", ("table: 0x%lx  (%s: #%llu)",
                        (long) table, table->s->table_name.str,
-                       table->s->table_map_id));
+                       table->s->table_map_id.id()));
 
   /* Pre-conditions */
   DBUG_ASSERT(is_current_stmt_binlog_format_row() && mysql_bin_log.is_open());
-  DBUG_ASSERT(table->s->table_map_id != ULONG_MAX);
+  DBUG_ASSERT(table->s->table_map_id.is_valid());
 
   Table_map_log_event
     the_event(this, table, table->s->table_map_id, is_transactional);
@@ -7577,8 +7931,6 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
                                        const uchar* extra_row_info)
 {
   DBUG_ENTER("binlog_prepare_pending_rows_event");
-  /* Pre-conditions */
-  DBUG_ASSERT(table->s->table_map_id != ~0UL);
 
   /* Fetch the type code for the RowsEventT template parameter */
   int const general_type_code= RowsEventT::TYPE_CODE;
@@ -8318,7 +8670,7 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
     */
   case THD::STMT_QUERY_TYPE:
     /*
-      The MYSQL_LOG::write() function will set the STMT_END_F flag and
+      The MYSQL_BIN_LOG::write() function will set the STMT_END_F flag and
       flush the pending rows event if necessary.
     */
     {
