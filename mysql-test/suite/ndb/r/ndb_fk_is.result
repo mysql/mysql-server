@@ -39,6 +39,16 @@ def	test	PRIMARY	test	product	PRIMARY KEY
 def	test	product_order_ibfk_1	test	product_order	FOREIGN KEY
 def	test	product_order_ibfk_2	test	product_order	FOREIGN KEY
 def	test	PRIMARY	test	product_order	PRIMARY KEY
+COL	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_COL
+customer.id	1	NULL	
+emp.id	1	NULL	
+emp.manager	1	1	emp.id
+product.category	1	NULL	
+product.id	2	NULL	
+product_order.customer_id	1	1	customer.id
+product_order.no	1	NULL	
+product_order.product_category	1	1	product.category
+product_order.product_id	2	2	product.id
 drop table product_order, customer, product, emp;
 # engine=ndb
 create table product (
@@ -81,4 +91,14 @@ def	test	PRIMARY	test	product	PRIMARY KEY
 def	test	fk1	test	product_order	FOREIGN KEY
 def	test	fk2	test	product_order	FOREIGN KEY
 def	test	PRIMARY	test	product_order	PRIMARY KEY
+COL	ORDINAL_POSITION	POSITION_IN_UNIQUE_CONSTRAINT	REFERENCED_COL
+customer.id	1	NULL	
+emp.id	1	NULL	
+emp.manager	1	1	emp.id
+product.category	1	NULL	
+product.id	2	NULL	
+product_order.customer_id	1	1	customer.id
+product_order.no	1	NULL	
+product_order.product_category	1	1	product.category
+product_order.product_id	2	2	product.id
 drop table product_order, customer, product, emp;
