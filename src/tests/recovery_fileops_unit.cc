@@ -124,7 +124,7 @@ do_args(int argc, char * const argv[]) {
     }
 
     char c;
-    while ((c = getopt(argc, argv, "vqhcrO:A:B:C:D:E:F:G:H:I:")) != -1) {
+    while ((c = getopt(argc, argv, "vqhcrO:A:B:C:D:E:F:G:H:I:X:")) != -1) {
 	switch(c) {
         case 'v':
 	    verbose++;
@@ -174,6 +174,13 @@ do_args(int argc, char * const argv[]) {
                 usage();
             choices[c - 'A'] = num;
             break;
+        case 'X':
+            if (strcmp(optarg, "novalgrind") == 0) {
+                // provide a way for the shell script runner to pass an
+                // arg that suppresses valgrind on this child process
+                break;
+            }
+            // otherwise, fall through to an error
 	default:
             usage();
             break;
