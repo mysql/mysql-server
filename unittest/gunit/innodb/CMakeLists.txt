@@ -40,15 +40,19 @@ IF (MERGE_UNITTESTS)
     FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")
   ENDFOREACH()
 
+  SET(SRC_FILES ${MERGE_INNODB_TESTS})
   IF(WIN32)
-    LIST(APPEND MERGE_INNODB_TESTS ../../../sql/nt_servc.cc)
+    LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
   ENDIF()
 
-  ADD_EXECUTABLE(merge_innodb_tests-t ${MERGE_INNODB_TESTS})
+  ADD_EXECUTABLE(merge_innodb_tests-t ${SRC_FILES})
 
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t sql binlog rpl master slave sql)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(merge_innodb_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(merge_innodb_tests-t
+    sql binlog rpl master slave sql)
 
   IF(WITH_PERFSCHEMA_STORAGE_ENGINE)
     TARGET_LINK_LIBRARIES(merge_innodb_tests-t perfschema)
@@ -59,7 +63,11 @@ IF (MERGE_UNITTESTS)
 ELSE()
 
   FOREACH(test ${TESTS})
-    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    SET(SRC_FILES ${test}-t.cc)
+    IF(WIN32)
+      LIST(APPEND SRC_FILES ../../../sql/nt_servc.cc)
+    ENDIF()
+    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
 
     TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
     TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
