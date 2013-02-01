@@ -33,6 +33,7 @@
 /* These two header files are necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
+#include "table_id.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -3816,7 +3817,8 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
+  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+                      bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3832,7 +3834,7 @@ public:
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
 
@@ -3897,7 +3899,7 @@ private:
   uchar         *m_coltype;
 
   uchar         *m_memory;
-  ulong          m_table_id;
+  Table_id       m_table_id;
   flag_set       m_flags;
 
   size_t         m_data_size;
@@ -4021,7 +4023,7 @@ public:
   MY_BITMAP const *get_cols() const { return &m_cols; }
   MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
   size_t get_width() const          { return m_width; }
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const        { return m_table_id; }
 
 #if defined(MYSQL_SERVER)
   /*
@@ -4097,7 +4099,7 @@ protected:
      this class, not create instances of this class.
   */
 #ifdef MYSQL_SERVER
-  Rows_log_event(THD*, TABLE*, ulong table_id, 
+  Rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		 MY_BITMAP const *cols, bool is_transactional,
                  Log_event_type event_type,
                  const uchar* extra_row_info);
@@ -4116,7 +4118,7 @@ protected:
 #ifdef MYSQL_SERVER
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  ulong       m_table_id;	/* Table ID */
+  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
 #ifndef MYSQL_CLIENT
@@ -4374,7 +4376,7 @@ public:
   };
 
 #if defined(MYSQL_SERVER)
-  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
+  Write_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		       bool is_transactional,
                        const uchar* extra_row_info);
 #endif
@@ -4434,13 +4436,13 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
@@ -4514,7 +4516,7 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Delete_rows_log_event(THD*, TABLE*, ulong, 
+  Delete_rows_log_event(THD*, TABLE*, const Table_id&,
 			bool is_transactional, const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
@@ -4776,7 +4778,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   but rather uses a data for immediate checks and throws away the event.
 
   Two members of the class log_ident and Log_event::log_pos comprise 
-  @see the event_coordinates instance. The coordinates that a heartbeat
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
 
