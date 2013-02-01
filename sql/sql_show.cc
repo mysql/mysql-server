@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -960,8 +960,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
              sctx->priv_user, sctx->host_or_ip, dbname);
-    general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->host_or_ip, dbname);
+    query_logger.general_log_print(thd,COM_INIT_DB,ER(ER_DBACCESS_DENIED_ERROR),
+                                   sctx->priv_user, sctx->host_or_ip, dbname);
     DBUG_RETURN(TRUE);
   }
 #endif
@@ -1363,6 +1363,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                        MODE_MYSQL323 |
                                                        MODE_MYSQL40)) != 0;
   my_bitmap_map *old_map;
+  int error= 0;
   DBUG_ENTER("store_create_info");
   DBUG_PRINT("enter",("table: %s", table->s->table_name.str));
 
@@ -1768,14 +1769,15 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
                                                   NULL, NULL))))
     {
        table->part_info->set_show_version_string(packet);
-       packet->append(part_syntax, part_syntax_len);
-       packet->append(STRING_WITH_LEN(" */"));
+       if (packet->append(part_syntax, part_syntax_len) ||
+           packet->append(STRING_WITH_LEN(" */")))
+        error= 1;
        my_free(part_syntax);
     }
   }
 #endif
   tmp_restore_column_map(table->read_set, old_map);
-  DBUG_RETURN(0);
+  DBUG_RETURN(error);
 }
 
 

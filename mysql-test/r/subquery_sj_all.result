@@ -1227,9 +1227,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	<subquery2>	const	<auto_key>	<auto_key>	5	const	1	NULL
-2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1265,9 +1264,8 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	<subquery2>	const	<auto_key>	<auto_key>	5	const	1	NULL
-2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; FirstMatch(t1)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2147,10 +2145,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	<subquery2>	const	<auto_key>	<auto_key>	5	const	1	NULL
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; FirstMatch
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
-2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
