@@ -1327,6 +1327,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
   assert((receiveHandle == &recvdata) || (receiveHandle == 0));
 
   bool hasReceived = false;
+  bool stopReceiving = false;
 
   if (recvdata.m_recv_transporters.get(0))
   {
@@ -1384,7 +1385,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
    * Handle data either received above or pending from prev rounds.
    */
   for(Uint32 id = recvdata.m_has_data_transporters.find_first();
-      id != BitmaskImpl::NotFound;
+      id != BitmaskImpl::NotFound && !stopReceiving;
       id = recvdata.m_has_data_transporters.find_next(id + 1))
   {
     bool hasdata = false;
@@ -1401,7 +1402,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         hasReceived = true;
         Uint32 * ptr;
         Uint32 sz = t->getReceiveData(&ptr);
-        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id]);
+        Uint32 szUsed = unpack(recvdata, ptr, sz, id, ioStates[id], stopReceiving);
         if (likely(szUsed))
         {
           t->updateReceiveDataPtr(szUsed);
@@ -1420,7 +1421,7 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
 #ifdef NDB_SCI_TRANSPORTER
   //performReceive
   //do prepareReceive on the SCI transporters  (prepareReceive(t,,,,))
-  for (int i=0; i<nSCITransporters; i++) 
+  for (int i=0; i<nSCITransporters && !stopReceiving; i++)
   {
     SCI_Transporter  *t = theSCITransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
@@ -1435,14 +1436,14 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         Uint32 * readPtr, * eodPtr;
         t->getReceivePtr(&readPtr, &eodPtr);
         callbackObj->transporter_recv_from(nodeId);
-        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId]);
+        Uint32 *newPtr = unpack(readPtr, eodPtr, nodeId, ioStates[nodeId], stopReceiving);
         t->updateReceivePtr(newPtr);
       }
     } 
   }
 #endif
 #ifdef NDB_SHM_TRANSPORTER
-  for (int i=0; i<nSHMTransporters; i++) 
+  for (int i=0; i<nSHMTransporters && !stopReceiving; i++)
   {
     SHM_Transporter *t = theSHMTransporters[i];
     const NodeId nodeId = t->getRemoteNodeId();
@@ -1457,7 +1458,8 @@ TransporterRegistry::performReceive(TransporterReceiveHandle& recvdata)
         t->getReceivePtr(&readPtr, &eodPtr);
         recvdata.transporter_recv_from(nodeId);
         Uint32 *newPtr = unpack(recvdata,
-                                readPtr, eodPtr, nodeId, ioStates[nodeId]);
+                                readPtr, eodPtr, nodeId, ioStates[nodeId],
+				stopReceiving);
         t->updateReceivePtr(newPtr);
       }
     } 

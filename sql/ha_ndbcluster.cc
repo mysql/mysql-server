@@ -55,6 +55,8 @@
 #include "ndb_util_thread.h"
 #include "ndb_local_connection.h"
 #include "ndb_local_schema.h"
+#include "../storage/ndb/src/common/util/parse_mask.hpp"
+#include "../storage/ndb/include/util/SparseBitmask.hpp"
 
 using std::min;
 using std::max;
@@ -72,6 +74,8 @@ static ulong opt_ndb_wait_connected;
 ulong opt_ndb_wait_setup;
 static ulong opt_ndb_cache_check_time;
 static uint opt_ndb_cluster_connection_pool;
+static uint opt_ndb_recv_thread_activation_threshold;
+static char* opt_ndb_recv_thread_cpu_mask;
 static char* opt_ndb_index_stat_option;
 static char* opt_ndb_connectstring;
 static uint opt_ndb_nodeid;
@@ -11859,6 +11863,9 @@ static MYSQL_SYSVAR_STR(
 
 extern int ndb_dictionary_is_mysqld;
 
+Uint32 recv_thread_num_cpus;
+static int ndb_recv_thread_cpu_mask_check_str(const char *str);
+static void ndb_recv_thread_cpu_mask_update();
 handlerton* ndbcluster_hton;
 
 static int ndbcluster_init(void *p)
@@ -11922,10 +11929,20 @@ static int ndbcluster_init(void *p)
                          opt_ndb_cluster_connection_pool,
                          (global_opti_node_select & 1),
                          opt_ndb_connectstring,
-                         opt_ndb_nodeid))
+                         opt_ndb_nodeid,
+                         opt_ndb_recv_thread_activation_threshold))
   {
     DBUG_PRINT("error", ("Could not initiate connection to cluster"));
     goto ndbcluster_init_error;
+  }
+
+  /* Translate recv thread cpu mask if set */
+  if (ndb_recv_thread_cpu_mask_check_str(opt_ndb_recv_thread_cpu_mask) == 0)
+  {
+    if (recv_thread_num_cpus)
+    {
+      ndb_recv_thread_cpu_mask_update();
+    }
   }
 
   (void) my_hash_init(&ndbcluster_open_tables,table_alias_charset,32,0,0,
@@ -17517,6 +17534,7 @@ static MYSQL_SYSVAR_ULONG(
   0                                  /* block */
 );
 
+static const int MAX_CLUSTER_CONNECTIONS = 63;
 
 static MYSQL_SYSVAR_UINT(
   cluster_connection_pool,           /* name */
@@ -17527,8 +17545,147 @@ static MYSQL_SYSVAR_UINT(
   NULL,                              /* update func. */
   1,                                 /* default */
   1,                                 /* min */
-  63,                                /* max */
+  MAX_CLUSTER_CONNECTIONS,           /* max */
   0                                  /* block */
+);
+
+static const int MIN_ACTIVATION_THRESHOLD = 0;
+static const int MAX_ACTIVATION_THRESHOLD = 16;
+
+static
+int
+ndb_recv_thread_activation_threshold_check(MYSQL_THD thd,
+                                           struct st_mysql_sys_var *var,
+                                           void *save,
+                                           struct st_mysql_value *value)
+{
+  long long int_buf;
+  int val = (int)value->val_int(value, &int_buf);
+  int new_val = (int)int_buf;
+
+  if (val != 0 || 
+      new_val < MIN_ACTIVATION_THRESHOLD ||
+      new_val > MAX_ACTIVATION_THRESHOLD)
+  {
+    return 1;
+  }
+  opt_ndb_recv_thread_activation_threshold = new_val;
+  return 0;
+}
+
+static
+void
+ndb_recv_thread_activation_threshold_update(MYSQL_THD,
+                                            struct st_mysql_sys_var *var,
+                                            void *var_ptr,
+                                            const void *save)
+{
+  ndb_set_recv_thread_activation_threshold(
+    opt_ndb_recv_thread_activation_threshold);
+}
+
+static MYSQL_SYSVAR_UINT(
+  recv_thread_activation_threshold,         /* name */
+  opt_ndb_recv_thread_activation_threshold, /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "Activation threshold when receive thread takes over the polling "
+  "of the cluster connection (measured in concurrently active "
+  "threads)",
+  ndb_recv_thread_activation_threshold_check,  /* check func. */
+  ndb_recv_thread_activation_threshold_update, /* update func. */
+  8,                                           /* default */
+  MIN_ACTIVATION_THRESHOLD,                    /* min */
+  MAX_ACTIVATION_THRESHOLD,                    /* max */
+  0                                            /* block */
+);
+
+
+/* Definitions needed for receive thread cpu mask config variable */
+static const int ndb_recv_thread_cpu_mask_option_buf_size = 512;
+char ndb_recv_thread_cpu_mask_option_buf[ndb_recv_thread_cpu_mask_option_buf_size];
+Uint16 recv_thread_cpuid_array[1 * MAX_CLUSTER_CONNECTIONS];
+
+static
+int
+ndb_recv_thread_cpu_mask_check(MYSQL_THD thd,
+                               struct st_mysql_sys_var *var,
+                               void *save,
+                               struct st_mysql_value *value)
+{
+  char buf[ndb_recv_thread_cpu_mask_option_buf_size];
+  int len = sizeof(buf);
+  const char *str = value->val_str(value, buf, &len);
+
+  return ndb_recv_thread_cpu_mask_check_str(str);
+}
+
+static int
+ndb_recv_thread_cpu_mask_check_str(const char *str)
+{
+  unsigned i;
+  SparseBitmask bitmask;
+
+  recv_thread_num_cpus = 0;
+  if (str == 0)
+  {
+    /* Setting to empty string is interpreted as remove locking to CPU */
+    return 0;
+  }
+
+  if (parse_mask(str, bitmask) < 0)
+  {
+    sql_print_information("Trying to set ndb_recv_thread_cpu_mask to"
+                          " illegal value = %s, ignored",
+                          str);
+    goto error;
+  }
+  for (i = bitmask.find(0);
+       i != SparseBitmask::NotFound;
+       i = bitmask.find(i + 1))
+  {
+    if (recv_thread_num_cpus ==
+        1 * MAX_CLUSTER_CONNECTIONS)
+    {
+      sql_print_information("Trying to set too many CPU's in "
+                            "ndb_recv_thread_cpu_mask, ignored"
+                            " this variable, erroneus value = %s",
+                            str);
+      goto error;
+    }
+    recv_thread_cpuid_array[recv_thread_num_cpus++] = i;
+  }
+  return 0;
+error:
+  return 1;
+}
+
+static
+void
+ndb_recv_thread_cpu_mask_update()
+{
+  ndb_set_recv_thread_cpu(recv_thread_cpuid_array,
+                          recv_thread_num_cpus);
+}
+
+static
+void
+ndb_recv_thread_cpu_mask_update_func(MYSQL_THD,
+                                     struct st_mysql_sys_var *var,
+                                     void *var_ptr,
+                                     const void *save)
+{
+  ndb_recv_thread_cpu_mask_update();
+}
+
+static MYSQL_SYSVAR_STR(
+  recv_thread_cpu_mask,             /* name */
+  opt_ndb_recv_thread_cpu_mask,     /* var */
+  PLUGIN_VAR_RQCMDARG,
+  "CPU mask for locking receiver threads to specific CPU, specified "
+  " as hexadecimal as e.g. 0x33, one CPU is used per receiver thread.",
+  ndb_recv_thread_cpu_mask_check,      /* check func. */
+  ndb_recv_thread_cpu_mask_update_func,/* update func. */
+  ndb_recv_thread_cpu_mask_option_buf
 );
 
 /* should be in index_stat.h */
@@ -17808,6 +17965,8 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(wait_connected),
   MYSQL_SYSVAR(wait_setup),
   MYSQL_SYSVAR(cluster_connection_pool),
+  MYSQL_SYSVAR(recv_thread_activation_threshold),
+  MYSQL_SYSVAR(recv_thread_cpu_mask),
   MYSQL_SYSVAR(report_thresh_binlog_mem_usage),
   MYSQL_SYSVAR(report_thresh_binlog_epoch_slip),
   MYSQL_SYSVAR(log_update_as_write),

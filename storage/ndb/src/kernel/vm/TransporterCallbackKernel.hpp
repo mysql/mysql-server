@@ -44,7 +44,7 @@ public:
 #endif
 
   /* TransporterCallback interface. */
-  void deliver_signal(SignalHeader * const header,
+  bool deliver_signal(SignalHeader * const header,
                       Uint8 prio,
                       Uint32 * const signalData,
                       LinearSectionPtr ptr[3]);

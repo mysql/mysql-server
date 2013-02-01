@@ -84,13 +84,12 @@ ClusterMgr::ClusterMgr(TransporterFacade & _facade):
 ClusterMgr::~ClusterMgr()
 {
   DBUG_ENTER("ClusterMgr::~ClusterMgr");
-  doStop();
+  assert(theStop == 1);
   if (theArbitMgr != 0)
   {
     delete theArbitMgr;
     theArbitMgr = 0;
   }
-  this->close(); // disconnect from TransporterFacade
   NdbCondition_Destroy(waitForHBCond);
   NdbMutex_Destroy(clusterMgrThreadMutex);
   DBUG_VOID_RETURN;
@@ -193,14 +192,15 @@ void
 ClusterMgr::doStop( ){
   DBUG_ENTER("ClusterMgr::doStop");
   {
+    /* Ensure stop is only executed once */
     Guard g(clusterMgrThreadMutex);
     if(theStop == 1){
       DBUG_VOID_RETURN;
     }
+    theStop = 1;
   }
 
   void *status;
-  theStop = 1;
   if (theClusterMgrThread) {
     NdbThread_WaitFor(theClusterMgrThread, &status);  
     NdbThread_Destroy(&theClusterMgrThread);
@@ -210,6 +210,7 @@ ClusterMgr::doStop( ){
   {
     theArbitMgr->doStop(NULL);
   }
+  this->close(); // disconnect from TransporterFacade
 
   DBUG_VOID_RETURN;
 }
@@ -217,12 +218,12 @@ ClusterMgr::doStop( ){
 void
 ClusterMgr::forceHB()
 {
-  theFacade.lock_mutex();
+  theFacade.lock_poll_mutex();
 
   if(waitingForHB)
   {
-    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
-    theFacade.unlock_mutex();
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.thePollMutex, 1000);
+    theFacade.unlock_poll_mutex();
     return;
   }
 
@@ -243,7 +244,7 @@ ClusterMgr::forceHB()
     }
   }
   waitForHBFromNodes.bitAND(ndb_nodes);
-  theFacade.unlock_mutex();
+  theFacade.unlock_poll_mutex();
 
 #ifdef DEBUG_REG
   char buf[128];
@@ -273,18 +274,19 @@ ClusterMgr::forceHB()
 #endif
       raw_sendSignal(&signal, nodeId);
     }
+    flush_send_buffers();
     unlock();
   }
   /* Wait for nodes to reply - if any heartbeats was sent */
-  theFacade.lock_mutex();
+  theFacade.lock_poll_mutex();
   if (!waitForHBFromNodes.isclear())
-    NdbCondition_WaitTimeout(waitForHBCond, theFacade.theMutexPtr, 1000);
+    NdbCondition_WaitTimeout(waitForHBCond, theFacade.thePollMutex, 1000);
 
   waitingForHB= false;
 #ifdef DEBUG_REG
   ndbout << "Still waiting for HB from " << waitForHBFromNodes.getText(buf) << endl;
 #endif
-  theFacade.unlock_mutex();
+  theFacade.unlock_poll_mutex();
 }
 
 void
@@ -298,12 +300,14 @@ ClusterMgr::startup()
 
   lock();
   theFacade.doConnect(nodeId);
+  flush_send_buffers();
   unlock();
 
   for (Uint32 i = 0; i<3000; i++)
   {
     lock();
     theFacade.theTransporterRegistry->update_connections();
+    flush_send_buffers();
     unlock();
     if (theNode.is_connected())
       break;
@@ -345,9 +349,9 @@ ClusterMgr::threadMain()
   {
     /* Sleep at 100ms between each heartbeat check */
     NDB_TICKS before = now;
-    for (Uint32 i = 0; i<10; i++)
+    for (Uint32 i = 0; i<5; i++)
     {
-      NdbSleep_MilliSleep(10);
+      NdbSleep_MilliSleep(20);
       {
         Guard g(clusterMgrThreadMutex);
         /**
@@ -381,7 +385,7 @@ ClusterMgr::threadMain()
     nodeFailRep->noOfNodes = 0;
     NodeBitmask::clear(nodeFailRep->theNodes);
 
-    trp_client::lock();
+    lock();
     for (int i = 1; i < MAX_NODES; i++){
       /**
        * Send register request (heartbeat) to all available nodes 
@@ -444,12 +448,16 @@ ClusterMgr::threadMain()
         NodeBitmask::set(nodeFailRep->theNodes, nodeId);
       }
     }
+    flush_send_buffers();
+    unlock();
 
     if (nodeFailRep->noOfNodes)
     {
+      lock();
       raw_sendSignal(&nodeFail_signal, getOwnNodeId());
+      flush_send_buffers();
+      unlock();
     }
-    trp_client::unlock();
   }
 }
 
@@ -530,7 +538,7 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
       tSignal.theReceiversBlockNumber= refToBlock(ref);
       tSignal.theVerId_signalNumber= GSN_SUB_GCP_COMPLETE_ACK;
       tSignal.theSendersBlockRef = API_CLUSTERMGR;
-      safe_sendSignal(&tSignal, aNodeId);
+      safe_noflush_sendSignal(&tSignal, aNodeId);
     }
     break;
   }
@@ -550,6 +558,11 @@ ClusterMgr::trp_deliver_signal(const NdbApiSignal* sig,
   case GSN_DISCONNECT_REP:
   {
     execDISCONNECT_REP(sig, ptr);
+    return;
+  }
+  case GSN_CLOSE_COMREQ:
+  {
+    theFacade.perform_close_clnt(this);
     return;
   }
   default:
@@ -1435,7 +1448,7 @@ ArbitMgr::sendSignalToQmgr(ArbitSignal& aSignal)
   {
     m_clusterMgr.lock();
     m_clusterMgr.raw_sendSignal(&signal, aSignal.data.sender);
+    m_clusterMgr.flush_send_buffers();
     m_clusterMgr.unlock();
   }
 }
-
