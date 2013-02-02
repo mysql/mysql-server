@@ -10,7 +10,7 @@ INSERT INTO t2 (a,b) SELECT a, b FROM t1;
 ALTER TABLE t1 REPAIR PARTITION p0;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-INSERT INTO t1 VALUES (3,'c');
+INSERT INTO t1 (a,b) VALUES (3,'c');
 ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -22,7 +22,7 @@ INSERT INTO t1 (a,b) VALUES (7,'g'),(8,'h');
 ALTER TABLE t1 REPAIR PARTITION LOCAL ALL EXTENDED;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
-INSERT INTO t1 VALUES (10,'j');
+INSERT INTO t1 (a,b) VALUES (10,'j');
 ALTER TABLE t1 REPAIR PARTITION p1 QUICK USE_FRM;
 Table	Op	Msg_type	Msg_text
 test.t1	repair	status	OK
@@ -76,7 +76,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	Error	Failed to read from the .par file
 test.t1	check	Error	Incorrect information in file: './test/t1.frm'
 test.t1	check	error	Corrupt
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 ERROR HY000: Failed to read from the .par file
 # Statement ended with one of expected results (0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY). 
 # If you got a difference in error message, just add it to rdiff file
@@ -118,7 +118,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	error	Size of datafile is: 26         Should be: 39
 test.t1	check	error	Partition p0 returned error
 test.t1	check	error	Corrupt
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 8	h
 10	j
@@ -142,7 +142,7 @@ test.t1	check	error	Record-count is not ok; is 3   Should be: 2
 test.t1	check	warning	Found 3 key parts. Should be: 2
 test.t1	check	error	Partition p0 returned error
 test.t1	check	error	Corrupt
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 8	h
 10	j
@@ -166,7 +166,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	error	Size of datafile is: 39         Should be: 52
 test.t1	check	error	Partition p1 returned error
 test.t1	check	error	Corrupt
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 8	h
 10	j
@@ -193,7 +193,7 @@ test.t1	check	error	Record-count is not ok; is 4   Should be: 3
 test.t1	check	warning	Found 4 key parts. Should be: 3
 test.t1	check	error	Partition p1 returned error
 test.t1	check	error	Corrupt
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 8	h
 10	j
@@ -218,7 +218,7 @@ Restoring <DATADIR>/test/t1.par
 CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 8	h
 10	j

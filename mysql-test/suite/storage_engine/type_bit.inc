@@ -43,28 +43,28 @@ if (!$mysql_errname)
     SHOW COLUMNS IN t1;
   }
 
-  INSERT INTO t1 VALUES (0,POW(2,20)-1,b'1111111111111111111111111111111111111111111111111111111111111111',1);
+  INSERT INTO t1 (a,b,c,d) VALUES (0,POW(2,20)-1,b'1111111111111111111111111111111111111111111111111111111111111111',1);
   --sorted_result
   SELECT BIN(a), HEX(b), c+0 FROM t1 WHERE d>0;
 
-  INSERT INTO t1 VALUES (1,0,-1,0);
+  INSERT INTO t1 (a,b,c,d) VALUES (1,0,-1,0);
   --sorted_result
   SELECT a+0, b+0, c+0 FROM t1 WHERE d<100;
 
-  INSERT INTO t1 VALUES (b'1', 'f', 0xFF, 0x0);
+  INSERT INTO t1 (a,b,c,d) VALUES (b'1', 'f', 0xFF, 0x0);
   --sorted_result
   SELECT a+0, b+0, c+0 FROM t1 WHERE d IN (0, 2);
 
   # Out of range values
   # (should produce warnings)
 
-  INSERT INTO t1 VALUES (0x10,0,0,1);
+  INSERT INTO t1 (a,b,c,d) VALUES (0x10,0,0,1);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c,d FROM t1;
 
-  INSERT INTO t1 VALUES (0x01,0,0x10000000000000000,0);
+  INSERT INTO t1 (a,b,c,d) VALUES (0x01,0,0x10000000000000000,0);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c,d FROM t1;
 
   DROP TABLE t1;
 

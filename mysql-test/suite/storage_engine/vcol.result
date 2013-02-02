@@ -9,7 +9,7 @@ INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
 Warnings:
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	2
 2	3
@@ -26,7 +26,7 @@ INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
 Warnings:
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	2
 2	3
@@ -43,7 +43,7 @@ INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
 Warnings:
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	2
 2	3
@@ -60,7 +60,7 @@ INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
 Warnings:
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
 Warning	1906	The value specified for computed column 'b' in table 't1' ignored
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	2
 2	3

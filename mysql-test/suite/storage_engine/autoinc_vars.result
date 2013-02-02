@@ -5,7 +5,7 @@ INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b'),(NULL,'c');
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 1
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 2	b
@@ -15,7 +15,7 @@ INSERT INTO t1 (a,b) VALUES (NULL,'d'),(NULL,'e'),(NULL,'f');
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 200
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 2	b
@@ -28,7 +28,7 @@ INSERT INTO t1 (a,b) VALUES (NULL,'g'),(NULL,'h'),(NULL,'i');
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 850
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 2	b
@@ -48,6 +48,6 @@ ERROR 22003: Out of range value for column 'a' at row 1
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
 850
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 DROP TABLE t1;

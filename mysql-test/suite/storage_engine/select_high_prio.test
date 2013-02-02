@@ -49,12 +49,12 @@ let $condition = LIKE 'Waiting for table%';
 let $wait_timeout = 2;
 --source include/wait_show_condition.inc
 --send
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --connection con1
 let $show_statement = SHOW PROCESSLIST;
 let $field = Info;
-let $condition = = 'SELECT * FROM t1';
+let $condition = = 'SELECT a,b FROM t1';
 let $wait_timeout = 2;
 --source include/wait_show_condition.inc
 if (!$found)

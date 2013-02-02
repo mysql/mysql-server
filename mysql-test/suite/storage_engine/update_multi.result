@@ -5,7 +5,7 @@ INSERT INTO t1 (a,b) SELECT a, b FROM t1;
 CREATE TABLE t2 (c <CHAR_COLUMN>, d <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
 INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 UPDATE t1, t2 SET t1.a = t2.d+100, t2.c = 'multi' WHERE c < b AND a + d != 1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 1	a
@@ -19,7 +19,7 @@ a	b
 101	e
 101	foobar
 101	foobar
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 c	d
 foobar	10000
 foobar	10000
@@ -34,7 +34,7 @@ multi	4
 multi	5
 multi	5
 UPDATE t2, t1 SET t2.d = DEFAULT WHERE c = 'foobar' and b = c;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 1	a
@@ -48,7 +48,7 @@ a	b
 101	e
 101	foobar
 101	foobar
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 c	d
 foobar	NULL
 foobar	NULL

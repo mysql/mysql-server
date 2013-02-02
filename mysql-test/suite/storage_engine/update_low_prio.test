@@ -76,7 +76,7 @@ if ($mysql_errname)
 }
 
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 # UPDATE LOW_PRIORITY
 
@@ -107,7 +107,7 @@ SELECT a+SLEEP(1) FROM t1;
 --connection default
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 SET LOW_PRIORITY_UPDATES = 1;
 
@@ -152,7 +152,7 @@ if ($mysql_errname)
   --source unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --disconnect con1
 --disconnect con2

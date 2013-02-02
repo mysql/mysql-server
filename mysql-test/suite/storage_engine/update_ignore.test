@@ -26,14 +26,14 @@ if ($mysql_errname)
 if (!$mysql_errname)
 {
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   UPDATE IGNORE t1, t2 SET b = 'upd2a', c = 'upd2b' 
     WHERE c < b OR a != ( SELECT 1 UNION SELECT 2 );
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   --sorted_result
-  SELECT * FROM t2;
+  SELECT c,d FROM t2;
 }
 
 # Cleanup

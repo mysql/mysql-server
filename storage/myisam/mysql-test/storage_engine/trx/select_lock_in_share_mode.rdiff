@@ -25,7 +25,7 @@
 +# -------------------------------------------
  connection con1;
  COMMIT;
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
 -1	a
 +1	c

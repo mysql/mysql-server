@@ -43,7 +43,7 @@ connection con1;
 # With WRITE lock held by connection 'default',
 # nobody else can access the table
 --let $error_codes = ER_LOCK_WAIT_TIMEOUT
-SELECT * FROM t1;
+SELECT id,id2 FROM t1;
 --source check_errors.inc
 --let $error_codes = ER_LOCK_WAIT_TIMEOUT
 LOCK TABLE t1 READ;
@@ -94,7 +94,7 @@ UNLOCK TABLES;
 --let $create_definition = id $int_col, id2 $int_col
 --source create_table.inc
 LOCK TABLE t1 WRITE, t2 WRITE;
-INSERT INTO t2 SELECT * FROM t1;
+INSERT INTO t2 (id,id2) SELECT id,id2 FROM t1;
 UPDATE t1 SET id=1 WHERE id=-1;
 if ($mysql_errname)
 {
@@ -232,7 +232,7 @@ LOCK TABLE t1 WRITE, t2 WRITE;
 --source create_table.inc 
 FLUSH TABLE t1;
 DROP TEMPORARY TABLE t1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 UNLOCK TABLES;
 DROP TABLE t1, t2;
 

@@ -130,7 +130,7 @@ if (!$mysql_errname)
   SHOW INDEX IN t1;
 
   INSERT INTO t1 (b,b20,v16,v128) VALUES ('a','char1','varchar1a','varchar1b'),('a','char2','varchar2a','varchar2b'),('b','char3','varchar1a','varchar1b'),('c','char4','varchar3a','varchar3b'),('d','char5','varchar4a','varchar3b'),('e','char6','varchar2a','varchar3b');
-  INSERT INTO t1 SELECT * FROM t1;
+  INSERT INTO t1 (b,b20,v16,v128) SELECT b,b20,v16,v128 FROM t1;
 
   --replace_column 1 # 2 # 3 # 4 # 5 # 7 # 8 # 9 # 10 #
   EXPLAIN SELECT HEX(SUBSTRING(v16,0,3)) FROM t1 WHERE v16 LIKE 'varchar%';

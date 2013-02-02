@@ -76,7 +76,7 @@ if ($found)
 --connection con0
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --disconnect con0
 --disconnect con1

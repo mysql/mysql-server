@@ -5,7 +5,7 @@ UPDATE t1 SET a=100, b='f' WHERE b IN ('b','c');
 UPDATE t1 SET b='m' WHERE b = 'f';
 UPDATE t1 SET b='z' WHERE a < 2;
 UPDATE t1 SET b='';
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	
 100	
@@ -25,7 +25,7 @@ ERROR 23000: Duplicate entry '205' for key 'a'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
 UPDATE t1 SET a=12345 ORDER BY a, b LIMIT 1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 12345	a
 200	f
@@ -51,7 +51,7 @@ ERROR 23000: Duplicate entry '4-d' for key 'a'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
 UPDATE t1 SET a=a+1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 101	a
 2	a
@@ -74,7 +74,7 @@ ERROR 23000: Duplicate entry '205' for key 'PRIMARY'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
 UPDATE t1 SET a=12345 ORDER BY a DESC, b LIMIT 1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	a
 12345	e

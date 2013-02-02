@@ -57,7 +57,7 @@
 -test.t1	check	Error	Incorrect file format 't1'
 -test.t1	check	error	Corrupt
 +test.t1	check	status	OK
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
 -ERROR HY000: Incorrect file format 't1'
 +a	b
 +1	a
@@ -107,7 +107,7 @@
 -Table	Op	Msg_type	Msg_text
 -test.t1	check	error	Size of datafile is: 39         Should be: 65
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -ERROR HY000: Incorrect key file for table 't1'; try to repair it
 -# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
 -# If you got a difference in error message, just add it to rdiff file
@@ -122,7 +122,7 @@
 -test.t1	check	warning	Table is marked as crashed and last repair failed
 -test.t1	check	error	Size of datafile is: 39         Should be: 65
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -ERROR HY000: Table './test/t1' is marked as crashed and last (automatic?) repair failed
 -# Statement ended with one of expected results (0,ER_NOT_KEYFILE,144). 
 -# If you got a difference in error message, just add it to rdiff file

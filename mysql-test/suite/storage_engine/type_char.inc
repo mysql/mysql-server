@@ -27,19 +27,19 @@ if (!$mysql_errname)
 
   # Valid values 
 
-  INSERT INTO t1 VALUES ('','','','','');
-  INSERT INTO t1 VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
+  INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('','','','','');
+  INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT c,c0,c1,c20,c255 FROM t1;
 
   # Invalid values
 
-  INSERT INTO t1 VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
-  INSERT INTO t1 SELECT c255, c255, c255, c255, CONCAT(c255,c1) FROM t1;
+  INSERT INTO t1 (c,c0,c1,c20,c255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+  INSERT INTO t1 (c,c0,c1,c20,c255) SELECT c255, c255, c255, c255, CONCAT(c255,c1) FROM t1;
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT c,c0,c1,c20,c255 FROM t1;
 
   --sorted_result
   SELECT DISTINCT c20, REPEAT('a',LENGTH(c20)), COUNT(*) FROM t1 GROUP BY c1, c20;

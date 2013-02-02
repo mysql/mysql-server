@@ -31,7 +31,7 @@
 +Warning	1196	Some non-transactional changed tables couldn't be rolled back
  UPDATE t1 SET b = 'upd' WHERE a = 10050;
  COMMIT;
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
  10050	upd
  10050	upd

@@ -3,7 +3,7 @@ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>, <CUSTOM_INDEX> (b)) ENGINE=<ST
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'x'),(7,'y'),(8,'z');
 DELETE FROM t1 WHERE b > 'y';
 DELETE FROM t1 WHERE a=2;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 3	c
@@ -17,7 +17,7 @@ CREATE TABLE t1 (a <INT_COLUMN> PRIMARY KEY, b <CHAR_COLUMN>) ENGINE=<STORAGE_EN
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(6,'x'),(7,'y'),(8,'z');
 DELETE FROM t1 WHERE b > 'y';
 DELETE FROM t1 WHERE a=2;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 3	c
@@ -30,7 +30,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (a <INT_COLUMN>, b <INT_COLUMN>, c <INT_COLUMN>, <CUSTOM_INDEX>(a), <CUSTOM_INDEX>(b)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
 INSERT INTO t1 (a,b,c) VALUES (1,2,3),(4,5,6),(7,8,9);
 DELETE FROM t1 WHERE a = 10 OR b = 20 ORDER BY c LIMIT 1;
-SELECT * FROM t1;
+SELECT a,b,c FROM t1;
 a	b	c
 1	2	3
 4	5	6

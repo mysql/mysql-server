@@ -41,16 +41,16 @@ if (!$mysql_errname)
   INSERT DELAYED INTO t1 SET a=4, b='d';
   # DELAYED is ignored with INSERT .. SELECT
   --let $error_codes = ER_LOCK_WAIT_TIMEOUT
-  INSERT DELAYED INTO t1 SELECT 5, 'e';
+  INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
   --source check_errors.inc
 
   --disconnect con0
   --connection default
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 }
 UNLOCK TABLES;
 FLUSH TABLES;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 # Cleanup
 DROP TABLE t1;

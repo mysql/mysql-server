@@ -28,16 +28,16 @@ if (!$mysql_errname)
   --replace_column 3 # 4 # 5 #
   SHOW COLUMNS IN t1;
 
-  INSERT INTO t1 VALUES ('','test2','4'),('',5,2);
+  INSERT INTO t1 (a,b,c) VALUES ('','test2','4'),('',5,2);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c FROM t1;
 
   # Out of range values 
   # (should produce warnings)
 
-  INSERT INTO t1 VALUES (0,'test6',-1);
+  INSERT INTO t1 (a,b,c) VALUES (0,'test6',-1);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c FROM t1;
 
   # Non-unique values in enum
   # (should produce a warning)
@@ -53,14 +53,14 @@ if (!$mysql_errname)
   --replace_column 3 # 4 # 5 #
   SHOW COLUMNS IN t1;
 
-  INSERT INTO t1 VALUES ('','test3','75','A');
+  INSERT INTO t1 (a,b,c,e) VALUES ('','test3','75','A');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c,e FROM t1;
 
   # Simple comparison
 
   --sorted_result
-  SELECT * FROM t1 WHERE b='test2' OR a != '';
+  SELECT a,b,c,e FROM t1 WHERE b='test2' OR a != '';
 
   DROP TABLE t1;
 }

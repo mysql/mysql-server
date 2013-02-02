@@ -26,7 +26,7 @@ if (!$mysql_errname)
   UPDATE t1 SET a=a-50, b=DEFAULT WHERE a>100;
   COMMIT;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   BEGIN;
   UPDATE t1 SET b = 'update' WHERE a <= 4 ORDER BY a DESC, b ASC LIMIT 3;
@@ -41,7 +41,7 @@ if (!$mysql_errname)
   UPDATE t1 SET b = 'upd' WHERE a = 10050;
   COMMIT;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 }
 
 DROP TABLE t1;

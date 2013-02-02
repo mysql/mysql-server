@@ -22,7 +22,7 @@
  ROLLBACK;
 +Warnings:
 +Warning	1196	Some non-transactional changed tables couldn't be rolled back
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
 -10000	foobar
 -10000	foobar

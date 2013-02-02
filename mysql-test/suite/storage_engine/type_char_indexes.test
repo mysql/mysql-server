@@ -135,9 +135,9 @@ if (!$mysql_errname)
 
   SET SESSION optimizer_switch = 'engine_condition_pushdown=on';
   --replace_column 1 # 2 # 3 # 7 # 8 # 9 # 
-  EXPLAIN SELECT * FROM t1 WHERE c > 'a';
+  EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
   --sorted_result
-  SELECT * FROM t1 WHERE c > 'a';
+  SELECT c,c20,v16,v128 FROM t1 WHERE c > 'a';
   SET SESSION optimizer_switch = @@global.optimizer_switch;
 
   DROP TABLE t1;
@@ -175,9 +175,9 @@ if (!$mysql_errname)
   SELECT SUBSTRING(v16,7,3) FROM t1 IGNORE INDEX (v16) WHERE v16 LIKE 'varchar%';
 
   --replace_column 1 # 2 # 3 # 5 # 7 # 8 # 9 # 10 #
-  EXPLAIN SELECT * FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+  EXPLAIN SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
   --sorted_result
-  SELECT * FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
+  SELECT c,c20,v16,v128 FROM t1 WHERE v16 = 'varchar1a' OR v16 = 'varchar3a' ORDER BY v16;
 
   DROP TABLE t1;
 }

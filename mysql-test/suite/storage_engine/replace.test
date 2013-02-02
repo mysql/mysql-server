@@ -13,11 +13,11 @@ DROP TABLE IF EXISTS t1;
 
 REPLACE INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e');
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 REPLACE t1 (a,b) VALUE (10,'foo'),(10,'foo');
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 DROP TABLE t1;
 
@@ -37,7 +37,7 @@ if (!$mysql_errname)
   --source check_errors.inc
   REPLACE INTO t1 (a,b) VALUES (2,'d');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }
@@ -58,7 +58,7 @@ if (!$mysql_errname)
   --source check_errors.inc
   REPLACE INTO t1 (a,b) VALUES (4,'b');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }

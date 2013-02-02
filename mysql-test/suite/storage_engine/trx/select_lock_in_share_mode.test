@@ -22,7 +22,7 @@ INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'a');
 --connect (con1,localhost,root,,)
 BEGIN;
 --sorted_result
-SELECT * FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
 if ($mysql_errname)
 {
   --let $functionality = LOCK IN SHARE MODE
@@ -35,14 +35,14 @@ SET lock_wait_timeout = 1;
 # Should still be able to select 
 
 --sorted_result
-SELECT * FROM t1 WHERE b='a';
+SELECT a,b FROM t1 WHERE b='a';
 if ($mysql_errname)
 {
   --let $functionality = LOCK IN SHARE MODE
   --source ../unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
 if ($mysql_errname)
 {
   --let $functionality = LOCK IN SHARE MODE
@@ -61,7 +61,7 @@ if ($mysql_errname != ER_LOCK_WAIT_TIMEOUT)
 --connection con1
 COMMIT;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --disconnect con1
 --connection default
@@ -73,7 +73,7 @@ if ($mysql_errname)
   --source ../unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 DROP TABLE t1;
 

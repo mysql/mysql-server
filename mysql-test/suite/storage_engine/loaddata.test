@@ -22,23 +22,40 @@ EOF
 --replace_result $datadir <DATADIR>
 eval
 LOAD DATA INFILE '$datadir/se_loaddata.dat' INTO TABLE t1 
-  FIELDS TERMINATED BY ',';
+  FIELDS TERMINATED BY ',' (a,b);
 if ($mysql_errname)
 {
   --source unexpected_result.inc
+  --remove_file $datadir/se_loaddata.dat
 }
 if (!$mysql_errname)
 {
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   --replace_result $datadir <DATADIR>
   eval
   LOAD DATA LOCAL INFILE '$datadir/se_loaddata.dat' INTO TABLE t1
     CHARACTER SET utf8 COLUMNS TERMINATED BY ','
-    ESCAPED BY '/';
+    ESCAPED BY '/' (a,b);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
+
+  --remove_file $datadir/se_loaddata.dat
+  --write_file $datadir/se_loaddata.dat
+5;YYY;
+102;'zzz';
+0;'test';
+EOF
+
+  --replace_result $datadir <DATADIR>
+  eval
+  LOAD DATA LOCAL INFILE '$datadir/se_loaddata.dat' INTO TABLE t1
+    FIELDS TERMINATED BY ';'
+    (a) SET b='loaded';
+
+  --sorted_result
+  SELECT a,b FROM t1;
 
   --remove_file $datadir/se_loaddata.dat
   --write_file $datadir/se_loaddata.dat
@@ -57,31 +74,30 @@ EOF
     FIELDS TERMINATED BY ';'
     OPTIONALLY ENCLOSED BY ''''
     LINES STARTING BY 'prefix:' 
-    IGNORE 2 LINES
-    (a,b);
+    IGNORE 2 LINES (a,b);
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   --remove_file $datadir/se_loaddata.dat
   --write_file $datadir/se_loaddata.dat
-5;YYY;
-102;'zzz';
-0;'test';
+1	foo
+2	bar
+3	
+4	abc
 EOF
 
   --replace_result $datadir <DATADIR>
   eval
-  LOAD DATA LOCAL INFILE '$datadir/se_loaddata.dat' INTO TABLE t1
-    FIELDS TERMINATED BY ';'
-    (a) SET b='loaded';
-
+  LOAD DATA INFILE '$datadir/se_loaddata.dat' INTO TABLE t1;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
+
+  --remove_file $datadir/se_loaddata.dat
+
 }
 
 # Cleanup
---remove_file $datadir/se_loaddata.dat
 DROP TABLE t1;
 
 --source cleanup_engine.inc

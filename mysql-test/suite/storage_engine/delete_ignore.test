@@ -18,9 +18,9 @@ INSERT INTO t1 (a,b) SELECT a, b FROM t1;
 --source create_table.inc
 INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 --sorted_result
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 
 DELETE IGNORE FROM t1 WHERE b IS NOT NULL ORDER BY a LIMIT 1;
 if ($mysql_errname)
@@ -29,13 +29,13 @@ if ($mysql_errname)
   --source unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 DELETE IGNORE t1.*, t2.* FROM t1, t2 WHERE c < b OR a != ( SELECT 1 UNION SELECT 2 );
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 --sorted_result
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 
 # Cleanup
 DROP TABLE t1, t2;

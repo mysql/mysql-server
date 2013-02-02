@@ -1,5 +1,5 @@
---- suite/storage_engine/insert_delayed.result	2012-07-12 20:04:07.143544998 +0400
-+++ suite/storage_engine/insert_delayed.reject	2012-07-15 17:49:34.551810189 +0400
+--- suite/storage_engine/insert_delayed.result	2013-01-23 01:23:49.461254916 +0400
++++ suite/storage_engine/insert_delayed.reject	2013-01-23 01:47:05.975698364 +0400
 @@ -5,7 +5,16 @@
  connect  con0,localhost,root,,;
  SET lock_wait_timeout = 1;
@@ -14,7 +14,7 @@
 +# -------------------------------------------
  INSERT DELAYED INTO t1 SET a=4, b='d';
 +ERROR HY000: DELAYED option not supported for table 't1'
- INSERT DELAYED INTO t1 SELECT 5, 'e';
+ INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
  ERROR HY000: Lock wait timeout exceeded; try restarting transaction
  disconnect con0;
 @@ -20,6 +29,4 @@

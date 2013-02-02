@@ -31,7 +31,7 @@ let $create_definition = a $int_col;
 
 START TRANSACTION; 
 --sorted_result
-SELECT * FROM t1; # First snapshot
+SELECT a FROM t1; # First snapshot
 
 connection con2;
 
@@ -42,7 +42,7 @@ INSERT INTO t1 (a) VALUES(1);
 
 connection con1;
 --sorted_result
-SELECT * FROM t1; # Second snapshot
+SELECT a FROM t1; # Second snapshot
 
 connection con2;
 --let $error_codes = 0,ER_LOCK_WAIT_TIMEOUT
@@ -51,25 +51,25 @@ INSERT INTO t1 (a) VALUES (2);
 
 connection con1;
 --sorted_result
-SELECT * FROM t1; # Third snapshot
+SELECT a FROM t1; # Third snapshot
 
 --let $error_codes = 0,ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 (a) SELECT a+100 FROM t1; 
 --source ../strict_check_errors.inc
 
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 connection con2;
 --sorted_result
-SELECT * FROM t1; # Inside the transaction
+SELECT a FROM t1; # Inside the transaction
 COMMIT;
 --sorted_result
-SELECT * FROM t1; # Outside the transaction
+SELECT a FROM t1; # Outside the transaction
 
 connection con1;
 --sorted_result
-SELECT * FROM t1; # Inside the transaction
+SELECT a FROM t1; # Inside the transaction
 
 # Note: INSERT .. SELECT might be tricky, for example for InnoDB
 # even with REPEATABLE-READ it works as if it is executed with READ COMMITTED.
@@ -81,14 +81,14 @@ INSERT INTO t1 (a) SELECT a+200 FROM t1;
 --source ../strict_check_errors.inc
 
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 COMMIT;
 --sorted_result
-SELECT * FROM t1; # Outside the transaction
+SELECT a FROM t1; # Outside the transaction
 
 connection con2;
 --sorted_result
-SELECT * FROM t1; # After both transactions have committed
+SELECT a FROM t1; # After both transactions have committed
 
 connection default;
 disconnect con1;

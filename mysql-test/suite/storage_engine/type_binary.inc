@@ -27,16 +27,16 @@ if (!$mysql_errname)
 
   # Valid values 
 
-  INSERT INTO t1 VALUES ('','','','','');
-  INSERT INTO t1 VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
+  INSERT INTO t1 (b,b0,b1,b20,b255) VALUES ('','','','','');
+  INSERT INTO t1 (b,b0,b1,b20,b255) VALUES ('a','','b','abcdefghi klmnopqrst', 'Creating an article for the Knowledgebase is similar to asking questions. First, navigate to the category where you feel the article should be. Once there, double check that an article doesn\'t already exist which would work.');
 
   --sorted_result
   SELECT HEX(b), HEX(b0), HEX(b1), HEX(b20), HEX(b255) FROM t1;
 
   # Invalid values
 
-  INSERT INTO t1 VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
-  INSERT INTO t1 SELECT b255, b255, b255, b255, CONCAT(b255,b255) FROM t1;
+  INSERT INTO t1 (b,b0,b1,b20,b255) VALUES ('abc', 'a', 'abc', REPEAT('a',21), REPEAT('x',256));
+  INSERT INTO t1 (b,b0,b1,b20,b255) SELECT b255, b255, b255, b255, CONCAT(b255,b255) FROM t1;
 
   --sorted_result
   SELECT HEX(b), HEX(b0), HEX(b1), HEX(b20), HEX(b255) FROM t1;

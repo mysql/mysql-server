@@ -24,7 +24,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a) VALUES (1),(2);
   INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 
@@ -37,7 +37,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a) VALUES (1),(2);
   INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 
@@ -50,7 +50,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a) VALUES (1),(2);
   INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 
@@ -63,7 +63,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a) VALUES (1),(2);
   INSERT INTO t1 (a,b) VALUES (3,3),(4,4);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }

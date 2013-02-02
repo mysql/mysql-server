@@ -26,15 +26,15 @@ if ($mysql_errname)
 if (!$mysql_errname)
 {
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   --sorted_result
-  SELECT * FROM t2;
+  SELECT c,d FROM t2;
 
   UPDATE t2, t1 SET t2.d = DEFAULT WHERE c = 'foobar' and b = c;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   --sorted_result
-  SELECT * FROM t2;
+  SELECT c,d FROM t2;
 }
 
 # Cleanup

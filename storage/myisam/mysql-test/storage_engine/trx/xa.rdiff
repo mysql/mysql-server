@@ -12,21 +12,21 @@
  connect  con2,localhost,root,,;
 @@ -9,17 +15,22 @@
  connection con1;
- SELECT * FROM t1;
+ SELECT a FROM t1;
  a
 +1
  connection con2;
  INSERT INTO t1 (a) VALUES (2);
  XA END 'xa1';
  connection con1;
- SELECT * FROM t1;
+ SELECT a FROM t1;
  a
 +1
 +2
  connection con2;
  XA PREPARE 'xa1';
  connection con1;
- SELECT * FROM t1;
+ SELECT a FROM t1;
  a
 +1
 +2
@@ -78,7 +78,7 @@
 +Warnings:
 +Warning	1196	Some non-transactional changed tables couldn't be rolled back
  connection con1;
- SELECT * FROM t1;
+ SELECT a FROM t1;
  a
 @@ -93,4 +114,6 @@
  2

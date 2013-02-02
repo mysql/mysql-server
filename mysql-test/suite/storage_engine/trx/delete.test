@@ -22,11 +22,11 @@ if ($mysql_errname)
   --source ../unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 DELETE FROM t1 WHERE a < 0 OR b = 'a';
 COMMIT;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 BEGIN;
 DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
@@ -35,7 +35,7 @@ DELETE FROM t1;
 RELEASE SAVEPOINT spt1;
 ROLLBACK;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 BEGIN;
 DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;

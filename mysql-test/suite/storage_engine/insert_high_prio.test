@@ -80,7 +80,7 @@ if ($found)
 --connection con0
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 DROP TABLE t1;
 
@@ -122,7 +122,7 @@ if ($found)
 --connection con0
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --disconnect con1
 --disconnect con2

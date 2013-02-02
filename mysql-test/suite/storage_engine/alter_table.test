@@ -111,7 +111,7 @@ SHOW CREATE TABLE t1;
 --source alter_table.inc
 --source mask_engine.inc
 SHOW CREATE TABLE t1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 DROP TABLE t1;
 
 # Character set, collate

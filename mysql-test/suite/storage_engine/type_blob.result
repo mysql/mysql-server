@@ -22,7 +22,7 @@ b17m	longblob	#	#	#
 t	tinyblob	#	#	#	
 m	mediumblob	#	#	#	
 l	longblob	#	#	#	
-INSERT INTO t1 VALUES
+INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
 ('','','','','','','','','',''),
 ('a','b','c','d','e','f','g','h','i','j'),
 ('test1','test2','test3','test4','test5','test6','test7','test8','test9','test10'),
@@ -33,7 +33,7 @@ LENGTH(b)	LENGTH(b0)	LENGTH(b1)	LENGTH(b300)	LENGTH(bm)	LENGTH(b70k)	LENGTH(b17m
 1	1	1	1	1	1	1	1	1	1
 5	5	5	5	5	5	5	5	5	6
 65535	65535	255	65535	65535	1048576	2097152	255	1048576	2097152
-INSERT INTO t1 VALUES
+INSERT INTO t1 (b,b0,b1,b300,bm,b70k,b17m,t,m,l) VALUES
 ( REPEAT('a',65536), REPEAT('b',65536), REPEAT('c',256), REPEAT('d',65536), REPEAT('e',65536), REPEAT('f',1048576), REPEAT('g',1048576), REPEAT('h',256), REPEAT('i',1048576), REPEAT('j',1048576) );
 Warnings:
 Warning	1265	Data truncated for column 'b' at row 1

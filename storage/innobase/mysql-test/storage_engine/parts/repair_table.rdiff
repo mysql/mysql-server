@@ -1,12 +1,12 @@
---- suite/storage_engine/parts/repair_table.result	2012-07-15 01:22:58.861853325 +0400
-+++ suite/storage_engine/parts/repair_table.reject	2012-07-15 20:07:11.268009209 +0400
+--- suite/storage_engine/parts/repair_table.result	2013-01-23 01:35:44.388267080 +0400
++++ suite/storage_engine/parts/repair_table.reject	2013-01-23 01:44:40.337529283 +0400
 @@ -9,27 +9,27 @@
  INSERT INTO t2 (a,b) SELECT a, b FROM t1;
  ALTER TABLE t1 REPAIR PARTITION p0;
  Table	Op	Msg_type	Msg_text
 -test.t1	repair	status	OK
 +test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 VALUES (3,'c');
+ INSERT INTO t1 (a,b) VALUES (3,'c');
  ALTER TABLE t1 REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
  Table	Op	Msg_type	Msg_text
 -test.t1	repair	status	OK
@@ -21,7 +21,7 @@
  Table	Op	Msg_type	Msg_text
 -test.t1	repair	status	OK
 +test.t1	repair	note	The storage engine for the table doesn't support repair
- INSERT INTO t1 VALUES (10,'j');
+ INSERT INTO t1 (a,b) VALUES (10,'j');
  ALTER TABLE t1 REPAIR PARTITION p1 QUICK USE_FRM;
  Table	Op	Msg_type	Msg_text
 -test.t1	repair	status	OK
@@ -112,7 +112,7 @@
 -test.t1	check	error	Size of datafile is: 26         Should be: 39
 -test.t1	check	error	Partition p0 returned error
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -a	b
 -8	h
 -10	j
@@ -136,7 +136,7 @@
 -test.t1	check	warning	Found 3 key parts. Should be: 2
 -test.t1	check	error	Partition p0 returned error
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -a	b
 -8	h
 -10	j
@@ -160,7 +160,7 @@
 -test.t1	check	error	Size of datafile is: 39         Should be: 52
 -test.t1	check	error	Partition p1 returned error
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -a	b
 -8	h
 -10	j
@@ -187,7 +187,7 @@
 -test.t1	check	warning	Found 4 key parts. Should be: 3
 -test.t1	check	error	Partition p1 returned error
 -test.t1	check	error	Corrupt
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -a	b
 -8	h
 -10	j

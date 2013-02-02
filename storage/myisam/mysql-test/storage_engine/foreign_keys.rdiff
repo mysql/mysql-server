@@ -44,12 +44,12 @@
 +# Also, this problem may cause a chain effect (more errors of different kinds in the test).
 +# -------------------------------------------
  DELETE FROM t2 WHERE a=2;
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
  1	c
 -2	d
 +3	d
- SELECT * FROM t2;
+ SELECT a,b FROM t2;
  a	b
 -1	a
 +3	b
@@ -90,7 +90,7 @@
 +# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
 +# Also, this problem may cause a chain effect (more errors of different kinds in the test).
 +# -------------------------------------------
- SELECT * FROM t2;
+ SELECT a,b FROM t2;
  a	b
 -5	a
 -5	a
@@ -117,7 +117,7 @@
 +# Further in this test, the message might sometimes be suppressed; a part of the test might be skipped.
 +# Also, this problem may cause a chain effect (more errors of different kinds in the test).
 +# -------------------------------------------
- SELECT * FROM t2;
+ SELECT a,b FROM t2;
  a	b
 +1	a
 +1	a

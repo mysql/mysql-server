@@ -32,22 +32,22 @@ if (!$mysql_errname)
 
   # Valid values 
   # '1970-01-01 00:00:01'
-  INSERT INTO t1 VALUES
+  INSERT INTO t1 (d,dt,ts,t,y,y4,y2) VALUES
   ('1000-01-01', '1000-01-01 00:00:00', FROM_UNIXTIME(1), '-838:59:59', '1901', '1901', '00'),
   ('9999-12-31', '9999-12-31 23:59:59', FROM_UNIXTIME(2147483647), '838:59:59', '2155', '2155', '99'),
   ('0000-00-00', '0000-00-00 00:00:00', '0000-00-00 00:00:00', '00:00:00', '0', '0', '0'),
   (DATE(@tm),@tm,TIMESTAMP(@tm),TIME(@tm),YEAR(@tm),YEAR(@tm),YEAR(@tm)); 
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT d,dt,ts,t,y,y4,y2 FROM t1;
 
   # Invalid values
 
-  INSERT INTO t1 VALUES
+  INSERT INTO t1 (d,dt,ts,t,y,y4,y2) VALUES
   ('999-13-32', '999-11-31 00:00:00', '0', '-839:00:00', '1900', '1900', '-1' );
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT d,dt,ts,t,y,y4,y2 FROM t1;
 
   DROP TABLE t1;
 }

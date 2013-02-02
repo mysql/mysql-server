@@ -30,7 +30,7 @@ INSERT INTO t1 (a) VALUES (1);
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 INSERT INTO t1 (a) VALUES (2);
@@ -38,14 +38,14 @@ XA END 'xa1';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 XA PREPARE 'xa1';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 XA RECOVER;
@@ -53,7 +53,7 @@ XA COMMIT 'xa1';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 # One-phase COMMIT
 
@@ -63,7 +63,7 @@ INSERT INTO t1 (a) VALUES (3);
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 INSERT INTO t1 (a) VALUES (4);
@@ -71,14 +71,14 @@ XA END 'xa2';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 XA COMMIT 'xa2' ONE PHASE;
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 # Rollback
 
@@ -88,7 +88,7 @@ INSERT INTO t1 (a) VALUES (5);
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 INSERT INTO t1 (a) VALUES (6);
@@ -96,21 +96,21 @@ XA END 'xa3';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 XA PREPARE 'xa3';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 --connection con2
 XA ROLLBACK 'xa3';
 
 --connection con1
 --sorted_result
-SELECT * FROM t1;
+SELECT a FROM t1;
 
 DROP TABLE t1;
 

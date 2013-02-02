@@ -26,7 +26,7 @@ SLEEP(1)
 0
 0
 connection con0;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	f
 2	b
@@ -50,7 +50,7 @@ SLEEP(1)
 0
 0
 connection con0;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	f
 2	b

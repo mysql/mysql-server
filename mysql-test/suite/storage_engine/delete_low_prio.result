@@ -17,7 +17,7 @@ SLEEP(1)
 0
 0
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 connection con1;
@@ -34,7 +34,7 @@ SLEEP(1)
 0
 0
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 SET LOW_PRIORITY_UPDATES = 1;
@@ -52,7 +52,7 @@ SLEEP(1)
 0
 0
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 disconnect con1;
 disconnect con2;

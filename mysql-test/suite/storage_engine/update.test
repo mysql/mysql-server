@@ -24,16 +24,16 @@ if ($mysql_errname)
 if (!$mysql_errname)
 {
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   UPDATE t1 SET a=a-100, b=DEFAULT WHERE a>100;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   # ORDER BY and LIMIT
   UPDATE t1 SET b = 'update' WHERE a <= 4 ORDER BY b DESC, a ASC LIMIT 1;
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 }
 
 # Cleanup

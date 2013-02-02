@@ -32,7 +32,7 @@ if (!$mysql_errname)
     UPDATE t1 SET b='z' WHERE a < 2;
     UPDATE t1 SET b='';
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
   }
   DROP TABLE t1;
 }
@@ -62,7 +62,7 @@ if (!$mysql_errname)
     --source check_errors.inc
     UPDATE t1 SET a=12345 ORDER BY a, b LIMIT 1;
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
     
     # We'll check that the next update causes an error,
     # but won't check the result because it might be different depending
@@ -101,7 +101,7 @@ if (!$mysql_errname)
     --source check_errors.inc
     UPDATE t1 SET a=a+1;
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
     --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
     UPDATE t1 SET b='z';
     --source check_errors.inc
@@ -135,7 +135,7 @@ if (!$mysql_errname)
     UPDATE t1 SET a=12345 ORDER BY a DESC, b LIMIT 1;
 
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
 
     # We'll check that the next update causes an error,
     # but won't check the result because it might be different depending

@@ -72,7 +72,7 @@ if (!$mysql_errname)
             o This is the official guide to cover the passing of the two MySQL Certification examinations. It is valid till version 5.0 of the server, so while it misses all the features available in MySQL 5.1 and greater (including MariaDB 5.1 and greater), it provides a good basic understanding of MySQL for the end-user. ');
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT v0,v1,v64,v65000 FROM t1;
 
   # Invalid values
 

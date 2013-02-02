@@ -30,7 +30,7 @@ if (!$mysql_errname)
   --source create_table.inc
   INSERT INTO t1 (a) VALUES (1),(2);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a FROM t1;
 
 # http://dev.mysql.com/doc/mysql-enterprise-backup/3.5/en/partial.restoring.single.html 
 # To get a "clean" backup we need to either use innobackup, or to monitor show engine innodb status,
@@ -64,7 +64,7 @@ EOF
   --source alter_table.inc
 
   --let $error_codes = ER_GET_ERRNO
-  SELECT * FROM t1;
+  SELECT a FROM t1;
   --source check_errors.inc
   if ($mysql_errname != ER_GET_ERRNO)
   {
@@ -76,7 +76,7 @@ EOF
   --let $alter_definition = IMPORT TABLESPACE
   --source alter_table.inc
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a FROM t1;
 
   # Adding a warning suppression based on what InnoDB currently does
   # when it attempts to access a table without an *.ibd file

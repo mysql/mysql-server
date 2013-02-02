@@ -13,7 +13,7 @@
 @@ -14,16 +20,33 @@
  1	a
  3	a
- SELECT * FROM t1 WHERE b='a' LOCK IN SHARE MODE;
+ SELECT a,b FROM t1 WHERE b='a' LOCK IN SHARE MODE;
 -ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 +a	b
 +1	a
@@ -38,7 +38,7 @@
 +# -------------------------------------------
  connection con1;
  COMMIT;
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
 -1	a
 +1	c

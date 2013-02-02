@@ -73,8 +73,9 @@ if (!$mysql_errname)
     DELETE FROM t2 WHERE a=2;
 
     --sorted_result
-    SELECT * FROM t1;
-    SELECT * FROM t2;
+    SELECT a,b FROM t1;
+    --sorted_result
+    SELECT a,b FROM t2;
 
     --let $error_codes = ER_ROW_IS_REFERENCED
     DROP TABLE t1;
@@ -119,7 +120,7 @@ if (!$mysql_errname)
       --source unexpected_result.inc
     }
     --sorted_result
-    SELECT * FROM t2;
+    SELECT a,b FROM t2;
 
     DELETE FROM t1 WHERE b='a' LIMIT 2;
     if ($mysql_errname)
@@ -128,7 +129,7 @@ if (!$mysql_errname)
       --source unexpected_result.inc
     }
     --sorted_result
-    SELECT * FROM t2;
+    SELECT a,b FROM t2;
 
     --let $error_codes = ER_TRUNCATE_ILLEGAL_FK
     TRUNCATE TABLE t1;

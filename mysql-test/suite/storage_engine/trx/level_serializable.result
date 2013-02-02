@@ -6,7 +6,7 @@ SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 connection con1;
 CREATE TABLE t1 (a <INT_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
 START TRANSACTION;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection con2;
 BEGIN;
@@ -15,7 +15,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # WARNING: Statement ended with errno 1205, errname 'ER_LOCK_WAIT_TIMEOUT'. 
 #          If it differs from the result file, it might indicate a problem.
 connection con1;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection con2;
 INSERT INTO t1 (a) VALUES (2);
@@ -23,32 +23,32 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 # WARNING: Statement ended with errno 1205, errname 'ER_LOCK_WAIT_TIMEOUT'. 
 #          If it differs from the result file, it might indicate a problem.
 connection con1;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 INSERT INTO t1 (a) SELECT a+100 FROM t1;
 # WARNING: Statement ended with errno 0, errname ''. 
 #          If it differs from the result file, it might indicate a problem.
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection con2;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 COMMIT;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection con1;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 INSERT INTO t1 (a) SELECT a+200 FROM t1;
 # WARNING: Statement ended with errno 0, errname ''. 
 #          If it differs from the result file, it might indicate a problem.
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 COMMIT;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection con2;
-SELECT * FROM t1;
+SELECT a FROM t1;
 a
 connection default;
 disconnect con1;

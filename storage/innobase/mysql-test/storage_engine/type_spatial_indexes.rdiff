@@ -1,5 +1,5 @@
---- suite/storage_engine/type_spatial_indexes.result	2012-07-12 04:52:40.840023344 +0400
-+++ suite/storage_engine/type_spatial_indexes.reject	2012-07-15 19:27:32.761911079 +0400
+--- suite/storage_engine/type_spatial_indexes.result	2013-01-23 01:25:45.367797786 +0400
++++ suite/storage_engine/type_spatial_indexes.reject	2013-01-23 01:46:17.560307029 +0400
 @@ -702,699 +702,15 @@
  DROP DATABASE IF EXISTS gis_ogs;
  CREATE DATABASE gis_ogs;
@@ -79,43 +79,43 @@
 -Field	Type	Null	Key	Default	Extra
 -fid	int(11)	YES		NULL	
 -g	geometry	NO		NULL	
--INSERT INTO gis_point VALUES 
+-INSERT INTO gis_point (fid,g) VALUES 
 -(101, PointFromText('POINT(10 10)')),
 -(102, PointFromText('POINT(20 10)')),
 -(103, PointFromText('POINT(20 20)')),
 -(104, PointFromWKB(AsWKB(PointFromText('POINT(10 20)'))));
--INSERT INTO gis_line VALUES
+-INSERT INTO gis_line (fid,g) VALUES
 -(105, LineFromText('LINESTRING(0 0,0 10,10 0)')),
 -(106, LineStringFromText('LINESTRING(10 10,20 10,20 20,10 20,10 10)')),
 -(107, LineStringFromWKB(AsWKB(LineString(Point(10, 10), Point(40, 10)))));
--INSERT INTO gis_polygon VALUES
+-INSERT INTO gis_polygon (fid,g) VALUES
 -(108, PolygonFromText('POLYGON((10 10,20 10,20 20,10 20,10 10))')),
 -(109, PolyFromText('POLYGON((0 0,50 0,50 50,0 50,0 0), (10 10,20 10,20 20,10 20,10 10))')),
 -(110, PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(0, 0))))));
--INSERT INTO gis_multi_point VALUES
+-INSERT INTO gis_multi_point (fid,g) VALUES
 -(111, MultiPointFromText('MULTIPOINT(0 0,10 10,10 20,20 20)')),
 -(112, MPointFromText('MULTIPOINT(1 1,11 11,11 21,21 21)')),
 -(113, MPointFromWKB(AsWKB(MultiPoint(Point(3, 6), Point(4, 10)))));
--INSERT INTO gis_multi_line VALUES
+-INSERT INTO gis_multi_line (fid,g) VALUES
 -(114, MultiLineStringFromText('MULTILINESTRING((10 48,10 21,10 0),(16 0,16 23,16 48))')),
 -(115, MLineFromText('MULTILINESTRING((10 48,10 21,10 0))')),
 -(116, MLineFromWKB(AsWKB(MultiLineString(LineString(Point(1, 2), Point(3, 5)), LineString(Point(2, 5), Point(5, 8), Point(21, 7))))));
--INSERT INTO gis_multi_polygon VALUES
+-INSERT INTO gis_multi_polygon (fid,g) VALUES
 -(117, MultiPolygonFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
 -(118, MPolyFromText('MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26),(52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))')),
 -(119, MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 3), Point(3, 3), Point(3, 0), Point(0, 3)))))));
--INSERT INTO gis_geometrycollection VALUES
+-INSERT INTO gis_geometrycollection (fid,g) VALUES
 -(120, GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10))')),
 -(121, GeometryFromWKB(AsWKB(GeometryCollection(Point(44, 6), LineString(Point(3, 6), Point(7, 9)))))),
 -(122, GeomFromText('GeometryCollection()')),
 -(123, GeomFromText('GeometryCollection EMPTY'));
--INSERT into gis_geometry SELECT * FROM gis_point;
--INSERT into gis_geometry SELECT * FROM gis_line;
--INSERT into gis_geometry SELECT * FROM gis_polygon;
--INSERT into gis_geometry SELECT * FROM gis_multi_point;
--INSERT into gis_geometry SELECT * FROM gis_multi_line;
--INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
--INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_point;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_line;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_polygon;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_multi_point;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_multi_line;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_multi_polygon;
+-INSERT into gis_geometry (fid,g) SELECT fid,g FROM gis_geometrycollection;
 -SELECT fid, AsText(g) FROM gis_point;
 -fid	AsText(g)
 -101	POINT(10 10)
@@ -433,7 +433,7 @@
 -DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 -USE gis_ogs;
 -# Lakes
--INSERT INTO lakes VALUES ( 
+-INSERT INTO lakes (fid,name,shore) VALUES ( 
 -101, 'BLUE LAKE', 
 -PolyFromText( 
 -'POLYGON( 
@@ -442,68 +442,68 @@
 -  )', 
 -101));
 -# Road Segments
--INSERT INTO road_segments VALUES(102, 'Route 5', NULL, 2, 
+-INSERT INTO road_segments (fid,name,aliases,num_lanes,centerline) VALUES(102, 'Route 5', NULL, 2, 
 -LineFromText( 
 -'LINESTRING( 0 18, 10 21, 16 23, 28 26, 44 31 )' ,101));
--INSERT INTO road_segments VALUES(103, 'Route 5', 'Main Street', 4, 
+-INSERT INTO road_segments (fid,name,aliases,num_lanes,centerline) VALUES(103, 'Route 5', 'Main Street', 4, 
 -LineFromText( 
 -'LINESTRING( 44 31, 56 34, 70 38 )' ,101));
--INSERT INTO road_segments VALUES(104, 'Route 5', NULL, 2, 
+-INSERT INTO road_segments (fid,name,aliases,num_lanes,centerline) VALUES(104, 'Route 5', NULL, 2, 
 -LineFromText( 
 -'LINESTRING( 70 38, 72 48 )' ,101));
--INSERT INTO road_segments VALUES(105, 'Main Street', NULL, 4, 
+-INSERT INTO road_segments (fid,name,aliases,num_lanes,centerline) VALUES(105, 'Main Street', NULL, 4, 
 -LineFromText( 
 -'LINESTRING( 70 38, 84 42 )' ,101));
--INSERT INTO road_segments VALUES(106, 'Dirt Road by Green Forest', NULL, 
+-INSERT INTO road_segments (fid,name,aliases,num_lanes,centerline) VALUES(106, 'Dirt Road by Green Forest', NULL, 
 -1, 
 -LineFromText( 
 -'LINESTRING( 28 26, 28 0 )',101));
 -# DividedRoutes 
--INSERT INTO divided_routes VALUES(119, 'Route 75', 4, 
+-INSERT INTO divided_routes (fid,name,num_lanes,centerlines) VALUES(119, 'Route 75', 4, 
 -MLineFromText( 
 -'MULTILINESTRING((10 48,10 21,10 0), 
 -  (16 0,16 23,16 48))', 101));
 -# Forests 
--INSERT INTO forests VALUES(109, 'Green Forest', 
+-INSERT INTO forests (fid,name,boundary) VALUES(109, 'Green Forest', 
 -MPolyFromText( 
 -'MULTIPOLYGON(((28 26,28 0,84 0,84 42,28 26), 
 -  (52 18,66 23,73 9,48 6,52 18)),((59 18,67 18,67 13,59 13,59 18)))', 
 -101));
 -# Bridges 
--INSERT INTO bridges VALUES(110, 'Cam Bridge', PointFromText( 
+-INSERT INTO bridges (fid,name,position) VALUES(110, 'Cam Bridge', PointFromText( 
 -'POINT( 44 31 )', 101));
 -# Streams 
--INSERT INTO streams VALUES(111, 'Cam Stream', 
+-INSERT INTO streams (fid,name,centerline) VALUES(111, 'Cam Stream', 
 -LineFromText( 
 -'LINESTRING( 38 48, 44 41, 41 36, 44 31, 52 18 )', 101));
--INSERT INTO streams VALUES(112, NULL, 
+-INSERT INTO streams (fid,name,centerline) VALUES(112, NULL, 
 -LineFromText( 
 -'LINESTRING( 76 0, 78 4, 73 9 )', 101));
 -# Buildings 
--INSERT INTO buildings VALUES(113, '123 Main Street', 
+-INSERT INTO buildings (fid,name,position,footprint) VALUES(113, '123 Main Street', 
 -PointFromText( 
 -'POINT( 52 30 )', 101), 
 -PolyFromText( 
 -'POLYGON( ( 50 31, 54 31, 54 29, 50 29, 50 31) )', 101));
--INSERT INTO buildings VALUES(114, '215 Main Street', 
+-INSERT INTO buildings (fid,name,position,footprint) VALUES(114, '215 Main Street', 
 -PointFromText( 
 -'POINT( 64 33 )', 101), 
 -PolyFromText( 
 -'POLYGON( ( 66 34, 62 34, 62 32, 66 32, 66 34) )', 101));
 -# Ponds 
--INSERT INTO ponds VALUES(120, NULL, 'Stock Pond', 
+-INSERT INTO ponds (fid,name,type,shores) VALUES(120, NULL, 'Stock Pond', 
 -MPolyFromText( 
 -'MULTIPOLYGON( ( ( 24 44, 22 42, 24 40, 24 44) ), 
 -  ( ( 26 44, 26 40, 28 42, 26 44) ) )', 101));
 -# Named Places 
--INSERT INTO named_places VALUES(117, 'Ashton', 
+-INSERT INTO named_places (fid,name,boundary) VALUES(117, 'Ashton', 
 -PolyFromText( 
 -'POLYGON( ( 62 48, 84 48, 84 30, 56 30, 56 34, 62 48) )', 101));
--INSERT INTO named_places VALUES(118, 'Goose Island', 
+-INSERT INTO named_places (fid,name,boundary) VALUES(118, 'Goose Island', 
 -PolyFromText( 
 -'POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )', 101));
 -# Map Neatlines 
--INSERT INTO map_neatlines VALUES(115, 
+-INSERT INTO map_neatlines (fid,neatline) VALUES(115, 
 -PolyFromText( 
 -'POLYGON( ( 0 0, 0 48, 84 48, 84 0, 0 0 ) )', 101));
 -SELECT Dimension(shore) 

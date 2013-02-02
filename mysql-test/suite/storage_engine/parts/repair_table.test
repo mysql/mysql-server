@@ -35,7 +35,7 @@ if (!$mysql_errname)
   let $alter_definition = REPAIR PARTITION p0;
   --source ../alter_table.inc
 
-  INSERT INTO t1 VALUES (3,'c');
+  INSERT INTO t1 (a,b) VALUES (3,'c');
 
   let $alter_definition = REPAIR PARTITION NO_WRITE_TO_BINLOG p0, p1;
   --source ../alter_table.inc
@@ -57,7 +57,7 @@ if (!$mysql_errname)
   let $alter_definition = REPAIR PARTITION LOCAL ALL EXTENDED;
   --source ../alter_table.inc
 
-  INSERT INTO t1 VALUES (10,'j');
+  INSERT INTO t1 (a,b) VALUES (10,'j');
 
   let $alter_definition = REPAIR PARTITION p1 QUICK USE_FRM;
   --source ../alter_table.inc

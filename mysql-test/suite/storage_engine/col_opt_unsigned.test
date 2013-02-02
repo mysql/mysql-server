@@ -29,7 +29,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
   INSERT INTO t1 (a,b) VALUES (-100,100);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -56,7 +56,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (1.0,-1.0);
   INSERT INTO t1 (a,b) VALUES (-100,100);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -86,7 +86,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (t,s,m,i,b) VALUES (255,65535,16777215,4294967295,18446744073709551615);
   INSERT INTO t1 (t,s,m,i,b) VALUES (-1,-1,-1,-1,-1);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT t,s,m,i,b FROM t1;
   DROP TABLE t1;
   
 }

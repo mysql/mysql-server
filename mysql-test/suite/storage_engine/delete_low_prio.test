@@ -73,7 +73,7 @@ if ($found)
 --connection default
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 
 
@@ -113,7 +113,7 @@ if ($found)
 --connection default
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b');
 
 SET LOW_PRIORITY_UPDATES = 1;
@@ -148,7 +148,7 @@ if ($found)
 --connection default
 --reap
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 --disconnect con1
 --disconnect con2

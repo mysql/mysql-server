@@ -25,16 +25,16 @@ if ($mysql_errname)
   --source unexpected_result.inc
 }
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 DELETE FROM t1 WHERE a < 0 OR b = 'a';
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 # ORDER BY and LIMIT
 DELETE FROM t1 WHERE a <= 4 ORDER BY b DESC LIMIT 1;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 # Multi-table DELETE
 
@@ -43,23 +43,23 @@ SELECT * FROM t1;
 --source create_table.inc
 INSERT INTO t2 (c,d) SELECT b, a FROM t1;
 --sorted_result
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 
 DELETE t2.* FROM t1, t2 WHERE c < b AND a + d != 1;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 --sorted_result
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 
 DELETE FROM t2, t1.* USING t2, t1 WHERE c = 'foobar' and b = c;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 --sorted_result
-SELECT * FROM t2;
+SELECT c,d FROM t2;
 
 DELETE FROM t1;
 --sorted_result
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 
 # Cleanup
 DROP TABLE t1, t2;

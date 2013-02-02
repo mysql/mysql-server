@@ -6,23 +6,23 @@ SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 b1	tinyint(1)	#	#	#	
 b2	tinyint(1)	#	#	#	
-INSERT INTO t1 VALUES (1,TRUE);
-SELECT * FROM t1;
+INSERT INTO t1 (b1,b2) VALUES (1,TRUE);
+SELECT b1,b2 FROM t1;
 b1	b2
 1	1
-INSERT INTO t1 VALUES (FALSE,0);
-SELECT * FROM t1;
+INSERT INTO t1 (b1,b2) VALUES (FALSE,0);
+SELECT b1,b2 FROM t1;
 b1	b2
 0	0
 1	1
-INSERT INTO t1 VALUES (2,3);
-SELECT * FROM t1;
+INSERT INTO t1 (b1,b2) VALUES (2,3);
+SELECT b1,b2 FROM t1;
 b1	b2
 0	0
 1	1
 2	3
-INSERT INTO t1 VALUES (-1,-2);
-SELECT * FROM t1;
+INSERT INTO t1 (b1,b2) VALUES (-1,-2);
+SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2
 0	0
@@ -34,28 +34,28 @@ false	false
 true	true
 true	true
 true	true
-SELECT * FROM t1 WHERE b1 = TRUE;
+SELECT b1,b2 FROM t1 WHERE b1 = TRUE;
 b1	b2
 1	1
-SELECT * FROM t1 WHERE b2 = FALSE;
+SELECT b1,b2 FROM t1 WHERE b2 = FALSE;
 b1	b2
 0	0
-INSERT INTO t1 VALUES ('a','b');
+INSERT INTO t1 (b1,b2) VALUES ('a','b');
 Warnings:
 Warning	1366	Incorrect integer value: 'a' for column 'b1' at row 1
 Warning	1366	Incorrect integer value: 'b' for column 'b2' at row 1
-SELECT * FROM t1;
+SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2
 0	0
 0	0
 1	1
 2	3
-INSERT INTO t1 VALUES (128,-129);
+INSERT INTO t1 (b1,b2) VALUES (128,-129);
 Warnings:
 Warning	1264	Out of range value for column 'b1' at row 1
 Warning	1264	Out of range value for column 'b2' at row 1
-SELECT * FROM t1;
+SELECT b1,b2 FROM t1;
 b1	b2
 -1	-2
 0	0

@@ -38,7 +38,7 @@ if ($mysql_errname)
 
 connection con1;
 --echo # If consistent read works on this isolation level ($trx_isolation), the following SELECT should not return the value we inserted (1)
-SELECT * FROM t1; 
+SELECT a FROM t1; 
 COMMIT;
 
 connection default;

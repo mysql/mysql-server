@@ -6,17 +6,17 @@ connect  con0,localhost,root,,;
 SET lock_wait_timeout = 1;
 INSERT DELAYED INTO t1 (a,b) VALUES (3,'c');
 INSERT DELAYED INTO t1 SET a=4, b='d';
-INSERT DELAYED INTO t1 SELECT 5, 'e';
+INSERT DELAYED INTO t1 (a,b) SELECT 5, 'e';
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 disconnect con0;
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	f
 2	b
 UNLOCK TABLES;
 FLUSH TABLES;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	f
 2	b

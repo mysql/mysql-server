@@ -25,7 +25,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b'),(NULL,'c');
   SELECT LAST_INSERT_ID();
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   # auto_increment_increment
 
@@ -34,13 +34,13 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (NULL,'d'),(NULL,'e'),(NULL,'f');
   SELECT LAST_INSERT_ID();
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   SET auto_increment_increment = 50;
   INSERT INTO t1 (a,b) VALUES (NULL,'g'),(NULL,'h'),(NULL,'i');
   SELECT LAST_INSERT_ID();
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -60,7 +60,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a) VALUES (NULL);
   SELECT LAST_INSERT_ID();
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a FROM t1;
   DROP TABLE t1;
 }
 

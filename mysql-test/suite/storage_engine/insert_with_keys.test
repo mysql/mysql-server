@@ -24,7 +24,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
   INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -49,7 +49,7 @@ if (!$mysql_errname)
   --source check_errors.inc
   INSERT INTO t1 (a,b) VALUES (0,'');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
   if ($mysql_errname)
@@ -63,7 +63,7 @@ if (!$mysql_errname)
   }
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }
@@ -86,12 +86,12 @@ if (!$mysql_errname)
   INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
   --source check_errors.inc
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
   INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   --let $error_codes = ER_DUP_ENTRY,ER_DUP_KEY
   INSERT INTO t1 (a,b) VALUES (101,'x'),(101,'x');
@@ -120,7 +120,7 @@ if (!$mysql_errname)
   --source check_errors.inc
   INSERT INTO t1 (a,b) VALUES (0,'');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
   if ($mysql_errname)
@@ -134,7 +134,7 @@ if (!$mysql_errname)
     --source unexpected_result.inc
   }
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }  

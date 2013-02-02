@@ -64,7 +64,7 @@ INSERT INTO t1 (a,b) VALUES (14,'n');
 --source check_errors.inc
 CHECK TABLE t1;
 --let $error_codes = 0,130,ER_FAILED_READ_FROM_PAR_FILE,ER_OPEN_AS_READONLY
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 --source check_errors.inc
 --enable_warnings
 REPAIR TABLE t1;
@@ -143,7 +143,7 @@ if ($have_default_index)
   EOF
       CHECK TABLE t1;
       --let $error_codes = 0,ER_NOT_KEYFILE,144
-      SELECT * FROM t1;
+      SELECT a,b FROM t1;
       --source check_errors.inc
     }
   }

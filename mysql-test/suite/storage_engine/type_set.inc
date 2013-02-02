@@ -25,19 +25,19 @@ if (!$mysql_errname)
   --replace_column 3 # 4 # 5 #
   SHOW COLUMNS IN t1;
 
-  INSERT INTO t1 VALUES 
+  INSERT INTO t1 (a,b,c) VALUES 
   ('','test2,test3','01,34,44,,23'),
   ('',5,2),
   (',','test4,test2','');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c FROM t1;
 
   # Out of range values 
   # (should produce warnings)
 
-  INSERT INTO t1 VALUES (0,'test6',-1);
+  INSERT INTO t1 (a,b,c) VALUES (0,'test6',-1);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b,c FROM t1;
 
   # Non-unique values in set
   # (should produce a warning)
@@ -62,7 +62,7 @@ if (!$mysql_errname)
   # Simple comparison
 
   --sorted_result
-  SELECT * FROM t1 WHERE FIND_IN_SET('test2',b)>0 OR a != '';
+  SELECT a,b,c,e FROM t1 WHERE FIND_IN_SET('test2',b)>0 OR a != '';
 
   DROP TABLE t1;
 }

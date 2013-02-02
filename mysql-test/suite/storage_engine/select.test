@@ -108,7 +108,7 @@ SELECT t1_1.*, t2.* FROM t2, t1 AS t1_1, t1 AS t1_2
   WHERE t1_1.a = t1_2.a AND t2.a = t1_1.a;
 
 --sorted_result
-SELECT alias1.* FROM ( SELECT * FROM t1 ) alias1, t2 WHERE t2.a IN (100,200);
+SELECT alias1.* FROM ( SELECT a,b FROM t1 ) alias1, t2 WHERE t2.a IN (100,200);
 
 --sorted_result
 SELECT t1.a FROM { OJ t1 LEFT OUTER JOIN t2 ON t1.a = t2.a+10 };
@@ -134,10 +134,10 @@ SELECT SUM(t2.a) FROM t1 RIGHT JOIN t2 ON t2.b = t1.b;
 SELECT MIN(t2.a) FROM t1 RIGHT OUTER JOIN t2 USING (b,a);
 
 --sorted_result
-SELECT alias.b FROM t1 NATURAL JOIN ( SELECT * FROM t1 ) alias WHERE b > '';
+SELECT alias.b FROM t1 NATURAL JOIN ( SELECT a,b FROM t1 ) alias WHERE b > '';
 
 --sorted_result
-SELECT t2.b FROM ( SELECT * FROM t1 ) alias NATURAL LEFT JOIN t2 WHERE b IS NOT NULL;
+SELECT t2.b FROM ( SELECT a,b FROM t1 ) alias NATURAL LEFT JOIN t2 WHERE b IS NOT NULL;
 
 --sorted_result
 SELECT t1.*, t2.* FROM t1 NATURAL LEFT OUTER JOIN t2;
@@ -151,15 +151,15 @@ SELECT t1_2.b FROM t1 t1_1 NATURAL RIGHT OUTER JOIN t1 t1_2 INNER JOIN t2;
 # Subquery as scalar operand, subquery in the FROM clause
 
 --sorted_result
-SELECT ( SELECT MIN(a) FROM ( SELECT * FROM t1 ) alias1 ) AS min_a FROM t2;
+SELECT ( SELECT MIN(a) FROM ( SELECT a,b FROM t1 ) alias1 ) AS min_a FROM t2;
 
 # Comparison using subqueries
 
 --sorted_result
-SELECT * FROM t2 WHERE a = ( SELECT MIN(a) FROM t1 );
+SELECT a,b FROM t2 WHERE a = ( SELECT MIN(a) FROM t1 );
 
 --sorted_result
-SELECT * FROM t2 WHERE b LIKE ( SELECT b FROM t1 ORDER BY b LIMIT 1 );
+SELECT a,b FROM t2 WHERE b LIKE ( SELECT b FROM t1 ORDER BY b LIMIT 1 );
 
 # Subquery with IN, correlated subquery
 
@@ -169,20 +169,20 @@ SELECT t2.* FROM t1 t1_outer, t2 WHERE ( t1_outer.a, t2.b ) IN ( SELECT a, b FRO
 # Subquery with ANY, ALL
 
 --sorted_result
-SELECT * FROM t2 WHERE b = ANY ( SELECT b FROM t1 WHERE a > 1 );
+SELECT a,b FROM t2 WHERE b = ANY ( SELECT b FROM t1 WHERE a > 1 );
 
 --sorted_result
-SELECT * FROM t2 WHERE b > ALL ( SELECT b FROM t1 WHERE b < 'foo' );
+SELECT a,b FROM t2 WHERE b > ALL ( SELECT b FROM t1 WHERE b < 'foo' );
 
 # Row subqueries
 
 --sorted_result
-SELECT * FROM t1 WHERE ROW(a, b) = ( SELECT a, b FROM t2 ORDER BY a, b LIMIT 1 );
+SELECT a,b FROM t1 WHERE ROW(a, b) = ( SELECT a, b FROM t2 ORDER BY a, b LIMIT 1 );
 
 # Subquery with EXISTS
 
 --sorted_result
-SELECT * FROM t1 WHERE EXISTS ( SELECT * FROM t2 WHERE t2.b > t1.b );
+SELECT a,b FROM t1 WHERE EXISTS ( SELECT a,b FROM t2 WHERE t2.b > t1.b );
 
 # Subquery in ORDER BY
 
@@ -197,10 +197,10 @@ SELECT a, b FROM t1 HAVING a IN ( SELECT a FROM t2 WHERE b = t1.b );
 # Union
 
 --sorted_result
-SELECT * FROM t1 UNION SELECT * FROM t2 UNION DISTINCT SELECT * FROM t1;
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION DISTINCT SELECT a,b FROM t1;
 
 --sorted_result
-SELECT * FROM t1 UNION SELECT * FROM t2 UNION ALL SELECT * FROM t1;
+SELECT a,b FROM t1 UNION SELECT a,b FROM t2 UNION ALL SELECT a,b FROM t1;
 
 
 # Cleanup

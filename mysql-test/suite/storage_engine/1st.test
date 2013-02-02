@@ -14,7 +14,7 @@
 # - CREATE TABLE .. (column1 <column options>, column2 <column options>) ENGINE=<storage_engine>;
 # - INSERT INTO TABLE .. VALUES (val1,val2);
 # - DROP TABLE ..
-# - SELECT * FROM ..
+# - SELECT a,b FROM ..
 # - SHOW CREATE TABLE ..
 # - SHOW COLUMNS IN ...
 #
@@ -62,10 +62,10 @@ if (!$mysql_errname)
     --source unexpected_result.inc
   }
 
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   if ($mysql_errname)
   {
-    --let $functionality = SELECT * FROM ..
+    --let $functionality = SELECT a,b FROM ..
     --source unexpected_result.inc
   }
 

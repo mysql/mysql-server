@@ -33,7 +33,7 @@ if (!$mysql_errname)
 
   INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
   TRUNCATE TABLE t1;
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }
@@ -64,7 +64,7 @@ if (!$mysql_errname)
   INSERT INTO t1 (c) VALUES ('d');
   --source ../mask_engine.inc
   SHOW CREATE TABLE t1;
-  SELECT * FROM t1;
+  SELECT a,c FROM t1;
   DROP TABLE t1;
 }
 
@@ -93,16 +93,16 @@ if (!$mysql_errname)
   }
 
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   --replace_column 5 # 6 # 7 # 8 # 9 # 10 #
-  EXPLAIN PARTITIONS SELECT * FROM t1;
+  EXPLAIN PARTITIONS SELECT a,b FROM t1;
 
   INSERT INTO t1 (a,b) VALUES (1,'a'), (2,'b'), (3,'c');
 
   let $alter_definition = TRUNCATE PARTITION ALL;
   --source ../alter_table.inc
 
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
 
   DROP TABLE t1;
 }

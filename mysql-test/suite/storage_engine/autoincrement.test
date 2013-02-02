@@ -26,22 +26,22 @@ if (!$mysql_errname)
   # Automatic values
 
   INSERT INTO t1 (b) VALUES ('a'),('b');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   INSERT INTO t1 (a,b) VALUES (NULL,'c'),(0,'d');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   let $sql_mode = `SELECT @@sql_mode`;
   SET sql_mode = 'NO_AUTO_VALUE_ON_ZERO';
 
   INSERT INTO t1 (a,b) VALUES (NULL,'e');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   INSERT INTO t1 (a,b) VALUES (0,'f');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   --replace_result $sql_mode <INITIAL_SQL_MODE>
@@ -63,7 +63,7 @@ if (!$mysql_errname)
 
 
   INSERT INTO t1 (a,b) VALUES (NULL,'i'),(9,'j');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
@@ -77,7 +77,7 @@ if (!$mysql_errname)
   SHOW TABLE STATUS FROM test LIKE 't1';
 
   INSERT INTO t1 (a,b) VALUES (NULL,'l');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
   SELECT LAST_INSERT_ID();
 
   --replace_column 2 # 3 # 4 # 5 # 6 # 7 # 8 # 9 # 10 # 12 # 13 # 14 # 15 # 16 # 17 # 18 #
@@ -87,7 +87,7 @@ if (!$mysql_errname)
   # but won't check what happens to the sequence after that, since the behavior is undefined
 
   INSERT INTO t1 (a,b) VALUES (-5,'m');
-  SELECT * FROM t1 ORDER BY a;
+  SELECT a,b FROM t1 ORDER BY a;
 
   DROP TABLE t1;
 }
@@ -106,7 +106,7 @@ if (!$mysql_errname)
 {
   INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   SELECT LAST_INSERT_ID();
   DROP TABLE t1;
 }

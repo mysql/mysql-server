@@ -8,7 +8,7 @@
 -SELECT LAST_INSERT_ID();
 -LAST_INSERT_ID()
 -1
--SELECT * FROM t1;
+-SELECT a,b FROM t1;
 -a	b
 -a	1
 -a	2

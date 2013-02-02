@@ -30,20 +30,20 @@ if (!$mysql_errname)
   if (!$mysql_errname)
   {
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
 
     --let $create_definition = c $char_col, d $int_col
     --let $table_name = t2
     --source create_table.inc
-    INSERT INTO t2 SELECT b, a FROM t1;
+    INSERT INTO t2 (c,d) SELECT b, a FROM t1;
     --sorted_result
-    SELECT * FROM t2;
+    SELECT c,d FROM t2;
 
     DELETE QUICK FROM t2, t1.* USING t2, t1 WHERE c IS NULL OR a = d;
     --sorted_result
-    SELECT * FROM t1;
+    SELECT a,b FROM t1;
     --sorted_result
-    SELECT * FROM t2;
+    SELECT c,d FROM t2;
     DROP TABLE t2;
   }
   DROP TABLE t1;

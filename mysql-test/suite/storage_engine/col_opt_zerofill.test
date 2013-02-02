@@ -27,7 +27,7 @@ if (!$mysql_errname)
   SHOW COLUMNS IN t1;
 
   INSERT INTO t1 (a,b) VALUES (1.1,1234);
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -52,7 +52,7 @@ if (!$mysql_errname)
   SHOW COLUMNS IN t1;
 
   INSERT INTO t1 (a,b) VALUES (1,1234.5);
-  SELECT * FROM t1;
+  SELECT a,b FROM t1;
   DROP TABLE t1;
 }
 
@@ -80,7 +80,7 @@ if (!$mysql_errname)
   SHOW COLUMNS IN t1;
 
   INSERT INTO t1 (t,s,m,i,b) VALUES (1,10,100,1000,0);
-  SELECT * FROM t1;
+  SELECT t,s,m,i,b FROM t1;
   DROP TABLE t1;
 }
 

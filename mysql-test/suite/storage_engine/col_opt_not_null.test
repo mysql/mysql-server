@@ -144,7 +144,7 @@ if (!$mysql_errname)
   }
 
   --replace_regex /[[:digit:]]{4}-[[:digit:]]{2}-[[:digit:]]{2} [[:digit:]]{2}:[[:digit:]]{2}:[[:digit:]]{2}/<TIMESTAMP>/
-  SELECT * FROM t1;
+  SELECT c FROM t1;
   DROP TABLE t1;
 }
 

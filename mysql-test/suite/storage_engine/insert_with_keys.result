@@ -5,7 +5,7 @@ INSERT INTO t1 (a,b) VALUES (100,'a'), (6,'f');
 INSERT INTO t1 (a,b) VALUES (30,'m'),(29,'n');
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 INSERT INTO t1 (a,b) VALUES (3,'a'),(0,'');
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	
 1	a
@@ -34,7 +34,7 @@ ERROR 23000: Duplicate entry '3' for key 'a'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
 INSERT INTO t1 (a,b) VALUES (0,'');
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	
 1	a
@@ -50,7 +50,7 @@ INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 Warnings:
 Warning	1062	Duplicate entry '1' for key 'a'
 INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'d') ON DUPLICATE KEY UPDATE a = a+10;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	
 1	a
@@ -73,7 +73,7 @@ INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 ERROR 23000: Duplicate entry '1-a' for key 'a'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	a
 100	a
@@ -90,7 +90,7 @@ INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 Warnings:
 Warning	1062	Duplicate entry '1-a' for key 'a'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 100	a
 100	b
@@ -122,7 +122,7 @@ ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 # Statement ended with one of expected results (ER_DUP_ENTRY,ER_DUP_KEY). 
 # If you got a difference in error message, just add it to rdiff file
 INSERT INTO t1 (a,b) VALUES (0,'');
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	
 1	a
@@ -138,7 +138,7 @@ INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
 Warnings:
 Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONCAT(b,b);
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 0	
 1	aa

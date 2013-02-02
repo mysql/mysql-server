@@ -25,40 +25,40 @@ if (!$mysql_errname)
 
   # Valid values 
 
-  INSERT INTO t1 VALUES (1,TRUE);
+  INSERT INTO t1 (b1,b2) VALUES (1,TRUE);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
-  INSERT INTO t1 VALUES (FALSE,0);
+  INSERT INTO t1 (b1,b2) VALUES (FALSE,0);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
-  INSERT INTO t1 VALUES (2,3);
+  INSERT INTO t1 (b1,b2) VALUES (2,3);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
-  INSERT INTO t1 VALUES (-1,-2);
+  INSERT INTO t1 (b1,b2) VALUES (-1,-2);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
   --sorted_result
   SELECT IF(b1,'true','false') AS a, IF(b2,'true','false') AS b FROM t1;
 
   --sorted_result
-  SELECT * FROM t1 WHERE b1 = TRUE;
+  SELECT b1,b2 FROM t1 WHERE b1 = TRUE;
 
   --sorted_result
-  SELECT * FROM t1 WHERE b2 = FALSE;
+  SELECT b1,b2 FROM t1 WHERE b2 = FALSE;
 
   # Invalid values
 
-  INSERT INTO t1 VALUES ('a','b');
+  INSERT INTO t1 (b1,b2) VALUES ('a','b');
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
-  INSERT INTO t1 VALUES (128,-129);
+  INSERT INTO t1 (b1,b2) VALUES (128,-129);
   --sorted_result
-  SELECT * FROM t1;
+  SELECT b1,b2 FROM t1;
 
   # This is why we don't have zerofill and unsigned tests
   # for boolean columns:

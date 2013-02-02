@@ -19,7 +19,7 @@ a+SLEEP(1)
 11
 12
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 21	foobar
 22	b
@@ -37,7 +37,7 @@ a+SLEEP(1)
 21
 22
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 41	foobar
 42	b
@@ -56,7 +56,7 @@ a+SLEEP(1)
 41
 42
 connection default;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 71	foobar
 72	b

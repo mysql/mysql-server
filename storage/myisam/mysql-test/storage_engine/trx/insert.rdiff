@@ -22,7 +22,7 @@
  ROLLBACK;
 +Warnings:
 +Warning	1196	Some non-transactional changed tables couldn't be rolled back
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
 +0	test
  1	a
@@ -44,7 +44,7 @@
 +Warning	1196	Some non-transactional changed tables couldn't be rolled back
  INSERT INTO t1 (b,a) VALUES ('test1',10);
  COMMIT;
- SELECT * FROM t1;
+ SELECT a,b FROM t1;
  a	b
 +0	test
  1	a

@@ -12,7 +12,7 @@ LOCK TABLE t1 READ;
 connection con0;
 UPDATE t1 SET b = CONCAT(b,b);
 connection con2;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 connection con1;
 UNLOCK TABLES;
 connection con0;

@@ -3,7 +3,7 @@ CREATE TABLE t1 (a <INT_COLUMN>, b <CHAR_COLUMN>) ENGINE=<STORAGE_ENGINE> <CUSTO
 INSERT INTO t1 (a,b) VALUES (1,'a'),(2,'b'),(3,'c'),(4,'d'),(5,'e'),(10000,'foobar');
 INSERT INTO t1 (a,b) SELECT a, b FROM t1;
 UPDATE t1 SET a=a+100;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 101	a
 101	a
@@ -18,7 +18,7 @@ a	b
 105	e
 105	e
 UPDATE t1 SET a=a-100, b=DEFAULT WHERE a>100;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	NULL
 1	NULL
@@ -33,7 +33,7 @@ a	b
 5	NULL
 5	NULL
 UPDATE t1 SET b = 'update' WHERE a <= 4 ORDER BY b DESC, a ASC LIMIT 1;
-SELECT * FROM t1;
+SELECT a,b FROM t1;
 a	b
 1	NULL
 1	update
