@@ -1,7 +1,7 @@
 #if !defined(_TOKUDB_BUFFER_H)
 #define _TOKUDB_BUFFER_H
 
-#include "tokudb_base128.h"
+#include "tokudb_vlq.h"
 
 namespace tokudb {
 
@@ -35,7 +35,7 @@ public:
 
     void append_uint32(uint32_t n) {
         maybe_realloc(5);
-        size_t s = tokudb::base128_encode_uint32(n, (char *) m_data + m_size, 5);
+        size_t s = tokudb::vlq_encode_uint32(n, (char *) m_data + m_size, 5);
         m_size += s;
     }
 
@@ -55,7 +55,7 @@ public:
 
     uint32_t consume_uint32() {
         uint32_t n;
-        size_t s = tokudb::base128_decode_uint32(&n, (char *) m_data + m_size, m_limit - m_size);
+        size_t s = tokudb::vlq_decode_uint32(&n, (char *) m_data + m_size, m_limit - m_size);
         m_size += s;
         return n;
     }
