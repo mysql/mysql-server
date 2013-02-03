@@ -200,8 +200,5 @@ test_main (int argc, char * const argv[]) {
     toku_os_recursive_delete(data0);
     toku_os_recursive_delete(data1);
 
-    toku_free(data0);
-    toku_free(data1);
-
     return 0;
 }
