@@ -169,16 +169,6 @@ test_logdir (const char *envdir0, const char *datadir0, const char *envdir1, con
         CKERR(r);
 }
 
-static char *
-full_name(const char *subdir) {
-    char wd[256];
-    char *cwd = getcwd(wd, sizeof wd);
-    assert(cwd != NULL);
-    char *XMALLOC_N(strlen(wd) + strlen(subdir) + 2, path);
-    return toku_path_join(path, 2, cwd, subdir);
-}
-
-
 int
 test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
@@ -193,12 +183,13 @@ test_main (int argc, char * const argv[]) {
     toku_path_join(env1, 2, TOKU_TEST_FILENAME, "e1");
     test_env(env0, env1, 0);
     test_env(env0, env0, EWOULDBLOCK);
-    char data0rel[TOKU_PATH_MAX+1];
-    char data1rel[TOKU_PATH_MAX+1];
-    toku_path_join(data0rel, 2, TOKU_TEST_FILENAME, "d0");
-    toku_path_join(data1rel, 2, TOKU_TEST_FILENAME, "d1");
-    char *data0 = full_name(data0rel);
-    char *data1 = full_name(data1rel);
+    char wd[TOKU_PATH_MAX+1];
+    char *cwd = getcwd(wd, sizeof wd);
+    assert(cwd != nullptr);
+    char data0[TOKU_PATH_MAX+1];
+    toku_path_join(data0, 3, cwd, TOKU_TEST_FILENAME, "d0");
+    char data1[TOKU_PATH_MAX+1];
+    toku_path_join(data1, 3, cwd, TOKU_TEST_FILENAME, "d1");
     test_datadir(env0, data0, env1, data1, 0);
     test_datadir(env0, data0, env1, data0, EWOULDBLOCK);
     test_logdir(env0, data0, env1, data1, 0);
@@ -214,4 +205,3 @@ test_main (int argc, char * const argv[]) {
 
     return 0;
 }
-
