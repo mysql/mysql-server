@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3246,7 +3246,7 @@ void do_chmod_file(struct st_command *command)
       str2int(ds_mode.str, 8, 0, INT_MAX, &mode) == NullS)
     die("You must write a 4 digit octal number for mode");
 
-  DBUG_PRINT("info", ("chmod %o %s", (uint)mode, ds_file.str));
+  DBUG_PRINT("info", ("chmod %s %s", ds_mode.str, ds_file.str));
   handle_command_error(command, chmod(ds_file.str, mode));
   dynstr_free(&ds_mode);
   dynstr_free(&ds_file);
