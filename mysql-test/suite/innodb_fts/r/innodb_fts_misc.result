@@ -1237,3 +1237,42 @@ DROP TABLE `A B`;
 CREATE TABLE `t-26`(a VARCHAR(10),FULLTEXT KEY(a)) ENGINE=INNODB;
 INSERT INTO `t-26` VALUES('117');
 DROP TABLE `t-26`;
+CREATE TABLE `t1` (
+`id` INTEGER UNSIGNED NOT NULL AUTO_INCREMENT,
+`content` TEXT NOT NULL,
+PRIMARY KEY (`id`),
+FULLTEXT INDEX `IDX_CONTEXT_FULLTEXT`(`content`)
+)
+ENGINE = InnoDB;
+insert into t1 (content)
+values
+('This is a story which has has a complicated phrase structure here in the
+middle'),
+('This is a story which doesn''t have that text'),
+('This is a story that has complicated the phrase structure');
+select * from t1
+where match(content) against('"complicated phrase structure"' in boolean
+mode);
+id	content
+1	This is a story which has has a complicated phrase structure here in the
+middle
+select * from t1
+where match(content) against('+"complicated phrase structure"' in boolean
+mode);
+id	content
+1	This is a story which has has a complicated phrase structure here in the
+middle
+select * from t1
+where match(content) against('"complicated the phrase structure"' in boolean
+mode);
+id	content
+3	This is a story that has complicated the phrase structure
+select * from t1 where match(content) against('+"this is a story which" +"complicated the phrase structure"' in boolean mode);
+id	content
+3	This is a story that has complicated the phrase structure
+select * from t1 where match(content) against('"the complicated the phrase structure"' in boolean mode);
+id	content
+3	This is a story that has complicated the phrase structure
+select * from t1 where match(content) against('"complicated a phrase structure"' in boolean mode);
+id	content
+DROP TABLE t1;
