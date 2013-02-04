@@ -17,22 +17,18 @@
 
 #include <gtest/gtest.h>
 
-#include "univ.i"
+namespace innodb_example_unittest {
 
-#include "ut0crc32.h"
-
-namespace innodb_ut0crc32_unittest {
-
-/* test ut_crc32() */
-TEST(ut0crc32, utcrc32)
+TEST(foo, willsucceed)
 {
-	ut_crc32_init();
+	EXPECT_EQ(5, 5);
+	EXPECT_TRUE(true);
+}
 
-	ib_uint32_t	result;
-
-	result = ut_crc32((const byte*) "innodb", 6);
-
-	EXPECT_EQ(result, 1090276284U);
+TEST(foo, willfail)
+{
+	EXPECT_EQ(5, 6);
+	EXPECT_TRUE(123 == 456);
 }
 
 }
