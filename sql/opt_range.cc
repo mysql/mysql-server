@@ -11485,7 +11485,8 @@ static bool get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
                        KEY_PART_INFO **first_non_infix_part);
 static bool
 check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
-                               Field::imagetype image_type);
+                               Field::imagetype image_type,
+                               bool *has_min_max_fld, bool *has_other_fld);
 
 static void
 cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
@@ -12005,10 +12006,12 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
     DBUG_RETURN(NULL);
 
   /* Check (SA3) for the where clause. */
+  bool has_min_max_fld= false, has_other_fld= false;
   if (join->conds && min_max_arg_item &&
       !check_group_min_max_predicates(join->conds, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
-                                      Field::itMBR : Field::itRAW))
+                                      Field::itMBR : Field::itRAW,
+                                      &has_min_max_fld, &has_other_fld))
     DBUG_RETURN(NULL);
 
   /* The query passes all tests, so construct a new TRP object. */
@@ -12043,16 +12046,24 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 
   SYNOPSIS
     check_group_min_max_predicates()
-    cond              tree (or subtree) describing all or part of the WHERE
-                      clause being analyzed
-    min_max_arg_item  the field referenced by the MIN/MAX function(s)
-    min_max_arg_part  the keypart of the MIN/MAX argument if any
+    cond        [in]  the expression tree being analyzed
+    min_max_arg [in]  the field referenced by the MIN/MAX function(s)
+    image_type  [in]
+    has_min_max_arg [out] true if the subtree being analyzed references min_max_arg
+    has_other_arg   [out] true if the subtree being analyzed references a column
+                          other min_max_arg
 
   DESCRIPTION
     The function walks recursively over the cond tree representing a WHERE
     clause, and checks condition (SA3) - if a field is referenced by a MIN/MAX
     aggregate function, it is referenced only by one of the following
-    predicates: {=, !=, <, <=, >, >=, between, is null, is not null}.
+    predicates $FUNC$:
+    {=, !=, <, <=, >, >=, between, is [not] null, multiple equal}.
+    In addition the function checks that the WHERE condition is equivalent to
+    "cond1 AND cond2" where :
+    cond1 - does not use min_max_column at all.
+    cond2 - is an AND/OR tree with leaves in form
+    "$FUNC$(min_max_column[, const])".
 
   RETURN
     TRUE  if cond passes the test
@@ -12061,7 +12072,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree)
 
 static bool
 check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
-                               Field::imagetype image_type)
+                               Field::imagetype image_type,
+                               bool *has_min_max_arg, bool *has_other_arg)
 {
   DBUG_ENTER("check_group_min_max_predicates");
   DBUG_ASSERT(cond && min_max_arg_item);
@@ -12073,12 +12085,24 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     DBUG_PRINT("info", ("Analyzing: %s", ((Item_func*) cond)->func_name()));
     List_iterator_fast<Item> li(*((Item_cond*) cond)->argument_list());
     Item *and_or_arg;
+    Item_func::Functype func_type= ((Item_cond*) cond)->functype();
+    bool has_min_max= false, has_other= false;
     while ((and_or_arg= li++))
     {
-      if (!check_group_min_max_predicates(and_or_arg, min_max_arg_item,
-                                         image_type))
+      /*
+        The WHERE clause doesn't pass the condition if:
+        (1) any subtree doesn't pass the condition or
+        (2) the subtree passes the test, but it is an OR and it references both
+            the min/max argument and other columns.
+      */
+      if (!check_group_min_max_predicates(and_or_arg, min_max_arg_item,      //1
+                                          image_type,
+                                          &has_min_max, &has_other) ||
+          (func_type == Item_func::COND_OR_FUNC && has_min_max && has_other))//2
         DBUG_RETURN(FALSE);
     }
+    *has_min_max_arg= has_min_max || *has_min_max_arg;
+    *has_other_arg= has_other || *has_other_arg;
     DBUG_RETURN(TRUE);
   }
 
@@ -12112,6 +12136,10 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
   if (cond_type == Item::FIELD_ITEM)
   {
     DBUG_PRINT("info", ("Analyzing: %s", cond->full_name()));
+    if (min_max_arg_item->eq((Item_field*)cond, 1))
+      *has_min_max_arg= true;
+    else
+      *has_other_arg= true;
     DBUG_RETURN(TRUE);
   }
 
@@ -12120,9 +12148,33 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
 
   /* Test if cond references only group-by or non-group fields. */
   Item_func *pred= (Item_func*) cond;
+  Item_func::Functype pred_type= pred->functype();
+  DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
+  if (pred_type == Item_func::MULT_EQUAL_FUNC)
+  {
+    /*
+      Check that each field in a multiple equality is either a constant or
+      it is a reference to the min/max argument, or it doesn't contain the
+      min/max argument at all.
+    */
+    Item_equal_fields_iterator eq_it(*((Item_equal*)pred));
+    Item *eq_item;
+    bool has_min_max= false, has_other= false;
+    while ((eq_item= eq_it++))
+    {
+      if (min_max_arg_item->eq(eq_item->real_item(), 1))
+        has_min_max= true;
+      else
+        has_other= true;
+    }
+    *has_min_max_arg= has_min_max || *has_min_max_arg;
+    *has_other_arg= has_other || *has_other_arg;
+    DBUG_RETURN(!(has_min_max && has_other));
+  }
+
   Item **arguments= pred->arguments();
   Item *cur_arg;
-  DBUG_PRINT("info", ("Analyzing: %s", pred->func_name()));
+  bool has_min_max= false, has_other= false;
   for (uint arg_idx= 0; arg_idx < pred->argument_count (); arg_idx++)
   {
     cur_arg= arguments[arg_idx]->real_item();
@@ -12131,11 +12183,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     {
       if (min_max_arg_item->eq(cur_arg, 1)) 
       {
-       /*
-         If pred references the MIN/MAX argument, check whether pred is a range
-         condition that compares the MIN/MAX argument with a constant.
-       */
-        Item_func::Functype pred_type= pred->functype();
+        has_min_max= true;
+        /*
+          If pred references the MIN/MAX argument, check whether pred is a range
+          condition that compares the MIN/MAX argument with a constant.
+        */
         if (pred_type != Item_func::EQUAL_FUNC     &&
             pred_type != Item_func::LT_FUNC        &&
             pred_type != Item_func::LE_FUNC        &&
@@ -12175,11 +12227,13 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
               min_max_arg_item->field->cmp_type() != args[1]->result_type())))
           DBUG_RETURN(FALSE);
       }
+      else
+        has_other= true;
     }
     else if (cur_arg->type() == Item::FUNC_ITEM)
     {
-      if (!check_group_min_max_predicates(cur_arg, min_max_arg_item,
-                                         image_type))
+      if (!check_group_min_max_predicates(cur_arg, min_max_arg_item, image_type,
+                                          &has_min_max, &has_other))
         DBUG_RETURN(FALSE);
     }
     else if (cur_arg->const_item())
@@ -12192,7 +12246,11 @@ check_group_min_max_predicates(Item *cond, Item_field *min_max_arg_item,
     }
     else
       DBUG_RETURN(FALSE);
+    if(has_min_max && has_other)
+      DBUG_RETURN(FALSE);
   }
+  *has_min_max_arg= has_min_max || *has_min_max_arg;
+  *has_other_arg= has_other || *has_other_arg;
 
   DBUG_RETURN(TRUE);
 }

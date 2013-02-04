@@ -1203,3 +1203,40 @@ WHERE EXISTS ( SELECT DISTINCT b FROM t1 WHERE b <= alias1.a ) ;
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # MDEV-765:  LP:825075 - Wrong result with GROUP BY + multipart key + MIN/MAX loose scan
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1), KEY (b,a));
+INSERT INTO t1 VALUES
+('0',NULL),('9',NULL),('8','c'),('4','d'),('7','d'),(NULL,'f'),
+('7','f'),('8','g'),(NULL,'j');
+
+explain
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+
+explain
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+
+drop table t1;
+
+--echo End of 5.3 tests
