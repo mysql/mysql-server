@@ -3064,7 +3064,8 @@ insert_empty:
 		start of the function for a new split */
 insert_failed:
 		/* We play safe and reset the free bits for new_page */
-		if (!dict_index_is_clust(cursor->index)) {
+		if (!dict_index_is_clust(cursor->index)
+		    && !dict_table_is_temporary(cursor->index->table)) {
 			ibuf_reset_free_bits(new_block);
 		}
 
@@ -3082,7 +3083,9 @@ func_exit:
 	/* Insert fit on the page: update the free bits for the
 	left and right pages in the same mtr */
 
-	if (!dict_index_is_clust(cursor->index) && page_is_leaf(page)) {
+	if (!dict_index_is_clust(cursor->index)
+	    && !dict_table_is_temporary(cursor->index->table)
+	    && page_is_leaf(page)) {
 		ibuf_update_free_bits_for_two_pages_low(
 			buf_block_get_zip_size(left_block),
 			left_block, right_block, mtr);
@@ -3438,7 +3441,8 @@ btr_lift_page_up(
 	btr_page_free(index, block, mtr);
 
 	/* We play it safe and reset the free bits for the father */
-	if (!dict_index_is_clust(index)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)) {
 		ibuf_reset_free_bits(father_block);
 	}
 	ut_ad(page_validate(father_page, index));
@@ -3564,7 +3568,8 @@ err_exit:
 		/* We play it safe and reset the free bits. */
 		if (zip_size
 		    && page_is_leaf(merge_page)
-		    && !dict_index_is_clust(index)) {
+		    && !dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)) {
 			ibuf_reset_free_bits(merge_block);
 		}
 
@@ -3831,7 +3836,8 @@ btr_discard_only_page_on_level(
 
 	btr_page_empty(block, buf_block_get_page_zip(block), index, 0, mtr);
 
-	if (!dict_index_is_clust(index)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* We play it safe and reset the free bits for the root */
 		ibuf_reset_free_bits(block);
 
