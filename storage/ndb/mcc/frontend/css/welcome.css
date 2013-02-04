@@ -1,0 +1,180 @@
+/*
+Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+*/
+
+/******************************************************************************
+ ***                                                                        ***
+ ***   Style sheet settings for MySQL CLuster configuration welcome page    ***
+ ***                                                                        ***
+ ******************************************************************************/
+
+body { 
+	font-family: Helvetica, Verdana, sans-serif;
+	font-size: 70%;
+	line-height: 1.6em;
+	text-align: left;
+	margin: 0;
+	margin-left: auto;
+	margin-right: auto;
+	padding: 0;
+	background: url(../img/welcome-bg.png);
+	background-repeat: repeat-x;
+	background-color: #011d33;
+	color: #000000;
+}
+
+/*************** Position of title and big background logo ********************/
+
+#title {
+  position:absolute;
+  left: 19px;
+  top: 14px;
+}
+
+#mysql-logo {
+  position:absolute;
+  left: 110px;
+  top: 72px;
+}
+
+/************************* Links, images, headings ****************************/
+
+a, a:link, a:visited {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+img {
+	border: 0;
+}
+
+h1 {
+	font-size: 1.5em;
+	font-weight: bold;
+}
+
+/************************ Configuration box styling ***************************/
+
+#configure-box-wrapper {
+  position: absolute;
+  top: 112px;
+  width: 100%;
+}
+
+#configure-box {
+  width: 336px;
+  height: 285px;
+  margin-left: auto;
+  margin-right: 50px;
+  background: url(../img/box-bg.png);
+  background-color: #ffffff;
+  text-align: center;
+  padding-top: 20px;
+  box-shadow: 1px 1px 2px 2px rgba(0,0,0,0.4);
+}
+
+#configure-box table {
+  width: 280px;
+  margin-left:auto; 
+  margin-right:auto;
+}
+
+.configure-item {
+  text-align: left;
+  font-size: 100%;
+  font-weight: 700;
+}
+
+.configure-item-sep {
+  height: 13px;
+}
+
+.configure-item-subtext {
+  text-align: left;
+  vertical-align: top;
+}
+
+.configure-img {
+  width: 72px;
+  text-align: right;
+  vertical-align: top;
+}
+
+/********************* Content links at bottom of page ************************/
+
+#content-links {
+  position: absolute;
+  left: 19px; 
+  top: 350px;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.content-links-header td {
+  font-size: 120%;
+  padding-bottom: 10px;
+}
+
+
+.content-links-sep img {
+  margin-right: 10px;
+  margin-left: 60px;
+}
+
+#content-links td {
+  vertical-align: top;
+}
+
+#content-links p:before { content:url(../img/link-item.png)" "; }
+
+#content-links p {
+  vertical-align: top;
+  margin: 0px;
+  padding-left: 20px;
+}
+
+#content-links-footer {
+  font-size: 70%;
+  color: #999;
+}
+
+/******************* Button without background or border **********************/
+
+.iconButton .dijitButtonNode {
+    border: none;
+    background: transparent;
+}
+
+/****************************** Various icons *********************************/
+
+.newClusterIcon {
+    background-image: url('../img/icon_new_cluster.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+.continueClusterIcon {
+    background-image: url('../img/icon_continue_cluster.png');
+    background-position: center center;
+    background-repeat: no-repeat;
+    width: 60px;
+    height: 40px;
+} 
+

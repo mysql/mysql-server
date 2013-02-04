@@ -1,0 +1,115 @@
+/*
+Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+
+This program is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+*/
+
+/******************************************************************************
+ ***                                                                        ***
+ ***                            Platform utilities                          ***
+ ***                                                                        ***
+ ******************************************************************************
+ *
+ *  Module: 
+ *      Name: mcc.util.platform
+ *
+ *  Description:
+ *      Various platform related utilities, in particular path management
+ *
+ *  External interface: 
+ *      mcc.util.platform.isWin: Check if platform is to be considered win
+ *      mcc.util.platform.dirSep: Return predominant directory separator in path
+ *      mcc.util.platform.terminatePath: Terminate path with predominant dir sep
+ *      mcc.util.platform.quotePath: Replace \ by \\
+ *      mcc.util.platform.unixPath: Replace \ by / 
+ *      mcc.util.platform.winPath: Replace / by \
+ *
+ *  External data: 
+ *      None
+ *
+ *  Internal interface: 
+ *      None
+ *
+ *  Internal data: 
+ *      None
+ *
+ *  Unit test interface: 
+ *      None
+ *
+ *  Todo:
+ *      Implement unit tests.
+ * 
+ ******************************************************************************/
+
+/****************************** Import/export  ********************************/
+
+dojo.provide("mcc.util.platform");
+
+/**************************** External interface  *****************************/
+
+mcc.util.platform.isWin = isWin;
+mcc.util.platform.dirSep = dirSep;
+mcc.util.platform.terminatePath = terminatePath;
+mcc.util.platform.quotePath = quotePath;
+mcc.util.platform.unixPath = unixPath;
+mcc.util.platform.winPath = winPath;
+
+/****************************** Implementation  *******************************/
+
+// Check if current platform is to be considered windows or not
+function isWin(platform) {
+    return platform == "CYGWIN" || platform == "Windows";
+}
+
+// Get the predominant dir separator
+function dirSep(path) {
+    // If the path contains at least one /, or no \, use /
+    if (path.indexOf("/") != -1 || path.indexOf("\\") == -1) {
+        return "/";
+    } else {
+        return "\\";
+    }
+}
+
+// Make sure directory path is properly terminated
+function terminatePath(path) {
+    var sep = dirSep(path);
+    if (path.lastIndexOf(sep) != path.length-1) {
+        path += sep;
+    }
+    return path;
+}
+
+// Quote backslashes
+function quotePath(path) {
+    return path.replace(/\\/g, "\\\\");
+}
+
+// Return path with unix style separators
+function unixPath(path) {
+    return path.replace(/\\/g, "/");
+}
+
+// Return path with win style separators
+function winPath(path) {
+    return path.replace(/\//g, "\\");
+}
+
+/******************************** Initialize  *********************************/
+
+dojo.ready(function initialize() {
+    mcc.util.dbg("Platform utilities module initialized");
+});
+
+

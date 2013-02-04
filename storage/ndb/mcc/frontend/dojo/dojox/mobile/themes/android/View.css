@@ -1,0 +1,116 @@
+.mblSlide.mblOut {
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(0%,0px,0px) !important;
+}
+.mblSlide.mblOut.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .3s;
+	-webkit-transform: translate3d(-100%,0px,0px) !important;
+}
+.mblSlide.mblIn {
+	position: absolute !important;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	-webkit-transform: translate3d(100%,0px,0px) !important;
+}
+.mblSlide.mblIn.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transition-duration: .3s;
+	-webkit-transform: translate3d(0%,0px,0px) !important;
+}
+.mblSlide.mblOut.mblReverse {
+	-webkit-transition-property: none;
+	-webkit-transform: translate3d(0%,0px,0px) !important;
+}
+.mblSlide.mblOut.mblReverse.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transform: translate3d(100%,0px,0px) !important;
+}
+.mblSlide.mblIn.mblReverse {
+	-webkit-transform: translate3d(-100%,0px,0px) !important;
+}
+.mblSlide.mblIn.mblReverse.mblTransition {
+	-webkit-transition-property: -webkit-transform;
+	-webkit-transform: translate3d(0%,0px,0px) !important;
+}
+.dj_android.dj_tablet .mblSlide.mblOut.mblTransition,
+.dj_android.dj_tablet .mblSlide.mblIn.mblTransition {
+	-webkit-transition-duration: .6s;
+	-webkit-transition-timing-function: linear;
+}
+.mblFlip.mblOut {
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	opacity: 1;
+	-webkit-transform: scale(1,1) skew(0,0) !important;
+}
+.mblFlip.mblOut.mblTransition {
+	-webkit-transition-property: all;
+	-webkit-transition-duration: .2s;
+	-webkit-transition-timing-function: linear;
+	opacity: 0;
+	-webkit-transform: scale(0,0.8) skew(0,30deg) !important;
+}
+.mblFlip.mblIn {
+	position: absolute;
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	opacity: 0;
+	-webkit-transform: scale(0,0.8) skew(0,-30deg) !important;
+}
+.mblFlip.mblIn.mblTransition {
+	-webkit-transition-property: all;
+	-webkit-transition-delay: .2s;
+	-webkit-transition-duration: .2s;
+	-webkit-transition-timing-function: linear;
+	opacity: 1;
+	-webkit-transform: scale(1,1) skew(0,0) !important;
+}
+.dj_android.dj_tablet .mblFlip.mblOut.mblTransition {
+	-webkit-transition-duration: .4s;
+}
+.dj_android.dj_tablet .mblFlip.mblIn.mblTransition {
+	-webkit-transition-delay: .4s;
+	-webkit-transition-duration: .4s;
+}
+.mblFade.mblOut {
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	opacity: 1;
+}
+.mblFade.mblOut.mblTransition {
+	-webkit-transition-property: opacity;
+	-webkit-transition-duration: .6s;
+	-webkit-transition-timing-function: ease-out;
+	opacity: 0;
+}
+.mblFade.mblIn {
+	-webkit-transition-property: none;
+	-webkit-transition-duration: 0s;
+	opacity: 0;
+}
+.mblFade.mblIn.mblTransition {
+	-webkit-transition-property: opacity;
+	-webkit-transition-duration: .6s;
+	-webkit-transition-timing-function: ease-in;
+	opacity: 1;
+}
+.mblView {
+  position: relative;
+  top: 0px;
+  left: 0px;
+  width: 100%;
+  color: white;
+}
+.mblView.mblIn {
+  position: absolute;
+}
+.mblFixedHeaderBar {
+  z-index: 1;
+}
+.mblFixedBottomBar {
+  position: absolute !important;
+  width: 100%;
+  z-index: 1;
+}
