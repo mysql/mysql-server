@@ -97,6 +97,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_parallel_workers(0), checkpoint_seqno(0),
    checkpoint_group(opt_mts_checkpoint_group), 
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
+   mts_last_known_commit_parent(PC_UNINIT),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
    reported_unsafe_warning(false), rli_description_event(NULL),

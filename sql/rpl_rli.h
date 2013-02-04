@@ -541,6 +541,7 @@ public:
   MY_BITMAP recovery_groups;  // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
+  int64 mts_last_known_commit_parent;
   ulong mts_recovery_index;     // running index of recoverable groups
   bool mts_recovery_group_seen_begin;
 

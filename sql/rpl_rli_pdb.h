@@ -54,7 +54,8 @@ void destroy_hash_workers(Relay_log_info*);
 Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
-Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *workers);
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
+                                        DYNAMIC_ARRAY *workers);
 int wait_for_workers_to_finish(Relay_log_info const *rli,
                                Slave_worker *ignore= NULL);
 
