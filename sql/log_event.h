@@ -404,6 +404,10 @@ struct sql_ex_info
 #define Q_PREPARE_TS 14
 #define Q_COMMIT_TS 15
 
+/* GTID log event post header */
+#define G_PREPARE_TS 1
+#define G_COMMIT_TS  2
+
 /* Intvar event post-header */
 
 /* Intvar event data */
@@ -642,6 +646,7 @@ enum enum_binlog_checksum_alg {
 */
 #define BINLOG_CHECKSUM_LEN CHECKSUM_CRC32_SIGNATURE_LEN
 #define BINLOG_CHECKSUM_ALG_DESC_LEN 1  /* 1 byte checksum alg descriptor */
+#define PC_UNINIT -1
 
 /**
   @enum Log_event_type
@@ -4824,6 +4829,12 @@ extern TYPELIB binlog_checksum_typelib;
 class Gtid_log_event : public Log_event
 {
 public:
+  /*
+    Prepare and commit sequence number. will be set to 0 if the event is not a
+    transaction starter.
+   */
+  int64 prepare_seq_no;
+  int64 commit_seq_no;
 #ifndef MYSQL_CLIENT
   /**
     Create a new event using the GTID from the given Gtid_specification,
@@ -4949,7 +4960,12 @@ private:
 public:
   /// Total length of post header
   static const int POST_HEADER_LENGTH=
-    ENCODED_FLAG_LENGTH + ENCODED_SID_LENGTH + ENCODED_GNO_LENGTH;
+    ENCODED_FLAG_LENGTH      +  /* flags */
+    ENCODED_SID_LENGTH       +  /* SID length */
+    ENCODED_GNO_LENGTH       +  /* GNO length */
+    1                        +  /* TYPECODE for G_PREPARE_TS */
+    1                        +  /* TYPECODE for G_COMMIT_TS  */
+    2 * PREPARE_COMMIT_SEQ_LEN; /* PREPARE COMMIT sequence length */
 
 private:
   /**
