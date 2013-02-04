@@ -34,15 +34,27 @@ libmysqlclient_18 {
 	@CLIENT_API_5_5_LIST@
 #
 # Ideally the following symbols wouldn't be exported, but various applications
-# require them.  We limit the namespace damage by prefixing mysql_
+# require them.  Fedora limits the namespace damage by prefixing mysql_
 # (see mysql-dubious-exports.patch), which means the symbols are not present
 # in libmysqlclient_16.
 #
+# MariaDB does not do the Fedora-style function renaming via #define in headers, 
+# however it exports mysql_ prefixed symbols in addition to the "normal" ones.
+#
+# To ensure successful recompilation of affected projects, as well as drop-in replacement
+# for MySQL libraries, provided by distribution, both original symbols and their mysql_ 
+# prefixed counterparts have to be exported.
+
 # mysql-connector-odbc requires these
 	mysql_default_charset_info;
 	mysql_get_charset;
 	mysql_get_charset_by_csname;
 	mysql_net_realloc;
+	default_charset_info;
+	get_charset;
+	get_charset_by_csname;
+	net_realloc;
 # PHP's mysqli.so requires this (via the ER() macro)
 	mysql_client_errors;
+	client_errors;
 };

@@ -243,15 +243,22 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
   
   IF(RPM)
     # Fedora & Co declared following functions as part of API 
-    # These functions are alias of another function (given mysql_ prefix=. The 
-    # renaming is handled in rpm_support.cc below
     SET(CLIENT_API_EXTRA
       mysql_default_charset_info
       mysql_get_charset
       mysql_get_charset_by_csname
       mysql_net_realloc
       mysql_client_errors
-    )
+
+      #  Also export the non-renamed variants
+      # (in case someone wants to rebuild mysqli-php or something similar)
+      # See MDEV-4127
+      default_charset_info
+      get_charset
+      get_charset_by_csname
+      net_realloc
+      client_errors)  
+  
     # Add special script to fix symbols renames by Fedora
     SET(CLIENT_SOURCES_EXTRA ${CLIENT_SOURCES} rpm_support.cc)
     SET(VERSION_SCRIPT_TEMPLATE 
