@@ -586,6 +586,15 @@ page_cur_insert_rec_write_log(
 	const byte* log_end;
 	ulint	i;
 
+	if (dict_table_is_temporary(index->table)) {
+		log_ptr = mlog_open(mtr, 0);
+		if (log_ptr == NULL) {
+			return;
+		} 
+		mlog_close(mtr, log_ptr);
+		log_ptr = NULL;
+	}
+
 	ut_a(rec_size < UNIV_PAGE_SIZE);
 	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
