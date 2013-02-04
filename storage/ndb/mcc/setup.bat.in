@@ -1,0 +1,6 @@
+set PATH=%~dp0\@MCC_PY_INSTALL_DIR@;%PATH%
+set PYTHONLIB=%~dp0\@MCC_PY_INSTALL_DIR@\Lib
+
+@ECHO ON
+@"%~dp0\@MCC_PY_INSTALL_DIR@\python.exe" "%~dp0\bin\ndb_setup.py" %*
+

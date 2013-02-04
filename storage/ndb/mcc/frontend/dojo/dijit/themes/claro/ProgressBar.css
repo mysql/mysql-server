@@ -1,0 +1,33 @@
+
+.claro .dijitProgressBar {
+  margin: 2px 0 2px 0;
+}
+.claro .dijitProgressBarEmpty {
+  
+  background: #ffffff url("images/progressBarEmpty.png") no-repeat left;
+  border-color: #759dc0;
+}
+.claro .dijitProgressBarTile {
+  
+  background: #abd6ff url("images/progressBarFull.png") repeat-x top;
+}
+.dj_ie6 .claro .dijitProgressBarTile {
+  background-image: none;
+}
+.claro .dijitProgressBarFull {
+  border-right: 1px solid #759dc0;
+  -webkit-transition-property: width;
+  -moz-transition-property: width;
+  transition-property: width;
+  -webkit-transition-duration: 0.25s;
+  -moz-transition-duration: 0.25s;
+  transition-duration: 0.25s;
+}
+.claro .dijitProgressBarLabel {
+  
+  color: #000000;
+}
+.claro .dijitProgressBarIndeterminate .dijitProgressBarTile {
+  
+  background: #efefef url("images/progressBarAnim.gif") repeat-x top;
+}
