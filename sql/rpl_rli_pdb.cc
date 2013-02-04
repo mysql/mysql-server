@@ -6,8 +6,8 @@
 #include "sql_string.h"
 #include <hash.h>
 
+ulong w_rr= 0;
 #ifndef DBUG_OFF
-  ulong w_rr= 0;
   uint mts_debug_concurrent_access= 0;
 #endif
 
@@ -808,7 +808,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     mysql_mutex_lock(&slave_worker_hash_lock);
 
     entry->worker= (!last_worker) ?
-      get_least_occupied_worker(workers) : last_worker;
+      get_least_occupied_worker(rli, workers) : last_worker;
     entry->worker->usage_partition++;
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
@@ -864,7 +864,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     if (entry->usage == 0)
     {
       entry->worker= (!last_worker) ?
-        get_least_occupied_worker(workers) : last_worker;
+        get_least_occupied_worker(rli, workers) : last_worker;
       entry->worker->usage_partition++;
       entry->usage++;
     }
@@ -966,7 +966,7 @@ err:
    @return a pointer to chosen Slave_worker instance
 
 */
-Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *ws)
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli, DYNAMIC_ARRAY *ws)
 {
   long usage= LONG_MAX;
   Slave_worker **ptr_current_worker= NULL, *worker= NULL;
@@ -974,16 +974,15 @@ Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *ws)
 
   DBUG_ENTER("get_least_occupied_worker");
 
-  DBUG_EXECUTE_IF("mts_distribute_round_robin",
-                  {
-                    worker=
-                      *((Slave_worker **)
-                        dynamic_array_ptr(ws, w_rr % ws->elements));
-                    sql_print_information("Chosing worker id %lu, the following "
-                                          "is going to be %lu", worker->id,
-                                          w_rr % ws->elements);
-                    DBUG_RETURN(worker);
-                  });
+  if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0) ||
+      rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
+  {
+    worker= *((Slave_worker **)dynamic_array_ptr(ws,
+                                                 w_rr % ws->elements));
+    sql_print_information("Chosing worker id %lu, the following is"
+                          " going to be %lu", worker->id, w_rr % ws->elements);
+    DBUG_RETURN(worker);
+  }
 
   for (i= 0; i< ws->elements; i++)
   {

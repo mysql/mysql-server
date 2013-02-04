@@ -1203,7 +1203,7 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
   */
-  if (thd->prepare_seq_no == -1)
+  if (thd->prepare_seq_no == PC_UNINIT)
   {
     thd->prepare_seq_no= mysql_bin_log.prepare_clock.step_clock();
     thd->commit_seq_no= mysql_bin_log.commit_clock.get_timestamp();
@@ -5026,9 +5026,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
   bool pc_fixed= false;
-  uint pc_offset= LOG_EVENT_HEADER_LEN + QUERY_HEADER_LEN +
-    thd->prepare_commit_offset;
-  uint pc_end_offset= pc_offset+ PREPARE_COMMIT_SEQ_LEN;
+  uint pc_offset= LOG_EVENT_HEADER_LEN + thd->prepare_commit_offset;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5061,34 +5059,6 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   do
   {
 
-    if (!pc_fixed)
-    {
-      /*TODO; move this back to the next "if block" */
-      if (likely (length >= pc_end_offset))
-      {
-        /* step the commit clock */
-        DBUG_PRINT("info", ("MTS:: PTS:=%lld, CTS:=%lld",
-                   thd->prepare_seq_no, thd->commit_seq_no));
-        uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
-        pc_ptr++;
-
-        // fix prepare ts
-        int8store(pc_ptr, thd->prepare_seq_no);
-        pc_ptr+= PREPARE_COMMIT_SEQ_LEN;
-        pc_ptr++;
-
-        //fix commit ts
-        int8store(pc_ptr, thd->commit_seq_no);
-        thd->commit_seq_no= -1;
-        thd->prepare_seq_no= -1;
-        pc_fixed= true;
-      }
-      else
-      {
-        pc_end_offset-= length;
-        pc_offset= pc_end_offset -2 * PREPARE_COMMIT_SEQ_LEN;
-      }
-    }
     /*
       if we only got a partial header in the last iteration,
       get the other half now and process a full header.
@@ -5209,7 +5179,33 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
           uint event_len= uint4korr(ev + EVENT_LEN_OFFSET); // netto len
           uchar *log_pos= ev + LOG_POS_OFFSET;
 
+          if (!pc_fixed)
+          {
+            uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
+            DBUG_ASSERT(thd->prepare_seq_no != PC_UNINIT);
+            DBUG_ASSERT(thd->commit_seq_no != PC_UNINIT);
 
+            /* Additional check to prevent corrupting events */
+            if ((*pc_ptr == Q_PREPARE_TS || *pc_ptr == G_PREPARE_TS) &&
+                (*(pc_ptr + 1 + PREPARE_COMMIT_SEQ_LEN) == Q_COMMIT_TS ||
+                 *(pc_ptr + 1 + PREPARE_COMMIT_SEQ_LEN) == G_COMMIT_TS))
+            {
+              DBUG_PRINT("info", ("MTS:: PTS:=%lld, CTS:=%lld",
+                       thd->prepare_seq_no, thd->commit_seq_no));
+              pc_ptr++;
+
+              // fix prepare ts
+              int8store(pc_ptr, thd->prepare_seq_no);
+              pc_ptr+= PREPARE_COMMIT_SEQ_LEN;
+              pc_ptr++;
+
+              //fix commit ts
+              int8store(pc_ptr, thd->commit_seq_no);
+              thd->commit_seq_no= PC_UNINIT;
+              thd->prepare_seq_no= PC_UNINIT;
+            }
+            pc_fixed= true;
+          }
           /* fix end_log_pos */
           val= uint4korr(log_pos) + group +
             (end_log_pos_inc += (do_checksum ? BINLOG_CHECKSUM_LEN : 0));
@@ -5949,7 +5945,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       already written in function ha_commit_trans and will not step the prepare
       clock or overwrite the commit parent timestamp.
      */
-    if (thd->prepare_seq_no == -1)
+    if (thd->prepare_seq_no == PC_UNINIT)
     {
       thd->prepare_seq_no= prepare_clock.step_clock();
       thd->commit_seq_no= commit_clock.get_timestamp();

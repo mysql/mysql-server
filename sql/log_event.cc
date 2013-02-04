@@ -2670,22 +2670,24 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
       A group id updater must satisfy the following:
         - A query log event ("BEGIN" )
         - ev->prepare_seq_no > 0
-        - ev->commit_seq_no > 0
-TODO: The code below is an outline marker and later we will use the
-taxonomical inferences from the two seq_numbers that we got from the master
-during BGC to assign the slave side group id.
      */
     if (ev->get_type_code() == QUERY_EVENT)
     {
-      rli->mts_last_known_parent_group_id=
-        gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-        rli->mts_groups_assigned - 1;
+      int64 commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
+      int64 prepare_seq_no= static_cast<Query_log_event*>(ev)->prepare_seq_no;
+      DBUG_PRINT("info", ("MTS::slave p=%lld, c=%lld",prepare_seq_no,
+                          commit_seq_no));
+      if (prepare_seq_no > 0 &&
+           commit_seq_no != rli->mts_last_known_commit_parent)
+      {
+        rli->mts_last_known_parent_group_id=
+          gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+          rli->mts_groups_assigned - 1;
+          return;
+      }
     }
-    else
-    {
-      gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-        rli->mts_last_known_parent_group_id;
-    }
+    gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+      rli->mts_last_known_parent_group_id;
   }
 }
 
@@ -2849,7 +2851,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker= (rli->last_assigned_worker) ? rli->last_assigned_worker :
       *(Slave_worker **) dynamic_array_ptr(&rli->least_occupied_workers, 0);
     if (!ret_worker)
-      ret_worker= get_least_occupied_worker(&rli->workers);
+      ret_worker= get_least_occupied_worker(rli, &rli->workers);
     ptr_group->worker_id= ret_worker->id;
     // "fixing" temp tables:
     if (get_type_code() == QUERY_EVENT)
@@ -3043,10 +3045,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     // reclaiming resources allocated during the group scheduling
     free_root(&rli->mts_coor_mem_root, MYF(MY_KEEP_PREALLOC));
 
-#ifndef DBUG_OFF
     w_rr++;
-#endif
-
   }
   
   return ret_worker;
@@ -3543,7 +3542,8 @@ bool Query_log_event::write(IO_CACHE* file)
   */
   if (thd)
   {
-    thd->prepare_commit_offset= (int)(start-start_of_status);
+    thd->prepare_commit_offset= QUERY_HEADER_LEN +
+                                (int)(start-start_of_status);
     *start++= Q_PREPARE_TS;
     int8store(start, 0);
     start+= PREPARE_COMMIT_SEQ_LEN;
@@ -13246,6 +13246,18 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
+  /* fetch the prepare timestamp */
+  DBUG_ASSERT(*ptr_buffer == G_PREPARE_TS);
+  ptr_buffer++;
+  prepare_seq_no= (int64)uint8korr(ptr_buffer);
+  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+
+  /* fetch the commit timestamp */
+  DBUG_ASSERT(*ptr_buffer == G_COMMIT_TS);
+  ptr_buffer++;
+  commit_seq_no= (int64)uint8korr(ptr_buffer);
+  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+
   DBUG_VOID_RETURN;
 }
 
@@ -13337,6 +13349,14 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
+  thd->prepare_commit_offset= ptr_buffer- buffer;
+  *ptr_buffer++= G_PREPARE_TS;
+  int8store(ptr_buffer, 0);
+  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+
+  *ptr_buffer++= G_COMMIT_TS;
+  int8store(ptr_buffer, 0);
+  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
