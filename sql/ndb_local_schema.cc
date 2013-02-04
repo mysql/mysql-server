@@ -24,6 +24,7 @@
 #include "sql_class.h"
 #include "sql_table.h"
 #include "mdl.h"
+#include "log.h"
 
 static const char *ndb_ext=".ndb";
 
