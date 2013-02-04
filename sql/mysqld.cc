@@ -217,9 +217,6 @@ typedef fp_except fp_except_t;
 # endif
 #endif
 
-extern "C" my_bool reopen_fstreams(const char *filename,
-                                   FILE *outstream, FILE *errstream);
-
 inline void setup_fpu()
 {
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
@@ -384,7 +381,7 @@ static mysql_cond_t COND_thread_cache, COND_flush_thread_cache;
 /* Global variables */
 
 bool opt_bin_log, opt_ignore_builtin_innodb= 0;
-my_bool opt_log, opt_slow_log, opt_log_raw;
+bool opt_general_log, opt_slow_log, opt_general_log_raw;
 ulonglong log_output_options;
 my_bool opt_log_queries_not_using_indexes= 0;
 ulong opt_log_throttle_queries_not_using_indexes= 0;
@@ -749,7 +746,7 @@ ulong master_retry_count=0;
 char *master_info_file;
 char *relay_log_info_file, *report_user, *report_password, *report_host;
 char *opt_relay_logname = 0, *opt_relaylog_index_name=0;
-char *opt_logname, *opt_slow_logname, *opt_bin_logname;
+char *opt_general_logname, *opt_slow_logname, *opt_bin_logname;
 
 /* Static variables */
 
@@ -1148,8 +1145,8 @@ static void charset_error_reporter(enum loglevel level,
 {
   va_list args;
   va_start(args, format);
-  vprint_msg_to_log(level, format, args);
-  va_end(args);                      
+  error_log_print(level, format, args);
+  va_end(args);
 }
 C_MODE_END
 
@@ -1783,8 +1780,6 @@ void clean_up(bool print_message)
   sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
-  logger.cleanup_base();
-
   injector::free_instance();
   mysql_bin_log.cleanup();
   gtid_server_cleanup();
@@ -1856,7 +1851,7 @@ void clean_up(bool print_message)
   (void) my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST); // finish server errs
   DBUG_PRINT("quit", ("Error messages freed"));
   /* Tell main we are ready */
-  logger.cleanup_end();
+  query_logger.cleanup();
   my_atomic_rwlock_destroy(&opt_binlog_max_flush_queue_time_lock);
   my_atomic_rwlock_destroy(&global_query_id_lock);
   my_atomic_rwlock_destroy(&thread_running_lock);
@@ -3112,9 +3107,9 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #ifdef EXTRA_DEBUG
       sql_print_information("Got signal %d to shutdown mysqld",sig);
 #endif
-      /* switch to the old log message processing */
-      logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                          opt_log ? LOG_FILE:LOG_NONE);
+      /* switch to the file log message processing */
+      query_logger.set_handlers((log_output_options != LOG_NONE) ?
+                                LOG_FILE : LOG_NONE);
       DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
       if (!abort_loop)
       {
@@ -3145,19 +3140,8 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
             REFRESH_THREADS | REFRESH_HOSTS),
            (TABLE_LIST*) 0, &not_used); // Flush logs
       }
-      /* reenable logs after the options were reloaded */
-      if (log_output_options & LOG_NONE)
-      {
-        logger.set_handlers(LOG_FILE,
-                            opt_slow_log ? LOG_TABLE : LOG_NONE,
-                            opt_log ? LOG_TABLE : LOG_NONE);
-      }
-      else
-      {
-        logger.set_handlers(LOG_FILE,
-                            opt_slow_log ? log_output_options : LOG_NONE,
-                            opt_log ? log_output_options : LOG_NONE);
-      }
+      /* reenable query logs after the options were reloaded */
+      query_logger.set_handlers(log_output_options);
       break;
 #ifdef USE_ONE_SIGNAL_HAND
     case THR_SERVER_ALARM:
@@ -3544,18 +3528,6 @@ void init_com_statement_info()
   com_statement_info[(uint) COM_QUERY].m_flags= PSI_FLAG_MUTABLE;
 }
 #endif
-
-/**
-  Create the name of the default general log file
-
-  @param[IN] buff    Location for building new string.
-  @param[IN] log_ext The extension for the file (e.g .log)
-  @returns Pointer to a new string containing the name
-*/
-static inline char *make_default_log_name(char *buff,const char* log_ext)
-{
-  return make_log_name(buff, default_logfile_name, log_ext);
-}
 
 /**
   Create a replication file name or base for file names.
@@ -4038,7 +4010,7 @@ int init_common_variables()
   global_system_variables.lc_time_names= my_default_lc_time_names;
 
   /* check log options and issue warnings if needed */
-  if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
+  if (opt_general_log && opt_general_logname && !(log_output_options & LOG_FILE) &&
       !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
                       "--general-log-file option, log tables are used. "
@@ -4054,10 +4026,10 @@ int init_common_variables()
   if (!VAR || !*VAR)                                            \
     VAR= ALT;
 
-  FIX_LOG_VAR(opt_logname,
-              make_default_log_name(logname_path, ".log"));
+  FIX_LOG_VAR(opt_general_logname,
+              make_query_log_name(logname_path, QUERY_LOG_GENERAL));
   FIX_LOG_VAR(opt_slow_logname,
-              make_default_log_name(slow_logname_path, "-slow.log"));
+              make_query_log_name(slow_logname_path, QUERY_LOG_SLOW));
 
 #if defined(ENABLED_DEBUG_SYNC)
   /* Initialize the debug sync facility. See debug_sync.cc. */
@@ -4731,7 +4703,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
     char buf[FN_REFLEN];
     const char *ln;
-    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", 1, buf);
+    ln= mysql_bin_log.generate_name(opt_bin_logname, "-bin", buf);
     if (!opt_bin_logname && !opt_binlog_index_name)
     {
       /*
@@ -4882,37 +4854,37 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
-  else
-    logger.init_log_tables();
 
-  if (log_output_options & LOG_NONE)
+  /*
+    Issue a warning if there were specified additional options to the
+    log-output along with NONE. Probably this wasn't what user wanted.
+  */
+  if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
+    sql_print_warning("There were other values specified to "
+                      "log-output besides NONE. Disabling slow "
+                      "and general logs anyway.");
+
+  if (log_output_options & LOG_TABLE)
   {
-    /*
-      Issue a warining if there were specified additional options to the
-      log-output along with NONE. Probably this wasn't what user wanted.
-    */
-    if ((log_output_options & LOG_NONE) && (log_output_options & ~LOG_NONE))
-      sql_print_warning("There were other values specified to "
-                        "log-output besides NONE. Disabling slow "
-                        "and general logs anyway.");
-    logger.set_handlers(LOG_FILE, LOG_NONE, LOG_NONE);
-  }
-  else
-  {
-    /* fall back to the log files if tables are not present */
+    /* Fall back to log files if the csv engine is not loaded. */
     LEX_STRING csv_name={C_STRING_WITH_LEN("csv")};
     if (!plugin_is_ready(&csv_name, MYSQL_STORAGE_ENGINE_PLUGIN))
     {
-      /* purecov: begin inspected */
       sql_print_error("CSV engine is not present, falling back to the "
                       "log files");
       log_output_options= (log_output_options & ~LOG_TABLE) | LOG_FILE;
-      /* purecov: end */
     }
-
-    logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
-                        opt_log ? log_output_options:LOG_NONE);
   }
+
+  query_logger.set_handlers(log_output_options);
+
+  // Open slow log file if enabled.
+  if (opt_slow_log && query_logger.reopen_log_file(QUERY_LOG_SLOW))
+    opt_slow_log= false;
+
+  // Open general log file if enabled.
+  if (opt_general_log && query_logger.reopen_log_file(QUERY_LOG_GENERAL))
+    opt_general_log= false;
 
   /*
     Set the default storage engines
@@ -4978,7 +4950,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     mysql_bin_log.set_previous_gtid_set(
       const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
     if (mysql_bin_log.open_binlog(opt_bin_logname, 0,
-                                  WRITE_CACHE, max_binlog_size, false,
+                                  max_binlog_size, false,
                                   true/*need_lock_index=true*/,
                                   true/*need_sid_lock=true*/,
                                   NULL))
@@ -5286,10 +5258,10 @@ int mysqld_main(int argc, char **argv)
   mysql_audit_initialize();
 
   /*
-    Perform basic logger initialization logger. Should be called after
-    MY_INIT, as it initializes mutexes. Log tables are inited later.
+    Perform basic query log initialization. Should be called after
+    MY_INIT, as it initializes mutexes.
   */
-  logger.init_base();
+  query_logger.init();
 
   if (ho_error)
   {
@@ -6992,7 +6964,7 @@ struct my_option my_long_options[]=
   {"log-raw", 0,
    "Log to general log before any rewriting of the query. For use in debugging, not production as "
    "sensitive information may be logged.",
-   &opt_log_raw, &opt_log_raw,
+   &opt_general_log_raw, &opt_general_log_raw,
    0, GET_BOOL, NO_ARG, 0, 0, 1, 0, 1, 0 },
   {"log-short-format", 0,
    "Don't log extra information to update and slow-query logs.",
@@ -8032,12 +8004,12 @@ static int mysql_init_variables(void)
   opt_skip_slave_start= opt_reckless_slave = 0;
   mysql_home[0]= pidfile_name[0]= log_error_file[0]= 0;
   myisam_test_invalid_symlink= test_if_data_home_dir;
-  opt_log= opt_slow_log= 0;
+  opt_general_log= opt_slow_log= false;
   opt_bin_log= 0;
   opt_disable_networking= opt_skip_show_db=0;
   opt_skip_name_resolve= 0;
   opt_ignore_builtin_innodb= 0;
-  opt_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= 0;
+  opt_general_logname= opt_update_logname= opt_binlog_index_name= opt_slow_logname= NULL;
   opt_tc_log_file= (char *)"tc.log";      // no hostname in tc_log file name !
   opt_secure_auth= 0;
   opt_secure_file_priv= NULL;
@@ -8610,7 +8582,7 @@ static void option_error_reporter(enum loglevel level, const char *format, ...)
   if (level == ERROR_LEVEL || !opt_bootstrap ||
       log_warnings)
   {
-    vprint_msg_to_log(level, format, args);
+    error_log_print(level, format, args);
   }
   va_end(args);
 }
@@ -8827,7 +8799,7 @@ static void set_server_version(void)
   if (!strstr(MYSQL_SERVER_SUFFIX_STR, "-debug"))
     end= strmov(end, "-debug");
 #endif
-  if (opt_log || opt_slow_log || opt_bin_log)
+  if (opt_general_log || opt_slow_log || opt_bin_log)
     strmov(end, "-log");                        // This may slow down system
 }
 
@@ -9390,7 +9362,7 @@ PSI_file_key key_file_binlog, key_file_binlog_index, key_file_casetest,
   key_file_master_info, key_file_misc, key_file_partition,
   key_file_pid, key_file_relay_log_info, key_file_send_file, key_file_tclog,
   key_file_trg, key_file_trn, key_file_init;
-PSI_file_key key_file_query_log, key_file_slow_log;
+PSI_file_key key_file_general_log, key_file_slow_log;
 PSI_file_key key_file_relaylog, key_file_relaylog_index;
 
 static PSI_file_info all_server_files[]=
@@ -9418,7 +9390,7 @@ static PSI_file_info all_server_files[]=
   { &key_file_misc, "misc", 0},
   { &key_file_partition, "partition", 0},
   { &key_file_pid, "pid", 0},
-  { &key_file_query_log, "query_log", 0},
+  { &key_file_general_log, "query_log", 0},
   { &key_file_relay_log_info, "relay_log_info", 0},
   { &key_file_send_file, "send_file", 0},
   { &key_file_slow_log, "slow_log", 0},

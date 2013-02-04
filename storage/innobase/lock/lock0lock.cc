@@ -43,6 +43,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "btr0btr.h"
 #include "dict0boot.h"
+#include <set>
 
 /** Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -5402,8 +5403,11 @@ bool
 lock_validate()
 /*===========*/
 {
-	lock_mutex_enter();
+	typedef	std::pair<ulint, ulint> page_addr_t;
+	typedef std::set<page_addr_t> page_addr_set;
+	page_addr_set pages;
 
+	lock_mutex_enter();
 	mutex_enter(&trx_sys->mutex);
 
 	ut_a(lock_validate_table_locks(&trx_sys->rw_trx_list));
@@ -5422,19 +5426,18 @@ lock_validate()
 			ulint	space = lock->un_member.rec_lock.space;
 			ulint	page_no = lock->un_member.rec_lock.page_no;
 
-			lock_mutex_exit();
-			mutex_exit(&trx_sys->mutex);
-
-			lock_rec_block_validate(space, page_no);
-
-			lock_mutex_enter();
-			mutex_enter(&trx_sys->mutex);
+			pages.insert(std::make_pair(space, page_no));
 		}
 	}
 
 	mutex_exit(&trx_sys->mutex);
-
 	lock_mutex_exit();
+
+	for (page_addr_set::const_iterator it = pages.begin();
+	     it != pages.end();
+	     ++it) {
+		lock_rec_block_validate((*it).first, (*it).second);
+	}
 
 	return(true);
 }

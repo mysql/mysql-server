@@ -1123,6 +1123,18 @@ innodb_config(
 	if (!name) {
 		item = innodb_config_meta_hash_init(*meta_hash);
 	} else {
+		ib_ulint_t	fold;
+
+		fold = ut_fold_string(name);
+		HASH_SEARCH(name_hash, *meta_hash, fold,
+			    meta_cfg_info_t*, item,
+			    (name_len == item->col_info[0].col_name_len
+			     && strcmp(name, item->col_info[0].col_name) == 0));
+
+		if (item) {
+			return(item);
+		}
+
 		item = innodb_config_container(name, name_len, *meta_hash);
 	}
 
