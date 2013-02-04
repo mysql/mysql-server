@@ -1283,13 +1283,13 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
   query_cache_abort(&query_cache_tls);
 
-  DBUG_ASSERT(!(sql_errno == EE_OUTOFMEMORY || sql_errno == ER_OUTOFMEMORY) 
-              || is_fatal_error);
   /* 
-     Avoid pushing a condition for out of memory errors as this will require
-     memory allocation and therefore might fail.
+     Avoid pushing a condition for fatal out of memory errors as this will 
+     require memory allocation and therefore might fail. Non fatal out of 
+     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
   */
-  if (sql_errno != EE_OUTOFMEMORY && sql_errno != ER_OUTOFMEMORY)
+  if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
+                           sql_errno == ER_OUTOFMEMORY)))
   {
     cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
   }
