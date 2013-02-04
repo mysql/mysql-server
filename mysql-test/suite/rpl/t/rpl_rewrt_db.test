@@ -120,14 +120,14 @@ SET sql_log_bin= 1;
 --echo ****
 --echo **** Creating temporary tables on different databases with different connections
 --echo ****
---echo **** con_temp_01 --> creates 
+--echo **** con_temp_01 --> creates
 --echo ****                  t_01_01_temp on database_master_temp_01
 --echo ****
---echo **** con_temp_02 --> creates 
+--echo **** con_temp_02 --> creates
 --echo ****                  t_01_01_temp on database_master_temp_01
 --echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
 --echo ****
---echo **** con_temp_02 --> creates 
+--echo **** con_temp_03 --> creates
 --echo ****                  t_01_01_temp on database_master_temp_01
 --echo ****                  t_02_01_temp, t_02_02_temp on database_master_temp_02
 --echo ****                  t_03_01_temp, t_03_02_temp, t_03_03_temp on database_master_temp_03
@@ -176,10 +176,9 @@ INSERT INTO t_03_03_temp VALUES(1);
 
 --echo
 --echo **** Dropping the connections
---echo **** We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
---echo **** guarantee that logging of the terminated con_temp has been done yet. To
---echo **** be sure that logging has been done, we wait for binlog event after each
---echo **** disconnect.
+--echo **** To be sure that the DROP statements have been logged, we make
+--echo **** sure that the number of open temporary tables at slave becomes
+--echo **** zero. If not,the test will time out.
 --echo
 connection master;
 sync_slave_with_master;
@@ -187,39 +186,52 @@ connection slave;
 show status like 'Slave_open_temp_tables';
 
 connection master;
-let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1);
+flush logs;
 
 connection con_temp_01;
 disconnect con_temp_01;
 --source include/wait_until_disconnected.inc
-connection master;
---let $wait_binlog_event= DROP
---source include/wait_for_binlog_event.inc
 
 connection con_temp_02;
 disconnect con_temp_02;
 --source include/wait_until_disconnected.inc
-connection master;
---let $wait_binlog_event= DROP
---source include/wait_for_binlog_event.inc
 
 connection con_temp_03;
 disconnect con_temp_03;
 --source include/wait_until_disconnected.inc
-connection master;
---let $wait_binlog_event= DROP
---source include/wait_for_binlog_event.inc
 
 --echo
---echo **** Checking the binary log and temporary tables
+--echo **** Wait until number of open temporary tables at slave becomes zero
 --echo
-connection master;
-sync_slave_with_master;
 connection slave;
-show status like 'Slave_open_temp_tables';
+--let $status_var= Slave_open_temp_tables
+--let $status_var_value= 0
+# The below include file accepts time in units of tenths of seconds.
+# Hence 3 minutes = 1800.
+--let $status_timeout= 1800
+--source include/wait_for_status_var.inc
 
+--echo
+--echo **** Check if every drop temporary table command is prepended with "use"
+--echo
 connection master;
---source include/show_binlog_events.inc
+--let $current_binlog_file= query_get_value(SHOW MASTER STATUS,File,1)
+--let $count_drop= 0
+--let $event_number= 1
+--let $binlog_event= query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)
+while($binlog_event != No such row)
+{
+    if(`SELECT INSTR("$binlog_event", "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS") AND INSTR("$binlog_event", "use") <> 0`)
+    {
+      --inc $count_drop
+    }
+    --inc $event_number
+    --let $binlog_event=query_get_value(SHOW BINLOG EVENTS IN '$current_binlog_file', Info, $event_number)
+}
+
+--let $assert_cond= $count_drop= 6
+--let $assert_text= The number of drop temporary table events in binlog should be 6
+--source include/assert.inc
 
 --echo ****
 --echo **** Cleaning up the test case
