@@ -4965,11 +4965,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
          events can never have multi-statement queries, thus the
          parsed statement is the same as the raw one.
        */
-      if (opt_log_raw || thd->rewritten_query.length() == 0)
-        general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+      if (opt_general_log_raw || thd->rewritten_query.length() == 0)
+        query_logger.general_log_write(thd, COM_QUERY, thd->query(),
+                                       thd->query_length());
       else
-        general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(), 
-                                          thd->rewritten_query.length());
+        query_logger.general_log_write(thd, COM_QUERY,
+                                       thd->rewritten_query.c_ptr_safe(),
+                                       thd->rewritten_query.length());
     }
 
 compare_errors:
@@ -7382,8 +7384,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
-  general_log_print(thd, COM_QUERY,
-                    "COMMIT /* implicit, from Xid_log_event */");
+  query_logger.general_log_print(thd, COM_QUERY,
+                                 "COMMIT /* implicit, from Xid_log_event */");
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
                      w->get_group_master_log_name(),
@@ -7429,8 +7431,8 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
-  general_log_print(thd, COM_QUERY,
-                    "COMMIT /* implicit, from Xid_log_event */");
+  query_logger.general_log_print(thd, COM_QUERY,
+                                 "COMMIT /* implicit, from Xid_log_event */");
 
   mysql_mutex_lock(&rli_ptr->data_lock);
 
@@ -9336,6 +9338,7 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   m_type= event_type;
   
   uint8 const post_header_len= description_event->post_header_len[event_type-1];
+  memset(&m_cols, 0, sizeof(m_cols));
 
   DBUG_PRINT("enter",("event_len: %u  common_header_len: %d  "
 		      "post_header_len: %d",
@@ -9367,7 +9370,9 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
       which includes length bytes
     */
     var_header_len= uint2korr(post_start);
-    assert(var_header_len >= 2);
+    if (var_header_len < 2)
+      DBUG_VOID_RETURN;
+
     var_header_len-= 2;
 
     /* Iterate over var-len header, extracting 'chunks' */
@@ -9380,9 +9385,13 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
       case RW_V_EXTRAINFO_TAG:
       {
         /* Have an 'extra info' section, read it in */
-        assert((end - pos) >= EXTRA_ROW_INFO_HDR_BYTES);
+        if ((end - pos) < EXTRA_ROW_INFO_HDR_BYTES)
+          DBUG_VOID_RETURN;
+
         uint8 infoLen= pos[EXTRA_ROW_INFO_LEN_OFFSET];
-        assert((end - pos) >= infoLen);
+        if ((end - pos) < infoLen)
+          DBUG_VOID_RETURN;
+
         /* Just store/use the first tag of this type, skip others */
         if (likely(!m_extra_row_data))
         {
@@ -9488,8 +9497,10 @@ Rows_log_event::~Rows_log_event()
   if (m_cols.bitmap == m_bitbuf) // no my_malloc happened
     m_cols.bitmap= 0; // so no my_free in bitmap_free
   bitmap_free(&m_cols); // To pair with bitmap_init().
-  my_free(m_rows_buf);
-  my_free(m_extra_row_data);
+  if (m_rows_buf)
+    my_free(m_rows_buf);
+  if (m_extra_row_data)
+    my_free(m_extra_row_data);
 }
 
 int Rows_log_event::get_data_size()
