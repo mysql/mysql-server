@@ -286,12 +286,13 @@ void unlock_slave_threads(Master_info* mi)
 }
 
 #ifdef HAVE_PSI_INTERFACE
-static PSI_thread_key key_thread_slave_io, key_thread_slave_sql;
+static PSI_thread_key key_thread_slave_io, key_thread_slave_sql, key_thread_slave_worker;
 
 static PSI_thread_info all_slave_threads[]=
 {
   { &key_thread_slave_io, "slave_io", PSI_FLAG_GLOBAL},
-  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL}
+  { &key_thread_slave_sql, "slave_sql", PSI_FLAG_GLOBAL},
+  { &key_thread_slave_worker, "slave_worker", PSI_FLAG_GLOBAL}
 };
 
 static void init_slave_psi_keys(void)
@@ -5028,8 +5029,8 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   set_dynamic(&rli->workers, (uchar*) &w, i);
 
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
-      pthread_create(&th, &connection_attrib, handle_slave_worker,
-                     (void*) w))
+      mysql_thread_create(key_thread_slave_worker, &th, &connection_attrib,
+                          handle_slave_worker, (void*) w))
   {
     sql_print_error("Failed during slave worker thread create");
     error= 1;
@@ -6760,8 +6761,8 @@ replication resumed in log '%s' at position %s", mi->get_user(),
     }
     else
     {
-      general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
-                        mi->get_user(), mi->host, mi->port);
+      query_logger.general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
+                                     mi->get_user(), mi->host, mi->port);
     }
 
     thd->set_active_vio(mysql->net.vio);

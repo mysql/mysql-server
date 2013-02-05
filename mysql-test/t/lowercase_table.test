@@ -117,3 +117,19 @@ show create database mysql_TEST;
 drop database mysql_TEST;
 
 --echo End of 6.0 tests
+
+--echo #
+--echo # WL#6613: Refactor logging code - split logging and binlogging code
+--echo #
+
+# Additional test coverage
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+SELECT @@lower_case_table_names;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE MYSQL.general_log DISCARD TABLESPACE;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.GENERAL_LOG DISCARD TABLESPACE;
+SET GLOBAL log_output= DEFAULT;

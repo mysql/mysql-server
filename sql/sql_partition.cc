@@ -4035,20 +4035,26 @@ err:
 void prune_partition_set(const TABLE *table, part_id_range *part_spec)
 {
   int last_partition= -1;
-  uint i;
+  uint i= part_spec->start_part;
   partition_info *part_info= table->part_info;
-
   DBUG_ENTER("prune_partition_set");
-  for (i= part_spec->start_part; i <= part_spec->end_part; i++)
+
+  if (i)
+    i= bitmap_get_next_set(&part_info->read_partitions, i - 1);
+  else
+    i= bitmap_get_first_set(&part_info->read_partitions);
+
+  part_spec->start_part= i;
+
+  for (;
+       i <= part_spec->end_part;
+       i= bitmap_get_next_set(&part_info->read_partitions, i))
   {
-    if (bitmap_is_set(&(part_info->read_partitions), i))
-    {
-      DBUG_PRINT("info", ("Partition %d is set", i));
-      if (last_partition == -1)
-        /* First partition found in set and pruned bitmap */
-        part_spec->start_part= i;
-      last_partition= i;
-    }
+    DBUG_PRINT("info", ("Partition %d is set", i));
+    if (last_partition == -1)
+      /* First partition found in set and pruned bitmap */
+      part_spec->start_part= i;
+    last_partition= i;
   }
   if (last_partition == -1)
     /* No partition found in pruned bitmap */
