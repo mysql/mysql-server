@@ -4965,11 +4965,13 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
          events can never have multi-statement queries, thus the
          parsed statement is the same as the raw one.
        */
-      if (opt_log_raw || thd->rewritten_query.length() == 0)
-        general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+      if (opt_general_log_raw || thd->rewritten_query.length() == 0)
+        query_logger.general_log_write(thd, COM_QUERY, thd->query(),
+                                       thd->query_length());
       else
-        general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(), 
-                                          thd->rewritten_query.length());
+        query_logger.general_log_write(thd, COM_QUERY,
+                                       thd->rewritten_query.c_ptr_safe(),
+                                       thd->rewritten_query.length());
     }
 
 compare_errors:
@@ -7382,8 +7384,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
   Slave_committed_queue *coordinator_gaq= w->c_rli->gaq;
 
   /* For a slave Xid_log_event is COMMIT */
-  general_log_print(thd, COM_QUERY,
-                    "COMMIT /* implicit, from Xid_log_event */");
+  query_logger.general_log_print(thd, COM_QUERY,
+                                 "COMMIT /* implicit, from Xid_log_event */");
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
                      w->get_group_master_log_name(),
@@ -7429,8 +7431,8 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   Relay_log_info *rli_ptr= const_cast<Relay_log_info *>(rli);
 
   /* For a slave Xid_log_event is COMMIT */
-  general_log_print(thd, COM_QUERY,
-                    "COMMIT /* implicit, from Xid_log_event */");
+  query_logger.general_log_print(thd, COM_QUERY,
+                                 "COMMIT /* implicit, from Xid_log_event */");
 
   mysql_mutex_lock(&rli_ptr->data_lock);
 
