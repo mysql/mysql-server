@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ using namespace std;
 #define page_t	   ib_page_t
 /** Type of the index page */
 typedef	byte		page_t;
+#ifndef UNIV_INNOCHECKSUM
 /** Index page cursor */
 struct page_cur_t;
 
@@ -168,4 +169,5 @@ page_zip_dir_add_slot(
 	ulint		is_clustered)	/*!< in: nonzero for clustered index,
 					zero for others */
 	__attribute__((nonnull));
+#endif /* !UNIV_INNOCHECKSUM */
 #endif

@@ -30,6 +30,7 @@ Created 1/30/1994 Heikki Tuuri
 #define ut_a		assert
 #define ut_ad		assert
 #define ut_error	assert(0)
+#define ut_d(EXPR)	do {EXPR;} while (0)
 #else /* !UNIV_INNOCHECKSUM */
 
 #include "univ.i"

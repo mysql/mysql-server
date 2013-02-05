@@ -26,6 +26,8 @@ Created 11/28/1995 Heikki Tuuri
 #ifndef fut0lst_h
 #define fut0lst_h
 
+#ifndef UNIV_INNOCHECKSUM
+
 #include "univ.i"
 
 #include "fil0fil.h"
@@ -41,11 +43,12 @@ typedef	byte	flst_node_t;
 
 /* The physical size of a list base node in bytes */
 #define	FLST_BASE_NODE_SIZE	(4 + 2 * FIL_ADDR_SIZE)
+#endif /* !UNIV_INNOCHECKSUM */
 
 /* The physical size of a list node in bytes */
 #define	FLST_NODE_SIZE		(2 * FIL_ADDR_SIZE)
 
-#ifndef UNIV_HOTBACKUP
+#if !defined UNIV_HOTBACKUP && !defined UNIV_INNOCHECKSUM
 /********************************************************************//**
 Initializes a list base node. */
 UNIV_INLINE
@@ -212,6 +215,6 @@ flst_print(
 #include "fut0lst.ic"
 #endif
 
-#endif /* !UNIV_HOTBACKUP */
+#endif /* !UNIV_HOTBACKUP && !UNIV_INNOCHECKSUM*/
 
 #endif
