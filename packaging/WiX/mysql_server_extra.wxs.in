@@ -107,6 +107,14 @@
               </CreateFolder>
             </Component>
             <Directory Id="datadir.mysql.mysqlserver.data" Name="data">
+              <Component Id="component.datadir.data"
+                Guid="1d9a385d-6edf-4fb7-8652-35973c399d0c"
+                Permanent="yes" NeverOverwrite="yes">
+                <CreateFolder>
+                  <util:PermissionEx User="[LogonUser]" GenericAll="yes" />
+                </CreateFolder>
+                @DATADIR_FILES@
+              </Component>                  
               <Directory Id="datadir.mysql.mysqlserver.data.mysql" Name="mysql">
                 <Component Id="component.datadir.mysql"
                   Guid="19ec0f1f-1a7f-424e-a788-b09346c0a709"
@@ -146,6 +154,7 @@
        ConfigurableDirectory='DATADIR'
        Level='1'>
     <ComponentRef Id="component.datadir"/>
+    <ComponentRef Id="component.datadir.data"/>
     <ComponentRef Id="component.datadir.mysql"/>
     <ComponentRef Id="component.datadir.performance_schema"/>
     <ComponentRef Id="component.datadir.test"/>
