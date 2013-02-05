@@ -169,8 +169,8 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_command= pfs->m_command;
   m_row.m_start_time= pfs->m_start_time;
 
-  /* Protect this reader against attribute changes. */
-  pfs->m_processlist_lock.begin_optimistic_lock(&processlist_lock);
+  /* Protect this reader against state attribute changes. */
+  pfs->m_processlist_state_lock.begin_optimistic_lock(&processlist_state_lock);
 
   m_row.m_processlist_state_ptr= pfs->m_processlist_state_ptr;
   m_row.m_processlist_state_length= pfs->m_processlist_state_length;
@@ -192,7 +192,7 @@ void table_threads::make_row(PFS_thread *pfs)
   m_row.m_processlist_info_ptr= & pfs->m_processlist_info[0];
   m_row.m_processlist_info_length= pfs->m_processlist_info_length;
 
-  if (! pfs->m_processlist_lock.end_optimistic_lock(& processlist_lock))
+  if (! pfs->m_processlist_info_lock.end_optimistic_lock(& processlist_info_lock))
   {
     /*
       Column PROCESSLIST_INFO is being updated.
