@@ -300,5 +300,60 @@ index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 drop table t;
 set global innodb_large_prefix = 0;
+drop table if exists parent,child;
+create temporary table parent ( i int primary key ) engine = innodb;
+create table child ( j int references parent(i)) engine = innodb;
+insert into parent values (1),(2),(3),(4);
+insert into child values (1),(2),(3),(4);
+insert into child values (5),(6);
+select * from parent ;
+i
+1
+2
+3
+4
+select * from child ;
+j
+1
+2
+3
+4
+5
+6
+# restart server
+select * from parent ;
+ERROR 42S02: Table 'test.parent' doesn't exist
+select * from child ;
+j
+1
+2
+3
+4
+5
+6
+drop table child;
+DROP TABLE IF EXISTS t1,t2,t3;
+CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t2 ( i INT ) ENGINE = Innodb;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+COUNT(*)
+0
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+COUNT(*)
+1
+CREATE TEMPORARY table t3 ( i INT ) ENGINE = Innodb;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+COUNT(*)
+0
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+COUNT(*)
+1
+DROP TABLE t1,t2,t3;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+COUNT(*)
+0
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+COUNT(*)
+0
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
