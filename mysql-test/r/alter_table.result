@@ -2338,33 +2338,24 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITH
 alter table t2 algorithm=inplace, rename key k to kk, add column j int;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 drop table t1, t2;
-# 3.b) Test coverage for InnoDB. InnoDB SE doesn't support in-place
-#      renaming of indexes yet. Once this will be changed the below
-#      tests should be adjusted.
+# 3.b) Basic tests for InnoDB. More tests can be found in
+#      main.innodb_rename_index*
 create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
-# InnoDB can't handle renaming of indexes in-place yet.
+# Basic rename, inplace algorithm should be chosen
 alter table t1 algorithm=inplace, rename key k to kk;
-ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-show create table t1;
-Table	Create Table
-t1	CREATE TABLE `t1` (
-  `i` int(11) DEFAULT NULL,
-  KEY `k` (`i`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# So by default copy algorithm should be chosen.
-# (ALTER TABLE should report some rows affected).
-alter table t1 rename key k to kk;
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `i` int(11) DEFAULT NULL,
   KEY `kk` (`i`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-# Explicit specification of copy algorithm should work as well.
+# copy algorithm should work as well.
 alter table t1 algorithm=copy, rename key kk to kkk;
+affected rows: 1
+info: Records: 1  Duplicates: 0  Warnings: 0
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

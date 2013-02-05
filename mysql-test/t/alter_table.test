@@ -1775,23 +1775,19 @@ alter table t1 algorithm=inplace, rename key k to kk, add column j int;
 alter table t2 algorithm=inplace, rename key k to kk, add column j int;
 drop table t1, t2;
 
---echo # 3.b) Test coverage for InnoDB. InnoDB SE doesn't support in-place
---echo #      renaming of indexes yet. Once this will be changed the below
---echo #      tests should be adjusted.
+--echo # 3.b) Basic tests for InnoDB. More tests can be found in
+--echo #      main.innodb_rename_index*
 create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
---echo # InnoDB can't handle renaming of indexes in-place yet.
---error ER_ALTER_OPERATION_NOT_SUPPORTED
-alter table t1 algorithm=inplace, rename key k to kk;
-show create table t1;
---echo # So by default copy algorithm should be chosen.
---echo # (ALTER TABLE should report some rows affected).
+--echo # Basic rename, inplace algorithm should be chosen
 --enable_info
-alter table t1 rename key k to kk;
+alter table t1 algorithm=inplace, rename key k to kk;
 --disable_info
 show create table t1;
---echo # Explicit specification of copy algorithm should work as well.
+--echo # copy algorithm should work as well.
+--enable_info
 alter table t1 algorithm=copy, rename key kk to kkk;
+--disable_info
 show create table t1;
 drop table t1;
 
