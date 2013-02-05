@@ -1316,6 +1316,7 @@ mysql-test/*.ds?
 mysql-test/*.vcproj
 mysql-test/.DS_Store
 mysql-test/collections/default.release
+mysql-test/collections/default.release.done
 mysql-test/funcs_1.log
 mysql-test/funcs_1.tar
 mysql-test/gmon.out
@@ -3132,6 +3133,7 @@ info_macros.cmake
 Docs/INFO_BIN
 Docs/INFO_SRC
 Testing
+FilesCopied
 source_downloads
 client/mysql_plugin
 support-files/plugins.files
