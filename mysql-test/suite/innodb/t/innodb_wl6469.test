@@ -221,6 +221,7 @@ drop table t;
 #
 set global innodb_large_prefix = 1;
 #
+--disable_warnings
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
 	a int not null,
@@ -257,8 +258,51 @@ create temporary table t (
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
+--enable_warnings
 eval set global innodb_large_prefix = $large_prefix;
 #
+
+#-------------------------------------------------------------
+#
+# 7. Temp table with PK-FK -FK constraint is igonered for temp
+# tables
+#
+--disable_warnings
+drop table if exists parent,child;
+--enable_warnings
+create temporary table parent ( i int primary key ) engine = innodb;
+create table child ( j int references parent(i)) engine = innodb;
+insert into parent values (1),(2),(3),(4);
+insert into child values (1),(2),(3),(4);
+# We can insert non referencing values as constraint is ignored for temp table
+insert into child values (5),(6);
+select * from parent ;
+select * from child ;
+--echo # restart server
+--source include/restart_mysqld.inc
+# parnet table will be removed on restart as its temp table
+--error 1146
+select * from parent ;
+select * from child ;
+drop table child;
+
+#-------------------------------------------------------------
+#
+# 8. Temp table info not stored in I_S
+#
+--disable_warnings
+DROP TABLE IF EXISTS t1,t2,t3;
+--enable_warnings
+CREATE TABLE t1 ( i INT ) ENGINE = Innodb;
+CREATE TEMPORARY TABLE t2 ( i INT ) ENGINE = Innodb;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+CREATE TEMPORARY table t3 ( i INT ) ENGINE = Innodb;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
+DROP TABLE t1,t2,t3;
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_DATAFILES WHERE PATH LIKE '%test%t_';
+SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test%t_';
 
 #-------------------------------------------------------------
 #
