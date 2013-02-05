@@ -140,7 +140,6 @@ Checks whether an index should be ignored in stats manipulations:
 * stats fetch
 * stats recalc
 * stats save
-dict_stats_should_ignore_index() @{
 @return true if exists and all tables are ok */
 UNIV_INLINE
 bool
@@ -153,12 +152,10 @@ dict_stats_should_ignore_index(
 	       || index->to_be_dropped
 	       || *index->name == TEMP_INDEX_PREFIX);
 }
-/* @} */
 
 /*********************************************************************//**
 Checks whether the persistent statistics storage exists and that all
 tables have the proper structure.
-dict_stats_persistent_storage_check() @{
 @return true if exists and all tables are ok */
 static
 bool
@@ -260,7 +257,6 @@ dict_stats_persistent_storage_check(
 
 	return(true);
 }
-/* @} */
 
 /*********************************************************************//**
 Executes a given SQL statement using the InnoDB internal SQL parser
@@ -463,8 +459,7 @@ dict_stats_table_clone_create(
 
 /*********************************************************************//**
 Free the resources occupied by an object returned by
-dict_stats_table_clone_create().
-dict_stats_table_clone_free() @{ */
+dict_stats_table_clone_create(). */
 static
 void
 dict_stats_table_clone_free(
@@ -473,14 +468,12 @@ dict_stats_table_clone_free(
 {
 	mem_heap_free(t->heap);
 }
-/* @} */
 
 /*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into an index
 statistics members. The resulting stats correspond to an empty index.
 The caller must own index's table stats latch in X mode
-(dict_table_stats_lock(table, RW_X_LATCH))
-dict_stats_empty_index() @{ */
+(dict_table_stats_lock(table, RW_X_LATCH)) */
 static
 void
 dict_stats_empty_index(
@@ -501,12 +494,10 @@ dict_stats_empty_index(
 	index->stat_index_size = 1;
 	index->stat_n_leaf_pages = 1;
 }
-/* @} */
 
 /*********************************************************************//**
 Write all zeros (or 1 where it makes sense) into a table and its indexes'
-statistics members. The resulting stats correspond to an empty table.
-dict_stats_empty_table() @{ */
+statistics members. The resulting stats correspond to an empty table. */
 static
 void
 dict_stats_empty_table(
@@ -543,7 +534,6 @@ dict_stats_empty_table(
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 }
-/* @} */
 
 /*********************************************************************//**
 Check whether index's stats are initialized (assert if they are not). */
@@ -573,6 +563,7 @@ dict_stats_assert_initialized_index(
 		&index->stat_n_leaf_pages,
 		sizeof(index->stat_n_leaf_pages));
 }
+
 /*********************************************************************//**
 Check whether table's stats are initialized (assert if they are not). */
 static
@@ -760,8 +751,7 @@ dict_stats_snapshot_create(
 
 /*********************************************************************//**
 Free the resources occupied by an object returned by
-dict_stats_snapshot_create().
-dict_stats_snapshot_free() @{ */
+dict_stats_snapshot_create(). */
 static
 void
 dict_stats_snapshot_free(
@@ -770,14 +760,12 @@ dict_stats_snapshot_free(
 {
 	dict_stats_table_clone_free(t);
 }
-/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for index statistics. This function is
 relatively quick and is used to calculate transient statistics that
 are not saved on disk. This was the only way to calculate statistics
-before the Persistent Statistics feature was introduced.
-dict_stats_update_transient_for_index() @{ */
+before the Persistent Statistics feature was introduced. */
 static
 void
 dict_stats_update_transient_for_index(
@@ -826,15 +814,13 @@ dict_stats_update_transient_for_index(
 		dict_stats_empty_index(index);
 	}
 }
-/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. This function
 is relatively quick and is used to calculate transient statistics that
 are not saved on disk.
 This was the only way to calculate statistics before the
-Persistent Statistics feature was introduced.
-dict_stats_update_transient() @{ */
+Persistent Statistics feature was introduced. */
 UNIV_INTERN
 void
 dict_stats_update_transient(
@@ -900,7 +886,6 @@ dict_stats_update_transient(
 
 	table->stat_initialized = TRUE;
 }
-/* @} */
 
 /* @{ Pseudo code about the relation between the following functions
 
@@ -1273,8 +1258,7 @@ to the right, which means that in the case of QUIT_ON_FIRST_NON_BORING the
 returned n_diff can either be 0 (empty page), 1 (the whole page has all keys
 equal) or 2 (the function found a non-boring record and returned).
 @return offsets1 or offsets2 (the offsets of *out_rec),
-or NULL if the page is empty and does not contain user records.
-dict_stats_scan_page() @{ */
+or NULL if the page is empty and does not contain user records. */
 UNIV_INLINE __attribute__((nonnull))
 ulint*
 dict_stats_scan_page(
@@ -1382,13 +1366,11 @@ func_exit:
 	*out_rec = rec;
 	return(offsets_rec);
 }
-/* @} */
 
 /*********************************************************************//**
 Dive below the current position of a cursor and calculate the number of
 distinct records on the leaf page, when looking at the fist n_prefix
 columns.
-dict_stats_analyze_index_below_cur() @{
 @return number of distinct records on the leaf page */
 static
 ib_uint64_t
@@ -1511,7 +1493,6 @@ dict_stats_analyze_index_below_cur(
 
 	return(n_diff);
 }
-/* @} */
 
 /*********************************************************************//**
 For a given level in an index select N_SAMPLE_PAGES(index)
@@ -2109,7 +2090,6 @@ dict_stats_update_persistent(
 /*********************************************************************//**
 Save an individual index's statistic into the persistent statistics
 storage.
-dict_stats_save_index_stat() @{
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -2232,11 +2212,9 @@ dict_stats_save_index_stat(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Save the table's statistics into the persistent statistics storage.
-dict_stats_save() @{
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -2401,14 +2379,12 @@ end:
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Called for the row that is selected by
 SELECT ... FROM mysql.innodb_table_stats WHERE table='...'
 The second argument is a pointer to the table and the fetched stats are
 written to it.
-dict_stats_fetch_table_stats_step() @{
 @return non-NULL dummy */
 static
 ibool
@@ -2485,7 +2461,6 @@ dict_stats_fetch_table_stats_step(
 	/* XXX this is not used but returning non-NULL is necessary */
 	return(TRUE);
 }
-/* @} */
 
 /** Aux struct used to pass a table and a boolean to
 dict_stats_fetch_index_stats_step(). */
@@ -2511,7 +2486,6 @@ This can be improved if we sort table->indexes in a temporary area just once
 and then search in that sorted list. Then the complexity will be O(N*log(N)).
 We assume a table will not have more than 100 indexes, so we go with the
 simpler N^2 algorithm.
-dict_stats_fetch_index_stats_step() @{
 @return non-NULL dummy */
 static
 ibool
@@ -2752,11 +2726,9 @@ dict_stats_fetch_index_stats_step(
 	/* XXX this is not used but returning non-NULL is necessary */
 	return(TRUE);
 }
-/* @} */
 
 /*********************************************************************//**
 Read table's statistics from the persistent statistics storage.
-dict_stats_fetch_from_ps() @{
 @return DB_SUCCESS or error code */
 static
 dberr_t
@@ -2877,11 +2849,9 @@ dict_stats_fetch_from_ps(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
-Fetches or calculates new estimates for index statistics.
-dict_stats_update_for_index() @{ */
+Fetches or calculates new estimates for index statistics. */
 UNIV_INTERN
 void
 dict_stats_update_for_index(
@@ -2921,7 +2891,6 @@ dict_stats_update_for_index(
 	dict_stats_update_transient_for_index(index);
 	dict_table_stats_unlock(index->table, RW_X_LATCH);
 }
-/* @} */
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. The statistics
@@ -3162,7 +3131,6 @@ rolling back dict transactions.
 marko: If ibuf merges are not disabled, we need to scan the *.ibd files.
 But we shouldn't open *.ibd files before we have rolled back dict
 transactions and opened the SYS_* records for the *.ibd files.
-dict_stats_drop_index() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -3244,14 +3212,12 @@ dict_stats_drop_index(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Executes
 DELETE FROM mysql.innodb_table_stats
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_delete_from_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
@@ -3265,7 +3231,7 @@ dict_stats_delete_from_table_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3284,14 +3250,12 @@ dict_stats_delete_from_table_stats(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Executes
 DELETE FROM mysql.innodb_index_stats
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_delete_from_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
@@ -3305,7 +3269,7 @@ dict_stats_delete_from_index_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3324,13 +3288,11 @@ dict_stats_delete_from_index_stats(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Removes the statistics for a table and all of its indexes from the
 persistent statistics storage if it exists and if there is data stored for
 the table. This function creates its own transaction and commits it.
-dict_stats_drop_table() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -3347,7 +3309,7 @@ dict_stats_drop_table(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* skip tables that do not contain a database name
@@ -3403,7 +3365,6 @@ dict_stats_drop_table(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Executes
@@ -3411,7 +3372,6 @@ UPDATE mysql.innodb_table_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_rename_in_table_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
@@ -3427,7 +3387,7 @@ dict_stats_rename_in_table_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3451,7 +3411,6 @@ dict_stats_rename_in_table_stats(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Executes
@@ -3459,7 +3418,6 @@ UPDATE mysql.innodb_index_stats SET
 database_name = '...', table_name = '...'
 WHERE database_name = '...' AND table_name = '...';
 Creates its own transaction and commits it.
-dict_stats_rename_in_index_stats() @{
 @return DB_SUCCESS or error code */
 UNIV_INLINE
 dberr_t
@@ -3475,7 +3433,7 @@ dict_stats_rename_in_index_stats(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	pinfo = pars_info_create();
@@ -3499,12 +3457,10 @@ dict_stats_rename_in_index_stats(
 
 	return(ret);
 }
-/* @} */
 
 /*********************************************************************//**
 Renames a table in InnoDB persistent stats storage.
 This function creates its own transaction and commits it.
-dict_stats_rename_table() @{
 @return DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -3524,7 +3480,7 @@ dict_stats_rename_table(
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
-#endif /* UNIV_STAT */
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* skip innodb_table_stats and innodb_index_stats themselves */
@@ -3658,7 +3614,6 @@ dict_stats_rename_table(
 
 	return(ret);
 }
-/* @} */
 
 /* tests @{ */
 #ifdef UNIV_COMPILE_TEST_FUNCS
@@ -4050,5 +4005,3 @@ test_dict_stats_all()
 /* @} */
 
 #endif /* UNIV_HOTBACKUP */
-
-/* vim: set foldmethod=marker foldmarker=@{,@}: */

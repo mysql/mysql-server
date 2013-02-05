@@ -50,6 +50,10 @@
 --let $_rpl_old_con= $CURRENT_CONNECTION
 --let $_rpl_is_first_server= 1
 --let $_rpl_server= $rpl_server_count
+if ($_rpl_server == '')
+{
+  --let $_rpl_server= 0
+}
 --inc $_rpl_server
 
 --echo CURRENT_CONNECTION = '$_rpl_old_con'

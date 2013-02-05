@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #endif
 #include "sql_const.h"
 #include <mysql/plugin_audit.h>
-#include "log.h"
 #include "rpl_tblmap.h"
 #include "mdl.h"
 #include "sql_locale.h"                         /* my_locale_st */
@@ -37,9 +36,15 @@
 #include "opt_trace_context.h"    /* Opt_trace_context */
 #include "rpl_gtid.h"
 
+#include <pfs_stage_provider.h>
 #include <mysql/psi/mysql_stage.h>
+
+#include <pfs_statement_provider.h>
 #include <mysql/psi/mysql_statement.h>
+
+#include <pfs_idle_provider.h>
 #include <mysql/psi/mysql_idle.h>
+
 #include <mysql_com_server.h>
 #include "sql_data_change.h"
 
@@ -81,6 +86,7 @@ class Rows_log_event;
 class Sroutine_hash_entry;
 class User_level_lock;
 class user_var_entry;
+typedef struct st_log_info LOG_INFO;
 
 enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
@@ -94,6 +100,20 @@ enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
                                          SLAVE_ROWS_INDEX_SCAN = (1U << 1),
                                          SLAVE_ROWS_HASH_SCAN  = (1U << 2)};
+enum enum_binlog_row_image {
+  /** PKE in the before image and changed columns in the after image */
+  BINLOG_ROW_IMAGE_MINIMAL= 0,
+  /** Whenever possible, before and after image contain all columns except blobs. */
+  BINLOG_ROW_IMAGE_NOBLOB= 1,
+  /** All columns in both before and after image. */
+  BINLOG_ROW_IMAGE_FULL= 2
+};
+enum enum_binlog_format {
+  BINLOG_FORMAT_MIXED= 0, ///< statement if safe, otherwise row - autodetected
+  BINLOG_FORMAT_STMT=  1, ///< statement-based
+  BINLOG_FORMAT_ROW=   2, ///< row-based
+  BINLOG_FORMAT_UNSPEC=3  ///< thd_binlog_format() returns it when binlog is closed
+};
 
 enum enum_mark_columns
 { MARK_COLUMNS_NONE, MARK_COLUMNS_READ, MARK_COLUMNS_WRITE};
@@ -329,6 +349,22 @@ typedef struct st_mysql_lock
   uint table_count,lock_count;
   THR_LOCK_DATA **locks;
 } MYSQL_LOCK;
+
+
+/**
+  the struct aggregates two paramenters that identify an event
+  uniquely in scope of communication of a particular master and slave couple.
+  I.e there can not be 2 events from the same staying connected master which
+  have the same coordinates.
+  @note
+  Such identifier is not yet unique generally as the event originating master
+  is resetable. Also the crashed master can be replaced with some other.
+*/
+typedef struct rpl_event_coordinates
+{
+  char * file_name; // binlog file name (directories stripped)
+  my_off_t  pos;       // event's position in the binlog file
+} LOG_POS_COORD;
 
 
 class LEX_COLUMN : public Sql_alloc
@@ -1243,152 +1279,6 @@ public:
   bool user_matches(Security_context *);
 };
 
-/**
-  @class Log_throttle
-  @brief Used for rate-limiting a log (slow query log etc.)
-*/
-
-class Log_throttle
-{
-private:
-  /**
-    We're using our own (empty) security context during summary generation.
-    That way, the aggregate value of the suppressed queries isn't printed
-    with a specific user's name (i.e. the user who sent a query when or
-    after the time-window closes), as that would be misleading.
-  */
-  Security_context aggregate_sctx;
-  /**
-    Total of the execution times of queries in this time-window for which
-    we suppressed logging. For use in summary printing.
-  */
-  ulonglong total_exec_time;
-  /**
-    Total of the lock times of queries in this time-window for which
-    we suppressed logging. For use in summary printing.
-  */
-  ulonglong total_lock_time;
-
-  /**
-    When will/did current window end?
-  */
-  ulonglong window_end;
-  /**
-    A reference to the threshold ("no more than n log lines per ...").
-    References a (system-?) variable in the server.
-  */
-  ulong *rate;
-  /**
-    Log no more than rate lines of a given type per window_size
-    (e.g. per minute, usually LOG_THROTTLE_WINDOW_SIZE).
-  */
-  const ulong window_size;
-  /**
-   There have been this many lines of this type in this window,
-   including those that we suppressed. (We don't simply stop
-   counting once we reach the threshold as we'll write a summary
-   of the suppressed lines later.)
-  */
-  ulong count;
-  /**
-    Template for the summary line. Should contain %lu as the only
-    conversion specification.
-  */
-  const char *summary_template;
-  /**
-    Log_throttle is shared between THDs.
-  */
-  mysql_mutex_t *LOCK_log_throttle;
-  /**
-    The routine we call to actually log a line (i.e. our summary).
-    The signature miraculously coincides with slow_log_print().
-  */
-  bool (*log_summary)(THD *, const char *, uint);
-
-  /**
-    Lock this object as it's shared between THDs.
-  */
-  void lock_exclusive() { mysql_mutex_lock(LOCK_log_throttle); }
-  /**
-    Unlock this object.
-  */
-  void unlock() { mysql_mutex_unlock(LOCK_log_throttle); }
-  /**
-    Start a new window.
-  */
-  void new_window(ulonglong now);
-  /**
-    Increase count of queries of the type we're handling.
-    Returns the new value for the caller to compare against their limit.
-  */
-  ulong inc_queries() { return ++count; }
-  /**
-    Check whether we're still in the current window. (If not, the caller
-    will want to print a summary (if the logging of any lines was suppressed),
-    and start a new window.)
-  */
-  bool in_window(ulonglong now) const { return (now < window_end); };
-  /**
-    Prepare a summary of suppressed lines for logging.
-    (For now, to slow query log.)
-    This function returns the number of queries that were qualified for
-    inclusion in the log, but were not printed because of the rate-limiting.
-    The summary will contain this count as well as the respective totals for
-    lock and execution time.
-    This function assumes that the caller already holds the necessary locks.
-  */
-  ulong prepare_summary(THD *thd);
-  /**
-    Actually print the prepared summary to log.
-  */
-  void print_summary(THD *thd, ulong suppressed,
-                     ulonglong print_lock_time,
-                     ulonglong print_exec_time);
-
-public:
-  /**
-    We're rate-limiting messages per minute; 60,000,000 microsecs = 60s
-    Debugging is less tedious with a window in the region of 5000000
-  */
-  static const ulong LOG_THROTTLE_WINDOW_SIZE= 60000000;
-
-  /**
-    @param threshold     suppress after this many queries ...
-    @param window_usecs  ... in this many micro-seconds
-    @param logger        call this function to log a single line (our summary)
-    @param msg           use this template containing %lu as only non-literal
-  */
-  Log_throttle(ulong *threshold, mysql_mutex_t *lock, ulong window_usecs,
-               bool (*logger)(THD *, const char *, uint),
-               const char *msg);
-
-  /**
-    Prepare and print a summary of suppressed lines to log.
-    (For now, slow query log.)
-    The summary states the number of queries that were qualified for
-    inclusion in the log, but were not printed because of the rate-limiting,
-    and their respective totals for lock and execution time.
-    This wrapper for prepare_summary() and print_summary() handles the
-    locking/unlocking.
-
-    @param thd                 The THD that tries to log the statement.
-    @retval 0                  Logging was not supressed, no summary needed.
-    @retval false              Logging was supressed; a summary was printed.
-  */
-  bool flush(THD *thd);
-
-  /**
-    Top-level function.
-    @param thd                 The THD that tries to log the statement.
-    @param eligible            Is the statement of the type we might suppress?
-    @retval true               Logging should be supressed.
-    @retval false              Logging should not be supressed.
-  */
-  bool log(THD *thd, bool eligible);
-};
-
-extern Log_throttle log_throttle_qni;
-
 
 /**
   A registry for item tree transformations performed during
@@ -2112,7 +2002,7 @@ public:
     *after* last event written by this
     thread.
   */
-  event_coordinates binlog_next_event_pos;
+  rpl_event_coordinates binlog_next_event_pos;
   void set_next_event_pos(const char* _filename, ulonglong _pos);
   void clear_next_event_pos();
 

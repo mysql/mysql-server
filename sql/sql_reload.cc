@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,7 +97,7 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     {
       delete tmp_thd;
       /* Remember that we don't have a THD */
-      my_pthread_setspecific_ptr(THR_THD,  0);
+      my_pthread_set_THR_THD(0);
       thd= 0;
     }
     reset_mqh((LEX_USER *)NULL, TRUE);
@@ -131,10 +131,10 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
     }
 
   if ((options & REFRESH_SLOW_LOG) && opt_slow_log)
-    logger.flush_slow_log();
+    query_logger.reopen_log_file(QUERY_LOG_SLOW);
 
-  if ((options & REFRESH_GENERAL_LOG) && opt_log)
-    logger.flush_general_log();
+  if ((options & REFRESH_GENERAL_LOG) && opt_general_log)
+    query_logger.reopen_log_file(QUERY_LOG_GENERAL);
 
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))

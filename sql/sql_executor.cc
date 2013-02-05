@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -685,6 +685,7 @@ static void update_const_equal_items(Item *cond, JOIN_TAB *tab)
         key_map possible_keys= field->key_start;
         possible_keys.intersect(field->table->keys_in_use_for_query);
         stat[0].const_keys.merge(possible_keys);
+        stat[0].keys.merge(possible_keys);
 
         /*
           For each field in the multiple equality (for which we know that it 
@@ -741,7 +742,13 @@ return_zero_rows(JOIN *join, List<Item> &fields)
         mark_as_null_row(table->table);
 
       // Calculate aggregate functions for no rows
-      List_iterator_fast<Item> it(fields);
+
+      /*
+        Must notify all fields that there are no rows (not only those
+        that will be returned) because join->having may refer to
+        fields that are not part of the result columns.
+       */
+      List_iterator_fast<Item> it(join->all_fields);
       Item *item;
       while ((item= it++))
         item->no_rows_in_result();
@@ -2235,9 +2242,9 @@ join_read_last_key(JOIN_TAB *tab)
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
     return -1;
-  if ((error=table->file->index_read_last_map(table->record[0],
-                                              tab->ref.key_buff,
-                                              make_prev_keypart_map(tab->ref.key_parts))))
+  if ((error=table->file->ha_index_read_last_map(table->record[0],
+                                                 tab->ref.key_buff,
+                                                 make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       return report_handler_error(table, error);
@@ -3463,7 +3470,7 @@ static bool remove_dup_with_compare(THD *thd, TABLE *table, Field **first_field,
     }
     if (copy_blobs(first_field))
     {
-      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(0));
+      my_message(ER_OUTOFMEMORY, ER(ER_OUTOFMEMORY), MYF(ME_FATALERROR));
       error=0;
       goto err;
     }

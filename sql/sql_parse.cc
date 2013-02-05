@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,14 +165,6 @@ const LEX_STRING command_name[]={
 const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
-
-Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
-                              &LOCK_log_throttle_qni,
-                              Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
-                              slow_log_print,
-                              "throttle: %10lu 'index "
-                              "not used' warning(s) suppressed.");
-
 
 #ifdef HAVE_REPLICATION
 /**
@@ -1217,7 +1209,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 			packet, packet_length, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
     {
-      general_log_write(thd, command, thd->db, thd->db_length);
+      query_logger.general_log_write(thd, command, thd->db, thd->db_length);
       my_ok(thd);
     }
     break;
@@ -1318,8 +1310,9 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
                       (char *) thd->security_ctx->host_or_ip);
     char *packet_end= thd->query() + thd->query_length();
 
-    if (opt_log_raw)
-      general_log_write(thd, command, thd->query(), thd->query_length());
+    if (opt_general_log_raw)
+      query_logger.general_log_write(thd, command, thd->query(),
+                                     thd->query_length());
 
     DBUG_PRINT("query",("%-.4096s",thd->query()));
 
@@ -1485,7 +1478,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!(fields= (char *) thd->memdup(packet, query_length + 1)))
       break;
     thd->set_query(fields, query_length);
-    general_log_print(thd, command, "%s %s", table_list.table_name, fields);
+    query_logger.general_log_print(thd, command, "%s %s",
+                                   table_list.table_name, fields);
 
     if (open_temporary_tables(thd, &table_list))
       break;
@@ -1517,7 +1511,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #endif
   case COM_QUIT:
     /* We don't calculate statistics for this command */
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
     net->error=0;				// Don't give 'abort' message
     thd->get_stmt_da()->disable_status();              // Don't send anything back
     error=TRUE;					// End server
@@ -1548,7 +1542,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->mdl_context.release_transactional_locks();
     if (check_global_access(thd,RELOAD_ACL))
       break;
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
 #ifndef DBUG_OFF
     bool debug_simulate= FALSE;
     DBUG_EXECUTE_IF("simulate_detached_thread_refresh", debug_simulate= TRUE;);
@@ -1561,10 +1555,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
         and flushes tables.
       */
       bool res;
-      my_pthread_setspecific_ptr(THR_THD, NULL);
+      my_pthread_set_THR_THD(NULL);
       res= reload_acl_and_cache(NULL, options | REFRESH_FAST,
                                 NULL, &not_used);
-      my_pthread_setspecific_ptr(THR_THD, thd);
+      my_pthread_set_THR_THD(thd);
       if (res)
         break;
     }
@@ -1604,7 +1598,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       break;
     }
     DBUG_PRINT("quit",("Got shutdown command for level %u", level));
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
     my_eof(thd);
     kill_mysql();
     error=TRUE;
@@ -1620,7 +1614,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     char buff[250];
     uint buff_len= sizeof(buff);
 
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
     status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
     calc_sum_of_all_status(&current_global_status_var);
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
@@ -1659,7 +1653,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
     mysqld_list_processes(thd,
 			  thd->security_ctx->master_access & PROCESS_ACL ? 
 			  NullS : thd->security_ctx->priv_user, 0);
@@ -1701,7 +1695,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status();
-    general_log_print(thd, command, NullS);
+    query_logger.general_log_print(thd, command, NullS);
     my_eof(thd);
     break;
   case COM_SLEEP:
@@ -1767,105 +1761,6 @@ done:
 #endif
 
   DBUG_RETURN(error);
-}
-
-
-/**
-  Check whether we need to write the current statement (or its rewritten
-  version if it exists) to the slow query log.
-  As a side-effect, a digest of suppressed statements may be written.
-
-  @param thd          thread handle
-
-  @retval
-    true              statement needs to be logged
-  @retval
-    false             statement does not need to be logged
-*/
-
-bool log_slow_applicable(THD *thd)
-{
-  DBUG_ENTER("log_slow_applicable");
-
-  /*
-    The following should never be true with our current code base,
-    but better to keep this here so we don't accidently try to log a
-    statement in a trigger or stored function
-  */
-  if (unlikely(thd->in_sub_stmt))
-    DBUG_RETURN(false);                         // Don't set time for sub stmt
-
-  /*
-    Do not log administrative statements unless the appropriate option is
-    set.
-  */
-  if (thd->enable_slow_log)
-  {
-    bool warn_no_index= ((thd->server_status &
-                          (SERVER_QUERY_NO_INDEX_USED |
-                           SERVER_QUERY_NO_GOOD_INDEX_USED)) &&
-                         opt_log_queries_not_using_indexes &&
-                         !(sql_command_flags[thd->lex->sql_command] &
-                           CF_STATUS_COMMAND));
-    bool log_this_query=  ((thd->server_status & SERVER_QUERY_WAS_SLOW) ||
-                           warn_no_index) &&
-                          (thd->get_examined_row_count() >=
-                           thd->variables.min_examined_row_limit);
-    bool suppress_logging= log_throttle_qni.log(thd, warn_no_index);
-
-    if (!suppress_logging && log_this_query)
-      DBUG_RETURN(true);
-  }
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Unconditionally the current statement (or its rewritten version if it
-  exists) to the slow query log.
-
-  @param thd              thread handle
-*/
-
-void log_slow_do(THD *thd)
-{
-  DBUG_ENTER("log_slow_do");
-
-  THD_STAGE_INFO(thd, stage_logging_slow_query);
-  thd->status_var.long_query_count++;
-
-  if (thd->rewritten_query.length())
-    slow_log_print(thd,
-                   thd->rewritten_query.c_ptr_safe(),
-                   thd->rewritten_query.length());
-  else
-    slow_log_print(thd, thd->query(), thd->query_length());
-
-  DBUG_VOID_RETURN;
-}
-
-
-/**
-  Check whether we need to write the current statement to the slow query
-  log. If so, do so. This is a wrapper for the two functions above;
-  most callers should use this wrapper.  Only use the above functions
-  directly if you have expensive rewriting that you only need to do if
-  the query actually needs to be logged (e.g. SP variables / NAME_CONST
-  substitution when executing a PROCEDURE).
-  A digest of suppressed statements may be logged instead of the current
-  statement.
-
-  @param thd              thread handle
-*/
-
-void log_slow_statement(THD *thd)
-{
-  DBUG_ENTER("log_slow_statement");
-
-  if (log_slow_applicable(thd))
-    log_slow_do(thd);
-
-  DBUG_VOID_RETURN;
 }
 
 
@@ -6034,7 +5929,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     if (!err)
     {
       /*
-        See whether we can do any query rewriting. opt_log_raw only controls
+        See whether we can do any query rewriting. opt_general_log_raw only controls
         writing to the general log, so rewriting still needs to happen because
         the other logs (binlog, slow query log, ...) can not be set to raw mode
         for security reasons.
@@ -6048,7 +5943,8 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
         no logging happens at all. If rewriting does not happen here,
         thd->rewritten_query is still empty from being reset in alloc_query().
       */
-      bool general= (opt_log && ! (opt_log_raw || thd->slave_thread));
+      bool general= (opt_general_log &&
+                     !(opt_general_log_raw || thd->slave_thread));
 
       if (general || opt_slow_log || opt_bin_log)
       {
@@ -6061,10 +5957,11 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       if (general)
       {
         if (thd->rewritten_query.length())
-          general_log_write(thd, COM_QUERY, thd->rewritten_query.c_ptr_safe(),
-                                            thd->rewritten_query.length());
+          query_logger.general_log_write(thd, COM_QUERY,
+                                         thd->rewritten_query.c_ptr_safe(),
+                                         thd->rewritten_query.length());
         else
-          general_log_write(thd, COM_QUERY, thd->query(), qlen);
+          query_logger.general_log_write(thd, COM_QUERY, thd->query(), qlen);
       }
     }
 
@@ -6170,8 +6067,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
     */
     thd->m_statement_psi= MYSQL_REFINE_STATEMENT(thd->m_statement_psi,
                                                  sql_statement_info[SQLCOM_SELECT].m_key);
-    if (!opt_log_raw)
-      general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    if (!opt_general_log_raw)
+      query_logger.general_log_write(thd, COM_QUERY, thd->query(),
+                                     thd->query_length());
     parser_state->m_lip.found_semicolon= NULL;
   }
 

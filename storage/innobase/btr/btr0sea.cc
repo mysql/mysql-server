@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1264,6 +1264,8 @@ btr_search_drop_page_hash_when_freed(
 {
 	buf_block_t*	block;
 	mtr_t		mtr;
+
+	ut_d(export_vars.innodb_ahi_drop_lookups++);
 
 	mtr_start(&mtr);
 

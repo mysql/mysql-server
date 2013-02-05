@@ -10,6 +10,7 @@
 #include <my_bitmap.h>
 #include "rpl_slave.h"
 
+extern ulong w_rr;
 /**
   Legends running throughout the module:
 
@@ -20,7 +21,6 @@
   B-event event that Begins a group (a transaction)
   T-event event that Terminates a group (a transaction)
 */
-
 /* Assigned Partition Hash (APH) entry */
 typedef struct st_db_worker_hash_entry
 {

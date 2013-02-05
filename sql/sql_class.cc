@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1257,12 +1257,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
-  cond= DBUG_EVALUATE_IF(
-    "simulate_out_of_memory",
-    NULL,
-    da->push_warning(this, sql_errno, sqlstate, level, msg));
-
   if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
@@ -1293,6 +1287,16 @@ Sql_condition* THD::raise_condition(uint sql_errno,
 
   query_cache_abort(&query_cache_tls);
 
+  /* 
+     Avoid pushing a condition for fatal out of memory errors as this will 
+     require memory allocation and therefore might fail. Non fatal out of 
+     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
+  */
+  if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
+                           sql_errno == ER_OUTOFMEMORY)))
+  {
+    cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
+  }
   DBUG_RETURN(cond);
 }
 
@@ -1344,7 +1348,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #ifdef _WIN32
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_getspecific_ptr(THD*,THR_THD);
+  return my_pthread_get_THR_THD();
 }
 #endif
 /*
@@ -1502,11 +1506,6 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   if (gtid_mode > 0)
@@ -1530,6 +1529,11 @@ void THD::cleanup(void)
    */
   if (tc_log)
     tc_log->commit(this, true);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
   cleanup_done=1;
   DBUG_VOID_RETURN;
@@ -1869,8 +1873,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_setspecific_ptr(THR_THD,  this) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
+  if (my_pthread_set_THR_THD(this) ||
+      my_pthread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -1909,11 +1913,11 @@ bool THD::restore_globals()
     to track stack overrun.
   */
   DBUG_ASSERT(thread_stack);
-  
+
   /* Undocking the thread specific data. */
-  my_pthread_setspecific_ptr(THR_THD, NULL);
-  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
-  
+  my_pthread_set_THR_THD(NULL);
+  my_pthread_set_THR_MALLOC(NULL);
+
   return 0;
 }
 
@@ -2207,7 +2211,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
              ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
@@ -2777,7 +2781,7 @@ bool select_export::send_data(List<Item> &items)
       set_if_smaller(estimated_bytes, UINT_MAX32);
       if (cvt_str.realloc((uint32) estimated_bytes))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
       }
 
@@ -3811,160 +3815,6 @@ bool Security_context::user_matches(Security_context *them)
 {
   return ((user != NULL) && (them->user != NULL) &&
           !strcmp(user, them->user));
-}
-
-
-void Log_throttle::new_window(ulonglong now)
-{
-  count= 0;
-  total_exec_time= 0;
-  total_lock_time= 0;
-  window_end= now + window_size;
-}
-
-
-Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
-                           ulong window_usecs,
-                           bool (*logger)(THD *, const char *, uint),
-                           const char *msg)
-  :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold),
-   window_size(window_usecs), count(0),
-   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
-{
-  aggregate_sctx.init();
-}
-
-
-ulong Log_throttle::prepare_summary(THD *thd)
-{
-  ulong ret= 0;
-  /*
-    Previous throttling window is over or rate changed.
-    Return the number of lines we throttled.
-  */
-  if (count > *rate)
-  {
-    ret= count - *rate;
-    count= 0;                                 // prevent writing it again.
-  }
-  return ret;
-}
-
-
-void Log_throttle::print_summary(THD *thd, ulong suppressed,
-                                 ulonglong print_lock_time,
-                                 ulonglong print_exec_time)
-{
-  /*
-    We synthesize these values so the totals in the log will be
-    correct (just in case somebody analyses them), even if the
-    start/stop times won't be (as they're an aggregate which will
-    usually mostly lie within [ window_end - window_size ; window_end ]
-  */
-  ulonglong save_start_utime=      thd->start_utime;
-  ulonglong save_utime_after_lock= thd->utime_after_lock;
-  Security_context *save_sctx=     thd->security_ctx;
-
-  char buf[128];
-
-  snprintf(buf, sizeof(buf), summary_template, suppressed);
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->start_utime=                thd->current_utime() - print_exec_time;
-  thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->security_ctx=               (Security_context *) &aggregate_sctx;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-  (*log_summary)(thd, buf, strlen(buf));
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->security_ctx    = save_sctx;
-  thd->start_utime     = save_start_utime;
-  thd->utime_after_lock= save_utime_after_lock;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-}
-
-
-bool Log_throttle::flush(THD *thd)
-{
-  // Write summary if we throttled.
-  lock_exclusive();
-  ulonglong print_lock_time=  total_lock_time;
-  ulonglong print_exec_time=  total_exec_time;
-  ulong     suppressed_count= prepare_summary(thd);
-  unlock();
-  if (suppressed_count > 0)
-  {
-    print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-    return true;
-  }
-  return false;
-}
-
-
-bool Log_throttle::log(THD *thd, bool eligible)
-{
-  bool  suppress_current= false;
-
-  /*
-    If throttling is enabled, we might have to write a summary even if
-    the current query is not of the type we handle.
-  */
-  if (*rate > 0)
-  {
-    lock_exclusive();
-
-    ulong     suppressed_count=   0;
-    ulonglong print_lock_time=    total_lock_time;
-    ulonglong print_exec_time=    total_exec_time;
-    ulonglong end_utime_of_query= thd->current_utime();
-
-    /*
-      If the window has expired, we'll try to write a summary line.
-      The subroutine will know whether we actually need to.
-    */
-    if (!in_window(end_utime_of_query))
-    {
-      suppressed_count= prepare_summary(thd);
-      // start new window only if this is the statement type we handle
-      if (eligible)
-        new_window(end_utime_of_query);
-    }
-    if (eligible && (inc_queries() > *rate))
-    {
-      /*
-        Current query's logging should be suppressed.
-        Add its execution time and lock time to totals for the current window.
-      */
-      total_exec_time += (end_utime_of_query - thd->start_utime);
-      total_lock_time += (thd->utime_after_lock - thd->start_utime);
-      suppress_current= true;
-    }
-
-    unlock();
-
-    /*
-      print_summary() is deferred until after we release the locks to
-      avoid congestion. All variables we hand in are local to the caller,
-      so things would even be safe if print_summary() hadn't finished by the
-      time the next one comes around (60s later at the earliest for now).
-      The current design will produce correct data, but does not guarantee
-      order (there is a theoretical race condition here where the above
-      new_window()/unlock() may enable a different thread to print a warning
-      for the new window before the current thread gets to print_summary().
-      If the requirements ever change, add a print_lock to the object that
-      is held during print_summary(), AND that is briefly locked before
-      returning from this function if(eligible && !suppress_current).
-      This should ensure correct ordering of summaries with regard to any
-      follow-up summaries as well as to any (non-suppressed) warnings (of
-      the type we handle) from the next window.
-    */
-    if (suppressed_count > 0)
-      print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-  }
-
-  return suppress_current;
 }
 
 

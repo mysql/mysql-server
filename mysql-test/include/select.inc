@@ -3400,7 +3400,7 @@ DROP TABLE t1;
 CREATE TABLE t1 (c1 INT, c2 INT);
 INSERT INTO t1 VALUES (1,11), (2,22), (2,22);
 
-let $n= 31;
+let $n= 29;
 let $q= COUNT(c2);
 while ($n)
 {
