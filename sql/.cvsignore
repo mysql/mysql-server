@@ -9,4 +9,5 @@ mysqlbinlog
 mysqlbinlog
 mysqld
 sql_yacc.cc
+sql_yacc.hh
 sql_yacc.h
