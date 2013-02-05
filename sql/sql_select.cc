@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -836,7 +836,7 @@ err:
   Explain join.
 */
 
-void
+bool
 JOIN::explain()
 {
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -845,21 +845,22 @@ JOIN::explain()
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   List<Item> *columns_list= &fields_list;
+  bool ret;
   DBUG_ENTER("JOIN::explain");
 
   THD_STAGE_INFO(thd, stage_explaining);
 
   if (prepare_result(&columns_list))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
+    ret= explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
                                                   : "No tables used");
     /* Single select (without union) always returns 0 or 1 row */
     thd->limit_found_rows= send_records;
     thd->set_examined_row_count(0);
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(ret);
   }
   /*
     Don't reset the found rows count if there're no tables as
@@ -871,16 +872,16 @@ JOIN::explain()
 
   if (zero_result_cause)
   {
-    explain_no_table(thd, this, zero_result_cause);
-    DBUG_VOID_RETURN;
+    ret= explain_no_table(thd, this, zero_result_cause);
+    DBUG_RETURN(ret);
   }
 
   if (tables)
-    explain_query_specification(thd, this);
+    ret= explain_query_specification(thd, this);
   else
-    explain_no_table(thd, this, "No tables used");
+    ret= explain_no_table(thd, this, "No tables used");
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(ret);
 }
 
 
