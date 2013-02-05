@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "mysqld.h"                             // lc_messages_dir
 #include "derror.h"                             // read_texts
 #include "sql_class.h"                          // THD
+#include "log.h"
 
 static void init_myfunc_errs(void);
 
