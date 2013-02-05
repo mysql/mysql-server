@@ -26,8 +26,9 @@ Created May 26, 2009 Vasil Dimov
 #ifndef fsp0types_h
 #define fsp0types_h
 
-#include "univ.i"
+#ifndef UNIV_INNOCHECKSUM
 
+#include "univ.i"
 #include "fil0fil.h" /* for FIL_PAGE_DATA */
 
 /** @name Flags for inserting records in order
@@ -50,10 +51,12 @@ fseg_alloc_free_page) */
 /** File space extent size (one megabyte) in pages for MIN page size */
 #define	FSP_EXTENT_SIZE_MIN	(1048576 / UNIV_PAGE_SIZE_MIN)
 
+#endif /* !UNIV_INNOCHECKSUM */
 /** On a page of any file segment, data may be put starting from this
 offset */
 #define FSEG_PAGE_DATA		FIL_PAGE_DATA
 
+#ifndef UNIV_INNOCHECKSUM
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */
 /* @{ */
@@ -113,4 +116,5 @@ every XDES_DESCRIBED_PER_PAGE pages in every tablespace. */
 /*--------------------------------------*/
 /* @} */
 
+#endif /* !UNIV_INNOCHECKSUM */
 #endif /* fsp0types_h */
