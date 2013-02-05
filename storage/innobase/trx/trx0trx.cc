@@ -1933,7 +1933,7 @@ trx_prepare_for_mysql(
 /*==================*/
 	trx_t*	trx)		/*!< in/out: trx handle */
 {
-	trx_start_if_not_started_xa_low(trx, false);
+	trx_start_if_not_started_xa(trx, false);
 
 	trx->op_info = "preparing";
 

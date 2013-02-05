@@ -9257,9 +9257,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9278,10 +9279,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
              passwd_used ? ER(ER_YES) : ER(ER_NO));
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip,
+                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9435,14 +9436,16 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
   }
   else
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
   }
   return 1;
 }
@@ -9514,7 +9517,8 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   if (switch_from_short_to_long_scramble)
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -9606,7 +9610,8 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -10893,16 +10898,18 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
     if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
     {
-      general_log_print(thd, command, "%s@%s as %s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.auth_info.authenticated_as ?
+                                     mpvio.auth_info.authenticated_as : "anonymous",
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else
-      general_log_print(thd, command, (char*) "%s@%s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11023,7 +11030,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       Host_errors errors;
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
-      general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      query_logger.general_log_print(thd, COM_CONNECT,
+                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
       if (log_warnings > 1)
         sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
 
