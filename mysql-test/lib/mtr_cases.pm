@@ -1015,7 +1015,7 @@ sub collect_one_test_case {
   }
   if ( $tinfo->{'myisam_test'})
   {
-    # This is a temporary fix to allow non-innodb tests to run even if6yy
+    # This is a temporary fix to allow non-innodb tests to run even if
     # the default storage engine is innodb.
     push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
     push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
