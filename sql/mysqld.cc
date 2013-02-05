@@ -640,6 +640,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
+mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
@@ -1574,6 +1575,7 @@ static void clean_up_mutexes()
 {
   mysql_rwlock_destroy(&LOCK_grant);
   mysql_mutex_destroy(&LOCK_thread_count);
+  mysql_mutex_destroy(&LOCK_thread_created);
   mysql_mutex_destroy(&LOCK_status);
   mysql_mutex_destroy(&LOCK_delayed_insert);
   mysql_mutex_destroy(&LOCK_delayed_status);
@@ -3542,6 +3544,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
+  mysql_mutex_init(key_LOCK_thread_created, &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
@@ -4950,7 +4953,9 @@ static bool read_init_file(char *file_name)
 */
 void inc_thread_created(void)
 {
+  mysql_mutex_lock(&LOCK_thread_created);
   thread_created++;
+  mysql_mutex_unlock(&LOCK_thread_created);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -7815,6 +7820,7 @@ PSI_mutex_key key_BINLOG_LOCK_index, key_BINLOG_LOCK_prep_xids,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_PARTITION_LOCK_auto_inc;
 PSI_mutex_key key_RELAYLOG_LOCK_index;
+PSI_mutex_key key_LOCK_thread_created;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7867,7 +7873,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
-  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0}
+  { &key_PARTITION_LOCK_auto_inc, "HA_DATA_PARTITION::LOCK_auto_inc", 0},
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
