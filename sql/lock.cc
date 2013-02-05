@@ -328,7 +328,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, uint count, uint flags)
       my_error(rc, MYF(0));
   }
 end:
-  if (thd->killed)
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
   {
     thd->send_kill_message();
     if (sql_lock)

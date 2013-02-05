@@ -71,7 +71,7 @@ ERROR HY000: GTID_NEXT cannot be set to ANONYMOUS when GTID_MODE = ON.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805BE8E-51AB-11E1-BACC-6706C20AD7BA:1. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns 7805be8e-51ab-11e1-bacc-6706c20ad7ba:1. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';
 SET SESSION GTID_NEXT='7805be8e-51ab-11e1-bacc-6706c20ad7ba:1';

@@ -103,7 +103,8 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_ALREADY_CONNECTED                    2058
 #define CR_AUTH_PLUGIN_CANNOT_LOAD              2059
 #define CR_DUPLICATE_CONNECTION_ATTR            2060
-#define CR_ERROR_LAST  /*Copy last error nr:*/  2060
+#define CR_AUTH_PLUGIN_ERR                      2061
+#define CR_ERROR_LAST  /*Copy last error nr:*/  2061
 /* Add error numbers before CR_ERROR_LAST and change it accordingly. */
 
 #endif /* ERRMSG_INCLUDED */

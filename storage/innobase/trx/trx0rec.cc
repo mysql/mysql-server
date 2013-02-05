@@ -287,7 +287,7 @@ trx_undo_rec_get_pars(
 					TRX_UNDO_INSERT_REC, ... */
 	ulint*		cmpl_info,	/*!< out: compiler info, relevant only
 					for update type records */
-	ibool*		updated_extern,	/*!< out: TRUE if we updated an
+	bool*		updated_extern,	/*!< out: true if we updated an
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
 	table_id_t*	table_id)	/*!< out: table id */
@@ -300,12 +300,8 @@ trx_undo_rec_get_pars(
 	type_cmpl = mach_read_from_1(ptr);
 	ptr++;
 
-	if (type_cmpl & TRX_UNDO_UPD_EXTERN) {
-		*updated_extern = TRUE;
-		type_cmpl -= TRX_UNDO_UPD_EXTERN;
-	} else {
-		*updated_extern = FALSE;
-	}
+	*updated_extern = !!(type_cmpl & TRX_UNDO_UPD_EXTERN);
+	type_cmpl &= ~TRX_UNDO_UPD_EXTERN;
 
 	*type = type_cmpl & (TRX_UNDO_CMPL_INFO_MULT - 1);
 	*cmpl_info = type_cmpl / TRX_UNDO_CMPL_INFO_MULT;
@@ -1516,7 +1512,7 @@ trx_undo_prev_version_build(
 	byte*		ptr;
 	ulint		info_bits;
 	ulint		cmpl_info;
-	ibool		dummy_extern;
+	bool		dummy_extern;
 	byte*		buf;
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&purge_sys->latch, RW_LOCK_SHARED));
@@ -1592,6 +1588,38 @@ trx_undo_prev_version_build(
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
+
+		/* We should confirm the existence of disowned external data,
+		if the previous version record is delete marked. If the trx_id
+		of the previous record is seen by purge view, we should treat
+		it as missing history, because the disowned external data
+		might be purged already.
+
+		The inherited external data (BLOBs) can be freed (purged)
+		after trx_id was committed, provided that no view was started
+		before trx_id. If the purge view can see the committed
+		delete-marked record by trx_id, no transactions need to access
+		the BLOB. */
+
+		/* the row_upd_changes_disowned_external(update) call could be
+		omitted, but the synchronization on purge_sys->latch is likely
+		more expensive. */
+
+		if ((update->info_bits & REC_INFO_DELETED_FLAG)
+		    && row_upd_changes_disowned_external(update)) {
+			bool	missing_extern;
+
+			rw_lock_s_lock(&purge_sys->latch);
+			missing_extern = read_view_sees_trx_id(purge_sys->view,
+							       trx_id);
+			rw_lock_s_unlock(&purge_sys->latch);
+
+			if (missing_extern) {
+				/* treat as a fresh insert, not to
+				cause assertion error at the caller. */
+				return(true);
+			}
+		}
 
 		/* We have to set the appropriate extern storage bits in the
 		old version of the record: the extern bits in rec for those

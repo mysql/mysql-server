@@ -33,14 +33,6 @@
    functionality of Mem_root_array.
 */
 
-pthread_key(MEM_ROOT**, THR_MALLOC);
-pthread_key(THD*, THR_THD);
-
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
 
 /*
   Rewrite of sort_keyuse() to comparison operator for use by std::less<>
@@ -96,7 +88,7 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 }
 
 
-namespace {
+namespace dynarray_unittest {
 
 /*
   Cut'n paste this function from sql_select.cc,

@@ -1,7 +1,5 @@
 # Not supported in embedded
 --source include/not_embedded.inc
-# Adding big test option for this test.
---source include/big_test.inc
 
 -- source include/have_innodb.inc
 

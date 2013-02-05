@@ -14,52 +14,52 @@ SELECT FTS_DOC_ID FROM t1 WHERE MATCH (a,b)
 AGAINST ('row35col2word49' IN NATURAL LANGUAGE MODE);
 FTS_DOC_ID
 35
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST("+row5col2word49" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST("+row35col2word49 +(row35col1word49 row35col2word40)" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST("+row35col2word49 -(row45col2word49)" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST("row5col2word49 row5col2word40" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH a,b AGAINST ("+row5col2word* +row5col1word49*" IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH a,b AGAINST ('"row35col2word49"' IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH a,b AGAINST ('"ROW35col2WORD49"' IN BOOLEAN MODE);
 COUNT(*)
 1
-SELECT COUNT(*) from t1 
+SELECT COUNT(*) from t1
 WHERE MATCH(a,b) AGAINST ("row5col2word49" WITH QUERY EXPANSION);
 COUNT(*)
 1
 SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"row5col2word48 row5col2word49"@20' IN BOOLEAN MODE);
+AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
 FTS_DOC_ID
 5
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"row5col2word48 row5col2word49"@10' IN BOOLEAN MODE);
+AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
 FTS_DOC_ID	a	b
-UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000 
+UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 SELECT a,b FROM t1 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 a	b
@@ -127,19 +127,19 @@ COUNT(*)
 1
 SELECT FTS_DOC_ID FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"row5col2word48 row5col2word49"@20' IN BOOLEAN MODE);
+AGAINST ('"row5col2word48 row5col2word49"@2' IN BOOLEAN MODE);
 FTS_DOC_ID
 5
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"row5col2word48 row5col2word49"@10' IN BOOLEAN MODE);
+AGAINST ('"row5col2word48 row5col2word49"@1' IN BOOLEAN MODE);
 FTS_DOC_ID	a	b
 UPDATE t1 SET a = "using update" , b = "changing fulltext index record", FTS_DOC_ID = FTS_DOC_ID + 10000
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
-SELECT a,b FROM t1 
+SELECT a,b FROM t1
 WHERE MATCH(a,b) AGAINST("+row5col2word49 +row5col1word49" IN BOOLEAN MODE);
 a	b
-SELECT a,b FROM t1 
+SELECT a,b FROM t1
 WHERE MATCH(a,b) AGAINST("changing fulltext" IN BOOLEAN MODE);
 a	b
 using update	changing fulltext index record

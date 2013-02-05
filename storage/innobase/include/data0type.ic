@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -556,35 +556,18 @@ dtype_get_fixed_size_low(
 		} else if (!comp) {
 			return(len);
 		} else {
-			/* We play it safe here and ask MySQL for
-			mbminlen and mbmaxlen.	Although
-			mbminlen and mbmaxlen are
-			initialized if and only if prtype
-			is (in one of the 3 functions in this file),
-			it could be that none of these functions
-			has been called. */
-
+#ifdef UNIV_DEBUG
 			ulint	i_mbminlen, i_mbmaxlen;
 
 			innobase_get_cset_width(
 				dtype_get_charset_coll(prtype),
 				&i_mbminlen, &i_mbmaxlen);
 
-			if (DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
-			     != mbminmaxlen) {
-
-				ut_print_timestamp(stderr);
-				fprintf(stderr, "  InnoDB: "
-					"mbminlen=%lu, "
-					"mbmaxlen=%lu, "
-					"type->mbminlen=%lu, "
-					"type->mbmaxlen=%lu\n",
-					(ulong) i_mbminlen,
-					(ulong) i_mbmaxlen,
-					(ulong) DATA_MBMINLEN(mbminmaxlen),
-					(ulong) DATA_MBMAXLEN(mbminmaxlen));
-			}
-			if (i_mbminlen == i_mbmaxlen) {
+			ut_ad(DATA_MBMINMAXLEN(i_mbminlen, i_mbmaxlen)
+			      == mbminmaxlen);
+#endif /* UNIV_DEBUG */
+			if (DATA_MBMINLEN(mbminmaxlen)
+			    == DATA_MBMAXLEN(mbminmaxlen)) {
 				return(len);
 			}
 		}

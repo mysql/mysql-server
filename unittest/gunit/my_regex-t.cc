@@ -26,7 +26,7 @@
   and tests expected sucess/failure with basic/extended regexps etc. etc.
  */
 
-namespace {
+namespace my_regex_unittest {
 
 const int NSUBS= 10;
 

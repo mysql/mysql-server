@@ -147,7 +147,8 @@ struct trx_purge_t{
 					protects state and running */
 	os_event_t	event;		/*!< State signal event */
 	ulint		n_stop;		/*!< Counter to track number stops */
-	bool		running;	/*!< true, if purge is active */
+	volatile bool	running;	/*!< true, if purge is active,
+					we check this without the latch too */
 	volatile purge_state_t	state;	/*!< Purge coordinator thread states,
 					we check this in several places
 					without holding the latch. */
@@ -172,6 +173,10 @@ struct trx_purge_t{
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
 					history list truncation */
+#ifdef UNIV_DEBUG
+	purge_iter_t	done;		/* Indicate 'purge pointer' which have
+					purged already accurately. */
+#endif /* UNIV_DEBUG */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then
