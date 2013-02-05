@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,7 +58,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "srv0start.h"
+#include "srv0space.h"
 #include "row0import.h"
 #include "m_string.h"
 #include "my_sys.h"
@@ -829,6 +829,8 @@ row_prebuilt_free(
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
 
+	srv_stats.n_rows_read.add(prebuilt->n_rows_read);
+
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
 
@@ -1268,7 +1270,7 @@ row_insert_for_mysql(
 		mem_analyze_corruption(prebuilt);
 
 		ut_error;
-	} else if (srv_created_new_raw || srv_force_recovery) {
+	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -1653,7 +1655,7 @@ row_update_for_mysql(
 		ut_error;
 	}
 
-	if (UNIV_UNLIKELY(srv_created_new_raw || srv_force_recovery)) {
+	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"
@@ -1970,7 +1972,11 @@ run_again:
 
 		que_thr_stop_for_mysql(thr);
 
+		thr->lock_state = QUE_THR_LOCK_ROW;
+
 		lock_wait_suspend_thread(thr);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		/* Note that a lock wait may also end in a lock wait timeout,
 		or this transaction is picked as a victim in selective
@@ -2140,7 +2146,7 @@ row_create_table_for_mysql(
 		goto err_exit;
 	);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -2248,7 +2254,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(table->space)) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -3030,7 +3036,7 @@ row_discard_tablespace_for_mysql(
 
 	if (table == 0) {
 		err = DB_TABLE_NOT_FOUND;
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (table->space == srv_sys_space.space_id()) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -3038,6 +3044,13 @@ row_discard_tablespace_for_mysql(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
+
+		err = DB_ERROR;
+
+	} else if (dict_table_is_temporary(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		err = DB_ERROR;
 
@@ -3212,7 +3225,7 @@ row_truncate_table_for_mysql(
 
 	ut_ad(table);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -3675,7 +3688,7 @@ row_drop_table_for_mysql(
 
 	ut_a(name != NULL);
 
-	if (srv_created_new_raw) {
+	if (srv_sys_space.created_new_raw()) {
 		fputs("InnoDB: A new raw disk partition was initialized:\n"
 		      "InnoDB: we do not allow database modifications"
 		      " by the user.\n"
@@ -4167,6 +4180,11 @@ check_next_foreign:
 		DICT_TF2_FTS flag set. So keep this out of above
 		dict_table_has_fts_index condition */
 		if (table->fts) {
+			/* Need to set TABLE_DICT_LOCKED bit, since
+			fts_que_graph_free_check_lock would try to acquire
+			dict mutex lock */
+			table->fts->fts_status |= TABLE_DICT_LOCKED;
+
 			fts_free(table);
 		}
 
@@ -4189,7 +4207,8 @@ check_next_foreign:
 		a temp table or if the tablesace has been discarded. */
 		print_msg = !(is_temp || ibd_file_missing);
 
-		if (err == DB_SUCCESS && space_id > TRX_SYS_SPACE) {
+		if (err == DB_SUCCESS
+		    && !Tablespace::is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 					space_id, tablename, FALSE,
@@ -4199,7 +4218,8 @@ check_next_foreign:
 				err = DB_SUCCESS;
 
 				if (print_msg) {
-					char msg_tablename[MAX_FULL_NAME_LEN + 1];
+					char msg_tablename[
+						MAX_FULL_NAME_LEN + 1];
 
 					innobase_format_name(
 						msg_tablename, sizeof(tablename),
@@ -4669,7 +4689,7 @@ row_rename_table_for_mysql(
 	ut_a(old_name != NULL);
 	ut_a(new_name != NULL);
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		fputs("InnoDB: A new raw disk partition was initialized or\n"
 		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
 		      "InnoDB: database modifications by the user. Shut down\n"

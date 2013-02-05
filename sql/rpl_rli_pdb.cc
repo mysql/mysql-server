@@ -86,7 +86,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                    param_key_info_data_cond, param_key_info_start_cond,
                    param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
-                   , param_id + 1
+                   , param_id + 1, true
                   ), c_rli(rli), id(param_id),
     checkpoint_relay_log_pos(0), checkpoint_master_log_pos(0),
     checkpoint_seqno(0), running_status(NOT_RUNNING)

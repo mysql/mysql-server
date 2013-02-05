@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_stop_cond,
                                PSI_mutex_key *param_key_info_sleep_cond
 #endif
-                               , uint param_id
+                               , uint param_id, bool is_rli_fake
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
@@ -75,12 +75,13 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
              , param_id
             ),
    replicate_same_server_id(::replicate_same_server_id),
-   cur_log_fd(-1), relay_log(&sync_relaylog_period),
+   cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   rli_fake(is_rli_fake),
    is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
@@ -130,13 +131,18 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   mts_parallel_type= (enum_mts_parallel_type)mts_parallel_option;
   cached_charset_invalidate();
 
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_init(&slave_open_temp_tables_lock);
+  }
+
+
   mysql_mutex_init(key_relay_log_info_log_space_lock,
                    &log_space_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
-  my_atomic_rwlock_init(&slave_open_temp_tables_lock);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
@@ -179,7 +185,12 @@ Relay_log_info::~Relay_log_info()
   mysql_cond_destroy(&log_space_cond);
   mysql_mutex_destroy(&pending_jobs_lock);
   mysql_cond_destroy(&pending_jobs_cond);
-  my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+
+  if(!rli_fake)
+  {
+    my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
+  }
+
   relay_log.cleanup();
   set_rli_description_event(NULL);
 
@@ -1610,7 +1621,7 @@ bool mysql_show_relaylog_events(THD* thd)
 
   if (active_mi == NULL)
   {
-    my_eof(thd);
+    my_error(ER_SLAVE_CONFIGURATION, MYF(0));
     DBUG_RETURN(true);
   }
   
@@ -1741,7 +1752,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     const char *ln;
     static bool name_warning_sent= 0;
     ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
-                                1, buf);
+                                buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
     if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
     {
@@ -1795,7 +1806,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (relay_log.open_binlog(ln, 0, SEQ_READ_APPEND,
+    if (relay_log.open_binlog(ln, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), true,
                               true/*need_lock_index=true*/,

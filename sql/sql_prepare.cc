@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1468,7 +1468,8 @@ static int mysql_test_select(Prepared_statement *stmt,
 
   if (!lex->result && !(lex->result= new (stmt->mem_root) select_send))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), static_cast<int>(sizeof(select_send)));
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 
+             static_cast<int>(sizeof(select_send)));
     goto error;
   }
 
@@ -1870,7 +1871,7 @@ static bool mysql_test_multidelete(Prepared_statement *stmt,
   stmt->thd->lex->current_select= &stmt->thd->lex->select_lex;
   if (add_item_to_list(stmt->thd, new Item_null()))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 0);
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
     goto error;
   }
 
@@ -2797,7 +2798,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
 
   stmt->state= Query_arena::STMT_PREPARED;
 
-  general_log_print(thd, thd->get_command(), NullS);
+  query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   my_ok(thd);
 
@@ -2830,7 +2831,7 @@ void mysqld_stmt_close(THD *thd, char *packet)
   */
   DBUG_ASSERT(! stmt->is_in_use());
   stmt->deallocate();
-  general_log_print(thd, thd->get_command(), NullS);
+  query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -2941,7 +2942,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   }
   thd->pop_diagnostics_area();
 
-  general_log_print(thd, thd->get_command(), NullS);
+  query_logger.general_log_print(thd, thd->get_command(), NullS);
 
   DBUG_VOID_RETURN;
 }
@@ -3080,8 +3081,8 @@ Execute_sql_statement::execute_server_code(THD *thd)
 
   /* report error issued during command execution */
   if (error == 0 && thd->sp_runtime_ctx == NULL)
-    general_log_write(thd, COM_STMT_EXECUTE,
-                      thd->query(), thd->query_length());
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->query(), thd->query_length());
 
 end:
   lex_end(thd->lex);
@@ -3124,7 +3125,7 @@ void Prepared_statement::setup_set_params()
     because we want to look it up in the query cache) or not.
   */
   if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
-      opt_log || opt_slow_log ||
+      opt_general_log || opt_slow_log ||
       query_cache_is_cacheable_query(lex))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
@@ -3390,7 +3391,8 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
       the general log.
     */
     if (thd->sp_runtime_ctx == NULL)
-      general_log_write(thd, COM_STMT_PREPARE, query(), query_length());
+      query_logger.general_log_write(thd, COM_STMT_PREPARE,
+                                     query(), query_length());
   }
   DBUG_RETURN(error);
 }
@@ -3830,7 +3832,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       alloc_query(thd, (char*) expanded_query->ptr(),
                   expanded_query->length()))
   {
-    my_error(ER_OUTOFMEMORY, 0, expanded_query->length());
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), expanded_query->length());
     goto error;
   }
   /*
@@ -3927,7 +3929,8 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
     the general log.
   */
   if (error == 0 && thd->sp_runtime_ctx == NULL)
-    general_log_write(thd, COM_STMT_EXECUTE, thd->query(), thd->query_length());
+    query_logger.general_log_write(thd, COM_STMT_EXECUTE,
+                                   thd->query(), thd->query_length());
 
 error:
   flags&= ~ (uint) IS_IN_USE;

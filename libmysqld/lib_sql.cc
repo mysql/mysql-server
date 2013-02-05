@@ -517,6 +517,20 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char fake_name[]= "fake_name";
   my_bool acl_error;
 
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  /*
+    It makes no sense to build with both:
+    - WITH_EMBEDDED_SERVER
+    - WITH_PERFSCHEMA_STORAGE_ENGINE
+    because nobody is going to look at performance_schema.* tables
+    in a server that can not be connected to.
+    Now, if the build really uses both (this is not prevented),
+    the performance schema must have the very basic initialization
+    done to make sure that calls compiled statically don't fail.
+  */
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
   if (my_thread_init())
     return 1;
 
@@ -540,10 +554,10 @@ int init_embedded_server(int argc, char **argv, char **groups)
   my_progname= "mysql_embedded";
 
   /*
-    Perform basic logger initialization logger. Should be called after
-    MY_INIT, as it initializes mutexes. Log tables are inited later.
+    Perform basic query log initialization. Should be called after
+    MY_INIT, as it initializes mutexes.
   */
-  logger.init_base();
+  query_logger.init();
 
   orig_argc= *argcp;
   orig_argv= *argvp;
@@ -1334,13 +1348,12 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 #define vsnprintf _vsnprintf
 #endif
 
-int vprint_msg_to_log(enum loglevel level __attribute__((unused)),
-                       const char *format, va_list argsi)
+void error_log_print(enum loglevel level __attribute__((unused)),
+                     const char *format, va_list argsi)
 {
   my_vsnprintf(mysql_server_last_error, sizeof(mysql_server_last_error),
                format, argsi);
   mysql_server_last_errno= CR_UNKNOWN_ERROR;
-  return 0;
 }
 
 

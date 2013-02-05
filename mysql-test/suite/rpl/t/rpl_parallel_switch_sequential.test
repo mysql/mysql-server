@@ -139,7 +139,6 @@ while ($i) {
 --disable_warnings
 --source include/start_slave.inc
 --enable_warnings
---sync_with_master
 
 #cleanup
 

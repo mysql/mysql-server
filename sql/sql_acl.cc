@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1001,7 +1001,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   return_val= acl_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -2800,43 +2800,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 }
 
 
-bool auth_plugin_is_built_in(const char *plugin_name)
-{
- return (plugin_name == native_password_plugin_name.str ||
-#if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
-#endif
-         plugin_name == old_password_plugin_name.str);
-}
-
-void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
-{
-#if defined(HAVE_OPENSSL)
-  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= sha256_password_plugin_name.str;
-    plugin_name->length= sha256_password_plugin_name.length;
-  }
-  else
-#endif
-  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= native_password_plugin_name.str;
-    plugin_name->length= native_password_plugin_name.length;
-  }
-  else
-  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= old_password_plugin_name.str;
-    plugin_name->length= old_password_plugin_name.length;
-  }
-
-  DBUG_ASSERT(auth_plugin_is_built_in(native_password_plugin_name.str));
-}
-
 /****************************************************************************
   Handle GRANT commands
 ****************************************************************************/
@@ -2891,7 +2854,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       if (digest_password(thd, combo))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), CRYPT_MAX_PASSWORD_SIZE);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), CRYPT_MAX_PASSWORD_SIZE);
         error= 1;
         goto end;
       }
@@ -5111,7 +5074,7 @@ my_bool grant_init()
   return_val=  grant_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -5136,8 +5099,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
@@ -5152,7 +5114,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_NAME *mem_check;
@@ -5208,7 +5170,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
 
@@ -5234,8 +5196,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= 1;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -5255,7 +5216,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
@@ -5294,7 +5255,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -5747,6 +5708,15 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
       my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
       return TRUE;
     }
+  }
+  else if (table_ref->nested_join)
+  {
+    bool error= FALSE;
+    List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
+    TABLE_LIST *table;
+    while (!error && (table= it++))
+      error|= check_column_grant_in_table_ref(thd, table, name, length);
+    return error;
   }
   else
   {
@@ -9196,6 +9166,41 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
   int vio_is_encrypted;
 };
 
+bool auth_plugin_is_built_in(const char *plugin_name)
+{
+ return (plugin_name == native_password_plugin_name.str ||
+#if defined(HAVE_OPENSSL)
+         plugin_name == sha256_password_plugin_name.str ||
+#endif
+         plugin_name == old_password_plugin_name.str);
+}
+
+void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
+{
+#if defined(HAVE_OPENSSL)
+  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= sha256_password_plugin_name.str;
+    plugin_name->length= sha256_password_plugin_name.length;
+  }
+  else
+#endif
+  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= native_password_plugin_name.str;
+    plugin_name->length= native_password_plugin_name.length;
+  }
+  else
+  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= old_password_plugin_name.str;
+    plugin_name->length= old_password_plugin_name.length;
+  }
+}
+
 /**
  Sets the default default auth plugin value if no option was specified.
 */
@@ -9219,12 +9224,12 @@ void init_default_auth_plugin()
 
 int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
 {
-#if defined(HAVE_OPENSSL)
   default_auth_plugin_name.str= plugin_name;
   default_auth_plugin_name.length= plugin_name_length;
-  
+
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
- 
+
+#if defined(HAVE_OPENSSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -9233,7 +9238,11 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
+  else
 #endif
+  if (default_auth_plugin_name.str != native_password_plugin_name.str)
+    return 1;
+
   return 0;
 }
 
@@ -9248,9 +9257,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9269,10 +9279,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
              passwd_used ? ER(ER_YES) : ER(ER_NO));
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip,
+                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9426,14 +9436,16 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
   }
   else
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
   }
   return 1;
 }
@@ -9505,7 +9517,8 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   if (switch_from_short_to_long_scramble)
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -9597,7 +9610,8 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -10884,34 +10898,18 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
     if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
     {
-      general_log_print(thd, command, "%s@%s as %s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.auth_info.authenticated_as ?
+                                     mpvio.auth_info.authenticated_as : "anonymous",
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else
-      general_log_print(thd, command, (char*) "%s@%s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
-  }
-
-  if (unlikely(acl_user && acl_user->password_expired
-               && !(mpvio.client_capabilities &
-                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
-               && disconnect_on_expired_password))
-  {
-    /*
-      Clients that don't signal password expiration support
-      get a connect error.
-    */
-    res= CR_ERROR;
-    mpvio.status= MPVIO_EXT::FAILURE;
-
-    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
-    if (log_warnings > 1)
-      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
+      query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11021,6 +11019,27 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
+    if (unlikely(acl_user && acl_user->password_expired
+        && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+        && disconnect_on_expired_password))
+    {
+      /*
+        Clients that don't signal password expiration support
+        get a connect error.
+      */
+      Host_errors errors;
+
+      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+      query_logger.general_log_print(thd, COM_CONNECT,
+                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      if (log_warnings > 1)
+        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+
+      errors.m_authentication= 1;
+      inc_host_errors(mpvio.ip, &errors);
+      DBUG_RETURN(1);
+    }
+
     /* Don't allow the user to connect if he has done too many queries */
     if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
@@ -11103,7 +11122,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_user_host)
+  PSI_THREAD_CALL(set_thread_account)
     (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
     thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
 #endif
