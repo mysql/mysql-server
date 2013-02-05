@@ -16,7 +16,7 @@ void txn_child_manager::init(TOKUTXN root) {
     invariant(root->parent == NULL);
     m_root = root;
     m_last_xid = TXNID_NONE;
-    m_mutex = ZERO_MUTEX_INITIALIZER;
+    ZERO_STRUCT(m_mutex);
 
     toku_pthread_mutexattr_t attr;
     toku_mutexattr_init(&attr);
