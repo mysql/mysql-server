@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,9 +103,6 @@ bool do_command(THD *thd);
 void do_handle_bootstrap(THD *thd);
 bool dispatch_command(enum enum_server_command command, THD *thd,
 		      char* packet, uint packet_length);
-void log_slow_statement(THD *thd);
-bool log_slow_applicable(THD *thd);
-void log_slow_do(THD *thd);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,
                         const char *table_name);
 bool append_file_to_dir(THD *thd, const char **filename_ptr,

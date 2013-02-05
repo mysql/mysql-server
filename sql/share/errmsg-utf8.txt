@@ -6978,6 +6978,14 @@ ER_IDENT_CAUSES_TOO_LONG_PATH
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL
   eng "cannot silently convert NULL values, as required in this SQL_MODE"
 
+ER_MUST_CHANGE_PASSWORD_LOGIN
+  eng "Your password has expired. To log in you must change it using a client that supports expired passwords."
+  bgn "Паролата ви е изтекла. За да влезете трябва да я смените използвайки клиент който поддрържа такива пароли."
+
+ER_ROW_IN_WRONG_PARTITION
+  eng "Found a row in wrong partition %s"
+  swe "Hittade en rad i fel partition %s"
+
 #
 #  End of 5.6 error messages.
 #
@@ -7002,6 +7010,9 @@ ER_WARN_LEGACY_SYNTAX_CONVERTED
 
 ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
   eng "Statement is unsafe because it uses a fulltext parser plugin which may not return the same value on the slave."
+
+ER_CANNOT_DISCARD_TEMPORARY_TABLE
+  eng "Cannot DISCARD/IMPORT tablespace associated with temporary table"
 
 #
 #  End of 5.7 error messages.

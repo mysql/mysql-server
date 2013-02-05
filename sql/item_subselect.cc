@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2399,6 +2399,20 @@ bool Item_in_subselect::init_left_expr_cache()
 bool Item_subselect::inform_item_in_cond_of_tab(uchar *join_tab_index)
 {
   in_cond_of_tab= *reinterpret_cast<int *>(join_tab_index);
+  return false;
+}
+
+
+/**
+   Clean up after removing the subquery from the item tree.
+
+   Call st_select_lex_unit::exclude_tree() to unlink it from its
+   master and to unlink direct st_select_lex children from
+   all_selects_list.
+ */
+bool Item_subselect::clean_up_after_removal(uchar *arg)
+{
+  unit->exclude_tree();
   return false;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3522,13 +3522,12 @@ Locked_tables_list::reopen_tables(THD *thd)
 
     share->table_map_id is given a value that with a high certainty is
     not used by any other table (the only case where a table id can be
-    reused is on wrap-around, which means more than 4 billion table
+    reused is on wrap-around, which means more than 2^48 table
     share opens have been executed while one table was open all the
     time).
 
-    share->table_map_id is not ~0UL.
- */
-static ulong last_table_id= ~0UL;
+*/
+static Table_id last_table_id;
 
 void assign_new_table_id(TABLE_SHARE *share)
 {
@@ -3539,18 +3538,14 @@ void assign_new_table_id(TABLE_SHARE *share)
   DBUG_ASSERT(share != NULL);
   mysql_mutex_assert_owner(&LOCK_open);
 
-  ulong tid= ++last_table_id;                   /* get next id */
-  /*
-    There is one reserved number that cannot be used.  Remember to
-    change this when 6-byte global table id's are introduced.
-  */
-  if (unlikely(tid == ~0UL))
-    tid= ++last_table_id;
-  share->table_map_id= tid;
-  DBUG_PRINT("info", ("table_id=%lu", tid));
+  DBUG_EXECUTE_IF("dbug_table_map_id_500", last_table_id= 500;);
+  DBUG_EXECUTE_IF("dbug_table_map_id_4B_UINT_MAX+501",
+                  last_table_id= 501ULL + UINT_MAX;);
+  DBUG_EXECUTE_IF("dbug_table_map_id_6B_UINT_MAX",
+                  last_table_id= (~0ULL >> 16););
 
-  /* Post conditions */
-  DBUG_ASSERT(share->table_map_id != ~0UL);
+  share->table_map_id= last_table_id++;
+  DBUG_PRINT("info", ("table_id=%llu", share->table_map_id.id()));
 
   DBUG_VOID_RETURN;
 }
@@ -7083,7 +7078,22 @@ find_field_in_tables(THD *thd, Item_ident *item,
   {
     if (report_error == REPORT_ALL_ERRORS ||
         report_error == REPORT_EXCEPT_NON_UNIQUE)
-      my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+    {
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+      /* We now know that this column does not exist in any table_list
+         of the query. If user does not have grant, then we should throw
+         error stating 'access denied'. If user does have right then we can
+         give proper error like column does not exist. Following is check
+         to see if column has wrong grants and avoids error like 'bad field'
+         and throw column access error.
+      */
+      if (!first_table ||
+          !(thd->lex->sql_command == SQLCOM_SHOW_FIELDS ? 
+            false : check_privileges) ||
+          !check_column_grant_in_table_ref(thd, first_table, name, length))
+#endif
+             my_error(ER_BAD_FIELD_ERROR, MYF(0), item->full_name(), thd->where);
+    }
     else
       found= not_found_field;
   }
@@ -9242,7 +9252,7 @@ my_bool mysql_rm_tmp_tables(void)
     my_dirend(dirp);
   }
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(0);
 }
 

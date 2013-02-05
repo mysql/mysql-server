@@ -53,8 +53,8 @@ void setup_server_for_unit_tests()
   delegates_init();
   gtid_server_init();
   error_handler_hook= test_error_handler_hook;
-  // Initialize logger last, to avoid spurious warnings to stderr.
-  logger.init_base();
+  // Initialize Query_logger last, to avoid spurious warnings to stderr.
+  query_logger.init();
 }
 
 void teardown_server_for_unit_tests()
@@ -64,8 +64,7 @@ void teardown_server_for_unit_tests()
   xid_cache_free();
   gtid_server_cleanup();
   mysql_mutex_destroy(&LOCK_error_log);
-  logger.cleanup_base();
-  logger.cleanup_end();
+  query_logger.cleanup();
 }
 
 void Server_initializer::set_expected_error(uint val)
