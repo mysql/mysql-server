@@ -310,6 +310,29 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	/* ADD FOREIGN KEY does not currently work properly in combination
+	with renaming columns. (Bug#14105491) */
+	if ((ha_alter_info->handler_flags
+	     & (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME))
+	    == (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	/* DROP FOREIGN KEY may not currently work properly in combination
+	with other operations. (Work-around for 5.6.10 only.) */
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::DROP_FOREIGN_KEY)
+	    && (ha_alter_info->handler_flags
+		& (Alter_inplace_info::DROP_FOREIGN_KEY
+		   | INNOBASE_INPLACE_REBUILD))
+	    != Alter_inplace_info::DROP_FOREIGN_KEY) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	/* If a column change from NOT NULL to NULL,
 	and there's a implict pk on this column. the
 	table should be rebuild. The change should
