@@ -630,8 +630,21 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
   DBUG_RETURN(distributed);
 }
 
+
+/*
+  ndbcluster_binlog_log_query
+
+   - callback function installed in handlerton->binlog_log_query
+   - called by MySQL Server in places where no other handlerton
+     function exists which can be used to notify about changes
+   - used by ndbcluster to detect when
+     -- databases are created or altered
+     -- privilege tables have been modified
+*/
+
 static void
-ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
+ndbcluster_binlog_log_query(handlerton *hton, THD *thd,
+                            enum_binlog_command binlog_command,
                             const char *query, uint query_length,
                             const char *db, const char *table_name)
 {
@@ -639,53 +652,27 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
   DBUG_PRINT("enter", ("db: %s  table_name: %s  query: %s",
                        db, table_name, query));
   enum SCHEMA_OP_TYPE type;
-  int log= 0;
-  uint32 table_id= 0, table_version= 0;
-  /*
-    Since databases aren't real ndb schema object
-    they don't have any id/version
-
-    But since that id/version is used to make sure that event's on SCHEMA_TABLE
-    is correct, we set random numbers
-  */
-  table_id = (uint32)rand();
-  table_version = (uint32)rand();
+  /* Use random table_id and table_version  */
+  const uint32 table_id = (uint32)rand();
+  const uint32 table_version = (uint32)rand();
   switch (binlog_command)
   {
-  case LOGCOM_CREATE_TABLE:
-    type= SOT_CREATE_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
-  case LOGCOM_ALTER_TABLE:
-    type= SOT_ALTER_TABLE_COMMIT;
-    //log= 1;
-    break;
-  case LOGCOM_RENAME_TABLE:
-    type= SOT_RENAME_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
-  case LOGCOM_DROP_TABLE:
-    type= SOT_DROP_TABLE;
-    DBUG_ASSERT(FALSE);
-    break;
   case LOGCOM_CREATE_DB:
+    DBUG_PRINT("info", ("New database '%s' created", db));
     type= SOT_CREATE_DB;
-    log= 1;
     break;
+
   case LOGCOM_ALTER_DB:
+    DBUG_PRINT("info", ("The database '%s' was altered", db));
     type= SOT_ALTER_DB;
-    log= 1;
     break;
-  case LOGCOM_DROP_DB:
-    type= SOT_DROP_DB;
-    DBUG_ASSERT(FALSE);
-    break;
+
   case LOGCOM_ACL_NOTIFY:
+    DBUG_PRINT("info", ("Privilege tables have been modified"));
     type= SOT_GRANT;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
+    if (!Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
+      DBUG_VOID_RETURN;
     }
     /*
       NOTE! Grant statements with db set to NULL is very rare but
@@ -701,14 +688,17 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     */
     if (!db)
       db = "mysql";
+    break;    
+
+  default:
+    DBUG_PRINT("info", ("Ignoring binlog_log_query notification"));
+    DBUG_VOID_RETURN;
     break;
+
   }
-  if (log)
-  {
-    ndbcluster_log_schema_op(thd, query, query_length,
-                             db, table_name, table_id, table_version, type,
-                             NULL, NULL);
-  }
+  ndbcluster_log_schema_op(thd, query, query_length,
+                           db, table_name, table_id, table_version, type,
+                           NULL, NULL);
   DBUG_VOID_RETURN;
 }
 
