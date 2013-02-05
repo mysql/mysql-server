@@ -90,6 +90,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_NOREBUILD
 	| INNOBASE_FOREIGN_OPERATIONS
 	| Alter_inplace_info::DROP_INDEX
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
+	| Alter_inplace_info::RENAME_INDEX
 	| Alter_inplace_info::ALTER_COLUMN_NAME
 	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH;
 
@@ -1298,6 +1299,18 @@ innobase_check_index_keys(
 			}
 		}
 
+		/* Now we are in a situation where we have "ADD INDEX x"
+		and an index by the same name already exists. We have 4
+		possible cases:
+		1. No further clauses for an index x are given. Should reject
+		the operation.
+		2. "DROP INDEX x" is given. Should allow the operation.
+		3. "RENAME INDEX x TO y" is given. Should allow the operation.
+		4. "DROP INDEX x, RENAME INDEX x TO y" is given. Should allow
+		the operation, since no name clash occurs. In this particular
+		case MySQL cancels the operation without calling InnoDB
+		methods. */
+
 		if (index) {
 			/* If a key by the same name is being created and
 			dropped, the name clash is OK. */
@@ -1307,6 +1320,22 @@ innobase_check_index_keys(
 					= info->index_drop_buffer[i];
 
 				if (0 == strcmp(key.name, drop_key->name)) {
+					goto name_ok;
+				}
+			}
+
+			/* If a key by the same name is being created and
+			renamed, the name clash is OK. E.g.
+			ALTER TABLE t ADD INDEX i (col), RENAME INDEX i TO x
+			where the index "i" exists prior to the ALTER command.
+			In this case we:
+			1. rename the existing index from "i" to "x"
+			2. add the new index "i" */
+			for (uint i = 0; i < info->index_rename_count; i++) {
+				const KEY_PAIR*	pair
+					= &info->index_rename_buffer[i];
+
+				if (0 == strcmp(key.name, pair->old_key->name)) {
 					goto name_ok;
 				}
 			}
@@ -1959,6 +1988,10 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	dict_index_t**	drop;
 	/** number of InnoDB indexes being dropped */
 	const ulint	num_to_drop;
+	/** InnoDB indexes being renamed */
+	dict_index_t**	rename;
+	/** number of InnoDB indexes being renamed */
+	const ulint	num_to_rename;
 	/** InnoDB foreign key constraints being dropped */
 	dict_foreign_t** drop_fk;
 	/** number of InnoDB foreign key constraints being dropped */
@@ -1991,6 +2024,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	ha_innobase_inplace_ctx(trx_t* user_trx_arg,
 				dict_index_t** drop_arg,
 				ulint num_to_drop_arg,
+				dict_index_t** rename_arg,
+				ulint num_to_rename_arg,
 				dict_foreign_t** drop_fk_arg,
 				ulint num_to_drop_fk_arg,
 				dict_foreign_t** add_fk_arg,
@@ -2006,6 +2041,7 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		user_trx (user_trx_arg),
 		add (0), add_key_numbers (0), num_to_add (0),
 		drop (drop_arg), num_to_drop (num_to_drop_arg),
+		rename (rename_arg), num_to_rename (num_to_rename_arg),
 		drop_fk (drop_fk_arg), num_to_drop_fk (num_to_drop_fk_arg),
 		add_fk (add_fk_arg), num_to_add_fk (num_to_add_fk_arg),
 		online (online_arg), heap (heap_arg), trx (0),
@@ -3221,6 +3257,186 @@ innobase_check_foreign_key_index(
 	return(false);
 }
 
+/*********************************************************************//**
+Rename a given index in the InnoDB data dictionary.
+@retval true	Failure
+@retval false	Success */
+static __attribute__((warn_unused_result))
+bool
+rename_index_in_data_dictionary(
+/*============================*/
+	const dict_index_t*	index,	/*!< in: index to rename */
+	const char*		new_name,/*!< in: new name of the index */
+	trx_t*			trx)	/*!< in/out: dict transaction to use,
+					not going to be committed here */
+{
+	DBUG_ENTER("rename_index_in_data_dictionary");
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+
+	pars_info_t*	pinfo;
+	dberr_t		err;
+
+	pinfo = pars_info_create();
+
+	pars_info_add_ull_literal(pinfo, "table_id", index->table->id);
+	pars_info_add_ull_literal(pinfo, "index_id", index->id);
+	pars_info_add_str_literal(pinfo, "new_name", new_name);
+
+	trx->op_info = "Renaming an index in SYS_INDEXES";
+
+	DBUG_EXECUTE_IF(
+		"ib_rename_index_fail1",
+		DBUG_SET("+d,innodb_report_deadlock");
+	);
+
+	err = que_eval_sql(
+		pinfo,
+		"PROCEDURE RENAME_INDEX_IN_SYS_INDEXES () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_INDEXES SET\n"
+		"NAME = :new_name\n"
+		"WHERE\n"
+		"ID = :index_id AND\n"
+		"TABLE_ID = :table_id;\n"
+		"END;\n",
+		FALSE, trx); /* pinfo is freed by que_eval_sql() */
+
+	DBUG_EXECUTE_IF(
+		"ib_rename_index_fail1",
+		DBUG_SET("-d,innodb_report_deadlock");
+	);
+
+	trx->op_info = "";
+
+	if (err != DB_SUCCESS) {
+		my_error_innodb(err, index->table->name, 0);
+		DBUG_RETURN(true);
+	}
+
+	DBUG_RETURN(false);
+}
+
+/*********************************************************************//**
+Rename all indexes in data dictionary of a given table that are
+specified in ha_alter_info.
+@retval true	Failure
+@retval false	Success */
+static __attribute__((warn_unused_result))
+bool
+rename_indexes_in_data_dictionary(
+/*==============================*/
+	const ha_innobase_inplace_ctx*	ctx,		/*!< in: alter context,
+							used to fetch the list
+							of indexes to rename */
+	Alter_inplace_info*		ha_alter_info,	/*!< in: fetch the new
+							names from here */
+	trx_t*				trx)		/*!< in/out: dict
+							transaction to use,
+							not going to be
+							committed here */
+{
+	DBUG_ENTER("rename_indexes_in_data_dictionary");
+
+	ut_ad(ctx->num_to_rename == ha_alter_info->index_rename_count);
+
+	for (ulint i = 0; i < ctx->num_to_rename; i++) {
+		KEY_PAIR*	pair = &ha_alter_info->index_rename_buffer[i];
+		dict_index_t*	index;
+
+		index = ctx->rename[i];
+
+		ut_ad(strcmp(index->name, pair->old_key->name) == 0);
+
+		if (rename_index_in_data_dictionary(index,
+						    pair->new_key->name,
+						    trx)) {
+			/* failed */
+			DBUG_RETURN(true);
+		}
+	}
+
+	DBUG_RETURN(false);
+}
+
+/*********************************************************************//**
+Rename a given index in the InnoDB data dictionary cache. */
+static
+void
+rename_index_in_cache(
+/*==================*/
+	dict_index_t*	index,		/*!< in/out: index to rename */
+	const char*	new_name)	/*!< in: new index name */
+{
+	DBUG_ENTER("rename_index_in_cache");
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	size_t	old_name_len = strlen(index->name);
+	size_t	new_name_len = strlen(new_name);
+
+	if (old_name_len >= new_name_len) {
+		/* reuse the old buffer for the name if it is large enough */
+		memcpy(const_cast<char*>(index->name), new_name,
+		       new_name_len + 1);
+	} else {
+		/* Free the old chunk of memory if it is at the topmost
+		place in the heap, otherwise the old chunk will be freed
+		when the index is evicted from the cache. This code will
+		kick-in in a repeated ALTER sequences where the old name is
+		alternately longer/shorter than the new name:
+		1. ALTER TABLE t RENAME INDEX a TO aa;
+		2. ALTER TABLE t RENAME INDEX aa TO a;
+		3. go to 1. */
+		if (mem_heap_get_top(index->heap, old_name_len + 1)
+		    == index->name) {
+			mem_heap_free_top(index->heap, old_name_len + 1);
+		}
+		/* allocate a new chunk of memory */
+		index->name = mem_heap_strdup(index->heap, new_name);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
+/*********************************************************************//**
+Rename all indexes in data dictionary cache of a given table that are
+specified in ha_alter_info. */
+static
+void
+rename_indexes_in_cache(
+/*====================*/
+	const ha_innobase_inplace_ctx*	ctx,	/*!< in: alter context, used
+						to fetch the list of indexes
+						to rename */
+	Alter_inplace_info*	ha_alter_info)	/*!< in: fetch the new names
+						from here */
+{
+	DBUG_ENTER("rename_indexes_in_cache");
+
+	ut_ad(ctx->num_to_rename == ha_alter_info->index_rename_count);
+
+	for (ulint i = 0; i < ctx->num_to_rename; i++) {
+		KEY_PAIR*	pair = &ha_alter_info->index_rename_buffer[i];
+		dict_index_t*	index;
+
+		index = ctx->rename[i];
+
+		ut_ad(strcmp(index->name, pair->old_key->name) == 0);
+
+		rename_index_in_cache(index, pair->new_key->name);
+	}
+
+	DBUG_VOID_RETURN;
+}
+
 /** Allows InnoDB to update internal structures with concurrent
 writes blocked (provided that check_if_supported_inplace_alter()
 did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -3242,6 +3458,8 @@ ha_innobase::prepare_inplace_alter_table(
 {
 	dict_index_t**	drop_index;	/*!< Index to be dropped */
 	ulint		n_drop_index;	/*!< Number of indexes to drop */
+	dict_index_t**	rename_index;	/*!< Indexes to be dropped */
+	ulint		n_rename_index;	/*!< Number of indexes to rename */
 	dict_foreign_t**drop_fk;	/*!< Foreign key constraints to drop */
 	ulint		n_drop_fk;	/*!< Number of foreign keys to drop */
 	dict_foreign_t**add_fk = NULL;	/*!< Foreign key constraints to drop */
@@ -3640,6 +3858,39 @@ check_if_can_drop_indexes:
 		drop_index = NULL;
 	}
 
+	n_rename_index = ha_alter_info->index_rename_count;
+	rename_index = NULL;
+
+	/* Create a list of dict_index_t objects that are to be renamed,
+	also checking for requests to rename nonexistent indexes. If
+	the table is going to be rebuilt (new_clustered == true in
+	prepare_inplace_alter_table_dict()), then this can be skipped,
+	but we don't for simplicity (we have not determined the value of
+	new_clustered yet). */
+	if (n_rename_index > 0) {
+		rename_index = static_cast<dict_index_t**>(
+			mem_heap_alloc(
+				heap,
+				n_rename_index * sizeof(*rename_index)));
+		for (ulint i = 0; i < n_rename_index; i++) {
+			dict_index_t*	index;
+			const char*	old_name = ha_alter_info
+				->index_rename_buffer[i].old_key->name;
+
+			index = dict_table_get_index_on_name(indexed_table,
+							     old_name);
+
+			if (index == NULL) {
+				my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
+					 old_name,
+					 prebuilt->table->name);
+				goto err_exit;
+			}
+
+			rename_index[i] = index;
+		}
+	}
+
 	n_add_fk = 0;
 
 	if (ha_alter_info->handler_flags
@@ -3686,6 +3937,7 @@ err_exit:
 				= new ha_innobase_inplace_ctx(
 					prebuilt->trx,
 					drop_index, n_drop_index,
+					rename_index, n_rename_index,
 					drop_fk, n_drop_fk,
 					add_fk, n_add_fk,
 					ha_alter_info->online,
@@ -3791,6 +4043,7 @@ found_col:
 	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
 		prebuilt->trx,
 		drop_index, n_drop_index,
+		rename_index, n_rename_index,
 		drop_fk, n_drop_fk, add_fk, n_add_fk,
 		ha_alter_info->online,
 		heap, prebuilt->table, col_names,
@@ -5140,6 +5393,12 @@ commit_try_norebuild(
 		DBUG_RETURN(true);
 	}
 
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::RENAME_INDEX)
+	    && rename_indexes_in_data_dictionary(ctx, ha_alter_info, trx)) {
+		DBUG_RETURN(true);
+	}
+
 	DBUG_RETURN(false);
 }
 
@@ -5239,63 +5498,72 @@ commit_cache_norebuild(
 	innobase_rename_or_enlarge_columns_cache(
 		ha_alter_info, table, user_table);
 
+	rename_indexes_in_cache(ctx, ha_alter_info);
+
 	DBUG_RETURN(found);
 }
 
-/** Do the necessary changes in the persistent stats tables
-after committing changes to the data dictionary.
-@param ha_alter_info	Data used during in-place alter
-@param altered_table	MySQL table that is being altered
-@param user_table	InnoDB table that was altered
-@param rebuild_internal	true if this ALTER has caused a
-			table rebuild and the old table had a PK defined
-			internally in InnoDB (GEN_CLUST_INDEX)
-@param thd		MySQL connection
-*/
-static __attribute__((nonnull))
+/*********************************************************************//**
+Do the necessary changes in the persistent stats tables after an
+ALTER TABLE command that did not cause rebuild of the table. This consists
+of removing stats for dropped indexes, adding stats for newly added indexes
+and renaming stats for renamed indexes. */
+static
 void
-commit_update_stats(
-/*================*/
-	Alter_inplace_info*	ha_alter_info,
-	TABLE*			altered_table,
-	dict_table_t*		user_table,
-	bool			rebuild_internal,
-	THD*			thd)
+alter_stats_norebuild(
+/*==================*/
+	Alter_inplace_info*	ha_alter_info,	/*!< in: used to determine
+						which indexes were dropped
+						and renamed */
+	dict_table_t*		new_table,	/*!< in/out: new table, its
+						flags will be updated from
+						"new_share" */
+	const TABLE_SHARE*	new_share,	/*!< in: used to fetch the
+						flags for the new table */
+	const char*		table_name,	/*!< in: table name, used
+						for diagnostic purposes */
+	THD*			thd)		/*!< thread handle, used to
+						push warnings to the client
+						connection if an error
+						occurs */
 {
-	ha_innobase_inplace_ctx*	ctx
-		= static_cast<ha_innobase_inplace_ctx*>
-		(ha_alter_info->handler_ctx);
+	ha_innobase_inplace_ctx*	ctx;
+	dberr_t				ret;
+	uint				i;
 
-	/* Delete corresponding rows from the stats table. We update
-	the statistics in a separate transaction from trx, because
-	lock waits are not allowed in a data dictionary transaction.
-	(Lock waits are possible on the statistics table, because it
-	is directly accessible by users, not covered by the
-	dict_operation_lock.)
+	DBUG_ENTER("alter_stats_norebuild");
 
-	Because the data dictionary changes were already committed,
-	orphaned rows may be left in the statistics table if the
-	system crashes. */
+	innobase_copy_frm_flags_from_table_share(new_table, new_share);
 
-	for (uint i = 0;
-	     i < ha_alter_info->index_drop_count + rebuild_internal;
-	     i++) {
+	if (!dict_stats_is_persistent_enabled(new_table)) {
+		DBUG_VOID_RETURN;
+	}
 
-		const char*	index_name;
+	ctx = static_cast<ha_innobase_inplace_ctx*>(
+		ha_alter_info->handler_ctx);
 
-		if (i < ha_alter_info->index_drop_count) {
-			index_name = ha_alter_info->index_drop_buffer[i]->name;
-		} else {
-			/* The last iteration of the loop is exploited to
-			drop the InnoDB generated primary key, if any. */
-			index_name = innobase_index_reserve_name;
-		}
+	if (ctx == NULL) {
+		DBUG_VOID_RETURN;
+	}
 
-		dberr_t	ret;
-		char	errstr[1024];
+	/* Delete corresponding rows from the stats table. We do this
+	in a separate transaction from trx, because lock waits are not
+	allowed in a data dictionary transaction. (Lock waits are possible
+	on the statistics table, because it is directly accessible by users,
+	not covered by the dict_operation_lock.)
+
+	Because the data dictionary changes were already committed, orphaned
+	rows may be left in the statistics table if the system crashes.
+
+	FIXME each change to the statistics tables is being committed in a
+	separate transaction, meaning that the operation is not atomic */
+
+	for (i = 0; i < ha_alter_info->index_drop_count; i++) {
+		const KEY*	key = ha_alter_info->index_drop_buffer[i];
+		char		errstr[1024];
 
 		ret = dict_stats_drop_index(
-			user_table->name, index_name, errstr, sizeof errstr);
+			new_table->name, key->name, errstr, sizeof(errstr));
 
 		if (ret != DB_SUCCESS) {
 			push_warning(thd,
@@ -5304,29 +5572,115 @@ commit_update_stats(
 		}
 	}
 
-	if (!ctx || dict_table_is_discarded(user_table)) {
-		return;
+	if (dict_table_is_discarded(new_table)) {
+		DBUG_VOID_RETURN;
+	}
+
+	for (i = 0; i < ha_alter_info->index_rename_count; i++) {
+		KEY_PAIR*	pair = &ha_alter_info->index_rename_buffer[i];
+		dberr_t		err;
+
+		err = dict_stats_rename_index(new_table,
+					      pair->old_key->name,
+					      pair->new_key->name);
+
+		if (err != DB_SUCCESS) {
+			push_warning_printf(
+				thd,
+				Sql_condition::SL_WARNING,
+				ER_ERROR_ON_RENAME,
+				"Error renaming an index of table '%s' "
+				"from '%s' to '%s' in InnoDB persistent "
+				"statistics storage: %s",
+				table_name,
+				pair->old_key->name,
+				pair->new_key->name,
+				ut_strerr(err));
+		}
 	}
 
 	bool	stats_init_called = false;
 
-	for (uint i = 0; i < ctx->num_to_add; i++) {
+	for (i = 0; i < ctx->num_to_add; i++) {
 		dict_index_t*	index = ctx->add[i];
 
 		if (!(index->type & DICT_FTS)) {
 
 			if (!stats_init_called) {
 				stats_init_called = true;
-				innobase_copy_frm_flags_from_table_share(
-					index->table,
-					altered_table->s);
-
 				dict_stats_init(index->table);
 			}
 
 			dict_stats_update_for_index(index);
 		}
 	}
+
+	DBUG_VOID_RETURN;
+}
+
+/*********************************************************************//**
+Do the necessary changes in the persistent stats tables after a successful
+rebuild of the table in an ALTER TABLE command. This consists of wiping
+away the old index stats (in case some index was dropped or renamed) and
+recalculating new stats for the whole table. */
+static
+void
+alter_stats_rebuild(
+/*================*/
+	const TABLE*	old_table,	/*!< in: old table definition,
+					used to drop all of the old
+					indexes from persistent stats
+					storage. */
+	dict_table_t*	new_table,	/*!< in/out: new table, its flags
+					will be updated from "new_share"
+					and its stats may be updated */
+	const TABLE_SHARE* new_share,	/*!< in: used to fetch the flags
+					for the new table */
+	const char*	table_name,	/*!< in: table name, used
+					for diagnostic purposes */
+	THD*		thd)		/*!< thread handle, used to push
+					warnings to the client connection
+					if an error occurs */
+{
+	DBUG_ENTER("alter_stats_rebuild");
+
+	if (dict_table_is_discarded(new_table)) {
+		DBUG_VOID_RETURN;
+	}
+
+	innobase_copy_frm_flags_from_table_share(new_table, new_share);
+
+	if (!dict_stats_is_persistent_enabled(new_table)) {
+		DBUG_VOID_RETURN;
+	}
+
+	dberr_t	ret;
+	bool	ibd_file_missing_orig;
+
+	DBUG_EXECUTE_IF(
+		"ib_rename_index_fail2",
+		ibd_file_missing_orig = new_table->ibd_file_missing;
+		new_table->ibd_file_missing = TRUE;
+	);
+
+	ret = dict_stats_update(new_table, DICT_STATS_RECALC_PERSISTENT);
+
+	DBUG_EXECUTE_IF(
+		"ib_rename_index_fail2",
+		new_table->ibd_file_missing = ibd_file_missing_orig;
+	);
+
+	if (ret != DB_SUCCESS) {
+		push_warning_printf(
+			thd,
+			Sql_condition::SL_WARNING,
+			ER_ALTER_INFO,
+			"Error updating stats for table '%s' "
+			"after table rebuild: %s",
+			table_name, ut_strerr(ret));
+	}
+
+	DBUG_VOID_RETURN;
 }
 
 /** Commit or rollback the changes made during
@@ -5648,17 +6002,56 @@ foreign_fail:
 			     prebuilt->table, CHECK_ABORTED_OK));
 		ut_a(fts_check_cached_index(prebuilt->table));
 
+		if (new_clustered) {
+			/* Since the table has been rebuilt we remove all
+			rows, corresponding to the previous indexes from
+			the persistent stats storage. */
+			char	errstr[1024];
+			dberr_t	ret;
+
+			DBUG_EXECUTE_IF(
+				"ib_rename_index_fail3",
+				DBUG_SET("+d,innodb_report_deadlock");
+			);
+
+			ret = dict_stats_drop_table(prebuilt->table->name,
+						    errstr, sizeof(errstr));
+
+			DBUG_EXECUTE_IF(
+				"ib_rename_index_fail3",
+				DBUG_SET("-d,innodb_report_deadlock");
+			);
+
+			if (ret != DB_SUCCESS) {
+				push_warning_printf(
+					user_thd,
+					Sql_condition::SL_WARNING,
+					ER_ALTER_INFO,
+					"Error deleting old stats in InnoDB "
+					"after table rebuild: %s", errstr);
+			}
+		}
+
 		row_mysql_unlock_data_dictionary(trx);
 		trx_free_for_mysql(trx);
 
 		/* TODO: The following code could be executed while
 		allowing concurrent access to the table (MDL downgrade). */
-		commit_update_stats(
-			ha_alter_info,
-			altered_table,
-			prebuilt->table,
-			new_clustered && table->s->primary_key == MAX_KEY,
-			user_thd);
+		if (new_clustered) {
+			alter_stats_rebuild(
+				table,
+				prebuilt->table,
+				altered_table->s,
+				table->s->table_name.str,
+				user_thd);
+		} else {
+			alter_stats_norebuild(
+				ha_alter_info,
+				prebuilt->table,
+				altered_table->s,
+				table->s->table_name.str,
+				user_thd);
+		}
 		/* TODO: Also perform DROP TABLE and DROP INDEX after
 		the MDL downgrade. */
 	}
