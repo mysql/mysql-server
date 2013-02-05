@@ -221,7 +221,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -267,7 +267,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t4` where 0)))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where 0)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -737,7 +737,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 2,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where (<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -749,7 +749,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows": 2,
               "filtered": 100,
-              "attached_condition": "(<nop>(<in_optimizer>((select `test`.`t3`.`e` from `test`.`t3`),<exists>(select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
+              "attached_condition": "(<nop>(<in_optimizer>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`),<exists>(/* select#4 */ select 1 from `test`.`t3` where (`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true)) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t3`.`e`), true)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`c`))",
               "attached_subqueries": [
                 {
                   "dependent": true,
@@ -761,7 +761,7 @@ EXPLAIN
                       "access_type": "ALL",
                       "rows": 2,
                       "filtered": 100,
-                      "attached_condition": "(`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
+                      "attached_condition": "(`test`.`t1`.`b` and <if>(outer_field_is_not_null, ((<cache>((/* select#3 */ select `test`.`t3`.`e` from `test`.`t3`)) < `test`.`t3`.`e`) or isnull(`test`.`t3`.`e`)), true))"
                     } /* table */
                   } /* query_block */
                 },
@@ -810,7 +810,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t2` where ((`test`.`t2`.`a` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))) and <in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`)))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t2`.`a` > 0) and (<cache>(`test`.`t1`.`a`) = `test`.`t2`.`a`)))) and <in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#3 */ select 1 from `test`.`t3` where (<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#4 */ select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`)))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -822,7 +822,7 @@ EXPLAIN
               "access_type": "ALL",
               "rows": 3,
               "filtered": 100,
-              "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))",
+              "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#4 */ select 1 from `test`.`t4` where ((`test`.`t4`.`a` > 0) and (<cache>(`test`.`t3`.`a`) = `test`.`t4`.`a`)))) and (<cache>(`test`.`t1`.`a`) = `test`.`t3`.`a`))",
               "attached_subqueries": [
                 {
                   "dependent": true,
@@ -897,7 +897,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 1,
       "filtered": 100,
-      "attached_condition": "exists(select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))",
+      "attached_condition": "exists(/* select#2 */ select `test`.`t2`.`c1` from `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`c1` = `test`.`t3`.`c1`) and (`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`)) and ((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -911,7 +911,7 @@ EXPLAIN
                   "access_type": "ALL",
                   "rows": 1,
                   "filtered": 100,
-                  "attached_condition": "((select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)",
+                  "attached_condition": "((/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`) <> `test`.`t1`.`c1`)",
                   "attached_subqueries": [
                     {
                       "dependent": false,
@@ -946,7 +946,7 @@ EXPLAIN
                   ] /* ref */,
                   "rows": 1,
                   "filtered": 100,
-                  "attached_condition": "(`test`.`t2`.`c2` = (select min(`test`.`t3`.`c1`) from `test`.`t3`))",
+                  "attached_condition": "(`test`.`t2`.`c2` = (/* select#3 */ select min(`test`.`t3`.`c1`) from `test`.`t3`))",
                   "attached_subqueries": [
                     {
                       "dependent": false,
@@ -1008,7 +1008,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 3,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(select 1 from `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`)))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#3 */ select 1 from `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`)))))",
       "attached_subqueries": [
         {
           "dependent": true,

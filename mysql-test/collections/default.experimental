@@ -18,7 +18,6 @@ rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails 
 rpl.rpl_innodb_bug28430                  # Bug#11754425
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails sporadically on pb2
-rpl.rpl_report_port                      # BUG#13812374 2012-05-10 Hemant Fails after the post fix for bug#13812374
 
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 

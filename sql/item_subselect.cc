@@ -2201,7 +2201,6 @@ Item_in_subselect::select_transformer(JOIN *join)
 Item_subselect::trans_res
 Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 {
-  Query_arena *arena, backup;
   THD * const thd= unit->thd;
   SELECT_LEX *current= thd->lex->current_select;
   const char *save_where= thd->where;
@@ -2238,11 +2237,10 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (!optimizer)
   {
-    arena= thd->activate_stmt_arena_if_needed(&backup);
-    result= (!(optimizer= new Item_in_optimizer(left_expr, this)));
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
-    if (result)
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    optimizer= new Item_in_optimizer(left_expr, this);
+
+    if (!optimizer)
       goto err;
   }
 
@@ -2262,7 +2260,6 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (exec_method == EXEC_UNSPECIFIED)
     exec_method= EXEC_EXISTS_OR_MAT;
-  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
     Both transformers call fix_fields() only for Items created inside them,
@@ -2271,22 +2268,24 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     nature of Item, we have to call fix_fields() for it only with the original
     arena to avoid memory leak).
   */
-  if (left_expr->cols() == 1)
-    res= single_value_transformer(join, func);
-  else
+
   {
-    /* we do not support row operation for ALL/ANY/SOME */
-    if (func != &eq_creator)
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+    if (left_expr->cols() == 1)
+      res= single_value_transformer(join, func);
+    else
     {
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      DBUG_RETURN(RES_ERROR);
+      /* we do not support row operation for ALL/ANY/SOME */
+      if (func != &eq_creator)
+      {
+        my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+        DBUG_RETURN(RES_ERROR);
+      }
+      res= row_value_transformer(join);
     }
-    res= row_value_transformer(join);
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
 err:
   thd->where= save_where;
   DBUG_RETURN(res);

@@ -7519,7 +7519,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 },
                 {
                   "table": " `d1`",
-                  "attached": "<if>(is_not_null_compl(d1), (`t1`.`f1` = `d1`.`f1`), true)"
+                  "attached": null
                 }
               ]
             }
@@ -7544,8 +7544,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
                 "access_type": "table_scan"
               },
               {
-                "table": " `d1`",
-                "access_type": "table_scan"
+                "table": " `d1`"
               }
             ]
           }
@@ -7561,7 +7560,7 @@ ORDER BY d1.f2 DESC LIMIT 30	{
               "tmp_table_info": {
                 "table": " `d1`",
                 "row_length": 210,
-                "key_length": 0,
+                "key_length": 5,
                 "unique_constraint": false,
                 "location": "memory (heap)",
                 "row_limit_estimate": 4993

@@ -2,11 +2,11 @@ CREATE TABLE ib_bp_test
 (a INT AUTO_INCREMENT, b VARCHAR(64), c TEXT, PRIMARY KEY (a), KEY (b, c(128)))
 ENGINE=INNODB;
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
-WHERE table_name LIKE '%ib_bp_test';
+WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
 2
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
-WHERE table_name LIKE '%ib_bp_test';
+WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
 {checked_valid}
 SET GLOBAL innodb_buffer_pool_dump_now = ON;
@@ -20,7 +20,7 @@ WHERE LOWER(variable_name) = 'innodb_buffer_pool_load_status';
 variable_value
 Buffer pool(s) load completed at TIMESTAMP_NOW
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
-WHERE table_name LIKE '%ib_bp_test';
+WHERE table_name LIKE '%ib_bp_test%';
 COUNT(*)
 {checked_valid}
 call mtr.add_suppression("InnoDB: Error parsing");

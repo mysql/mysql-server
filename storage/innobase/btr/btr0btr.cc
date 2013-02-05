@@ -3304,6 +3304,8 @@ btr_lift_page_up(
 	buf_block_t*	blocks[BTR_MAX_LEVELS];
 	ulint		n_blocks;	/*!< last used index in blocks[] */
 	ulint		i;
+	bool		lift_father_up;
+	buf_block_t*	block_orig	= block;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
@@ -3314,11 +3316,13 @@ btr_lift_page_up(
 
 	{
 		btr_cur_t	cursor;
-		mem_heap_t*	heap	= mem_heap_create(100);
-		ulint*		offsets;
+		ulint*		offsets	= NULL;
+		mem_heap_t*	heap	= mem_heap_create(
+			sizeof(*offsets)
+			* (REC_OFFS_HEADER_SIZE + 1 + 1 + index->n_fields));
 		buf_block_t*	b;
 
-		offsets = btr_page_get_father_block(NULL, heap, index,
+		offsets = btr_page_get_father_block(offsets, heap, index,
 						    block, mtr, &cursor);
 		father_block = btr_cur_get_block(&cursor);
 		father_page_zip = buf_block_get_page_zip(father_block);
@@ -3342,6 +3346,29 @@ btr_lift_page_up(
 			blocks[n_blocks++] = b = btr_cur_get_block(&cursor);
 		}
 
+		lift_father_up = (n_blocks && page_level == 0);
+		if (lift_father_up) {
+			/* The father page also should be the only on its level (not
+			root). We should lift up the father page at first.
+			Because the leaf page should be lifted up only for root page.
+			The freeing page is based on page_level (==0 or !=0)
+			to choose segment. If the page_level is changed ==0 from !=0,
+			later freeing of the page doesn't find the page allocation
+			to be freed.*/
+
+			block = father_block;
+			page = buf_block_get_frame(block);
+			page_level = btr_page_get_level(page, mtr);
+
+			ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
+			ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
+			ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+
+			father_block = blocks[0];
+			father_page_zip = buf_block_get_page_zip(father_block);
+			father_page = buf_block_get_frame(father_block);
+		}
+
 		mem_heap_free(heap);
 	}
 
@@ -3349,6 +3376,7 @@ btr_lift_page_up(
 
 	/* Make the father empty */
 	btr_page_empty(father_block, father_page_zip, index, page_level, mtr);
+	page_level++;
 
 	/* Copy the records to the father page one by one. */
 	if (0
@@ -3380,7 +3408,7 @@ btr_lift_page_up(
 	lock_update_copy_and_discard(father_block, block);
 
 	/* Go upward to root page, decrementing levels by one. */
-	for (i = 0; i < n_blocks; i++, page_level++) {
+	for (i = lift_father_up ? 1 : 0; i < n_blocks; i++, page_level++) {
 		page_t*		page	= buf_block_get_frame(blocks[i]);
 		page_zip_des_t*	page_zip= buf_block_get_page_zip(blocks[i]);
 
@@ -3402,7 +3430,7 @@ btr_lift_page_up(
 	ut_ad(page_validate(father_page, index));
 	ut_ad(btr_check_node_ptr(index, father_block, mtr));
 
-	return(father_block);
+	return(lift_father_up ? block_orig : father_block);
 }
 
 /*************************************************************//**

@@ -279,6 +279,43 @@ field_store_string(
 }
 
 /*******************************************************************//**
+Store the name of an index in a MYSQL_TYPE_VARCHAR field.
+Handles the names of incomplete secondary indexes.
+@return	0 on success */
+static
+int
+field_store_index_name(
+/*===================*/
+	Field*		field,		/*!< in/out: target field for
+					storage */
+	const char*	index_name)	/*!< in: NUL-terminated utf-8
+					index name, possibly starting with
+					TEMP_INDEX_PREFIX */
+{
+	int	ret;
+
+	ut_ad(index_name != NULL);
+	ut_ad(field->real_type() == MYSQL_TYPE_VARCHAR);
+
+	/* Since TEMP_INDEX_PREFIX is not a valid UTF8, we need to convert
+	it to something else. */
+	if (index_name[0] == TEMP_INDEX_PREFIX) {
+		char	buf[NAME_LEN + 1];
+		buf[0] = '?';
+		memcpy(buf + 1, index_name + 1, strlen(index_name));
+		ret = field->store(buf, strlen(buf),
+				   system_charset_info);
+	} else {
+		ret = field->store(index_name, strlen(index_name),
+				   system_charset_info);
+	}
+
+	field->set_notnull();
+
+	return(ret);
+}
+
+/*******************************************************************//**
 Auxiliary function to store ulint value in MYSQL_TYPE_LONGLONG field.
 If the value is ULINT_UNDEFINED then the field it set to NULL.
 @return	0 on success */
@@ -924,16 +961,9 @@ fill_innodb_locks_from_cache(
 
 		/* lock_index */
 		if (row->lock_index != NULL) {
-
-			bufend = innobase_convert_name(buf, sizeof(buf),
-						       row->lock_index,
-						       strlen(row->lock_index),
-						       thd, FALSE);
-			OK(fields[IDX_LOCK_INDEX]->store(buf, bufend - buf,
-							 system_charset_info));
-			fields[IDX_LOCK_INDEX]->set_notnull();
+			OK(field_store_index_name(fields[IDX_LOCK_INDEX],
+						  row->lock_index));
 		} else {
-
 			fields[IDX_LOCK_INDEX]->set_null();
 		}
 
@@ -1736,15 +1766,17 @@ i_s_cmp_per_index_fill_low(
 		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
 
 		if (index != NULL) {
-			ut_snprintf(name, sizeof(name), "%.*s",
-				    (int) dict_get_db_name_len(index->table_name),
-				    index->table_name);
-			field_store_string(fields[IDX_DATABASE_NAME],
-					   name);
-			field_store_string(fields[IDX_TABLE_NAME],
-					   dict_remove_db_name(index->table_name));
-			field_store_string(fields[IDX_INDEX_NAME],
-					   index->name);
+			char	db_utf8[MAX_DB_UTF8_LEN];
+			char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+			dict_fs2utf8(index->table_name,
+				     db_utf8, sizeof(db_utf8),
+				     table_utf8, sizeof(table_utf8));
+
+			field_store_string(fields[IDX_DATABASE_NAME], db_utf8);
+			field_store_string(fields[IDX_TABLE_NAME], table_utf8);
+			field_store_index_name(fields[IDX_INDEX_NAME],
+					       index->name);
 		} else {
 			/* index not found */
 			ut_snprintf(name, sizeof(name),
@@ -4805,9 +4837,8 @@ i_s_innodb_buffer_page_fill(
 	TABLE_LIST*		tables,		/*!< in/out: tables to fill */
 	const buf_page_info_t*	info_array,	/*!< in: array cached page
 						info */
-	ulint			num_page,	/*!< in: number of page info
-						 cached */
-	mem_heap_t*		heap)		/*!< in: temp heap memory */
+	ulint			num_page)	/*!< in: number of page info
+						cached */
 {
 	TABLE*			table;
 	Field**			fields;
@@ -4821,15 +4852,13 @@ i_s_innodb_buffer_page_fill(
 	/* Iterate through the cached array and fill the I_S table rows */
 	for (ulint i = 0; i < num_page; i++) {
 		const buf_page_info_t*	page_info;
-		const char*		table_name;
-		const char*		index_name;
+		char			table_name[MAX_FULL_NAME_LEN + 1];
+		const char*		table_name_end = NULL;
 		const char*		state_str;
 		enum buf_page_state	state;
 
 		page_info = info_array + i;
 
-		table_name = NULL;
-		index_name = NULL;
 		state_str = NULL;
 
 		OK(fields[IDX_BUFFER_POOL_ID]->store(page_info->pool_id));
@@ -4867,6 +4896,10 @@ i_s_innodb_buffer_page_fill(
 		OK(fields[IDX_BUFFER_PAGE_ACCESS_TIME]->store(
 			page_info->access_time));
 
+		fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_null();
+
+		fields[IDX_BUFFER_PAGE_INDEX_NAME]->set_null();
+
 		/* If this is an index page, fetch the index name
 		and table name */
 		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
@@ -4876,31 +4909,27 @@ i_s_innodb_buffer_page_fill(
 			index = dict_index_get_if_in_cache_low(
 				page_info->index_id);
 
-			/* Copy the index/table name under mutex. We
-			do not want to hold the InnoDB mutex while
-			filling the IS table */
 			if (index) {
-				const char*	name_ptr = index->name;
 
-				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
-					name_ptr++;
-				}
+				table_name_end = innobase_convert_name(
+					table_name, sizeof(table_name),
+					index->table_name,
+					strlen(index->table_name),
+					thd, TRUE);
 
-				index_name = mem_heap_strdup(heap, name_ptr);
+				OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
+					table_name,
+					table_name_end - table_name,
+					system_charset_info));
+				fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
 
-				table_name = mem_heap_strdup(heap,
-							     index->table_name);
-
+				OK(field_store_index_name(
+					fields[IDX_BUFFER_PAGE_INDEX_NAME],
+					index->name));
 			}
 
 			mutex_exit(&dict_sys->mutex);
 		}
-
-		OK(field_store_string(
-			fields[IDX_BUFFER_PAGE_TABLE_NAME], table_name));
-
-		OK(field_store_string(
-			fields[IDX_BUFFER_PAGE_INDEX_NAME], index_name));
 
 		OK(fields[IDX_BUFFER_PAGE_NUM_RECS]->store(
 			page_info->num_recs));
@@ -5172,7 +5201,7 @@ i_s_innodb_fill_buffer_pool(
 			just collected from the buffer chunk scan */
 			status = i_s_innodb_buffer_page_fill(
 				thd, tables, info_buffer,
-				num_page, heap);
+				num_page);
 
 			/* If something goes wrong, break and return */
 			if (status) {
@@ -5519,13 +5548,11 @@ i_s_innodb_buf_page_lru_fill(
 	/* Iterate through the cached array and fill the I_S table rows */
 	for (ulint i = 0; i < num_page; i++) {
 		const buf_page_info_t*	page_info;
-		const char*		table_name;
-		const char*		index_name;
+		char			table_name[MAX_FULL_NAME_LEN + 1];
+		const char*		table_name_end = NULL;
 		const char*		state_str;
 		enum buf_page_state	state;
 
-		table_name = NULL;
-		index_name = NULL;
 		state_str = NULL;
 
 		page_info = info_array + i;
@@ -5565,6 +5592,10 @@ i_s_innodb_buf_page_lru_fill(
 		OK(fields[IDX_BUF_LRU_PAGE_ACCESS_TIME]->store(
 			page_info->access_time));
 
+		fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_null();
+
+		fields[IDX_BUF_LRU_PAGE_INDEX_NAME]->set_null();
+
 		/* If this is an index page, fetch the index name
 		and table name */
 		if (page_info->page_type == I_S_PAGE_TYPE_INDEX) {
@@ -5574,30 +5605,28 @@ i_s_innodb_buf_page_lru_fill(
 			index = dict_index_get_if_in_cache_low(
 				page_info->index_id);
 
-			/* Copy the index/table name under mutex. We
-			do not want to hold the InnoDB mutex while
-			filling the IS table */
 			if (index) {
-				const char*	name_ptr = index->name;
 
-				if (name_ptr[0] == TEMP_INDEX_PREFIX) {
-					name_ptr++;
-				}
+				table_name_end = innobase_convert_name(
+					table_name, sizeof(table_name),
+					index->table_name,
+					strlen(index->table_name),
+					thd, TRUE);
 
-				index_name = mem_heap_strdup(heap, name_ptr);
+				OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
+					table_name,
+					table_name_end - table_name,
+					system_charset_info));
+				fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
 
-				table_name = mem_heap_strdup(heap,
-							     index->table_name);
+				OK(field_store_index_name(
+					fields[IDX_BUF_LRU_PAGE_INDEX_NAME],
+					index->name));
 			}
 
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		OK(field_store_string(
-			fields[IDX_BUF_LRU_PAGE_TABLE_NAME], table_name));
-
-		OK(field_store_string(
-			fields[IDX_BUF_LRU_PAGE_INDEX_NAME], index_name));
 		OK(fields[IDX_BUF_LRU_PAGE_NUM_RECS]->store(
 			page_info->num_recs));
 
@@ -6524,17 +6553,12 @@ i_s_dict_fill_sys_indexes(
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
-	const char*	name_ptr = index->name;
 
 	DBUG_ENTER("i_s_dict_fill_sys_indexes");
 
 	fields = table_to_fill->field;
 
-	if (name_ptr[0] == TEMP_INDEX_PREFIX) {
-		name_ptr++;
-	}
-
-	OK(field_store_string(fields[SYS_INDEX_NAME], name_ptr));
+	OK(field_store_index_name(fields[SYS_INDEX_NAME], index->name));
 
 	OK(fields[SYS_INDEX_ID]->store(longlong(index->id), TRUE));
 

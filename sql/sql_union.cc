@@ -473,17 +473,14 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Query_arena *arena, backup_arena;
+      {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-      arena= thd->activate_stmt_arena_if_needed(&backup_arena);
-      
-      saved_error= table->fill_item_list(&item_list);
+        saved_error= table->fill_item_list(&item_list);
 
-      if (arena)
-        thd->restore_active_arena(arena, &backup_arena);
-
-      if (saved_error)
-        goto err;
+        if (saved_error)
+          goto err;
+      }
 
       if (thd->stmt_arena->is_stmt_prepare())
       {
@@ -932,8 +929,6 @@ bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
 
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
-  SELECT_LEX *sl= first_select();
-
   if (is_union())
   {
     DBUG_ASSERT(prepared);
@@ -941,7 +936,24 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
     return &types;
   }
 
-  return &sl->item_list;
+  return &first_select()->item_list;
+}
+
+
+/**
+  Get field list for this query expression.
+
+  For a UNION of query blocks, return the field list of the created
+  temporary table.
+  For a single query block, return the field list after all possible
+  intermediate query processing steps are completed.
+
+  @returns List containing fields of the query expression.
+*/
+
+List<Item> *st_select_lex_unit::get_field_list()
+{
+  return is_union() ? &item_list : first_select()->join->fields;
 }
 
 

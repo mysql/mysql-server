@@ -1,4 +1,5 @@
 CREATE USER 'kristofer';
+SET old_passwords=2;
 SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
 SELECT user, plugin FROM mysql.user;
 user	plugin

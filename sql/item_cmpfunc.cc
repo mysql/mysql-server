@@ -1846,6 +1846,12 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  /*
+    Refresh this pointer as left_expr may have been substituted
+    during resolving.
+  */
+  args[0]= ((Item_in_subselect *)args[1])->left_expr;
+
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;

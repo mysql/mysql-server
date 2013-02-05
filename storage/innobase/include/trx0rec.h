@@ -105,10 +105,11 @@ trx_undo_rec_get_pars(
 					TRX_UNDO_INSERT_REC, ... */
 	ulint*		cmpl_info,	/*!< out: compiler info, relevant only
 					for update type records */
-	ibool*		updated_extern,	/*!< out: TRUE if we updated an
+	bool*		updated_extern,	/*!< out: true if we updated an
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
-	table_id_t*	table_id);	/*!< out: table id */
+	table_id_t*	table_id)	/*!< out: table id */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Builds a row reference from an undo log record.
 @return	pointer to remaining part of undo record */

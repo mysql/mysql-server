@@ -4,6 +4,9 @@
 --source include/mysql_upgrade_preparation.inc
 
 CREATE USER 'kristofer';
+# Bootstrap did not follow the startup variables while creating root account,
+# hence need to change old_passwords variable.
+SET old_passwords=2;
 SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
 SELECT user, plugin FROM mysql.user;
 connect(con1,localhost,kristofer,secret,,);

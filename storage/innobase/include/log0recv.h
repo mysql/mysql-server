@@ -373,6 +373,9 @@ struct recv_sys_t{
 	ib_mutex_t		mutex;	/*!< mutex protecting the fields apply_log_recs,
 				n_addrs, and the state field in each recv_addr
 				struct */
+	ib_mutex_t		writer_mutex;/*!< mutex coordinating
+				flushing between recv_writer_thread and
+				the recovery thread. */
 #endif /* !UNIV_HOTBACKUP */
 	ibool		apply_log_recs;
 				/*!< this is TRUE when log rec application to
