@@ -374,7 +374,6 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
-  ADD_SUBDIRECTORY(unittest/mysys)
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 

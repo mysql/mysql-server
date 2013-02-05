@@ -25,8 +25,9 @@
 type_conversion_status
 store_internal_with_error_check(Field_new_decimal *field,
                                 int conversion_err, my_decimal *value);
-namespace {
+namespace field_newdecimal_unittest {
 
+using my_testing::chars_2_decimal;
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
@@ -162,12 +163,6 @@ TEST_F(FieldNewDecimalTest, StoreIllegalStringValues)
   }
 }
 
-
-static int chars_2_decimal(const char *chars, my_decimal *to)
-{
-  char *end= strend(chars);
-  return string2decimal(chars, to, &end);
-}
 
 static void test_store_internal(Field_new_decimal *field,
                                 my_decimal *value,

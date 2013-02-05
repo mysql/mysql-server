@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,18 @@
   Unit tests for lock-free algorithms of mysys
 */
 
-#include "thr_template.c"
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
+
+#include <my_global.h>
+#include <my_sys.h>
+#include <my_atomic.h>
+
+
+namespace mysys_lf_unittest {
+
+#include "thr_template.cc"
 
 #include <lf.h>
 
@@ -99,8 +110,6 @@ pthread_handler_t test_lf_alloc(void *arg)
 
   if (--N == 0)
   {
-    diag("%d mallocs, %d pins in stack",
-         lf_allocator.mallocs, lf_allocator.pinbox.pins_in_array);
 #ifdef MY_LF_EXTRA_DEBUG
     bad|= lf_allocator.mallocs - lf_alloc_pool_count(&lf_allocator);
 #endif
@@ -113,7 +122,7 @@ pthread_handler_t test_lf_alloc(void *arg)
   return 0;
 }
 
-#define N_TLH 1000
+const int N_TLH= 1000;
 pthread_handler_t test_lf_hash(void *arg)
 {
   int    m= (*(int *)arg)/(2*N_TLH);
@@ -154,9 +163,6 @@ pthread_handler_t test_lf_hash(void *arg)
 
   if (--N == 0)
   {
-    diag("%d mallocs, %d pins in stack, %d hash size, %d inserts",
-         lf_hash.alloc.mallocs, lf_hash.alloc.pinbox.pins_in_array,
-         lf_hash.size, inserts);
     bad|= lf_hash.count;
   }
   if (!--running_threads) mysql_cond_signal(&cond);
@@ -169,26 +175,46 @@ pthread_handler_t test_lf_hash(void *arg)
 
 void do_tests()
 {
-  plan(7);
-
   lf_alloc_init(&lf_allocator, sizeof(TLA), offsetof(TLA, not_used));
   lf_hash_init(&lf_hash, sizeof(int), LF_HASH_UNIQUE, 0, sizeof(int), 0,
                &my_charset_bin);
 
   bad= my_atomic_initialize();
-  ok(!bad, "my_atomic_initialize() returned %d", bad);
+  EXPECT_FALSE(bad) << "my_atomic_initialize() returned " << bad;
 
   with_my_thread_init= 1;
-  test_concurrently("lf_pinbox (with my_thread_init)", test_lf_pinbox, N= THREADS, CYCLES);
-  test_concurrently("lf_alloc (with my_thread_init)",  test_lf_alloc,  N= THREADS, CYCLES);
-  test_concurrently("lf_hash (with my_thread_init)",   test_lf_hash,   N= THREADS, CYCLES/10);
+  test_concurrently("lf_pinbox (with my_thread_init)",
+                    test_lf_pinbox, N= THREADS, CYCLES);
+  test_concurrently("lf_alloc (with my_thread_init)",
+                    test_lf_alloc,  N= THREADS, CYCLES);
+  test_concurrently("lf_hash (with my_thread_init)",
+                    test_lf_hash,   N= THREADS, CYCLES/10);
 
   with_my_thread_init= 0;
-  test_concurrently("lf_pinbox (without my_thread_init)", test_lf_pinbox, N= THREADS, CYCLES);
-  test_concurrently("lf_alloc (without my_thread_init)",  test_lf_alloc,  N= THREADS, CYCLES);
-  test_concurrently("lf_hash (without my_thread_init)",   test_lf_hash,   N= THREADS, CYCLES/10);
+  test_concurrently("lf_pinbox (without my_thread_init)",
+                    test_lf_pinbox, N= THREADS, CYCLES);
+  test_concurrently("lf_alloc (without my_thread_init)",
+                    test_lf_alloc,  N= THREADS, CYCLES);
+  test_concurrently("lf_hash (without my_thread_init)",
+                    test_lf_hash,   N= THREADS, CYCLES/10);
 
   lf_hash_destroy(&lf_hash);
   lf_alloc_destroy(&lf_allocator);
 }
 
+
+TEST(Mysys, LockFree)
+{
+  mysql_mutex_init(0, &mutex, 0);
+  mysql_cond_init(0, &cond, NULL);
+  pthread_attr_init(&thr_attr);
+  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
+ 
+  do_tests();
+
+  mysql_mutex_destroy(&mutex);
+  mysql_cond_destroy(&cond);
+  pthread_attr_destroy(&thr_attr);
+}
+
+}

@@ -1,6 +1,9 @@
 --source include/not_embedded.inc
 --source include/have_validate_password_plugin.inc
 
+# Warning is generated when default file (NULL) is used
+CALL mtr.add_suppression("Dictionary file not specified");
+
 --echo #
 --echo # Tests for deprecation warnings introduced by wl#6443
 --echo #

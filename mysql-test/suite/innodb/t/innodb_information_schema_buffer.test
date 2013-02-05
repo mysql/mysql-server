@@ -25,7 +25,7 @@ INSERT INTO infoschema_buffer_test VALUES(9);
 # right away
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE TABLE_NAME like "%infoschema_buffer_test"
+WHERE TABLE_NAME like "%infoschema_buffer_test%"
 	and PAGE_STATE="file_page" and PAGE_TYPE="index";
 
 # The NUMBER_RECORDS and DATA_SIZE should check with each insertion
@@ -33,14 +33,14 @@ INSERT INTO infoschema_buffer_test VALUES(19);
 
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE TABLE_NAME like "%infoschema_buffer_test"
+WHERE TABLE_NAME like "%infoschema_buffer_test%"
 and PAGE_STATE="file_page" and PAGE_TYPE="index";
 
 CREATE INDEX idx ON infoschema_buffer_test(col1);
 
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE TABLE_NAME like "%infoschema_buffer_test"
+WHERE TABLE_NAME like "%infoschema_buffer_test%"
 and PAGE_STATE="file_page" and INDEX_NAME = "idx" and PAGE_TYPE="index";
 
 
@@ -49,7 +49,7 @@ DROP TABLE infoschema_buffer_test;
 
 SELECT TABLE_NAME, INDEX_NAME, NUMBER_RECORDS, DATA_SIZE, PAGE_STATE, PAGE_TYPE
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE TABLE_NAME like "%infoschema_buffer_test";
+WHERE TABLE_NAME like "%infoschema_buffer_test%";
 
 # Do one more test
 #--replace_regex /'*[0-9]*'/'NUM'/
@@ -64,7 +64,7 @@ ENGINE=INNODB;
 
 SELECT count(*)
 FROM INFORMATION_SCHEMA.INNODB_BUFFER_PAGE
-WHERE TABLE_NAME like "%infoschema_child" and PAGE_STATE="file_page"
+WHERE TABLE_NAME like "%infoschema_child%" and PAGE_STATE="file_page"
 and PAGE_TYPE="index";
 
 DROP TABLE infoschema_child;

@@ -249,19 +249,15 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
 
 int Binlog_storage_delegate::after_flush(THD *thd,
                                          const char *log_file,
-                                         my_off_t log_pos,
-                                         bool synced)
+                                         my_off_t log_pos)
 {
   DBUG_ENTER("Binlog_storage_delegate::after_flush");
-  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu, synced: %s",
-                       log_file, (ulonglong) log_pos, YESNO(synced)));
+  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu",
+                       log_file, (ulonglong) log_pos));
   Binlog_storage_param param;
-  uint32 flags=0;
-  if (synced)
-    flags |= BINLOG_STORAGE_IS_SYNCED;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos, flags));
+  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos));
   DBUG_RETURN(ret);
 }
 
@@ -357,14 +353,18 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
 }
 
 int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
-                                               String *packet)
+                                               String *packet,
+                                               const char *skipped_log_file,
+                                               my_off_t skipped_log_pos)
 {
   Binlog_transmit_param param;
   param.flags= flags;
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_send_event, thd,
-                   (&param, packet->c_ptr(), packet->length()));
+                   (&param, packet->c_ptr(), packet->length(),
+                   skipped_log_file+dirname_length(skipped_log_file),
+                    skipped_log_pos));
   return ret;
 }
 

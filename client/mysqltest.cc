@@ -130,6 +130,7 @@ static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 #if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
 #endif
+static my_bool can_handle_expired_passwords= TRUE;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -1426,7 +1427,6 @@ void die(const char *fmt, ...)
 {
   static int dying= 0;
   va_list args;
-  DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
   /*
@@ -2571,6 +2571,7 @@ do_result_format_version(struct st_command *command)
   dynstr_append_mem(&ds_res, ds_version.str, ds_version.length);
   dynstr_append(&ds_res, "\n");
   dynstr_free(&ds_version);
+  DBUG_VOID_RETURN;
 }
 
 /* List of error names to error codes */
@@ -5314,6 +5315,8 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqltest");
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                &can_handle_expired_passwords);
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -5417,6 +5420,8 @@ int connect_n_handle_errors(struct st_command *command,
   
   mysql_options(con, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
+  mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                &can_handle_expired_passwords);
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {

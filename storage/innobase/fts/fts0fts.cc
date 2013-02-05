@@ -681,7 +681,7 @@ fts_add_index(
 
 	ib_vector_push(fts->indexes, &index);
 
-	index_cache = (fts_index_cache_t*) fts_find_index_cache(cache, index);
+	index_cache = fts_find_index_cache(cache, index);
 
 	if (!index_cache) {
 		/* Add new index cache structure */
@@ -870,8 +870,7 @@ fts_drop_index(
 
 		rw_lock_x_lock(&cache->init_lock);
 
-		index_cache = (fts_index_cache_t*) fts_find_index_cache(
-			cache, index);
+		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache->words) {
 			fts_words_free(index_cache->words);
@@ -3574,6 +3573,7 @@ fts_doc_fetch_by_doc_id(
 	pars_info_bind_function(info, "my_func", callback, arg);
 
 	select_str = fts_get_select_columns_str(index, info, info->heap);
+	pars_info_bind_id(info, TRUE, "table_name", index->table_name);
 
 	if (!get_doc || !get_doc->get_document_graph) {
 		if (option == FTS_FETCH_DOC_BY_ID_EQUAL) {
@@ -3583,7 +3583,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s FROM %s"
+					" SELECT %s FROM $table_name"
 					" WHERE %s = :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3595,8 +3595,7 @@ fts_doc_fetch_by_doc_id(
 					"  END IF;\n"
 					"END LOOP;\n"
 					"CLOSE c;",
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
@@ -3620,7 +3619,7 @@ fts_doc_fetch_by_doc_id(
 				mem_heap_printf(info->heap,
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
-					" SELECT %s, %s FROM %s"
+					" SELECT %s, %s FROM $table_name"
 					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
@@ -3633,8 +3632,7 @@ fts_doc_fetch_by_doc_id(
 					"END LOOP;\n"
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
-					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME));
+					select_str, FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
 			get_doc->get_document_graph = graph;
@@ -4926,7 +4924,7 @@ fts_get_doc_id_from_rec(
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
 UNIV_INTERN
-const fts_index_cache_t*
+fts_index_cache_t*
 fts_find_index_cache(
 /*=================*/
 	const fts_cache_t*	cache,		/*!< in: cache to search */
@@ -4934,7 +4932,8 @@ fts_find_index_cache(
 {
 	/* We cast away the const because our internal function, takes
 	non-const cache arg and returns a non-const pointer. */
-	return(fts_get_index_cache((fts_cache_t*) cache, index));
+	return(static_cast<fts_index_cache_t*>(
+		fts_get_index_cache((fts_cache_t*) cache, index)));
 }
 
 /*********************************************************************//**

@@ -102,14 +102,23 @@ flush status;
 select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 
-explain SELECT distinct t1.a from t1;
-explain SELECT distinct t1.a from t1 order by a desc;
-explain SELECT t1.a from t1 group by a order by a desc;
-explain SELECT distinct t1.a from t1 order by a desc limit 1;
-explain SELECT distinct a from t3 order by a desc limit 2;
-explain SELECT distinct a,b from t3 order by a+1;
-explain SELECT distinct a,b from t3 order by a limit 2;
-explain SELECT a,b from t3 group by a,b order by a+1;
+let $iteration=2;
+let $q_type= explain;
+# First EXPLAIN query, then execute query
+while($iteration)
+{
+  eval $q_type SELECT distinct t1.a from t1;
+  eval $q_type SELECT distinct t1.a from t1 order by a desc;
+  eval $q_type SELECT t1.a from t1 group by a order by a desc;
+  eval $q_type SELECT distinct t1.a from t1 order by a desc limit 1;
+  eval $q_type SELECT distinct a from t3 order by a desc limit 2;
+  eval $q_type SELECT distinct a,b from t3 order by a+1;
+  eval $q_type SELECT distinct a,b from t3 order by a limit 2;
+  eval $q_type SELECT a,b from t3 group by a,b order by a+1;
+
+  let $q_type=;
+  dec $iteration;
+}
 
 drop table t1,t2,t3,t4;
 

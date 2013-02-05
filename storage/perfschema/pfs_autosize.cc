@@ -166,18 +166,6 @@ PFS_sizing_data large_data=
   0.50, 0.65, 0.80
 };
 
-void enforce_range_long(long *value, long min_value, long max_value)
-{
-  if (*value < min_value)
-  {
-    *value = min_value;
-  }
-  else if (*value > max_value)
-  {
-    *value = max_value;
-  }
-}
-
 static inline ulong apply_load_factor(ulong raw_value, float factor)
 {
   float value = ((float) raw_value) / factor;
@@ -186,16 +174,6 @@ static inline ulong apply_load_factor(ulong raw_value, float factor)
 
 PFS_sizing_data *estimate_hints(PFS_global_param *param)
 {
-  /*
-    Sanitize hints, to avoid returning extremely high or low estimates.
-    If the real configuration used is outside of these bounds,
-    manual tuning will be preferable.
-  */
-
-  enforce_range_long(& param->m_hints.m_max_connections, 10, 65535);
-  enforce_range_long(& param->m_hints.m_table_definition_cache, 100, 10000);
-  enforce_range_long(& param->m_hints.m_table_open_cache, 100, 10000);
-
   if ((param->m_hints.m_max_connections <= MAX_CONNECTIONS_DEFAULT) &&
       (param->m_hints.m_table_definition_cache <= TABLE_DEF_CACHE_DEFAULT) &&
       (param->m_hints.m_table_open_cache <= TABLE_OPEN_CACHE_DEFAULT))
