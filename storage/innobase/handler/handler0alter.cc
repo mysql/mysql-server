@@ -5655,7 +5655,9 @@ alter_stats_rebuild(
 	}
 
 	dberr_t	ret;
+#if !defined(DBUG_OFF)
 	bool	ibd_file_missing_orig;
+#endif /* !DBUG_OFF */
 
 	DBUG_EXECUTE_IF(
 		"ib_rename_index_fail2",
