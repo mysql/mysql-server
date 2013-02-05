@@ -75,7 +75,7 @@ int main() { ${code}; return 0; }" ${var})
   endif(HAVE_GETSYSTEMINFO_SYMBOL)
 endif(HAVE_WINDOWS_H)
 
-configure_file("config.h.in" "${CMAKE_CURRENT_BINARY_DIR}/host_info_config.h")
+configure_file("config.h.cmake" "${CMAKE_CURRENT_BINARY_DIR}/host_info_config.h")
 include_directories(${CMAKE_CURRENT_BINARY_DIR}) 
 
 if(DEFAULT_MYSQL_HOME)
