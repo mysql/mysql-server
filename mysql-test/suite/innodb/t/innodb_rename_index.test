@@ -1,0 +1,409 @@
+#
+# Test "ALTER TABLE ... RENAME INDEX" in InnoDB
+#
+
+-- source include/have_innodb.inc
+
+let create =
+CREATE TABLE t (
+	a INT,
+	b INT,
+	c INT,
+	d INT,
+	e INT,
+	f INT,
+	PRIMARY KEY (a),
+	INDEX i1 (b),
+	INDEX i2 (c),
+	INDEX i3 (d),
+	INDEX i4 (e)
+) ENGINE=INNODB;
+
+let show_table =
+SHOW CREATE TABLE t;
+
+let show_sys =
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+
+let show_stats =
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+
+-- eval $create
+
+-- error ER_WRONG_NAME_FOR_INDEX
+ALTER TABLE t RENAME INDEX i1 TO GEN_CLUST_INDEX;
+
+# Test all combinations of ADD w, DROP x, RENAME y TO z.
+#
+# Use the following names for wxyz (with 1 to 4 of wxyz being the same):
+# aaaa abcd aabb abab abba abcc acbc accb cacb cabc ccab aaab aaba abaa baaa
+#
+# Some cases should trivially succeed or fail. Test them in isolation:
+# no-op: y=z (RENAME y TO y)
+# rules out the combinations ..\(.\)\1
+# a.k.a. aaaa aabb abcc abaa baaa
+
+ALTER TABLE t RENAME INDEX i1 TO i1;
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX nonexistent TO nonexistent;
+
+# refuse: w=z (ADD w, RENAME y TO w)
+# rules out the combinations \(.\)..\1
+# a.k.a. aaaa abba cabc aaba abaa
+# the case w=y (ADD w, RENAME w to z) may succeed, as seen below
+
+# rename non-existing
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX foo TO bar;
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
+
+# rename existing, add one with the same name
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+ALTER TABLE t DROP INDEX i1, RENAME INDEX i2 TO i1;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+# rename existing, conflicting with ADD
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i9;
+
+# refuse: x=y (DROP x, RENAME x TO z)
+# rules out the combinations .\(.\)\1.
+# a.k.a. aaaa abba accb aaab baaa
+
+# rename and drop the same
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i1;
+
+# drop non-existing
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i9;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t RENAME INDEX i9 TO i1, DROP INDEX i9;
+
+# this one will succeed (drop, replace with an existing one)
+ALTER TABLE t RENAME INDEX i1 TO i2, DROP INDEX i2;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+# Remaining combinations: abcd abab acbc cacb ccab
+
+# add existing, rename to existing
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i4;
+
+# add existing
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i4;
+
+# rename to existing
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
+
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8, DROP INDEX i3;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+ALTER TABLE t RENAME INDEX i1 TO i8, RENAME INDEX i2 TO i9;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- echo # combination: abab
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9, DROP INDEX i9;
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i8, DROP INDEX i8;
+
+# add existing
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
+
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+ALTER TABLE t RENAME INDEX i2 TO i9, RENAME INDEX i1 TO i2;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- echo # The following ALTER would screw up the stats tables because there
+-- echo # is unique index on index_name in mysql.innodb_index_stats and the
+-- echo # rename i1 -> i2 would fail because i2 is (still) present.
+ALTER TABLE t RENAME INDEX i1 TO i2, RENAME INDEX i2 TO i9;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- echo # combination: cacb
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i9;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i9;
+
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i4;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i1;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- echo # combination: ccab
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i8, DROP INDEX i9;
+
+# A simple successful ALTER
+ALTER TABLE t RENAME INDEX i1 TO x;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t RENAME INDEX i1 TO i2;
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX foo TO i1;
+
+# Test ADD INDEX, RENAME INDEX
+
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
+
+# Test ADD INDEX, RENAME INDEX, DROP INDEX
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO foo, DROP INDEX i1;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO foo, DROP INDEX foo;
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+# "ALTER TABLE t ADD INDEX foo (d), DROP INDEX foo;" alone fails with the
+# same error code, but we have that test here anyway
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX foo TO bar, DROP INDEX foo;
+
+# Test RENAME INDEX, RENAME INDEX
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i2 TO x;
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i1 TO y;
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i1 TO x;
+
+# show that the table did not change after all the erroneous ALTERs
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+
+DROP TABLE t;
+
+# now test the rebuild case (new clustered index)
+
+CREATE TABLE t (
+	c1 INT NOT NULL,
+	c2 INT NOT NULL,
+	c3 INT,
+	c4 INT,
+	PRIMARY KEY (c1),
+	INDEX i1 (c3),
+	INDEX i2 (c4)
+) ENGINE=INNODB;
+
+ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (c2),
+RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+
+ALTER TABLE t RENAME INDEX i2 TO y, ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+
+DROP TABLE t;
+
+# a case where the PK does not exist prior to the ALTER TABLE command
+
+CREATE TABLE t (
+	c1 INT NOT NULL,
+	c2 INT,
+	c3 INT,
+	INDEX i1 (c2),
+	INDEX i2 (c3)
+) ENGINE=INNODB;
+
+ALTER TABLE t ADD PRIMARY KEY (c1), RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+
+DROP TABLE t;
+
+# Test repeated RENAMEs with alternating names
+
+CREATE TABLE t (a INT, INDEX iiiii (a)) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX iiiii TO i;
+ALTER TABLE t RENAME INDEX i TO iiiii;
+ALTER TABLE t RENAME INDEX iiiii TO i;
+ALTER TABLE t RENAME INDEX i TO iiiii;
+DROP TABLE t;
+
+# Test basic RENAME INDEX with a broken persistent stats storage
+
+call mtr.add_suppression("InnoDB: Error: Table .*innodb_index_stats.* not found");
+call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"t\" but the required system tables .* are not present.*");
+
+CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
+
+RENAME TABLE mysql.innodb_index_stats TO mysql.innodb_index_stats_;
+
+ALTER TABLE t RENAME INDEX i1 TO i7;
+
+RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
+
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+
+DROP TABLE t;
+
+# Below is a shell script to generate the full set of ALTER TABLE
+# DROP/ADD/RENAME combinations. The generated .sql file is 3.3MB and
+# executes in about 7 minutes.
+#
+##!/bin/sh
+#
+#create="
+#CREATE TABLE t (
+#        a INT,
+#        b INT,
+#        c INT,
+#        d INT,
+#        PRIMARY KEY (a),
+#        INDEX i1 (b),
+#        INDEX i2 (c)
+#) ENGINE=INNODB;
+#"
+#
+#echo "DROP TABLE IF EXISTS t;"
+#for r in "" ", DROP PRIMARY KEY, ADD PRIMARY KEY (a)" ", ROW_FORMAT=REDUNDANT" ; do
+#    for i1 in i1 i1noexist; do
+#        for i2 in i2 i2noexist; do
+#            for i3 in i3 i3noexist; do
+#                for i4 in i4 i4noexist; do
+#                    for a in $i1 $i2 $i3 $i4; do
+#                        for b in $i1 $i2 $i3 $i4; do
+#                            for c in $i1 $i2 $i3 $i4; do
+#                                for d in $i1 $i2 $i3 $i4; do
+#                                    echo "$create"
+#                                    echo "ALTER TABLE t ADD INDEX $a (d), RENAME INDEX $b TO $c, DROP INDEX $d $r;"
+#                                    echo "DROP TABLE t;"
+#                                done
+#                            done
+#                        done
+#                    done
+#                done
+#            done
+#        done
+#    done
+#done

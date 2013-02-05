@@ -1,0 +1,1134 @@
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX i1 TO GEN_CLUST_INDEX;
+ERROR 42000: Incorrect index name 'GEN_CLUST_INDEX'
+ALTER TABLE t RENAME INDEX i1 TO i1;
+ALTER TABLE t RENAME INDEX nonexistent TO nonexistent;
+ERROR 42000: Key 'nonexistent' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX foo TO bar;
+ERROR 42000: Key 'foo' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
+ERROR 42000: Duplicate key name 'foo'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i9` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`),
+  KEY `i1` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	f
+test/t	i2	c
+test/t	i3	d
+test/t	i4	e
+test/t	i9	b
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	f
+i1	f,a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i9	b
+i9	b,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t DROP INDEX i1, RENAME INDEX i2 TO i1;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i1` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	c
+test/t	i3	d
+test/t	i4	e
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	c
+i1	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i9;
+ERROR 42000: Duplicate key name 'i9'
+ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i1;
+ERROR 42000: Key 'i1' doesn't exist in table 't'
+ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t RENAME INDEX i9 TO i1, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t RENAME INDEX i1 TO i2, DROP INDEX i2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i2` (`b`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	b
+test/t	i3	d
+test/t	i4	e
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i2	b
+i2	b,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i4;
+ERROR 42000: Duplicate key name 'i3'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i4;
+ERROR 42000: Duplicate key name 'i1'
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
+ERROR 42000: Duplicate key name 'i2'
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8, DROP INDEX i3;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i8` (`b`),
+  KEY `i2` (`c`),
+  KEY `i4` (`e`),
+  KEY `i9` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	c
+test/t	i4	e
+test/t	i8	b
+test/t	i9	f
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i2	c
+i2	c,a
+i4	e
+i4	e,a
+i8	b
+i8	b,a
+i9	f
+i9	f,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX i1 TO i8, RENAME INDEX i2 TO i9;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i8` (`b`),
+  KEY `i9` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i3	d
+test/t	i4	e
+test/t	i8	b
+test/t	i9	c
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i8	b
+i8	b,a
+i9	c
+i9	c,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+# combination: abab
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+ERROR 42000: Key 'i9' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+ERROR 42000: Key 'i9' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i8, DROP INDEX i8;
+ERROR 42000: Can't DROP 'i8'; check that column/key exists
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
+ERROR 42000: Duplicate key name 'i1'
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i1` (`b`),
+  KEY `i3` (`c`),
+  KEY `i4` (`e`),
+  KEY `i9` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	b
+test/t	i3	c
+test/t	i4	e
+test/t	i9	f
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	b
+i1	b,a
+i3	c
+i3	c,a
+i4	e
+i4	e,a
+i9	f
+i9	f,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX i2 TO i9, RENAME INDEX i1 TO i2;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i2` (`b`),
+  KEY `i9` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	b
+test/t	i3	d
+test/t	i4	e
+test/t	i9	c
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i2	b
+i2	b,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i9	c
+i9	c,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+# The following ALTER would screw up the stats tables because there
+# is unique index on index_name in mysql.innodb_index_stats and the
+# rename i1 -> i2 would fail because i2 is (still) present.
+ALTER TABLE t RENAME INDEX i1 TO i2, RENAME INDEX i2 TO i9;
+Warnings:
+Warning	1025	Error renaming an index of table 't' from 'i1' to 'i2' in InnoDB persistent statistics storage: Duplicate key
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i2` (`b`),
+  KEY `i9` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	b
+test/t	i3	d
+test/t	i4	e
+test/t	i9	c
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	b
+i1	b,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i9	c
+i9	c,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+# combination: cacb
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
+ERROR 42000: Duplicate key name 'i2'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i4;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i8` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i1` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	f
+test/t	i2	c
+test/t	i3	d
+test/t	i8	b
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	f
+i1	f,a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i8	b
+i8	b,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i1;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i9` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`),
+  KEY `i1` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	f
+test/t	i3	d
+test/t	i4	e
+test/t	i9	c
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	f
+i1	f,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i9	c
+i9	c,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+# combination: ccab
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i8, DROP INDEX i9;
+ERROR 42000: Can't DROP 'i9'; check that column/key exists
+ALTER TABLE t RENAME INDEX i1 TO x;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `x` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	c
+test/t	i3	d
+test/t	i4	e
+test/t	PRIMARY	a
+test/t	x	b
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+x	b
+x	b,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX i1 TO i2;
+ERROR 42000: Duplicate key name 'i2'
+ALTER TABLE t RENAME INDEX foo TO i1;
+ERROR 42000: Key 'foo' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i8` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`),
+  KEY `i9` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	c
+test/t	i3	d
+test/t	i4	e
+test/t	i8	b
+test/t	i9	f
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i8	b
+i8	b,a
+i9	f
+i9	f,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i9` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`),
+  KEY `i1` (`f`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	f
+test/t	i2	c
+test/t	i3	d
+test/t	i4	e
+test/t	i9	b
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	f
+i1	f,a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+i9	b
+i9	b,a
+DROP TABLE t;
+CREATE TABLE t (
+a INT,
+b INT,
+c INT,
+d INT,
+e INT,
+f INT,
+PRIMARY KEY (a),
+INDEX i1 (b),
+INDEX i2 (c),
+INDEX i3 (d),
+INDEX i4 (e)
+) ENGINE=INNODB;
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
+ERROR 42000: Duplicate key name 'foo'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO foo, DROP INDEX i1;
+ERROR 42000: Key 'i1' doesn't exist in table 't'
+ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO foo, DROP INDEX foo;
+ERROR 42000: Can't DROP 'foo'; check that column/key exists
+ALTER TABLE t ADD INDEX foo (f), RENAME INDEX foo TO bar, DROP INDEX foo;
+ERROR 42000: Can't DROP 'foo'; check that column/key exists
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i2 TO x;
+ERROR 42000: Duplicate key name 'x'
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i1 TO y;
+ERROR 42000: Key 'i1' doesn't exist in table 't'
+ALTER TABLE t RENAME INDEX i1 TO x, RENAME INDEX i1 TO x;
+ERROR 42000: Key 'i1' doesn't exist in table 't'
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  `c` int(11) DEFAULT NULL,
+  `d` int(11) DEFAULT NULL,
+  `e` int(11) DEFAULT NULL,
+  `f` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i1` (`b`),
+  KEY `i2` (`c`),
+  KEY `i3` (`d`),
+  KEY `i4` (`e`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i1	b
+test/t	i2	c
+test/t	i3	d
+test/t	i4	e
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	b
+i1	b,a
+i2	c
+i2	c,a
+i3	d
+i3	d,a
+i4	e
+i4	e,a
+DROP TABLE t;
+CREATE TABLE t (
+c1 INT NOT NULL,
+c2 INT NOT NULL,
+c3 INT,
+c4 INT,
+PRIMARY KEY (c1),
+INDEX i1 (c3),
+INDEX i2 (c4)
+) ENGINE=INNODB;
+ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (c2),
+RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c2`),
+  KEY `x` (`c3`),
+  KEY `i2` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	c4
+test/t	PRIMARY	c2
+test/t	x	c3
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	c2
+i2	c4
+i2	c4,c2
+x	c3
+x	c3,c2
+ALTER TABLE t RENAME INDEX i2 TO y, ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) NOT NULL,
+  `c3` int(11) DEFAULT NULL,
+  `c4` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c2`),
+  KEY `x` (`c3`),
+  KEY `y` (`c4`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=REDUNDANT
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	PRIMARY	c2
+test/t	x	c3
+test/t	y	c4
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	c2
+x	c3
+x	c3,c2
+y	c4
+y	c4,c2
+DROP TABLE t;
+CREATE TABLE t (
+c1 INT NOT NULL,
+c2 INT,
+c3 INT,
+INDEX i1 (c2),
+INDEX i2 (c3)
+) ENGINE=INNODB;
+ALTER TABLE t ADD PRIMARY KEY (c1), RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `c1` int(11) NOT NULL,
+  `c2` int(11) DEFAULT NULL,
+  `c3` int(11) DEFAULT NULL,
+  PRIMARY KEY (`c1`),
+  KEY `x` (`c2`),
+  KEY `i2` (`c3`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i2	c3
+test/t	PRIMARY	c1
+test/t	x	c2
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	c1
+i2	c3
+i2	c3,c1
+x	c2
+x	c2,c1
+DROP TABLE t;
+CREATE TABLE t (a INT, INDEX iiiii (a)) ENGINE=INNODB;
+ALTER TABLE t RENAME INDEX iiiii TO i;
+ALTER TABLE t RENAME INDEX i TO iiiii;
+ALTER TABLE t RENAME INDEX iiiii TO i;
+ALTER TABLE t RENAME INDEX i TO iiiii;
+DROP TABLE t;
+call mtr.add_suppression("InnoDB: Error: Table .*innodb_index_stats.* not found");
+call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"t\" but the required system tables .* are not present.*");
+CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
+RENAME TABLE mysql.innodb_index_stats TO mysql.innodb_index_stats_;
+ALTER TABLE t RENAME INDEX i1 TO i7;
+Warnings:
+Warning	1025	Error renaming an index of table 't' from 'i1' to 'i7' in InnoDB persistent statistics storage: Persistent statistics do not exist
+RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL DEFAULT '0',
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `i7` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SELECT
+t.name AS table_name,
+i.name AS index_name,
+f.name AS column_name
+FROM
+information_schema.innodb_sys_tables t,
+information_schema.innodb_sys_indexes i,
+information_schema.innodb_sys_fields f
+WHERE
+t.name LIKE '%/t' AND
+t.table_id = i.table_id AND
+i.index_id = f.index_id
+ORDER BY 1, 2, 3;
+table_name	index_name	column_name
+test/t	i7	b
+test/t	PRIMARY	a
+SELECT index_name, stat_description
+FROM mysql.innodb_index_stats
+WHERE table_name = 't' AND stat_name LIKE 'n_diff%'
+ORDER BY 1, 2;
+index_name	stat_description
+PRIMARY	a
+i1	b
+i1	b,a
+DROP TABLE t;
