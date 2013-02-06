@@ -604,10 +604,6 @@ sync_array_deadlock_step(
 	new = sync_array_find_thread(arr, thread);
 
 	if (UNIV_UNLIKELY(new == start)) {
-		/* Stop running of other threads */
-
-		ut_dbg_stop_threads = TRUE;
-
 		/* Deadlock */
 		fputs("########################################\n"
 		      "DEADLOCK of threads detected!\n", stderr);
