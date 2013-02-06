@@ -19,6 +19,8 @@ CREATE TABLE t (
 	INDEX i4 (e)
 ) ENGINE=INNODB;
 
+let insert = INSERT INTO t SET a = 1;
+
 let show_table =
 SHOW CREATE TABLE t;
 
@@ -45,6 +47,12 @@ ORDER BY 1, 2;
 
 -- eval $create
 
+# Add a row, so that affected rows would be nonzero for ALGORITHM=COPY.
+# ALGORITHM=INPLACE will report 0 affected row in the result file.
+# We will have enable_info/disable_info around every successful ALTER
+# to enable the affected rows: output in the result file.
+-- eval $insert
+
 -- error ER_WRONG_NAME_FOR_INDEX
 ALTER TABLE t RENAME INDEX i1 TO GEN_CLUST_INDEX;
 
@@ -58,43 +66,132 @@ ALTER TABLE t RENAME INDEX i1 TO GEN_CLUST_INDEX;
 # rules out the combinations ..\(.\)\1
 # a.k.a. aaaa aabb abcc abaa baaa
 
+# We use the index names i1 to i4 for existing indexes abcd.
+# Non-existing index names will be aa,bb,cc,dd.
+# Index creation on non-existing columns will not be tested.
+
 ALTER TABLE t RENAME INDEX i1 TO i1;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t RENAME INDEX aa TO aa;
+
+-- echo # combination: aaaa
+# drop/add existing, null rename and drop the same
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i4(f), DROP INDEX i4, RENAME INDEX i4 TO i4;
+
+-- echo # combination: aabb
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX aa, RENAME INDEX i2 TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX aa, RENAME INDEX bb TO bb;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i1, RENAME INDEX bb TO bb;
+
+-- enable_info
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i1, RENAME INDEX i2 TO i2;
+-- disable_info
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+-- eval $insert
+
+-- echo # combination: abcc
+
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX bb, RENAME INDEX cc TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX bb, RENAME INDEX i3 TO i3;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX cc TO cc;
+
+# rename existing (succeeds)
+-- enable_info
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX i3 TO i3;
+-- disable_info
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+-- eval $insert
+
+-- echo # combination: abaa
 
 -- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t RENAME INDEX nonexistent TO nonexistent;
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i1, RENAME INDEX aa TO aa;
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX i1 TO i1;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX bb, RENAME INDEX i1 TO i1;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX bb, RENAME INDEX aa TO aa;
+
+-- echo # combination: baaa
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i2(f), DROP INDEX i1, RENAME INDEX i1 TO i1;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX bb(f), DROP INDEX i1, RENAME INDEX i1 TO i1;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i2(f), DROP INDEX aa, RENAME INDEX aa TO aa;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX bb(f), DROP INDEX aa, RENAME INDEX aa TO aa;
 
 # refuse: w=z (ADD w, RENAME y TO w)
 # rules out the combinations \(.\)..\1
 # a.k.a. aaaa abba cabc aaba abaa
 # the case w=y (ADD w, RENAME w to z) may succeed, as seen below
 
-# rename non-existing
 -- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t ADD INDEX foo (f), RENAME INDEX foo TO bar;
-
+ALTER TABLE t ADD INDEX aa(f), RENAME INDEX aa TO bb;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), RENAME INDEX bb TO aa;
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
+ALTER TABLE t ADD INDEX aa(f), RENAME INDEX i2 TO aa;
 
 # rename existing, add one with the same name
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
-
+-- enable_info
+ALTER TABLE t ADD INDEX i1(f), RENAME INDEX i1 TO bb;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
+-- eval $insert
 
-ALTER TABLE t DROP INDEX i1, RENAME INDEX i2 TO i1;
+-- echo # combination: abba
 
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-DROP TABLE t;
--- eval $create
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX i2 TO i1;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX i2 TO aa;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX bb, RENAME INDEX bb TO i1;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX bb, RENAME INDEX bb TO aa;
 
-# rename existing, conflicting with ADD
+-- echo # combination: cabc
+
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i9;
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i1, RENAME INDEX i2 TO i3;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX aa, RENAME INDEX i2 TO i3;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i1, RENAME INDEX bb TO i3;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX aa, RENAME INDEX bb TO i3;
+
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX i1, RENAME INDEX i2 TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX aa, RENAME INDEX i2 TO cc;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX i1, RENAME INDEX bb TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX aa, RENAME INDEX bb TO cc;
 
 # refuse: x=y (DROP x, RENAME x TO z)
 # rules out the combinations .\(.\)\1.
@@ -102,139 +199,197 @@ ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i9;
 
 # rename and drop the same
 -- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i1;
-
+ALTER TABLE t DROP INDEX i1, RENAME INDEX i1 TO bb;
 # drop non-existing
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t RENAME INDEX i1 TO i9, DROP INDEX i9;
-
+ALTER TABLE t DROP INDEX aa, RENAME INDEX i2 TO aa;
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t RENAME INDEX i9 TO i1, DROP INDEX i9;
+ALTER TABLE t DROP INDEX aa, RENAME INDEX aa TO i2;
 
 # this one will succeed (drop, replace with an existing one)
-ALTER TABLE t RENAME INDEX i1 TO i2, DROP INDEX i2;
-
+-- enable_info
+ALTER TABLE t DROP INDEX i1, RENAME INDEX i4 TO i1;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
+-- eval $insert
+
+-- echo # combination: accb
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i3, RENAME INDEX i3 TO i2;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i3, RENAME INDEX i3 TO bb;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX cc, RENAME INDEX cc TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX cc, RENAME INDEX cc TO bb;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX cc, RENAME INDEX cc TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX cc, RENAME INDEX cc TO bb;
+
+-- echo # combination: aaab
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i1, RENAME INDEX i1 TO i2;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i1, RENAME INDEX i1 TO bb;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i1, RENAME INDEX i1 TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX aa, RENAME INDEX aa TO bb;
 
 # Remaining combinations: abcd abab acbc cacb ccab
 
+-- echo # combination: abcd
+
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX cc TO i4;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX cc TO dd;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX cc TO i4;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX cc TO dd;
+
 # add existing, rename to existing
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i4;
-
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX i3 TO i4;
 # add existing
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i4;
-
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX i3 TO dd;
 # rename to existing
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX i3 TO i4;
 
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8, DROP INDEX i3;
-
+-- enable_info
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX i3 TO dd;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
-
-ALTER TABLE t RENAME INDEX i1 TO i8, RENAME INDEX i2 TO i9;
-
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-DROP TABLE t;
--- eval $create
+-- eval $insert
 
 -- echo # combination: abab
 
--- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+-- enable_info
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i2, RENAME INDEX i1 TO i2;
+-- disable_info
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+-- eval $insert
 
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9, DROP INDEX i9;
-
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX bb, RENAME INDEX i1 TO bb;
 -- error ER_KEY_DOES_NOT_EXITS
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i1, DROP INDEX i1;
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i2, RENAME INDEX aa TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX bb, RENAME INDEX aa TO bb;
+
+-- echo # combination: acbc
 
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i9 TO i8, DROP INDEX i8;
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX cc, RENAME INDEX i2 TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX cc, RENAME INDEX i2 TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX cc, RENAME INDEX bb TO cc;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX cc, RENAME INDEX bb TO cc;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i3, RENAME INDEX bb TO i3;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i3, RENAME INDEX bb TO i3;
 
 # add existing
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
+ALTER TABLE t ADD INDEX i1(f), DROP INDEX i3, RENAME INDEX i2 TO i3;
 
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i3, DROP INDEX i3;
-
+-- enable_info
+ALTER TABLE t ADD INDEX aa(f), DROP INDEX i3, RENAME INDEX i2 TO i3;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
-
-ALTER TABLE t RENAME INDEX i2 TO i9, RENAME INDEX i1 TO i2;
-
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-DROP TABLE t;
--- eval $create
-
--- echo # The following ALTER would screw up the stats tables because there
--- echo # is unique index on index_name in mysql.innodb_index_stats and the
--- echo # rename i1 -> i2 would fail because i2 is (still) present.
-ALTER TABLE t RENAME INDEX i1 TO i2, RENAME INDEX i2 TO i9;
-
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-DROP TABLE t;
--- eval $create
+-- eval $insert
 
 -- echo # combination: cacb
 
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX i1, RENAME INDEX cc TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX aa, RENAME INDEX cc TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX aa, RENAME INDEX cc TO bb;
+-- error ER_KEY_DOES_NOT_EXITS
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX i1, RENAME INDEX cc TO bb;
+
 -- error ER_DUP_KEYNAME
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i3;
-
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i1, RENAME INDEX i3 TO i2;
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i2, DROP INDEX i9;
-
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX aa, RENAME INDEX i3 TO i2;
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i9;
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX aa, RENAME INDEX i3 TO bb;
 
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i8, DROP INDEX i4;
-
+-- enable_info
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i1, RENAME INDEX i3 TO bb;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
-
-ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i2 TO i9, DROP INDEX i1;
-
--- eval $show_table
--- eval $show_sys
--- eval $show_stats
-DROP TABLE t;
--- eval $create
+-- eval $insert
 
 -- echo # combination: ccab
 
 -- error ER_CANT_DROP_FIELD_OR_KEY
-ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i2 TO i8, DROP INDEX i9;
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX cc, RENAME INDEX i1 TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX cc, RENAME INDEX i1 TO bb;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX cc, RENAME INDEX aa TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX cc(f), DROP INDEX cc, RENAME INDEX aa TO bb;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX cc, RENAME INDEX aa TO i2;
+-- error ER_CANT_DROP_FIELD_OR_KEY
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX cc, RENAME INDEX aa TO bb;
 
-# A simple successful ALTER
-ALTER TABLE t RENAME INDEX i1 TO x;
+-- error ER_DUP_KEYNAME
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i3, RENAME INDEX i1 TO i2;
 
+-- enable_info
+ALTER TABLE t ADD INDEX i3(f), DROP INDEX i3, RENAME INDEX i1 TO bb;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
+-- eval $insert
+
+# A simple successful ALTER
+-- enable_info
+ALTER TABLE t RENAME INDEX i1 TO x;
+-- disable_info
+-- eval $show_table
+-- eval $show_sys
+-- eval $show_stats
+DROP TABLE t;
+-- eval $create
+-- eval $insert
 
 -- error ER_DUP_KEYNAME
 ALTER TABLE t RENAME INDEX i1 TO i2;
@@ -244,21 +399,25 @@ ALTER TABLE t RENAME INDEX foo TO i1;
 
 # Test ADD INDEX, RENAME INDEX
 
+-- enable_info
 ALTER TABLE t ADD INDEX i9 (f), RENAME INDEX i1 TO i8;
-
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
+-- eval $insert
 
+-- enable_info
 ALTER TABLE t ADD INDEX i1 (f), RENAME INDEX i1 TO i9;
-
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 DROP TABLE t;
 -- eval $create
+-- eval $insert
 
 -- error ER_DUP_KEYNAME
 ALTER TABLE t ADD INDEX foo (f), RENAME INDEX i1 TO foo;
@@ -306,14 +465,19 @@ CREATE TABLE t (
 	INDEX i2 (c4)
 ) ENGINE=INNODB;
 
-ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (c2),
-RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+INSERT INTO t SET c1=1, c2=2;
+
+-- enable_info
+ALTER TABLE t DROP PRIMARY KEY, ADD PRIMARY KEY (c2), RENAME INDEX i1 TO x;
+-- disable_info
 
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
 
-ALTER TABLE t RENAME INDEX i2 TO y, ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+-- enable_info
+ALTER TABLE t RENAME INDEX i2 TO y, ROW_FORMAT=REDUNDANT;
+-- disable_info
 
 -- eval $show_table
 -- eval $show_sys
@@ -331,8 +495,11 @@ CREATE TABLE t (
 	INDEX i2 (c3)
 ) ENGINE=INNODB;
 
-ALTER TABLE t ADD PRIMARY KEY (c1), RENAME INDEX i1 TO x, ALGORITHM=INPLACE;
+INSERT INTO t SET c1=1;
 
+-- enable_info
+ALTER TABLE t ADD PRIMARY KEY (c1), RENAME INDEX i1 TO x;
+-- disable_info
 -- eval $show_table
 -- eval $show_sys
 -- eval $show_stats
@@ -342,10 +509,13 @@ DROP TABLE t;
 # Test repeated RENAMEs with alternating names
 
 CREATE TABLE t (a INT, INDEX iiiii (a)) ENGINE=INNODB;
+INSERT INTO t SET a=NULL;
+-- enable_info
 ALTER TABLE t RENAME INDEX iiiii TO i;
 ALTER TABLE t RENAME INDEX i TO iiiii;
 ALTER TABLE t RENAME INDEX iiiii TO i;
 ALTER TABLE t RENAME INDEX i TO iiiii;
+-- disable_info
 DROP TABLE t;
 
 # Test basic RENAME INDEX with a broken persistent stats storage
@@ -354,10 +524,13 @@ call mtr.add_suppression("InnoDB: Error: Table .*innodb_index_stats.* not found"
 call mtr.add_suppression("InnoDB: Error: Fetch of persistent statistics requested for table \"test\".\"t\" but the required system tables .* are not present.*");
 
 CREATE TABLE t (a INT, b INT, PRIMARY KEY (a), INDEX i1 (b)) ENGINE=INNODB;
+INSERT INTO t SET a=1;
 
 RENAME TABLE mysql.innodb_index_stats TO mysql.innodb_index_stats_;
 
+-- enable_info
 ALTER TABLE t RENAME INDEX i1 TO i7;
+-- disable_info
 
 RENAME TABLE mysql.innodb_index_stats_ TO mysql.innodb_index_stats;
 
