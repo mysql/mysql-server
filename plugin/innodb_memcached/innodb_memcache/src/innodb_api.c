@@ -170,7 +170,7 @@ innodb_api_begin(
 			meta_cfg_info_t* meta_info = conn_data->conn_meta;
 			meta_index_t*	meta_index = &meta_info->index_info;
 
-			if (!engine->enable_mdl) {
+			if (!engine->enable_mdl || !conn_data->mysql_tbl) {
 				err = innodb_verify_low(
 					meta_info , *crsr, true);
 
