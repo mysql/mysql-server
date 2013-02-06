@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8406,6 +8406,12 @@ committed:
   m_tx.m_state = NdbDictInterface::Tx::NotStarted;
   m_tx.m_op.clear();
   DBUG_RETURN(0);
+}
+
+int
+NdbDictionaryImpl::getDefaultHashmapSize() const
+{
+  return m_ndb.theImpl->get_ndbapi_config_parameters().m_default_hashmap_size;
 }
 
 bool

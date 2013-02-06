@@ -2936,11 +2936,12 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     { CFG_BATCH_SIZE,                            &NdbApiConfig::m_batch_size,      { 10, 1000 } },
     // Skip test of m_waitfor_timeout since it is not configurable in API-section
     { CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &NdbApiConfig::m_default_queue_option,
-      { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } }
+      { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } },
+    { CFG_DEFAULT_HASHMAP_SIZE,                  &NdbApiConfig::m_default_hashmap_size, { 240, 3840 } },
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 5 * sizeof(Uint32));
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 6 * sizeof(Uint32));
 
   Config savedconf;
   if (!mgmd.get_config(savedconf))

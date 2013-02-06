@@ -211,24 +211,39 @@
 
 
 /**
- * Support at least one partition per LDM. And
- * also try to make size a multiple of all possible
- * data node counts, so that all partitions are
- * related to the same number of hashmap buckets
- * as possible, otherwise some partitions will be
- * bigger than others.
+ * The hashmap size should support at least one
+ * partition per LDM. And also try to make size
+ * a multiple of all possible data node counts,
+ * so that all partitions are related to the same
+ * number of hashmap buckets as possible,
+ * otherwise some partitions will be bigger than
+ * others.
+ *
+ * The historical size of hashmaps supported by old
+ * versions of NDB is 240.  This guarantees at most
+ * 1/6 of unusable data memory for some nodes, since
+ * one can have atmost 48 data nodes so each node
+ * will relate to at least 5 hashmap buckets.  Also
+ * 240 is a multiple of 2, 3, 4, 5, 6, 8, 10, 12,
+ * 15, 16, 20, 24, 30, 32, 40, and 48 so having any
+ * of these number of nodes guarantees near no
+ * unusable data memory.
+ *
+ * The current value 3840 is 16 times 240, and so gives
+ * at least the same guarantees as the old value above,
+ * also if up to 16 ldm threads per node is used.
  */
 
 #define NDB_MAX_HASHMAP_BUCKETS 3840
 
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #ifdef NDB_LARGE_DEFAULT_HASHMAPS
-#define NDB_DEFAULT_HASHMAP_BUCKETS (48 * 16 * 5) /* 3840 */
+#define NDB_DEFAULT_HASHMAP_BUCKETS NDB_MAX_HASHMAP_BUCKETS
 #else
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
 #endif
 #else
-#define NDB_DEFAULT_HASHMAP_BUCKETS (48 * 16 * 5) /* 3840 */
+#define NDB_DEFAULT_HASHMAP_BUCKETS NDB_MAX_HASHMAP_BUCKETS
 #endif
 
 /**
