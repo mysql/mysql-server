@@ -3949,10 +3949,15 @@ ibuf_insert_to_index_page_low(
 		return;
 	}
 
+	/* Page reorganization or recompression should already have
+	been attempted by page_cur_tuple_insert(). Besides, per
+	ibuf_index_page_calc_free_zip() the page should not have been
+	recompressed or reorganized. */
+	ut_ad(!buf_block_get_page_zip(block));
+
 	/* If the record did not fit, reorganize */
 
-	btr_page_reorganize(block, index, mtr);
-	page_cur_search(block, index, entry, PAGE_CUR_LE, page_cur);
+	btr_page_reorganize(page_cur, index, mtr);
 
 	/* This time the record must fit */
 
@@ -4105,14 +4110,18 @@ dump:
 		if (!row_upd_changes_field_size_or_external(index, offsets,
 							    update)
 		    && (!page_zip || btr_cur_update_alloc_zip(
-				page_zip, block, index,
-				rec_offs_size(offsets), FALSE, mtr))) {
+				page_zip, &page_cur, index, offsets,
+				rec_offs_size(offsets), false, mtr))) {
 			/* This is the easy case. Do something similar
 			to btr_cur_update_in_place(). */
+			rec = page_cur_get_rec(&page_cur);
 			row_upd_rec_in_place(rec, index, offsets,
 					     update, page_zip);
 			goto updated_in_place;
 		}
+
+		/* btr_cur_update_alloc_zip() may have changed this */
+		rec = page_cur_get_rec(&page_cur);
 
 		/* A collation may identify values that differ in
 		storage length.
