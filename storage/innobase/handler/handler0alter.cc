@@ -3257,18 +3257,22 @@ innobase_check_foreign_key_index(
 	return(false);
 }
 
-/*********************************************************************//**
+/**
 Rename a given index in the InnoDB data dictionary.
-@retval true	Failure
-@retval false	Success */
+
+@param index       index to rename
+@param new_name    new name of the index
+@param[in,out] trx dict transaction to use, not going to be committed here
+
+@retval true Failure
+@retval false Success */
 static __attribute__((warn_unused_result))
 bool
 rename_index_in_data_dictionary(
 /*============================*/
-	const dict_index_t*	index,	/*!< in: index to rename */
-	const char*		new_name,/*!< in: new name of the index */
-	trx_t*			trx)	/*!< in/out: dict transaction to use,
-					not going to be committed here */
+	const dict_index_t*	index,
+	const char*		new_name,
+	trx_t*			trx)
 {
 	DBUG_ENTER("rename_index_in_data_dictionary");
 
@@ -3321,24 +3325,24 @@ rename_index_in_data_dictionary(
 	DBUG_RETURN(false);
 }
 
-/*********************************************************************//**
+/**
 Rename all indexes in data dictionary of a given table that are
 specified in ha_alter_info.
-@retval true	Failure
-@retval false	Success */
+
+@param ctx           alter context, used to fetch the list of indexes to
+rename
+@param ha_alter_info fetch the new names from here
+@param[in,out] trx   dict transaction to use, not going to be committed here
+
+@retval true Failure
+@retval false Success */
 static __attribute__((warn_unused_result))
 bool
 rename_indexes_in_data_dictionary(
 /*==============================*/
-	const ha_innobase_inplace_ctx*	ctx,		/*!< in: alter context,
-							used to fetch the list
-							of indexes to rename */
-	Alter_inplace_info*		ha_alter_info,	/*!< in: fetch the new
-							names from here */
-	trx_t*				trx)		/*!< in/out: dict
-							transaction to use,
-							not going to be
-							committed here */
+	const ha_innobase_inplace_ctx*	ctx,
+	const Alter_inplace_info*	ha_alter_info,
+	trx_t*				trx)
 {
 	DBUG_ENTER("rename_indexes_in_data_dictionary");
 
@@ -3363,14 +3367,18 @@ rename_indexes_in_data_dictionary(
 	DBUG_RETURN(false);
 }
 
-/*********************************************************************//**
-Rename a given index in the InnoDB data dictionary cache. */
+/**
+Rename a given index in the InnoDB data dictionary cache.
+
+@param[in,out] index index to rename
+@param new_name      new index name
+*/
 static
 void
 rename_index_in_cache(
 /*==================*/
-	dict_index_t*	index,		/*!< in/out: index to rename */
-	const char*	new_name)	/*!< in: new index name */
+	dict_index_t*	index,
+	const char*	new_name)
 {
 	DBUG_ENTER("rename_index_in_cache");
 
@@ -3406,18 +3414,19 @@ rename_index_in_cache(
 	DBUG_VOID_RETURN;
 }
 
-/*********************************************************************//**
+/**
 Rename all indexes in data dictionary cache of a given table that are
-specified in ha_alter_info. */
+specified in ha_alter_info.
+
+@param ctx alter     context, used to fetch the list of indexes to rename
+@param ha_alter_info fetch the new names from here
+*/
 static
 void
 rename_indexes_in_cache(
 /*====================*/
-	const ha_innobase_inplace_ctx*	ctx,	/*!< in: alter context, used
-						to fetch the list of indexes
-						to rename */
-	Alter_inplace_info*	ha_alter_info)	/*!< in: fetch the new names
-						from here */
+	const ha_innobase_inplace_ctx*	ctx,
+	const Alter_inplace_info*	ha_alter_info)
 {
 	DBUG_ENTER("rename_indexes_in_cache");
 
@@ -5503,29 +5512,29 @@ commit_cache_norebuild(
 	DBUG_RETURN(found);
 }
 
-/*********************************************************************//**
+/**
 Do the necessary changes in the persistent stats tables after an
 ALTER TABLE command that did not cause rebuild of the table. This consists
 of removing stats for dropped indexes, adding stats for newly added indexes
-and renaming stats for renamed indexes. */
+and renaming stats for renamed indexes.
+
+@param ha_alter_info     used to determine which indexes were dropped and
+renamed
+@param[in,out] new_table new table, its flags will be updated from "new_share"
+@param new_share         used to fetch the flags for the new table
+@param table_name        table name, used for diagnostic purposes
+@param[in,out] thd       thread handle, used to push warnings to the client
+connection if an error occurs
+*/
 static
 void
 alter_stats_norebuild(
 /*==================*/
-	Alter_inplace_info*	ha_alter_info,	/*!< in: used to determine
-						which indexes were dropped
-						and renamed */
-	dict_table_t*		new_table,	/*!< in/out: new table, its
-						flags will be updated from
-						"new_share" */
-	const TABLE_SHARE*	new_share,	/*!< in: used to fetch the
-						flags for the new table */
-	const char*		table_name,	/*!< in: table name, used
-						for diagnostic purposes */
-	THD*			thd)		/*!< thread handle, used to
-						push warnings to the client
-						connection if an error
-						occurs */
+	const Alter_inplace_info*	ha_alter_info,
+	dict_table_t*			new_table,
+	const TABLE_SHARE*		new_share,
+	const char*			table_name,
+	THD*				thd)
 {
 	ha_innobase_inplace_ctx*	ctx;
 	dberr_t				ret;
@@ -5539,7 +5548,7 @@ alter_stats_norebuild(
 		DBUG_VOID_RETURN;
 	}
 
-	ctx = static_cast<ha_innobase_inplace_ctx*>(
+	ctx = static_cast<const ha_innobase_inplace_ctx*>(
 		ha_alter_info->handler_ctx);
 
 	if (ctx == NULL) {
@@ -5618,29 +5627,30 @@ alter_stats_norebuild(
 	DBUG_VOID_RETURN;
 }
 
-/*********************************************************************//**
+/**
 Do the necessary changes in the persistent stats tables after a successful
 rebuild of the table in an ALTER TABLE command. This consists of wiping
 away the old index stats (in case some index was dropped or renamed) and
-recalculating new stats for the whole table. */
+recalculating new stats for the whole table.
+
+@param old_table         old table definition, used to drop all of the old
+indexes from persistent stats storage.
+@param[in,out] new_table new table, its flags will be updated from "new_share"
+and its stats may be updated
+@param new_share         used to fetch the flags for the new table
+@param table_name        table name, used for diagnostic purposes
+@param[in,out] thd       thread handle, used to push warnings to the client
+connection if an error occurs
+*/
 static
 void
 alter_stats_rebuild(
 /*================*/
-	const TABLE*	old_table,	/*!< in: old table definition,
-					used to drop all of the old
-					indexes from persistent stats
-					storage. */
-	dict_table_t*	new_table,	/*!< in/out: new table, its flags
-					will be updated from "new_share"
-					and its stats may be updated */
-	const TABLE_SHARE* new_share,	/*!< in: used to fetch the flags
-					for the new table */
-	const char*	table_name,	/*!< in: table name, used
-					for diagnostic purposes */
-	THD*		thd)		/*!< thread handle, used to push
-					warnings to the client connection
-					if an error occurs */
+	const TABLE*		old_table,
+	dict_table_t*		new_table,
+	const TABLE_SHARE*	new_share,
+	const char*		table_name,
+	THD*			thd)
 {
 	DBUG_ENTER("alter_stats_rebuild");
 
