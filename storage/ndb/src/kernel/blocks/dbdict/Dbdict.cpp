@@ -4957,7 +4957,7 @@ void Dbdict::handleTabInfoInit(Signal * signal, SchemaTransPtr & trans_ptr,
 
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
-                         NDB_DEFAULT_HASHMAP_BUCKETS,
+                         c_default_hashmap_size,
                          fragments);
     DictObject* dictObj = get_object(buf);
     if (dictObj && dictObj->m_type == DictTabInfo::HashMap)
@@ -23215,7 +23215,7 @@ Dbdict::createNodegroup_subOps(Signal* signal, SchemaOpPtr op_ptr)
      *   and still continue transaction
      *   but that i dont know how
      */
-    Uint32 buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
+    Uint32 buckets = c_default_hashmap_size;
     Uint32 fragments = get_default_fragments(signal, 1);
     char buf[MAX_TAB_NAME_SIZE+1];
     BaseString::snprintf(buf, sizeof(buf), "DEFAULT-HASHMAP-%u-%u",
@@ -28832,7 +28832,7 @@ Dbdict::createHashMap_parse(Signal* signal, bool master,
     if (impl_req->requestType & CreateHashMapReq::CreateDefault)
     {
       jam();
-      impl_req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
+      impl_req->buckets = c_default_hashmap_size;
       impl_req->fragments = 0;
     }
 
