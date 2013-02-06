@@ -786,8 +786,19 @@ page_create_zip(
 					page is created */
 	dict_index_t*	index,		/*!< in: the index of the page */
 	ulint		level,		/*!< in: the B-tree level of the page */
-	mtr_t*		mtr);		/*!< in: mini-transaction handle */
-
+	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
+/**********************************************************//**
+Empty a previously created B-tree index page. */
+UNIV_INTERN
+void
+page_create_empty(
+/*==============*/
+	buf_block_t*	block,	/*!< in/out: B-tree block */
+	dict_index_t*	index,	/*!< in: the index of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull(1,2)));
 /*************************************************************//**
 Differs from page_copy_rec_list_end, because this function does not
 touch the lock table and max trx id on page or compress the page. */

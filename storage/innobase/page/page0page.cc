@@ -500,7 +500,8 @@ page_create_zip(
 					page is created */
 	dict_index_t*	index,		/*!< in: the index of the page */
 	ulint		level,		/*!< in: the B-tree level of the page */
-	mtr_t*		mtr)		/*!< in: mini-transaction handle */
+	trx_id_t	max_trx_id,	/*!< in: PAGE_MAX_TRX_ID */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	page_t*		page;
 	page_zip_des_t*	page_zip	= buf_block_get_page_zip(block);
@@ -511,7 +512,8 @@ page_create_zip(
 	ut_ad(dict_table_is_comp(index->table));
 
 	page = page_create_low(block, TRUE);
-	mach_write_to_2(page + PAGE_HEADER + PAGE_LEVEL, level);
+	mach_write_to_2(PAGE_HEADER + PAGE_LEVEL + page, level);
+	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
 	if (!page_zip_compress(page_zip, page, index,
 	    page_compression_level, mtr)) {
@@ -521,6 +523,41 @@ page_create_zip(
 	}
 
 	return(page);
+}
+
+/**********************************************************//**
+Empty a previously created B-tree index page. */
+UNIV_INTERN
+void
+page_create_empty(
+/*==============*/
+	buf_block_t*	block,	/*!< in/out: B-tree block */
+	dict_index_t*	index,	/*!< in: the index of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	trx_id_t	max_trx_id = 0;
+	const page_t*	page	= buf_block_get_frame(block);
+	page_zip_des_t*	page_zip= buf_block_get_page_zip(block);
+
+	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
+
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+		max_trx_id = page_get_max_trx_id(page);
+		ut_ad(max_trx_id);
+	}
+
+	if (page_zip) {
+		page_create_zip(block, index,
+				page_header_get_field(page, PAGE_LEVEL),
+				max_trx_id, mtr);
+	} else {
+		page_create(block, mtr, page_is_comp(page));
+
+		if (max_trx_id) {
+			page_update_max_trx_id(
+				block, page_zip, max_trx_id, mtr);
+		}
+	}
 }
 
 /*************************************************************//**
@@ -953,13 +990,32 @@ page_delete_rec_list_end(
 	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (page_rec_is_infimum(rec)) {
-		rec = page_rec_get_next(rec);
+	if (page_rec_is_supremum(rec)) {
+		ut_ad(n_recs == 0 || n_recs == ULINT_UNDEFINED);
+		return;
 	}
 
-	if (page_rec_is_supremum(rec)) {
-
+	if (page_rec_is_infimum(rec)
+	    || n_recs == page_get_n_recs(page)) {
+delete_all:
+		/* We are deleting all records. */
+		page_create_empty(block, index, mtr);
 		return;
+	}
+
+	/* If we are deleting everything from the first user record
+	onwards, create an empty page. */
+
+	if (ulint comp = page_is_comp(page)) {
+		if (page_rec_get_next_low(page + PAGE_NEW_INFIMUM, comp)
+		    == rec) {
+			goto delete_all;
+		}
+	} else {
+		if (page_rec_get_next_low(page + PAGE_OLD_INFIMUM, comp)
+		    == rec) {
+			goto delete_all;
+		}
 	}
 
 	/* Reset the last insert info in the page header and increment
@@ -1138,7 +1194,12 @@ page_delete_rec_list_start(
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
+		return;
+	}
 
+	if (page_rec_is_supremum(rec)) {
+		/* We are deleting all records. */
+		page_create_empty(block, index, mtr);
 		return;
 	}
 
