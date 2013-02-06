@@ -325,6 +325,20 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-client
 Obsoletes:      MySQL-Cluster-client
 
+%description -n MySQL-Cluster-client%{product_suffix}
+This package contains the standard MySQL clients and administration tools.
+
+For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
+
+# ----------------------------------------------------------------------------
+%package -n MySQL-Cluster-test%{product_suffix}
+Requires:       MySQL-Cluster-client%{product_suffix} perl
+Summary:        MySQL Cluster - Test suite
+Group:          Applications/Databases
+Provides:       MySQL-Cluster-test
+Obsoletes:      MySQL-Cluster-test
+AutoReqProv:    no
+
 %description -n MySQL-Cluster-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
