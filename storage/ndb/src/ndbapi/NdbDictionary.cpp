@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1895,7 +1895,7 @@ int
 NdbDictionary::Dictionary::getDefaultHashMap(NdbDictionary::HashMap& dst,
                                              Uint32 fragments)
 {
-  return getDefaultHashMap(dst, NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+  return getDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), fragments);
 }
 
 int
@@ -1935,7 +1935,7 @@ int
 NdbDictionary::Dictionary::initDefaultHashMap(NdbDictionary::HashMap& dst,
                                               Uint32 fragments)
 {
-  return initDefaultHashMap(dst, NDB_DEFAULT_HASHMAP_BUCKETS, fragments);
+  return initDefaultHashMap(dst, m_impl.getDefaultHashmapSize(), fragments);
 }
 
 int
@@ -1963,7 +1963,7 @@ int
 NdbDictionary::Dictionary::prepareHashMap(const Table& oldTableF,
                                           Table& newTableF)
 {
-  return prepareHashMap(oldTableF, newTableF, NDB_DEFAULT_HASHMAP_BUCKETS);
+  return prepareHashMap(oldTableF, newTableF, m_impl.getDefaultHashmapSize());
 }
 
 int
