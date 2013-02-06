@@ -3467,6 +3467,7 @@ my %old_env;
 
 sub run_testcase ($) {
   my $tinfo=  shift;
+  my $print_freq=20;
 
   mtr_verbose("Running test:", $tinfo->{name});
 
