@@ -1554,7 +1554,22 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
+  {
+    /*
+     Implicit commits like ddl do not have binlog prepare stage
+     so we must fetch the prepare and commit timestamps for these
+     here. We will assume this is where the transaction entered the prepare
+     phase. Other transactions entering here will have thd->prepare_seq_no
+     already written in function ha_commit_trans and will not step the prepare
+     clock or overwrite the commit parent timestamp.
+     */
+    if (thd->prepare_seq_no == PC_UNINIT)
+    {
+      thd->prepare_seq_no= prepare_clock.step_clock();
+      thd->commit_seq_no= commit_clock.get_timestamp();
+    }
     error= ordered_commit(thd, all, /* skip_commit */ true);
+  }
 
   if (check_write_error(thd))
   {
