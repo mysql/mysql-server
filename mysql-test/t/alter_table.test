@@ -1776,7 +1776,7 @@ alter table t2 algorithm=inplace, rename key k to kk, add column j int;
 drop table t1, t2;
 
 --echo # 3.b) Basic tests for InnoDB. More tests can be found in
---echo #      main.innodb_rename_index*
+--echo #      innodb.innodb_rename_index*
 create table t1 (i int, key k(i)) engine=innodb;
 insert into t1 values (1);
 --echo # Basic rename, inplace algorithm should be chosen
