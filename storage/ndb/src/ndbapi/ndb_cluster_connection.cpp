@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -729,6 +729,36 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
     if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
     {
       m_config.m_default_queue_option = queue;
+    }
+
+    Uint32 default_hashmap_size = 0;
+    if (!iter.get(CFG_DEFAULT_HASHMAP_SIZE, &default_hashmap_size) &&
+        default_hashmap_size != 0)
+    {
+      m_config.m_default_hashmap_size = default_hashmap_size;
+    }
+    // If DefaultHashmapSize is not set or zero, use the minimum
+    // value set (not zero) for any other node, since this size
+    // should be supported by the other nodes.  Also this allows
+    // the DefaultHashmapSize to be set for the entire cluster
+    // if set for a single node or node type.
+    // Otherwise use NDB_DEFAULT_HASHMAP_BUCKETS
+    if (default_hashmap_size == 0)
+    {
+      // Use new iterator to leave iter valid.
+      ndb_mgm_configuration_iterator iterall(config, CFG_SECTION_NODE);
+      for (; iterall.valid(); iterall.next())
+      {
+        Uint32 tmp = 0;
+        if (!iterall.get(CFG_DEFAULT_HASHMAP_SIZE, &tmp) &&
+            tmp != 0 &&
+            ((default_hashmap_size == 0) || (tmp < default_hashmap_size)))
+          default_hashmap_size = tmp;
+      }
+      if (default_hashmap_size == 0)
+        default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
+
+      m_config.m_default_hashmap_size = default_hashmap_size;
     }
 
     // Configure timeouts
