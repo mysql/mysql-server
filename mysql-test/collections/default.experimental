@@ -18,3 +18,13 @@ rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sp
 
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+
+thread_pool.thread_pool_func4 @windows # mleich: test is sometimes unstable on Windows
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
+# For easier human reading (MTR doesn't care), please keep entries
+# in alphabetical order. This also helps with merge conflict resolution.
