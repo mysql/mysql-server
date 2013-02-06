@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -629,7 +629,7 @@ public:
   bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool optimize();
   bool exec();
-  void explain();
+  bool explain();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
