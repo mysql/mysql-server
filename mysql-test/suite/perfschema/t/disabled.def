@@ -9,3 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+hostcache_ipv4_max_con : BUG#14627287 27th Sept, 2012 Mayank
+hostcache_ipv6_max_con : BUG#14627287 27th Sept, 2012 Mayank
+

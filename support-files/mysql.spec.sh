@@ -361,8 +361,11 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:	MySQL - Shared libraries
 Group:		Applications/Databases
 Provides:	MySQL-shared
-Conflicts:	mysql-libs mysql-libs-advanced
-Obsoletes:	MySQL-shared-community MySQL-shared-advanced
+Obsoletes:	MySQL-shared-standard MySQL-shared-pro
+Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
+Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared
+Obsoletes:	MySQL-shared-classic MySQL-shared-community MySQL-shared-enterprise
+Obsoletes:	MySQL-shared-advanced MySQL-shared-advanced-gpl MySQL-shared-enterprise-gpl
 
 %description -n MySQL-shared%{product_suffix}
 This package contains the shared libraries (*.so*) which certain languages

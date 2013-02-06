@@ -7069,6 +7069,12 @@ static Log_event* next_event(Relay_log_info* rli)
     if (cur_log->error < 0)
     {
       errmsg = "slave SQL thread aborted because of I/O error";
+      if (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP)
+        /*
+          MTS group status is set to MTS_KILLED_GROUP, whenever a read event
+          error happens and there was already a non-terminal event scheduled.
+        */
+        rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
       if (hot_log)
         mysql_mutex_unlock(log_lock);
       goto err;
