@@ -1159,23 +1159,27 @@ fsp_fill_free_list(
 			/* Initialize the ibuf bitmap page in a separate
 			mini-transaction because it is low in the latching
 			order, and we must be able to release its latch
-			before returning from the fsp routine */
+			before returning from the fsp routine
+			Insert-Buffering disabled for object residing
+			in temp-tablespace. */
+			if (space != srv_tmp_space.space_id()) {
+				mtr_start(&ibuf_mtr);
 
-			mtr_start(&ibuf_mtr);
+				block = buf_page_create(
+						space,
+						i + FSP_IBUF_BITMAP_OFFSET,
+						zip_size, &ibuf_mtr);
+				buf_page_get(space, zip_size,
+					     i + FSP_IBUF_BITMAP_OFFSET,
+					     RW_X_LATCH, &ibuf_mtr);
+				buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
-			block = buf_page_create(space,
-						    i + FSP_IBUF_BITMAP_OFFSET,
-						    zip_size, &ibuf_mtr);
-			buf_page_get(space, zip_size,
-				     i + FSP_IBUF_BITMAP_OFFSET,
-				     RW_X_LATCH, &ibuf_mtr);
-			buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+				fsp_init_file_page(block, &ibuf_mtr);
 
-			fsp_init_file_page(block, &ibuf_mtr);
+				ibuf_bitmap_page_init(block, &ibuf_mtr);
 
-			ibuf_bitmap_page_init(block, &ibuf_mtr);
-
-			mtr_commit(&ibuf_mtr);
+				mtr_commit(&ibuf_mtr);
+			}
 		}
 
 		descr = xdes_get_descriptor_with_space_hdr(header, space, i,
