@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -518,11 +518,20 @@ page_rec_get_heap_no(
 	const rec_t*	rec);	/*!< in: the physical record */
 /************************************************************//**
 Determine whether the page is a B-tree leaf.
-@return	TRUE if the page is a B-tree leaf */
+@return	true if the page is a B-tree leaf (PAGE_LEVEL = 0) */
 UNIV_INLINE
-ibool
+bool
 page_is_leaf(
 /*=========*/
+	const page_t*	page)	/*!< in: page */
+	__attribute__((nonnull, pure));
+/************************************************************//**
+Determine whether the page is empty.
+@return	true if the page is empty (PAGE_N_RECS = 0) */
+UNIV_INLINE
+bool
+page_is_empty(
+/*==========*/
 	const page_t*	page)	/*!< in: page */
 	__attribute__((nonnull, pure));
 /************************************************************//**
@@ -566,10 +575,10 @@ UNIV_INLINE
 void
 page_rec_set_next(
 /*==============*/
-	rec_t*	rec,	/*!< in: pointer to record,
-			must not be page supremum */
-	rec_t*	next);	/*!< in: pointer to next record,
-			must not be page infimum */
+	rec_t*		rec,	/*!< in: pointer to record,
+				must not be page supremum */
+	const rec_t*	next);	/*!< in: pointer to next record,
+				must not be page infimum */
 /************************************************************//**
 Gets the pointer to the previous record.
 @return	pointer to previous record */
