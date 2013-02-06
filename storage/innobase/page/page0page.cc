@@ -516,7 +516,7 @@ page_create_zip(
 	mach_write_to_8(PAGE_HEADER + PAGE_MAX_TRX_ID + page, max_trx_id);
 
 	if (!page_zip_compress(page_zip, page, index,
-	    page_compression_level, mtr)) {
+			       page_zip_level, mtr)) {
 		/* The compression of a newly created page
 		should always succeed. */
 		ut_error;
@@ -562,7 +562,12 @@ page_create_empty(
 
 /*************************************************************//**
 Differs from page_copy_rec_list_end, because this function does not
-touch the lock table and max trx id on page or compress the page. */
+touch the lock table and max trx id on page or compress the page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit(). */
 UNIV_INTERN
 void
 page_copy_rec_list_end_no_locks(
@@ -637,6 +642,12 @@ page_copy_rec_list_end_no_locks(
 Copies records from page to new_page, from a given record onward,
 including that record. Infimum and supremum records are not copied.
 The records are copied to the start of the record list on new_page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return pointer to the original successor of the infimum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
@@ -697,11 +708,8 @@ page_copy_rec_list_end(
 	if (new_page_zip) {
 		mtr_set_log_mode(mtr, log_mode);
 
-		if (!page_zip_compress(new_page_zip,
-				       new_page,
-				       index,
-				       page_compression_level,
-				       mtr)) {
+		if (!page_zip_compress(new_page_zip, new_page,
+				       index, page_zip_level, mtr)) {
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
 			ulint	ret_pos
@@ -750,6 +758,12 @@ page_copy_rec_list_end(
 Copies records from page to new_page, up to the given record,
 NOT including that record. Infimum and supremum records are not copied.
 The records are copied to the end of the record list on new_page.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return pointer to the original predecessor of the supremum record on
 new_page, or NULL on zip overflow (new_block will be decompressed) */
 UNIV_INTERN
@@ -825,7 +839,7 @@ page_copy_rec_list_start(
 				goto zip_reorganize;);
 
 		if (!page_zip_compress(new_page_zip, new_page, index,
-				       page_compression_level, mtr)) {
+				       page_zip_level, mtr)) {
 
 			ulint	ret_pos;
 #ifndef DBUG_OFF
@@ -1237,6 +1251,12 @@ page_delete_rec_list_start(
 /*************************************************************//**
 Moves record list end to another page. Moved records include
 split_rec.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return TRUE on success; FALSE on compression failure (new_block will
 be decompressed) */
 UNIV_INTERN
@@ -1292,6 +1312,12 @@ page_move_rec_list_end(
 /*************************************************************//**
 Moves record list start to another page. Moved records do not include
 split_rec.
+
+IMPORTANT: The caller will have to update IBUF_BITMAP_FREE
+if new_block is a compressed leaf page in a secondary index.
+This has to be done either within the same mini-transaction,
+or by invoking ibuf_reset_free_bits() before mtr_commit().
+
 @return	TRUE on success; FALSE on compression failure */
 UNIV_INTERN
 ibool

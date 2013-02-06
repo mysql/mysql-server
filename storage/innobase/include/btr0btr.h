@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -450,18 +450,48 @@ btr_root_raise_and_insert(
 	__attribute__((nonnull, warn_unused_result));
 /*************************************************************//**
 Reorganizes an index page.
-IMPORTANT: if btr_page_reorganize() is invoked on a compressed leaf
-page of a non-clustered index, the caller must update the insert
-buffer free bits in the same mini-transaction in such a way that the
-modification will be redo-logged.
-@return	TRUE on success, FALSE on failure */
+
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
+
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
 UNIV_INTERN
-ibool
+bool
+btr_page_reorganize_low(
+/*====================*/
+	bool		recovery,/*!< in: true if called in recovery:
+				locks should not be updated, i.e.,
+				there cannot exist locks on the
+				page, and a hash index should not be
+				dropped: it cannot exist */
+	ulint		z_level,/*!< in: compression level to be used
+				if dealing with compressed page */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
+	dict_index_t*	index,	/*!< in: the index tree of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
+Reorganizes an index page.
+
+IMPORTANT: On success, the caller will have to update IBUF_BITMAP_FREE
+if this is a compressed leaf page in a secondary index. This has to
+be done either within the same mini-transaction, or by invoking
+ibuf_reset_free_bits() before mtr_commit(). On uncompressed pages,
+IBUF_BITMAP_FREE is unaffected by reorganization.
+
+@retval true if the operation was successful
+@retval false if it is a compressed page, and recompression failed */
+UNIV_INTERN
+bool
 btr_page_reorganize(
 /*================*/
-	buf_block_t*	block,	/*!< in: page to be reorganized */
-	dict_index_t*	index,	/*!< in: record descriptor */
-	mtr_t*		mtr)	/*!< in: mtr */
+	page_cur_t*	cursor,	/*!< in/out: page cursor */
+	dict_index_t*	index,	/*!< in: the index tree of the page */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
 /*************************************************************//**
 Decides if the page should be split at the convergence point of
