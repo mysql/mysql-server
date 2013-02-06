@@ -25,6 +25,11 @@ toku_txn_id64(DB_TXN * txn) {
 
 static void 
 toku_txn_release_locks(DB_TXN *txn) {
+    // Prevent access to the locktree map while releasing.
+    // It is possible for lock escalation to attempt to
+    // modify this data structure while the txn commits.
+    toku_mutex_lock(&db_txn_struct_i(txn)->txn_mutex);
+
     size_t num_ranges = db_txn_struct_i(txn)->lt_map.size();
     for (size_t i = 0; i < num_ranges; i++) {
         txn_lt_key_ranges ranges;
@@ -32,6 +37,8 @@ toku_txn_release_locks(DB_TXN *txn) {
         invariant_zero(r);
         toku_db_release_lt_key_ranges(txn, &ranges);
     }
+
+    toku_mutex_unlock(&db_txn_struct_i(txn)->txn_mutex);
 }
 
 static void

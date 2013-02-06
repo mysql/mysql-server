@@ -12,7 +12,7 @@
 
 namespace toku {
 
-void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb) {
+void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb, lt_escalate_cb escalate_cb, void *escalate_extra) {
     m_max_lock_memory = DEFAULT_MAX_LOCK_MEMORY;
     m_current_lock_memory = 0;
     m_lock_wait_time_ms = DEFAULT_LOCK_WAIT_TIME;
@@ -21,6 +21,9 @@ void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb)
     m_locktree_map.create();
     m_lt_create_callback = create_cb;
     m_lt_destroy_callback = destroy_cb;
+    m_lt_escalate_callback = escalate_cb;
+    m_lt_escalate_callback_extra = escalate_extra;
+
     ZERO_STRUCT(m_mutex);
     toku_mutex_init(&m_mutex, nullptr);
 }
@@ -218,7 +221,7 @@ void locktree::manager::run_escalation(void) {
         locktree *lt;
         int r = m_locktree_map.fetch(i, &lt);
         invariant_zero(r);
-        lt->escalate();
+        lt->escalate(m_lt_escalate_callback, m_lt_escalate_callback_extra);
     }
 }
 

@@ -23,7 +23,7 @@ static int my_compare_dbts(DB *db, const DBT *a, const DBT *b) {
 // test that get/set userdata works, and that get_manager() works
 void locktree_unit_test::test_misc(void) {
     locktree::manager mgr;
-    mgr.create(nullptr, nullptr);
+    mgr.create(nullptr, nullptr, nullptr, nullptr);
     DESCRIPTOR desc = nullptr;
     DICTIONARY_ID dict_id = { 1 };
     locktree *lt = mgr.get_lt(dict_id, desc, my_compare_dbts, nullptr);

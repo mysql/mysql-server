@@ -75,7 +75,7 @@ public:
 
     void set_descriptor(DESCRIPTOR desc);
 
-    int compare(locktree *lt);
+    int compare(const locktree *lt);
 
     // The locktree stores some data for lock requests. It doesn't have to know
     // how they work or even what a lock request object looks like.
@@ -101,10 +101,11 @@ public:
     public:
         typedef void (*lt_create_cb)(locktree *lt, void *extra);
         typedef void (*lt_destroy_cb)(locktree *lt);
+        typedef void (*lt_escalate_cb)(TXNID txnid, const locktree *lt, const range_buffer &buffer, void *extra);
 
         // note: create_cb is called just after a locktree is first created.
         //       destroy_cb is called just before a locktree is destroyed.
-        void create(lt_create_cb create_cb, lt_destroy_cb destroy_cb);
+        void create(lt_create_cb create_cb, lt_destroy_cb destroy_cb, lt_escalate_cb, void *extra);
 
         void destroy(void);
 
@@ -189,6 +190,8 @@ public:
         // the create and destroy callbacks for the locktrees
         lt_create_cb m_lt_create_callback;
         lt_destroy_cb m_lt_destroy_callback;
+        lt_escalate_cb m_lt_escalate_callback;
+        void *m_lt_escalate_callback_extra;
 
         omt<locktree *> m_locktree_map;
 
@@ -408,7 +411,7 @@ private:
     int try_acquire_lock(bool is_write_request, TXNID txnid,
             const DBT *left_key, const DBT *right_key, txnid_set *conflicts);
 
-    void escalate();
+    void escalate(manager::lt_escalate_cb after_escalate_callback, void *extra);
 
     friend class locktree_unit_test;
     friend class manager_unit_test;

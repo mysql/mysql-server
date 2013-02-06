@@ -507,6 +507,25 @@ static int extract_first_n_row_locks(concurrent_tree::locked_keyrange *lkr,
     return num_extracted;
 }
 
+// Store each newly escalated lock in a range buffer for appropriate txnid.
+// We'll rebuild the locktree by iterating over these ranges, and then we
+// can pass back each txnid/buffer pair individually through a callback
+// to notify higher layers that locks have changed.
+struct txnid_range_buffer {
+    TXNID txnid;
+    range_buffer buffer;
+
+    static int find_by_txnid(const struct txnid_range_buffer &other_buffer, const TXNID &txnid) {
+        if (txnid < other_buffer.txnid) {
+            return -1;
+        } else if (other_buffer.txnid == txnid) {
+            return 0;
+        } else {
+            return 1;
+        }
+    }
+};
+
 // escalate the locks in the locktree by merging adjacent
 // locks that have the same txnid into one larger lock.
 //
@@ -514,9 +533,9 @@ static int extract_first_n_row_locks(concurrent_tree::locked_keyrange *lkr,
 // approach works well. if there are many txnids and each
 // has locks in a random/alternating order, then this does
 // not work so well.
-void locktree::escalate(void) {
-    GrowableArray<row_lock> escalated_locks;
-    escalated_locks.init();
+void locktree::escalate(manager::lt_escalate_cb after_escalate_callback, void *after_escalate_callback_extra) {
+    omt<struct txnid_range_buffer, struct txnid_range_buffer *> range_buffers;
+    range_buffers.create();
 
     // prepare and acquire a locked keyrange on the entire locktree
     concurrent_tree::locked_keyrange lkr;
@@ -533,7 +552,7 @@ void locktree::escalate(void) {
 
     // extract and remove batches of row locks from the locktree
     int num_extracted;
-    static const int num_row_locks_per_batch = 128;
+    const int num_row_locks_per_batch = 128;
     row_lock *XCALLOC_N(num_row_locks_per_batch, extracted_buf);
 
     // we always remove the "first" n because we are removing n
@@ -553,18 +572,33 @@ void locktree::escalate(void) {
                 next_txnid_index++;
             }
 
-            // create a range which dominates the ranges between 
-            // the current index and the next txnid's index (excle).
-            keyrange merged_range;
-            merged_range.create(
-                    extracted_buf[current_index].range.get_left_key(), 
-                    extracted_buf[next_txnid_index - 1].range.get_right_key());
+            // Create an escalated range for the current txnid that dominates
+            // each range between the current indext and the next txnid's index.
+            const TXNID current_txnid = extracted_buf[current_index].txnid;
+            const DBT *escalated_left_key = extracted_buf[current_index].range.get_left_key(); 
+            const DBT *escalated_right_key = extracted_buf[next_txnid_index - 1].range.get_right_key();
 
-            // save the new lock, continue from the next txnid's index
-            row_lock merged_row_lock;
-            merged_row_lock.range.create_copy(merged_range);
-            merged_row_lock.txnid = extracted_buf[current_index].txnid;
-            escalated_locks.push(merged_row_lock);
+            // Try to find a range buffer for the current txnid. Create one if it doesn't exist.
+            // Then, append the new escalated range to the buffer.
+            uint32_t idx;
+            struct txnid_range_buffer new_range_buffer;
+            struct txnid_range_buffer *existing_range_buffer;
+            int r = range_buffers.find_zero<TXNID, txnid_range_buffer::find_by_txnid>(
+                    current_txnid,
+                    &existing_range_buffer,
+                    &idx
+                    );
+            if (r == DB_NOTFOUND) {
+                new_range_buffer.txnid = current_txnid;
+                new_range_buffer.buffer.create();
+                new_range_buffer.buffer.append(escalated_left_key, escalated_right_key);
+                range_buffers.insert_at(new_range_buffer, idx);
+            } else {
+                invariant_zero(r);
+                invariant(existing_range_buffer->txnid == current_txnid);
+                existing_range_buffer->buffer.append(escalated_left_key, escalated_right_key);
+            }
+
             current_index = next_txnid_index;
         }
 
@@ -575,17 +609,35 @@ void locktree::escalate(void) {
     }
     toku_free(extracted_buf);
 
-    // we should have extracted every lock from the old rangetree.
-    // now it is time to repopulate it with the escalated locks.
+    // Rebuild the locktree from each range in each range buffer,
+    // then notify higher layers that the txnid's locks have changed.
     invariant(m_rangetree->is_empty());
-    size_t new_num_locks = escalated_locks.get_size();
-    for (size_t i = 0; i < new_num_locks; i++) {
-        row_lock lock = escalated_locks.fetch_unchecked(i);
-        insert_row_lock_into_tree(&lkr, lock, m_mem_tracker);
-        lock.range.destroy();
-    }
+    const size_t num_range_buffers = range_buffers.size();
+    for (size_t i = 0; i < num_range_buffers; i++) {
+        struct txnid_range_buffer *current_range_buffer;
+        int r = range_buffers.fetch(i, &current_range_buffer);
+        invariant_zero(r);
 
-    escalated_locks.deinit();
+        const TXNID current_txnid = current_range_buffer->txnid;
+        range_buffer::iterator iter;
+        range_buffer::iterator::record rec;
+        iter.create(&current_range_buffer->buffer);
+        while (iter.current(&rec)) {
+            keyrange range;
+            range.create(rec.get_left_key(), rec.get_right_key());
+            row_lock lock = { .range = range, .txnid = current_txnid };
+            insert_row_lock_into_tree(&lkr, lock, m_mem_tracker);
+            iter.next();
+        }
+
+        // Notify higher layers that locks have changed for the current txnid
+        if (after_escalate_callback) {
+            after_escalate_callback(current_txnid, this, current_range_buffer->buffer, after_escalate_callback_extra);
+        }
+        current_range_buffer->buffer.destroy();
+    }
+    range_buffers.destroy();
+
     lkr.release();
 }
 
@@ -605,7 +657,7 @@ void locktree::set_descriptor(DESCRIPTOR desc) {
     m_cmp->set_descriptor(desc);
 }
 
-int locktree::compare(locktree *lt) {
+int locktree::compare(const locktree *lt) {
     if (m_dict_id.dictid < lt->m_dict_id.dictid) {
         return -1;
     } else if (m_dict_id.dictid == lt->m_dict_id.dictid) {

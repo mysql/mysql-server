@@ -11,6 +11,10 @@
 
 #include <locktree/lock_request.h>
 
+// Expose the escalate callback to ydb.cc,
+// so it can pass the function pointer to the locktree
+void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const toku::range_buffer &buffer, void *extra);
+
 int toku_db_get_range_lock(DB *db, DB_TXN *txn, const DBT *left_key, const DBT *right_key,
         toku::lock_request::type lock_type);
 

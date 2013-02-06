@@ -23,7 +23,7 @@ static void destroy_cb(locktree *lt) {
 
 void manager_unit_test::test_reference_release_lt(void) {
     locktree::manager mgr;
-    mgr.create(create_cb, destroy_cb);
+    mgr.create(create_cb, destroy_cb, nullptr, nullptr);
 
     DICTIONARY_ID a = { 0 };
     DICTIONARY_ID b = { 1 };
