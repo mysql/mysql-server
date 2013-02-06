@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2936,17 +2936,16 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     { CFG_BATCH_SIZE,                            &NdbApiConfig::m_batch_size,      { 10, 1000 } },
     // Skip test of m_waitfor_timeout since it is not configurable in API-section
     { CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &NdbApiConfig::m_default_queue_option,
-      { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } }
+      { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } },
+    { CFG_DEFAULT_HASHMAP_SIZE,                  &NdbApiConfig::m_default_hashmap_size, { 240, 3840 } },
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 5 * sizeof(Uint32));
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 6 * sizeof(Uint32));
 
   Config savedconf;
   if (!mgmd.get_config(savedconf))
     return NDBT_FAILED;
-
-  int retval = NDBT_FAILED;
 
   for (size_t i = 0; i < NDB_ARRAY_SIZE(parameters[0].values) ; i ++)
   {
@@ -2957,7 +2956,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     // Get the binary config
     Config conf;
     if (!mgmd.get_config(conf))
-      goto cleanup;
+      return NDBT_FAILED;
 
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
     for (Uint32 nodeid = 1; nodeid < MAX_NODES; nodeid ++)
@@ -2980,7 +2979,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
 
     // Set the modified config
     if (!mgmd.set_config(conf))
-      goto cleanup;
+      return NDBT_FAILED;
 
     /**
      * Connect api
@@ -2994,7 +2993,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     if (con.connect(retries, retry_delay, verbose) != 0)
     {
       g_err << "Ndb_cluster_connection.connect failed" << endl;
-      goto cleanup;
+      return NDBT_FAILED;
     }
 
     /**
@@ -3025,13 +3024,10 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
         failures++;
       }
       if (failures > 0)
-        goto cleanup;
+        return NDBT_FAILED;
     }
   }
 
-  retval = NDBT_OK;
-
-cleanup:
   // Restore conf after upgrading config generation
   Config conf;
   if (!mgmd.get_config(conf))
@@ -3045,7 +3041,7 @@ cleanup:
     return NDBT_FAILED;
   }
 
-  return retval;
+  return NDBT_OK;
 }
 
 NDBT_TESTSUITE(testMgm);
