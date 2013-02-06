@@ -824,6 +824,16 @@ typedef struct st_print_event_info
   IO_CACHE body_cache;
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
+
+  /*
+     True if an event was skipped while printing the events of
+     a transaction and no COMMIT statement or XID event was ever
+     output (ie, was filtered out as well). This can be triggered
+     by the --database option of mysqlbinlog.
+
+     False, otherwise.
+   */
+  bool skipped_event_in_transaction;
 } PRINT_EVENT_INFO;
 #endif
 
@@ -1187,7 +1197,7 @@ public:
 #else // ifdef MYSQL_SERVER
   Log_event(enum_event_cache_type cache_type_arg= EVENT_INVALID_CACHE,
             enum_event_logging_type logging_type_arg= EVENT_INVALID_LOGGING)
-  : temp_buf(0), event_cache_type(cache_type_arg),
+  : temp_buf(0), flags(0), event_cache_type(cache_type_arg),
     event_logging_type(logging_type_arg)
   { }
     /* avoid having to link mysqlbinlog against libpthread */
@@ -2635,12 +2645,26 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const
+  bool header_is_valid() const
   {
     return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
                                    LOG_EVENT_MINIMAL_HEADER_LEN)) &&
             (post_header_len != NULL));
   }
+
+  bool version_is_valid() const
+  {
+    /* It is invalid only when all version numbers are 0 */
+    return !(server_version_split[0] == 0 &&
+             server_version_split[1] == 0 &&
+             server_version_split[2] == 0);
+  }
+
+  bool is_valid() const
+  {
+    return header_is_valid() && version_is_valid();
+  }
+
   int get_data_size()
   {
     /*
@@ -4997,6 +5021,12 @@ inline ulong version_product(const uchar* version_split)
           + version_split[2]);
 }
 
+/**
+   Splits server 'version' string into three numeric pieces stored
+   into 'split_versions':
+   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
+   X.Yabc -> {X,Y,0}
+*/
 inline void do_server_version_split(char* version, uchar split_versions[3])
 {
   char *p= version, *r;
@@ -5004,10 +5034,21 @@ inline void do_server_version_split(char* version, uchar split_versions[3])
   for (uint i= 0; i<=2; i++)
   {
     number= strtoul(p, &r, 10);
-    split_versions[i]= (uchar) number;
-    DBUG_ASSERT(number < 256); // fit in uchar
+    /*
+      It is an invalid version if any version number greater than 255 or
+      first number is not followed by '.'.
+    */
+    if (number < 256 && (*r == '.' || i != 0))
+      split_versions[i]= (uchar)number;
+    else
+    {
+      split_versions[0]= 0;
+      split_versions[1]= 0;
+      split_versions[2]= 0;
+      break;
+    }
+
     p= r;
-    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
     if (*r == '.')
       p++; // skip the dot
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -2112,6 +2112,8 @@ static void set_thread_state_v1(const char* state)
 static void set_thread_info_v1(const char* info, int info_len)
 {
   PFS_thread *pfs= my_pthread_getspecific_ptr(PFS_thread*, THR_PFS);
+
+  DBUG_ASSERT((info != NULL) || (info_len == 0));
 
   if (likely(pfs != NULL))
   {

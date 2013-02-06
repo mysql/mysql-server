@@ -449,7 +449,7 @@ WHERE (pk BETWEEN 4 AND 5 OR pk < 2) AND c1 < 240
 ORDER BY c1
 LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	PRIMARY,k1	k1	5	NULL	4	Using where
+1	SIMPLE	t1	range	PRIMARY,k1	k1	5	NULL	4	Using index condition; Using where
 DROP TABLE t1;
 #
 # Bug#42991 "invalid memory access and/or crash when using

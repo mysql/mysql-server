@@ -5,10 +5,12 @@ Note	####	Storing MySQL user name or password information in the master.info rep
 [connection master]
 include/rpl_restart_server.inc [server_number=2 parameters: --report-port=9000]
 include/start_slave.inc
+include/wait_for_slave_param.inc [Slave_IO_State]
 [Slave restarted with the report-port set to some value]
 include/assert.inc [The value shown for the slave's port number is user specified port number which is the value set for report-port.]
 include/rpl_restart_server.inc [server_number=2]
 include/start_slave.inc
+include/wait_for_slave_param.inc [Slave_IO_State]
 [Slave restarted with the report-port set to the value of slave's port number]
 include/assert.inc [The default value shown for the slave's port number is the actual port number of the slave.]
 include/rpl_end.inc

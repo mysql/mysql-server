@@ -100,7 +100,7 @@ LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
 
 SHOW CREATE TABLE t1;
 # We do not support plain DROP_PK_INDEX without ADD_PK_INDEX.
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 DROP INDEX c2, ALGORITHM = INPLACE;
 SHOW CREATE TABLE t1;
 # Now the previous DEBUG_SYNC should kick in.
@@ -281,15 +281,22 @@ UPDATE t1 SET c3 = NULL WHERE c3 = '';
 SET lock_wait_timeout = 1;
 --error ER_MULTIPLE_PRI_KEY
 ALTER TABLE t1 DROP COLUMN c22f, ADD PRIMARY KEY c3p5(c3(5));
+SET @old_sql_mode = @@sql_mode;
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+# And adding a PRIMARY KEY will also add NOT NULL implicitly!
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 --error ER_INVALID_USE_OF_NULL
 ALTER TABLE t1 DROP COLUMN c22f, DROP PRIMARY KEY, ADD PRIMARY KEY c3p5(c3(5)),
 ALGORITHM = INPLACE;
 
 --error ER_INVALID_USE_OF_NULL
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL;
+SET @@sql_mode = @old_sql_mode;
 UPDATE t1 SET c3=CONCAT(c1,REPEAT('foo',c1)) WHERE c3 IS NULL;
 
 SET DEBUG_SYNC = 'row_log_table_apply1_before SIGNAL c3p5_created0 WAIT_FOR ins_done0';
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 --send
 ALTER TABLE t1 MODIFY c3 TEXT NOT NULL, DROP COLUMN c22f,
 ADD COLUMN c5 CHAR(5) DEFAULT 'tired' FIRST;
@@ -307,6 +314,7 @@ SET DEBUG_SYNC = 'now SIGNAL ins_done0';
 connection con1;
 --error ER_INVALID_USE_OF_NULL
 reap;
+SET @@sql_mode = @old_sql_mode;
 
 --echo # session default
 connection default;

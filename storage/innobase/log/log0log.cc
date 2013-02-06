@@ -780,11 +780,11 @@ log_init(void)
 
 	log_sys->n_pending_writes = 0;
 
-	log_sys->no_flush_event = os_event_create(NULL);
+	log_sys->no_flush_event = os_event_create();
 
 	os_event_set(log_sys->no_flush_event);
 
-	log_sys->one_flushed_event = os_event_create(NULL);
+	log_sys->one_flushed_event = os_event_create();
 
 	os_event_set(log_sys->one_flushed_event);
 
@@ -827,7 +827,7 @@ log_init(void)
 
 	/* memset(log_sys->archive_buf, '\0', LOG_ARCHIVE_BUF_SIZE); */
 
-	log_sys->archiving_on = os_event_create(NULL);
+	log_sys->archiving_on = os_event_create();
 #endif /* UNIV_LOG_ARCHIVE */
 
 	/*----------------------------*/
@@ -3594,7 +3594,7 @@ log_shutdown(void)
 
 #ifdef UNIV_LOG_ARCHIVE
 	rw_lock_free(&log_sys->archive_lock);
-	os_event_create(log_sys->archiving_on);
+	os_event_create();
 #endif /* UNIV_LOG_ARCHIVE */
 
 #ifdef UNIV_LOG_DEBUG

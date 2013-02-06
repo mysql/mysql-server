@@ -162,7 +162,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c CHAR(19);
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19)'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -191,7 +191,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -217,7 +217,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD d INT AFTER b;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD d INT AFTER b'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -250,7 +250,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ENGINE MYISAM;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ENGINE MYISAM'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -268,7 +268,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c TIMESTAMP'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -297,7 +297,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -326,7 +326,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -383,7 +383,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -408,7 +408,7 @@ Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a);
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a)'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER OFFLINE TABLE t1 ADD PRIMARY KEY (a);
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -417,7 +417,7 @@ a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
 ALTER ONLINE TABLE t1 DROP PRIMARY KEY;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 DROP PRIMARY KEY'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER OFFLINE TABLE t1 DROP PRIMARY KEY;
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -425,7 +425,7 @@ Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 CREATE ONLINE UNIQUE INDEX pk ON t1(a);
-ERROR 42000: This version of MySQL doesn't yet support 'CREATE ONLINE UNIQUE INDEX pk ON t1(a)'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 CREATE OFFLINE UNIQUE INDEX pk ON t1(a);
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -433,7 +433,7 @@ Primary keys:
 a Unsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 PRIMARY KEY(a) - UniqueHashIndex
 ALTER ONLINE TABLE t1 DROP INDEX PK;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 DROP INDEX PK'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER OFFLINE TABLE t1 DROP INDEX PK;
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -443,7 +443,7 @@ PRIMARY KEY($PK) - UniqueHashIndex
 DROP TABLE t1;
 CREATE TABLE t1 (a INT UNSIGNED) ENGINE NDB;
 ALTER ONLINE TABLE t1 ADD b INT UNIQUE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD b INT UNIQUE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER OFFLINE TABLE t1 ADD b INT UNIQUE;
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -451,7 +451,7 @@ Primary keys:
 $PK Bigunsigned PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 PRIMARY KEY($PK) - UniqueHashIndex
 ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER OFFLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
@@ -468,7 +468,7 @@ ndb_show_tables completed.....
 
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 ALTER ONLINE TABLE t1 ADD c TEXT;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD c TEXT'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -476,7 +476,7 @@ select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' 
 name
 't1'
 ALTER ONLINE TABLE t1 ADD d BLOB;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD d BLOB'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ndb_show_tables completed.....
 
@@ -577,29 +577,29 @@ ENGINE=NDB;
 Warnings:
 Warning	1478	DYNAMIC column b with STORAGE DISK is not supported, column will become FIXED
 ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 DROP TABLE t1;
 create table t1 (a int primary key, b int) storage disk tablespace ts1 engine = ndb;
 alter online table t1 add column c0 int null column_format DYNAMIC;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 add column c0 int null column_format DYNAMIC'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
@@ -681,7 +681,7 @@ b varchar(20) default 'x',
 c varchar(20) default null,
 primary key (a) ) engine=ndbcluster;
 alter online table t1 add e varchar(20) default 'x' column_format dynamic;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t1 add e varchar(20) default 'x' column_format dynamic'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t1 add e varchar(20) default null column_format dynamic;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead

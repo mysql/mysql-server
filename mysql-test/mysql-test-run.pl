@@ -338,14 +338,6 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
-# Used by --result-file for for formatting times
-
-sub isotime($) {
-  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
-  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
-    $yr+1900, $mon+1, $day, $hr, $min, $sec;
-}
-
 main();
 
 
@@ -709,6 +701,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
+              #saving the log file as filename.failed in case of retry
+              my $worker_logdir= $result->{savedir};
+              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+              rename $log_file_name,$log_file_name.".failed";
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -6315,6 +6311,7 @@ sub run_ctest() {
 
   # Just ignore if not configured/built to run ctest
   if (! -f "CTestTestfile.cmake") {
+    mtr_report("No unit tests found.");
     chdir($olddir);
     return;
   }
@@ -6325,6 +6322,7 @@ sub run_ctest() {
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
+  $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
   my $ctest_out= `ctest $ctest_vs 2>&1`;
   if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
     chdir($olddir);

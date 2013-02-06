@@ -734,7 +734,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `p1`(
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(
 INOUT ะมามอ1 CHAR(10),
 OUT ะมามอ2 CHAR(10))
 BEGIN
@@ -751,7 +751,7 @@ COLLATION(_utf8 'ัะตะบัั') AS c6,
 @@character_set_client AS c8;
 SET ะมามอ1 = 'a';
 SET ะมามอ2 = 'b';
-END */;;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -768,7 +768,7 @@ ALTER DATABASE `mysqltest1` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `p2`(
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p2`(
 INOUT ะมามอ1 CHAR(10) CHARACTER SET utf8,
 OUT ะมามอ2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -785,7 +785,7 @@ COLLATION(_utf8 'ัะตะบัั') AS c6,
 @@character_set_client AS c8;
 SET ะมามอ1 = 'a';
 SET ะมามอ2 = 'b';
-END */;;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -810,7 +810,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `p3`(
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p3`(
 INOUT ะมามอ1 CHAR(10),
 OUT ะมามอ2 CHAR(10))
 BEGIN
@@ -827,7 +827,7 @@ COLLATION(_utf8 'ัะตะบัั') AS c6,
 @@character_set_client AS c8;
 SET ะมามอ1 = 'a';
 SET ะมามอ2 = 'b';
-END */;;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
@@ -844,7 +844,7 @@ ALTER DATABASE `mysqltest2` CHARACTER SET utf8 COLLATE utf8_unicode_ci ;
 /*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
 /*!50003 SET sql_mode              = '' */ ;
 DELIMITER ;;
-/*!50003 CREATE*/ /*!50020 DEFINER=`root`@`localhost`*/ /*!50003 PROCEDURE `p4`(
+CREATE DEFINER=`root`@`localhost` PROCEDURE `p4`(
 INOUT ะมามอ1 CHAR(10) CHARACTER SET utf8,
 OUT ะมามอ2 CHAR(10) CHARACTER SET utf8)
 BEGIN
@@ -861,7 +861,7 @@ COLLATION(_utf8 'ัะตะบัั') AS c6,
 @@character_set_client AS c8;
 SET ะมามอ1 = 'a';
 SET ะมามอ2 = 'b';
-END */;;
+END ;;
 DELIMITER ;
 /*!50003 SET sql_mode              = @saved_sql_mode */ ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;

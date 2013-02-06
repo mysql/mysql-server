@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,15 +13,19 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
-#include <tap.h>
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
+
 #include <my_global.h>
 #include <my_sys.h>
 
+namespace like_range_unittest {
 
 /*
   Test that like_range() returns well-formed results.
 */
-static int
+static void
 test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
 {
   char min_str[32], max_str[32];
@@ -30,24 +34,21 @@ test_like_range_for_charset(CHARSET_INFO *cs, const char *src, size_t src_len)
   
   cs->coll->like_range(cs, src, src_len, '\\', '_', '%',
                        sizeof(min_str),  min_str, max_str, &min_len, &max_len);
-  diag("min_len=%d\tmax_len=%d\t%s", (int) min_len, (int) max_len, cs->name);
+  // diag("min_len=%d\tmax_len=%d\t%s", (int) min_len, (int) max_len, cs->name);
   min_well_formed_len= cs->cset->well_formed_len(cs,
                                                  min_str, min_str + min_len,
                                                  10000, &error);
   max_well_formed_len= cs->cset->well_formed_len(cs,
                                                  max_str, max_str + max_len,
                                                  10000, &error);
-  if (min_len != min_well_formed_len)
-    diag("Bad min_str: min_well_formed_len=%d min_str[%d]=0x%02X",
-          (int) min_well_formed_len, (int) min_well_formed_len,
-          (uchar) min_str[min_well_formed_len]);
-  if (max_len != max_well_formed_len)
-    diag("Bad max_str: max_well_formed_len=%d max_str[%d]=0x%02X",
-          (int) max_well_formed_len, (int) max_well_formed_len,
-          (uchar) max_str[max_well_formed_len]);
-  return
-    min_len == min_well_formed_len &&
-    max_len == max_well_formed_len ? 0 : 1;
+  EXPECT_EQ(min_len, min_well_formed_len)
+    << "Bad min_str: min_well_formed_len=" << min_well_formed_len
+    << " min_str[" << min_well_formed_len << "]="
+    <<  (uchar) min_str[min_well_formed_len];
+  EXPECT_EQ(max_len, max_well_formed_len)
+    << "Bad max_str: max_well_formed_len=" << max_well_formed_len
+    << " max_str[" << max_well_formed_len << "]="
+    << (uchar) max_str[max_well_formed_len];
 }
 
 
@@ -92,23 +93,27 @@ static CHARSET_INFO *charset_list[]=
 #endif
 };
 
+#if defined(GTEST_HAS_PARAM_TEST)
 
-int main()
+class LikeRangeTest : public ::testing::TestWithParam<CHARSET_INFO*>
 {
-  size_t i, failed= 0;
-  
-  plan(1);
-  diag("Testing my_like_range_xxx() functions");
-  
-  for (i= 0; i < array_elements(charset_list); i++)
+protected:
+  virtual void SetUp()
   {
-    CHARSET_INFO *cs= charset_list[i];
-    if (test_like_range_for_charset(cs, "abc%", 4))
-    {
-      ++failed;
-      diag("Failed for %s", cs->name);
-    }
+    m_charset= GetParam();
   }
-  ok(failed == 0, "Testing my_like_range_xxx() functions");
-  return exit_status();
+  CHARSET_INFO *m_charset;
+};
+
+INSTANTIATE_TEST_CASE_P(Foo1, LikeRangeTest,
+                        ::testing::ValuesIn(charset_list));
+
+
+TEST_P(LikeRangeTest, TestLikeRange)
+{
+  test_like_range_for_charset(m_charset, "abc%", 4);
+}
+
+#endif
+
 }

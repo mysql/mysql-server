@@ -784,7 +784,7 @@ static int create_dest_frm(char *source_table, char *dest_table)
   */
   (void) my_copy(source_name, dest_name, MYF(MY_DONT_OVERWRITE_FILE));
   
-  return 0;
+  DBUG_RETURN(0);
 }
 
 

@@ -76,7 +76,7 @@ GRANT SELECT(c,b), UPDATE(a) ON mysqltest2.t2 TO testuser1@localhost;
 ERROR 42S22: Unknown column 'c' in 't2'
 OK
 
-CREATE USER testuser2@localhost IDENTIFIED BY PASSWORD 'pass4';
+CREATE USER testuser2@localhost IDENTIFIED BY 'pass4';
 OK
 
 DROP USER testuser2@localhost;
