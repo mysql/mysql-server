@@ -736,6 +736,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
+  DBUG_ASSERT(rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC);
 
   if (!inited_hash_workers)
     DBUG_RETURN(NULL);

@@ -2798,28 +2798,44 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
 inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
 {
   Slave_committed_queue *gaq= rli->gaq;
+  int64 commit_seq_no;
+  int64 prepare_seq_no;
 
   if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
   {
     /*
       A group id updater must satisfy the following:
-        - A query log event ("BEGIN" )
+        - A query log event ("BEGIN" ) or a GTID EVENT
         - ev->prepare_seq_no > 0
      */
-    if (ev->get_type_code() == QUERY_EVENT)
+    switch (ev->get_type_code())
     {
-      int64 commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
-      int64 prepare_seq_no= static_cast<Query_log_event*>(ev)->prepare_seq_no;
-      DBUG_PRINT("info", ("MTS::slave p=%lld, c=%lld",prepare_seq_no,
-                          commit_seq_no));
-      if (prepare_seq_no > 0 &&
-           commit_seq_no != rli->mts_last_known_commit_parent)
-      {
-        rli->mts_last_known_parent_group_id=
-          gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-          rli->mts_groups_assigned - 1;
-          return;
-      }
+    case QUERY_EVENT:
+      commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
+      prepare_seq_no= static_cast<Query_log_event*>(ev)->prepare_seq_no;
+      break;
+
+    case GTID_LOG_EVENT:
+      commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
+      prepare_seq_no= static_cast<Gtid_log_event*>(ev)->prepare_seq_no;
+      break;
+
+    default:
+      commit_seq_no= 0;
+      prepare_seq_no= 0;
+      break;
+    }
+
+    DBUG_PRINT("info", ("MTS::slave p=%lld, c=%lld",prepare_seq_no,
+                         commit_seq_no));
+    if (prepare_seq_no > 0 &&
+        (commit_seq_no != rli->mts_last_known_commit_parent ||
+         rli->mts_last_known_commit_parent == PC_UNINIT))
+    {
+      rli->mts_last_known_parent_group_id=
+        gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+        rli->mts_groups_assigned - 1;
+        return;
     }
     gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       rli->mts_last_known_parent_group_id;
@@ -2843,7 +2859,7 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
    is simply ignored. Thereby association with a Worker does not require
    Assigned Partition Hash of the partitioned method.
    This method is not interested in all the taxonomy of the event group
-   property, what we care about is  the boundaries of the group.
+   property, what we care about is the boundaries of the group.
 
    As a part of the group, an event belongs to one of the following types:
 
@@ -2971,17 +2987,18 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
   {
     ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-    
+
     /*
-      data_lock is held for short time of updating exec coordinates.
-      An alternative could be run a lighter version of the funcition
-      that would defer exec coordinates updating, e.g raising a
-      special flag in rli->gam.lwm.
-      TODO: check once per group
+      The coordinator waits till the last group was completely applied before the events from the
+      next group is scheduled for the workers.
     */
     while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
+    {
+      DBUG_PRINT("info",("MTS:: assigned parent_seq %lld,lwmseq= %lld",
+                         ptr_group->parent_seqno, rli->gaq->lwm.total_seqno));
       (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
- 
+    }
+
     // compute worker, todo: consider to generalize get_least_occupied_worker()
     ret_worker= (rli->last_assigned_worker) ? rli->last_assigned_worker :
       *(Slave_worker **) dynamic_array_ptr(&rli->least_occupied_workers, 0);
