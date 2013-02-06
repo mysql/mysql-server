@@ -3835,6 +3835,7 @@ sub resfile_report_test ($) {
 
 sub run_testcase ($) {
   my $tinfo=  shift;
+  my $print_freq=20;
 
   mtr_verbose("Running test:", $tinfo->{name});
   resfile_report_test($tinfo) if $opt_resfile;
