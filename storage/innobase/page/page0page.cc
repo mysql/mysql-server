@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2327,7 +2327,7 @@ page_validate(
 	}
 
 	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
-	    && page_get_n_recs(page) > 0) {
+	    && !page_is_empty(page)) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
 

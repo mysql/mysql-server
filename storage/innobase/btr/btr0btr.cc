@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -2043,7 +2043,7 @@ btr_root_raise_and_insert(
 	root = btr_cur_get_page(cursor);
 	root_block = btr_cur_get_block(cursor);
 	root_page_zip = buf_block_get_page_zip(root_block);
-	ut_ad(page_get_n_recs(root) > 0);
+	ut_ad(!page_is_empty(root));
 	index = btr_cur_get_index(cursor);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root, index));
@@ -2779,7 +2779,7 @@ func_start:
 	page_zip = buf_block_get_page_zip(block);
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(page_get_n_recs(page) >= 1);
+	ut_ad(!page_is_empty(page));
 
 	page_no = buf_block_get_page_no(block);
 
@@ -4489,9 +4489,9 @@ loop:
 	right_page_no = btr_page_get_next(page, &mtr);
 	left_page_no = btr_page_get_prev(page, &mtr);
 
-	ut_a(page_get_n_recs(page) > 0 || (level == 0
-					   && page_get_page_no(page)
-					   == dict_index_get_page(index)));
+	ut_a(!page_is_empty(page)
+	     || (level == 0
+		 && page_get_page_no(page) == dict_index_get_page(index)));
 
 	if (right_page_no != FIL_NULL) {
 		const rec_t*	right_rec;

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -67,10 +67,10 @@ struct ibuf_t{
 	ulint		seg_size;	/*!< allocated pages of the file
 					segment containing ibuf header and
 					tree */
-	ibool		empty;		/*!< Protected by the page
+	bool		empty;		/*!< Protected by the page
 					latch of the root page of the
 					insert buffer tree
-					(FSP_IBUF_TREE_ROOT_PAGE_NO). TRUE
+					(FSP_IBUF_TREE_ROOT_PAGE_NO). true
 					if and only if the insert
 					buffer tree is empty. */
 	ulint		free_list_len;	/*!< length of the free list */

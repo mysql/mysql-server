@@ -416,7 +416,7 @@ ibuf_tree_root_get(
 
 	ut_ad(page_get_space_id(root) == IBUF_SPACE_ID);
 	ut_ad(page_get_page_no(root) == FSP_IBUF_TREE_ROOT_PAGE_NO);
-	ut_ad(ibuf->empty == (page_get_n_recs(root) == 0));
+	ut_ad(ibuf->empty == page_is_empty(root));
 
 	return(root);
 }
@@ -564,7 +564,7 @@ ibuf_init_at_db_start(void)
 	ibuf_size_update(root, &mtr);
 	mutex_exit(&ibuf_mutex);
 
-	ibuf->empty = (page_get_n_recs(root) == 0);
+	ibuf->empty = page_is_empty(root);
 	ibuf_mtr_commit(&mtr);
 
 	heap = mem_heap_create(450);
@@ -2589,7 +2589,7 @@ ibuf_merge_pages(
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
-	if (page_get_n_recs(btr_pcur_get_page(&pcur)) == 0) {
+	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
 		and the whole B-tree must be empty. InnoDB does not
 		allow empty B-tree pages other than the root. */
@@ -2674,7 +2674,7 @@ ibuf_merge_space(
 	ulint		spaces[IBUF_MAX_N_PAGES_MERGED];
 	ib_int64_t	versions[IBUF_MAX_N_PAGES_MERGED];
 
-	if (page_get_n_recs(btr_pcur_get_page(&pcur)) == 0) {
+	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
 		and the whole B-tree must be empty. InnoDB does not
 		allow empty B-tree pages other than the root. */
@@ -3697,7 +3697,7 @@ fail_exit:
 			ut_ad(page_get_page_no(root)
 			      == FSP_IBUF_TREE_ROOT_PAGE_NO);
 
-			ibuf->empty = (page_get_n_recs(root) == 0);
+			ibuf->empty = page_is_empty(root);
 		}
 	} else {
 		ut_ad(mode == BTR_MODIFY_TREE);
@@ -3726,7 +3726,7 @@ fail_exit:
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
 		ibuf_size_update(root, &mtr);
 		mutex_exit(&ibuf_mutex);
-		ibuf->empty = (page_get_n_recs(root) == 0);
+		ibuf->empty = page_is_empty(root);
 
 		block = btr_cur_get_block(cursor);
 		ut_ad(buf_block_get_space(block) == IBUF_SPACE_ID);
@@ -4420,7 +4420,7 @@ ibuf_delete_rec(
 					    0, mtr);
 
 	if (success) {
-		if (UNIV_UNLIKELY(!page_get_n_recs(btr_pcur_get_page(pcur)))) {
+		if (page_is_empty(btr_pcur_get_page(pcur))) {
 			/* If a B-tree page is empty, it must be the root page
 			and the whole B-tree must be empty. InnoDB does not
 			allow empty B-tree pages other than the root. */
@@ -4433,7 +4433,7 @@ ibuf_delete_rec(
 			/* ibuf->empty is protected by the root page latch.
 			Before the deletion, it had to be FALSE. */
 			ut_ad(!ibuf->empty);
-			ibuf->empty = TRUE;
+			ibuf->empty = true;
 		}
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
@@ -4485,7 +4485,7 @@ ibuf_delete_rec(
 	ibuf_size_update(root, mtr);
 	mutex_exit(&ibuf_mutex);
 
-	ibuf->empty = (page_get_n_recs(root) == 0);
+	ibuf->empty = page_is_empty(root);
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
 func_exit:
@@ -5004,13 +5004,13 @@ leave_loop:
 
 /******************************************************************//**
 Looks if the insert buffer is empty.
-@return	TRUE if empty */
+@return	true if empty */
 UNIV_INTERN
-ibool
+bool
 ibuf_is_empty(void)
 /*===============*/
 {
-	ibool		is_empty;
+	bool		is_empty;
 	const page_t*	root;
 	mtr_t		mtr;
 
@@ -5020,7 +5020,7 @@ ibuf_is_empty(void)
 	root = ibuf_tree_root_get(&mtr);
 	mutex_exit(&ibuf_mutex);
 
-	is_empty = (page_get_n_recs(root) == 0);
+	is_empty = page_is_empty(root);
 	ut_a(is_empty == ibuf->empty);
 	ibuf_mtr_commit(&mtr);
 
