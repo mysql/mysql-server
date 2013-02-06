@@ -150,7 +150,7 @@ INSERT INTO t1 values (1,1);
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD c CHAR(19);
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -173,7 +173,7 @@ INSERT INTO t1 values (1,1);
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD c CHAR(19) DEFAULT 17;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -191,7 +191,7 @@ SELECT * FROM t1 ORDER BY a;
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD d INT AFTER b;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -212,7 +212,7 @@ SELECT * FROM t1 ORDER BY a;
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ENGINE MYISAM;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -229,7 +229,7 @@ INSERT INTO t1 values (1,1);
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -252,7 +252,7 @@ INSERT INTO t1 values (1,1);
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD c CHAR(19) NOT NULL;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -275,7 +275,7 @@ INSERT INTO t1 values (1,1);
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD c CHAR(19) COLUMN_FORMAT FIXED;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -326,7 +326,7 @@ CREATE TABLE t1 (
 --source ndb_show_tables_result.inc
 set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and type like '%UserTable%');
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 alter online table t1 change tiny new_tiny tinyint(4) DEFAULT '0' NOT NULL;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -352,30 +352,30 @@ DROP TABLE t1;
 --echo ****************************************
 CREATE TABLE t1 (a INT UNSIGNED NOT NULL) ENGINE NDB;
 --source show_primary_keys.inc
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD PRIMARY KEY (a);
 ALTER OFFLINE TABLE t1 ADD PRIMARY KEY (a);
 --source show_primary_keys.inc
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 DROP PRIMARY KEY;
 ALTER OFFLINE TABLE t1 DROP PRIMARY KEY;
 --source show_primary_keys.inc
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 CREATE ONLINE UNIQUE INDEX pk ON t1(a);
 CREATE OFFLINE UNIQUE INDEX pk ON t1(a);
 --source show_primary_keys.inc
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 DROP INDEX PK;
 ALTER OFFLINE TABLE t1 DROP INDEX PK;
 --source show_primary_keys.inc
 DROP TABLE t1;
 
 CREATE TABLE t1 (a INT UNSIGNED) ENGINE NDB;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD b INT UNIQUE;
 ALTER OFFLINE TABLE t1 ADD b INT UNIQUE;
 --source show_primary_keys.inc
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
 ALTER OFFLINE TABLE t1 ADD c INT NOT NULL UNIQUE;
 --source show_primary_keys.inc
@@ -401,12 +401,12 @@ while ($v)
   dec $v;
 }
 enable_query_log;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD c TEXT;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t1 ADD d BLOB;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
@@ -557,25 +557,25 @@ CREATE TABLE t1
 TABLESPACE ts1 STORAGE DISK
 ENGINE=NDB;
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 CHANGE b b_1 INT COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN c INT COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN d FLOAT COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN  e DOUBLE COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN f DATETIME COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN g DECIMAL(5,2) COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN h CHAR(20) COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN h VARCHAR(20) COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN h BINARY(20) COLUMN_FORMAT DYNAMIC;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 ADD COLUMN h VARBINARY(20) COLUMN_FORMAT DYNAMIC;
 DROP TABLE t1;
 
@@ -583,7 +583,7 @@ DROP TABLE t1;
 # bug#42549
 #
 create table t1 (a int primary key, b int) storage disk tablespace ts1 engine = ndb;
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter online table t1 add column c0 int null column_format DYNAMIC;
 alter online table t1 add column c1 int null column_format DYNAMIC storage memory;
 drop table t1;
@@ -698,7 +698,7 @@ create table t1(a int(10) unsigned not null auto_increment,
                 c varchar(20) default null,
                 primary key (a) ) engine=ndbcluster;
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter online table t1 add e varchar(20) default 'x' column_format dynamic;
 alter online table t1 add e varchar(20) default null column_format dynamic;
 drop table t1;

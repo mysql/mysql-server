@@ -261,12 +261,12 @@ Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
 alter online table t3 reorganize partition;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t3 max_rows=50000000;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
@@ -296,7 +296,7 @@ alter online table t3 max_rows=100000000;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t4 max_rows=100000000;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t4 max_rows=100000000'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 partitions added to t1 (expect 1)
 t1_added
 1
@@ -312,12 +312,12 @@ t4_added
 alter online table t1 reorganize partition;
 ERROR HY000: REORGANIZE PARTITION without parameters can only be used on auto-partitioned tables using HASH PARTITIONs
 alter online table t3 reorganize partition;
-ERROR 42000: This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 show warnings;
 Level	Code	Message
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1105	Cannot online REORGANIZE a table with Max_Rows set.  Use ALTER TABLE ... MAX_ROWS=<new_val> or offline REORGANIZE to redistribute this table.
-Error	1235	This version of MySQL doesn't yet support 'alter online table t3 reorganize partition'
+Error	1845	ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 alter online table t4 reorganize partition;
 Warnings:
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
