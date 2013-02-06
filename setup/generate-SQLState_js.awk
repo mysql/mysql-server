@@ -28,7 +28,7 @@
           print "   Do not edit by hand. "
           print "*/ "
           print ""
-          print "exports = {"
+          print "module.exports = {"
         }
  /^ER/  { if($2) {
             mysqlerr = "\"" $1 "\""

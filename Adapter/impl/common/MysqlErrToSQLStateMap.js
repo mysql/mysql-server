@@ -3,7 +3,7 @@
    Do not edit by hand. 
 */ 
 
-exports = {
+module.exports = {
 	                                 "ER_DUP_KEY" : "23000",
 	                                         1022 : "23000",
 	                             "ER_OUTOFMEMORY" : "HY001",
