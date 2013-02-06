@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,12 +219,13 @@
  * bigger than others.
  */
 
+#define NDB_MAX_HASHMAP_BUCKETS 3840
+
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
 #define NDB_DEFAULT_HASHMAP_BUCKETS 240
 #else
 #define NDB_DEFAULT_HASHMAP_BUCKETS (48 * 16 * 5) /* 3840 */
 #endif
-#define NDB_DEFAULT_HASHMAP_BUCKETS_BYTES (2 * NDB_DEFAULT_HASHMAP_BUCKETS)
 
 /**
  * Bits/mask used for coding/decoding blockno/blockinstance
@@ -304,7 +305,9 @@
 
 static inline void ndb_limits_constraints()
 {
-  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_DEFAULT_HASHMAP_BUCKETS);
+  NDB_STATIC_ASSERT(NDB_DEFAULT_HASHMAP_BUCKETS <= NDB_MAX_HASHMAP_BUCKETS);
+
+  NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS <= NDB_MAX_HASHMAP_BUCKETS);
 
   NDB_STATIC_ASSERT(MAX_NDB_PARTITIONS - 1 <= NDB_PARTITION_MASK);
 
@@ -313,7 +316,10 @@ static inline void ndb_limits_constraints()
   NDB_STATIC_ASSERT(MAX_NDB_NODES == MAX_NDB_DATA_NODES + 1);
 
   // Default partitioning is 1 partition per LDM
-  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_THREADS <= MAX_NDB_PARTITIONS);
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= MAX_NDB_PARTITIONS);
+
+  // The default hashmap should atleast support the maximum default partitioning
+  NDB_STATIC_ASSERT(MAX_NDB_DATA_NODES * MAX_NDBMT_LQH_WORKERS <= NDB_DEFAULT_HASHMAP_BUCKETS);
 }
 
 #endif
