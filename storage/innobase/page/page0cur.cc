@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1939,6 +1939,21 @@ page_cur_delete_rec(
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));
+
+	if (page_get_n_recs(page) == 1) {
+		/* Empty the page. */
+		ut_ad(page_is_leaf(page));
+		/* Usually, this should be the root page,
+		and the whole index tree should become empty.
+		However, this could also be a call in
+		btr_cur_pessimistic_update() to delete the only
+		record in the page and to insert another one. */
+		page_cur_move_to_next(cursor);
+		ut_ad(page_cur_is_after_last(cursor));
+		page_create_empty(page_cur_get_block(cursor),
+				  const_cast<dict_index_t*>(index), mtr);
+		return;
+	}
 
 	/* Save to local variables some data associated with current_rec */
 	cur_slot_no = page_dir_find_owner_slot(current_rec);
