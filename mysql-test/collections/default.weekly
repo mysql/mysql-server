@@ -68,3 +68,7 @@ perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=
 #Run with Query Cache Enabled
 
 perl mysql-test-run.pl --timer --force --big-test --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=audit_log --vardir=var-audit_log --suite=audit_log --experimental=collections/default.experimental --skip-ndb --force-restart
+
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=thread_pool --vardir=var-thread_pool --suite=thread_pool --experimental=collections/default.experimental --skip-ndb --max-test-fail=0
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=windows-authentication-plugin --vardir=var-windows-authentication-plugin --suite=windows-authentication-plugin --experimental=collections/default.experimental --skip-ndb --max-test-fail=0
