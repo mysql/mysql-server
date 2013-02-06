@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,6 +275,7 @@
 #define CFG_AUTO_RECONNECT            803
 #define CFG_HB_THREAD_PRIO            804
 #define CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION 805
+#define CFG_DEFAULT_HASHMAP_SIZE      806
 
 /**
  * Internal
