@@ -2674,6 +2674,13 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_INDEX_STAT_AUTO_UPDATE,
                             &c_indexStatAutoUpdate);
 
+  c_default_hashmap_size = 0;
+  ndb_mgm_get_int_parameter(p, CFG_DEFAULT_HASHMAP_SIZE, &c_default_hashmap_size);
+  if (c_default_hashmap_size == 0)
+  {
+    c_default_hashmap_size = NDB_DEFAULT_HASHMAP_BUCKETS;
+  }
+
   Pool_context pc;
   pc.m_block = this;
 
