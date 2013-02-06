@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -140,11 +140,11 @@ t1.checkResult = function(err, tx) {
   udebug.log("checkResult");
   var op;
   if(err) { 
-    t1.appendErrorMessage("ExecuteCommit failed: " + err);
+    t1.appendErrorMessage("t1 ExecuteCommit failed: " + err);
   }
   else {
     op = tx.executedOperations.pop();
-    t1.errorIfNotEqual("operation failed", true, op.result.success);
+    t1.errorIfNotEqual("t1 operation failed", true, op.result.success);
   }
   t1.failOnError();
 };
@@ -162,7 +162,7 @@ t2.checkResult = function(err, tx) {
   udebug.log("checkResult t2");
   var op;
   if(err) { 
-    t2.appendErrorMessage("ExecuteCommit failed: " + err); 
+    t2.appendErrorMessage("t2 ExecuteCommit failed: " + err); 
   }
   else { 
     op = tx.executedOperations.pop();
@@ -186,7 +186,7 @@ t3.runTestMethod = do_update_op;
 t3.checkResult = function(err, tx) {
   udebug.log("checkResult t3");
   if(err) { 
-    t3.appendErrorMessage("ExecuteCommit failed: " + err);  
+    t3.appendErrorMessage("t3 ExecuteCommit failed: " + err);  
   }
   else { 
     var op = tx.executedOperations.pop();
@@ -210,7 +210,7 @@ t4.checkResult = function(err, tx) {
   udebug.log("checkResult t4");
   var op;
   if(err) { 
-    t4.appendErrorMessage("ExecuteCommit failed: " + err);  
+    t4.appendErrorMessage("t4 ExecuteCommit failed: " + err);  
   }
   else { 
     op = tx.executedOperations.pop();
@@ -236,11 +236,17 @@ t5.checkResult = function(err, tx) {
   udebug.log("checkResult t5");
   var op;
   if(err) { 
-    t5.appendErrorMessage("ExecuteCommit failed: " + err);  
-  }
-  else { 
+    if (err.cause) {
+      t5.errorIfNotEqual("t5 cause.code", 1062, err.cause.code);
+      t5.errorIfNotEqual("t5 cause.sqlstate", '23000', err.cause.sqlstate);
+    } else {
+      t5.appendErrorMessage("t5 transaction error has no cause.");
+    }
     op = tx.executedOperations.pop();
-    t5.errorIfNotEqual("Expected 23000", "23000", op.result.error.code);
+    t5.errorIfNotEqual("t5 error.code", 1062, op.result.error.code);
+    t5.errorIfNotEqual("t5 error.sqlstate", "23000", op.result.error.sqlstate);
+  } else {
+    t5.appendErrorMessage("t5 transaction error did not occur.");
   }
   t5.failOnError();
 };
@@ -256,12 +262,12 @@ t6.runTestMethod = do_write_op;
 t6.checkResult = function(err, tx) {
   udebug.log("checkResult t6");
   if(err) {
-    t6.appendErrorMessage("ExecuteCommit failed: " + err);  
+    t6.appendErrorMessage("t6 ExecuteCommit failed: " + err);  
   }
   else { 
     var op = tx.executedOperations.pop();
     if(op) {
-      t6.errorIfNotEqual("Operation failed", true, op.result.success);
+      t6.errorIfNotEqual("t6 Operation failed", true, op.result.success);
     }
   }
   t6.failOnError();
@@ -279,14 +285,14 @@ t7.checkResult = function(err, tx) {
   udebug.log("checkResult t7");
   var op;
   if(err) { 
-    t7.appendErrorMessage("ExecuteCommit failed: " + err);  
+    t7.appendErrorMessage("t7 ExecuteCommit failed: " + err);  
   }
   else { 
     op = tx.executedOperations.pop();
     if (op.result.value !== null) {
-      t7.errorIfNotEqual("Wrong name", 'Henry VI', op.result.value.name);
+      t7.errorIfNotEqual("t7 Wrong name", 'Henry VI', op.result.value.name);
     } else {
-      t7.appendErrorMessage('No object found for Henry VI.');
+      t7.appendErrorMessage("t7 No object found for Henry VI.");
     }
   }
   t7.failOnError();
@@ -304,7 +310,7 @@ t8.checkResult = function(err, tx) {
   udebug.log("checkResult t8");
   var op;
   if(err) { 
-    t8.appendErrorMessage("ExecuteCommit failed: " + err); 
+    t8.appendErrorMessage("t8 ExecuteCommit failed: " + err); 
   } else {
     op = tx.executedOperations.pop();
   }
@@ -317,18 +323,24 @@ t8.run = function() {
 };
   
 
-// DELETE AGAIN 
+// DELETE SAME ROW (EXPECT ERROR) 
 t9.runTestMethod = do_delete_op;
 
 t9.checkResult = function(err, tx) {
   var op;
   udebug.log("checkResult t9");
-  if(err) { 
-    t9.appendErrorMessage("ExecuteCommit failed: " + err); 
-  }
-  else  { 
+  if(err) {
+    if (err.cause) {
+      t9.errorIfNotEqual("t9 cause.code", 1032, err.cause.code);
+      t9.errorIfNotEqual("t9 cause.sqlstate", '02000', err.cause.sqlstate);
+    } else {
+      t9.appendErrorMessage("t9 transaction error has no cause.");
+    }
     op = tx.executedOperations.pop();
-    t9.errorIfNotEqual("Expected 02000", "02000", op.result.error.code);
+    t9.errorIfNotEqual("t9 code", 1032, op.result.error.code);
+    t9.errorIfNotEqual("t9 sqlstate", '02000', op.result.error.sqlstate);
+  } else {
+    t9.appendErrorMessage("t9 transaction error did not occur.");
   }
   t9.failOnError();
 };

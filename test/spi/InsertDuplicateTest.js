@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -117,7 +117,9 @@ t1.run = function() {
   prepare(t1, do_insert_op, insertObj);
 };
 t1.checkResult = function(err, tx) {
-  t1.errorIfNotEqual("ExecuteCommit failed: " + err, null, err);
+  if (err) {
+    t1.appendErrorMessage("t1 unexpected error" + err);
+  }
   t1.failOnError();
 };
 
@@ -129,9 +131,18 @@ t2.run = function() {
 };
 
 t2.checkResult = function(err, tx) {
-  //t2.errorIfNotEqual("Transaction Error Code", "23000", err.code);
-  t2.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[0].result.error.code);
+  if (err) {
+    if (err.cause) {
+      t2.errorIfNotEqual("t2 cause.code", 1062, err.cause.code);
+      t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
+    } else {
+      t2.appendErrorMessage("t2 err has no cause.");
+    }
+  } else {
+    t2.appendErrorMessage("t2 transaction error did not occur.");
+  }
+  t2.errorIfNotEqual("t2 operation error code", 1062, tx.executedOperations[0].result.error.code);
+  t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   t2.failOnError();
 };
 
@@ -143,9 +154,8 @@ t3.run = function() {
 };
 
 t3.checkResult = function(err, tx) {
-  t3.errorIfNotEqual("Transaction Error Code", "23000", err.code);
-  t3.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[0].result.error.code);
+  t3.errorIfNotEqual("t3 operation error code", 1062, tx.executedOperations[0].result.error.code);
+  t3.errorIfNotEqual("t3 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   t3.failOnError();
 };
 
@@ -158,10 +168,22 @@ t4.run = function() {
   prepare(t4, insert_two_rows, data);
 };
 t4.checkResult = function(err, tx) {
-  // The second op must have errors. 
-  // We make no claim on the transaction or the first operation
-  t4.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[1].result.error.code);
+  // The transaction and second op must have errors. 
+  // We make no claim on the status of the first operation
+  if (err) {
+    if (err.cause) {
+      t4.errorIfNotEqual("t4 Transaction Error Code", 1062, err.cause.code);
+      t4.errorIfNotEqual("t4 Transaction Error Sqlstate", "23000", err.cause.sqlstate);
+    } else {
+      t4.appendErrorMessage("t4 transaction error has no cause.");
+    }
+    t4.errorIfNotEqual("t4 Operation Error Code", 1062, 
+        tx.executedOperations[1].result.error.code);
+  } else {
+    t4.appendErrorMessage("t4 transaction error did not occur.");
+  }
+  t4.errorIfNotEqual("t4 operation code", 1062, tx.executedOperations[1].result.error.code);
+  t4.errorIfNotEqual("t4 operation sqlstate", "23000", tx.executedOperations[1].result.error.sqlstate);
   t4.failOnError();
 };
 
@@ -176,9 +198,17 @@ t5.run = function() {
 t5.checkResult = function(err, tx) {
   // The Transaction & second op must have errors
   // We make no claim on the status of the first operation
-  t5.errorIfNotEqual("Transaction Error Code", err.code, "23000");
-  t5.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[1].result.error.code);
+  if (err) {
+    if (err.cause) {
+      t5.errorIfNotEqual("t5 Transaction Error Code", 1062, err.cause.code);
+    } else {
+      t5.appendErrorMessage("t5 transaction error has no cause.");
+    }
+    t5.errorIfNotEqual("t5 Operation Error Code", 1062, 
+        tx.executedOperations[1].result.error.code);
+  } else {
+    t5.appendErrorMessage("t5 expected transaction error did not occur.");
+  }
   t5.failOnError();
 };
 
@@ -191,11 +221,21 @@ t6.run = function() {
 };
 t6.checkResult = function(err, tx) {
   // Transaction and both operations must have an error
-  t6.errorIfNotEqual("Transaction Error Code", err.code, "23000");
-  t6.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[0].result.error.code);
-  t6.errorIfNotEqual("Operation Error Code", "23000", 
-                     tx.executedOperations[1].result.error.code);
+  if (err) {
+    if (err.cause) {
+      t6.errorIfNotEqual("t6 Transaction Error Code", 1062, err.cause.code);
+    } else {
+      t6.appendErrorMessage("t6 transaction error has no cause.");
+    }
+  } else {
+    t6.appendErrorMessage("t6 transaction error did not occur.");
+  }
+  if (!tx.executedOperations[0].result.error) {
+    t6.appendErrorMessage("t6 operation 0 error did not occur.");
+  }
+  if (!tx.executedOperations[1].result.error) {
+    t6.appendErrorMessage("t6 operation 1 error did not occur.");
+  }
   t6.failOnError();
 };
 
@@ -207,7 +247,9 @@ t7.run = function() {
   prepare(t7 , do_delete_op , deleteKey);
 };
 t7.checkResult = function(err, tx) {
-  t7.errorIfNotEqual("ExecuteCommit failed: " + err, null, err);
+  if (err) {
+    t7.appendErrorMessage("t7 ExecuteCommit failed: " + err);
+  }
   t7.failOnError();
 };
   

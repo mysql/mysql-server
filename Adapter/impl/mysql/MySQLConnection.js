@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -52,7 +52,53 @@ exports.DBSession = function(pooledConnection, connectionPool) {
   }
 };
 
+/**
+ * TransactionHandler is responsible for executing operations that were defined
+ * via DBSession.buildXXXOperation. UserContext is responsible for creating the
+ * operations and for calling TransactionHandler.execute when they are ready for execution.
+ * 
+ * A batch of operations is executed in sequence. Each batch is defined by a closure
+ * which contains an operationsList and a callback. The callback is the function
+ * that is to be called once all operations in the operationsList have been completely
+ * executed including the user callback for each operation.
+ * 
+ * The list of closures is contained in the pendingBatches list. If the pendingBatches list
+ * is non-empty at the time execute is called, a batch closure is created with the parameters
+ * to the execute function (operationsList and executionCompleteCallback) and the closure is
+ * pushed onto the pendingBatches list. In the fullness of time, the operations will be executed
+ * and the callback will be called.
+ * 
+ * Within the execution of a single batch as defined by execute, each operation is executed
+ * in sequence. With AbortOnError set to true, an error returned by any operation aborts the
+ * transaction. This implies that a failure to insert a row due to duplicate key exception,
+ * or a failure to delete a row due to row not found will fail the transaction. This is the only
+ * implementable strategy for dealing with the mysql server due to the error handling at the
+ * server. The server will decide to roll back a transaction on certain errors, but will not
+ * notify the client that it has done so. The client will behave as if operations that succeeded
+ * will be effective upon commit, but in fact, some operations that succeeded will be rolled back
+ * if a subsequent operation fails. Therefore, AbortOnError is the only strategy that will detect
+ * errors and report them to the user.
+ * 
+ * The implementation strategy involves keeping track for each transaction if there has been an error
+ * reported, and returning an error on all subsequent operations. This is accomplished by setting
+ * RollbackOnly on failed transactions, and keeping track of the error that caused the RollbackOnly
+ * status to be set. Since users can also call setRollbackOnly, a different Error object is created
+ * that indicates UserError. For errors reported by the mysql adapter, the original Error is
+ * reported to the operation that caused it, and a different TransactionRolledBackError error
+ * that includes the original error is created and reported to subsequent operations as well as
+ * to the transaction.execute callback.
+ * 
+ * Errors reported in the transaction callback contain the cause of the transaction error. A member
+ * property of error, cause, is introduced to contain the underlying cause. A transaction error
+ * caused by a duplicate key error on insert will contain the DBOperationError as the cause.
+ */
 exports.DBSession.prototype.TransactionHandler = function(dbSession) {
+
+  var TransactionRolledBackError = function(err) {
+    this.cause = err;
+    this.sqlstate = 'HY000';
+    this.message = 'Transaction was aborted due to operation failure. See this.cause for underlying error.';
+  };
 
   var transactionHandler = this;
   this.isOpen = true;
@@ -60,7 +106,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.executedOperations = [];
   this.firstTime = !dbSession.autocommit;
   this.autocommit = dbSession.autocommit;
-  this.pendingOperationsList = [];
+  this.pendingBatches = [];
 
   this.executeOperations = function() {
     // transactionHandler.operationsList must have been set before calling executeOperations
@@ -69,14 +115,16 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     transactionHandler.numberOfOperations = transactionHandler.operationsList.length;
     udebug.log('MySQLConnection.TransactionHandler.executeOperations numberOfOperations: ',
         transactionHandler.numberOfOperations);
-    transactionHandler.operationsList.forEach(function(operation) {
-      if (transactionHandler.dbSession.pooledConnection === null) {
-        throw new Error(
-            'Fatal internal exception: MySQLConnection.TransactionHandler.executeOperations ' +
-            'got null for pooledConnection');
+    // make sure that the connection is still valid
+    if (transactionHandler.dbSession.pooledConnection === null) {
+      throw new Error(
+          'Fatal internal exception: MySQLConnection.TransactionHandler.executeOperations ' +
+          'got null for pooledConnection');
       }
-      operation.execute(transactionHandler.dbSession.pooledConnection, transactionHandler.operationCompleteCallback);
-    });
+    // execute the first operation; the operationCompleteCallback will execute each successive operation
+    transactionHandler.currentOperation = 0;
+    transactionHandler.operationsList[transactionHandler.currentOperation]
+        .execute(transactionHandler.dbSession.pooledConnection, transactionHandler.operationCompleteCallback);
   };
 
   this.execute = function(operationsList, transactionExecuteCallback) {
@@ -99,8 +147,8 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     } else {
       transaction_stats.incr("execute","commit");
       if (transactionHandler.numberOfOperations > 0) {
-        // there are pending operations, so just put this request on the list
-        transactionHandler.pendingOperationsList.push(
+        // there are pending batches, so just put this request on the list
+        transactionHandler.pendingBatches.push(
             {list: operationsList, 
              callback: transactionExecuteCallback
             });
@@ -118,35 +166,72 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     transaction_stats.incr("closed");
   };
 
+  this.batchComplete = function() {
+    if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
+      transactionHandler.transactionExecuteCallback(transactionHandler.error, transactionHandler);
+    } 
+    // reset executedOperations if the transaction execute callback did not pop them
+    transactionHandler.executedOperations = [];
+    // reset number of operations (after callbacks are done)
+    transactionHandler.numberOfOperations = 0;
+    // if we committed the transaction, tell dbSession we are gone
+    if (transactionHandler.isCommitting) {
+      transactionHandler.dbSession.transactionHandler = null;
+    }
+    // see if there are any pending batches to execute
+    // each pending batch consists of an operation list and a callback
+    if (transactionHandler.pendingBatches.length !== 0) {
+      // remove the first pending batch from the list (FIFO)
+      var nextBatch = transactionHandler.pendingBatches.shift();
+      transactionHandler.operationsList = nextBatch.list;
+      transactionHandler.transactionExecuteCallback = nextBatch.callback;
+      delete transactionHandler.error;
+      transactionHandler.executeOperations();
+    }
+  };
+
   this.operationCompleteCallback = function(completedOperation) {
+    // analyze the completed operation to see if it had an error
+    if (completedOperation.result.error) {
+      // this is AbortOnError behavior
+      // propagate the error to the transaction object
+      transactionHandler.error = new TransactionRolledBackError(completedOperation.result.error);
+    }
     transactionHandler.executedOperations.push(completedOperation);
     var complete = transactionHandler.executedOperations.length;
     if (complete === transactionHandler.numberOfOperations) {
-      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback done: completed',
+      udebug.log_detail('MySQLConnection.TransactionHandler.operationCompleteCallback completed',
                  complete, 'of', transactionHandler.numberOfOperations);
-      if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
-        transactionHandler.transactionExecuteCallback(null, transactionHandler);
-      } 
-      // reset executedOperations if the transaction execute callback did not pop them
-      transactionHandler.executedOperations = [];
-      // reset number of operations (after callbacks are done)
-      transactionHandler.numberOfOperations = 0;
-      // if we committed the transaction, tell dbSession we are gone
-      if (transactionHandler.isCommitting) {
-        transactionHandler.dbSession.transactionHandler = null;
-      }
-      // see if there are any pending operations to execute
-      // each pending operation consists of an operation list and a callback
-      if (transactionHandler.pendingOperationsList.length !== 0) {
-        // remove the first pending operations from the list (FIFO)
-        var pendingOperations = transactionHandler.pendingOperationsList.shift();
-        transactionHandler.operationsList = pendingOperations.list;
-        transactionHandler.transactionExecuteCallback = pendingOperations.callback;
-        transactionHandler.executeOperations();
-      }
+      transactionHandler.batchComplete();
     } else {
-      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback ',
+      // there are more operations to execute in this batch
+      udebug.log_detail('MySQLConnection.TransactionHandler.operationCompleteCallback ',
           ' completed ', complete, ' of ', transactionHandler.numberOfOperations);
+      if (transactionHandler.error) {
+        // do not execute the remaining operations, but call their callbacks with the propagated error
+        // transactionHandler.currentOperation refers to the current (error) operation
+        transactionHandler.currentOperation++;
+        for (transactionHandler.currentOperation;
+            transactionHandler.currentOperation < transactionHandler.numberOfOperations;
+            transactionHandler.currentOperation++) {
+          udebug.log_detail('transactionHandler error aborting operation ' + transactionHandler.currentOperation);
+          var operation = transactionHandler.operationsList[transactionHandler.currentOperation];
+          var operationCallback = operation.callback;
+          operation.result.error = transactionHandler.error;
+          if (typeof(operationCallback) === 'function') {
+            // call the UserContext callback
+            operationCallback(transactionHandler.error);
+          }
+          transactionHandler.executedOperations.push(operation);
+        }
+        // finally, execute the batch complete function
+        transactionHandler.batchComplete();
+      } else {
+        // execute the next operation in the current batch
+        transactionHandler.currentOperation++;
+        transactionHandler.operationsList[transactionHandler.currentOperation]
+            .execute(transactionHandler.dbSession.pooledConnection, transactionHandler.operationCompleteCallback);
+      }
     }
   };
 
@@ -178,10 +263,28 @@ exports.DBSession.prototype.getTransactionHandler = function() {
   return this.transactionHandler;
 };
 
-exports.DBSession.translateError = function(code) {
-  switch(code) {
-  case 'ER_DUP_ENTRY': return "23000";
-  }  
+// This is temporary pending the official error code string to error number map
+var codes = {
+    'ER_DUP_ENTRY': {code: 1062, sqlstate: '23000'}
+};
+
+// Create a DBOperationError from a mysql driver err.
+var DBOperationError = function(cause) {
+  // the cause is the mysql driver error
+  // the code from the driver is the string form of the mysql error, e.g. ER_DUP_ENTRY
+  var key = cause.code;
+  var lookup = codes[key];
+  if (typeof(lookup) === 'undefined') {
+    lookup = {code: 0, sqlstate: 'HY000'};
+  }
+  this.code = lookup.code;
+  this.sqlstate = lookup.sqlstate;
+  this.message = cause.message;
+  this.cause = cause;
+  udebug.log_detail('MySQLConnection DBOperationError constructor', this);
+  var toString = function() {
+    return 'DBOperationError ' + this.message;
+  };
 };
 
 function InsertOperation(sql, data, callback) {
@@ -191,26 +294,26 @@ function InsertOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  this.result.error = {};
   op_stats.incr("created","insert");
 
   function onInsert(err, status) {
     if (err) {
-      op.result.error.code = exports.DBSession.translateError(err.code);
+      op.result.error = new DBOperationError(err);
       udebug.log('dbSession.InsertOperation err code:', err.code, op.result.error.code);
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(err, null);
       }
     } else {
-      op.result.error.code = 0;
       op.result.value = op.data;
       op.result.success = true;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(null, op);
       }
     }
-    // now call the transaction execution callback
+    // now call the transaction operation complete callback
     op.operationCompleteCallback(op);
   }
 
@@ -227,26 +330,26 @@ function WriteOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  this.result.error = {};
   op_stats.incr("created","write");
 
   function onWrite(err, status) {
     if (err) {
-      op.result.error.code = exports.DBSession.translateError(err.code);
       udebug.log('dbSession.WriteOperation err code:', err.code, op.result.error.code);
+      op.result.error = new DBOperationError(err);
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(err, null);
       }
     } else {
-      op.result.error.code = 0;
       op.result.value = op.data;
       op.result.success = true;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(null, op);
       }
     }
-    // now call the transaction execution callback
+    // now call the transaction operation complete callback
     op.operationCompleteCallback(op);
   }
 
@@ -263,30 +366,33 @@ function DeleteOperation(sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  this.result.error = {};
   op_stats.incr("created","delete");
 
   function onDelete(err, status) {
     if (err) {
       udebug.log('dbSession.DeleteOperation err callback:', err);
+      op.result.error = new DBOperationError(err);
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(err, op);
       }
     } else {
       udebug.log('dbSession.DeleteOperation NO ERROR callback:', status);
       if (status.affectedRows === 1) {
         op.result.success = true;
-        op.result.error.code = 0;
       } else {
         udebug.log('dbSession.DeleteOperation NO ERROR callback with no deleted rows');
         op.result.success = false;
-        op.result.error.code = "02000";
+        op.result.error = {};
+        op.result.error.sqlstate = "02000";
+        op.result.error.code = 1032;
       }
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(null, op);
       }
     }
-    // now call the transaction execution callback
+    // now call the transaction operation complete callback
     op.operationCompleteCallback(op);
   }
 
@@ -303,42 +409,47 @@ function ReadOperation(sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  this.result.error = {};
   op_stats.incr("created","read");
 
   function onRead(err, rows) {
     if (err) {
       udebug.log('dbSession.ReadOperation err callback:', err);
+      op.result.error = new DBOperationError(err);
       op.result.value = null;
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(err, op);
       }
     } else {
       if (rows.length > 1) {
         err = new Error('Too many results from read: ' + rows.length);
         if (typeof(op.callback) === 'function') {
+          // call the UserContext callback
           op.callback(err, op);
         }
       } else if (rows.length === 1) {
         udebug.log('dbSession.ReadOperation ONE RESULT callback:', rows[0]);
         op.result.value = rows[0];
         op.result.success = true;
-        op.result.error.code = 0;
         if (typeof(op.callback) === 'function') {
+          // call the UserContext callback
           op.callback(null, op);
         }
       } else {
         udebug.log('dbSession.ReadOperation NO RESULTS callback.');
         op.result.value = null;
         op.result.success = false;
-        op.result.error = "02000";
+        op.result.error = {};
+        op.result.error.code = 1032;
+        op.result.error.sqlstate = "02000";
         if (typeof(op.callback) === 'function') {
+          // call the UserContext callback
           op.callback(null, op);
         }
       }
     }
-    // now call the transaction execution callback
+    // now call the transaction operation complete callback
     op.operationCompleteCallback(op);
   }
 
@@ -356,29 +467,34 @@ function UpdateOperation(sql, keys, values, callback) {
   this.values = values;
   this.callback = callback;
   this.result = {};
-  this.result.error = 0;
   op_stats.incr("created","update");
 
   function onUpdate(err, status) {
     if (err) {
       udebug.log('dbSession.UpdateOperation err callback:', err);
+      op.result.error = new DBOperationError(err);
+      op.result.success = false;
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(err, op);
       }
     } else {
       udebug.log('dbSession.UpdateOperation NO ERROR callback:', status);
       if (status.affectedRows === 1) {
         op.result.success = true;
-        op.result.error = 0;
       } else {
+        udebug.log('dbSession.UpdateOperation NO ERROR callback with no updated rows');
         op.result.success = false;
-        op.result.error = "02000";
+        op.result.error = {};
+        op.result.error.sqlstate = "02000";
+        op.result.error.code = 1032;
       }
       if (typeof(op.callback) === 'function') {
+        // call the UserContext callback
         op.callback(null, op);
       }
     }
-    // now call the transaction execution callback
+    // now call the transaction operation complete callback
     op.operationCompleteCallback(op);
   }
 

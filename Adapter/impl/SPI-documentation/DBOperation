@@ -25,7 +25,7 @@ DBOperation = {
   lockMode        : null ,  // LockMode used for a read operation
   index           : null ,  // the IndexMetadata used for this operation
   state           : null ,  // the current OperationState
-  result          : null ,  // DBResult object containing the result of the op
+  result          : null ,  // DBResult object containing the result of the operation
 };
 
 
@@ -67,6 +67,7 @@ DBResult = {
 
 DBOperationError = {
   code           : null,   // MySQL Error Code number (number)
+  sqlstate       : null,   // MySQL SQLSTATE (string)
   message        : null    // Error message (string)
   /* ...  Other adapter-specific properties which may be present */
 };
