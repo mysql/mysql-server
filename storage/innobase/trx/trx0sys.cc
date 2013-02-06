@@ -524,6 +524,8 @@ trx_sys_init_at_db_start(void)
 						   + TRX_SYS_TRX_ID_STORE),
 				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
+	ut_d(trx_sys->rw_max_trx_id = trx_sys->max_trx_id);
+
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 
 	trx_dummy_sess = sess_open();

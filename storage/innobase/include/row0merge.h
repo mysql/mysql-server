@@ -263,18 +263,17 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index);	/*!< in: index to check */
 /*********************************************************************//**
-If there are views that refer to the old table name then we "attach" to
-the new instance of the table else we drop it immediately.
+Drop a table. The caller must have ensured that the background stats
+thread is not processing the table. This can be done by calling
+dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table,		/*!< in: table instance to drop */
-	bool		nonatomic)	/*!< in: whether it is permitted
-					to release and reacquire
-					dict_operation_lock */
+	dict_table_t*	table)		/*!< in: table instance to drop */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
@@ -350,9 +349,10 @@ row_merge_buf_empty(
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
 /*********************************************************************//**
-Create a merge file. */
+Create a merge file.
+@return file descriptor, or -1 on failure */
 UNIV_INTERN
-void
+int
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */

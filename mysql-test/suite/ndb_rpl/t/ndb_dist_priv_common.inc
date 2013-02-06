@@ -167,7 +167,7 @@ let $chk= SELECT COUNT(Column_priv) FROM mysql.columns_priv
 #
 
 --connection server2
-let $cmd= CREATE USER testuser2@localhost IDENTIFIED BY PASSWORD 'pass4';
+let $cmd= CREATE USER testuser2@localhost IDENTIFIED BY 'pass4';
 let $chk= SELECT COUNT(*)=1 FROM mysql.user
           WHERE Host='localhost' AND User='testuser2';
 --source ndb_dist_priv_check.inc

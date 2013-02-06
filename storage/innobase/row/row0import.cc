@@ -376,7 +376,7 @@ public:
 		:
 		m_trx(trx),
 		m_space(ULINT_UNDEFINED),
-		m_xdes(0),
+		m_xdes(),
 		m_xdes_page_no(ULINT_UNDEFINED),
 		m_space_flags(ULINT_UNDEFINED),
 		m_table_flags(ULINT_UNDEFINED) UNIV_NOTHROW { }
@@ -457,21 +457,20 @@ protected:
 		ulint		page_no,
 		const page_t*	page) UNIV_NOTHROW
 	{
-		const xdes_t*	xdesc = xdes(page_no, page);
-
-		ulint		state;
-
 		m_xdes_page_no = page_no;
 
 		delete[] m_xdes;
 
 		m_xdes = 0;
 
+		ulint		state;
+		const xdes_t*	xdesc = page + XDES_ARR_OFFSET;
+
 		state = mach_read_ulint(xdesc + XDES_STATE, MLOG_4BYTES);
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow) xdes_t[XDES_SIZE];
+			m_xdes = new(std::nothrow) xdes_t[m_page_size];
 
 			/* Trigger OOM */
 			DBUG_EXECUTE_IF("ib_import_OOM_13",
@@ -481,7 +480,7 @@ protected:
 				return(DB_OUT_OF_MEMORY);
 			}
 
-			memcpy(m_xdes, xdesc, XDES_SIZE);
+			memcpy(m_xdes, page, m_page_size);
 		}
 
 		return(DB_SUCCESS);
@@ -507,9 +506,10 @@ protected:
 		     == m_xdes_page_no);
 
 		if (m_xdes != 0) {
-			ulint	pos = page_no % FSP_EXTENT_SIZE;
+			const xdes_t*	xdesc = xdes(page_no, m_xdes);
+			ulint		pos = page_no % FSP_EXTENT_SIZE;
 
-			return(xdes_get_bit(m_xdes, XDES_FREE_BIT, pos));
+			return(xdes_get_bit(xdesc, XDES_FREE_BIT, pos));
 		}
 
 		/* If the current xdes was free, the page must be free. */
@@ -730,10 +730,18 @@ FetchIndexRootPages::operator() (
 
 	ulint	page_type = fil_page_get_type(page);
 
-	if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(offset / m_page_size, page);
+	if (block->page.offset * m_page_size != offset) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Page offset doesn't match file offset: "
+			"page offset: %lu, file offset: %lu",
+			(ulint) block->page.offset,
+			(ulint) (offset / m_page_size));
+
+		err = DB_CORRUPTION;
+	} else if (page_type == FIL_PAGE_TYPE_XDES) {
+		err = set_current_xdes(block->page.offset, page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(offset / m_page_size)
+		   && !is_free(block->page.offset)
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
@@ -2179,7 +2187,9 @@ PageConverter::operator() (
 }
 
 /*****************************************************************//**
-Clean up after import tablespace failure */
+Clean up after import tablespace failure, this function will acquire
+the dictionary latches on behalf of the transaction if the transaction
+hasn't already acquired them. */
 static	__attribute__((nonnull))
 void
 row_import_discard_changes(
@@ -2204,7 +2214,12 @@ row_import_discard_changes(
 		"Discarding tablespace of table %s: %s",
 		table_name, ut_strerr(err));
 
-	row_mysql_lock_data_dictionary(trx);
+	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
+		ut_a(trx->dict_operation_lock_mode == 0);
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Since we update the index root page numbers on disk after
 	we've done a successful import. The table will not be loadable.
@@ -2220,8 +2235,6 @@ row_import_discard_changes(
 	}
 
 	table->ibd_file_missing = TRUE;
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	fil_close_tablespace(trx, table->space);
 }
@@ -2242,9 +2255,14 @@ row_import_cleanup(
 		row_import_discard_changes(prebuilt, trx, err);
 	}
 
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
+
 	trx_free_for_mysql(trx);
 
 	prebuilt->trx->op_info = "";
@@ -3729,13 +3747,6 @@ row_import_for_mysql(
 		}
 	}
 
-	/* Update the root pages of the table's indexes. */
-	err = row_import_update_index_root(trx, table, false, false);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
-
 	ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush changes to disk");
 
 	/* Ensure that all pages dirtied during the IMPORT make it to disk.
@@ -3752,13 +3763,22 @@ row_import_for_mysql(
 		ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
 	}
 
-	mutex_enter(&dict_sys->mutex);
+	/* The dictionary latches will be released in in row_import_cleanup()
+	after the transaction commit, for both success and error. */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Update the root pages of the table's indexes. */
+	err = row_import_update_index_root(trx, table, false, true);
+
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
+	}
 
 	/* Update the table's discarded flag, unset it. */
 	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
-		mutex_exit(&dict_sys->mutex);
 		return(row_import_error(prebuilt, trx, err));
 	}
 
@@ -3778,8 +3798,6 @@ row_import_for_mysql(
 		dict_table_autoinc_initialize(table, autoinc);
 		dict_table_autoinc_unlock(table);
 	}
-
-	mutex_exit(&dict_sys->mutex);
 
 	ut_a(err == DB_SUCCESS);
 

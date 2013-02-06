@@ -1,11 +1,15 @@
 # This is the DDL function tests for innodb FTS
-# Functional testing with FTS proximity search using '@' 
+# Functional testing with FTS proximity search using '@'
 # and try search default words
 
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
 
+--disable_query_log
+let $innodb_file_format_orig = `select @@innodb_file_format`;
+let $innodb_file_per_table_orig = `select @@innodb_file_per_table`;
+--enable_query_log
 
 # Create FTS table
 CREATE TABLE t1 (
@@ -35,7 +39,7 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+what +will" IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+from" IN BOOLEAN MODE);
 SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+where +(show what)" IN BOOLEAN MODE);
 
-# no result expected
+# no result expected. Words are filtered out as stopwords
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"where will"@6' IN BOOLEAN MODE);
@@ -52,22 +56,13 @@ INSERT INTO t1 (a,b) VALUES
         ('when To Use MySQL Well','for free faq  mail@xyz.com ...');
 # proximity search with @ charcter
 
-# do we always need more than one word in proximity search
-# how should following query behave wth only word in proximity search
+# We don't need more than one word in proximity search. Single word
+# treated as single word search
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"request"@10' IN BOOLEAN MODE);
 
-# it will return rows not having request word ? ans: no rows
-SELECT * FROM t1
-        WHERE MATCH (a,b)
-        AGAINST ('"-request"@10' IN BOOLEAN MODE);
-
-SELECT * FROM t1
-        WHERE MATCH (a,b)
-        AGAINST ('"-request"' IN BOOLEAN MODE);
-
-# returns a row , there can not be 0 distance between words.
+# If the distance is 0, it is treated as "phrase search"
 SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"Trial version"@0' IN BOOLEAN MODE);
@@ -77,10 +72,16 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('"request docteam@oraclehelp.com"@10' IN BOOLEAN MODE);
 
-# This should only return the first document
+# This should not return any document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"1255 minute"@10' IN BOOLEAN MODE);
+        AGAINST ('"1255 minute"@1' IN BOOLEAN MODE);
+
+# This should return the first document. That is "1255" and "minutes" are
+# in a two-word range (adjacent)
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"1255 minute"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
@@ -92,7 +93,7 @@ SELECT * FROM t1
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"request docteam"@10' IN BOOLEAN MODE);
+        AGAINST ('"request docteam"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
@@ -102,4 +103,159 @@ SELECT * FROM t1
         WHERE MATCH (a,b)
         AGAINST ('request docteam@oraclehelp.com');
 
+# Test across fields search
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+	AGAINST ('"MySQL request"@3' IN BOOLEAN MODE);
+
+# Two words are in 10 words range
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+	AGAINST ('"Trial memory"@10' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+	AGAINST ('"Trial memory"@9' IN BOOLEAN MODE);
+
 DROP TABLE t1;
+
+# test on utf8 encoded proximity search
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	b TEXT
+	) CHARACTER SET = UTF8, ENGINE= InnoDB;
+
+INSERT INTO t1 (a,b) VALUES
+	('MySQL from Tutorial','DBMS stands for DataBase ...')  ,
+	('when To Use MySQL Well','After that you went through a ...'),
+	('where will Optimizing MySQL','what In this tutorial we will show ...');
+
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+INSERT INTO t1 (a,b) VALUES
+	('MySQL Tutorial','request docteam@oraclehelp.com ...')  ,
+	('Trial version','query performace @1255 minute on 2.1Hz Memory 2GB...'),
+	('when To Use MySQL Well','for free faq  mail@xyz.com ...');
+
+# Should have 2 rows. Note proximity search does require words in order
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"mysql use"@2' IN BOOLEAN MODE);
+
+# Should return 0 row
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"mysql use"@1' IN BOOLEAN MODE);
+
+INSERT INTO t1 (a,b) VALUES   ('XYZ, long blob', repeat("a", 9000));
+
+INSERT INTO t1 (a,b) VALUES   (repeat("b", 9000), 'XYZ, long blob');
+
+# 2 rows match
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"xyz blob"@3' IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+set global innodb_file_format="Barracuda";
+set global innodb_file_per_table=1;
+
+# Test fts with externally stored long column
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a TEXT,
+	b TEXT,
+	c TEXT
+	) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, very little long blob very much blob', 'very long blob');
+
+# Note 租车 is count as one word
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000),"very 租车 供 blob","new 供需分析information");
+CREATE FULLTEXT INDEX idx on t1 (a,b,c);
+
+INSERT INTO t1 (a,b,c) VALUES   (repeat("x", 19000), 'new, long text', 'very new blob');
+INSERT INTO t1 (a,b,c) VALUES   ('interesting, long text', repeat("x", 19000), 'very very good new blob');
+
+# 3 rows should match
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b,c)
+        AGAINST ('"very blob"@3' IN BOOLEAN MODE);
+
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b,c)
+        AGAINST ('"very long blob"@0' IN BOOLEAN MODE);
+
+# 4 rows should match
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b,c)
+        AGAINST ('"very blob"@4' IN BOOLEAN MODE);
+
+# 1 row should match
+SELECT count(*) FROM t1
+         WHERE MATCH (a,b,c)
+         AGAINST ('"interesting blob"@9' IN BOOLEAN MODE);
+
+# should have 3 rows
+SELECT COUNT(*) FROM t1
+	 WHERE MATCH (a,b,c)
+	 AGAINST ('"interesting blob"@9  "very long blob"@0' IN BOOLEAN MODE);
+
+# should have 3 rows
+SELECT COUNT(*) FROM t1
+         WHERE MATCH (a,b,c)
+         AGAINST ('"very blob"@4 - "interesting blob"@9' IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a VARCHAR(200),
+	b TEXT
+	) CHARACTER SET = UTF8, ENGINE= InnoDB;
+
+# Space and special characters are not counted as word
+INSERT INTO t1 (a,b) VALUES
+	('MySQL from Tutorial','DBMS stands for    + DataBase ...');
+
+CREATE FULLTEXT INDEX idx on t1 (a,b);
+
+SELECT * FROM t1
+WHERE MATCH (a,b)
+AGAINST ('"stands database"@3' IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+# Test fts with externally stored long column
+CREATE TABLE t1 (
+	id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+	a TEXT,
+	b TEXT,
+	c TEXT
+	) CHARACTER SET = UTF8, ROW_FORMAT=DYNAMIC, ENGINE= InnoDB;
+
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob very much blob', repeat("b", 19000), 'very long but smaller blob');
+
+CREATE FULLTEXT INDEX idx on t1 (a,b,c);
+
+DELETE FROM t1;
+
+INSERT INTO t1 (a,b,c) VALUES   (repeat("b", 19000), 'XYZ, long text', 'very long blob');
+INSERT INTO t1 (a,b,c) VALUES   ('XYZ, 租车 very little long blob is a very much longer blob', repeat("b", 19000), 'this is very long but smaller blob');
+
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b,c)
+        AGAINST ('"very blob"@4' IN BOOLEAN MODE);
+
+SELECT count(*) FROM t1
+        WHERE MATCH (a,b,c)
+        AGAINST ('"very blob"@3' IN BOOLEAN MODE);
+
+DROP TABLE t1;
+
+eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+eval SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;

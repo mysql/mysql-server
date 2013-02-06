@@ -83,7 +83,7 @@ user = test_user4
 ##############################################
 # Tests for mysql_config_editor's help command
 ##############################################
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
 Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective

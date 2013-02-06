@@ -21,7 +21,7 @@
 
 #include "opt_range.cc"
 
-namespace {
+namespace opt_range_unittest {
 
 using my_testing::Server_initializer;
 

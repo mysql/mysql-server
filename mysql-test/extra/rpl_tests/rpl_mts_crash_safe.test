@@ -114,6 +114,19 @@ let $MYSQLD_DATADIR= `SELECT @@datadir`;
 --echo #                             CLEAN UP
 --echo ########################################################################
 --connection master
+# Resetting the slave's info repository type to its default (FILE)
+# should be done to any tests that starts the server with non-default (TABLE).
+# That prevents the following tests in a suite execution to hit
+# Bug #14827923 RPL TEST RPL_PARALLEL_CHANGE_MASTER FAILS WITH WARNING
+# Technically resetting of the repo type is implemented through
+# one to slave_parallel_workers. Having it zero in the info table
+# at the following restart makes the slave server to quietly migrate
+# the repository to the requested type.
+# Notice that Bug#15858271 of mtr does not allow effectiveness of
+# zeroing.
+# TODO: run the combination described on Bug#15858271 after it's fixed.
+
+--let $saved_workers= 0
 --let $commands= clean
 --source extra/rpl_tests/rpl_mts_crash_safe.inc
 
