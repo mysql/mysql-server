@@ -840,7 +840,18 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
     if (ev->write(&cache_log) != 0)
     {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
-                      {DBUG_SET("-d,simulate_file_write_error");});
+                      {
+                        DBUG_SET("-d,simulate_file_write_error");
+                        DBUG_SET("-d,simulate_disk_full_at_flush_pending");
+                        /* 
+                           after +d,simulate_file_write_error the local cache
+                           is in unsane state. Since -d,simulate_file_write_error
+                           revokes the first simulation do_write_cache()
+                           can't be run without facing an assert.
+                           So it's blocked with the following 2nd simulation:
+                        */
+                        DBUG_SET("+d,simulate_do_write_cache_failure");
+                      });
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == XID_EVENT)
@@ -1334,6 +1345,16 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   if (!leader)
   {
     mysql_mutex_lock(&m_lock_done);
+#ifndef DBUG_OFF
+    /*
+      Leader can be awaiting all-clear to preempt follower's execution.
+      With setting the status the follower ensures it won't execute anything
+      including thread-specific code.
+    */
+    thd->transaction.flags.ready_preempt= 1;
+    if (leader_await_preempt_status)
+      mysql_cond_signal(&m_cond_preempt);
+#endif
     while (thd->transaction.flags.pending)
       mysql_cond_wait(&m_cond_done, &m_lock_done);
     mysql_mutex_unlock(&m_lock_done);
@@ -1360,6 +1381,22 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   unlock();
   DBUG_RETURN(result);
 }
+
+#ifndef DBUG_OFF
+void Stage_manager::clear_preempt_status(THD *head)
+{
+  DBUG_ASSERT(head);
+
+  mysql_mutex_lock(&m_lock_done);
+  while(!head->transaction.flags.ready_preempt)
+  {
+    leader_await_preempt_status= true;
+    mysql_cond_wait(&m_cond_preempt, &m_lock_done);
+  }
+  leader_await_preempt_status= false;
+  mysql_mutex_unlock(&m_lock_done);
+}
+#endif
 
 /**
   Write a rollback record of the transaction to the binary log.
@@ -4969,6 +5006,16 @@ int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
 
+  DBUG_EXECUTE_IF("simulate_do_write_cache_failure",
+                  {
+                    /* 
+                       see binlog_cache_data::write_event() that reacts on
+                       @c simulate_disk_full_at_flush_pending.
+                    */
+                    DBUG_SET("-d,simulate_do_write_cache_failure");
+                    DBUG_RETURN(ER_ERROR_ON_WRITE);
+                  });
+
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);
   uint length= my_b_bytes_in_cache(cache), group, carry, hdr_offs;
@@ -5539,7 +5586,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     is never used for relay logs.
   */
   DBUG_ASSERT(!is_relay_log);
-  DBUG_ASSERT(total_ha_2pc > 1);
+  DBUG_ASSERT(total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log));
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   if (!my_b_inited(&index_file))
@@ -6009,6 +6056,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
 {
   mysql_mutex_assert_owner(&LOCK_commit);
   Thread_excursion excursion(thd);
+#ifndef DBUG_OFF
+  thd->transaction.flags.ready_preempt= 1; // formality by the leader
+#endif
   for (THD *head= first ; head ; head = head->next_to_commit)
   {
     DBUG_PRINT("debug", ("Thread ID: %lu, commit_error: %d, flags.pending: %s",
@@ -6022,6 +6072,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
       If flush succeeded, attach to the session and commit it in the
       engines.
     */
+#ifndef DBUG_OFF
+    stage_manager.clear_preempt_status(head);
+#endif
     if (flush_error != 0)
       head->commit_error= flush_error;
     else if (int error= excursion.attach_to(head))
@@ -6031,6 +6084,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
       bool all= head->transaction.flags.real_commit;
       if (head->transaction.flags.commit_low)
       {
+        /* head is parked to have exited append() */
+        DBUG_ASSERT(head->transaction.flags.ready_preempt);
+
         if (int error= ha_commit_low(head, all))
           head->commit_error= error;
         else if (head->transaction.flags.xid_written)
@@ -6269,6 +6325,17 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->transaction.flags.real_commit= all;
   thd->transaction.flags.xid_written= false;
   thd->transaction.flags.commit_low= !skip_commit;
+#ifndef DBUG_OFF
+  /*
+     The group commit Leader may have to wait for follower whose transaction
+     is not ready to be preempted. Initially the status is pessimistic.
+     Preemption guarding logics is necessary only when DBUG_ON is set.
+     It won't be required for the dbug-off case as long as the follower won't
+     execute any thread-specific write access code in this method, which is
+     the case as of current.
+  */
+  thd->transaction.flags.ready_preempt= 0;
+#endif
 
   DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %lu",
                        YESNO(thd->transaction.flags.pending),
@@ -6297,6 +6364,27 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     flush_error= flush_cache_to_file(&flush_end_pos);
 
   /*
+    If the flush finished successfully, we can call the after_flush
+    hook. Being invoked here, we have the guarantee that the hook is
+    executed before the before/after_send_hooks on the dump thread
+    preventing race conditions among these plug-ins.
+  */
+  if (flush_error == 0)
+  {
+    const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
+    DBUG_ASSERT(flush_end_pos != 0);
+    if (RUN_HOOK(binlog_storage, after_flush,
+                 (thd, file_name_ptr, flush_end_pos)))
+    {
+      sql_print_error("Failed to run 'after_flush' hooks");
+      flush_error= ER_ERROR_ON_WRITE;
+    }
+
+    signal_update();
+    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
+  }
+
+  /*
     Stage #2: Syncing binary log file to disk
   */
   if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
@@ -6306,36 +6394,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_RETURN(finish_commit(thd));
   }
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
-  bool synced= false;
   if (flush_error == 0 && total_bytes > 0)
   {
     std::pair<bool, bool> result= sync_binlog_file(false);
     flush_error= result.first;
-    synced= result.second;
-  }
-  
-  /*
-    If the sync finished successfully, we can call the after_flush
-    hook.
-  */
-  if (flush_error == 0)
-  {
-    const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
-    DBUG_ASSERT(flush_end_pos != 0);
-    if (RUN_HOOK(binlog_storage, after_flush,
-                 (thd, file_name_ptr, flush_end_pos, synced)))
-    {
-      sql_print_error("Failed to run 'after_flush' hooks");
-      flush_error= ER_ERROR_ON_WRITE;
-    }
-    /*
-      Since we are not holding the LOCK_log here now, it is necessary
-      to have the signal_update after the after_flush hook.  Otherwise
-      the progress have not been recorded properly in the semi-sync
-      plugin.
-    */
-    signal_update();
-    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
   /*
@@ -7016,7 +7078,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint replicated_tables_count= 0;
     /**
-      The number of tables used in the current statement,
+      The number of tables written to in the current statement,
       that should not be replicated.
       A table should not be replicated when it is considered
       'local' to a MySQL instance.
@@ -7028,6 +7090,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       - mysql.slave_worker_info
       - performance_schema.*
       - TODO: information_schema.*
+      In practice, from this list, only performance_schema.* tables
+      are written to by user queries.
     */
     uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
@@ -7083,8 +7147,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           or it will be logged (possibly partially) in ROW format.
         */
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
-        non_replicated_tables_count++;
-        continue;
+
+        if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        {
+          non_replicated_tables_count++;
+          continue;
+        }
       }
 
       replicated_tables_count++;

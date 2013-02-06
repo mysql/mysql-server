@@ -27,8 +27,5 @@ path=`dirname $0`
 
 # By default we get the "community" feature set from
 #    cmake/build_configurations/feature_set.cmake
-# We include ndbcluster in the configuration, so that it is picked up
-#    by 'make dist' in case someone wants a pushbuild tree for cluster.
 #
-./configure \
-  --with-ndbcluster
+./configure

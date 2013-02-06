@@ -30,23 +30,9 @@
 #include "sql_string.h"
 #include "sql_error.h"
 #include <my_pthread.h>
+#include "test_utils.h"
 
-pthread_key(MEM_ROOT**, THR_MALLOC);
-pthread_key(THD*, THR_THD);
-
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
-namespace {
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
+namespace sql_list_unittest {
 
 // A simple helper function to insert values into a List.
 template <class T, int size>

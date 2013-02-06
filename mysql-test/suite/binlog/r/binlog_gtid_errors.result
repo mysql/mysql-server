@@ -47,24 +47,24 @@ AUTOMATIC
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:10
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= '
     aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa 	 : 	 10
     ';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:10
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:0x10';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:16
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:16
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:010';
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:8
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:8
 ROLLBACK;
 SET @@SESSION.GTID_NEXT= 'AUTOMATIC';
 SET @@SESSION.GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:10#';
@@ -185,9 +185,9 @@ ROLLBACK;
 # can't set while owning a GTID
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13';
 SET @@SESSION.GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:14';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
-ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:13. Ownership is released on COMMIT or ROLLBACK.
+ERROR HY000: GTID_NEXT cannot be changed by a client that owns a GTID. The client owns aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:13. Ownership is released on COMMIT or ROLLBACK.
 ROLLBACK;
 # can't do implicit commit while gtid_next=SID:GNO
 BEGIN;
@@ -203,7 +203,7 @@ ERROR HY000: Cannot execute statements with implicit commit inside a transaction
 ROLLBACK;
 SELECT @@SESSION.GTID_NEXT;
 @@SESSION.GTID_NEXT
-AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA:15
+aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:15
 SET @@SESSION.GTID_NEXT = 'AUTOMATIC';
 DROP TABLE t1;
 DROP FUNCTION f;

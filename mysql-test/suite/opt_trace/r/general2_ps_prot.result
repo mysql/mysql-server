@@ -2522,6 +2522,7 @@ table3.col_varchar_10_utf8_key	{
                 {
                   "table": "`t2` `table3`",
                   "rechecking_index_usage": {
+                    "recheck_reason": "not_first_table",
                     "range_analysis": {
                       "table_scan": {
                         "rows": 1,
@@ -3295,6 +3296,7 @@ from t0 where a in
                       {
                         "table": "`t1`",
                         "rechecking_index_usage": {
+                          "recheck_reason": "not_first_table",
                           "range_analysis": {
                             "table_scan": {
                               "rows": 10,

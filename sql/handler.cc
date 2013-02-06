@@ -4332,6 +4332,18 @@ void handler::notify_table_changed()
 }
 
 
+void Alter_inplace_info::report_unsupported_error(const char *not_supported,
+                                                  const char *try_instead)
+{
+  if (unsupported_reason == NULL)
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             not_supported, try_instead);
+  else
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+             not_supported, unsupported_reason, try_instead);
+}
+
+
 /**
   Rename table: public interface.
 
@@ -4595,7 +4607,8 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-                    bool update_create_info)
+                    bool update_create_info,
+                    bool is_temp_table)
 {
   int error= 1;
   TABLE table;
@@ -4605,7 +4618,8 @@ int ha_create_table(THD *thd, const char *path,
   bool saved_abort_on_warning;
   DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
+  my_bool temp_table= (my_bool)is_temp_table ||
+               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
                (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
 #endif
   
@@ -5369,7 +5383,6 @@ int ha_binlog_end(THD* thd)
   binlog_func_foreach(thd, &bfn);
   return 0;
 }
-
 
 #ifndef MCP_GLOBAL_SCHEMA_LOCK
 /**

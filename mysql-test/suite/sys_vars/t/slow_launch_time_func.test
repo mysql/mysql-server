@@ -36,9 +36,6 @@
 
 SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
 
---echo ** Connection default **
-connection default;
-
 --echo '#--------------------FN_DYNVARS_124_01-------------------------#'
 
 ########################################################################
@@ -67,9 +64,10 @@ if (!`SELECT $value_after = $value_before + 1`)
    echo Number of slow_launch_threads before new connect: $value_before;
    echo Number of slow_launch_threads after new connect: $value_after;
 }
+disconnect conn1;
+source include/wait_until_disconnected.inc;
 --echo ** Switch to connection default and disconnect conn1 **
 connection default;
-disconnect conn1;
 
 --echo '#--------------------FN_DYNVARS_124_02-------------------------#'
 
@@ -86,6 +84,7 @@ let $value_before=
    query_get_value(show status like 'slow_launch_threads', Value, 1);
 --echo ** Connecting conn2 using username 'root' **
 CONNECT (conn2,localhost,root,,);
+SELECT 1;
 let $value_after=
    query_get_value(show status like 'slow_launch_threads', Value, 1);
 if ($value_after != $value_before)

@@ -43,6 +43,7 @@ sync_slave_with_master;
 # Reset slave.
 RESET SLAVE;
 --disable_query_log
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_USER='root', MASTER_CONNECT_RETRY=1, MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT;
 --enable_query_log
 

@@ -683,13 +683,13 @@ int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->set_outer_poly(prev_range->thread_start);
-    t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
     rp0->set_outer_poly(NULL);
-    t0->thread_start= rp0;
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }
@@ -712,13 +712,13 @@ int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->set_outer_poly(prev_range->thread_start);
-    t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
     rp0->set_outer_poly(NULL);
-    t0->thread_start= rp0;
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }

@@ -870,10 +870,10 @@ static int dbConnect(char *host, char *user, char *passwd)
          NULL, opt_mysql_port, opt_mysql_unix_port, 0)))
   {
     DBerror(&mysql_connection, "when trying to connect");
-    return 1;
+    DBUG_RETURN(1);
   }
   mysql_connection.reconnect= 1;
-  return 0;
+  DBUG_RETURN(0);
 } /* dbConnect */
 
 

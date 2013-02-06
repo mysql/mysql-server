@@ -17,16 +17,20 @@
 // then gtest.h (before any other MySQL headers), to avoid min() macros etc ...
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "mock_field_timestamp.h"
 #include "fake_table.h"
 #include "test_utils.h"
 #include "sql_data_change.h"
 
-namespace {
+namespace copy_info_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+
+using ::testing::StrictMock;
+using ::testing::_;
 
 /*
   Tests for the functionality of the COPY_INFO class. We test all public
@@ -47,56 +51,18 @@ protected:
 
 /**
   This is a simple mock Field class, which verifies that store_timestamp is
-  called, depending on default and on update clauses, and whether the field is
-  explicitly assigned a value. We inherit Field_long, but the data type does
-  not matter.
-
-  TODO: Introduce Google Mock to simplify writing of mock classes.
+  called. We inherit Field_long, but the data type does not matter.
 */
 class Mock_field : public Field_long
 {
   uchar null_byte;
-  bool store_timestamp_called;
-  bool is_on_the_assigned_list;
 public:
 
   Mock_field(utype unireg) :
-    Field_long(NULL, 0, &null_byte, 0, unireg, "", false,  false),
-    store_timestamp_called(false),
-    is_on_the_assigned_list(false)
+    Field_long(NULL, 0, &null_byte, 0, unireg, "", false,  false)
   {}
 
-  void store_timestamp(const timeval*) { store_timestamp_called= true; }
-
-  /*
-    Informs the Mock_field that it appears in the list after INSERT INTO
-    <table>.
-  */
-  void notify_added_to_assign_list() { is_on_the_assigned_list= true; }
-
-  ~Mock_field() {
-    if (!is_on_the_assigned_list && has_update_default_function())
-      EXPECT_TRUE(store_timestamp_called);
-    if ( is_on_the_assigned_list && has_update_default_function())
-      EXPECT_FALSE(store_timestamp_called);
-  }
-
-};
-
-
-/**
-  This is a simple mock Item_field class, whose only raison d'etre is to pass
-  on the call notify_added_to_assign_list() to its Mock_item_field.
-
-  TODO: Introduce Google Mock to simplify writing of mock classes.
-*/
-class Mock_item_field : public Item_field
-{
-  Mock_field *mf;
-public:
-  Mock_item_field(Mock_field *field) : Item_field(field), mf(field) {}
-
-  void notify_added_to_assign_list() { mf->notify_added_to_assign_list(); }
+  MOCK_METHOD1(store_timestamp, void(const timeval*));
 };
 
 
@@ -115,13 +81,12 @@ void check_equality(const COPY_INFO::Statistics a,
 }
 
 
+/*
+  Convenience class for creating a COPY_INFO to represent an insert operation.
+*/
 class Mock_COPY_INFO: public COPY_INFO
 {
 public:
-
-  /*
-    Pass-through constructor.
-  */
   Mock_COPY_INFO(operation_type optype,
                  List<Item> *inserted_columns,
                  enum_duplicates duplicate_handling,
@@ -133,82 +98,47 @@ public:
                 ignore_errors)
   {}
 
-  /*
-    Intelligent constructor that knows about the Mock_item_field
-    class. Notifies the Mock_item_field's that they are on the list of
-    inserted columns.
-  */
-  Mock_COPY_INFO(operation_type optype,
-                 List<Mock_item_field> *inserted_columns,
-                 enum_duplicates duplicate_handling,
-                 bool ignore_errors)
-    : COPY_INFO(optype,
-                mock_item_field_list_to_item_list(inserted_columns),
-                true, // manage_defaults
-                duplicate_handling,
-                ignore_errors)
-  {}
-
-  Mock_COPY_INFO(operation_type optype, List<Item> *fields, List<Item> *values)
-    : COPY_INFO(optype, fields, values)
-  {}
-
-  /*
-    We import these protected functions into the public namespace as we need
-    to test them.
-  */
+  // Import protected member functions, so we can test them.
   using COPY_INFO::get_function_default_columns;
   using COPY_INFO::get_cached_bitmap;
-
-  virtual ~Mock_COPY_INFO() {}
-
-private:
-  List<Item> *mock_item_field_list_to_item_list(List<Mock_item_field> *columns)
-  {
-    List<Item> *items= new List<Item>;
-    EXPECT_FALSE(items == NULL) << "Out of memory";
-
-    List_iterator<Mock_item_field> iterator(*columns);
-    Mock_item_field *assigned_column;
-    while ((assigned_column= iterator++) != NULL)
-    {
-      assigned_column->notify_added_to_assign_list();
-      items->push_back(assigned_column);
-    }
-    return items;
-  }
-
 };
 
 
 /*
-  Convenience class for creating a Mock_COPY_INFO to represent an insert
-  operation.
+  Convenience class for creating a COPY_INFO to represent an insert operation.
 */
-class Mock_COPY_INFO_insert : public Mock_COPY_INFO
+class Mock_COPY_INFO_insert : public COPY_INFO
 {
 public:
   Mock_COPY_INFO_insert() :
-    Mock_COPY_INFO(COPY_INFO::INSERT_OPERATION, static_cast<List<Item>*>(NULL),
-                   DUP_UPDATE, false)
+    COPY_INFO(COPY_INFO::INSERT_OPERATION, static_cast<List<Item>*>(NULL),
+              true, // manage_defaults
+              DUP_UPDATE, false)
   {}
   Mock_COPY_INFO_insert(List<Item> *fields) :
-    Mock_COPY_INFO(COPY_INFO::INSERT_OPERATION, fields,
-                   DUP_UPDATE, false)
+    COPY_INFO(COPY_INFO::INSERT_OPERATION, fields,
+              true, // manage_defaults
+              DUP_UPDATE, false)
   {}
+  // Import protected member functions, so we can test them.
+  using COPY_INFO::get_function_default_columns;
+  using COPY_INFO::get_cached_bitmap;
 };
 
 
 /*
-  Convenience class for creating a Mock_COPY_INFO to represent an update
+  Convenience class for creating a COPY_INFO to represent an update
   operation.
 */
-class Mock_COPY_INFO_update : public Mock_COPY_INFO
+class Mock_COPY_INFO_update : public COPY_INFO
 {
 public:
   Mock_COPY_INFO_update()
-    :Mock_COPY_INFO(COPY_INFO::UPDATE_OPERATION, NULL, NULL)
+    : COPY_INFO(COPY_INFO::UPDATE_OPERATION, NULL, NULL)
   {}
+  // Import protected member functions, so we can test them.
+  using COPY_INFO::get_function_default_columns;
+  using COPY_INFO::get_cached_bitmap;
 };
 
 
@@ -384,16 +314,16 @@ TEST_F(CopyInfoTest, getFunctionDefaultColumns)
 */
 TEST_F(CopyInfoTest, setFunctionDefaults)
 {
-  Mock_field a(Field::TIMESTAMP_UN_FIELD);
-  Mock_field b(Field::TIMESTAMP_DNUN_FIELD);
+  StrictMock<Mock_field> a(Field::TIMESTAMP_UN_FIELD);
+  StrictMock<Mock_field> b(Field::TIMESTAMP_DNUN_FIELD);
 
   EXPECT_TRUE(a.has_update_default_function());
   EXPECT_TRUE(b.has_update_default_function());
 
   Fake_TABLE table(&a, &b);
 
-  List<Mock_item_field> assigned_columns;
-  assigned_columns.push_front(new Mock_item_field(&a));
+  List<Item> assigned_columns;
+  assigned_columns.push_front(new Item_field(&a));
 
   Mock_COPY_INFO insert(COPY_INFO::INSERT_OPERATION,
                         &assigned_columns,
@@ -408,6 +338,9 @@ TEST_F(CopyInfoTest, setFunctionDefaults)
 
   EXPECT_TRUE(insert.function_defaults_apply(&table)) << "They do apply";
 
+  // We expect store_timestamp() to be called for b.
+  // We do not care about the argument to store_timestamp().
+  EXPECT_CALL(b, store_timestamp(_)).Times(1);
   insert.set_function_defaults(&table);
 }
 

@@ -614,6 +614,8 @@ dict_build_index_def_step(
 
 	/* Note that the index was created by this transaction. */
 	index->trx_id = trx->id;
+	ut_ad(table->def_trx_id <= trx->id);
+	table->def_trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -1218,7 +1220,11 @@ dict_create_index_step(
 		}
 
 		node->index->page = node->page_no;
-		node->index->trx_id = trx->id;
+		/* These should have been set in
+		dict_build_index_def_step() and
+		dict_index_add_to_cache(). */
+		ut_ad(node->index->trx_id == trx->id);
+		ut_ad(node->index->table->def_trx_id == trx->id);
 		node->state = INDEX_COMMIT_WORK;
 	}
 
