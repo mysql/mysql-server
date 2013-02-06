@@ -86,7 +86,7 @@ pk	a	b	c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ALTER ONLINE TABLE t1 PARTITION BY HASH(pk);
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 PARTITION BY HASH(pk)'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Check table t1 ID has not changed

@@ -174,7 +174,7 @@ select * from t1;
 --echo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --echo
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 ALTER ONLINE TABLE t1 PARTITION BY HASH(pk);
 
 --echo

@@ -297,7 +297,7 @@ SELECT * FROM t2 ORDER BY i;
 --echo *************************************************************
 --echo * Test that online alter of default values fails
 --echo *************************************************************
---error 1235
+--error ER_ALTER_OPERATION_NOT_SUPPORTED 
 ALTER ONLINE TABLE t2 MODIFY COLUMN j INT DEFAULT 888;
 
 DROP TABLE IF EXISTS t2;
