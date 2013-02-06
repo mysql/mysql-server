@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -337,7 +337,7 @@ const
 SimpleProperties::SP2StructMapping
 DictHashMapInfo::Mapping[] = {
   DHMIMAPS(HashMap, HashMapName, HashMapName, 0, MAX_TAB_NAME_SIZE),
-  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, NDB_DEFAULT_HASHMAP_BUCKETS),
+  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, NDB_MAX_HASHMAP_BUCKETS),
   DTIMAP(HashMap, HashMapObjectId, HashMapObjectId),
   DTIMAP(HashMap, HashMapVersion, HashMapVersion),
 
@@ -345,7 +345,7 @@ DictHashMapInfo::Mapping[] = {
    * This *should* change to Uint16 or similar once endian is pushed
    */
   DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0,
-           NDB_DEFAULT_HASHMAP_BUCKETS_BYTES, HashMapBuckets)
+           NDB_MAX_HASHMAP_BUCKETS * sizeof(Uint16), HashMapBuckets)
 };
 
 //static
