@@ -1,0 +1,28 @@
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+DROP TABLE IF EXISTS toku1, toku2;
+create table toku1 (a int) engine=TokuDB;
+create table toku2 (a int) engine=TokuDB;
+insert into toku1 values (1),(2),(3);
+insert into toku2 values (1),(2),(3);
+set session transaction isolation level READ COMMITTED;
+begin;
+insert into toku2 select * from toku1;
+set session transaction isolation level READ COMMITTED;
+insert into toku1 values (4);
+commit;
+select * from toku2;
+a
+1
+2
+3
+1
+2
+3
+commit;
+select * from toku1;
+a
+1
+2
+3
+4
+DROP TABLE toku1, toku2;
