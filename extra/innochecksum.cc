@@ -233,7 +233,7 @@ update_checksum(
 						page, physical_page_size,
 						write_check);
 		if (debug)
-			DBUG_PRINT("info", ("page %lu: checksum field = %u;",
+			DBUG_PRINT("info", ("page %lu: Updated checksum = %u;\n",
 				ct, checksum_field1));
 	} else {
 		/*means page is  uncompressed. */
@@ -266,8 +266,8 @@ update_checksum(
 		}
 
 		if (debug)
-		DBUG_PRINT("info", ("\npage %lu: checksum number: first = %u;"
-			"checksum number: second = %u;\n", ct,
+		DBUG_PRINT("info", ("page %lu: Updated checksum field1 = %u;"
+			"checksum field2 = %u;\n", ct,
 			checksum_field1,checksum_field2));
 
 		mach_write_to_4(page + physical_page_size -
@@ -285,10 +285,12 @@ update_checksum(
 		return TRUE;
 	}
 
-	return (!memcmp(stored1,page + FIL_PAGE_SPACE_OR_CHKSUM,4) &&
-		!memcmp(stored2,page + physical_page_size -
-			FIL_PAGE_END_LSN_OLD_CHKSUM,4));
+	if (!memcmp(stored1,page + FIL_PAGE_SPACE_OR_CHKSUM,4) &&
+	    !memcmp(stored2,page + physical_page_size -
+		FIL_PAGE_END_LSN_OLD_CHKSUM,4))
+		return FALSE;
 
+	return TRUE;
 }
 
 /*
@@ -831,10 +833,12 @@ main(
 
 		if(page_type_dump) {
 			fprintf(pagedump,"\n\nFilename::%s\n",filename);
-			fprintf(pagedump,"================================================================\n");
-			char dump[]="PAGE_NO	|		PAGE_TYPE		|	EXTRA INFO\n";
-			fprintf(pagedump, "%s",dump);
-			fprintf(pagedump,"================================================================\n");
+			fprintf(pagedump,"===================================="
+				"==========================================\n");
+			fprintf(pagedump, "\tPAGE_NO\t\t|\t\tPAGE_TYPE\t\t\t|\tEXTRA INFO\n");
+			fprintf(pagedump,"===================================="
+				"==========================================\n");
+
 		}
 
 		/* main checksumming loop */
