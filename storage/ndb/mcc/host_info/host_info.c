@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     goto finally;
   }
 
- usage:
+  /* usage: */
   printf("Usage: %s [-m|-c]\n", argv[0]);
   r = 1;
 
