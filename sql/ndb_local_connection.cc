@@ -23,6 +23,7 @@
 
 #include "sql_class.h"
 #include "sql_prepare.h"
+#include "log.h"
 
 Ndb_local_connection::Ndb_local_connection(THD* thd_arg):
   m_thd(thd_arg)
