@@ -22,8 +22,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
@@ -17391,5 +17389,3 @@ ndbinfo_plugin, /* ndbinfo plugin */
 /* IS plugin table which maps between mysql connection id and ndb trans-id */
 i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
-
-#endif
