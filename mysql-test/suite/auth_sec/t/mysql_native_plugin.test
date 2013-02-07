@@ -59,7 +59,11 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 
 # Verifying the client connection using the same mysql_native_password plugin and NULL password
 
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con1,localhost,Tanjotuser1,,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con2,127.0.0.1,Tanjotuser2,,,);
 
 # Verifying the client connection using the same mysql_native_password plugin and junk password
@@ -129,12 +133,10 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 --exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
 --echo 0 Expected
 
-
 # Verifying the client connection using the  mysql_native_password plugin and NULL password
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con5,localhost,Tanjotuser1,,,);
@@ -142,7 +144,6 @@ connect(con5,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,127.0.0.1,Tanjotuser2,,,);
@@ -273,7 +274,11 @@ connection default;
 select @@global.secure_auth;
 --echo 1 Expected
 
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con21,localhost,Tanjotuser1,abc,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con22,127.0.0.1,Tanjotuser2,abc,,);
 
 # Verifying the client connection using the same mysql_native_password plugin and correct password with secure_auth disabled
@@ -285,7 +290,11 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con23,localhost,Tanjotuser1,abc,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con24,127.0.0.1,Tanjotuser2,abc,,);
 --enable_warnings
 
@@ -386,7 +395,11 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con35,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con36,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
 --enable_warnings
 
@@ -398,17 +411,18 @@ connection default;
 --disable_warnings
 set @@global.secure_auth=1;
 --enable_warnings
-
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con37,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con38,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
 --enable_warnings
-
 
 # Verifying the client access denied passing null password
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -416,16 +430,13 @@ connect(con39,localhost,Tanjotuser1," ",,);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con40,127.0.0.1,Tanjotuser2," ",,);
 --enable_query_log
-
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con41,localhost,Tanjotuser1,,,);
@@ -433,7 +444,6 @@ connect(con41,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con42,127.0.0.1,Tanjotuser2,,,);
@@ -521,7 +531,11 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 
 # Verifying the client connection using the same mysql_native_password plugin and NULL password
 
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con89,localhost,Tanjotuser1,,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con90,127.0.0.1,Tanjotuser2,,,);
 
 # Verifying the client connection using the same mysql_native_password plugin and junk password
@@ -598,7 +612,6 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con93,localhost,Tanjotuser1,,,);
@@ -606,7 +619,6 @@ connect(con93,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con94,127.0.0.1,Tanjotuser2,,,);
@@ -615,7 +627,6 @@ connect(con94,127.0.0.1,Tanjotuser2,,,);
 # Verifying the client connection using the same mysql_native_password plugin and junk password
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -623,7 +634,6 @@ connect(con95,localhost,Tanjotuser1," ",,);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -734,7 +744,11 @@ connection default;
 select @@global.secure_auth;
 --echo 1 Expected
 
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con109,localhost,Tanjotuser1,abc,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con110,127.0.0.1,Tanjotuser2,abc,,);
 
 # Verifying the client connection using the same mysql_native_password plugin and correct password with secure_auth disabled
@@ -746,7 +760,11 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con111,localhost,Tanjotuser1,abc,,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con112,127.0.0.1,Tanjotuser2,abc,,);
 --enable_warnings
 
@@ -848,7 +866,11 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con123,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con124,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
 --enable_warnings
 
@@ -861,14 +883,17 @@ set @@global.secure_auth=1;
 --enable_warnings
 
 --disable_warnings
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con125,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--replace_result "(using password: NO)" "()"
+--replace_result "(using password: YES)" "()"
 connect(con126,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
 --enable_warnings
 
 # Verifying the client access denied passing null password
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -876,7 +901,6 @@ connect(con127,localhost,Tanjotuser1," ",,);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
---replace_result "(using password: NO)" "()"
 --replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
@@ -885,7 +909,6 @@ connect(con128,127.0.0.1,Tanjotuser2," ",,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con127,localhost,Tanjotuser1,,,);
@@ -893,7 +916,6 @@ connect(con127,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con128,127.0.0.1,Tanjotuser2,,,);
