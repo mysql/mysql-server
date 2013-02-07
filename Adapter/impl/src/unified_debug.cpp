@@ -25,7 +25,7 @@
 #include <errno.h>
 #include <fcntl.h>
 
-#include <v8.h>
+#include <node.h>
 
 #include "js_wrapper_macros.h"
 #include "adapter_global.h"
