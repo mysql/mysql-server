@@ -6569,9 +6569,10 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     }
 
     // If the field is numeric, we can interpret the out of range value.
-    if (field->result_type() == REAL_RESULT ||
-        field->result_type() == INT_RESULT ||
-        field->result_type() == DECIMAL_RESULT)
+    if ((field->type() != FIELD_TYPE_BIT) &&
+        (field->result_type() == REAL_RESULT ||
+         field->result_type() == INT_RESULT ||
+         field->result_type() == DECIMAL_RESULT))
     {
       /*
         value to store was higher than field::max_value if
