@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -994,6 +994,7 @@ public:
   /* Empty NdbRecord column mask for user convenience */
   static const Uint32 m_emptyMask[MAXNROFATTRIBUTESINWORDS];
 
+  int getDefaultHashmapSize() const;
 private:
   NdbTableImpl * fetchGlobalTableImplRef(const GlobalCacheInitObject &obj);
 };

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
   { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -655,7 +655,7 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
   { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -776,7 +776,7 @@ struct DictFilegroupInfo {
 };
 
 #define DHMIMAP(x, y, z) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DHMIMAP2(x, y, z, u, v) \
   { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -802,7 +802,7 @@ struct DictHashMapInfo {
   struct HashMap {
     char   HashMapName[MAX_TAB_NAME_SIZE];
     Uint32 HashMapBuckets;
-    Uint16 HashMapValues[NDB_DEFAULT_HASHMAP_BUCKETS];
+    Uint16 HashMapValues[NDB_MAX_HASHMAP_BUCKETS];
     Uint32 HashMapObjectId;
     Uint32 HashMapVersion;
     HashMap() {}
