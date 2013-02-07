@@ -65,7 +65,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
 /* Global variables */
 static my_bool	verbose;
-my_bool		debug=0;
+my_bool		debug = 0;
 static my_bool	just_count;
 static ulong	start_page;
 static ulong	end_page;
@@ -76,7 +76,7 @@ ulong		srv_page_size;		/* replaces declaration in srv0srv.c */
 extern ulong	srv_checksum_algorithm;
 ulint		ct;			/* Current page number (0 based). */
 static my_bool	no_check;		/* Skip the checksum verification. */
-my_bool		strict_verify=0;	/* Enabled for strict checksum
+my_bool		strict_verify = 0;	/* Enabled for strict checksum
 					verification. */
 static my_bool	do_write;		/* Enabled for rewrite checksum. */
 static ulong	allow_mismatches;	/* Mismatches count allowed
@@ -616,7 +616,7 @@ get_options(
 
 	if ((ho_error=handle_options(argc, argv, innochecksum_options,
 		innochecksum_get_one_option)))
-		exit(ho_error);
+		exit(1);
 
 	/* The next arg must be the filename */
 	if (!*argc) {
@@ -660,6 +660,7 @@ main(
 	bool		read_from_stdin = 0;
 	FILE*		pagedump;
 	struct flock	lk;			/* advisory lock. */
+	fpos_t pos;
 
 	ut_crc32_init();
 	MY_INIT(argv[0]);
@@ -700,7 +701,7 @@ main(
 
 		DBUG_PRINT("info", ("Filename = %s",filename));
 		if (*filename == '\0') {
-			fprintf(stderr, "Error; File name missing\n");
+			fprintf(stderr, "Error: File name missing\n");
 
 			DBUG_RETURN(1);
 		}
@@ -711,7 +712,7 @@ main(
 
 		/* stat the file to get size and page count */
 		if (!read_from_stdin && stat(filename, &st)) {
-			fprintf(stderr, "Error; %s cannot be found\n",
+			fprintf(stderr, "Error: %s cannot be found\n",
 				filename);
 
 			DBUG_RETURN(1);
@@ -724,18 +725,19 @@ main(
 			else
 				f = fopen(filename, "rb");
 			if (f == NULL) {
-				fprintf(stderr, "Error; %s cannot be opened",
+				fprintf(stderr, "Error: %s cannot be opened",
 					filename);
 				perror(" ");
 
 				DBUG_RETURN(1);
 			}
+			fgetpos(f,&pos);
 		}
 
 		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, f);
 		flag = 1;
 		if (min_bytes != UNIV_PAGE_SIZE_MIN) {
-			fprintf(stderr, "Error; Was not able to read the "
+			fprintf(stderr, "Error: Was not able to read the "
 				"minimum page size ");
 			fprintf(stderr, "of %d bytes.  Bytes read was %lu\n",
 				UNIV_PAGE_SIZE_MIN, min_bytes);
@@ -767,7 +769,7 @@ main(
 		if(!read_from_stdin) {
 			fd = fileno(f);
 			if (!fd) {
-				perror("Error; Unable to obtain file "
+				perror("Error: Unable to obtain file "
 					"descriptor number");
 
 				DBUG_RETURN(1);
@@ -792,12 +794,13 @@ main(
 				flag = 0;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
-				if (lseek(fd, offset, SEEK_SET) != offset) {
-					perror("Error; Unable to seek to "
+				if (fseeko(f, offset, SEEK_SET)) {
+					perror("Error: Unable to seek to "
 						"necessary offset");
 
 					DBUG_RETURN(1);
 				}
+				fgetpos(f, &pos);
 			} else {
 
 				ulong count=0;
@@ -817,7 +820,7 @@ main(
 						bytes= fread(buf, 1, physical_page_size, f);
 					count++;
 					if (!bytes || feof(f)) {
-						fprintf(stderr,"Error; Unable "
+						fprintf(stderr,"Error: Unable "
 							"to seek to necessary offset");
 
 						DBUG_RETURN(1);
@@ -837,9 +840,6 @@ main(
 		/* main checksumming loop */
 		ct = start_page;
 		lastt = 0;
-		fpos_t cur, prev, next;
-		fgetpos(f,&cur);
-		prev=cur; next=cur;
 		while (!feof(f)) {
 			if (flag) {
 				flag=0;
@@ -864,10 +864,9 @@ main(
 			}
 
 			if (bytes != physical_page_size) {
-				fprintf(stderr, "Error; bytes read (%lu) "
+				fprintf(stderr, "Error: bytes read (%lu) "
 					"doesn't match page size (%lu)\n",
 					bytes, physical_page_size);
-
 				DBUG_RETURN(1);
 			}
 
@@ -879,7 +878,7 @@ main(
 					iscorrupted = buf_page_is_corrupted(true,buf,0);
 
 				if (iscorrupted) {
-					fprintf(stderr, "Fail; page %lu invalid"
+					fprintf(stderr, "Fail: page %lu invalid"
 						"\n", ct);
 					mismatch_count++;
 					if(mismatch_count>allow_mismatches) {
@@ -899,12 +898,10 @@ main(
 					update_checksum(buf, physical_page_size, compressed);
 					fwrite(buf, physical_page_size, 1, stdout);
 				} else {
-					fgetpos(f, &next);
-
 					if(update_checksum(buf, physical_page_size, compressed)) {
-						fsetpos(f, &prev);
+						fsetpos(f, &pos);
 						fwrite(buf, physical_page_size, 1, f);
-						fgetpos(f, &prev);
+						fgetpos(f, &pos);
 					}
 				}
 			}
