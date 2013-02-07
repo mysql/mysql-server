@@ -48,7 +48,7 @@ inline int my_decimal_get_binary_size(uint precision, uint scale)
 #endif
 
 #define DTIMAP(x, y, z) \
-  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DTIMAP2(x, y, z, u, v) \
   { DictTabInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -685,7 +685,7 @@ public:
 };
 
 #define DFGIMAP(x, y, z) \
-  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFGIMAP2(x, y, z, u, v) \
   { DictFilegroupInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
@@ -806,7 +806,7 @@ struct DictFilegroupInfo {
 };
 
 #define DHMIMAP(x, y, z) \
-  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DHMIMAP2(x, y, z, u, v) \
   { DictHashMapInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
