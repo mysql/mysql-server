@@ -22,8 +22,8 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password'
 1
 1 Expected
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 set @@session.old_passwords=2;
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
@@ -61,31 +61,31 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 2 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 select @@global.secure_auth;
 @@global.secure_auth
 1
 1 Expected
 set @@global.secure_auth=0;
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
 
@@ -101,14 +101,14 @@ SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
 set @@global.secure_auth=0;
 set @@global.secure_auth=1;
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
 
@@ -136,8 +136,8 @@ select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0
 (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password'
 1
 1 Expected
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 SET @@session.old_passwords=2;
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
@@ -175,31 +175,31 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 2 Expected
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 select @@global.secure_auth;
 @@global.secure_auth
 1
 1 Expected
 set @@global.secure_auth=0;
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
 
@@ -215,14 +215,14 @@ SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
 set @@global.secure_auth=0;
 set @@global.secure_auth=1;
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: YES)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: YES)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 DROP USER 'Tanjotuser1'@'localhost';
 DROP USER 'Tanjotuser2'@'127.0.0.1';
 SET @@global.secure_auth=default;
