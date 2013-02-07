@@ -9,5 +9,15 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-sys_vars.max_binlog_cache_size_basic_64 : bug#11763668  2010-08-31 Horst
-sys_vars.max_binlog_cache_size_basic_32 : bug#11763668  2010-08-31 Horst
+sys_vars.max_allowed_packet_basic : bug#16295372 2013-02-09 veduggir
+sys_vars.max_allowed_packet_func : bug#16295372 2013-02-09 veduggir
+sys_vars.net_buffer_length_basic : bug#16295372 2013-02-09 veduggir
+sys_vars.insert_id_basic : bug#16295418 2013-02-09 veduggir
+sys_vars.key_cache_age_threshold_basic_64 : bug#16295418 2013-02-09 veduggir
+sys_vars.key_cache_block_size_basic_64 : bug#16295418 2013-02-09 veduggir
+sys_vars.key_cache_division_limit_basic_64 : bug#16295418 2013-02-09 veduggir
+sys_vars.identity_basic : bug#16295418 2013-02-09 veduggir
+sys_vars.key_buffer_size_basic_64 : bug#16295418 2013-02-09 veduggir
+sys_vars.key_buffer_size_func : bug#16295418 2013-02-09 veduggir
+sys_vars.timestamp_basic_64 : bug#16295457 2013-02-09 veduggir
+sys_vars.rpl_init_slave_func : bug#16295518 2013-02-09 veduggir

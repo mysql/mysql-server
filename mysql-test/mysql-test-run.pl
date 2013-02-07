@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -157,7 +157,7 @@ my $path_config_file;           # The generated config file, var/my.cnf
 # executables will be used by the test suite.
 our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
-my $DEFAULT_SUITES= "main,binlog,federated,rpl,rpl_ndb,ndb,innodb,innodb_plugin";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,rpl_ndb,ndb,innodb,innodb_plugin";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
