@@ -16,9 +16,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndb_index_stat.h"
 #include <mysql/plugin.h>
@@ -3000,5 +2997,3 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
 
   DBUG_RETURN(err);
 }
-
-#endif

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2004-2006, 2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2004-2006, 2008-2009, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -60,11 +59,11 @@ g_paramters[] = {
   // per scan (Number is defined by multi read range.
   { "access",      0, 0, 2 }, // Table, Index or Ordered Index scan
   { "fetch",       0, 0, 1 }, // nextResult fetchAllowed.  No, yes
-  { "size",  1000000, 1, ~0 }, // Num rows to operate on
-  { "iterations",  3, 1, ~0 }, // Num times to repeat tests
+  { "size",  1000000, 1, UINT_MAX }, // Num rows to operate on
+  { "iterations",  3, 1, UINT_MAX }, // Num times to repeat tests
   { "create_drop", 1, 0, 2 }, // Whether to recreate the table
   { "data",        1, 0, 1 }, // Ignored currently
-  { "multi read range", 1000, 1, ~0 } // Number of ranges to use in MRR access (range=3)
+  { "multi read range", 1000, 1, UINT_MAX } // Number of ranges to use in MRR access (range=3)
 };
 
 static Ndb* g_ndb = 0;

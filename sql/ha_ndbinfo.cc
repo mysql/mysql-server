@@ -17,8 +17,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbinfo.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
 
@@ -834,5 +832,3 @@ struct st_mysql_plugin ndbinfo_plugin =
 };
 
 template class Vector<const NdbInfoRecAttr*>;
-
-#endif
