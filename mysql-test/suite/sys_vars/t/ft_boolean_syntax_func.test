@@ -57,7 +57,7 @@ CREATE TABLE articles (
    title VARCHAR(200),
    body TEXT,
    FULLTEXT (title,body)
-)ENGINE=MyISAM;
+);
 
 INSERT INTO articles (title,body) VALUES
 ('MySQL Tutorial','DBMS stands for DataBase ...'),
