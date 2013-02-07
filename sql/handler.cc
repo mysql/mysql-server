@@ -2378,10 +2378,11 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
 ****************************************************************************/
 handler *handler::clone(const char *name, MEM_ROOT *mem_root)
 {
+  DBUG_ENTER("handler::clone");
   handler *new_handler= get_new_handler(table->s, mem_root, ht);
 
   if (!new_handler)
-    return NULL;
+    DBUG_RETURN(NULL);
   if (new_handler->set_ha_share_ref(ha_share))
     goto err;
 
@@ -2401,11 +2402,11 @@ handler *handler::clone(const char *name, MEM_ROOT *mem_root)
                            HA_OPEN_IGNORE_IF_LOCKED))
     goto err;
 
-  return new_handler;
+  DBUG_RETURN(new_handler);
 
 err:
   delete new_handler;
-  return NULL;
+  DBUG_RETURN(NULL);
 }
 
 
@@ -2706,7 +2707,9 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
     @retval  0                   Success (found a record, and function has
                                  set table->status to 0)
     @retval  HA_ERR_END_OF_FILE  Row not found (function has set table->status
-                                 to STATUS_NOT_FOUND)
+                                 to STATUS_NOT_FOUND). End of index passed.
+    @retval  HA_ERR_KEY_NOT_FOUND Row not found (function has set table->status
+                                 to STATUS_NOT_FOUND). Index cursor positioned.
     @retval  != 0                Error
 
   @note Positions an index cursor to the index specified in the handle.
@@ -2833,13 +2836,14 @@ int handler::ha_index_prev(uchar * buf)
 int handler::ha_index_first(uchar * buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_first");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_first(buf); })
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -2857,13 +2861,14 @@ int handler::ha_index_first(uchar * buf)
 int handler::ha_index_last(uchar * buf)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_last");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_last(buf); })
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -2883,13 +2888,14 @@ int handler::ha_index_last(uchar * buf)
 int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_next_same");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_next_same(buf, key, keylen); })
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -2911,13 +2917,14 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
                            enum ha_rkey_function find_flag)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_read");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read(buf, key, key_len, find_flag); })
-  return result;
+  DBUG_RETURN(result);
 }
 
 
@@ -2937,13 +2944,14 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
 int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 {
   int result;
+  DBUG_ENTER("handler::ha_index_read_last");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == INDEX);
 
   MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
     { result= index_read_last(buf, key, key_len); })
-  return result;
+  DBUG_RETURN(result);
 }
 
 

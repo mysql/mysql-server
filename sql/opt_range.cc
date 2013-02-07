@@ -881,9 +881,10 @@ class TABLE_READ_PLAN;
 
 struct st_ror_scan_info;
 
-static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
-			       Item_func::Functype type,Item *value,
-			       Item_result cmp_type);
+static SEL_TREE * get_mm_parts(RANGE_OPT_PARAM *param,
+                               Item_func *cond_func,Field *field,
+                               Item_func::Functype type,Item *value,
+                               Item_result cmp_type);
 static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    KEY_PART *key_part,
 			    Item_func::Functype type,Item *value);
@@ -6002,7 +6003,7 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
   {
     /* 
        Here the function for the following predicates are processed:
-       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL.
+       <, <=, =, >=, >, LIKE, IS NULL, IS NOT NULL and GIS functions.
        If the predicate is of the form (value op field) it is handled
        as the equivalent predicate (field rev_op value), e.g.
        2 <= a is handled as a >= 2.
@@ -6330,7 +6331,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
       Item_result cmp_type= field->cmp_type();
       if (!((ref_tables | field->table->map) & param_comp))
       {
-        tree= get_mm_parts(param, cond, field, Item_func::EQ_FUNC,
+        tree= get_mm_parts(param, item_equal, field, Item_func::EQ_FUNC,
 		           value,cmp_type);
         ftree= !ftree ? tree : tree_and(param, ftree, tree);
       }
@@ -6377,9 +6378,43 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   DBUG_RETURN(ftree);
 }
 
+/**
+  Test whether a comparison operator is a spatial comparison
+  operator, i.e. Item_func::SP_*.
+
+  Used to check if range access using operator 'op_type' is applicable
+  for a non-spatial index.
+
+  @param   op_type  The comparison operator.
+  @return  true if 'op_type' is a spatial comparison operator, false otherwise.
+
+*/
+bool is_spatial_operator(Item_func::Functype op_type)
+{
+  switch (op_type)
+  {
+  case Item_func::SP_EQUALS_FUNC:
+  case Item_func::SP_DISJOINT_FUNC:
+  case Item_func::SP_INTERSECTS_FUNC:
+  case Item_func::SP_TOUCHES_FUNC:
+  case Item_func::SP_CROSSES_FUNC:
+  case Item_func::SP_WITHIN_FUNC:
+  case Item_func::SP_CONTAINS_FUNC:
+  case Item_func::SP_OVERLAPS_FUNC:
+  case Item_func::SP_STARTPOINT:
+  case Item_func::SP_ENDPOINT:
+  case Item_func::SP_EXTERIORRING:
+  case Item_func::SP_POINTN:
+  case Item_func::SP_GEOMETRYN:
+  case Item_func::SP_INTERIORRINGN:
+    return true;
+  default:
+    return false;
+  }
+}
 
 static SEL_TREE *
-get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
+get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
 	     Item *value, Item_result cmp_type)
 {
@@ -6397,6 +6432,14 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item *cond_func, Field *field,
   {
     if (field->eq(key_part->field))
     {
+      /*
+        Cannot do range access for spatial operators when a
+        non-spatial index is used.
+      */
+      if (key_part->image_type != Field::itMBR &&
+          is_spatial_operator(cond_func->functype()))
+        continue;
+
       SEL_ARG *sel_arg=0;
       if (!tree && !(tree=new SEL_TREE()))
 	DBUG_RETURN(0);				// OOM
@@ -6531,9 +6574,10 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     }
 
     // If the field is numeric, we can interpret the out of range value.
-    if (field->result_type() == REAL_RESULT ||
-        field->result_type() == INT_RESULT ||
-        field->result_type() == DECIMAL_RESULT)
+    if ((field->type() != FIELD_TYPE_BIT) &&
+        (field->result_type() == REAL_RESULT ||
+         field->result_type() == INT_RESULT ||
+         field->result_type() == DECIMAL_RESULT))
     {
       /*
         value to store was higher than field::max_value if

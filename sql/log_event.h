@@ -3839,7 +3839,10 @@ public:
   const char *get_db_name() const    { return m_dbnam; }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
+  virtual bool is_valid() const
+  {
+    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+  }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
 #ifdef MYSQL_SERVER
@@ -4778,7 +4781,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   but rather uses a data for immediate checks and throws away the event.
 
   Two members of the class log_ident and Log_event::log_pos comprise 
-  @see the event_coordinates instance. The coordinates that a heartbeat
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
 
