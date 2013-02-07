@@ -396,7 +396,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 #ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       ((tmp->var == Sys_gtid_next_ptr
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
        || tmp->var == Sys_gtid_next_list_ptr
 #endif
        ) ||
