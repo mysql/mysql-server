@@ -789,6 +789,12 @@ row_purge_parse_undo_rec(
 		goto err_exit;
 	}
 
+	/* Disable purging for temp-tables as they are short-lived
+	and no point in re-organzing such short lived tables */
+	if (dict_table_is_temporary(node->table)) {
+		goto close_exit;
+	}
+
 	if (node->table->ibd_file_missing) {
 		/* We skip purge of missing .ibd files */
 

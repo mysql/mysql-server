@@ -61,6 +61,7 @@ UNIV_INTERN my_bool	srv_ibuf_disable_background_merge;
 #include "que0que.h"
 #include "srv0start.h" /* srv_shutdown_state */
 #include "ha_prototypes.h"
+#include "srv0space.h"
 
 /*	STRUCTURE OF AN INSERT BUFFER RECORD
 
@@ -3801,6 +3802,7 @@ ibuf_insert(
 
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(ut_is_2pow(zip_size));
+	ut_ad(space != srv_tmp_space.space_id());
 
 	ut_a(!dict_index_is_clust(index));
 
@@ -4541,7 +4543,8 @@ ibuf_merge_or_delete_for_page(
 	ut_ad(!block || buf_block_get_io_fix(block) == BUF_IO_READ);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
-	    || trx_sys_hdr_page(space, page_no)) {
+	    || trx_sys_hdr_page(space, page_no)
+	    || space == srv_tmp_space.space_id()) {
 		return;
 	}
 

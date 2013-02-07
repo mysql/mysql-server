@@ -53,7 +53,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "srv0mon.h"
 #include "buf0checksum.h"
-#include "srv0space.h"
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -3731,12 +3730,8 @@ buf_page_create(
 	mutex_exit(&block->mutex);
 
 	/* Delete possible entries for the page from the insert buffer:
-	such can exist if the page belonged to an index which was dropped 
-	Note: for temp-tablespace (objects) insert-buffering is disabled. */
-	if (space != srv_tmp_space.space_id()) {
-		ibuf_merge_or_delete_for_page(
-			NULL, space, offset, zip_size, TRUE);
-	}
+	such can exist if the page belonged to an index which was dropped */ 
+	ibuf_merge_or_delete_for_page( NULL, space, offset, zip_size, TRUE);
 
 	frame = block->frame;
 
