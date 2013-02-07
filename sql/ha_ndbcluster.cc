@@ -22,8 +22,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include "ha_ndbcluster.h"
 #include <ndbapi/NdbApi.hpp>
 #include <ndbapi/NdbIndexStat.hpp>
@@ -17924,4 +17922,3 @@ mysql_declare_plugin_end;
 
 #include "ha_ndb_ddl_fk.cc"
 
-#endif

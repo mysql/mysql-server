@@ -17,8 +17,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
 #include <portlib/NdbTick.h>
 #include "ha_ndbcluster_connection.h"
@@ -419,5 +417,3 @@ struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin =
   NULL,
   0
 };
-
-#endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */

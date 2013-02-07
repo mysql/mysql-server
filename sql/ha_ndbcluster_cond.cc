@@ -21,8 +21,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #include <ndbapi/NdbApi.hpp>
 #include "ha_ndbcluster_cond.h"
 
@@ -1794,5 +1792,3 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 
   DBUG_RETURN(0);
 }
-
-#endif
