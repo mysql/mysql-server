@@ -2313,8 +2313,8 @@ row_ins_clust_index_entry_low(
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr, &flags);
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
@@ -2538,8 +2538,8 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	ut_ad(!dict_index_is_clust(index));
 
 	mtr_start(mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), mtr, NULL);
 
 	if (!check) {
 		return(false);
@@ -2605,8 +2605,8 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr, &flags);
 
 	/* Ensure that we acquire index->lock when inserting into an
 	index with index->online_status == ONLINE_INDEX_COMPLETE, but
@@ -2805,8 +2805,8 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr, NULL);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,
