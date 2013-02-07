@@ -423,7 +423,7 @@ page_zip_parse_compress_no_data(
 	byte*		end_ptr,	/*!< in: buffer end */
 	page_t*		page,		/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip,	/*!< out: compressed page */
-	dict_index_t* index)		/*!< in: index */
+	dict_index_t*	index)		/*!< in: index */
 {
 	ulint	level;
 	if (end_ptr == ptr) {
