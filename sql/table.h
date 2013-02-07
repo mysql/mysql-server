@@ -1493,6 +1493,7 @@ class Item_exists_subselect;
        ;
 */
 
+struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
@@ -1534,6 +1535,13 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
+  /**
+     Context which should be used to resolve identifiers contained in the ON
+     condition of the embedding join nest.
+     @todo When name resolution contexts are created after parsing, we should
+     be able to store this in the embedding join nest instead.
+  */
+  Name_resolution_context *context_of_embedding;
 
 private:
   Item		*m_join_cond;           /* Used with outer join */
