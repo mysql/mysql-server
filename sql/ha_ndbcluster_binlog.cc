@@ -16,9 +16,6 @@
 */
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_connection.h"
 #include "ndb_local_connection.h"
@@ -7674,7 +7671,4 @@ ndbcluster_show_status_binlog(THD* thd, stat_print_fn *stat_print,
 /* No --server-id-bits=<bits> -> implement constant opt_server_id_mask */
 ulong opt_server_id_mask = ~0;
 
-#endif
-
-// #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #endif
