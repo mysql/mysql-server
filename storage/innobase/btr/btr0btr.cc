@@ -3711,7 +3711,9 @@ err_exit:
 
 	btr_blob_dbg_remove(page, index, "btr_compress");
 
-	if (!dict_index_is_clust(index) && page_is_leaf(merge_page)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(merge_page)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap.  This has to be done in a
 		separate mini-transaction that is committed before the
