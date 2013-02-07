@@ -11871,7 +11871,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     if (bytes_read < event_len)
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
-      DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
+      if (m_field_metadata_size > (m_colcnt * 2))
+        DBUG_VOID_RETURN;
       uint num_null_bytes= (m_colcnt + 7) / 8;
       m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
@@ -11889,8 +11890,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
 Table_map_log_event::~Table_map_log_event()
 {
-  my_free(m_meta_memory);
-  my_free(m_memory);
+  if (m_meta_memory)
+    my_free(m_meta_memory);
+  if (m_memory)
+    my_free(m_memory);
 }
 
 /*
