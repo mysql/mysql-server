@@ -40,6 +40,7 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/src/async_common.cpp
   Adapter/impl/src/node_module.cpp
   Adapter/impl/src/unified_debug.cpp
+  Adapter/impl/src/Native_encoders.cpp
 )
 
 set(ADAPTER_REQUIRED_LIBS 
