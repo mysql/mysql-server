@@ -3591,7 +3591,7 @@ public:
   {
     if (owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
 #else
       DBUG_ASSERT(0);
