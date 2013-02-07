@@ -58,8 +58,8 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 @@session.old_passwords
 0
 0 Expected
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
@@ -102,8 +102,8 @@ set @@global.secure_auth=0;
 set @@global.secure_auth=1;
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
@@ -172,8 +172,8 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 @@session.old_passwords
 0
 0 Expected
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
@@ -216,8 +216,8 @@ set @@global.secure_auth=0;
 set @@global.secure_auth=1;
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
