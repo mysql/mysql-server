@@ -16,9 +16,6 @@
 */
 #include <my_global.h> /* For config defines */
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-/* distcheck does not compile from here... */
-
 #include "ha_ndbcluster_glue.h"
 #include "ndb_conflict.h"
 
@@ -804,8 +801,4 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
   DBUG_RETURN(0);
 }
 
-/* HAVE_NDB_BINLOG */
-#endif
-
-/* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #endif
