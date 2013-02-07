@@ -65,8 +65,8 @@ set @@global.secure_auth=0;
 1
 1 Expected
 set @@global.secure_auth=1;
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser2'@'localhost' has a password in the old format; please change the password to the new format
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
@@ -114,8 +114,8 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 set @@global.secure_auth=0;
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
@@ -190,8 +190,8 @@ set @@global.secure_auth=0;
 1
 1 Expected
 set @@global.secure_auth=1;
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser2'@'localhost' has a password in the old format; please change the password to the new format
 ERROR HY000: Server is running in --secure-auth mode, but 'Tanjotuser1'@'localhost' has a password in the old format; please change the password to the new format
@@ -239,8 +239,8 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 set @@global.secure_auth=0;
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
-ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' (using password: NO)
-ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' (using password: NO)
+ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
+ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser2'@'localhost' ()
 ERROR 28000: Access denied for user 'Tanjotuser1'@'localhost' ()
