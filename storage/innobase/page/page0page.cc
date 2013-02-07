@@ -650,7 +650,9 @@ page_copy_rec_list_end(
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
 	page in page_zip_compress() or page_zip_reorganize() below. */
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page), mtr);
 	}
@@ -773,7 +775,8 @@ page_copy_rec_list_start(
 	Modifications will be redo logged and copied to the compressed
 	page in page_zip_compress() or page_zip_reorganize() below. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page_align(rec))) {
+	    && page_is_leaf(page_align(rec))
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page_align(rec)),
 				       mtr);
@@ -2323,7 +2326,9 @@ page_validate(
 		}
 	}
 
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(index->table) 
 	    && page_get_n_recs(page) > 0) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();

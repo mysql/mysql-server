@@ -1827,7 +1827,9 @@ btr_page_reorganize_low(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, mtr);
