@@ -2500,7 +2500,6 @@ loop:
 			block = guess = NULL;
 		} else {
 			ut_ad(!block->page.in_zip_hash);
-			ut_ad(block->page.in_page_hash);
 		}
 	}
 
