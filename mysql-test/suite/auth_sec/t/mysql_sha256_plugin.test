@@ -138,7 +138,6 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con5,localhost,Tanjotuser1,,,);
@@ -146,7 +145,6 @@ connect(con5,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con6,127.0.0.1,Tanjotuser2,,,);
@@ -426,7 +424,6 @@ connect(con40,127.0.0.1,Tanjotuser2," ",,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con41,localhost,Tanjotuser1,,,);
@@ -434,7 +431,6 @@ connect(con41,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con42,127.0.0.1,Tanjotuser2,,,);
@@ -599,7 +595,6 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con93,localhost,Tanjotuser1,,,);
@@ -607,7 +602,6 @@ connect(con93,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con94,127.0.0.1,Tanjotuser2,,,);
@@ -764,6 +758,7 @@ connect(con112,127.0.0.1,Tanjotuser2,abc,,);
 #connect(con116,127.0.0.1,Tanjotuser2," abc",,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con117,localhost,Tanjotuser1,"0abc",,);
@@ -883,7 +878,6 @@ connect(con128,127.0.0.1,Tanjotuser2," ",,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con127,localhost,Tanjotuser1,,,);
@@ -891,7 +885,6 @@ connect(con127,localhost,Tanjotuser1,,,);
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --replace_result "(using password: NO)" "()"
---replace_result "(using password: YES)" "()"
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
 connect(con128,127.0.0.1,Tanjotuser2,,,);
