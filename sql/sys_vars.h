@@ -1884,7 +1884,7 @@ public:
   { DBUG_ASSERT(FALSE); return NULL; }
 };
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 /**
   Class for variables that store values of type Gtid_set.
 
@@ -2269,7 +2269,7 @@ public:
       DBUG_RETURN((uchar *)thd->strdup(""));
     if (thd->owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       buf= (char *)thd->alloc(thd->owned_gtid_set.get_string_length() + 1);
       if (buf)
       {
