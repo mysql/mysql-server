@@ -35,6 +35,7 @@
          "src/DBDictionaryImpl.cpp",
          "src/Record_wrapper.cpp",
          "src/Operation_wrapper.cpp",
+         "src/Native_encoders.cpp",
          "src/Ndb_init_wrapper.cpp",
          "src/Ndb_cluster_connection_wrapper.cpp",
          "src/NdbTransaction_wrapper.cpp",

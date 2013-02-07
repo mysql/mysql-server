@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-#include <v8.h>
+#include <node.h>
 
 #include "adapter_global.h"
 #include "v8_binder.h"

@@ -22,7 +22,7 @@
 #include <string.h>
 
 #include <NdbApi.hpp>
-#include <v8.h>
+#include <node.h>
 #include <node_buffer.h>
 
 #include "ndb_util/CharsetMap.hpp"

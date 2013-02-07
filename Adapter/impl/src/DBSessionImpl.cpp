@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,10 +18,10 @@
  02110-1301  USA
  */
 
-#include <v8.h>
+#include <node.h>
 
-#include "adapter_global.h"
 #include "DBSessionImpl.h"
+#include "adapter_global.h"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "unified_debug.h"
