@@ -4585,8 +4585,9 @@ no_gap_lock:
 			ut_ad(!dict_index_is_clust(index));
 
 			if (!srv_read_only_mode
-			    && !lock_sec_rec_cons_read_sees(
-				    rec, trx->read_view)) {
+			    && (dict_table_is_temporary(index->table)
+			    	|| !lock_sec_rec_cons_read_sees(
+					rec, trx->read_view))) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
 				we can skip the clustered index lookup if

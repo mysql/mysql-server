@@ -2602,7 +2602,8 @@ make_external:
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
-	if (dict_index_is_sec_or_ibuf(index)) {
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
 		It was not updated by btr_cur_pessimistic_insert()
 		because of BTR_NO_LOCKING_FLAG. */
@@ -4442,8 +4443,9 @@ btr_store_big_rec_extern_fields(
 			page_t*		page;
 
 			mtr_start(&mtr);
-			turn_off_logging_if_temp_table(
-				dict_table_is_temporary(index->table), &mtr);
+			optimize_log_and_lock_level_if_temp_table(
+				dict_table_is_temporary(index->table),
+				&mtr, NULL);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -4919,8 +4921,8 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
-		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(index->table), &mtr);
+		optimize_log_and_lock_level_if_temp_table(
+			dict_table_is_temporary(index->table), &mtr, NULL);
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =

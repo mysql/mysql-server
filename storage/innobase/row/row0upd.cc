@@ -1687,8 +1687,8 @@ row_upd_sec_index_entry(
 			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr, &flags);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -2083,8 +2083,8 @@ err_exit:
 		cursor succeeds. */
 
 		mtr_start(mtr);
-		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(table), mtr);
+		optimize_log_and_lock_level_if_temp_table(
+			dict_table_is_temporary(table), mtr, &flags);
 
 		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
 			ut_error;
@@ -2191,8 +2191,8 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), mtr, &flags);
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
 	therefore other transactions cannot modify the record when we have no
@@ -2362,8 +2362,8 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	optimize_log_and_lock_level_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr, &flags);
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
