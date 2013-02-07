@@ -218,6 +218,7 @@ JOIN::optimize()
     }
     build_bitmap_for_nested_joins(join_list, 0);
 
+    // Copied from st_select_lex::fix_prepare_information():
     sel->prep_where=
       conds ? conds->real_item()->copy_andor_structure(thd) : NULL;
 
