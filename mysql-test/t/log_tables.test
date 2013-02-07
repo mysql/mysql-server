@@ -984,6 +984,18 @@ use test;
 flush tables with read lock;
 unlock tables;
 
+
+--echo #
+--echo # WL#6613: Refactor logging code - split logging and binlogging code
+--echo #
+
+# Additional test coverage
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+
+
 SET @@session.long_query_time= @old_long_query_time;
 
 SET @@global.log_output=       @old_log_output;

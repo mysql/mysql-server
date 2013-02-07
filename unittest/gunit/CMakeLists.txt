@@ -182,6 +182,8 @@ IF (WITH_SSL STREQUAL "bundled")
   ADD_SUBDIRECTORY(yassl)
 ENDIF()
 
+ADD_SUBDIRECTORY(innodb)
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/regex
@@ -258,6 +260,7 @@ SET(SERVER_TESTS
   item
   item_func_now_local
   join_tab_sort
+  log_throttle
   make_sortkey
   my_decimal
   opt_range
