@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,9 +67,9 @@ static
 Parameter 
 g_paramters[] = {
   { "operation",   0, 0, 6 }, // 0 
-  { "range",    1000, 1, ~0 },// 1 no of rows to read
-  { "size",  1000000, 1, ~0 },// 2 rows in tables
-  { "iterations",  3, 1, ~0 },// 3
+  { "range",    1000, 1, UINT_MAX },// 1 no of rows to read
+  { "size",  1000000, 1, UINT_MAX },// 2 rows in tables
+  { "iterations",  3, 1, UINT_MAX },// 3
   { "create_drop", 0, 0, 1 }, // 4
   { "data",        0, 0, 1 }  // 5
 };

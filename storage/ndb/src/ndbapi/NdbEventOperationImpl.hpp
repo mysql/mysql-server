@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -270,7 +270,7 @@ inline
 void EventBufData_list::append_data(EventBufData *data)
 {
   Gci_op g = { data->m_event_op, 
-	       1 << SubTableData::getOperation(data->sdata->requestInfo) };
+	       1U << SubTableData::getOperation(data->sdata->requestInfo) };
   add_gci_op(g);
 
   append_used_data(data);
