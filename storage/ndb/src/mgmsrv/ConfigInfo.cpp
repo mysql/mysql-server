@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2187,6 +2187,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "100"
   },
 
+  {
+    CFG_DEFAULT_HASHMAP_SIZE,
+    "DefaultHashmapSize",
+    DB_TOKEN,
+    "Hashmap size to use for new tables.  Normally this should be left unset, "
+    "but can be set to aid downgrade to older versions not supporting as big "
+    "hashmaps as current version or to use special hashmap size to gain "
+    "better balance for some number of nodes and ldm-threads.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2398,6 +2414,22 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
 #endif
     (const char*)default_operation_redo_problem_action_typelib,
     0
+  },
+
+  {
+    CFG_DEFAULT_HASHMAP_SIZE,
+    "DefaultHashmapSize",
+    API_TOKEN,
+    "Hashmap size to use for new tables.  Normally this should be left unset, "
+    "but can be set to aid downgrade to older versions not supporting as big "
+    "hashmaps as current version or to use special hashmap size to gain "
+    "better balance for some number of nodes and ldm-threads.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "0",
+    "0",
+    STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
   /****************************************************************************
