@@ -21,7 +21,7 @@
 #include <assert.h>
 
 #include <NdbApi.hpp>
-#include <v8.h>
+#include <node.h>
 
 #include "adapter_global.h"
 #include "Record.h"

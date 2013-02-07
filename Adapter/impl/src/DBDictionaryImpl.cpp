@@ -20,7 +20,7 @@
 
 #include <string.h>
 
-#include <v8.h>
+#include <node.h>
 
 #include "adapter_global.h"
 #include "NdbApi.hpp"
