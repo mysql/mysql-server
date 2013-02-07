@@ -27,9 +27,10 @@ connect (fail_con,localhost,root,z,test2);
 --error ER_ACCESS_DENIED_ERROR
 connect (fail_con,localhost,root,z,);
 
-connection default;
 disconnect con1;
 disconnect con2;
+--source include/wait_until_disconnected.inc
+connection default;
 
 grant ALL on *.* to test@localhost identified by "gambling";
 grant ALL on *.* to test@127.0.0.1 identified by "gambling";
@@ -42,9 +43,10 @@ show tables;
 connect (con4,localhost,test,gambling,test);
 show tables;
 
-connection default;
 disconnect con3;
 disconnect con4;
+--source include/wait_until_disconnected.inc
+connection default;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
@@ -75,10 +77,11 @@ show tables;
 connect (con6,localhost,test,gambling3,test);
 show tables;
 
-connection default;
 disconnect con10;
 disconnect con5;
 disconnect con6;
+--source include/wait_until_disconnected.inc
+connection default;
 
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
@@ -110,8 +113,11 @@ create table t1 (id integer not null auto_increment primary key);
 create temporary table t2(id integer not null auto_increment primary key);
 set @id := 1;
 delete from t1 where id like @id;
-connection default;
+
 disconnect con7;
+--source include/wait_until_disconnected.inc
+connection default;
+
 # Wait till the session con7 is disconnected
 let $wait_condition =
   SELECT COUNT(*) = 0
@@ -152,6 +158,7 @@ let $wait_condition =
 --echo
 --echo # -- Disconnecting default connection...
 --disconnect default
+--source include/wait_until_disconnected.inc
 
 --echo
 --echo # -- Check that we allow exactly three user connections, no matter how
@@ -225,7 +232,7 @@ let $wait_condition =
 --disconnect con_2
 --disconnect con_3
 --disconnect con_super_1
-
+--source include/wait_until_disconnected.inc
 --echo
 --echo # -- Restoring default connection...
 --connect (default,localhost,root,,test)
@@ -277,6 +284,7 @@ SHOW STATUS LIKE 'max_used_connections';
 --echo
 --echo # -- Closing new connection...
 --disconnect con_1
+--source include/wait_until_disconnected.inc
 --connection default
 
 --echo

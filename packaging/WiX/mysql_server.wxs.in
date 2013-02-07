@@ -34,8 +34,9 @@
        Languages='1033'
        Compressed='yes'
        SummaryCodepage='1252'
-       Platform='@Platform@'/>
-    
+       Platform='@Platform@'
+       InstallScope="perMachine"/>
+  
     <Media Id='1' Cabinet='product.cab' EmbedCab='yes' />
 
     <!-- Upgrade -->
