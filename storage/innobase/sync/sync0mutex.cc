@@ -201,33 +201,3 @@ mutex_list_print_info(
 
 #endif // FIXME
 
-/******************************************************************//**
-@return total number of spin rounds since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_spin_round_count_get()
-/*========================*/
-{
-	return(mutex_spin_round_count);
-}
-
-/******************************************************************//**
-@return total number of spin wait calls since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_spin_wait_count_get()
-/*=======================*/
-{
-	return(mutex_spin_wait_count);
-}
-
-/******************************************************************//**
-@return total number of OS waits since startup. */
-UNIV_INTERN
-ib_uint64_t
-mutex_os_wait_count_get()
-/*=====================*/
-{
-	return(mutex_os_wait_count);
-}
-

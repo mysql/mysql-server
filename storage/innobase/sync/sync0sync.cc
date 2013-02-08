@@ -88,8 +88,7 @@ Prints info of the sync system.
 @param file - where to print */
 UNIV_INTERN
 void
-sync_print(
-	FILE*	file)				/*!< in/out: where to print */
+sync_print(FILE* file)
 {
 #ifdef UNIV_SYNC_DEBUG
 	mutex_list_print_info(file);
@@ -100,5 +99,34 @@ sync_print(
 	sync_array_print(file);
 
 	sync_print_wait_info(file);
+}
+
+/**
+@return total number of spin rounds since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_spin_round_count_get()
+{
+	return(mutex_spin_round_count);
+}
+
+/**
+@return total number of spin wait calls since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_spin_wait_count_get()
+/*=======================*/
+{
+	return(mutex_spin_wait_count);
+}
+
+/**
+@return total number of OS waits since startup. */
+UNIV_INTERN
+ib_uint64_t
+mutex_os_wait_count_get()
+/*=====================*/
+{
+	return(mutex_os_wait_count);
 }
 

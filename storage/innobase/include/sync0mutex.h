@@ -95,22 +95,6 @@ Prints debug info of currently reserved mutexes.
 UNIV_INTERN void mutex_list_print_info(FILE* file);
 #endif /* UNIV_SYNC_DEBUG */
 
-/**
-@return total number of spin rounds since startup. */
-UNIV_INTERN ib_uint64_t mutex_spin_round_count_get();
-
-/**
-@return total number of spin wait calls since startup. */
-UNIV_INTERN ib_uint64_t mutex_spin_wait_count_get();
-
-/**
-@return total number of OS waits since startup. */
-UNIV_INTERN ib_uint64_t mutex_os_wait_count_get();
-
-extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_os_wait_count;
-extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_wait_count;
-extern ib_counter_t<ib_int64_t, IB_N_SLOTS>	mutex_spin_round_count;
-
 #ifndef UNIV_NONINL
 #include "sync0mutex.ic"
 #endif /* !UNIV_NOINL */
