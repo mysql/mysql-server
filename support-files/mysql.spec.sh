@@ -1050,12 +1050,13 @@ echo "====="                                                       >> $STATUS_HI
 #%doc %attr(644, root, man) %{_mandir}/man8/ndbd.8*
 #%doc %attr(644, root, man) %{_mandir}/man8/ndbmtd.8*
 #%doc %attr(644, root, man) %{_mandir}/man1/ndbinfo_select_all.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/perror.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/replace.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
-#%doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
-#
 #%doc %attr(644, root, man) %{_mandir}/man1/ndb-common-options.1*
+
+%doc %attr(644, root, man) %{_mandir}/man1/perror.1*
+%doc %attr(644, root, man) %{_mandir}/man1/replace.1*
+%doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
+%doc %attr(644, root, man) %{_mandir}/man1/resolveip.1*
+
 
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
@@ -1106,6 +1107,8 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_bindir}/ndb_select_count
 %attr(755, root, root) %{_bindir}/ndb_show_tables
 %attr(755, root, root) %{_bindir}/ndb_waiter
+%attr(755, root, root) %{_bindir}/ndb_setup.py
+%attr(755, root, root) %{_bindir}/ndb_setup
 
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
 %attr(755, root, root) %{_sbindir}/memcached
