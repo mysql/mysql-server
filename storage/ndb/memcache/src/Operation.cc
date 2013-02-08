@@ -43,11 +43,17 @@ Operation::Operation(QueryPlan *p, int o, char *kbuf) : key_buffer(kbuf),
   set_default_record();
 }
 
-Operation::Operation(workitem *i) : key_buffer(i->ndb_key_buffer), 
-                                    plan(i->plan),
-                                    op(i->base.verb)
+Operation::Operation(workitem *i, Uint32 mask) : key_buffer(i->ndb_key_buffer), 
+                                                 plan(i->plan),
+                                                 op(i->base.verb)
 {
   set_default_record();
+  if(mask) {
+    row_mask[0] = mask & 0x000000FF;
+    row_mask[1] = mask & 0x0000FF00;
+    row_mask[2] = mask & 0x00FF0000;
+    row_mask[3] = mask & 0xFF000000;
+  }
 }
 
 
@@ -137,27 +143,28 @@ bool Operation::setKey(int nparts, const char *dbkey, size_t key_len ) {
 }
 
 
-bool Operation::setKeyFieldsInRow(int nparts, const char *dbkey, size_t key_len ) {
+bool Operation::setFieldsInRow(int offset, const char * desc,
+                               int nparts, const char *val, size_t len ) {
   bool r = true;
   
   if(nparts > 1) {
-    TabSeparatedValues tsv(dbkey, nparts, key_len);
+    TabSeparatedValues tsv(val, nparts, len);
     int idx = 0;
     do {
       if(tsv.getLength()) {
-        DEBUG_PRINT("Set key part %d [%.*s]", idx, tsv.getLength(), tsv.getPointer());
-        if(! setColumn(COL_STORE_KEY+idx, tsv.getPointer(), tsv.getLength()))
+        DEBUG_PRINT("Set %s part %d [%.*s]", desc, idx, tsv.getLength(), tsv.getPointer());
+        if(! setColumn(offset+idx, tsv.getPointer(), tsv.getLength()))
           return false;
       }
       else {
-        DEBUG_PRINT("Set key part NULL: %d ", idx);
-        setColumnNull(COL_STORE_KEY+idx);
+        DEBUG_PRINT("Set %s part NULL: %d ", desc, idx);
+        setColumnNull(offset+idx);
       }
       idx++;
     } while (tsv.advance());
   }
   else {
-    r = setColumn(COL_STORE_KEY, dbkey, key_len);
+    r = setColumn(offset, val, len);
   }
   return r;
 }
