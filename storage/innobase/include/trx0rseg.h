@@ -155,7 +155,7 @@ struct trx_rseg_t{
 	/*--------------------------------------------------------*/
 	ulint		id;	/*!< rollback segment id == the index of
 				its slot in the trx system file copy */
-	ib_mutex_t		mutex;	/*!< mutex protecting the fields in this
+	RsegMutex	mutex;	/*!< mutex protecting the fields in this
 				struct except id, which is constant */
 	ulint		space;	/*!< space where the rollback segment is
 				header is placed */

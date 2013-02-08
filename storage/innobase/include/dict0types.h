@@ -26,6 +26,8 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
+#include <ut0mutex.h>
+
 struct dict_sys_t;
 struct dict_col_t;
 struct dict_field_t;
@@ -66,5 +68,7 @@ enum ib_quiesce_t {
 	QUIESCE_START,			/*!< Initialise, prepare to start */
 	QUIESCE_COMPLETE		/*!< All done */
 };
+
+typedef SysMutex DictSysMutex;
 
 #endif
