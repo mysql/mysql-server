@@ -261,3 +261,16 @@ commit;
 show tables;
 drop table t1;
 
+connection server1;
+#
+# Bug#14798043 DROP DATABASE PERFORMANCE_SCHEMA DROPS IT ON ALL SQL NODES
+# Check that local tables in system database are not dropped remotely
+
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+connection server2;
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+connection server1;
+drop table mysql.dummy;
+connection server2;
+show create table mysql.dummy;
+drop table mysql.dummy;
