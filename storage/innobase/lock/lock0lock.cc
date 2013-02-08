@@ -697,8 +697,8 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if (srv_read_only_mode) {
-		ut_ad(view == 0);
+	if (srv_read_only_mode || dict_table_is_temporary(index->table)) {
+		ut_ad(view == 0 || dict_table_is_temporary(index->table));
 		return(true);
 	}
 
@@ -727,6 +727,7 @@ lock_sec_rec_cons_read_sees(
 	const rec_t*		rec,	/*!< in: user record which
 					should be read or passed over
 					by a read cursor */
+	const dict_index_t*	index,	/*!< in: index */
 	const read_view_t*	view)	/*!< in: consistent read view */
 {
 	trx_id_t	max_trx_id;
@@ -739,6 +740,10 @@ lock_sec_rec_cons_read_sees(
 	if (recv_recovery_is_on()) {
 
 		return(false);
+	}
+
+	if (dict_table_is_temporary(index->table)) {
+		return(true);
 	}
 
 	max_trx_id = page_get_max_trx_id(page_align(rec));

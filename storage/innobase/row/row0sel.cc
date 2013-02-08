@@ -1268,7 +1268,8 @@ row_sel_try_search_shortcut(
 			goto func_exit;
 		}
 	} else if (!srv_read_only_mode
-		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+		   && !lock_sec_rec_cons_read_sees(
+			rec, index, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1713,7 +1714,7 @@ skip_lock:
 			}
 		} else if (!srv_read_only_mode
 			   && !lock_sec_rec_cons_read_sees(
-				   rec, node->read_view)) {
+				   rec, index, node->read_view)) {
 
 			cons_read_requires_clust_rec = TRUE;
 		}
@@ -4585,9 +4586,8 @@ no_gap_lock:
 			ut_ad(!dict_index_is_clust(index));
 
 			if (!srv_read_only_mode
-			    && (dict_table_is_temporary(index->table)
-			    	|| !lock_sec_rec_cons_read_sees(
-					rec, trx->read_view))) {
+			    && !lock_sec_rec_cons_read_sees(
+					rec, index, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
 				we can skip the clustered index lookup if
