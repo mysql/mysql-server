@@ -47,13 +47,13 @@ create table foo_isam (a int, b int)engine=MyISAM;
 begin;
 insert into foo_isam select * from foo;
 insert into foo values (5,5);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 select * from foo;
 a	b
 1	1
 2	2
 3	1
 4	3
+5	5
 commit;
 set session transaction isolation level serializable;
 DROP TABLE foo, foo_isam;
