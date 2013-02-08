@@ -4210,67 +4210,6 @@ test_ut_format_name()
 }
 #endif /* !DBUG_OFF */
 
-/********************************************************************//**
-Get the upper limit of the MySQL integral and floating-point type.
-@return maximum allowed value for the field */
-UNIV_INTERN
-ulonglong
-innobase_get_int_col_max_value(
-/*===========================*/
-	const Field*	field)	/*!< in: MySQL field */
-{
-	ulonglong	max_value = 0;
-
-	switch (field->key_type()) {
-	/* TINY */
-	case HA_KEYTYPE_BINARY:
-		max_value = 0xFFULL;
-		break;
-	case HA_KEYTYPE_INT8:
-		max_value = 0x7FULL;
-		break;
-	/* SHORT */
-	case HA_KEYTYPE_USHORT_INT:
-		max_value = 0xFFFFULL;
-		break;
-	case HA_KEYTYPE_SHORT_INT:
-		max_value = 0x7FFFULL;
-		break;
-	/* MEDIUM */
-	case HA_KEYTYPE_UINT24:
-		max_value = 0xFFFFFFULL;
-		break;
-	case HA_KEYTYPE_INT24:
-		max_value = 0x7FFFFFULL;
-		break;
-	/* LONG */
-	case HA_KEYTYPE_ULONG_INT:
-		max_value = 0xFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONG_INT:
-		max_value = 0x7FFFFFFFULL;
-		break;
-	/* BIG */
-	case HA_KEYTYPE_ULONGLONG:
-		max_value = 0xFFFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONGLONG:
-		max_value = 0x7FFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_FLOAT:
-		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
-		max_value = 0x1000000ULL;
-		break;
-	case HA_KEYTYPE_DOUBLE:
-		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
-		max_value = 0x20000000000000ULL;
-		break;
-	default:
-		ut_error;
-	}
-
-	return(max_value);
-}
 
 /*******************************************************************//**
 This function checks whether the index column information
@@ -4503,7 +4442,7 @@ ha_innobase::innobase_initialize_autoinc()
 	const Field*	field = table->found_next_number_field;
 
 	if (field != NULL) {
-		auto_inc = innobase_get_int_col_max_value(field);
+		auto_inc = field->get_max_int_value();
 	} else {
 		/* We have no idea what's been passed in to us as the
 		autoinc column. We set it to the 0, effectively disabling
@@ -4551,7 +4490,7 @@ ha_innobase::innobase_initialize_autoinc()
 		case DB_SUCCESS: {
 			ulonglong	col_max_value;
 
-			col_max_value = innobase_get_int_col_max_value(field);
+			col_max_value = field->get_max_int_value();
 
 			/* At the this stage we do not know the increment
 			nor the offset, so use a default increment of 1. */
@@ -6591,8 +6530,8 @@ no_commit:
 
 		/* We need the upper limit of the col type to check for
 		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
+		col_max_value =
+			table->next_number_field->get_max_int_value();
 
 		/* Get the value that MySQL attempted to store in the table.*/
 		auto_inc = table->next_number_field->val_int();
@@ -7054,8 +6993,8 @@ ha_innobase::update_row(
 
 		/* We need the upper limit of the col type to check for
 		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
+		col_max_value =
+			table->next_number_field->get_max_int_value();
 
 		if (auto_inc <= col_max_value && auto_inc != 0) {
 
@@ -7467,11 +7406,11 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+		if (srv_stats.n_rows_read.is_fast()) {
 			srv_stats.n_rows_read.inc();
-		} else if (++prebuilt->n_rows_read > 10000) {
-			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
-			prebuilt->n_rows_read = 0;
+		} else {
+			srv_stats.n_rows_read.add(
+				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		}
 		break;
 	case DB_RECORD_NOT_FOUND:
@@ -7724,11 +7663,11 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+		if (srv_stats.n_rows_read.is_fast()) {
 			srv_stats.n_rows_read.inc();
-		} else if (++prebuilt->n_rows_read > 10000) {
-			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
-			prebuilt->n_rows_read = 0;
+		} else {
+			srv_stats.n_rows_read.add(
+				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		}
 		break;
 	case DB_RECORD_NOT_FOUND:
@@ -13109,8 +13048,8 @@ ha_innobase::get_auto_increment(
 
 	/* We need the upper limit of the col type to check for
 	whether we update the table autoinc counter or not. */
-	ulonglong	col_max_value = innobase_get_int_col_max_value(
-		table->next_number_field);
+	ulonglong	col_max_value =
+		table->next_number_field->get_max_int_value();
 
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {

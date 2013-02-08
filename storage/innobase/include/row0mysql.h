@@ -869,7 +869,6 @@ struct row_prebuilt_t {
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 	/*----------------------*/
-	ulint		n_rows_read;	/*!< Number of rows read */
 
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
