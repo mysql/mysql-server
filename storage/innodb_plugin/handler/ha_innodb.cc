@@ -1067,6 +1067,7 @@ mysqld.cc. We do a dirty read because for one there is no synchronization
 object and secondly there is little harm in doing so even if we get a torn
 read.
 @return	value of lower_case_table_names */
+static
 ulint
 innobase_get_lower_case_table_names(void)
 /*=====================================*/
