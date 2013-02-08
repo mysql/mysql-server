@@ -2526,6 +2526,10 @@ void advance_sj_state(JOIN *join, table_map remaining_tables, uint idx,
           /* Mark strategy as used */ 
           (*strategy)->mark_used();
           pos->sj_strategy= sj_strategy;
+          if (sj_strategy == SJ_OPT_MATERIALIZE)
+            join->sjm_lookup_tables |= handled_fanout;
+          else
+            join->sjm_lookup_tables &= ~handled_fanout;
           *current_read_time= read_time;
           *current_record_count= rec_count;
           join->cur_dups_producing_tables &= ~handled_fanout;
@@ -3050,6 +3054,13 @@ void restore_prev_sj_state(const table_map remaining_tables,
                                   const JOIN_TAB *tab, uint idx)
 {
   TABLE_LIST *emb_sj_nest;
+
+  if (tab->emb_sj_nest)
+  {
+    table_map subq_tables= tab->emb_sj_nest->sj_inner_tables;
+    tab->join->sjm_lookup_tables &= ~subq_tables;
+  }
+
   if ((emb_sj_nest= tab->emb_sj_nest))
   {
     /* If we're removing the last SJ-inner table, remove the sj-nest */
@@ -3227,6 +3238,7 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
   uint tablenr;
   table_map remaining_tables= 0;
   table_map handled_tabs= 0;
+  join->sjm_lookup_tables= 0;
   for (tablenr= table_count - 1 ; tablenr != join->const_tables - 1; tablenr--)
   {
     POSITION *pos= join->best_positions + tablenr;
@@ -3252,6 +3264,7 @@ void fix_semijoin_strategies_for_picked_join_order(JOIN *join)
       first= tablenr - sjm->tables + 1;
       join->best_positions[first].n_sj_tables= sjm->tables;
       join->best_positions[first].sj_strategy= SJ_OPT_MATERIALIZE;
+      join->sjm_lookup_tables|= s->table->map;
     }
     else if (pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN)
     {
