@@ -122,7 +122,7 @@ public:
   Fake_TABLE(Field *column1, Field *column2, Field *column3)
   : table_share(3)
   {
-    field= field_array;
+    field= m_field_array;
     field[0]= column1;
     field[1]= column2;
     field[2]= column3;
