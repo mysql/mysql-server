@@ -23,6 +23,8 @@
 
 # Test is dependent on binlog positions
 
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
+
 # prepare version for substitutions
 let $VERSION=`select version()`;
 
@@ -124,8 +126,10 @@ start slave sql_thread;
 --replace_result 776 MASTER_LOG_POS
 start slave until master_log_file='master-bin.000001', master_log_pos=776;
 
---echo *** TODO: consider to relocate SLAVE UNTIL SQL_AFTER_MTS_GAPS testing ***
---echo *** from rpl_parallel_start_stop when this test gets enabled          ***
+#
+# Note: The test for START SLAVE UNTIL SQL_AFTER_MTS_GAPS is located
+#       in rpl_parallel_start_stop.test
+#
 
 #
 # bug#47210  first execution of "start slave until" stops too early  
@@ -189,39 +193,6 @@ drop table t1;
 connection slave;
 start slave;
 sync_with_master;
-
- # Bug #47142  	"slave start until" stops 1 event too late in 4.1 to 5.0 replication
-#
-# testing fixes that refine the start position of prior-5.0 master's event
-# and by that provide correct execution of 
-# START SLAVE UNTIL ... master_log_pos= x;
-# Keep the test at the end of the file because it manipulates with binlog files 
-# to substitute the genuine one with a prepared on 4.1 server.
-#
-
---source include/rpl_reset.inc
-
-connection master;
-flush logs;
-let $MYSQLD_DATADIR= `select @@datadir`;
---remove_file $MYSQLD_DATADIR/master-bin.000001
---copy_file $MYSQL_TEST_DIR/std_data/bug47142_master-bin.000001 $MYSQLD_DATADIR/master-bin.000001
-# this a constant bound to the bug47142_master-bin.000001 binlog file
---let $binlog_before_drop=294;
-
-connection slave;
-stop slave;
-reset slave;
---replace_regex /master_log_pos=[0-9]+/master_log_pos=MASTER_LOG_POS/
-eval start slave until master_log_file='master-bin.000001', master_log_pos=$binlog_before_drop  /* to stop right before DROP */;
---source include/wait_for_slave_sql_to_stop.inc
-
-show tables /* t1 must exist */;
-
-# clean-up of Bug #47142 testing
-
-drop table t1; # drop on slave only, master does not have t1. 
-stop slave;
 
 # End of tests
 --let $rpl_only_running_threads= 1
