@@ -4586,7 +4586,9 @@ page_zip_reorganize(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 
-	if (!dict_index_is_clust(index) && page_is_leaf(temp_page)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(temp_page)) {
 		/* Copy max trx id to recreated page */
 		trx_id_t	max_trx_id = page_get_max_trx_id(temp_page);
 		page_set_max_trx_id(block, NULL, max_trx_id, NULL);
@@ -4649,7 +4651,9 @@ page_zip_copy_recs(
 
 	/* The PAGE_MAX_TRX_ID must be set on leaf pages of secondary
 	indexes.  It does not matter on other pages. */
-	ut_a(dict_index_is_clust(index) || !page_is_leaf(src)
+	ut_a(dict_index_is_clust(index)
+	     || dict_table_is_temporary(index->table)
+	     || !page_is_leaf(src)
 	     || page_get_max_trx_id(src));
 
 	UNIV_MEM_ASSERT_W(page, UNIV_PAGE_SIZE);
