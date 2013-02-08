@@ -40,7 +40,6 @@ CREATE TEMPORARY TABLE mysqlbinlog_events(c1 INT AUTO_INCREMENT KEY, c2 varchar(
 # '# ....  end_log_pos 46'
 eval LOAD DATA LOCAL INFILE '$_tmp_file' INTO TABLE mysqlbinlog_events
   LINES STARTING BY '#' (c2) SET c1 = NULL;
---enable_warnings
 
 # Event pos in relay log file is inserted into table events_at
 CREATE TEMPORARY TABLE events_at(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
@@ -49,6 +48,7 @@ CREATE TEMPORARY TABLE events_at(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
 # Event pos in master log file is inserted into table events_pos
 CREATE TEMPORARY TABLE events_pos(c1 INT AUTO_INCREMENT KEY, c2 varchar(256))
   SELECT c2 FROM mysqlbinlog_events WHERE c2 LIKE '% end_log_pos %' ORDER BY c1;
+--enable_warnings
 
 #  events_at                                events_pos
 #  c1------c2--------------------------     c1------c2------------------------
