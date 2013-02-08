@@ -5406,14 +5406,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     /*
       We should resolve this as an outer field reference if
       1. we haven't done it before, and
-      2. the outer context is set, and
-      3. the select_lex of the table that contains this field is
+      2. the select_lex of the table that contains this field is
          different from the select_lex of the current name resolution
          context.
      */
     if (!outer_fixed &&                                                    // 1
-        context->outer_context &&                                          // 2
-        cached_table && cached_table->select_lex && context->select_lex && // 3
+        cached_table && cached_table->select_lex && context->select_lex && // 2
         cached_table->select_lex != context->select_lex)
     {
       int ret;

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -307,7 +307,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ignore= 1;
 
   /*
-    (1):
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
     sets all columns, except if file's row lacks some: in that case,
     defaults are set by read_fixed_length() and read_sep_field(),
@@ -315,9 +314,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
+  const bool manage_defaults= fields_vars.elements != 0;
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
-                 fields_vars.elements != 0, //(1)
+                 manage_defaults,
                  handle_duplicates, ignore, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
