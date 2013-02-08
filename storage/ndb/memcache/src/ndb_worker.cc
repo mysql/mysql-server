@@ -1127,8 +1127,9 @@ void build_hash_item(workitem *wqitem, Operation &op, ExpireTime & exp_time) {
     /* store it in the local cache? */
     // fixme: probably nbytes is wrong
     if(wqitem->prefix_info.do_mc_read) {
+      uint64_t *cas = hash_item_get_cas_ptr(item);
       ENGINE_ERROR_CODE status;
-      status = store_item(se, item, wqitem->cas, OPERATION_SET, wqitem->cookie);
+      status = store_item(se, item, cas, OPERATION_SET, wqitem->cookie);
       if(status != ENGINE_SUCCESS)
         wqitem->status = & status_block_memcache_error;
     }
