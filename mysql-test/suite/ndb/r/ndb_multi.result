@@ -189,3 +189,14 @@ b
 c
 drop table t1;
 drop table t1;
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+create table mysql.dummy(a int primary key, b int) engine=myisam;
+drop table mysql.dummy;
+show create table mysql.dummy;
+Table	Create Table
+dummy	CREATE TABLE `dummy` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+drop table mysql.dummy;
