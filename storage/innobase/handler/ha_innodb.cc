@@ -7467,11 +7467,11 @@ ha_innobase::index_read(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+		if (srv_stats.n_rows_read.is_fast()) {
 			srv_stats.n_rows_read.inc();
-		} else if (++prebuilt->n_rows_read > 10000) {
-			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
-			prebuilt->n_rows_read = 0;
+		} else {
+			srv_stats.n_rows_read.add(
+				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		}
 		break;
 	case DB_RECORD_NOT_FOUND:
@@ -7724,11 +7724,11 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		if (MONITOR_IS_ON(MONITOR_OLVD_ROW_READ)) {
+		if (srv_stats.n_rows_read.is_fast()) {
 			srv_stats.n_rows_read.inc();
-		} else if (++prebuilt->n_rows_read > 10000) {
-			srv_stats.n_rows_read.add(prebuilt->n_rows_read);
-			prebuilt->n_rows_read = 0;
+		} else {
+			srv_stats.n_rows_read.add(
+				thd_get_thread_id(prebuilt->trx->mysql_thd), 1);
 		}
 		break;
 	case DB_RECORD_NOT_FOUND:
