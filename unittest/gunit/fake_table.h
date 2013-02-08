@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -85,6 +85,16 @@ public:
     field= field_array;
     field[0]= column1;
     field[1]= column2;
+    inititalize();
+  }
+
+  Fake_TABLE(Field *column1, Field *column2, Field *column3)
+  : table_share(3)
+  {
+    field= field_array;
+    field[0]= column1;
+    field[1]= column2;
+    field[2]= column3;
     inititalize();
   }
 
