@@ -5336,7 +5336,7 @@ row_search_max_autoinc(
 		btr_pcur_open_at_index_side(
 			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
 			const rec_t*	rec;
 
 			rec = row_search_autoinc_get_rec(&pcur, &mtr);
