@@ -265,8 +265,10 @@ WorkerStep1::WorkerStep1(workitem *newitem) :
   tx(0),
   plan(newitem->plan) 
 {
-  /* Set cas_owner in workitem: */
-    newitem->base.cas_owner = (newitem->prefix_info.has_cas_col && newitem->cas);
+  /* Set cas_owner in workitem.
+     (Further refine the semantics of this.  Does it depend on do_mc_read?)
+  */  
+    newitem->base.cas_owner = (newitem->prefix_info.has_cas_col);
 };
 
 
@@ -287,12 +289,10 @@ op_status_t WorkerStep1::do_delete() {
   
   tx = op.startTransaction(wqitem->ndb_instance->db);
   
-  if(wqitem->base.cas_owner && * wqitem->cas) {
-    // ndb_op = op.deleteTupleCAS(tx, & options);  
-  }
-  else {
-    ndb_op = op.deleteTuple(tx);    
-  }
+  /* Here we could also support op.deleteTupleCAS(tx, & options)
+     but the protocol is ambiguous about whether this is allowed.
+  */ 
+  ndb_op = op.deleteTuple(tx);    
   
   /* Check for errors */
   if(ndb_op == 0) {
@@ -1047,10 +1047,13 @@ void worker_finalize_read(NdbTransaction *tx, workitem *wqitem) {
 
 void worker_finalize_write(NdbTransaction *tx, workitem *wqitem) {
   if(wqitem->prefix_info.do_mc_write) {
-    /* If the write was succesful, update the local cache */
+    /* If the write was successful, update the local cache */
     /* Possible bugs here: 
      (1) store_item will store nbytes as length, which is wrong.
      (2) The CAS may be incorrect.
+     Status as of Feb. 2013: 
+        Memcapable INCR/DECR/APPEND/PREPEND tests fail when
+        local caching is enabled.
     */
     ndb_pipeline * & pipeline = wqitem->pipeline;
     struct default_engine * se;
