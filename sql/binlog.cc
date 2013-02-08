@@ -2314,6 +2314,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
+    stage_manager.deinit();
   }
   DBUG_VOID_RETURN;
 }
