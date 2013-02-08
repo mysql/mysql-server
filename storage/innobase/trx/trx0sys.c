@@ -137,7 +137,7 @@ UNIV_INTERN mysql_pfs_key_t	file_format_max_mutex_key;
 #ifndef UNIV_HOTBACKUP
 #ifdef UNIV_DEBUG
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
-uint		trx_rseg_n_slots_debug = 0;
+UNIV_INTERN uint	trx_rseg_n_slots_debug = 0;
 #endif
 
 /** This is used to track the maximum file format id known to InnoDB. It's
