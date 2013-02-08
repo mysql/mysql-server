@@ -57,11 +57,15 @@ private:
 
   /* Private methods */
   void set_default_record();
+  bool setFieldsInRow(int offset, const char *type, int, const char *, size_t);
   
 public: 
-  /* Public Methods: */
+  // Constructors
   Operation(QueryPlan *p, int o = 1, char *kbuf = 0);
-  Operation(workitem *);
+  Operation(workitem *, Uint32 saved_row_mask = 0);
+
+  // Public Methods
+  void save_row_mask(Uint32 * loc);
   
   // Select columns for reading
   void readSelectedColumns();
@@ -81,6 +85,7 @@ public:
   void setNullBits();
   void clearNullBits();
   bool setKeyFieldsInRow(int nparts, const char *key_str, size_t key_str_len);
+  bool setValueFieldsInRow(int nparts, const char *val_str, size_t val_str_len);
   bool setColumn(int id, const char *strval, size_t strlen);
   bool setColumnInt(int id, int value);
   bool setColumnBigUnsigned(int id, Uint64 value);
@@ -114,6 +119,7 @@ public:
 
   // write
   const NdbOperation *writeTuple(NdbTransaction *tx);
+  const NdbOperation *insertRow(NdbTransaction *tx);
   const NdbOperation *insertTuple(NdbTransaction *tx, 
                                   NdbOperation::OperationOptions *options = 0);
   const NdbOperation *updateTuple(NdbTransaction *tx,
@@ -129,6 +135,10 @@ public:
   
 
 /* ================= Inline methods ================= */
+
+inline void Operation::save_row_mask(Uint32 * loc) {
+  memcpy(loc, row_mask, 4);
+}
 
 /* Select columns for reading */
 
@@ -156,8 +166,8 @@ inline void Operation::clearKeyNullBits() {
   plan->key_record->clearNullBits(key_buffer);
 }
 
-inline bool Operation::setKeyPart(int id, const char *strval, size_t strlen) {
-  int s = plan->key_record->encode(id, strval, strlen, key_buffer, key_mask);
+inline bool Operation::setKeyPart(int id, const char *strval, size_t str_len) {
+  int s = plan->key_record->encode(id, strval, str_len, key_buffer, key_mask);
   return (s > 0);
 }
 
@@ -204,6 +214,15 @@ inline void Operation::setColumnNull(int id) {
 inline void Operation::setColumnNotNull(int id) {
   record->setNotNull(id, buffer, row_mask);
 }
+
+inline bool Operation::setKeyFieldsInRow(int nparts, const char *dbkey, size_t key_len) {
+  return setFieldsInRow(COL_STORE_KEY, "key", nparts, dbkey, key_len);
+}
+
+inline bool Operation::setValueFieldsInRow(int nparts, const char *dbval, size_t val_len) {
+  return setFieldsInRow(COL_STORE_VALUE, "value", nparts, dbval, val_len);
+}
+
 
 /* Methods for reading columns from the response */
 
@@ -255,6 +274,10 @@ inline const NdbOperation *
 inline const NdbOperation * Operation::writeTuple(NdbTransaction *tx) { 
   return tx->writeTuple(plan->key_record->ndb_record, key_buffer,
                         plan->row_record->ndb_record, buffer, row_mask);
+}
+
+inline const NdbOperation * Operation::insertRow(NdbTransaction *tx) { 
+  return tx->insertTuple(plan->row_record->ndb_record, buffer, row_mask);
 }
 
 inline const NdbOperation * 
