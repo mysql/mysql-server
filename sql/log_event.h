@@ -3839,7 +3839,10 @@ public:
   const char *get_db_name() const    { return m_dbnam; }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
+  virtual bool is_valid() const
+  {
+    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+  }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
 #ifdef MYSQL_SERVER
