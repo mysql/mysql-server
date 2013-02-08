@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -1454,20 +1454,26 @@ srv_export_innodb_status(void)
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
 #ifdef UNIV_DEBUG
-	if (purge_sys->done.trx_no == 0
-	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+	rw_lock_s_lock(&purge_sys->latch);
+	trx_id_t	done_trx_no	= purge_sys->done.trx_no;
+	trx_id_t	up_limit_id	= purge_sys->view
+		? purge_sys->view->up_limit_id
+		: 0;
+	rw_lock_s_unlock(&purge_sys->latch);
+
+	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+			trx_sys->rw_max_trx_id - done_trx_no + 1;
 	}
 
-	if (!purge_sys->view
-	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+	if (!up_limit_id
+	    || trx_sys->rw_max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
+			trx_sys->rw_max_trx_id - up_limit_id;
 	}
 #endif /* UNIV_DEBUG */
 
