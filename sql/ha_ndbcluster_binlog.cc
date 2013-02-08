@@ -2785,14 +2785,31 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
     List<LEX_STRING> files;
     char path[FN_REFLEN + 1];
+    THD* thd= current_thd;
+    ulong col_access= thd->col_access;
+
+    /*
+      Allow injector thread to read all tables.
+      This is needed to be able to find all tables
+      when calling find_files.
+    */
+    thd->col_access&= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
     if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
+      /*
+	Reset column access rights to default
+      */
+      thd->col_access= col_access;
       DBUG_RETURN(true);
     }
+    /*
+      Reset column access rights to default
+    */
+    thd->col_access= col_access;
     DBUG_PRINT("info",("found: %d files", files.elements));
 
     LEX_STRING *tabname;
