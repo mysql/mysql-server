@@ -43,7 +43,7 @@ struct DefaultPolicy {
 
 	/** Poll waiting for mutex to be unlocked.
 	@return value of lock word before locking. */
-	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
+	static lock_word_t trylock_poll(Mutex& mutex) UNIV_NOTHROW
 	{
 		lock_word_t	lock;
 		ulint		delay;
@@ -68,7 +68,7 @@ struct DefaultPolicy {
 	}
 
 	/** Poll waiting for mutex to be unlocked */
-	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
+	static void test_poll(Mutex& mutex) UNIV_NOTHROW
 	{
 		ulint	delay = ut_rnd_interval(0, srv_spin_wait_delay) * 10;
 
@@ -125,13 +125,13 @@ struct TrackPolicy {
 	void destroy() UNIV_NOTHROW { }
 
 	/** The mutex wants to do a trlock poll. */
-	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
+	static lock_word_t trylock_poll(Mutex& mutex) UNIV_NOTHROW
 	{
 		return(DefaultPolicy<Mutex>::trylock_poll(mutex));
 	}
 
 	/** The mutes wants to spin. */
-	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
+	static void test_poll(Mutex& mutex) UNIV_NOTHROW
 	{
 		DefaultPolicy<Mutex>::test_poll(mutex);
 	}

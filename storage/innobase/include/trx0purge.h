@@ -202,7 +202,7 @@ struct trx_purge_t{
 	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
 					rseg_queue_t::trx_no. It is protected
 					by the bh_mutex */
-	ib_mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
+	BHeapMutex	bh_mutex;	/*!< Mutex protecting ib_bh */
 };
 
 /** Info required to purge a record */

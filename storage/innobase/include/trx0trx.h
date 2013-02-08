@@ -676,7 +676,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 struct trx_t{
 	ulint		magic_n;
 
-	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
+	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
@@ -925,7 +925,7 @@ struct trx_t{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	ib_mutex_t	undo_mutex;	/*!< mutex protecting the fields in this
+	UndoMutex	undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there

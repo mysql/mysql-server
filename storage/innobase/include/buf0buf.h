@@ -1777,7 +1777,7 @@ struct buf_pool_t{
 
 	/** @name General fields */
 	/* @{ */
-	ib_mutex_t	mutex;		/*!< Buffer pool mutex of this
+	BufPoolMutex	mutex;		/*!< Buffer pool mutex of this
 					instance */
 	BPageMutex	zip_mutex;	/*!< Zip mutex of this buffer
 					pool instance, protects compressed
@@ -1833,7 +1833,7 @@ struct buf_pool_t{
 
 	/* @{ */
 
-	ib_mutex_t		flush_list_mutex;/*!< mutex protecting the
+	FlushListMutex	flush_list_mutex;/*!< mutex protecting the
 					flush list access. This mutex
 					protects flush_list, flush_rbt
 					and bpage::list pointers when
