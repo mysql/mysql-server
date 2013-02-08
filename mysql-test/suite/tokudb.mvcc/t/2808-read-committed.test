@@ -41,7 +41,6 @@ begin;
 insert into foo_isam select * from foo;
 
 connection default;
---error ER_LOCK_WAIT_TIMEOUT
 insert into foo values (5,5);
 select * from foo;
 
