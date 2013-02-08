@@ -4978,13 +4978,29 @@ ndbcluster_check_if_local_tables_in_db(THD *thd, const char *dbname)
   LEX_STRING *tabname;
   List<LEX_STRING> files;
   char path[FN_REFLEN + 1];
+  ulong col_access= thd->col_access;
+
+  /*
+    Allow injector thread to read all tables.
+    This is needed to be able to find all tables
+    when calling find_files.
+  */
+  thd->col_access&= TABLE_ACLS;
 
   build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
   if (find_files(thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
   {
     DBUG_PRINT("info", ("Failed to find files"));
+    /*
+      Reset column access rights to default
+    */
+    thd->col_access= col_access;
     DBUG_RETURN(true);
   }
+  /*
+    Reset column access rights to default
+  */
+  thd->col_access= col_access;
   DBUG_PRINT("info",("found: %d files", files.elements));
   while ((tabname= files.pop()))
   {
