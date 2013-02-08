@@ -481,6 +481,7 @@ sub get_binary_response {
     $body .= $buf;
   }
   $self->{error} = $error_message{$status};
+  $self->{cas} = ($cas_hi * (2 ** 32)) + $cas_lo;
 
   # Packet structure is: header .. extras .. key .. value 
   my $l = $extra_len + $key_len;

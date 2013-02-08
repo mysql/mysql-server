@@ -314,7 +314,6 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
   /* READ LOCK RELEASED */
   
   item->base.nsuffix = item->base.nkey - pfx->prefix_len;
-  if(item->base.nsuffix == 0) return ENGINE_EINVAL; // key too short
  
   if(wc == 0) return ENGINE_FAILED;
     
@@ -375,6 +374,10 @@ ENGINE_ERROR_CODE S::SchedulerWorker::schedule(workitem *item) {
      case op_not_supported:
         DEBUG_PRINT("op_status is op_not_supported");
         response_code = ENGINE_ENOTSUP;
+        break;
+      case op_bad_key:
+        DEBUG_PRINT("op_status is op_bad_key");
+        response_code = ENGINE_EINVAL;
         break;
       case op_overflow:
         DEBUG_PRINT("op_status is op_overflow");
