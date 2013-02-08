@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -103,7 +103,8 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	suite/engines suite/engines/funcs suite/engines/iuds suite/engines/rr_trx \
 	suite/engines/funcs/r suite/engines/funcs/t suite/engines/iuds/r \
 	suite/engines/iuds/t suite/engines/rr_trx/include suite/engines/rr_trx/r \
-	suite/engines/rr_trx/t
+	suite/engines/rr_trx/t \
+	suite/sys_vars
 
 # Used by dist-hook and install-data-local to copy all
 # test files into either dist or install directory
