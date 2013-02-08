@@ -73,7 +73,7 @@
 
 class WorkerStep1 {
 public:
-  WorkerStep1(struct workitem *, bool has_server_cas);
+  WorkerStep1(struct workitem *);
   op_status_t do_append();           // begin an append/prepend operation
   op_status_t do_read();             // begin a read operation 
   op_status_t do_write();            // begin a SET/ADD/REPLACE operation
@@ -83,7 +83,6 @@ public:
 private:
   /* Private member variables */
   workitem *wqitem;
-  bool server_cas;
   NdbTransaction *tx;
   QueryPlan * &plan;
 
@@ -221,8 +220,7 @@ void worker_set_ext_flag(workitem *item) {
    Returns true if executeAsynchPrepare() has been called on the item.
 */
 op_status_t worker_prepare_operation(workitem *newitem) {
-  bool server_cas = (newitem->prefix_info.has_cas_col && newitem->cas);
-  WorkerStep1 worker(newitem, server_cas);
+  WorkerStep1 worker(newitem);
   op_status_t r;
 
   worker_set_ext_flag(newitem);
@@ -262,12 +260,14 @@ op_status_t worker_prepare_operation(workitem *newitem) {
 
 /***************** STEP ONE OPERATIONS ***************************************/
 
-WorkerStep1::WorkerStep1(workitem *newitem, bool do_server_cas) :
+WorkerStep1::WorkerStep1(workitem *newitem) :
   wqitem(newitem), 
-  server_cas(do_server_cas), 
   tx(0),
-  plan(newitem->plan)
-{};
+  plan(newitem->plan) 
+{
+  /* Set cas_owner in workitem: */
+    newitem->base.cas_owner = (newitem->prefix_info.has_cas_col && newitem->cas);
+};
 
 
 op_status_t WorkerStep1::do_delete() {
@@ -287,7 +287,7 @@ op_status_t WorkerStep1::do_delete() {
   
   tx = op.startTransaction(wqitem->ndb_instance->db);
   
-  if(server_cas && * wqitem->cas) {
+  if(wqitem->base.cas_owner && * wqitem->cas) {
     // ndb_op = op.deleteTupleCAS(tx, & options);  
   }
   else {
@@ -318,7 +318,7 @@ op_status_t WorkerStep1::do_write() {
   }
   
   uint64_t cas_in = *wqitem->cas;                  // read old value
-  if(server_cas) {
+  if(wqitem->base.cas_owner) {
     worker_set_cas(wqitem->pipeline, wqitem->cas);    // generate a new value
     hash_item_set_cas(wqitem->cache_item, * wqitem->cas); // store it
   }
@@ -363,7 +363,7 @@ op_status_t WorkerStep1::do_write() {
     if(! op_ok) return op_overflow;
   }
   
-  if(server_cas) {
+  if(wqitem->base.cas_owner) {
     op.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);   // the cas
   }
   
@@ -419,7 +419,7 @@ op_status_t WorkerStep1::do_write() {
     ndb_op = op.insertTuple(tx);
   }
   else if(wqitem->base.verb == OPERATION_CAS) {    
-    if(server_cas) {
+    if(wqitem->base.cas_owner) {
       /* NdbOperation.hpp says: "All data is copied out of the OperationOptions 
        structure (and any subtended structures) at operation definition time."      
        */
@@ -594,7 +594,7 @@ op_status_t WorkerStep1::do_math() {
     op2.setKeyFieldsInRow(plan->spec->nkeycols, dbkey, wqitem->base.nsuffix);
     
     /* CAS */
-    if(server_cas) {
+    if(wqitem->base.cas_owner) {
       op1.readColumn(COL_STORE_CAS);
       op2.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
       op3.setColumnBigUnsigned(COL_STORE_CAS, * wqitem->cas);
