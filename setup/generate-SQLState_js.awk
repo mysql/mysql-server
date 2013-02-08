@@ -33,7 +33,7 @@
  /^ER/  { if($2) {
             mysqlerr = "\"" $1 "\""
             sqlstate = "\"" $2 "\""
-            printf("\t%45s : %s,\n", mysqlerr, sqlstate);
+            printf("\t%45s : %s,\n", mysqlerr, errno);
             printf("\t%45d : %s,\n", errno, sqlstate);
           }
           errno++
