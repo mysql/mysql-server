@@ -188,12 +188,11 @@ os_atomic_inc_ulint_func(
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 /**
-Prints info of the sync system. */
+Prints info of the sync system.
+@param file - where to print */
 UNIV_INTERN
 void
-sync_print(
-/*=======*/
-	FILE*	file);				/*!< in/out: where to print */
+sync_print(FILE* file);
 
 /* Number of spin waits on mutexes: for performance monitoring */
 typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
@@ -209,5 +208,17 @@ extern mutex_counter_t	mutex_spin_wait_count;
 /** The number of iterations in the mutex_spin_wait() spin loop.
 Intended for performance monitoring. */
 extern mutex_counter_t	mutex_spin_round_count;
+
+/**
+@return total number of spin rounds since startup. */
+UNIV_INTERN ib_uint64_t mutex_spin_round_count_get();
+
+/**
+@return total number of spin wait calls since startup. */
+UNIV_INTERN ib_uint64_t mutex_spin_wait_count_get();
+
+/**
+@return total number of OS waits since startup. */
+UNIV_INTERN ib_uint64_t mutex_os_wait_count_get();
 
 #endif /* !sync0sync_h */
