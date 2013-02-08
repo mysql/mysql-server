@@ -2,7 +2,7 @@ IF(RPM)
 
 SET(CPACK_GENERATOR "RPM")
 SET(CPACK_RPM_PACKAGE_DEBUG 1)
-SET(INSTALL_LAYOUT "RPM")
+SET(CPACK_PACKAGING_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX})
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.7)
 
 SET(CPACK_RPM_COMPONENT_INSTALL ON)
@@ -49,9 +49,12 @@ MariaDB bug reports should be submitted through https://mariadb.atlassian.net/
 SET(CPACK_RPM_SPEC_MORE_DEFINE "
 %define mysql_vendor ${CPACK_PACKAGE_VENDOR}
 %define mysqlversion ${MYSQL_NO_DASH_VERSION}
-%define mysqldatadir /var/lib/mysql
+%define mysqldatadir ${INSTALL_MYSQLDATADIR}
 %define mysqld_user  mysql
 %define mysqld_group mysql
+%define _bindir     ${CMAKE_INSTALL_PREFIX}/${INSTALL_BINDIR}
+%define _sbindir    ${CMAKE_INSTALL_PREFIX}/${INSTALL_SBINDIR}
+%define _sysconfdir ${INSTALL_SYSCONFDIR}
 ")
 
 # this creative hack is described here: http://www.cmake.org/pipermail/cmake/2012-January/048416.html
@@ -68,18 +71,18 @@ SET(ignored
   "%ignore /etc"
   "%ignore /etc/init.d"
   "%ignore /etc/logrotate.d"
-  "%ignore /usr"
-  "%ignore /usr/bin"
-  "%ignore /usr/include"
-  "%ignore /usr/lib"
-  "%ignore /usr/lib64"
-  "%ignore /usr/sbin"
-  "%ignore /usr/share"
-  "%ignore /usr/share/aclocal"
-  "%ignore /usr/share/doc"
-  "%ignore /usr/share/man"
-  "%ignore /usr/share/man/man1*"
-  "%ignore /usr/share/man/man8*"
+  "%ignore ${CMAKE_INSTALL_PREFIX}"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/bin"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/include"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/lib"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/lib64"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/sbin"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share/aclocal"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share/doc"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share/man"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share/man/man1*"
+  "%ignore ${CMAKE_INSTALL_PREFIX}/share/man/man8*"
   )
 
 SET(CPACK_RPM_server_USER_FILELIST ${ignored} "%config(noreplace) /etc/my.cnf.d/*")

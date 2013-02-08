@@ -132,14 +132,10 @@ IF (NOT CPACK_GENERATOR)
   ENDIF(WIN32) 
 ENDIF(NOT CPACK_GENERATOR)
 
-IF(DEB)
-  SET(INSTALL_LAYOUT "DEB")
-ENDIF(DEB)
-
 INCLUDE(mysql_version)
-INCLUDE(cpack_rpm)
 INCLUDE(cpack_source_ignore_files)
 INCLUDE(install_layout)
+INCLUDE(cpack_rpm)
 
 # Add macros
 INCLUDE(character_sets)
