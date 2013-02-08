@@ -3994,7 +3994,11 @@ lock_table(
 
 	ut_ad(table && thr);
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	/* Given limited visibility of temp-table we can avoid
+	locking overhead */
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(table)) {
 
 		return(DB_SUCCESS);
 	}
@@ -5482,6 +5486,7 @@ lock_rec_insert_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	trx = thr_get_trx(thr);
 	next_rec = page_rec_get_next_const(rec);
@@ -5693,6 +5698,7 @@ lock_clust_rec_modify_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	heap_no = rec_offs_comp(offsets)
 		? rec_get_heap_no_new(rec)
@@ -5755,6 +5761,7 @@ lock_sec_rec_modify_check_and_lock(
 
 		return(DB_SUCCESS);
 	}
+	ut_ad(!dict_table_is_temporary(index->table));
 
 	heap_no = page_rec_get_heap_no(rec);
 
@@ -5844,7 +5851,9 @@ lock_sec_rec_read_check_and_lock(
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(index->table)) {
 
 		return(DB_SUCCESS);
 	}
@@ -5922,7 +5931,9 @@ lock_clust_rec_read_check_and_lock(
 	      || gap_mode == LOCK_REC_NOT_GAP);
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode) {
+	if ((flags & BTR_NO_LOCKING_FLAG)
+	    || srv_read_only_mode
+	    || dict_table_is_temporary(index->table)) {
 
 		return(DB_SUCCESS);
 	}
