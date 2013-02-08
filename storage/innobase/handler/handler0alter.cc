@@ -3777,8 +3777,8 @@ func_exit:
 			}
 			add_autoinc_col_no = i;
 
-			autoinc_col_max_value = innobase_get_int_col_max_value(
-				field);
+			autoinc_col_max_value =
+				field->get_max_int_value();
 		}
 found_col:
 		i++;
