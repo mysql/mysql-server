@@ -2821,6 +2821,7 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
       break;
 
     default:
+      // these can never be a group changer
       commit_seq_no= 0;
       prepare_seq_no= 0;
       break;
@@ -2830,6 +2831,7 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
                          commit_seq_no));
     if (prepare_seq_no > 0 &&
         (commit_seq_no != rli->mts_last_known_commit_parent ||
+         // possible Tzero ?????
          rli->mts_last_known_commit_parent == PC_UNINIT))
     {
       rli->mts_last_known_parent_group_id=
@@ -2989,8 +2991,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
 
     /*
-      The coordinator waits till the last group was completely applied before the events from the
-      next group is scheduled for the workers.
+      The coordinator waits till the last group was completely applied before
+      the events from the next group is scheduled for the workers.
     */
     while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
     {
@@ -2999,15 +3001,23 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
     }
 
-    // compute worker, todo: consider to generalize get_least_occupied_worker()
-    ret_worker= (rli->last_assigned_worker) ? rli->last_assigned_worker :
-      *(Slave_worker **) dynamic_array_ptr(&rli->least_occupied_workers, 0);
-    if (!ret_worker)
-      ret_worker= get_least_occupied_worker(rli, &rli->workers);
+    // compute worker, for BGC based MTS we will have round-robin scheduling.
+    ret_worker= get_least_occupied_worker(rli, &rli->workers);
+    // assert that we have a worker thread for this event
+    DBUG_ASSERT(ret_worker);
     ptr_group->worker_id= ret_worker->id;
-    // "fixing" temp tables:
     if (get_type_code() == QUERY_EVENT)
+    {
+    /*TODO:move this piece of code to Query_log_event::do_apply_event */
+      Query_log_event * qev= static_cast<Query_log_event*>(this);
+      THD* ret_worker_thd= ret_worker->info_thd;
+      ret_worker_thd->variables.pseudo_thread_id= qev->thread_id;
+      ret_worker_thd->server_id= qev->server_id;
+      mts_move_temp_tables_to_thd(ret_worker_thd, /* the worker's thd object */
+                                  thd->temporary_tables,/*coordinator's temporary tables.*/
+                                  MTS_PARALLEL_TYPE_BGC /* We have to do it "our" way*/);
       static_cast<Query_log_event*>(this)->mts_accessed_dbs= 0;
+    }
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
   {
@@ -4670,17 +4680,17 @@ void Query_log_event::attach_temp_tables_worker(THD *thd)
 {
   if (!is_mts_worker(thd) || (ends_group() || starts_group()))
     return;
-  
-  // in over max-db:s case just one special partition is locked
-  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
-              1 : mts_accessed_dbs);
 
   DBUG_ASSERT(!thd->temporary_tables);
+
+  // in over max-db:s case just one special partition is locked
+  int parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
+             1 : mts_accessed_dbs);
 
   for (int i= 0; i < parts; i++)
   {
     mts_move_temp_tables_to_thd(thd,
-                                mts_assigned_partitions[i]->temporary_tables);
+                                 mts_assigned_partitions[i]->temporary_tables);
     mts_assigned_partitions[i]->temporary_tables= NULL;
   }
 }
