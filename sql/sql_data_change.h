@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,13 +82,14 @@ private:
   const operation_type m_optype;
 
   /**
-     The columns of the target table for which new data is to be inserted or
-     updated.
+     List of columns of the target table which the statement will explicitely
+     fill; and thus we must not set a function default for them.
+     NULL means "empty list".
   */
   List<Item> *m_changed_columns;
 
   /**
-     A second list of columns to be inserted or updated. See the constructor
+     A second list of columns like m_changed_columns. See the constructor
      specific of LOAD DATA INFILE, below.
   */
   List<Item> *m_changed_columns2;
@@ -154,10 +155,10 @@ public:
      possible syntaxes and variants).
 
      @param optype           The data change operation type.
-     @param inserted_columns The columns to inserted. Note that these columns
-                             must belong to the table. May be NULL, which is
-                             interpreted as all columns in the order they
-                             appear in the table definition.
+     @param inserted_columns List of columns of the target table which
+                             the statement will explicitely fill; COPY_INFO
+                             must not set a function default for them. NULL
+                             means "empty list".
      @param manage_defaults  Whether this object should manage function
                              defaults.
      @param duplicate_handling The policy for handling duplicates.
@@ -216,9 +217,11 @@ public:
 @endverbatim
 
      @param optype            The data change operation type.
-     @param inserted_columns  Columns for which values are to be inserted.
-     @param inserted_columns2 A second list of columns for which values are to
-                              be inserted.
+     @param inserted_columns List of columns of the target table which
+                             the statement will explicitely fill; COPY_INFO
+                             must not set a function default for them. NULL
+                             means "empty list".
+     @param inserted_columns2 A second list like inserted_columns
      @param manage_defaults   Whether this object should manage function
                               defaults.
      @param ignore_duplicates   Whether duplicate rows are ignored.
@@ -340,6 +343,13 @@ public:
     DBUG_ASSERT(m_function_default_columns != NULL);
     return bitmap_is_overlapping(m_function_default_columns, map);
   }
+
+  /**
+     Tells the object to not manage function defaults for the last 'count'
+     columns of 'table'.
+     @retval false if success
+  */
+  bool ignore_last_columns(TABLE *table, uint count);
 
   /**
      This class allocates its memory in a MEM_ROOT, so there's nothing to
