@@ -410,5 +410,7 @@ private:
 
 TABLE* mts_move_temp_table_to_entry(TABLE*, THD*, db_worker_hash_entry*);
 TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*);
+// Auxiliary function
+TABLE* mts_move_temp_tables_to_thd(THD*, TABLE*, enum_mts_parallel_type);
 #endif // HAVE_REPLICATION
 #endif
