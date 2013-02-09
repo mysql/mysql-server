@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,8 +21,24 @@ assert pymajor == 2
 
 import sys
 
+def set_cmake_var(var, val, default):
+    if val == '@'+var+'@':
+        globals()[var] = default
+    else:
+        globals()[var] = val
+
+set_cmake_var('CMAKE_CURRENT_SOURCE_DIR', '@CMAKE_CURRENT_SOURCE_DIR@', '.')
+
+import os
+import os.path
+
+tst_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+mcc_dir = os.path.dirname(tst_dir)
+
+print 'tst_dir: '+tst_dir
+
 # Paramiko from Bazaar 
-sys.path += ['..', '/usr/local/lib/bzr-2.1.0-2010.03/lib/python2.6/site-packages', '/usr/local/lib/bzr-2.1.0/lib/python/site-packages', '/opt/csw/lib/python/site-packages' ]
+sys.path += [tst_dir, mcc_dir, '/usr/local/lib/bzr-2.1.0-2010.03/lib/python2.6/site-packages', '/usr/local/lib/bzr-2.1.0/lib/python/site-packages', '/opt/csw/lib/python/site-packages' ]
 
 import logging
 if pyminor < 7:
@@ -40,9 +56,9 @@ import urlparse
 import time
 import socket
 import stat
-import os.path
+
 import tempfile
-import os
+
 import platform
 
 
@@ -89,7 +105,7 @@ def host_is_unreachable(hostname, port=22):
 def is_local_sshd_available():
     c = SSHClient()
     c.set_missing_host_key_policy(WarningPolicy())
-    c.load_system_host_keys()
+    #c.load_system_host_keys()
     try:
         c.connect('localhost', password=util.get_val(os.environ, 'SSH_PWD'))
     except:
@@ -133,7 +149,8 @@ class Test00Utils(utmod.TestCase):
 
 class Test0ConfigIni(utmod.TestCase):
     def setUp(self):
-        self.cp = config_parser.parse_config_ini('example_config.ini')
+        self.ini = os.path.join(tst_dir, 'example_config.ini')
+        self.cp = config_parser.parse_config_ini(self.ini)
     
     def tearDown(self):
         pass
@@ -149,13 +166,13 @@ class Test0ConfigIni(utmod.TestCase):
         print config_parser.get_processes(self.cp)
 
     def test_parse(self):
-        logging.debug('ex_ini as json:\n'+json.dumps(config_parser.parse_cluster_config_ini('example_config.ini')))
+        logging.debug('ex_ini as json:\n'+json.dumps(config_parser.parse_cluster_config_ini(self.ini)))
 
     def test_parsex(self):
-        logging.debug('ex_ini as json:\n'+str(config_parser.parse_cluster_config_ini_x('example_config.ini')))
+        logging.debug('ex_ini as json:\n'+str(config_parser.parse_cluster_config_ini_x(self.ini)))
 
     def test_write(self):
-        logging.debug('ex_ini write back:\n'+config_parser.write_cluster_config_ini(config_parser.parse_cluster_config_ini('example_config.ini')))
+        logging.debug('ex_ini write back:\n'+config_parser.write_cluster_config_ini(config_parser.parse_cluster_config_ini(self.ini)))
 
     @utmod.skip('Need a way to specify the cluster installdir (default cluster we are part of?')
     def test_ndb_config(self):
