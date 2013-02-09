@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -145,6 +145,9 @@ CONFIGURE_FILE("${CMAKE_CURRENT_SOURCE_DIR}/post-install.py.in"
 
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
   "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}")
+
+add_custom_target(punit python "${CMAKE_CURRENT_SOURCE_DIR}/tst/tst_main.py" VERBATIM)
+
 
 install(PROGRAMS "${CMAKE_CURRENT_BINARY_DIR}/${MCC_SCRIPT_NAME}"  
   DESTINATION "${MCC_INSTALL_BINDIR}"
