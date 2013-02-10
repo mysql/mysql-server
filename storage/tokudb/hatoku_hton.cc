@@ -642,37 +642,7 @@ bool tokudb_flush_logs(handlerton * hton) {
     TOKUDB_DBUG_ENTER("tokudb_flush_logs");
     int error;
     bool result = 0;
-    uint32_t curr_tokudb_checkpointing_period = 0;
 
-    //
-    // get the current checkpointing period
-    //
-    error = db_env->checkpointing_get_period(
-        db_env, 
-        &curr_tokudb_checkpointing_period
-        );
-    if (error) {
-        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-        result = 1;
-        goto exit;
-    }
-
-    //
-    // if the current period is not the same as the variable, that means
-    // the user has changed the period and now we need to update it
-    //
-    if (tokudb_checkpointing_period != curr_tokudb_checkpointing_period) {
-        error = db_env->checkpointing_set_period(
-            db_env, 
-            tokudb_checkpointing_period
-            );
-        if (error) {
-            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-            result = 1;
-            goto exit;
-        }
-    }
-    
     //
     // take the checkpoint
     //
@@ -1882,6 +1852,17 @@ static void tokudb_cleaner_iterations_update(THD * thd,
 
 #define DEFAULT_CLEANER_ITERATIONS 5
 
+static void tokudb_checkpointing_period_update(THD * thd,
+        struct st_mysql_sys_var * sys_var, 
+        void * var, const void * save)
+{
+    uint * checkpointing_period = (uint *) var;
+
+    *checkpointing_period= *(const ulong *) save;
+    int r = db_env->checkpointing_set_period(db_env, *checkpointing_period);
+    assert(r==0);
+}
+
 
 static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
   PLUGIN_VAR_READONLY,
@@ -1896,6 +1877,10 @@ static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
 static MYSQL_SYSVAR_ULONGLONG(cache_size, tokudb_cache_size,
         PLUGIN_VAR_READONLY, "TokuDB cache table size", NULL, NULL, 0,
         0, ~0ULL, 0);
+static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 
+    0, "TokuDB Checkpointing period", 
+    NULL, tokudb_checkpointing_period_update, 60, 
+    0, ~0U, 0);
 static MYSQL_SYSVAR_ULONGLONG(max_lock_memory, tokudb_max_lock_memory, PLUGIN_VAR_READONLY, "TokuDB max memory for locks", NULL, NULL, 0, 0, ~0ULL, 0);
 static MYSQL_SYSVAR_ULONG(debug, tokudb_debug, 0, "TokuDB Debug", NULL, NULL, 0, 0, ~0UL, 0);
 
@@ -1907,7 +1892,6 @@ static MYSQL_SYSVAR_STR(version, tokudb_version, PLUGIN_VAR_READONLY, "TokuDB Ve
 
 static MYSQL_SYSVAR_UINT(init_flags, tokudb_init_flags, PLUGIN_VAR_READONLY, "Sets TokuDB DB_ENV->open flags", NULL, NULL, tokudb_init_flags, 0, ~0U, 0);
 
-static MYSQL_SYSVAR_UINT(checkpointing_period, tokudb_checkpointing_period, 0, "TokuDB Checkpointing period", NULL, NULL, 60, 0, ~0U, 0);
 static MYSQL_SYSVAR_UINT(write_status_frequency, tokudb_write_status_frequency, 0, "TokuDB frequency that show processlist updates status of writes", NULL, NULL, 1000, 0, ~0U, 0);
 static MYSQL_SYSVAR_UINT(read_status_frequency, tokudb_read_status_frequency, 0, "TokuDB frequency that show processlist updates status of reads", NULL, NULL, 10000, 0, ~0U, 0);
 static MYSQL_SYSVAR_INT(fs_reserve_percent, tokudb_fs_reserve_percent, PLUGIN_VAR_READONLY, "TokuDB file system space reserve (percent free required)", NULL, NULL, 5, 0, 100, 0);
