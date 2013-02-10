@@ -4789,14 +4789,13 @@ struct unlock_ftnode_extra {
 };
 // When this is called, the cachetable lock is held
 static void
-unlock_ftnode_fun (PAIR p, void *v) {
+unlock_ftnode_fun (void *v) {
     struct unlock_ftnode_extra *x = NULL;
     CAST_FROM_VOIDP(x, v);
     FT_HANDLE brt = x->ft_handle;
     FTNODE node = x->node;
     // CT lock is held
     int r = toku_cachetable_unpin_ct_prelocked_no_flush(
-        p,
         brt->ft->cf,
         node->ct_pair,
         (enum cachetable_dirty) node->dirty,

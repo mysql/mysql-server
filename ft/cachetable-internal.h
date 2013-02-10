@@ -150,6 +150,11 @@ struct ctpair {
 
     // protected by PAIR->mutex
     uint32_t count;        // clock count
+    uint32_t refcount; // if > 0, then this PAIR is referenced by
+                       // callers to the cachetable, and therefore cannot 
+                       // be evicted
+    uint32_t num_waiting_on_refs; // number of threads waiting on refcount to go to zero
+    toku_cond_t refcount_wait; // cond used to wait for refcount to go to zero
 
     // locks
     toku::frwlock value_rwlock;
