@@ -562,14 +562,4 @@ innobase_next_autoinc(
 	ulonglong	max_value)	/*!< in: max value for type */
 	__attribute__((pure, warn_unused_result));
 
-/********************************************************************//**
-Get the upper limit of the MySQL integral and floating-point type.
-@return maximum allowed value for the field */
-UNIV_INTERN
-ulonglong
-innobase_get_int_col_max_value(
-/*===========================*/
-	const Field*	field)	/*!< in: MySQL field */
-	__attribute__((nonnull, pure, warn_unused_result));
-
 #endif /* HA_INNODB_PROTOTYPES_H */
