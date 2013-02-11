@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -97,7 +97,7 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (!trx->read_only) {
+	if (trx->insert_undo || trx->update_undo) {
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -110,7 +110,7 @@ trx_rollback_to_savepoint_low(
 
 		/* Free the memory reserved by the undo graph. */
 		que_graph_free(static_cast<que_t*>(
-			       roll_node->undo_thr->common.parent));
+				       roll_node->undo_thr->common.parent));
 	}
 
 	if (savept == NULL) {
