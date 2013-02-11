@@ -746,14 +746,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 # The new behavior affects CREATE SELECT with column definitions
 # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
-# with the new behavior. Following is expected out of SHOW CREATE TABLE
-#
-# `f1` timestamp NULL DEFAULT NULL,
-# `f2` timestamp NULL DEFAULT NULL,
-# `f3` timestamp NOT NULL,
-# `f4` timestamp NULL DEFAULT NULL,
-# `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
-# `f6` timestamp NULL DEFAULT NULL
+# with the new behavior.
 CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
 SHOW CREATE TABLE t2;
 Table	Create Table
@@ -763,7 +756,7 @@ t2	CREATE TABLE `t2` (
   `f3` timestamp NOT NULL,
   `f4` timestamp NULL DEFAULT NULL,
   `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
-  `f6` timestamp NULL DEFAULT NULL
+  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
 DROP TABLE t2;
