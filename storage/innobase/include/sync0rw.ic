@@ -582,7 +582,7 @@ pfs_rw_lock_x_lock_func(
 
 		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK,
-			file_name, line);
+			file_name, (uint) line);
 
 		rw_lock_x_lock_func(lock, pass, file_name, line);
 
@@ -619,7 +619,7 @@ pfs_rw_lock_x_lock_func_nowait(
 
 		locker = PSI_RWLOCK_CALL(start_rwlock_wrwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_WRITELOCK,
-			file_name, line);
+			file_name, (uint) line);
 
 		ret = rw_lock_x_lock_func_nowait(lock, file_name, line);
 
@@ -672,7 +672,7 @@ pfs_rw_lock_s_lock_func(
 		/* Instrumented to inform we are aquiring a shared rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK,
-			file_name, line);
+			file_name, (uint) line);
 
 		rw_lock_s_lock_func(lock, pass, file_name, line);
 
@@ -708,7 +708,7 @@ pfs_rw_lock_s_lock_low(
 		/* Instrumented to inform we are aquiring a shared rwlock */
 		locker = PSI_RWLOCK_CALL(start_rwlock_rdwait)(
 			&state, lock->pfs_psi, PSI_RWLOCK_READLOCK,
-			file_name, line);
+			file_name, (uint) line);
 
 		ret = rw_lock_s_lock_low(lock, pass, file_name, line);
 

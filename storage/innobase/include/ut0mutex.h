@@ -992,7 +992,7 @@ private:
 		if (m_ptr != 0) {
 			return(PSI_MUTEX_CALL(start_mutex_wait)(
 					state, m_ptr,
-					PSI_MUTEX_LOCK, name, line));
+					PSI_MUTEX_LOCK, name, (uint) line));
 		}
 
 		return(0);
