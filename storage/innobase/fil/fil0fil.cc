@@ -2553,7 +2553,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2636,7 +2636,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+		os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 		mem_free(cfg_name);
 	}
 
@@ -2665,7 +2665,8 @@ fil_delete_tablespace(
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
 	} else if (!os_file_delete(innodb_file_data_key, path)
-		   && !os_file_delete_if_exists(innodb_file_data_key, path)) {
+		   && !os_file_delete_if_exists(
+			innodb_file_data_key, path, NULL)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3134,7 +3135,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(innodb_file_data_key, link_filepath);
+	os_file_delete_if_exists(innodb_file_data_key, link_filepath, NULL);
 
 	mem_free(link_filepath);
 }
@@ -6085,11 +6086,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, ibd_name);
+	os_file_delete_if_exists(innodb_file_data_key, ibd_name, NULL);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 
 	mem_free(cfg_name);
 }
