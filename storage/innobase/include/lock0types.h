@@ -43,5 +43,4 @@ enum lock_mode {
 	LOCK_NONE_UNSET = 255
 };
 
-
 #endif

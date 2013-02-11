@@ -69,6 +69,6 @@ enum ib_quiesce_t {
 	QUIESCE_COMPLETE		/*!< All done */
 };
 
-typedef SysMutex DictSysMutex;
+typedef ib_mutex_t DictSysMutex;
 
 #endif

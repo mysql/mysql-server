@@ -142,10 +142,10 @@ typedef byte	trx_upagef_t;
 typedef	byte	trx_undo_rec_t;
 /* @} */
 
-typedef SysMutex RsegMutex;
-typedef SpinMutex TrxMutex;
-typedef SpinMutex UndoMutex;
-typedef SpinMutex BHeapMutex;
-typedef FutexMutex TrxSysMutex;
+typedef ib_mutex_t RsegMutex;
+typedef ib_mutex_t TrxMutex;
+typedef ib_mutex_t UndoMutex;
+typedef ib_mutex_t BHeapMutex;
+typedef ib_mutex_t TrxSysMutex;
 
 #endif
