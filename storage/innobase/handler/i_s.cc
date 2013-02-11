@@ -6287,7 +6287,7 @@ i_s_dict_fill_sys_tables(
 		row_format = "Redundant";
 	} else if (!atomic_blobs) {
 		row_format = "Compact";
-	} else if DICT_TF_GET_ZIP_SSIZE(table->flags) {
+	} else if (DICT_TF_GET_ZIP_SSIZE(table->flags)) {
 		row_format = "Compressed";
 	} else {
 		row_format = "Dynamic";
