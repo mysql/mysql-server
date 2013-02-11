@@ -675,4 +675,55 @@ Warning	1292	Incorrect datetime value: '1'
 DROP VIEW v1;
 DROP FUNCTION f1;
 DROP TABLE t1;
+#
+# MDEV-4123: Incorrect results after multi-table update or
+# assertion `!table || (!table->read_set ||
+# bitmap_is_set(table->read_set, field_index))' failure 
+#
+DROP TABLE IF EXISTS t1;
+Warnings:
+Note	1051	Unknown table 't1'
+CREATE TABLE t1 (
+id int(10) unsigned NOT NULL,
+level tinyint(3) unsigned NOT NULL,
+PRIMARY KEY (id)
+);
+INSERT INTO t1 VALUES (2519583,1);
+DROP TABLE IF EXISTS t2;
+Warnings:
+Note	1051	Unknown table 't2'
+CREATE TABLE t2 (
+club_id int(11) NOT NULL DEFAULT '0',
+profile_id int(11) NOT NULL DEFAULT '0',
+member_level_id int(11) NOT NULL DEFAULT '0',
+PRIMARY KEY (profile_id,club_id)
+);
+INSERT INTO t2 VALUES (2,2519583,12);
+DROP TABLE IF EXISTS t3;
+Warnings:
+Note	1051	Unknown table 't3'
+CREATE TABLE t3 (
+member_level_id int(11) unsigned NOT NULL DEFAULT '0',
+map_level int(11) unsigned NOT NULL DEFAULT '0',
+map_status int(11) unsigned NOT NULL DEFAULT '0',
+PRIMARY KEY (member_level_id)
+);
+INSERT INTO t3 VALUES (12,12,1);
+CREATE 
+VIEW v1 AS 
+select club_id,profile_id,
+map_level AS member_level_id,map_status AS member_status
+from (t2 tc join t3 map 
+on(((tc.member_level_id = map.member_level_id) and
+(club_id = 2))));
+select level, count(*) as cnt from t1 group by level;
+level	cnt
+1	1
+UPDATE t1 c LEFT JOIN v1 t ON (c.id = t.profile_id AND t.club_id = 2)
+SET c.level = IF (t.member_status IS NULL, 1, IF (t.member_status = 1, 2,3));
+select level, count(*) as cnt from t1 group by level;
+level	cnt
+2	1
+drop view v1;
+drop table t1,t2,t3;
 end of tests

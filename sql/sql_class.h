@@ -2833,6 +2833,7 @@ public:
 #else
   void begin_dataset() {}
 #endif
+  virtual void update_used_tables() {}
 };
 
 
@@ -3578,6 +3579,7 @@ public:
   int  do_updates();
   bool send_eof();
   virtual void abort();
+  void update_used_tables();
 };
 
 class my_var : public Sql_alloc  {
