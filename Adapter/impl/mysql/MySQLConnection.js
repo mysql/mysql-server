@@ -29,7 +29,8 @@ var mysql  = require("mysql"),
     stats_module  = require(path.join(api_dir, "stats.js")),
     session_stats  = stats_module.getWriter("spi","mysql","DBSession"),
     transaction_stats = stats_module.getWriter("spi","mysql","DBTransactionHandler"),
-    op_stats = stats_module.getWriter("spi","mysql","DBOperation");
+    op_stats = stats_module.getWriter("spi","mysql","DBOperation"),
+    mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */
@@ -334,7 +335,7 @@ function WriteOperation(sql, data, callback) {
 
   function onWrite(err, status) {
     if (err) {
-      udebug.log('dbSession.WriteOperation err code:', err.code, op.result.error.code);
+      udebug.log('dbSession.WriteOperation err code:', err.code);
       op.result.error = new DBOperationError(err);
       op.result.success = false;
       if (typeof(op.callback) === 'function') {
@@ -616,7 +617,7 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
   udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
                     dbTableHandler, 'object:', object);
   getMetadata(dbTableHandler);
-  var fields = dbTableHandler.getFields(object);
+  var fields = dbTableHandler.getFields(object, true);
   var insertSQL = dbTableHandler.mysql.insertSQL;
   return new InsertOperation(insertSQL, fields, callback);
 };
