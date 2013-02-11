@@ -4208,6 +4208,47 @@ released:
 	trx_mutex_exit(trx);
 }
 
+#ifdef UNIV_DEBUG
+/*********************************************************************//**
+Check if a transaction that has X or IX locks has set the dict_op
+code correctly. */
+static
+void
+lock_check_dict_lock(
+/*==================*/
+	const lock_t*	lock)	/*!< in: lock to check */
+{
+	if (lock_get_type_low(lock) == LOCK_REC) {
+
+		/* Check if the transcation locked a record
+		in a system table in X mode. It should have set
+		the dict_op code correctly if it did. */
+		if (lock->index->table->id < DICT_HDR_FIRST_ID
+		    && lock_get_mode(lock) == LOCK_X) {
+
+			ut_ad(lock_get_mode(lock) != LOCK_IX);
+			ut_ad(lock->trx->dict_operation != TRX_DICT_OP_NONE);
+		}
+	} else {
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+
+		const dict_table_t*	table;
+
+		table = lock->un_member.tab_lock.table;
+
+		/* Check if the transcation locked a system table
+		in IX mode. It should have set the dict_op code
+		correctly if it did. */
+		if (table->id < DICT_HDR_FIRST_ID
+		    && (lock_get_mode(lock) == LOCK_X
+			|| lock_get_mode(lock) == LOCK_IX)) {
+
+			ut_ad(lock->trx->dict_operation != TRX_DICT_OP_NONE);
+		}
+	}
+}	
+#endif /* UNIV_DEBUG */
+
 /*********************************************************************//**
 Releases transaction locks, and releases possible other transactions waiting
 because of these locks. */
@@ -4227,38 +4268,15 @@ lock_release(
 	     lock != NULL;
 	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
 
+		ut_d(lock_check_dict_lock(lock));
+
 		if (lock_get_type_low(lock) == LOCK_REC) {
-
-#ifdef UNIV_DEBUG
-			/* Check if the transcation locked a record
-			in a system table in X mode. It should have set
-			the dict_op code correctly if it did. */
-			if (lock->index->table->id < DICT_HDR_FIRST_ID
-			    && lock_get_mode(lock) == LOCK_X) {
-
-				ut_ad(lock_get_mode(lock) != LOCK_IX);
-				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
-			}
-#endif /* UNIV_DEBUG */
 
 			lock_rec_dequeue_from_page(lock);
 		} else {
 			dict_table_t*	table;
 
 			table = lock->un_member.tab_lock.table;
-#ifdef UNIV_DEBUG
-			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
-
-			/* Check if the transcation locked a system table
-			in IX mode. It should have set the dict_op code
-			correctly if it did. */
-			if (table->id < DICT_HDR_FIRST_ID
-			    && (lock_get_mode(lock) == LOCK_X
-				|| lock_get_mode(lock) == LOCK_IX)) {
-
-				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
-			}
-#endif /* UNIV_DEBUG */
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && trx->undo_no != 0) {
@@ -4286,18 +4304,6 @@ lock_release(
 
 		++count;
 	}
-
-	/* We don't remove the locks one by one from the vector for
-	efficiency reasons. We simply reset it because we would have
-	released all the locks anyway. */
-
-	ib_vector_reset(trx->lock.table_locks);
-
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	ut_a(ib_vector_is_empty(trx->lock.table_locks));
-
-	mem_heap_empty(trx->lock.lock_heap);
 }
 
 /* True if a lock mode is S or X */
@@ -6623,6 +6629,18 @@ lock_trx_release_locks(
 	lock_release(trx);
 
 	lock_mutex_exit();
+
+	/* We don't remove the locks one by one from the vector for
+	efficiency reasons. We simply reset it because we would have
+	released all the locks anyway. */
+
+	ib_vector_reset(trx->lock.table_locks);
+
+	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+	ut_a(ib_vector_is_empty(trx->autoinc_locks));
+	ut_a(ib_vector_is_empty(trx->lock.table_locks));
+
+	mem_heap_empty(trx->lock.lock_heap);
 }
 
 /*********************************************************************//**
