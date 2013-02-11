@@ -1808,12 +1808,16 @@ UNIV_INTERN
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
-	const char*	name)	/*!< in: file path as a null-terminated
+	const char*	name,	/*!< in: file path as a null-terminated
 				string */
+	bool*		exist)	/*!< out: indicate if file pre-exist */
 {
 #ifdef __WIN__
 	bool	ret;
 	ulint	count	= 0;
+	if (exist) {
+		*exist = true;
+	}
 loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
@@ -1828,7 +1832,9 @@ loop:
 	if (lasterr == ERROR_FILE_NOT_FOUND
 	    || lasterr == ERROR_PATH_NOT_FOUND) {
 		/* the file does not exist, this not an error */
-
+		if (exist) {
+			*exist = false;
+		}
 		return(true);
 	}
 
@@ -1850,10 +1856,17 @@ loop:
 	goto loop;
 #else
 	int	ret;
+	if (exist) {
+		*exist = true;
+	}
 
 	ret = unlink(name);
-
-	if (ret != 0 && errno != ENOENT) {
+	
+	if (ret != 0 && errno == ENOENT) {
+		if (exist) {
+			*exist = false;
+		}
+	} else if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
 		return(false);
