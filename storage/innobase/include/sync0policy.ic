@@ -29,9 +29,15 @@ Created 2012-08-21 Sunny Bains.
 template <typename Mutex>
 void TrackPolicy<Mutex>::print(FILE* stream) const
 {
-	fprintf(stream,
-		"Mutex \"%s\" created at %s %lu",
-		m_name, basename(m_cfile_name), m_cline);
+	const char*	ptr = m_cfile_name + strlen(m_cfile_name) - 1;
+
+	while (ptr > m_cfile_name && *ptr != '/' && *ptr != '\\') {
+		--ptr;
+	}
+
+	++ptr;
+
+	fprintf(stream, "Mutex \"%s\" created at %s %lu", m_name, ptr, m_cline);
 }
 
 #ifdef UNIV_DEBUG
