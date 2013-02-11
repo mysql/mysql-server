@@ -110,9 +110,6 @@ amount to decrement. */
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	__sync_lock_test_and_set(ptr, (byte) new_val)
-
 # define os_atomic_test_and_set_ulint(ptr, new_val) \
 	__sync_lock_test_and_set(ptr, new_val)
 
@@ -188,9 +185,6 @@ amount to decrement. */
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
-
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	atomic_swap_uchar(ptr, new_val)
 
 # define os_atomic_test_and_set_ulint(ptr, new_val) \
 	atomic_swap_ulong(ptr, new_val)
@@ -309,12 +303,8 @@ Returns the old value of *ptr, atomically sets *ptr to new_val.
 InterlockedExchange() operates on LONG, and the LONG will be
 clobbered */
 
-# define os_atomic_test_and_set_byte(ptr, new_val) \
-	((byte) InterlockedExchange(ptr, new_val))
-
-# define os_atomic_test_and_set_ulong(ptr, new_val) \
+# define os_atomic_test_and_set_u32(ptr, new_val) \
 	InterlockedExchange(ptr, new_val)
-
 #else
 # define IB_ATOMICS_STARTUP_MSG \
 	"Mutexes and rw_locks use InnoDB's own implementation"
@@ -323,9 +313,12 @@ clobbered */
 #ifdef HAVE_ATOMIC_BUILTINS
 # define os_atomic_inc_ulint(m,v,d)	os_atomic_increment_ulint(v, d)
 # define os_atomic_dec_ulint(m,v,d)	os_atomic_decrement_ulint(v, d)
-# define TAS(l, n)			os_atomic_test_and_set_ulint((l), (n))
+# ifdef _WIN32
+#  define TAS(l, n)			os_atomic_test_and_set_u32((l), (n))
+#else
+#  define TAS(l, n)			os_atomic_test_and_set_ulint((l), (n))
+# endif /* _WIN32 */
 # define CAS(l, o, n)		os_val_compare_and_swap_ulint((l), (o), (n))
-
 #else
 # define os_atomic_inc_ulint(m,v,d)	os_atomic_inc_ulint_func(m, v, d)
 # define os_atomic_dec_ulint(m,v,d)	os_atomic_dec_ulint_func(m, v, d)
