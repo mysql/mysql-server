@@ -1,6 +1,5 @@
 
 --source include/not_embedded.inc
---source include/have_myisam.inc
 --source include/have_perfschema.inc
 --source include/have_64bit.inc
 --source include/not_valgrind.inc
