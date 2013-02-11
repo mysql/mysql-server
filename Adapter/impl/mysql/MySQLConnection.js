@@ -264,22 +264,17 @@ exports.DBSession.prototype.getTransactionHandler = function() {
   return this.transactionHandler;
 };
 
-// This is temporary pending the official error code string to error number map
-var codes = {
-    'ER_DUP_ENTRY': {code: 1062, sqlstate: '23000'}
-};
-
 // Create a DBOperationError from a mysql driver err.
 var DBOperationError = function(cause) {
   // the cause is the mysql driver error
   // the code from the driver is the string form of the mysql error, e.g. ER_DUP_ENTRY
-  var key = cause.code;
-  var lookup = codes[key];
-  if (typeof(lookup) === 'undefined') {
-    lookup = {code: 0, sqlstate: 'HY000'};
+  this.code = mysql_code_to_sqlstate_map[cause.code];
+  if (typeof(this.code) === 'undefined') {
+    this.code = 0;
+    this.sqlstate = 'HY000';
+  } else {
+    this.sqlstate = mysql_code_to_sqlstate_map[this.code];
   }
-  this.code = lookup.code;
-  this.sqlstate = lookup.sqlstate;
   this.message = cause.message;
   this.cause = cause;
   udebug.log_detail('MySQLConnection DBOperationError constructor', this);
