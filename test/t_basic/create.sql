@@ -2,7 +2,7 @@ use test;
 drop table if exists t_basic;
 create table if not exists t_basic (
   id int not null,
-  name varchar(32),
+  name varchar(32) default 'Employee 666',
   age int,
   magic int not null,
   primary key(id),
