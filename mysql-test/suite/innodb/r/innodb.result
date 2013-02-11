@@ -3194,7 +3194,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1
-0
 START TRANSACTION READ ONLY;
 INSERT INTO t1 VALUES(0);
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
@@ -3210,7 +3209,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1
-0
 1
 3
 DROP TABLE t2;
@@ -3234,9 +3232,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1	c2
-1	1
-2	2
-3	3
 START TRANSACTION READ ONLY;
 INSERT INTO t1 VALUES(0);
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
@@ -3260,13 +3255,10 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1	c2
-1	1
 4	1
 7	1
-2	2
 5	2
 8	2
-3	3
 6	3
 9	3
 DROP TABLE t1;
