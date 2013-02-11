@@ -142,10 +142,16 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
+	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
+#ifdef UNIV_DEBUG
+	, ibool		has_done_reservation /*!< in: TRUE if the space has
+				already been reserved, in this case we will
+				never return NULL */
+#endif
+)
 	__attribute__((warn_unused_result, nonnull));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -2113,7 +2119,15 @@ fseg_create_general(
 
 	if (page == 0) {
 		block = fseg_alloc_free_page_low(space, zip_size,
-						 inode, 0, FSP_UP, mtr, mtr);
+						 inode, 0, FSP_UP, mtr, mtr
+#ifdef UNIV_DEBUG
+						 , has_done_reservation
+#endif
+						 );
+
+		/* The allocation cannot fail if we have already reserved a
+		space for the page. */
+		ut_ad(!has_done_reservation || block != NULL);
 
 		if (block == NULL) {
 
@@ -2374,10 +2388,16 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
+	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
+#ifdef UNIV_DEBUG
+	, ibool		has_done_reservation /*!< in: TRUE if the space has
+				already been reserved, in this case we will
+				never return NULL */
+#endif
+)
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2470,6 +2490,7 @@ take_hinted_page:
 		if (direction == FSP_DOWN) {
 			ret_page += FSP_EXTENT_SIZE - 1;
 		}
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if ((xdes_get_state(descr, mtr) == XDES_FSEG)
 		   && mach_read_from_8(descr + XDES_ID) == seg_id
@@ -2485,6 +2506,7 @@ take_hinted_page:
 		ret_page = xdes_get_offset(ret_descr)
 			+ xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
 					hint % FSP_EXTENT_SIZE, mtr);
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if (reserved - used > 0) {
 		/* 5. We take any unused page from the segment
@@ -2497,7 +2519,7 @@ take_hinted_page:
 		} else if (flst_get_len(seg_inode + FSEG_FREE, mtr) > 0) {
 			first = flst_get_first(seg_inode + FSEG_FREE, mtr);
 		} else {
-			ut_error;
+			ut_ad(!has_done_reservation);
 			return(NULL);
 		}
 
@@ -2506,12 +2528,15 @@ take_hinted_page:
 		ret_page = xdes_get_offset(ret_descr)
 			+ xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
 					0, mtr);
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if (used < FSEG_FRAG_LIMIT) {
 		/* 6. We allocate an individual page from the space
 		===================================================*/
 		buf_block_t* block = fsp_alloc_free_page(
 			space, zip_size, hint, mtr, init_mtr);
+
+		ut_ad(!has_done_reservation || block != NULL);
 
 		if (block != NULL) {
 			/* Put the page in the fragment page array of the
@@ -2536,14 +2561,17 @@ take_hinted_page:
 
 		if (ret_descr == NULL) {
 			ret_page = FIL_NULL;
+			ut_ad(!has_done_reservation);
 		} else {
 			ret_page = xdes_get_offset(ret_descr);
+			ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		}
 	}
 
 	if (ret_page == FIL_NULL) {
 		/* Page could not be allocated */
 
+		ut_ad(!has_done_reservation);
 		return(NULL);
 	}
 
@@ -2562,6 +2590,7 @@ take_hinted_page:
 					" the space size %lu. Page no %lu.\n",
 					(ulong) space, (ulong) space_size,
 					(ulong) ret_page);
+				ut_ad(!has_done_reservation);
 				return(NULL);
 			}
 
@@ -2569,6 +2598,7 @@ take_hinted_page:
 				space, ret_page, space_header, mtr);
 			if (!success) {
 				/* No disk space left */
+				ut_ad(!has_done_reservation);
 				return(NULL);
 			}
 		}
@@ -2665,7 +2695,16 @@ fseg_alloc_free_page_general(
 
 	block = fseg_alloc_free_page_low(space, zip_size,
 					 inode, hint, direction,
-					 mtr, init_mtr);
+					 mtr, init_mtr
+#ifdef UNIV_DEBUG
+					 , has_done_reservation
+#endif
+					 );
+
+	/* The allocation cannot fail if we have already reserved a
+	space for the page. */
+	ut_ad(!has_done_reservation || block != NULL);
+
 	if (!has_done_reservation) {
 		fil_space_release_free_extents(space, n_reserved);
 	}
