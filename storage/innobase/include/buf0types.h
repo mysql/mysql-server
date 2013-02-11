@@ -116,8 +116,8 @@ this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
-typedef FutexMutex BPageMutex;
-typedef SysMutex BufPoolMutex;
-typedef SysMutex FlushListMutex;
+typedef ib_mutex_t BPageMutex;
+typedef ib_mutex_t BufPoolMutex;
+typedef ib_mutex_t FlushListMutex;
 
 #endif /* buf0types.h */
