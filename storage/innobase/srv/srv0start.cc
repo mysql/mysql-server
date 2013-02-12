@@ -946,7 +946,10 @@ srv_open_tmp_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not create the system temp tablespace.");
 
-	} else if ((err = tmp_space->open(0)) != DB_SUCCESS) {
+	} else if ((err = tmp_space->open(0, true)) != DB_SUCCESS) {
+		/* On server re-start, we create a new/clean temp-tablespace
+		and so ensure we pass true to indicate error
+		if file pre-exist. */
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Unable to create shared temporary tablespace");
@@ -954,6 +957,9 @@ srv_open_tmp_tablespace(
 	} else {
 
 		mtr_t	mtr;
+
+		tmp_space->set_sanity_check_status(true);
+
 		ulint	size = tmp_space->get_sum_of_sizes();
 
 		ut_a(tmp_space->space_id() == temp_space_id
@@ -1604,7 +1610,7 @@ innobase_start_or_create_for_mysql(void)
 
 	sum_of_new_sizes = srv_sys_space.get_sum_of_sizes();
 
-	err = srv_sys_space.open(&sum_of_new_sizes);
+	err = srv_sys_space.open(&sum_of_new_sizes, false);
 
 	if (err != DB_SUCCESS) {
 

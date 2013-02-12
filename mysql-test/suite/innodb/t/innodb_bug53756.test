@@ -20,6 +20,7 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 #
 # Precautionary clean up.
 #
@@ -155,6 +156,7 @@ COMMIT;
 --disconnect con5
 --disconnect con6
 --echo #
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --echo # Restart server.
 #
 # Turn on reconnect

@@ -13,6 +13,7 @@ source include/have_innodb.inc;
 
 CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
 CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 --echo # Create and populate the table to be corrupted
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
@@ -64,6 +65,7 @@ EOF
 
 --error 2013
 SELECT * FROM t1;
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --echo # Turn on reconnect
 --enable_reconnect

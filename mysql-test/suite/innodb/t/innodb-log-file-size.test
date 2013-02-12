@@ -18,6 +18,7 @@ call mtr.add_suppression("InnoDB: Resizing redo log");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
 call mtr.add_suppression("InnoDB: New log files created");
 call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 
@@ -26,7 +27,7 @@ SET DEBUG='+d,crash_commit_before';
 --exec echo "restart: --innodb-log-file-size=6M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 INSERT INTO t1 VALUES (42);
-
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -40,7 +41,7 @@ SET DEBUG='+d,crash_commit_before';
 --exec echo "restart: --innodb-log-files-in-group=3 --innodb-log-file-size=5M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 DELETE FROM t1;
-
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -59,6 +60,7 @@ SET DEBUG='+d,crash_commit_before';
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 DELETE FROM t1;
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar

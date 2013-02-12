@@ -24,6 +24,7 @@ call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql".
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_worker_info"\' in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"test"."t1"\' in the cache');
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 ##### Restart the server in force recovery mode
 --echo # Stop server
@@ -96,6 +97,7 @@ SET SESSION debug="+d,crash_commit_before";
 # Execute the statement that causes the crash.
 --error 2013
 COMMIT;
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
