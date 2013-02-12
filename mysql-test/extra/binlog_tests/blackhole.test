@@ -199,7 +199,7 @@ set insert_id= 3;
 insert into t1 values (NULL), (33), (NULL);
 set insert_id= 5;
 insert into t1 values (55), (NULL);
-source include/show_binlog_events2.inc;
+source include/show_binlog_events.inc;
 
 # cleanup
 drop table t1;
