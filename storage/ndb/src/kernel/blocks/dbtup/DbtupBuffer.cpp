@@ -1,6 +1,6 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB, 2008, 2009 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   All rights reserved. Use is subject to license terms.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,6 +163,10 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
   transIdAI->transId[0]= sig1;
   transIdAI->transId[1]= sig2;
   
+  const Uint32 routeBlockref= req_struct->TC_ref;
+  // Only DBTC should receive TRANSID_AI_R.
+  ndbrequire(nodeId == getOwnNodeId() || refToMain(routeBlockref) == DBTC);
+
   if (connectedToNode){
     /**
      * Own node -> execute direct
@@ -285,38 +289,12 @@ void Dbtup::sendReadAttrinfo(Signal* signal,
    * to the receiving node we want to send the signals 
    * routed via the node that controls this read
    */
-  Uint32 routeBlockref= req_struct->TC_ref;
-  
-  if (true){ // TODO is_api && !old_dest){
-    jam();
-    transIdAI->attrData[0]= recBlockref;
-    LinearSectionPtr ptr[3];
-    ptr[0].p= &signal->theData[25];
-    ptr[0].sz= ToutBufIndex;
-    sendSignal(routeBlockref, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
-    return;
-  }
-  
-  /**
-   * Fill in a TRANSID_AI signal, use last word to store
-   * final destination and send it to route node
-   * as signal TRANSID_AI_R (R as in Routed)
-   */ 
-  Uint32 tot= ToutBufIndex;
-  Uint32 sent= 0;
-  Uint32 maxLen= TransIdAI::DataLength - 1;
-  while (sent < tot) {
-    jam();      
-    Uint32 dataLen= (tot - sent > maxLen) ? maxLen : tot - sent;
-    Uint32 sigLen= dataLen + TransIdAI::HeaderLength + 1; 
-    MEMCOPY_NO_WORDS(&transIdAI->attrData,
-		     &signal->theData[25+sent],
-		     dataLen);
-    // Set final destination in last word
-    transIdAI->attrData[dataLen]= recBlockref;
-    
-    sendSignal(routeBlockref, GSN_TRANSID_AI_R, 
-	       signal, sigLen, JBB);
-    sent += dataLen;
-  }
+  // TODO is_api && !old_dest){
+
+  jam();
+  transIdAI->attrData[0]= recBlockref;
+  LinearSectionPtr ptr[3];
+  ptr[0].p= &signal->theData[25];
+  ptr[0].sz= ToutBufIndex;
+  sendSignal(routeBlockref, GSN_TRANSID_AI_R, signal, 4, JBB, ptr, 1);
 }
