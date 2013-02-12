@@ -602,15 +602,19 @@ buf_page_is_corrupted(
 		return(checksum_field1 != crc32 || checksum_field2 != crc32);
 
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-		if (verbose)
+		if (verbose) {
 			DBUG_PRINT(
-				"info", ("page::%lu; old style: calculated = "
-				"%lu new style: calculated = %lu; recorded "
-				"checksum field1 = %lu recorded checksum field2"
-				" = %lu",
+				"info", ("page::%lu; old style:calculated = "
+				"%lu; recorded checksum = %lu",
 				page_no, buf_calc_page_old_checksum(read_buf),
-				buf_calc_page_new_checksum(read_buf),
-				checksum_field1, checksum_field2));
+				checksum_field2));
+
+			DBUG_PRINT(
+			"info", ("page::%lu; new style: calculated = "
+			"%lu; recorded checksum  = %lu",
+			page_no, buf_calc_page_new_checksum(read_buf),
+			checksum_field1));
+		}
 
 		return(checksum_field1
 		       != buf_calc_page_new_checksum(read_buf)

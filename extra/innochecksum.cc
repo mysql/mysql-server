@@ -206,7 +206,7 @@ update_checksum(
 	ulong	physical_page_size,
 	bool	iscompressed) {
 
-	ib_uint32_t	checksum_field1 = 0;
+	ib_uint32_t	checksum = 0;
 	byte		stored1[4];
 	byte		stored2[4];
 
@@ -229,53 +229,53 @@ update_checksum(
 
 	if (iscompressed) {
 		/* means page is compressed */
-		checksum_field1 = page_zip_calc_checksum(
-						page, physical_page_size,
-						write_check);
+		checksum = page_zip_calc_checksum(page, physical_page_size,
+						  write_check);
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (debug)
-			DBUG_PRINT("info", ("page %lu: Updated checksum = %u;\n",
-				ct, checksum_field1));
+			DBUG_PRINT("info",("page %lu: Updated checksum = %u;\n",
+				ct, checksum));
 	} else {
 		/*means page is  uncompressed. */
 
-		ib_uint32_t	checksum_field2 = 0 ;
 		/* Store the new formula checksum */
 		switch (write_check) {
 
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-			checksum_field1 = buf_calc_page_crc32(page);
-			checksum_field2 = checksum_field1;
+			checksum = buf_calc_page_crc32(page);
 			break;
 
 		case SRV_CHECKSUM_ALGORITHM_INNODB:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-			checksum_field1 = (ib_uint32_t)
+			checksum = (ib_uint32_t)
 					buf_calc_page_new_checksum(page);
-			checksum_field2 = (ib_uint32_t)
-					buf_calc_page_old_checksum(page);
 			break;
 
 		case SRV_CHECKSUM_ALGORITHM_NONE:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-			checksum_field1 = BUF_NO_CHECKSUM_MAGIC;
-			checksum_field2 = checksum_field1;
+			checksum = BUF_NO_CHECKSUM_MAGIC;
 			break;
 		/* no default so the compiler will emit a warning if new
 		enum is added and not handled here */
 		}
 
+		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (debug)
-		DBUG_PRINT("info", ("page %lu: Updated checksum field1 = %u;"
-			"checksum field2 = %u;\n", ct,
-			checksum_field1,checksum_field2));
+		DBUG_PRINT("info", ("page %lu: Updated checksum field1 = %u;",
+			   ct, checksum));
+		if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
+			|| write_check == SRV_CHECKSUM_ALGORITHM_INNODB)
+			checksum = (ib_uint32_t)
+					buf_calc_page_old_checksum(page);
 
 		mach_write_to_4(page + physical_page_size -
-			FIL_PAGE_END_LSN_OLD_CHKSUM,checksum_field2);
+				FIL_PAGE_END_LSN_OLD_CHKSUM,checksum);
+		if (debug)
+		DBUG_PRINT("info", ("page %lu: Updated checksum field2 =%u;",
+			   ct, checksum));
 
 	}
-
-	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum_field1);
 
 	func_exit:
 
@@ -905,8 +905,8 @@ main(
 					if(update_checksum(buf, physical_page_size, compressed)) {
 						fsetpos(f, &pos);
 						fwrite(buf, physical_page_size, 1, f);
-						fgetpos(f, &pos);
 					}
+					fgetpos(f, &pos);
 				}
 			}
 
