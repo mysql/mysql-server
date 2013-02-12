@@ -51,7 +51,7 @@ count(*)
 EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 
 GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	100	Using where
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where
 SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 
 GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
 fid	AsText(g)
