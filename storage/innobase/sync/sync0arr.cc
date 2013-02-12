@@ -135,7 +135,7 @@ struct sync_array_t {
 };
 
 /** User configured sync array size */
-UNIV_INTERN ulong		srv_sync_array_size = 32;
+UNIV_INTERN ulong		srv_sync_array_size = 1;
 
 /** Locally stored copy of srv_sync_array_size */
 UNIV_INTERN ulint		sync_array_size;
@@ -197,7 +197,6 @@ sync_array_create(
 	ulint	n_cells)	/*!< in: number of cells in the array
 				to create */
 {
-	ulint		sz;
 	sync_array_t*	arr;
 
 	ut_a(n_cells > 0);
@@ -206,7 +205,7 @@ sync_array_create(
 	arr = static_cast<sync_array_t*>(ut_malloc(sizeof(*arr)));
 	memset(arr, 0x0, sizeof(*arr));
 
-	sz = sizeof(sync_cell_t) * n_cells;
+	ulint	sz = sizeof(sync_cell_t) * n_cells;
 	arr->array = static_cast<sync_cell_t*>(ut_malloc(sz));
 	memset(arr->array, 0x0, sz);
 
@@ -388,6 +387,19 @@ sync_array_free_cell(
 	ut_a(arr->n_reserved > 0);
 	arr->n_reserved--;
 
+	if (arr->next_free_slot > arr->n_cells / 2 && arr->n_reserved == 0) {
+#ifdef UNIV_DEBUG
+		for (ulint i = 0; i < arr->next_free_slot; ++i) {
+			cell = sync_array_get_nth_cell(arr, i);
+
+			ut_ad(!cell->waiting);
+			ut_ad(cell->latch.mutex == 0);
+			ut_ad(cell->signal_count == 0);
+		}
+#endif /* UNIV_DEBUG */
+		arr->next_free_slot = 0;
+		arr->first_free_slot = ULINT_UNDEFINED;
+	}
 	sync_array_exit(arr);
 
 	cell = 0;
@@ -816,26 +828,19 @@ sync_array_wake_threads_if_sema_free_low(
 /*=====================================*/
 	sync_array_t*	arr)		/* in/out: wait array */
 {
-	ulint		i = 0;
-
 	sync_array_enter(arr);
 
-	for (ulint count = 0;  count < arr->n_reserved; ++i) {
+	for (ulint i = 0;  i < arr->next_free_slot; ++i) {
 		sync_cell_t*	cell;
 
 		cell = sync_array_get_nth_cell(arr, i);
 
-		if (cell->latch.mutex != 0) {
+		if (cell->latch.mutex != 0 && sync_arr_cell_can_wake_up(cell)) {
+			os_event_t      event;
 
-			count++;
+			event = sync_cell_get_event(cell);
 
-			if (sync_arr_cell_can_wake_up(cell)) {
-				os_event_t      event;
-
-				event = sync_cell_get_event(cell);
-
-				os_event_set(event);
-			}
+			os_event_set(event);
 		}
 	}
 
@@ -855,9 +860,7 @@ void
 sync_arr_wake_threads_if_sema_free(void)
 /*====================================*/
 {
-	ulint		i;
-
-	for (i = 0; i < sync_array_size; ++i) {
+	for (ulint i = 0; i < sync_array_size; ++i) {
 
 		sync_array_wake_threads_if_sema_free_low(
 			sync_wait_array[i]);
