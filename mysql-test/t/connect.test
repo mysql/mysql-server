@@ -320,8 +320,14 @@ SET PASSWORD FOR old_pwd@localhost= OLD_PASSWORD('aha');
 SET PASSWORD FOR old_pwd@localhost = OLD_PASSWORD('aha2');
 
 --echo #Expect deprecation warning
+--error ER_PASSWORD_FORMAT
 GRANT SELECT on test.* TO old_gpwd@localhost 
   IDENTIFIED BY 'aha3';
+
+--echo #Expect deprecation warning
+GRANT SELECT on test.* TO old_gpwd@localhost 
+  IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
 
 --echo #Expected normal flush, no warnings  
 FLUSH PRIVILEGES;  
