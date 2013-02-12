@@ -99,6 +99,7 @@ enum db_err {
 					maximum allowed depth */
 	DB_TABLE_IN_FK_CHECK,		/* table is being used in foreign
 					key check */
+	DB_IDENTIFIER_TOO_LONG,		/* Identifier name too long */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
