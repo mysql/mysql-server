@@ -39,15 +39,14 @@ struct sync_array_t;
 Reserves a wait array cell for waiting for an object.
 The event of the cell is reset to nonsignalled state. */
 UNIV_INTERN
-void
+sync_cell_t*
 sync_array_reserve_cell(
 /*====================*/
 	sync_array_t*	arr,	/*!< in: wait array */
 	void*		object, /*!< in: pointer to the object to wait for */
 	ulint		type,	/*!< in: lock request type */
 	const char*	file,	/*!< in: file where requested */
-	ulint		line,	/*!< in: line where requested */
-	ulint*		index); /*!< out: index of the reserved cell */
+	ulint		line);	/*!< in: line where requested */
 
 /******************************************************************//**
 This function should be called when a thread starts to wait on
@@ -59,7 +58,7 @@ void
 sync_array_wait_event(
 /*==================*/
 	sync_array_t*	arr,	/*!< in: wait array */
-	ulint		index);	 /*!< in: index of the reserved cell */
+	sync_cell_t*&	cell);	/*!< in: the reserved cell */
 
 /******************************************************************//**
 Frees the cell. NOTE! sync_array_wait_event frees the cell
@@ -69,7 +68,7 @@ void
 sync_array_free_cell(
 /*=================*/
 	sync_array_t*	arr,	/*!< in: wait array */
-	ulint		index);	/*!< in: index of the cell in array */
+	sync_cell_t*&	cell);	/*!< in: the reserved cell */
 
 /**********************************************************************//**
 Note that one of the wait objects was signalled. */

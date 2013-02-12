@@ -353,7 +353,6 @@ rw_lock_s_lock_spin(
 	const char*	file_name, /*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint		index;	/* index of the reserved wait cell */
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
 	size_t		counter_index;
@@ -396,16 +395,16 @@ lock_loop:
 
 		sync_arr = sync_array_get();
 
-		sync_array_reserve_cell(
+		sync_cell_t*	cell = sync_array_reserve_cell(
 			sync_arr, lock, RW_LOCK_S,
-			file_name, line, &index);
+			file_name, line);
 
 		/* Set waiters before checking lock_word to ensure wake-up
 		signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiter_flag(lock);
 
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-			sync_array_free_cell(sync_arr, index);
+			sync_array_free_cell(sync_arr, cell);
 			return; /* Success */
 		}
 
@@ -413,7 +412,7 @@ lock_loop:
 		lock->count_os_wait++;
 		rw_lock_stats.rw_s_os_wait_count.add(counter_index, 1);
 
-		sync_array_wait_event(sync_arr, index);
+		sync_array_wait_event(sync_arr, cell);
 
 		i = 0;
 		goto lock_loop;
@@ -455,7 +454,6 @@ rw_lock_x_lock_wait(
 	const char*	file_name,/*!< in: file name where lock requested */
 	ulint		line)	/*!< in: line where requested */
 {
-	ulint		index;
 	ulint		i = 0;
 	sync_array_t*	sync_arr;
 	size_t		counter_index;
@@ -481,9 +479,9 @@ rw_lock_x_lock_wait(
 
 		sync_arr = sync_array_get();
 
-		sync_array_reserve_cell(
+		sync_cell_t*	cell = sync_array_reserve_cell(
 			sync_arr, lock, RW_LOCK_X_WAIT,
-			file_name, line, &index);
+			file_name, line);
 
 		i = 0;
 
@@ -500,17 +498,17 @@ rw_lock_x_lock_wait(
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_add_debug_info(lock, pass, RW_LOCK_X_WAIT,
 					       file_name, line);
-#endif
+#endif /* UNIV_SYNC_DEBUG */
 
-			sync_array_wait_event(sync_arr, index);
+			sync_array_wait_event(sync_arr, cell);
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_remove_debug_info(
 				lock, pass, RW_LOCK_X_WAIT);
-#endif
+#endif /* UNIV_SYNC_DEBUG */
 			/* It is possible to wake when lock_word < 0.
 			We must pass the while-loop check to proceed.*/
 		} else {
-			sync_array_free_cell(sync_arr, index);
+			sync_array_free_cell(sync_arr, cell);
 		}
 	}
 	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
@@ -595,7 +593,6 @@ rw_lock_x_lock_func(
 	ulint		line)	/*!< in: line where requested */
 {
 	ulint		i;	/*!< spin round count */
-	ulint		index;	/*!< index of the reserved wait cell */
 	sync_array_t*	sync_arr;
 	ibool		spinning = FALSE;
 	size_t		counter_index;
@@ -649,15 +646,15 @@ lock_loop:
 
 	sync_arr = sync_array_get();
 
-	sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_X, file_name, line, &index);
+	sync_cell_t*	cell = sync_array_reserve_cell(
+		sync_arr, lock, RW_LOCK_X, file_name, line);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
 	rw_lock_set_waiter_flag(lock);
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
-		sync_array_free_cell(sync_arr, index);
+		sync_array_free_cell(sync_arr, cell);
 		return; /* Locking succeeded */
 	}
 
@@ -665,7 +662,7 @@ lock_loop:
 	lock->count_os_wait++;
 	rw_lock_stats.rw_x_os_wait_count.add(counter_index, 1);
 
-	sync_array_wait_event(sync_arr, index);
+	sync_array_wait_event(sync_arr, cell);
 
 	i = 0;
 	goto lock_loop;
