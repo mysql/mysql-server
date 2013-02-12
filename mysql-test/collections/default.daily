@@ -18,6 +18,9 @@ perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experime
 # Additional modes for rpl. Multi-Threaded Slave
 perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=rpl_MTS-debug --vardir=var-mts-rpl-debug --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --suite=rpl
 
+# Additional GTID coverage (binlog suite with gtid_mode=ON)
+perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=binlog_gtid-debug --vardir=var-binlog_gtid-debug --suite=binlog --mysqld=--binlog-checksum=CRC32 --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
+
 # Additional runs for innodb-page-size=4k and 8k
 perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
