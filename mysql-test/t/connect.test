@@ -66,15 +66,15 @@ connect (fail_con,localhost,test,zorro,);
 SET GLOBAL secure_auth = OFF;
 update mysql.user set password=old_password("gambling2"), plugin="mysql_old_password" where user=_binary"test";
 flush privileges;
-connect (con10,localhost,test,gambling2,);
-connect (con5,localhost,test,gambling2,mysql);
+connect (con10,localhost,test,gambling2,,,,SKIPSECUREAUTH);
+connect (con5,localhost,test,gambling2,mysql,,,SKIPSECUREAUTH);
 connection con5;
 set password="";
 --error ER_PASSWD_LENGTH
 set password='gambling3';
 set password=old_password('gambling3');
 show tables;
-connect (con6,localhost,test,gambling3,test);
+connect (con6,localhost,test,gambling3,test,,,SKIPSECUREAUTH);
 show tables;
 
 disconnect con10;
@@ -91,10 +91,10 @@ connect (fail_con,localhost,test,,test2);
 connect (fail_con,localhost,test,,);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect (fail_con,localhost,test,zorro,test2);
+connect (fail_con,localhost,test,zorro,test2,,,SKIPSECUREAUTH);
 --replace_result $MASTER_MYSOCK MASTER_SOCKET $MASTER_MYPORT MASTER_PORT
 --error ER_ACCESS_DENIED_ERROR
-connect (fail_con,localhost,test,zorro,);
+connect (fail_con,localhost,test,zorro,,,,SKIPSECUREAUTH);
 
 
 # remove user 'test' so that other tests which may use 'test'
