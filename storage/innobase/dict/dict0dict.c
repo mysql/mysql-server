@@ -31,6 +31,7 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "m_ctype.h" /* my_isspace() */
 #endif /* !UNIV_HOTBACKUP */
+#include "ha_prototypes.h"
 
 #include <ctype.h>
 
@@ -4107,6 +4108,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	dict_foreign_t*	foreign,	/* in: foreign key constraint */
 	ibool		add_newline)	/* in: whether to add a newline */
 {
+	char		constraint_name[MAX_TABLE_NAME_LEN];
 	const char*	stripped_id;
 	ulint	i;
 
@@ -4128,7 +4130,9 @@ dict_print_info_on_foreign_key_in_create_format(
 	}
 
 	fputs(" CONSTRAINT ", file);
-	ut_print_name(file, trx, FALSE, stripped_id);
+	innobase_convert_to_system_charset(constraint_name, stripped_id,
+					   MAX_TABLE_NAME_LEN);
+	ut_print_name(file, trx, FALSE, constraint_name);
 	fputs(" FOREIGN KEY (", file);
 
 	for (i = 0;;) {
