@@ -6,7 +6,7 @@
 #
 # ==== Implementation ====
 
---source include/not_gtid_enabled.inc
+--source include/have_gtid.inc
 
 # TODO: Need to look at making row based version once new binlog client is complete.
 -- source include/have_binlog_format_mixed_or_statement.inc
