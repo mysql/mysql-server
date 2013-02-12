@@ -96,15 +96,6 @@ public:
    */
   const Properties *parse(Context &, T &);
 
-  bool getBreakOnCommand() const;
-  void setBreakOnCommand(bool v);
-  
-  bool getBreakOnEmptyLine() const;
-  void setBreakOnEmptyLine(bool v);
-
-  bool getBreakOnInvalidArg() const;
-  void setBreakOnInvalidArg(bool v);
-  
 private:
   ParserImpl * impl;
 };
@@ -250,47 +241,6 @@ Parser<T>::parse(Context &ctx, T &t) {
   }
   DEBUG("");
   return NULL;
-}
-
-template<class T>
-inline
-bool 
-Parser<T>::getBreakOnCommand() const{
-  return impl->m_breakOnCmd;
-}
-
-template<class T>
-inline
-void
-Parser<T>::setBreakOnCommand(bool v){
-  impl->m_breakOnCmd = v;
-}
-
-template<class T>
-inline
-bool
-Parser<T>::getBreakOnEmptyLine() const{
-  return impl->m_breakOnEmpty;
-}
-template<class T>
-inline
-void
-Parser<T>::setBreakOnEmptyLine(bool v){
-  impl->m_breakOnEmpty = v;
-}
-
-template<class T>
-inline
-bool
-Parser<T>::getBreakOnInvalidArg() const{
-  return impl->m_breakOnInvalidArg;
-}
-
-template<class T>
-inline
-void
-Parser<T>::setBreakOnInvalidArg(bool v){
-  impl->m_breakOnInvalidArg = v;
 }
 
 #endif
