@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3096,7 +3096,7 @@ void Dblqh::earlyKeyReqAbort(Signal* signal,
     tcKeyRef->transId[0] = transid1;
     tcKeyRef->transId[1] = transid2;
     tcKeyRef->errorCode = errCode;
-    sendTCKEYREF(signal, apiRef, lqhKeyReq->tcBlockref, 0);
+    sendTCKEYREF(signal, apiRef, signal->getSendersBlockRef(), 0);
   } else {
     jam();
     /* All ops apart from dirty read send LQHKEYREF to TC
@@ -4619,33 +4619,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     }
   }
 
-  const UintR Treqinfo = lqhKeyReq->requestInfo;
-
-  if (ERROR_INSERTED(5078) && 
-      refToMain(signal->header.theSendersBlockRef) == DBSPJ &&
-      LqhKeyReq::getDirtyFlag(Treqinfo) && 
-      !LqhKeyReq::getNormalProtocolFlag(Treqinfo))
-  {
-    /**
-     * This is used to trigger Bug#16187976 "NDBD NODE FAILS TO START WITH
-     * ILLEGAL SIGNAL RECEIVED (GSN 121 NOT ADDED)". This bug occurs if a 
-     * ROUTE_ORD signal carrying a TCKEYREC signal is sent via the SPJ block.
-     * ROUTE_ORD signals should always be sent via TC, which unlike SPJ should
-     * be connected to the API. (Otherwise, the API will initiate its own 
-     * error handling which will compensate for TCKEYREC and other missing 
-     * signals.) The tests above check that we use the short-circuited protocol,
-     * meaning that LQH wants to send TCKEYREC directly to the API, instead
-     * of sending LQHKEYREC to SPJ (or TC).
-     * Here we enable a different error insert (5079) which we test for in
-     * Dblqh::sendTCKEYREF() below. It is done this way since in 
-     * sendTCKEYREF() we would otherwise not have sufficient context to tell 
-     * when to send the ROUTE_ORD signal. 
-     */
-    SET_ERROR_INSERT_VALUE(5079);
-  }
-
-  if (ERROR_INSERTED_CLEAR(5047) ||
-      ERROR_INSERTED(5079))
+  if (ERROR_INSERTED_CLEAR(5047))
   {
     jam();
     releaseSections(handle);
@@ -4694,13 +4668,9 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   UintR attrLenFlags = lqhKeyReq->attrLen;
   sig1 = lqhKeyReq->savePointId;
   sig2 = lqhKeyReq->hashValue;
+  UintR Treqinfo = lqhKeyReq->requestInfo;
   sig4 = lqhKeyReq->tableSchemaVersion;
   sig5 = lqhKeyReq->tcBlockref;
-  // Ensure that ROUTE_ORD (carrying TCKEYREF) will not be sent to SPJ.
-  ndbassert(refToNode(signal->getSendersBlockRef()) == getOwnNodeId() ||
-            !LqhKeyReq::getDirtyFlag(lqhKeyReq->requestInfo) ||
-            LqhKeyReq::getNormalProtocolFlag(lqhKeyReq->requestInfo) ||
-            refToMain(lqhKeyReq->tcBlockref) == DBTC);
 
   regTcPtr->savePointId = sig1;
   regTcPtr->hashValue = sig2;
@@ -9416,16 +9386,8 @@ Dblqh::sendTCKEYREF(Signal* signal, Uint32 ref, Uint32 routeRef, Uint32 cnt)
 {
   const Uint32 nodeId = refToNode(ref);
   const bool connectedToNode = getNodeInfo(nodeId).m_connected;
-  /** 
-   * ROUTE_ORD signals should not be sent via SPJ as it does not handle these
-   * and (unlike TC) may not be connected to the API anyway.
-   */
-  ndbrequire(routeRef == 0 || 
-             nodeId == getOwnNodeId() || 
-             refToMain(routeRef) == DBTC); 
   
-  if (likely(connectedToNode &&
-             !ERROR_INSERTED_CLEAR(5079)))
+  if (likely(connectedToNode))
   {
     jam();
     sendSignal(ref, GSN_TCKEYREF, signal, TcKeyRef::SignalLength, JBB);
