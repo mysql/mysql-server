@@ -3,6 +3,7 @@
 #
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 CREATE TABLE bug51920 (i INT) ENGINE=InnoDB;
 INSERT INTO bug51920 VALUES (1);

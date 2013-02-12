@@ -27,6 +27,7 @@
 let $per_table = `select @@innodb_file_per_table`;
 let $format = `select @@innodb_file_format`;
 set global innodb_file_per_table = 0;
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 #------------------------------------------------------------
 #
@@ -43,6 +44,7 @@ set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
 #
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect

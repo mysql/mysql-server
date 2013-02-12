@@ -78,6 +78,7 @@ set session debug="+d,ib_ddl_crash_during_create2";
 --error 2013
 create temporary table t1
 	(a int, b int, primary key(a), index(b)) engine = innodb;
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
@@ -128,6 +129,7 @@ select count(*) from t2;
 --exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 call populate_t1_t2();
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 #
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
@@ -164,6 +166,7 @@ set session debug="+d,crash_commit_after";
 --exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 insert into t2 values (2, 'a', 'b');
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 #
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
@@ -183,6 +186,7 @@ set session debug="+d,crash_commit_before";
 --exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 insert into t2 values (4, 'a', 'b');
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 #
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
@@ -204,6 +208,7 @@ set session debug="+d,crash_commit_before";
 --exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --error 2013
 insert into t1 values (4, 'a', 'b');
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 #
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
