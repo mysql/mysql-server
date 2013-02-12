@@ -515,6 +515,16 @@ typedef struct st_join_table {
   bool preread_init();
 
   bool is_sjm_nest() { return test(bush_children); }
+
+  bool access_from_tables_is_allowed(table_map used_tables,
+                                     table_map sjm_lookup_tables)
+  {
+    table_map used_sjm_lookup_tables= used_tables & sjm_lookup_tables;
+    return !used_sjm_lookup_tables ||
+           (emb_sj_nest && 
+            !(used_sjm_lookup_tables & ~emb_sj_nest->sj_inner_tables));
+  }
+
 } JOIN_TAB;
 
 
@@ -947,6 +957,11 @@ public:
   */
   bool     resume_nested_loop;
   table_map const_table_map;
+  /** 
+    Bitmap of semijoin tables that the current partial plan decided
+    to materialize and access by lookups
+  */
+  table_map sjm_lookup_tables;
   /*
     Constant tables for which we have found a row (as opposed to those for
     which we didn't).
@@ -1268,6 +1283,8 @@ public:
     outer_ref_cond= pseudo_bits_cond= NULL;
     in_to_exists_where= NULL;
     in_to_exists_having= NULL;
+    emb_sjm_nest= NULL;
+    sjm_lookup_tables= 0;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,

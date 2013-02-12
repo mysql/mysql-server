@@ -4924,6 +4924,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 }
 
 
+
 /**
   Discover the indexes that can be used for GROUP BY or DISTINCT queries.
 
@@ -5166,6 +5167,8 @@ best_access_path(JOIN      *join,
                2. we won't get two ref-or-null's
           */
           if (!(remaining_tables & keyuse->used_tables) &&
+              s->access_from_tables_is_allowed(keyuse->used_tables,
+                                               join->sjm_lookup_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
           {
@@ -7655,7 +7658,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     */
     do
     {
-      if (!(~used_tables & keyuse->used_tables))
+      if (!(~used_tables & keyuse->used_tables) &&
+          j->access_from_tables_is_allowed(keyuse->used_tables,
+                                           join->sjm_lookup_tables))
       {
         if  (are_tables_local(j, keyuse->val->used_tables()))
         {
@@ -7723,7 +7728,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     uint i;
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
-      while (((~used_tables) & keyuse->used_tables) || 
+      while (((~used_tables) & keyuse->used_tables) ||
+	     !j->access_from_tables_is_allowed(keyuse->used_tables,
+                                               join->sjm_lookup_tables) ||    
              keyuse->keypart == NO_KEYPART ||
 	     (keyuse->keypart != 
               (is_hash_join_key_no(key) ?
@@ -10181,7 +10188,6 @@ bool JOIN_TAB::preread_init()
     select->quick->replace_handler(table->file);
   return FALSE;
 }
-
 
 
 /**
