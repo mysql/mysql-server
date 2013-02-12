@@ -2323,6 +2323,10 @@ bool change_password(THD *thd, const char *host, const char *user,
 		      host,user,new_password));
   DBUG_ASSERT(host != 0);			// Ensured by parent
 
+#ifndef MCP_WL6580
+  query_length= 0; // silence compiler warning, "may be used uninit"
+#endif
+
   if (check_change_password(thd, host, user, new_password, new_password_len))
     DBUG_RETURN(1);
 
