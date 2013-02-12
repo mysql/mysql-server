@@ -40,11 +40,10 @@ template <template <typename> class Policy>
 bool
 TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 {
-	ulint		index;
 	sync_array_t*	sync_arr = sync_array_get();
 
-	sync_array_reserve_cell(
-		sync_arr, this, SYNC_MUTEX, file_name, line, &index);
+	sync_cell_t*	cell = sync_array_reserve_cell(
+		sync_arr, this, SYNC_MUTEX, file_name, line);
 
 	/* The memory order of the array reservation and
 	the change in the waiters field is important: when
@@ -61,7 +60,7 @@ TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 
 		if (try_lock()) {
 
-			sync_array_free_cell(sync_arr, index);
+			sync_array_free_cell(sync_arr, cell);
 
 			/* Note that in this case we leave
 			the waiters field set to 1. We cannot
@@ -77,7 +76,7 @@ TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 	array and the waiters field was made.  Now there
 	is no risk of infinite wait on the event. */
 
-	sync_array_wait_event(sync_arr, index);
+	sync_array_wait_event(sync_arr, cell);
 
 	return(false);
 }

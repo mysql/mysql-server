@@ -713,30 +713,30 @@ struct TTASWaitMutex {
 private:
 	/**
 	Spin and wait for the mutex to become free.
-	@param start - spin start index
-	@return true if lock was feee */
-	bool spin(lint& i) const UNIV_NOTHROW
+	@param i - spin start index
+	@return number of spins */
+	ulint spin(ulint i) const UNIV_NOTHROW
 	{
+		ut_ad(i >= 0 && i < srv_n_spin_wait_rounds);
+
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
 		the lock word is atomic, as the actual locking is always
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		while (is_locked()) {
+		while (is_locked() && i < srv_n_spin_wait_rounds) {
 
-			if (--i > 0) {
-
-				return(false);
-
-			} else if (srv_spin_wait_delay) {
+			if (srv_spin_wait_delay) {
 
 				ut_delay(ut_rnd_interval(
 						0, srv_spin_wait_delay));
 			}
+
+			++i;
 		}
 
-		return(true);
+		return(i);
 	}
 
 	/**
@@ -750,11 +750,13 @@ private:
        	waiting for the mutex before suspending the thread. */
 	void spin_and_wait(const char* file_name, ulint line) UNIV_NOTHROW
 	{
-		lint	n_spins = srv_n_spin_wait_rounds;
+		ulint	n_spins = 0;
 
 		for (;;) {
 
-			if (spin(n_spins)) {
+			n_spins = spin(n_spins);
+
+			if (n_spins < srv_n_spin_wait_rounds) {
 
 				if (try_lock()) {
 					return;
@@ -765,11 +767,11 @@ private:
 
 			os_thread_yield();
 
-			n_spins = srv_n_spin_wait_rounds;
-
 			if (wait(file_name, line)) {
 				break;
 			}
+
+			n_spins = 0;
 		}
 	}
 
