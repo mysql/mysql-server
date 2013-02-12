@@ -7078,6 +7078,24 @@ restart_cluster_failure:
          !ndb_binlog_running))
       break; /* Shutting down server */
 
+    if (thd->killed == THD::KILL_CONNECTION)
+    {
+      /*
+        Since the ndb binlog thread adds itself to the "global thread list"
+        it need to look at the "killed" flag and stop the thread to avoid
+        that the server hangs during shutdown while waiting for the "global
+        thread list" to be emtpy.
+        In pre 5.6 versions the thread was also added to "global thread
+        list" but the "global thread *count*" variable was not incremented
+        and thus the same problem didn't exist.
+        The only reason for adding the ndb binlog thread to "global thread
+        list" is to be able to see the thread state using SHOW PROCESSLIST
+        and I_S.PROCESSLIST
+      */
+      sql_print_information("NDB Binlog: Server shutdown detected...");
+      break;
+    }
+
     MEM_ROOT **root_ptr=
       my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
     MEM_ROOT *old_root= *root_ptr;
@@ -7629,7 +7647,10 @@ restart_cluster_failure:
     goto restart_cluster_failure;
   }
 
-  net_end(&thd->net);
+  thd->release_resources();
+  mysql_mutex_lock(&LOCK_thread_count);
+  remove_global_thread(thd);
+  mysql_mutex_unlock(&LOCK_thread_count);
   delete thd;
 
   ndb_binlog_thread_running= -1;
