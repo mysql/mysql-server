@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -900,7 +900,8 @@ private:
 	MutexPolicy		m_policy;
 };
 
-/** Mutex interface for all policy mutexes. */
+/** Mutex interface for all policy mutexes. This class handles the interfacing
+with the Performance Schema instrumentation. */
 template <typename MutexImpl>
 struct PolicyMutex
 {
