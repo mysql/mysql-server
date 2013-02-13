@@ -16,6 +16,8 @@ SELECT * FROM t1;
 --echo # State after crash (before recovery)
 --replace_regex /sqlx.*\./sqlx-nnnn_nnnn./ /#p#/#P#/ /#sp#/#SP#/ /#tmp#/#TMP#/
 --list_files $DATADIR/test
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 let $WAIT_COUNT=6000;
