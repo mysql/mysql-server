@@ -4,7 +4,7 @@
 #
 # ==== Usage ====
 #
-# --source include/have_gtid.inc
+# --source include/not_gtid_enabled.inc
 
 if (`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'OFF' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
 {
