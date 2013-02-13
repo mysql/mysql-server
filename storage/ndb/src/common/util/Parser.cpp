@@ -22,55 +22,12 @@
 #include <Properties.hpp>
 
 
-class ParseInputStream : public InputStream {
-public:
-  ParseInputStream(InputStream & in, bool trim = true, char eofComment = '#');
-  
-  char* gets(char * buf, int bufLen); 
-  void push_back(const char *);
-  void set_mutex(NdbMutex *m) { in.set_mutex(m); };
-private:
-  InputStream & in;
-  char * buffer;
-};
-
-ParseInputStream::ParseInputStream(InputStream & _in, 
-				   bool /* unused */, 
-				   char /* unused */)
-  : in(_in){
-  buffer = 0;
-}
-
-char*
-ParseInputStream::gets(char * buf, int bufLen){
-  if(buffer != 0){
-    strncpy(buf, buffer, bufLen);
-    free(buffer);
-    buffer = 0;
-    return buf;
-  }
-  char *t = in.gets(buf, bufLen);
-  return t;
-}
-
-void
-ParseInputStream::push_back(const char * str){
-  if(buffer != 0)
-    abort();
-  buffer = strdup(str);
-}
-
-ParserImpl::ParserImpl(const DummyRow * rows, InputStream & in,
-		       bool b_cmd, bool b_empty, bool b_iarg) 
-  : m_rows(rows), input(* new ParseInputStream(in))
+ParserImpl::ParserImpl(const DummyRow * rows, InputStream & in)
+ : m_rows(rows), input(in)
 {
-  m_breakOnCmd = b_cmd;
-  m_breakOnEmpty = b_empty;
-  m_breakOnInvalidArg = b_iarg;
 }
 
 ParserImpl::~ParserImpl(){
-  delete & input;
 }
 
 static
@@ -198,13 +155,7 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
   }
 
   if(invalidArgument){
-    char buf[sz];
-    char * tmp;
-    if(!m_breakOnInvalidArg){
-      do {
-	tmp = input.gets(buf, sz);
-      } while((! * stop) && !Eof(tmp) && !Empty(tmp));
-    }
+    // Invalid argument found, return error
     return false;
   }
 

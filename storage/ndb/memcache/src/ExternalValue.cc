@@ -159,7 +159,7 @@ op_status_t ExternalValue::do_read_header(workitem *item,
   op.readColumn(COL_STORE_CAS);
   
   if(! setupKey(item, op))
-    return op_overflow;
+    return op_bad_key;
   
   workitem_allocate_rowbuffer_1(item, op.requiredBuffer());
   op.buffer = item->row_buffer_1;

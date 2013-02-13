@@ -479,6 +479,7 @@ sub get_binary_response {
     $body .= $buf;
   }
   $self->{error} = $error_message{$status};
+  $self->{cas} = ($cas_hi * (2 ** 32)) + $cas_lo;
 
   # Packet structure is: header .. extras .. key .. value 
   my $l = $extra_len + $key_len;
@@ -581,7 +582,7 @@ sub stats {
 sub flush {
   my ($self, $key, $value) = @_;
   $self->send_binary_request(BIN_CMD_FLUSH, $key, '', ''); 
-  my ($status, $value) = $self->get_binary_response();
+  my ($status, $result) = $self->get_binary_response();
   return ($status == 0) ? 1 : 0;
 }
   
