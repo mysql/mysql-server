@@ -2641,7 +2641,7 @@ make_external:
 		This is the same block which was skipped by
 		BTR_KEEP_IBUF_BITMAP. */
 		if (!dict_index_is_clust(index)
-		    && !dict_table_is_temporary(index->table)	
+		    && !dict_table_is_temporary(index->table)
 		    && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}

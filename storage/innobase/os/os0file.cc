@@ -1861,7 +1861,7 @@ loop:
 	}
 
 	ret = unlink(name);
-	
+
 	if (ret != 0 && errno == ENOENT) {
 		if (exist) {
 			*exist = false;
