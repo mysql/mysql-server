@@ -2542,15 +2542,12 @@ fil_op_log_parse_or_replay(
 
 		break;
 	case MLOG_FILE_TRUNCATE:
-		if (fil_tablespace_exists_in_mem(space_id)) {
-			fil_recreate_tablespace(
-				space_id, log_flags, flags, name,
-				&truncate_rec, recv_lsn);
-		} else {
+		if (!fil_tablespace_exists_in_mem(space_id)) {
 			/* Create the database directory for name, if it does
 			not exist yet */
 			fil_create_directory_for_tablename(name);
 
+			mutex_exit(&log_sys->mutex);
 			if (fil_create_new_single_table_tablespace(
 				    space_id, name, truncate_rec.dir_path,
 				    flags, DICT_TF2_USE_TABLESPACE,
@@ -2560,8 +2557,15 @@ fil_op_log_parse_or_replay(
 					"Continuing crash recovery even though "
 					"we cannot create a new tablespace.",
 					srv_force_recovery);
+				mutex_enter(&log_sys->mutex);
+				break;
 			}
+			mutex_enter(&log_sys->mutex);
 		}
+
+		ut_ad(fil_tablespace_exists_in_mem(space_id) == TRUE);
+		fil_recreate_tablespace(space_id, log_flags, flags, name,
+					&truncate_rec, recv_lsn);
 
 		break;
 
