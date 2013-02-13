@@ -52,7 +52,7 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #include "buf0checksum.h"		/* buf_calc_page_*() */
 #include "fil0fil.h"			/* FIL_* */
 #include "fsp0fsp.h"			/* fsp_flags_get_page_size() &
-					fsp_flags_get_zip_size() */
+					   fsp_flags_get_zip_size() */
 #include "mach0data.h"			/* mach_read_from_4() */
 #include "ut0crc32.h"			/* ut_crc32_init() */
 
@@ -137,10 +137,11 @@ static TYPELIB innochecksum_algorithms_typelib = {
 
 /****************************************************************************//*
 Get the page size of the filespace from the filespace header.
- @param		buf			[in] buffer used to read the page.
- @param		logical_page_size	[out] Logical/Uncompressed page size.
- @param		physical_page_size	[out] Physical/Commpressed page size.
- @param		compressed		[out] Enable if tablespace is compressed
+ @param		[in] buf			buffer used to read the page.
+ @param		[out] logical_page_size		Logical/Uncompressed page size.
+ @param		[out] physical_page_size	Physical/Commpressed page size.
+ @param		[out] compressed		Enable if tablespace is
+						compressed.
 */
 
 static
@@ -161,6 +162,7 @@ get_page_size(
 	/* fsp_flags_get_zip_size() will return zero if not compressed. */
 	*physical_page_size = fsp_flags_get_zip_size(flags);
 	if (*physical_page_size == 0) {
+		/* uncompressed page */
 		*physical_page_size= *logical_page_size;
 		*compressed = 0;
 	}
@@ -171,8 +173,8 @@ get_page_size(
 
 /*******************************************************//*
 Check weather page is empty or not.
- @param		s	[in] page to checked for empty.
- @param		len	[in] size of page.
+ @param		[in] s		page to checked for empty.
+ @param		[in] len	size of page.
 
  @retval TRUE if page is empty.
  @retval FALSE if page is not empty.
@@ -192,12 +194,12 @@ is_page_empty(
 
 /********************************************************************//**
 Rewrite the checksum for the page.
-@param	page			[in/out]	page buffer
-@param	physical_page_size	[in]		Page size in bytes on disk.
-@param	iscompressed		[in]		Is compressed/Uncompressed Page.
+@param	[in/out] page			page buffer
+@param	[in] physical_page_size		Page size in bytes on disk.
+@param	[in] iscompressed		Is compressed/Uncompressed Page.
 
 @retval True means do rewrite
-@retval FALSE means skip the rewrite as checksum stored is same as calculated.
+@retval FALSE means skip the rewrite as checksum stored match with calculated.
 */
 UNIV_INTERN
 my_bool
@@ -236,7 +238,7 @@ update_checksum(
 			DBUG_PRINT("info",("page %lu: Updated checksum = %u;\n",
 				ct, checksum));
 	} else {
-		/*means page is  uncompressed. */
+		/*means page is uncompressed. */
 
 		/* Store the new formula checksum */
 		switch (write_check) {
@@ -261,9 +263,11 @@ update_checksum(
 		}
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
+
 		if (debug)
 		DBUG_PRINT("info", ("page %lu: Updated checksum field1 = %u;",
 			   ct, checksum));
+
 		if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
 			|| write_check == SRV_CHECKSUM_ALGORITHM_INNODB)
 			checksum = (ib_uint32_t)
@@ -271,6 +275,7 @@ update_checksum(
 
 		mach_write_to_4(page + physical_page_size -
 				FIL_PAGE_END_LSN_OLD_CHKSUM,checksum);
+
 		if (debug)
 		DBUG_PRINT("info", ("page %lu: Updated checksum field2 =%u;",
 			   ct, checksum));
@@ -295,8 +300,8 @@ update_checksum(
 
 /*
 Parse the page and collect/dump the information about page type
-@param page	[in]	buffer page
-@param f	[in]	file for diagnosis.
+@param [in] page	buffer page
+@param [in] f		file for diagnosis.
 */
 void
 parse_page(
@@ -444,7 +449,7 @@ parse_page(
 	}
 }
 
-/*Display the page type count of a tablespace. */
+/* Print the page type count of a tablespace. */
 void
 print_summary() {
 
@@ -533,7 +538,10 @@ static void usage(void) {
 	print_version();
 	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
 	printf("InnoDB offline file checksum utility.\n");
-	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v] [-d] <filename>\n", my_progname);
+	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] "
+		"[-v] [-d <>] [-a <allow mismatches>] [-n] [-C <strict-check>] "
+		"[-w <write>] [-S] [-D <page type dump>] <filename>\n",
+		my_progname);
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
 }
@@ -629,8 +637,7 @@ get_options(
 	return 0;
 }
 
-int
-main(
+int main(
 	int	argc,
 	char	**argv) {
 
@@ -683,7 +690,7 @@ main(
 
 	if (no_check && !do_write) {
 		fprintf(stderr, "Error: --no-check must be associated with "
-			"--write option");
+			"--write option.");
 		DBUG_RETURN(1);
 	}
 
@@ -708,6 +715,7 @@ main(
 			DBUG_RETURN(1);
 		}
 		if (*filename == '-') {
+			/* read from stdin */
 			f = stdin;
 			read_from_stdin = 1;
 		}
@@ -733,11 +741,14 @@ main(
 
 				DBUG_RETURN(1);
 			}
+			/* Save the current file pointer in pos variable.*/
 			fgetpos(f,&pos);
 		}
 
+		/* Read the minimum page size. */
 		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, f);
 		flag = 1;
+
 		if (min_bytes != UNIV_PAGE_SIZE_MIN) {
 			fprintf(stderr, "Error: Was not able to read the "
 				"minimum page size ");
@@ -793,6 +804,8 @@ main(
 		/* seek to the necessary position */
 		if (start_page) {
 			if(!read_from_stdin) {
+				/* If buffer read is not from stdin, we
+				can seek the buffer read */
 				flag = 0;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
@@ -802,22 +815,26 @@ main(
 
 					DBUG_RETURN(1);
 				}
+				/* Save the current file pointer in pos variable. */
 				fgetpos(f, &pos);
 			} else {
 
-				ulong count=0;
+				ulong count = 0;
 
 				while (!feof(f)) {
 					if(start_page==count)
 						break;
+					/* flag is enabled, means have
+					to read the remaining data for first
+					page. */
 					if (flag) {
-						flag=0;
+						flag = 0;
 						page = (unsigned char*)malloc(
 							sizeof(unsigned char) * (physical_page_size - UNIV_PAGE_SIZE_MIN));
 						bytes= fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, f);
 						memcpy(buf, min_page, UNIV_PAGE_SIZE_MIN);
 						memcpy(buf + UNIV_PAGE_SIZE_MIN, page, physical_page_size - UNIV_PAGE_SIZE_MIN);
-						 bytes +=min_bytes;
+						 bytes += min_bytes;
 					} else
 						bytes= fread(buf, 1, physical_page_size, f);
 					count++;
@@ -846,7 +863,9 @@ main(
 		lastt = 0;
 		while (!feof(f)) {
 			if (flag) {
-				flag=0;
+				/* Read the remaining buffer for first
+				page */
+				flag = 0;
 				page=(unsigned char*)malloc(sizeof(unsigned char) * (physical_page_size - UNIV_PAGE_SIZE_MIN));
 				bytes= fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, f);
 				memcpy(buf, min_page, UNIV_PAGE_SIZE_MIN);
@@ -874,6 +893,8 @@ main(
 				DBUG_RETURN(1);
 			}
 
+			/* If no-check is enabled, skip the
+			checksum verification.*/
 			if (!no_check) {
 				/* Checksum verification */
 				if (compressed)
@@ -903,9 +924,13 @@ main(
 					fwrite(buf, physical_page_size, 1, stdout);
 				} else {
 					if(update_checksum(buf, physical_page_size, compressed)) {
+						/* Set the previous file pointer
+						stored in pos to current file position. */
 						fsetpos(f, &pos);
 						fwrite(buf, physical_page_size, 1, f);
 					}
+					/* Save the current file pointer in pos
+					variable */
 					fgetpos(f, &pos);
 				}
 			}
@@ -943,6 +968,7 @@ main(
 			fclose(f);
 		}
 
+		/* Enabled for page type summary. */
 		if (page_type_summary)
 			print_summary();
 	}
