@@ -347,7 +347,7 @@ dict_build_tablespace(
 
 		mtr_commit(&mtr);
 	} else {
-		/* All non-compressed temporary tables are stored in 
+		/* All non-compressed temporary tables are stored in
 		shared temp-tablespace. Note: Even if table is residing
 		in temp-tablespace row_format is honored as against
 		over-written in non-temp-table case */

@@ -239,7 +239,7 @@ drop table t2;
 use test;
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 Warnings:
@@ -250,7 +250,7 @@ drop table t;
 set global innodb_file_per_table = 1;
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 Warnings:
@@ -261,7 +261,7 @@ drop table t;
 set global innodb_file_format = 'barracuda';
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 Warnings:
@@ -270,32 +270,32 @@ drop table t;
 set global innodb_large_prefix = 1;
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 drop table t;
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = compressed engine=innodb;
 drop table t;
 set global innodb_file_per_table = 0;
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = compact engine=innodb;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 create temporary table t (
 a int not null,
-b blob not null, 
+b blob not null,
 index sk (b(3021))
 ) row_format = dynamic engine=innodb;
 drop table t;
