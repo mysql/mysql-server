@@ -57,9 +57,17 @@ connection con2;
 reap;
 let $rows= `select count(*) from t2  /* must be 2 or 0 */`;
 let $MYSQLD_DATADIR= `select @@datadir`;
+--let $row_number=4
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  # if GTID_MODE=ON, there are two more events in the binary log:
+  # 1. Previous_Gtids_Log_Event
+  # 2. Gtid_log_event
+  --let $row_number=`SELECT $row_number + 2`
+}
 
---let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, 4)
---let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
+--let $binlog_killed_pos=query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
+--let $binlog_killed_end_log_pos=query_get_value(SHOW BINLOG EVENTS, End_log_pos, $row_number)
 --exec $MYSQL_BINLOG --force-if-open --start-position=$binlog_killed_pos --stop-position=$binlog_killed_end_log_pos $MYSQLD_DATADIR/master-bin.000001 > $MYSQLTEST_VARDIR/tmp/kill_query_calling_sp.binlog
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --disable_result_log
@@ -277,8 +285,17 @@ select * from t4 order by b /* must be (1,1), (1,2) */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the update query event on the 4th line
 source include/show_binlog_events.inc;
---let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
---let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
+--let $row_number= 4
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  # if GTID_MODE=ON, there are two more events in the binary log:
+  # 1. Previous_Gtids_Log_Event
+  # 2. Gtid_log_event
+  --let $row_number=`SELECT $row_number + 2`
+}
+
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, $row_number)
 
 --echo *** a proof the query is binlogged with an error ***
 
@@ -325,8 +342,18 @@ select count(*) from t4 /* must be 1 */;
 select @b  /* must be 1 at the end of a stmt calling bug27563() */;
 --echo must have the delete query event on the 4th line
 source include/show_binlog_events.inc;
---let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, 4)
---let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 4)
+
+--let $row_number= 4
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  # if GTID_MODE=ON, there are two more events in the binary log:
+  # 1. Previous_Gtids_Log_Event
+  # 2. Gtid_log_event
+  --let $row_number=`SELECT $row_number + 2`
+}
+
+--let $binlog_killed_pos= query_get_value(SHOW BINLOG EVENTS, Pos, $row_number)
+--let $binlog_killed_end_log_pos= query_get_value(SHOW BINLOG EVENTS, End_log_pos, $row_number)
 
 # a proof the query is binlogged with an error
 
