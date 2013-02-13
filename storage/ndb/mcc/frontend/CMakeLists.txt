@@ -29,14 +29,21 @@ CREATE_ZIP(${DOJO_ARCHIVE} dojo)
 
 IF(ZIP_EXECUTABLE)
   ADD_CUSTOM_TARGET(dojozip ALL DEPENDS "${DOJO_ARCHIVE}")
-  install(DIRECTORY "." 
-    DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
-    COMPONENT ClusterTools
-    PATTERN ".hg" EXCLUDE
-    PATTERN "dojo" EXCLUDE)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip" 
-    DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
-	COMPONENT ClusterTools)
+
+  IF(CPACK_MONOLITHIC_INSTALL)
+    install(DIRECTORY "."
+      DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
+      COMPONENT ClusterTools)
+  ELSE()
+    install(DIRECTORY "." 
+      DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
+      COMPONENT ClusterTools
+      PATTERN ".hg" EXCLUDE
+      PATTERN "dojo" EXCLUDE)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip" 
+      DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
+      COMPONENT ClusterTools)
+  ENDIF()
 ELSE()
   MESSAGE(STATUS ">>>>>>>>>>>>> NO ZIP FOUND")
   install(DIRECTORY "."

@@ -112,7 +112,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   # Install the python dir regardless of tests so that win packages can
   # be built on other platforms
   set(WS $ENV{WIXSOURCE})
-  if(WS)
+  if(NOT CPACK_MONOLITHIC_INSTALL)
     message("Bundling custom Python for Wix")
     # Add a custom python when building msi to avoid path problems
     INCLUDE(python.cmake)
