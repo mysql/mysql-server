@@ -1028,6 +1028,12 @@ sub command_line_setup {
 	     'timediff'                 => \&report_option,
 	     'max-connections=i'        => \$opt_max_connections,
 
+	     # MCP_BACKPORT_55_IGNORE_SKIP_TEST_LIST>
+	     'skip-test-list=s'         => sub {
+	       print "Ignoring --" . join('=', @_) . "\n";
+	     },
+	     # MCP_BACKPORT_55_IGNORE_SKIP_TEST_LIST<
+
              'help|h'                   => \$opt_usage,
 	     # list-options is internal, not listed in help
 	       'list-options'             => \$opt_list_options,
