@@ -1239,4 +1239,26 @@ SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
 
 drop table t1;
 
+--echo #
+--echo # MDEV-4140 Wrong result with GROUP BY + multipart key + MIN/MAX loose scan and a subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int, KEY (b, a)) ;
+INSERT INTO t1 VALUES (0,99),(9,99),(4,0),(7,0),(99,0),(7,0),(8,0),(99,0),(1,0);
+CREATE TABLE t2 (c int) ;
+INSERT INTO t2 VALUES (0),(1);
+
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+# this test is for 5.5 to ensure that the subquery is expensive
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+
+drop table t1, t2;
+
 --echo End of 5.3 tests
