@@ -508,7 +508,7 @@ ndb_mgm_call(NdbMgmHandle handle,
 
   Parser_t::Context ctx;
   ParserDummy session(handle->socket);
-  Parser_t parser(command_reply, in, true, true, true);
+  Parser_t parser(command_reply, in);
 
   const Properties* p = parser.parse(ctx, session);
   if (p == NULL){
