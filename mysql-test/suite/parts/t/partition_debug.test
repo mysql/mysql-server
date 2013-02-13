@@ -13,6 +13,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 --let $DATADIR= `SELECT @@datadir;`
+--let $MYSQL_TMP_DIR = `select @@tmpdir`
 
 --echo #
 --echo # WL#4445: EXCHANGE PARTITION WITH TABLE
