@@ -30,6 +30,7 @@ call mtr.add_suppression("Attempting backtrace");
 call mtr.add_suppression("allocated tablespace *., old maximum was 0");
 call mtr.add_suppression("Error in Log_event::read_log_event()");
 call mtr.add_suppression("Buffered warning: Performance schema disabled");
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 RESET MASTER;
 
@@ -61,6 +62,7 @@ eval SET SESSION debug=CONCAT('$prefix', "crash_commit_after_prepare");
 -- error 2013
 COMMIT;
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
