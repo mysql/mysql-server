@@ -198,7 +198,7 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
-UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+UNIV_INTERN ulong	srv_buf_pool_instances;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
