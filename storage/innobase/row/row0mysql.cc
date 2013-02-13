@@ -3501,6 +3501,13 @@ row_truncate_table_for_mysql(
 				       table->flags, &truncate_rec);
 	}
 
+	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
+			log_buffer_flush_to_disk(););
+	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
+			ut_ad(fil_discard_tablespace(table->space)
+			      == DB_SUCCESS););
+	DBUG_EXECUTE_IF("crash_after_drop_tablespace", DBUG_SUICIDE(););
+
 	mtr_start(&mtr);
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_MODIFY_LEAF, &pcur, &mtr);
