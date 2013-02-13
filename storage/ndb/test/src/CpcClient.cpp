@@ -475,7 +475,7 @@ SimpleCpcClient::cpc_recv(const ParserRow_t *syntax,
 
   Parser_t::Context ctx;
   ParserDummy session(cpc_sock);
-  Parser_t parser(syntax, cpc_in, true, true, true);
+  Parser_t parser(syntax, cpc_in);
   *reply = parser.parse(ctx, session);
   if(user_value != NULL)
     *user_value = ctx.m_currentCmd->user_value;
