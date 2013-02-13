@@ -1512,6 +1512,19 @@ ndb_binlog_setup(THD *thd)
     return true; // Already setup -> OK
 
   /*
+    Can't proceed unless ndb binlog thread has setup
+    the schema_ndb pointer(since that pointer is used for
+    creating the event operations owned by ndb_schema_share)
+  */
+  pthread_mutex_lock(&injector_mutex);
+  if (!schema_ndb)
+  {
+    pthread_mutex_unlock(&injector_mutex);
+    return false;
+  }
+  pthread_mutex_unlock(&injector_mutex);
+
+  /*
     Take the global schema lock to make sure that
     the schema is not changed in the cluster while
     running setup.
