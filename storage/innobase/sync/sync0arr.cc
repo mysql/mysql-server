@@ -475,7 +475,7 @@ sync_array_cell_print(
 
 	if (type == SYNC_MUTEX) {
 		WaitMutex*	mutex = cell->latch.mutex;
-		WaitMutex::MutexPolicy&	policy = mutex->m_policy;
+		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 
 		fprintf(file,
 			"Mutex at %p created file %s line %lu, lock var %lu\n"
@@ -643,7 +643,7 @@ sync_array_detect_deadlock(
 		return(false); /* No deadlock here */
 	} else if (cell->request_type == SYNC_MUTEX) {
 		WaitMutex*	mutex = cell->latch.mutex;
-		WaitMutex::MutexPolicy&	policy = mutex->m_policy;
+		const WaitMutex::MutexPolicy&	policy = mutex->policy();
 
 		if (mutex->state() != MUTEX_STATE_UNLOCKED) {
 			thread = policy.m_thread_id;

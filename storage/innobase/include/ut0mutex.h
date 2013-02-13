@@ -160,6 +160,17 @@ struct OSBasicMutex {
 	}
 #endif /* UNIV_DEBUG */
 
+	/** @return non-const version of the policy */
+	MutexPolicy& policy() UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
+
+	/** @return the const version of the policy */
+	const MutexPolicy& policy() const UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
 private:
 #ifdef UNIV_DEBUG
         /** true if the mutex has been freed/destroyed. */
@@ -169,7 +180,7 @@ private:
 
 	sys_mutex_t		m_mutex;
 
-public:
+protected:
 	MutexPolicy		m_policy;
 };
 
@@ -177,7 +188,7 @@ public:
 template <template <typename> class Policy = DefaultPolicy>
 struct OSTrackedMutex : public OSBasicMutex<Policy> {
 
-	typedef Policy<OSTrackedMutex> MutexPolicy;
+	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
 
 	OSTrackedMutex() 
 		:
@@ -246,6 +257,18 @@ struct OSTrackedMutex : public OSBasicMutex<Policy> {
 		return(m_locked && OSBasicMutex<Policy>::is_owned());
 	}
 #endif /* UNIV_DEBUG */
+
+	/** @return non-const version of the policy */
+	MutexPolicy& policy() UNIV_NOTHROW
+	{
+		return(OSBasicMutex<Policy>::m_policy);
+	}
+
+	/** @return const version of the policy */
+	const MutexPolicy& policy() const UNIV_NOTHROW
+	{
+		return(OSBasicMutex<Policy>::m_policy);
+	}
 
 private:
 #ifdef UNIV_DEBUG
@@ -367,6 +390,17 @@ struct Futex {
 	}
 #endif /* UNIV_DEBUG */
 
+	/** @return non-const version of the policy */
+	MutexPolicy& policy() UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
+
+	/** @return const version of the policy */
+	const MutexPolicy& policy() const UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
 private:
 	/**
 	@return the lock state. */
@@ -434,7 +468,6 @@ private:
 private:
 	volatile lock_word_t	m_lock_word;
 
-public:
 	MutexPolicy		m_policy;
 };
 
@@ -545,6 +578,18 @@ struct TTASMutex {
 	}
 #endif /* UNIV_DEBUG */
 
+	/** @return non-const version of the policy */
+	MutexPolicy& policy() UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
+
+	/** @return const version of the policy */
+	const MutexPolicy& policy() const UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
+
 private:
 	/**
 	Spin and try to acquire the lock. */
@@ -581,7 +626,6 @@ private:
 	when atomic operations are enabled. */
 	volatile lock_word_t	m_lock_word;
 
-public:
 	/** Policy data */
 	MutexPolicy		m_policy;
 };
@@ -709,6 +753,18 @@ struct TTASWaitMutex {
 		return(is_locked() && m_policy.is_owned());
 	}
 #endif /* UNIV_DEBUG */
+
+	/** @return non-const version of the policy */
+	MutexPolicy& policy() UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
+
+	/** @return const version of the policy */
+	const MutexPolicy& policy() const UNIV_NOTHROW
+	{
+		return(m_policy);
+	}
 
 private:
 	/**
@@ -840,9 +896,7 @@ private:
 	when atomic operations are enabled. */
 	volatile lock_word_t	m_lock_word;
 
-public:
 	/** Policy data */
-
 	MutexPolicy		m_policy;
 };
 
@@ -862,6 +916,18 @@ struct PolicyMutex
 
 	~PolicyMutex() { }
 
+	/** @return non-const version of the policy */
+	Policy& policy() UNIV_NOTHROW
+	{
+		return(m_impl.policy());
+	}
+
+	/** @return const version of the policy */
+	const Policy& policy() const UNIV_NOTHROW
+	{
+		return(m_impl.policy());
+	}
+
 	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
@@ -869,7 +935,7 @@ struct PolicyMutex
 		pfs_exit(); 
 #endif /* UNIV_PFS_MUTEX */
 
-		m_impl.m_policy.release(m_impl);
+		policy().release(m_impl);
 
 		m_impl.exit();
 	}
@@ -887,11 +953,11 @@ struct PolicyMutex
 		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
-		m_impl.m_policy.enter(m_impl);
+		policy().enter(m_impl);
 
 		m_impl.enter(name, line);
 
-		m_impl.m_policy.locked(m_impl);
+		policy().locked(m_impl);
 
 #ifdef UNIV_PFS_MUTEX
 		pfs_end(locker, 0); 
@@ -909,12 +975,12 @@ struct PolicyMutex
 		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
 
-		m_impl.m_policy.enter(m_impl);
+		policy().enter(m_impl);
 
 		int ret = !m_impl.try_lock();
 
 		if (ret == 0) {
-			m_impl.m_policy.locked(m_impl);
+			policy().locked(m_impl);
 		}
 
 #ifdef UNIV_PFS_MUTEX
