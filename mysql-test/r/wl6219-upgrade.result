@@ -196,6 +196,7 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
 test.t1
@@ -205,7 +206,6 @@ Repairing tables
 test.t1
 Warning  : YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 status   : OK
-Warning: Using a password on the command line interface can be insecure.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
