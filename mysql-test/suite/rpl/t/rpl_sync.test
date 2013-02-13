@@ -65,6 +65,7 @@ connection slave;
 --source include/stop_slave_io.inc
 
 let $file= query_get_value("SHOW SLAVE STATUS", Relay_Log_File, 1);
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 --let FILE_TO_CORRUPT= $MYSQLD_SLAVE_DATADIR/$file
 perl;
@@ -80,6 +81,7 @@ SET SESSION debug="d,crash_before_rotate_relaylog";
 --error 2013
 FLUSH LOGS;
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc
 
@@ -108,6 +110,7 @@ insert into t1(a) values(9);
 
 connection slave;
 let MYSQLD_SLAVE_DATADIR=`select @@datadir`;
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 --perl
 use strict;
@@ -127,6 +130,8 @@ EOF
 SET SESSION debug="d,crash_before_rotate_relaylog";
 --error 2013
 FLUSH LOGS;
+
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --let $rpl_server_number= 2
 --source include/rpl_reconnect.inc

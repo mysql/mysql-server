@@ -63,6 +63,7 @@ CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 --sync_slave_with_master
 --source include/stop_slave_io.inc
 --connection master
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 BEGIN;
 let $rows= 3;
@@ -80,6 +81,7 @@ eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "
 -- error 2013
 COMMIT;
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -118,6 +120,7 @@ connection master;
 --sync_slave_with_master
 --source include/stop_slave_io.inc
 --connection master
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 BEGIN;
 let $rows= 3;
@@ -135,6 +138,7 @@ eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "
 -- error 2013
 COMMIT;
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -168,6 +172,7 @@ sync_slave_with_master;
 connection master;
 -- let $binlog_start= query_get_value(SHOW MASTER STATUS, Position, 1)
 -- let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 # Test transaction with large data inserted
 CREATE TABLE t1(a LONGBLOB) ENGINE=INNODB;
 
@@ -189,6 +194,7 @@ eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "
 -- error 2013
 COMMIT;
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -217,6 +223,7 @@ eval SET SESSION debug=CONCAT(IF(LENGTH('$old_debug') > 0, "$old_debug:", ""), "
 -- error 2013
 INSERT INTO t2 (a) VALUES (REPEAT('a',16384));
 
+--remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
