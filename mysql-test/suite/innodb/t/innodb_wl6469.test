@@ -15,7 +15,7 @@
 # 6. Creating temp-table with large prefix enabled.			#
 # 7. Temp table with PK-FK -FK constraint is igonered for temp tables   #
 # 8. Check Temp table info not stored in I_S datafile and tables	#
-# 9. Vary innodb_change_buffering value for temp-table 			#
+# 9. Vary innodb_change_buffering value for temp-table			#
 #########################################################################
 
 
@@ -201,7 +201,7 @@ let $large_prefix = `select @@innodb_large_prefix`;
 #
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
@@ -209,7 +209,7 @@ drop table t;
 set global innodb_file_per_table = 1;
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
@@ -217,7 +217,7 @@ drop table t;
 set global innodb_file_format = 'barracuda';
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
@@ -228,20 +228,20 @@ set global innodb_large_prefix = 1;
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
 #
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
 #
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = compressed engine=innodb;
 drop table t;
@@ -251,13 +251,13 @@ set global innodb_file_per_table = 0;
 --error ER_INDEX_COLUMN_TOO_LONG
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = compact engine=innodb;
 #
 create temporary table t (
 	a int not null,
-	b blob not null, 
+	b blob not null,
 	index sk (b(3021))
 	) row_format = dynamic engine=innodb;
 drop table t;
@@ -317,17 +317,17 @@ DROP TABLE IF EXISTS t1,t2;
 --enable_warnings
 select @@global.innodb_change_buffering;
 create temporary table t1
-        (keyc int, c1 char(100), c2 char(100),
-         primary key(keyc)) engine = innodb;
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
 create index idx on t1(keyc, c1(20));
 delimiter |;
 create procedure populate_t1()
 begin
-        declare i int default 1;
-        while (i <= 20000) DO
-                insert into t1 values (i, 'a', 'b');
-                set i = i + 1;
-        end while;
+	declare i int default 1;
+	while (i <= 20000) DO
+		insert into t1 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
 end|
 delimiter ;|
 set autocommit=0;
@@ -337,12 +337,12 @@ select count(*) from t1;
 select * from t1 limit 10;
 commit;
 update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0; 
+select count(*) from t1 where keyc < 0;
 drop table t1;
 # check with non temp table
 create table t1
-        (keyc int, c1 char(100), c2 char(100),
-         primary key(keyc)) engine = innodb;
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
 create index idx on t1(keyc, c1(20));
 set autocommit=0;
 select count(*) from t1;
@@ -359,8 +359,8 @@ set @@global.innodb_change_buffering = none ;
 select @@global.innodb_change_buffering;
 
 create temporary table t1
-        (keyc int, c1 char(100), c2 char(100),
-         primary key(keyc)) engine = innodb;
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
 create index idx on t1(keyc, c1(20));
 set autocommit=0;
 select count(*) from t1;
@@ -373,8 +373,8 @@ select count(*) from t1 where keyc < 0;
 drop table t1;
 # check with non temp table
 create table t1
-        (keyc int, c1 char(100), c2 char(100),
-         primary key(keyc)) engine = innodb;
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
 create index idx on t1(keyc, c1(20));
 set autocommit=0;
 select count(*) from t1;

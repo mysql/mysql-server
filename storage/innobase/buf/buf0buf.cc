@@ -3730,7 +3730,7 @@ buf_page_create(
 	mutex_exit(&block->mutex);
 
 	/* Delete possible entries for the page from the insert buffer:
-	such can exist if the page belonged to an index which was dropped */ 
+	such can exist if the page belonged to an index which was dropped */
 	ibuf_merge_or_delete_for_page( NULL, space, offset, zip_size, TRUE);
 
 	frame = block->frame;
