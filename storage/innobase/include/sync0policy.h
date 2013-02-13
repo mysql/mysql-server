@@ -166,7 +166,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 
 		virtual void print(FILE* stream) const
 		{
-			m_mutex->m_policy.print(stream);
+			m_mutex->policy().print(stream);
 		}
 
 		const Mutex*	m_mutex;
