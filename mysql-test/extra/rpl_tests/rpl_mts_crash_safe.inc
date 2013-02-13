@@ -101,12 +101,14 @@ if ($commands == recovery)
   --connection slave
 
   --let $mts_run=`select @@global.slave_parallel_workers > 0`
+  let $MYSQL_TMP_DIR = `select @@tmpdir`;
   eval SET @@global.slave_checkpoint_group= $count_debug_groups;
   SET GLOBAL debug="d,check_slave_debug_group";
   SET GLOBAL debug="+d,mts_distribute_round_robin";
   --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
   --error 0, 2013
   START SLAVE SQL_THREAD;
+  --remove_file $MYSQL_TMP_DIR/ibtmp1
   --source include/wait_until_disconnected.inc
 
   #### MTS can not relay-log-recover in presense of gaps that the test creates
