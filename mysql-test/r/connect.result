@@ -260,6 +260,11 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 #Expect deprecation warning
 GRANT SELECT on test.* TO old_gpwd@localhost 
 IDENTIFIED BY 'aha3';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+#Expect deprecation warning
+GRANT SELECT on test.* TO old_gpwd@localhost 
+IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expected normal flush, no warnings  
