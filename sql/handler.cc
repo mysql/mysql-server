@@ -4079,6 +4079,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   }
   if ((error= check(thd, check_opt)))
     return error;
+  /* Skip updating frm version if not main handler. */
+  if (table->file != this)
+    return error;
   return update_frm_version(table);
 }
 
