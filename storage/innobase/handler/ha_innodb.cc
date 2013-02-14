@@ -1492,7 +1492,6 @@ convert_error_code_to_mysql(
 	case DB_TABLESPACE_EXISTS:
 		return(HA_ERR_TABLESPACE_EXISTS);
 	case DB_IDENTIFIER_TOO_LONG:
-		my_error(ER_TOO_LONG_IDENT, MYF(0));
 		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
