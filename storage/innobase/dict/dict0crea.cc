@@ -44,6 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
+#include "ha_prototypes.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -1632,7 +1633,13 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		dict_create_add_foreign_id(&number, table->name, foreign);
+		error = dict_create_add_foreign_id(&number, table->name,
+						   foreign);
+
+		if (error != DB_SUCCESS) {
+
+			return(error);
+		}
 
 		error = dict_create_add_foreign_to_dictionary(table->name,
 							      foreign, trx);
