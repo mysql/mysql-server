@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2867,8 +2867,6 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
   Uint32 len = (req_struct->out_buf_index >> 2) - 1;
   Signal * signal = req_struct->signal;
 
-  bool connectedToNode= getNodeInfo(refToNode(resultRef)).m_connected;
-
   LinearSectionPtr ptr[3];
   ptr[0].p= (Uint32*)outBuf; // Should really remove this
   ptr[0].sz= len;
@@ -2877,6 +2875,23 @@ Dbtup::flush_read_buffer(KeyReqStruct *req_struct,
   transIdAI->connectPtr= resultData;
   transIdAI->transId[0]= sig1;
   transIdAI->transId[1]= sig2;
+
+  const Uint32 destNode= refToNode(resultRef);
+  const bool connectedToNode= getNodeInfo(destNode).m_connected;
+
+  /**
+   * If we are not connected to the destination block, we may reach it 
+   * indirectly by sending a TRANSID_AI_R signal to routeBlockref. Only
+   * TC can handle TRANSID_AI_R signals. The 'ndbrequire' below should
+   * check that there is no chance of sending TRANSID_AI_R to a block
+   * that cannot handle it.
+   */
+  ndbrequire(refToMain(routeRef) == DBTC || 
+             /** 
+              * A node should always be connected to itself. So we should
+              * never need to send TRANSID_AI_R in this case.
+              */
+             (destNode == getOwnNodeId() && connectedToNode));
 
   if (likely(connectedToNode))
   {

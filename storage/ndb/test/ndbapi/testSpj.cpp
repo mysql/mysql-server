@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,8 @@
 #include <HugoQueries.hpp>
 #include <NdbSchemaCon.hpp>
 #include <ndb_version.h>
+
+static int faultToInject = 0;
 
 int
 runLoadTable(NDBT_Context* ctx, NDBT_Step* step)
@@ -85,6 +87,78 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
       g_info << endl;
       return NDBT_FAILED;
     }
+    addMask(ctx, (1 << stepNo), "Running");
+    i++;
+  }
+  g_info << endl;
+  return NDBT_OK;
+}
+
+int
+runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
+  int loops = ctx->getNumLoops();
+  int joinlevel = ctx->getProperty("JoinLevel", 8);
+  int records = ctx->getNumRecords();
+  int queries = records/joinlevel;
+  int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  Uint32 stepNo = step->getStepNo();
+
+  int i = 0;
+  HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
+  qb.setJoinLevel(joinlevel);
+  const NdbQueryDef * query = qb.createQuery();
+  HugoQueries hugoTrans(*query);
+
+  NdbRestarter restarter;
+  int lookupFaults[] = {
+      5078,        // Pack TCKEYREF in ROUTE_ORD and send it via SPJ.
+      7240,        // DIGETNODESREQ returns error 
+      17001, 17005, 17006, 17008,
+      17012, // testing abort in :execDIH_SCAN_TAB_CONF
+      17013, // Simulate DbspjErr::InvalidRequest
+      17020, 17021, 17022, // lookup_send() encounter dead node -> NodeFailure
+      17030, 17031, 17032, // LQHKEYREQ reply is LQHKEYREF('Invalid..')
+      17040, 17041, 17042, // lookup_parent_row -> OutOfQueryMemory
+      17050, 17051, 17052, 17053, // parseDA -> outOfSectionMem
+      17060, 17061, 17062, 17063, // scanIndex_parent_row -> outOfSectionMem
+      17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
+      17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
+      17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
+      7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
+      17510,        // random failure when allocating section memory
+      17520, 17521  // failure (+random) from ::checkTableError()
+  }; 
+  loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
+
+  while ((i<loops || until_stopped) && !ctx->isTestStopped())
+  {
+    g_info << i << ": ";
+
+    int inject_err = faultToInject ? faultToInject : lookupFaults[i];
+    int randomId = rand() % restarter.getNumDbNodes();
+    int nodeId = restarter.getDbNodeId(randomId);
+
+    ndbout << "LookupJoinError: Injecting error "<<  inject_err <<
+      " in node " << nodeId << " loop "<< i << endl;
+
+    if (restarter.getNodeStatus(nodeId) != NDB_MGM_NODE_STATUS_STARTED ||
+        restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    {
+      ndbout << "Could not insert error in node "<< nodeId <<endl;
+      g_info << endl;
+      return NDBT_FAILED;
+    }
+
+    // It'd be better if test could differentiates failures from
+    // fault injection and others.
+    // We expect to fail, and it's a failure if we don't
+    if (!hugoTrans.runLookupQuery(GETNDB(step), queries))
+    {
+      g_info << "LookUpJoinError didn't fail as expected."<< endl;
+      // return NDBT_FAILED;
+    }
+
     addMask(ctx, (1 << stepNo), "Running");
     i++;
   }
@@ -1313,6 +1387,11 @@ TESTCASE("NF_Join", ""){
   STEPS(runJoin, 6);
   STEP(runRestarter);
   FINALIZER(runClearTable);
+}
+TESTCASE("LookupJoinError", ""){
+  INITIALIZER(runLoadTable);
+  STEP(runLookupJoinError);
+  VERIFIER(runClearTable);
 }
 NDBT_TESTSUITE_END(testSpj);
 
