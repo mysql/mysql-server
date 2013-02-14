@@ -1,10 +1,6 @@
 -- source include/have_innodb.inc
-# embedded server ignores 'delayed', so skip this
+# embedded server does not support restarting
 -- source include/not_embedded.inc
-
---disable_warnings
-drop table if exists t1;
---enable_warnings
 
 #
 # 44030: Error: (1500) Couldn't read the MAX(ID) autoinc value from
@@ -31,9 +27,12 @@ INSERT INTO t1 VALUES(null);
 # and effectively set AUTO_INCREMENT to 4, because while copying
 # it would write values 1,2,3 to the column.
 # WL#5534 makes this an in-place ALTER, setting AUTO_INCREMENT=3 for real.
+# However, to keep compatibility with ALGORITHM=COPY MySQL 5.6.11 will
+# go back to the original behaviour, setting AUTO_INCREMENT to 4.
+--enable_info
 ALTER TABLE t1 AUTO_INCREMENT = 3;
+--disable_info
 SHOW CREATE TABLE t1;
--- error ER_DUP_ENTRY
 INSERT INTO t1 VALUES(null);
 INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
