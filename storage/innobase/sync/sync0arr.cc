@@ -334,24 +334,24 @@ sync_array_reserve_cell(
 	/* Reserve the cell. */
 	ut_ad(cell->latch.mutex == NULL);
 
-	if (type == SYNC_MUTEX) {
+	cell->request_type = type;
+
+	if (cell->request_type == SYNC_MUTEX) {
 		cell->latch.mutex = reinterpret_cast<WaitMutex*>(object);
 	} else {
 		cell->latch.lock = reinterpret_cast<rw_lock_t*>(object);
 	}
+
+	cell->waiting = false;
+
+	cell->file = file;
+	cell->line = line;
 
 	sync_array_exit(arr);
 
 	cell->thread_id = os_thread_get_curr_id();
 
 	cell->reservation_time = ut_time();
-
-	cell->waiting = false;
-
-	cell->request_type = type;
-
-	cell->file = file;
-	cell->line = line;
 
 	/* Make sure the event is reset and also store the value of
 	signal_count at which the event was reset. */
