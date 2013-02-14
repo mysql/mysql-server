@@ -1213,35 +1213,45 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
   Perform OR operation on index_merge list and key tree.
 
   RETURN
-    0     OK, result is stored in *im1.
-    other Error
+    false     OK, result is stored in *im1.
+    true      Error
 */
 
-int imerge_list_or_tree(RANGE_OPT_PARAM *param,
-                        List<SEL_IMERGE> *im1,
-                        SEL_TREE *tree)
+static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
+                                List<SEL_IMERGE> *im1,
+                                SEL_TREE *tree)
 {
+  DBUG_ENTER("imerge_list_or_tree");
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
-  bool tree_used= FALSE;
+  
+  uint remaining_trees= im1->elements;
   while ((imerge= it++))
   {
     SEL_TREE *or_tree;
-    if (tree_used)
+    /*
+      Need to make a copy of 'tree' for all but the last OR operation
+      because or_sel_tree_with_checks() may change it.
+    */
+    if (--remaining_trees == 0)
+      or_tree= tree;
+    else
     {
       or_tree= new SEL_TREE (tree, param);
-      if (!or_tree ||
-          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
-        return FALSE;
+      if (!or_tree)
+        DBUG_RETURN(true);
+      if (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty())
+        DBUG_RETURN(false);
     }
-    else
-      or_tree= tree;
 
-    if (imerge->or_sel_tree_with_checks(param, or_tree))
+    int result_or= imerge->or_sel_tree_with_checks(param, or_tree);
+    if (result_or == 1)
       it.remove();
-    tree_used= TRUE;
+    else if (result_or == -1)
+      DBUG_RETURN(true);
   }
-  return im1->is_empty();
+  DBUG_ASSERT(remaining_trees == 0);
+  DBUG_RETURN(im1->is_empty());
 }
 
 
@@ -7725,7 +7735,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
       Ambiguity: *** 
         The range starts or stops somewhere in the "***" range.
-        Example: a starts before b and may end before/the same plase/after b
+        Example: a starts before b and may end before/the same place/after b
         a: [----***]
         b:   [---]
 
@@ -7760,7 +7770,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         -1: key_value_a is smaller than key_value_b (not adjacent)
          0: the key values are equal
          1: key_value_a is bigger than key_value_b (not adjacent)
-        -2: key_value_a is bigger than key_value_b, and they are adjacent
+         2: key_value_a is bigger than key_value_b, and they are adjacent
 
       Example: "cmp= cur_key1->cmp_max_to_min(cur_key2)"
 
