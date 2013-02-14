@@ -1491,6 +1491,9 @@ convert_error_code_to_mysql(
 		return(HA_ERR_OUT_OF_MEM);
 	case DB_TABLESPACE_EXISTS:
 		return(HA_ERR_TABLESPACE_EXISTS);
+	case DB_IDENTIFIER_TOO_LONG:
+		my_error(ER_TOO_LONG_IDENT, MYF(0));
+		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
 
@@ -1581,6 +1584,37 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+{
+	char		tmp[MAX_TABLE_NAME_LEN + 10];
+	uint		errors;
+	uint		len;
+	int		well_formed_error = 0;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+
+	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+
+	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
+					      NAME_CHAR_LEN,
+					      &well_formed_error);
+
+	if (well_formed_error || res != len) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
+		return(true);
+	}
+	return(false);
 }
 
 /******************************************************************//**
