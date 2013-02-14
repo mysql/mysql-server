@@ -1810,7 +1810,10 @@ os_file_delete_if_exists_func(
 /*==========================*/
 	const char*	name,	/*!< in: file path as a null-terminated
 				string */
-	bool*		exist)	/*!< out: indicate if file pre-exist */
+	bool*		exist)	/*!< out: indicate if file pre-exist.
+				If not-NULL, set to true if pre-exist
+				or false if doesn't pre-exist.
+				If NULL, then ignore setting this value. */
 {
 #ifdef __WIN__
 	bool	ret;

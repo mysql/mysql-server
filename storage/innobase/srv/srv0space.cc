@@ -1164,8 +1164,7 @@ Tablespace::delete_files()
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
 		make_name(*it, m_tablespace_path);
-
-		bool file_pre_exists = false;
+		bool file_pre_exists;
 		bool success = os_file_delete_if_exists(
 					innodb_file_data_key, it->m_filename,
 					&file_pre_exists);
