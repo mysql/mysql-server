@@ -659,7 +659,7 @@ function helpMenuSetup() {
     var menuItemContents = new dijit.MenuItem({
         label: "Contents",
         onClick: function() {
-            window.open("help/html/help.html",
+            window.open("hlp/html/help.html",
                 "MySQL Cluster Configuration",
                 "scrollbars=1, \
                 width=1170, \
@@ -682,7 +682,7 @@ function helpMenuSetup() {
             if (current) {
                 helpLabel = "#" + current.id;
             }
-            window.open("help/html/help_cnt.html" + helpLabel, 
+            window.open("hlp/html/help_cnt.html" + helpLabel, 
                 "MySQL Cluster Configuration",
                 "scrollbars=1, \
                 width=1170, \
