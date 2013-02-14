@@ -5434,7 +5434,6 @@ i_s_innodb_fill_buffer_pool(
 	mem_heap_t*		heap;
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_pool");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	heap = mem_heap_create(10000);
 
@@ -5522,6 +5521,8 @@ i_s_innodb_buffer_page_fill_table(
 	int	status	= 0;
 
 	DBUG_ENTER("i_s_innodb_buffer_page_fill_table");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to user without PROCESS privilege */
 	if (check_global_access(thd, PROCESS_ACL)) {
@@ -6004,7 +6005,6 @@ i_s_innodb_fill_buffer_lru(
 	ulint			lru_len;
 
 	DBUG_ENTER("i_s_innodb_fill_buffer_lru");
-	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* Obtain buf_pool mutex before allocate info_buffer, since
 	UT_LIST_GET_LEN(buf_pool->LRU) could change */
@@ -6069,6 +6069,8 @@ i_s_innodb_buf_page_lru_fill_table(
 	int	status	= 0;
 
 	DBUG_ENTER("i_s_innodb_buf_page_lru_fill_table");
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
 
 	/* deny access to any users that do not hold PROCESS_ACL */
 	if (check_global_access(thd, PROCESS_ACL)) {
