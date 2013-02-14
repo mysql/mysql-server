@@ -4448,6 +4448,7 @@ sub extract_warning_lines ($) {
      qr|Table '\..mtr.test_suppressions' is marked as crashed and should be repaired|,
      qr|InnoDB: Error: table 'test/bug39438'|,
      qr|table.*is full|,
+     qr|setrlimit could not change the size of core files to 'infinity';|,
     );
 
   my $matched_lines= [];
