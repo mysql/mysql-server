@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -628,7 +628,7 @@ static bool check_has_super(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
+#if defined(HAVE_GTID_NEXT_LIST) || defined(NON_DISABLED_GTID) || defined(HAVE_REPLICATION)
 static bool check_top_level_stmt(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_sub_stmt)
@@ -646,7 +646,7 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_NDB_BINLOG) || defined(HAVE_REPLICATION)
+#if defined(HAVE_GTID_NEXT_LIST) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
@@ -1552,6 +1552,19 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_log_slow_admin_statements(
+       "log_slow_admin_statements",
+       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+       "the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_admin_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_log_slow_slave_statements(
+       "log_slow_slave_statements",
+       "Log slow statements executed by slave thread to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_slave_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
                                                           THD *thd,
                                                           enum_var_type type)
@@ -2168,7 +2181,7 @@ static Sys_var_uint Sys_port(
 #endif
        "built-in default (" STRINGIFY_ARG(MYSQL_PORT) "), whatever comes first",
        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
-       VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_preload_buff_size(
        "preload_buffer_size",
@@ -3589,7 +3602,7 @@ static Sys_var_uint Sys_repl_report_port(
        "port or if you have a special tunnel from the master or other clients "
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
 static Sys_var_mybool Sys_keep_files_on_create(
@@ -3657,50 +3670,53 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
 
   return false;
 }
-static bool fix_log(char** logname, const char* default_logname,
-                    const char*ext, bool enabled, void (*reopen)(char*))
-{
-  if (!*logname) // SET ... = DEFAULT
-  {
-    char buff[FN_REFLEN];
-    *logname= my_strdup(make_log_name(buff, default_logname, ext),
-                        MYF(MY_FAE+MY_WME));
-    if (!*logname)
-      return true;
-  }
-  logger.lock_exclusive();
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  if (enabled)
-    reopen(*logname);
-  logger.unlock();
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  return false;
-}
-static void reopen_general_log(char* name)
-{
-  logger.get_log_file_handler()->close(0);
-  logger.get_log_file_handler()->open_query_log(name);
-}
 static bool fix_general_log_file(sys_var *self, THD *thd, enum_var_type type)
 {
-  return fix_log(&opt_logname, default_logfile_name, ".log", opt_log,
-                 reopen_general_log);
+  if (!opt_general_logname) // SET ... = DEFAULT
+  {
+    char buff[FN_REFLEN];
+    opt_general_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_GENERAL),
+                                   MYF(MY_FAE+MY_WME));
+    if (!opt_general_logname)
+      return true;
+  }
+  bool res= false;
+  if (opt_general_log)
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    res= query_logger.reopen_log_file(QUERY_LOG_GENERAL);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    if (res)
+      opt_general_log= false;
+  }
+  return res;
 }
 static Sys_var_charptr Sys_general_log_path(
        "general_log_file", "Log connections and queries to given file",
-       GLOBAL_VAR(opt_logname), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(opt_general_logname), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_log_path), ON_UPDATE(fix_general_log_file));
 
-static void reopen_slow_log(char* name)
-{
-  logger.get_slow_log_file_handler()->close(0);
-  logger.get_slow_log_file_handler()->open_slow_log(name);
-}
 static bool fix_slow_log_file(sys_var *self, THD *thd, enum_var_type type)
 {
-  return fix_log(&opt_slow_logname, default_logfile_name, "-slow.log",
-                 opt_slow_log, reopen_slow_log);
+  if (!opt_slow_logname) // SET ... = DEFAULT
+  {
+    char buff[FN_REFLEN];
+    opt_slow_logname= my_strdup(make_query_log_name(buff, QUERY_LOG_SLOW),
+                                MYF(MY_FAE+MY_WME));
+    if (!opt_slow_logname)
+      return true;
+  }
+  bool res= false;
+  if (opt_slow_log)
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    res= query_logger.reopen_log_file(QUERY_LOG_SLOW);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    if (res)
+      opt_slow_log= false;
+  }
+  return res;
 }
 static Sys_var_charptr Sys_slow_log_path(
        "slow_query_log_file", "Log slow queries to given log file. "
@@ -3751,15 +3767,59 @@ static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
        READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
-static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type);
+
+static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
+{
+  if (query_logger.is_log_file_enabled(QUERY_LOG_GENERAL) == opt_general_log)
+    return false;
+
+  if (!opt_general_log)
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    query_logger.deactivate_log_handler(QUERY_LOG_GENERAL);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    return false;
+  }
+  else
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    bool res= query_logger.activate_log_handler(thd, QUERY_LOG_GENERAL);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    if (res)
+      opt_general_log= false;
+    return res;
+  }
+}
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
        "Defaults logging to a file hostname.log or a table mysql.general_log"
        "if --log-output=TABLE is used",
-       GLOBAL_VAR(opt_log), CMD_LINE(OPT_ARG),
+       GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state));
+       ON_UPDATE(fix_general_log_state));
 
+static bool fix_slow_log_state(sys_var *self, THD *thd, enum_var_type type)
+{
+  if (query_logger.is_log_file_enabled(QUERY_LOG_SLOW) == opt_slow_log)
+    return false;
+
+  if (!opt_slow_log)
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    query_logger.deactivate_log_handler(QUERY_LOG_SLOW);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    return false;
+  }
+  else
+  {
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    bool res= query_logger.activate_log_handler(thd, QUERY_LOG_SLOW);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+    if (res)
+      opt_slow_log= false;
+    return res;
+  }
+}
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",
        "Log slow queries to a table or log file. Defaults logging to a file "
@@ -3767,47 +3827,7 @@ static Sys_var_mybool Sys_slow_query_log(
        "used. Must be enabled to activate other slow log options",
        GLOBAL_VAR(opt_slow_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state));
-
-
-static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
-{
-  bool res;
-  my_bool *UNINIT_VAR(newvalptr), newval, UNINIT_VAR(oldval);
-  uint UNINIT_VAR(log_type);
-
-  if (self == &Sys_general_log)
-  {
-    newvalptr= &opt_log;
-    oldval=    logger.get_log_file_handler()->is_open();
-    log_type=  QUERY_LOG_GENERAL;
-  }
-  else if (self == &Sys_slow_query_log)
-  {
-    newvalptr= &opt_slow_log;
-    oldval=    logger.get_slow_log_file_handler()->is_open();
-    log_type=  QUERY_LOG_SLOW;
-  }
-  else
-    DBUG_ASSERT(FALSE);
-
-  newval= *newvalptr;
-  if (oldval == newval)
-    return false;
-
-  *newvalptr= oldval; // [de]activate_log_handler works that way (sigh)
-
-  mysql_mutex_unlock(&LOCK_global_system_variables);
-  if (!newval)
-  {
-    logger.deactivate_log_handler(thd, log_type);
-    res= false;
-  }
-  else
-    res= logger.activate_log_handler(thd, log_type);
-  mysql_mutex_lock(&LOCK_global_system_variables);
-  return res;
-}
+       ON_UPDATE(fix_slow_log_state));
 
 static bool check_not_empty_set(sys_var *self, THD *thd, set_var *var)
 {
@@ -3815,10 +3835,7 @@ static bool check_not_empty_set(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_log_output(sys_var *self, THD *thd, enum_var_type type)
 {
-  logger.lock_exclusive();
-  logger.init_slow_log(log_output_options);
-  logger.init_general_log(log_output_options);
-  logger.unlock();
+  query_logger.set_handlers(log_output_options);
   return false;
 }
 
@@ -4336,7 +4353,7 @@ static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
 
   if (gtid_next_list != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     // If GTID_NEXT==SID:GNO, then SID:GNO must be listed in GTID_NEXT_LIST
     if (spec.type == GTID_GROUP && !gtid_next_list->contains_gtid(spec.gtid))
     {
@@ -4388,7 +4405,7 @@ static bool update_gtid_next(sys_var *self, THD *thd, enum_var_type type)
   return false;
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 static bool check_gtid_next_list(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_next_list");

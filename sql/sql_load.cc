@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -275,9 +275,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!fields_vars.elements)
   {
-    Field **field;
-    for (field=table->field; *field ; field++)
-      fields_vars.push_back(new Item_field(*field));
+    Field_iterator_table_ref field_iterator;
+    field_iterator.set(table_list);
+    for (; !field_iterator.end_of_fields(); field_iterator.next())
+    {
+      Item *item;
+      if (!(item= field_iterator.create_item(thd)))
+        DBUG_RETURN(TRUE);
+      fields_vars.push_back(item->real_item());
+    }
     bitmap_set_all(table->write_set);
     /*
       Let us also prepare SET clause, altough it is probably empty
@@ -311,7 +317,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ignore= 1;
 
   /*
-    (1):
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
     sets all columns, except if file's row lacks some: in that case,
     defaults are set by read_fixed_length() and read_sep_field(),
@@ -319,9 +324,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
+  const bool manage_defaults= fields_vars.elements != 0;
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
-                 fields_vars.elements != 0, //(1)
+                 manage_defaults,
                  handle_duplicates, ignore, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
@@ -728,7 +734,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     {
       if (n++)
         pfields.append(", ");
-      if (item->type() == Item::FIELD_ITEM)
+      if (item->type() == Item::FIELD_ITEM ||
+                 item->type() == Item::REF_ITEM)
         append_identifier(thd, &pfields, item->item_name.ptr(),
                           strlen(item->item_name.ptr()));
       else
