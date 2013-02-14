@@ -193,8 +193,11 @@ function completion(line) {
   }
   
   if(matches.length == 1) {
-    stat = fs.statSync(matches[0]);
-    if(stat.isDirectory()) matches[0] += path.sep;
+    try {
+      stat = fs.statSync(matches[0]);
+      if(stat.isDirectory()) matches[0] += path.sep;
+    }
+    catch(e) {};
   }
   
   return [matches, line];
