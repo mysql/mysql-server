@@ -118,23 +118,26 @@ FUNCTION(DTRACE_INSTRUMENT target)
         )
     ENDIF()
 
-    # Add full  object path to linker flags
-    GET_TARGET_PROPERTY(target_type ${target} TYPE)
-    IF(NOT target_type MATCHES "STATIC")
-      SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
-    ELSE()
-      # For static library flags, add the object to the library.
-      # Note: DTrace probes in static libraries are  unusable currently 
-      # (see explanation for DTRACE_INSTRUMENT_STATIC_LIBS below)
-      # but maybe one day this will be fixed.
-      GET_TARGET_PROPERTY(target_location ${target} LOCATION)
-      ADD_CUSTOM_COMMAND(
-        TARGET ${target} POST_BUILD
-        COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
-	COMMAND ${CMAKE_RANLIB} ${target_location}
-        )
-      # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
-      SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
+    # Do not try to extend the library if we have not built the .o file
+    IF(outfile)
+      # Add full  object path to linker flags
+      GET_TARGET_PROPERTY(target_type ${target} TYPE)
+      IF(NOT target_type MATCHES "STATIC")
+        SET_TARGET_PROPERTIES(${target} PROPERTIES LINK_FLAGS "${outfile}")
+      ELSE()
+        # For static library flags, add the object to the library.
+        # Note: DTrace probes in static libraries are  unusable currently 
+        # (see explanation for DTRACE_INSTRUMENT_STATIC_LIBS below)
+        # but maybe one day this will be fixed.
+        GET_TARGET_PROPERTY(target_location ${target} LOCATION)
+        ADD_CUSTOM_COMMAND(
+          TARGET ${target} POST_BUILD
+          COMMAND ${CMAKE_AR} r  ${target_location} ${outfile}
+	  COMMAND ${CMAKE_RANLIB} ${target_location}
+          )
+        # Used in DTRACE_INSTRUMENT_WITH_STATIC_LIBS
+        SET(TARGET_OBJECT_DIRECTORY_${target}  ${objdir} CACHE INTERNAL "")
+      ENDIF()
     ENDIF()
   ENDIF()
 ENDFUNCTION()
