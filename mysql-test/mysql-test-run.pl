@@ -1184,15 +1184,6 @@ sub command_line_setup {
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
 
-  ## MCP temp fixes to reduce footprint of large number of failing tests
-  $opt_max_save_core = 1; # Don't save many cores
-  $opt_max_save_datadir = 1; # Dont save many datadirs
-  $opt_max_test_fail = 0 # Allow many tests to fail
-    unless IS_WINDOWS || $opt_valgrind;
-  $opt_retry = 1; # Don't retry failed tests
-  print "retry: $opt_retry, max_test_fail: $opt_max_test_fail, max_save_core: $opt_max_save_core, max_save_data: $opt_max_save_datadir\n";
-  ## MCP temp fixes end
-
   # --------------------------------------------------------------------------
   # Setup verbosity
   # --------------------------------------------------------------------------
