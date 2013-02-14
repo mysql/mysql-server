@@ -4700,6 +4700,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   ndbassert(refToNode(signal->getSendersBlockRef()) == getOwnNodeId() ||
             !LqhKeyReq::getDirtyFlag(lqhKeyReq->requestInfo) ||
             LqhKeyReq::getNormalProtocolFlag(lqhKeyReq->requestInfo) ||
+            LqhKeyReq::getOperation(lqhKeyReq->requestInfo) != ZREAD ||
             refToMain(lqhKeyReq->tcBlockref) == DBTC);
 
   regTcPtr->savePointId = sig1;
