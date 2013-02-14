@@ -4568,7 +4568,14 @@ innobase_update_foreign_try(
 		ut_ad(fk->foreign_table == ctx->indexed_table
 		      || fk->foreign_table == user_table);
 
-		dict_create_add_foreign_id(&foreign_id, user_table->name, fk);
+		dberr_t error = dict_create_add_foreign_id(
+			&foreign_id, user_table->name, fk);
+
+		if (error != DB_SUCCESS) {
+			my_error(ER_TOO_LONG_IDENT, MYF(0),
+				 fk->id);
+			DBUG_RETURN(true);
+		}
 
 		if (!fk->foreign_index) {
 			fk->foreign_index = dict_foreign_find_index(
@@ -4587,7 +4594,7 @@ innobase_update_foreign_try(
 
 		/* The fk->foreign_col_names[] uses renamed column names,
 		while the columns in user_table have not been renamed yet. */
-		dberr_t error = dict_create_add_foreign_to_dictionary(
+		error = dict_create_add_foreign_to_dictionary(
 			user_table->name, fk, trx);
 
 		DBUG_EXECUTE_IF(
