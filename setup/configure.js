@@ -23,6 +23,7 @@
 // On non-Windows, we write a shell script (pathname supplied on the command
 // line) and build with node-waf.
 
+"use strict";
 
 var fs = require("fs"),
     path = require("path"),
@@ -123,7 +124,7 @@ function get_candidates() {
 
 
 function build_prompt(candidates) {
-  var i = 0; found = '';
+  var i = 0, found = '';
   
   if(candidates.length) {
     found = '# ' +lf+
@@ -172,32 +173,30 @@ function completion(line) {
   var dir, base, files, stat;
   try {  // input is a directory?
     dir = line;
-    base = "";
     files = fs.readdirSync(dir);
+    base = "";
   }
   catch(e) {
     dir = path.dirname(line);   // returns "." if path is unrooted
-    var base = path.basename(line);
-    var files = fs.readdirSync(dir);
+    base = path.basename(line);
+    files = fs.readdirSync(dir);
   }
  
-  if(base.length > 0) {
-    for(var i = 0; i < files.length ; i++) {
-      if(files[i].match("^" + base)) {
-        matches.push(path.join(dir, files[i]));
-      }
+  for(var i = 0; i < files.length ; i++) {
+    if(files[i].match("^" + base)) {
+      matches.push(path.join(dir, files[i]));
     }
   }
-  else {
-    matches = files;
-  }
+  
+ 
   
   if(matches.length == 1) {
     try {
       stat = fs.statSync(matches[0]);
       if(stat.isDirectory()) matches[0] += path.sep;
     }
-    catch(e) {};
+    catch(e) {
+    };
   }
   
   return [matches, line];
@@ -260,7 +259,7 @@ function main() {
 
   /* Start here: */
   rl.write(greeting);
-  rl.write(found);
+  rl.write(text);
   mainMode();  
 }
  

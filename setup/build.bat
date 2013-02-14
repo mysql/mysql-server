@@ -1,4 +1,4 @@
 node setup/configure
-node-gyp clean
-node-gyp configure -d 
-node-gyp build
+if not errorlevel 1 node-gyp rebuild -d
+
+
