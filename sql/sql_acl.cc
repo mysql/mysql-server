@@ -2979,7 +2979,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
           if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
           {
-            push_warning(thd, Sql_condition::WARN_LEVEL_WARN, 
+            push_warning(thd, Sql_condition::SL_WARNING, 
               ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
           }
         }
