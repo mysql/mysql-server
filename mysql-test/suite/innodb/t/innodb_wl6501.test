@@ -30,7 +30,7 @@ set global innodb_file_per_table=on;
 
 --echo # Verify that 'TRUNCATE TABLE' statement works fine and the size
 --echo # of .ibd file is equal to the initial size after truncation.
---source suite/innodb/t/innodb_wl6501_truncate_size.inc
+--source suite/innodb/t/innodb_wl6501_truncate_size.test
 
 --disable_query_log
 set session debug="+d,crash_during_drop_second_secondary";
@@ -38,7 +38,7 @@ set session debug="+d,crash_during_drop_second_secondary";
 --echo # Verify that recovery works fine from a crash during
 --echo # the drop of the second secondary to a table with
 --echo # remote data directory and dynamic format.
---source suite/innodb/t/innodb_wl6501_remote_dir.inc
+--source suite/innodb/t/innodb_wl6501_remote_dir.test
 --disable_query_log
 set session debug="-d,crash_during_drop_second_secondary";
 --enable_query_log
@@ -48,7 +48,7 @@ set session debug="+d,crash_during_create_second_secondary";
 --enable_query_log
 --echo # Verify that recovery works fine from a crash during the creation
 --echo # of the second secondary to a table with redundant format.
---source suite/innodb/t/innodb_wl6501_redundant.inc
+--source suite/innodb/t/innodb_wl6501_redundant.test
 --disable_query_log
 set session debug="-d,crash_during_create_second_secondary";
 --enable_query_log
@@ -58,7 +58,7 @@ set session debug="+d,crash_before_log_checkpoint";
 --enable_query_log
 --echo # Verify that recovery works fine from a crash before
 --echo # log checkpoint to a table with compact format.
---source suite/innodb/t/innodb_wl6501_compact.inc
+--source suite/innodb/t/innodb_wl6501_compact.test
 --disable_query_log
 set session debug="-d,crash_before_log_checkpoint";
 --enable_query_log
@@ -68,7 +68,7 @@ set session debug="+d,crash_after_log_checkpoint";
 --enable_query_log
 --echo # Verify that recovery works fine from a crash after
 --echo # log checkpoint to a table with 8k block size.
---source suite/innodb/t/innodb_wl6501_zip_8k.inc
+--source suite/innodb/t/innodb_wl6501_zip_8k.test
 --disable_query_log
 set session debug="-d,crash_after_log_checkpoint";
 --enable_query_log
@@ -78,7 +78,7 @@ set session debug="+d,crash_after_truncate_tablespace";
 --enable_query_log
 --echo # Verify that recovery works fine from a crash after physically
 --echo # truncated the tablespace to a table with 4k block size.
---source suite/innodb/t/innodb_wl6501_zip_4k.inc
+--source suite/innodb/t/innodb_wl6501_zip_4k.test
 --disable_query_log
 set session debug="-d,crash_after_truncate_tablespace";
 --enable_query_log
@@ -88,7 +88,7 @@ set session debug="+d,crash_after_truncate_tablespace";
 --enable_query_log
 --echo # Verify that recovery works fine from a crash after physically
 --echo # truncated the tablespace to a table with 2k block size.
---source suite/innodb/t/innodb_wl6501_zip_2k.inc
+--source suite/innodb/t/innodb_wl6501_zip_2k.test
 --disable_query_log
 set session debug="-d,crash_after_truncate_tablespace";
 --enable_query_log
@@ -98,7 +98,7 @@ set session debug="+d,crash_after_drop_tablespace";
 --enable_query_log
 --echo # Verify that the TRUNCATE TABLE statement works fine
 --echo # if the tablespace is missing.
---source suite/innodb/t/innodb_wl6501_tablespace_missing.inc
+--source suite/innodb/t/innodb_wl6501_tablespace_missing.test
 --disable_query_log
 set session debug="-d,crash_after_drop_tablespace";
 --enable_query_log
@@ -109,7 +109,7 @@ set session debug="+d,crash_if_ibd_file_is_missing";
 --echo # Verify that the TRUNCATE TABLE statement is rollbacked
 --echo # and the table is marked as corrupt when the .ibd file
 --echo # is missing.
---source suite/innodb/t/innodb_wl6501_ibd_missing.inc
+--source suite/innodb/t/innodb_wl6501_ibd_missing.test
 --disable_query_log
 set session debug="-d,crash_if_ibd_file_is_missing";
 --enable_query_log

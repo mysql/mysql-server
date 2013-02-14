@@ -33,6 +33,7 @@
 /* These two header files are necessary for the List manipuation */
 #include "sql_list.h"                           /* I_List */
 #include "hash.h"
+#include "table_id.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -1148,6 +1149,8 @@ public:
 
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
+    Additionally the member serves to tag deferred (IRU) events to avoid
+    the event regular time destruction.
   */
   Relay_log_info *worker;
 
@@ -1963,6 +1966,38 @@ protected:
     statement and used by slave to apply filter rules without opening
     all the tables on slave. This is required because some tables may
     not exist on slave because of the filter rules.
+    </td>
+  </tr>
+  <tr>
+    <td>master_data_written</td>
+    <td>Q_MASTER_DATA_WRITTEN_CODE == 10</td>
+    <td>4 byte bitfield</td>
+
+    <td>The value of the original length of a Query_log_event that comes from a
+    master. Master's event is relay-logged with storing the original size of
+    event in this field by the IO thread. The size is to be restored by reading
+    Q_MASTER_DATA_WRITTEN_CODE-marked event from the relay log.
+
+    This field is not written to slave's server binlog by the SQL thread.
+    This field only exists in relay logs where master has binlog_version<4 i.e.
+    server_version < 5.0 and the slave has binlog_version=4.
+    </td>
+  </tr>
+  <tr>
+    <td>m_binlog_invoker</td>
+    <td>Q_INVOKER == 11</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by characters, again followed by length in bytes (1 byte) followed
+    by characters</td>
+
+    <td>The value of boolean variable m_binlog_invoker is set TRUE if
+    CURRENT_USER() is called in account management statements. SQL thread
+    uses it as a default definer in CREATE/ALTER SP, SF, Event, TRIGGER or
+    VIEW statements.
+
+    The field Q_INVOKER has length of user stored in 1 byte followed by the
+    user string which is assigned to 'user' and the length of host stored in
+    1 byte followed by host string which is assigned to 'host'.
     </td>
   </tr>
   </table>
@@ -3814,7 +3849,8 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
+  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+                      bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3830,12 +3866,15 @@ public:
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
+  virtual bool is_valid() const
+  {
+    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+  }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
 #ifdef MYSQL_SERVER
@@ -3895,7 +3934,7 @@ private:
   uchar         *m_coltype;
 
   uchar         *m_memory;
-  ulong          m_table_id;
+  Table_id       m_table_id;
   flag_set       m_flags;
 
   size_t         m_data_size;
@@ -4019,7 +4058,7 @@ public:
   MY_BITMAP const *get_cols() const { return &m_cols; }
   MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
   size_t get_width() const          { return m_width; }
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const        { return m_table_id; }
 
 #if defined(MYSQL_SERVER)
   /*
@@ -4095,7 +4134,7 @@ protected:
      this class, not create instances of this class.
   */
 #ifdef MYSQL_SERVER
-  Rows_log_event(THD*, TABLE*, ulong table_id, 
+  Rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		 MY_BITMAP const *cols, bool is_transactional,
                  Log_event_type event_type,
                  const uchar* extra_row_info);
@@ -4114,7 +4153,7 @@ protected:
 #ifdef MYSQL_SERVER
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  ulong       m_table_id;	/* Table ID */
+  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
 #ifndef MYSQL_CLIENT
@@ -4372,7 +4411,7 @@ public:
   };
 
 #if defined(MYSQL_SERVER)
-  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
+  Write_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		       bool is_transactional,
                        const uchar* extra_row_info);
 #endif
@@ -4432,13 +4471,13 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
@@ -4512,7 +4551,7 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Delete_rows_log_event(THD*, TABLE*, ulong, 
+  Delete_rows_log_event(THD*, TABLE*, const Table_id&,
 			bool is_transactional, const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
@@ -4774,7 +4813,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   but rather uses a data for immediate checks and throws away the event.
 
   Two members of the class log_ident and Log_event::log_pos comprise 
-  @see the event_coordinates instance. The coordinates that a heartbeat
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
 

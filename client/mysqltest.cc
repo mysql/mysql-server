@@ -5494,6 +5494,7 @@ void do_connect(struct st_command *command)
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
+  my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5585,6 +5586,8 @@ void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
+    else if (!strncmp(con_options, "SKIPSECUREAUTH",14))
+      con_secure_auth= 0;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5695,6 +5698,10 @@ void do_connect(struct st_command *command)
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
+
+  if (!con_secure_auth)
+    mysql_options(&con_slot->mysql, MYSQL_SECURE_AUTH,
+                  (char*) &con_secure_auth);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -8444,15 +8451,15 @@ static void dump_backtrace(void)
   struct st_connection *conn= cur_con;
 
   fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
-  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+  my_safe_puts_stderr(read_command_buf, sizeof(read_command_buf));
 
   if (conn)
   {
     fprintf(stderr, "conn->name (%p): ", conn->name);
-    my_safe_print_str(conn->name, conn->name_len);
+    my_safe_puts_stderr(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
     fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
-    my_safe_print_str(conn->cur_query, conn->cur_query_len);
+    my_safe_puts_stderr(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -780,7 +780,8 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     queries with SP vars can't be cached)
   */
   if (unlikely((thd->variables.option_bits & OPTION_LOG_OFF)==0))
-    general_log_write(thd, COM_QUERY, thd->query(), thd->query_length());
+    query_logger.general_log_write(thd, COM_QUERY, thd->query(),
+                                   thd->query_length());
 
   if (query_cache_send_result_to_client(thd, thd->query(),
                                         thd->query_length()) <= 0)
