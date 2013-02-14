@@ -2941,26 +2941,50 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     /* 1. resolve plugins in the LEX_USER struct if needed */
     if (!combo->uses_identified_with_clause)
     {
+      LEX_STRING old_plugin;
+
       /*
         Get old plugin value from storage.
       */
-      combo->plugin.str=
+
+      old_plugin.str=
         get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
       /* 
         It is important not to include the trailing '\0' in the string length 
         because otherwise the plugin hash search will fail.
       */
-      if (combo->plugin.str)
+      if (old_plugin.str)
       {
-        combo->plugin.length= strlen(combo->plugin.str);
+        old_plugin.length= strlen(old_plugin.str);
 
         /*
           Optimize for pointer comparision of built-in plugin name
         */
 
-        optimize_plugin_compare_by_pointer(&combo->plugin);
+        optimize_plugin_compare_by_pointer(&old_plugin);
+ 
+        /*
+          Disable plugin change for existing rows with anything but
+          the built in plugins.
+          The idea is that all built in plugins support
+          IDENTIFIED BY ... and none of the external ones currently do.
+        */
+        if ((combo->uses_identified_by_clause ||
+             combo->uses_identified_by_password_clause) &&
+            !auth_plugin_is_built_in(old_plugin.str))
+        {
+          const char *new_plugin= (combo->plugin.str && combo->plugin.str[0]) ?
+            combo->plugin.str : default_auth_plugin_name.str;
+
+          if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
+          {
+            push_warning(thd, Sql_condition::WARN_LEVEL_WARN, 
+              ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
+          }
+        }
       }
+      combo->plugin= old_plugin;
     }    
     
     /* No value for plugin field means default plugin is used */
