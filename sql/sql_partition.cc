@@ -2412,6 +2412,58 @@ end:
   return err;
 }
 
+
+/**
+  Add 'KEY' word, with optional 'ALGORTIHM = N'.
+
+  @param fptr                   File to write to.
+  @param part_info              partition_info holding the used key_algorithm
+  @param current_comment_start  NULL, or comment string encapsulating the
+                                PARTITION BY clause.
+
+  @return Operation status.
+    @retval 0    Success
+    @retval != 0 Failure
+*/
+
+static int add_key_with_algorithm(File fptr, partition_info *part_info,
+                                  const char *current_comment_start)
+{
+  int err= 0;
+  err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+
+  /*
+    current_comment_start is given when called from SHOW CREATE TABLE,
+    Then only add ALGORITHM = 1, not the default 2 or non-set 0!
+    For .frm current_comment_start is NULL, then add ALGORITHM if != 0.
+  */
+  if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51 || // SHOW
+      (!current_comment_start &&                                      // .frm
+       (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)))
+  {
+    /* If we already are within a comment, end that comment first. */
+    if (current_comment_start)
+      err+= add_string(fptr, "*/ ");
+    err+= add_string(fptr, "/*!50531 ");
+    err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
+    err+= add_equal(fptr);
+    err+= add_space(fptr);
+    err+= add_int(fptr, part_info->key_algorithm);
+    err+= add_space(fptr);
+    err+= add_string(fptr, "*/ ");
+    if (current_comment_start)
+    {
+      /* Skip new line. */
+      if (current_comment_start[0] == '\n')
+        current_comment_start++;
+      err+= add_string(fptr, current_comment_start);
+      err+= add_space(fptr);
+    }
+  }
+  return err;
+}
+
+
 /*
   Generate the partition syntax from the partition data structure.
   Useful for support of generating defaults, SHOW CREATE TABLES
@@ -2456,7 +2508,8 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info)
+                                Alter_info *alter_info,
+                                const char *current_comment_start)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
@@ -2490,18 +2543,8 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
       {
-        err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
-        if (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)
-        {
-          /*
-            Can't add a !50530 comment, since we are already within a comment!
-          */
-          err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
-          err+= add_equal(fptr);
-          err+= add_space(fptr);
-          err+= add_int(fptr, part_info->key_algorithm);
-          err+= add_space(fptr);
-        }
+        err+= add_key_with_algorithm(fptr, part_info,
+                                     current_comment_start);
         err+= add_part_field_list(fptr, part_info->part_field_list);
       }
       else
@@ -2541,19 +2584,9 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
     if (part_info->list_of_subpart_fields)
     {
-      add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
-      if (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)
-      {
-        /*
-          Can't add a !50530 comment, since we are already within a comment!
-        */
-        err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
-        err+= add_equal(fptr);
-        err+= add_space(fptr);
-        err+= add_int(fptr, part_info->key_algorithm);
-        err+= add_space(fptr);
-      }
-      add_part_field_list(fptr, part_info->subpart_field_list);
+      err+= add_key_with_algorithm(fptr, part_info,
+                                   current_comment_start);
+      err+= add_part_field_list(fptr, part_info->subpart_field_list);
     }
     else
       err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);

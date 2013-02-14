@@ -7968,6 +7968,7 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
                                                     true,
                                                     true,
                                                     NULL,
+                                                    NULL,
                                                     NULL)) ||
           /* Also check that the length is smaller than the output field! */
               (part_buf_len + db_name.length() + table_name.length()) >=
@@ -7991,8 +7992,8 @@ int ha_partition::check_for_upgrade(HA_CHECK_OPT *check_opt)
                             part_buf);
           }
           m_part_info->key_algorithm= old_algorithm;
+          DBUG_RETURN(error);
         }
-        break;
       default:
         /* Not affected! */
         ;
