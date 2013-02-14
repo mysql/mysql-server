@@ -932,7 +932,6 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_MEMORY:
 		return(HA_ERR_OUT_OF_MEM);
 	case DB_IDENTIFIER_TOO_LONG:
-		my_error(ER_TOO_LONG_IDENT, MYF(0));
 		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
