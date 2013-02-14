@@ -9,3 +9,4 @@ if [ $? -eq 0 ]
     node-waf clean build
 fi
 rm -f $NOTEFILE
+
