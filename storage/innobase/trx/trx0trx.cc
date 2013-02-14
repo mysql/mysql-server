@@ -1330,7 +1330,10 @@ trx_assign_read_view(
 {
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (trx->read_view != NULL) {
+	if (srv_read_only_mode) {
+		ut_ad(trx->read_view == 0);
+		return(NULL);
+	} else if (trx->read_view != NULL) {
 		return(trx->read_view);
 	}
 
@@ -1904,7 +1907,7 @@ trx_prepare_for_mysql(
 /*==================*/
 	trx_t*	trx)	/*!< in/out: trx handle */
 {
-	trx_start_if_not_started_xa_low(trx);
+	trx_start_if_not_started_xa(trx);
 
 	trx->op_info = "preparing";
 

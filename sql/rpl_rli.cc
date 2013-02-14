@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
              , param_id
             ),
    replicate_same_server_id(::replicate_same_server_id),
-   cur_log_fd(-1), relay_log(&sync_relaylog_period),
+   cur_log_fd(-1), relay_log(&sync_relaylog_period, SEQ_READ_APPEND),
    is_relay_log_recovery(is_slave_recovery),
    save_temporary_tables(0),
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
@@ -1748,7 +1748,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     const char *ln;
     static bool name_warning_sent= 0;
     ln= relay_log.generate_name(opt_relay_logname, "-relay-bin",
-                                1, buf);
+                                buf);
     /* We send the warning only at startup, not after every RESET SLAVE */
     if (!opt_relay_logname && !opt_relaylog_index_name && !name_warning_sent)
     {
@@ -1802,7 +1802,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that
     */
-    if (relay_log.open_binlog(ln, 0, SEQ_READ_APPEND,
+    if (relay_log.open_binlog(ln, 0,
                               (max_relay_log_size ? max_relay_log_size :
                                max_binlog_size), true,
                               true/*need_lock_index=true*/,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,7 +22,6 @@
 #include "rpl_tblmap.h"
 #include "rpl_reporting.h"
 #include "rpl_utility.h"
-#include "log.h"                         /* LOG_INFO */
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
 
@@ -668,14 +667,6 @@ public:
   /*
    * End of MTS section ******************************************************/
 
-  /* 
-     Returns true if the argument event resides in the containter;
-     more specifically, the checking is done against the last added event.
-  */
-  bool is_deferred_event(Log_event * ev)
-  {
-    return deferred_events_collecting ? deferred_events->is_last(ev) : false;
-  };
   /* The general cleanup that slave applier may need at the end of query. */
   inline void cleanup_after_query()
   {

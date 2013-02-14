@@ -198,7 +198,7 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
-UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+UNIV_INTERN ulong	srv_buf_pool_instances;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
@@ -1427,20 +1427,26 @@ srv_export_innodb_status(void)
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
 #ifdef UNIV_DEBUG
-	if (purge_sys->done.trx_no == 0
-	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+	rw_lock_s_lock(&purge_sys->latch);
+	trx_id_t	done_trx_no	= purge_sys->done.trx_no;
+	trx_id_t	up_limit_id	= purge_sys->view
+		? purge_sys->view->up_limit_id
+		: 0;
+	rw_lock_s_unlock(&purge_sys->latch);
+
+	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+			trx_sys->rw_max_trx_id - done_trx_no + 1;
 	}
 
-	if (!purge_sys->view
-	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+	if (!up_limit_id
+	    || trx_sys->rw_max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
+			trx_sys->rw_max_trx_id - up_limit_id;
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1831,13 +1837,10 @@ thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
 UNIV_INTERN
 void
-srv_active_wake_master_thread(void)
-/*===============================*/
+srv_active_wake_master_thread_low(void)
+/*===================================*/
 {
-	if (srv_read_only_mode) {
-		return;
-	}
-
+	ut_ad(!srv_read_only_mode);
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2508,7 +2511,9 @@ srv_do_purge(
 	}
 
 	do {
-		if (trx_sys->rseg_history_len > rseg_history_len) {
+		if (trx_sys->rseg_history_len > rseg_history_len
+		    || (srv_max_purge_lag > 0
+			&& rseg_history_len > srv_max_purge_lag)) {
 
 			/* History length is now longer than what it was
 			when we took the last snapshot. Use more threads. */

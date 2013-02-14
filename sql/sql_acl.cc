@@ -2847,7 +2847,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       combo->plugin.str= default_auth_plugin_name.str;
       combo->plugin.length= default_auth_plugin_name.length;
-      combo->uses_identified_with_clause= false;
     }
     /* 2. Digest password if needed (plugin must have been resolved) */
     if (combo->uses_identified_by_clause)
@@ -2924,8 +2923,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #endif
     {
       /* Use the legacy Password field */
-      if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        WARN_DEPRECATED_41_PWD_HASH(thd);
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
       table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
@@ -3025,23 +3022,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
 #endif
       {
-        /*
-          We need to check for has validity here since later, when
-          set_user_salt() is executed it will be too late to signal
-          an error.
-        */
-        if ((combo->plugin.str == native_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
-            (combo->plugin.str == old_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
-        {
-          my_error(ER_PASSWORD_FORMAT, MYF(0));
-          error= 1;
-          goto end;
-        }
-        /* The legacy Password field is used */
-        if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          WARN_DEPRECATED_41_PWD_HASH(thd);
         table->field[MYSQL_USER_FIELD_PASSWORD]->
           store(password, password_len, system_charset_info);
         table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
@@ -3056,6 +3036,28 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       DBUG_PRINT("info", ("Proxy user exit path"));
       DBUG_RETURN(0);
     }
+  }
+
+  /* error checks on password */
+  if (password_len > 0)
+  {
+    /*
+     We need to check for hash validity here since later, when
+     set_user_salt() is executed it will be too late to signal
+     an error.
+    */
+    if ((combo->plugin.str == native_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
+        (combo->plugin.str == old_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
+    {
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      error= 1;
+      goto end;
+    }
+    /* The legacy Password field is used */
+    if (combo->plugin.str == old_password_plugin_name.str)
+      WARN_DEPRECATED_41_PWD_HASH(thd);
   }
 
   /* Update table columns with new privileges */
@@ -5708,6 +5710,15 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
       my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
       return TRUE;
     }
+  }
+  else if (table_ref->nested_join)
+  {
+    bool error= FALSE;
+    List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
+    TABLE_LIST *table;
+    while (!error && (table= it++))
+      error|= check_column_grant_in_table_ref(thd, table, name, length);
+    return error;
   }
   else
   {
@@ -9248,9 +9259,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9269,10 +9281,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
              passwd_used ? ER(ER_YES) : ER(ER_NO));
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip,
+                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9426,14 +9438,16 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
   }
   else
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
   }
   return 1;
 }
@@ -9505,7 +9519,8 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   if (switch_from_short_to_long_scramble)
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -9597,7 +9612,8 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -10884,16 +10900,18 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
     if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
     {
-      general_log_print(thd, command, "%s@%s as %s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.auth_info.authenticated_as ?
+                                     mpvio.auth_info.authenticated_as : "anonymous",
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else
-      general_log_print(thd, command, (char*) "%s@%s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11014,7 +11032,8 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       Host_errors errors;
 
       my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
-      general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      query_logger.general_log_print(thd, COM_CONNECT,
+                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
       if (log_warnings > 1)
         sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
 

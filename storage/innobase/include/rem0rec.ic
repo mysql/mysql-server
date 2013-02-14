@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -302,7 +302,7 @@ rec_get_next_ptr(
 	rec_t*	rec,	/*!< in: physical record */
 	ulint	comp)	/*!< in: nonzero=compact page format */
 {
-	return((rec_t*) rec_get_next_ptr_const(rec, comp));
+	return(const_cast<rec_t*>(rec_get_next_ptr_const(rec, comp)));
 }
 
 /******************************************************//**
@@ -1508,7 +1508,7 @@ rec_get_end(
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return((rec_t*) rec + rec_offs_data_size(offsets));
+	return(const_cast<rec_t*>(rec + rec_offs_data_size(offsets)));
 }
 
 /**********************************************************//**
@@ -1522,7 +1522,7 @@ rec_get_start(
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 {
 	ut_ad(rec_offs_validate(rec, NULL, offsets));
-	return((rec_t*) rec - rec_offs_extra_size(offsets));
+	return(const_cast<rec_t*>(rec - rec_offs_extra_size(offsets)));
 }
 #endif /* UNIV_DEBUG */
 
@@ -1541,7 +1541,7 @@ rec_copy(
 	ulint	data_len;
 
 	ut_ad(rec && buf);
-	ut_ad(rec_offs_validate((rec_t*) rec, NULL, offsets));
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
 	ut_ad(rec_validate(rec, offsets));
 
 	extra_len = rec_offs_extra_size(offsets);
