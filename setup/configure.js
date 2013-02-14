@@ -18,7 +18,14 @@
  02110-1301  USA
 */
 
+// On Windows, we write config.gypi and build with gyp.
+//
+// On non-Windows, we write a shell script (pathname supplied on the command
+// line) and build with node-waf.
+
+
 var fs = require("fs"),
+    path = require("path"),
     readline = require("readline");
     
 var archbits, archname, archmysql;
@@ -43,7 +50,7 @@ var lf = '\n';
 var greeting = 
 '# '                                                                        +lf+
 '#                 MySQL Cluster NoSQL API for Node.JS'                     +lf+
-'#  September, 2012'                                                        +lf+
+'#  April, 2013'                                                            +lf+
 '# '                                                                        +lf+
 '#  The NoSQL API for Node.JS provides lightweight object mapping for '     +lf+
 '#  JavaScript.  The API can be used with two separate backend adapters:'   +lf+
@@ -72,6 +79,16 @@ function verify(dir) {
     return false;
   }
 }
+
+function get_candidates_windows() {
+  var candidates = [];
+  var c1 = "C:\\Program Files\\MySQL Server 5.6";
+  if(verify(c1)) {
+    candidates.push(c1);
+  }
+  return candidates;
+}
+
 
 function get_candidates() { 
   var candidates = [];
@@ -132,20 +149,67 @@ function build_prompt(candidates) {
 
 function configure(mysql) {
   var envCmd = "";
+
+  // Write the tempfile, used with node-waf builds
   var tempfile = process.argv[2];
   if(mysql) {
     envCmd = 'PREFERRED_MYSQL=' + mysql + '\n';
   }
   fs.writeFileSync(tempfile, envCmd, 'ascii');
+
+  // Write config.gypi, used with node-gyp
+  var gyp = { "variables" : { "mysql_path" : mysql }};
+  fs.writeFileSync("config.gypi", JSON.stringify(gyp) + "\n", "ascii");
+
   process.exit();
+}
+
+
+// Filename completion
+// Returns [ [array of matches], original substring ]
+function completion(line) {
+  var matches = [];
+  var dir, base, files, stat;
+  try {  // input is a directory?
+    dir = line;
+    base = "";
+    files = fs.readdirSync(dir);
+  }
+  catch(e) {
+    dir = path.dirname(line);   // returns "." if path is unrooted
+    var base = path.basename(line);
+    var files = fs.readdirSync(dir);
+  }
+ 
+  if(base.length > 0) {
+    for(var i = 0; i < files.length ; i++) {
+      if(files[i].match("^" + base)) {
+        matches.push(path.join(dir, files[i]));
+      }
+    }
+  }
+  else {
+    matches = files;
+  }
+  
+  if(matches.length == 1) {
+    stat = fs.statSync(matches[0]);
+    if(stat.isDirectory()) matches[0] += path.sep;
+  }
+  
+  return [matches, line];
 }
 
 
 ///// ****** MAIN ROUTINE STARTS HERE ****** /////
 function main() {
-  var candidates = get_candidates();
+  var candidates;
+  if(process.platform == 'win32')
+    candidates = get_candidates_windows();
+  else
+    candidates = get_candidates();
   var text = build_prompt(candidates);
-  var rl = readline.createInterface(process.stdin, process.stdout);
+  var rl = readline.createInterface(process.stdin, process.stdout, completion);
   
   function hangup() {
     rl.close();
@@ -164,8 +228,8 @@ function main() {
     else if(num === range) {  // skip
       hangup();
     }
-    else if(num === (range - 1)) {   // custom
-      configure("-interactive-");
+    else if(num === (range - 1)) {
+      customMode();
     }
     else {
       rl.close();
@@ -173,9 +237,21 @@ function main() {
     }
   }
 
+  function onPath(path) {
+    rl.close();
+    configure(path);
+  }
+
   function mainMode() {
     rl.setPrompt('Your choice> ', 13);
     rl.on('line', onEntry).on('SIGINT', hangup);
+    rl.prompt(true);
+  }
+
+  function customMode() {
+    rl.setPrompt('MySQL Install Path> ', 20);
+    rl.removeListener('line', onEntry);
+    rl.on('line', onPath);
     rl.prompt(true);
   }
 
