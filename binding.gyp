@@ -58,7 +58,11 @@
             {
               'VCLinkerTool':
                 {
-                  'AdditionalOptions' : [ '/FORCE:MULTIPLE' ]
+                  'AdditionalOptions': 
+                  [
+                    '/FORCE:MULTIPLE',
+                    '/NODEFAULTLIB:LIBCMT'
+                  ]
                 }
             }
           },
