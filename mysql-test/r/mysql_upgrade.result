@@ -31,9 +31,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 Run it again - should say already completed
 This installation of MySQL is already upgraded to VERSION, use --force if you still need to run mysql_upgrade
 Force should run it regardless of wether it's been run before
@@ -69,9 +69,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 CREATE USER mysqltest1@'%' IDENTIFIED by 'sakila';
 GRANT ALL ON *.* TO mysqltest1@'%';
 Run mysql_upgrade with password protected account
@@ -108,9 +108,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 DROP USER mysqltest1@'%';
 Run mysql_upgrade with a non existing server socket
 Warning: Using a password on the command line interface can be insecure.
@@ -149,9 +149,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 set GLOBAL sql_mode=default;
 #
 # Bug #41569 mysql_upgrade (ver 5.1) add 3 fields to mysql.proc table 
@@ -196,11 +196,11 @@ DROP PROCEDURE testproc;
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
-Warning: Using a password on the command line interface can be insecure.
 WARNING: NULL values of the 'character_set_client' column ('mysql.proc' table) have been updated with a default value (latin1). Please verify if necessary.
 WARNING: NULL values of the 'collation_connection' column ('mysql.proc' table) have been updated with a default value (latin1_swedish_ci). Please verify if necessary.
 WARNING: NULL values of the 'db_collation' column ('mysql.proc' table) have been updated with default values. Please verify if necessary.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 #
 # Bug #53613: mysql_upgrade incorrectly revokes 
 #   TRIGGER privilege on given table
@@ -240,9 +240,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 SHOW GRANTS FOR 'user3'@'%';
 Grants for user3@%
 GRANT USAGE ON *.* TO 'user3'@'%'
@@ -286,9 +286,9 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
 #
 # Bug#11827359 60223: MYSQL_UPGRADE PROBLEM WITH OPTION
 #                     SKIP-WRITE-BINLOG
@@ -396,11 +396,11 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning	1642	Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
+Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
 mtr.global_suppressions                            OK
 mtr.test_suppressions                              OK
-Warning: Using a password on the command line interface can be insecure.
-Warning	1642	Pre-4.1 password hash found. It is deprecated and will be removed in a future release. Please upgrade it to a new format.
 DROP USER 'bug13586336'@'localhost';
 
 End of tests

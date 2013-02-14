@@ -329,6 +329,11 @@ static int run_command(char* cmd,
   FILE *res_file;
   int error;
 
+  if (! ds_res)
+  {
+    fflush(stdout);
+    fflush(stderr);
+  }
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
 
@@ -348,7 +353,10 @@ static int run_command(char* cmd,
   }
 
   if (! ds_res)
+  {
     fflush(stdout);
+    fflush(stderr);
+  }
 
   error= pclose(res_file);
   return WEXITSTATUS(error);
