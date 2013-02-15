@@ -5194,7 +5194,8 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && !trx->read_view
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
@@ -5335,7 +5336,7 @@ row_search_max_autoinc(
 		btr_pcur_open_at_index_side(
 			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
 			const rec_t*	rec;
 
 			rec = row_search_autoinc_get_rec(&pcur, &mtr);

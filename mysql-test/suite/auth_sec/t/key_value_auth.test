@@ -132,13 +132,13 @@ connect(con8,127.0.0.1,Tanjotuser2,,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con9,localhost,Tanjotuser1," ",,);
+connect(con9,localhost,Tanjotuser1," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con10,127.0.0.1,Tanjotuser2," ",,);
+connect(con10,127.0.0.1,Tanjotuser2," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 # setting the password for the 2 users using the mysql_old_password plugin
@@ -163,7 +163,7 @@ connect(con11,localhost,Tanjotuser1,,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con12,127.0.0.1,Tanjotuser2,,,);
+connect(con12,127.0.0.1,Tanjotuser2,,,,,SKIPSECUREAUTH);
 --enable_query_log
 
 # Verifying the client connection using the same mysql_old_password plugin and junk password
@@ -171,13 +171,13 @@ connect(con12,127.0.0.1,Tanjotuser2,,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con13,localhost,Tanjotuser1," ",,);
+connect(con13,localhost,Tanjotuser1," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con14,127.0.0.1,Tanjotuser2," ",,);
+connect(con14,127.0.0.1,Tanjotuser2," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 # Verifying the client connection using the same mysql_old_password plugin and correct password with secure_auth enabled
@@ -190,13 +190,13 @@ select @@global.secure_auth;
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con15,localhost,Tanjotuser1,abc,,);
+connect(con15,localhost,Tanjotuser1,abc,,,,SKIPSECUREAUTH);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-connect(con16,127.0.0.1,Tanjotuser2,abc,,);
+connect(con16,127.0.0.1,Tanjotuser2,abc,,,,SKIPSECUREAUTH);
 --enable_query_log
 
 # Verifying the client connection using the same mysql_old_password plugin and correct password with secure_auth disabled
@@ -208,8 +208,8 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
-connect(con17,localhost,Tanjotuser1,abc,,);
-connect(con18,127.0.0.1,Tanjotuser2,abc,,);
+connect(con17,localhost,Tanjotuser1,abc,,,,SKIPSECUREAUTH);
+connect(con18,127.0.0.1,Tanjotuser2,abc,,,,SKIPSECUREAUTH);
 --enable_warnings
 
 # Dropping the created users
@@ -426,8 +426,8 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --disable_warnings
-connect(con33,localhost,Tanjotuser1,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,);
-connect(con34,127.0.0.1,Tanjotuser2,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,);
+connect(con33,localhost,Tanjotuser1,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,,,SKIPSECUREAUTH);
+connect(con34,127.0.0.1,Tanjotuser2,aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeaaaaaaaaaannnnnnnnnnaaaaaaaaaahhhhhhhhhh1111111111gggggggggg2222222222,,,,SKIPSECUREAUTH);
 --enable_warnings
 
 # Verifying the client access denied passing null password
@@ -619,28 +619,13 @@ connect(con50,127.0.0.1,Tanjotuser2,,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con51,localhost,Tanjotuser1," ",,);
+connect(con51,localhost,Tanjotuser1," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con52,127.0.0.1,Tanjotuser2," ",,);
---enable_query_log
-
-
-# Verifying the client access denied passing not null password
-
---replace_result $MASTER_MYSOCK MASTER_MYSOCK
---disable_query_log
---error ER_ACCESS_DENIED_ERROR
-connect(con53,localhost,Tanjotuser1,NULL,,);
---enable_query_log
-
---replace_result $MASTER_MYSOCK MASTER_MYSOCK
---disable_query_log
---error ER_ACCESS_DENIED_ERROR
-connect(con54,127.0.0.1,Tanjotuser2,NULL,,);
+connect(con52,127.0.0.1,Tanjotuser2," ",,,,SKIPSECUREAUTH);
 --enable_query_log
 
 
@@ -649,13 +634,28 @@ connect(con54,127.0.0.1,Tanjotuser2,NULL,,);
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con55,localhost,Tanjotuser1,0,,);
+connect(con53,localhost,Tanjotuser1,NULL,,,,SKIPSECUREAUTH);
 --enable_query_log
 
 --replace_result $MASTER_MYSOCK MASTER_MYSOCK
 --disable_query_log
 --error ER_ACCESS_DENIED_ERROR
-connect(con56,127.0.0.1,Tanjotuser2,0,,);
+connect(con54,127.0.0.1,Tanjotuser2,NULL,,,,SKIPSECUREAUTH);
+--enable_query_log
+
+
+# Verifying the client access denied passing not null password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con55,localhost,Tanjotuser1,0,,,,SKIPSECUREAUTH);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con56,127.0.0.1,Tanjotuser2,0,,,,SKIPSECUREAUTH);
 --enable_query_log
 
 # Dropping the created users
@@ -798,25 +798,14 @@ SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 set @@global.secure_auth=0;
 --enable_warnings
 
-## The below section is being commented out till bug#15977433 is fixed 
-## to avoid the client to send the password in old format
-## to the server by using --secure_auth option.
-
---echo
-
---echo The below section is being commented out till bug#15977433 is fixed
---echo to avoid the client to send the password in old format
---echo to the server by using --secure_auth option.
 --echo
 
 --echo **** Client using --secure-auth option should not be able to send password to server in old format 
 
-###################################################################################
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#--exec $MYSQL -uTanjotuser1 -pabc --secure_auth -e "select user(), current_user()"
-#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
-#--exec $MYSQL -uTanjotuser2 -pabc --secure_auth -e "select user(), current_user()"
-###################################################################################
+--error 1
+--exec $MYSQL -uTanjotuser1 -pabc --secure_auth -e "select user(), current_user()"
+--error 1
+--exec $MYSQL -uTanjotuser2 -pabc --secure_auth -e "select user(), current_user()"
 
 --echo **** Client using --skip-secure-auth option should be able to send password to server in old format
 
@@ -887,8 +876,8 @@ set @@global.secure_auth=0;
 --enable_warnings
 
 --echo **** Client default_auth=mysql_old_password and server default_auth=native
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password -e "select user(), current_user()"
---exec $MYSQL -uTanjotuser2 -h127.0.0.1 -pabc --default_auth=mysql_old_password -e "select user(), current_user()"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select user(), current_user()"
+--exec $MYSQL -uTanjotuser2 -h127.0.0.1 -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select user(), current_user()"
 
 # Dropping the created users
 
@@ -1008,132 +997,16 @@ select @@global.old_passwords;
 
 
 --echo **** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser2 -pabc --skip-secure-auth --default_auth=mysql_native_password -e "select @@session.old_passwords"
 --echo 1 Expected
 
 --echo **** connecting Tanjotuser2 with Client default_auth=mysql_old_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser2 -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select @@session.old_passwords"
 --echo 1 Expected
 
 --echo **** connecting Tanjotuser2 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser2 -pabc --skip-secure-auth --default_auth=sha256_password -e "select @@session.old_passwords"
 --echo 1 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=mysql_old_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=mysql_old_password -e "select @@session.old_passwords"
---echo 2 Expected
-
---echo **** connecting Tanjotuser3 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser3 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 2 Expected
-
-
-# Dropping the created users
-
-DROP USER 'Tanjotuser1'@'localhost';
-DROP USER 'Tanjotuser2'@'localhost';
-DROP USER 'Tanjotuser3'@'localhost';
-
-
-## The parts of the below section has been hashed out till the bug https://clustra.no.oracle.com/orabugs/bug.php?id=16014394 is fixed
-
---echo
---echo 
---echo =================================================================================================
---echo Starting the server with the default authentication mysql_old_password
---echo =================================================================================================
---echo 
-
---echo # Restart server with default-authentication-plugin=mysql_old_password;
-
-let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
---exec echo "wait" > $restart_file
---shutdown_server 10
---source include/wait_until_disconnected.inc
--- exec echo "restart:--default-authentication-plugin=mysql_old_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
--- enable_reconnect
--- source include/wait_until_connected_again.inc
-
-# Creating 3 users with mysql_native_password, mysql_old_password and sha256_password plugins respectively
-
-set @@session.old_passwords=1;
-
---echo Creating a user with mysql_old_password plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
-
-Grant all on *.* to 'Tanjotuser1'@'localhost';
-
---echo Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-
-set @@session.old_passwords=0;
-
-set password for 'Tanjotuser2'@'localhost' =password('abc');
-
-Grant all on *.* to 'Tanjotuser2'@'localhost';
-
---echo Creating a user with SHA256_password plugin
-CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
-
-set @@session.old_passwords=2;
-
-set password for 'Tanjotuser3'@'localhost' =password('abc');
-
-Grant all on *.* to 'Tanjotuser3'@'localhost';
-
-# Set secure_auth to disabled for mysql_old_password plugin to connect
-
---disable_warnings
-set @@global.secure_auth=0;
---enable_warnings
-
-# Verifying the Authentication plugin for the above created users
-
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password';
---echo 1 Expected
-
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
---echo 1 Expected
-
-select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
---echo 1 Expected
-
-# Verifying the old_passwords variable Global value
-
-#select @@global.old_passwords;
-#--echo 1 Expected
-
-# Verifying the old_passwords variable session value
-
-#--echo **** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
-#--exec $MYSQL -uTanjotuser1 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
-#--echo 1 Expected
-
-#--echo **** connecting Tanjotuser1 with Client default_auth=mysql_old_password 
-#--exec $MYSQL -uTanjotuser1 -pabc --default_auth=mysql_old_password -e "select @@session.old_passwords"
-#--echo 1 Expected
-
-#--echo **** connecting Tanjotuser1 with Client default_auth=sha256_password 
-#--exec $MYSQL -uTanjotuser1 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
-#--echo 1 Expected
-
-
---echo **** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
---echo 0 Expected
-
---echo **** connecting Tanjotuser2 with Client default_auth=mysql_old_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=mysql_old_password -e "select @@session.old_passwords"
---echo 0 Expected
-
-
---echo **** connecting Tanjotuser2 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser2 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
---echo 0 Expected
 
 --echo **** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
 --exec $MYSQL -uTanjotuser3 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
@@ -1223,15 +1096,15 @@ select @@global.old_passwords;
 # Verifying the old_passwords variable session value
 
 --echo **** connecting Tanjotuser1 with Client default_auth=mysql_native_password 
---exec $MYSQL -uTanjotuser1 -pabc --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -pabc --skip-secure-auth --default_auth=mysql_native_password -e "select @@session.old_passwords"
 --echo 1 Expected
 
 --echo **** connecting Tanjotuser1 with Client default_auth=mysql_old_password 
---exec $MYSQL -uTanjotuser1 -pabc --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select @@session.old_passwords"
 --echo 1 Expected
 
 --echo **** connecting Tanjotuser1 with Client default_auth=sha256_password 
---exec $MYSQL -uTanjotuser1 -pabc --default_auth=sha256_password -e "select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -pabc --skip-secure-auth --default_auth=sha256_password -e "select @@session.old_passwords"
 --echo 1 Expected
 
 

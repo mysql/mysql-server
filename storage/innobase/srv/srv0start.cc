@@ -1244,10 +1244,6 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_ZIP_COPY */
 
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"CPU %s crc32 instructions",
-		ut_crc32_sse2_enabled ? "supports" : "does not support");
-
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
 	print an error message if someone tries to start up InnoDB a
@@ -1367,26 +1363,61 @@ innobase_start_or_create_for_mysql(void)
 	maximum number of threads that can wait in the 'srv_conc array' for
 	their time to enter InnoDB. */
 
-	if (srv_buf_pool_size >= 1000 * 1024 * 1024) {
-		/* If buffer pool is less than 1000 MB,
-		assume fewer threads. Also use only one
-		buffer pool instance */
+#define BUF_POOL_SIZE_THRESHOLD	(1024 * 1024 * 1024)
+
+	if (srv_buf_pool_size >= BUF_POOL_SIZE_THRESHOLD) {
 		srv_max_n_threads = 50000;
 
-	} else if (srv_buf_pool_size >= 8 * 1024 * 1024) {
-
-		srv_buf_pool_instances = 1;
-		srv_max_n_threads = 10000;
+		if (srv_buf_pool_instances == SRV_BUF_POOL_INSTANCES_NOT_SET) {
+#if defined(__WIN__) && !defined(_WIN64)
+			/* Do not allocate too large of a buffer pool on
+			Windows 32-bit systems, which can have trouble
+			allocating larger single contiguous memory blocks. */
+			srv_buf_pool_instances = ut_min(
+				MAX_BUFFER_POOLS,
+				(long) (srv_buf_pool_size
+					/ (128 * 1024 * 1024)));
+#else /* defined(__WIN__) && !defined(_WIN64) */
+			/* Default to 8 instances when size > 1GB. */
+			srv_buf_pool_instances = 8;
+#endif /* defined(__WIN__) && !defined(_WIN64) */
+		}
 	} else {
+		/* If buffer pool is less than 1 GiB, assume fewer
+		threads. Also use only one buffer pool instance. */
+		if (srv_buf_pool_instances != SRV_BUF_POOL_INSTANCES_NOT_SET
+		    && srv_buf_pool_instances != 1) {
+			/* We can't distinguish whether the user has explicitly
+			started mysqld with --innodb-buffer-pool-instances=0,
+			(SRV_BUF_POOL_INSTANCES_NOT_SET is 0) or has not
+			specified that option at all. Thus we have the
+			limitation that if the user started with =0, we
+			will not emit a warning here, but we should actually
+			do so. */
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Adjusting innodb_buffer_pool_instances from "
+				"%lu to 1 since innodb_buffer_pool_size is "
+				"less than %d MiB",
+				srv_buf_pool_instances,
+				BUF_POOL_SIZE_THRESHOLD / (1024 * 1024));
+		}
+
 		srv_buf_pool_instances = 1;
 
-		/* Saves several MB of memory, especially in
-		64-bit computers */
-
-		srv_max_n_threads = 1000;
+		if (srv_buf_pool_size >= 8 * 1024 * 1024) {
+			srv_max_n_threads = 10000;
+		} else {
+			/* Saves several MB of memory, especially in
+			64-bit computers */
+			srv_max_n_threads = 1000;
+		}
 	}
 
 	srv_boot();
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%s CPU crc32 instructions",
+		ut_crc32_sse2_enabled ? "Using" : "Not using");
 
 	if (!srv_read_only_mode) {
 
@@ -1504,9 +1535,10 @@ innobase_start_or_create_for_mysql(void)
 		unit = 'M';
 	}
 
-	/* Print time to initialize the buffer pool */
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Initializing buffer pool, size = %.1f%c", size, unit);
+		"Initializing buffer pool, total size = %.1f%c, "
+		"instances = %lu",
+		size, unit, srv_buf_pool_instances);
 
 	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
 

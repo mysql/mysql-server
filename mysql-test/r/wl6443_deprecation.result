@@ -110,8 +110,6 @@ create table mysql.host(c1 int) engine MyISAM;
 insert into mysql.host values(1);
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -143,6 +141,10 @@ mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
 Warning	1642	Table mysql.host is not empty. It is deprecated and will be removed in a future release.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 drop table mysql.host;
 create view mysql.host as select HOST from mysql.db;
 create user 'wl6443_u1'@'10.10.10.1' identified by 'sql';
@@ -151,8 +153,6 @@ count(*)
 2
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -182,12 +182,14 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
 drop view mysql.host;
 drop user 'wl6443_u1'@'10.10.10.1';
 Warning: Using a password on the command line interface can be insecure.
 Warning: Using a password on the command line interface can be insecure.
-mtr.global_suppressions                            OK
-mtr.test_suppressions                              OK
 mysql.columns_priv                                 OK
 mysql.db                                           OK
 mysql.event                                        OK
@@ -217,3 +219,7 @@ mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
 Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+Warning: Using a password on the command line interface can be insecure.
+mtr.global_suppressions                            OK
+mtr.test_suppressions                              OK
