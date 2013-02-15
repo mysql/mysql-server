@@ -88,13 +88,6 @@ void mutex_destroy(
 	mutex->destroy();
 }
 
-#ifdef UNIV_SYNC_DEBUG
-/**
-Prints debug info of currently reserved mutexes. 
-@param file - where to print */
-UNIV_INTERN void mutex_list_print_info(FILE* file);
-#endif /* UNIV_SYNC_DEBUG */
-
 #ifndef UNIV_NONINL
 #include "sync0mutex.ic"
 #endif /* !UNIV_NOINL */

@@ -91,8 +91,6 @@ void
 sync_print(FILE* file)
 {
 #ifdef UNIV_SYNC_DEBUG
-	mutex_list_print_info(file);
-
 	rw_lock_list_print_info(file);
 #endif /* UNIV_SYNC_DEBUG */
 
