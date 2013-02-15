@@ -1183,7 +1183,7 @@ static const char* default_dbug_option;
 const char *libwrapName= NULL;
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
-#endif
+#endif /* HAVE_LIBWRAP */
 #ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
@@ -5338,7 +5338,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif
+#endif /* HAVE_LIBWRAP */
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
@@ -6320,7 +6320,7 @@ void handle_connections_sockets()
             The connection was refused by TCP wrappers.
             There are no details (by client IP) available to update the host_cache.
           */
-          statistic_increment(connection_tcpwrap_errors, &LOCK_status);
+          statistic_increment(connection_errors_tcpwrap, &LOCK_status);
           continue;
         }
       }
