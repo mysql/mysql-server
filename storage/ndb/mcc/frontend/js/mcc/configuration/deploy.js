@@ -1084,6 +1084,102 @@ function getStartClusterCommands(ptype) {
     return pgroups;
 }
 
+// Generate the stop command for the given process
+function getStopCommand(process) {
+    // Command description for use in messages
+    var stopCommand = {};
+
+    // Get process type
+    var ptype = clusterItems[process.getValue("processtype")];
+
+    // Stop commands only for mysqld and ndb_mgmd
+    if (ptype.getValue("name") == "mysqld" || ptype.getValue("name") == "ndb_mgmd") {
+        // Get host
+        var host = clusterItems[process.getValue("host")];
+
+        // Assign host name, install dir and process name
+        stopCommand.file = {
+            hostName: host.getValue("name"),
+            path: mcc.util.unixPath(getEffectiveInstalldir(host)),
+            autoComplete: true
+        };
+
+        stopCommand.procCtrl = {
+            hup: false,
+            getStd: false,
+            waitForCompletion: false
+        };
+
+        // Is this windows?
+        var isWin = host.getValue("uname") == "Windows" || 
+                host.getValue("uname") == "CYGWIN";
+
+        // Add process specific options
+        if (ptype.getValue("name") == "ndb_mgmd") {
+            stopCommand.file.name = "ndb_mgm";
+            stopCommand.params = {
+                sep: " ",
+                param: [
+                    {name: "--ndb-connectstring", val: getConnectstring()},
+                    {name: "--execute", val: "shutdown"}
+                ]
+            };
+        } else if (ptype.getValue("name") == "mysqld") {
+            stopCommand.file.name = "mysqladmin";
+            
+            stopCommand.params = {
+                sep: " ",
+                param: [
+                    {name: "--port", val: getEffectiveInstanceValue(process, "Port")},
+                    {name: "--user", val: "root"},
+                    {name: "shutdown"}
+                ]
+            };
+            
+            // Add socket option unless windows
+            if (!isWin) {
+                stopCommand.params.param.push({
+                    name: "--socket", 
+                    val: mcc.util.quotePath(getEffectiveInstanceValue(process, "Socket"))
+                });
+            }
+        }
+        
+        // Windows: Append .exe to file name, set waitForCompletion = false
+        if (isWin) {
+            // stopCommand.procCtrl.waitForCompletion = false;
+            stopCommand.file.name += ".exe";
+        }
+    }
+    return stopCommand;
+}
+
+// Get stop commands for all mysqlds and for management (including ndbd)
+function getStopClusterCommands() {
+
+    // Array of process groups to return
+    var pgroups = [];
+
+    // Append stop commands for a set of processes
+    function appendStopCommands(procs) {
+        pgroups.push({
+            plist: [],
+            syncPolicy: {
+                type: "wait",
+                length: 2
+            }                    
+        });
+
+        for (var i in procs) {
+            pgroups[pgroups.length-1].plist.push(getStopCommand(procs[i]));
+        }
+    }
+
+    appendStopCommands(processFamilyInstances("sql"));
+    appendStopCommands(processFamilyInstances("management"));
+    return pgroups;
+}
+
 // Send a create- or append command to the back end
 function sendFileOp(createCmds, curr, waitCondition) {
     var createCmd = createCmds[curr];
@@ -1221,7 +1317,7 @@ function startCluster() {
 
             // Get the start cluster commands
             var commands = getStartClusterCommands();
-            var layers = ["Management layer", "Data layer", "Data layer", "Sql layer"];
+            var layers = ["Management layer", "Data layer", "Data layer", "SQL layer"];
             var currseq = 0;
 
             function onError(errMsg) {
@@ -1296,118 +1392,59 @@ function startCluster() {
 function stopCluster() {
     // External wait condition
     var waitCondition = new dojo.Deferred();
-
-    // Get start cluster commands, transform into stop cluster
-    var startPgroups = getStartClusterCommands();
-
-    // Stop cluster command, use ndb_mgmd and mysqld commands
-    var pgroups = [];
-
-    // Get a connect string
-    var connectString = getConnectstring();
-
     mcc.util.dbg("Stopping cluster...");
-    updateProgressDialog("Stopping cluster", "Preparing commands");
 
-    // Replace ndb_mgmd by ndb_mgm and replace parameters
-    if (startPgroups[0]) {
-        var found = false;
-        pgroups[0] = startPgroups[0];
-        for (var p in pgroups[0].plist) {
-            if (pgroups[0].plist[p].file.name.indexOf("ndb_mgmd") != -1 && 
-                    !found) {
-                found = true; 
-                pgroups[0].plist[p].file.name = 
-                        pgroups[0].plist[p].file.name.replace("ndb_mgmd", 
-                                "ndb_mgm");
-                pgroups[0].plist[p].params.param = [
-                    {name: "--ndb-connectstring", val: connectString},
-                    {name: "--execute", val: "shutdown"}
-                ];
-            } else {
-                pgroups[0].plist.splice(p, 1); 
-            }
-        }
-    }
+    // Get the start cluster commands
+    var commands = getStopClusterCommands();
+    var layers = ["SQL layer", "Management layer"];
+    var procNames = ["SQL", "Cluster"];
+    var currseq = 0;
 
-    // Replace mysqld by mysqladmin and replace parameters
-    if (startPgroups[3]) {
-        pgroups[1] = startPgroups[3];
-        for (var p in pgroups[1].plist) {
-            if (pgroups[1].plist[p].file.name.indexOf("mysqld") != -1) {
-                // Find port and socket
-                var port = null;
-                var socket = null;
-                for (var i in pgroups[1].plist[p].params.param) {
-                    if (pgroups[1].plist[p].params.param[i].name == "--port") {
-                        port = pgroups[1].plist[p].params.param[i].val;
-                    } else if (pgroups[1].plist[p].params.param[i].name == 
-                            "--socket") {
-                        socket = pgroups[1].plist[p].params.param[i].val;
-                    }
-
+    function onReply() {
+        mcc.util.dbg("Wait for " + procNames[currseq-1] + " processes to be stopped");  
+        mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
+            var procs = pfam[0].getValues("processes");
+            var timer = null;
+            for (var i in procs) {
+                var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
+                if (stat && stat != "STOPPED" && stat != "UNKNOWN" && stat != "NO_CONTACT" && !timer) {
+                    // Not all stopped, wait and call onReply again
+                    mcc.util.dbg("Not all " + procNames[currseq-1] + " processes are stopped, continue waiting");
+                    timer = setTimeout(onReply, 2000);
+                    break;
                 }
-                pgroups[1].plist[p].file.name = 
-                        pgroups[1].plist[p].file.name.replace("mysqld", 
-                                "mysqladmin");
-                pgroups[1].plist[p].procCtrl = {
-                    hup: false,
-                    getStd: false,
-                    waitForCompletion: true
-                };
-                pgroups[1].plist[p].params.param = [
-//                    {name: "--host", val: pgroups[1].plist[p].file.hostName},
-                    {name: "--port", val: port},
-                    {name: "--socket", val: socket},
-                    {name: "--user", val: "root"},
-                    {name: "shutdown"}
-                ];
-            } else {
-                pgroups[1].plist.splice(p, 1); 
             }
-        }
+            if (!timer) {
+                mcc.util.dbg("All " + procNames[currseq-1] + " processes are stopped");
+                updateProgressAndStopNext();
+            }
+        });
     }
-    updateProgressDialog("Stopping cluster", 
-            "Stopping SQL nodes", 
-            {progress: "30%"});
 
-    // Stop mysqlds first, then ndb_mgmd (which also stops ndbds)
-    mcc.server.startClusterReq([pgroups[1]], 
-        function () {
-            mcc.util.dbg("mysqld stopped");
+    function updateProgressAndStopNext() {
+        if (currseq < commands.length) {
+            mcc.util.dbg("Stopping " + procNames[currseq] + " processes");
             updateProgressDialog("Stopping cluster", 
-                    "Stopping management and data nodes", 
-                    {progress: "60%"});
-            mcc.server.startClusterReq([pgroups[0]], 
-                function () {
-                    mcc.util.dbg("ndb_mgmd and ndbd stopped");
-                    mcc.util.dbg("Cluster stopped");
-                    updateProgressDialog("Stopping cluster", 
-                            "Waiting...", 
-                            {indeterminate: true});
-                    setTimeout(function () {
-                    updateProgressDialog("Stopping cluster", 
-                            "Cluster stopped", 
-                            {progress: "100%"});
-                        alert("Cluster stopped");
-                        removeProgressDialog();
-                        waitCondition.resolve();
-                    }, 5 * 1000);
-                },
-                function (errMsg) {
-                    waitCondition.resolve();
-                    alert(errMsg);
-                    removeProgressDialog();
-                }
-            );
-        },
-        function (errMsg) {
-            waitCondition.resolve();
-            alert(errMsg);
+                    "Stopping " + procNames[currseq] +
+                    " processes", {maximum: 3, progress: 1 + currseq});
+            mcc.server.startClusterReq([commands[currseq]], 
+                onReply, onReply);                        
+            currseq++;        
+        } else {
+            mcc.util.dbg("Cluster stopped");
+            updateProgressDialog("Stopping cluster", 
+                    "Cluster stopped", 
+                    {progress: "100%"});
+            alert("Cluster stopped");
             removeProgressDialog();
+            waitCondition.resolve();
         }
-    );
-    return waitCondition;
+    }
+
+    // Initiate stop sequence
+    updateProgressAndStopNext();            
+
+    return waitCondition; 
 }
 
 /******************************** Initialize  *********************************/
