@@ -1519,7 +1519,7 @@ innobase_fts_check_doc_id_col(
 	uint i;
 
 	for (i = 0; i < n_cols; i++) {
-		const Field*	field = altered_table->s->field[i];
+		const Field*	field = altered_table->field[i];
 
 		if (my_strcasecmp(system_charset_info,
 				  field->field_name, FTS_DOC_ID_COL_NAME)) {
@@ -2374,7 +2374,7 @@ innobase_build_col_map(
 
 		innobase_build_col_map_add(
 			heap, dtuple_get_nth_field(add_cols, i),
-			altered_table->s->field[i],
+			altered_table->field[i],
 			dict_table_is_comp(new_table));
 found_col:
 		i++;
@@ -3777,8 +3777,8 @@ func_exit:
 			}
 			add_autoinc_col_no = i;
 
-			autoinc_col_max_value = innobase_get_int_col_max_value(
-				field);
+			autoinc_col_max_value =
+				field->get_max_int_value();
 		}
 found_col:
 		i++;
@@ -4613,6 +4613,8 @@ commit_get_autoinc(
 	const TABLE*		old_table,
 	dict_table_t*		user_table)
 {
+	ulonglong			max_autoinc;
+
 	ha_innobase_inplace_ctx*	ctx
 		= static_cast<ha_innobase_inplace_ctx*>
 		(ha_alter_info->handler_ctx);
@@ -4622,30 +4624,41 @@ commit_get_autoinc(
 	if (!altered_table->found_next_number_field) {
 		/* There is no AUTO_INCREMENT column in the table
 		after the ALTER operation. */
-		DBUG_RETURN(0);
+		max_autoinc = 0;
 	} else if (ctx && ctx->add_autoinc != ULINT_UNDEFINED) {
 		/* An AUTO_INCREMENT column was added. Get the last
 		value from the sequence, which may be based on a
 		supplied AUTO_INCREMENT value. */
-		DBUG_RETURN(ctx->sequence.last());
+		max_autoinc = ctx->sequence.last();
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
 		   && (ha_alter_info->create_info->used_fields
 		       & HA_CREATE_USED_AUTO)) {
 		/* An AUTO_INCREMENT value was supplied, but the table
-		was not rebuilt. Get the user-supplied value. */
-		DBUG_RETURN(ha_alter_info->create_info->auto_increment_value);
+		was not rebuilt. Get the user-supplied value or the
+		last value from the sequence. */
+		ut_ad(old_table->found_next_number_field);
+
+		max_autoinc = ha_alter_info->create_info->auto_increment_value;
+		if (ctx && max_autoinc < ctx->sequence.last()) {
+			max_autoinc = ctx->sequence.last();
+		}
+
+		dict_table_autoinc_lock(user_table);
+		if (max_autoinc < user_table->autoinc) {
+			max_autoinc = user_table->autoinc;
+		}
+		dict_table_autoinc_unlock(user_table);
 	} else {
 		/* An AUTO_INCREMENT value was not specified.
 		Read the old counter value from the table. */
-		ulonglong	max_autoinc;
-
 		ut_ad(old_table->found_next_number_field);
 		dict_table_autoinc_lock(user_table);
-		max_autoinc = dict_table_autoinc_read(user_table);
+		max_autoinc = user_table->autoinc;
 		dict_table_autoinc_unlock(user_table);
-		DBUG_RETURN(max_autoinc);
 	}
+
+	DBUG_RETURN(max_autoinc);
 }
 
 /** Add or drop foreign key constraints to the data dictionary tables,
@@ -4690,7 +4703,14 @@ innobase_update_foreign_try(
 		ut_ad(fk->foreign_table == ctx->indexed_table
 		      || fk->foreign_table == user_table);
 
-		dict_create_add_foreign_id(&foreign_id, user_table->name, fk);
+		dberr_t error = dict_create_add_foreign_id(
+			&foreign_id, user_table->name, fk);
+
+		if (error != DB_SUCCESS) {
+			my_error(ER_TOO_LONG_IDENT, MYF(0),
+				 fk->id);
+			DBUG_RETURN(true);
+		}
 
 		if (!fk->foreign_index) {
 			fk->foreign_index = dict_foreign_find_index(
@@ -4709,7 +4729,7 @@ innobase_update_foreign_try(
 
 		/* The fk->foreign_col_names[] uses renamed column names,
 		while the columns in user_table have not been renamed yet. */
-		dberr_t error = dict_create_add_foreign_to_dictionary(
+		error = dict_create_add_foreign_to_dictionary(
 			user_table->name, fk, trx);
 
 		DBUG_EXECUTE_IF(
@@ -5713,6 +5733,7 @@ foreign_fail:
 @param thd - the session
 @param start_value - the lower bound
 @param max_value - the upper bound (inclusive) */
+UNIV_INTERN
 ib_sequence_t::ib_sequence_t(
 	THD*		thd,
 	ulonglong	start_value,
@@ -5749,6 +5770,7 @@ ib_sequence_t::ib_sequence_t(
 /**
 Postfix increment
 @return the next value to insert */
+UNIV_INTERN
 ulonglong
 ib_sequence_t::operator++(int) UNIV_NOTHROW
 {
