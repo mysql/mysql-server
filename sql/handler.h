@@ -1265,6 +1265,18 @@ public:
   inplace_alter_handler_ctx *handler_ctx;
 
   /**
+    If the table uses several handlers, like ha_partition uses one handler
+    per partition, this contains a Null terminated array of ctx pointers
+    that should all be committed together.
+    Or NULL if only handler_ctx should be committed.
+    Set to NULL if the low level handler::commit_inplace_alter_table uses it,
+    to signal to the main handler that everything was committed as atomically.
+
+    @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx **group_commit_ctx;
+
+  /**
      Flags describing in detail which operations the storage engine is to execute.
   */
   HA_ALTER_FLAGS handler_flags;
@@ -1311,6 +1323,7 @@ public:
     index_add_count(0),
     index_add_buffer(NULL),
     handler_ctx(NULL),
+    group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
@@ -2926,6 +2939,10 @@ protected:
 
     @note In case of partitioning, this function might be called for rollback
     without prepare_inplace_alter_table() having been called first.
+    Also partitioned tables sets ha_alter_info->group_commit_ctx to a NULL
+    terminated array of the partitions handlers and if all of them are
+    committed as one, then group_commit_ctx should be set to NULL to indicate
+    to the partitioning handler that all partitions handlers are committed.
     @see prepare_inplace_alter_table().
 
     @param    altered_table     TABLE object for new version of table.
@@ -2940,7 +2957,11 @@ protected:
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
                                          bool commit)
- { return false; }
+{
+  /* Nothing to commit/rollback, mark all handlers committed! */
+  ha_alter_info->group_commit_ctx= NULL;
+  return false;
+}
 
 
  /**
