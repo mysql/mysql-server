@@ -82,7 +82,6 @@ SELECT * FROM information_schema.innodb_cmp_per_index;
 
 DROP USER 'tuser01'@'localhost';
 
--- replace_regex /index_id:[0-9]+/index_id:idisnondeterministic/
 SELECT
 database_name,
 table_name,
