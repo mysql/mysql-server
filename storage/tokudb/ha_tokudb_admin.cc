@@ -1,52 +1,13 @@
 #if TOKU_INCLUDE_ANALYZE
-//
-// This function will probably need to be redone from scratch
-// if we ever choose to implement it
-//
-int 
-ha_tokudb::analyze(THD * thd, HA_CHECK_OPT * check_opt) {
-    uint i;
-    DB_BTREE_STAT *stat = 0;
-    DB_TXN_STAT *txn_stat_ptr = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd->ha_data[tokudb_hton->slot];
-    DBUG_ASSERT(trx);
 
-    for (i = 0; i < table_share->keys; i++) {
-        if (stat) {
-            free(stat);
-            stat = 0;
-        }
-        if ((key_file[i]->stat) (key_file[i], trx->all, (void *) &stat, 0))
-            goto err;
-        share->rec_per_key[i] = (stat->bt_ndata / (stat->bt_nkeys ? stat->bt_nkeys : 1));
-    }
-    /* A hidden primary key is not in key_file[] */
-    if (hidden_primary_key) {
-        if (stat) {
-            free(stat);
-            stat = 0;
-        }
-        if ((file->stat) (file, trx->all, (void *) &stat, 0))
-            goto err;
-    }
-    pthread_mutex_lock(&share->mutex);
-    share->status |= STATUS_TOKUDB_ANALYZE;        // Save status on close
-    share->version++;           // Update stat in table
-    pthread_mutex_unlock(&share->mutex);
-    update_status(share, table);        // Write status to file
-    if (stat)
-        free(stat);
-    return ((share->status & STATUS_TOKUDB_ANALYZE) ? HA_ADMIN_FAILED : HA_ADMIN_OK);
-
-  err:
-    if (stat)
-        free(stat);
-    return HA_ADMIN_FAILED;
+int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::analyze");
+    TOKUDB_DBUG_RETURN(HA_ADMIN_OK);
 }
+
 #endif
 
-static int 
-hot_poll_fun(void *extra, float progress) {
+static int hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
     if (context->thd->killed) {
         sprintf(context->write_status_msg, "The process has been killed, aborting hot optimize.");
@@ -71,8 +32,7 @@ hot_poll_fun(void *extra, float progress) {
 volatile int ha_tokudb_optimize_wait = 0; // debug
 
 // flatten all DB's in this table, to do so, peform hot optimize on each db
-int 
-ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
+int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     TOKUDB_DBUG_ENTER("ha_tokudb::optimize");
     while (ha_tokudb_optimize_wait) sleep(1); // debug
 
@@ -117,13 +77,11 @@ cleanup:
     TOKUDB_DBUG_RETURN(error);
 }
 
-
 struct check_context {
     THD *thd;
 };
 
-static int
-ha_tokudb_check_progress(void *extra, float progress) {
+static int ha_tokudb_check_progress(void *extra, float progress) {
     struct check_context *context = (struct check_context *) extra;
     int result = 0;
     if (context->thd->killed)
@@ -131,8 +89,7 @@ ha_tokudb_check_progress(void *extra, float progress) {
     return result;
 }
 
-static void
-ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
+static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
     if (thd->vio_ok()) {
         char tablename[256];
         snprintf(tablename, sizeof tablename, "%s.%s", table->s->db.str, table->s->table_name.str);
@@ -148,8 +105,7 @@ ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
 volatile int ha_tokudb_check_verbose = 0; // debug
 volatile int ha_tokudb_check_wait = 0; // debug
 
-int
-ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
+int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_DBUG_ENTER("check");
     while (ha_tokudb_check_wait) sleep(1); // debug
 

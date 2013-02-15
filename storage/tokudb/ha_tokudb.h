@@ -454,7 +454,7 @@ public:
     int delete_table(const char *name);
     int rename_table(const char *from, const char *to);
     int optimize(THD * thd, HA_CHECK_OPT * check_opt);
-#if 0
+#if TOKU_INCLUDE_ANALYZE
     int analyze(THD * thd, HA_CHECK_OPT * check_opt);
 #endif
     int write_row(uchar * buf);

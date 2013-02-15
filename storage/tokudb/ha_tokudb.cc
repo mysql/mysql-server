@@ -3805,7 +3805,7 @@ int ha_tokudb::write_row(uchar * record) {
     // some crap that needs to be done because MySQL does not properly abstract
     // this work away from us, namely filling in auto increment and setting auto timestamp
     //
-    statistic_increment(table->in_use->status_var.ha_write_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_write_count);
 #if MYSQL_VERSION_ID < 50600
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_INSERT) {
         table->timestamp_field->set_time();
@@ -4005,7 +4005,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     memset((void *) &old_prim_row, 0, sizeof(old_prim_row));
 
 
-    statistic_increment(table->in_use->status_var.ha_update_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_update_count);
 #if MYSQL_VERSION_ID < 50600
     if (table->timestamp_field_type & TIMESTAMP_AUTO_SET_ON_UPDATE) {
         table->timestamp_field->set_time();
@@ -4165,7 +4165,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     uint curr_num_DBs;
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
 
-    statistic_increment(table->in_use->status_var.ha_delete_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_delete_count);
 
     //
     // grab reader lock on numDBs_lock
@@ -4643,7 +4643,7 @@ int ha_tokudb::read_full_row(uchar * buf) {
 // 
 int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) { 
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next_same");
-    statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_next_count);
 
     DBT curr_key;
     DBT found_key;
@@ -4700,7 +4700,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
 
     HANDLE_INVALID_CURSOR();
 
-    table->in_use->status_var.ha_read_key_count++;
+    ha_statistic_increment(&SSV::ha_read_key_count);
     memset((void *) &row, 0, sizeof(row));
 
     info.ha = this;
@@ -5196,7 +5196,7 @@ cleanup:
 //
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
-    statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_next_count);
     int error = get_next(buf, 1);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -5218,7 +5218,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 //
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
-    statistic_increment(table->in_use->status_var.ha_read_next_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_next_count);
     int error = get_next(buf, -1);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -5242,7 +5242,7 @@ int ha_tokudb::index_first(uchar * buf) {
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     HANDLE_INVALID_CURSOR();
 
-    statistic_increment(table->in_use->status_var.ha_read_first_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_first_count);
 
     info.ha = this;
     info.buf = buf;
@@ -5285,7 +5285,7 @@ int ha_tokudb::index_last(uchar * buf) {
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
     HANDLE_INVALID_CURSOR();
 
-    statistic_increment(table->in_use->status_var.ha_read_last_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_last_count);
 
     info.ha = this;
     info.buf = buf;
@@ -5366,7 +5366,7 @@ int ha_tokudb::rnd_end() {
 //
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
-    statistic_increment(table->in_use->status_var.ha_read_rnd_next_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_rnd_next_count);
     int error = get_next(buf, 1);
     TOKUDB_DBUG_RETURN(error);
 }
@@ -5445,7 +5445,7 @@ int ha_tokudb::rnd_pos(uchar * buf, uchar * pos) {
     DBT* key = get_pos(&db_pos, pos); 
 
     unpack_entire_row = true;
-    statistic_increment(table->in_use->status_var.ha_read_rnd_count, &LOCK_status);
+    ha_statistic_increment(&SSV::ha_read_rnd_count);
     tokudb_active_index = MAX_KEY;
 
     info.ha = this;
