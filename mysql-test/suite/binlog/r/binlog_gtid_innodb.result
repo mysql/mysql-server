@@ -1,0 +1,173 @@
+SET BINLOG_FORMAT=MIXED;
+RESET MASTER;
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6);
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+UPDATE t1 SET b = 2*a WHERE a > 1;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+UPDATE t1 SET b = a * a WHERE a > 3;
+COMMIT;
+SET BINLOG_FORMAT=STATEMENT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+UPDATE t1 SET b = 1*a WHERE a > 1;
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+UPDATE t1 SET b = 2*a WHERE a > 2;
+ERROR HY000: Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table uses a storage engine limited to row-based logging. InnoDB is limited to row-logging when transaction isolation level is READ COMMITTED or READ UNCOMMITTED.
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+UPDATE t1 SET b = 3*a WHERE a > 3;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+UPDATE t1 SET b = 4*a WHERE a > 4;
+COMMIT;
+SET BINLOG_FORMAT=MIXED;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+UPDATE t1 SET b = 1*a WHERE a > 1;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+UPDATE t1 SET b = 2*a WHERE a > 2;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+UPDATE t1 SET b = 3*a WHERE a > 3;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+UPDATE t1 SET b = 4*a WHERE a > 4;
+COMMIT;
+SET BINLOG_FORMAT=ROW;
+SET SESSION TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
+BEGIN;
+UPDATE t1 SET b = 1*a WHERE a > 1;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+BEGIN;
+UPDATE t1 SET b = 2*a WHERE a > 2;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+BEGIN;
+UPDATE t1 SET b = 3*a WHERE a > 3;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+UPDATE t1 SET b = 4*a WHERE a > 4;
+COMMIT;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1 (a INT PRIMARY KEY, b INT) ENGINE=INNODB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES (1,1),(2,2),(3,3),(4,4),(5,5),(6,6)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 2*a WHERE a > 1
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 3*a WHERE a > 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 4*a WHERE a > 4
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 3*a WHERE a > 3
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t1 SET b = 4*a WHERE a > 4
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+DROP TABLE t1;
+flush status;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	0
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	0
+create table t1 (a int) engine=innodb;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	1
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+begin;
+delete from t1;
+commit;
+show status like "binlog_cache_use";
+Variable_name	Value
+Binlog_cache_use	2
+show status like "binlog_cache_disk_use";
+Variable_name	Value
+Binlog_cache_disk_use	1
+drop table t1;
+CREATE TABLE `t1` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1 ;
+CREATE TABLE `t2` (
+`a` int(11) NOT NULL auto_increment,
+`b` int(11) default NULL,
+PRIMARY KEY  (`a`)
+) ENGINE=INNODB DEFAULT CHARSET=latin1 ;
+insert into t1 values (1,1),(2,2);
+insert into t2 values (1,1),(4,4);
+reset master;
+UPDATE t2,t1 SET t2.a=t1.a+2;
+ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
+select * from t2 /* must be (3,1), (4,4) */;
+a	b
+1	1
+4	4
+# There must no UPDATE in binlog;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+delete from t1;
+delete from t2;
+insert into t1 values (1,2),(3,4),(4,4);
+insert into t2 values (1,2),(3,4),(4,4);
+reset master;
+UPDATE t2,t1  SET t2.a=t2.b where t2.a=t1.a;
+ERROR 23000: Duplicate entry '4' for key 'PRIMARY'
+# There must be no UPDATE query event;
+include/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+drop table t1, t2;
+End of tests

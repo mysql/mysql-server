@@ -3189,11 +3189,29 @@ int handler::update_auto_increment()
       statement (case of INSERT VALUES(null),(3763),(null):
       the last NULL needs to insert 3764, not the value of the first NULL plus
       1).
+      Also we should take into account the the sign of the value.
+      Since auto_increment value can't have negative value we should update
+      next_insert_id only in case when we INSERTing explicit positive value.
+      It means that for a table that has SIGNED INTEGER column when we execute
+      the following statement
+      INSERT INTO t1 VALUES( NULL), (-1), (NULL)
+      we shouldn't call adjust_next_insert_id_after_explicit_value()
+      and the result row will be (1, -1, 2) (for new opened connection
+      to the server). On the other hand, for the statement
+      INSERT INTO t1 VALUES( NULL), (333), (NULL)
+      we should call adjust_next_insert_id_after_explicit_value()
+      and result row will be (1, 333, 334).
     */
-    adjust_next_insert_id_after_explicit_value(nr);
+    if (((Field_num*)table->next_number_field)->unsigned_flag ||
+        ((longlong)nr) > 0)
+      adjust_next_insert_id_after_explicit_value(nr);
+
     insert_id_for_cur_row= 0; // didn't generate anything
     DBUG_RETURN(0);
   }
+
+  if (next_insert_id > table->next_number_field->get_max_int_value())
+    DBUG_RETURN(HA_ERR_AUTOINC_READ_FAILED);
 
   if ((nr= next_insert_id) >= auto_inc_interval_for_cur_row.maximum())
   {
@@ -4060,6 +4078,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
       return 0;
   }
   if ((error= check(thd, check_opt)))
+    return error;
+  /* Skip updating frm version if not main handler. */
+  if (table->file != this)
     return error;
   return update_frm_version(table);
 }
