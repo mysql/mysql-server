@@ -3,6 +3,30 @@
 # the tablespace is missing.
 #
 
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+
+--disable_query_log
+let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+let $innodb_file_format_orig=`select @@innodb_file_format`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
+--enable_query_log
+
+set global innodb_file_per_table=on;
+
+--disable_query_log
+set session debug="+d,crash_after_drop_tablespace";
+--enable_query_log
+--echo # Verify that the TRUNCATE TABLE statement works fine
+--echo # if the tablespace is missing.
+
 CREATE DATABASE wl6501;
 create table wl6501.t1(a int not null,
  b int not null,
@@ -51,3 +75,12 @@ select count(*) from wl6501.t1;
 drop table wl6501.t1;
 drop database wl6501;
 
+--disable_query_log
+set session debug="-d,crash_after_drop_tablespace";
+--enable_query_log
+
+-- disable_query_log
+eval set global innodb_file_format=$innodb_file_format_orig;
+eval set global innodb_file_format_max=$innodb_file_format_max_orig;
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log
