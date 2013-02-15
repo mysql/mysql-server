@@ -1968,6 +1968,38 @@ protected:
     not exist on slave because of the filter rules.
     </td>
   </tr>
+  <tr>
+    <td>master_data_written</td>
+    <td>Q_MASTER_DATA_WRITTEN_CODE == 10</td>
+    <td>4 byte bitfield</td>
+
+    <td>The value of the original length of a Query_log_event that comes from a
+    master. Master's event is relay-logged with storing the original size of
+    event in this field by the IO thread. The size is to be restored by reading
+    Q_MASTER_DATA_WRITTEN_CODE-marked event from the relay log.
+
+    This field is not written to slave's server binlog by the SQL thread.
+    This field only exists in relay logs where master has binlog_version<4 i.e.
+    server_version < 5.0 and the slave has binlog_version=4.
+    </td>
+  </tr>
+  <tr>
+    <td>m_binlog_invoker</td>
+    <td>Q_INVOKER == 11</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by characters, again followed by length in bytes (1 byte) followed
+    by characters</td>
+
+    <td>The value of boolean variable m_binlog_invoker is set TRUE if
+    CURRENT_USER() is called in account management statements. SQL thread
+    uses it as a default definer in CREATE/ALTER SP, SF, Event, TRIGGER or
+    VIEW statements.
+
+    The field Q_INVOKER has length of user stored in 1 byte followed by the
+    user string which is assigned to 'user' and the length of host stored in
+    1 byte followed by host string which is assigned to 'host'.
+    </td>
+  </tr>
   </table>
 
   @subsection Query_log_event_notes_on_previous_versions Notes on Previous Versions
@@ -3839,7 +3871,10 @@ public:
   const char *get_db_name() const    { return m_dbnam; }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
+  virtual bool is_valid() const
+  {
+    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+  }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
 #ifdef MYSQL_SERVER
