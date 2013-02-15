@@ -32,7 +32,6 @@
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(_WIN64)
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
-/* #define ssize_t SSIZE_T */
 #define NDB_EXPORT __declspec(dllexport)
 #else
 typedef unsigned long long Uint64;
