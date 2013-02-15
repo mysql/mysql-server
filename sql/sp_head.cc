@@ -1427,6 +1427,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
       Will write this SP statement into binlog separately.
       TODO: consider changing the condition to "not inside event union".
     */
+    MEM_ROOT *user_var_events_alloc_saved= thd->user_var_events_alloc;
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
@@ -1442,7 +1443,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
       reset_dynamic(&thd->user_var_events);
-      thd->user_var_events_alloc= NULL;//DEBUG
+      thd->user_var_events_alloc= user_var_events_alloc_saved;
     }
 
     /* we should cleanup free_list and memroot, used by instruction */
