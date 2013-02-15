@@ -5557,7 +5557,7 @@ int mysqld_main(int argc, char **argv)
     /* Signal threads waiting for server to be started */
     mysql_mutex_lock(&LOCK_server_started);
     mysqld_server_started= 1;
-    mysql_cond_signal(&COND_server_started);
+    mysql_cond_broadcast(&COND_server_started);
     mysql_mutex_unlock(&LOCK_server_started);
 
     bootstrap(mysql_stdin);
@@ -5585,7 +5585,7 @@ int mysqld_main(int argc, char **argv)
   /* Signal threads waiting for server to be started */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
-  mysql_cond_signal(&COND_server_started);
+  mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -6970,14 +6970,6 @@ struct my_option my_long_options[]=
    "Don't log extra information to update and slow-query logs.",
    &opt_short_log_format, &opt_short_log_format,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-admin-statements", 0,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
-   "the slow log if it is open.", &opt_log_slow_admin_statements,
-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
- {"log-slow-slave-statements", 0,
-  "Log slow statements executed by slave thread to the slow log if it is open.",
-  &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", 0,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled).",
@@ -7220,12 +7212,14 @@ static int show_flushstatustime(THD *thd, SHOW_VAR *var, char *buff)
 static int show_slave_running(THD *thd, SHOW_VAR *var, char *buff)
 {
   var->type= SHOW_MY_BOOL;
+  mysql_rwlock_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   var->value= buff;
   *((my_bool *)buff)= (my_bool) (active_mi &&
                                  active_mi->slave_running == MYSQL_SLAVE_RUN_CONNECT &&
                                  active_mi->rli->slave_running);
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
@@ -7235,6 +7229,7 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
     TODO: with multimaster, have one such counter per line in
     SHOW SLAVE STATUS, and have the sum over all lines here.
   */
+  mysql_rwlock_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7247,11 +7242,13 @@ static int show_slave_retried_trans(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
 {
+  mysql_rwlock_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7264,12 +7261,14 @@ static int show_slave_received_heartbeats(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
 {
   MYSQL_TIME received_heartbeat_time;
+  mysql_rwlock_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7287,11 +7286,14 @@ static int show_slave_last_heartbeat(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 
 static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
 {
+  DEBUG_SYNC(thd, "dsync_show_heartbeat_period");
+  mysql_rwlock_unlock(&LOCK_status);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi)
   {
@@ -7302,6 +7304,7 @@ static int show_heartbeat_period(THD *thd, SHOW_VAR *var, char *buff)
   else
     var->type= SHOW_UNDEF;
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_rwlock_rdlock(&LOCK_status);
   return 0;
 }
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1944,7 +1944,7 @@ PageConverter::update_index_page(
 
 	page_set_max_trx_id(block, m_page_zip_ptr, m_trx->id, 0);
 
-	if (page_get_n_recs(block->frame) == 0) {
+	if (page_is_empty(block->frame)) {
 
 		/* Only a root page can be empty. */
 		if (!is_root_page(block->frame)) {

@@ -396,7 +396,7 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 #ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
       ((tmp->var == Sys_gtid_next_ptr
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
        || tmp->var == Sys_gtid_next_list_ptr
 #endif
        ) ||
@@ -10207,7 +10207,8 @@ udf_expr:
                parse it out. If we hijack the input stream with
                remember_name we may get quoted or escaped names.
             */
-            else if ($2->type() != Item::FIELD_ITEM)
+            else if ($2->type() != Item::FIELD_ITEM &&
+                     $2->type() != Item::REF_ITEM /* For HAVING */ )
               $2->item_name.copy($1, (uint) ($3 - $1), YYTHD->charset());
             $$= $2;
           }
