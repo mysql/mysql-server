@@ -106,7 +106,7 @@ c77 ENUM('a','b','c'),
 c78 SET('a','b','c'),
 #
 crn INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 #
 # Insert minimum values.
 #
@@ -2357,7 +2357,7 @@ c77 ENUM('a','b','c'),
 c78 SET('a','b','c'),
 #
 crn INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -2453,8 +2453,10 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -2548,8 +2550,10 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -2724,8 +2728,10 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -2899,8 +2905,10 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3074,8 +3082,10 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3249,8 +3259,10 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3424,8 +3436,10 @@ BEGIN
 ###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3519,8 +3533,10 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3614,8 +3630,10 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3709,8 +3727,10 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -3804,8 +3824,10 @@ BEGIN
 ###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -3832,7 +3854,7 @@ CREATE TABLE t1 (
 c28 DATE,
 c47 VARCHAR(24),
 crn INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 #
 # Show how much rows are affected by each statement.
 #
@@ -3923,7 +3945,7 @@ CREATE TABLE t1 (
 c28 DATE,
 c47 VARCHAR(24),
 crn INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -3982,8 +4004,10 @@ BEGIN
 ###   @2='VARCHAR-09' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=9 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4059,8 +4083,10 @@ BEGIN
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4108,8 +4134,10 @@ BEGIN
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -4136,17 +4164,17 @@ CREATE TABLE t1 (
 c_1_1 DATE,
 c_1_2 VARCHAR(255),
 c_1_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 CREATE TABLE t2 (
 c_2_1 DATE,
 c_2_2 VARCHAR(255),
 c_2_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 CREATE TABLE t3 (
 c_3_1 DATE,
 c_3_2 VARCHAR(255),
 c_3_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 #
 # Show how much rows are affected by each statement.
 #
@@ -4315,7 +4343,7 @@ CREATE TABLE t1 (
 c_1_1 DATE,
 c_1_2 VARCHAR(255),
 c_1_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -4326,7 +4354,7 @@ CREATE TABLE t2 (
 c_2_1 DATE,
 c_2_2 VARCHAR(255),
 c_2_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -4337,7 +4365,7 @@ CREATE TABLE t3 (
 c_3_1 DATE,
 c_3_2 VARCHAR(255),
 c_3_n INT -- row number
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -4396,8 +4424,10 @@ BEGIN
 ###   @2='VARCHAR-01-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=19 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4455,8 +4485,10 @@ BEGIN
 ###   @2='VARCHAR-02-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=29 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4514,8 +4546,10 @@ BEGIN
 ###   @2='VARCHAR-03-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=39 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4719,8 +4753,10 @@ BEGIN
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
 SET @@SESSION.GTID_NEXT= 'GTID';# at #
@@ -4831,8 +4867,10 @@ BEGIN
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
@@ -4859,7 +4897,7 @@ CREATE TABLE t1 (
 c1 INT DEFAULT 100,
 c2 INT,
 c3 VARCHAR(60)
-) ENGINE=InnoDB DEFAULT CHARSET latin1;
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
 #
 # Show how much rows are affected by each statement.
 #
@@ -4919,7 +4957,7 @@ CREATE TABLE t1 (
 c1 INT DEFAULT 100,
 c2 INT,
 c3 VARCHAR(60)
-) ENGINE=InnoDB DEFAULT CHARSET latin1
+) ENGINE=MyISAM DEFAULT CHARSET latin1
 /*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	GTID [commit=yes]
@@ -4949,8 +4987,10 @@ BEGIN
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
-COMMIT/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;

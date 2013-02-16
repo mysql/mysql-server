@@ -1139,8 +1139,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg))
       GOTO_ERR;
 
+    bool is_active_binlog= false;
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
-                                              current_checksum_alg)))
+                                              current_checksum_alg,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
       DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
@@ -1365,6 +1368,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         GOTO_ERR;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1375,7 +1385,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       GOTO_ERR;
 
-    if (mysql_bin_log.is_active(log_file_name) && !goto_next_binlog)
+    if (!is_active_binlog)
+      goto_next_binlog= true;
+
+    if (!goto_next_binlog)
     {
       /*
         Block until there is more data in the log
@@ -1668,14 +1681,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         log.error=0;
       }
     }
-    else
-      goto_next_binlog= true;
 
     if (goto_next_binlog)
     {
-      // need this to break out of the for loop from switch
-      bool loop_breaker = 0;
-
       // clear flag because we open a new binlog
       binlog_has_previous_gtids_log_event= false;
 
@@ -1683,20 +1691,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
         break;
-      case LOG_INFO_EOF:
-        if (mysql_bin_log.is_active(log_file_name))
-        {
-          loop_breaker= 0;
-          break;
-        }
       default:
         errmsg = "could not find next log";
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
         GOTO_ERR;
       }
-
-      if (loop_breaker)
-        break;
 
       end_io_cache(&log);
       mysql_file_close(file, MYF(MY_WME));
