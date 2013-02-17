@@ -466,9 +466,8 @@ private:
 	}
 
 private:
-	volatile lock_word_t	m_lock_word;
-
-	MutexPolicy		m_policy;
+	MutexPolicy			m_policy;
+	volatile mutable lock_word_t	m_lock_word;
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
@@ -622,12 +621,12 @@ private:
 	TTASMutex(const TTASMutex&);
 	TTASMutex& operator=(const TTASMutex&);
 
+	/** Policy data */
+	MutexPolicy			m_policy;
+
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
-	volatile lock_word_t	m_lock_word;
-
-	/** Policy data */
-	MutexPolicy		m_policy;
+	volatile mutable lock_word_t	m_lock_word;
 };
 
 template <template <typename> class Policy = DefaultPolicy>
@@ -892,12 +891,12 @@ private:
 	in the global wait array for this mutex to be released. */
 	ulint   		m_waiters;
 
-	/** lock_word is the target of the atomic test-and-set instruction
-	when atomic operations are enabled. */
-	volatile lock_word_t	m_lock_word;
-
 	/** Policy data */
 	MutexPolicy		m_policy;
+
+	/** lock_word is the target of the atomic test-and-set instruction
+	when atomic operations are enabled. */
+	volatile mutable lock_word_t	m_lock_word;
 };
 
 /** Mutex interface for all policy mutexes. This class handles the interfacing
