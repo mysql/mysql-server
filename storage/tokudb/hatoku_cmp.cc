@@ -82,7 +82,8 @@ void get_blob_field_info(
 }
 
 
-
+// this function is pattern matched from 
+// InnoDB's get_innobase_type_from_mysql_type
 TOKU_TYPE mysql_to_toku_type (Field* field) {
     TOKU_TYPE ret_val = toku_type_unknown;
     enum_field_types mysql_type = field->real_type();
@@ -93,13 +94,23 @@ TOKU_TYPE mysql_to_toku_type (Field* field) {
     case MYSQL_TYPE_SHORT:
     case MYSQL_TYPE_INT24:
     case MYSQL_TYPE_DATE:
-    case MYSQL_TYPE_DATETIME:
     case MYSQL_TYPE_YEAR:
     case MYSQL_TYPE_NEWDATE:
-    case MYSQL_TYPE_TIME:
-    case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
+        ret_val = toku_type_int;
+        goto exit;
+    case MYSQL_TYPE_TIME:
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+#ifdef MARIADB_BASE_VERSION
+        // case to handle fractional seconds in MariaDB
+        // 
+        if (field->key_type() == HA_KEYTYPE_BINARY) {
+            ret_val = toku_type_fixbinary;
+            goto exit;
+        }
+#endif
         ret_val = toku_type_int;
         goto exit;
     case MYSQL_TYPE_DOUBLE:
