@@ -2886,6 +2886,8 @@ bool fields_are_same_type(
     bool retval = true;
     enum_field_types a_mysql_type = a->real_type();
     enum_field_types b_mysql_type = b->real_type();
+    TOKU_TYPE a_toku_type = mysql_to_toku_type(a);
+    TOKU_TYPE b_toku_type = mysql_to_toku_type(b);
     // make sure have same names
     // make sure have same types
     if (a_mysql_type != b_mysql_type) {
@@ -2896,8 +2898,6 @@ bool fields_are_same_type(
     // be the same MySQL type but not the same toku type,
     // This is an issue introduced with MariaDB's fractional time
     // implementation
-    TOKU_TYPE a_toku_type = mysql_to_toku_type(a);
-    TOKU_TYPE b_toku_type = mysql_to_toku_type(b);
     if (a_toku_type != b_toku_type) {
         retval = false;
         goto cleanup;
