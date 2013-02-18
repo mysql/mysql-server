@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -154,7 +154,7 @@ function checkSuccess(testCase) {
   return function(err, tx) {
     var op;
     if(err) { 
-      testCase.appendErrorMessage(err.ndb_error.message);
+      testCase.appendErrorMessage('UniqueKeyTest.checkSuccess', util.inspect(err));
     }
     else {
       op = tx.executedOperations.pop();
@@ -205,7 +205,7 @@ t3.run = function() {
 t3.checkResult = checkSuccess(t3);
 
 
-// ACCES BY UNIQUE KEY AND WRITE
+// ACCESS BY UNIQUE KEY AND WRITE
 t5.run = function() {
   prepare(t5, do_write_op, { uk: 11, name: "Henry V" });
 };
@@ -220,7 +220,7 @@ t8.run = function() {
 
 t8.checkResult = checkSuccess(t8);
 
-// DELETE AGAIN 
+// DELETE AGAIN (EXPECT ERROR)
 t9.run = function() {
   var deleteKey = { uk : 11 };
   prepare(t9, do_delete_op, deleteKey);
@@ -228,7 +228,7 @@ t9.run = function() {
 
 t9.checkResult = function(err, tx) {
   var op = tx.executedOperations.pop();
-  t9.errorIfNotEqual("Expected 02000", "02000", op.result.error.code);
+  t9.errorIfNotEqual("t9 operation result error sqlstate", "02000", op.result.error.sqlstate);
   t9.failOnError();
 };
 
