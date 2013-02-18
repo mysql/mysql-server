@@ -144,15 +144,19 @@ MACRO (MYSQL_CHECK_SSL)
 
     # On mac this list is <.dylib;.so;.a>
     # We prefer static libraries, so we revert it here.
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
-    MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
+    IF (WITH_SSL_PATH)
+      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+      MESSAGE(STATUS "suffixes <${CMAKE_FIND_LIBRARY_SUFFIXES}>")
+    ENDIF()
     FIND_LIBRARY(OPENSSL_LIBRARY
                  NAMES ssl ssleay32 ssleay32MD
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
     FIND_LIBRARY(CRYPTO_LIBRARY
                  NAMES crypto libeay32
                  HINTS ${OPENSSL_ROOT_DIR}/lib)
-    LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    IF (WITH_SSL_PATH)
+      LIST(REVERSE CMAKE_FIND_LIBRARY_SUFFIXES)
+    ENDIF()
 
     # Verify version number. Version information looks like:
     #   #define OPENSSL_VERSION_NUMBER 0x1000103fL
