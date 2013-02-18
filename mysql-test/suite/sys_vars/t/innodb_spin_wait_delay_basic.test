@@ -32,6 +32,22 @@ select * from information_schema.session_variables where variable_name='innodb_s
 set session innodb_spin_wait_delay=1;
 
 #
+# check the default value
+#
+set global innodb_spin_wait_delay=DEFAULT;
+select @@global.innodb_spin_wait_delay;
+
+#
+# valid values
+#
+set global innodb_spin_wait_delay=0;
+select @@global.innodb_spin_wait_delay;
+set global innodb_spin_wait_delay=65535;
+select @@global.innodb_spin_wait_delay;
+set global innodb_spin_wait_delay=4294967295;
+select @@global.innodb_spin_wait_delay;
+
+#
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR
@@ -40,10 +56,19 @@ set global innodb_spin_wait_delay=1.1;
 set global innodb_spin_wait_delay=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_spin_wait_delay="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_delay=' ';
+select @@global.innodb_spin_wait_delay;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_spin_wait_delay=" ";
+select @@global.innodb_spin_wait_delay;
 
 set global innodb_spin_wait_delay=-7;
 select @@global.innodb_spin_wait_delay;
 select * from information_schema.global_variables where variable_name='innodb_spin_wait_delay';
+
+
+
 
 #
 # cleanup

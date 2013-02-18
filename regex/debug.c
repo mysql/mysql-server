@@ -19,10 +19,10 @@ regprint(r, d)
 my_regex_t *r;
 FILE *d;
 {
-	register struct re_guts *g = r->re_g;
-	register int i;
-	register int c;
-	register int last;
+	struct re_guts *g = r->re_g;
+	int i;
+	int c;
+	int last;
 	int nincat[NC];
 	char buf[10];
 
@@ -91,17 +91,17 @@ FILE *d;
 static void
 s_print(charset, g, d)
 const CHARSET_INFO *charset;
-register struct re_guts *g;
+struct re_guts *g;
 FILE *d;
 {
-	register sop *s;
-	register cset *cs;
-	register int i;
-	register int done = 0;
-	register sop opnd;
-	register int col = 0;
-	register int last;
-	register sopno offset = 2;
+	sop *s;
+	cset *cs;
+	int i;
+	int done = 0;
+	sop opnd;
+	int col = 0;
+	int last;
+	sopno offset = 2;
 	char buf[10];
 #	define	GAP()	{	if (offset % 5 == 0) { \
 					if (col > 40) { \

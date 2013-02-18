@@ -45,6 +45,11 @@ ERROR 42000: Incorrect argument type to variable 'innodb_compression_failure_thr
 SELECT @@global.innodb_compression_failure_threshold_pct;
 @@global.innodb_compression_failure_threshold_pct
 0
+SET @@global.innodb_compression_failure_threshold_pct = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_compression_failure_threshold_pct'
+SELECT @@global.innodb_compression_failure_threshold_pct;
+@@global.innodb_compression_failure_threshold_pct
+0
 SET @@global.innodb_compression_failure_threshold_pct = "Y";
 ERROR 42000: Incorrect argument type to variable 'innodb_compression_failure_threshold_pct'
 SELECT @@global.innodb_compression_failure_threshold_pct;
@@ -53,6 +58,16 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 SET @@global.innodb_compression_failure_threshold_pct = 101;
 Warnings:
 Warning	1292	Truncated incorrect innodb_compression_failure_thres value: '101'
+SELECT @@global.innodb_compression_failure_threshold_pct;
+@@global.innodb_compression_failure_threshold_pct
+100
+SET @@global.innodb_compression_failure_threshold_pct = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_compression_failure_threshold_pct'
+SELECT @@global.innodb_compression_failure_threshold_pct;
+@@global.innodb_compression_failure_threshold_pct
+100
+SET @@global.innodb_compression_failure_threshold_pct = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_compression_failure_threshold_pct'
 SELECT @@global.innodb_compression_failure_threshold_pct;
 @@global.innodb_compression_failure_threshold_pct
 100

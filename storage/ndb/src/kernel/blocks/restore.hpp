@@ -159,6 +159,7 @@ private:
   ArrayPool<File> m_file_pool;
   
   List::DataBufferPool m_databuffer_pool;
+  Uint32 m_table_buf[MAX_WORDS_META_FILE];
 };
 
 NdbOut& operator << (NdbOut&, const Restore::Column&);

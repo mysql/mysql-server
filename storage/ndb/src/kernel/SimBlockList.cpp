@@ -49,6 +49,10 @@
 #include <BackupProxy.hpp>
 #include <RestoreProxy.hpp>
 #include <PgmanProxy.hpp>
+#include <DbtcProxy.hpp>
+#include <DbspjProxy.hpp>
+#include <thrman.hpp>
+#include <trpman.hpp>
 #include <mt.hpp>
 
 #ifndef VM_TRACE
@@ -128,7 +132,10 @@ SimBlockList::load(EmulatorData& data){
     theList[8]  = NEW_BLOCK(Dblqh)(ctx);
   else
     theList[8]  = NEW_BLOCK(DblqhProxy)(ctx);
-  theList[9]  = NEW_BLOCK(Dbtc)(ctx);
+  if (globalData.ndbMtTcThreads == 0)
+    theList[9]  = NEW_BLOCK(Dbtc)(ctx);
+  else
+    theList[9] = NEW_BLOCK(DbtcProxy)(ctx);
   if (!mtLqh)
     theList[10] = NEW_BLOCK(Dbtup)(ctx);
   else
@@ -151,17 +158,19 @@ SimBlockList::load(EmulatorData& data){
   else
     theList[18] = NEW_BLOCK(RestoreProxy)(ctx);
   theList[19] = NEW_BLOCK(Dbinfo)(ctx);
-  theList[20]  = NEW_BLOCK(Dbspj)(ctx);
-  assert(NO_OF_BLOCKS == 21);
-
-  if (globalData.isNdbMt) {
-    add_main_thr_map();
-    if (globalData.isNdbMtLqh) {
-      for (int i = 0; i < noOfBlocks; i++)
-        theList[i]->loadWorkers();
-    }
-    finalize_thr_map();
-  }
+  if (globalData.ndbMtTcThreads == 0)
+    theList[20]  = NEW_BLOCK(Dbspj)(ctx);
+  else
+    theList[20]  = NEW_BLOCK(DbspjProxy)(ctx);
+  if (NdbIsMultiThreaded() == false)
+    theList[21] = NEW_BLOCK(Thrman)(ctx);
+  else
+    theList[21] = NEW_BLOCK(ThrmanProxy)(ctx);
+  if (NdbIsMultiThreaded() == false)
+    theList[22] = NEW_BLOCK(Trpman)(ctx);
+  else
+    theList[22] = NEW_BLOCK(TrpmanProxy)(ctx);
+  assert(NO_OF_BLOCKS == 23);
 
   // Check that all blocks could be created
   for (int i = 0; i < noOfBlocks; i++)
@@ -171,6 +180,26 @@ SimBlockList::load(EmulatorData& data){
       ERROR_SET(fatal, NDBD_EXIT_MEMALLOC,
                 "Failed to create block", "");
     }
+  }
+
+  if (globalData.isNdbMt)
+  {
+    /**
+      This is where we bind blocks to their respective threads.
+      mt_init_thr_map binds the blocks to the two main threads,
+      the thread for Global blocks (thr = 0), and the thread
+      for Local blocks (thr = 1) and it puts CMVMI into the receiver
+      thread.
+
+      For those blocks where we created proxies above the loadWorkers
+      function will map the instances of the block into the right
+      thread. mt_add_thr_map will be called for each of the block
+      instances.
+    */
+    mt_init_thr_map();
+    for (int i = 0; i < noOfBlocks; i++)
+      theList[i]->loadWorkers();
+    mt_finalize_thr_map();
   }
 }
 

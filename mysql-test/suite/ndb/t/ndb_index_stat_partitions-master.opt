@@ -1,0 +1,1 @@
+--ndb-index-stat-enable=1 --ndb-wait-connected=1 --ndb-wait-setup=149

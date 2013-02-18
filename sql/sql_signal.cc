@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 #include "sp_pcontext.h"
 #include "sp_rcontext.h"
 #include "sql_signal.h"
+#include "sql_error.h"
 
 /*
   The parser accepts any error code (desired)
@@ -27,7 +28,7 @@
 */
 #define MAX_MYSQL_ERRNO UINT_MAX16
 
-const LEX_STRING Diag_condition_item_names[]=
+static const LEX_STRING CONDITION_ITEM_NAMES[]=
 {
   { C_STRING_WITH_LEN("CLASS_ORIGIN") },
   { C_STRING_WITH_LEN("SUBCLASS_ORIGIN") },
@@ -61,45 +62,32 @@ const LEX_STRING Diag_condition_item_names[]=
   { C_STRING_WITH_LEN("TRIGGER_SCHEMA") }
 };
 
-const LEX_STRING Diag_statement_item_names[]=
-{
-  { C_STRING_WITH_LEN("NUMBER") },
-  { C_STRING_WITH_LEN("MORE") },
-  { C_STRING_WITH_LEN("COMMAND_FUNCTION") },
-  { C_STRING_WITH_LEN("COMMAND_FUNCTION_CODE") },
-  { C_STRING_WITH_LEN("DYNAMIC_FUNCTION") },
-  { C_STRING_WITH_LEN("DYNAMIC_FUNCTION_CODE") },
-  { C_STRING_WITH_LEN("ROW_COUNT") },
-  { C_STRING_WITH_LEN("TRANSACTIONS_COMMITTED") },
-  { C_STRING_WITH_LEN("TRANSACTIONS_ROLLED_BACK") },
-  { C_STRING_WITH_LEN("TRANSACTION_ACTIVE") }
-};
 
-
-Set_signal_information::Set_signal_information(
-  const Set_signal_information& set)
+bool Set_signal_information::set_item(enum_condition_item_name name, Item *item)
 {
-  memcpy(m_item, set.m_item, sizeof(m_item));
+  if (m_item[name] != NULL)
+  {
+    my_error(ER_DUP_SIGNAL_SET, MYF(0), CONDITION_ITEM_NAMES[name].str);
+    return true;
+  }
+  m_item[name]= item;
+  return false;
 }
 
-void Set_signal_information::clear()
-{
-  memset(m_item, 0, sizeof(m_item));
-}
 
 void Sql_cmd_common_signal::assign_defaults(
                                     Sql_condition *cond,
                                     bool set_level_code,
-                                    Sql_condition::enum_warning_level level,
+                                    Sql_condition::enum_severity_level level,
                                     int sqlcode)
 {
   if (set_level_code)
   {
-    cond->m_level= level;
-    cond->m_sql_errno= sqlcode;
+    cond->m_severity_level= level;
+    cond->m_mysql_errno= sqlcode;
   }
-  if (! cond->get_message_text())
-    cond->set_builtin_message_text(ER(sqlcode));
+  if (! cond->message_text())
+    cond->set_message_text(ER(sqlcode));
 }
 
 void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
@@ -116,32 +104,32 @@ void Sql_cmd_common_signal::eval_defaults(THD *thd, Sql_condition *cond)
     */
     DBUG_ASSERT(m_cond->type == sp_condition_value::SQLSTATE);
     sqlstate= m_cond->sql_state;
-    cond->set_sqlstate(sqlstate);
+    cond->set_returned_sqlstate(sqlstate);
   }
   else
-    sqlstate= cond->get_sqlstate();
+    sqlstate= cond->returned_sqlstate();
 
   DBUG_ASSERT(sqlstate);
   /* SQLSTATE class "00": illegal, rejected in the parser. */
-  DBUG_ASSERT((sqlstate[0] != '0') || (sqlstate[1] != '0'));
+  DBUG_ASSERT(!is_sqlstate_completion(sqlstate));
 
-  if ((sqlstate[0] == '0') && (sqlstate[1] == '1'))
+  if (is_sqlstate_warning(sqlstate))
   {
     /* SQLSTATE class "01": warning. */
     assign_defaults(cond, set_defaults,
-                    Sql_condition::WARN_LEVEL_WARN, ER_SIGNAL_WARN);
+                    Sql_condition::SL_WARNING, ER_SIGNAL_WARN);
   }
-  else if ((sqlstate[0] == '0') && (sqlstate[1] == '2'))
+  else if (is_sqlstate_not_found(sqlstate))
   {
     /* SQLSTATE class "02": not found. */
     assign_defaults(cond, set_defaults,
-                    Sql_condition::WARN_LEVEL_ERROR, ER_SIGNAL_NOT_FOUND);
+                    Sql_condition::SL_ERROR, ER_SIGNAL_NOT_FOUND);
   }
   else
   {
     /* other SQLSTATE classes : error. */
     assign_defaults(cond, set_defaults,
-                    Sql_condition::WARN_LEVEL_ERROR, ER_SIGNAL_EXCEPTION);
+                    Sql_condition::SL_ERROR, ER_SIGNAL_EXCEPTION);
   }
 }
 
@@ -260,22 +248,22 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
 {
   struct cond_item_map
   {
-    enum enum_diag_condition_item_name m_item;
+    enum_condition_item_name m_item;
     String Sql_condition::*m_member;
   };
 
   static cond_item_map map[]=
   {
-    { DIAG_CLASS_ORIGIN, & Sql_condition::m_class_origin },
-    { DIAG_SUBCLASS_ORIGIN, & Sql_condition::m_subclass_origin },
-    { DIAG_CONSTRAINT_CATALOG, & Sql_condition::m_constraint_catalog },
-    { DIAG_CONSTRAINT_SCHEMA, & Sql_condition::m_constraint_schema },
-    { DIAG_CONSTRAINT_NAME, & Sql_condition::m_constraint_name },
-    { DIAG_CATALOG_NAME, & Sql_condition::m_catalog_name },
-    { DIAG_SCHEMA_NAME, & Sql_condition::m_schema_name },
-    { DIAG_TABLE_NAME, & Sql_condition::m_table_name },
-    { DIAG_COLUMN_NAME, & Sql_condition::m_column_name },
-    { DIAG_CURSOR_NAME, & Sql_condition::m_cursor_name }
+    { CIN_CLASS_ORIGIN,       & Sql_condition::m_class_origin },
+    { CIN_SUBCLASS_ORIGIN,    & Sql_condition::m_subclass_origin },
+    { CIN_CONSTRAINT_CATALOG, & Sql_condition::m_constraint_catalog },
+    { CIN_CONSTRAINT_SCHEMA,  & Sql_condition::m_constraint_schema },
+    { CIN_CONSTRAINT_NAME,    & Sql_condition::m_constraint_name },
+    { CIN_CATALOG_NAME,       & Sql_condition::m_catalog_name },
+    { CIN_SCHEMA_NAME,        & Sql_condition::m_schema_name },
+    { CIN_TABLE_NAME,         & Sql_condition::m_table_name },
+    { CIN_COLUMN_NAME,        & Sql_condition::m_column_name },
+    { CIN_CURSOR_NAME,        & Sql_condition::m_cursor_name }
   };
 
   Item *set;
@@ -284,24 +272,22 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
   int i;
   uint j;
   int result= 1;
-  enum enum_diag_condition_item_name item_enum;
+  enum_condition_item_name item_enum;
   String *member;
   const LEX_STRING *name;
 
   DBUG_ENTER("Sql_cmd_common_signal::eval_signal_informations");
 
-  for (i= FIRST_DIAG_SET_PROPERTY;
-       i <= LAST_DIAG_SET_PROPERTY;
-       i++)
+  for (i= CIN_FIRST_PROPERTY; i <= CIN_LAST_PROPERTY; i++)
   {
-    set= m_set_signal_information.m_item[i];
+    set= m_set_signal_information->m_item[i];
     if (set)
     {
       if (! set->fixed)
       {
         if (set->fix_fields(thd, & set))
           goto end;
-        m_set_signal_information.m_item[i]= set;
+        m_set_signal_information->m_item[i]= set;
       }
     }
   }
@@ -313,11 +299,11 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
   for (j= 0; j < array_elements(map); j++)
   {
     item_enum= map[j].m_item;
-    set= m_set_signal_information.m_item[item_enum];
+    set= m_set_signal_information->m_item[item_enum];
     if (set != NULL)
     {
       member= & (cond->* map[j].m_member);
-      name= & Diag_condition_item_names[item_enum];
+      name= & CONDITION_ITEM_NAMES[item_enum];
       if (assign_condition_item(cond->m_mem_root, name->str, thd, set, member))
         goto end;
     }
@@ -327,7 +313,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
     Assign the remaining attributes.
   */
 
-  set= m_set_signal_information.m_item[DIAG_MESSAGE_TEXT];
+  set= m_set_signal_information->m_item[CIN_MESSAGE_TEXT];
   if (set != NULL)
   {
     if (set->is_null())
@@ -367,10 +353,10 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
     converted_text.set_charset(error_message_charset_info);
     converted_text.append(utf8_text.ptr(), utf8_text.length(),
                           utf8_text.charset());
-    cond->set_builtin_message_text(converted_text.c_ptr_safe());
+    cond->set_message_text(converted_text.c_ptr_safe());
   }
 
-  set= m_set_signal_information.m_item[DIAG_MYSQL_ERRNO];
+  set= m_set_signal_information->m_item[CIN_MYSQL_ERRNO];
   if (set != NULL)
   {
     if (set->is_null())
@@ -387,7 +373,7 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
                               "MYSQL_ERRNO", str->c_ptr_safe());
       goto end;
     }
-    cond->m_sql_errno= (int) code;
+    cond->m_mysql_errno= (int) code;
   }
 
   /*
@@ -398,11 +384,9 @@ int Sql_cmd_common_signal::eval_signal_informations(THD *thd, Sql_condition *con
     result= 0;
 
 end:
-  for (i= FIRST_DIAG_SET_PROPERTY;
-       i <= LAST_DIAG_SET_PROPERTY;
-       i++)
+  for (i= CIN_FIRST_PROPERTY; i <= CIN_LAST_PROPERTY; i++)
   {
-    set= m_set_signal_information.m_item[i];
+    set= m_set_signal_information->m_item[i];
     if (set)
     {
       if (set->fixed)
@@ -413,42 +397,8 @@ end:
   DBUG_RETURN(result);
 }
 
-bool Sql_cmd_common_signal::raise_condition(THD *thd, Sql_condition *cond)
-{
-  bool result= TRUE;
-
-  DBUG_ENTER("Sql_cmd_common_signal::raise_condition");
-
-  DBUG_ASSERT(thd->lex->query_tables == NULL);
-
-  eval_defaults(thd, cond);
-  if (eval_signal_informations(thd, cond))
-    DBUG_RETURN(result);
-
-  /* SIGNAL should not signal WARN_LEVEL_NOTE */
-  DBUG_ASSERT((cond->m_level == Sql_condition::WARN_LEVEL_WARN) ||
-              (cond->m_level == Sql_condition::WARN_LEVEL_ERROR));
-
-  Sql_condition *raised= NULL;
-  raised= thd->raise_condition(cond->get_sql_errno(),
-                               cond->get_sqlstate(),
-                               cond->get_level(),
-                               cond->get_message_text());
-  if (raised)
-    raised->copy_opt_attributes(cond);
-
-  if (cond->m_level == Sql_condition::WARN_LEVEL_WARN)
-  {
-    my_ok(thd);
-    result= FALSE;
-  }
-
-  DBUG_RETURN(result);
-}
-
 bool Sql_cmd_signal::execute(THD *thd)
 {
-  bool result= TRUE;
   Sql_condition cond(thd->mem_root);
 
   DBUG_ENTER("Sql_cmd_signal::execute");
@@ -458,7 +408,7 @@ bool Sql_cmd_signal::execute(THD *thd)
 
       When SIGNAL is executed, it has five effects, in the following order:
 
-        (1) First, the diagnostics area is completely cleared. So if the
+        (1) First, the Diagnostics Area is completely cleared. So if the
         SIGNAL is in a DECLARE HANDLER then any pending errors or warnings
         are gone. So is 'row count'.
 
@@ -467,11 +417,32 @@ bool Sql_cmd_signal::execute(THD *thd)
 
   thd->get_stmt_da()->reset_diagnostics_area();
   thd->set_row_count_func(0);
-  thd->get_stmt_da()->clear_warning_info(thd->query_id);
+  thd->get_stmt_da()->reset_condition_info(thd->query_id);
 
-  result= raise_condition(thd, &cond);
+  DBUG_ASSERT(thd->lex->query_tables == NULL);
 
-  DBUG_RETURN(result);
+  eval_defaults(thd, &cond);
+  if (eval_signal_informations(thd, &cond))
+    DBUG_RETURN(true);
+
+  /* SIGNAL should not signal SL_NOTE */
+  DBUG_ASSERT((cond.severity() == Sql_condition::SL_WARNING) ||
+              (cond.severity() == Sql_condition::SL_ERROR));
+
+  Sql_condition *raised= thd->raise_condition(cond.mysql_errno(),
+                                              cond.returned_sqlstate(),
+                                              cond.severity(),
+                                              cond.message_text());
+  if (raised)
+    raised->copy_opt_attributes(&cond);
+
+  if (cond.severity() == Sql_condition::SL_WARNING)
+  {
+    my_ok(thd);
+    DBUG_RETURN(false);
+  }
+
+  DBUG_RETURN(true);
 }
 
 
@@ -487,50 +458,114 @@ bool Sql_cmd_signal::execute(THD *thd)
 
 bool Sql_cmd_resignal::execute(THD *thd)
 {
-  Diagnostics_area *da= thd->get_stmt_da();
-  const sp_rcontext::Sql_condition_info *signaled;
+  sp_rcontext::Handler_call_frame *frame= NULL;
 
   DBUG_ENTER("Sql_cmd_resignal::execute");
 
-  // This is a way to force sql_conditions from the current Warning_info to be
-  // passed to the caller's Warning_info.
-  da->set_warning_info_id(thd->query_id);
-
   if (! thd->sp_runtime_ctx ||
-      ! (signaled= thd->sp_runtime_ctx->raised_condition()))
+      ! (frame= thd->sp_runtime_ctx->current_handler_frame()))
   {
     thd->raise_error(ER_RESIGNAL_WITHOUT_ACTIVE_HANDLER);
     DBUG_RETURN(true);
   }
 
-  Sql_condition signaled_err(thd->mem_root);
-  signaled_err.set(signaled->sql_errno,
-                   signaled->sql_state,
-                   signaled->level,
-                   signaled->message);
+  thd->pop_diagnostics_area();
 
+  /*
+    This is a way to force sql_conditions from the current Diagnostics Area
+    to be passed to the caller's Diagnostics Area.
+  */
+  Diagnostics_area *da= thd->get_stmt_da();
+  da->set_statement_id(thd->query_id);
 
-  if (m_cond) // RESIGNAL with signal_value.
+  Sql_condition *raised= NULL;
+
+  // RESIGNAL with signal_value.
+  if (m_cond)
   {
-    query_cache_abort(&thd->query_cache_tls);
+    // Make a temporary Sql_condition for modification
+    Sql_condition signaled_err(thd->mem_root,
+                               frame->sql_condition->mysql_errno(),
+                               frame->sql_condition->returned_sqlstate(),
+                               frame->sql_condition->severity(),
+                               frame->sql_condition->message_text());
 
-    /* Keep handled conditions. */
-    da->unmark_sql_conditions_from_removal();
-
-    /* Check if the old condition still exists. */
-    if (da->has_sql_condition(signaled->message, strlen(signaled->message)))
+    eval_defaults(thd, &signaled_err);
+    if (!eval_signal_informations(thd, &signaled_err))
     {
-      /* Make room for the new RESIGNAL condition. */
-      da->reserve_space(thd, 1);
+      // Make room for the new RESIGNAL condition.
+      da->reserve_number_of_conditions(thd, 1);
+
+      raised= thd->raise_condition(signaled_err.mysql_errno(),
+                                   signaled_err.returned_sqlstate(),
+                                   signaled_err.severity(),
+                                   signaled_err.message_text());
+      if (raised)
+        raised->copy_opt_attributes(&signaled_err);
     }
-    else
+  }
+  else // RESIGNAL modifying an existing condition.
+  {
+    /*
+      Get the raised condition from Handler_call_frame so it can be
+      modified directly.
+      Note: This condition might not be in the Diagnostics Area
+      if it was full when the condition was raised or if
+      Diagnostics_area::set_error_status() was used directly.
+    */
+    raised= frame->sql_condition;
+    eval_defaults(thd, raised);
+    if (!eval_signal_informations(thd, raised))
     {
-      /* Make room for old condition + the new RESIGNAL condition. */
-      da->reserve_space(thd, 2);
-
-      da->push_warning(thd, &signaled_err);
+      if (raised->severity() == Sql_condition::SL_ERROR)
+        da->set_error_status(raised->mysql_errno(),
+                             raised->message_text(),
+                             raised->returned_sqlstate());
     }
   }
 
-  DBUG_RETURN(raise_condition(thd, &signaled_err));
+  // RESIGNAL should not resignal SL_NOTE
+  DBUG_ASSERT(!raised ||
+              (raised->severity() == Sql_condition::SL_WARNING) ||
+              (raised->severity() == Sql_condition::SL_ERROR));
+
+  /*
+    We now have the following possibilities:
+    1) We RESIGNAL a warning
+    2) We RESIGNAL an error for which there is another CONTINUE handler.
+    3) We RESIGNAL an error for which there is another EXIT handler.
+    4) We RESIGNAL an error for which there is no appropriate handler.
+
+    In 1) and 2) we will continue executing the handler. Therefore we
+    should add the Diagnostics Area we just popped, back. By doing
+    pop+push rather than nothing, we make sure that the condition modified
+    by RESIGNAL (if any) is modified on both the first and the second
+    Diagnostics Area (not just in the first).
+
+    For 3) we will anyway pop the handler frame, thus also popping the
+    handler DA and we should also add it back.
+
+    For 4) we could avoid pushing the DA back, but it's hard to detect
+    here if we are in fact in situation 4). Therefore it's easiest to
+    just add the DA back. It will in any case be popped by the SP
+    exit code.
+  */
+  frame->handler_da.reset_condition_info(da->statement_id());
+  frame->handler_da.reset_diagnostics_area();
+  thd->push_diagnostics_area(&frame->handler_da);
+
+  // Transfer any exception condition information.
+  if (da->is_error())
+    frame->handler_da.set_error_status(da->mysql_errno(),
+                                       da->message_text(),
+                                       da->returned_sqlstate());
+
+  /*
+    Reset the DA which was used during RESIGNAL execution.
+    This prepares it for the statement which will be executed after
+    next pop.
+  */
+  da->reset_diagnostics_area();
+
+  DBUG_RETURN(thd->is_error());
 }

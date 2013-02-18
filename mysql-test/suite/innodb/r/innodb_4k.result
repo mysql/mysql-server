@@ -127,17 +127,17 @@ ERROR 42000: Specified key was too long; max key length is 768 bytes
 #         in strict mode and converted to 4 in non-strict mode.
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (i int) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=8 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 SHOW WARNINGS;
 Level	Code	Message
@@ -227,19 +227,19 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	OFF
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=8 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
 SHOW VARIABLES LIKE 'innodb_file%';
@@ -249,19 +249,19 @@ innodb_file_format_check	ON
 innodb_file_format_max	Barracuda
 innodb_file_per_table	ON
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=8 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 4.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_format = `Barracuda`;
 # Test 7) Not included here; 16k only
 # Test 8) Test creating a table that could lead to undo log overflow.

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -983,7 +983,7 @@ trx_undo_free_page(
 		    undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
 
 	fseg_free_page(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER,
-		       space, page_no, mtr);
+		       space, page_no, false, mtr);
 
 	last_addr = flst_get_last(header_page + TRX_UNDO_SEG_HDR
 				  + TRX_UNDO_PAGE_LIST, mtr);
@@ -1227,7 +1227,7 @@ trx_undo_seg_free(
 
 		file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
 
-		finished = fseg_free_step(file_seg, &mtr);
+		finished = fseg_free_step(file_seg, false, &mtr);
 
 		if (finished) {
 			/* Update the rseg header */
@@ -1468,7 +1468,7 @@ trx_undo_mem_create(
 
 	if (undo == NULL) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	undo->id = id;
@@ -1771,6 +1771,12 @@ trx_undo_assign_undo(
 
 	mutex_enter(&rseg->mutex);
 
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_too_many_trx",
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto func_exit;
+	);
+
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
 	if (undo == NULL) {
@@ -1800,7 +1806,7 @@ func_exit:
 	mutex_exit(&(rseg->mutex));
 	mtr_commit(&mtr);
 
-	return err;
+	return(err);
 }
 
 /******************************************************************//**

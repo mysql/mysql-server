@@ -852,11 +852,11 @@ CREATE TABLE t1 (c1 INT) ENGINE='InnoDB';
 INSERT INTO t1 VALUES ();
 SET @text= REPEAT(_utf8'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY c1;
 c1	c2
 0	
 1	ççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççççç
-SELECT * FROM t1;
+SELECT * FROM t1 ORDER BY c1;
 c1
 0
 1

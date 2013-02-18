@@ -341,7 +341,7 @@ dist	buffer	buf_area
 -----
 Polygon((2 2,2 8,8 8,8 2,2 2))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 Warnings:
 Warning	1105	[0] op_difference[5]
 Warning	1105	[1] op_shape[0]shape_polygon
@@ -384,7 +384,7 @@ Warning	1105	[0] op_union[0]
 -----
 GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 Warnings:
 Warning	1105	[0] op_union[1]
 Warning	1105	[1] op_difference[5]
@@ -408,7 +408,7 @@ Warning	1105	[0] op_union[0]
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 Warnings:
 Warning	1105	[0] op_union[1]
 Warning	1105	[1] op_difference[5]

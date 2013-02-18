@@ -104,7 +104,7 @@ dofile(const char* file)
       break;
     }
     ssize_t size2;
-    if ((size2 = read(fd, data, size)) == -1)
+    if ((size2 = read(fd, data, (unsigned)size)) == -1)
     {
       fprintf(stderr, "%s: read: %s\n", file, strerror(errno));
       break;
@@ -137,7 +137,7 @@ dofile(const char* file)
     printf("  orig: %u\n", (uint)size);
     printf("  pack: %u\n", (uint)pack_len);
     printf("*/\n\n");
-    dodump(name, pack_data, pack_len);
+    dodump(name, pack_data, (uint)pack_len);
     ret = 0;
   }
   while (0);

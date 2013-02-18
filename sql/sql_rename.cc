@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include "sql_base.h"   // tdc_remove_table, lock_table_names,
 #include "sql_handler.h"                        // mysql_ha_rm_tables
 #include "datadict.h"
+#include "log.h"
 
 static TABLE_LIST *rename_tables(THD *thd, TABLE_LIST *table_list,
 				 bool skip_error);
@@ -62,8 +63,8 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
 
   mysql_ha_rm_tables(thd, table_list);
 
-  if (logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
-      logger.is_log_table_enabled(QUERY_LOG_SLOW))
+  if (query_logger.is_log_table_enabled(QUERY_LOG_GENERAL) ||
+      query_logger.is_log_table_enabled(QUERY_LOG_SLOW))
   {
 
     /*
@@ -81,10 +82,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
     {
       int log_table_rename= 0;
 
-      if ((log_table_rename=
-           check_if_log_table(ren_table->db_length, ren_table->db,
-                              ren_table->table_name_length,
-                              ren_table->table_name, 1)))
+      if ((log_table_rename= query_logger.check_if_log_table(ren_table, true)))
       {
         /*
           as we use log_table_rename as an array index, we need it to start
@@ -272,9 +270,13 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
   {
     case FRMTYPE_TABLE:
       {
-        if (!(rc= mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                               table_type), 
-                                     ren_table->db, old_alias,
+        handlerton *hton= ha_resolve_by_legacy_type(thd, table_type);
+        if (table_type != DB_TYPE_UNKNOWN && !hton)
+        {
+          my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), ren_table->db, old_alias);
+          DBUG_RETURN(1);
+        }
+        if (!(rc= mysql_rename_table(hton, ren_table->db, old_alias,
                                      new_db, new_alias, 0)))
         {
           if ((rc= Table_triggers_list::change_table_name(thd, ren_table->db,
@@ -289,9 +291,7 @@ do_rename(THD *thd, TABLE_LIST *ren_table, char *new_db, char *new_table_name,
               triggers appropriately. So let us revert operations on .frm
               and handler's data and report about failure to rename table.
             */
-            (void) mysql_rename_table(ha_resolve_by_legacy_type(thd,
-                                                                table_type),
-                                      new_db, new_alias,
+            (void) mysql_rename_table(hton, new_db, new_alias,
                                       ren_table->db, old_alias, 0);
           }
         }

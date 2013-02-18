@@ -1,0 +1,146 @@
+'#________________________VAR_05_table_definition_cache__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_5_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.table_definition_cache)
+1 Expected
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+SELECT @@GLOBAL.table_definition_cache;
+@@GLOBAL.table_definition_cache
+1400
+1400 Expected
+'#---------------------WL6372_VAR_5_02----------------------#'
+# Restart server with table_definition_cache 1
+SELECT @@GLOBAL.table_definition_cache;
+@@GLOBAL.table_definition_cache
+2000
+2000 Expected
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+SELECT @@GLOBAL.table_definition_cache;
+@@GLOBAL.table_definition_cache
+1400
+1400 Expected
+'#---------------------WL6372_VAR_5_03----------------------#'
+SET @@local.table_definition_cache=1;
+ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable and should be set with SET GLOBAL
+Expected error 'Global variable'
+SET @@session.table_definition_cache=1;
+ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable and should be set with SET GLOBAL
+Expected error 'Global variable'
+SET @@GLOBAL.table_definition_cache=1;
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+SELECT @@GLOBAL.table_definition_cache;
+@@GLOBAL.table_definition_cache
+1400
+1400 Expected
+'#---------------------WL6372_VAR_5_04----------------------#'
+SELECT @@GLOBAL.table_definition_cache = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='table_definition_cache';
+@@GLOBAL.table_definition_cache = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.table_definition_cache);
+COUNT(@@GLOBAL.table_definition_cache)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='table_definition_cache';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------WL6372_VAR_5_05----------------------#'
+SELECT @@table_definition_cache = @@GLOBAL.table_definition_cache;
+@@table_definition_cache = @@GLOBAL.table_definition_cache
+1
+1 Expected
+SELECT COUNT(@@local.table_definition_cache);
+ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.table_definition_cache);
+ERROR HY000: Variable 'table_definition_cache' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.table_definition_cache);
+COUNT(@@GLOBAL.table_definition_cache)
+1
+1 Expected
+SELECT table_definition_cache = @@SESSION.table_definition_cache;
+ERROR 42S22: Unknown column 'table_definition_cache' in 'field list'
+Expected error 'Unknown column table_definition_cache in field list'
+'#---------------------WL6372_VAR_5_06----------------------#'
+Check the size of the vardir
+The output size is in unit blocks
+TRUE
+TRUE Expected
+'#---------------------WL6372_VAR_5_07----------------------#'
+flush tables;
+flush status;
+set @Open_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions');
+set @Opened_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions');
+# create 2 tables 
+DROP TABLE IF EXISTS tab1;
+DROP TABLE IF EXISTS tab2;
+===============
+create table & Index
+===============
+CREATE TABLE tab1 (col_1 text(10))
+ENGINE=INNODB ;
+===============
+create table & Index
+===============
+CREATE TABLE tab2 (col_1 text(10))
+ENGINE=INNODB ;
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
+(select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2;
+(select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2
+1
+1 Expected
+# open two tables
+select 1 from tab1;
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
+(select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3;
+(select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3
+1
+1 Expected
+select 1 from tab2;
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
+(select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+(select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4
+1
+1 Expected
+DROP TABLE IF EXISTS tab1;
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
+(select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+(select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4
+1
+1 Expected
+DROP TABLE IF EXISTS tab2;
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
+(select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions
+1
+1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+(select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4
+1
+1 Expected
+#cleanup
+set @@GLOBAL.table_definition_cache=DEFAULT;

@@ -19,6 +19,8 @@
  */
 
 
+CHARSET_INFO *system_charset_info= NULL;
+
 TEST(StringTest, EmptyString)
 {
   String s;
@@ -36,4 +38,21 @@ TEST(StringTest, ShrinkString)
   foos.shrink(1);
   EXPECT_EQ(len, foos.length());
   EXPECT_STREQ("ab", foo);
+}
+
+
+TEST(StringDeathTest, AppendEmptyString)
+{
+  ::testing::FLAGS_gtest_death_test_style = "threadsafe";
+  String tbl_name;
+  const char db_name[]= "aaaaaaa";
+  const char table_name[]= "";
+  tbl_name.append(String(db_name, system_charset_info));
+  tbl_name.append('.');
+  tbl_name.append(String(table_name, system_charset_info));
+  // We now have eight characters, c_ptr() is not safe.
+#ifndef DBUG_OFF
+  EXPECT_DEATH_IF_SUPPORTED(tbl_name.c_ptr(), ".*Alloced_length >= .*");
+#endif
+  EXPECT_STREQ("aaaaaaa.", tbl_name.c_ptr_safe());
 }

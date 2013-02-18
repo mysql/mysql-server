@@ -24,6 +24,15 @@
 #elif defined(HAVE_OPENSSL)
 #include <openssl/aes.h>
 #include <openssl/evp.h>
+
+// Wrap C struct, to ensure resources are released.
+struct MyCipherCtx
+{
+  MyCipherCtx() { memset(&ctx, 0, sizeof(ctx)); }
+  ~MyCipherCtx() { EVP_CIPHER_CTX_cleanup(&ctx); }
+
+  EVP_CIPHER_CTX ctx;
+};
 #endif
 
 enum encrypt_dir { MY_AES_ENCRYPT, MY_AES_DECRYPT };
@@ -119,7 +128,7 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
   int num_blocks;                               /* number of complete blocks */
   int i;
 #elif defined(HAVE_OPENSSL)
-  EVP_CIPHER_CTX ctx;
+  MyCipherCtx ctx;
   int u_len, f_len;
 #endif
 
@@ -154,13 +163,13 @@ int my_aes_encrypt(const char* source, int source_length, char* dest,
 
   return MY_AES_BLOCK_SIZE * (num_blocks + 1);
 #elif defined(HAVE_OPENSSL)
-  if (! EVP_EncryptInit(&ctx, EVP_aes_128_ecb(), (const unsigned char *) rkey,
-                       NULL))
+  if (! EVP_EncryptInit(&ctx.ctx, EVP_aes_128_ecb(),
+                        (const unsigned char *) rkey, NULL))
     return AES_BAD_DATA;                        /* Error */
-  if (! EVP_EncryptUpdate(&ctx, (unsigned char *) dest, &u_len,
+  if (! EVP_EncryptUpdate(&ctx.ctx, (unsigned char *) dest, &u_len,
                           (unsigned const char *) source, source_length))
     return AES_BAD_DATA;                        /* Error */
-  if (! EVP_EncryptFinal(&ctx, (unsigned char *) dest + u_len, &f_len))
+  if (! EVP_EncryptFinal(&ctx.ctx, (unsigned char *) dest + u_len, &f_len))
     return AES_BAD_DATA;                        /* Error */
 
   return u_len + f_len;
@@ -195,7 +204,7 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   int num_blocks;                               /* Number of complete blocks */
   int i;
 #elif defined(HAVE_OPENSSL)
-  EVP_CIPHER_CTX ctx;
+  MyCipherCtx ctx;
   int u_len, f_len;
 #endif
 
@@ -237,15 +246,14 @@ int my_aes_decrypt(const char *source, int source_length, char *dest,
   memcpy(dest, block, MY_AES_BLOCK_SIZE - pad_len);
   return MY_AES_BLOCK_SIZE * num_blocks - pad_len;
 #elif defined(HAVE_OPENSSL)
-  if (! EVP_DecryptInit(&ctx, EVP_aes_128_ecb(), (const unsigned char *) rkey,
-                        NULL))
+  if (! EVP_DecryptInit(&ctx.ctx, EVP_aes_128_ecb(),
+                        (const unsigned char *) rkey, NULL))
     return AES_BAD_DATA;                        /* Error */
-  if (! EVP_DecryptUpdate(&ctx, (unsigned char *) dest, &u_len,
+  if (! EVP_DecryptUpdate(&ctx.ctx, (unsigned char *) dest, &u_len,
                           (unsigned const char *) source, source_length))
     return AES_BAD_DATA;                        /* Error */
-  if (! EVP_DecryptFinal(&ctx, (unsigned char *) dest + u_len, &f_len))
+  if (! EVP_DecryptFinal(&ctx.ctx, (unsigned char *) dest + u_len, &f_len))
     return AES_BAD_DATA;                        /* Error */
-
   return u_len + f_len;
 #endif
 }

@@ -418,7 +418,7 @@ dist	buffer	buf_area
 -----
 Polygon((2 2,2 8,8 8,8 2,2 2))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 -----
 MultiPoint(9 9,8 1,1 5)
 dist	buffer	buf_area
@@ -450,7 +450,7 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Polygon((2 2,2 8,8 8,8 2,2 2))))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 -----
 GeometryCollection(MultiPoint(9 9,8 1,1 5))
 dist	buffer	buf_area
@@ -462,7 +462,7 @@ dist	buffer	buf_area
 -----
 GeometryCollection(Point(9 9),LineString(1 5,0 0),Polygon((2 2,2 8,8 8,8 2,2 2)))
 dist	buffer	buf_area
--1	MULTIPOLYGON	16.00
+-1	POLYGON	16.00
 SELECT ST_CONTAINS(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)'));

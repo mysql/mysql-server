@@ -444,7 +444,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       if (blocks < 8)
       {
         my_errno= ENOMEM;
-        my_error(EE_OUTOFMEMORY, MYF(0), blocks * keycache->key_cache_block_size);
+        my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 blocks * keycache->key_cache_block_size);
         goto err;
       }
       blocks= blocks / 4*3;
@@ -1512,7 +1513,7 @@ static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
 static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
                                 int file, my_off_t filepos)
 {
-  reg1 HASH_LINK *hash_link, **start;
+  HASH_LINK *hash_link, **start;
 #if defined(KEYCACHE_DEBUG)
   int cnt;
 #endif
@@ -2510,7 +2511,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;
@@ -2740,7 +2741,7 @@ int key_cache_insert(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;
@@ -3010,7 +3011,7 @@ int key_cache_write(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;

@@ -42,9 +42,32 @@ SELECT @@session.wait_timeout;
 SET @@global.wait_timeout = 0;
 Warnings:
 Warning	1292	Truncated incorrect wait_timeout value: '0'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+1
 SET @@global.wait_timeout = -1024;
 Warnings:
 Warning	1292	Truncated incorrect wait_timeout value: '-1024'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+1
+SET @@global.wait_timeout = 123456789031;
+Warnings:
+Warning	1292	Truncated incorrect wait_timeout value: '123456789031'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+31536000
+SET @@global.wait_timeout = 31536003;
+Warnings:
+Warning	1292	Truncated incorrect wait_timeout value: '31536003'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+31536000
+SET @@global.wait_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+31536000
 SET @@global.wait_timeout = ON;
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'
 SET @@global.wait_timeout = OFF;
@@ -61,6 +84,9 @@ SELECT @@global.wait_timeout;
 1
 SET @@global.wait_timeout = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SELECT @@global.wait_timeout;
+@@global.wait_timeout
+1
 SET @@global.wait_timeout ="Test";
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'
 SET @@session.wait_timeout = ON;
@@ -79,13 +105,35 @@ SELECT @@session.wait_timeout;
 1
 SET @@session.wait_timeout = "Test";
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SET @@session.wait_timeout = 65530.34;
+ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SELECT @@session.wait_timeout;
+@@session.wait_timeout
+1
 SET @@session.wait_timeout = 'test';
 ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SET @@session.wait_timeout = 0;
+Warnings:
+Warning	1292	Truncated incorrect wait_timeout value: '0'
+SELECT @@session.wait_timeout;
+@@session.wait_timeout
+1
 SET @@session.wait_timeout = 123456789031;
 Warnings:
 Warning	1292	Truncated incorrect wait_timeout value: '123456789031'
 SELECT @@session.wait_timeout = @max_wait_timeout;
 @@session.wait_timeout = @max_wait_timeout
+1
+SET @@session.wait_timeout = -1;
+Warnings:
+Warning	1292	Truncated incorrect wait_timeout value: '-1'
+SELECT @@session.wait_timeout;
+@@session.wait_timeout
+1
+SET @@session.wait_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'wait_timeout'
+SELECT @@session.wait_timeout;
+@@session.wait_timeout
 1
 '#------------------FN_DYNVARS_005_06-----------------------#'
 SELECT @@global.wait_timeout = VARIABLE_VALUE 

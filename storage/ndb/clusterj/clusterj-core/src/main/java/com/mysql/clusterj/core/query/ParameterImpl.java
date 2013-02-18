@@ -118,6 +118,16 @@ public class ParameterImpl implements PredicateOperand {
                 local.message("ERR_NotImplemented"));
     }
 
+    public Predicate isNull() {
+        throw new UnsupportedOperationException(
+                local.message("ERR_NotImplemented"));
+    }
+
+    public Predicate isNotNull() {
+        throw new UnsupportedOperationException(
+                local.message("ERR_NotImplemented"));
+    }
+
     public void setProperty(PropertyImpl property) {
         if (this.property != null && this.property.fmd.getType() != property.fmd.getType()) {
             throw new ClusterJUserException(local.message("ERR_Multiple_Parameter_Usage", parameterName,

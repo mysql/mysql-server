@@ -16,9 +16,9 @@ exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help 
 perl;
   # Variables which we don't want to display in the result file since
   # their paths may vary:
-  @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
-               log-slow-queries pid-file slow-query-log-file
-			   datadir slave-load-tmpdir tmpdir socket/;
+  @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
+               pid-file slow-query-log-file
+			   datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache/;
 
   # Plugins which may or may not be there:
   @plugins=qw/innodb ndb ndbinfo archive blackhole federated partition ndbcluster debug temp-pool ssl des-key-file
@@ -48,6 +48,8 @@ perl;
     s/\b4294967295\b/18446744073709551615/;
     s/\b2146435072\b/9223372036853727232/;
     s/\b196608\b/262144/;
+    # Replacing port number with string
+    s/^port \d+/port ####/;
     foreach $var (@env) { s/$ENV{$var}/$var/ }
     next if /use --skip-(use-)?symbolic-links to disable/; # for valgrind, again
     next if $skip;

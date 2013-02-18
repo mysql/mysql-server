@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -223,6 +223,16 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
       table_list->partition_names &&
       table_list->partition_names->elements)
   {
+    if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    {
+        /*
+          Don't allow PARTITION () clause on a NDB tables yet.
+          TODO: Add partition name handling to NDB/partition_info.
+          which is currently ha_partition specific.
+        */
+        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+        DBUG_RETURN(true);
+    }
     if (prune_partition_bitmaps(table_list))
       DBUG_RETURN(TRUE);
   }
@@ -273,6 +283,9 @@ bool partition_info::can_prune_insert(THD* thd,
   *can_prune_partitions= PRUNE_NO;
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ENTER("partition_info::can_prune_insert");
+
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    DBUG_RETURN(false); /* Should not insert prune NDB tables */
 
   /*
     If under LOCK TABLES pruning will skip start_stmt instead of external_lock
@@ -442,12 +455,13 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, false, &full_part_field_set))
+    if (fill_record(thd, fields, values, false, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, false, &full_part_field_set))
+    if (fill_record(thd, table->field, values, false, &full_part_field_set,
+                    NULL))
       goto err;
   }
   DBUG_ASSERT(!table->auto_increment_field_not_null);
@@ -1528,11 +1542,11 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (part_elem->data_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;
@@ -2654,7 +2668,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
         thd->variables.sql_mode= 0;
         save_got_warning= thd->got_warning;
         thd->got_warning= 0;
-        if (column_item->save_in_field(field, TRUE) ||
+        if (column_item->save_in_field(field, true) ||
             thd->got_warning)
         {
           my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
@@ -2733,8 +2747,35 @@ bool partition_info::fix_parser_data(THD *thd)
   if (!(part_type == RANGE_PARTITION ||
         part_type == LIST_PARTITION))
   {
-    /* Nothing to do for HASH/KEY partitioning */
+    if (part_type == HASH_PARTITION && list_of_part_fields)
+    {
+      /* KEY partitioning, check ALGORITHM = N. Should not pass the parser! */
+      if (key_algorithm > KEY_ALGORITHM_55)
+      {
+        my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+        DBUG_RETURN(true);
+      }
+      /* If not set, use DEFAULT = 2 for CREATE and ALTER! */
+      if ((thd_sql_command(thd) == SQLCOM_CREATE_TABLE ||
+           thd_sql_command(thd) == SQLCOM_ALTER_TABLE) &&
+          key_algorithm == KEY_ALGORITHM_NONE)
+        key_algorithm= KEY_ALGORITHM_55;
+    }
     DBUG_RETURN(FALSE);
+  }
+  if (is_sub_partitioned() && list_of_subpart_fields)
+  {
+    /* KEY subpartitioning, check ALGORITHM = N. Should not pass the parser! */
+    if (key_algorithm > KEY_ALGORITHM_55)
+    {
+      my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));
+      DBUG_RETURN(true);
+    }
+    /* If not set, use DEFAULT = 2 for CREATE and ALTER! */
+    if ((thd_sql_command(thd) == SQLCOM_CREATE_TABLE ||
+         thd_sql_command(thd) == SQLCOM_ALTER_TABLE) &&
+        key_algorithm == KEY_ALGORITHM_NONE)
+      key_algorithm= KEY_ALGORITHM_55;
   }
   do
   {
@@ -2782,6 +2823,262 @@ bool partition_info::fix_parser_data(THD *thd)
     } while (++j < num_elements);
   } while (++i < num_parts);
   DBUG_RETURN(FALSE);
+}
+
+
+/**
+  helper function to compare strings that can also be
+  a NULL pointer.
+
+  @param a  char pointer (can be NULL).
+  @param b  char pointer (can be NULL).
+
+  @return false if equal
+    @retval true  strings differs
+    @retval false strings is equal
+*/
+
+static bool strcmp_null(const char *a, const char *b)
+{
+  if (!a && !b)
+    return false;
+  if (a && b && !strcmp(a, b))
+    return false;
+  return true;
+}
+
+
+/**
+  Check if the new part_info has the same partitioning.
+
+  @param new_part_info  New partition definition to compare with.
+
+  @return True if not considered to have changed the partitioning.
+    @retval true  Allowed change (only .frm change, compatible distribution).
+    @retval false Different partitioning, will need redistribution of rows.
+
+  @note Currently only used to allow changing from non-set key_algorithm
+  to a specified key_algorithm, to avoid rebuild when upgrading from 5.1 of
+  such partitioned tables using numeric colums in the partitioning expression.
+  For more info see bug#14521864.
+  Does not check if columns etc has changed, i.e. only for
+  alter_info->flags == ALTER_PARTITION.
+*/
+
+bool partition_info::has_same_partitioning(partition_info *new_part_info)
+{
+  DBUG_ENTER("partition_info::has_same_partitioning");
+
+  DBUG_ASSERT(part_field_array && part_field_array[0]);
+
+  /*
+    Only consider pre 5.5.3 .frm's to have same partitioning as
+    a new one with KEY ALGORITHM = 1 ().
+  */
+
+  if (part_field_array[0]->table->s->mysql_version >= 50503)
+    DBUG_RETURN(false);
+
+  if (!new_part_info ||
+      part_type != new_part_info->part_type ||
+      num_parts != new_part_info->num_parts ||
+      use_default_partitions != new_part_info->use_default_partitions ||
+      new_part_info->is_sub_partitioned() != is_sub_partitioned())
+    DBUG_RETURN(false);
+
+  if (part_type != HASH_PARTITION)
+  {
+    /*
+      RANGE or LIST partitioning, check if KEY subpartitioned.
+      Also COLUMNS partitioning was added in 5.5, so treat that as different.
+    */
+    if (!is_sub_partitioned() ||
+        !new_part_info->is_sub_partitioned() ||
+        column_list ||
+        new_part_info->column_list ||
+        !list_of_subpart_fields ||
+        !new_part_info->list_of_subpart_fields ||
+        new_part_info->num_subparts != num_subparts ||
+        new_part_info->subpart_field_list.elements !=
+          subpart_field_list.elements ||
+        new_part_info->use_default_subpartitions !=
+          use_default_subpartitions)
+      DBUG_RETURN(false);
+  }
+  else
+  {
+    /* Check if KEY partitioned. */
+    if (!new_part_info->list_of_part_fields ||
+        !list_of_part_fields ||
+        new_part_info->part_field_list.elements != part_field_list.elements)
+      DBUG_RETURN(false);
+  }
+
+  /* Check that it will use the same fields in KEY (fields) list. */
+  List_iterator<char> old_field_name_it(part_field_list);
+  List_iterator<char> new_field_name_it(new_part_info->part_field_list);
+  char *old_name, *new_name;
+  while ((old_name= old_field_name_it++))
+  {
+    new_name= new_field_name_it++;
+    if (!new_name || my_strcasecmp(system_charset_info,
+                                   new_name,
+                                   old_name))
+      DBUG_RETURN(false);
+  }
+
+  if (is_sub_partitioned())
+  {
+    /* Check that it will use the same fields in KEY subpart fields list. */
+    List_iterator<char> old_field_name_it(subpart_field_list);
+    List_iterator<char> new_field_name_it(new_part_info->subpart_field_list);
+    char *old_name, *new_name;
+    while ((old_name= old_field_name_it++))
+    {
+      new_name= new_field_name_it++;
+      if (!new_name || my_strcasecmp(system_charset_info,
+                                     new_name,
+                                     old_name))
+        DBUG_RETURN(false);
+    }
+  }
+
+  if (!use_default_partitions)
+  {
+    /*
+      Loop over partitions/subpartition to verify that they are
+      the same, including state and name.
+    */
+    List_iterator<partition_element> part_it(partitions);
+    List_iterator<partition_element> new_part_it(new_part_info->partitions);
+    uint i= 0;
+    do
+    {
+      partition_element *part_elem= part_it++;
+      partition_element *new_part_elem= new_part_it++;
+      /*
+        The following must match:
+        partition_name, tablespace_name, data_file_name, index_file_name,
+        engine_type, part_max_rows, part_min_rows, nodegroup_id.
+        (max_value, signed_flag, has_null_value only on partition level,
+        RANGE/LIST)
+        The following can differ:
+          - part_comment
+        part_state must be PART_NORMAL!
+      */
+      if (!part_elem || !new_part_elem ||
+          strcmp(part_elem->partition_name,
+                 new_part_elem->partition_name) ||
+          part_elem->part_state != PART_NORMAL ||
+          new_part_elem->part_state != PART_NORMAL ||
+          part_elem->max_value != new_part_elem->max_value ||
+          part_elem->signed_flag != new_part_elem->signed_flag ||
+          part_elem->has_null_value != new_part_elem->has_null_value)
+        DBUG_RETURN(false);
+
+      /* new_part_elem may not have engine_type set! */
+      if (new_part_elem->engine_type &&
+          part_elem->engine_type != new_part_elem->engine_type)
+        DBUG_RETURN(false);
+
+      if (is_sub_partitioned())
+      {
+        /*
+          Check that both old and new partition has the same definition
+          (VALUES IN/VALUES LESS THAN) (No COLUMNS partitioning, see above)
+        */
+        if (part_type == LIST_PARTITION)
+        {
+          List_iterator<part_elem_value> list_vals(part_elem->list_val_list);
+          List_iterator<part_elem_value>
+            new_list_vals(new_part_elem->list_val_list);
+          part_elem_value *val;
+          part_elem_value *new_val;
+          while ((val= list_vals++))
+          {
+            new_val= new_list_vals++;
+            if (!new_val)
+              DBUG_RETURN(false);
+            if ((!val->null_value && !new_val->null_value) &&
+                val->value != new_val->value)
+              DBUG_RETURN(false);
+          }
+          if (new_list_vals++)
+            DBUG_RETURN(false);
+        }
+        else
+        {
+          DBUG_ASSERT(part_type == RANGE_PARTITION);
+          if (new_part_elem->range_value != part_elem->range_value)
+            DBUG_RETURN(false);
+        }
+
+        if (!use_default_subpartitions)
+        {
+          List_iterator<partition_element>
+            sub_part_it(part_elem->subpartitions);
+          List_iterator<partition_element>
+            new_sub_part_it(new_part_elem->subpartitions);
+          uint j= 0;
+          do
+          {
+            partition_element *sub_part_elem= sub_part_it++;
+            partition_element *new_sub_part_elem= new_sub_part_it++;
+            /* new_part_elem may not have engine_type set! */
+            if (new_sub_part_elem->engine_type &&
+                sub_part_elem->engine_type != new_part_elem->engine_type)
+              DBUG_RETURN(false);
+
+            if (strcmp(sub_part_elem->partition_name,
+                       new_sub_part_elem->partition_name) ||
+                sub_part_elem->part_state != PART_NORMAL ||
+                new_sub_part_elem->part_state != PART_NORMAL ||
+                sub_part_elem->part_min_rows !=
+                  new_sub_part_elem->part_min_rows ||
+                sub_part_elem->part_max_rows !=
+                  new_sub_part_elem->part_max_rows ||
+                sub_part_elem->nodegroup_id !=
+                  new_sub_part_elem->nodegroup_id)
+              DBUG_RETURN(false);
+  
+            if (strcmp_null(sub_part_elem->data_file_name,
+                            new_sub_part_elem->data_file_name) ||
+                strcmp_null(sub_part_elem->index_file_name,
+                            new_sub_part_elem->index_file_name) ||
+                strcmp_null(sub_part_elem->tablespace_name,
+                            new_sub_part_elem->tablespace_name))
+              DBUG_RETURN(false);
+
+          } while (++j < num_subparts);
+        }
+      }
+      else
+      {
+        if (part_elem->part_min_rows != new_part_elem->part_min_rows ||
+            part_elem->part_max_rows != new_part_elem->part_max_rows ||
+            part_elem->nodegroup_id != new_part_elem->nodegroup_id)
+          DBUG_RETURN(false);
+
+        if (strcmp_null(part_elem->data_file_name,
+                        new_part_elem->data_file_name) ||
+            strcmp_null(part_elem->index_file_name,
+                        new_part_elem->index_file_name) ||
+            strcmp_null(part_elem->tablespace_name,
+                        new_part_elem->tablespace_name))
+          DBUG_RETURN(false);
+      }
+    } while (++i < num_parts);
+  }
+
+  /*
+    Only if key_algorithm was not specified before and it is now set,
+    consider this as nothing was changed, and allow change without rebuild!
+  */
+  if (key_algorithm != partition_info::KEY_ALGORITHM_NONE ||
+      new_part_info->key_algorithm == partition_info::KEY_ALGORITHM_NONE)
+    DBUG_RETURN(false);
+
+  DBUG_RETURN(true);
 }
 
 

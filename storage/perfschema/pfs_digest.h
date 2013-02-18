@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -38,16 +38,18 @@ struct PFS_thread;
 /**
   Structure to store a MD5 hash value (digest) for a statement.
 */
-struct PFS_digest_hash
+struct PFS_digest_key
 {
   unsigned char m_md5[PFS_MD5_SIZE];
+  char m_schema_name[NAME_LEN];
+  uint m_schema_name_length;
 };
 
 /** A statement digest stat record. */
 struct PFS_ALIGNED PFS_statements_digest_stat
 {
-  /** Digest MD5 Hash. */
-  PFS_digest_hash m_digest_hash;
+  /** Digest Schema + MD5 Hash. */
+  PFS_digest_key m_digest_key;
 
   /** Digest Storage. */
   PSI_digest_storage m_digest_storage;
@@ -71,7 +73,9 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
-                                          PSI_digest_storage *digest_storage);
+                                          PSI_digest_storage *digest_storage,
+                                          const char *schema_name,
+                                          uint schema_name_length);
 
 void get_digest_text(char *digest_text, PSI_digest_storage *digest_storage);
 
@@ -79,13 +83,6 @@ void reset_esms_by_digest();
 
 /* Exposing the data directly, for iterators. */
 extern PFS_statements_digest_stat *statements_digest_stat_array;
-
-/* Instrumentation callbacks for pfs.cc */
-
-struct PSI_digest_locker *pfs_digest_start_v1(PSI_statement_locker *locker);
-PSI_digest_locker *pfs_digest_add_token_v1(PSI_digest_locker *locker,
-                                           uint token,
-                                           OPAQUE_LEX_YYSTYPE *yylval);
 
 static inline void digest_reset(PSI_digest_storage *digest)
 {
@@ -106,7 +103,6 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
   }
   else
   {
-    DBUG_ASSERT(! from->m_full);
     DBUG_ASSERT(from->m_byte_count == 0);
     to->m_full= false;
     to->m_byte_count= 0;

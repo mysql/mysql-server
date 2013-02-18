@@ -25,7 +25,7 @@
 #include "filesort.h"
 #include "sql_sort.h"
 
-namespace {
+namespace make_sortkey_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -89,9 +89,9 @@ TEST_F(MakeSortKeyTest, IntResult)
 
   const uint total_length=
     sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
-  EXPECT_EQ(4U, total_length);
+  EXPECT_EQ(sizeof(longlong), total_length);
   EXPECT_FALSE(m_multi_byte_charset);
-  EXPECT_EQ(4U, m_sort_fields[0].length);
+  EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
   make_sortkey(&m_sort_param, m_to, m_ref_buff);
@@ -109,9 +109,9 @@ TEST_F(MakeSortKeyTest, IntResultNull)
 
   const uint total_length=
     sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
-  EXPECT_EQ(5U, total_length);
+  EXPECT_EQ(1 + sizeof(longlong), total_length);
   EXPECT_FALSE(m_multi_byte_charset);
-  EXPECT_EQ(4U, m_sort_fields[0].length);
+  EXPECT_EQ(sizeof(longlong), m_sort_fields[0].length);
   EXPECT_EQ(INT_RESULT, m_sort_fields[0].result_type);
 
   make_sortkey(&m_sort_param, m_to, m_ref_buff);
@@ -128,9 +128,9 @@ TEST_F(MakeSortKeyTest, DecimalResult)
 
   const uint total_length=
     sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
-  EXPECT_EQ(4U, total_length);
+  EXPECT_EQ(10U, total_length);
   EXPECT_FALSE(m_multi_byte_charset);
-  EXPECT_EQ(4U, m_sort_fields[0].length);
+  EXPECT_EQ(10U, m_sort_fields[0].length);
   EXPECT_EQ(DECIMAL_RESULT, m_sort_fields[0].result_type);
 
   make_sortkey(&m_sort_param, m_to, m_ref_buff);
@@ -146,9 +146,9 @@ TEST_F(MakeSortKeyTest, RealResult)
 
   const uint total_length=
     sortlength(thd(), m_sort_fields, 1, &m_multi_byte_charset);
-  EXPECT_EQ(4U, total_length);
+  EXPECT_EQ(sizeof(double), total_length);
   EXPECT_FALSE(m_multi_byte_charset);
-  EXPECT_EQ(4U, m_sort_fields[0].length);
+  EXPECT_EQ(sizeof(double), m_sort_fields[0].length);
   EXPECT_EQ(REAL_RESULT, m_sort_fields[0].result_type);
 
   make_sortkey(&m_sort_param, m_to, m_ref_buff);

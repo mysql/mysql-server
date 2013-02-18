@@ -54,7 +54,7 @@ enum dict_table_info_t {
 	DICT_TABLE_LOAD_FROM_RECORD = 0,/*!< Directly populate a dict_table_t
 					structure with information from
 					a SYS_TABLES record */
-	DICT_TABLE_LOAD_FROM_CACHE = 1,	/*!< Check first whether dict_table_t
+	DICT_TABLE_LOAD_FROM_CACHE = 1	/*!< Check first whether dict_table_t
 					is in the cache, if so, return it */
 };
 
@@ -221,11 +221,13 @@ dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		check_recursive,/*!< in: Whether to check recursive
+	const char**	col_names,	/*!< in: column names, or NULL to use
+					table->col_names */
+	bool		check_recursive,/*!< in: Whether to check recursive
 					load of tables chained by FK */
-	ibool		check_charsets)	/*!< in: TRUE=check charsets
+	bool		check_charsets)	/*!< in: whether to check charset
 					compatibility */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull(1), warn_unused_result));
 /********************************************************************//**
 Prints to the standard output information on all tables found in the data
 dictionary system table. */

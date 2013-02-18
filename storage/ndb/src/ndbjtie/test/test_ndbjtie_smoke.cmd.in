@@ -1,0 +1,84 @@
+@echo off
+setlocal
+rem Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+rem
+rem This program is free software; you can redistribute it and/or modify
+rem it under the terms of the GNU General Public License as published by
+rem the Free Software Foundation; version 2 of the License.
+rem
+rem This program is distributed in the hope that it will be useful,
+rem but WITHOUT ANY WARRANTY; without even the implied warranty of
+rem MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+rem GNU General Public License for more details.
+rem
+rem You should have received a copy of the GNU General Public License
+rem along with this program; if not, write to the Free Software
+rem Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
+rem redirect all output to logfile
+set LOGFILE=%0.log
+echo running test... output in file: %CD%\%LOGFILE%
+call :doit %1 > %LOGFILE%
+
+rem calling exit directly will not pass status arg back to calling program;
+rem workaround is for literally last command in script be a call to exit
+goto :lastCommand
+
+:doit
+rem echo --^> %0
+
+rem some build configs place binaries in subdirectories
+set BIN_DIR=%1
+if not defined BIN_DIR set BIN_DIR=.
+echo all binaries assumed in subdirectory '%BIN_DIR%'
+
+rem jvm
+set JAVA="@Java_JAVA_EXECUTABLE_PATH@"
+set JAVA_FLAGS=-ea -Xcheck:jni
+set JAVA_ARCH=@Java_JAVA_ARCH_OPT@
+echo checking if JVM arch option %JAVA_ARCH% supported...
+%JAVA% %JAVA_ARCH% -version >nul 2>&1 || set JAVA_ARCH=
+echo.
+
+rem this test
+set JAVA_CLASS=test.NdbJTieSmokeTest
+set TEST_JAR=ndbjtie-test-@JAVA_NDB_VERSION@.jar
+
+rem dependencies
+set NDBJTIE=..
+set NDBCLIENT=..\..
+set NDBJTIE_JAR=%NDBJTIE%\ndbjtie-@JAVA_NDB_VERSION@.jar
+set JAVA_CLASSPATH=-classpath "%TEST_JAR%;%NDBJTIE_JAR%"
+set JAVA_LIBPATH=-Djava.library.path="%NDBCLIENT%\%BIN_DIR%"
+set JAVA_DEFS=
+
+echo running
+echo.  	%JAVA%
+echo.  	%JAVA_ARCH% %JAVA_FLAGS%
+echo.  	%JAVA_CLASSPATH%
+echo.  	%JAVA_LIBPATH%
+echo.  	%JAVA_DEFS%
+echo.  	%JAVA_CLASS%
+
+set TEST=%JAVA% %JAVA_ARCH% %JAVA_FLAGS% ^
+ %JAVA_CLASSPATH% %JAVA_LIBPATH% %JAVA_DEFS% %JAVA_CLASS%
+rem echo TEST=%TEST%
+
+rem retain test's exit status when discarding local settings
+@echo on
+%TEST%
+@endlocal & set EXIT_STATUS=%errorlevel%
+@echo off
+
+echo.
+echo exit status: %EXIT_STATUS%
+rem echo ^<-- %0
+rem goto :lastCommand
+
+:returnWithStatus
+exit /b %EXIT_STATUS%
+
+rem calling exit directly will not pass status arg back to calling program;
+rem workaround is for literally last command in script be a call to exit
+:lastCommand
+call :returnWithStatus

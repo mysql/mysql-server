@@ -6,9 +6,8 @@
 --source include/have_utf8.inc
 --source include/have_sjis.inc
 --source include/not_embedded.inc
---source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_java.inc
---source suite/ndb/include/have_junit.inc
+--source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_clusterj.inc
 
 --let JAVA_CLASSPATH=$CLUSTERJ_TEST_JAR
@@ -32,6 +31,8 @@ DROP TABLE binarytypes;
 DROP TABLE bittypes;
 DROP TABLE blobtypes;
 DROP TABLE bytestype;
+DROP TABLE cassandra_byte_array;
+DROP TABLE cassandra_string;
 DROP TABLE charsetbig5;
 DROP TABLE charsetlatin1;
 DROP TABLE charsetsjis;
@@ -49,10 +50,12 @@ DROP TABLE longlongstringfk;
 DROP TABLE longlongstringpk;
 DROP TABLE longvarbinarypk;
 DROP TABLE nullvalues;
+DROP TABLE stress;
 DROP TABLE stringtype;
 DROP TABLE t_basic;
 DROP TABLE timestamptypes;
 DROP TABLE timetypes;
+DROP TABLE twopk;
 DROP TABLE yeartypes;
 DROP TABLE localetypes;
 DROP TABLE stringtypes;

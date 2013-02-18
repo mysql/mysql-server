@@ -87,6 +87,9 @@ SELECT @@global.innodb_adaptive_flushing_lwm;
 SET @@global.innodb_adaptive_flushing_lwm = "T";
 SELECT @@global.innodb_adaptive_flushing_lwm;
 
+
+
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_adaptive_flushing_lwm = "Y";
 SELECT @@global.innodb_adaptive_flushing_lwm;

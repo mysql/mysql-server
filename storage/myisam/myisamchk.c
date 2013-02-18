@@ -64,8 +64,8 @@ static void get_options(int *argc,char * * *argv);
 static void print_version(void);
 static void usage(void);
 static int myisamchk(MI_CHECK *param, char *filename);
-static void descript(MI_CHECK *param, register MI_INFO *info, char * name);
-static int mi_sort_records(MI_CHECK *param, register MI_INFO *info,
+static void descript(MI_CHECK *param, MI_INFO *info, char * name);
+static int mi_sort_records(MI_CHECK *param, MI_INFO *info,
                            char * name, uint sort_key,
 			   my_bool write_info, my_bool update_index);
 static int sort_record_index(MI_SORT_PARAM *sort_param, MI_INFO *info,
@@ -296,7 +296,14 @@ static struct my_option my_long_options[] =
     &check_param.write_buffer_length, 0, GET_ULONG, REQUIRED_ARG,
     (long) READ_BUFFER_INIT, (long) MALLOC_OVERHEAD,
     INT_MAX32, (long) MALLOC_OVERHEAD, (long) 1L, 0},
-  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE, "",
+  { "sort_buffer_size", OPT_SORT_BUFFER_SIZE,
+    "Deprecated. myisam_sort_buffer_size alias is being used",
+    &check_param.sort_buffer_length,
+    &check_param.sort_buffer_length, 0, GET_ULL, REQUIRED_ARG,
+    (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
+    SIZE_T_MAX, (long) MALLOC_OVERHEAD, (long) 1L, 0},
+  { "myisam_sort_buffer_size", OPT_SORT_BUFFER_SIZE, 
+    "Alias of sort_buffer_size parameter",
     &check_param.sort_buffer_length,
     &check_param.sort_buffer_length, 0, GET_ULL, REQUIRED_ARG,
     (long) SORT_BUFFER_INIT, (long) (MIN_SORT_BUFFER + MALLOC_OVERHEAD),
@@ -711,7 +718,7 @@ get_one_option(int optid,
 }
 
 
-static void get_options(register int *argc,register char ***argv)
+static void get_options(int *argc,char ***argv)
 {
   int ho_error;
 
@@ -1172,12 +1179,12 @@ end2:
 
 	 /* Write info about table */
 
-static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
+static void descript(MI_CHECK *param, MI_INFO *info, char * name)
 {
   uint key,keyseg_nr,field,start;
-  reg3 MI_KEYDEF *keyinfo;
-  reg2 HA_KEYSEG *keyseg;
-  reg4 const char *text;
+  MI_KEYDEF *keyinfo;
+  HA_KEYSEG *keyseg;
+  const char *text;
   char buff[160],length[10],*pos,*end;
   enum en_fieldtype type;
   MYISAM_SHARE *share=info->s;
@@ -1431,7 +1438,7 @@ static void descript(MI_CHECK *param, register MI_INFO *info, char * name)
 	/* Sort records according to one key */
 
 static int mi_sort_records(MI_CHECK *param,
-			   register MI_INFO *info, char * name,
+			   MI_INFO *info, char * name,
 			   uint sort_key,
 			   my_bool write_info,
 			   my_bool update_index)

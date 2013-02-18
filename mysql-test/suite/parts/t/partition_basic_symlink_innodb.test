@@ -61,7 +61,7 @@ SET SESSION innodb_strict_mode = ON;
 --echo #
 SET GLOBAL innodb_file_per_table = OFF;
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 eval CREATE TABLE t1 (c1 INT)  ENGINE = InnoDB
 PARTITION BY HASH (c1) (
   PARTITION p0

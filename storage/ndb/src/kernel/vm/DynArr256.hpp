@@ -37,6 +37,7 @@ public:
 protected:
   Uint32 m_type_id;
   Uint32 m_first_free;
+  Uint32 m_last_free;
   Pool_context m_ctx;
   struct DA256Page* m_memroot;
   NdbMutex * m_mutex;
@@ -51,10 +52,17 @@ class DynArr256
 public:
   struct Head
   {
+#ifdef VM_TRACE
+    Head() { m_ptr_i = RNIL; m_sz = 0; m_high_pos = 0; }
+#else
     Head() { m_ptr_i = RNIL; m_sz = 0;}
+#endif
     
     Uint32 m_ptr_i;
     Uint32 m_sz;
+#ifdef VM_TRACE
+    Uint32 m_high_pos;
+#endif
 
     bool isEmpty() const { return m_sz == 0;}
   };
@@ -79,6 +87,8 @@ public:
    *        2 - nodata
    */
   Uint32 release(ReleaseIterator&, Uint32* retptr);
+  Uint32 trim(Uint32 trim_pos, ReleaseIterator&);
+  Uint32 truncate(Uint32 trunc_pos, ReleaseIterator&, Uint32* retptr);
 protected:
   Head & m_head;
   DynArr256Pool & m_pool;
@@ -86,5 +96,17 @@ protected:
   bool expand(Uint32 pos);
   void handle_invalid_ptr(Uint32 pos, Uint32 ptrI, Uint32 p0);
 };
+
+inline
+Uint32 DynArr256::release(ReleaseIterator& iter, Uint32* retptr)
+{
+  return truncate(0, iter, retptr);
+}
+
+inline
+Uint32 DynArr256::trim(Uint32 pos, ReleaseIterator& iter)
+{
+  return truncate(pos, iter, NULL);
+}
 
 #endif

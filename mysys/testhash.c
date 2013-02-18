@@ -59,7 +59,7 @@ int main(int argc,char *argv[])
 
 static int do_test()
 {
-  register uint i,j;
+  uint i,j;
   uint n1,n2,n3;
   uint write_count,update,delete;
   ulong pos;

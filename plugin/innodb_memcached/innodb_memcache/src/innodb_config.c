@@ -789,7 +789,9 @@ innodb_config_value_col_verify(
 		if (strcmp(name, cinfo[CONTAINER_VALUE].col_name) == 0) {
 			if (col_meta->type != IB_VARCHAR
 			    && col_meta->type != IB_CHAR
-			    && col_meta->type != IB_BLOB) {
+			    && col_meta->type != IB_BLOB
+			    && col_meta->type != IB_CHAR_ANYCHARSET
+			    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
 				err = DB_DATA_MISMATCH;
 			}
 
@@ -804,7 +806,9 @@ innodb_config_value_col_verify(
 			if (strcmp(name, meta_info->extra_col_info[i].col_name) == 0) {
 				if (col_meta->type != IB_VARCHAR
 				    && col_meta->type != IB_CHAR
-				    && col_meta->type != IB_BLOB) {
+				    && col_meta->type != IB_BLOB
+				    && col_meta->type != IB_CHAR_ANYCHARSET
+				    && col_meta->type != IB_VARCHAR_ANYCHARSET) {
 					err = DB_DATA_MISMATCH;
 					break;
 				}
@@ -895,7 +899,9 @@ innodb_verify_low(
 		if (strcmp(name, cinfo[CONTAINER_KEY].col_name) == 0) {
 			/* Key column must be CHAR or VARCHAR type */
 			if (col_meta.type != IB_VARCHAR
-			    && col_meta.type != IB_CHAR) {
+			    && col_meta.type != IB_CHAR
+			    && col_meta.type != IB_VARCHAR_ANYCHARSET
+			    && col_meta.type != IB_CHAR_ANYCHARSET) {
 				err = DB_DATA_MISMATCH;
 				goto func_exit;
 			}
@@ -1117,6 +1123,18 @@ innodb_config(
 	if (!name) {
 		item = innodb_config_meta_hash_init(*meta_hash);
 	} else {
+		ib_ulint_t	fold;
+
+		fold = ut_fold_string(name);
+		HASH_SEARCH(name_hash, *meta_hash, fold,
+			    meta_cfg_info_t*, item,
+			    (name_len == item->col_info[0].col_name_len
+			     && strcmp(name, item->col_info[0].col_name) == 0));
+
+		if (item) {
+			return(item);
+		}
+
 		item = innodb_config_container(name, name_len, *meta_hash);
 	}
 

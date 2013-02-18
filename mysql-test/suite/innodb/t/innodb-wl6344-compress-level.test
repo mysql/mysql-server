@@ -25,7 +25,6 @@ SET global innodb_compression_level=0;
 
 -- echo #check the compression level and the compressed_pages is default
 SELECT @@innodb_compression_level;
-SELECT @@innodb_log_compressed_pages;
 SELECT @@Innodb_file_per_table;
 SELECT @@innodb_file_format;
 

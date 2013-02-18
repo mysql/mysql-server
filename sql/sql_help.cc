@@ -303,14 +303,11 @@ int get_topics_for_keyword(THD *thd, TABLE *topics, TABLE *relations,
   rtopic_id= find_fields[help_relation_help_topic_id].field;
   rkey_id=   find_fields[help_relation_help_keyword_id].field;
 
-  if (topics->file->ha_index_init(iindex_topic, 1))
+  if (topics->file->ha_index_init(iindex_topic,1) ||
+      relations->file->ha_index_init(iindex_relations,1))
   {
-    my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
-    DBUG_RETURN(-1);
-  }
-  if (relations->file->ha_index_init(iindex_relations, 1))
-  {
-    topics->file->ha_index_end();
+    if (topics->file->inited)
+      topics->file->ha_index_end();
     my_message(ER_CORRUPT_HELP_DB, ER(ER_CORRUPT_HELP_DB), MYF(0));
     DBUG_RETURN(-1);
   }

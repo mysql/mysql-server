@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,7 +90,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1, NULL);
+  fill_record(thd, table->field, values, 1, NULL, NULL);
   if (thd->is_error())
     return 1;
 
@@ -474,17 +474,14 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Query_arena *arena, backup_arena;
+      {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-      arena= thd->activate_stmt_arena_if_needed(&backup_arena);
-      
-      saved_error= table->fill_item_list(&item_list);
+        saved_error= table->fill_item_list(&item_list);
 
-      if (arena)
-        thd->restore_active_arena(arena, &backup_arena);
-
-      if (saved_error)
-        goto err;
+        if (saved_error)
+          goto err;
+      }
 
       if (thd->stmt_arena->is_stmt_prepare())
       {
@@ -591,34 +588,36 @@ bool st_select_lex_unit::optimize()
   Explain UNION.
 */
 
-void st_select_lex_unit::explain()
+bool st_select_lex_unit::explain()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select;
   Explain_format *fmt= thd->lex->explain_format;
   DBUG_ENTER("st_select_lex_unit::explain");
   JOIN *join;
+  bool ret= false;
 
   DBUG_ASSERT((is_union() || fake_select_lex) && describe && optimized);
   executed= true;
 
   if (fmt->begin_context(CTX_UNION))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   for (SELECT_LEX *sl= first_select(); sl; sl= sl->next_select())
   {
     if (fmt->begin_context(CTX_QUERY_SPEC))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(true);
     DBUG_ASSERT(sl->join);
-    sl->join->explain();
+    if (sl->join->explain() || thd->is_error())
+      DBUG_RETURN(true);
     if (fmt->end_context(CTX_QUERY_SPEC))
-      DBUG_VOID_RETURN;
+      DBUG_RETURN(true);
   }
 
   if (init_prepare_fake_select_lex(thd, true))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   if (thd->is_fatal_error)
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
   join= fake_select_lex->join;
 
   /*
@@ -641,13 +640,15 @@ void st_select_lex_unit::explain()
                           result, this, fake_select_lex);
   }
   else
-    join->explain();
+    ret= join->explain();
 
   thd->lex->current_select= lex_select_save;
 
+  if (saved_error || ret || thd->is_error())
+    DBUG_RETURN(true);
   fmt->end_context(CTX_UNION);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(false);
 }
 
 
@@ -933,8 +934,6 @@ bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
 
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
-  SELECT_LEX *sl= first_select();
-
   if (is_union())
   {
     DBUG_ASSERT(prepared);
@@ -942,7 +941,24 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
     return &types;
   }
 
-  return &sl->item_list;
+  return &first_select()->item_list;
+}
+
+
+/**
+  Get field list for this query expression.
+
+  For a UNION of query blocks, return the field list of the created
+  temporary table.
+  For a single query block, return the field list after all possible
+  intermediate query processing steps are completed.
+
+  @returns List containing fields of the query expression.
+*/
+
+List<Item> *st_select_lex_unit::get_field_list()
+{
+  return is_union() ? &item_list : first_select()->join->fields;
 }
 
 

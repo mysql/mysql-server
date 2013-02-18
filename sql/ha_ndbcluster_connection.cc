@@ -303,4 +303,121 @@ void ndb_get_connection_stats(Uint64* statsArr)
   }
 }
 
+static ST_FIELD_INFO ndb_transid_mysql_connection_map_fields_info[] =
+{
+  {
+    "mysql_connection_id",
+    MY_INT64_NUM_DECIMAL_DIGITS,
+    MYSQL_TYPE_LONGLONG,
+    0,
+    MY_I_S_UNSIGNED,
+    "",
+    SKIP_OPEN_TABLE
+  },
+
+  {
+    "node_id",
+    MY_INT64_NUM_DECIMAL_DIGITS,
+    MYSQL_TYPE_LONG,
+    0,
+    MY_I_S_UNSIGNED,
+    "",
+    SKIP_OPEN_TABLE
+  },
+  {
+    "ndb_transid",
+    MY_INT64_NUM_DECIMAL_DIGITS,
+    MYSQL_TYPE_LONGLONG,
+    0,
+    MY_I_S_UNSIGNED,
+    "",
+    SKIP_OPEN_TABLE
+  },
+
+  { 0, 0, MYSQL_TYPE_NULL, 0, 0, "", SKIP_OPEN_TABLE }
+};
+
+#include <mysql/innodb_priv.h>
+
+static
+int
+ndb_transid_mysql_connection_map_fill_table(THD* thd, TABLE_LIST* tables,
+                                            Item*)
+{
+  DBUG_ENTER("ndb_transid_mysql_connection_map_fill_table");
+
+  const bool all = (check_global_access(thd, PROCESS_ACL) == 0);
+  const ulonglong self = thd_get_thread_id(thd);
+
+  TABLE* table= tables->table;
+  for (uint i = 0; i<g_pool_alloc; i++)
+  {
+    if (g_pool[i])
+    {
+      g_pool[i]->lock_ndb_objects();
+      const Ndb * p = g_pool[i]->get_next_ndb_object(0);
+      while (p)
+      {
+        Uint64 connection_id = p->getCustomData64();
+        if ((connection_id == self) || all)
+        {
+          table->field[0]->set_notnull();
+          table->field[0]->store(p->getCustomData64(), true);
+          table->field[1]->set_notnull();
+          table->field[1]->store(g_pool[i]->node_id());
+          table->field[2]->set_notnull();
+          table->field[2]->store(p->getNextTransactionId(), true);
+          schema_table_store_record(thd, table);
+        }
+        p = g_pool[i]->get_next_ndb_object(p);
+      }
+      g_pool[i]->unlock_ndb_objects();
+    }
+  }
+
+  DBUG_RETURN(0);
+}
+
+static
+int
+ndb_transid_mysql_connection_map_init(void *p)
+{
+  DBUG_ENTER("ndb_transid_mysql_connection_map_init");
+  ST_SCHEMA_TABLE* schema = reinterpret_cast<ST_SCHEMA_TABLE*>(p);
+  schema->fields_info = ndb_transid_mysql_connection_map_fields_info;
+  schema->fill_table = ndb_transid_mysql_connection_map_fill_table;
+  DBUG_RETURN(0);
+}
+
+static
+int
+ndb_transid_mysql_connection_map_deinit(void *p)
+{
+  DBUG_ENTER("ndb_transid_mysql_connection_map_deinit");
+  DBUG_RETURN(0);
+}
+
+#include <mysql/plugin.h>
+static struct st_mysql_information_schema i_s_info =
+{
+  MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION
+};
+
+struct st_mysql_plugin i_s_ndb_transid_mysql_connection_map_plugin =
+{
+  MYSQL_INFORMATION_SCHEMA_PLUGIN,
+  &i_s_info,
+  "ndb_transid_mysql_connection_map",
+  "Oracle Corporation",
+  "Map between mysql connection id and ndb transaction id",
+  PLUGIN_LICENSE_GPL,
+  ndb_transid_mysql_connection_map_init,
+  ndb_transid_mysql_connection_map_deinit,
+  0x0001,
+  NULL,
+  NULL,
+  NULL,
+  0
+};
+
 #endif /* WITH_NDBCLUSTER_STORAGE_ENGINE */

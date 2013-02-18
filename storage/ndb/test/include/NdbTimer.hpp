@@ -23,7 +23,7 @@
 #include <NdbOut.hpp>
 
 // 
-// Class used for measuring time and priting the results
+// Class used for measuring time and printing the results
 // 
 // Currently measures time in milliseconds
 // 

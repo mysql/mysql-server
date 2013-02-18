@@ -309,7 +309,6 @@ SELECT `my.db`.f1(2);
 # Switching to default connection.
 DROP DATABASE `my.db`;
 USE test;
-set @@global.concurrent_insert= @old_concurrent_insert;
 #
 # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
 #
@@ -367,3 +366,4 @@ RELEASE_LOCK('e1_lock')
 DROP EVENT e1;
 DROP TABLE t1, t2, t3;
 SET GLOBAL EVENT_SCHEDULER = OFF;
+set @@global.concurrent_insert= @old_concurrent_insert;

@@ -21,6 +21,7 @@ show create table events_stages_summary_global_by_event_name;
 show create table events_statements_current;
 show create table events_statements_history;
 show create table events_statements_history_long;
+show create table events_statements_summary_by_digest;
 show create table events_statements_summary_by_host_by_event_name;
 show create table events_statements_summary_by_thread_by_event_name;
 show create table events_statements_summary_by_user_by_event_name;

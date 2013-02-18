@@ -1,0 +1,75 @@
+#
+# Test opening a corrupted table.
+#
+
+# Don't test under valgrind, memory leaks will occur
+source include/not_valgrind.inc;
+# Avoid CrashReporter popup on Mac
+source include/not_crashrep.inc;
+# Don't test under embedded
+source include/not_embedded.inc;
+# Require InnoDB
+source include/have_innodb.inc;
+
+CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+
+--echo # Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+--disable_query_log
+--let $i = 10
+while ($i)
+{
+  INSERT INTO t1 (b) VALUES (REPEAT('abcdefghijklmnopqrstuvwxyz', 100));
+  dec $i;
+}
+--enable_query_log
+INSERT INTO t1 (b) VALUES ('corrupt me');
+
+--echo # Restart server to flush buffers
+source include/restart_mysqld.inc;
+
+--echo # Corrupt the table
+let $MYSQLD_DATADIR=`select @@datadir`;
+let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
+
+perl;
+use strict;
+use warnings;
+use Fcntl qw(:DEFAULT :seek);
+
+my $ibd_file = $ENV{'t1_IBD'};
+
+my $chunk;
+my $len;
+
+sysopen IBD_FILE, $ibd_file, O_RDWR || die "Unable to open $ibd_file";
+
+while ($len = sysread IBD_FILE, $chunk, 1024)
+{
+  if ($chunk =~ s/corrupt me/korrupt me/)
+  {
+    print "Munged a string.\n";
+    sysseek IBD_FILE, -$len, SEEK_CUR;
+    syswrite IBD_FILE, $chunk, $len;
+  }
+}
+
+close IBD_FILE;
+EOF
+
+--echo # Write file to make mysql-test-run.pl expect crash and restart
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+
+--error 2013
+SELECT * FROM t1;
+
+--echo # Turn on reconnect
+--enable_reconnect
+
+--echo # Wait for server to fully start
+--source include/wait_until_connected_again.inc
+
+--echo # Cleanup
+DROP TABLE t1;

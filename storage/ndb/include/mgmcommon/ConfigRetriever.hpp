@@ -59,6 +59,8 @@ public:
    * @return Node id of this node (as stated in local config or connectString)
    */
   Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds);
+  Uint32 allocNodeId(int no_retries, int retry_delay_in_seconds,
+                     int verbose, int& error);
 
   int setNodeId(Uint32 nodeid);
 

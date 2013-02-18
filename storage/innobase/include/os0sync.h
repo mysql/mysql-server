@@ -94,7 +94,8 @@ struct os_event {
 /** Operating system mutex handle */
 typedef struct os_mutex_t*	os_ib_mutex_t;
 
-/** Mutex protecting counts and the event and OS 'slow' mutex lists */
+/** Mutex protecting counts and the event and OS 'slow' mutex lists
+as well as the win_thread_map. */
 extern os_ib_mutex_t	os_sync_mutex;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
@@ -124,10 +125,8 @@ explicitly by calling sync_os_reset_event.
 @return	the event handle */
 UNIV_INTERN
 os_event_t
-os_event_create(
-/*============*/
-	const char*	name);	/*!< in: the name of the event, if NULL
-				the event is created without a name */
+os_event_create(void);
+/*==================*/
 /**********************************************************//**
 Sets an event semaphore to the signaled state: lets waiting threads
 proceed. */

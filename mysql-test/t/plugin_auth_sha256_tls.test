@@ -43,6 +43,27 @@ SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
 connect(con4,127.0.0.1,kristofer,,,,,SSL);
 --enable_query_log
 DROP USER 'kristofer'@'33.33.33.33';
+
+--echo #
+--echo # BUG#14807074 ALTER USER PASSWORD EXPIRE VS SHA256_PASSWORD
+--echo #
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'u1'@'localhost' = PASSWORD('pass');
+ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
+connect(con5,127.0.0.1,u1,pass,test,,,SSL);
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+SET @@OLD_PASSWORDS=2;
+SET PASSWORD=PASSWORD('pass2');
+
+connect(con6,127.0.0.1,u1,pass2,test,,,SSL);
+SELECT USER();
+
+connection default;
+DROP USER 'u1'@'localhost';
+disconnect con5;
+disconnect con6;
+
 # Restore default value to old_passwords
 SET GLOBAL old_passwords= default;
 connection default;

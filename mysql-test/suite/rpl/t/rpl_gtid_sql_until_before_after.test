@@ -128,7 +128,7 @@ while ($i != 11)
 --source include/start_slave.inc
 --replace_result $master_uuid MASTER_UUID
 --disable_result_log
---eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$master_uuid:10')
+--eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$master_uuid:10')
 --enable_result_log
 --let $assert_cond= MAX(c1)=10 FROM t1
 --let $assert_text= Rows until 10 in t1 must be replicated now

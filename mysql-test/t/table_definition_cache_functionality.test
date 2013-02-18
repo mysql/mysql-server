@@ -1,0 +1,207 @@
+###############################################################################
+#                                                                             #
+# Variable Name: table_definition_cache                                       #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-08-31                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable table_definition_cache    #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#              * Functionality Check                                          #
+#              * Accessability Check                                          #
+#                                                                             #               
+# This test does not perform the crash recovery on this variable              # 
+# For crash recovery test on default change please run the ibtest             #
+###############################################################################
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_innodb_16k.inc
+
+echo '#________________________VAR_05_table_definition_cache__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_5_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.table_definition_cache);
+--echo 1 Expected
+
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+SELECT @@GLOBAL.table_definition_cache;
+--echo 1400 Expected
+
+
+--echo '#---------------------WL6372_VAR_5_02----------------------#'
+#################################################################################
+# Checking the Default value post starting the server with other value          #
+#################################################################################
+--echo # Restart server with table_definition_cache 1
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--table_definition_cache=2000  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.table_definition_cache;
+--echo 2000 Expected
+
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+SELECT @@GLOBAL.table_definition_cache;
+--echo 1400 Expected
+
+
+--echo '#---------------------WL6372_VAR_5_03----------------------#'
+####################################################################
+#   Checking Value can be set - Dynamic                            #
+####################################################################
+
+--error ER_GLOBAL_VARIABLE
+SET @@local.table_definition_cache=1;
+--echo Expected error 'Global variable'
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.table_definition_cache=1;
+--echo Expected error 'Global variable'
+
+--disable_warnings
+SET @@GLOBAL.table_definition_cache=1;
+--enable_warnings
+
+SET @@GLOBAL.table_definition_cache=DEFAULT;
+
+
+SELECT @@GLOBAL.table_definition_cache;
+--echo 1400 Expected
+
+--echo '#---------------------WL6372_VAR_5_04----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.table_definition_cache = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='table_definition_cache';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.table_definition_cache);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='table_definition_cache';
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_5_05----------------------#'
+################################################################################
+#  Checking Variable Scope                                                     #
+################################################################################
+SELECT @@table_definition_cache = @@GLOBAL.table_definition_cache;
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.table_definition_cache);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.table_definition_cache);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.table_definition_cache);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT table_definition_cache = @@SESSION.table_definition_cache;
+--echo Expected error 'Unknown column table_definition_cache in field list'
+
+
+
+--echo '#---------------------WL6372_VAR_5_06----------------------#'
+###############################################################################
+# Checking the /Var  directory size                                           #
+###############################################################################
+-- source include/vardir_size_check.inc
+--echo TRUE Expected
+
+--echo '#---------------------WL6372_VAR_5_07----------------------#'
+#################################################################################
+# Checking the size of table definition cache functionality                     #
+#################################################################################
+flush tables;
+flush status;
+
+set @Open_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions');
+set @Opened_table_definitions = (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions');
+
+--echo # create 2 tables 
+
+--disable_warnings
+DROP TABLE IF EXISTS tab1;
+DROP TABLE IF EXISTS tab2;
+--enable_warnings
+
+let $table = tab1;
+--source include/create_table.inc
+
+let $table = tab2;
+--source include/create_table.inc
+
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 2;
+--echo 1 Expected
+
+--echo # open two tables
+
+select 1 from tab1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 3;
+--echo 1 Expected
+
+select 1 from tab2;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 2;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--echo 1 Expected
+
+DROP TABLE IF EXISTS tab1;
+
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--echo 1 Expected
+
+
+DROP TABLE IF EXISTS tab2;
+
+select (select variable_value from information_schema.session_status where variable_name ='Open_table_definitions') = @Open_table_definitions;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_table_definitions') = @Opened_table_definitions + 4;
+--echo 1 Expected
+
+
+
+
+--echo #cleanup
+set @@GLOBAL.table_definition_cache=DEFAULT;

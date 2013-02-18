@@ -22,6 +22,13 @@
 #ifndef NDB_TYPES_H
 #define NDB_TYPES_H
 
+/**
+ * sizeof cacheline (in bytes)
+ *
+ * TODO: Add configure check...
+ */
+#define NDB_CL 64
+
 #define NDB_SIZEOF_CHARP @NDB_SIZEOF_CHARP@
 #define NDB_SIZEOF_CHAR @NDB_SIZEOF_CHAR@
 #define NDB_SIZEOF_INT @NDB_SIZEOF_INT@
@@ -33,9 +40,11 @@
 typedef unsigned __int64 Uint64;
 typedef   signed __int64 Int64;
 #define ssize_t SSIZE_T
+#define NDB_EXPORT __declspec(dllexport)
 #else
 typedef unsigned long long Uint64;
 typedef   signed long long Int64;
+#define NDB_EXPORT
 #endif
 
 typedef   signed char  Int8;
@@ -86,5 +95,77 @@ typedef unsigned int UintR;
 #endif
 
 #include "ndb_constants.h"
+
+struct LinearSectionPtr
+{
+  Uint32 sz;
+  Uint32 * p;
+};
+
+struct SegmentedSectionPtrPOD
+{
+  Uint32 sz;
+  Uint32 i;
+  struct SectionSegment * p;
+
+#ifdef __cplusplus
+  void setNull() { p = 0;}
+  bool isNull() const { return p == 0;}
+  inline SegmentedSectionPtrPOD& assign(struct SegmentedSectionPtr&);
+#endif
+};
+
+struct SegmentedSectionPtr
+{
+  Uint32 sz;
+  Uint32 i;
+  struct SectionSegment * p;
+
+#ifdef __cplusplus
+  SegmentedSectionPtr() {}
+  SegmentedSectionPtr(Uint32 sz_arg, Uint32 i_arg,
+                      struct SectionSegment *p_arg)
+    :sz(sz_arg), i(i_arg), p(p_arg)
+  {}
+  SegmentedSectionPtr(const SegmentedSectionPtrPOD & src)
+    :sz(src.sz), i(src.i), p(src.p)
+  {}
+
+  void setNull() { p = 0;}
+  bool isNull() const { return p == 0;}
+#endif
+};
+
+#ifdef __cplusplus
+inline
+SegmentedSectionPtrPOD&
+SegmentedSectionPtrPOD::assign(struct SegmentedSectionPtr& src)
+{
+  this->i = src.i;
+  this->p = src.p;
+  this->sz = src.sz;
+  return *this;
+}
+#endif
+
+/* Abstract interface for iterating over
+ * words in a section
+ */
+#ifdef __cplusplus
+struct GenericSectionIterator
+{
+  virtual ~GenericSectionIterator() {};
+  virtual void reset()=0;
+  virtual const Uint32* getNextWords(Uint32& sz)=0;
+};
+#else
+struct GenericSectionIterator;
+#endif
+
+struct GenericSectionPtr
+{
+  Uint32 sz;
+  struct GenericSectionIterator* sectionIter;
+};
 
 #endif

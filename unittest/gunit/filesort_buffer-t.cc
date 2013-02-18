@@ -21,7 +21,7 @@
 #include "filesort_utils.h"
 #include "table.h"
 
-namespace {
+namespace filesort_buffer_unittest {
 
 class FileSortBufferTest : public ::testing::Test
 {

@@ -61,6 +61,8 @@ ADD_CONVENIENCE_LIBRARY(ndbapi
             ObjectMap.cpp
             NdbInfo.cpp
             NdbInfoScanOperation.cpp
+            NdbWaitGroup.cpp
+            WakeupHandler.cpp
             ndb_internal.cpp
 	    trp_client.cpp
             trp_node.cpp

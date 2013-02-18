@@ -42,8 +42,8 @@ Created 1/20/1994 Heikki Tuuri
 #define _IB_TO_STR(s)	#s
 #define IB_TO_STR(s)	_IB_TO_STR(s)
 
-#define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	3
+#define INNODB_VERSION_MAJOR	MYSQL_VERSION_MAJOR
+#define INNODB_VERSION_MINOR	MYSQL_VERSION_MINOR
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
@@ -151,6 +151,13 @@ be excluded from instrumentation. */
 # define PFS_NOT_INSTRUMENTED		ULINT32_UNDEFINED
 
 # define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
+
+/* For PSI_MUTEX_CALL() and similar. */
+#include "pfs_thread_provider.h"
+#include "mysql/psi/mysql_thread.h"
+/* For PSI_FILE_CALL(). */
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
 
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -433,6 +440,7 @@ macro ULINTPF. */
 # define UINT32PF	"%I32u"
 # define INT64PF	"%I64d"
 # define UINT64PF	"%I64u"
+# define UINT64PFx	"%016I64u"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -441,6 +449,7 @@ typedef unsigned __int32 ib_uint32_t;
 # define UINT32PF	"%"PRIu32
 # define INT64PF	"%"PRId64
 # define UINT64PF	"%"PRIu64
+# define UINT64PFx	"%016"PRIx64
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;

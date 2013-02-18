@@ -9,20 +9,28 @@ show profile all;
 
 # default is OFF
 show session variables like 'profil%';
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 # But size is okay
+--disable_warnings
 set @start_value= @@global.profiling_history_size;
 set global profiling_history_size=100;
+--enable_warnings
 show global variables like 'profil%';
 
 # turn on for testing
+--disable_warnings
 set session profiling = ON;
 set session profiling_history_size=30;  # small enough to overflow
+--enable_warnings
 
 # verify it is active
 show session variables like 'profil%';
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 #   Profiling is a descriptive look into the way the server operated
 #   in retrospect.  Chad doesn't think it's wise to include the result
@@ -142,14 +150,22 @@ show profiles;
 ##  Verify that the various juggling of THD contexts doesn't affect profiling.
 
 ##  Functions and procedures
+--disable_warnings
 set session profiling = ON;
 select @@profiling;
+--enable_warnings
 create function f1() returns varchar(50) return 'hello';
+--disable_warnings
 select @@profiling;
+--enable_warnings
 select * from t1 where id <> f1();
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
+--disable_warnings
 set session profiling = OFF;
+--enable_warnings
 drop table if exists profile_log;
 create table profile_log (how_many int);
 
@@ -208,49 +224,75 @@ drop procedure if exists p3;
 drop table if exists profile_log;
 
 ##  Triggers
+--disable_warnings
 set session profiling = ON;
+--enable_warnings
 drop table if exists t2;
 create table t2 (id int not null);
 create trigger t2_bi before insert on t2 for each row set @x=0;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 insert into t2 values (1), (2), (3);
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 ##  ALTER TABLE
+--disable_warnings
 set session profiling = ON;
+--enable_warnings
 drop table if exists t1, t2;
 create table t1 (id int not null primary key);
 create table t2 (id int not null primary key, id1 int not null);
+--disable_warnings
 select @@profiling;
+--enable_warnings
 alter table t2 add foreign key (id1) references t1 (id) on delete cascade;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 ##  Table LOCKing
 lock table t1 write; 
+--disable_warnings
 select @@profiling;
+--enable_warnings
 unlock table; 
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 ##  Transactions
 set autocommit=0;
+--disable_warnings
 select @@profiling, @@autocommit;
+--enable_warnings
 begin;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 insert into t1 values (1);
 insert into t2 values (1,1);
 --echo testing referential integrity cascade
 delete from t1 where id = 1;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 --echo testing rollback
 --disable_warnings
 rollback;
---enable_warnings
 select @@profiling;
+--enable_warnings
 --echo testing commit
 begin;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 commit;
+--disable_warnings
 select @@profiling;
+--enable_warnings
 
 drop table if exists t1, t2, t3;
 drop view if exists v1;
@@ -263,7 +305,9 @@ drop function if exists f1;
 
 
 ## last thing in the file
+--disable_warnings
 set session profiling = OFF;
 set global profiling_history_size= @start_value;
+--enable_warnings
 ##
 --echo End of 5.0 tests

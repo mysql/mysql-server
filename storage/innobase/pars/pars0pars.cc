@@ -1943,9 +1943,23 @@ pars_create_table(
 	const dtype_t*	dtype;
 	ulint		n_cols;
 	ulint		flags = 0;
+	ulint		flags2 = 0;
 
 	if (compact != NULL) {
+
+		/* System tables currently only use the REDUNDANT row
+		format therefore the check for srv_file_per_table should be
+		safe for now. */
+
 		flags |= DICT_TF_COMPACT;
+
+		/* FIXME: Ideally this should be part of the SQL syntax
+		or use some other mechanism. We want to reduce dependency
+		on global variables. There is an inherent race here but
+		that has always existed around this variable. */
+		if (srv_file_per_table) {
+			flags2 |= DICT_TF2_USE_TABLESPACE;
+		}
 	}
 
 	if (block_size != NULL) {
@@ -1976,10 +1990,8 @@ pars_create_table(
 
 	n_cols = que_node_list_get_len(column_defs);
 
-	/* As the InnoDB SQL parser is for internal use only,
-	for creating some system tables, this function will only
-	create tables in the old (not compact) record format. */
-	table = dict_mem_table_create(table_sym->name, 0, n_cols, flags, 0);
+	table = dict_mem_table_create(
+		table_sym->name, 0, n_cols, flags, flags2);
 
 #ifdef UNIV_DEBUG
 	if (not_fit_in_memory != NULL) {

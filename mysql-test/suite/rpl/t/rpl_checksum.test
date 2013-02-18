@@ -149,8 +149,9 @@ connection slave;
 # instruction to io thread
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
-let $slave_io_errno= 1595; # ER_SLAVE_RELAY_LOG_WRITE_FAILURE
---let $show_slave_io_error= 1
+# ER_SLAVE_RELAY_LOG_WRITE_FAILURE, ER_NETWORK_READ_EVENT_CHECKSUM_FAILURE
+let $slave_io_errno= 1595, 1743;
+--let $show_slave_io_error= 0
 source include/wait_for_slave_io_error.inc;
 # no need to stop the IO thread, it is already stopped
 set @@global.debug='';

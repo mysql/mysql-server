@@ -96,6 +96,11 @@ struct NdbUpGradeCompatible {
 };
 
 struct NdbUpGradeCompatible ndbCompatibleTable_full[] = {
+  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,3,0), UG_Range },
+  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,2,0), UG_Range },
+  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },
+  { MAKE_VERSION(7,3,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
+
   { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,2,0), UG_Range },
   { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,1,0), UG_Range },
   { MAKE_VERSION(7,2,NDB_VERSION_BUILD), MAKE_VERSION(7,0,0), UG_Range },
@@ -325,6 +330,8 @@ TAPTEST(ndb_version)
   printf(" NDB_VERSION_MINOR: %d\n", NDB_VERSION_MINOR);
   printf(" NDB_VERSION_BUILD: %d\n", NDB_VERSION_BUILD);
   printf(" NDB_VERSION_STATUS: '%s'\n\n", NDB_VERSION_STATUS);
+  printf(" NDB_VERSION_STRING: '%s'\n", NDB_VERSION_STRING);
+  printf(" NDB_NDB_VERSION_STRING: '%s'\n\n", NDB_NDB_VERSION_STRING);
 
   /*
     Parse the VERSION string as X.X.X-status */
@@ -417,6 +424,7 @@ TAPTEST(ndb_version)
   /* ndbGetOwnVersionString */
   printf("ndbGetOwnVersionString: '%s'\n",
          ndbGetOwnVersionString());
+  OK(strcmp(NDB_VERSION_STRING, ndbGetOwnVersionString()) == 0); // should match
 
   /* ndbGetOwnVersion */
   OK(ndbGetOwnVersion() == ndbMakeVersion(NDB_VERSION_MAJOR,

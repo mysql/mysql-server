@@ -499,7 +499,10 @@ ndb_mgm_call(NdbMgmHandle handle,
   out.println("%s", "");
 
   if (cmd_bulk)
-    out.println(cmd_bulk);
+  {
+    out.write(cmd_bulk, strlen(cmd_bulk));
+    out.write("\n", 1);
+  }
 
   CHECK_TIMEDOUT_RET(handle, in, out, NULL);
 
@@ -658,6 +661,9 @@ bool get_mgmd_version(NdbMgmHandle handle)
 
 /**
  * Connect to a management server
+ * no_retries = 0, return immediately,
+ * no_retries < 0, retry infinitely,
+ * else retry no_retries times.
  */
 extern "C"
 int
@@ -791,6 +797,15 @@ ndb_mgm_connect(NdbMgmHandle handle, int no_retries,
 	fflush(handle->errstream);
       }
       no_retries--;
+    }
+    else
+    {
+      // no_retries < 0, retrying infinitely
+      if (verbose == -2)
+      {
+        fprintf(handle->errstream, ".");
+        fflush(handle->errstream);
+      }
     }
     NdbSleep_SecSleep(retry_delay_in_seconds);
   }
@@ -2039,7 +2054,7 @@ ndb_mgm_dump_state(NdbMgmHandle handle, int nodeId, const int * _args,
   char buf[256];
   buf[0] = 0;
   for (int i = 0; i < _num_args; i++){
-    unsigned n = strlen(buf);
+    unsigned n = (unsigned)strlen(buf);
     if (n + 20 > sizeof(buf)) {
       SET_ERROR(handle, NDB_MGM_USAGE_ERROR, "arguments too long");
       DBUG_RETURN(-1);
@@ -2562,7 +2577,7 @@ ndb_mgm_get_configuration2(NdbMgmHandle handle, unsigned int version,
     size_t start = 0;
     do {
       if((read = read_socket(handle->socket, handle->timeout,
-			     &buf64[start], len-start)) < 1){
+			     &buf64[start], (int)(len-start))) < 1){
 	delete[] buf64;
 	buf64 = 0;
         if(read==0)
@@ -2685,6 +2700,7 @@ ndb_mgm_alloc_nodeid(NdbMgmHandle handle, unsigned int version, int nodetype,
 {
   DBUG_ENTER("ndb_mgm_alloc_nodeid");
   CHECK_HANDLE(handle, 0);
+  SET_ERROR(handle, NDB_MGM_NO_ERROR, "Executing: ndb_mgm_alloc_nodeid");
   CHECK_CONNECTED(handle, 0);
   union { long l; char c[sizeof(long)]; } endian_check;
 

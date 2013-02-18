@@ -47,9 +47,11 @@ insert into t2 values (1);
 set SQL_LOG_BIN=1;
 --replace_result $the_epoch <the_epoch>
 --disable_query_log
+--disable_result_log
 eval SELECT @the_pos:=Position,
    @the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\\\','/'), '/', -1)
    FROM mysql.ndb_binlog_index WHERE epoch = $the_epoch ;
+--enable_result_log
 --enable_query_log
 let $the_pos= `SELECT @the_pos` ;
 let $the_file= `SELECT @the_file` ;

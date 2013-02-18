@@ -175,7 +175,7 @@ static double get_merge_many_buffs_cost(uint *buffer,
                                         uint maxbuffer, uint max_n_elems,
                                         uint last_n_elems, int elem_size)
 {
-  register int i;
+  int i;
   double total_cost= 0.0;
   uint *buff_elems= buffer; /* #s of elements in each of merged sequences */
 

@@ -148,8 +148,6 @@
 
 #define IMPORT extern           /* Names defined externally */
 #define EXPORT                  /* Allocated here, available globally */
-#define AUTO auto               /* Names to be allocated on stack */
-#define REGISTER register       /* Names to be placed in registers */
 
 /*
  * The default file for profiling.  Could also add another flag
@@ -356,6 +354,14 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
 #include <my_pthread.h>
 static pthread_mutex_t THR_LOCK_dbug;
+
+/**
+  A mutex protecting flushing of gcov data, see _db_flush_gcov_().
+  We don't re-use THR_LOCK_dbug, because that would disallow:
+  DBUG_LOCK_FILE; ..... DBUG_SUICIDE(); .... DBUG_UNLOCK_FILE;
+*/
+static pthread_mutex_t THR_LOCK_gcov;
+
 /**
   Lock, to protect @c init_settings.
   For performance reasons,
@@ -378,6 +384,7 @@ static CODE_STATE *code_state(void)
   {
     init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
+    pthread_mutex_init(&THR_LOCK_gcov, NULL);
     my_rwlock_init(&THR_LOCK_init_settings, NULL);
     memset(&init_settings, 0, sizeof(init_settings));
     init_settings.out_file=stderr;
@@ -658,10 +665,11 @@ int DbugParse(CODE_STATE *cs, const char *control)
       /* fall through */
     case 'a':
     case 'o':
+      /* In case we already have an open file. */
+      if (!is_shared(stack, out_file))
+        DBUGCloseFile(cs, stack->out_file);
       if (sign < 0)
       {
-        if (!is_shared(stack, out_file))
-          DBUGCloseFile(cs, stack->out_file);
         stack->flags &= ~FLUSH_ON_WRITE;
         stack->out_file= stderr;
         break;
@@ -1896,7 +1904,7 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 
 static void Indent(CODE_STATE *cs, int indent)
 {
-  REGISTER int count;
+  int count;
 
   indent= MY_MAX(indent-1-cs->stack->sub_level,0)*INDENT;
   for (count= 0; count < indent ; count++)
@@ -1928,7 +1936,7 @@ static void Indent(CODE_STATE *cs, int indent)
 
 static void FreeList(struct link *linkp)
 {
-  REGISTER struct link *old;
+  struct link *old;
 
   while (linkp != NULL)
   {
@@ -2027,7 +2035,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
-  REGISTER FILE *fp;
+  FILE *fp;
 
   if (name != NULL)
   {
@@ -2151,7 +2159,7 @@ static void DbugExit(const char *why)
 
 static char *DbugMalloc(size_t size)
 {
-  register char *new_malloc;
+  char *new_malloc;
 
   if (!(new_malloc= (char*) malloc(size)))
     DbugExit("out of memory");
@@ -2192,7 +2200,7 @@ static const char *DbugStrTok(const char *s)
 
 static const char *BaseName(const char *pathname)
 {
-  register const char *base;
+  const char *base;
 
   base= strrchr(pathname, FN_LIBCHAR);
   if (base++ == NullS)
@@ -2229,8 +2237,8 @@ static const char *BaseName(const char *pathname)
 
 static BOOLEAN Writable(const char *pathname)
 {
-  REGISTER BOOLEAN granted;
-  REGISTER char *lastslash;
+  BOOLEAN granted;
+  char *lastslash;
 
   granted= FALSE;
   if (EXISTS(pathname))
@@ -2383,6 +2391,16 @@ void _db_flush_()
 extern void __gcov_flush();
 #endif
 
+void _db_flush_gcov_()
+{
+#ifdef HAVE_GCOV
+  // Gcov will assert() if we try to flush in parallel.
+  pthread_mutex_lock(&THR_LOCK_gcov);
+  __gcov_flush();
+  pthread_mutex_unlock(&THR_LOCK_gcov);
+#endif
+}
+
 void _db_suicide_()
 {
   int retval;
@@ -2392,7 +2410,7 @@ void _db_suicide_()
 #ifdef HAVE_GCOV
   fprintf(stderr, "Flushing gcov data\n");
   fflush(stderr);
-  __gcov_flush();
+  _db_flush_gcov_();
 #endif
 
   fprintf(stderr, "SIGKILL myself\n");

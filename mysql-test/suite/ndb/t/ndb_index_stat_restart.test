@@ -1,0 +1,68 @@
+--source include/have_ndb.inc
+--source include/have_log_bin.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+set @is_enable_default = @@global.ndb_index_stat_enable;
+let is_table_exists = `select count(*) <> 2 from information_schema.tables where table_name in ('ndb_index_stat_head', 'ndb_index_stat_sample') and table_schema='mysql'`;
+
+set @is_enable = 1;
+source ndb_index_stat_enable.inc;
+
+create table t1 (
+  a int primary key,
+  b int,
+  c int,
+  key t1x1 (b),
+  key t1x2 (c)
+) engine=ndb
+  partition by key (a) partitions 1;
+
+insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
+analyze table t1;
+
+# put some entries into index stats cache
+select count(*) from t1 where b = 1;
+select count(*) from t1 where c = 1;
+show status like 'ndb_index_stat_cache%';
+
+--echo # restart cluster --initial
+--exec $NDB_MGM --no-defaults -e "all restart -i -n" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --not-started >> $NDB_TOOLS_OUTPUT
+--exec $NDB_MGM --no-defaults -e "all start" >> $NDB_TOOLS_OUTPUT
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+--echo # wait for mysqld
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_query_log
+
+--error 0,1193
+set global ndb_dbg_check_shares=1;
+
+--error 0,1051
+drop table if exists t1;
+
+create table t1 (
+  a int primary key,
+  b int,
+  c int,
+  key t1x1 (b),
+  key t1x2 (c)
+) engine=ndb
+  partition by key (a) partitions 1;
+
+insert into t1 values (1,1,1),(2,1,1),(3,2,1),(4,2,1);
+analyze table t1;
+
+# put some entries into index stats cache
+select count(*) from t1 where b = 1;
+select count(*) from t1 where c = 1;
+show status like 'ndb_index_stat_cache%';
+
+drop table t1;
+
+set @is_enable = @is_enable_default;
+source ndb_index_stat_enable.inc;

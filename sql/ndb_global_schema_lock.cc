@@ -173,6 +173,7 @@ private:
 
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
+#include "log.h"
 
 
 extern ulong opt_ndb_extra_logging;
@@ -286,7 +287,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
   {
     sql_print_warning("NDB: Could not acquire global schema lock (%d)%s",
                       ndb_error.code, ndb_error.message);
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
                         ndb_error.code, ndb_error.message,
                         "NDB. Could not acquire global schema lock");
@@ -338,7 +339,7 @@ ndbcluster_global_schema_unlock(THD *thd)
     {
       sql_print_warning("NDB: Releasing global schema lock (%d)%s",
                         ndb_error.code, ndb_error.message);
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_GET_ERRMSG, ER_DEFAULT(ER_GET_ERRMSG),
                           ndb_error.code,
                           ndb_error.message,

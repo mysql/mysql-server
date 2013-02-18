@@ -24,10 +24,8 @@ insert into t1 values('Could not break slave'),('Tried hard');
 Master_Log_File = 'master-bin.000001'
 Relay_Master_Log_File = 'master-bin.000001'
 include/check_slave_is_running.inc
-select * from t1;
-s
-Could not break slave
-Tried hard
+# Asserted this: Table t1 should contain the first inserted line
+# Asserted this: Table t1 should contain the second inserted line
 flush logs;
 create table t2(m int not null auto_increment primary key);
 insert into t2 values (34),(67),(123);
@@ -38,9 +36,7 @@ master-bin.000001	#
 master-bin.000002	#
 master-bin.000003	#
 create table t3 select * from temp_table;
-select * from t3;
-a
-testing temporary tables
+# Asserted this: Data in t3 should be equal to temp_table
 drop table temp_table, t3;
 insert into t2 values(1234);
 set insert_id=1234;
@@ -67,28 +63,20 @@ insert into t2 values (65);
 Master_Log_File = 'master-bin.000003'
 Relay_Master_Log_File = 'master-bin.000003'
 include/check_slave_is_running.inc
-select * from t2;
-m
-34
-65
-67
-123
-1234
+# Asserted this: Table t2 should still contain the first inserted line after creation
+# Asserted this: Table t2 should contain the line inserted after the purge
+# Asserted this: Table t2 should still contain the second insert line after creation
+# Asserted this: Table t2 should still contain the third inserted line after creation
+# Asserted this: Table t2 should still contain the line from the duplicated key test
 create temporary table temp_table (a char(80) not null);
 insert into temp_table values ("testing temporary tables part 2");
 create table t3 (n int);
-select count(*) from t3 where n >= 4;
-count(*)
-90
+# Asserted this: Table t3 should contain 90 lines on the master
 create table t4 select * from temp_table;
-select * from t4;
-a
-testing temporary tables part 2
+# Asserted this: Data in t4 should be equal to temp_table
 include/check_slave_is_running.inc
 lock tables t3 read;
-select count(*) from t3 where n >= 4;
-count(*)
-90
+# Asserted this: Table t3 should contain 90 lines on the slave
 unlock tables;
 drop table if exists t1,t2,t3,t4;
 End of 4.1 tests

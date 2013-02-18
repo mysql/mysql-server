@@ -124,6 +124,7 @@ enum dberr_t {
 					during online index creation */
 
 	DB_IO_ERROR,			/*!< Generic IO error */
+	DB_IDENTIFIER_TOO_LONG,		/*!< Identifier name too long */
 
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
@@ -133,6 +134,10 @@ enum dberr_t {
 	DB_ZIP_OVERFLOW,
 	DB_RECORD_NOT_FOUND = 1500,
 	DB_END_OF_INDEX,
+	DB_DICT_CHANGED,		/*!< Some part of table dictionary has
+					changed. Such as index dropped or
+					foreign key dropped */
+
 
         /* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed

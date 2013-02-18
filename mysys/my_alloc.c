@@ -155,7 +155,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
 void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
 #if defined(HAVE_purify) && defined(EXTRA_DEBUG)
-  reg1 USED_MEM *next;
+  USED_MEM *next;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
 
@@ -185,8 +185,8 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
 #else
   size_t get_size, block_size;
   uchar* point;
-  reg1 USED_MEM *next= 0;
-  reg2 USED_MEM **prev;
+  USED_MEM *next= 0;
+  USED_MEM **prev;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
   DBUG_ASSERT(alloc_root_inited(mem_root));
@@ -303,8 +303,8 @@ void *multi_alloc_root(MEM_ROOT *root, ...)
 
 static inline void mark_blocks_free(MEM_ROOT* root)
 {
-  reg1 USED_MEM *next;
-  reg2 USED_MEM **last;
+  USED_MEM *next;
+  USED_MEM **last;
 
   /* iterate through (partially) free blocks, mark them free */
   last= &root->free;
@@ -351,7 +351,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
 
 void free_root(MEM_ROOT *root, myf MyFlags)
 {
-  reg1 USED_MEM *next,*old;
+  USED_MEM *next,*old;
   DBUG_ENTER("free_root");
   DBUG_PRINT("enter",("root: 0x%lx  flags: %u", (long) root, (uint) MyFlags));
 

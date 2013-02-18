@@ -97,7 +97,13 @@ SELECT @@global.tmp_table_size;
 SET @@global.tmp_table_size = -1024;
 SELECT @@global.tmp_table_size;
 
+
 SET @@global.tmp_table_size = 1000;
+SELECT @@global.tmp_table_size;
+SET @@global.tmp_table_size = 4294967299;
+SELECT @@global.tmp_table_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.tmp_table_size = ' ';
 SELECT @@global.tmp_table_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -127,12 +133,21 @@ SET @@session.tmp_table_size = OFF;
 SET @@session.tmp_table_size = True;
 SELECT @@session.tmp_table_size;
 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = 65530.34;
+
 SET @@session.tmp_table_size = False;
 SELECT @@session.tmp_table_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.tmp_table_size = "Test";
 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.tmp_table_size = ' ';
+SELECT @@session.tmp_table_size;
+
+SET @@session.tmp_table_size = 1000;
+SELECT @@session.tmp_table_size;
 SET @@session.tmp_table_size = 12345678901;
 
 # With a 64 bit mysqld:12345678901,with a 32 bit mysqld: 4294967295

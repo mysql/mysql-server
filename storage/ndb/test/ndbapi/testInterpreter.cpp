@@ -209,9 +209,10 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   // Load 64-bit constant into register 1 and
   // write from register 1 to 32-bit column KOL2
   const Uint64 reg_val = 0x0102030405060708ULL;
+#if 0
   Uint32 reg_ptr32[2];
-  memcpy(reg_ptr32+0, (Uint8*)&reg_val, sizeof(Uint32));
-  memcpy(reg_ptr32+1, ((Uint8*)&reg_val)+4, sizeof(Uint32));
+  memcpy(&(reg_ptr32[0]), (Uint8*)&reg_val, sizeof(Uint32));
+  memcpy(&(reg_ptr32[1]), ((Uint8*)&reg_val)+4, sizeof(Uint32));
   if (reg_ptr32[0] == 0x05060708 && reg_ptr32[1] == 0x01020304) {
     g_err << "runTestBug19537: platform is LITTLE endian" << endl;
   } else if (reg_ptr32[0] == 0x01020304 && reg_ptr32[1] == 0x05060708) {
@@ -222,6 +223,7 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
     pNdb->closeTransaction(pTrans);
     return NDBT_FAILED;
   }
+#endif
 
   if (pOp->load_const_u64(1, reg_val) == -1 ||
       pOp->write_attr("KOL2", 1) == -1) {

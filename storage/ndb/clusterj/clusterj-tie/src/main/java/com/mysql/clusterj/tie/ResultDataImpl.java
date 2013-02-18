@@ -128,12 +128,6 @@ class ResultDataImpl implements ResultData {
         }
     }
 
-    private NdbRecAttr getValue(NdbOperation ndbOperation2, int columnId,
-            ByteBuffer byteBuffer2) {
-        // TODO: to help profiling
-        return ndbOperation2.getValue(columnId, byteBuffer2);
-    }
-
     public boolean next() {
         // NdbOperation has exactly zero or one result. ScanResultDataImpl handles scans...
         NdbErrorConst error = ndbOperation.getNdbError();
@@ -215,7 +209,7 @@ class ResultDataImpl implements ResultData {
     public long getLong(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
-        return Utility.getLong(storeColumn, ndbRecAttr);
+        return Utility.getLong(storeColumn, ndbRecAttr.int64_value());
      }
 
     public float getFloat(int column) {
@@ -377,7 +371,7 @@ class ResultDataImpl implements ResultData {
     public Long getObjectLong(Column storeColumn) {
         int index = storeColumn.getColumnId();
         NdbRecAttr ndbRecAttr = ndbRecAttrs[index];
-        return (ndbRecAttr.isNULL() == 1)?null:Utility.getLong(storeColumn, ndbRecAttr);
+        return (ndbRecAttr.isNULL() == 1)?null:Utility.getLong(storeColumn, ndbRecAttr.int64_value());
     }
 
     public Float getObjectFloat(int column) {

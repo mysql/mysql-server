@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -103,11 +103,8 @@ enum enum_alter_inplace_result {
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
 #define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
 #define HA_STATS_RECORDS_IS_EXACT (1 << 13) /* stats.records is exact */
-/*
-  INSERT_DELAYED only works with handlers that uses MySQL internal table
-  level locks
-*/
-#define HA_CAN_INSERT_DELAYED  (1 << 14)
+/// Not in use.
+#define HA_UNUSED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
   (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
@@ -424,7 +421,8 @@ enum enum_binlog_command {
   LOGCOM_DROP_TABLE,
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
-  LOGCOM_DROP_DB
+  LOGCOM_DROP_DB,
+  LOGCOM_ACL_NOTIFY
 };
 
 /* struct to hold information about the table that should be created */
@@ -1265,6 +1263,18 @@ public:
   inplace_alter_handler_ctx *handler_ctx;
 
   /**
+    If the table uses several handlers, like ha_partition uses one handler
+    per partition, this contains a Null terminated array of ctx pointers
+    that should all be committed together.
+    Or NULL if only handler_ctx should be committed.
+    Set to NULL if the low level handler::commit_inplace_alter_table uses it,
+    to signal to the main handler that everything was committed as atomically.
+
+    @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx **group_commit_ctx;
+
+  /**
      Flags describing in detail which operations the storage engine is to execute.
   */
   HA_ALTER_FLAGS handler_flags;
@@ -1279,8 +1289,23 @@ public:
 
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+
   /** true for online operation (LOCK=NONE) */
   bool online;
+
+  /**
+     Can be set by handler to describe why a given operation cannot be done
+     in-place (HA_ALTER_INPLACE_NOT_SUPPORTED) or why it cannot be done
+     online (HA_ALTER_INPLACE_NO_LOCK or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
+     If set, it will be used with ER_ALTER_OPERATION_NOT_SUPPORTED_REASON if
+     results from handler::check_if_supported_inplace_alter() doesn't match
+     requirements set by user. If not set, the more generic
+     ER_ALTER_OPERATION_NOT_SUPPORTED will be used.
+
+     Please set to a properly localized string, for example using
+     my_get_err_msg(), so that the error message as a whole is localized.
+  */
+  const char *unsupported_reason;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
@@ -1296,16 +1321,30 @@ public:
     index_add_count(0),
     index_add_buffer(NULL),
     handler_ctx(NULL),
+    group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
-    online (false)
+    online(false),
+    unsupported_reason(NULL)
   {}
 
   ~Alter_inplace_info()
   {
     delete handler_ctx;
   }
+
+  /**
+    Used after check_if_supported_inplace_alter() to report
+    error if the result does not match the LOCK/ALGORITHM
+    requirements set by the user.
+
+    @param not_supported  Part of statement that was not supported.
+    @param try_instead    Suggestion as to what the user should
+                          replace not_supported with.
+  */
+  void report_unsupported_error(const char *not_supported,
+                                const char *try_instead);
 };
 
 
@@ -1913,6 +1952,8 @@ public:
   int ha_index_read_map(uchar *buf, const uchar *key,
                         key_part_map keypart_map,
                         enum ha_rkey_function find_flag);
+  int ha_index_read_last_map(uchar * buf, const uchar * key,
+                             key_part_map keypart_map);
   int ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
                            key_part_map keypart_map,
                            enum ha_rkey_function find_flag);
@@ -2157,6 +2198,7 @@ public:
     DBUG_ASSERT(FALSE);
     return HA_ERR_WRONG_COMMAND;
   }
+protected:
   /**
      @brief
      Positions an index cursor to the index specified in the handle
@@ -2173,7 +2215,6 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return  index_read(buf, key, key_len, find_flag);
   }
-protected:
   /**
      @brief
      Positions an index cursor to the index specified in argument. Fetches
@@ -2196,7 +2237,6 @@ protected:
   /// @returns @see index_read_map().
   virtual int index_last(uchar * buf)
    { return  HA_ERR_WRONG_COMMAND; }
-public:
   /// @returns @see index_read_map().
   virtual int index_next_same(uchar *buf, const uchar *key, uint keylen);
   /**
@@ -2211,6 +2251,7 @@ public:
     uint key_len= calculate_key_len(table, active_index, key, keypart_map);
     return index_read_last(buf, key, key_len);
   }
+public:
   virtual int read_range_first(const key_range *start_key,
                                const key_range *end_key,
                                bool eq_range, bool sorted);
@@ -2896,6 +2937,10 @@ protected:
 
     @note In case of partitioning, this function might be called for rollback
     without prepare_inplace_alter_table() having been called first.
+    Also partitioned tables sets ha_alter_info->group_commit_ctx to a NULL
+    terminated array of the partitions handlers and if all of them are
+    committed as one, then group_commit_ctx should be set to NULL to indicate
+    to the partitioning handler that all partitions handlers are committed.
     @see prepare_inplace_alter_table().
 
     @param    altered_table     TABLE object for new version of table.
@@ -2910,7 +2955,11 @@ protected:
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
                                          bool commit)
- { return false; }
+{
+  /* Nothing to commit/rollback, mark all handlers committed! */
+  ha_alter_info->group_commit_ctx= NULL;
+  return false;
+}
 
 
  /**
@@ -2990,6 +3039,14 @@ private:
     return HA_ERR_WRONG_COMMAND;
   }
 
+  /**
+    Update a single row.
+
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+  */
   virtual int update_row(const uchar *old_data __attribute__((unused)),
                          uchar *new_data __attribute__((unused)))
   {
@@ -3066,12 +3123,15 @@ public:
     that another call to bulk_update_row will occur OR a call to
     exec_bulk_update before the set of updates in this query is concluded.
 
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+
     @param    old_data       Old record
     @param    new_data       New record
     @param    dup_key_found  Number of duplicate keys found
 
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
   */
   virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)
@@ -3296,7 +3356,9 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info);
+		                bool update_create_info,
+                    bool is_temp_table= false);
+
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 
@@ -3372,15 +3434,16 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
-int ha_binlog_end(THD *thd);
 #else
 #define ha_reset_logs(a) do {} while (0)
 #define ha_binlog_index_purge_file(a,b) do {} while (0)
 #define ha_reset_slave(a) do {} while (0)
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
-#define ha_binlog_end(a)  do {} while (0)
 #endif
+
+/* It is required by basic binlog features on both MySQL server and libmysqld */
+int ha_binlog_end(THD *thd);
 
 const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,

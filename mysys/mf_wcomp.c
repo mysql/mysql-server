@@ -24,7 +24,7 @@ char wild_many='*';
 char wild_one='?';
 char wild_prefix=0; /* QQ this can potentially cause a SIGSEGV */
 
-int wild_compare(register const char *str, register const char *wildstr,
+int wild_compare(const char *str, const char *wildstr,
                  pbool str_is_pattern)
 {
   char cmp;

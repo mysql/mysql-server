@@ -49,6 +49,7 @@ Group_cache::add_logged_group(const THD *thd, my_off_t binlog_offset)
 {
   DBUG_ENTER("Group_cache::add_logged_group(THD *, my_off_t)");
   const Gtid_specification &spec= thd->variables.gtid_next;
+  DBUG_ASSERT(spec.type != UNDEFINED_GROUP);
   // merge with previous group if possible
   Cached_group *prev= get_last_group();
   if (prev != NULL && prev->spec.equals(spec))

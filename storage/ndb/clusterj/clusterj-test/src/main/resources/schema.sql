@@ -3,6 +3,13 @@ drop table if exists t_basic;
 # the second statement is a test; if it succeeds, skip the rest of the file.
 select id from t_basic where id = 9999;
 # the following statements are delimited by semicolon
+
+DROP TABLE IF EXISTS twopk;
+CREATE TABLE IF NOT EXISTS twopk (
+  id int not null,
+  name varchar(30)
+) ENGINE = ndbcluster;
+
 DROP TABLE IF EXISTS subscriber ;
 
 CREATE TABLE IF NOT EXISTS subscriber (
@@ -705,6 +712,111 @@ create table longintstringix (
  PRIMARY KEY (id),
  KEY idx_long_int_string (longix, intix, stringix)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists cassandra_string;
+create table cassandra_string (
+  id varchar(10),
+  c1 varchar(34),
+  c2 varchar(34),
+  c3 varchar(34),
+  c4 varchar(34),
+  c5 varchar(34)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists cassandra_byte_array;
+create table cassandra_byte_array (
+  id binary(10) primary key,
+  c1 binary(34),
+  c2 binary(34),
+  c3 binary(34),
+  c4 binary(34),
+  c5 binary(34)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+
+drop table if exists stress;
+create table stress (
+  id int not null primary key,
+  i0 int not null,
+  l0 bigint not null,
+  f0 float not null,
+  d0 double not null,
+  i1 int not null,
+  l1 bigint not null,
+  f1 float not null,
+  d1 double not null,
+  i2 int not null,
+  l2 bigint not null,
+  f2 float not null,
+  d2 double not null,
+  i3 int not null,
+  l3 bigint not null,
+  f3 float not null,
+  d3 double not null,
+  i4 int not null,
+  l4 bigint not null,
+  f4 float not null,
+  d4 double not null,
+  i5 int not null,
+  l5 bigint not null,
+  f5 float not null,
+  d5 double not null,
+  i6 int not null,
+  l6 bigint not null,
+  f6 float not null,
+  d6 double not null,
+  i7 int not null,
+  l7 bigint not null,
+  f7 float not null,
+  d7 double not null,
+  i8 int not null,
+  l8 bigint not null,
+  f8 float not null,
+  d8 double not null,
+  i9 int not null,
+  l9 bigint not null,
+  f9 float not null,
+  d9 double not null,
+  i10 int not null,
+  l10 bigint not null,
+  f10 float not null,
+  d10 double not null,
+  i11 int not null,
+  l11 bigint not null,
+  f11 float not null,
+  d11 double not null,
+  i12 int not null,
+  l12 bigint not null,
+  f12 float not null,
+  d12 double not null,
+  i13 int not null,
+  l13 bigint not null,
+  f13 float not null,
+  d13 double not null,
+  i14 int not null,
+  l14 bigint not null,
+  f14 float not null,
+  d14 double not null,
+  i15 int not null,
+  l15 bigint not null,
+  f15 float not null,
+  d15 double not null,
+  i16 int not null,
+  l16 bigint not null,
+  f16 float not null,
+  d16 double not null,
+  i17 int not null,
+  l17 bigint not null,
+  f17 float not null,
+  d17 double not null,
+  i18 int not null,
+  l18 bigint not null,
+  f18 float not null,
+  d18 double not null,
+  i19 int not null,
+  l19 bigint not null,
+  f19 float not null,
+  d19 double not null
+  ) ENGINE=ndbcluster;
 
 create database if not exists test2;
 use test2;

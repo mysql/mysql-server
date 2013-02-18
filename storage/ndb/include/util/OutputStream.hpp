@@ -33,6 +33,7 @@ public:
     ATTRIBUTE_FORMAT(printf, 2, 3) = 0;
   virtual int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3) = 0;
+  virtual int write(const void * buf, size_t len) = 0;
   virtual void flush() {};
   virtual void reset_timeout() {};
 };
@@ -48,6 +49,7 @@ public:
     ATTRIBUTE_FORMAT(printf, 2, 3);
   int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
+  int write(const void * buf, size_t len);
   void flush() { fflush(f); }
 };
 
@@ -67,6 +69,7 @@ public:
     ATTRIBUTE_FORMAT(printf, 2, 3);
   int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
+  int write(const void * buf, size_t len);
 };
 
 
@@ -82,6 +85,7 @@ public:
   int println(const char * fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
 
+  int write(const void * buf, size_t len);
   void flush();
 };
 
@@ -92,6 +96,7 @@ public:
   virtual ~NullOutputStream() {}
   int print(const char * /* unused */, ...) { return 1;}
   int println(const char * /* unused */, ...) { return 1;}
+  int write(const void * buf, size_t len) { return 1;}
 };
 
 #endif

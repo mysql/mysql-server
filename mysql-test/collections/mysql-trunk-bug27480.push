@@ -1,4 +1,0 @@
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_mix --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_ps_row --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=main_embedded --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=funcs_1 --vardir=var-funcs_1 --suite=funcs_1 --experimental=collections/default.experimental --skip-ndb

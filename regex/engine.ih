@@ -4,20 +4,20 @@ extern "C" {
 #endif
 
 /* === engine.c === */
-static int matcher(const CHARSET_INFO *charset,register struct re_guts *g,
+static int matcher(const CHARSET_INFO *charset,struct re_guts *g,
                    char *string, size_t nmatch, my_regmatch_t pmatch[],
                    int eflags);
-static char *dissect(const CHARSET_INFO *charset, register struct match *m,
+static char *dissect(const CHARSET_INFO *charset, struct match *m,
                      char *start, char *stop, sopno startst, sopno stopst);
-static char *backref(const CHARSET_INFO *charset, register struct match *m,
+static char *backref(const CHARSET_INFO *charset, struct match *m,
                      char *start, char *stop, sopno startst, sopno stopst,
                      sopno lev);
-static char *fast(const CHARSET_INFO *charset, register struct match *m,
+static char *fast(const CHARSET_INFO *charset, struct match *m,
                   char *start, char *stop, sopno startst, sopno stopst);
-static char *slow(const CHARSET_INFO *charset, register struct match *m,
+static char *slow(const CHARSET_INFO *charset, struct match *m,
                   char *start, char *stop, sopno startst, sopno stopst);
-static states step(register struct re_guts *g, sopno start, sopno stop,
-                   register states bef, int ch, register states aft);
+static states step(struct re_guts *g, sopno start, sopno stop,
+                   states bef, int ch, states aft);
 #define	BOL	(OUT+1)
 #define	EOL	(BOL+1)
 #define	BOLEOL	(BOL+2)

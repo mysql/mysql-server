@@ -120,6 +120,8 @@ row_ins_sec_index_entry_low(
 				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
+				row_log_table_apply(), or 0 */
 	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
 /***************************************************************//**

@@ -71,7 +71,7 @@ opre="$pre.$$"
 
 gensql=${RQG_HOME}/gensql.pl
 gendata=${RQG_HOME}/gendata.pl
-ecp="set engine_condition_pushdown=on;"
+ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
 
 dsn=dbi:mysql:host=${host}:port=${port}:user=root:database=${pre}_myisam
 mysqltest="$MYSQLINSTALL/bin/mysqltest -uroot --host=${host} --port=${port}"

@@ -1,7 +1,7 @@
 #ifndef PARTITION_INFO_INCLUDED
 #define PARTITION_INFO_INCLUDED
 
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,9 +191,7 @@ public:
 
   uint num_parts;
   uint num_subparts;
-  uint count_curr_subparts;
-
-  uint part_error_code;
+  uint count_curr_subparts;                  // used during parsing
 
   uint num_list_values;
 
@@ -208,9 +206,24 @@ public:
     but mainly of use to handlers supporting partitioning.
   */
   uint16 linear_hash_mask;
+  /*
+    PARTITION BY KEY ALGORITHM=N
+    Which algorithm to use for hashing the fields.
+    N = 1 - Use 5.1 hashing (numeric fields are hashed as binary)
+    N = 2 - Use 5.5 hashing (numeric fields are hashed like latin1 bytes)
+  */
+  enum enum_key_algorithm
+    {
+      KEY_ALGORITHM_NONE= 0,
+      KEY_ALGORITHM_51= 1,
+      KEY_ALGORITHM_55= 2
+    };
+  enum_key_algorithm key_algorithm;
 
+  /* Only the number of partitions defined (uses default names and options). */
   bool use_default_partitions;
   bool use_default_num_partitions;
+  /* Only the number of subpartitions defined (uses default names etc.). */
   bool use_default_subpartitions;
   bool use_default_num_subpartitions;
   bool default_partitions_setup;
@@ -220,7 +233,6 @@ public:
   bool linear_hash_ind;                      // LINEAR HASH/KEY
   bool fixed;
   bool is_auto_partitioned;
-  bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
   /**
@@ -255,15 +267,16 @@ public:
     part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
-    count_curr_subparts(0), part_error_code(0),
+    count_curr_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
+    key_algorithm(KEY_ALGORITHM_NONE),
     use_default_partitions(TRUE), use_default_num_partitions(TRUE),
     use_default_subpartitions(TRUE), use_default_num_subpartitions(TRUE),
     default_partitions_setup(FALSE), defined_max_value(FALSE),
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
-    is_auto_partitioned(FALSE), from_openfrm(FALSE),
+    is_auto_partitioned(FALSE),
     has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
   {
     partitions.empty();
@@ -349,6 +362,7 @@ public:
                         enum_can_prune *can_prune_partitions,
                         bool *prune_needs_default_values,
                         MY_BITMAP *used_partitions);
+  bool has_same_partitioning(partition_info *new_part_info);
 private:
   static int list_part_cmp(const void* a, const void* b);
   bool set_up_default_partitions(handler *file, HA_CREATE_INFO *info,

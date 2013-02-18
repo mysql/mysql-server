@@ -41,7 +41,9 @@ extern "C" {
   void* runReceiveResponse_C(void*);
 }
 
-class TransporterFacade : public TransporterCallback
+class TransporterFacade :
+  public TransporterCallback,
+  public TransporterReceiveHandle
 {
 public:
   /**
@@ -70,6 +72,12 @@ public:
   int close_clnt(trp_client*);
 
   Uint32 get_active_ndb_objects() const;
+
+  /** 
+   * Get/Set wait time in the send thread.
+   */
+ void setSendThreadInterval(Uint32 ms);
+ Uint32 getSendThreadInterval(void);
 
   // Only sends to nodes which are alive
 private:
@@ -126,7 +134,7 @@ public:
 
   // Improving the API performance
   void forceSend(Uint32 block_number);
-  void checkForceSend(Uint32 block_number);
+  int checkForceSend(Uint32 block_number);
 
   TransporterRegistry* get_registry() { return theTransporterRegistry;};
 
@@ -197,6 +205,21 @@ public:
   {
     theTransporterRegistry->reset_send_buffer(node, should_be_empty);
   }
+  /**
+   * Wakeup
+   *
+   * Clients normally block waiting for a pattern of signals,
+   * or until a timeout expires.
+   * This Api allows them to be woken early.
+   * To use it, a setupWakeup() call must be made once prior
+   * to using the Apis in any client.
+   *
+   */
+  bool setupWakeup();
+  bool registerForWakeup(trp_client* dozer);
+  bool unregisterForWakeup(trp_client* dozer);
+  void requestWakeup();
+  void reportWakeup();
 
 private:
 
@@ -223,8 +246,14 @@ private:
   
   void calculateSendLimit();
 
+  /* Single dozer supported currently.
+   * In future, use a DLList to support > 1
+   */
+  trp_client * dozer;
+
   // Declarations for the receive and send thread
   int  theStopReceive;
+  Uint32 sendThreadWaitMillisec;
 
   void threadMainSend(void);
   NdbThread* theSendThread;

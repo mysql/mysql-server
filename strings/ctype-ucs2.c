@@ -100,11 +100,11 @@ my_strntol_mb2_or_mb4(const CHARSET_INFO *cs,
   int      overflow;
   int      cnv;
   my_wc_t  wc;
-  register unsigned int cutlim;
-  register uint32 cutoff;
-  register uint32 res;
-  register const uchar *s= (const uchar*) nptr;
-  register const uchar *e= (const uchar*) nptr+l;
+  unsigned int cutlim;
+  uint32 cutoff;
+  uint32 res;
+  const uchar *s= (const uchar*) nptr;
+  const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
   
   *err= 0;
@@ -211,11 +211,11 @@ my_strntoul_mb2_or_mb4(const CHARSET_INFO *cs,
   int      overflow;
   int      cnv;
   my_wc_t  wc;
-  register unsigned int cutlim;
-  register uint32 cutoff;
-  register uint32 res;
-  register const uchar *s= (const uchar*) nptr;
-  register const uchar *e= (const uchar*) nptr + l;
+  unsigned int cutlim;
+  uint32 cutoff;
+  uint32 res;
+  const uchar *s= (const uchar*) nptr;
+  const uchar *e= (const uchar*) nptr + l;
   const uchar *save;
   
   *err= 0;
@@ -315,11 +315,11 @@ my_strntoll_mb2_or_mb4(const CHARSET_INFO *cs,
   int      overflow;
   int      cnv;
   my_wc_t  wc;
-  register ulonglong    cutoff;
-  register unsigned int cutlim;
-  register ulonglong    res;
-  register const uchar *s= (const uchar*) nptr;
-  register const uchar *e= (const uchar*) nptr+l;
+  ulonglong    cutoff;
+  unsigned int cutlim;
+  ulonglong    res;
+  const uchar *s= (const uchar*) nptr;
+  const uchar *e= (const uchar*) nptr+l;
   const uchar *save;
   
   *err= 0;
@@ -426,11 +426,11 @@ my_strntoull_mb2_or_mb4(const CHARSET_INFO *cs,
   int      overflow;
   int      cnv;
   my_wc_t  wc;
-  register ulonglong    cutoff;
-  register unsigned int cutlim;
-  register ulonglong    res;
-  register const uchar *s= (const uchar*) nptr;
-  register const uchar *e= (const uchar*) nptr + l;
+  ulonglong    cutoff;
+  unsigned int cutlim;
+  ulonglong    res;
+  const uchar *s= (const uchar*) nptr;
+  const uchar *e= (const uchar*) nptr + l;
   const uchar *save;
   
   *err= 0;
@@ -528,8 +528,8 @@ my_strntod_mb2_or_mb4(const CHARSET_INFO *cs,
 {
   char     buf[256];
   double   res;
-  register char *b= buf;
-  register const uchar *s= (const uchar*) nptr;
+  char *b= buf;
+  const uchar *s= (const uchar*) nptr;
   const uchar *end;
   my_wc_t  wc;
   int     cnv;
@@ -595,7 +595,7 @@ my_l10tostr_mb2_or_mb4(const CHARSET_INFO *cs,
                        char *dst, size_t len, int radix, long int val)
 {
   char buffer[66];
-  register char *p, *db, *de;
+  char *p, *db, *de;
   long int new_val;
   int  sl= 0;
   unsigned long int uval = (unsigned long int) val;
@@ -646,7 +646,7 @@ my_ll10tostr_mb2_or_mb4(const CHARSET_INFO *cs,
                         char *dst, size_t len, int radix, longlong val)
 {
   char buffer[65];
-  register char *p, *db, *de;
+  char *p, *db, *de;
   long long_val;
   int sl= 0;
   ulonglong uval= (ulonglong) val;
@@ -2249,7 +2249,7 @@ my_vsnprintf_utf32(char *dst, size_t n, const char* fmt, va_list ap)
     
     if (*fmt == 's')                                /* String parameter */
     {
-      reg2 char *par= va_arg(ap, char *);
+      char *par= va_arg(ap, char *);
       size_t plen;
       size_t left_len= (size_t)(end - dst);
       if (!par) par= (char*)"(null)";
@@ -2268,7 +2268,7 @@ my_vsnprintf_utf32(char *dst, size_t n, const char* fmt, va_list ap)
     }
     else if (*fmt == 'd' || *fmt == 'u')        /* Integer parameter */
     {
-      register int iarg;
+      int iarg;
       char nbuf[16];
       char *pbuf= nbuf;
       

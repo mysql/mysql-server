@@ -101,17 +101,17 @@ my_bool vio_is_connected_pipe(Vio *vio)
 }
 
 
-int vio_close_pipe(Vio *vio)
+int vio_shutdown_pipe(Vio *vio)
 {
   BOOL ret;
-  DBUG_ENTER("vio_close_pipe");
+  DBUG_ENTER("vio_shutdown_pipe");
 
   CancelIo(vio->hPipe);
   CloseHandle(vio->overlapped.hEvent);
   DisconnectNamedPipe(vio->hPipe);
   ret= CloseHandle(vio->hPipe);
 
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->hPipe= NULL;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
 

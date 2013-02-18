@@ -63,19 +63,20 @@ my_win_is_console(FILE *file)
   Unicode console input, and then convert it to "cs" in a single shot.
   String is terminated with '\0' character.
 
-  @param cs         Character string to convert to.
-  @param mbbuf      Write input data here.
-  @param mbbufsize  Number of bytes available in mbbuf.
+  @param cs          [IN]  Character string to convert to.
+  @param mbbuf       [OUT] Write input data here.
+  @param mbbufsize   [IN]  Number of bytes available in mbbuf.
+  @param nread       [OUT] Number of bytes read.
 
-  @rerval           Pointer to mbbuf, or NULL on I/0 error.
+  @retval           Pointer to mbbuf, or NULL on I/0 error.
 */
 char *
-my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
+my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
+                        size_t *nread)
 {
   uint dummy_errors;
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
   size_t mblen= 0;
-
   DWORD console_mode;
   DWORD nchars;
 
@@ -91,6 +92,8 @@ my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
     SetConsoleMode(console, console_mode);
     return NULL;
   }
+
+  *nread= nchars;
 
   /* Set length of string */
   if (nchars >= 2 && u16buf[nchars - 2] == L'\r')

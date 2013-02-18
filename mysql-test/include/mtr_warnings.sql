@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ SET @@collation_connection = @collation_connection_saved||
 INSERT INTO global_suppressions VALUES
  (".SELECT UNIX_TIMESTAMP... failed on master"),
  ("Aborted connection"),
- ("Client requested master to start replication from impossible position"),
+ ("Client requested master to start replication from position"),
  ("Could not find first log file name in binary log"),
  ("Enabling keys got errno"),
  ("Error reading master configuration"),
@@ -98,6 +98,8 @@ INSERT INTO global_suppressions VALUES
  ("Failed to open the existing master info file"),
  ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
+
+ ("innodb-page-size has been changed"),
 
  /*
    Due to timing issues, it might be that this warning
@@ -178,7 +180,8 @@ INSERT INTO global_suppressions VALUES
 
  /* Added 2009-08-XX after fixing Bug #42408 */
 
- ("Although a path was specified for the .* option, log tables are used"),
+ ("Although a path was specified for the --general-log-file option, log tables are used"),
+ ("Although a path was specified for the --slow-query-log-file option, log tables are used"),
  ("Backup: Operation aborted"),
  ("Restore: Operation aborted"),
  ("Restore: The grant .* was skipped because the user does not exist"),
@@ -239,6 +242,9 @@ INSERT INTO global_suppressions VALUES
   of events, this warning is emitted.
   */
  ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
+ 
+ ("Changed limits: max_open_files: *  max_connections: *  table_cache: *"),
+ ("Could not increase number of max_open_files to more than *"),
 
  ("THE_LAST_SUPPRESSION")||
 

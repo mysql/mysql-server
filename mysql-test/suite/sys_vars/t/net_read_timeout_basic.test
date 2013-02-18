@@ -110,6 +110,9 @@ SELECT @@global.net_read_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.net_read_timeout = test;
 SELECT @@global.net_read_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_read_timeout = ' ';
+SELECT @@global.net_read_timeout;
 
 SET @@session.net_read_timeout = 0;
 SELECT @@session.net_read_timeout;
@@ -122,6 +125,9 @@ SELECT @@session.net_read_timeout;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.net_read_timeout = test;
+SELECT @@session.net_read_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.net_read_timeout = ' ';
 SELECT @@session.net_read_timeout;
 
 

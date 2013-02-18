@@ -61,12 +61,22 @@ IF(CMAKE_GENERATOR MATCHES "Xcode")
     ${CMAKE_CURRENT_BINARY_DIR}/mysql_client_test_embedded_dummy.cc
     ../../tests/mysql_client_test.c)
 ELSE()
-  MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
-  SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
+#
+# SVR4 packaging has a hard limit of 2Gb at least on Solaris 10, so
+# remove the big mysql_client_test_embedded which is of little use
+#
+  IF(NOT INSTALL_LAYOUT MATCHES "SVR4")
+    MYSQL_ADD_EXECUTABLE(mysql_client_test_embedded ../../tests/mysql_client_test.c)
+    SET_TARGET_PROPERTIES(mysql_client_test_embedded  PROPERTIES HAS_CXX TRUE)
+  ENDIF()
 ENDIF()
-TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)
+IF(NOT INSTALL_LAYOUT MATCHES "SVR4")
+  TARGET_LINK_LIBRARIES(mysql_client_test_embedded mysqlserver)
+ENDIF()
 
 IF(UNIX)
 SET_TARGET_PROPERTIES(mysqltest_embedded PROPERTIES ENABLE_EXPORTS TRUE)
-SET_TARGET_PROPERTIES(mysql_client_test_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+IF(NOT INSTALL_LAYOUT MATCHES "SVR4")
+  SET_TARGET_PROPERTIES(mysql_client_test_embedded PROPERTIES ENABLE_EXPORTS TRUE)
+  ENDIF()
 ENDIF()

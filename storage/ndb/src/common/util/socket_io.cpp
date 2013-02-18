@@ -123,7 +123,7 @@ readln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
         *time = 0;
 
 	ptr[0]= 0;
-	return ptr - buf;
+	return (int)(ptr - buf);
       }
     }
     
@@ -226,7 +226,7 @@ vprint_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   } else
     return 0;
 
-  int ret = write_socket(socket, timeout_millis, time, buf2, size);
+  int ret = write_socket(socket, timeout_millis, time, buf2, (int)size);
   if(buf2 != buf)
     free(buf2);
   return ret;
@@ -254,7 +254,7 @@ vprintln_socket(NDB_SOCKET_TYPE socket, int timeout_millis, int *time,
   }
   buf2[size-1]='\n';
 
-  int ret = write_socket(socket, timeout_millis, time, buf2, size);
+  int ret = write_socket(socket, timeout_millis, time, buf2, (int)size);
   if(buf2 != buf)
     free(buf2);
   return ret;

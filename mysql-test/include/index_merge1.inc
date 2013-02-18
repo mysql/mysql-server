@@ -29,31 +29,37 @@ drop table if exists t0, t1, t2, t3, t4;
 create table t0
 (
   key1 int not null,
-  INDEX i1(key1)
+  key2 int not null,
+  key3 int not null,
+  key4 int not null,
+  key5 int not null,
+  key6 int not null,
+  key7 int not null,
+  key8 int not null,
+  INDEX i1(key1),
+  INDEX i2(key2),
+  INDEX i3(key3),
+  INDEX i4(key4),
+  INDEX i5(key5),
+  INDEX i6(key6),
+  INDEX i7(key7),
+  INDEX i8(key8)
 );
 
 --disable_query_log
-insert into t0 values (1),(2),(3),(4),(5),(6),(7),(8);
+insert into t0 values (1,1,1,1,1,1,1,1023),(2,2,2,2,2,2,2,1022);
 
-let $1=7;
-set @d=8;
+let $1=9;
+set @d=2;
 while ($1)
 {
-  eval insert into t0 select key1+@d from t0;
+  eval insert into t0 select key1+@d, key2+@d, key3+@d, key4+@d, key5+@d,
+                             key6+@d, key7+@d, key8-@d from t0;
   eval set @d=@d*2;
   dec $1;
 }
 --enable_query_log
 
-alter table t0 add key2 int not null, add index i2(key2);
-alter table t0 add key3 int not null, add index i3(key3);
-alter table t0 add key4 int not null, add index i4(key4);
-alter table t0 add key5 int not null, add index i5(key5);
-alter table t0 add key6 int not null, add index i6(key6);
-alter table t0 add key7 int not null, add index i7(key7);
-alter table t0 add key8 int not null, add index i8(key8);
-
-update t0 set key2=key1,key3=key1,key4=key1,key5=key1,key6=key1,key7=key1,key8=1024-key1;
 analyze table t0;
 
 # 1. One index

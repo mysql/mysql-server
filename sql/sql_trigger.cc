@@ -157,7 +157,7 @@ Trigger_creation_ctx::create(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_WARN,
+                        Sql_condition::SL_WARNING,
                         ER_TRG_INVALID_CREATION_CTX,
                         ER(ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -329,7 +329,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* message,
                                 Sql_condition ** cond_hdl)
   {
@@ -642,6 +642,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_client_cs_name;
   LEX_STRING *trg_connection_cl_name;
   LEX_STRING *trg_db_cl_name;
+  bool was_truncated;
 
   if (check_for_broken_triggers())
     return true;
@@ -651,6 +652,33 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                     lex->spname->m_db.str))
   {
     my_error(ER_TRG_IN_WRONG_SCHEMA, MYF(0));
+    return 1;
+  }
+
+  /* Building .TRG and .TRN trigger filenames */
+  file.length= build_table_filename(file_buff, FN_REFLEN - 1,
+                                    tables->db, tables->table_name,
+                                    TRG_EXT, 0);
+  file.str= file_buff;
+
+  trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
+                                             tables->db,
+                                             lex->spname->m_name.str,
+                                             TRN_EXT, 0, &was_truncated);
+  // Check if we hit FN_REFLEN bytes in path length
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(trigname_buff)-1,
+             trigname_buff);
+    return 1;
+  }
+  trigname_file.str= trigname_buff;
+
+
+  /* Use the filesystem to enforce trigger namespace constraints. */
+  if (!access(trigname_buff, F_OK))
+  {
+    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
     return 1;
   }
 
@@ -746,23 +774,6 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
     sql_create_definition_file() files handles renaming and backup of older
     versions
   */
-  file.length= build_table_filename(file_buff, FN_REFLEN - 1,
-                                    tables->db, tables->table_name,
-                                    TRG_EXT, 0);
-  file.str= file_buff;
-  trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
-                                             tables->db,
-                                             lex->spname->m_name.str,
-                                             TRN_EXT, 0);
-  trigname_file.str= trigname_buff;
-
-  /* Use the filesystem to enforce trigger namespace constraints. */
-  if (!access(trigname_buff, F_OK))
-  {
-    my_error(ER_TRG_ALREADY_EXISTS, MYF(0));
-    return 1;
-  }
-
   trigname.trigger_table.str= tables->table_name;
   trigname.trigger_table.length= tables->table_name_length;
 
@@ -806,7 +817,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                    lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -1283,7 +1294,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_RETURN(1); // EOM
         }
 
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRG_NO_CREATION_CTX,
                             ER(ER_TRG_NO_CREATION_CTX),
                             (const char*) db,
@@ -1469,7 +1480,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             warning here.
           */
 
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                               (const char*) db,
                               (const char*) sp->m_name.str);
@@ -1733,7 +1744,7 @@ bool add_table_for_trigger(THD *thd,
     if (if_exists)
     {
       push_warning_printf(thd,
-                          Sql_condition::WARN_LEVEL_NOTE,
+                          Sql_condition::SL_NOTE,
                           ER_TRG_DOES_NOT_EXIST,
                           ER(ER_TRG_DOES_NOT_EXIST));
 
@@ -2242,6 +2253,47 @@ bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
 
 
 /**
+  Mark all trigger fields as "temporary nullable" and remember the current
+  THD::count_cuted_fields value.
+
+  @param thd Thread context.
+*/
+void Table_triggers_list::enable_fields_temporary_nullability(THD* thd)
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+  {
+    (*next_field)->set_tmp_nullable();
+    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+
+    /*
+      For statement LOAD INFILE we set field values during parsing of data file
+      and later run fill_record_n_invoke_before_triggers() to invoke table's
+      triggers. fill_record_n_invoke_before_triggers() calls this method
+      to enable temporary nullability before running trigger's instructions
+      Since for the case of handling statement LOAD INFILE the null value of
+      fields have been already set we don't have to reset these ones here.
+      In case of handling statements INSERT/REPLACE/INSERT SELECT/
+      REPLACE SELECT we set field's values inside method fill_record
+      that is called from fill_record_n_invoke_before_triggers()
+      after the method enable_fields_temporary_nullability has been executed.
+    */
+    if (thd->lex->sql_command != SQLCOM_LOAD)
+      (*next_field)->reset_tmp_null();
+  }
+}
+
+
+/**
+  Reset "temporary nullable" flag from trigger fields.
+*/
+void Table_triggers_list::disable_fields_temporary_nullability()
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+    (*next_field)->reset_tmp_nullable();
+}
+
+
+/**
   Mark fields of subject table which we read/set in its triggers
   as such.
 
@@ -2335,7 +2387,7 @@ process_unknown_string(const char *&unknown_key, uchar* base,
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
@@ -2376,7 +2428,7 @@ process_unknown_string(const char *&unknown_key, uchar* base,
 
     DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
     push_warning_printf(current_thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");

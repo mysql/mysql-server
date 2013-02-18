@@ -22,8 +22,8 @@
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 {
-  register uint32 l;
-  register uchar *map= cs->to_upper;
+  uint32 l;
+  uchar *map= cs->to_upper;
   char *str_orig= str;
   
   while (*str)
@@ -43,8 +43,8 @@ size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 
 size_t my_casedn_str_mb(const CHARSET_INFO *cs, char *str)
 {
-  register uint32 l;
-  register uchar *map= cs->to_lower;
+  uint32 l;
+  uchar *map= cs->to_lower;
   char *str_orig= str;
   
   while (*str)
@@ -77,9 +77,9 @@ size_t my_caseup_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst __attribute__((unused)),
                     size_t dstlen __attribute__((unused)))
 {
-  register uint32 l;
-  register char *srcend= src + srclen;
-  register uchar *map= cs->to_upper;
+  uint32 l;
+  char *srcend= src + srclen;
+  uchar *map= cs->to_upper;
 
   DBUG_ASSERT(cs->caseup_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);
@@ -112,9 +112,9 @@ size_t my_casedn_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst __attribute__((unused)),
                     size_t dstlen __attribute__((unused)))
 {
-  register uint32 l;
-  register char *srcend= src + srclen;
-  register uchar *map=cs->to_lower;
+  uint32 l;
+  char *srcend= src + srclen;
+  uchar *map=cs->to_lower;
 
   DBUG_ASSERT(cs->casedn_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);  
@@ -218,8 +218,8 @@ my_caseup_mb_varlen(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
 {
-  register uint32 l;
-  register uchar *map=cs->to_upper;
+  uint32 l;
+  uchar *map=cs->to_upper;
   
   while (*s && *t)
   {
@@ -251,13 +251,16 @@ int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
 
 #define likeconv(s,A) (uchar) (s)->sort_order[(uchar) (A)]
 
-int my_wildcmp_mb(const CHARSET_INFO *cs,
-		  const char *str,const char *str_end,
-		  const char *wildstr,const char *wildend,
-		  int escape, int w_one, int w_many)
+static
+int my_wildcmp_mb_impl(const CHARSET_INFO *cs,
+                       const char *str,const char *str_end,
+                       const char *wildstr,const char *wildend,
+                       int escape, int w_one, int w_many, int recurse_level)
 {
   int result= -1;				/* Not found, using wildcards */
 
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+     return 1;
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
@@ -346,8 +349,9 @@ int my_wildcmp_mb(const CHARSET_INFO *cs,
           INC_PTR(cs,str, str_end);
         }
 	{
-	  int tmp=my_wildcmp_mb(cs,str,str_end,wildstr,wildend,escape,w_one,
-                                w_many);
+	  int tmp=my_wildcmp_mb_impl(cs,str,str_end,
+                                     wildstr,wildend,escape,w_one,
+                                     w_many, recurse_level + 1);
 	  if (tmp <= 0)
 	    return (tmp);
 	}
@@ -358,11 +362,21 @@ int my_wildcmp_mb(const CHARSET_INFO *cs,
   return (str != str_end ? 1 : 0);
 }
 
+int my_wildcmp_mb(const CHARSET_INFO *cs,
+                  const char *str,const char *str_end,
+                  const char *wildstr,const char *wildend,
+                  int escape, int w_one, int w_many)
+{
+  return my_wildcmp_mb_impl(cs, str, str_end,
+                            wildstr, wildend,
+                            escape, w_one, w_many, 1);
+}
+
 
 size_t my_numchars_mb(const CHARSET_INFO *cs __attribute__((unused)),
 		      const char *pos, const char *end)
 {
-  register size_t count= 0;
+  size_t count= 0;
   while (pos < end) 
   {
     uint mb_len;
@@ -415,7 +429,7 @@ uint my_instr_mb(const CHARSET_INFO *cs,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch)
 {
-  register const char *end, *b0;
+  const char *end, *b0;
   int res= 0;
   
   if (s_length <= b_length)
@@ -1078,14 +1092,17 @@ pad_min_max:
 }
 
 
+static
 int
-my_wildcmp_mb_bin(const CHARSET_INFO *cs,
-                  const char *str,const char *str_end,
-                  const char *wildstr,const char *wildend,
-                  int escape, int w_one, int w_many)
+my_wildcmp_mb_bin_impl(const CHARSET_INFO *cs,
+                       const char *str,const char *str_end,
+                       const char *wildstr,const char *wildend,
+                       int escape, int w_one, int w_many, int recurse_level)
 {
   int result= -1;				/* Not found, using wildcards */
 
+  if (my_string_stack_guard && my_string_stack_guard(recurse_level))
+    return 1;
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
@@ -1172,7 +1189,9 @@ my_wildcmp_mb_bin(const CHARSET_INFO *cs,
           INC_PTR(cs,str, str_end);
         }
 	{
-	  int tmp=my_wildcmp_mb_bin(cs,str,str_end,wildstr,wildend,escape,w_one,w_many);
+	  int tmp=my_wildcmp_mb_bin_impl(cs,str,str_end,
+                                         wildstr,wildend,escape,
+                                         w_one,w_many, recurse_level + 1);
 	  if (tmp <= 0)
 	    return (tmp);
 	}
@@ -1181,6 +1200,17 @@ my_wildcmp_mb_bin(const CHARSET_INFO *cs,
     }
   }
   return (str != str_end ? 1 : 0);
+}
+
+int
+my_wildcmp_mb_bin(const CHARSET_INFO *cs,
+                  const char *str,const char *str_end,
+                  const char *wildstr,const char *wildend,
+                  int escape, int w_one, int w_many)
+{
+  return my_wildcmp_mb_bin_impl(cs, str, str_end,
+                                wildstr, wildend,
+                                escape, w_one, w_many, 1);
 }
 
 

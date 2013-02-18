@@ -15,7 +15,7 @@
 
 /**
   @file storage/perfschema/pfs_account.cc
-  Performance schema user@host (implementation).
+  Performance schema account (implementation).
 */
 
 #include "my_global.h"
@@ -551,7 +551,7 @@ void purge_account(PFS_thread *thread, PFS_account *account)
   lf_hash_search_unpin(pins);
 }
 
-/** Purge non connected user@host, reset stats of connected user@host. */
+/** Purge non connected accounts, reset stats of connected account. */
 void purge_all_account(void)
 {
   PFS_thread *thread= PFS_thread::get_current_thread();

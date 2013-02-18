@@ -1,7 +1,7 @@
 #ifndef TABLE_INCLUDED
 #define TABLE_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
 #include "parse_file.h"
+#include "table_id.h"
 
 /* Structs that defines the TABLE */
 
@@ -691,7 +692,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
-  ulong table_map_id;                   /* for row-based replication */
+  Table_id table_map_id;                   /* for row-based replication */
 
   /*
     Cache for row-based replication table share checks that does not
@@ -808,7 +809,7 @@ struct TABLE_SHARE
             || (table_category == TABLE_CATEGORY_SYSTEM));
   }
 
-  inline ulong get_table_def_version()
+  inline ulonglong get_table_def_version()
   {
     return table_map_id;
   }
@@ -893,9 +894,9 @@ struct TABLE_SHARE
 
    @sa TABLE_LIST::is_table_ref_id_equal()
   */
-  ulong get_table_ref_version() const
+  ulonglong get_table_ref_version() const
   {
-    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id;
+    return (tmp_table == SYSTEM_TMP_TABLE) ? 0 : table_map_id.id();
   }
 
   bool visit_subgraph(Wait_for_flush *waiting_ticket,
@@ -1047,7 +1048,31 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+
+  /**
+    Bitmap of table fields (columns), which are explicitly set in the
+    INSERT INTO statement. It is declared here to avoid memory allocation
+    on MEM_ROOT).
+
+    @sa fields_set_during_insert.
+  */
+  MY_BITMAP     def_fields_set_during_insert;
+
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+
+  /**
+    A pointer to the bitmap of table fields (columns), which are explicitly set
+    in the INSERT INTO statement.
+
+    fields_set_during_insert points to def_fields_set_during_insert
+    for base (non-temporary) tables. In other cases, it is NULL.
+    Triggers can not be defined for temporary tables, so this bitmap does not
+    matter for temporary tables.
+
+    @sa def_fields_set_during_insert.
+  */
+  MY_BITMAP     *fields_set_during_insert;
+
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -1141,6 +1166,9 @@ public:
   my_bool key_read;
   my_bool no_keyread;
   my_bool locked_by_logger;
+  /**
+    If set, indicate that the table is not replicated by the server.
+  */
   my_bool no_replicate;
   my_bool locked_by_name;
   my_bool fulltext_searched;
@@ -1157,7 +1185,9 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
+private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
+public:
   uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
@@ -1224,24 +1254,53 @@ public:
   bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
-  inline void set_keyread(bool flag)
+  void set_keyread(bool flag)
   {
     DBUG_ASSERT(file);
     if (flag && !key_read)
     {
       key_read= 1;
-      file->extra(HA_EXTRA_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_KEYREAD);
     }
     else if (!flag && key_read)
     {
       key_read= 0;
-      file->extra(HA_EXTRA_NO_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
 
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
+
+  my_ptrdiff_t default_values_offset() const
+  { return (my_ptrdiff_t) (s->default_values - record[0]); }
+
+  /// Return true if table is instantiated, and false otherwise.
+  bool is_created() const { return created; }
+
+  /**
+    Set the table as "created", and enable flags in storage engine
+    that could not be enabled without an instantiated table.
+  */
+  void set_created()
+  {
+    if (created)
+      return;
+    if (key_read)
+      file->extra(HA_EXTRA_KEYREAD);
+    created= true;
+  }
+  /**
+    Set the contents of table to be "deleted", ie "not created", after having
+    deleted the contents.
+  */
+  void set_deleted()
+  {
+    created= false;
+  }
 };
 
 
@@ -1423,7 +1482,6 @@ public:
   Field_map used_fields;
 };
 
-class Semijoin_mat_exec;
 class Index_hint;
 class Item_exists_subselect;
 
@@ -1462,6 +1520,7 @@ class Item_exists_subselect;
        ;
 */
 
+struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
@@ -1503,6 +1562,13 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
+  /**
+     Context which should be used to resolve identifiers contained in the ON
+     condition of the embedding join nest.
+     @todo When name resolution contexts are created after parsing, we should
+     be able to store this in the embedding join nest instead.
+  */
+  Name_resolution_context *context_of_embedding;
 
 private:
   Item		*m_join_cond;           /* Used with outer join */
@@ -1529,7 +1595,6 @@ public:
     nest's children).
   */
   table_map     sj_inner_tables;
-  Semijoin_mat_exec *sj_mat_exec;
 
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*
@@ -1566,7 +1631,7 @@ public:
   /* Index names in a "... JOIN ... USE/IGNORE INDEX ..." clause. */
   List<Index_hint> *index_hints;
   TABLE        *table;                          /* opened table */
-  uint          table_id; /* table id (from binlog) for opened table */
+  Table_id table_id; /* table id (from binlog) for opened table */
   /*
     select_result for derived table to pass it from table creation to table
     filling procedure
@@ -1726,7 +1791,6 @@ public:
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
-  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
   /* TRUE <=> VIEW CHECK OPTION expression has been processed */
@@ -1918,7 +1982,7 @@ public:
 
   inline
   void set_table_ref_id(enum_table_ref_type table_ref_type_arg,
-                        ulong table_ref_version_arg)
+                        ulonglong table_ref_version_arg)
   {
     m_table_ref_type= table_ref_type_arg;
     m_table_ref_version= table_ref_version_arg;
@@ -1937,7 +2001,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() { return view != NULL ? view_db.str : db; }
+  char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -1945,7 +2009,7 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
@@ -1983,8 +2047,8 @@ private:
   bool prep_where(THD *thd, Item **conds, bool no_where_clause);
   /** See comments for set_metadata_id() */
   enum enum_table_ref_type m_table_ref_type;
-  /** See comments for set_metadata_id() */
-  ulong m_table_ref_version;
+  /** See comments for TABLE_SHARE::get_table_ref_version() */
+  ulonglong m_table_ref_version;
 };
 
 struct st_position;

@@ -50,7 +50,7 @@ struct row_ews_by_account_by_event_name
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_WAITS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
-  Index 1 on user@host (0 based)
+  Index 1 on account (0 based)
   Index 2 on instrument view
   Index 3 on instrument class (1 based)
 */

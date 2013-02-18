@@ -32,6 +32,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
  SET_TARGET_PROPERTIES(comp_err PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
+
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/include/mysqld_error.h 
                    ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys
                    COMMAND comp_err
@@ -50,6 +51,14 @@ ADD_CUSTOM_TARGET(GenError
                   ${PROJECT_BINARY_DIR}/include/mysqld_error.h
                   ${PROJECT_BINARY_DIR}/sql/share/english/errmsg.sys 
                   ${PROJECT_SOURCE_DIR}/sql/share/errmsg-utf8.txt)
+
+## Most executables depend on libeay32.dll (through mysys_ssl).
+## For 'comp_err' we need it to be available during build.
+COPY_OPENSSL_DLLS(copy_openssl_extra)
+IF (WIN32 AND WITH_SSL_PATH AND HAVE_CRYPTO_DLL)
+  ADD_DEPENDENCIES(GenError copy_openssl_extra)
+ENDIF()
+
 
 MYSQL_ADD_EXECUTABLE(my_print_defaults my_print_defaults.c)
 TARGET_LINK_LIBRARIES(my_print_defaults  mysys mysys_ssl)

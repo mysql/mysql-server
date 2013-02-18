@@ -49,7 +49,8 @@ public:
   Uint32 lock(SimulatedBlock*, 
               Pool&, const UtilLockReq*, const UtilLockReq** = 0);
   Uint32 unlock(SimulatedBlock*,
-                Pool&, const UtilUnlockReq* req);
+                Pool&, const UtilUnlockReq* req,
+                UtilLockReq* orig_req= 0);
   
   /**
    * After unlock

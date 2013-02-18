@@ -230,3 +230,14 @@ JNI_OnUnload(JavaVM * jvm, void * reserved)
 }
 
 // ---------------------------------------------------------------------------
+
+/*
+  Dummy function with constant signature to be used by parent library
+  to make sure that the linker includes the functions from this module
+*/
+extern "C"
+void
+_ndbjtie_exports(void)
+{
+  return;
+}

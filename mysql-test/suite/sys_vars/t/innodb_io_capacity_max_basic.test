@@ -43,6 +43,15 @@ set global innodb_io_capacity_max=1.1;
 set global innodb_io_capacity_max=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_io_capacity_max="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_io_capacity_max=" ";
+
+#
+# check the default value 
+#
+
+SET @@global.innodb_io_capacity_max = DEFAULT;
+select @@global.innodb_io_capacity_max IN (18446744073709551615,4294967295);
 
 #
 # can't set it below innodb_io_capacity

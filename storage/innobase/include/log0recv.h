@@ -212,18 +212,18 @@ UNIV_INTERN
 void
 recv_reset_logs(
 /*============*/
-	lsn_t		lsn,		/*!< in: reset to this lsn
+#ifdef UNIV_LOG_ARCHIVE
+	ulint		arch_log_no,	/*!< in: next archived log file number */
+	ibool		new_logs_created,/*!< in: TRUE if resetting logs
+					is done at the log creation;
+					FALSE if it is done after
+					archive recovery */
+#endif /* UNIV_LOG_ARCHIVE */
+	lsn_t		lsn);		/*!< in: reset to this lsn
 					rounded up to be divisible by
 					OS_FILE_LOG_BLOCK_SIZE, after
 					which we add
 					LOG_BLOCK_HDR_SIZE */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no,	/*!< in: next archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
-	ibool		new_logs_created);/*!< in: TRUE if resetting logs
-					is done at the log creation;
-					FALSE if it is done after
-					archive recovery */
 #ifdef UNIV_HOTBACKUP
 /******************************************************//**
 Creates new log files after a backup has been restored. */
@@ -373,6 +373,9 @@ struct recv_sys_t{
 	ib_mutex_t		mutex;	/*!< mutex protecting the fields apply_log_recs,
 				n_addrs, and the state field in each recv_addr
 				struct */
+	ib_mutex_t		writer_mutex;/*!< mutex coordinating
+				flushing between recv_writer_thread and
+				the recovery thread. */
 #endif /* !UNIV_HOTBACKUP */
 	ibool		apply_log_recs;
 				/*!< this is TRUE when log rec application to

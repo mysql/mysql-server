@@ -19,8 +19,7 @@
 #include <my_global.h>
 
 #ifdef TARGET_OS_LINUX
-#if defined (__x86_64__) || defined (__i386__) || \
-    (defined(__alpha__) && defined(__GNUC__))
+#if defined (__x86_64__) || defined (__i386__)
 #define HAVE_STACKTRACE 1
 #endif
 #elif defined(__WIN__) || defined(HAVE_PRINTSTACK)
@@ -45,7 +44,7 @@ C_MODE_START
 #if defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
-void my_safe_print_str(const char* val, int max_len);
+void my_safe_puts_stderr(const char* val, int max_len);
 void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);

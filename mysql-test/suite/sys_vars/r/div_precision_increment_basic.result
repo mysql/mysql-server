@@ -71,12 +71,12 @@ Warning	1292	Truncated incorrect div_precision_increment value: '31'
 SELECT @@global.div_precision_increment;
 @@global.div_precision_increment
 30
-SET @@global.div_precision_increment = 40;
+SET @@global.div_precision_increment = -1;
 Warnings:
-Warning	1292	Truncated incorrect div_precision_increment value: '40'
+Warning	1292	Truncated incorrect div_precision_increment value: '-1'
 SELECT @@global.div_precision_increment;
 @@global.div_precision_increment
-30
+0
 SET @@global.div_precision_increment = -1024;
 Warnings:
 Warning	1292	Truncated incorrect div_precision_increment value: '-1024'
@@ -89,21 +89,21 @@ Warning	1292	Truncated incorrect div_precision_increment value: '65536'
 SELECT @@global.div_precision_increment;
 @@global.div_precision_increment
 30
-SET @@session.div_precision_increment = 40;
+SET @@session.div_precision_increment = -1;
 Warnings:
-Warning	1292	Truncated incorrect div_precision_increment value: '40'
+Warning	1292	Truncated incorrect div_precision_increment value: '-1'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
-30
+0
 SET @@session.div_precision_increment = 31;
 Warnings:
 Warning	1292	Truncated incorrect div_precision_increment value: '31'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 30
-SET @@session.div_precision_increment = -2;
+SET @@session.div_precision_increment = -1042;
 Warnings:
-Warning	1292	Truncated incorrect div_precision_increment value: '-2'
+Warning	1292	Truncated incorrect div_precision_increment value: '-1042'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 0
@@ -129,6 +129,19 @@ SELECT @@session.div_precision_increment;
 @@session.div_precision_increment
 30
 SET @@session.div_precision_increment = 65530.30;
+ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
+SELECT @@session.div_precision_increment;
+@@session.div_precision_increment
+30
+SELECT @@global.div_precision_increment;
+@@global.div_precision_increment
+30
+SET @@global.div_precision_increment = " ";
+ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
+SELECT @@global.div_precision_increment;
+@@global.div_precision_increment
+30
+SET @@session.div_precision_increment = " ";
 ERROR 42000: Incorrect argument type to variable 'div_precision_increment'
 SELECT @@session.div_precision_increment;
 @@session.div_precision_increment

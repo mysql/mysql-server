@@ -825,12 +825,16 @@ DROP TABLE t1,t2,t3,t4,t5,t6;
 #
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a,b), KEY b (b));
 INSERT INTO t1 VALUES (1,1),(1,2),(1,0),(1,3);
+INSERT INTO t1 VALUES (2,1),(2,2),(2,0),(2,3);
+INSERT INTO t1 VALUES (3,1),(3,2),(3,0),(3,3);
+ANALYZE TABLE t1;
 
 explain SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a;
 SELECT MIN(b), a FROM t1 WHERE b > 1 AND a = 1 GROUP BY a;
 CREATE TABLE t2 (a int, b int, c int, PRIMARY KEY (a,b,c));
 INSERT INTO t2 SELECT a,b,b FROM t1;
+ANALYZE TABLE t2;
 explain SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 SELECT MIN(c) FROM t2 WHERE b = 2 and a = 1 and c > 1 GROUP BY a;
 

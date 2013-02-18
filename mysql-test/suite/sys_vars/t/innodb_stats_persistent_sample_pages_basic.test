@@ -28,12 +28,30 @@ WHERE variable_name='innodb_stats_persistent_sample_pages';
 #
 SET global innodb_stats_persistent_sample_pages=10;
 SELECT @@global.innodb_stats_persistent_sample_pages;
-SELECT * FROM information_schema.global_variables 
+SELECT * FROM information_schema.global_variables
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 SELECT * FROM information_schema.session_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
 --error ER_GLOBAL_VARIABLE
 SET session innodb_stats_persistent_sample_pages=1;
+
+# 
+# show the default value
+#
+set global innodb_stats_persistent_sample_pages=DEFAULT;
+select @@global.innodb_stats_persistent_sample_pages;
+
+#
+# valid values
+#
+SET global innodb_stats_persistent_sample_pages=0;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+
+SET global innodb_stats_persistent_sample_pages=10;
+SELECT @@global.innodb_stats_persistent_sample_pages;
+
+
+
 
 #
 # incorrect types
@@ -44,11 +62,20 @@ SET global innodb_stats_persistent_sample_pages=1.1;
 SET global innodb_stats_persistent_sample_pages=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 SET global innodb_stats_persistent_sample_pages="foo";
-
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_persistent_sample_pages=' ';
+SELECT @@global.innodb_stats_persistent_sample_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_persistent_sample_pages=" ";
+SELECT @@global.innodb_stats_persistent_sample_pages;
 SET global innodb_stats_persistent_sample_pages=-7;
 SELECT @@global.innodb_stats_persistent_sample_pages;
 SELECT * FROM information_schema.global_variables 
 WHERE variable_name='innodb_stats_persistent_sample_pages';
+
+
+
+
 
 #
 # cleanup

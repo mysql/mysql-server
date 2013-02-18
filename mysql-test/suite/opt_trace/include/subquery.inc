@@ -53,7 +53,7 @@ SELECT * FROM information_schema.OPTIMIZER_TRACE;
 # Distinct, order and group is removed from subquery. Note: For PS,
 # removal happens during prepare so the only visible effect is that
 # the subquery does not contain those clauses.
-SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t1 GROUP BY a ORDER BY b);
+SELECT 1 FROM DUAL WHERE NOT EXISTS (SELECT DISTINCT(a) FROM t2 GROUP BY a ORDER BY b);
 --echo
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 --echo

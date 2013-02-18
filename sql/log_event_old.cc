@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,12 +49,14 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   uchar const *row_start= ev->m_rows_buf;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (ev->m_table_id == ~0UL)
+  if ((ev->m_table_id.id() == ~0U || ev->m_table_id.id() == (~0ULL >> 16)) &&
+      ev->m_cols.n_bits == 1 && ev->m_cols.bitmap[0] == 0)
+
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -104,7 +106,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     if (open_and_lock_tables(ev_thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= ev_thd->get_stmt_da()->sql_errno();
+      uint actual_error= ev_thd->get_stmt_da()->mysql_errno();
       if (ev_thd->is_slave_error || ev_thd->is_fatal_error)
       {
         /*
@@ -113,7 +115,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? ev_thd->get_stmt_da()->message() :
+                    (actual_error ? ev_thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"));
         ev_thd->is_slave_error= 1;
       }
@@ -248,10 +250,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
+  rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
+                    (ev_thd->is_error() ?
+                     ev_thd->get_stmt_da()->message_text() :
+                     ""));
   thd->is_slave_error= 1;
   break;
       }
@@ -265,12 +269,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
+                ev_thd->is_error() ? ev_thd->get_stmt_da()->message_text() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -554,6 +558,20 @@ replace_record(THD *thd, TABLE *table,
     }
 
     /*
+      key index value is either valid in the range [0-MAX_KEY) or
+      has value MAX_KEY as a marker for the case when no information
+      about key can be found. In the last case we have to require
+      that storage engine has the flag HA_DUPLICATE_POS turned on.
+      If this invariant is false then DBUG_ASSERT will crash
+      the server built in debug mode. For the server that was built
+      without DEBUG we have additional check for the value of key index
+      in the code below in order to report about error in any case.
+    */
+    DBUG_ASSERT(keynum != MAX_KEY ||
+                (keynum == MAX_KEY &&
+                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
+
+    /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
 
@@ -589,12 +607,22 @@ replace_record(THD *thd, TABLE *table,
           DBUG_RETURN(ENOMEM);
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
-               0);
-      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                (const uchar*)key.get(),
-                                                HA_WHOLE_KEY,
-                                                HA_READ_KEY_EXACT);
+      if ((uint)keynum < MAX_KEY)
+      {
+        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+                 0);
+        error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                  (const uchar*)key.get(),
+                                                  HA_WHOLE_KEY,
+                                                  HA_READ_KEY_EXACT);
+      }
+      else
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;
+
       if (error)
       {
         DBUG_PRINT("info", ("ha_index_read_idx_map() returns error %d", error));
@@ -833,7 +861,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     if ((error= table->file->ha_rnd_init(1)))
     {
       table->file->print_error(error, MYF(0));
-      return error;
+      DBUG_RETURN(error);
     }
 
     /* Continue until we find the right record or have made a full loop */
@@ -868,10 +896,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
        break;
 
       default:
-  table->file->print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
         (void) table->file->ha_rnd_end();
-  DBUG_RETURN(error);
+        DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
@@ -1351,8 +1379,8 @@ Old_rows_log_event::Old_rows_log_event(const char *buf, uint event_len,
 
   const uchar* const ptr_rows_data= (const uchar*) ptr_after_width;
   size_t const data_size= event_len - (ptr_rows_data - (const uchar *) buf);
-  DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
-                     m_table_id, m_flags, m_width, (ulong) data_size));
+  DBUG_PRINT("info",("m_table_id: %llu  m_flags: %d  m_width: %lu  data_size: %lu",
+                     m_table_id.id(), m_flags, m_width, (ulong) data_size));
   DBUG_DUMP("rows_data", (uchar*) ptr_rows_data, data_size);
 
   m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
@@ -1464,12 +1492,13 @@ int Old_rows_log_event::do_apply_event(Relay_log_info const *rli)
   int error= 0;
 
   /*
-    If m_table_id == ~0UL, then we have a dummy event that does not
-    contain any data.  In that case, we just remove all tables in the
+    If m_table_id == ~0U or max 6 Bytes integer, then we have a dummy event that
+    does not contain any data.  In that case, we just remove all tables in the
     tables_to_lock list, close the thread tables, and return with
     success.
    */
-  if (m_table_id == ~0UL)
+  if ((m_table_id.id() == ~0U || m_table_id.id() == (~0ULL >> 16)) &&
+      m_cols.n_bits == 1 && m_cols.bitmap[0] == 0)
   {
     /*
        This one is supposed to be set: just an extra check so that
@@ -1878,21 +1907,9 @@ Old_rows_log_event::do_update_pos(Relay_log_info *rli)
 #ifndef MYSQL_CLIENT
 bool Old_rows_log_event::write_data_header(IO_CACHE *file)
 {
-  uchar buf[ROWS_HEADER_LEN];	// No need to init the buffer
-
   // This method should not be reached.
   assert(0);
-
-  DBUG_ASSERT(m_table_id != ~0UL);
-  DBUG_EXECUTE_IF("old_row_based_repl_4_byte_map_id_master",
-                  {
-                    int4store(buf + 0, m_table_id);
-                    int2store(buf + 4, m_flags);
-                    return (my_b_safe_write(file, buf, 6));
-                  });
-  int6store(buf + RW_MAPID_OFFSET, (ulonglong)m_table_id);
-  int2store(buf + RW_FLAGS_OFFSET, m_flags);
-  return (my_b_safe_write(file, buf, ROWS_HEADER_LEN));
+  return TRUE;
 }
 
 
@@ -1934,7 +1951,7 @@ int Old_rows_log_event::pack_info(Protocol *protocol)
   char const *const flagstr=
     get_flags(STMT_END_F) ? " flags: STMT_END_F" : "";
   size_t bytes= my_snprintf(buf, sizeof(buf),
-                               "table_id: %lu%s", m_table_id, flagstr);
+                            "table_id: %llu%s", m_table_id.id(), flagstr);
   protocol->store(buf, bytes, &my_charset_bin);
   return 0;
 }
@@ -1952,8 +1969,8 @@ void Old_rows_log_event::print_helper(FILE *file,
   {
     bool const last_stmt_event= get_flags(STMT_END_F);
     print_header(head, print_event_info, !last_stmt_event);
-    my_b_printf(head, "\t%s: table id %lu%s\n",
-                name, m_table_id,
+    my_b_printf(head, "\t%s: table id %llu%s\n",
+                name, m_table_id.id(),
                 last_stmt_event ? " flags: STMT_END_F" : "");
     print_base64(body, print_event_info, !last_stmt_event);
   }
@@ -2050,7 +2067,19 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
       */
       DBUG_RETURN(error);
     }
-
+    /*
+      key index value is either valid in the range [0-MAX_KEY) or
+      has value MAX_KEY as a marker for the case when no information
+      about key can be found. In the last case we have to require
+      that storage engine has the flag HA_DUPLICATE_POS turned on.
+      If this invariant is false then DBUG_ASSERT will crash
+      the server built in debug mode. For the server that was built
+      without DEBUG we have additional check for the value of key index
+      in the code below in order to report about error in any case.
+    */
+    DBUG_ASSERT(keynum != MAX_KEY ||
+                (keynum == MAX_KEY &&
+                 (table->file->ha_table_flags() & HA_DUPLICATE_POS)));
     /*
        We need to retrieve the old row into record[1] to be able to
        either update or delete the offending record.  We either:
@@ -2094,12 +2123,22 @@ Old_rows_log_event::write_row(const Relay_log_info *const rli,
         }
       }
 
-      key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
-               0);
-      error= table->file->ha_index_read_idx_map(table->record[1], keynum,
-                                                (const uchar*)key.get(),
-                                                HA_WHOLE_KEY,
-                                                HA_READ_KEY_EXACT);
+      if ((uint)keynum < MAX_KEY)
+      {
+        key_copy((uchar*)key.get(), table->record[0], table->key_info + keynum,
+                 0);
+        error= table->file->ha_index_read_idx_map(table->record[1], keynum,
+                                                  (const uchar*)key.get(),
+                                                  HA_WHOLE_KEY,
+                                                  HA_READ_KEY_EXACT);
+      }
+      else
+        /*
+          For the server built in non-debug mode returns error if
+          handler::get_dup_key() returned MAX_KEY as the value of key index.
+        */
+        error= HA_ERR_FOUND_DUPP_KEY;
+
       if (error)
       {
         DBUG_PRINT("info",("ha_index_read_idx_map() returns error %d", error));
@@ -2366,7 +2405,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
-        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        for (uint i=0; i < keyinfo->user_defined_key_parts && !null_found; i++)
         {
           uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
           Field **f= table->field+fieldnr;

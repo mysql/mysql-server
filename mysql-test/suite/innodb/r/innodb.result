@@ -772,12 +772,6 @@ SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 MIN(B)	MAX(b)
 1	1
 drop table t1;
-CREATE TABLE t1 (a int unsigned NOT NULL) engine=innodb;
-INSERT INTO t1 VALUES (1);
-SELECT * FROM t1;
-a
-1
-DROP TABLE t1;
 create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) engine = innodb;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
@@ -1684,7 +1678,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1006
+1005
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 866
@@ -3013,8 +3007,11 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
+set @old_sql_mode = @@sql_mode;
+set @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 ERROR HY000: Column 'a' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
+set @@sql_mode = @old_sql_mode;
 DELETE FROM t1;
 DROP TABLE t2,t1;
 CREATE TABLE t1 (a VARCHAR(5) COLLATE utf8_unicode_ci PRIMARY KEY)
@@ -3191,7 +3188,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1
-0
 START TRANSACTION READ ONLY;
 INSERT INTO t1 VALUES(0);
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
@@ -3207,7 +3203,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1
-0
 1
 3
 DROP TABLE t2;
@@ -3231,9 +3226,6 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1	c2
-1	1
-2	2
-3	3
 START TRANSACTION READ ONLY;
 INSERT INTO t1 VALUES(0);
 ERROR 25006: Cannot execute statement in a READ ONLY transaction.
@@ -3257,13 +3249,10 @@ SELECT * FROM t1;
 c1
 SELECT * FROM t2;
 c1	c2
-1	1
 4	1
 7	1
-2	2
 5	2
 8	2
-3	3
 6	3
 9	3
 DROP TABLE t1;

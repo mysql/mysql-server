@@ -1,5 +1,7 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
 
 source include/have_semisync_plugin.inc;
 source include/not_embedded.inc;
@@ -196,6 +198,7 @@ enable_query_log;
 let $status_var= Rpl_semi_sync_master_yes_tx;
 let $status_var_value= $yes_tx_after;
 let $status_timeout= 2400;
+let $status_fail_query= SHOW STATUS LIKE 'Rpl_semi_sync%';
 source include/wait_for_status_var.inc;
 
 echo [ master status after inserts ];

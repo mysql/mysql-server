@@ -78,6 +78,15 @@ SELECT @@global.delayed_insert_timeout;
 31536000
 Warnings:
 Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_timeout = 4294967287;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+Warning	1292	Truncated incorrect delayed_insert_timeout value: '4294967287'
+SELECT @@global.delayed_insert_timeout;
+@@global.delayed_insert_timeout
+31536000
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 SET @@global.delayed_insert_timeout = 429496729.5;
 ERROR 42000: Incorrect argument type to variable 'delayed_insert_timeout'
 SELECT @@global.delayed_insert_timeout;
@@ -86,6 +95,20 @@ SELECT @@global.delayed_insert_timeout;
 Warnings:
 Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
 SET @@global.delayed_insert_timeout = ON;
+ERROR 42000: Incorrect argument type to variable 'delayed_insert_timeout'
+SELECT @@global.delayed_insert_timeout;
+@@global.delayed_insert_timeout
+31536000
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_timeout = " ";
+ERROR 42000: Incorrect argument type to variable 'delayed_insert_timeout'
+SELECT @@global.delayed_insert_timeout;
+@@global.delayed_insert_timeout
+31536000
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+SET @@global.delayed_insert_timeout = ' ';
 ERROR 42000: Incorrect argument type to variable 'delayed_insert_timeout'
 SELECT @@global.delayed_insert_timeout;
 @@global.delayed_insert_timeout

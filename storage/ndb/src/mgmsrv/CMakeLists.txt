@@ -54,7 +54,7 @@ MYSQL_ADD_EXECUTABLE(ndb_mgmd
   ${NDB_MGMD_EXTRA_SRC}
   DESTINATION ${INSTALL_SBINDIR}
   COMPONENT ClusterManagementServer)
-TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient ndbmgmclient)
+TARGET_LINK_LIBRARIES(ndb_mgmd ndbconf ndbclient_static ndbmgmclient)
 IF(UNIX)
   TARGET_LINK_LIBRARIES(ndb_mgmd ${READLINE_LIBRARY})
 ENDIF(UNIX)

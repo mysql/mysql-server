@@ -50,6 +50,8 @@ let $more_pk_ui_tests= 0;
 --source include/not_embedded.inc
 # This test takes long time, so only run it with the --big mtr-flag.
 --source include/big_test.inc
+# Skiping this test from Valgrind execution as per Bug-14627884
+--source include/not_valgrind.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
