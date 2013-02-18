@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,16 +17,7 @@
 #define MYSQL_PERFORMANCE_SCHEMA_INTERFACE_H
 
 #ifdef EMBEDDED_LIBRARY
-#define DISABLE_PSI_MUTEX
-#define DISABLE_PSI_RWLOCK
-#define DISABLE_PSI_COND
-#define DISABLE_PSI_FILE
-#define DISABLE_PSI_TABLE
-#define DISABLE_PSI_SOCKET
-#define DISABLE_PSI_STAGE
-#define DISABLE_PSI_STATEMENT
-#define DISABLE_PSI_IDLE
-#define DISABLE_PSI_STATEMENT_DIGEST
+#define DISABLE_ALL_PSI
 #endif /* EMBEDDED_LIBRARY */
 
 #ifndef MY_GLOBAL_INCLUDED
@@ -39,6 +30,13 @@
 */
 #error "You must include my_global.h in the code for the build to be correct."
 #endif
+
+/*
+  MAINTAINER:
+  The following pattern:
+    typedef struct XYZ XYZ;
+  is not needed in C++, but required for C.
+*/
 
 C_MODE_START
 
@@ -170,6 +168,19 @@ struct PSI_bootstrap
 typedef struct PSI_bootstrap PSI_bootstrap;
 
 #ifdef HAVE_PSI_INTERFACE
+
+#ifdef DISABLE_ALL_PSI
+#define DISABLE_PSI_MUTEX
+#define DISABLE_PSI_RWLOCK
+#define DISABLE_PSI_COND
+#define DISABLE_PSI_FILE
+#define DISABLE_PSI_TABLE
+#define DISABLE_PSI_SOCKET
+#define DISABLE_PSI_STAGE
+#define DISABLE_PSI_STATEMENT
+#define DISABLE_PSI_IDLE
+#define DISABLE_PSI_STATEMENT_DIGEST
+#endif
 
 /**
   @def DISABLE_PSI_MUTEX
@@ -593,7 +604,7 @@ typedef unsigned int PSI_socket_key;
 #define PSI_FLAG_GLOBAL (1 << 0)
 
 /**
-  Global flag.
+  Mutable flag.
   This flag indicate that an instrumentation point is a general placeholder,
   that can mutate into a more specific instrumentation point.
 */
@@ -632,6 +643,7 @@ struct PSI_mutex_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_mutex_info_v1 PSI_mutex_info_v1;
 
 /**
   Rwlock information.
@@ -654,6 +666,7 @@ struct PSI_rwlock_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_rwlock_info_v1 PSI_rwlock_info_v1;
 
 /**
   Condition information.
@@ -676,6 +689,7 @@ struct PSI_cond_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_cond_info_v1 PSI_cond_info_v1;
 
 /**
   Thread instrument information.
@@ -698,6 +712,7 @@ struct PSI_thread_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_thread_info_v1 PSI_thread_info_v1;
 
 /**
   File instrument information.
@@ -720,6 +735,7 @@ struct PSI_file_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_file_info_v1 PSI_file_info_v1;
 
 /**
   Stage instrument information.
@@ -735,6 +751,7 @@ struct PSI_stage_info_v1
   /** The flags of the stage instrument to register. */
   int m_flags;
 };
+typedef struct PSI_stage_info_v1 PSI_stage_info_v1;
 
 /**
   Statement instrument information.
@@ -750,6 +767,7 @@ struct PSI_statement_info_v1
   /** The flags of the statement instrument to register. */
   int m_flags;
 };
+typedef struct PSI_statement_info_v1 PSI_statement_info_v1;
 
 /**
   Socket instrument information.
@@ -772,6 +790,7 @@ struct PSI_socket_info_v1
   */
   int m_flags;
 };
+typedef struct PSI_socket_info_v1 PSI_socket_info_v1;
 
 /**
   State data storage for @c start_idle_wait_v1_t.
@@ -795,6 +814,7 @@ struct PSI_idle_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state_v1;
 
 /**
   State data storage for @c start_mutex_wait_v1_t.
@@ -822,6 +842,7 @@ struct PSI_mutex_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state_v1;
 
 /**
   State data storage for @c start_rwlock_rdwait_v1_t, @c start_rwlock_wrwait_v1_t.
@@ -850,6 +871,7 @@ struct PSI_rwlock_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_rwlock_locker_state_v1 PSI_rwlock_locker_state_v1;
 
 /**
   State data storage for @c start_cond_wait_v1_t.
@@ -879,6 +901,7 @@ struct PSI_cond_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state_v1;
 
 /**
   State data storage for @c get_thread_file_name_locker_v1_t.
@@ -914,6 +937,7 @@ struct PSI_file_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_file_locker_state_v1 PSI_file_locker_state_v1;
 
 /**
   State data storage for @c start_table_io_wait_v1_t,
@@ -951,6 +975,7 @@ struct PSI_table_locker_state_v1
   */
   uint m_index;
 };
+typedef struct PSI_table_locker_state_v1 PSI_table_locker_state_v1;
 
 #define PSI_MAX_DIGEST_STORAGE_SIZE 1024
 
@@ -968,12 +993,23 @@ struct PSI_digest_storage
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
 
+/**
+  State data storage for @c digest_start, @c digest_add_token.
+  This structure provide temporary storage to a digest locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+*/
 struct PSI_digest_locker_state
 {
   int m_last_id_index;
   PSI_digest_storage m_digest_storage;
 };
 typedef struct PSI_digest_locker_state PSI_digest_locker_state;
+
+/* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
+#define PSI_SCHEMA_NAME_LEN (64 * 3)
 
 /**
   State data storage for @c get_thread_statement_locker_v1_t,
@@ -1035,7 +1071,12 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_scan;
   /** Statement digest. */
   PSI_digest_locker_state m_digest_state;
+  /** Current schema name. */
+  char m_schema_name[PSI_SCHEMA_NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
 };
+typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
 
 /**
   State data storage for @c start_socket_wait_v1_t.
@@ -1069,6 +1110,7 @@ struct PSI_socket_locker_state_v1
   /** Internal data. */
   void *m_wait;
 };
+typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state_v1;
 
 /* Using typedef to make reuse between PSI_v1 and PSI_v2 easier later. */
 
@@ -1299,7 +1341,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
   @return an instrumented thread
 */
 typedef struct PSI_thread* (*new_thread_v1_t)
-  (PSI_thread_key key, const void *identity, ulong thread_id);
+  (PSI_thread_key key, const void *identity, ulonglong thread_id);
 
 /**
   Assign an id to an instrumented thread.
@@ -1307,7 +1349,7 @@ typedef struct PSI_thread* (*new_thread_v1_t)
   @param id the id to assign
 */
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
-                                   unsigned long id);
+                                   ulonglong id);
 
 /**
   Get the instrumentation for the running thread.
@@ -1332,8 +1374,8 @@ typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
   @param host the host name
   @param host_len the host name length
 */
-typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,
-                                          const char *host, int host_len);
+typedef void (*set_thread_account_v1_t)(const char *user, int user_len,
+                                        const char *host, int host_len);
 
 /**
   Assign a current database to the instrumented thread.
@@ -1365,7 +1407,7 @@ typedef void (*set_thread_state_v1_t)(const char* state);
   @param info the process into string
   @param info_len the process into string length
 */
-typedef void (*set_thread_info_v1_t)(const char* info, int info_len);
+typedef void (*set_thread_info_v1_t)(const char* info, uint info_len);
 
 /**
   Attach a thread instrumentation to the running thread.
@@ -1448,9 +1490,20 @@ typedef void (*signal_cond_v1_t)
 typedef void (*broadcast_cond_v1_t)
   (struct PSI_cond *cond);
 
+/**
+  Record an idle instrumentation wait start event.
+  @param state data storage for the locker
+  @param file the source file name
+  @param line the source line number
+  @return an idle locker, or NULL
+*/
 typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
   (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
 
+/**
+  Record an idle instrumentation wait end event.
+  @param locker a thread locker for the running thread
+*/
 typedef void (*end_idle_wait_v1_t)
   (struct PSI_idle_locker *locker);
 
@@ -1895,9 +1948,19 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 */
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
+/**
+  Get a digest locker for the current statement.
+  @param locker a statement locker for the running thread
+*/
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
+/**
+  Add a token to the current digest instrumentation.
+  @param locker a digest locker for the current statement
+  @param token the lexical token to add
+  @param yylval the lexical token attributes
+*/
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
@@ -1905,10 +1968,10 @@ typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   Stores an array of connection attributes
   @param buffer         char array of length encoded connection attributes
                         in network format
-  @param length         legnth of the data in buffer
-  @param from_cs        charset in which @buffer is encodded
+  @param length         length of the data in buffer
+  @param from_cs        charset in which @c buffer is encoded
   @return state
-    @retval  non-0    attributes truncated
+    @retval  non_0    attributes truncated
     @retval  0        stored the attribute
 */
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
@@ -1978,8 +2041,8 @@ struct PSI_v1
   get_thread_v1_t get_thread;
   /** @sa set_thread_user_v1_t. */
   set_thread_user_v1_t set_thread_user;
-  /** @sa set_thread_user_host_v1_t. */
-  set_thread_user_host_v1_t set_thread_user_host;
+  /** @sa set_thread_account_v1_t. */
+  set_thread_account_v1_t set_thread_account;
   /** @sa set_thread_db_v1_t. */
   set_thread_db_v1_t set_thread_db;
   /** @sa set_thread_command_v1_t. */
@@ -2374,46 +2437,6 @@ extern MYSQL_PLUGIN_IMPORT PSI *PSI_server;
   If nothing better is available,
   make a dynamic call using the PSI_server function pointer.
 */
-
-#ifndef PSI_MUTEX_CALL
-#define PSI_MUTEX_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_RWLOCK_CALL
-#define PSI_RWLOCK_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_COND_CALL
-#define PSI_COND_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_THREAD_CALL
-#define PSI_THREAD_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_FILE_CALL
-#define PSI_FILE_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_SOCKET_CALL
-#define PSI_SOCKET_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_STAGE_CALL
-#define PSI_STAGE_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_STATEMENT_CALL
-#define PSI_STATEMENT_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_TABLE_CALL
-#define PSI_TABLE_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
-
-#ifndef PSI_IDLE_CALL
-#define PSI_IDLE_CALL(M) PSI_DYNAMIC_CALL(M)
-#endif
 
 #define PSI_DYNAMIC_CALL(M) PSI_server->M
 

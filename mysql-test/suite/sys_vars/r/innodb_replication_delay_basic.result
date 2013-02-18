@@ -35,12 +35,38 @@ VARIABLE_NAME	VARIABLE_VALUE
 INNODB_REPLICATION_DELAY	10
 set session innodb_replication_delay=1;
 ERROR HY000: Variable 'innodb_replication_delay' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_replication_delay=DEFAULT;
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+0
+set global innodb_replication_delay=0;
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+0
+set global innodb_replication_delay=65535;
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+65535
+set global innodb_replication_delay=4294967295;
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+4294967295
 set global innodb_replication_delay=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_replication_delay'
 set global innodb_replication_delay=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_replication_delay'
 set global innodb_replication_delay="foo";
 ERROR 42000: Incorrect argument type to variable 'innodb_replication_delay'
+set global innodb_replication_delay=' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_replication_delay'
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+4294967295
+set global innodb_replication_delay=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_replication_delay'
+select @@global.innodb_replication_delay;
+@@global.innodb_replication_delay
+4294967295
 set global innodb_replication_delay=-7;
 Warnings:
 Warning	1292	Truncated incorrect innodb_replication_delay value: '-7'

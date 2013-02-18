@@ -488,7 +488,7 @@ Tsman::execDROP_FILEGROUP_IMPL_REQ(Signal* signal){
       if (ptr.p->m_ref_count)
       {
         jam();
-        sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_REQ, signal,
+        sendSignalWithDelay(reference(), GSN_DROP_FILEGROUP_IMPL_REQ, signal,
                             100, signal->getLength());
         return;
       }

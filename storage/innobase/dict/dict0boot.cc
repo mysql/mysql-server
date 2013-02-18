@@ -241,9 +241,10 @@ dict_hdr_create(
 
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
-started. This function is also called when the data dictionary is created. */
+started. This function is also called when the data dictionary is created.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
+dberr_t
 dict_boot(void)
 /*===========*/
 {
@@ -452,14 +453,27 @@ dict_boot(void)
 
 	ibuf_init_at_db_start();
 
-	/* Load definitions of other indexes on system tables */
+	dberr_t	err = DB_SUCCESS;
 
-	dict_load_sys_table(dict_sys->sys_tables);
-	dict_load_sys_table(dict_sys->sys_columns);
-	dict_load_sys_table(dict_sys->sys_indexes);
-	dict_load_sys_table(dict_sys->sys_fields);
+	if (srv_read_only_mode && !ibuf_is_empty()) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Change buffer must be empty when --innodb-read-only "
+			"is set!");
+
+		err = DB_ERROR;
+	} else {
+		/* Load definitions of other indexes on system tables */
+
+		dict_load_sys_table(dict_sys->sys_tables);
+		dict_load_sys_table(dict_sys->sys_columns);
+		dict_load_sys_table(dict_sys->sys_indexes);
+		dict_load_sys_table(dict_sys->sys_fields);
+	}
 
 	mutex_exit(&(dict_sys->mutex));
+
+	return(err);
 }
 
 /*****************************************************************//**
@@ -474,9 +488,10 @@ dict_insert_initial_data(void)
 }
 
 /*****************************************************************//**
-Creates and initializes the data dictionary at the server bootstrap. */
+Creates and initializes the data dictionary at the server bootstrap.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
+dberr_t
 dict_create(void)
 /*=============*/
 {
@@ -488,7 +503,11 @@ dict_create(void)
 
 	mtr_commit(&mtr);
 
-	dict_boot();
+	dberr_t	err = dict_boot();
 
-	dict_insert_initial_data();
+	if (err == DB_SUCCESS) {
+		dict_insert_initial_data();
+	}
+
+	return(err);
 }

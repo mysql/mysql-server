@@ -51,4 +51,9 @@ thd_set_thd_ndb(THD *thd, class Thd_ndb *thd_ndb)
 /* Make sure THD has a Thd_ndb struct assigned */
 class Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb= false);
 
+
+/* Print thd's list of warnings to error log */
+void
+thd_print_warning_list(THD* thd, const char* prefix);
+
 #endif

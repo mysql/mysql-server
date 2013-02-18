@@ -127,7 +127,7 @@ bit1
 t1
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -143,7 +143,8 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
 f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
@@ -155,19 +156,17 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 ch2 Char(30;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "alter table"
-
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
-
 
 NDBT_ProgramExit: 0 - OK
 
 -- bit1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -183,18 +182,17 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY DEFAULT H'0x7
 b2 Bit(9) NULL AT=FIXED ST=MEMORY DEFAULT H'0x5
 b3 Bit(23) NULL AT=FIXED ST=MEMORY DEFAULT H'0x6
 b4 Bit(37) NULL AT=FIXED ST=MEMORY DEFAULT H'0x3
 b5 Bit(63) NULL AT=FIXED ST=MEMORY DEFAULT H'0x2B
-
 -- Indexes -- 
 PRIMARY KEY(pk) - UniqueHashIndex
 PRIMARY(pk) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -237,7 +235,7 @@ DROP DATABASE mysqltest;
 ******************************************************************************
 -- t1 --
 Version: Any
-Fragment type: 5
+Fragment type: DistrKeyHash
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -253,7 +251,7 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+-- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY
 f Float NOT NULL AT=FIXED ST=MEMORY
@@ -266,17 +264,15 @@ vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
 timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
-
 
 NDBT_ProgramExit: 0 - OK
 
 -- bit1 --
 Version: Any
-Fragment type: 5
+Fragment type: DistrKeyHash
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -292,18 +288,16 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+-- Attributes --
 pk Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 b1 Bit(3) NULL AT=FIXED ST=MEMORY
 b2 Bit(9) NULL AT=FIXED ST=MEMORY
 b3 Bit(23) NULL AT=FIXED ST=MEMORY
 b4 Bit(37) NULL AT=FIXED ST=MEMORY
 b5 Bit(63) NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(pk) - UniqueHashIndex
 PRIMARY(pk) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -355,7 +349,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster AUTO_INCREMENT=12 DEFAULT CHARSET=latin1
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -371,7 +365,8 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY DEFAULT 6
 f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
@@ -383,12 +378,10 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_10
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -447,7 +440,7 @@ i	j	f	d
 ALTER TABLE t2 MODIFY COLUMN j INT DEFAULT 666;
 -- t2 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -463,18 +456,17 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Int NULL AT=FIXED ST=MEMORY DEFAULT 666
 f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
 d Double NULL AT=FIXED ST=MEMORY DEFAULT 8.800000
-
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
 Index
 Index
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -496,7 +488,7 @@ DROP TABLE IF EXISTS t2;
 CREATE TABLE t1 (a int primary key, b int default 12, c char not null) engine=ndb;
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -512,15 +504,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
 c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -539,7 +530,7 @@ h enum('Pig','Lion') not null,
 i char(2) default '66') engine=ndb;
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -555,7 +546,8 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Int NULL AT=FIXED ST=MEMORY DEFAULT 12
 c Char(1;latin1_swedish_ci) NOT NULL AT=FIXED ST=MEMORY
@@ -565,11 +557,9 @@ f Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x01"
 g Char(1;binary) NULL AT=FIXED ST=MEMORY DEFAULT "0x05"
 h Char(1;binary) NOT NULL AT=FIXED ST=MEMORY
 i Char(2;latin1_swedish_ci) NULL AT=FIXED ST=MEMORY DEFAULT "66"
-
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -590,7 +580,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -606,15 +596,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
 b Binary(10) NULL AT=FIXED ST=MEMORY DEFAULT 0x4142430045464748494A
 c Varbinary(100) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x4142430045464748494A
-
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -635,7 +624,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -651,14 +640,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -679,7 +667,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -695,14 +683,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -723,7 +710,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -739,14 +726,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -769,7 +755,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -785,15 +771,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 c Int NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -818,7 +803,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -834,14 +819,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -862,7 +846,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -878,14 +862,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -908,7 +891,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -924,15 +907,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -955,7 +937,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -971,15 +953,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1006,7 +987,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1022,15 +1003,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-c Timestamp NOT NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 235861201
+c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1051,7 +1031,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1067,14 +1047,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1095,7 +1074,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1111,14 +1090,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 0
-
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 0
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1139,7 +1117,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1155,14 +1133,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY DEFAULT 235861201
-
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY DEFAULT 235861201
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1183,7 +1160,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1199,14 +1176,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1229,7 +1205,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1245,15 +1221,14 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 c Int NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1278,7 +1253,7 @@ variant	CREATE TABLE `variant` (
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 -- variant --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1294,14 +1269,13 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
-b Timestamp NULL AT=FIXED ST=MEMORY
-
+b Timestamp2(0) NULL AT=FIXED ST=MEMORY
 -- Indexes -- 
 PRIMARY KEY(a) - UniqueHashIndex
 PRIMARY(a) - OrderedIndex
-
 
 NDBT_ProgramExit: 0 - OK
 
@@ -1368,7 +1342,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=ndbcluster AUTO_INCREMENT=18446744073709551615 DEFAULT CHARSET=latin1
 -- t1 --
 Version: Any
-Fragment type: 9
+Fragment type: HashMapPartition
 K Value: 6
 Min load factor: 78
 Max load factor: 80
@@ -1384,7 +1358,8 @@ FragmentCount: 2
 ExtraRowGciBits: 0
 ExtraRowAuthorBits: 0
 TableStatus: Retrieved
--- Attributes -- 
+HashMap: DEFAULT-HASHMAP-3840-2
+-- Attributes --
 i Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY AUTO_INCR
 j Bigint NOT NULL AT=FIXED ST=MEMORY DEFAULT 6006
 f Float NOT NULL AT=FIXED ST=MEMORY DEFAULT 6.600000
@@ -1395,14 +1370,12 @@ b Binary(19) NULL AT=FIXED ST=MEMORY DEFAULT 0x636363
 vb Varbinary(19) NULL AT=SHORT_VAR ST=MEMORY DEFAULT 0x646464
 blob1 Blob(256,2000,0) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_8
 text1 Text(256,2000,0;latin1_swedish_ci) NULL AT=MEDIUM_VAR ST=MEMORY BV=2 BT=NDB$BLOB_XX_9
-timestamp_c Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
+timestamp_c Timestamp2(0) NOT NULL AT=FIXED ST=MEMORY DEFAULT 1275905182
 newOne Varchar(255;latin1_swedish_ci) NULL AT=SHORT_VAR ST=MEMORY DEFAULT "Comment field default"
 newTwo Bigint NULL AT=FIXED ST=MEMORY
-
 -- Indexes -- 
 PRIMARY KEY(i) - UniqueHashIndex
 Index
-
 
 NDBT_ProgramExit: 0 - OK
 

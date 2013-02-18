@@ -116,7 +116,9 @@ SELECT @@global.net_buffer_length;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.net_buffer_length = test;
 SELECT @@global.net_buffer_length;
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.net_buffer_length = ' ';
+SELECT @@global.net_buffer_length;
 # SESSION net_buffer_length is now read-only; assignments skipped
 
 --Error ER_WRONG_TYPE_FOR_VAR

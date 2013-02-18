@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,23 +30,9 @@
 #include "sql_string.h"
 #include "sql_error.h"
 #include <my_pthread.h>
+#include "test_utils.h"
 
-pthread_key(MEM_ROOT**, THR_MALLOC);
-pthread_key(THD*, THR_THD);
-
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
-namespace {
-
-// A simple helper function to determine array size.
-template <class T, int size>
-int array_size(const T (&)[size])
-{
-  return size;
-}
+namespace sql_list_unittest {
 
 // A simple helper function to insert values into a List.
 template <class T, int size>
@@ -89,13 +75,17 @@ protected:
   static void SetUpTestCase()
   {
     ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    THR_THD_initialized= true;
     ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
     pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
     pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
   }
 
   MEM_ROOT m_mem_root;

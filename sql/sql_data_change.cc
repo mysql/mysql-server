@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,10 @@ bool COPY_INFO::get_function_default_columns(TABLE *table)
   if (!m_manage_defaults)
     DBUG_RETURN(false); // leave bitmap full of zeroes
 
-  /* Find columns with function default on insert or update. */
+  /*
+    Find columns with function default on insert or update, mark them in
+    bitmap.
+  */
   for (uint i= 0; i < table->s->fields; ++i)
   {
     Field *f= table->field[i];
@@ -80,6 +83,9 @@ bool COPY_INFO::get_function_default_columns(TABLE *table)
         (m_optype == UPDATE_OPERATION && f->has_update_default_function()))
       bitmap_set_bit(m_function_default_columns, f->field_index);
   }
+
+  if (bitmap_is_clear_all(m_function_default_columns))
+    DBUG_RETURN(false); // no bit set, next step unneeded
 
   /*
     Remove explicitly assigned columns from the bitmap. The assignment
@@ -134,4 +140,15 @@ void COPY_INFO::set_function_defaults(TABLE *table)
       }
     }
   DBUG_VOID_RETURN;
+}
+
+
+bool COPY_INFO::ignore_last_columns(TABLE *table, uint count)
+{
+  if (get_function_default_columns(table))
+    return true;
+  for (uint i= 0; i < count; i++)
+    bitmap_clear_bit(m_function_default_columns,
+                     table->s->fields - 1 - i);
+  return false;
 }

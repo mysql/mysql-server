@@ -32,7 +32,6 @@ t14169459_2	CREATE TABLE `t14169459_2` (
 t14169459_2.frm
 t14169459_2.ibd
 ### directory of MYSQL_TMP_DIR/mysqld.1
-#sql<temporary>.ibd
 FLUSH TABLES t14169459_2 FOR EXPORT;
 SELECT * FROM t14169459_2;
 a	b
@@ -48,7 +47,6 @@ ERROR HY000: Tablespace has been discarded for table 't14169459_2'
 ### directory of MYSQL_DATA_DIR/test
 t14169459_2.frm
 ### directory of MYSQL_TMP_DIR/mysqld.1
-#sql<temporary>.ibd
 DROP TABLE t14169459_1;
 DROP TABLE t14169459_2;
 ### directory of MYSQL_DATA_DIR/test

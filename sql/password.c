@@ -102,7 +102,7 @@ void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 
 void hash_password(ulong *result, const char *password, uint password_len)
 {
-  register ulong nr=1345345333L, add=7, nr2=0x12345671L;
+  ulong nr=1345345333L, add=7, nr2=0x12345671L;
   ulong tmp;
   const char *password_end= password + password_len;
   for (; password < password_end; password++)
@@ -291,20 +291,29 @@ void make_password_from_salt_323(char *to, const ulong *salt)
 */
 
 /**
-    Generate string of printable random characters of requested length.
+  Generate string of printable pseudo random characters of requested length.
   
-    @param to[out]  Buffer for generation; must be at least length+1 bytes
+  @param to[out]    Buffer for generation; must be at least length+1 bytes
                     long; result string is always null-terminated
-    length[in]      How many random characters to put in buffer
-    rand_st         Structure used for number generation
+  @param length[in] How many random characters to put in buffer
+  @param rand_st    Structure used for number generation
+    
+  @note This function is restricted for use with
+    native_password_authenticate() because of security reasons.
+      
+  DON'T RELY ON THIS FUNCTION FOR A UNIFORMLY DISTRIBUTION OF BITS!
+  
 */
 
 void create_random_string(char *to, uint length, struct rand_struct *rand_st)
 {
   char *end= to + length;
-  /* Use pointer arithmetics as it is faster way to do so. */
+  /*
+    Warning: my_rnd() is a fast prng, but it doesn't necessarily have a uniform
+    distribution.
+  */
   for (; to < end; to++)
-    *to= (char) (my_rnd_ssl(rand_st) * 94 + 33);
+    *to= (char) (my_rnd(rand_st) * 94 + 33);
   *to= '\0';
 }
 
@@ -355,7 +364,7 @@ hex2octet(uint8 *to, const char *str, uint len)
   const char *str_end= str + len;
   while (str < str_end)
   {
-    register char tmp= char_val(*str++);
+    char tmp= char_val(*str++);
     *to++= (tmp << 4) | char_val(*str++);
   }
 }

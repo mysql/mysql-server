@@ -1,7 +1,7 @@
-#Want to skip this test from daily Valgrind execution.
---source include/no_valgrind_without_big.inc
 #Considering the time taken for this test on slow solaris platforms making it a big test
 --source include/big_test.inc
+# Skiping this test from Valgrind execution as per Bug-14627884
+--source include/not_valgrind.inc
 ################################################################################
 # t/partition_alter2_2_1_innodb.test                                           #
 #                                                                              #

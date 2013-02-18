@@ -48,7 +48,10 @@ sp_rcontext::~sp_rcontext()
   if (m_var_table)
     free_blobs(m_var_table);
 
-  // Leave m_visible_handlers, m_activated_handlers, m_var_items, m_cstack
+  while (m_activated_handlers.elements())
+    delete m_activated_handlers.pop();
+
+  // Leave m_visible_handlers, m_var_items, m_cstack
   // and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
 }
@@ -205,21 +208,50 @@ void sp_rcontext::pop_handlers(sp_pcontext *current_scope)
 }
 
 
-void sp_rcontext::exit_handler(sp_pcontext *target_scope)
+void sp_rcontext::pop_handler_frame(THD *thd)
 {
-  // Pop the current handler frame.
+  Handler_call_frame *frame= m_activated_handlers.pop();
 
-  m_activated_handlers.pop();
+  // Also pop matching DA and copy new conditions.
+  DBUG_ASSERT(thd->get_stmt_da() == &frame->handler_da);
+  thd->pop_diagnostics_area();
+  thd->get_stmt_da()->reset_condition_info(thd->query_id);
+  thd->get_stmt_da()->copy_new_sql_conditions(thd, &frame->handler_da);
+
+  delete frame;
+}
+
+
+void sp_rcontext::exit_handler(THD *thd, sp_pcontext *target_scope)
+{
+  /*
+    The handler has successfully completed. We should now pop the current
+    handler frame and pop the diagnostics area which was pushed when the
+    handler was activated.
+
+    The diagnostics area of the caller should then contain only any
+    conditions pushed during handler execution. The conditions present
+    when the handler was activated should be removed since they have
+    been successfully handled.
+  */
+  pop_handler_frame(thd);
 
   // Pop frames below the target scope level.
-
   for (int i= m_activated_handlers.elements() - 1; i >= 0; --i)
   {
     int handler_level= m_activated_handlers.at(i)->handler->scope->get_level();
 
-    if (handler_level > target_scope->get_level())
-      m_activated_handlers.pop();
+    if (handler_level <= target_scope->get_level())
+      break;
+
+    pop_handler_frame(thd);
   }
+
+  /*
+    Condition was successfully handled, reset condition count
+    so we don't trigger the handler again for the same warning.
+  */
+  thd->get_stmt_da()->reset_statement_cond_count();
 }
 
 
@@ -240,37 +272,39 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
   Diagnostics_area *da= thd->get_stmt_da();
   const sp_handler *found_handler= NULL;
-  const Sql_condition *found_condition= NULL;
+  Sql_condition *found_condition= NULL;
 
   if (thd->is_error())
   {
     sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
 
-    found_handler= cur_pctx->find_handler(da->get_sqlstate(),
-                                          da->sql_errno(),
-                                          Sql_condition::WARN_LEVEL_ERROR);
+    found_handler= cur_pctx->find_handler(da->returned_sqlstate(),
+                                          da->mysql_errno(),
+                                          Sql_condition::SL_ERROR);
 
     if (found_handler)
-      found_condition= da->get_error_condition();
-
-    /*
-      Found condition can be NULL if the diagnostics area was full
-      when the error was raised. It can also be NULL if
-      Diagnostics_area::set_error_status(uint sql_error) was used.
-      In these cases, make a temporary Sql_condition here so the
-      error can be handled.
-    */
-    if (!found_condition)
     {
-      Sql_condition *condition=
-        new (callers_arena->mem_root) Sql_condition(callers_arena->mem_root);
-      condition->set(da->sql_errno(), da->get_sqlstate(),
-                     Sql_condition::WARN_LEVEL_ERROR,
-                     da->message());
-      found_condition= condition;
+      found_condition= da->error_condition();
+
+      /*
+        error_condition can be NULL if the Diagnostics Area was full
+        when the error was raised. It can also be NULL if
+        Diagnostics_area::set_error_status(uint sql_error) was used.
+        In these cases, make a temporary Sql_condition here so the
+        error can be handled.
+      */
+      if (!found_condition)
+      {
+        found_condition= new (callers_arena->mem_root)
+          Sql_condition(callers_arena->mem_root,
+                        da->mysql_errno(),
+                        da->returned_sqlstate(),
+                        Sql_condition::SL_ERROR,
+                        da->message_text());
+      }
     }
   }
-  else if (da->current_statement_warn_count())
+  else if (da->current_statement_cond_count())
   {
     Diagnostics_area::Sql_condition_iterator it= da->sql_conditions();
     const Sql_condition *c;
@@ -281,18 +315,19 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
 
     while ((c= it++))
     {
-      if (c->get_level() == Sql_condition::WARN_LEVEL_WARN ||
-          c->get_level() == Sql_condition::WARN_LEVEL_NOTE)
+      if (c->severity() == Sql_condition::SL_WARNING ||
+          c->severity() == Sql_condition::SL_NOTE)
       {
         sp_pcontext *cur_pctx= cur_spi->get_parsing_ctx();
 
-        const sp_handler *handler= cur_pctx->find_handler(c->get_sqlstate(),
-                                                          c->get_sql_errno(),
-                                                          c->get_level());
+        const sp_handler *handler=
+          cur_pctx->find_handler(c->returned_sqlstate(),
+                                 c->mysql_errno(),
+                                 c->severity());
         if (handler)
         {
           found_handler= handler;
-          found_condition= c;
+          found_condition= const_cast<Sql_condition*>(c);
         }
       }
     }
@@ -338,11 +373,15 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   if (!handler_entry)
     DBUG_RETURN(false);
 
-  // Mark active conditions so that they can be deleted when the handler exits.
-  da->mark_sql_conditions_for_removal();
-
   uint continue_ip= handler_entry->handler->type == sp_handler::CONTINUE ?
     cur_spi->get_cont_dest() : 0;
+
+  /* Add a frame to handler-call-stack. */
+  Handler_call_frame *frame= new Handler_call_frame(found_handler,
+                                                    found_condition,
+                                                    continue_ip,
+                                                    da->statement_id());
+  m_activated_handlers.append(frame);
 
   /* End aborted result set. */
   if (end_partial_result_set)
@@ -353,15 +392,13 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
   thd->killed= THD::NOT_KILLED; // Some errors set thd->killed
                                 // (e.g. "bad data").
 
-  /* Add a frame to handler-call-stack. */
-  Sql_condition_info *cond_info=
-    new (callers_arena->mem_root) Sql_condition_info(found_condition,
-                                                     callers_arena);
-  Handler_call_frame *frame=
-    new (callers_arena->mem_root) Handler_call_frame(found_handler,
-                                                     cond_info,
-                                                     continue_ip);
-  m_activated_handlers.append(frame);
+  thd->push_diagnostics_area(&frame->handler_da);
+
+  /*
+    Mark current conditions so we later will know which conditions
+    were added during handler execution (if any).
+  */
+  frame->handler_da.mark_preexisting_sql_conditions();
 
   *ip= handler_entry->first_ip;
 
@@ -481,7 +518,7 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
   }
 
   DBUG_EXECUTE_IF("bug23032_emit_warning",
-                  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+                  push_warning(thd, Sql_condition::SL_WARNING,
                                ER_UNKNOWN_ERROR,
                                ER(ER_UNKNOWN_ERROR)););
 

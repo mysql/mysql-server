@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -65,7 +65,7 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
   if (thd->is_fatal_error || !thd->is_error())
     DBUG_RETURN(0);
 
-  error= (error_arg == 0)? thd->get_stmt_da()->sql_errno() : error_arg;
+  error= (error_arg == 0)? thd->get_stmt_da()->mysql_errno() : error_arg;
 
   /*
     Temporary error codes:
@@ -85,9 +85,9 @@ int Slave_reporting_capability::has_temporary_error(THD *thd,
   const Sql_condition *err;
   while ((err= it++))
   {
-    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
-                        err->get_message_text()));
-    switch (err->get_sql_errno())
+    DBUG_PRINT("info", ("has condition %d %s", err->mysql_errno(),
+                        err->message_text()));
+    switch (err->mysql_errno())
     {
     case ER_GET_TEMPORARY_ERRMSG:
       DBUG_RETURN(1);

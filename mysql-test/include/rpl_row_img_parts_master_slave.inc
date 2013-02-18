@@ -63,7 +63,6 @@
 -- eval $row_img_query
 
 # lets wait until the binary log position changes
-# we may have just executed an insert delayed
 -- let $_pos= query_get_value("SHOW MASTER STATUS", Position, 1)
 
 # wait for 5 minutes

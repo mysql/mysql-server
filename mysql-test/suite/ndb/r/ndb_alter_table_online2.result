@@ -32,6 +32,7 @@ set @t1_id = (select id from ndb_show_tables_results where name like '%t1%' and 
 
 ALTER ONLINE TABLE t1 ADD b INT;
 Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -49,7 +50,7 @@ name
 ~ Starting mysqlslap using column b
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ 
 
-update t1 set b= 0;
+update t1 set b = 0 where pk = 1;
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Alter table t1 add column c
@@ -57,6 +58,7 @@ update t1 set b= 0;
 
 ALTER ONLINE TABLE t1 ADD c INT;
 Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -74,10 +76,10 @@ name
 ~ Starting mysqlslap using column c
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-update t1 set c= 0;
+update t1 set c = 0 where pk = 1;
 select * from t1;
 pk	a	b	c
-1	5000	5000	5000
+1	2000	2000	2000
 
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ~ Alter table t1 and try to add partitions
@@ -90,6 +92,32 @@ ERROR 42000: This version of MySQL doesn't yet support 'ALTER ONLINE TABLE t1 PA
 ~ Check table t1 ID has not changed
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+ndb_show_tables completed.....
+
+select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
+name
+'t1'
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~ test that aborted online alter rollback DDL transaction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Connection default
+START TRANSACTION;
+SELECT * FROM t1;
+pk	a	b	c
+1	2000	2000	2000
+# Connection con1
+SET lock_wait_timeout=1;
+ALTER ONLINE TABLE t1 ADD d INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+ALTER ONLINE TABLE t1 ADD d INT;
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
+SELECT * FROM t1;
+pk	a	b	c
+1	2000	2000	2000
+COMMIT;
 
 ndb_show_tables completed.....
 

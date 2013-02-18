@@ -107,7 +107,7 @@ public:
 
   /**
     Deletes any information in the repository. In contrast to the
-    @code remove_info() method, the repository is not removed.
+    @c remove_info() method, the repository is not removed.
 
     @retval FALSE No error
     @retval TRUE  Failure
@@ -161,6 +161,10 @@ public:
   {
      return (do_get_rpl_info_type());
   }
+  /**
+     Returns a string corresponding to the type.
+  */
+  const char* get_rpl_info_type_str();
 
   /**
     Sets the value of a field to @c value.

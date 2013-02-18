@@ -82,7 +82,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern
+UNIV_INTERN
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -99,7 +99,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern
+UNIV_INTERN
 int
 innobase_mysql_cmp_prefix(
 /*======================*/
@@ -350,8 +350,8 @@ data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
 UNIV_INTERN
 int
-cmp_data_data_slow(
-/*===============*/
+cmp_data_data(
+/*==========*/
 	ulint		mtype,	/*!< in: main type */
 	ulint		prtype,	/*!< in: precise type */
 	const byte*	data1,	/*!< in: data field (== a pointer to a memory
@@ -459,7 +459,7 @@ next_byte:
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type to be VARCHAR */
-
+UNIV_INTERN
 int
 cmp_data_data_slow_varchar(
 /*=======================*/
@@ -513,7 +513,7 @@ cmp_data_data_slow_varchar(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_prefix(
 /*===========================*/
@@ -567,7 +567,7 @@ cmp_data_data_slow_like_prefix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_suffix(
 /*===========================*/
@@ -592,7 +592,7 @@ cmp_data_data_slow_like_suffix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_substr(
 /*===========================*/

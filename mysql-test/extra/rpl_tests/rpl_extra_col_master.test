@@ -1053,9 +1053,9 @@ SET @text= REPEAT(_utf8'ç', 255);
 INSERT INTO t1 VALUES (1, @text);
 -- enable_warnings
 
-SELECT * FROM t1; 
+SELECT * FROM t1 ORDER BY c1; 
 -- sync_slave_with_master
-SELECT * FROM t1; 
+SELECT * FROM t1 ORDER BY c1; 
 
 # clean up
 -- connection master

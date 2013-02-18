@@ -1,5 +1,5 @@
 /* -*- C++ -*- */
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -470,12 +470,12 @@ public:
   ///
   /// @param sql_state        The SQL condition state
   /// @param sql_errno        The error code
-  /// @param level            The SQL condition level
+  /// @param severity         The SQL condition severity level
   ///
   /// @return a pointer to the found SQL-handler or NULL.
   sp_handler *find_handler(const char *sql_state,
                            uint sql_errno,
-                           Sql_condition::enum_warning_level level) const;
+                           Sql_condition::enum_severity_level severity) const;
 
   /////////////////////////////////////////////////////////////////////////
   // Cursors.

@@ -85,14 +85,24 @@ SELECT @@global.innodb_commit_concurrency;
 #
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_commit_concurrency = 1;
+SELECT @@global.innodb_commit_concurrency;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_commit_concurrency = -1;
+SELECT @@global.innodb_commit_concurrency;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "T";
+SELECT @@global.innodb_commit_concurrency;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_commit_concurrency = "Y";
+SELECT @@global.innodb_commit_concurrency;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_commit_concurrency = 1.1;
+SELECT @@global.innodb_commit_concurrency;
 --Error ER_WRONG_VALUE_FOR_VAR
 SET @@global.innodb_commit_concurrency = 1001;
+SELECT @@global.innodb_commit_concurrency;
+
+
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 ######################################################################### 

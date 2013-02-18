@@ -2,6 +2,15 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7;
 drop database if exists mysqltest;
 SHOW GLOBAL STATUS LIKE 'ndb\_%';
 Variable_name	Value
+Ndb_api_adaptive_send_deferred_count	#
+Ndb_api_adaptive_send_deferred_count_session	#
+Ndb_api_adaptive_send_deferred_count_slave	#
+Ndb_api_adaptive_send_forced_count	#
+Ndb_api_adaptive_send_forced_count_session	#
+Ndb_api_adaptive_send_forced_count_slave	#
+Ndb_api_adaptive_send_unforced_count	#
+Ndb_api_adaptive_send_unforced_count_session	#
+Ndb_api_adaptive_send_unforced_count_slave	#
 Ndb_api_bytes_received_count	#
 Ndb_api_bytes_received_count_session	#
 Ndb_api_bytes_received_count_slave	#
@@ -66,13 +75,20 @@ Ndb_cluster_node_id	#
 Ndb_config_from_host	#
 Ndb_config_from_port	#
 Ndb_conflict_fn_epoch	#
+Ndb_conflict_fn_epoch_trans	#
 Ndb_conflict_fn_max	#
 Ndb_conflict_fn_max_del_win	#
 Ndb_conflict_fn_old	#
+Ndb_conflict_trans_conflict_commit_count	#
+Ndb_conflict_trans_detect_iter_count	#
+Ndb_conflict_trans_reject_count	#
+Ndb_conflict_trans_row_conflict_count	#
+Ndb_conflict_trans_row_reject_count	#
 Ndb_connect_count	#
 Ndb_execute_count	#
 Ndb_index_stat_cache_clean	#
 Ndb_index_stat_cache_query	#
+Ndb_index_stat_status	#
 Ndb_number_of_data_nodes	#
 Ndb_number_of_ready_data_nodes	#
 Ndb_pruned_scan_count	#
@@ -85,7 +101,7 @@ Ndb_schema_locks_count	#
 Ndb_slave_max_replicated_epoch	#
 Ndb_sorted_scan_count	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 
-Variable_name NOT LIKE 'ndb_check_shares';
+Variable_name NOT LIKE 'ndb_dbg\_%';
 Variable_name	Value
 ndb_autoincrement_prefetch_sz	#
 ndb_batch_size	#
@@ -108,6 +124,7 @@ ndb_log_bin	#
 ndb_log_binlog_index	#
 ndb_log_empty_epochs	#
 ndb_log_orig	#
+ndb_log_transaction_id	#
 ndb_log_update_as_write	#
 ndb_log_updated_only	#
 ndb_mgmd_host	#
@@ -121,6 +138,8 @@ ndb_table_temporary	#
 ndb_use_copying_alter_table	#
 ndb_use_exact_count	#
 ndb_use_transactions	#
+ndb_version	#
+ndb_version_string	#
 ndb_wait_connected	#
 ndb_wait_setup	#
 CREATE TABLE t1 (
@@ -571,11 +590,11 @@ length(b)
 13000
 drop table t1;
 create table t1 ( c50 char(255), c49 char(255), c48 char(255), c47 char(255), c46 char(255), c45 char(255), c44 char(255), c43 char(255), c42 char(255), c41 char(255), c40 char(255), c39 char(255), c38 char(255), c37 char(255), c36 char(255), c35 char(255), c34 char(255), c33 char(255), c32 char(255), c31 char(255), c30 char(255), c29 char(255), c28 char(255), c27 char(255), c26 char(255), c25 char(255), c24 char(255), c23 char(255), c22 char(255), c21 char(255), c20 char(255), c19 char(255), c18 char(255), c17 char(255), c16 char(255), c15 char(255), c14 char(255), c13 char(255), c12 char(255), c11 char(255), c10 char(255), c9 char(255), c8 char(255), c7 char(255), c6 char(255), c5 char(255), c4 char(255), c3 char(255), c2 char(255), c1 char(255), primary key using hash(c1)) engine=ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 851)
+ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 show warnings;
 Level	Code	Message
-Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNMIC instead' from NDB
-Error	1005	Can't create table 'test.t1' (errno: 851)
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Duplicate partition field name 'a'
 create table t1 (
@@ -589,7 +608,7 @@ t1
 insert into t1 values (1,1),(2,1),(3,1),(4,1),(5,2),(6,1),(7,1);
 explain select * from t1 where a12345678901234567890123456789a1234567890=2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a12345678901234567890123456789a1234567890	a12345678901234567890123456789a1234567890	5	const	#	
+1	SIMPLE	t1	ref	a12345678901234567890123456789a1234567890	a12345678901234567890123456789a1234567890	5	const	#	NULL
 select * from t1 where a12345678901234567890123456789a1234567890=2;
 a1234567890123456789012345678901234567890	a12345678901234567890123456789a1234567890
 5	2
@@ -973,15 +992,23 @@ id	parent_id
 3	3
 DROP TABLE child, parent;
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
-ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 24;
-ERROR HY000: Can't create table 'test.t1' (errno: 140)
+ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1224 'Too many fragments' from NDB
-Error	1005	Can't create table 'test.t1' (errno: 140)
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb;
 show warnings;
 Level	Code	Message
 drop table t1;
+create table
+abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
+primary key) engine=ndb;
+ERROR HY000: Got error 1059 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1059	Ndb has an internal limit of 63 bytes on the size of schema identifiers
+Error	1296	Got error 1059 'Unknown error code' from NDBCLUSTER
 End of 5.1 tests

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,14 +32,6 @@
    Below are unit tests for comparing performance, and for testing
    functionality of Mem_root_array.
 */
-
-pthread_key(MEM_ROOT**, THR_MALLOC);
-pthread_key(THD*, THR_THD);
-
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
 
 
 /*
@@ -96,7 +88,7 @@ static inline std::ostream &operator<<(std::ostream &s, const Key_use &v)
 }
 
 
-namespace {
+namespace dynarray_unittest {
 
 /*
   Cut'n paste this function from sql_select.cc,
@@ -254,13 +246,17 @@ protected:
   {
     generate_test_data(test_data, table_list, num_elements);
     ASSERT_EQ(0, pthread_key_create(&THR_THD, NULL));
+    THR_THD_initialized= true;
     ASSERT_EQ(0, pthread_key_create(&THR_MALLOC, NULL));
+    THR_MALLOC_initialized= true;
   }
 
   static void TearDownTestCase()
   {
     pthread_key_delete(THR_THD);
+    THR_THD_initialized= false;
     pthread_key_delete(THR_MALLOC);
+    THR_MALLOC_initialized= false;
   }
 
   void insert_and_sort_mysys()

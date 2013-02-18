@@ -22,7 +22,7 @@
 
 #include "myisamdef.h"
 
-int mi_close(register MI_INFO *info)
+int mi_close(MI_INFO *info)
 {
   int error=0,flag;
   MYISAM_SHARE *share=info->s;

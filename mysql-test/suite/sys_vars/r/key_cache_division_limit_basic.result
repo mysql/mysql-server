@@ -71,6 +71,11 @@ Warning	1292	Truncated incorrect key_cache_division_limit value: '65535'
 SELECT @@global.key_cache_division_limit;
 @@global.key_cache_division_limit
 100
+SET @@global.key_cache_division_limit = ' ';
+ERROR 42000: Incorrect argument type to variable 'key_cache_division_limit'
+SELECT @@global.key_cache_division_limit;
+@@global.key_cache_division_limit
+100
 SET @@global.key_cache_division_limit = ON;
 ERROR 42000: Incorrect argument type to variable 'key_cache_division_limit'
 SELECT @@global.key_cache_division_limit;

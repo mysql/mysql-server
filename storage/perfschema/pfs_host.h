@@ -33,6 +33,7 @@ struct PFS_thread;
   @{
 */
 
+/** Hash key for a host. */
 struct PFS_host_key
 {
   /**
@@ -44,6 +45,7 @@ struct PFS_host_key
   uint m_key_length;
 };
 
+/** Per host statistics. */
 struct PFS_ALIGNED PFS_host : PFS_connection_slice
 {
 public:

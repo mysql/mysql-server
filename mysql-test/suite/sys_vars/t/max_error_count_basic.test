@@ -115,6 +115,9 @@ SELECT @@global.max_error_count;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_error_count = test;
 SELECT @@global.max_error_count;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_error_count = ' ';
+SELECT @@global.max_error_count;
 
 SET @@session.max_error_count = -1;
 SELECT @@session.max_error_count;
@@ -122,6 +125,9 @@ SET @@session.max_error_count = 65536;
 SELECT @@session.max_error_count;
 SET @@session.max_error_count = -2;
 SELECT @@session.max_error_count;
+SET @@session.max_error_count = -1024;
+SELECT @@session.max_error_count;
+
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_error_count = 65530.34;
 SET @@session.max_error_count = 10737418241;
@@ -129,6 +135,9 @@ SELECT @@session.max_error_count;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_error_count = test;
+SELECT @@session.max_error_count;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_error_count = ' ';
 SELECT @@session.max_error_count;
 
 

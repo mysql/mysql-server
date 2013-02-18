@@ -1997,22 +1997,6 @@ drop function func_25345_b;
 --echo End of 5.0 tests
 
 #
-# Bug#16164 "Easter egg": check that SHOW AUTHORS is disabled in
-# stored functions/triggers
-#
---disable_warnings ONCE
-drop function if exists bug16164;
-delimiter |;
---error ER_SP_NO_RETSET
-create function bug16164() returns int
-begin
-  show authors;
-  return 42;
-end|
-delimiter ;|
-
-
-#
 # BUG#20701: BINARY keyword should be forbidden in stored routines
 #
 --disable_warnings ONCE

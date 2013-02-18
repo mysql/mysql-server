@@ -5,7 +5,7 @@ extern "C" {
 
 /* === debug.c === */
 void regprint(my_regex_t *r, FILE *d);
-static void s_print(const CHARSET_INFO *charset, register struct re_guts *g,
+static void s_print(const CHARSET_INFO *charset, struct re_guts *g,
                     FILE *d);
 static char *regchar(const CHARSET_INFO *charset, int ch,char *buf);
 

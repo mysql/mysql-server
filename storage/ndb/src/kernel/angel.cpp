@@ -543,7 +543,9 @@ angel_run(const char* progname,
           const char* bind_address,
           bool initial,
           bool no_start,
-          bool daemon)
+          bool daemon,
+          int connnect_retries,
+          int connect_delay)
 {
   ConfigRetriever retriever(connect_str,
                             force_nodeid,
@@ -557,8 +559,6 @@ angel_run(const char* progname,
     angel_exit(1);
   }
 
-  const int connnect_retries = 12;
-  const int connect_delay = 5;
   const int verbose = 1;
   if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
   {
@@ -570,7 +570,7 @@ angel_run(const char* progname,
                       retriever.get_mgmd_host(),
                       retriever.get_mgmd_port());
 
-  const int alloc_retries = 2;
+  const int alloc_retries = 10;
   const int alloc_delay = 3;
   const Uint32 nodeid = retriever.allocNodeId(alloc_retries, alloc_delay);
   if (nodeid == 0)
@@ -825,8 +825,6 @@ angel_run(const char* progname,
       NdbSleep_SecSleep(restart_delay_secs);
     };
 
-    const int connnect_retries = 12;
-    const int connect_delay = 5;
     const int verbose = 1;
     if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
     {
@@ -842,7 +840,7 @@ angel_run(const char* progname,
     retriever.setNodeId(nodeid);
 
     g_eventLogger->debug("Angel reallocating nodeid %d", nodeid);
-    const int alloc_retries = 10;
+    const int alloc_retries = 20;
     const int alloc_delay = 3;
     const Uint32 realloced = retriever.allocNodeId(alloc_retries, alloc_delay);
     if (realloced == 0)

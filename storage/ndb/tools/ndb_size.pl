@@ -462,7 +462,9 @@ my %queries; # used for loadqueries/savequeries
 
 if(!$loadqueries)
 {
-    my $dsn = "DBI:mysql:host=$hostname";
+    my ($host,$port) = split(/:/, $hostname);
+    my $dsn = "DBI:mysql:host=$host";
+    $dsn.= ";port=$port" if ($port);
     $dsn.= ";mysql_socket=$socket" if ($socket);
     $dbh= DBI->connect($dsn, $user, $password) or exit(1);
     $report->dsn($dsn);

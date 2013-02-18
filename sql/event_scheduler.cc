@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #include "sql_connect.h"         // init_new_connection_handler_thread
 #include "sql_acl.h"             // SUPER_ACL
 #include "global_threads.h"
+#include "log.h"
 
 /**
   @addtogroup Event_Scheduler
@@ -78,7 +79,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
   const Sql_condition *err;
   DBUG_ENTER("evex_print_warnings");
-  if (thd->get_stmt_da()->is_warning_info_empty())
+  if (thd->get_stmt_da()->cond_count() == 0)
     DBUG_VOID_RETURN;
 
   char msg_buf[10 * STRING_BUFFER_USUAL_SIZE];
@@ -102,11 +103,22 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     /* set it to 0 or we start adding at the end. That's the trick ;) */
     err_msg.length(0);
     err_msg.append(prefix);
-    err_msg.append(err->get_message_text(),
-                   err->get_message_octet_length(), system_charset_info);
-    DBUG_ASSERT(err->get_level() < 3);
-    (sql_print_message_handlers[err->get_level()])("%*s", err_msg.length(),
-                                                   err_msg.c_ptr());
+    err_msg.append(err->message_text(),
+                   err->message_octet_length(), system_charset_info);
+    switch (err->severity())
+    {
+    case Sql_condition::SL_ERROR:
+      sql_print_error("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_WARNING:
+      sql_print_warning("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    case Sql_condition::SL_NOTE:
+      sql_print_information("%*s", err_msg.length(), err_msg.c_ptr());
+      break;
+    default:
+      DBUG_ASSERT(false);
+    }
   }
   DBUG_VOID_RETURN;
 }

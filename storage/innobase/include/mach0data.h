@@ -398,6 +398,16 @@ mach_write_ulonglong(
 	ulint		len,		/*!< in: length of dest */
 	bool		usign);		/*!< in: signed or unsigned flag */
 
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ulint
+mach_read_ulint(
+/*============*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
+
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */
 

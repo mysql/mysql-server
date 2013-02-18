@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -17,11 +17,12 @@
 
 package com.mysql.clusterj.tie;
 
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
-import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.Element;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.DictionaryConst.ListConst.ElementArray;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.IndexConst;
+import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
 
 import com.mysql.clusterj.core.store.Index;
 import com.mysql.clusterj.core.store.Table;
@@ -43,10 +44,13 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(DictionaryImpl.class);
 
-    private DictionaryConst ndbDictionary;
+    private Dictionary ndbDictionary;
 
-    public DictionaryImpl(DictionaryConst ndbDictionary) {
+    private ClusterConnectionImpl clusterConnection;
+
+    public DictionaryImpl(Dictionary ndbDictionary, ClusterConnectionImpl clusterConnection) {
         this.ndbDictionary = ndbDictionary;
+        this.clusterConnection = clusterConnection;
     }
 
     public Table getTable(String tableName) {
@@ -120,6 +124,20 @@ class DictionaryImpl implements com.mysql.clusterj.core.store.Dictionary {
         } else {
             Utility.throwError(null, ndbDictionary.getNdbError(), extra);
         }
+    }
+
+    /** Remove cached table from this ndb dictionary. This allows schema change to work.
+     * @param tableName the name of the table
+     */
+    public void removeCachedTable(String tableName) {
+        // remove the cached table from this dictionary
+        ndbDictionary.removeCachedTable(tableName);
+        // also remove the cached NdbRecord associated with this table
+        clusterConnection.unloadSchema(tableName);
+    }
+
+    public Dictionary getNdbDictionary() {
+        return ndbDictionary;
     }
 
 }

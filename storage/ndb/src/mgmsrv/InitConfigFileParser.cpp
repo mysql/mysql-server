@@ -186,7 +186,7 @@ InitConfigFileParser::run_config_rules(Context& ctx)
 						      ConfigInfo::m_ConfigRules[i].m_ruleData))
       return 0;
 
-    for(size_t j = 0; j<tmp.size(); j++){
+    for(unsigned j = 0; j<tmp.size(); j++){
       BaseString::snprintf(ctx.fname, sizeof(ctx.fname),
                            "%s", tmp[j].m_sectionType.c_str());
       ctx.type             = InitConfigFileParser::Section;
@@ -478,7 +478,7 @@ bool InitConfigFileParser::convertStringToBool(const char* s, bool& val) {
 //****************************************************************************
 static void
 trim(char * str){
-  int len = strlen(str);
+  int len = (int)strlen(str);
   for(len--;
       (str[len] == '\r' || str[len] == '\n' || 
        str[len] == ' ' || str[len] == '\t') && 
@@ -581,7 +581,7 @@ bool
 InitConfigFileParser::storeSection(Context& ctx){
   if(ctx.m_currentSection == NULL)
     return true;
-  for(int i = strlen(ctx.fname) - 1; i>=0; i--){
+  for(int i = (int)strlen(ctx.fname) - 1; i>=0; i--){
     ctx.fname[i] = toupper(ctx.fname[i]);
   }
   BaseString::snprintf(ctx.pname, sizeof(ctx.pname), "%s", ctx.fname);
@@ -645,6 +645,9 @@ InitConfigFileParser::Context::reportWarning(const char * fmt, ...){
 
 #include <my_sys.h>
 #include <my_getopt.h>
+#ifdef HAVE_MY_DEFAULT_H
+#include <my_default.h>
+#endif
 
 static int order = 1;
 static 

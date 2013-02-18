@@ -122,27 +122,5 @@ SET @@session.time_zone = default;
 DROP TABLE t1;
 SET @@session.time_zone = default;
 include/stop_slave.inc
-reset master;
-CREATE TABLE t1 (date timestamp NOT NULL default CURRENT_TIMESTAMP on update CURRENT_TIMESTAMP, a int(11) default NULL);
-SET @@session.time_zone='+01:00';
-insert into t1 values('2008-12-23 19:39:39',1);
-SET @@session.time_zone='+02:00';
-insert delayed into t1 values ('2008-12-23 19:39:39',2);
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-flush table t1;
-flush logs;
-select * from t1;
-date	a
-2008-12-23 20:39:39	1
-2008-12-23 19:39:39	2
-DROP TABLE t1;
-RESET MASTER;
-select * from t1 order by a;
-date	a
-2008-12-23 20:39:39	1
-2008-12-23 19:39:39	2
-DROP TABLE t1;
-SET @@session.time_zone = default;
 include/rpl_end.inc
 End of 5.0 tests

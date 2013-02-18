@@ -56,16 +56,16 @@ private:
   const RopeHandle & src;
 };
 
-class Rope : private RopeBase {
+class LocalRope : private RopeBase {
 public:
-  Rope(RopePool& thePool, RopeHandle& handle)  
+  LocalRope(RopePool& thePool, RopeHandle& handle)
     : RopeBase(thePool), src(handle)
   {
     this->head = src.m_head;
     m_hash = src.m_hash;
   }
   
-  ~Rope(){
+  ~LocalRope(){
     src.m_head = this->head;
     src.m_hash = m_hash;
   }
@@ -94,13 +94,13 @@ private:
 
 inline
 Uint32
-Rope::size() const {
+LocalRope::size() const {
   return head.used;
 }
 
 inline
 bool
-Rope::empty() const {
+LocalRope::empty() const {
   return head.used == 0;
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,7 +182,7 @@ void Gcalc_function::debug_print_function_buffer()
     DBUG_PRINT("info", ("[%d]=%d c_op=%d (%s) mask=%d n_ops=%d",
                        i, c_op, func, c_op_name, mask, n_ops));
     if (thd->get_gis_debug())
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_UNKNOWN_ERROR, "[%d] %s[%d]%s",
                           i, c_op_name, n_ops, s_name);
   }
@@ -429,9 +429,13 @@ int Gcalc_result_receiver::complete_shape()
   }
   if (n_points == 1)
   {
-    if (cur_shape == Gcalc_function::shape_hole)
+    if (cur_shape == Gcalc_function::shape_hole ||
+        cur_shape == Gcalc_function::shape_polygon)
     {
-      // All points of a hole had the same coordinates -remove this hole.
+      /*
+        All points of a hole (or a polygon) have the same 
+        coordinates - remove the shape.
+      */
       buffer.length(shape_pos);
       DBUG_RETURN(0);
     }
@@ -444,23 +448,22 @@ int Gcalc_result_receiver::complete_shape()
   else
   {
     DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
-    if (cur_shape == Gcalc_function::shape_hole)
+    if (cur_shape == Gcalc_function::shape_hole ||
+        cur_shape == Gcalc_function::shape_polygon)
     {
       shape_area+= prev_x*first_y - prev_y*first_x;
+      /* Remove a hole (or a polygon) if its area == 0. */
       if (fabs(shape_area) < 1e-8)
       {
         buffer.length(shape_pos);
         DBUG_RETURN(0);
       }
-    }
-
-    if ((cur_shape == Gcalc_function::shape_polygon ||
-          cur_shape == Gcalc_function::shape_hole) &&
-        prev_x == first_x && prev_y == first_y)
-    {
-      n_points--;
-      buffer.write_at_position(shape_pos+4, n_points);
-      goto do_complete;
+      if (prev_x == first_x && prev_y == first_y)
+      {
+        n_points--;
+        buffer.write_at_position(shape_pos + 4, n_points);
+        goto do_complete;
+      }
     }
     buffer.write_at_position(shape_pos+4, n_points);
   }
@@ -581,16 +584,13 @@ inline int Gcalc_operation_reducer::continue_range(active_thread *t,
 						const Gcalc_heap::Info *p)
 {
   DBUG_ENTER("Gcalc_operation_reducer::continue_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
   DBUG_ASSERT(t->result_range);
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_point(p);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= NULL;
   rp->down= t->rp;
   t->rp->up= rp;
-  rp->intersection_point= false;
-  rp->pi= p;
   t->rp= rp;
   DBUG_RETURN(0);
 }
@@ -601,18 +601,13 @@ inline int Gcalc_operation_reducer::continue_i_range(active_thread *t,
 						  double x, double y)
 {
   DBUG_ENTER("Gcalc_operation_reducer::continue_i_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u) xy=(%g,%g)", p->x, p->y, p->shape, x, y));
   DBUG_ASSERT(t->result_range);
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_i_point(p, x, y);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= NULL;
   rp->down= t->rp;
   t->rp->up= rp;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->pi= p;
-  rp->y= y;
   t->rp= rp;
   DBUG_RETURN(0);
 }
@@ -621,13 +616,10 @@ inline int Gcalc_operation_reducer::start_range(active_thread *t,
 					     const Gcalc_heap::Info *p)
 {
   DBUG_ENTER("Gcalc_operation_reducer::start_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_point(p);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->down= NULL;
-  rp->intersection_point= false;
-  rp->pi= p;
   t->result_range= 1;
   t->rp= rp;
   DBUG_RETURN(0);
@@ -638,15 +630,10 @@ inline int Gcalc_operation_reducer::start_i_range(active_thread *t,
 					       double x, double y)
 {
   DBUG_ENTER("Gcalc_operation_reducer::start_i_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u) xy=(%g,%g)", p->x, p->y, p->shape, x, y));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_i_point(p, x, y);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->down= NULL;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->y= y;
-  rp->pi= p;
   t->result_range= 1;
   t->rp= rp;
   DBUG_RETURN(0);
@@ -656,14 +643,11 @@ inline int Gcalc_operation_reducer::end_range(active_thread *t,
 					   const Gcalc_heap::Info *p)
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_point(p);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->up= NULL;
   rp->down= t->rp;
-  rp->intersection_point= false;
-  rp->pi= p;
   t->rp->up= rp;
   t->result_range= 0;
   DBUG_RETURN(0);
@@ -674,16 +658,11 @@ inline int Gcalc_operation_reducer::end_i_range(active_thread *t,
 					     double x, double y)
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_i_range");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u) xy=(%g,%g)", p->x, p->y, p->shape, x, y));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_i_point(p, x, y);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->up= NULL;
   rp->down= t->rp;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->pi= p;
-  rp->y= y;
   t->rp->up= rp;
   t->result_range= 0;
   DBUG_RETURN(0);
@@ -694,25 +673,23 @@ int Gcalc_operation_reducer::start_couple(active_thread *t0, active_thread *t1,
                                        const active_thread *prev_range)
 {
   DBUG_ENTER("Gcalc_operation_reducer::start_couple");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
   res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
+  if (!(rp0= add_res_point(p)) || !(rp1= add_res_point(p)))
     DBUG_RETURN(1);
   rp0->glue= rp1;
   rp1->glue= rp0;
-  rp0->intersection_point= rp1->intersection_point= false;
   rp0->down= rp1->down= NULL;
-  rp0->pi= rp1->pi= p;
   t0->rp= rp0;
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->outer_poly= t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
-    rp0->outer_poly= 0;
-    t0->thread_start= rp0;
+    rp0->set_outer_poly(NULL);
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }
@@ -724,30 +701,24 @@ int Gcalc_operation_reducer::start_i_couple(active_thread *t0, active_thread *t1
                                          const active_thread *prev_range)
 {
   DBUG_ENTER("Gcalc_operation_reducer::start_i_couple");
-  DBUG_PRINT("info", ("p0=(%g,%g,#%u) p1=(%g,%g,#%u) xy=(%g,%g)",
-                      p0->x, p0->y, p0->shape, p1->x, p1->y, p1->shape, x, y));
   res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
+  if (!(rp0= add_res_i_point(p0, x, y)) || !(rp1= add_res_i_point(p1, x, y)))
     DBUG_RETURN(1);
   rp0->glue= rp1;
   rp1->glue= rp0;
-  rp0->pi= p0;
-  rp1->pi= p1;
-  rp0->intersection_point= rp1->intersection_point= true;
   rp0->down= rp1->down= NULL;
-  rp0->x= rp1->x= x;
-  rp0->y= rp1->y= y;
   t0->result_range= t1->result_range= 1;
   t0->rp= rp0;
   t1->rp= rp1;
   if (prev_range)
   {
-    rp0->outer_poly= t1->thread_start= prev_range->thread_start;
+    rp0->set_outer_poly(prev_range->thread_start());
+    t1->set_thread_start(prev_range->thread_start());
   }
   else
   {
-    rp0->outer_poly= 0;
-    t0->thread_start= rp0;
+    rp0->set_outer_poly(NULL);
+    t0->set_thread_start(rp0);
   }
   DBUG_RETURN(0);
 }
@@ -756,10 +727,9 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
 				     const Gcalc_heap::Info *p)
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_couple");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
   res_point *rp0, *rp1;
   DBUG_ASSERT(t1->result_range);
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
+  if (!(rp0= add_res_point(p)) || !(rp1= add_res_point(p)))
     DBUG_RETURN(1);
   rp0->down= t0->rp;
   rp1->down= t1->rp;
@@ -768,8 +738,6 @@ int Gcalc_operation_reducer::end_couple(active_thread *t0, active_thread *t1,
   rp0->up= rp1->up= NULL;
   t0->rp->up= rp0;
   t1->rp->up= rp1;
-  rp0->intersection_point= rp1->intersection_point= false;
-  rp0->pi= rp1->pi= p;
   t0->result_range= t1->result_range= 0;
   DBUG_RETURN(0);
 }
@@ -780,21 +748,14 @@ int Gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
 				       double x, double y)
 {
   DBUG_ENTER("Gcalc_operation_reducer::end_i_couple");
-  DBUG_PRINT("info", ("p0=(%g,%g,#%u) p1=(%g,%g,#%u) xy=(%g,%g)",
-                      p0->x, p0->y, p0->shape, p1->x, p1->y, p1->shape, x, y));
   res_point *rp0, *rp1;
-  if (!(rp0= add_res_point()) || !(rp1= add_res_point()))
+  if (!(rp0= add_res_i_point(p0, x, y)) || !(rp1= add_res_i_point(p1, x, y)))
     DBUG_RETURN(1);
   rp0->down= t0->rp;
   rp1->down= t1->rp;
-  rp0->pi= p0;
-  rp1->pi= p1;
   rp1->glue= rp0;
   rp0->glue= rp1;
   rp0->up= rp1->up= NULL;
-  rp0->intersection_point= rp1->intersection_point= true;
-  rp0->x= rp1->x= x;
-  rp0->y= rp1->y= y;
   t0->result_range= t1->result_range= 0;
   t0->rp->up= rp0;
   t1->rp->up= rp1;
@@ -804,15 +765,10 @@ int Gcalc_operation_reducer::end_i_couple(active_thread *t0, active_thread *t1,
 int Gcalc_operation_reducer::add_single_point(const Gcalc_heap::Info *p)
 {
   DBUG_ENTER("Gcalc_operation_reducer::add_single_point");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u)", p->x, p->y, p->shape));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_single_point(p);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->up= rp->down= NULL;
-  rp->intersection_point= false;
-  rp->pi= p;
-  rp->x= p->x;
-  rp->y= p->y;
   DBUG_RETURN(0);
 }
 
@@ -820,15 +776,10 @@ int Gcalc_operation_reducer::add_i_single_point(const Gcalc_heap::Info *p,
 					     double x, double y)
 {
   DBUG_ENTER("Gcalc_operation_reducer::add_i_single_point");
-  DBUG_PRINT("info", ("p=(%g,%g,#%u) xy=(%g,%g)", p->x, p->y, p->shape, x, y));
-  res_point *rp= add_res_point();
+  res_point *rp= add_res_i_point(p, x, y);
   if (!rp)
     DBUG_RETURN(1);
   rp->glue= rp->up= rp->down= NULL;
-  rp->intersection_point= true;
-  rp->x= x;
-  rp->pi= p;
-  rp->y= y;
   DBUG_RETURN(0);
 }
 
@@ -1333,9 +1284,9 @@ int Gcalc_operation_reducer::get_result(Gcalc_result_receiver *storage)
     if (shape == Gcalc_function::shape_polygon)
     {
       polygons_found= true;
-      if (m_result->outer_poly) // Inner ring (hole)
+      if (m_result->get_outer_poly()) // Inner ring (hole)
       {
-        chunk.first_point= m_result->outer_poly;
+        chunk.first_point= m_result->get_outer_poly();
         chunk.is_poly_hole= true;
         shape= Gcalc_function::shape_hole;
       }

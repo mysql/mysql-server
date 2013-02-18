@@ -2061,9 +2061,10 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	1	Start temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	1	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -2155,9 +2156,10 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	2	Start temporary
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary
+1	SIMPLE	<subquery2>	ALL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	0	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -3010,6 +3012,9 @@ EXPLAIN
               "PRIMARY"
             ],
             "key": "PRIMARY",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "4",
             "ref": [
               "test.t11.a"
@@ -3370,6 +3375,9 @@ EXPLAIN
             "a"
           ],
           "key": "a",
+          "used_key_parts": [
+            "a"
+          ],
           "key_length": "5",
           "ref": [
             "<subquery2>.a"
@@ -5981,7 +5989,7 @@ INSERT INTO BB VALUES ('i'),('t');
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
 FROM BB);
-ERROR 21000: Operand should contain 2 column(s)
+ERROR 42S22: Unknown column 'OUTR' in 'IN/ALL/ANY subquery'
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
 FROM BB);
@@ -6411,6 +6419,9 @@ EXPLAIN
                   "Country"
                 ],
                 "key": "Population",
+                "used_key_parts": [
+                  "Population"
+                ],
                 "key_length": "4",
                 "rows": 1,
                 "filtered": 100,
@@ -6429,6 +6440,9 @@ EXPLAIN
             "Population"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "Code"
+          ],
           "key_length": "3",
           "ref": [
             "<subquery2>.Country"
@@ -6447,6 +6461,10 @@ EXPLAIN
             "Percentage"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "Country",
+            "Language"
+          ],
           "key_length": "33",
           "ref": [
             "<subquery2>.Country",
@@ -7707,6 +7725,14 @@ CREATE TABLE t2 (
 col_varchar_nokey VARCHAR(1) NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+explain SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Start temporary
+1	SIMPLE	t1	ref	col_varchar_key	col_varchar_key	3	test.t2.col_varchar_nokey	1	End temporary
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -8206,6 +8232,9 @@ EXPLAIN
                     "col_int_key"
                   ],
                   "key": "col_int_key",
+                  "used_key_parts": [
+                    "col_int_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -8238,6 +8267,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "ref": [
                               "func"
@@ -8254,6 +8286,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "ref": [
                               "test.parent1.col_int_nokey"
@@ -10155,6 +10190,9 @@ EXPLAIN
             "<auto_key0>"
           ],
           "key": "<auto_key0>",
+          "used_key_parts": [
+            "col_varchar_nokey"
+          ],
           "key_length": "4",
           "ref": [
             "<subquery3>.col_varchar_nokey"
@@ -10476,6 +10514,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

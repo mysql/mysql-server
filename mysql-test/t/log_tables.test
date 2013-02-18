@@ -4,9 +4,6 @@
 # Basic log tables test
 #
 
-# check that CSV engine was compiled in
---source include/have_csv.inc
-
 SET @old_general_log_state = @@global.general_log;
 SET @old_log_output=       @@global.log_output;
 SET @old_slow_query_log=   @@global.slow_query_log;
@@ -986,6 +983,18 @@ RENAME TABLE slow_log TO renamed_slow_log;
 use test;
 flush tables with read lock;
 unlock tables;
+
+
+--echo #
+--echo # WL#6613: Refactor logging code - split logging and binlogging code
+--echo #
+
+# Additional test coverage
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+
 
 SET @@session.long_query_time= @old_long_query_time;
 

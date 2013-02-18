@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "srv0space.h"
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
@@ -476,6 +477,34 @@ row_quiesce_write_cfg(
 }
 
 /*********************************************************************//**
+Check whether a table has an FTS index defined on it.
+@return true if an FTS index exists on the table */
+static
+bool
+row_quiesce_table_has_fts_index(
+/*============================*/
+	const dict_table_t*	table)	/*!< in: quiesce this table */
+{
+	bool			exists = false;
+
+	dict_mutex_enter_for_mysql();
+
+	for (const dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != 0;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		if (index->type & DICT_FTS) {
+			exists = true;
+			break;
+		}
+	}
+
+	dict_mutex_exit_for_mysql();
+
+	return(exists);
+}
+
+/*********************************************************************//**
 Quiesce the tablespace that the table resides in. */
 UNIV_INTERN
 void
@@ -486,6 +515,7 @@ row_quiesce_table_start(
 {
 	ut_a(trx->mysql_thd != 0);
 	ut_a(srv_n_purge_threads > 0);
+	ut_ad(!srv_read_only_mode);
 
 	char		table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -581,7 +611,7 @@ row_quiesce_table_complete(
 
 	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
 
-	os_file_delete_if_exists(cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Deleting the meta-data file '%s'", cfg_name);
@@ -607,7 +637,14 @@ row_quiesce_set_state(
 {
 	ut_a(srv_n_purge_threads > 0);
 
-	if (table->space == TRX_SYS_SPACE) {
+	if (srv_read_only_mode) {
+
+		ib_senderrf(trx->mysql_thd,
+			    IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
+
+		return(DB_UNSUPPORTED);
+
+	} else if (table->space == srv_sys_space.space_id()) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -618,6 +655,31 @@ row_quiesce_set_state(
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
 
 		return(DB_UNSUPPORTED);
+
+	} else if (dict_table_is_temporary(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+
+		return(DB_UNSUPPORTED);
+
+	} else if (row_quiesce_table_has_fts_index(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET,
+			    "FLUSH TABLES on tables that have an FTS index. "
+			    "FTS auxiliary tables will not be flushed.");
+
+	} else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		/* If this flag is set then the table may not have any active
+		FTS indexes but it will still have the auxiliary tables. */
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_NOT_SUPPORTED_YET,
+			    "FLUSH TABLES on a table that had an FTS index, "
+			    "created on a hidden column, the "
+			    "auxiliary tables haven't been dropped as yet. "
+			    "FTS auxiliary tables will not be flushed.");
 	}
 
 	row_mysql_lock_data_dictionary(trx);

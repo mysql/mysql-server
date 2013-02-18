@@ -110,7 +110,7 @@ int _mi_delete_static_record(MI_INFO *info)
 }
 
 
-int _mi_cmp_static_record(register MI_INFO *info, register const uchar *old)
+int _mi_cmp_static_record(MI_INFO *info, const uchar *old)
 {
   DBUG_ENTER("_mi_cmp_static_record");
 
@@ -162,8 +162,8 @@ int _mi_cmp_static_unique(MI_INFO *info, MI_UNIQUEDEF *def,
 	/*	   1 if record is deleted */
 	/*	  MY_FILE_ERROR on read-error or locking-error */
 
-int _mi_read_static_record(register MI_INFO *info, register my_off_t pos,
-			   register uchar *record)
+int _mi_read_static_record(MI_INFO *info, my_off_t pos,
+			   uchar *record)
 {
   int error;
 
@@ -197,7 +197,7 @@ int _mi_read_static_record(register MI_INFO *info, register my_off_t pos,
 
 
 int _mi_read_rnd_static_record(MI_INFO *info, uchar *buf,
-			       register my_off_t filepos,
+			       my_off_t filepos,
 			       my_bool skip_deleted_blocks)
 {
   int locked,error,cache_read;

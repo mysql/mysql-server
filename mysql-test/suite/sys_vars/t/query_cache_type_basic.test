@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: enumeration                                                      #
-# Default Value: 1                                                            #
+# Default Value: 0                                                            #
 # Range: 0,1 & 2                                                              #
 #                                                                             #
 #                                                                             #

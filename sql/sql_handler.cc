@@ -447,7 +447,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char *sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition **cond_hdl);
 
@@ -468,7 +468,7 @@ Sql_handler_lock_error_handler::
 handle_condition(THD *thd,
                  uint sql_errno,
                  const char *sqlstate,
-                 Sql_condition::enum_warning_level level,
+                 Sql_condition::enum_severity_level level,
                  const char* msg,
                  Sql_condition **cond_hdl)
 {
@@ -739,9 +739,9 @@ retry:
       DBUG_ASSERT(m_key_name != 0);
       KEY *keyinfo=table->key_info+keyno;
       KEY_PART_INFO *key_part=keyinfo->key_part;
-      if (m_key_expr->elements > keyinfo->key_parts)
+      if (m_key_expr->elements > keyinfo->user_defined_key_parts)
       {
-	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->key_parts);
+	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->user_defined_key_parts);
 	goto err;
       }
       List_iterator<Item> it_ke(*m_key_expr);
@@ -761,7 +761,7 @@ retry:
 	  goto err;
         }
         old_map= dbug_tmp_use_all_columns(table, table->write_set);
-	(void) item->save_in_field(key_part->field, 1);
+	item->save_in_field(key_part->field, true);
         dbug_tmp_restore_column_map(table->write_set, old_map);
 	key_len+=key_part->store_length;
         keypart_map= (keypart_map << 1) | 1;

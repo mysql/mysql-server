@@ -55,7 +55,7 @@ HugoQueryBuilder::init()
 
 HugoQueryBuilder::~HugoQueryBuilder()
 {
-  for (size_t i = 0; i<m_queries.size(); i++)
+  for (unsigned i = 0; i<m_queries.size(); i++)
     m_queries[i]->destroy();
 }
 
@@ -66,6 +66,7 @@ HugoQueryBuilder::fixOptions()
   setOption(O_UNIQUE_INDEX);
   setOption(O_TABLE_SCAN);
   setOption(O_ORDERED_INDEX);
+  setOption(O_GRANDPARENT);
   if (testOption(O_LOOKUP))
   {
     clearOption(O_TABLE_SCAN);
@@ -76,7 +77,7 @@ HugoQueryBuilder::fixOptions()
 void
 HugoQueryBuilder::addTable(Ndb* ndb, const NdbDictionary::Table* tab)
 {
-  for (size_t i = 0; i<m_tables.size(); i++)
+  for (unsigned i = 0; i<m_tables.size(); i++)
   {
     if (m_tables[i].m_table == tab)
       return;
@@ -133,7 +134,7 @@ HugoQueryBuilder::getJoinLevel() const
 void
 HugoQueryBuilder::removeTable(const NdbDictionary::Table* tab)
 {
-  for (size_t i = 0; i<m_tables.size(); i++)
+  for (unsigned i = 0; i<m_tables.size(); i++)
   {
     if (m_tables[i].m_table == tab)
     {
@@ -215,11 +216,11 @@ HugoQueryBuilder::checkBindable(Vector<const NdbDictionary::Column*> cols,
                                 Vector<Op> ops,
                                 bool allow_bind_nullable)
 {
-  for (size_t c = 0; c < cols.size(); c++)
+  for (unsigned c = 0; c < cols.size(); c++)
   {
     const NdbDictionary::Column * col = cols[c];
     bool found = false;
-    for (size_t t = 0; !found && t<ops.size(); t++)
+    for (unsigned t = 0; !found && t<ops.size(); t++)
     {
       const NdbDictionary::Table * tab = ops[t].m_op->getTable();
       if (tab)
@@ -274,7 +275,7 @@ HugoQueryBuilder::checkBusyScan(Op op) const
     op = m_query[op.m_parent];
   }
 
-  for (size_t i = op.m_idx + 1; i < m_query.size(); i++)
+  for (unsigned i = op.m_idx + 1; i < m_query.size(); i++)
     if (isAncestor(op, m_query[i]) && isScan(m_query[i].m_op))
       return true;
 
@@ -326,11 +327,10 @@ HugoQueryBuilder::getParents(OpIdx oi)
       continue;
     set.push_back(op);
 
-#if 0
     /**
-     * add parents
+     * Also add grandparents
      */
-    if (testOption(O_MULTI_PARENT))
+    if (testOption(O_GRANDPARENT))
     {
       while (op.m_parent != -1)
       {
@@ -338,7 +338,6 @@ HugoQueryBuilder::getParents(OpIdx oi)
         set.push_back(op);
       }
     }
-#endif
 
     if (checkBindable(cols, set, allow_bind_nullable))
       return set;
@@ -477,10 +476,16 @@ HugoQueryBuilder::createOp(NdbQueryBuilder& builder)
 loop:
     OpIdx oi = getOp();
     Vector<Op> parents = getParents(oi);
+    NdbQueryOptions options;
     if (parents.size() == 0)
     {
       // no possible parents found for pTab...try another
       goto loop;
+    }
+    if (parents.size() > 1)
+    {
+      // We have grandparents, 'parents[0]' is real parent
+      options.setParent(parents[0].m_op);
     }
     switch(oi.m_type){
     case NdbQueryOperationDef::PrimaryKeyAccess:{
@@ -497,7 +502,7 @@ loop:
       operands[opNo] = 0;
 
       op.m_parent = parents[0].m_idx;
-      op.m_op = builder.readTuple(oi.m_table, operands);
+      op.m_op = builder.readTuple(oi.m_table, operands, &options);
       break;
     }
     case NdbQueryOperationDef::UniqueIndexAccess: {
@@ -513,7 +518,7 @@ loop:
       operands[opNo] = 0;
 
       op.m_parent = parents[0].m_idx;
-      op.m_op = builder.readTuple(oi.m_index, oi.m_table, operands);
+      op.m_op = builder.readTuple(oi.m_index, oi.m_table, operands, &options);
       break;
     }
     case NdbQueryOperationDef::TableScan:
@@ -533,15 +538,15 @@ loop:
 
       op.m_parent = parents[0].m_idx;
       NdbQueryIndexBound bounds(operands); // Only EQ for now
-      op.m_op = builder.scanIndex(oi.m_index, oi.m_table, &bounds);
+      op.m_op = builder.scanIndex(oi.m_index, oi.m_table, &bounds, &options);
       if (op.m_op == 0)
       {
         ndbout << "Failed to add to " << endl;
-        for (size_t i = 0; i<m_query.size(); i++)
+        for (unsigned i = 0; i<m_query.size(); i++)
           ndbout << m_query[i] << endl;
 
         ndbout << "Parents: " << endl;
-        for (size_t i = 0; i<parents.size(); i++)
+        for (unsigned i = 0; i<parents.size(); i++)
           ndbout << parents[i].m_idx << " ";
         ndbout << endl;
       }

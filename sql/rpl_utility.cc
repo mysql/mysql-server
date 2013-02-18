@@ -923,8 +923,13 @@ TABLE *table_def::create_conversion_table(THD *thd, Relay_log_info *rli, TABLE *
   DBUG_ENTER("table_def::create_conversion_table");
 
   List<Create_field> field_list;
-
-  for (uint col= 0 ; col < size() ; ++col)
+  /*
+    At slave, columns may differ. So we should create
+    min(columns@master, columns@slave) columns in the
+    conversion table.
+  */
+  uint const cols_to_create= min<ulong>(target_table->s->fields, size());
+  for (uint col= 0 ; col < cols_to_create; ++col)
   {
     Create_field *field_def=
       (Create_field*) alloc_root(thd->mem_root, sizeof(Create_field));
@@ -1476,19 +1481,18 @@ Hash_slave_rows::make_hash_key(TABLE *table, MY_BITMAP *cols)
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
 
-Deferred_log_events::Deferred_log_events(Relay_log_info *rli) : last_added(NULL)
+Deferred_log_events::Deferred_log_events(Relay_log_info *rli)
 {
   my_init_dynamic_array(&array, sizeof(Log_event *), 32, 16);
 }
 
-Deferred_log_events::~Deferred_log_events() 
+Deferred_log_events::~Deferred_log_events()
 {
   delete_dynamic(&array);
 }
 
 int Deferred_log_events::add(Log_event *ev)
 {
-  last_added= ev;
   insert_dynamic(&array, (uchar*) &ev);
   ev->worker= NULL; // to mark event busy avoiding deletion
   return 0;

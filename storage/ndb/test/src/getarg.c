@@ -290,7 +290,7 @@ arg_printusage (struct getargs *args,
 	    strlcat(buf, "]", sizeof(buf));
 	    if(args[i].type == arg_strings)
 		strlcat(buf, "...", sizeof(buf));
-	    col = check_column(stderr, col, strlen(buf) + 1, columns);
+	    col = check_column(stderr, col, (int)strlen(buf) + 1, columns);
 	    col += fprintf(stderr, " %s", buf);
 	}
 	if (args[i].short_name) {
@@ -301,7 +301,7 @@ arg_printusage (struct getargs *args,
 	    strlcat(buf, "]", sizeof(buf));
 	    if(args[i].type == arg_strings)
 		strlcat(buf, "...", sizeof(buf));
-	    col = check_column(stderr, col, strlen(buf) + 1, columns);
+	    col = check_column(stderr, col, (int)strlen(buf) + 1, columns);
 	    col += fprintf(stderr, " %s", buf);
 	}
 	if (args[i].long_name && args[i].short_name)
@@ -309,7 +309,7 @@ arg_printusage (struct getargs *args,
 	max_len = max(max_len, len);
     }
     if (extra_string) {
-	col = check_column(stderr, col, strlen(extra_string) + 1, columns);
+	col = check_column(stderr, col, (int)strlen(extra_string) + 1, columns);
 	fprintf (stderr, " %s\n", extra_string);
     } else
 	fprintf (stderr, "\n");
@@ -360,14 +360,14 @@ arg_match_long(struct getargs *args, size_t num_args,
     int argv_len;
     char *p;
 
-    argv_len = strlen(argv);
+    argv_len = (int)strlen(argv);
     p = strchr (argv, '=');
     if (p != NULL)
-	argv_len = p - argv;
+	argv_len = (int)(p - argv);
 
     for (i = 0; i < num_args; ++i) {
 	if(args[i].long_name) {
-	    int len = strlen(args[i].long_name);
+	    int len = (int)strlen(args[i].long_name);
 	    char *p = argv;
 	    int p_len = argv_len;
 	    negate = 0;
@@ -467,7 +467,7 @@ arg_match_long(struct getargs *args, size_t num_args,
     }
     case arg_collect:{
 	struct getarg_collect_info *c = current->value;
-	int o = argv - rargv[*optind];
+	int o = (int)(argv - rargv[*optind]);
 	return (*c->func)(FALSE, argc, rargv, optind, &o, c->data);
     }
 

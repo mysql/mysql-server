@@ -11,5 +11,4 @@ SET GLOBAL query_cache_type=DEMAND;
 SET GLOBAL query_cache_type=OFF;
 SET GLOBAL query_cache_size=1024*1024;
 SHOW GLOBAL VARIABLES LIKE 'query_cache_size';
-SET GLOBAL query_cache_size=0;
-
+SET GLOBAL query_cache_size=DEFAULT;

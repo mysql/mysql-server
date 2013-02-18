@@ -412,6 +412,7 @@ void Optimize_table_order::best_access_path(
   double tmp;
   bool best_uses_jbuf= false;
   Opt_trace_context * const trace= &thd->opt_trace;
+  TABLE *const table= s->table;
 
   status_var_increment(thd->status_var.last_query_partial_plans);
 
@@ -461,7 +462,6 @@ void Optimize_table_order::best_access_path(
   */
   if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
-    TABLE *const table= s->table;
     double best_records= DBL_MAX;
 
     /* Test how we can use keys */
@@ -490,24 +490,30 @@ void Optimize_table_order::best_access_path(
       trace_access_idx.add_alnum("access_type", "ref").
         add_utf8("index", keyinfo->name);
 
-      do /* For each keypart */
+      // For each keypart
+      while (keyuse->table == table && keyuse->key == key)
       {
         const uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
-        
-        do /* For each way to access the keypart */
+
+        // For each way to access the keypart
+        for ( ; keyuse->table == table && keyuse->key == key &&
+                keyuse->keypart == keypart ; ++keyuse)
         {
           /*
             When calculating a plan for a materialized semijoin nest,
             we must not consider key references between tables inside the
-            semijoin nest and those outside of it. This is handled by adding
-            excluded_tables to remaining_tables below.
-
+            semijoin nest and those outside of it. The same applies to a
+            materialized subquery.
+          */
+          if ((excluded_tables & keyuse->used_tables))
+            continue;
+          /*
             if 1. expression doesn't refer to forward tables
                2. we won't get two ref-or-null's
           */
-          if (!((remaining_tables | excluded_tables) & keyuse->used_tables) &&
+          if (!(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
           {
@@ -532,11 +538,9 @@ void Optimize_table_order::best_access_path(
               ref_or_null_part |= keyuse->keypart_map;
           }
           loose_scan_opt.add_keyuse(remaining_tables, keyuse);
-          keyuse++;
-        } while (keyuse->table == table && keyuse->key == key &&
-                 keyuse->keypart == keypart);
+        }
 	found_ref|= best_part_found_ref;
-      } while (keyuse->table == table && keyuse->key == key);
+      }
 
       /*
         Assume that that each key matches a proportional part of table.
@@ -568,7 +572,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == LOWER_BITS(key_part_map, keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -608,7 +612,7 @@ void Optimize_table_order::best_access_path(
             }
             else
             {
-              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              if (!(records= keyinfo->rec_per_key[actual_key_parts(keyinfo)-1]))
               {                                   /* Prefer longer keys */
                 records=
                   ((double) s->records / (double) rec *
@@ -629,7 +633,8 @@ void Optimize_table_order::best_access_path(
                 in ReuseRangeEstimateForRef-3.
               */
               if (table->quick_keys.is_set(key) &&
-                  (const_part & ((1 << table->quick_key_parts[key])-1)) ==
+                  (const_part &
+                    (((key_part_map)1 << table->quick_key_parts[key])-1)) ==
                   (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
@@ -658,7 +663,8 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == LOWER_BITS(key_part_map, keyinfo->key_parts)))
+               found_part == LOWER_BITS(key_part_map,
+                                        actual_key_parts(keyinfo))))
           {
             max_key_part= max_part_bit(found_part);
             /*
@@ -760,7 +766,7 @@ void Optimize_table_order::best_access_path(
                 */
                 double rec_per_key;
                 if (!(rec_per_key=(double)
-                      keyinfo->rec_per_key[keyinfo->key_parts-1]))
+                      keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
                   rec_per_key=(double) s->records/rec+1;
 
                 if (!s->records)
@@ -770,10 +776,10 @@ void Optimize_table_order::best_access_path(
                 else
                 {
                   double a=s->records*0.01;
-                  if (keyinfo->key_parts > 1)
+                  if (keyinfo->user_defined_key_parts > 1)
                     tmp= (max_key_part * (rec_per_key - a) +
-                          a*keyinfo->key_parts - rec_per_key)/
-                         (keyinfo->key_parts-1);
+                          a * keyinfo->user_defined_key_parts - rec_per_key) /
+                         (keyinfo->user_defined_key_parts - 1);
                   else
                     tmp= a;
                   set_if_bigger(tmp,1.0);
@@ -802,7 +808,8 @@ void Optimize_table_order::best_access_path(
               */
               if (table->quick_keys.is_set(key) &&
                   table->quick_key_parts[key] <= max_key_part &&
-                  const_part & (1 << table->quick_key_parts[key]) &&
+                  const_part &
+                    ((key_part_map)1 << table->quick_key_parts[key]) &&
                   table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
                                                          const_part) &&
                   records > (double) table->quick_rows[key])
@@ -891,15 +898,15 @@ void Optimize_table_order::best_access_path(
   }
 
   if ((s->quick && best_key && s->quick->index == best_key->key &&      // (2)
-       best_max_key_part >= s->table->quick_key_parts[best_key->key]))  // (2)
+       best_max_key_part >= table->quick_key_parts[best_key->key]))     // (2)
   {
     trace_access_scan.add_alnum("access_type", "range").
       add_alnum("cause", "heuristic_index_cheaper");
     goto skip_table_scan;
   }
 
-  if ((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
-      !s->table->covering_keys.is_clear_all() && best_key &&            //(3)
+  if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&       //(3)
+      !table->covering_keys.is_clear_all() && best_key &&               //(3)
       (!s->quick ||                                                     //(3)
        (s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
         best < s->quick->read_time)))                                   //(3)
@@ -909,7 +916,7 @@ void Optimize_table_order::best_access_path(
     goto skip_table_scan;
   }
 
-  if ((s->table->force_index && best_key && !s->quick))                 // (4)
+  if ((table->force_index && best_key && !s->quick))                    // (4)
   {
       trace_access_scan.add_alnum("access_type", "scan").
         add_alnum("cause", "force_index");
@@ -934,8 +941,8 @@ void Optimize_table_order::best_access_path(
       If applicable, get a more accurate estimate. Don't use the two
       heuristics at once.
     */
-    if (s->table->quick_condition_rows != s->found_records)
-      rnd_records= s->table->quick_condition_rows;
+    if (table->quick_condition_rows != s->found_records)
+      rnd_records= table->quick_condition_rows;
 
     /*
       Range optimizer never proposes a RANGE if it isn't better
@@ -965,10 +972,10 @@ void Optimize_table_order::best_access_path(
     {
       trace_access_scan.add_alnum("access_type", "scan");
       /* Estimate cost of reading table. */
-      if (s->table->force_index && !best_key) // index scan
-        tmp= s->table->file->read_time(s->ref.key, 1, s->records);
+      if (table->force_index && !best_key) // index scan
+        tmp= table->file->read_time(s->ref.key, 1, s->records);
       else // table scan
-        tmp= s->table->file->scan_time();
+        tmp= table->file->scan_time();
 
       if (disable_jbuf)
       {
@@ -1031,6 +1038,18 @@ void Optimize_table_order::best_access_path(
 skip_table_scan:
   trace_access_scan.add("chosen", best_key == NULL);
 
+  /*
+    Storage engines that track exact sizes may report an empty table
+    as having row count equal to 0.
+    If this table is an inner table of an outer join, adjust row count to 1,
+    so that the join planner can make a better fanout calculation for
+    the remaining tables of the join. (With size 0, the fanout would always
+    become 0, meaning that the cost of adding one more table would also
+    become 0, regardless of access method).
+  */
+  if (records == 0 && (join->outer_join & table->map))
+    records= 1;
+
   /* Update the cost information for the current partial plan */
   pos->records_read= records;
   pos->read_time=    best;
@@ -1044,7 +1063,7 @@ skip_table_scan:
 
   if (!best_key &&
       idx == join->const_tables &&
-      s->table == join->sort_by_table &&
+      table == join->sort_by_table &&
       join->unit->select_limit_cnt >= records)
   {
     trace_access_scan.add("use_tmp_table", true);
@@ -2809,7 +2828,13 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
                        rowcount * inner_fanout * outer_fanout,
                        dst_pos, &loose_scan_pos);
       if (i == first_tab && loosescan)  // Use loose scan position
+      {
         *dst_pos= loose_scan_pos;
+        const double rows= rowcount * dst_pos->records_read;
+        dst_pos->set_prefix_costs(cost + dst_pos->read_time +
+                                  rows * ROW_EVALUATE_COST,
+                                  rows);
+      }
       pos= dst_pos;
     }
     else 

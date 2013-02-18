@@ -246,8 +246,6 @@ disconnect other;
 
 drop table t1,t2,t3,tt1;
 
--- source extra/binlog_tests/binlog_insert_delayed.test
-
 #Bug #26079 max_binlog_size + innodb = not make new binlog and hang server
 # server should not hang, binlog must rotate in the end
 reset master;

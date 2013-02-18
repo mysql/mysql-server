@@ -121,12 +121,25 @@ UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
+
+#ifdef UNIV_DEBUG
+#define trx_start_if_not_started_xa(t)				\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_if_not_started_xa_low((t));			\
+	}
+#else
+#define trx_start_if_not_started_xa(t)				\
+	trx_start_if_not_started_xa_low((t))
+#endif /* UNIV_DEBUG */
+
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_xa(
-/*========================*/
+trx_start_if_not_started_xa_low(
+/*============================*/
 	trx_t*	trx);	/*!< in: transaction */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
@@ -161,6 +174,7 @@ trx_start_for_ddl_low(
 #ifdef UNIV_DEBUG
 #define trx_start_for_ddl(t, o)					\
 	{							\
+	ut_ad((t)->start_file == 0);				\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_for_ddl_low((t), (o));			\
@@ -176,7 +190,18 @@ UNIV_INTERN
 void
 trx_commit(
 /*=======*/
-	trx_t*	trx);	/*!< in: transaction */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
+/****************************************************************//**
+Commits a transaction and a mini-transaction. */
+UNIV_INTERN
+void
+trx_commit_low(
+/*===========*/
+	trx_t*	trx,	/*!< in/out: transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction (will be committed),
+			or NULL if trx made no modifications */
+	__attribute__((nonnull(1)));
 /****************************************************************//**
 Cleans up a transaction at database startup. The cleanup is needed if
 the transaction already got to the middle of a commit when the database
@@ -900,7 +925,7 @@ struct trx_t{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	ib_mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
+	ib_mutex_t	undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there

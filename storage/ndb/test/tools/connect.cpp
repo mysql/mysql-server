@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,35 +21,33 @@
 #include <NdbApi.hpp>
 #include <NdbSleep.h>
 
-static int _loop = 25;
-static int _sleep = 25;
-static int _drop = 1;
-static int _subloop = 5;
-static int _wait_all = 0;
-
-typedef uchar* gptr;
+static int opt_loop = 25;
+static int opt_sleep = 25;
+static int opt_drop = 1;
+static int opt_subloop = 5;
+static int opt_wait_all = 0;
 
 static struct my_option my_long_options[] =
 {
-  NDB_STD_OPTS("ndb_desc"),
+  NDB_STD_OPTS("ndb_connect"),
   { "loop", 'l', "loops",
-    (gptr*) &_loop, (gptr*) &_loop, 0,
-    GET_INT, REQUIRED_ARG, _loop, 0, 0, 0, 0, 0 }, 
+    (uchar**) &opt_loop, (uchar**) &opt_loop, 0,
+    GET_INT, REQUIRED_ARG, opt_loop, 0, 0, 0, 0, 0 },
   { "sleep", 's', "Sleep (ms) between connection attempt",
-    (gptr*) &_sleep, (gptr*) &_sleep, 0,
-    GET_INT, REQUIRED_ARG, _sleep, 0, 0, 0, 0, 0 }, 
+    (uchar**) &opt_sleep, (uchar**) &opt_sleep, 0,
+    GET_INT, REQUIRED_ARG, opt_sleep, 0, 0, 0, 0, 0 },
   { "drop", 'd', 
     "Drop event operations before disconnect (0 = no, 1 = yes, else rand",
-    (gptr*) &_drop, (gptr*) &_drop, 0,
-    GET_INT, REQUIRED_ARG, _drop, 0, 0, 0, 0, 0 }, 
+    (uchar**) &opt_drop, (uchar**) &opt_drop, 0,
+    GET_INT, REQUIRED_ARG, opt_drop, 0, 0, 0, 0, 0 },
   { "subscribe-loop", NDB_OPT_NOSHORT,
     "Loop in subscribe/unsubscribe",
-    (uchar**) &_subloop, (uchar**) &_subloop, 0,
-    GET_INT, REQUIRED_ARG, _subloop, 0, 0, 0, 0, 0 }, 
+    (uchar**) &opt_subloop, (uchar**) &opt_subloop, 0,
+    GET_INT, REQUIRED_ARG, opt_subloop, 0, 0, 0, 0, 0 },
   { "wait-all", NDB_OPT_NOSHORT,
     "Wait for all ndb-nodes (i.e not only some)",
-    (uchar**) &_wait_all, (uchar**) &_wait_all, 0,
-    GET_INT, REQUIRED_ARG, _wait_all, 0, 0, 0, 0, 0 }, 
+    (uchar**) &opt_wait_all, (uchar**) &opt_wait_all, 0,
+    GET_INT, REQUIRED_ARG, opt_wait_all, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -57,28 +55,33 @@ int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
   const char *load_default_groups[]= { "mysql_cluster",0 };
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
-  opt_debug= "d:t:O,/tmp/ndb_desc.trace";
+  opt_debug= "d:t:O,/tmp/ndb_connect.trace";
 #endif
   if ((ho_error=handle_options(&argc, &argv, my_long_options, 
 			       ndb_std_get_one_option)))
     return NDBT_ProgramExit(NDBT_WRONGARGS);
 
-  for (int i = 0; i<_loop; i++)
+  for (int i = 0; i<opt_loop; i++)
   {
     Ndb_cluster_connection con(opt_ndb_connectstring, opt_ndb_nodeid);
     if(con.connect(12, 5, 1) != 0)
     {
-      ndbout << "Unable to connect to management server." << endl;
+      ndbout << "Unable to connect to management server."
+             << "loop: " << i << "(of " << opt_loop << ")"
+             << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
     int res = con.wait_until_ready(30,30);
-    if (res < 0 || (_wait_all && res != 0))
+    if (res < 0 || (opt_wait_all && res != 0))
     {
-      ndbout << "Cluster nodes not ready in 30 seconds." << endl;
+      ndbout
+        << "nodeid: " << con.node_id()
+        << "loop: " << i << "(of " << opt_loop << ")"
+        << " - Cluster nodes not ready in 30 seconds." << endl;
       return NDBT_ProgramExit(NDBT_FAILED);
     }
     
@@ -88,11 +91,11 @@ int main(int argc, char** argv){
       return NDBT_ProgramExit(NDBT_FAILED);
     }
 
-    for (int k = _subloop; k >= 1; k--)
+    for (int k = opt_subloop; k >= 1; k--)
     {
       if (k > 1 && ((k % 25) == 0))
       {
-        ndbout_c("subscribe/unsubscribe: %u", _subloop - k);
+        ndbout_c("subscribe/unsubscribe: %u", opt_subloop - k);
       }
       Vector<NdbEventOperation*> ops;
       const NdbDictionary::Dictionary * dict= MyNdb.getDictionary();
@@ -113,7 +116,7 @@ int main(int argc, char** argv){
             MyNdb.getNdbError() << endl;
           return NDBT_ProgramExit(NDBT_FAILED);
         }
-        
+
         for (int a = 0; a < pTab->getNoOfColumns(); a++) 
         {
           pOp->getValue(pTab->getColumn(a)->getName());
@@ -129,9 +132,9 @@ int main(int argc, char** argv){
         }
       }
       
-      if (_sleep)
+      if (opt_sleep)
       {
-        NdbSleep_MilliSleep(10 + rand() % _sleep);
+        NdbSleep_MilliSleep(10 + rand() % opt_sleep);
       }
       else
       {
@@ -141,7 +144,7 @@ int main(int argc, char** argv){
       
       for (Uint32 i = 0; i<ops.size(); i++)
       {
-        switch(k == 1 ? _drop : 1){
+        switch(k == 1 ? opt_drop : 1){
         case 0:
           break;
         do_drop:

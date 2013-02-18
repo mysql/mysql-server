@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,6 +55,23 @@
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_MUTEX_CALL
+
+#define PSI_MUTEX_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_RWLOCK_CALL
+#define PSI_RWLOCK_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_COND_CALL
+#define PSI_COND_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_THREAD_CALL
+#define PSI_THREAD_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup Thread_instrumentation Thread Instrumentation
@@ -219,11 +236,19 @@ typedef struct st_mysql_cond mysql_cond_t;
 #define mysql_mutex_assert_not_owner(M) \
   safe_mutex_assert_not_owner(&(M)->m_mutex)
 
-/** Wrappers for instrumented prlock objects.  */
-
+/**
+  @def mysql_prlock_assert_write_owner(M)
+  Drop-in replacement
+  for @c rw_pr_lock_assert_write_owner.
+*/
 #define mysql_prlock_assert_write_owner(M) \
   rw_pr_lock_assert_write_owner(&(M)->m_prlock)
 
+/**
+  @def mysql_prlock_assert_not_write_owner(M)
+  Drop-in replacement
+  for @c rw_pr_lock_assert_not_write_owner.
+*/
 #define mysql_prlock_assert_not_write_owner(M) \
   rw_pr_lock_assert_not_write_owner(&(M)->m_prlock)
 

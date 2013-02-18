@@ -25,6 +25,10 @@ SELECT * FROM information_schema.session_variables
 WHERE variable_name='innodb_stats_transient_sample_pages';
 VARIABLE_NAME	VARIABLE_VALUE
 INNODB_STATS_TRANSIENT_SAMPLE_PAGES	8
+set global innodb_stats_transient_sample_pages=DEFAULT;
+select @@global.innodb_stats_transient_sample_pages;
+@@global.innodb_stats_transient_sample_pages
+8
 SET global innodb_stats_transient_sample_pages=10;
 SELECT @@global.innodb_stats_transient_sample_pages;
 @@global.innodb_stats_transient_sample_pages
@@ -44,6 +48,8 @@ ERROR 42000: Incorrect argument type to variable 'innodb_stats_transient_sample_
 SET global innodb_stats_transient_sample_pages=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_stats_transient_sample_pages'
 SET global innodb_stats_transient_sample_pages="foo";
+ERROR 42000: Incorrect argument type to variable 'innodb_stats_transient_sample_pages'
+SET global innodb_stats_transient_sample_pages=' ';
 ERROR 42000: Incorrect argument type to variable 'innodb_stats_transient_sample_pages'
 SET global innodb_stats_transient_sample_pages=-7;
 Warnings:

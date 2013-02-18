@@ -260,6 +260,11 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 #Expect deprecation warning
 GRANT SELECT on test.* TO old_gpwd@localhost 
 IDENTIFIED BY 'aha3';
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+#Expect deprecation warning
+GRANT SELECT on test.* TO old_gpwd@localhost 
+IDENTIFIED WITH 'mysql_old_password';
+SET PASSWORD FOR old_gpwd@localhost= OLD_PASSWORD('aha4');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 #Expected normal flush, no warnings  
@@ -340,15 +345,16 @@ SELECT last_t1();
 ERROR HY000: You must SET PASSWORD before executing this statement
 CALL test_t1(last_t1() + 1);
 ERROR HY000: You must SET PASSWORD before executing this statement
-# setting a password with a user name is no good
+# setting a password with a user name is ok if it exactly matches the
+# authenticated user.
 SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
-ERROR HY000: You must SET PASSWORD before executing this statement
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+USER()
+must_change@localhost
 SELECT last_t1();
-ERROR HY000: You must SET PASSWORD before executing this statement
+last_t1()
+4
 CALL test_t1(last_t1() + 1);
-ERROR HY000: You must SET PASSWORD before executing this statement
 # setting a password for the current user works
 SET PASSWORD FOR CURRENT_USER() = PASSWORD('aha3');
 SELECT USER();
@@ -356,7 +362,7 @@ USER()
 must_change@localhost
 SELECT last_t1();
 last_t1()
-4
+5
 CALL test_t1(last_t1() + 1);
 # testing the ALTER USER command
 # try a single user
@@ -392,6 +398,21 @@ DROP PROCEDURE test_t1;
 DROP FUNCTION last_t1;
 DROP TABLE t1;
 DROP USER must_change@localhost;
+#
+# WL#6587:  Protocol support for password expiration
+#
+CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
+ALTER USER wl6587@localhost PASSWORD EXPIRE;
+# non-interactive mysql should fail
+Warning: Using a password on the command line interface can be insecure.
+ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+# mysqladmin non-password should fail
+Warning: Using a password on the command line interface can be insecure.
+mysqladmin: connect to server at 'localhost' failed
+error: 'Your password has expired. To log in you must change it using a client that supports expired passwords.'
+# mysqladmin password should work
+Warning: Using a password on the command line interface can be insecure.
+DROP USER wl6587@localhost;
 # ------------------------------------------------------------------
 # -- End of 5.6 tests
 # ------------------------------------------------------------------

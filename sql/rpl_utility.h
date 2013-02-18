@@ -147,7 +147,7 @@ public:
      next() invocations; and 2. must have not been used before in a
      next() operation.
 
-     @param entry[IN/OUT] contains a pointer to an entry that we can
+     @param[in,out] entry contains a pointer to an entry that we can
                           use to search for another adjacent entry
                           (ie, that shares the same key).
 
@@ -462,7 +462,6 @@ class Deferred_log_events
 {
 private:
   DYNAMIC_ARRAY array;
-  Log_event *last_added;
 
 public:
   Deferred_log_events(Relay_log_info *rli);
@@ -472,7 +471,6 @@ public:
   bool is_empty();
   bool execute(Relay_log_info *rli);
   void rewind();
-  bool is_last(Log_event *ev) { return ev == last_added; };
 };
 
 #endif

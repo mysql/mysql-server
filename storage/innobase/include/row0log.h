@@ -27,6 +27,7 @@ Created 2011-05-26 Marko Makela
 #define row0log_h
 
 #include "univ.i"
+#include "mtr0types.h"
 #include "row0types.h"
 #include "rem0types.h"
 #include "data0types.h"
@@ -65,7 +66,7 @@ row_log_free(
 
 /******************************************************//**
 Free the row log for an index on which online creation was aborted. */
-UNIV_INTERN
+UNIV_INLINE
 void
 row_log_abort_sec(
 /*==============*/
@@ -73,15 +74,29 @@ row_log_abort_sec(
 	__attribute__((nonnull));
 
 /******************************************************//**
+Try to log an operation to a secondary index that is
+(or was) being created.
+@retval	true if the operation was logged or can be ignored
+@retval	false if online index creation is not taking place */
+UNIV_INLINE
+bool
+row_log_online_op_try(
+/*==================*/
+	dict_index_t*	index,	/*!< in/out: index, S or X latched */
+	const dtuple_t* tuple,	/*!< in: index tuple */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
+	__attribute__((nonnull, warn_unused_result));
+/******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
 UNIV_INTERN
 void
 row_log_online_op(
 /*==============*/
-	dict_index_t*	index,	/*!< in/out: index, S-locked */
+	dict_index_t*	index,	/*!< in/out: index, S or X latched */
 	const dtuple_t*	tuple,	/*!< in: index tuple */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
 	UNIV_COLD __attribute__((nonnull));
 
 /******************************************************//**
@@ -131,8 +146,7 @@ row_log_table_update(
 Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
-or NULL if not being rebuilt online or the PRIMARY KEY definition
-does not change */
+or NULL if the PRIMARY KEY definition does not change */
 UNIV_INTERN
 const dtuple_t*
 row_log_table_get_pk(
@@ -219,5 +233,9 @@ row_log_apply(
 	struct TABLE*	table)	/*!< in/out: MySQL table
 				(for reporting duplicates) */
 	__attribute__((nonnull, warn_unused_result));
+
+#ifndef UNIV_NONINL
+#include "row0log.ic"
+#endif
 
 #endif /* row0log.h */

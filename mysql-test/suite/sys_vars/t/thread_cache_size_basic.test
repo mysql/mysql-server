@@ -26,6 +26,30 @@ select * from information_schema.global_variables where variable_name='thread_ca
 select * from information_schema.session_variables where variable_name='thread_cache_size';
 --error ER_GLOBAL_VARIABLE
 set session thread_cache_size=1;
+#
+#check the default value #
+#
+SET @@global.thread_cache_size = DEFAULT;
+SELECT @@global.thread_cache_size ;
+
+#
+# invalid values
+#
+SET @@global.thread_cache_size=-1;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=16385;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=163856;
+SELECT @@global.thread_cache_size;
+SET @@global.thread_cache_size=-1635;
+SELECT @@global.thread_cache_size;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.thread_cache_size=' ';
+SELECT @@global.thread_cache_size;
+--error ER_WRONG_TYPE_FOR_VAR
+SET @@global.thread_cache_size=255.2;
+SELECT @@global.thread_cache_size;
 
 #
 # incorrect types

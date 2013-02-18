@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,6 +79,18 @@ dict_sys_write_row_id(
 #endif
 
 	mach_write_to_6(field, row_id);
+}
+
+/*********************************************************************//**
+Check if a table id belongs to  system table.
+@return true if the table id belongs to a system table. */
+UNIV_INLINE
+bool
+dict_is_sys_table(
+/*==============*/
+	table_id_t	id)		/*!< in: table id to check */
+{
+	return(id < DICT_HDR_FIRST_ID);
 }
 
 

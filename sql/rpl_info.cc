@@ -22,6 +22,7 @@ Rpl_info::Rpl_info(const char* type
                    ,PSI_mutex_key *param_key_info_run_lock,
                    PSI_mutex_key *param_key_info_data_lock,
                    PSI_mutex_key *param_key_info_sleep_lock,
+                   PSI_mutex_key *param_key_info_thd_lock,
                    PSI_mutex_key *param_key_info_data_cond,
                    PSI_mutex_key *param_key_info_start_cond,
                    PSI_mutex_key *param_key_info_stop_cond,
@@ -34,6 +35,7 @@ Rpl_info::Rpl_info(const char* type
   key_info_run_lock(param_key_info_run_lock),
   key_info_data_lock(param_key_info_data_lock),
   key_info_sleep_lock(param_key_info_sleep_lock),
+  key_info_thd_lock(param_key_info_thd_lock),
   key_info_data_cond(param_key_info_data_cond),
   key_info_start_cond(param_key_info_start_cond),
   key_info_stop_cond(param_key_info_stop_cond),
@@ -50,6 +52,8 @@ Rpl_info::Rpl_info(const char* type
                    &data_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(*key_info_sleep_lock,
                     &sleep_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(*key_info_thd_lock,
+                    &info_thd_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(*key_info_data_cond, &data_cond, NULL);
   mysql_cond_init(*key_info_start_cond, &start_cond, NULL);
   mysql_cond_init(*key_info_stop_cond, &stop_cond, NULL);
@@ -58,6 +62,7 @@ Rpl_info::Rpl_info(const char* type
   mysql_mutex_init(NULL, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(NULL, &data_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(NULL, &sleep_lock, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(NULL, &info_thd_lock, MY_MUTEX_INIT_FAST);
   mysql_cond_init(NULL, &data_cond, NULL);
   mysql_cond_init(NULL, &start_cond, NULL);
   mysql_cond_init(NULL, &stop_cond, NULL);
@@ -72,6 +77,7 @@ Rpl_info::~Rpl_info()
   mysql_mutex_destroy(&run_lock);
   mysql_mutex_destroy(&data_lock);
   mysql_mutex_destroy(&sleep_lock);
+  mysql_mutex_destroy(&info_thd_lock);
   mysql_cond_destroy(&data_cond);
   mysql_cond_destroy(&start_cond);
   mysql_cond_destroy(&stop_cond);

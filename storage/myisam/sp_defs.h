@@ -39,7 +39,7 @@ enum wkbByteOrder
   wkbNDR = 1     /* Little Endian */
 };                                    
 
-uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
+uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
                  const uchar *record, my_off_t filepos);
 
 #endif /*HAVE_SPATIAL*/

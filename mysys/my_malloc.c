@@ -41,6 +41,11 @@ void *my_malloc(size_t size, myf my_flags)
                     free(point);
                     point= NULL;
                   });
+  DBUG_EXECUTE_IF("simulate_persistent_out_of_memory",
+                  {
+                    free(point);
+                    point= NULL;
+                  });
 
   if (point == NULL)
   {
@@ -48,7 +53,8 @@ void *my_malloc(size_t size, myf my_flags)
     if (my_flags & MY_FAE)
       error_handler_hook=fatal_error_handler_hook;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_NOREFRESH),size);
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL + ME_WAITTANG +
+                                   ME_NOREFRESH + ME_FATALERROR),size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););
     if (my_flags & MY_FAE)
@@ -84,11 +90,7 @@ void *my_realloc(void *oldpoint, size_t size, myf my_flags)
                   goto end;);
   if (!oldpoint && (my_flags & MY_ALLOW_ZERO_PTR))
     DBUG_RETURN(my_malloc(size, my_flags));
-#ifdef USE_HALLOC
-  point= malloc(size);
-#else
   point= realloc(oldpoint, size);
-#endif
 #ifndef DBUG_OFF
 end:
 #endif
@@ -100,17 +102,11 @@ end:
       DBUG_RETURN(oldpoint);
     my_errno=errno;
     if (my_flags & (MY_FAE+MY_WME))
-      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG), size);
+      my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ ME_WAITTANG + ME_FATALERROR),
+               size);
     DBUG_EXECUTE_IF("simulate_out_of_memory",
                     DBUG_SET("-d,simulate_out_of_memory"););
   }
-#ifdef USE_HALLOC
-  else
-  {
-    memcpy(point,oldpoint,size);
-    free(oldpoint);
-  }
-#endif
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }

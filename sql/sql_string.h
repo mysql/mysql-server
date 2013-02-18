@@ -136,6 +136,8 @@ uint convert_to_printable(char *to, size_t to_len,
                           const char *from, size_t from_len,
                           const CHARSET_INFO *from_cs, size_t nbytes= 0);
 
+uint bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len);
+
 class String
 {
   char *Ptr;

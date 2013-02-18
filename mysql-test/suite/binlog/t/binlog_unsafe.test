@@ -8,7 +8,6 @@
 #    see below);
 #  - statements using certain functions, e.g., UUID();
 #  - statements using LIMIT;
-#  - INSERT DELAYED;
 #  - insert into two autoinc columns;
 #  - statements using UDF's.
 #  - statements reading from log tables in the mysql database.
@@ -81,7 +80,6 @@
 # BUG#34768: nondeterministic INSERT using LIMIT logged in stmt mode if binlog_format=mixed
 # BUG#41980, SBL, INSERT .. SELECT .. LIMIT = ERROR, even when @@SQL_LOG_BIN is 0
 # BUG#42640: mysqld crashes when unsafe statements are executed (STRICT_TRANS_TABLES mode)
-# BUG#45825: INSERT DELAYED is not unsafe: logged in statement format
 # BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
 # BUG#47995: Mark user functions as unsafe
 # BUG#49222: Mark RAND() unsafe
@@ -149,7 +147,7 @@ END|
 # In each iteration of this loop, we select one method to make the
 # statement unsafe.
 --let $unsafe_type= 0
-while ($unsafe_type < 9) {
+while ($unsafe_type < 8) {
 
   --echo
 
@@ -190,17 +188,6 @@ while ($unsafe_type < 9) {
   }
 
   if ($unsafe_type == 3) {
-    --echo ==== Testing INSERT DELAYED safeness after BUG#54579 is fixed ====
-    --let $desc_0= unsafe INSERT DELAYED statement
-    --let $stmt_sidef_0= INSERT DELAYED INTO t0 VALUES (1), (2)
-    --let $value_0=
-    --let $sel_sidef_0=
-    --let $sel_retval_0=
-    --let $CRC_ARG_expected_number_of_warnings= 0
-    --let $CRC_ARG_expected_number_of_deprecation_warnings= 1
-  }
-
-  if ($unsafe_type == 4) {
     --echo ==== Testing unsafeness of insert of two autoinc values ====
     --let $desc_0= unsafe update of two autoinc columns
     --let $stmt_sidef_0= INSERT INTO double_autoinc_table VALUES (NULL)
@@ -211,7 +198,7 @@ while ($unsafe_type < 9) {
     --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
-  if ($unsafe_type == 5) {
+  if ($unsafe_type == 4) {
     --echo ==== Testing unsafeness of UDF's ====
     --let $desc_0= unsafe UDF
     --let $stmt_sidef_0= INSERT INTO t0 VALUES (myfunc_int(10))
@@ -222,7 +209,7 @@ while ($unsafe_type < 9) {
     --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
-  if ($unsafe_type == 6) {
+  if ($unsafe_type == 5) {
     --echo ==== Testing unsafeness of access to mysql.general_log ====
     --let $desc_0= unsafe use of mysql.general_log
     --let $stmt_sidef_0= INSERT INTO t0 SELECT COUNT(*) FROM mysql.general_log
@@ -233,12 +220,12 @@ while ($unsafe_type < 9) {
     --let $CRC_ARG_expected_number_of_deprecation_warnings= 0
   }
 
-  if ($unsafe_type == 7) {
+  if ($unsafe_type == 6) {
     --echo ==== Testing a statement that is unsafe in many ways ====
     --let $desc_0= statement that is unsafe in many ways
     # Concatenate three unsafe values, and then concatenate NULL to
     # that so that the result is NULL and we instead use autoinc.
-    --let $stmt_sidef_0= INSERT DELAYED INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1
+    --let $stmt_sidef_0= INSERT INTO double_autoinc_table SELECT CONCAT(UUID(), @@hostname, myfunc_int(), NULL) FROM mysql.general_log LIMIT 1
     --let $value_0=
     --let $sel_sidef_0=
     --let $sel_retval_0=
@@ -246,7 +233,7 @@ while ($unsafe_type < 9) {
     --let $CRC_ARG_expected_number_of_deprecation_warnings= 1
   }
 
-  if ($unsafe_type == 8) {
+  if ($unsafe_type == 7) {
     --echo ==== Testing a statement that is unsafe several times ====
     --let $desc_0= statement that is unsafe several times
     --let $stmt_sidef_0= INSERT INTO ta0 VALUES (multi_unsafe_func())
@@ -266,7 +253,7 @@ while ($unsafe_type < 9) {
   # construct. Instead, we just invoke the unsafe statement directly.
 
   --let $call_type_1= 0
-  while ($call_type_1 < 8) {
+  while ($call_type_1 < 7) {
     #--echo debug: level 1, types $call_type_1 -> $unsafe_type
     --let $CRC_ARG_level= 1
     --let $CRC_ARG_type= $call_type_1
@@ -297,7 +284,7 @@ while ($unsafe_type < 9) {
       # construct.
 
       --let $call_type_2= 0
-      while ($call_type_2 < 7) {
+      while ($call_type_2 < 6) {
         #--echo debug: level 2, types $call_type_2 -> $call_type_1 -> $unsafe_type
         --let $CRC_ARG_level= 2
         --let $CRC_ARG_type= $call_type_2
@@ -326,7 +313,7 @@ while ($unsafe_type < 9) {
           # construct.
 
           --let $call_type_3= 0
-          while ($call_type_3 < 7) {
+          while ($call_type_3 < 6) {
             #--echo debug: level 3, types $call_type_2 -> $call_type_2 -> $call_type_1 -> $unsafe_type
             --let $CRC_ARG_level= 3
             --let $CRC_ARG_type= $call_type_3
@@ -561,7 +548,6 @@ DROP TABLE t1, t2;
 SET @@SESSION.SQL_MODE = @save_sql_mode;
 
 #
-# BUG#45825: INSERT DELAYED is not unsafe: logged in statement format
 # BUG#45785: LIMIT in SP does not cause RBL if binlog_format=MIXED
 #
 SET @old_binlog_format = @@session.binlog_format;
@@ -572,10 +558,6 @@ CREATE TABLE t2 (a INT);
 INSERT INTO t2 VALUES (1), (2);
 
 --DELIMITER |
-CREATE PROCEDURE proc_insert_delayed ()
-BEGIN
-  INSERT DELAYED INTO t1 VALUES (1), (2);
-END|
 
 CREATE FUNCTION func_limit ()
 RETURNS INT
@@ -586,13 +568,11 @@ END|
 --DELIMITER ;
 
 RESET MASTER;
-CALL proc_insert_delayed();
 SELECT func_limit();
 source include/show_binlog_events.inc;
 
 SET @@session.binlog_format = @old_binlog_format;
 DROP TABLE t1, t2;
-DROP PROCEDURE proc_insert_delayed;
 DROP FUNCTION func_limit;
 
 #

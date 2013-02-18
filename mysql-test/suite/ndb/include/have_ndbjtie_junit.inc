@@ -16,15 +16,16 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 #
 # Check if the needed tests are available
 #
-my $jtie_junit = my_find_file($basedir,
+my $jtie_junit = my_find_file($bindir,
                             ["storage/ndb/src/ndbjtie/test", "share/mysql/java"],
                             "ndbjtie-test-*.jar", NOT_REQUIRED);
 
-my $jtie_unload_junit = my_find_file($basedir,
+my $jtie_unload_junit = my_find_file($bindir,
                             ["storage/ndb/src/ndbjtie/jtie/test/unload", "share/mysql/java"],
                             "jtie-test-unload-*.jar", NOT_REQUIRED);
 

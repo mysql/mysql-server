@@ -4,7 +4,7 @@
 # Scope: GLOBAL                                                                #
 # Access Type: Dynamic                                                         #
 # Data Type: Numeric                                                           #
-# Default Value: 400                                                           #
+# Default Value: 1400                                                          #
 # Range: 1 - 524288                                                            #
 #                                                                              #
 #                                                                              #
@@ -52,7 +52,7 @@ SELECT @@global.table_definition_cache;
 ###############################################
 
 SET @@global.table_definition_cache = DEFAULT;
-SELECT @@global.table_definition_cache = 400;
+SELECT @@global.table_definition_cache = 1400;
 
 
 --echo '#--------------------FN_DYNVARS_019_03------------------------#'

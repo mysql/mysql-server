@@ -11,12 +11,12 @@ SET @@global.query_cache_type = 0;
 SET @@global.query_cache_type = DEFAULT;
 SELECT @@global.query_cache_type;
 @@global.query_cache_type
-ON
+OFF
 SET @@session.query_cache_type = 0;
 SET @@session.query_cache_type = DEFAULT;
 SELECT @@session.query_cache_type;
 @@session.query_cache_type
-ON
+OFF
 '#---------------------FN_DYNVARS_134_02-------------------------#'
 SET @@global.query_cache_type = NULL;
 ERROR 42000: Variable 'query_cache_type' can't be set to the value of 'NULL'

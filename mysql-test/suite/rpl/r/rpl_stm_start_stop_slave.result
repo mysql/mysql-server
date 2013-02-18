@@ -78,7 +78,7 @@ CHANGE MASTER TO master_log_pos=MASTER_POS;
 START SLAVE;
 include/wait_for_slave_param.inc [Last_IO_Errno]
 Last_IO_Errno = '1236'
-Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from impossible position; the first event 'master-bin.000001' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
+Last_IO_Error = 'Got fatal error 1236 from master when reading data from binary log: 'Client requested master to start replication from position > file size; the first event 'master-bin.000001' at XXX, the last event read from './master-bin.000001' at XXX, the last byte read from './master-bin.000001' at XXX.''
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;

@@ -7,16 +7,16 @@ performance_schema
 test
 select count(*) from performance_schema.performance_timers;
 count(*)
-5
+0
 select count(*) from performance_schema.setup_consumers;
 count(*)
-12
+0
 select count(*) > 3 from performance_schema.setup_instruments;
 count(*) > 3
 0
 select count(*) from performance_schema.setup_timers;
 count(*)
-4
+0
 select * from performance_schema.accounts;
 select * from performance_schema.cond_instances;
 select * from performance_schema.events_stages_current;
@@ -93,7 +93,7 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	169
+performance_schema_max_statement_classes	168
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
@@ -131,18 +131,6 @@ Performance_schema_thread_instances_lost	0
 Performance_schema_users_lost	0
 select * from performance_schema.setup_consumers;
 NAME	ENABLED
-events_stages_current	NO
-events_stages_history	NO
-events_stages_history_long	NO
-events_statements_current	NO
-events_statements_history	NO
-events_statements_history_long	NO
-events_waits_current	NO
-events_waits_history	NO
-events_waits_history_long	NO
-global_instrumentation	NO
-thread_instrumentation	NO
-statements_digest	YES
 select * from performance_schema.setup_instruments;
 NAME	ENABLED	TIMED
 select * from performance_schema.setup_actors;
@@ -151,7 +139,20 @@ select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
-idle	MICROSECOND
-wait	CYCLE
-stage	NANOSECOND
-statement	NANOSECOND
+insert into performance_schema.setup_objects values ('TABLE', 'myschema', 'myobject', 'YES', 'YES');
+ERROR HY000: Invalid performance_schema usage.
+insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole');
+ERROR HY000: Invalid performance_schema usage.
+select * from performance_schema.setup_objects;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+update performance_schema.setup_objects set OBJECT_NAME = 'myobject';
+delete from performance_schema.setup_objects;
+select * from performance_schema.setup_actors;
+HOST	USER	ROLE
+update performance_schema.setup_actors set HOST = 'myhost';
+delete from performance_schema.setup_actors;
+truncate performance_schema.events_stages_history_long;
+truncate performance_schema.events_statements_history_long;
+truncate performance_schema.events_waits_history_long;
+truncate performance_schema.setup_objects;
+truncate performance_schema.setup_actors;

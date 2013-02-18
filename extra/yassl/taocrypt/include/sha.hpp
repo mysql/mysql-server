@@ -158,6 +158,12 @@ private:
     void Transform();
 };
 
+enum { MAX_SHA2_DIGEST_SIZE = 64 };   // SHA512
+
+#else
+
+enum { MAX_SHA2_DIGEST_SIZE = 32 };   // SHA256
+
 #endif // WORD64_AVAILABLE
 
 

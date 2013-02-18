@@ -308,7 +308,7 @@ NdbBackup::restore(unsigned _backup_id){
   res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
 
   // Restore data once for each node
-  for(size_t i = 1; i < ndbNodes.size(); i++){
+  for(unsigned i = 1; i < ndbNodes.size(); i++){
     res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
   }
   

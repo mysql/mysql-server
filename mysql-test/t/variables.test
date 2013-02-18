@@ -30,6 +30,7 @@ set @my_net_write_timeout         =@@global.net_write_timeout;
 set @my_net_read_timeout          =@@global.net_read_timeout;
 set @my_query_cache_limit         =@@global.query_cache_limit;
 set @my_query_cache_type          =@@global.query_cache_type;
+set @my_query_cache_size          =@@global.query_cache_size;
 set @my_server_id                 =@@global.server_id;
 set @my_slow_launch_time          =@@global.slow_launch_time;
 set @my_storage_engine            =@@global.default_storage_engine;
@@ -821,6 +822,7 @@ set global net_write_timeout         =@my_net_write_timeout;
 set global net_read_timeout          =@my_net_read_timeout;
 set global query_cache_limit         =@my_query_cache_limit;
 set global query_cache_type          =@my_query_cache_type;
+set global query_cache_size          =@my_query_cache_size;
 set global server_id                 =@my_server_id;
 set global slow_launch_time          =@my_slow_launch_time;
 set global default_storage_engine            =@my_storage_engine;
@@ -1525,3 +1527,28 @@ set session collation_database=2048;
 
 --error ER_WRONG_VALUE_FOR_VAR
 SET @@sql_mode= 4294967296;
+
+--echo #
+--echo # Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
+--echo #
+
+# Basic testing to check that each variable shows up and can be
+# altered. 
+#
+# Functional testing of log_slow_admin_statements is within
+# suites/sys_vars/t/log_slow_admin_statements_basic.test
+# suites/sys_vars/t/log_slow_admin_statements_func.test
+#
+# Functional testing of log_slow_slave_statements is within
+# suites/sys_vars/t/log_slow_slave_statements_basic.test
+# suites/rpl/t/rpl_slow_query_log.test
+
+show variables like 'log_slow%';
+set global log_slow_admin_statements = on;
+show global variables like 'log_slow_admin_statements';
+select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
+select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+set global log_slow_admin_statements = default;
+set global log_slow_slave_statements = default;

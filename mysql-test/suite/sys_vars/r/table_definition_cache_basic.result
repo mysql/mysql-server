@@ -1,7 +1,7 @@
 SET @start_value = @@global.table_definition_cache;
 SELECT @start_value;
 @start_value
-400
+1400
 '#--------------------FN_DYNVARS_019_01------------------------#'
 SET @@global.table_definition_cache = 100;
 Warnings:
@@ -9,11 +9,11 @@ Warning	1292	Truncated incorrect table_definition_cache value: '100'
 SET @@global.table_definition_cache = DEFAULT;
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-400
+1400
 '#---------------------FN_DYNVARS_019_02-------------------------#'
 SET @@global.table_definition_cache = DEFAULT;
-SELECT @@global.table_definition_cache = 400;
-@@global.table_definition_cache = 400
+SELECT @@global.table_definition_cache = 1400;
+@@global.table_definition_cache = 1400
 1
 '#--------------------FN_DYNVARS_019_03------------------------#'
 SET @@global.table_definition_cache = 1;
@@ -108,4 +108,4 @@ ERROR 42S22: Unknown column 'table_definition_cache' in 'field list'
 SET @@global.table_definition_cache = @start_value;
 SELECT @@global.table_definition_cache;
 @@global.table_definition_cache
-400
+1400

@@ -1,10 +1,10 @@
 == 1 ==
 ndb_mgmd,3,localhost mysqld,49,localhost mysqld,16,localhost mysqld,32,localhost mysqld,48,localhost mysqld,63,localhost mysqld,127,localhost mysqld,192,localhost mysqld,228,localhost mysqld,229,localhost mysqld,230,localhost mysqld,231,localhost mysqld,232,localhost mysqld,233,localhost mysqld,255,localhost ndbd,1,localhost ndbd,2,localhost
 == 2 ==
-1,localhost,20971520,3145728 2,localhost,20971520,3145728
+1,localhost,20971520,5242880 2,localhost,20971520,5242880
 == 3 ==
-1 localhost 20971520 3145728
-2 localhost 20971520 3145728
+1 localhost 20971520 5242880
+2 localhost 20971520 5242880
 == 4 ==
 1 2
 == 5 ==

@@ -346,7 +346,7 @@ typedef struct st_mi_sort_param
   int (*key_read)(struct st_mi_sort_param *,void *);
   int (*key_write)(struct st_mi_sort_param *, const void *);
   void (*lock_in_memory)(MI_CHECK *);
-  int (*write_keys)(struct st_mi_sort_param *, register uchar **,
+  int (*write_keys)(struct st_mi_sort_param *, uchar **,
                     uint , struct st_buffpek *, IO_CACHE *);
   uint (*read_to_buffer)(IO_CACHE *,struct st_buffpek *, uint);
   int (*write_key)(struct st_mi_sort_param *, IO_CACHE *,uchar *,
@@ -582,7 +582,7 @@ extern uchar *_mi_get_last_key(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *keypos,
 extern uchar *_mi_get_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 			  uchar *key, uchar *keypos, uint *return_key_length);
 extern uint _mi_keylength(MI_KEYDEF *keyinfo,uchar *key);
-extern uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
+extern uint _mi_keylength_part(MI_KEYDEF *keyinfo, uchar *key,
 			       HA_KEYSEG *end);
 extern uchar *_mi_move_key(MI_KEYDEF *keyinfo,uchar *to,uchar *from);
 extern int _mi_search_next(MI_INFO *info,MI_KEYDEF *keyinfo,uchar *key,
@@ -598,7 +598,7 @@ extern int _mi_dispose(MI_INFO *info,MI_KEYDEF *keyinfo,my_off_t pos,
 extern my_off_t _mi_new(MI_INFO *info,MI_KEYDEF *keyinfo,int level);
 extern uint _mi_make_key(MI_INFO *info,uint keynr,uchar *key,
 			 const uchar *record,my_off_t filepos);
-extern uint _mi_pack_key(register MI_INFO *info, uint keynr, uchar *key,
+extern uint _mi_pack_key(MI_INFO *info, uint keynr, uchar *key,
                          uchar *old, key_part_map keypart_map,
                          HA_KEYSEG **last_used_keyseg);
 extern int _mi_read_key_record(MI_INFO *info,my_off_t filepos,uchar *buf);
@@ -759,14 +759,14 @@ int mi_open_datafile(MI_INFO *info, MYISAM_SHARE *share, const char *orn_name,
                      File file_to_dup);
 
 int mi_open_keyfile(MYISAM_SHARE *share);
-void mi_setup_functions(register MYISAM_SHARE *share);
+void mi_setup_functions(MYISAM_SHARE *share);
 my_bool mi_dynmap_file(MI_INFO *info, my_off_t size);
 int mi_munmap_file(MI_INFO *info);
 void mi_remap_file(MI_INFO *info, my_off_t size);
 void _mi_report_crashed(MI_INFO *file, const char *message,
                         const char *sfile, uint sline);
 
-int mi_check_index_cond(register MI_INFO *info, uint keynr, uchar *record);
+int mi_check_index_cond(MI_INFO *info, uint keynr, uchar *record);
 
     /* Functions needed by mi_check */
 volatile int *killed_ptr(MI_CHECK *param);

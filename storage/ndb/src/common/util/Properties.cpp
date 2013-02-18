@@ -662,10 +662,10 @@ PropertiesImpl::getPackedSize(Uint32 pLen) const {
       sz += 4; // Type
       sz += 4; // Name Len
       sz += 4; // Value Len
-      sz += mod4(pLen + strlen(content[i]->name)); // Name
+      sz += mod4(pLen + (unsigned)strlen(content[i]->name)); // Name
       switch(content[i]->valueType){
       case PropertiesType_char:
-	sz += mod4(strlen((char *)content[i]->value));
+	sz += mod4((unsigned)strlen((char *)content[i]->value));
 	break;
       case PropertiesType_Uint32:
 	sz += mod4(4);
@@ -734,7 +734,7 @@ PropertiesImpl::pack(Uint32 *& buf, const char * prefix, Uint32 pLen) const {
   CharBuf charBuf;
   
   for(unsigned int i = 0; i<items; i++){
-    const int strLenName      = strlen(content[i]->name);
+    const int strLenName      = (int)strlen(content[i]->name);
     
     if(content[i]->valueType == PropertiesType_Properties){
       charBuf.clear();

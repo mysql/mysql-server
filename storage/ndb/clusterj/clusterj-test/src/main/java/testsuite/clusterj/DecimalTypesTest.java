@@ -77,7 +77,7 @@ create unique index idx_decimal_null_both on decimaltypes(decimal_null_both);
 
     /** Subclasses override this method to provide the model class for the test */
     @Override
-    Class<? extends IdBase> getModelClass() {
+    protected Class<? extends IdBase> getModelClass() {
         return DecimalTypes.class;
     }
 

@@ -25,7 +25,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-int is_prefix(register const char *s, register const char *t)
+int is_prefix(const char *s, const char *t)
 {
   while (*t)
     if (*s++ != *t++) return 0;

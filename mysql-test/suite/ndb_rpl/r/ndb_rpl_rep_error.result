@@ -1,36 +1,327 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
+Wrong schema for the table, too few pks
 create table t1 (a int key, X int) engine ndb;
 Warnings:
 Warning	1625	Bad schema for mysql.ndb_replication table. Message: Wrong number of primary key parts, expected 3
 drop table t1;
+Wrong schema for the table, incorrect pk
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Missing or wrong type for column 'server_id'
+drop table t1;
+Wrong schema for the table, binlog_type is signed
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Missing or wrong type for column 'binlog_type'
+drop table t1;
+Wrong schema for the table, conflict_fn is too long
+create table t1 (a int key, X int) engine ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Missing or wrong type for column 'conflict_fn'
+drop table t1;
+Correct schema for the table but no conflict fn
+insert into mysql.ndb_replication values ("test", "t1", 0, 7);
+create table test.t1 (a int primary key) engine=ndb;
+show warnings;
+Level	Code	Message
+drop table test.t1;
+MySQLD error output for server 1.1 matching pattern %NDB Binlog: logging%
+relevant
+[note] ndb binlog: logging ./test/t1 (full,use_update)
+delete from mysql.ndb_replication;
+Check that NULL uses server defaults
+show variables like 'ndb_log_update_as_write';
+Variable_name	Value
+ndb_log_update_as_write	ON
+show variables like 'ndb_log_updated_only';
+Variable_name	Value
+ndb_log_updated_only	ON
+insert into mysql.ndb_replication values ("test", "t1", 0, NULL);
+create table test.t1 (a int primary key) engine=ndb;
+show warnings;
+Level	Code	Message
+drop table test.t1;
+MySQLD error output for server 1.1 matching pattern %NDB Binlog: logging%
+relevant
+[note] ndb binlog: logging ./test/t1 (updated,use_write)
+Correct schema for the table but other errors
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$X(X)");
 create table t1 (a int key, X int) engine ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$X(X), unknown conflict resolution function at 'NDB$X(X)'
-Error	1005	Can't create table 'test.t1' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X)");
 create table t1 (a int key, X int) engine ndb;
 Warnings:
-Warning	1626	Error in parsing conflict function. Message: column 'X' has wrong datatype
+Warning	1626	Error in parsing conflict function. Message: Column 'X' has wrong datatype
 drop table t1;
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX()");
 create table t1 (a int key, X int) engine ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$MAX(), missing function argument at ')'
-Error	1005	Can't create table 'test.t1' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 delete from mysql.ndb_replication;
 insert into mysql.ndb_replication values ("test", "t1", 0, NULL, "NDB$MAX(X Y)");
 create table t1 (a int key, X int) engine ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$MAX(X Y), missing ')' at 'Y)'
-Error	1005	Can't create table 'test.t1' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 delete from mysql.ndb_replication;
+show variables like 'server_id';
+Variable_name	Value
+server_id	1
+create database europenorth;
+create database europesouth;
+create database usnorth;
+create database ussouth;
+Basic wildcard tests
+Note that we put in bad conflict fn names so that the warnings generated
+when the table create fails give an indication of which ndb_replication
+table row was chosen.
+
+Wild serverid
+insert into mysql.ndb_replication values ("europenorth", "france", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("europenorth", "france", 0, NULL, "NDB$B()");
+Should match specific entry (1) with algorithm A.
+create table europenorth.france (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$A(), unknown conflict resolution function at 'NDB$A()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where server_id=1;
+Should match generic entry (0) with algorthin B.
+create table europenorth.france (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication;
+Wild table_name
+insert into mysql.ndb_replication values ("europenorth", "fr_nce", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("europenorth", "%any", 1, NULL, "NDB$B()");
+Should match specific entry (fr_nce) with algorithm A.
+create table europenorth.france (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$A(), unknown conflict resolution function at 'NDB$A()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Should match specific entry (%any) with algorithm B.
+create table europenorth.germany (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Should match specific entry (%any) with algorithm B.
+create table europenorth.romany (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+No match, should be fine
+create table europenorth.uk (a int primary key) engine=ndb;
+show warnings;
+Level	Code	Message
+drop table europenorth.uk;
+delete from mysql.ndb_replication;
+Wild db
+insert into mysql.ndb_replication values ("%north", "countries", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("%south", "countries", 1, NULL, "NDB$B()");
+Should match north with A
+create table europenorth.countries (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$A(), unknown conflict resolution function at 'NDB$A()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Should match north with A
+create table usnorth.countries (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$A(), unknown conflict resolution function at 'NDB$A()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Should match south with B
+create table europesouth.countries (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+Should match south with B
+create table ussouth.countries (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication;
+Now test wildcard matching precedence
+Wildcards match in the following precedence (highest->lowest)
+Exact match
+Wild serverid
+Wild table_name
+Wild serverid + wild table_name
+Wild db
+Wild db + wild serverid
+Wild db + wild table_name
+All wild
+
+The 'wild serverid' is 0
+
+Multiple matches at the same precedence are ambiguous and result
+in an error.
+
+Start with full set of potential matches, and chip away
+insert into mysql.ndb_replication values ("europenorth", "netherlands", 1, NULL, "NDB$A()");
+insert into mysql.ndb_replication values ("europenorth", "netherlands", 0, NULL, "NDB$B()");
+insert into mysql.ndb_replication values ("europenorth", "%lands", 1, NULL, "NDB$C()");
+insert into mysql.ndb_replication values ("europenorth", "nether%s", 1, NULL, "NDB$D()");
+insert into mysql.ndb_replication values ("europenorth", "%lands", 0, NULL, "NDB$E()");
+insert into mysql.ndb_replication values ("europenorth", "nether%s", 0, NULL, "NDB$F()");
+insert into mysql.ndb_replication values ("Europe%", "netherlands", 1, NULL, "NDB$G()");
+insert into mysql.ndb_replication values ("%North", "netherlands", 1, NULL, "NDB$H()");
+insert into mysql.ndb_replication values ("Europe%", "netherlands", 0, NULL, "NDB$I()");
+insert into mysql.ndb_replication values ("%North", "netherlands", 0, NULL, "NDB$J()");
+insert into mysql.ndb_replication values ("Europe%", "%lands", 1, NULL, "NDB$K()");
+insert into mysql.ndb_replication values ("%North", "nether%s", 1, NULL, "NDB$L()");
+insert into mysql.ndb_replication values ("Europe%", "%lands", 0, NULL, "NDB$M()");
+insert into mysql.ndb_replication values ("%North", "nether%s", 0, NULL, "NDB$N()");
+Unique match (A)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$A(), unknown conflict resolution function at 'NDB$A()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="europenorth" and table_name="netherlands" and server_id=1;
+Unique match with wild serverid (B)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$B(), unknown conflict resolution function at 'NDB$B()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="europenorth" and table_name="netherlands" and server_id=0;
+Ambiguous wild table name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="europenorth" and table_name="%lands" and server_id=1;
+Wild table name (D)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$D(), unknown conflict resolution function at 'NDB$D()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="europenorth" and table_name="nether%s" and server_id=1;
+Ambiguous wild server id and table name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="europenorth" and table_name="nether%s" and server_id=0;
+Wild server id and table name (E)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$E(), unknown conflict resolution function at 'NDB$E()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="europenorth" and table_name="%lands" and server_id=0;
+Amiguous wild db
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=1;
+Wild db (H)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$H(), unknown conflict resolution function at 'NDB$H()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="%North" and table_name="netherlands" and server_id=1;
+Ambiguous wild db + server_id
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="Europe%" and table_name="netherlands" and server_id=0;
+Wild db + server id (J)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$J(), unknown conflict resolution function at 'NDB$J()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="%North" and table_name="netherlands" and server_id=0;
+Ambiguous wild db + table_name
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=1;
+Wild db + table_name (L)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$L(), unknown conflict resolution function at 'NDB$L()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication where db="%North" and table_name="nether%s" and server_id=1;
+Ambiguous all wild
+create table europenorth.netherlands (a int primary key) engine=ndb;
+Warnings:
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+show warnings;
+Level	Code	Message
+Warning	1625	Bad schema for mysql.ndb_replication table. Message: Ambiguous matches in mysql.ndb_replication for europenorth.nethe
+drop table europenorth.netherlands;
+delete from mysql.ndb_replication where db="Europe%" and table_name="%lands" and server_id=0;
+All wild (N)
+create table europenorth.netherlands (a int primary key) engine=ndb;
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
+show warnings;
+Level	Code	Message
+Warning	1626	Error in parsing conflict function. Message: NDB$N(), unknown conflict resolution function at 'NDB$N()'
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
+delete from mysql.ndb_replication;
+drop database europenorth;
+drop database europesouth;
+drop database usnorth;
+drop database ussouth;

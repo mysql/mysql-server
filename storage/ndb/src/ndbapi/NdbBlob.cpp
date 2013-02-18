@@ -696,7 +696,7 @@ NdbBlob::copyKeyFromRow(const NdbRecord *record, const char *row,
     unpacked+= unpacked_len;
   }
 
-  packedBuf.size= packed - packedBuf.data;
+  packedBuf.size= (Uint32)(packed - packedBuf.data);
   packedBuf.zerorest();
   assert(unpacked == unpackedBuf.data + unpackedBuf.size);
   DBUG_RETURN(0);

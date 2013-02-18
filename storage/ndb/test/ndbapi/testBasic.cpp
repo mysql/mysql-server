@@ -24,6 +24,7 @@
 #include <Bitmask.hpp>
 #include <random.h>
 #include <signaldata/DumpStateOrd.hpp>
+#include <NdbConfig.hpp>
 
 /**
  * TODO 
@@ -2158,6 +2159,7 @@ runBug54944(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * pTab = ctx->getTab();
   NdbRestarter res;
+  int databuffer = ctx->getProperty("DATABUFFER");
 
   for (Uint32 i = 0; i<5; i++)
   {
@@ -2174,7 +2176,10 @@ runBug54944(NDBT_Context* ctx, NDBT_Step* step)
       hugoOps.execute_NoCommit(pNdb);
     }
 
-    res.insertErrorInAllNodes(8087);
+    if (!databuffer)
+      res.insertErrorInAllNodes(8087);
+    else
+      res.insertErrorInAllNodes(8096);
 
     HugoTransactions hugoTrans(*pTab);
     hugoTrans.loadTableStartFrom(pNdb, 50000, 100);
@@ -3002,6 +3007,63 @@ int runRefreshTuple(NDBT_Context* ctx, NDBT_Step* step){
   return rc;
 };
 
+// An 'assert' that is always executed, so that 'cond' may have side effects.
+#ifdef NDEBUG
+#define ASSERT_ALWAYS(cond) if(!(cond)){abort();}
+#else
+#define ASSERT_ALWAYS assert
+#endif
+
+// Regression test for bug #14208924
+static int
+runLeakApiConnectObjects(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  /**
+   * This error insert inc ombination with bug #14208924 will 
+   * cause TC to leak ApiConnectRecord objects.
+   */
+  restarter.insertErrorInAllNodes(8094);
+
+  Ndb* const ndb = GETNDB(step);
+  Uint32 maxTrans = 0;
+  NdbConfig conf;
+  ASSERT_ALWAYS(conf.getProperty(conf.getMasterNodeId(),
+                                 NODE_TYPE_DB,
+                                 CFG_DB_NO_TRANSACTIONS,
+                                 &maxTrans));
+  ASSERT_ALWAYS(maxTrans > 0);
+
+  HugoOperations hugoOps(*ctx->getTab());
+  // One ApiConnectRecord object is leaked for each iteration.
+  for (uint i = 0; i < maxTrans+1; i++)
+  {
+    ASSERT_ALWAYS(hugoOps.startTransaction(ndb) == 0);
+    ASSERT_ALWAYS(hugoOps.pkInsertRecord(ndb, i) == 0);
+    NdbTransaction* const trans = hugoOps.getTransaction();
+    /**
+     * The error insert causes trans->execute(Commit) to fail with error code
+     * 286 even if the bug is fixed. Therefore, we ignore this error code.
+     */
+    if (trans->execute(Commit) != 0 && 
+        trans->getNdbError().code != 286)
+    {
+      g_err << "trans->execute() gave unexpected error : " 
+            << trans->getNdbError() << endl;
+      restarter.insertErrorInAllNodes(0);
+      return NDBT_FAILED;
+    }
+    ASSERT_ALWAYS(hugoOps.closeTransaction(ndb) == 0);
+  }
+  restarter.insertErrorInAllNodes(0);
+
+  UtilTransactions utilTrans(*ctx->getTab());
+  if (utilTrans.clearTable(ndb) != 0){
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 enum PreRefreshOps
 {
   PR_NONE,
@@ -3563,6 +3625,12 @@ TESTCASE("Bug54986", "")
 }
 TESTCASE("Bug54944", "")
 {
+  TC_PROPERTY("DATABUFFER", (Uint32)0);
+  INITIALIZER(runBug54944);
+}
+TESTCASE("Bug54944DATABUFFER", "")
+{
+  TC_PROPERTY("DATABUFFER", (Uint32)1);
   INITIALIZER(runBug54944);
 }
 TESTCASE("Bug59496_case1", "")
@@ -3583,6 +3651,10 @@ TESTCASE("899", "")
   INITIALIZER(runInit899);
   STEP(runTest899);
   FINALIZER(runEnd899);
+}
+TESTCASE("LeakApiConnectObjects", "")
+{
+  INITIALIZER(runLeakApiConnectObjects);
 }
 TESTCASE("RefreshLocking",
          "Test Refresh locking properties")

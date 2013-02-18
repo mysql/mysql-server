@@ -1351,24 +1351,6 @@ SELECT * FROM t2;
 CHECK TABLE t2;
 SELECT * FROM t2;
 
-
-# Test INSERT DELAYED and wait until the table has one more record
-SELECT COUNT(auto) FROM t2;
-INSERT DELAYED INTO t2 VALUES (99999,011403,37,'the','delayed','insert','');
-
-# Insert another record since in Archive delayed values are only
-# guaranteed to materialize based on either:
-# 1) A new row showing up from a normal insert
-# 2) A flush table  has occurred.
-INSERT INTO t2 VALUES (100000,000001,00,'after','delayed','insert','');
-
-# Wait for the delayed insert to appear
-while (`SELECT COUNT(auto)!=1215 FROM t2`)
-{
-  sleep 0.1;
-}
-SELECT COUNT(auto) FROM t2;
-
 # Adding test for ALTER TABLE
 ALTER TABLE t2 DROP COLUMN fld6; 
 SHOW CREATE TABLE t2;

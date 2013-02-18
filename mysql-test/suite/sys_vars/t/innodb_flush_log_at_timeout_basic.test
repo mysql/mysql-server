@@ -101,6 +101,15 @@ SELECT @@global.innodb_flush_log_at_timeout;
 
 SET @@global.innodb_flush_log_at_timeout = 2701;
 SELECT @@global.innodb_flush_log_at_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = ' ';
+SELECT @@global.innodb_flush_log_at_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = " ";
+SELECT @@global.innodb_flush_log_at_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = 1.1;
+SELECT @@global.innodb_flush_log_at_timeout;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 #########################################################################

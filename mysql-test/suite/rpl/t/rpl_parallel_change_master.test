@@ -106,7 +106,14 @@ SET @@global.slave_parallel_workers= @save.slave_parallel_workers; # cleanup
 SELECT @@global.relay_log_recovery as 'must be ON';
 call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
 call mtr.add_suppression("Failed to initialize the master info structure");
-
+#
+# the following suppression applies to either restart.
+# The reason it was not required when the test run "normally" with the default
+# --relay-log-info-repository=FILE is here:
+# Bug #15858271 MTR INCORRECTLY PROPAGATES A SERVER OPTION FROM A PREVIOUS TEST TO THE CURRENT
+# todo: The suppression should be removed after the bug is fixed.
+#
+call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --skip-slave-start
 --source include/rpl_restart_server.inc

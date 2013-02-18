@@ -128,7 +128,16 @@ void Dbtup::allocConsPages(Uint32 noOfPagesToAllocate,
     return;
   }//if
 
-  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef, 
+  Resource_limit rl;
+  m_ctx.m_mm.get_resource_limit_nolock(RG_DATAMEM, rl);
+  if (rl.m_curr + m_minFreePages + noOfPagesToAllocate > rl.m_max)
+  {
+    jam();
+    noOfPagesAllocated = 0;
+    return;
+  }
+
+  m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &allocPageRef,
 			 &noOfPagesToAllocate, 1);
   noOfPagesAllocated = noOfPagesToAllocate;
 

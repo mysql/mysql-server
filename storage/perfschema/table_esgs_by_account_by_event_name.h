@@ -50,7 +50,7 @@ struct row_esgs_by_account_by_event_name
 /**
   Position of a cursor on
   PERFORMANCE_SCHEMA.EVENTS_STAGES_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME.
-  Index 1 on user@host (0 based)
+  Index 1 on account (0 based)
   Index 2 on stage class (1 based)
 */
 struct pos_esgs_by_account_by_event_name

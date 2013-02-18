@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.   
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -23,6 +23,10 @@
 
 #include "mysql/psi/psi.h"
 
+#ifndef PSI_STAGE_CALL
+#define PSI_STAGE_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
 /**
   @defgroup Stage_instrumentation Stage Instrumentation
   @ingroup Instrumentation_interface
@@ -41,6 +45,13 @@
   do {} while (0)
 #endif
 
+/**
+  @def MYSQL_SET_STAGE
+  Set the current stage
+  @param K the stage key
+  @param F the source file name
+  @param L the source file line
+*/
 #ifdef HAVE_PSI_STAGE_INTERFACE
   #define MYSQL_SET_STAGE(K, F, L) \
     inline_mysql_set_stage(K, F, L)

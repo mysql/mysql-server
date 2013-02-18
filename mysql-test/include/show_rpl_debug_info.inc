@@ -42,6 +42,7 @@
 --enable_query_log
 --enable_result_log
 --enable_warnings
+--enable_connect_log
 --disable_abort_on_error
 --horizontal_results
 
@@ -49,6 +50,10 @@
 --let $_rpl_old_con= $CURRENT_CONNECTION
 --let $_rpl_is_first_server= 1
 --let $_rpl_server= $rpl_server_count
+if ($_rpl_server == '')
+{
+  --let $_rpl_server= 0
+}
 --inc $_rpl_server
 
 --echo CURRENT_CONNECTION = '$_rpl_old_con'
@@ -71,7 +76,7 @@ while ($_rpl_server)
   --echo
   --echo **** GTID_* on $CURRENT_CONNECTION ****
   query_vertical
-  SELECT @@GLOBAL.GTID_DONE, @@GLOBAL.GTID_LOST, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_DONE, @@SESSION.GTID_OWNED;
+  SELECT @@GLOBAL.GTID_EXECUTED, @@GLOBAL.GTID_PURGED, @@GLOBAL.GTID_OWNED, @@SESSION.GTID_EXECUTED, @@SESSION.GTID_OWNED;
   --echo
   --echo **** SHOW SLAVE STATUS on $CURRENT_CONNECTION ****
   query_vertical SHOW SLAVE STATUS;
@@ -97,7 +102,12 @@ while ($_rpl_server)
   let $relaylog_name= query_get_value(SHOW SLAVE STATUS, Relay_Log_File, 1);
   --echo relaylog_name = '$relaylog_name'
   eval SHOW RELAYLOG EVENTS IN '$relaylog_name';
-
+  --echo
+  --echo **** slave_relay_info on $CURRENT_CONNECTION ****
+  SELECT * FROM mysql.slave_relay_log_info;
+  --echo
+  --echo **** slave_master_info on $CURRENT_CONNECTION ****
+  SELECT * FROM mysql.slave_master_info;
 
   --let $_rpl_is_first_server= 0
   --dec $_rpl_server

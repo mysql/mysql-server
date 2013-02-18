@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,11 +51,6 @@ IF(NOT SYSTEM_TYPE)
     SET(SYSTEM_TYPE ${CMAKE_SYSTEM_NAME})
   ENDIF()
 ENDIF()
-
-# As a consequence of ALARMs no longer being used, thread
-# notification for KILL must close the socket to wake up
-# other threads.
-SET(SIGNAL_WITH_VIO_CLOSE 1)
 
 # Always enable -Wall for gnu C/C++
 IF(CMAKE_COMPILER_IS_GNUCXX)
@@ -217,6 +212,11 @@ IF(UNIX)
     IF(HAVE_LIBWRAP)
       SET(MYSYS_LIBWRAP_SOURCE  ${CMAKE_SOURCE_DIR}/mysys/my_libwrap.c)
       SET(LIBWRAP "wrap")
+    ELSE()
+      MESSAGE(FATAL_ERROR 
+      "WITH_LIBWRAP is defined, but can not find a working libwrap. "
+      "Make sure both the header files (tcpd.h) "
+      "and the library (libwrap) are installed.")
     ENDIF()
   ENDIF()
 ENDIF()
@@ -323,15 +323,14 @@ ELSE()
 ENDIF()
 
 # Figure out threading library
-#
+# Defines CMAKE_USE_PTHREADS_INIT and CMAKE_THREAD_LIBS_INIT.
 FIND_PACKAGE (Threads)
 
 FUNCTION(MY_CHECK_PTHREAD_ONCE_INIT)
   CHECK_C_COMPILER_FLAG("-Werror" HAVE_WERROR_FLAG)
-  IF(NOT HAVE_WERROR_FLAG)
-    RETURN()
+  IF(HAVE_WERROR_FLAG)
+    SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
   ENDIF()
-  SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")
   CHECK_C_SOURCE_COMPILES("
     #include <pthread.h>
     void foo(void) {}

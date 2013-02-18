@@ -178,6 +178,7 @@ static void die(const char *fmt, ...)
   }
   va_end(args);
 
+  DBUG_LEAVE;
   free_used_memory();
   my_end(my_end_arg);
   exit(1);
@@ -328,6 +329,11 @@ static int run_command(char* cmd,
   FILE *res_file;
   int error;
 
+  if (! ds_res)
+  {
+    fflush(stdout);
+    fflush(stderr);
+  }
   if (!(res_file= popen(cmd, "r")))
     die("popen(\"%s\", \"r\") failed", cmd);
 
@@ -347,7 +353,10 @@ static int run_command(char* cmd,
   }
 
   if (! ds_res)
+  {
     fflush(stdout);
+    fflush(stderr);
+  }
 
   error= pclose(res_file);
   return WEXITSTATUS(error);
@@ -703,6 +712,7 @@ static int run_mysqlcheck_upgrade(void)
                   ds_args.str,
                   "--check-upgrade",
                   "--all-databases",
+                  "--skip-database=mysql",
                   "--auto-repair",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
@@ -717,13 +727,45 @@ static int run_mysqlcheck_fixnames(void)
                   "--no-defaults",
                   ds_args.str,
                   "--all-databases",
+                  "--skip-database=mysql",
                   "--fix-db-names",
                   "--fix-table-names",
                   opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
                   NULL);
 }
 
+/** performs the same operation as mysqlcheck_upgrade, but on the mysql db */
+static int run_mysqlcheck_mysql_db_upgrade(void)
+{
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--check-upgrade",
+                  "--databases",
+                  "--auto-repair",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "mysql",
+                  NULL);
+}
 
+
+/** performs the same operation as mysqlcheck_upgrade, but on the mysql db */
+static int run_mysqlcheck_mysql_db_fixnames(void)
+{
+  print_conn_args("mysqlcheck");
+  return run_tool(mysqlcheck_path,
+                  NULL, /* Send output from mysqlcheck directly to screen */
+                  "--no-defaults",
+                  ds_args.str,
+                  "--databases",
+                  "--fix-db-names",
+                  "--fix-table-names",
+                  opt_write_binlog ? "--write-binlog" : "--skip-write-binlog",
+                  "mysql",
+                  NULL);
+}
 static const char *expected_errors[]=
 {
   "ERROR 1060", /* Duplicate column name */
@@ -837,7 +879,7 @@ static int run_sql_fix_privilege_tables(void)
 
   dynstr_free(&ds_result);
   dynstr_free(&ds_script);
-  return found_real_errors;
+  DBUG_RETURN(found_real_errors);
 }
 
 
@@ -917,10 +959,15 @@ int main(int argc, char **argv)
 
   /*
     Run "mysqlcheck" and "mysql_fix_privilege_tables.sql"
+    First run mysqlcheck on the system database.
+    Then do the upgrade.
+    And then run mysqlcheck on all tables.
   */
   if ((!opt_systables_only &&
-       (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())) ||
-      run_sql_fix_privilege_tables())
+       (run_mysqlcheck_mysql_db_fixnames() || run_mysqlcheck_mysql_db_upgrade())) ||
+      run_sql_fix_privilege_tables() ||
+      (!opt_systables_only &&
+      (run_mysqlcheck_fixnames() || run_mysqlcheck_upgrade())))
   {
     /*
       The upgrade failed to complete in some way or another,

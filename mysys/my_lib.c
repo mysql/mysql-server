@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 /* TODO: check for overun of memory for names. */
 
@@ -96,7 +97,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
-  char		tmp_path[FN_REFLEN+1],*tmp_file;
+  char		tmp_path[FN_REFLEN + 2], *tmp_file;
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 
   DBUG_ENTER("my_dir");
@@ -107,10 +108,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #endif
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
-#if defined(__amiga__)
-  if ((dirp->dd_fd) < 0)			/* Directory doesn't exists */
-    goto error;
-#endif
   if (dirp == NULL || 
       ! (buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
                            ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +
@@ -201,10 +198,11 @@ char * directory_file_name (char * dst, const char *src)
 {
   /* Process as Unix format: just remove test the final slash. */
   char *end;
+  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
-  end=strmov(dst, src);
+  end= strnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR)
   {
     end[0]=FN_LIBCHAR;				/* Add last '/' */

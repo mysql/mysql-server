@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -627,8 +627,7 @@ bool Item_subselect::exec()
 */
 
 void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref)
+                                       st_select_lex *removed_select)
 
 {
   /* Clear usage information for this subquery predicate object */
@@ -641,17 +640,15 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   for (SELECT_LEX *sel= unit->first_select(); sel; sel= sel->next_select())
   {
     if (sel->where)
-      sel->where->fix_after_pullout(parent_select, removed_select,
-                                    &sel->where);
+      sel->where->fix_after_pullout(parent_select, removed_select);
 
     if (sel->having)
-      sel->having->fix_after_pullout(parent_select, removed_select,
-                                     &sel->having);
+      sel->having->fix_after_pullout(parent_select, removed_select);
 
     List_iterator<Item> li(sel->item_list);
     Item *item;
     while ((item=li++))
-      item->fix_after_pullout(parent_select, removed_select, li.ref());
+      item->fix_after_pullout(parent_select, removed_select);
 
     /*
       No need to call fix_after_pullout() for outer-join conditions, as these
@@ -663,14 +660,12 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
     for (ORDER *order= (ORDER*) sel->order_list.first;
          order;
          order= order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select,
-                                        order->item);
+      (*order->item)->fix_after_pullout(parent_select, removed_select);
 
     for (ORDER *group= (ORDER*) sel->group_list.first;
          group;
          group= group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select,
-                                        group->item);
+      (*group->item)->fix_after_pullout(parent_select, removed_select);
   }
 }
 
@@ -924,7 +919,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
@@ -1533,7 +1528,8 @@ Item_in_subselect::single_value_transformer(JOIN *join,
       }
 
       save_allow_sum_func= thd->lex->allow_sum_func;
-      thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+      thd->lex->allow_sum_func|=
+        (nesting_map)1 << thd->lex->current_select->nest_level;
       /*
 	Item_sum_(max|min) can't substitute other item => we can use 0 as
         reference, also Item_sum_(max|min) can't be fixed after creation, so
@@ -1855,7 +1851,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-	  push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	DBUG_RETURN(RES_REDUCE);
@@ -2206,7 +2202,6 @@ Item_in_subselect::select_transformer(JOIN *join)
 Item_subselect::trans_res
 Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
 {
-  Query_arena *arena, backup;
   THD * const thd= unit->thd;
   SELECT_LEX *current= thd->lex->current_select;
   const char *save_where= thd->where;
@@ -2243,11 +2238,10 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (!optimizer)
   {
-    arena= thd->activate_stmt_arena_if_needed(&backup);
-    result= (!(optimizer= new Item_in_optimizer(left_expr, this)));
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
-    if (result)
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+    optimizer= new Item_in_optimizer(left_expr, this);
+
+    if (!optimizer)
       goto err;
   }
 
@@ -2267,7 +2261,6 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
   */
   if (exec_method == EXEC_UNSPECIFIED)
     exec_method= EXEC_EXISTS_OR_MAT;
-  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   /*
     Both transformers call fix_fields() only for Items created inside them,
@@ -2276,22 +2269,24 @@ Item_in_subselect::select_in_like_transformer(JOIN *join, Comp_creator *func)
     nature of Item, we have to call fix_fields() for it only with the original
     arena to avoid memory leak).
   */
-  if (left_expr->cols() == 1)
-    res= single_value_transformer(join, func);
-  else
+
   {
-    /* we do not support row operation for ALL/ANY/SOME */
-    if (func != &eq_creator)
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
+
+    if (left_expr->cols() == 1)
+      res= single_value_transformer(join, func);
+    else
     {
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
-      DBUG_RETURN(RES_ERROR);
+      /* we do not support row operation for ALL/ANY/SOME */
+      if (func != &eq_creator)
+      {
+        my_error(ER_OPERAND_COLUMNS, MYF(0), 1);
+        DBUG_RETURN(RES_ERROR);
+      }
+      res= row_value_transformer(join);
     }
-    res= row_value_transformer(join);
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
 err:
   thd->where= save_where;
   DBUG_RETURN(res);
@@ -2327,12 +2322,11 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 
 
 void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
-  Item_subselect::fix_after_pullout(parent_select, removed_select, ref);
+  Item_subselect::fix_after_pullout(parent_select, removed_select);
 
-  left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
+  left_expr->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= left_expr->used_tables();
 }
@@ -2405,6 +2399,20 @@ bool Item_in_subselect::init_left_expr_cache()
 bool Item_subselect::inform_item_in_cond_of_tab(uchar *join_tab_index)
 {
   in_cond_of_tab= *reinterpret_cast<int *>(join_tab_index);
+  return false;
+}
+
+
+/**
+   Clean up after removing the subquery from the item tree.
+
+   Call st_select_lex_unit::exclude_tree() to unlink it from its
+   master and to unlink direct st_select_lex children from
+   all_selects_list.
+ */
+bool Item_subselect::clean_up_after_removal(uchar *arg)
+{
+  unit->exclude_tree();
   return false;
 }
 
@@ -2765,18 +2773,14 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited &&
-      (error= table->file->ha_index_end()))
+  if ((table->file->inited &&
+       (error= table->file->ha_index_end())) ||
+      (error= table->file->ha_rnd_init(1)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
- 
-  if ((error= table->file->ha_rnd_init(1)))
-  {
-    (void) report_error(table, error);
-    DBUG_RETURN(true);
-  }
+
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2785,7 +2789,7 @@ bool subselect_indexsubquery_engine::scan_table()
     error=table->file->ha_rnd_next(table->record[0]);
     if (error && error != HA_ERR_END_OF_FILE)
     {
-      error= report_error(table, error);
+      error= report_handler_error(table, error);
       break;
     }
     /* No more rows */
@@ -3022,7 +3026,7 @@ bool subselect_indexsubquery_engine::exec()
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
   error= table->file->ha_index_read_map(table->record[0],
@@ -3031,7 +3035,7 @@ bool subselect_indexsubquery_engine::exec()
                                         HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error= report_error(table, error);
+    error= report_handler_error(table, error);
   else
   {
     for (;;)
@@ -3062,7 +3066,7 @@ bool subselect_indexsubquery_engine::exec()
                                               tab->ref.key_length);
         if (error && error != HA_ERR_END_OF_FILE)
         {
-          error= report_error(table, error);
+          error= report_handler_error(table, error);
           break;
         }
       }
@@ -3421,7 +3425,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   tmp_table= tmp_result_sink->table;
   tmp_key= tmp_table->key_info;
-  tmp_key_parts= tmp_key->key_parts;
+  tmp_key_parts= tmp_key->user_defined_key_parts;
 
   /*
      If the subquery has blobs, or the total key lenght is bigger than some
@@ -3436,7 +3440,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
-      tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
+      tmp_table->key_info->user_defined_key_parts >
+      tmp_table->file->max_key_parts());
     free_tmp_table(thd, tmp_table);
     delete result;
     result= NULL;

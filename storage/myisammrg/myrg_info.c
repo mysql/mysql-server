@@ -28,7 +28,7 @@ ulonglong myrg_position(MYRG_INFO *info)
     ~(ulonglong) 0;
 }
 
-int myrg_status(MYRG_INFO *info,register MYMERGE_INFO *x,int flag)
+int myrg_status(MYRG_INFO *info, MYMERGE_INFO *x,int flag)
 {
   MYRG_TABLE *current_table;
   DBUG_ENTER("myrg_status");

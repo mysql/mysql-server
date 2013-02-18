@@ -1738,7 +1738,7 @@ pk1	attr1	attr2	attr3	pk1	attr1	attr2	attr3	attr4
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using filesort
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using MRR; Using filesort
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4
 2	2	9223372036854775804	2	c
@@ -1746,7 +1746,7 @@ pk1	attr1	attr2	attr3	attr4
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using temporary; Using filesort
+1	SIMPLE	t4	range	attr1	attr1	4	NULL	#	Using where with pushed condition; Using MRR; Using temporary; Using filesort
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	#	Using where; Using join buffer (Block Nested Loop)
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 pk1	attr1	attr2	attr3	attr4	pk1	attr1	attr2	attr3	attr4
@@ -1910,7 +1910,7 @@ insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 explain select * from NodeAlias where (aliasKey LIKE '491803%');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	Using where with pushed condition
+1	SIMPLE	NodeAlias	range	NodeAlias_KeyIndex	NodeAlias_KeyIndex	48	NULL	3	Using where with pushed condition; Using MRR
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id;
 id	nodeId	displayName	aliasKey	objectVersion	changed
 7	8	491803%	491803%	0	2008-03-10 12:22:26
@@ -2148,6 +2148,24 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 select * from t where x not like "aa?";
 pk	x
 0	a
+select * from t where x like "%a%";
+pk	x
+0	a
+select * from t where x not like "%b%";
+pk	x
+0	a
+select * from t where x like replace(concat("%", "b%"),"b","a");
+pk	x
+0	a
+select * from t where x not like replace(concat("%", "a%"),"a","b");
+pk	x
+0	a
+select * from t where x like concat("%", replace("b%","b","a"));
+pk	x
+0	a
+select * from t where x not like concat("%", replace("a%","a","b"));
+pk	x
+0	a
 drop table t;
 create table t (pk int primary key, x int) engine = ndb;
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
@@ -2192,6 +2210,67 @@ select * from t where x not like 'ye%' order by x;
 x
 no
 drop table t;
+create table tx (
+a int not null,
+b int not null,
+c int not null,
+d int not null,
+primary key (`a`,`b`)
+) engine = ndb;
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
+explain extended
+select straight_join *
+from tx
+join tx as t2 on t2.a = tx.a and t2.b = tx.b
+join tx as t3 on t3.a = tx.c and t3.b = tx.d
+join tx as t4 on t4.a = t3.b and t4.b = t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 4 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	Child of 'tx' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	Child of 't3' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
+1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
+Warnings:
+Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
+explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`tx`.`c` = 1)
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
+Warnings:
+Note	1003	Can't push table 't2' as child, 'type' must be a 'ref' access
+Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
+explain extended
+select t2.c, count(distinct t2.a)
+from tx
+join tx as t2 on tx.a = t2.c and tx.b = t2.d
+where t2.a = 4
+group by t2.c;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
+1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	NULL
+Warnings:
+Note	1003	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
+Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
+drop table tx;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 create table t (pk int, i int) engine = ndb;
 insert into t values (1,3), (3,6), (6,9), (9,1);
@@ -2202,7 +2281,7 @@ select * from t where exists
 (select * from t as subq where subq.i=3 and t.i=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
+2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`t` `subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
@@ -2211,7 +2290,7 @@ select * from t where exists
 (select * from subq where subq.i=3 and t.i=3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
+2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition (`test`.`subq`.`i` = 3)
 Warnings:
 Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
@@ -2224,67 +2303,6 @@ select * from t where exists
 pk	i
 1	3
 drop table t,subq;
-create table tx (
-a int not null,
-b int not null,
-c int not null,
-d int not null,
-primary key (`a`,`b`)
-) engine = ndb;
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
-Warnings:
-Note	9999	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
-select straight_join *
-from tx
-join tx as t2 on t2.a = tx.a and t2.b = tx.b
-join tx as t3 on t3.a = tx.c and t3.b = tx.d
-join tx as t4 on t4.a = t3.b and t4.b = t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 4 pushed join@1
-1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	Child of 'tx' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	Child of 'tx' in pushed join@1
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	Child of 't2' in pushed join@1
-Warnings:
-Note	1003	/* select#1 */ select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
-explain extended
-select t2.c, count(distinct t2.a)
-from tx
-join tx as t2 on tx.a = t2.c and tx.b = t2.d
-where t2.a = 4
-group by t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
-1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
-Warnings:
-Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	9999	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
-explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tx	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`tx`.`c` = 1)
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where with pushed condition: (`test`.`t2`.`c` = 1); Using join buffer (Block Nested Loop)
-Warnings:
-Note	9999	Can't push table 't2' as child, 'type' must be a 'ref' access
-Note	1003	/* select#1 */ select `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`c` = 1) and (`test`.`t2`.`c` = 1))
-explain extended
-select t2.c, count(distinct t2.a)
-from tx
-join tx as t2 on tx.a = t2.c and tx.b = t2.d
-where t2.a = 4
-group by t2.c;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ref	PRIMARY	PRIMARY	4	const	2	100.00	Using where; Using filesort
-1	SIMPLE	tx	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	
-Warnings:
-Note	9999	Table 't2' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	9999	Table 'tx' is not pushable: GROUP BY cannot be done using index on grouped columns.
-Note	1003	/* select#1 */ select `test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`a`) AS `count(distinct t2.a)` from `test`.`tx` join `test`.`tx` `t2` where ((`test`.`tx`.`b` = `test`.`t2`.`d`) and (`test`.`tx`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`a` = 4)) group by `test`.`t2`.`c`
-drop table tx;
 create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
 insert into t values (1,0), (2,0), (3,0), (4,0);
 set @@optimizer_switch='engine_condition_pushdown=on';
@@ -2298,45 +2316,117 @@ pk1	pk1	pk2	pk2
 3	3	0	0
 4	3	0	0
 drop table t;
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
 set @@optimizer_switch = 'engine_condition_pushdown=on';
-create table t (pk int, i int) engine = ndb;
-insert into t values (1,3), (3,6), (6,9), (9,1);
-create table subq (pk int, i int) engine = ndb;
-insert into subq values (1,3), (3,6), (6,9), (9,1);
-explain extended 
-select * from t where exists
-(select * from t as subq where subq.i=3 and t.i=3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
-Warnings:
-Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`t` `subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
-explain extended 
-select * from t where exists
-(select * from subq where subq.i=3 and t.i=3);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	DEPENDENT SUBQUERY	subq	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where with pushed condition: (`test`.`subq`.`i` = 3)
-Warnings:
-Note	1276	Field or reference 'test.t.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where exists(/* select#2 */ select 1 from `test`.`subq` where ((`test`.`subq`.`i` = 3) and (`test`.`t`.`i` = 3)))
-select * from t where exists
-(select * from t as subq where subq.i=3 and t.i=3);
-pk	i
-1	3
-select * from t where exists
-(select * from subq where subq.i=3 and t.i=3);
-pk	i
-1	3
-explain extended
-select * from t
-where i = (select max(i) from t);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
-2	SUBQUERY	t	ALL	NULL	NULL	NULL	NULL	4	100.00	
-Warnings:
-Note	1003	/* select#1 */ select `test`.`t`.`pk` AS `pk`,`test`.`t`.`i` AS `i` from `test`.`t` where (`test`.`t`.`i` = (/* select#2 */ select max(`test`.`t`.`i`) from `test`.`t`))
-drop table t,subq;
+select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+i	s
+select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+i	s
+select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like replace(concat("%Xext","%"),"X", "T") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like replace(concat("%Text","%"),"T", "X") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
+i	s
+0	Text Hej
+1	xText aaja
+drop table mytable;
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+b
+1
+drop table mytab;
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+select * from t where b like 'a%';
+a	b
+1	abc
+2	aaa
+select * from t where b not like 'a%';
+a	b
+3	bbb
+4	ccc
+drop table t;
+create table escapetest ( emailaddress varchar(255) default null, id int not
+null default '0') engine=ndbcluster;
+insert into escapetest values('test_data@test.org', 1);
+explain select * from escapetest where emailaddress like "test_%";
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	escapetest	ALL	NULL	NULL	NULL	NULL	2	Using where with pushed condition
+select * from escapetest where emailaddress like "test_%";
+emailaddress	id
+test_data@test.org	1
+explain select * from escapetest where emailaddress like "test|_%" escape '|';
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	escapetest	ALL	NULL	NULL	NULL	NULL	2	Using where
+select * from escapetest where emailaddress like "test|_%" escape '|';
+emailaddress	id
+test_data@test.org	1
+drop table escapetest;
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
+#
+# Bug#14106592  DEBUG BUILD CRASH IN NDB_SERIALIZE_COND()
+#
+create table t1(a time) engine=ndbcluster;
+insert into t1 values ('00:00:00'),('01:01:01');
+select 1 from t1 where a >= geomfromtext('1');
+1
+drop table t1;

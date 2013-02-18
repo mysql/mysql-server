@@ -78,6 +78,21 @@ Warning	1292	Truncated incorrect innodb_max_dirty_pages_pct value: '1001'
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
 99
+SET @@global.innodb_max_dirty_pages_pct = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct'
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+99
+SET @@global.innodb_max_dirty_pages_pct = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct'
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+99
+SET @@global.innodb_max_dirty_pages_pct = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_dirty_pages_pct'
+SELECT @@global.innodb_max_dirty_pages_pct;
+@@global.innodb_max_dirty_pages_pct
+99
 '#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_max_dirty_pages_pct =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

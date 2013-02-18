@@ -42,12 +42,12 @@ static char get_scode(CHARSET_INFO * cs, char **ptr,pbool remove_garbage);
 		/* outputed string is 4 byte long */
 		/* out_pntr can be == in_pntr */
 
-void soundex(CHARSET_INFO * cs,register char * out_pntr, char * in_pntr,
+void soundex(CHARSET_INFO * cs, char * out_pntr, char * in_pntr,
 	     pbool remove_garbage)
 {
   char ch,last_ch;
-  reg3 char * end;
-  register uchar *map=cs->to_upper;
+  char *end;
+  uchar *map=cs->to_upper;
 
   if (remove_garbage)
   {

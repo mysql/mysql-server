@@ -593,7 +593,8 @@ public:
   */
   Semijoin_mat_exec *sj_mat_exec;          
   double	worst_seeks;
-  key_map	const_keys;			/**< Keys with constant part */
+  /** Keys with constant part. Subset of keys. */
+  key_map	const_keys;
   key_map	checked_keys;			/**< Keys checked */
   key_map	needed_reg;
   key_map       keys;                           /**< all keys with can be used */
@@ -770,13 +771,14 @@ public:
 
   /** Clean up associated table after query execution, including resources */
   void cleanup();
-  inline bool is_using_loose_index_scan()
+
+  bool is_using_loose_index_scan() const
   {
     return (select && select->quick &&
             (select->quick->get_type() ==
              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
   }
-  bool is_using_agg_loose_index_scan ()
+  bool is_using_agg_loose_index_scan() const
   {
     return (is_using_loose_index_scan() &&
             ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
@@ -791,19 +793,19 @@ public:
     }
     return test(used_rowid_fields);
   }
-  bool is_inner_table_of_outer_join()
+  bool is_inner_table_of_outer_join() const
   {
     return first_inner != NULL;
   }
-  bool is_single_inner_of_semi_join()
+  bool is_single_inner_of_semi_join() const
   {
     return first_sj_inner_tab == this && last_sj_inner_tab == this;
   }
-  bool is_single_inner_of_outer_join()
+  bool is_single_inner_of_outer_join() const
   {
     return first_inner == this && first_inner->last_inner == this;
   }
-  bool is_first_inner_for_outer_join()
+  bool is_first_inner_for_outer_join() const
   {
     return first_inner && first_inner == this;
   }
@@ -1318,8 +1320,9 @@ bool const_expression_in_where(Item *cond, Item *comp_item,
 bool test_if_subpart(ORDER *a,ORDER *b);
 void calc_group_buffer(JOIN *join,ORDER *group);
 bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
-			bool no_changes, const key_map *map);
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
+                        const bool no_changes, const key_map *map,
+                        const char *clause_type);
 bool make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after);
 bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
                         table_map used_tables);
@@ -1330,5 +1333,8 @@ static inline Item * and_items(Item* cond, Item *item)
 {
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
+
+uint actual_key_parts(KEY *key_info);
+uint actual_key_flags(KEY *key_info);
 
 #endif /* SQL_SELECT_INCLUDED */
