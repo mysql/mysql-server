@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -642,6 +642,7 @@ private:
   */
   table_map     added_tables_map;
 public:
+  /// ID of index used for index scan or semijoin LooseScan
   uint		index;
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
