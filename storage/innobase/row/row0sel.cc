@@ -5196,7 +5196,8 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && !trx->read_view
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);

@@ -53,7 +53,8 @@ enum YasslError {
     badVersion_error    = 117,
     compress_error      = 118,
     decompress_error    = 119,
-    pms_version_error   = 120
+    pms_version_error   = 120,
+    sanityCipher_error  = 121
 
     // !!!! add error message to .cpp !!!!
 

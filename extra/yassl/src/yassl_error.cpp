@@ -144,6 +144,10 @@ void SetErrorString(YasslError error, char* buffer)
         strncpy(buffer, "bad PreMasterSecret version error", max);
         break;
 
+    case sanityCipher_error :
+        strncpy(buffer, "sanity check on cipher text size error", max);
+        break;
+
         // openssl errors
     case SSL_ERROR_WANT_READ :
         strncpy(buffer, "the read operation would block", max);
