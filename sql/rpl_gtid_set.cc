@@ -1312,7 +1312,9 @@ void Gtid_set::encode(uchar *buf) const
 }
 
 
-enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t length)
+enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded,
+                                               size_t length,
+                                               size_t *actual_length)
 {
   DBUG_ENTER("Gtid_set::add_gtid_encoding(const uchar *, size_t)");
   if (sid_lock != NULL)
@@ -1384,11 +1386,19 @@ enum_return_status Gtid_set::add_gtid_encoding(const uchar *encoded, size_t leng
       PROPAGATE_REPORTED_ERROR(add_gno_interval(&ivit, start, end, &lock));
     }
   }
-  if (pos != length)
+  DBUG_ASSERT(pos <= length);
+  if (actual_length == NULL)
   {
-    DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", (ulong) pos, (ulong) length));
-    goto report_error;
+    if (pos != length)
+    {
+      DBUG_PRINT("error", ("(pos=%lu) != (length=%lu)", (ulong) pos,
+                 (ulong) length));
+      goto report_error;
+    }
   }
+  else
+    *actual_length= pos;
+
   RETURN_OK;
 
 report_error:
