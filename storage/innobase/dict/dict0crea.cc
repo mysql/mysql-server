@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,9 @@ Created 1/8/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0vec.h"
 #include "dict0priv.h"
+#include "fts0priv.h"
+#include "srv0space.h"
+#include "ha_prototypes.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -262,8 +265,7 @@ dict_build_table_def_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-	use_tablespace =
-		DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
+	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
@@ -273,6 +275,11 @@ dict_build_table_def_step(
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
+
+		DBUG_EXECUTE_IF(
+			"ib_create_table_fail_out_of_space_ids",
+			space = ULINT_UNDEFINED;
+		);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
@@ -316,6 +323,12 @@ dict_build_table_def_step(
 		features by keeping only the first bit which says whether
 		the row format is redundant or compact */
 		table->flags &= DICT_TF_COMPACT;
+
+		/* All non-compressed temporary tables are stored in
+		shared temp-tablespace */
+		if (dict_table_is_temporary(table)) {
+			table->space = srv_tmp_space.space_id();
+		}
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
@@ -609,6 +622,8 @@ dict_build_index_def_step(
 
 	/* Note that the index was created by this transaction. */
 	index->trx_id = trx->id;
+	ut_ad(table->def_trx_id <= trx->id);
+	table->def_trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -884,7 +899,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id) {
+		if (index->id == index_id && !(index->type & DICT_FTS)) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -1061,6 +1076,7 @@ dict_create_table_step(
 		/* thr->run_node = node->commit_node;
 
 		return(thr); */
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 	}
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
@@ -1175,7 +1191,37 @@ dict_create_index_step(
 
 		err = dict_create_index_tree_step(node);
 
+		DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
+				err = DB_OUT_OF_MEMORY;);
+
 		if (err != DB_SUCCESS) {
+			/* If this is a FTS index, we will need to remove
+			it from fts->cache->indexes list as well */
+			if ((node->index->type & DICT_FTS)
+			    && node->table->fts) {
+				fts_index_cache_t*	index_cache;
+
+				rw_lock_x_lock(
+					&node->table->fts->cache->init_lock);
+
+				index_cache = (fts_index_cache_t*)
+					 fts_find_index_cache(
+						node->table->fts->cache,
+						node->index);
+
+				if (index_cache->words) {
+					rbt_free(index_cache->words);
+					index_cache->words = 0;
+				}
+
+				ib_vector_remove(
+					node->table->fts->cache->indexes,
+					*reinterpret_cast<void**>(index_cache));
+
+				rw_lock_x_unlock(
+					&node->table->fts->cache->init_lock);
+			}
+
 			dict_index_remove_from_cache(node->table, node->index);
 			node->index = NULL;
 
@@ -1183,7 +1229,11 @@ dict_create_index_step(
 		}
 
 		node->index->page = node->page_no;
-		node->index->trx_id = trx->id;
+		/* These should have been set in
+		dict_build_index_def_step() and
+		dict_index_add_to_cache(). */
+		ut_ad(node->index->trx_id == trx->id);
+		ut_ad(node->index->table->def_trx_id == trx->id);
 		node->state = INDEX_COMMIT_WORK;
 	}
 
@@ -1297,6 +1347,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	trx = trx_allocate_for_mysql();
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx->op_info = "creating foreign key sys tables";
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1306,20 +1358,20 @@ dict_create_or_check_foreign_constraint_tables(void)
 	if (sys_foreign_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN table.\n");
+			"SYS_FOREIGN table.");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN_COLS table.\n");
+			"SYS_FOREIGN_COLS table.");
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_WARN,
-		"Creating foreign key constraint system tables.\n");
+		"Creating foreign key constraint system tables.");
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1363,7 +1415,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_ad(err == DB_OUT_OF_FILE_SPACE
@@ -1387,7 +1439,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Foreign key constraint system tables created\n");
+			"Foreign key constraint system tables created");
 	}
 
 	/* Note: The master thread has not been started at this point. */
@@ -1410,11 +1462,11 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_foreign_eval_sql(
 /*==================*/
-	pars_info_t*	info,	/*!< in: info struct, or NULL */
+	pars_info_t*	info,	/*!< in: info struct */
 	const char*	sql,	/*!< in: SQL string to evaluate */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in: transaction */
+	const char*	name,	/*!< in: table name (for diagnostics) */
+	const char*	id,	/*!< in: foreign key id */
+	trx_t*		trx)	/*!< in/out: transaction */
 {
 	dberr_t	error;
 	FILE*	ef	= dict_foreign_err_file;
@@ -1427,9 +1479,9 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Error in foreign key constraint creation for table ",
 		      ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, name);
 		fputs(".\nA foreign key constraint of name ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->id);
+		ut_print_name(ef, trx, TRUE, id);
 		fputs("\nalready exists."
 		      " (Note that internally InnoDB adds 'databasename'\n"
 		      "in front of the user-defined constraint name.)\n"
@@ -1456,7 +1508,7 @@ dict_foreign_eval_sql(
 		ut_print_timestamp(ef);
 		fputs(" Internal error in foreign key constraint creation"
 		      " for table ", ef);
-		ut_print_name(ef, trx, TRUE, table->name);
+		ut_print_name(ef, trx, TRUE, name);
 		fputs(".\n"
 		      "See the MySQL .err log in the datadir"
 		      " for more information.\n", ef);
@@ -1476,10 +1528,10 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_create_add_foreign_field_to_dictionary(
 /*========================================*/
-	ulint		field_nr,	/*!< in: foreign field number */
-	dict_table_t*	table,		/*!< in: table */
-	dict_foreign_t*	foreign,	/*!< in: foreign */
-	trx_t*		trx)		/*!< in: transaction */
+	ulint			field_nr,	/*!< in: field number */
+	const char*		table_name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,	/*!< in: foreign */
+	trx_t*			trx)		/*!< in/out: transaction */
 {
 	pars_info_t*	info = pars_info_create();
 
@@ -1500,48 +1552,26 @@ dict_create_add_foreign_field_to_dictionary(
 		       "INSERT INTO SYS_FOREIGN_COLS VALUES"
 		       "(:id, :pos, :for_col_name, :ref_col_name);\n"
 		       "END;\n",
-		       table, foreign, trx));
+		       table_name, foreign->id, trx));
 }
 
 /********************************************************************//**
-Add a single foreign key definition to the data dictionary tables in the
-database. We also generate names to constraints that were not named by the
-user. A generated constraint has a name of the format
-databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
-are given locally for this table, that is, the number is not global, as in
-the old format constraints < 4.0.18 it used to be.
+Add a foreign key definition to the data dictionary tables.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
-	ulint*		id_nr,	/*!< in/out: number to use in id generation;
-				incremented if used */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in/out: dictionary transaction */
+	const char*		name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,/*!< in: foreign key */
+	trx_t*			trx)	/*!< in/out: dictionary transaction */
 {
 	dberr_t		error;
-	ulint		i;
-
 	pars_info_t*	info = pars_info_create();
-
-	if (foreign->id == NULL) {
-		/* Generate a new constraint id */
-		char*	id;
-		ulint	namelen	= strlen(table->name);
-
-		id = static_cast<char*>(mem_heap_alloc(
-				foreign->heap, namelen + 20));
-
-		/* no overflow if number < 1e13 */
-		sprintf(id, "%s_ibfk_%lu", table->name, (ulong) (*id_nr)++);
-		foreign->id = id;
-	}
 
 	pars_info_add_str_literal(info, "id", foreign->id);
 
-	pars_info_add_str_literal(info, "for_name", table->name);
+	pars_info_add_str_literal(info, "for_name", name);
 
 	pars_info_add_str_literal(info, "ref_name",
 				  foreign->referenced_table_name);
@@ -1555,16 +1585,16 @@ dict_create_add_foreign_to_dictionary(
 				      "INSERT INTO SYS_FOREIGN VALUES"
 				      "(:id, :for_name, :ref_name, :n_cols);\n"
 				      "END;\n"
-				      , table, foreign, trx);
+				      , name, foreign->id, trx);
 
 	if (error != DB_SUCCESS) {
 
 		return(error);
 	}
 
-	for (i = 0; i < foreign->n_fields; i++) {
+	for (ulint i = 0; i < foreign->n_fields; i++) {
 		error = dict_create_add_foreign_field_to_dictionary(
-			i, table, foreign, trx);
+			i, name, foreign, trx);
 
 		if (error != DB_SUCCESS) {
 
@@ -1611,7 +1641,15 @@ dict_create_add_foreigns_to_dictionary(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		error = dict_create_add_foreign_to_dictionary(&number, table,
+		error = dict_create_add_foreign_id(&number, table->name,
+						   foreign);
+
+		if (error != DB_SUCCESS) {
+
+			return(error);
+		}
+
+		error = dict_create_add_foreign_to_dictionary(table->name,
 							      foreign, trx);
 
 		if (error != DB_SUCCESS) {
@@ -1661,6 +1699,8 @@ dict_create_or_check_sys_tablespace(void)
 
 	trx = trx_allocate_for_mysql();
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx->op_info = "creating tablepace and datafile sys tables";
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1670,20 +1710,20 @@ dict_create_or_check_sys_tablespace(void)
 	if (sys_tablespaces_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_TABLESPACES table.\n");
+			"SYS_TABLESPACES table.");
 		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_DATAFILES table.\n");
+			"SYS_DATAFILES table.");
 
 		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Creating tablespace and datafile system tables.\n");
+		"Creating tablespace and datafile system tables.");
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
@@ -1709,7 +1749,7 @@ dict_create_or_check_sys_tablespace(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_TABLESPACES and SYS_DATAFILES "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
@@ -1733,7 +1773,7 @@ dict_create_or_check_sys_tablespace(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace and datafile system tables created\n");
+			"Tablespace and datafile system tables created.");
 	}
 
 	/* Note: The master thread has not been started at this point. */

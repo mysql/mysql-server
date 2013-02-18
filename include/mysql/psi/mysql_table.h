@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,6 +22,10 @@
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_TABLE_CALL
+#define PSI_TABLE_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup Table_instrumentation Table Instrumentation
@@ -88,8 +92,8 @@
   This instrumentation marks the start of a wait event.
   @param PSI the instrumented table
   @param OP the table operation to be performed
-  @param INDEX the table index used if any, or MAY_KEY.
   @param FLAGS per table operation flags.
+  @param PAYLOAD the code to instrument.
   @sa MYSQL_END_TABLE_WAIT.
 */
 #ifdef HAVE_PSI_TABLE_INTERFACE

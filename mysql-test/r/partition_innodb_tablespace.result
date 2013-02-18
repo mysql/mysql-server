@@ -10,12 +10,12 @@ SET GLOBAL innodb_file_per_table = OFF;
 CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
 (PARTITION p0 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data' INDEX DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
 PARTITION p1 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data' INDEX DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data');
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 Error	6	Error on delete of './test/t1.par' (Errcode: 2 - No such file or directory)
 # Try again with innodb_file_per_table = ON and no INDEX DIRECTORY.
 SET GLOBAL innodb_file_per_table = ON;

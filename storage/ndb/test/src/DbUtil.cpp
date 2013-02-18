@@ -215,7 +215,7 @@ DbUtil::mysqlSimplePrepare(const char *query)
     printf("Inside DbUtil::mysqlSimplePrepare\n");
   #endif
   MYSQL_STMT *my_stmt= mysql_stmt_init(this->getMysql());
-  if (my_stmt && mysql_stmt_prepare(my_stmt, query, strlen(query))){
+  if (my_stmt && mysql_stmt_prepare(my_stmt, query, (unsigned long)strlen(query))){
     this->printStError(my_stmt,"Prepare Statement Failed");
     mysql_stmt_close(my_stmt);
     return NULL;
@@ -353,7 +353,7 @@ DbUtil::runQuery(const char* sql,
 
 
   MYSQL_STMT *stmt= mysql_stmt_init(m_mysql);
-  if (mysql_stmt_prepare(stmt, sql, strlen(sql)))
+  if (mysql_stmt_prepare(stmt, sql, (unsigned long)strlen(sql)))
   {
     report_error("Failed to prepare: ", m_mysql);
     return false;
@@ -390,7 +390,7 @@ DbUtil::runQuery(const char* sql,
       args.get(name.c_str(), &val_s);
       bind_param[i].buffer_type= MYSQL_TYPE_STRING;
       bind_param[i].buffer= (char*)val_s;
-      bind_param[i].buffer_length= strlen(val_s);
+      bind_param[i].buffer_length= (unsigned long)strlen(val_s);
       g_debug << " param" << name.c_str() << ": " << val_s << endl;
       break;
     default:

@@ -62,11 +62,12 @@ protected:
      */
     static const char* name() { return "END_LCP_REQ"; }
     EndLcpReq m_req;
+    bool m_extraLast;
     Ss_END_LCP_REQ() {
       m_sendREQ = (SsFUNCREQ)&PgmanProxy::sendEND_LCP_REQ;
       m_sendCONF = (SsFUNCREP)&PgmanProxy::sendEND_LCP_CONF;
       // extra worker (for extent pages) must run after others
-      m_extraLast = true;
+      m_extraLast = false;
     }
     enum { poolSize = 1 };
     static SsPool<Ss_END_LCP_REQ>& pool(LocalProxy* proxy) {

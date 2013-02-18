@@ -46,6 +46,7 @@ must be ON
 1
 call mtr.add_suppression("--relay-log-recovery cannot be executed when the slave was stopped with an error or killed in MTS mode; consider using RESET SLAVE or restart the server with --relay-log-recovery = 0");
 call mtr.add_suppression("Failed to initialize the master info structure");
+call mtr.add_suppression("It is not possible to change the type of the relay log repository because there are workers repositories with possible execution gaps. The value of --relay_log_info_repository is altered to one of the found Worker repositories");
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start]
 SELECT @@global.relay_log_recovery as 'must be OFF';
 must be OFF

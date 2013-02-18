@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <m_string.h>
 #include "my_default.h"
+#include <m_ctype.h>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -39,6 +40,9 @@ static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
 static void print_cmdline_password_warning();
+static my_bool get_bool_argument(const struct my_option *opts,
+                                 const char *argument,
+                                 bool *error);
 
 /*
   The following three variables belong to same group and the number and
@@ -89,6 +93,26 @@ static my_getopt_value getopt_get_addr;
 void my_getopt_register_get_addr(my_getopt_value func_addr)
 {
   getopt_get_addr= func_addr;
+}
+
+
+/**
+  Wrapper around my_handle_options() for interface compatibility.
+
+  @param argc [in, out]      Command line options (count)
+  @param argv [in, out]      Command line options (values)
+  @param longopts [in]       Descriptor of all valid options
+  @param get_one_option [in] Optional callback function to process each option,
+                             can be NULL.
+
+  @return Error in case of ambiguous or unknown options,
+          0 on success.
+*/
+int handle_options(int *argc, char ***argv,
+		   const struct my_option *longopts,
+                   my_get_one_option get_one_option)
+{
+  return my_handle_options(argc, argv, longopts, get_one_option, NULL);
 }
 
 /**
@@ -146,13 +170,21 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   @param [in, out] argv      command line options (values)
   @param [in] longopts       descriptor of all valid options
   @param [in] get_one_option optional callback function to process each option,
-                            can be NULL.
+                             can be NULL.
+  @param [in] command_list   NULL-terminated list of strings (commands) which
+                             (if set) is looked up for all non-option strings
+                             found while parsing the command line parameters.
+                             The parsing terminates if a match is found. At
+                             exit, argv [out] would contain all the remaining
+                             unparsed options along with the matched command.
+
   @return error in case of ambiguous or unknown options,
           0 on success.
 */
-int handle_options(int *argc, char ***argv, 
-		   const struct my_option *longopts,
-                   my_get_one_option get_one_option)
+int my_handle_options(int *argc, char ***argv,
+                      const struct my_option *longopts,
+                      my_get_one_option get_one_option,
+                      const char **command_list)
 {
   uint UNINIT_VAR(opt_found), argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -390,21 +422,25 @@ int handle_options(int *argc, char ***argv,
 	      --enable-'option-name'.
 	      *optend was set to '0' if one used --disable-option
 	    */
-	    (*argc)--;
-	    if (!optend || *optend == '1' ||
-		!my_strcasecmp(&my_charset_latin1, optend, "true"))
-	      *((my_bool*) value)= (my_bool) 1;
-	    else if (*optend == '0' ||
-		     !my_strcasecmp(&my_charset_latin1, optend, "false"))
-	      *((my_bool*) value)= (my_bool) 0;
-	    else
-	    {
-	      my_getopt_error_reporter(WARNING_LEVEL,
-				       "%s: ignoring option '--%s' "
-                                       "due to invalid value '%s'",
-				       my_progname, optp->name, optend);
-	      continue;
-	    }
+            (*argc)--;
+            if(!optend)
+              *((my_bool*) value)= (my_bool) 1;
+            else
+            {
+              my_bool ret= 0;
+              bool error= 0;
+              ret= get_bool_argument(optp, optend, &error);
+              if(error)
+              {
+                my_getopt_error_reporter(WARNING_LEVEL,
+                                         "%s: ignoring option '--%s' "
+                                         "due to invalid value '%s'",
+                                         my_progname, optp->name, optend);
+                continue;
+              }
+              else
+                *((my_bool*) value)= ret;
+            }
             if (get_one_option && get_one_option(optp->id, optp,
                                *((my_bool*) value) ?
                                enabled_my_option : disabled_my_option))
@@ -553,8 +589,29 @@ int handle_options(int *argc, char ***argv,
       (*argc)--; /* option handled (long), decrease argument count */
     }
     else /* non-option found */
-      (*argv)[argvpos++]= cur_arg;
+    {
+      if (command_list)
+      {
+        while (* command_list)
+        {
+          if (!strcmp(*command_list, cur_arg))
+          {
+            /* Match found. */
+            (*argv)[argvpos ++]= cur_arg;
+
+            /* Copy rest of the un-parsed elements & return. */
+            while ((++ pos) != pos_end)
+              (*argv)[argvpos ++]= *pos;
+            goto done;
+          }
+          command_list ++;
+        }
+      }
+      (*argv)[argvpos ++]= cur_arg;
+    }
   }
+
+done:
   /*
     Destroy the first, already handled option, so that programs that look
     for arguments in 'argv', without checking 'argc', know when to stop.
@@ -638,7 +695,8 @@ static char *check_struct_option(char *cur_arg, char *key_name)
    @return boolean value
 */
 static my_bool get_bool_argument(const struct my_option *opts,
-                                 const char *argument)
+                                 const char *argument,
+                                 bool *error)
 {
   if (!my_strcasecmp(&my_charset_latin1, argument, "true") ||
       !my_strcasecmp(&my_charset_latin1, argument, "on") ||
@@ -648,9 +706,8 @@ static my_bool get_bool_argument(const struct my_option *opts,
       !my_strcasecmp(&my_charset_latin1, argument, "off") ||
       !my_strcasecmp(&my_charset_latin1, argument, "0"))
     return 0;
-  my_getopt_error_reporter(WARNING_LEVEL,
-      "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
-      opts->name, argument);
+  else
+    *error= 1;
   return 0;
 }
 
@@ -665,6 +722,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 		  my_bool set_maximum_value)
 {
   int err= 0, res= 0;
+  bool error= 0;
 
   if (!argument)
     argument= enabled_my_option;
@@ -681,7 +739,11 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 
     switch ((opts->var_type & GET_TYPE_MASK)) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
-      *((my_bool*) value)= get_bool_argument(opts, argument);
+      *((my_bool*) value)= get_bool_argument(opts, argument, &error);
+      if(error)
+        my_getopt_error_reporter(WARNING_LEVEL,
+            "option '%s': boolean value '%s' wasn't recognized. Set to OFF.",
+            opts->name, argument);
       break;
     case GET_INT:
       *((int*) value)= (int) getopt_ll(argument, opts, &err);
@@ -862,7 +924,7 @@ static int findopt(char *optpat, uint length,
   2.) Returns -1 if strings differ, 0 if they are equal
 */
 
-my_bool getopt_compare_strings(register const char *s, register const char *t,
+my_bool getopt_compare_strings(const char *s, const char *t,
 			       uint length)
 {
   char const *end= s + length;
@@ -1008,6 +1070,14 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   return num;
 }
 
+static inline my_bool is_negative_num(char* num)
+{
+  while (my_isspace(&my_charset_latin1, *num)) 
+    num++;
+  
+  return (*num == '-');
+}
+
 /*
   function: getopt_ull
 
@@ -1017,7 +1087,20 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
 
 static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
-  ulonglong num= eval_num_suffix(arg, err, (char*) optp->name);
+  ulonglong num;
+
+  /*
+    Bug #14683107
+    eval_num_suffix uses strtoll, strtoull also seems to have the same
+    behaviour return 0xffffffffffffffff irrespective of the signedness
+    specification. Hence '-' is checked in the input and num is set to 0 if
+    it is present to force it to the lowest possible unsigned value.
+  */
+  if (arg == NULL || is_negative_num(arg) == TRUE)
+    num= 0;
+  else
+    num= eval_num_suffix(arg, err, (char*) optp->name);
+  
   return getopt_ull_limit_value(num, optp, NULL);
 }
 

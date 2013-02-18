@@ -345,11 +345,18 @@ extern const char*	fts_default_stopword[];
 /** Variable specifying the maximum FTS cache size for each table */
 extern ulong		fts_max_cache_size;
 
+/** Variable specifying the total memory allocated for FTS cache */
+extern ulong		fts_max_total_cache_size;
+
 /** Variable specifying the maximum FTS max token size */
 extern ulong		fts_max_token_size;
 
 /** Variable specifying the minimum FTS max token size */
 extern ulong		fts_min_token_size;
+
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+extern bool		fts_need_sync;
 
 /** Maximum possible Fulltext word length */
 #define FTS_MAX_WORD_LEN	3 * HA_FT_MAXCHARLEN
@@ -402,10 +409,11 @@ UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
+	trx_t*			trx,		/*!< in/out: transaction */
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
-	__attribute__((nonnull(1)));
+	__attribute__((nonnull(2)));
 
 /******************************************************************//**
 Create a new document id .
@@ -503,7 +511,7 @@ fts_create_index_tables_low(
 						instance */
 	const char*	table_name,		/*!< in: the table name */
 	table_id_t	table_id)		/*!< in: the table id */
-	__attribute__((nonnull));
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Add the FTS document id hidden column. */
 UNIV_INTERN
@@ -729,6 +737,7 @@ void
 fts_savepoint_take(
 /*===============*/
 	trx_t*		trx,			/*!< in: transaction */
+	fts_trx_t*	fts_trx,		/*!< in: fts transaction */
 	const char*	name)			/*!< in: savepoint name */
 	__attribute__((nonnull));
 /**********************************************************************//**

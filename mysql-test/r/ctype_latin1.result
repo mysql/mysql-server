@@ -1131,7 +1131,7 @@ create table t1 as select concat(is_used_lock('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) DEFAULT NULL
+  `c1` varchar(21) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(release_lock('a')) as c1;

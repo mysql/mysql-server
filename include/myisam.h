@@ -466,16 +466,16 @@ typedef struct st_sort_info
 /* functions in mi_check */
 void myisamchk_init(MI_CHECK *param);
 int chk_status(MI_CHECK *param, MI_INFO *info);
-int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag);
+int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag);
 int chk_size(MI_CHECK *param, MI_INFO *info);
 int chk_key(MI_CHECK *param, MI_INFO *info);
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend);
-int mi_repair(MI_CHECK *param, register MI_INFO *info,
+int mi_repair(MI_CHECK *param, MI_INFO *info,
 	      char * name, int rep_quick);
-int mi_sort_index(MI_CHECK *param, register MI_INFO *info, char * name);
-int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
+int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name);
+int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
 		      const char * name, int rep_quick);
-int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
+int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
 		      const char * name, int rep_quick);
 int change_to_newfile(const char * filename, const char * old_ext,
 		      const char * new_ext, myf myflags);

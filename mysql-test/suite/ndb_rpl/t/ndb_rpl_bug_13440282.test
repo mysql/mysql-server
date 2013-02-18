@@ -1,0 +1,53 @@
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+CREATE TABLE `loadreptable` (
+ `nid` int(11) NOT NULL,
+ `nom` char(255) DEFAULT NULL,
+ `prenom` char(255) DEFAULT NULL,
+ `abc` char(255) DEFAULT NULL,
+ `wkz` char(255) DEFAULT NULL,
+ `xyz` char(255) DEFAULT NULL,
+ PRIMARY KEY (`nid`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+ 
+delimiter //;
+CREATE PROCEDURE MAJ ()
+BEGIN
+DECLARE fini INT default 0;
+WHILE fini < 20 DO
+DELETE FROM loadreptable WHERE nid > 2;
+UPDATE loadreptable SET nid=nid+1 ORDER BY nid DESC;
+UPDATE loadreptable SET
+nom="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxx";
+INSERT INTO loadreptable VALUES(1,"w","t","y","k","b");
+SET fini=fini+1;
+END WHILE;
+END ;
+//
+delimiter ;//
+
+--sync_slave_with_master
+
+let $i=10;
+while ($i)
+{
+  --connection master
+  call MAJ();
+  --echo "master"
+  select count(*) from loadreptable;
+  --sync_slave_with_master
+  --connection slave
+  --echo "slave"
+  select count(*) from loadreptable;
+  dec $i;
+}
+
+--connection master
+drop table loadreptable;
+drop procedure MAJ;
+
+--sync_slave_with_master
+--source include/rpl_end.inc

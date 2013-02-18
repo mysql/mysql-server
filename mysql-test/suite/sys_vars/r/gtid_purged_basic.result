@@ -1,0 +1,26 @@
+SET @start_global_value = @@global.gtid_purged;
+SELECT @start_global_value;
+@start_global_value
+
+select @@global.gtid_purged;
+@@global.gtid_purged
+
+select @@session.gtid_purged;
+ERROR HY000: Variable 'gtid_purged' is a GLOBAL variable
+show global variables like 'gtid_purged';
+Variable_name	Value
+gtid_purged	
+show session variables like 'gtid_purged';
+Variable_name	Value
+gtid_purged	
+select * from information_schema.global_variables where variable_name='gtid_purged';
+VARIABLE_NAME	VARIABLE_VALUE
+GTID_PURGED	
+select * from information_schema.session_variables where variable_name='gtid_purged';
+VARIABLE_NAME	VARIABLE_VALUE
+GTID_PURGED	
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2';
+ERROR HY000: @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_MODE = ON.
+select @@global.gtid_purged;
+@@global.gtid_purged
+

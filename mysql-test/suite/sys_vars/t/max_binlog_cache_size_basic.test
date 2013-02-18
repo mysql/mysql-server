@@ -107,6 +107,9 @@ SELECT @@global.max_binlog_cache_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_binlog_cache_size = 'test';
 SELECT @@global.max_binlog_cache_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_binlog_cache_size = ' ';
+SELECT @@global.max_binlog_cache_size;
 
 
 --echo '#-------------------FN_DYNVARS_072_05----------------------------#'

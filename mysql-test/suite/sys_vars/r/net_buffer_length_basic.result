@@ -89,6 +89,11 @@ ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
 SELECT @@global.net_buffer_length;
 @@global.net_buffer_length
 1048576
+SET @@global.net_buffer_length = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
+SELECT @@global.net_buffer_length;
+@@global.net_buffer_length
+1048576
 SET @@session.net_buffer_length = test;
 ERROR 42000: Incorrect argument type to variable 'net_buffer_length'
 SELECT @@session.net_buffer_length;

@@ -21,22 +21,4 @@ show slave status;
 select master_pos_wait('foo', 98);
 master_pos_wait('foo', 98)
 NULL
-include/start_slave_sql.inc
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
-SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2)
--1
-EXPLAIN EXTENDED SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Note	1003	/* select#1 */ select sql_thread_wait_after_gtids('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1',2) AS `SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 2)`
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('', 2);
-SQL_THREAD_WAIT_AFTER_GTIDS('', 2)
-0
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('error-gtid', 2);
-ERROR HY000: Malformed GTID set specification 'error-gtid'.
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 0);
-STOP SLAVE SQL_THREAD;
-SQL_THREAD_WAIT_AFTER_GTIDS('7805be8e-51ab-11e1-bacc-6706c20ad7ba:1', 0)
-NULL
 include/rpl_end.inc

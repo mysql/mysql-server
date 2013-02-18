@@ -1,0 +1,756 @@
+######## suite/innodb/t/innodb-wl6445-1                     ##########
+#                                                                    #
+# Testcase for worklog WL#6445: InnoDB should be able to work with   #
+# read-only tables
+# All sub-test in this file focus on restarting server in read only  #
+# and verify necessary operations blocked                            #
+# operations                                                         #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2011-09-06 Implemented this test as part of WL#6445                #
+#                                                                    #
+######################################################################
+
+# Don't test this under valgrind, memory leaks will occur due restart
+--source include/not_valgrind.inc
+# Not supported in embedded
+--source include/not_embedded.inc
+
+-- source include/have_innodb.inc
+
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
+let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
+let $innodb_flush_log_at_trx_commit_orig =`select @@innodb_flush_log_at_trx_commit`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
+
+set global innodb_large_prefix=1;
+SELECT @@innodb_large_prefix;
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+let $data_index_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
+
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+
+
+#------------------------------------------------------------------------------
+# Testcase 1 covers
+# a) Create table/data , restart server in readonly mode 
+# b) verfiy DDL/DML/DCL in read only mode
+# c) statements blocked for non root and root user from differet sessions.
+#------------------------------------------------------------------------------
+--echo case # 1
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+# Create user with minimun access
+CREATE USER 'test1'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test1'@'localhost';
+# Create user with root access
+CREATE USER 'test2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON *.* TO 'test2'@'localhost';
+
+# check when datadir and index dir are specified
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+EVAL CREATE TABLE otherlocation (id int PRIMARY KEY) 
+ENGINE=InnoDB , $data_index_directory;
+INSERT INTO otherlocation VALUES (1),(2),(3);
+SELECT * FROM otherlocation ORDER BY id;
+
+#SHOW ENGINE INNODB STATUS;
+
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+
+# Nothing to do with wl64645.non-InnoDB issue. But need to document in QA note.
+CREATE USER 'test3'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test3'@'localhost';
+
+USE testdb_wl6445;
+SELECT i FROM t1 ORDER BY i;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+--echo # connection con_test1_user try to modify
+--connect (con_test1_user,'localhost','test1','123',)
+SELECT user();
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i int ,j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+
+--echo # disconnect con_test1_user
+--disconnect con_test1_user
+
+
+--echo # connection con_test2_user 
+--connect (con_test2_user,'localhost','test2','123',)
+SELECT user();
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+# Fix in next revision - known ( no data returned)
+#SHOW ENGINE INNODB STATUS;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+
+--echo # disconnect con_test2_user
+--disconnect con_test2_user
+
+
+--echo # connection default
+--connection default
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+
+# check with table having data and index directory specified
+--ERROR ER_CANT_LOCK
+INSERT INTO otherlocation VALUES (1),(2),(3);
+SELECT * FROM otherlocation ORDER BY id;
+
+# Fix in next revision - known ( no data returned)
+# SHOW ENGINE INNODB STATUS;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP USER 'test1'@'localhost';
+DROP USER 'test2'@'localhost';
+DROP USER 'test3'@'localhost';
+DROP TABLE otherlocation;
+DROP DATABASE testdb_wl6445;
+
+
+#------------------------------------------------------------------------------
+# Testcase 2 covers
+# a) Create table/data , perform transaction , restart server in readonly mode 
+# b) verfiy DDL/DML/DCL in read only mode
+#------------------------------------------------------------------------------
+--echo case # 2
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',4000)),(2,repeat('b',4000)),(3,repeat('c',4000));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+
+START TRANSACTION;
+let $counter= 50;
+--disable_query_log
+while ($counter>3) {
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT A;
+let $counter= 100;
+--disable_query_log
+while ($counter>50) {
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT B;
+ROLLBACK TO A;
+--echo "---commit first 50 records "
+COMMIT;
+
+
+SELECT COUNT(*) FROM testdb_wl6445.t1;
+#SHOW ENGINE INNODB STATUS;
+
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (211,repeat('a',200)),(212,repeat('b',200)),(213,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 WHERE i%10=0 ORDER BY i;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+
+# Check with transaction in read-only mode with innodb_flush_log_at_trx_commit=0
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 0;
+let $counter= 200;
+--disable_query_log
+while ($counter>150) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT A;
+let $counter= 250;
+--disable_query_log
+while ($counter>200) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT B;
+ROLLBACK TO A;
+--echo "---commit first 50 records with innodb_flush_log_at_trx_commit = 0 --"
+COMMIT;
+
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+
+# Check with transaction in read-only mode with innodb_flush_log_at_trx_commit=1
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 1;
+let $counter= 200;
+--disable_query_log
+while ($counter>150) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT A;
+let $counter= 250;
+--disable_query_log
+while ($counter>200) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT B;
+ROLLBACK TO A;
+--echo "---commit first 50 records with innodb_flush_log_at_trx_commit = 1 --"
+COMMIT;
+
+SELECT i,LEFT(j,20) FROM t1  WHERE i%10=0  ORDER BY i;
+
+# Check with transaction in read-only mode with innodb_flush_log_at_trx_commit=2
+START TRANSACTION;
+SET GLOBAL innodb_flush_log_at_trx_commit = 2;
+let $counter= 200;
+--disable_query_log
+while ($counter>150) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT A;
+let $counter= 250;
+--disable_query_log
+while ($counter>200) {
+   --ERROR ER_CANT_LOCK
+   EVAL INSERT INTO testdb_wl6445.t1 VALUES ($counter,repeat(CONCAT('a',$counter),2000));
+   --ERROR ER_CANT_LOCK
+   UPDATE testdb_wl6445.t1 SET i = i + 1;
+   --ERROR ER_CANT_LOCK
+   DELETE FROM testdb_wl6445.t1;
+   --dec $counter
+}
+--enable_query_log
+SAVEPOINT B;
+ROLLBACK TO A;
+--echo "---commit first 50 records with innodb_flush_log_at_trx_commit = 2 --"
+COMMIT;
+
+
+# Fix in next revision - known ( no data returned)
+# SHOW ENGINE INNODB STATUS;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+
+
+
+#------------------------------------------------------------------------------
+# Testcase 3 covers
+# a) Create table/data with trigger & procedure, partitioned table
+# b) restart server in readonly mode 
+# c) verfiy behavior with trigger,procedure,partitioned and temp table
+#------------------------------------------------------------------------------
+--echo case # 3
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+CREATE TABLE t2 ( t2_i int PRIMARY KEY , t2_j blob) ENGINE = InnoDB;
+CREATE TABLE t3 ( i int PRIMARY KEY , j VARCHAR(20)) ENGINE = InnoDB;
+
+# create partitioned table
+CREATE TABLE t4 (val INT)
+PARTITION BY LIST(val)(
+         PARTITION mypart_odd VALUES IN (1,3,5),
+         PARTITION MyPart_even VALUES IN (2,4,6));
+INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
+SELECT * FROM testdb_wl6445.t4 ORDER BY val;
+
+DELIMITER //;
+CREATE TRIGGER TRIGGER_1 BEFORE INSERT ON testdb_wl6445.t1 FOR EACH ROW BEGIN
+INSERT INTO testdb_wl6445.t2 SET t2_i = NEW.i , t2_j = NEW.j;
+END;//
+CREATE PROCEDURE proc1 (OUT param1 INT)
+BEGIN
+SELECT COUNT(*) INTO param1 FROM testdb_wl6445.t1;
+END;//
+CREATE PROCEDURE proc2 (IN param1 INT,IN param2 VARCHAR(20))
+BEGIN
+INSERT INTO testdb_wl6445.t3 VALUES (param1,param2);
+END;//
+DELIMITER ;//
+
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+SELECT t2_i,LEFT(t2_j,20) FROM t2 ORDER BY t2_i;
+CALL proc1(@a);
+SELECT @a;
+CALL proc2(1,'test1');
+SELECT * FROM t3;
+
+#SHOW ENGINE INNODB STATUS;
+
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+SELECT t2_i,LEFT(t2_j,20) FROM t2 ORDER BY t2_i;
+CALL proc1(@a);
+SELECT @a;
+--ERROR ER_CANT_LOCK
+CALL proc2(2,'test2');
+SELECT * FROM t3;
+
+# try to CREATE temp table 
+--ERROR ER_OPEN_AS_READONLY
+CREATE TEMPORARY TABLE temp_1 ( i INT ) ENGINE = Innodb;
+
+# Try to insert with partitioned table
+--ERROR ER_CANT_LOCK
+INSERT INTO testdb_wl6445.t4 VALUES (1),(2),(3),(4),(5),(6);
+SELECT * FROM testdb_wl6445.t4 ORDER BY val;
+
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1,t2,t3;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+
+
+#------------------------------------------------------------------------------
+# Testcase 4 covers
+# a) Create table/data restart server in readonly mode 
+# b) check the effect of server variables impacting change of RO 
+#    ( they will be ignored)
+#------------------------------------------------------------------------------
+--echo case # 4
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(6,'innodb engine');
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+#FTS Query
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+
+# store initial values
+let $innodb_max_purge_lag_orig = `SELECT @@innodb_max_purge_lag`;
+let $innodb_max_purge_lag_delay_orig = `SELECT @@innodb_max_purge_lag_delay`;
+let $innodb_purge_batch_size_orig = `select @@innodb_purge_batch_size`;
+let $innodb_purge_threads_orig = `SELECT @@innodb_purge_threads`;
+let $relay_log_purge_orig = `select @@relay_log_purge`;
+let $innodb_buffer_pool_size_orig = `select @@innodb_buffer_pool_size`;
+let $innodb_change_buffer_max_size_orig = `select @@innodb_change_buffer_max_size`;
+let $innodb_change_buffering_orig = `select @@innodb_change_buffering`;
+let $innodb_print_all_deadlocks_orig = `select @@innodb_print_all_deadlocks`;
+
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only --innodb_purge_threads=5 --innodb_buffer_pool_size=16M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+
+SET GLOBAL innodb_max_purge_lag = 10;
+SET GLOBAL innodb_max_purge_lag_delay = 10;
+SET GLOBAL innodb_purge_batch_size = 600;
+# purge thread is read only variable
+#SET GLOBAL innodb_purge_threads = 5;
+SET GLOBAL relay_log_purge = 0;
+SET GLOBAL innodb_change_buffer_max_size = 30;
+SET GLOBAL innodb_change_buffering = 'changes';
+SET GLOBAL innodb_print_all_deadlocks = 'ON';
+
+
+USE testdb_wl6445;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i + 1;
+--ERROR ER_CANT_LOCK
+DELETE FROM t1 ;
+
+
+SELECT @@innodb_max_purge_lag,@@innodb_max_purge_lag_delay,@@innodb_purge_batch_size,
+@@innodb_purge_threads,@@relay_log_purge,@@innodb_buffer_pool_size,
+@@innodb_change_buffer_max_size,@@innodb_change_buffering,@@innodb_print_all_deadlocks;
+
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+#FTS Query
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
+
+# restore initial values
+--disable_query_log
+eval SET GLOBAL innodb_max_purge_lag=$innodb_max_purge_lag_orig;
+eval SET GLOBAL innodb_max_purge_lag_delay=$innodb_max_purge_lag_delay_orig;
+eval SET GLOBAL innodb_purge_batch_size = $innodb_purge_batch_size_orig;
+#eval SET GLOBAL innodb_purge_threads = $innodb_purge_threads_orig;
+eval SET GLOBAL relay_log_purge = $relay_log_purge_orig;
+eval SET GLOBAL innodb_change_buffer_max_size = $innodb_change_buffer_max_size_orig;
+eval SET GLOBAL innodb_change_buffering = $innodb_change_buffering_orig;
+eval SET GLOBAL innodb_print_all_deadlocks = $innodb_print_all_deadlocks_orig;
+--enable_query_log
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+
+#------------------------------------------------------------------------------
+# Testcase 5 covers
+# a) Create table/data restart server in readonly mode 
+# b) check starting with both --read-only and --innodb-read-only
+# c) check starting with only --read-only
+#------------------------------------------------------------------------------
+--echo case # 5
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j VARCHAR(300), FULLTEXT KEY (j)) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+INSERT INTO t1 VALUES (4,'mysql database'),(5,'mysql database innodb support'),(6,'innodb engine');
+#FTS Query
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('mysql (+database -innodb)' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (j) AGAINST ('innodb') ;
+
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only --read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+# check if root user able to modify 
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i + 20;
+--ERROR ER_CANT_LOCK
+DELETE FROM t1;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5'@'localhost';
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make server can be start with --read-only
+--exec echo "restart: --read-only" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+# check if root user able to do DML/DDL
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+UPDATE t1 SET i = i + 20;
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+DELETE FROM t1;
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+CREATE TABLE t2 ( i INT ) ENGINE = Innodb;
+CREATE USER 'test5_2'@'localhost' IDENTIFIED BY '123';
+GRANT ALL ON testdb_wl6445.* TO 'test5_2'@'localhost';
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP USER 'test5_2'@'localhost';
+DROP USER 'test5'@'localhost';
+DROP DATABASE testdb_wl6445;
+
+
+
+#------------------------------------------------------------------------------
+# Testcase 6 covers
+# a) Create table/data restart server in readonly mode 
+# b) check mysqldump/mysqlimport work
+#------------------------------------------------------------------------------
+--echo case # 6
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY ) ENGINE = InnoDB;
+CREATE INDEX idx1 ON testdb_wl6445.t1(i);
+INSERT INTO t1 VALUES (1),(2),(3);
+SELECT i FROM t1 ORDER BY i;
+
+--echo # Creating a temp sql file to be loaded.
+--write_file $MYSQLTEST_VARDIR/tmp/t1.sql
+11
+12
+13
+EOF
+
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+USE testdb_wl6445;
+# try mysql import
+--replace_regex /.*Error//i
+--error 1
+--exec $MYSQL_IMPORT -uroot testdb_wl6445 $MYSQLTEST_VARDIR/tmp/t1.sql 2>&1
+# only 3 records get in select as import shoudl fail due to --innodb-read-only
+SELECT i FROM t1 ORDER BY i;
+
+
+# mysqldump works
+--exec $MYSQL_DUMP --skip-comments --databases testdb_wl6445 > $MYSQLTEST_VARDIR/tmp/testdb_wl6445_dump.txt 
+
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/testdb_wl6445_dump.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/t1.sql
+
+#clenaup
+#------------------------------------------------------------------------------
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+--disable_query_log
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
+eval SET GLOBAL innodb_flush_log_at_trx_commit = $innodb_flush_log_at_trx_commit_orig;
+call mtr.add_suppression("deleting orphaned .ibd file");
+--enable_query_log
+

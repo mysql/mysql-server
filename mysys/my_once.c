@@ -37,8 +37,8 @@ void* my_once_alloc(size_t Size, myf MyFlags)
 {
   size_t get_size, max_left;
   uchar* point;
-  reg1 USED_MEM *next;
-  reg2 USED_MEM **prev;
+  USED_MEM *next;
+  USED_MEM **prev;
 
   Size= ALIGN_SIZE(Size);
   prev= &my_once_root_block;
@@ -59,7 +59,7 @@ void* my_once_alloc(size_t Size, myf MyFlags)
     {
       my_errno=errno;
       if (MyFlags & (MY_FAE+MY_WME))
-	my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),get_size);
+	my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_FATALERROR), get_size);
       return((uchar*) 0);
     }
     DBUG_PRINT("test",("my_once_malloc %lu byte malloced", (ulong) get_size));
@@ -105,7 +105,7 @@ void *my_once_memdup(const void *src, size_t len, myf myflags)
 
 void my_once_free(void)
 {
-  reg1 USED_MEM *next,*old;
+  USED_MEM *next,*old;
   DBUG_ENTER("my_once_free");
 
   for (next=my_once_root_block ; next ; )

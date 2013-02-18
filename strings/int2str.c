@@ -50,11 +50,11 @@ char _dig_vec_lower[] =
 */
   
 char *
-int2str(register long int val, register char *dst, register int radix, 
+int2str(long int val, char *dst, int radix, 
         int upcase)
 {
   char buffer[65];
-  register char *p;
+  char *p;
   long int new_val;
   char *dig_vec= upcase ? _dig_vec_upper : _dig_vec_lower;
   ulong uval= (ulong) val;
@@ -133,7 +133,7 @@ int2str(register long int val, register char *dst, register int radix,
 char *int10_to_str(long int val,char *dst,int radix)
 {
   char buffer[65];
-  register char *p;
+  char *p;
   long int new_val;
   unsigned long int uval = (unsigned long int) val;
 

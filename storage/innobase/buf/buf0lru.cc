@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -142,14 +142,14 @@ other compressed pages or compressed-only block descriptors may be
 relocated.
 @return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
 was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
-static
+static __attribute__((nonnull, warn_unused_result))
 enum buf_page_state
 buf_LRU_block_remove_hashed_page(
 /*=============================*/
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	ibool		zip);	/*!< in: TRUE if should remove also the
+	bool		zip);	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 /******************************************************************//**
 Puts a file page whose has no hash index to the free list. */
@@ -159,6 +159,22 @@ buf_LRU_block_free_hashed_page(
 /*===========================*/
 	buf_block_t*	block);	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
+
+/******************************************************************//**
+Increases LRU size in bytes with zip_size for compressed page,
+UNIV_PAGE_SIZE for uncompressed page in inline function */
+static inline
+void
+incr_LRU_size_in_bytes(
+/*===================*/
+	buf_page_t*	bpage,		/*!< in: control block */
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	ut_ad(buf_pool_mutex_own(buf_pool));
+	ulint zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.LRU_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
+	ut_ad(buf_pool->stat.LRU_bytes <= buf_pool->curr_pool_size);
+}
 
 /******************************************************************//**
 Determines if the unzip_LRU list should be used for evicting a victim
@@ -956,7 +972,7 @@ buf_LRU_free_from_unzip_LRU_list(
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE);
+		freed = buf_LRU_free_page(&block->page, false);
 
 		block = prev_block;
 	}
@@ -1001,7 +1017,7 @@ buf_LRU_free_from_common_LRU_list(
 		ut_ad(bpage->in_LRU_list);
 
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE);
+		freed = buf_LRU_free_page(bpage, true);
 		if (freed && !accessed) {
 			/* Keep track of pages that are evicted without
 			ever being accessed. This gives us a measure of
@@ -1493,6 +1509,7 @@ buf_LRU_remove_block(
 	buf_page_t*	bpage)	/*!< in: control block */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ulint		zip_size;
 
 	ut_ad(buf_pool);
 	ut_ad(bpage);
@@ -1527,6 +1544,9 @@ buf_LRU_remove_block(
 	/* Remove the block from the LRU list */
 	UT_LIST_REMOVE(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = FALSE);
+
+	zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.LRU_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
 
 	buf_unzip_LRU_remove_block_if_needed(bpage);
 
@@ -1588,7 +1608,10 @@ buf_unzip_LRU_add_block(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list end. */
+Adds a block to the LRU list end. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INLINE
 void
 buf_LRU_add_block_to_end_low(
@@ -1606,6 +1629,8 @@ buf_LRU_add_block_to_end_low(
 	ut_ad(!bpage->in_LRU_list);
 	UT_LIST_ADD_LAST(LRU, buf_pool->LRU, bpage);
 	ut_d(bpage->in_LRU_list = TRUE);
+
+	incr_LRU_size_in_bytes(bpage, buf_pool);
 
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
@@ -1635,7 +1660,10 @@ buf_LRU_add_block_to_end_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. */
+Adds a block to the LRU list. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INLINE
 void
 buf_LRU_add_block_low(
@@ -1677,6 +1705,8 @@ buf_LRU_add_block_low(
 
 	ut_d(bpage->in_LRU_list = TRUE);
 
+	incr_LRU_size_in_bytes(bpage, buf_pool);
+
 	if (UT_LIST_GET_LEN(buf_pool->LRU) > BUF_LRU_OLD_MIN_LEN) {
 
 		ut_ad(buf_pool->LRU_old);
@@ -1704,7 +1734,10 @@ buf_LRU_add_block_low(
 }
 
 /******************************************************************//**
-Adds a block to the LRU list. */
+Adds a block to the LRU list. Please make sure that the zip_size is
+already set into the page zip when invoking the function, so that we
+can get correct zip_size from the buffer page when adding a block
+into LRU */
 UNIV_INTERN
 void
 buf_LRU_add_block(
@@ -1755,19 +1788,19 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns TRUE, it will temporarily
+NOTE: If this function returns true, it will temporarily
 release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
 The caller must hold buf_pool->mutex and must not hold any
 buf_page_get_mutex() when calling this function.
-@return TRUE if freed, FALSE otherwise. */
+@return true if freed, false otherwise. */
 UNIV_INTERN
-ibool
-buf_LRU_free_block(
+bool
+buf_LRU_free_page(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
 	buf_page_t*	b = NULL;
@@ -1820,7 +1853,7 @@ buf_LRU_free_block(
 func_exit:
 		rw_lock_x_unlock(hash_lock);
 		mutex_exit(block_mutex);
-		return(FALSE);
+		return(false);
 
 	} else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
 		b = buf_page_alloc_descriptor();
@@ -1861,7 +1894,7 @@ func_exit:
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (page_state == BUF_BLOCK_ZIP_FREE) {
-		return(TRUE);
+		return(true);
 	}
 
 	ut_ad(page_state == BUF_BLOCK_REMOVE_HASH);
@@ -1925,6 +1958,8 @@ func_exit:
 #endif
 			UT_LIST_INSERT_AFTER(LRU, buf_pool->LRU,
 					     prev_b, b);
+
+			incr_LRU_size_in_bytes(b, buf_pool);
 
 			if (buf_page_is_old(b)) {
 				buf_pool->LRU_old_len++;
@@ -2038,7 +2073,7 @@ func_exit:
 	mutex_exit(block_mutex);
 
 	buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-	return(TRUE);
+	return(true);
 }
 
 /******************************************************************//**
@@ -2124,7 +2159,7 @@ buf_LRU_block_remove_hashed_page(
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 {
 	ulint			fold;
@@ -2191,7 +2226,9 @@ buf_LRU_block_remove_hashed_page(
 				break;
 			case FIL_PAGE_INDEX:
 #ifdef UNIV_ZIP_DEBUG
-				ut_a(page_zip_validate(&bpage->zip, page));
+				ut_a(page_zip_validate(
+					     &bpage->zip, page,
+					     ((buf_block_t*) bpage)->index));
 #endif /* UNIV_ZIP_DEBUG */
 				break;
 			default:

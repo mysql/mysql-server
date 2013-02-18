@@ -168,7 +168,7 @@ Uint32 setAnyValue(Ndb* ndb, NdbTransaction* trans, int rowid, int updVal)
 {
   /* XOR 2 32bit words of transid together */
   Uint64 transId = trans->getTransactionId();
-  return transId ^ (transId >> 32);
+  return (Uint32)(transId ^ (transId >> 32));
 }
 
 bool checkAnyValueTransId(Uint64 transId, Uint32 anyValue)
@@ -3428,6 +3428,73 @@ runBug57886_subscribe_unsunscribe(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+runBug12598496(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb *pNdb=GETNDB(step);
+  NdbDictionary::Table tab = * ctx->getTab();
+  createEvent(pNdb, tab, false, false);
+
+  NdbRestarter restarter;
+  int nodeId = restarter.getNode(NdbRestarter::NS_RANDOM);
+  restarter.insertErrorInNode(nodeId, 13047);
+
+  // should fail...
+  if (createEventOperation(pNdb, tab, 0) != 0)
+    return NDBT_FAILED;
+
+
+  restarter.insertErrorInNode(nodeId, 0);
+  if (restarter.getNumDbNodes() < 2)
+  {
+    return NDBT_OK;
+  }
+
+  NdbEventOperation * op = createEventOperation(pNdb, tab, 0);
+  if (op == 0)
+  {
+    return NDBT_FAILED;
+  }
+
+  ndbout_c("restart %u", nodeId);
+  restarter.restartOneDbNode(nodeId,
+                             /** initial */ false,
+                             /** nostart */ true,
+                             /** abort   */ true);
+
+  ndbout_c("wait not started %u", nodeId);
+  if (restarter.waitNodesNoStart(&nodeId, 1) != 0)
+    return NDBT_FAILED;
+
+  ndbout_c("wait not started %u - OK", nodeId);
+
+  int val2[] = { DumpStateOrd::CmvmiSetRestartOnErrorInsert, 1 };
+  restarter.dumpStateOneNode(nodeId, val2, 2);
+  restarter.insertErrorInNode(nodeId, 13047);
+  restarter.insertErrorInNode(nodeId, 1003);
+  ndbout_c("start %u", nodeId);
+  restarter.startNodes(&nodeId, 1);
+
+  NdbSleep_SecSleep(5);
+
+  ndbout_c("wait not started %u", nodeId);
+  if (restarter.waitNodesNoStart(&nodeId, 1) != 0)
+    return NDBT_FAILED;
+
+  ndbout_c("wait not started %u - OK", nodeId);
+
+  ndbout_c("start %u", nodeId);
+  restarter.startNodes(&nodeId, 1);
+  ndbout_c("waitClusterStarted");
+  if (restarter.waitClusterStarted() != 0)
+    return NDBT_FAILED;
+
+  pNdb->dropEventOperation(op);
+  dropEvent(pNdb, tab);
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(test_event);
 TESTCASE("BasicEventOperation", 
 	 "Verify that we can listen to Events"
@@ -3660,6 +3727,10 @@ TESTCASE("Bug57886", "")
 {
   STEP(runBug57886_create_drop);
   STEPS(runBug57886_subscribe_unsunscribe, 5);
+}
+TESTCASE("Bug12598496", "")
+{
+  INITIALIZER(runBug12598496);
 }
 NDBT_TESTSUITE_END(test_event);
 

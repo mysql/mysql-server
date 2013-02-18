@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,7 @@
 #include "sql_time.h"
 #include <my_decimal.h>
 
-namespace {
+namespace field_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -187,7 +187,8 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_FALSE(field->get_date(&dateTime, 0));
 
   make_datetime((DATE_TIME_FORMAT *)0, &dateTime, &timeStr, 6);
-  EXPECT_STREQ("1970-01-06 03:45:45.555500", timeStr.c_ptr());
+  // Skip 'yyyy-mm-dd ' since that will depend on current time zone.
+  EXPECT_STREQ("03:45:45.555500", timeStr.c_ptr() + 11);
 
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));
@@ -258,8 +259,7 @@ TEST_F(FieldTest, FieldTimef)
   f->table= &m_table;
   struct timeval tv;
   int warnings= 0;
-  EXPECT_EQ(0, f->get_timestamp(&tv, &warnings));
-  // EXPECT_EQ(40992, tv.tv_sec);  // This is 11:23:12.  Why?  Time zone?
+  EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
   EXPECT_EQ(123400, tv.tv_usec);
 
   delete field;
@@ -390,6 +390,7 @@ TEST_F(FieldTest, CopyFieldSet)
 
   Field_set *f_from= create_field_set(&tl4);
   bitmap_set_all(f_from->table->write_set);
+  bitmap_set_all(f_from->table->read_set);
   uchar from_fieldval= static_cast<uchar>(typeset);
   f_from->ptr= &from_fieldval;
 
@@ -475,9 +476,11 @@ void test_make_sort_key(Field *field)
 }
 
 
-size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t, uint, const uchar *,
-                     size_t, uint);
-
+extern "C"
+{
+  static size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t,
+                              uint, const uchar *, size_t, uint);
+}
 
 class Mock_collation : public MY_COLLATION_HANDLER
 {
@@ -625,8 +628,8 @@ TEST_F(FieldTest, MakeSortKey)
     SCOPED_TRACE("Field_varstring");
     Mock_charset mock_charset;
     Fake_TABLE_SHARE fake_share(0);
-    uchar ptr= 0;
-    Field_varstring fvs(&ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
+    uchar ptr[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+    Field_varstring fvs(ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
                         &mock_charset);
     uchar to;
     fvs.make_sort_key(&to, 666);

@@ -239,6 +239,16 @@ foreach my $option (@ARGV)
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
       next;
   }
+  if ($option =~ /with-client-ldflags/)
+  {
+      print("configure.pl : ignoring $option\n");
+      next;
+  }
+  if ($option =~ /with-mysqld-ldflags=/)
+  {
+      print("configure.pl : ignoring $option\n");
+      next;
+  }
 
   $option = uc($option);
   $option =~ s/-/_/g;

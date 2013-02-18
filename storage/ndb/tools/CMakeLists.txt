@@ -21,42 +21,42 @@ INCLUDE_DIRECTORIES(
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_waiter ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_waiter ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_drop_table
   drop_tab.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_drop_table ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_drop_table ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_delete_all
   delete_all.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_delete_all ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_delete_all ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_desc
   desc.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_desc ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_desc ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_drop_index
   drop_index.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_drop_index ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_drop_index ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_show_tables
   listTables.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_show_tables ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_select_all
   select_all.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_select_all ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_select_all ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_select_count
   select_count.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_select_count ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_select_count ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/restore_main.cpp
@@ -65,16 +65,20 @@ MYSQL_ADD_EXECUTABLE(ndb_restore
   restore/consumer_printer.cpp
   restore/Restore.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_restore ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_restore ndbclient_static ndbNDBT)
 
 MYSQL_ADD_EXECUTABLE(ndb_config
   ndb_config.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_config ndbclient)
+TARGET_LINK_LIBRARIES(ndb_config ndbclient_static)
 
 # Build ndbinfo_sql and run it to create ndbinfo.sql
-ADD_EXECUTABLE(ndbinfo_sql ndbinfo_sql.cpp)
-TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient)
+ADD_EXECUTABLE(ndbinfo_sql
+  ndbinfo_sql.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dbtc/DbtcStateDesc.cpp
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/kernel/blocks/dblqh/DblqhStateDesc.cpp
+)
+TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
 ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
                    COMMAND ${NDBINFO_SQL_EXE} ARGS > ndbinfo.sql
@@ -85,13 +89,32 @@ ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp
   COMPONENT ClusterTools)
-TARGET_LINK_LIBRARIES(ndb_index_stat ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_index_stat ndbclient_static ndbNDBT)
 
 ADD_EXECUTABLE(ndb_dump_frm_data
   ndb_dump_frm_data.cpp)
-TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbclient ndbNDBT)
+TARGET_LINK_LIBRARIES(ndb_dump_frm_data ndbclient_static ndbNDBT)
+
+MYSQL_ADD_EXECUTABLE(ndbinfo_select_all
+  ndbinfo_select_all.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndbinfo_select_all ndbclient_static ndbNDBT)
+
+MYSQL_ADD_EXECUTABLE(ndb_blob_tool
+  ndb_blob_tool.cpp
+  COMPONENT ClusterTools)
+TARGET_LINK_LIBRARIES(ndb_blob_tool ndbclient_static ndbNDBT)
 
 IF (MYSQL_VERSION_ID LESS "50501")
   # Don't build or install this program anymore in 5.5+
   ADD_EXECUTABLE(ndb_test_platform ndb_test_platform.cpp)
 ENDIF()
+
+# Install the ndb_dist_priv.sql script
+INSTALL(FILES ${CMAKE_CURRENT_SOURCE_DIR}/ndb_dist_priv.sql
+        DESTINATION ${INSTALL_MYSQLSHAREDIR})
+
+INSTALL(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/ndb_error_reporter
+                 ${CMAKE_CURRENT_SOURCE_DIR}/ndb_size.pl
+        DESTINATION ${INSTALL_BINDIR})
+

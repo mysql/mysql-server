@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@
 #include "rpl_slave.h"
 #include "sp_head.h"
 #include "sql_trigger.h"
-
+#include "sql_show.h"
 #include <algorithm>
 
 using std::min;
@@ -223,7 +223,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       !field_term->is_ascii() ||
       !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
   {
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   } 
@@ -264,6 +264,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
   table= table_list->table;
+
+  for (Field **cur_field= table->field; *cur_field; ++cur_field)
+    (*cur_field)->reset_warnings();
+
   transactional_table= table->file->has_transactions();
 #ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
@@ -271,9 +275,15 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   if (!fields_vars.elements)
   {
-    Field **field;
-    for (field=table->field; *field ; field++)
-      fields_vars.push_back(new Item_field(*field));
+    Field_iterator_table_ref field_iterator;
+    field_iterator.set(table_list);
+    for (; !field_iterator.end_of_fields(); field_iterator.next())
+    {
+      Item *item;
+      if (!(item= field_iterator.create_item(thd)))
+        DBUG_RETURN(TRUE);
+      fields_vars.push_back(item->real_item());
+    }
     bitmap_set_all(table->write_set);
     /*
       Let us also prepare SET clause, altough it is probably empty
@@ -307,7 +317,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     ignore= 1;
 
   /*
-    (1):
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
     sets all columns, except if file's row lacks some: in that case,
     defaults are set by read_fixed_length() and read_sep_field(),
@@ -315,9 +324,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     * LOAD DATA INFILE fff INTO TABLE xxx (columns1) SET columns2=
     may need a default for columns other than columns1 and columns2.
   */
+  const bool manage_defaults= fields_vars.elements != 0;
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
-                 fields_vars.elements != 0, //(1)
+                 manage_defaults,
                  handle_duplicates, ignore, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
@@ -603,7 +613,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
               ER(ER_LOAD_INFO),
               (long) info.stats.records, (long) info.stats.deleted,
               (long) (info.stats.records - info.stats.copied),
-              (long) thd->get_stmt_da()->current_statement_warn_count());
+              (long) thd->get_stmt_da()->current_statement_cond_count());
 
 #ifndef EMBEDDED_LIBRARY
   if (mysql_bin_log.is_open())
@@ -687,23 +697,20 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
   String              string_buf;
-
-  if (!thd->db || strcmp(db_arg, thd->db)) 
+  if (!thd->db || strcmp(db_arg, thd->db))
   {
     /*
-      If used database differs from table's database, 
-      prefix table name with database name so that it 
+      If used database differs from table's database,
+      prefix table name with database name so that it
       becomes a FQ name.
      */
     string_buf.set_charset(system_charset_info);
-    string_buf.append(db_arg);
-    string_buf.append("`");
+    append_identifier(thd, &string_buf, db_arg, strlen(db_arg));
     string_buf.append(".");
-    string_buf.append("`");
-    string_buf.append(table_name_arg);
-    tbl= string_buf.c_ptr_safe();
   }
-
+  append_identifier(thd, &string_buf, table_name_arg,
+                    strlen(table_name_arg));
+  tbl= string_buf.c_ptr_safe();
   Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
                            duplicates, ignore, transactional_table);
 
@@ -727,12 +734,10 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
     {
       if (n++)
         pfields.append(", ");
-      if (item->type() == Item::FIELD_ITEM)
-      {
-        pfields.append("`");
-        pfields.append(item->item_name.ptr());
-        pfields.append("`");
-      }
+      if (item->type() == Item::FIELD_ITEM ||
+                 item->type() == Item::REF_ITEM)
+        append_identifier(thd, &pfields, item->item_name.ptr(),
+                          strlen(item->item_name.ptr()));
       else
         item->print(&pfields, QT_ORDINARY);
     }
@@ -752,9 +757,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       val= lv++;
       if (n++)
         pfields.append(", ");
-      pfields.append("`");
-      pfields.append(item->item_name.ptr());
-      pfields.append("`");
+      append_identifier(thd, &pfields, item->item_name.ptr(),
+                        strlen(item->item_name.ptr()));
       pfields.append(val->item_name.ptr());
     }
   }
@@ -844,10 +848,10 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       if (pos == read_info.row_end)
       {
         thd->cuted_fields++;			/* Not enough fields */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_WARN_TOO_FEW_RECORDS,
                             ER(ER_WARN_TOO_FEW_RECORDS),
-                            thd->get_stmt_da()->current_row_for_warning());
+                            thd->get_stmt_da()->current_row_for_condition());
         if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
         {
           // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
@@ -871,17 +875,18 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (pos != read_info.row_end)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_da()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_condition());
     }
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -907,12 +912,12 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS,
                           ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_da()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_condition());
     }
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -964,6 +969,13 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
+      /*
+        Enable temporary nullability for items that corresponds
+        to table fields.
+      */
+      if (real_item->type() == Item::FIELD_ITEM)
+        ((Item_field *)real_item)->field->set_tmp_nullable();
+
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
            !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
@@ -976,21 +988,22 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())                   // Set to 0
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0), field->field_name,
-                     thd->get_stmt_da()->current_row_for_warning());
+                     thd->get_stmt_da()->current_row_for_condition());
             DBUG_RETURN(1);
           }
-          // Try to set to NULL; if it fails, field remains at 0.
-          field->set_null();
-          if (!field->maybe_null())
+          if (!field->real_maybe_null() &&
+              field->type() == FIELD_TYPE_TIMESTAMP)
           {
-            if (field->type() == FIELD_TYPE_TIMESTAMP)
-            {
-              // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
-              Item_func_now_local::store_in(field);
-            }
-            else if (field != table->next_number_field)
-              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
-                                 ER_WARN_NULL_TO_NOTNULL, 1);
+            // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+            Item_func_now_local::store_in(field);
+          }
+          else
+          {
+            /*
+              Set field to NULL. Later we will clear temporary nullability flag
+              and check NOT NULL constraint.
+            */
+            field->set_null();
           }
 	}
         else if (item->type() == Item::STRING_ITEM)
@@ -1056,7 +1069,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           if (field->reset())
           {
             my_error(ER_WARN_NULL_TO_NOTNULL, MYF(0),field->field_name,
-                     thd->get_stmt_da()->current_row_for_warning());
+                     thd->get_stmt_da()->current_row_for_condition());
             DBUG_RETURN(1);
           }
           if (field->type() == FIELD_TYPE_TIMESTAMP && !field->maybe_null())
@@ -1069,10 +1082,10 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->get_stmt_da()->current_row_for_warning());
+                              thd->get_stmt_da()->current_row_for_condition());
         }
         else if (item->type() == Item::STRING_ITEM)
         {
@@ -1087,11 +1100,46 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
+    // Clear temporary nullability flags for every field in the table.
+
+    it.rewind();
+    while ((item= it++))
+    {
+      Item *real_item= item->real_item();
+      if (real_item->type() == Item::FIELD_ITEM)
+        ((Item_field *)real_item)->field->reset_tmp_nullable();
+    }
+
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
+      DBUG_RETURN(1);
+
+    if (!table->triggers)
+    {
+      /*
+        If there is no trigger for the table then check the NOT NULL constraint
+        for every table field.
+
+        For the table that has BEFORE-INSERT trigger installed checking for
+        NOT NULL constraint is done inside function
+        fill_record_n_invoke_before_triggers() after all trigger instructions
+        has been executed.
+      */
+      it.rewind();
+
+      while ((item= it++))
+      {
+        Item *real_item= item->real_item();
+        if (real_item->type() == Item::FIELD_ITEM)
+          ((Item_field *) real_item)->field->check_constraints(ER_WARN_NULL_TO_NOTNULL);
+      }
+    }
+
+    if (thd->is_error())
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -1116,13 +1164,13 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (read_info.line_cuted)
     {
       thd->cuted_fields++;			/* To long row */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_TOO_MANY_RECORDS, ER(ER_WARN_TOO_MANY_RECORDS),
-                          thd->get_stmt_da()->current_row_for_warning());
+                          thd->get_stmt_da()->current_row_for_condition());
       if (thd->killed)
         DBUG_RETURN(1);
     }
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
 continue_loop:;
   }
   DBUG_RETURN(test(read_info.error));
@@ -1201,7 +1249,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
               // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
               Item_func_now_local::store_in(field);
             else if (field != table->next_number_field)
-              field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+              field->set_warning(Sql_condition::SL_WARNING,
                                  ER_WARN_NULL_TO_NOTNULL, 1);
           }
         }
@@ -1251,10 +1299,10 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
             in the end ?)
           */
           thd->cuted_fields++;
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_TOO_FEW_RECORDS,
                               ER(ER_WARN_TOO_FEW_RECORDS),
-                              thd->get_stmt_da()->current_row_for_warning());
+                              thd->get_stmt_da()->current_row_for_condition());
         }
         else
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
@@ -1265,7 +1313,8 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -1284,7 +1333,7 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       We don't need to reset auto-increment field since we are restoring
       its default value at the beginning of each loop iteration.
     */
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
     continue_loop:;
   }
   DBUG_RETURN(test(read_info.error) || thd->is_error());
@@ -1695,6 +1744,11 @@ int READ_INFO::next_line()
   {
     int chr = GET;
 #ifdef USE_MB
+    if (chr == my_b_EOF)
+    {
+      eof= 1;
+      return 1;
+    }
    if (my_mbcharlen(read_charset, chr) > 1)
    {
        for (uint i=1;

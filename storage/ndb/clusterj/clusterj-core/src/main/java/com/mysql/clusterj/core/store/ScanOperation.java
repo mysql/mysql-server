@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 package com.mysql.clusterj.core.store;
 
+import com.mysql.clusterj.Query.Ordering;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 
 /**
@@ -31,5 +32,9 @@ public interface ScanOperation extends Operation {
     public ScanFilter getScanFilter(QueryExecutionContext context);
 
     public int nextResult(boolean fetch);
+
+    public ResultData resultData(boolean execute, long skip, long limit);
+
+    public void setOrdering(Ordering ordering);
 
 }

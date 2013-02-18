@@ -65,7 +65,7 @@ if ($ENV{MTR_CLASSPATH})
   $java_classpath .= "$sep$ENV{MTR_CLASSPATH}"
 }
 
-my $cmd = "$java $java_args $jvm_opts -classpath \"$java_classpath\" $java_class $class_args";
+my $cmd = "\"$java\" $java_args $jvm_opts -classpath \"$java_classpath\" $java_class $class_args";
 my $res = exec_print_on_error($cmd);
 
 my $vardir = $ENV{MYSQLTEST_VARDIR} || die "Need MYSQLTEST_VARDIR";

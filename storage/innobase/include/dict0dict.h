@@ -409,9 +409,11 @@ dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets)	/*!< in: TRUE=check charset
+	const char**	col_names,	/*!< in: column names, or NULL to use
+					foreign->foreign_table->col_names */
+	bool		check_charsets)	/*!< in: whether to check charset
 					compatibility */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull(1), warn_unused_result));
 /*********************************************************************//**
 Check if the index is referenced by a foreign key, if TRUE return the
 matching instance NULL otherwise.
@@ -435,15 +437,18 @@ dict_table_is_referenced_by_foreign_key(
 	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
-foreign key lists of the table. */
+foreign key lists of the table.
+@return whether all replacements were found */
 UNIV_INTERN
-void
+bool
 dict_foreign_replace_index(
 /*=======================*/
 	dict_table_t*		table,  /*!< in/out: table */
-	const dict_index_t*	index,	/*!< in: index to be replaced */
-	const trx_t*		trx)	/*!< in: transaction handle */
-	__attribute__((nonnull));
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
+	const dict_index_t*	index)	/*!< in: index to be replaced */
+	__attribute__((nonnull(1,3), warn_unused_result));
 /**********************************************************************//**
 Determines whether a string starts with the specified keyword.
 @return TRUE if str starts with keyword */
@@ -544,13 +549,16 @@ dict_index_t*
 dict_foreign_find_index(
 /*====================*/
 	const dict_table_t*	table,	/*!< in: table */
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
 	const char**		columns,/*!< in: array of column names */
 	ulint			n_cols,	/*!< in: number of columns */
 	const dict_index_t*	types_idx,
 					/*!< in: NULL or an index
 					whose types the column types
 					must match */
-	ibool			check_charsets,
+	bool			check_charsets,
 					/*!< in: whether to check
 					charsets.  only has an effect
 					if types_idx != NULL */
@@ -558,7 +566,7 @@ dict_foreign_find_index(
 					/*!< in: nonzero if none of
 					the columns must be declared
 					NOT NULL */
-	__attribute__((nonnull(1,2), warn_unused_result));
+	__attribute__((nonnull(1,3), warn_unused_result));
 /**********************************************************************//**
 Returns a column's name.
 @return column name. NOTE: not guaranteed to stay valid if table is
@@ -624,6 +632,9 @@ bool
 dict_foreign_qualify_index(
 /*====================*/
 	const dict_table_t*	table,	/*!< in: table */
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
 	const char**		columns,/*!< in: array of column names */
 	ulint			n_cols,	/*!< in: number of columns */
 	const dict_index_t*	index,	/*!< in: index to check */
@@ -631,7 +642,7 @@ dict_foreign_qualify_index(
 					/*!< in: NULL or an index
 					whose types the column types
 					must match */
-	ibool			check_charsets,
+	bool			check_charsets,
 					/*!< in: whether to check
 					charsets.  only has an effect
 					if types_idx != NULL */
@@ -639,7 +650,7 @@ dict_foreign_qualify_index(
 					/*!< in: nonzero if none of
 					the columns must be declared
 					NOT NULL */
-	__attribute__((nonnull(1,2), warn_unused_result));
+	__attribute__((nonnull(1,3), warn_unused_result));
 #ifdef UNIV_DEBUG
 /********************************************************************//**
 Gets the first index on the table (the clustered index).
@@ -1390,30 +1401,6 @@ dict_index_is_online_ddl(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Logs an operation to a secondary index that is being created. */
-UNIV_INTERN
-void
-dict_index_online_log(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: index, S-locked */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
-	UNIV_COLD __attribute__((nonnull));
-/*********************************************************************//**
-Attempts to log an operation on a secondary index that is being created.
-@return TRUE if the operation was logged or the index creation failed;
-FALSE if the index creation was completed */
-UNIV_INLINE
-ibool
-dict_index_online_trylog(
-/*=====================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation on the index entry */
-	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
 Calculates the minimum record length in an index. */
 UNIV_INTERN
 ulint
@@ -1706,7 +1693,9 @@ UNIV_INTERN
 void
 dict_set_corrupted(
 /*===============*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const char*	ctx)	/*!< in: context */
 	UNIV_COLD __attribute__((nonnull));
 
 /**********************************************************************//**
@@ -1790,6 +1779,15 @@ dict_index_zip_pad_optimal_page_size(
 	dict_index_t*	index)	/*!< in: index for which page size
 				is requested */
 	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
+Convert table flag to row format string.
+@return row format name */
+UNIV_INTERN
+const char*
+dict_tf_to_row_format_string(
+/*=========================*/
+	ulint	table_flag);		/*!< in: row format setting */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

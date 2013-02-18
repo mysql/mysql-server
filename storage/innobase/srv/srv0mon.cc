@@ -254,11 +254,23 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_DATA},
 
+	{"buffer_pool_bytes_data", "buffer",
+	 "Buffer bytes containing data (innodb_buffer_pool_bytes_data)",
+	 static_cast<monitor_type_t>(
+	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_BYTES_DATA},
+
 	{"buffer_pool_pages_dirty", "buffer",
 	 "Buffer pages currently dirty (innodb_buffer_pool_pages_dirty)",
 	 static_cast<monitor_type_t>(
 	 MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
 	 MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_PAGES_DIRTY},
+
+	{"buffer_pool_bytes_dirty", "buffer",
+         "Buffer bytes currently dirty (innodb_buffer_pool_bytes_dirty)",
+         static_cast<monitor_type_t>(
+         MONITOR_EXISTING | MONITOR_DISPLAY_CURRENT | MONITOR_DEFAULT_ON),
+         MONITOR_DEFAULT_START, MONITOR_OVLD_BUF_POOL_BYTES_DIRTY},
 
 	{"buffer_pool_pages_free", "buffer",
 	 "Buffer pages currently free (innodb_buffer_pool_pages_free)",
@@ -1406,13 +1418,14 @@ srv_mon_process_existing_counter(
 	mon_option_t	set_option)	/*!< in: Turn on/off reset the
 					counter */
 {
-	mon_type_t	value;
-	monitor_info_t*	monitor_info;
-	ibool		update_min = FALSE;
-	buf_pool_stat_t	stat;
-	ulint		LRU_len;
-	ulint		free_len;
-	ulint		flush_list_len;
+	mon_type_t		value;
+	monitor_info_t*		monitor_info;
+	ibool			update_min = FALSE;
+	buf_pool_stat_t		stat;
+	buf_pools_list_size_t	buf_pools_list_size;
+	ulint			LRU_len;
+	ulint			free_len;
+	ulint			flush_list_len;
 
 	monitor_info = srv_mon_get_info(monitor_id);
 
@@ -1478,10 +1491,23 @@ srv_mon_process_existing_counter(
 		value = LRU_len;
 		break;
 
+	/* innodb_buffer_pool_bytes_data */
+	case MONITOR_OVLD_BUF_POOL_BYTES_DATA:
+		buf_get_total_list_size_in_bytes(&buf_pools_list_size);
+		value = buf_pools_list_size.LRU_bytes
+			+ buf_pools_list_size.unzip_LRU_bytes;
+		break;
+
 	/* innodb_buffer_pool_pages_dirty */
 	case MONITOR_OVLD_BUF_POOL_PAGES_DIRTY:
 		buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
 		value = flush_list_len;
+		break;
+
+	/* innodb_buffer_pool_bytes_dirty */
+	case MONITOR_OVLD_BUF_POOL_BYTES_DIRTY:
+		buf_get_total_list_size_in_bytes(&buf_pools_list_size);
+		value = buf_pools_list_size.flush_list_bytes;
 		break;
 
 	/* innodb_buffer_pool_pages_free */

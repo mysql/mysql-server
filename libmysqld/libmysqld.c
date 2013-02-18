@@ -130,10 +130,8 @@ mysql_real_connect(MYSQL *mysql,const char *host, const char *user,
   if (!passwd)
   {
     passwd=mysql->options.password;
-#if !defined(DONT_USE_MYSQL_PWD)
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
-#endif
   }
   mysql->passwd= passwd ? my_strdup(passwd,MYF(0)) : NULL;
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/

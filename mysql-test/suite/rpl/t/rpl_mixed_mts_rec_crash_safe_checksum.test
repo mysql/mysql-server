@@ -1,2 +1,0 @@
---source include/big_test.inc
---source rpl_mixed_mts_rec_crash_safe.test

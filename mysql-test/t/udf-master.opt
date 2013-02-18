@@ -1,1 +1,2 @@
 $UDF_EXAMPLE_LIB_OPT
+--query_cache_type=1

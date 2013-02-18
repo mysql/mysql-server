@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -55,6 +55,15 @@ SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DUNIV_DEBUG -DUNIV_SYNC_DEB
 #ENDIF()
 
 CHECK_FUNCTION_EXISTS(sched_getcpu  HAVE_SCHED_GETCPU)
+IF(HAVE_SCHED_GETCPU)
+ ADD_DEFINITIONS(-DHAVE_SCHED_GETCPU=1)
+ENDIF()
+
+# Should be available on Windows Server 2003 and above.
+CHECK_FUNCTION_EXISTS(GetCurrentProcessorNumber HAVE_GETCURRENTPROCESSORNUMBER)
+IF(HAVE_GETCURRENTPROCESSORNUMBER)
+ ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
+ENDIF()
 
 IF(NOT MSVC)
 # either define HAVE_IB_GCC_ATOMIC_BUILTINS or not
@@ -345,6 +354,7 @@ SET(INNOBASE_SOURCES
 	srv/srv0conc.cc
 	srv/srv0mon.cc
 	srv/srv0srv.cc
+	srv/srv0space.cc
 	srv/srv0start.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc

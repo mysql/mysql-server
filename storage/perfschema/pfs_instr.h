@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -390,11 +390,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /** Pins for digest_hash. */
   LF_PINS *m_digest_hash_pins;
   /** Internal thread identifier, unique. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */
-  ulong m_parent_thread_internal_id;
+  ulonglong m_parent_thread_internal_id;
   /** External (SHOW PROCESSLIST) thread identifier, not unique. */
-  ulong m_thread_id;
+  ulong m_processlist_id;
   /** Thread class. */
   PFS_thread_class *m_class;
   /**
@@ -476,12 +476,16 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   int m_command;
   /** Start time. */
   time_t m_start_time;
+  /** Lock for Processlist state. */
+  pfs_lock m_processlist_state_lock;
+  /** Lock for Processlist info. */
+  pfs_lock m_processlist_info_lock;
   /** Processlist state. */
   const char *m_processlist_state_ptr;
   /** Length of @c m_processlist_state_ptr. */
   uint m_processlist_state_length;
   /** Processlist info. */
-  const char *m_processlist_info_ptr;
+  char m_processlist_info[COL_INFO_SIZE];
   /** Length of @c m_processlist_info_length. */
   uint m_processlist_info_length;
 
@@ -528,7 +532,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity);
 void destroy_cond(PFS_cond *pfs);
 
 PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
-                          ulong thread_id);
+                          ulonglong processlist_id);
 
 void destroy_thread(PFS_thread *pfs);
 

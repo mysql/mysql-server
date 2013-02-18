@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,6 +130,7 @@ static char line_buffer[MAX_DELIMITER_LENGTH], *line_buffer_pos= line_buffer;
 #if !defined(HAVE_YASSL)
 static const char *opt_server_public_key= 0;
 #endif
+static my_bool can_handle_expired_passwords= TRUE;
 
 /* Info on properties that can be set with --enable_X and --disable_X */
 
@@ -944,8 +945,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
 {
   const char *p;
-  register char c, next_c;
-  register int escaped = 0;
+  char c, next_c;
+  int escaped = 0;
   VAR *v;
   DBUG_ENTER("do_eval");
 
@@ -1049,6 +1050,8 @@ static void show_query(MYSQL* mysql, const char* query)
       fprintf(stderr, "---- %d. ----\n", row_num);
       for(i= 0; i < num_fields; i++)
       {
+      /* looks ugly , but put here to convince parfait */
+        assert(lengths);
         fprintf(stderr, "%s\t%.*s\n",
                 fields[i].name,
                 (int)lengths[i], row[i] ? row[i] : "NULL");
@@ -1123,6 +1126,8 @@ static void show_warnings_before_error(MYSQL* mysql)
 
       for(i= 0; i < num_fields; i++)
       {
+      /* looks ugly , but put here to convince parfait */
+        assert(lengths);
         fprintf(stderr, "%.*s ", (int)lengths[i],
                 row[i] ? row[i] : "NULL");
       }
@@ -1331,7 +1336,7 @@ void close_files()
 void free_used_memory()
 {
   uint i;
-  DBUG_ENTER("free_used_memory");
+  // Do not use DBUG_ENTER("free_used_memory"); here, see below.
 
   if (connections)
     close_connections();
@@ -1422,7 +1427,6 @@ void die(const char *fmt, ...)
 {
   static int dying= 0;
   va_list args;
-  DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
   /*
@@ -2020,18 +2024,9 @@ void check_result()
     size_t reject_length;
     dirname_part(reject_file, result_file_name, &reject_length);
 
-    if (access(reject_file, W_OK) == 0)
-    {
-      /* Result file directory is writable, save reject file there */
-      fn_format(reject_file, result_file_name, NULL,
-                ".reject", MY_REPLACE_EXT);
-    }
-    else
-    {
-      /* Put reject file in opt_logdir */
-      fn_format(reject_file, result_file_name, opt_logdir,
+    /* Put reject file in opt_logdir */
+    fn_format(reject_file, result_file_name, opt_logdir,
                 ".reject", MY_REPLACE_DIR | MY_REPLACE_EXT);
-    }
 
     if (my_copy(log_file.file_name(), reject_file, MYF(0)) != 0)
       die("Failed to copy '%s' to '%s', errno: %d",
@@ -2127,7 +2122,7 @@ C_MODE_START
 static uchar *get_var_key(const uchar* var, size_t *len,
                           my_bool __attribute__((unused)) t)
 {
-  register char* key;
+  char* key;
   key = ((VAR*)var)->name;
   *len = ((VAR*)var)->name_len;
   return (uchar*)key;
@@ -2567,6 +2562,7 @@ do_result_format_version(struct st_command *command)
   dynstr_append_mem(&ds_res, ds_version.str, ds_version.length);
   dynstr_append(&ds_res, "\n");
   dynstr_free(&ds_version);
+  DBUG_VOID_RETURN;
 }
 
 /* List of error names to error codes */
@@ -5310,6 +5306,8 @@ void safe_connect(MYSQL* mysql, const char *name, const char *host,
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqltest");
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                &can_handle_expired_passwords);
   while(!mysql_real_connect(mysql, host,user, pass, db, port, sock,
                             CLIENT_MULTI_STATEMENTS | CLIENT_REMEMBER_OPTIONS))
   {
@@ -5413,6 +5411,8 @@ int connect_n_handle_errors(struct st_command *command,
   
   mysql_options(con, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(con, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysqltest");
+  mysql_options(con, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                &can_handle_expired_passwords);
   while (!mysql_real_connect(con, host, user, pass, db, port, sock ? sock: 0,
                           CLIENT_MULTI_STATEMENTS))
   {
@@ -5494,6 +5494,7 @@ void do_connect(struct st_command *command)
   char *con_options;
   my_bool con_ssl= 0, con_compress= 0;
   my_bool con_pipe= 0, con_shm= 0, con_cleartext_enable= 0;
+  my_bool con_secure_auth= 1;
   struct st_connection* con_slot;
 
   static DYNAMIC_STRING ds_connection_name;
@@ -5585,6 +5586,8 @@ void do_connect(struct st_command *command)
       con_shm= 1;
     else if (!strncmp(con_options, "CLEARTEXT", 9))
       con_cleartext_enable= 1;
+    else if (!strncmp(con_options, "SKIPSECUREAUTH",14))
+      con_secure_auth= 0;
     else
       die("Illegal option to connect: %.*s", 
           (int) (end - con_options), con_options);
@@ -5695,6 +5698,10 @@ void do_connect(struct st_command *command)
   if (con_cleartext_enable)
     mysql_options(&con_slot->mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
                   (char*) &con_cleartext_enable);
+
+  if (!con_secure_auth)
+    mysql_options(&con_slot->mysql, MYSQL_SECURE_AUTH,
+                  (char*) &con_secure_auth);
 
   /* Special database to allow one to connect without a database name */
   if (ds_database.length && !strcmp(ds_database.str,"*NO-ONE*"))
@@ -7125,8 +7132,12 @@ void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
     uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++)
+    {
+      /* looks ugly , but put here to convince parfait */
+      assert(lengths);
       append_field(ds, i, &fields[i],
                    row[i], lengths[i], !row[i]);
+    }
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -7849,13 +7860,6 @@ end:
   }
   revert_properties();
 
-  /* Close the statement if - no reconnect, need new prepare */
-  if (mysql->reconnect)
-  {
-    mysql_stmt_close(stmt);
-    cur_con->stmt= NULL;
-  }
-
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -7863,6 +7867,14 @@ end:
   */
 
   var_set_errno(mysql_stmt_errno(stmt));
+
+  /* Close the statement if - no reconnect, need new prepare */
+  if (mysql->reconnect)
+  {
+    mysql_stmt_close(stmt);
+    cur_con->stmt= NULL;
+  }
+
 
   DBUG_VOID_RETURN;
 }
@@ -8439,15 +8451,15 @@ static void dump_backtrace(void)
   struct st_connection *conn= cur_con;
 
   fprintf(stderr, "read_command_buf (%p): ", read_command_buf);
-  my_safe_print_str(read_command_buf, sizeof(read_command_buf));
+  my_safe_puts_stderr(read_command_buf, sizeof(read_command_buf));
 
   if (conn)
   {
     fprintf(stderr, "conn->name (%p): ", conn->name);
-    my_safe_print_str(conn->name, conn->name_len);
+    my_safe_puts_stderr(conn->name, conn->name_len);
 #ifdef EMBEDDED_LIBRARY
     fprintf(stderr, "conn->cur_query (%p): ", conn->cur_query);
-    my_safe_print_str(conn->cur_query, conn->cur_query_len);
+    my_safe_puts_stderr(conn->cur_query, conn->cur_query_len);
 #endif
   }
   fputs("Attempting backtrace...\n", stderr);
@@ -9352,7 +9364,7 @@ typedef struct st_pointer_array {		/* when using array-strings */
 
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
+int insert_pointer_name(POINTER_ARRAY *pa,char * name);
 void free_pointer_array(POINTER_ARRAY *pa);
 
 /*
@@ -9436,8 +9448,8 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
                             int len __attribute__((unused)))
 {
-  reg1 REPLACE *rep_pos;
-  reg2 REPLACE_STRING *rep_str;
+  REPLACE *rep_pos;
+  REPLACE_STRING *rep_str;
   const char *start, *from;
   DBUG_ENTER("replace_strings_append");
 
@@ -10133,6 +10145,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
       else
       {
 	new_set=make_new_set(&sets);
+        assert(new_set);
 	set=sets.set+set_nr;			/* if realloc */
 	new_set->table_offset=set->table_offset;
 	new_set->found_len=set->found_len;
@@ -10334,7 +10347,7 @@ void internal_clear_bit(REP_SET *set, uint bit)
 
 void or_bits(REP_SET *to,REP_SET *from)
 {
-  reg1 uint i;
+  uint i;
   for (i=0 ; i < to->size_of_bits ; i++)
     to->bits[i]|=from->bits[i];
   return;
@@ -10436,7 +10449,7 @@ uint end_of_word(char * pos)
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
+int insert_pointer_name(POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
   uchar *new_pos;

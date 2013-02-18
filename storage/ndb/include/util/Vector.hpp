@@ -24,7 +24,8 @@
 template<class T>
 class Vector {
 public:
-  Vector(int sz = 10);
+  Vector(unsigned sz = 10, unsigned inc_sz = 0);
+  int expand(unsigned sz);
   ~Vector();
 
   T& operator[](unsigned i);
@@ -32,7 +33,7 @@ public:
   unsigned size() const { return m_size; };
   
   int push_back(const T &);
-  void push(const T&, unsigned pos);
+  int push(const T&, unsigned pos);
   T& set(T&, unsigned pos, T& fill_obj);
   T& back();
   
@@ -63,40 +64,80 @@ private:
   unsigned m_arraySize;
 };
 
+/**
+ * BEWARE: Constructing Vector with initial size > 0 is
+ * unsafe wrt. catching 'out of memory' errors.
+ * (C'tor doesn't return error code)
+ * Instead construct Vector with size==0, and then
+ * expand() it to the wanted initial size.
+ */
 template<class T>
-Vector<T>::Vector(int i){
-  m_items = new T[i];
+Vector<T>::Vector(unsigned sz, unsigned inc_sz):
+  m_items(NULL),
+  m_size(0),
+  m_incSize((inc_sz > 0) ? inc_sz : 50),
+  m_arraySize(0)
+{
+  if (sz == 0)
+    return;
+
+  m_items = new T[sz];
   if (m_items == NULL)
   {
     errno = ENOMEM;
-    m_size = 0;
-    m_arraySize = 0;
-    m_incSize = 0;
     return;
   }
-  m_size = 0;
-  m_arraySize = i;
-  m_incSize = 50;
+  m_arraySize = sz;
 }
 
 template<class T>
+int
+Vector<T>::expand(unsigned sz){
+  if (sz <= m_size)
+    return 0;
+
+  T * tmp = new T[sz];
+  if(tmp == NULL)
+  {
+    errno = ENOMEM;
+    return -1;
+  }
+  for (unsigned i = 0; i < m_size; i++)
+    tmp[i] = m_items[i];
+  delete[] m_items;
+  m_items = tmp;
+  m_arraySize = sz;
+  return 0;
+}
+
+/**
+ * BEWARE: Copy-constructing a Vector is
+ * unsafe wrt. catching 'out of memory' errors.
+ * (C'tor doesn't return error code)
+ * Instead construct empty Vector (size==0),
+ * and then assign() it the initial contents.
+ */
+template<class T>
 Vector<T>::Vector(const Vector& src):
-  m_items(new T[src.m_size]),
-  m_size(src.m_size),
+  m_items(NULL),
+  m_size(0),
   m_incSize(src.m_incSize),
-  m_arraySize(src.m_size)
-  
+  m_arraySize(0)
 {
+  const unsigned sz = src.m_size;
+  if (sz == 0)
+    return;
+
+  m_items = new T[sz];
   if (unlikely(m_items == NULL)){
     errno = ENOMEM;
-    m_size = 0;
-    m_arraySize = 0;
-    m_incSize = 0;
     return;
   }
-  for(unsigned i = 0; i < m_size; i++){
+  for(unsigned i = 0; i < sz; i++){
     m_items[i] = src.m_items[i];
   }
+  m_arraySize = sz;
+  m_size = sz;
 }
 
 template<class T>
@@ -127,6 +168,8 @@ Vector<T>::operator[](unsigned i) const {
 template<class T>
 T &
 Vector<T>::back(){
+  if(m_size==0)
+    abort();
   return (* this)[m_size - 1];
 }
 
@@ -134,17 +177,9 @@ template<class T>
 int
 Vector<T>::push_back(const T & t){
   if(m_size == m_arraySize){
-    T * tmp = new T [m_arraySize + m_incSize];
-    if(tmp == NULL)
-    {
-      errno = ENOMEM;
-      return -1;
-    }
-    for (unsigned k = 0; k < m_size; k++)
-      tmp[k] = m_items[k];
-    delete[] m_items;
-    m_items = tmp;
-    m_arraySize = m_arraySize + m_incSize;
+    const int err = expand(m_arraySize + m_incSize);
+    if (unlikely(err))
+      return err;
   }
   m_items[m_size] = t;
   m_size++;
@@ -152,10 +187,12 @@ Vector<T>::push_back(const T & t){
 }
 
 template<class T>
-void
+int
 Vector<T>::push(const T & t, unsigned pos)
 {
-  push_back(t);
+  const int err = push_back(t);
+  if (unlikely(err))
+    return err;
   if (pos < m_size - 1)
   {
     for(unsigned i = m_size - 1; i > pos; i--)
@@ -164,13 +201,15 @@ Vector<T>::push(const T & t, unsigned pos)
     }
     m_items[pos] = t;
   }
+  return 0;
 }
 
 template<class T>
 T&
 Vector<T>::set(T & t, unsigned pos, T& fill_obj)
 {
-  fill(pos, fill_obj);
+  if (fill(pos, fill_obj))
+    abort();
   T& ret = m_items[pos];
   m_items[pos] = t;
   return ret;
@@ -196,19 +235,31 @@ Vector<T>::clear(){
 template<class T>
 int
 Vector<T>::fill(unsigned new_size, T & obj){
+  const int err = expand(new_size);
+  if (unlikely(err))
+    return err;
   while(m_size <= new_size)
     if (push_back(obj))
       return -1;
   return 0;
 }
 
+/**
+ * 'operator=' will 'abort()' on 'out of memory' errors.
+ *  You may prefer using ::assign()' which returns
+ *  an error code instead of aborting.
+ */
 template<class T>
 Vector<T>& 
 Vector<T>::operator=(const Vector<T>& obj){
   if(this != &obj){
     clear();
+    const int err = expand(obj.size());
+    if (unlikely(err))
+      abort();
     for(unsigned i = 0; i<obj.size(); i++){
-      push_back(obj[i]);
+      if (push_back(obj[i]))
+        abort();
     }
   }
   return * this;
@@ -218,12 +269,19 @@ template<class T>
 int
 Vector<T>::assign(const T* src, unsigned cnt)
 {
+  if (getBase() == src)
+    return 0;  // Self-assign is a NOOP
+
   clear();
+  const int err = expand(cnt);
+  if (unlikely(err))
+    return err;
+
   for (unsigned i = 0; i<cnt; i++)
   {
-    int ret;
-    if ((ret = push_back(src[i])))
-      return ret;
+    const int err = push_back(src[i]);
+    if (unlikely(err))
+      return err;
   }
   return 0;
 }
@@ -241,7 +299,8 @@ Vector<T>::equal(const Vector<T>& obj) const
 template<class T>
 class MutexVector : public NdbLockable {
 public:
-  MutexVector(int sz = 10);
+  MutexVector(unsigned sz = 10, unsigned inc_sz = 0);
+  int expand(unsigned sz);
   ~MutexVector();
 
   T& operator[](unsigned i);
@@ -260,26 +319,60 @@ public:
 
   int fill(unsigned new_size, T & obj);
 private:
+  // Don't allow copy and assignment of MutexVector
+  MutexVector(const MutexVector&); 
+  MutexVector<T>& operator=(const MutexVector<T>&);
+
   T * m_items;
   unsigned m_size;
   unsigned m_incSize;
   unsigned m_arraySize;
 };
 
+/**
+ * BEWARE: Constructing MutexVector with initial size > 0 is
+ * unsafe wrt. catching 'out of memory' errors.
+ * (C'tor doesn't return error code)
+ * Instead construct MutexVector with size==0, and then
+ * expand() it to the wanted initial size.
+ */
 template<class T>
-MutexVector<T>::MutexVector(int i){
-  m_items = new T[i];
+MutexVector<T>::MutexVector(unsigned sz, unsigned inc_sz):
+  m_items(NULL),
+  m_size(0),
+  m_incSize((inc_sz > 0) ? inc_sz : 50),
+  m_arraySize(0)
+{
+  if (sz == 0)
+    return;
+
+  m_items = new T[sz];
   if (m_items == NULL)
   {
     errno = ENOMEM;
-    m_size = 0;
-    m_arraySize = 0;
-    m_incSize = 0;
     return;
   }
-  m_size = 0;
-  m_arraySize = i;
-  m_incSize = 50;
+  m_arraySize = sz;
+}
+
+template<class T>
+int
+MutexVector<T>::expand(unsigned sz){
+  if (sz <= m_size)
+    return 0;
+
+  T * tmp = new T[sz];
+  if(tmp == NULL)
+  {
+    errno = ENOMEM;
+    return -1;
+  }
+  for (unsigned i = 0; i < m_size; i++)
+    tmp[i] = m_items[i];
+  delete[] m_items;
+  m_items = tmp;
+  m_arraySize = sz;
+  return 0;
 }
 
 template<class T>
@@ -310,6 +403,8 @@ MutexVector<T>::operator[](unsigned i) const {
 template<class T>
 T &
 MutexVector<T>::back(){
+  if(m_size==0)
+    abort();
   return (* this)[m_size - 1];
 }
 
@@ -318,18 +413,12 @@ int
 MutexVector<T>::push_back(const T & t){
   lock();
   if(m_size == m_arraySize){
-    T * tmp = new T [m_arraySize + m_incSize];
-    if (tmp == NULL)
+    const int err = expand(m_arraySize + m_incSize);
+    if (unlikely(err))
     {
-      errno = ENOMEM;
       unlock();
-      return -1;
+      return err;
     }
-    for (unsigned k = 0; k < m_size; k++)
-      tmp[k] = m_items[k];
-    delete[] m_items;
-    m_items = tmp;
-    m_arraySize = m_arraySize + m_incSize;
   }
   m_items[m_size] = t;
   m_size++;
@@ -343,19 +432,13 @@ MutexVector<T>::push_back(const T & t, bool lockMutex){
   if(lockMutex) 
     lock();
   if(m_size == m_arraySize){
-    T * tmp = new T [m_arraySize + m_incSize];
-    if (tmp == NULL)
+    const int err = expand(m_arraySize + m_incSize);
+    if (unlikely(err))
     {
-      errno = ENOMEM;
       if(lockMutex) 
         unlock();
-      return -1;
+      return err;
     }
-    for (unsigned k = 0; k < m_size; k++)
-      tmp[k] = m_items[k];
-    delete[] m_items;
-    m_items = tmp;
-    m_arraySize = m_arraySize + m_incSize;
   }
   m_items[m_size] = t;
   m_size++;

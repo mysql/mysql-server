@@ -44,7 +44,7 @@ SELECT @@global.sql_slave_skip_counter;
 ###################################################################
 
 SET @@global.sql_slave_skip_counter = DEFAULT;
-
+SELECT @@global.sql_slave_skip_counter;
 --echo '#--------------------FN_DYNVARS_165_03-------------------------#'
 ###################################################################
 #            Try setting any valid value to variable              #

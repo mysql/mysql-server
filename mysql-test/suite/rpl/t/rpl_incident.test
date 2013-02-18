@@ -1,5 +1,9 @@
 --source include/master-slave.inc
 --source include/have_debug.inc
+--source include/force_restart.inc
+
+--let @old_debug= @@global.debug
+SET GLOBAL DEBUG="+d,incident_database_resync_on_replace";
 
 --echo **** On Master ****
 CREATE TABLE t1 (a INT);
@@ -37,5 +41,7 @@ source include/check_slave_is_running.inc;
 
 connection master;
 DROP TABLE t1;
+SET GLOBAL DEBUG= @old_debug;
+
 --sync_slave_with_master
 --source include/rpl_end.inc

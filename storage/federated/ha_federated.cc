@@ -622,11 +622,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
   share->username= server->username;
   share->password= server->password;
   share->database= server->db;
-#ifndef I_AM_PARANOID
-  share->port= server->port > 0 && server->port < 65536 ? 
-#else
-  share->port= server->port > 1023 && server->port < 65536 ? 
-#endif
+  share->port= server->port > 0 && server->port < 65536 ?
                (ushort) server->port : MYSQL_PORT;
   share->hostname= server->host;
   if (!(share->socket= server->socket) &&
@@ -1314,7 +1310,7 @@ bool ha_federated::create_where_from_key(String *to,
     }
 
     for (key_part= key_info->key_part,
-         remainder= key_info->key_parts,
+         remainder= key_info->user_defined_key_parts,
          length= ranges[i]->length,
          ptr= ranges[i]->key; ;
          remainder--,

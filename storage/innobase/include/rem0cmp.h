@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +47,7 @@ cmp_cols_are_equal(
 This function is used to compare two data fields for which we know the
 data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INLINE
+UNIV_INTERN
 int
 cmp_data_data(
 /*==========*/
@@ -58,23 +58,8 @@ cmp_data_data(
 	ulint		len1,	/*!< in: data field length or UNIV_SQL_NULL */
 	const byte*	data2,	/*!< in: data field (== a pointer to a memory
 				buffer) */
-	ulint		len2);	/*!< in: data field length or UNIV_SQL_NULL */
-/*************************************************************//**
-This function is used to compare two data fields for which we know the
-data type.
-@return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
-UNIV_INTERN
-int
-cmp_data_data_slow(
-/*===============*/
-	ulint		mtype,	/*!< in: main type */
-	ulint		prtype,	/*!< in: precise type */
-	const byte*	data1,	/*!< in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len1,	/*!< in: data field length or UNIV_SQL_NULL */
-	const byte*	data2,	/*!< in: data field (== a pointer to a memory
-				buffer) */
-	ulint		len2);	/*!< in: data field length or UNIV_SQL_NULL */
+	ulint		len2)	/*!< in: data field length or UNIV_SQL_NULL */
+	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************
 This function is used to compare two data fields for which we know the

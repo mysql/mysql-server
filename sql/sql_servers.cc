@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,7 +177,7 @@ bool servers_init(bool dont_read_servers_table)
   return_val= servers_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
 
 end:
   DBUG_RETURN(return_val);
@@ -267,7 +267,7 @@ bool servers_reload(THD *thd)
     */
     if (thd->get_stmt_da()->is_error())
       sql_print_error("Can't open and lock privilege tables: %s",
-                      thd->get_stmt_da()->message());
+                      thd->get_stmt_da()->message_text());
     return_val= FALSE;
     goto end;
   }
@@ -602,7 +602,7 @@ bool drop_server(THD *thd, LEX_SERVER_OPTIONS *server_options, bool if_exists)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 
@@ -978,7 +978,7 @@ bool alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 
   if (close_cached_connection_tables(thd, &name))
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_UNKNOWN_ERROR, "Server connection in use");
   }
 

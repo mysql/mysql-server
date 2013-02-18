@@ -50,10 +50,21 @@ ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
 SELECT @@global.innodb_max_purge_lag;
 @@global.innodb_max_purge_lag
 0
-SET @@global.innodb_max_purge_lag = 1001;
+SET @@global.innodb_max_purge_lag = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
 SELECT @@global.innodb_max_purge_lag;
 @@global.innodb_max_purge_lag
-1001
+0
+SET @@global.innodb_max_purge_lag = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
+SET @@global.innodb_max_purge_lag = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
+SELECT @@global.innodb_max_purge_lag;
+@@global.innodb_max_purge_lag
+0
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_max_purge_lag =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
@@ -63,22 +74,22 @@ VARIABLE_VALUE
 1
 SELECT @@global.innodb_max_purge_lag;
 @@global.innodb_max_purge_lag
-1001
+0
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_max_purge_lag';
 VARIABLE_VALUE
-1001
+0
 '#---------------------FN_DYNVARS_046_06-------------------------#'
 SET @@global.innodb_max_purge_lag = OFF;
 ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
 SELECT @@global.innodb_max_purge_lag;
 @@global.innodb_max_purge_lag
-1001
+0
 SET @@global.innodb_max_purge_lag = ON;
 ERROR 42000: Incorrect argument type to variable 'innodb_max_purge_lag'
 SELECT @@global.innodb_max_purge_lag;
 @@global.innodb_max_purge_lag
-1001
+0
 '#---------------------FN_DYNVARS_046_07----------------------#'
 SET @@global.innodb_max_purge_lag = TRUE;
 SELECT @@global.innodb_max_purge_lag;

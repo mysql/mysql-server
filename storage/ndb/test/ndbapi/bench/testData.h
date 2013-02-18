@@ -156,6 +156,7 @@ typedef struct {
   class Ndb           * pNDB;
   NdbRecordSharedData*  ndbRecordSharedData;
   bool                  useCombinedUpdate;
+  bool                  robustMode;
 } ThreadData;
 
 /***************************************************************

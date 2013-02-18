@@ -344,6 +344,9 @@ trx_list_rw_insert_ordered(
 
 	ut_ad(!trx->read_only);
 
+	ut_d(trx->start_file = __FILE__);
+	ut_d(trx->start_line = __LINE__);
+
 	ut_a(srv_is_being_started);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
@@ -368,6 +371,7 @@ trx_list_rw_insert_ordered(
 
 		if (trx2 == NULL) {
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
+			ut_d(trx_sys->rw_max_trx_id = trx->id);
 		} else {
 			UT_LIST_INSERT_AFTER(
 				trx_list, trx_sys->rw_trx_list, trx2, trx);
@@ -419,6 +423,7 @@ trx_resurrect_insert(
 
 				trx->state = TRX_STATE_PREPARED;
 				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
 			} else {
 				fprintf(stderr,
 					"InnoDB: Since innodb_force_recovery"
@@ -479,6 +484,7 @@ trx_resurrect_update_in_prepared_state(
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
 			} else {
 				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 			}
@@ -627,7 +633,7 @@ trx_assign_rseg_low(
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
@@ -675,6 +681,7 @@ trx_assign_rseg(
 {
 	ut_a(trx->rseg == 0);
 	ut_a(trx->read_only);
+	ut_a(!srv_read_only_mode);
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
 	trx->rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
@@ -690,6 +697,8 @@ trx_start_low(
 {
 	ut_ad(trx->rseg == NULL);
 
+	ut_ad(trx->start_file != 0);
+	ut_ad(trx->start_line != 0);
 	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
@@ -698,8 +707,8 @@ trx_start_low(
 	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		!trx->ddl
-		&& thd_trx_is_read_only(trx->mysql_thd);
+		(!trx->ddl && thd_trx_is_read_only(trx->mysql_thd))
+		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
 		++trx->will_lock;
@@ -752,6 +761,7 @@ trx_start_low(
 		ut_ad(!trx_is_autocommit_non_locking(trx));
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
 		ut_d(trx->in_rw_trx_list = TRUE);
+		ut_d(trx_sys->rw_max_trx_id = trx->id);
 	}
 
 	ut_ad(trx_sys_validate_trx_list());
@@ -813,21 +823,17 @@ trx_serialisation_number_get(
 
 /****************************************************************//**
 Assign the transaction its history serialisation number and write the
-update UNDO log record to the assigned rollback segment.
-@return the LSN of the UNDO log write. */
-static
-lsn_t
+update UNDO log record to the assigned rollback segment. */
+static __attribute__((nonnull))
+void
 trx_write_serialisation_history(
 /*============================*/
-	trx_t*		trx)	/*!< in: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-
-	mtr_t		mtr;
 	trx_rseg_t*	rseg;
 
 	rseg = trx->rseg;
-
-	mtr_start(&mtr);
 
 	/* Change the undo log segment states from TRX_UNDO_ACTIVE
 	to some other state: these modifications to the file data
@@ -856,15 +862,15 @@ trx_write_serialisation_history(
 		because only a single OS thread is allowed to do the
 		transaction commit for this transaction. */
 
-		undo_hdr_page = trx_undo_set_state_at_finish(undo, &mtr);
+		undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
 
-		trx_undo_update_cleanup(trx, undo_hdr_page, &mtr);
+		trx_undo_update_cleanup(trx, undo_hdr_page, mtr);
 	} else {
 		mutex_enter(&rseg->mutex);
 	}
 
 	if (trx->insert_undo != NULL) {
-		trx_undo_set_state_at_finish(trx->insert_undo, &mtr);
+		trx_undo_set_state_at_finish(trx->insert_undo, mtr);
 	}
 
 	mutex_exit(&rseg->mutex);
@@ -881,38 +887,15 @@ trx_write_serialisation_history(
 		trx_sys_update_mysql_binlog_offset(
 			trx->mysql_log_file_name,
 			trx->mysql_log_offset,
-			TRX_SYS_MYSQL_LOG_INFO, &mtr);
+			TRX_SYS_MYSQL_LOG_INFO, mtr);
 
 		trx->mysql_log_file_name = NULL;
 	}
-
-	/* The following call commits the mini-transaction, making the
-	whole transaction committed in the file-based world, at this
-	log sequence number. The transaction becomes 'durable' when
-	we write the log to disk, but in the logical sense the commit
-	in the file-based data structures (undo logs etc.) happens
-	here.
-
-	NOTE that transaction numbers, which are assigned only to
-	transactions with an update undo log, do not necessarily come
-	in exactly the same order as commit lsn's, if the transactions
-	have different rollback segments. To get exactly the same
-	order we should hold the kernel mutex up to this point,
-	adding to the contention of the kernel mutex. However, if
-	a transaction T2 is able to see modifications made by
-	a transaction T1, T2 will always get a bigger transaction
-	number and a bigger commit lsn than T1. */
-
-	/*--------------*/
-	mtr_commit(&mtr);
-	/*--------------*/
-
-	return(mtr.end_lsn);
 }
 
 /********************************************************************
 Finalize a transaction containing updates for a FTS table. */
-static
+static __attribute__((nonnull))
 void
 trx_finalize_for_fts_table(
 /*=======================*/
@@ -943,20 +926,20 @@ trx_finalize_for_fts_table(
 	}
 }
 
-/********************************************************************
+/******************************************************************//**
 Finalize a transaction containing updates to FTS tables. */
-static
+static __attribute__((nonnull))
 void
 trx_finalize_for_fts(
 /*=================*/
-        trx_t*  trx,            /* in: transaction */
-        ibool   is_commit)      /* in: TRUE if the transaction was
-                                committed, FALSE if it was rolled back. */
+	trx_t*	trx,		/*!< in/out: transaction */
+	bool	is_commit)	/*!< in: true if the transaction was
+				committed, false if it was rolled back. */
 {
 	if (is_commit) {
-		const ib_rbt_node_t*    node;
-		ib_rbt_t*               tables;
-		fts_savepoint_t*        savepoint;
+		const ib_rbt_node_t*	node;
+		ib_rbt_t*		tables;
+		fts_savepoint_t*	savepoint;
 
 		savepoint = static_cast<fts_savepoint_t*>(
 			ib_vector_last(trx->fts_trx->savepoints));
@@ -966,7 +949,7 @@ trx_finalize_for_fts(
 		for (node = rbt_first(tables);
 		     node;
 		     node = rbt_next(tables, node)) {
-			fts_trx_table_t**        ftt;
+			fts_trx_table_t**	ftt;
 
 			ftt = rbt_value(fts_trx_table_t*, node);
 
@@ -1026,50 +1009,16 @@ trx_flush_log_if_needed(
 }
 
 /****************************************************************//**
-Commits a transaction. */
-UNIV_INTERN
+Commits a transaction in memory. */
+static __attribute__((nonnull))
 void
-trx_commit(
-/*=======*/
-	trx_t*	trx)	/*!< in: transaction */
+trx_commit_in_memory(
+/*=================*/
+	trx_t*	trx,	/*!< in/out: transaction */
+	lsn_t	lsn)	/*!< in: log sequence number of the mini-transaction
+			commit of trx_write_serialisation_history(), or 0
+			if the transaction did not modify anything */
 {
-	trx_named_savept_t*	savep;
-	ib_uint64_t		lsn = 0;
-	ibool			doing_fts_commit = FALSE;
-
-	assert_trx_nonlocking_or_in_list(trx);
-	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
-
-	/* undo_no is non-zero if we're doing the final commit. */
-	if (trx->fts_trx && trx->undo_no != 0) {
-		ulint   error;
-
-		ut_a(!trx_is_autocommit_non_locking(trx));
-
-		doing_fts_commit = TRUE;
-
-		error = fts_commit(trx);
-
-		/* FTS-FIXME: Temparorily tolerate DB_DUPLICATE_KEY
-		instead of dying. This is a possible scenario if there
-		is a crash between insert to DELETED table committing
-		and transaction committing. The fix would be able to
-		return error from this function */
-		if (error != DB_SUCCESS && error != DB_DUPLICATE_KEY) {
-			/* FTS-FIXME: once we can return values from this
-			function, we should do so and signal an error
-			instead of just dying. */
-
-			ut_error;
-		}
-	}
-
-	if (trx->insert_undo != NULL || trx->update_undo != NULL) {
-		lsn = trx_write_serialisation_history(trx);
-	} else {
-		lsn = 0;
-	}
-
 	trx->must_flush_log_later = FALSE;
 
 	if (trx_is_autocommit_non_locking(trx)) {
@@ -1196,8 +1145,10 @@ trx_commit(
 		trx->commit_lsn = lsn;
 	}
 
+	/* undo_no is non-zero if we're doing the final commit. */
+	bool			not_rollback = trx->undo_no != 0;
 	/* Free all savepoints, starting from the first. */
-	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	trx_named_savept_t*	savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
 	trx_roll_savepoints_free(trx, savep);
 
 	trx->rseg = NULL;
@@ -1205,12 +1156,19 @@ trx_commit(
 	trx->last_sql_stat_start.least_undo_no = 0;
 
 	trx->ddl = false;
+#ifdef UNIV_DEBUG
+	ut_ad(trx->start_file != 0);
+	ut_ad(trx->start_line != 0);
+	trx->start_file = 0;
+	trx->start_line = 0;
+#endif /* UNIV_DEBUG */
+
 	trx->will_lock = 0;
 	trx->read_only = FALSE;
 	trx->auto_commit = FALSE;
 
         if (trx->fts_trx) {
-                trx_finalize_for_fts(trx, doing_fts_commit);
+                trx_finalize_for_fts(trx, not_rollback);
         }
 
 	ut_ad(trx->lock.wait_thr == NULL);
@@ -1225,6 +1183,96 @@ trx_commit(
 	/* trx->in_mysql_trx_list would hold between
 	trx_allocate_for_mysql() and trx_free_for_mysql(). It does not
 	hold for recovered transactions or system transactions. */
+}
+
+/****************************************************************//**
+Commits a transaction and a mini-transaction. */
+UNIV_INTERN
+void
+trx_commit_low(
+/*===========*/
+	trx_t*	trx,	/*!< in/out: transaction */
+	mtr_t*	mtr)	/*!< in/out: mini-transaction (will be committed),
+			or NULL if trx made no modifications */
+{
+	lsn_t	lsn;
+
+	assert_trx_nonlocking_or_in_list(trx);
+	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
+	ut_ad(!mtr || mtr->state == MTR_ACTIVE);
+	ut_ad(!mtr == !(trx->insert_undo || trx->update_undo));
+
+	/* undo_no is non-zero if we're doing the final commit. */
+	if (trx->fts_trx && trx->undo_no != 0) {
+		dberr_t	error;
+
+		ut_a(!trx_is_autocommit_non_locking(trx));
+
+		error = fts_commit(trx);
+
+		/* FTS-FIXME: Temporarily tolerate DB_DUPLICATE_KEY
+		instead of dying. This is a possible scenario if there
+		is a crash between insert to DELETED table committing
+		and transaction committing. The fix would be able to
+		return error from this function */
+		if (error != DB_SUCCESS && error != DB_DUPLICATE_KEY) {
+			/* FTS-FIXME: once we can return values from this
+			function, we should do so and signal an error
+			instead of just dying. */
+
+			ut_error;
+		}
+	}
+
+	if (mtr) {
+		trx_write_serialisation_history(trx, mtr);
+		/* The following call commits the mini-transaction, making the
+		whole transaction committed in the file-based world, at this
+		log sequence number. The transaction becomes 'durable' when
+		we write the log to disk, but in the logical sense the commit
+		in the file-based data structures (undo logs etc.) happens
+		here.
+
+		NOTE that transaction numbers, which are assigned only to
+		transactions with an update undo log, do not necessarily come
+		in exactly the same order as commit lsn's, if the transactions
+		have different rollback segments. To get exactly the same
+		order we should hold the kernel mutex up to this point,
+		adding to the contention of the kernel mutex. However, if
+		a transaction T2 is able to see modifications made by
+		a transaction T1, T2 will always get a bigger transaction
+		number and a bigger commit lsn than T1. */
+
+		/*--------------*/
+		mtr_commit(mtr);
+		/*--------------*/
+		lsn = mtr->end_lsn;
+	} else {
+		lsn = 0;
+	}
+
+	trx_commit_in_memory(trx, lsn);
+}
+
+/****************************************************************//**
+Commits a transaction. */
+UNIV_INTERN
+void
+trx_commit(
+/*=======*/
+	trx_t*	trx)	/*!< in/out: transaction */
+{
+	mtr_t	local_mtr;
+	mtr_t*	mtr;
+
+	if (trx->insert_undo || trx->update_undo) {
+		mtr = &local_mtr;
+		mtr_start(mtr);
+	} else {
+		mtr = NULL;
+	}
+
+	trx_commit_low(trx, mtr);
 }
 
 /****************************************************************//**
@@ -1282,7 +1330,10 @@ trx_assign_read_view(
 {
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (trx->read_view != NULL) {
+	if (srv_read_only_mode) {
+		ut_ad(trx->read_view == 0);
+		return(NULL);
+	} else if (trx->read_view != NULL) {
 		return(trx->read_view);
 	}
 
@@ -1433,6 +1484,9 @@ trx_commit_for_mysql(
 		transaction contain XA information and other undo log
 		records, generated by the same transaction do not. */
 		trx->support_xa = thd_supports_xa(trx->mysql_thd);
+
+		ut_d(trx->start_file = __FILE__);
+		ut_d(trx->start_line = __LINE__);
 
 		trx_start_low(trx);
 		/* fall through */
@@ -2017,8 +2071,8 @@ trx_get_trx_by_xid(
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_xa(
-/*========================*/
+trx_start_if_not_started_xa_low(
+/*============================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
 	switch (trx->state) {
@@ -2078,16 +2132,35 @@ trx_start_for_ddl_low(
 	trx_t*		trx,	/*!< in/out: transaction */
 	trx_dict_op_t	op)	/*!< in: dictionary operation type */
 {
-	/* Flag this transaction as a dictionary operation, so that
-	the data dictionary will be locked in crash recovery. */
+	switch (trx->state) {
+	case TRX_STATE_NOT_STARTED:
+		/* Flag this transaction as a dictionary operation, so that
+		the data dictionary will be locked in crash recovery. */
 
-	trx_set_dict_operation(trx, op);
+		trx_set_dict_operation(trx, op);
 
-	/* Ensure it is not flagged as an auto-commit-non-locking transation. */
-	trx->will_lock = 1;
+		/* Ensure it is not flagged as an auto-commit-non-locking
+		transation. */
+		trx->will_lock = 1;
 
-	trx->ddl = true;
+		trx->ddl = true;
 
-	trx_start_low(trx);
+		trx_start_low(trx);
+		return;
+
+	case TRX_STATE_ACTIVE:
+		/* We have this start if not started idiom, therefore we
+		can't add stronger checks here. */
+		trx->ddl = true;
+
+		ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+		ut_ad(trx->will_lock > 0);
+		return;
+	case TRX_STATE_PREPARED:
+	case TRX_STATE_COMMITTED_IN_MEMORY:
+		break;
+	}
+
+	ut_error;
 }
 

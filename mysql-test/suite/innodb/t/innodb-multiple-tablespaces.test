@@ -14,7 +14,7 @@
 --source include/not_embedded.inc
 
 # Avoid CrashReporter popup on Mac
---source include/not_crashrep.inc
+#--source include/not_crashrep.inc
 
 SET default_storage_engine=InnoDB;
 
@@ -148,7 +148,8 @@ INSERT INTO nolink VALUES (1, 'no link file');
 
 --echo # YNY; Tablespace found in default and new_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQLD_DATADIR/test/yny.ibd
---move_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQL_TMP_DIR/new_dir/test/yny.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd $MYSQL_TMP_DIR/new_dir/test/yny.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yny.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/yny.ibd > $MYSQLD_DATADIR/test/yny.isl
 
 --echo # YYN; Tablespace found in default and alt_dir
@@ -159,17 +160,20 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --exec echo $MYSQL_TMP_DIR/new_dir/test/nyw.ibd > $MYSQLD_DATADIR/test/nyw.isl
 
 --echo # NWY; Copy the wrong file to alt_dir, good one to new_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd $MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd $MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/nwy.ibd > $MYSQLD_DATADIR/test/nwy.isl
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/nwy.ibd
 
 --echo # WNY; Copy the wrong file to default, good one to new_dir, delete it form alt_dir
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wny.ibd
---move_file $MYSQL_TMP_DIR/alt_dir/test/wny.ibd $MYSQL_TMP_DIR/new_dir/test/wny.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/wny.ibd $MYSQL_TMP_DIR/new_dir/test/wny.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/wny.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/wny.ibd > $MYSQLD_DATADIR/test/wny.isl
 
 --echo # YNW; Copy the file to default, wrong one to new_dir, delete it form alt_dir
---move_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd $MYSQLD_DATADIR/test/ynw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd $MYSQLD_DATADIR/test/ynw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/ynw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/new_dir/test/ynw.ibd
 --exec echo $MYSQL_TMP_DIR/new_dir/test/ynw.ibd > $MYSQLD_DATADIR/test/ynw.isl
 
@@ -177,7 +181,8 @@ INSERT INTO nolink VALUES (1, 'no link file');
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQLD_DATADIR/test/wyn.ibd
 
 --echo # YWN; Copy the file to default, wrong one to alt_dir
---move_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd $MYSQLD_DATADIR/test/ywn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yyy.ibd $MYSQL_TMP_DIR/alt_dir/test/ywn.ibd
 
 --echo # NNN; Delete the tablespace and ISL
@@ -411,11 +416,13 @@ COMMIT;
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQLD_DATADIR/test/wy.ibd
 
 --echo # YW; Tablespace is found in the default directory but the wrong file in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd $MYSQLD_DATADIR/test/yw.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/nolink.ibd.bak $MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 
 --echo # YN; Tablespace found the default directory but not in alt_dir.
---move_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--copy_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd $MYSQLD_DATADIR/test/yn.ibd
+--remove_file $MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 
 --echo # YY; Found in both default directory and alt-dir.
 --copy_file $MYSQL_TMP_DIR/alt_dir/test/yy.ibd $MYSQLD_DATADIR/test/yy.ibd

@@ -297,7 +297,7 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC= 'now SIGNAL continue2';
 SET DEBUG_SYNC= 'now WAIT_FOR binlog';
 # Now both reads and writes should be blocked.
-SELECT * FROM t1;
+SELECT * FROM t1 limit 1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES (5,5);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction

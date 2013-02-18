@@ -44,9 +44,11 @@ INCLUDE(CheckCSourceCompiles)
 INCLUDE(CheckCXXSourceCompiles)
 INCLUDE(CheckCXXSourceRuns)
 INCLUDE(ndb_require_variable)
+INCLUDE(ndb_check_mysql_include_file)
 
 CHECK_FUNCTION_EXISTS(posix_memalign HAVE_POSIX_MEMALIGN)
 CHECK_FUNCTION_EXISTS(clock_gettime HAVE_CLOCK_GETTIME)
+CHECK_FUNCTION_EXISTS(nanosleep HAVE_NANOSLEEP)
 CHECK_FUNCTION_EXISTS(pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS(pthread_self HAVE_PTHREAD_SELF)
 CHECK_FUNCTION_EXISTS(sched_get_priority_min HAVE_SCHED_GET_PRIORITY_MIN)
@@ -68,7 +70,7 @@ CHECK_FUNCTION_EXISTS(bzero HAVE_BZERO)
 
 CHECK_INCLUDE_FILES(sun_prefetch.h HAVE_SUN_PREFETCH_H)
 
-CHECK_CXX_SOURCE_COMPILES("
+CHECK_CXX_SOURCE_RUNS("
 unsigned A = 7;
 int main()
 {
@@ -76,6 +78,24 @@ int main()
   return 0;
 }"
 HAVE___BUILTIN_FFS)
+
+CHECK_CXX_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_ctz(A);
+  return 0;
+}"
+HAVE___BUILTIN_CTZ)
+
+CHECK_CXX_SOURCE_COMPILES("
+unsigned A = 7;
+int main()
+{
+  unsigned a = __builtin_clz(A);
+  return 0;
+}"
+HAVE___BUILTIN_CLZ)
 
 CHECK_C_SOURCE_COMPILES("
 #include <intrin.h>
@@ -87,6 +107,17 @@ int main()
   return (int)a;
 }"
 HAVE__BITSCANFORWARD)
+
+CHECK_C_SOURCE_COMPILES("
+#include <intrin.h>
+unsigned long A = 7;
+int main()
+{
+  unsigned long a;
+  unsigned char res = _BitScanReverse(&a, A);
+  return (int)a;
+}"
+HAVE__BITSCANREVERSE)
 
 # Linux scheduling and locking support
 CHECK_C_SOURCE_COMPILES("
@@ -185,8 +216,15 @@ IF(WITH_NDB_PORT GREATER 0)
   MESSAGE(STATUS "Setting MySQL Cluster management server port to ${NDB_PORT}")
 ENDIF()
 
+#
+# Check which MySQL include files exists
+#
+NDB_CHECK_MYSQL_INCLUDE_FILE(my_default.h HAVE_MY_DEFAULT_H)
+
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/include/ndb_config.h.in
                ${CMAKE_CURRENT_BINARY_DIR}/include/ndb_config.h)
+# Exclude ndb_config.h from "make dist"
+LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_config\\\\.h$)
 
 # Define HAVE_NDB_CONFIG_H to make ndb_global.h include the
 # generated ndb_config.h
@@ -206,6 +244,9 @@ IF(WITH_CLASSPATH)
   MESSAGE(STATUS "Using supplied classpath: ${WITH_CLASSPATH}")
 ELSE()
   SET(WITH_CLASSPATH "$ENV{CLASSPATH}")
+  IF(WIN32)
+    STRING(REPLACE "\\" "/" WITH_CLASSPATH "${WITH_CLASSPATH}")
+  ENDIF()
   IF(WITH_CLASSPATH)
     MESSAGE(STATUS "Using CLASSPATH from environment: ${WITH_CLASSPATH}")    
   ENDIF()

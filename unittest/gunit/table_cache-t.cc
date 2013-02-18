@@ -28,7 +28,7 @@
 */
 extern handlerton *example_hton;
 
-namespace {
+namespace table_cache_unittest {
 
 using my_testing::Server_initializer;
 

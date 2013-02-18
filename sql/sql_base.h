@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,12 +130,18 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   operation rather than explicitly through an user thread.
 */
 #define MYSQL_LOCK_RPL_INFO_TABLE               0x2000
+/**
+  Only check THD::killed if waits happen (e.g. wait on MDL, wait on
+  table flush, wait on thr_lock.c locks) while opening and locking table.
+*/
+#define MYSQL_OPEN_IGNORE_KILLED                0x4000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
                             MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
                             MYSQL_LOCK_IGNORE_TIMEOUT |\
+                            MYSQL_OPEN_IGNORE_KILLED |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
 
@@ -170,12 +176,14 @@ bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
                                           bool ignore_errors,
                                           Table_triggers_list *triggers,
-                                          enum trg_event_type event);
+                                          enum trg_event_type event,
+                                          int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
                                           bool ignore_errors,
                                           Table_triggers_list *triggers,
-                                          enum trg_event_type event);
+                                          enum trg_event_type event,
+                                          int num_fields);
 bool insert_fields(THD *thd, Name_resolution_context *context,
 		   const char *db_name, const char *table_name,
                    List_iterator<Item> *it, bool any_privileges);
@@ -185,9 +193,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap);
+                 bool ignore_errors, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap);
+                 bool ignore_errors, MY_BITMAP *bitmap,
+                 MY_BITMAP *insert_into_fields_bitmap);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
@@ -593,7 +603,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -607,5 +617,8 @@ private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
+
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 #endif /* SQL_BASE_INCLUDED */

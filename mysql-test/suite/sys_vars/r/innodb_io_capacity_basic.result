@@ -39,6 +39,11 @@ VARIABLE_NAME	VARIABLE_VALUE
 INNODB_IO_CAPACITY	123
 set session innodb_io_capacity=233;
 ERROR HY000: Variable 'innodb_io_capacity' is a GLOBAL variable and should be set with SET GLOBAL
+set @@global.innodb_io_capacity=100;
+set @@global.innodb_io_capacity=DEFAULT;
+select @@global.innodb_io_capacity;
+@@global.innodb_io_capacity
+200
 set global innodb_io_capacity=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_io_capacity'
 set global innodb_io_capacity=1e1;

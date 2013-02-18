@@ -1,0 +1,5 @@
+SELECT * FROM ndbmemcache.hashtags;
+hashtag	tweet_id	author
+mysql	1	frederick
+oscon	1	fred
+oscon	2	freddy

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -542,13 +542,19 @@ UNIV_INTERN
 void
 log_refresh_stats(void);
 /*===================*/
-/**********************************************************
+/********************************************************//**
+Closes all log groups. */
+UNIV_INTERN
+void
+log_group_close_all(void);
+/*=====================*/
+/********************************************************//**
 Shutdown the log system but do not release all the memory. */
 UNIV_INTERN
 void
 log_shutdown(void);
 /*==============*/
-/**********************************************************
+/********************************************************//**
 Free the log system data structures. */
 UNIV_INTERN
 void

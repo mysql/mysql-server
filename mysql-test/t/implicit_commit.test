@@ -1031,24 +1031,8 @@ source include/implicit_commit_helper.inc;
 --echo #
 
 --echo #
---echo # SQLCOM_SHOW_AUTHORS
---echo #
-
-let $statement=
-  show authors;
-source include/implicit_commit_helper.inc;
-
---echo #
 --echo # SQLCOM_BINLOG_BASE64_EVENT
 --echo #
-
---echo #
---echo # SQLCOM_SHOW_CONTRIBUTORS
---echo #
-
-let $statement=
-  show contributors;
-source include/implicit_commit_helper.inc;
 
 --echo #
 --echo # SQLCOM_CREATE_SERVER

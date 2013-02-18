@@ -192,9 +192,8 @@ source show_varpart.inc;
 # Bug #30667
 # ndb table discovery does not work correcly with information schema
 # - prior to bug fix this would yeild no output and a warning
-# (priviliges differ on embedded and server so replace)
---replace_column 18 #
-select * from information_schema.columns where table_name = "t1_c";
+select TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, ORDINAL_POSITION, DATA_TYPE
+  from information_schema.columns where table_name = "t1_c";
 
 # random output order??
 #show tables;

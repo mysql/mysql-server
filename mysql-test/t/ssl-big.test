@@ -3,6 +3,8 @@
 
 -- source include/have_ssl_communication.inc
 -- source include/big_test.inc
+# Skiping this test from Valgrind execution as per Bug-14627884
+--source include/not_valgrind.inc
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc

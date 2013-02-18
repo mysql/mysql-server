@@ -113,7 +113,15 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 
 SET @@global.innodb_max_dirty_pages_pct = 1001;
 SELECT @@global.innodb_max_dirty_pages_pct;
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct = ' ';
+SELECT @@global.innodb_max_dirty_pages_pct;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct = " ";
+SELECT @@global.innodb_max_dirty_pages_pct;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_dirty_pages_pct = 1.1;
+SELECT @@global.innodb_max_dirty_pages_pct;
 
 --echo '#----------------------FN_DYNVARS_046_06------------------------#'
 #########################################################################

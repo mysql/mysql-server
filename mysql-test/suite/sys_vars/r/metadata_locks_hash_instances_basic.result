@@ -1,0 +1,51 @@
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT @@GLOBAL.metadata_locks_hash_instances;
+@@GLOBAL.metadata_locks_hash_instances
+8
+####################################################################
+# Check that value cannot be set (this variable is settable only   #
+# at start-up).                                                    #
+####################################################################
+SET @@GLOBAL.metadata_locks_hash_instances=1;
+ERROR HY000: Variable 'metadata_locks_hash_instances' is a read only variable
+SELECT @@GLOBAL.metadata_locks_hash_instances;
+@@GLOBAL.metadata_locks_hash_instances
+8
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.metadata_locks_hash_instances = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='metadata_locks_hash_instances';
+@@GLOBAL.metadata_locks_hash_instances = VARIABLE_VALUE
+1
+SELECT @@GLOBAL.metadata_locks_hash_instances;
+@@GLOBAL.metadata_locks_hash_instances
+8
+SELECT VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='metadata_locks_hash_instances';
+VARIABLE_VALUE
+8
+######################################################################
+#  Check if accessing variable with and without GLOBAL point to same #
+#  variable                                                          #
+######################################################################
+SELECT @@metadata_locks_hash_instances = @@GLOBAL.metadata_locks_hash_instances;
+@@metadata_locks_hash_instances = @@GLOBAL.metadata_locks_hash_instances
+1
+######################################################################
+#  Check if variable has only the GLOBAL scope                       #
+######################################################################
+SELECT @@metadata_locks_hash_instances;
+@@metadata_locks_hash_instances
+8
+SELECT @@GLOBAL.metadata_locks_hash_instances;
+@@GLOBAL.metadata_locks_hash_instances
+8
+SELECT @@local.metadata_locks_hash_instances;
+ERROR HY000: Variable 'metadata_locks_hash_instances' is a GLOBAL variable
+SELECT @@SESSION.metadata_locks_hash_instances;
+ERROR HY000: Variable 'metadata_locks_hash_instances' is a GLOBAL variable

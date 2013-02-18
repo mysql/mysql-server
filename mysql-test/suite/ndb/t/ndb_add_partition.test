@@ -34,9 +34,28 @@ STORAGE DISK
 TABLESPACE ts1
 partition by key(a);
 
+CREATE TABLE t3 (a int unsigned not null,
+                 b int unsigned not null,
+                 c int unsigned not null,
+                 primary key(a,b),
+                 unique (b))
+MAX_ROWS=50000000
+ENGINE = NDB;
+
+CREATE TABLE t4 (a int unsigned not null,
+                 b int unsigned not null,
+                 c int unsigned not null,
+                 primary key(a,b),
+                 unique (b))
+ENGINE = NDB;
+
 let $t1_part_count_start = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
 let $t2_part_count_start = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't2', Value, 1);
+
+let $t3_part_count_start = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't3', Value, 1);
+
+let $t4_part_count_start = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't4', Value, 1);
 
 INSERT INTO t1 VALUES
 (1,1,1),(2,2,2),(3,3,3),(4,4,4),(5,5,5),
@@ -61,8 +80,12 @@ INSERT INTO t1 VALUES
 (96,96,96),(97,97,97),(98,98,98),(99,99,99),(100,100,100);
 
 insert into t2 select * from t1;
+insert into t3 select * from t1;
+insert into t4 select * from t1;
 select count(*) from t1;
 select count(*) from t2;
+select count(*) from t3;
+select count(*) from t4;
 --sorted_result
 select * from t1 where a < 20;
 --sorted_result
@@ -93,32 +116,89 @@ select * from t2 where b = 30;
 select * from t2 where b = 40;
 select * from t2 where b = 50;
 
+--sorted_result
+select * from t3 where a < 20;
+--sorted_result
+select * from t3 where a = 20;
+--sorted_result
+select * from t3 where a = 30;
+--sorted_result
+select * from t3 where a = 40;
+--sorted_result
+select * from t3 where a = 50;
+select * from t3 where b = 20;
+select * from t3 where b = 30;
+select * from t3 where b = 40;
+select * from t3 where b = 50;
+
+--sorted_result
+select * from t4 where a < 20;
+--sorted_result
+select * from t4 where a = 20;
+--sorted_result
+select * from t4 where a = 30;
+--sorted_result
+select * from t4 where a = 40;
+--sorted_result
+select * from t4 where a = 50;
+select * from t4 where b = 20;
+select * from t4 where b = 30;
+select * from t4 where b = 40;
+select * from t4 where b = 50;
+
 alter online table t1 reorganize partition;
 alter online table t2 reorganize partition;
+--echo Cannot use normal reorganize partition on t3 as it has explicit MAX_ROWS set
+--error 1235
+alter online table t3 reorganize partition;
+show warnings;
+
+alter online table t3 max_rows=50000000;
+alter online table t4 reorganize partition;
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
 let $t2_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't2', Value, 1);
 
+let $t3_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't3', Value, 1);
+
+let $t4_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't4', Value, 1);
+
 --disable_query_log
+--echo Check partitions added, expect 0 in all cases
 --echo partitions added to t1
 eval select $t1_part_count_now - $t1_part_count_start as t1_added;
 --echo partitions added to t2
 eval select $t2_part_count_now - $t2_part_count_start as t2_added;
+--echo partitions added to t3
+eval select $t3_part_count_now - $t3_part_count_start as t3_added;
+--echo partitions added to t4
+eval select $t4_part_count_now - $t4_part_count_start as t4_added;
 --enable_query_log
 
 alter online table t1 add partition partitions 1;
 alter online table t2 add partition partitions 4;
+alter online table t3 max_rows=100000000; # Expansion of max rows
+--error 1235
+alter online table t4 max_rows=100000000; # Attempted introduction of max rows - fails
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
 let $t2_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't2', Value, 1);
 
+let $t3_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't3', Value, 1);
+
+let $t4_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't4', Value, 1);
+
 --disable_query_log
---echo partitions added to t1
+--echo partitions added to t1 (expect 1)
 eval select $t1_part_count_now - $t1_part_count_start as t1_added;
---echo partitions added to t2
+--echo partitions added to t2 (expect 4)
 eval select $t2_part_count_now - $t2_part_count_start as t2_added;
+--echo partitions added to t3 (expect 2)
+eval select $t3_part_count_now - $t3_part_count_start as t3_added;
+--echo partitions added to t4 (expect 0)
+eval select $t4_part_count_now - $t4_part_count_start as t4_added;
 --enable_query_log
 
 # reorganize partition not support if not default partitioning
@@ -126,6 +206,14 @@ eval select $t2_part_count_now - $t2_part_count_start as t2_added;
 --error ER_REORG_NO_PARAM_ERROR
 alter online table t1 reorganize partition;
 
+# Following will fail as t3 has an explicit MAX_ROWS set 
+--error 1235 
+alter online table t3 reorganize partition;
+show warnings;
+
+# t4 reorg will succeed as t4 has no explicit MAX_ROWS
+alter online table t4 reorganize partition;
+
 select count(*) from t1;
 select count(*) from t2;
 --sorted_result
@@ -158,18 +246,55 @@ select * from t2 where b = 30;
 select * from t2 where b = 40;
 select * from t2 where b = 50;
 
+--sorted_result
+select * from t3 where a < 20;
+--sorted_result
+select * from t3 where a = 20;
+--sorted_result
+select * from t3 where a = 30;
+--sorted_result
+select * from t3 where a = 40;
+--sorted_result
+select * from t3 where a = 50;
+select * from t3 where b = 20;
+select * from t3 where b = 30;
+select * from t3 where b = 40;
+select * from t3 where b = 50;
+
+--sorted_result
+select * from t4 where a < 20;
+--sorted_result
+select * from t4 where a = 20;
+--sorted_result
+select * from t4 where a = 30;
+--sorted_result
+select * from t4 where a = 40;
+--sorted_result
+select * from t4 where a = 50;
+select * from t4 where b = 20;
+select * from t4 where b = 30;
+select * from t4 where b = 40;
+select * from t4 where b = 50;
+
+drop table t4;
+
 alter online table t1 add partition partitions 2;
 alter online table t2 add partition partitions 1;
+alter online table t3 max_rows=150000000;
 
 let $t1_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't1', Value, 1);
 
 let $t2_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't2', Value, 1);
 
+let $t3_part_count_now = query_get_value(select count(*) as Value from information_schema.partitions where table_schema = 'test' and table_name = 't3', Value, 1);
+
 --disable_query_log
---echo partitions added to t1
+--echo partitions added to t1 (expect 3)
 eval select $t1_part_count_now - $t1_part_count_start as t1_added;
---echo partitions added to t2
+--echo partitions added to t2 (expect 5)
 eval select $t2_part_count_now - $t2_part_count_start as t2_added;
+--echo partitions added to t3 (expect 4)
+eval select $t3_part_count_now - $t3_part_count_start as t3_added;
 --enable_query_log
 
 select count(*) from t1;
@@ -204,7 +329,22 @@ select * from t2 where b = 30;
 select * from t2 where b = 40;
 select * from t2 where b = 50;
 
-drop table t1,t2;
+--sorted_result
+select * from t3 where a < 20;
+--sorted_result
+select * from t3 where a = 20;
+--sorted_result
+select * from t3 where a = 30;
+--sorted_result
+select * from t3 where a = 40;
+--sorted_result
+select * from t3 where a = 50;
+select * from t3 where b = 20;
+select * from t3 where b = 30;
+select * from t3 where b = 40;
+select * from t3 where b = 50;
+
+drop table t1,t2,t3;
 alter tablespace ts1 drop datafile 'datafile.dat' engine = ndb;
 drop tablespace ts1 engine = ndb;
 drop logfile group lg1 engine = ndb;

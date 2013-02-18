@@ -56,6 +56,16 @@ Warning	1292	Truncated incorrect innodb_flushing_avg_loops value: '1001'
 SELECT @@global.innodb_flushing_avg_loops;
 @@global.innodb_flushing_avg_loops
 1000
+SET @@global.innodb_flushing_avg_loops = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_flushing_avg_loops'
+SELECT @@global.innodb_flushing_avg_loops;
+@@global.innodb_flushing_avg_loops
+1000
+SET @@global.innodb_flushing_avg_loops = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_flushing_avg_loops'
+SELECT @@global.innodb_flushing_avg_loops;
+@@global.innodb_flushing_avg_loops
+1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_flushing_avg_loops =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

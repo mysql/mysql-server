@@ -28,12 +28,12 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.16-SNAPSHOT</version>
+    <version>7.1.22-SNAPSHOT</version>
   </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-jpatest</artifactId>
-    <version>7.1.16-SNAPSHOT</version>
+    <version>7.1.22-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>ClusterJ JPA Integration Tests</name>
 
@@ -107,8 +107,8 @@
         <artifactId>openjpa</artifactId>
       </dependency>
       <dependency>
-        <groupId>junit</groupId>
-        <artifactId>junit</artifactId>
+      <groupId>com.mysql.clusterj</groupId>
+      <artifactId>clusterj-unit</artifactId>
         <scope>compile</scope>
       </dependency>
     </dependencies>

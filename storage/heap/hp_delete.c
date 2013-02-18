@@ -64,7 +64,7 @@ err:
   Remove one key from rb-tree
 */
 
-int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+int hp_rb_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 		   const uchar *record, uchar *recpos, int flag)
 {
   heap_rb_param custom_arg;
@@ -101,10 +101,10 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     other  Error code
 */
 
-int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 		  const uchar *record, uchar *recpos, int flag)
 {
-  ulong blength,pos2,pos_hashnr,lastpos_hashnr;
+  ulong blength, pos2, pos_hashnr, lastpos_hashnr, key_pos;
   HASH_INFO *lastpos,*gpos,*pos,*pos3,*empty,*last_ptr;
   HP_SHARE *share=info->s;
   DBUG_ENTER("hp_delete_key");
@@ -116,9 +116,9 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
   last_ptr=0;
 
   /* Search after record with key */
-  pos= hp_find_hash(&keyinfo->block,
-		    hp_mask(hp_rec_hashnr(keyinfo, record), blength,
-			    share->records + 1));
+  key_pos= hp_mask(hp_rec_hashnr(keyinfo, record), blength, share->records + 1);
+  pos= hp_find_hash(&keyinfo->block, key_pos);
+
   gpos = pos3 = 0;
 
   while (pos->ptr_to_rec != recpos)
@@ -188,6 +188,16 @@ int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
       DBUG_RETURN(0);
     }
     pos3= pos;				/* Link pos->next after lastpos */
+    /* 
+      One of elements from the bucket we're scanning is moved to the
+      beginning of the list. Reset search since this element may not have
+      been processed yet. 
+    */
+    if (flag && pos2 == key_pos)
+    {
+      info->current_ptr= 0;
+      info->current_hash_ptr= 0;
+    }
   }
   else
   {

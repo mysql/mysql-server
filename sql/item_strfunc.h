@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,19 +222,19 @@ public:
 };
 
 
-class Item_func_lcase :public Item_str_conv
+class Item_func_lower :public Item_str_conv
 {
 public:
-  Item_func_lcase(Item *item) :Item_str_conv(item) {}
-  const char *func_name() const { return "lcase"; }
+  Item_func_lower(Item *item) :Item_str_conv(item) {}
+  const char *func_name() const { return "lower"; }
   void fix_length_and_dec();
 };
 
-class Item_func_ucase :public Item_str_conv
+class Item_func_upper :public Item_str_conv
 {
 public:
-  Item_func_ucase(Item *item) :Item_str_conv(item) {}
-  const char *func_name() const { return "ucase"; }
+  Item_func_upper(Item *item) :Item_str_conv(item) {}
+  const char *func_name() const { return "upper"; }
   void fix_length_and_dec();
 };
 
@@ -1019,7 +1019,6 @@ public:
   String *val_str(String *);
 };
 
-#ifdef HAVE_REPLICATION
 class Item_func_gtid_subtract: public Item_str_ascii_func
 {
   String buf1, buf2;
@@ -1029,6 +1028,5 @@ public:
   const char *func_name() const{ return "gtid_subtract"; }
   String *val_str_ascii(String *);
 };
-#endif // if HAVE_REPLICATION
 
 #endif /* ITEM_STRFUNC_INCLUDED */

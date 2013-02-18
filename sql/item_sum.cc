@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -153,9 +153,10 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
       If it is there under a construct where it is not allowed 
       we report an error. 
     */ 
-    invalid= !(allow_sum_func & (1 << max_arg_level));
+    invalid= !(allow_sum_func & ((nesting_map)1 << max_arg_level));
   }
-  else if (max_arg_level >= 0 || !(allow_sum_func & (1 << nest_level)))
+  else if (max_arg_level >= 0 ||
+           !(allow_sum_func & ((nesting_map)1 << nest_level)))
   {
     /*
       The set function can be aggregated only in outer subqueries.
@@ -164,7 +165,8 @@ bool Item_sum::check_sum_func(THD *thd, Item **ref)
     */
     if (register_sum_func(thd, ref))
       return TRUE;
-    invalid= aggr_level < 0 && !(allow_sum_func & (1 << nest_level));
+    invalid= aggr_level < 0 &&
+             !(allow_sum_func & ((nesting_map)1 << nest_level));
     if (!invalid && thd->variables.sql_mode & MODE_ANSI)
       invalid= aggr_level < 0 && max_arg_level < nest_level;
   }
@@ -312,14 +314,15 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
        sl && sl->nest_level > max_arg_level;
        sl= sl->master_unit()->outer_select() )
   {
-    if (aggr_level < 0 && (allow_sum_func & (1 << sl->nest_level)))
+    if (aggr_level < 0 &&
+        (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
     {
       /* Found the most nested subquery where the function can be aggregated */
       aggr_level= sl->nest_level;
       aggr_sel= sl;
     }
   }
-  if (sl && (allow_sum_func & (1 << sl->nest_level)))
+  if (sl && (allow_sum_func & ((nesting_map)1 << sl->nest_level)))
   {
     /* 
       We reached the subquery of level max_arg_level and checked
@@ -496,6 +499,54 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 }
 
 
+/**
+  Remove the item from the list of inner aggregation functions in the
+  SELECT_LEX it was moved to by Item_sum::register_sum_func().
+
+  This is done to undo some of the effects of
+  Item_sum::register_sum_func() so that the item may be removed from
+  the query.
+
+  @note This doesn't completely undo Item_sum::register_sum_func(), as
+  with_sum_func information is left untouched. This means that if this
+  item is removed, aggr_sel and all Item_subselects between aggr_sel
+  and this item may be left with with_sum_func set to true, even if
+  there are no aggregation functions. To our knowledge, this has no
+  impact on the query result.
+
+  @see Item_sum::register_sum_func()
+  @see remove_redundant_subquery_clauses()
+ */
+bool Item_sum::clean_up_after_removal(uchar *arg)
+{
+  /*
+    Sometimes we remove unresolved items. This may happen if an
+    expression occurs twice in the same query. In that case, the whole
+    item tree for the second occurence is replaced by the item tree
+    for the first occurence, without calling fix_fields() on the
+    second tree. Therefore there's nothing to clean up.
+  */
+  if (!fixed)
+    return false;
+
+  if (aggr_sel && aggr_sel->inner_sum_func_list)
+  {
+    if (next == this)
+      aggr_sel->inner_sum_func_list= NULL;
+    else
+    {
+      Item_sum *prev;
+      for (prev= this; prev->next != this; prev= prev->next)
+        ;
+      prev->next= next;
+      if (aggr_sel->inner_sum_func_list == this)
+        aggr_sel->inner_sum_func_list= prev;
+    }
+  }
+  return false;
+}
+
+
 Field *Item_sum::create_tmp_field(bool group, TABLE *table)
 {
   Field *field;
@@ -541,7 +592,7 @@ void Item_sum::update_used_tables ()
     used_tables_cache&= PSEUDO_TABLE_BITS;
 
     /* the aggregate function is aggregated into its local context */
-    used_tables_cache |=  (1 << aggr_sel->join->tables) - 1;
+    used_tables_cache|= ((table_map)1 << aggr_sel->join->tables) - 1;
   }
 }
 
@@ -971,7 +1022,7 @@ bool Aggregator_distinct::add()
       return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
-      if ((*field)->is_real_null(0))
+      if ((*field)->is_real_null())
         return 0;					// Don't count NULL
 
     if (tree)
@@ -991,7 +1042,7 @@ bool Aggregator_distinct::add()
   }
   else
   {
-    item_sum->get_arg(0)->save_in_field(table->field[0], FALSE);
+    item_sum->get_arg(0)->save_in_field(table->field[0], false);
     if (table->field[0]->is_null())
       return 0;
     DBUG_ASSERT(tree);
@@ -2425,7 +2476,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
   nr= args[0]->val_temporal_by_field_type();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr= nr;
     else
     {
@@ -2436,7 +2487,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_packed(old_nr);
 }
@@ -2467,12 +2518,12 @@ void Item_sum_hybrid::min_max_update_real_field()
   nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0) ||
+    if (result_field->is_null() ||
 	(cmp_sign > 0 ? old_nr > nr : old_nr < nr))
       old_nr=nr;
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr);
 }
@@ -2486,7 +2537,7 @@ void Item_sum_hybrid::min_max_update_int_field()
   nr=args[0]->val_int();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2499,7 +2550,7 @@ void Item_sum_hybrid::min_max_update_int_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr, unsigned_flag);
 }
@@ -2517,7 +2568,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
   const my_decimal *nr= args[0]->val_decimal(&nr_val);
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2528,7 +2579,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_decimal(old_nr);
 }
@@ -3028,7 +3079,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
                                           &well_formed_error);
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
@@ -3273,8 +3324,12 @@ bool Item_func_group_concat::add()
   TREE_ELEMENT *el= 0;                          // Only for safety
   if (row_eligible && tree)
   {
+    DBUG_EXECUTE_IF("trigger_OOM_in_gconcat_add",
+                     DBUG_SET("+d,simulate_persistent_out_of_memory"););
     el= tree_insert(tree, table->record[0] + table->s->null_bytes, 0,
                     tree->custom_arg);
+    DBUG_EXECUTE_IF("trigger_OOM_in_gconcat_add",
+                    DBUG_SET("-d,simulate_persistent_out_of_memory"););
     /* check if there was enough memory to insert the row */
     if (!el)
       return 1;
@@ -3500,7 +3555,7 @@ String* Item_func_group_concat::val_str(String* str)
       table->blob_storage->is_truncated_value())
   {
     warning_for_row= true;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }
@@ -3535,7 +3590,24 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     }
   }
   str->append(STRING_WITH_LEN(" separator \'"));
-  str->append(*separator);
+
+  if (query_type & QT_TO_SYSTEM_CHARSET)
+  {
+    // Convert to system charset.
+   convert_and_print(separator, str, system_charset_info);
+  }
+  else if (query_type & QT_TO_ARGUMENT_CHARSET)
+  {
+    /*
+      Convert the string literals to str->charset(),
+      which is typically equal to charset_set_client.
+    */
+   convert_and_print(separator, str, str->charset());
+  }
+  else
+  {
+    separator->print(str);
+  }
   str->append(STRING_WITH_LEN("\')"));
 }
 

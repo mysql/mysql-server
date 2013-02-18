@@ -1,7 +1,7 @@
 #ifndef MYSYS_MY_HANDLER_ERRORS_INCLUDED
 #define MYSYS_MY_HANDLER_ERRORS_INCLUDED
 
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,9 @@ static const char *handler_error_messages[]=
   "Undo record too big",
   "Invalid InnoDB FTS Doc ID",
   "Table is being used in foreign key check",
-  "Tablespace already exists"
+  "Tablespace already exists",
+  "Too many columns",
+  "Row in wrong partition"
 };
 
 extern void my_handler_error_register(void);

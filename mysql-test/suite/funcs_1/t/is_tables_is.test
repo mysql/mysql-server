@@ -13,6 +13,6 @@
 #
 
 let $my_where = WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%';
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%';
 --source suite/funcs_1/datadict/tables1.inc
 

@@ -259,7 +259,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   else
   {
     /* Clear mutex so that safe_mutex will notice that it's not initialized */
-    memset(&info->append_buffer_lock, 0, sizeof(info));
+    memset(&info->append_buffer_lock, 0, sizeof(info->append_buffer_lock));
   }
 #endif
 
@@ -446,7 +446,7 @@ my_bool reinit_io_cache(IO_CACHE *info, enum cache_type type,
              Otherwise info->error contains the number of bytes in Buffer.
 */
 
-int _my_b_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
+int _my_b_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 {
   size_t length,diff_length,left_length, max_length;
   my_off_t pos_in_file;
@@ -989,7 +989,7 @@ static void unlock_io_cache(IO_CACHE *cache)
     1      Error: can't read requested characters
 */
 
-int _my_b_read_r(register IO_CACHE *cache, uchar *Buffer, size_t Count)
+int _my_b_read_r(IO_CACHE *cache, uchar *Buffer, size_t Count)
 {
   my_off_t pos_in_file;
   size_t length, diff_length, left_length;
@@ -1163,7 +1163,7 @@ static void copy_to_read_buffer(IO_CACHE *write_cache,
     1  Failed to read
 */
 
-int _my_b_seq_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
+int _my_b_seq_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 {
   size_t length, diff_length, left_length, save_count, max_length;
   my_off_t pos_in_file;
@@ -1325,7 +1325,7 @@ read_append_buffer:
      1          An error has occurred; IO_CACHE to error state.
 */
 
-int _my_b_async_read(register IO_CACHE *info, uchar *Buffer, size_t Count)
+int _my_b_async_read(IO_CACHE *info, uchar *Buffer, size_t Count)
 {
   size_t length,read_length,diff_length,left_length,use_length,org_Count;
   size_t max_length;
@@ -1532,7 +1532,7 @@ int _my_b_get(IO_CACHE *info)
    -1 On error; my_errno contains error code.
 */
 
-int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
+int _my_b_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
   size_t rest_length,length;
   my_off_t pos_in_file= info->pos_in_file;
@@ -1606,7 +1606,7 @@ int _my_b_write(register IO_CACHE *info, const uchar *Buffer, size_t Count)
   the write buffer before we are ready with it.
 */
 
-int my_b_append(register IO_CACHE *info, const uchar *Buffer, size_t Count)
+int my_b_append(IO_CACHE *info, const uchar *Buffer, size_t Count)
 {
   size_t rest_length,length;
 
@@ -1670,7 +1670,7 @@ int my_b_safe_write(IO_CACHE *info, const uchar *Buffer, size_t Count)
   we will never get a seek over the end of the buffer
 */
 
-int my_block_write(register IO_CACHE *info, const uchar *Buffer, size_t Count,
+int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
 		   my_off_t pos)
 {
   size_t length;

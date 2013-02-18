@@ -30,7 +30,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#if defined(_WIN32) && !defined(_OPENSSL_Applink)
+#if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
 #endif
@@ -232,7 +232,10 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       if (vio->write_packet(vio, (uchar*) encrypted_password, cipher_length))
         DBUG_RETURN(CR_ERROR);
 #else
-      DBUG_RETURN(CR_ERROR); // If no yassl support
+      set_mysql_extended_error(mysql, CR_AUTH_PLUGIN_ERR, unknown_sqlstate,
+                                ER(CR_AUTH_PLUGIN_ERR), "sha256_password",
+                                "Authentication requires SSL encryption");
+      DBUG_RETURN(CR_ERROR); // If no openssl support
 #endif
     }
     else

@@ -1,7 +1,7 @@
 #ifndef SQL_OPTIMIZER_INCLUDED
 #define SQL_OPTIMIZER_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -216,7 +216,8 @@ public:
   /** Is set if we have a GROUP BY and we have ORDER BY on a constant. */
   bool          skip_sort_order;
 
-  bool need_tmp, hidden_group_fields;
+  bool need_tmp;
+  int hidden_group_field_count;
 
   Key_use_array keyuse;
 
@@ -227,7 +228,7 @@ public:
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
   List<Item> &fields_list; ///< hold field list passed to mysql_select
   List<Item> procedure_fields_list;
-  int error;
+  int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
     Wrapper for ORDER* pointer to trace origins of ORDER list 
@@ -439,7 +440,7 @@ public:
     ordered_index_usage= ordered_index_void;
     skip_sort_order= 0;
     need_tmp= 0;
-    hidden_group_fields= 0; /*safety*/
+    hidden_group_field_count= 0; /*safety*/
     error= 0;
     return_tab= 0;
     ref_ptrs.reset();
@@ -485,7 +486,7 @@ public:
   void reset();
   void exec();
   bool prepare_result(List<Item> **columns_list);
-  void explain();
+  bool explain();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();
@@ -685,6 +686,21 @@ private:
   bool make_tmp_tables_info();
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+
+  /// RAII class to ease the call of LEX::mark_broken() if error
+  class Prepare_error_tracker
+  {
+public:
+    Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
+    ~Prepare_error_tracker()
+    {
+      if (unlikely(thd->is_error()))
+        thd->lex->mark_broken();
+    }
+private:
+    THD *const thd;
+  };
+
 };
 
 

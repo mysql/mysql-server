@@ -347,6 +347,8 @@ public:
   */
   List<opt_explain_json_namespace::context> derived_from;
 
+  List<const char> col_key_parts; ///< used parts of the key
+
   bool is_dependent;
   bool is_cacheable;
   bool using_temporary;
@@ -381,6 +383,7 @@ public:
     col_extra.empty();
     col_message.cleanup();
     col_attached_condition.cleanup();
+    col_key_parts.empty();
 
     /*
       Not needed (we call cleanup() for structured EXPLAIN only,

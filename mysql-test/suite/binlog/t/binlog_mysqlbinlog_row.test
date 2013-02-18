@@ -1,0 +1,6 @@
+--source include/have_log_bin.inc
+--source include/have_binlog_format_row.inc
+--source include/have_ucs2.inc 
+--source include/not_gtid_enabled.inc
+
+--source extra/binlog_tests/binlog_mysqlbinlog_row.inc

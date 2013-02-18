@@ -43,11 +43,31 @@ public:
   }
 
   /** Atomic load. */
+  static inline int64 load_64(volatile int64 *ptr)
+  {
+    int64 result;
+    rdlock(ptr);
+    result= my_atomic_load64(ptr);
+    rdunlock(ptr);
+    return result;
+  }
+
+  /** Atomic load. */
   static inline uint32 load_u32(volatile uint32 *ptr)
   {
     uint32 result;
     rdlock(ptr);
     result= (uint32) my_atomic_load32((int32*) ptr);
+    rdunlock(ptr);
+    return result;
+  }
+
+  /** Atomic load. */
+  static inline uint64 load_u64(volatile uint64 *ptr)
+  {
+    uint64 result;
+    rdlock(ptr);
+    result= (uint64) my_atomic_load64((int64*) ptr);
     rdunlock(ptr);
     return result;
   }
@@ -61,10 +81,26 @@ public:
   }
 
   /** Atomic store. */
+  static inline void store_64(volatile int64 *ptr, int64 value)
+  {
+    wrlock(ptr);
+    my_atomic_store64(ptr, value);
+    wrunlock(ptr);
+  }
+
+  /** Atomic store. */
   static inline void store_u32(volatile uint32 *ptr, uint32 value)
   {
     wrlock(ptr);
     my_atomic_store32((int32*) ptr, (int32) value);
+    wrunlock(ptr);
+  }
+
+  /** Atomic store. */
+  static inline void store_u64(volatile uint64 *ptr, uint64 value)
+  {
+    wrlock(ptr);
+    my_atomic_store64((int64*) ptr, (int64) value);
     wrunlock(ptr);
   }
 
@@ -79,11 +115,31 @@ public:
   }
 
   /** Atomic add. */
+  static inline int64 add_64(volatile int64 *ptr, int64 value)
+  {
+    int64 result;
+    wrlock(ptr);
+    result= my_atomic_add64(ptr, value);
+    wrunlock(ptr);
+    return result;
+  }
+
+  /** Atomic add. */
   static inline uint32 add_u32(volatile uint32 *ptr, uint32 value)
   {
     uint32 result;
     wrlock(ptr);
     result= (uint32) my_atomic_add32((int32*) ptr, (int32) value);
+    wrunlock(ptr);
+    return result;
+  }
+
+  /** Atomic add. */
+  static inline uint64 add_u64(volatile uint64 *ptr, uint64 value)
+  {
+    uint64 result;
+    wrlock(ptr);
+    result= (uint64) my_atomic_add64((int64*) ptr, (int64) value);
     wrunlock(ptr);
     return result;
   }
@@ -100,6 +156,17 @@ public:
   }
 
   /** Atomic compare and swap. */
+  static inline bool cas_64(volatile int64 *ptr, int64 *old_value,
+                            int64 new_value)
+  {
+    bool result;
+    wrlock(ptr);
+    result= my_atomic_cas64(ptr, old_value, new_value);
+    wrunlock(ptr);
+    return result;
+  }
+
+  /** Atomic compare and swap. */
   static inline bool cas_u32(volatile uint32 *ptr, uint32 *old_value,
                              uint32 new_value)
   {
@@ -107,6 +174,18 @@ public:
     wrlock(ptr);
     result= my_atomic_cas32((int32*) ptr, (int32*) old_value,
                             (uint32) new_value);
+    wrunlock(ptr);
+    return result;
+  }
+
+  /** Atomic compare and swap. */
+  static inline bool cas_u64(volatile uint64 *ptr, uint64 *old_value,
+                             uint64 new_value)
+  {
+    bool result;
+    wrlock(ptr);
+    result= my_atomic_cas64((int64*) ptr, (int64*) old_value,
+                            (uint64) new_value);
     wrunlock(ptr);
     return result;
   }

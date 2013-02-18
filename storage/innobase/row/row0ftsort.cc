@@ -36,7 +36,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index, n_null,		\
+			block[N], buf[N], b[N], index,			\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -190,7 +190,6 @@ row_fts_psort_info_init(
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
 	ulint			block_size;
-	os_event_t		sort_event;
 	ibool			ret = TRUE;
 
 	block_size = 3 * srv_sort_buf_size;
@@ -200,27 +199,26 @@ row_fts_psort_info_init(
 
 	if (!psort_info) {
 		ut_free(dup);
-		return FALSE;
+		return(FALSE);
 	}
-
-	sort_event = os_event_create(NULL);
 
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
 		mem_alloc(sizeof *common_info));
 
+	if (!common_info) {
+		ut_free(dup);
+		mem_free(psort_info);
+		return(FALSE);
+	}
+
 	common_info->dup = dup;
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
-	common_info->sort_event = sort_event;
+	common_info->sort_event = os_event_create();
+	common_info->merge_event = os_event_create();
 	common_info->opt_doc_id_size = opt_doc_id_size;
-
-	if (!common_info) {
-		ut_free(dup);
-		mem_free(psort_info);
-		return FALSE;
-	}
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
 	each parallel sort thread. Each "sort bucket" holds records for
@@ -243,7 +241,10 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			row_merge_file_create(psort_info[j].merge_file[i]);
+			if (row_merge_file_create(psort_info[j].merge_file[i])
+			    < 0) {
+				goto func_exit;
+			}
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
@@ -313,6 +314,8 @@ row_fts_psort_info_destroy(
 			}
 		}
 
+		os_event_free(merge_info[0].psort_common->sort_event);
+		os_event_free(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
@@ -435,7 +438,6 @@ row_merge_fts_doc_tokenize(
 
 		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		mtuple->del_mark = false;
 		field = mtuple->fields = static_cast<dfield_t*>(
 			mem_heap_alloc(buf->heap,
 				       FTS_NUM_FIELDS_SORT * sizeof *field));
@@ -564,7 +566,7 @@ fts_parallel_tokenization(
 	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
-	doc_id_t		last_doc_id;
+	doc_id_t		last_doc_id = 0;
 	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
@@ -746,7 +748,12 @@ loop:
 	}
 
 	if (doc_item) {
-		 prev_doc_item = doc_item;
+		prev_doc_item = doc_item;
+
+		if (last_doc_id != doc_item->doc_id) {
+			t_ctx.init_pos = 0;
+		}
+
 		retried = 0;
 	} else if (psort_info->state == FTS_PARENT_COMPLETE) {
 		retried++;
@@ -770,15 +777,15 @@ exit:
 
 				while (there are rows) {
 					tokenize rows, put result in block[]
-				  	if (block[] runs out) {
+					if (block[] runs out) {
 						sort rows;
-				      		write to temp file with
+						write to temp file with
 						row_merge_write();
-				      		offset++;
-				  	}
+						offset++;
+					}
 				}
 
-				# write out the last batch 
+				# write out the last batch
 				if (offset > 0) {
 					row_merge_write();
 					offset++;
@@ -815,7 +822,11 @@ exit:
 			continue;
 		}
 
-		tmpfd[i] = innobase_mysql_tmpfile();
+		tmpfd[i] = row_merge_file_create_low();
+		if (tmpfd[i] < 0) {
+			goto func_exit;
+		}
+
 		row_merge_sort(psort_info->psort_common->trx,
 			       psort_info->psort_common->dup,
 			       merge_file[i], block[i], &tmpfd[i]);
@@ -823,6 +834,7 @@ exit:
 		close(tmpfd[i]);
 	}
 
+func_exit:
 	if (fts_enable_diag_print) {
 		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}
@@ -831,8 +843,10 @@ exit:
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
 
 	os_thread_exit(NULL);
+
 	OS_THREAD_DUMMY_RETURN;
 }
 
@@ -850,7 +864,8 @@ row_fts_start_psort(
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
 		os_thread_create(fts_parallel_tokenization,
-				 (void*) &psort_info[i], &thd_id);
+				 (void*) &psort_info[i],
+				 &thd_id);
 	}
 }
 
@@ -875,9 +890,11 @@ fts_parallel_merge(
 			     psort_info->psort_common->all_info, id);
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
-	os_event_set(psort_info->psort_common->sort_event);
+	os_event_set(psort_info->psort_common->merge_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
 
 	os_thread_exit(NULL);
+
 	OS_THREAD_DUMMY_RETURN;
 }
 
@@ -898,7 +915,8 @@ row_fts_start_parallel_merge(
 		merge_info[i].child_status = 0;
 
 		os_thread_create(fts_parallel_merge,
-				 (void*) &merge_info[i], &thd_id);
+				 (void*) &merge_info[i],
+				 &thd_id);
 	}
 }
 
@@ -1349,7 +1367,7 @@ row_fts_merge_insert(
 		count_diag += (int) psort_info[i].merge_file[id]->n_rec;
 	}
 
-	if (fts_enable_diag_print) { 
+	if (fts_enable_diag_print) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
 			(ulong) count_diag);
@@ -1375,8 +1393,6 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
-
-	const ulint	n_null = index->n_nullable;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

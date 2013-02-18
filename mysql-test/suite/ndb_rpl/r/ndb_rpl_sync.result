@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 STOP SLAVE;
 CREATE DATABASE ndbsynctest;
@@ -75,7 +78,7 @@ DROP DATABASE ndbsynctest;
 STOP SLAVE;
 reset master;
 select * from mysql.ndb_binlog_index;
-Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci
+Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci	next_position	next_file
 reset slave;
 select * from mysql.ndb_apply_status;
 server_id	epoch	log_name	start_pos	end_pos

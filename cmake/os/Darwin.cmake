@@ -1,5 +1,4 @@
-# Copyright (c) 2010 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -32,4 +31,9 @@ IF(CMAKE_OSX_DEPLOYMENT_TARGET)
   IF(CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "10.5")
     ADD_DEFINITIONS(-fno-common)
   ENDIF()
+ENDIF()
+
+# This is used for the version_compile_machine variable.
+IF(CMAKE_SIZEOF_VOID_P MATCHES 8)
+  SET(MYSQL_MACHINE_TYPE "x86_64")
 ENDIF()

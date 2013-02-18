@@ -389,7 +389,7 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
     of input and output column Items:
   */
   List<Item> *column_types= (unit->first_select()->parent_lex->proc_analyse ?
-                             &list : unit->get_unit_column_types());
+                             &list : unit->get_field_list());
   if (create_result_table(unit->thd, column_types,
                           FALSE,
                           thd->variables.option_bits | TMP_TABLE_ALL_COLUMNS,

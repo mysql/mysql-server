@@ -84,10 +84,18 @@ SELECT @@global.innodb_compression_pad_pct_max;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_compression_pad_pct_max = "T";
 SELECT @@global.innodb_compression_pad_pct_max;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = 1.1;
+SELECT @@global.innodb_compression_pad_pct_max;
 
 SET @@global.innodb_compression_pad_pct_max = 76;
 SELECT @@global.innodb_compression_pad_pct_max;
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = " ";
+SELECT @@global.innodb_compression_pad_pct_max;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_pad_pct_max = ' ';
+SELECT @@global.innodb_compression_pad_pct_max;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 #########################################################################

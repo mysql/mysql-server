@@ -33,6 +33,9 @@ call mtr.add_suppression("Info table is not ready to be used.");
 call mtr.add_suppression("Error writing master configuration.");
 call mtr.add_suppression("Failed to flush master info.");
 call mtr.add_suppression(" Error while checking replication metadata.");
+call mtr.add_suppression("Failed to create or recover replication info repository.");
+call mtr.add_suppression("Error in checking.* repository info type of");
+call mtr.add_suppression("Error creating.*: Error checking repositories");
 
 ###############################################################################
 #           Checking if replication can fail safely (SQL Thread)
@@ -178,6 +181,7 @@ UPDATE mysql.slave_master_info SET Enabled_auto_position= 0;
 --let $rpl_server_parameters= --sync-master-info=1 --master-info-repository=TABLE --relay-log-info-repository=TABLE
 --source include/rpl_restart_server.inc
 --connection slave
+
 --source include/start_slave.inc
 
 #  4 - Shows that trying to fix the problem with START SLAVE, RESET SLAVE may

@@ -20,8 +20,9 @@
 #include "test_utils.h"
 #include "my_stacktrace.h"
 #include "m_string.h"
+#include "hash_filo.h"
 
-namespace {
+namespace segfault_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -54,10 +55,18 @@ TEST_F(FatalSignalDeathTest, Segfault)
 {
   int *pint= NULL;
 #if defined(__WIN__)
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got exception.*");
+  /*
+   After upgrading from gtest 1.5 to 1.6 this segfault is no longer
+   caught by handle_fatal_signal(). We get an empty error message from the
+   gtest library instead.
+  */
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, "");
 #else
-  // On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal 1.*");
+  /*
+   On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
+   And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
+  */
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 
@@ -70,6 +79,7 @@ int array_size(const T (&)[size])
 }
 
 
+// Verifies that my_safe_utoa behaves like sprintf(_, "%llu", _)
 TEST(PrintUtilities, Utoa)
 {
   char buff[22];
@@ -92,6 +102,7 @@ TEST(PrintUtilities, Utoa)
 }
 
 
+// Verifies that my_safe_itoa behaves like sprintf(_, "%lld", _)
 TEST(PrintUtilities, Itoa)
 {
   char buff[22];
@@ -135,6 +146,7 @@ TEST(PrintUtilities, Itoa)
 }
 
 
+// Various tests for my_safe_snprintf.
 TEST(PrintUtilities, Printf)
 {
   char buff[512];
@@ -177,6 +189,23 @@ TEST(PrintUtilities, Printf)
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
   my_snprintf(sprintfbuff, sizeof(sprintfbuff), "hello %p hello", p);
   EXPECT_STREQ(sprintfbuff, buff);
+}
+
+
+// After the fix for Bug#14689561, this is no longer a death test.
+TEST(HashFiloTest, TestHashFiloZeroSize)
+{
+  hash_filo *t_cache;
+  t_cache= new hash_filo(5, 0, 0,
+                         (my_hash_get_key) NULL,
+                         (my_hash_free_key) NULL,
+                         NULL);
+  t_cache->clear();
+  t_cache->resize(0);
+  hash_filo_element entry;
+  // After resize (to zero) it tries to dereference last_link which is NULL.
+  t_cache->add(&entry);
+  delete t_cache;
 }
 
 }

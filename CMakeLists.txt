@@ -19,6 +19,7 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
  CMAKE_POLICY(VERSION 2.8)
 endif()
 
+MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -58,7 +59,12 @@ ENDIF()
 SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
- 
+
+# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
+IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
+  SET(CMAKE_CXX_COMPILER g++)
+ENDIF()
+
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
@@ -103,7 +109,7 @@ IF(BUILD_CONFIG)
   ${CMAKE_SOURCE_DIR}/cmake/build_configurations/${BUILD_CONFIG}.cmake)
 ENDIF()
 
-#cmake on 64 bit windows doesn't set CMAKE_SYSTEM_PROCESSOR correctly
+#cmake on 64bit windows/mac/solaris doesn't set CMAKE_SYSTEM_PROCESSOR correctly
 SET(MYSQL_MACHINE_TYPE ${CMAKE_SYSTEM_PROCESSOR})
 
 
@@ -368,7 +374,6 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
-  ADD_SUBDIRECTORY(unittest/mysys)
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
@@ -396,6 +401,7 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  ADD_SUBDIRECTORY(packaging/rpm-uln)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
@@ -433,6 +439,7 @@ ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
+ADD_SUBDIRECTORY(packaging/solaris)
 
 # Create a single package with "make package"
 # (see http://public.kitware.com/Bug/view.php?id=11452)

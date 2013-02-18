@@ -26,6 +26,6 @@ select * from MySQL.db;
 enable_result_log;
 show status like "Qcache_queries_in_cache";
 
-set GLOBAL query_cache_size=0;
+set GLOBAL query_cache_size=DEFAULT;
 
 # End of 4.1 tests

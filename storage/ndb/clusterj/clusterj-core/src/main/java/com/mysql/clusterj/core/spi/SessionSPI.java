@@ -76,9 +76,13 @@ public interface SessionSPI extends Session {
 
     Operation getDeleteOperation(Table storeTable);
 
+    Operation getUpdateOperation(Table storeTable);
+
     IndexOperation getUniqueIndexOperation(Index storeIndex, Table storeTable);
 
     IndexOperation getUniqueIndexDeleteOperation(Index storeIndex, Table storeTable);
+
+    IndexOperation getUniqueIndexUpdateOperation(Index storeIndex, Table storeTable);
 
     IndexScanOperation getIndexScanOperation(Index storeIndex, Table storeTable);
 
@@ -93,6 +97,8 @@ public interface SessionSPI extends Session {
     Dictionary getDictionary();
 
     <T> QueryDomainType<T> createQueryDomainType(DomainTypeHandler<T> handler);
+
+    <T> T newInstance(ResultData resultData, DomainTypeHandler<T> domainTypeHandler);
 
     String getCoordinatedTransactionId();
 

@@ -12,7 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n DeferredError
 
@@ -20,7 +20,7 @@ max-time: 900
 cmd: testIndex
 args: -n DeferredMixedLoad T1 T6 T13
 
-max-time: 1800
+max-time: 2000
 cmd: testIndex
 args: -n DeferredMixedLoadError T1 T6 T13
 
@@ -28,7 +28,7 @@ max-time: 900
 cmd: testIndex
 args: -n NF_DeferredMixed T1 T6 T13
 
-max-time: 900
+max-time: 1800
 cmd: testIndex
 args: -n NF_Mixed T1 T6 T13
 
@@ -96,6 +96,10 @@ max-time: 600
 cmd: atrt-testBackup
 args: -n Bug57650 T1
 
+max-time: 1000
+cmd: atrt-testBackup
+args: -n BackupBank T6 
+
 # BASIC FUNCTIONALITY
 max-time: 500
 cmd: testBasic
@@ -140,6 +144,10 @@ args: -n ScanJoin
 max-time: 500
 cmd: testSpj
 args: -n MixedJoin
+
+max-time: 500
+cmd: testSpj
+args: -n FeatureDisabled T1
 
 max-time: 500
 cmd: testBasic
@@ -309,6 +317,10 @@ max-time: 500
 cmd: testBasic
 args: -n Bug54944 T1
 
+max-time: 500
+cmd: testBasic
+args: -n Bug54944DATABUFFER T1
+
 max-time: 600
 cmd: testBasic
 args: -r 10 -n Bug59496_case1 T2
@@ -355,6 +367,18 @@ args: -n Bug50118 T1
 max-time: 300
 cmd: testIndex
 args: -n FireTrigOverload T1
+
+max-time: 500
+cmd: testIndex
+args: -n Bug25059 -r 3000 T1
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1 T6 T13 
+
+max-time: 2500
+cmd: testIndex
+args: -l 2 -n SR1_O T6 T13 
 
 #
 # SCAN TESTS
@@ -561,6 +585,10 @@ args: -n ScanReadError8081 T1 D1 D2
 
 max-time: 500
 cmd: testScan
+args: -n Bug13394788 T1
+
+max-time: 500
+cmd: testScan
 args: -n InsertDelete T1 T6 D1 D2 
 
 max-time: 500
@@ -713,6 +741,10 @@ args: -n NFNR1_O T6 T13
 
 max-time: 2500
 cmd: testIndex
+args: -n NFNR2 T6 T13 
+
+max-time: 2500
+cmd: testIndex
 args: -n NFNR2_O T6 T13 
 
 max-time: 2500
@@ -808,6 +840,10 @@ args: -l 25 -n DictRestart T1
 max-time: 500
 cmd: testDict
 args: -n Bug54651 T1
+
+max-time: 1500
+cmd: testDict
+args: -n CreateMaxTables T6 
 
 #
 # TEST NDBAPI
@@ -918,7 +954,7 @@ max-time: 500
 cmd: testNdbApi
 args: -n Bug44065
 
-max-time: 500
+max-time: 1000
 cmd: testNdbApi
 args: -n Bug44065_org
 
@@ -1034,6 +1070,14 @@ max-time: 5000
 cmd: testSystemRestart
 args: -n SR_UNDO T6 
 
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR3 T6 
+
+max-time: 1500
+cmd: testSystemRestart
+args: -n SR4 T6 
+
 #
 max-time: 5000
 cmd: testSystemRestart
@@ -1074,6 +1118,10 @@ args: -n Bug27434 T1
 max-time: 1000
 cmd: test_event
 args: -l 10 -n Bug27169 T1
+
+max-time: 1000
+cmd: test_event
+args: -n Bug12598496 T1
 
 #
 max-time: 600
@@ -1184,6 +1232,30 @@ args: -n FiftyPercentFail T6 T13
 max-time: 2500
 cmd: testNodeRestart
 args: -n RestartRandomNodeError T6 T13 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -l 1 -n MixedReadUpdateScan 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n Terror T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -l 1 -n RestartNFDuringNR T6 T13 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n RestartNodeDuringLCP T6 
+
+max-time: 3600
+cmd: testNodeRestart
+args: -n LCPTakeOver T6 
+
+max-time: 2500
+cmd: testNodeRestart
+args: -n FiftyPercentStopAndWait T6 T13 
 
 #
 # MGMAPI AND MGSRV
@@ -1366,6 +1438,10 @@ max-time: 600
 cmd: testSystemRestart
 args: -n Bug22696 T1
 
+max-time: 1000
+cmd: testSRBank
+args: -n SR -l 300 -r 15 T1
+
 max-time: 600
 cmd: testNodeRestart
 args: -n pnr --nologging T1
@@ -1534,7 +1610,7 @@ max-time: 500
 cmd: testLimits
 args: -n DropSignalFragments T1
 
-max-time: 300
+max-time: 500
 cmd: testMgm
 args:
 
@@ -1683,7 +1759,7 @@ max-time: 300
 cmd: testBasic
 args: -n UnlockUpdateBatch T3
 
-max-time: 300
+max-time: 600
 cmd: testNodeRestart
 args: -n MixReadUnlockRestart T1
 
@@ -1744,4 +1820,90 @@ max-time: 300
 cmd: testBlobs
 args: -bug 62321 -skip p
 
+# async api extensions
+max-time: 500
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitPkRead T1
+
+max-time: 500
+cmd: testAsynchMultiwait
+args: -n AsynchMultiwaitWakeup T1
+
+# alloc node id
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnect T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectionConnect T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_non_master T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectNR_slow T1
+
+max-time: 500
+cmd: testNdbApi
+args: -n NdbClusterConnectSR T1
+
+# Fragmented signal send
+max-time: 1800
+cmd: testNdbApi
+args: -n TestFragmentedSend T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n MasterFailSlowLCP T1
+
+max-time:300
+cmd: testScan
+args: -nScanFragRecExhaust T1
+
+max-time: 300
+cmd: testNodeRestart
+args: -n Bug13464664 T1
+
+max-time: 300
+cmd: testDict
+args: -n Bug13416603 I2
+
+max-time: 300
+cmd: testDict
+args: -n IndexStatCreate T1
+
+max-time: 300
+cmd: testDict
+args: -n DropWithTakeover T1
+
+max-time: 300
+cmd: testDict
+args: -n GetTabInfoRef T1
+
+max-time: 300
+cmd: testBasic
+args: -n LeakApiConnectObjects T1
+
+max-time: 300
+cmd: testScan
+args:  -n extraNextResultBug11748194 T1
+
+max-time: 600
+cmd: testRedo
+args: -n RestartFD -l 2 T1
+
+max-time : 300
+cmd: testScan
+args: -n ScanKeyInfoExhaust T1
+
+max-time : 300
+cmd: testDict
+args: -n Bug14645319 T1
+
+max-time : 1200
+cmd: testLimits
+args: -n SlowDihFileWrites T1
 

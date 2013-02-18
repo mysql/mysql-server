@@ -218,7 +218,7 @@ row_undo_search_clust_to_pcur(
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
 				      offsets, NULL,
 				      NULL, NULL, ext, node->heap);
-		if (node->update) {
+		if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 			node->undo_row = dtuple_copy(node->row, node->heap);
 			row_upd_replace(node->undo_row, &node->undo_ext,
 					clust_index, node->update, node->heap);
@@ -275,25 +275,6 @@ row_undo(
 			return(DB_SUCCESS);
 		}
 
-		node->roll_ptr = roll_ptr;
-		node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
-
-		if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
-
-			node->state = UNDO_NODE_INSERT;
-		} else {
-			node->state = UNDO_NODE_MODIFY;
-		}
-
-	} else if (node->state == UNDO_NODE_PREV_VERS) {
-
-		/* Undo should be done to the same clustered index record
-		again in this same rollback, restoring the previous version */
-
-		roll_ptr = node->new_roll_ptr;
-
-		node->undo_rec = trx_undo_get_undo_rec_low(roll_ptr,
-							   node->heap);
 		node->roll_ptr = roll_ptr;
 		node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
 

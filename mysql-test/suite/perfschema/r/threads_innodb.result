@@ -5,7 +5,10 @@ FROM performance_schema.threads
 WHERE name LIKE 'thread/innodb/%'
 GROUP BY name;
 name	type	processlist_user	processlist_host	processlist_db	processlist_command	processlist_time	processlist_state	processlist_info	parent_thread_id	role	instrumented
-thread/innodb/io_handler_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/io_ibuf_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/io_log_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/io_read_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
+thread/innodb/io_write_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/page_cleaner_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_error_monitor_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES
 thread/innodb/srv_lock_timeout_thread	BACKGROUND	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	YES

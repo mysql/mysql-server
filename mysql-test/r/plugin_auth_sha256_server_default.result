@@ -1,0 +1,64 @@
+CREATE USER 'kristofer';
+SET old_passwords=2;
+SET PASSWORD FOR 'kristofer'=PASSWORD('secret');
+SELECT user, plugin FROM mysql.user;
+user	plugin
+root	
+root	
+root	
+root	
+kristofer	sha256_password
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@%
+DROP USER 'kristofer';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'kristofer2'@'localhost' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('secret2');
+SET PASSWORD FOR 'kristofer2'@'localhost'=PASSWORD('secret2');
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+Change user (should succeed)
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer2@localhost	kristofer2@localhost
+**** Client default_auth=sha_256_password and server default auth=native
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+**** Client default_auth=native and server default auth=native
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+**** Client default_auth=sha_256_password + public key on file.
+user()	current_user()
+kristofer@localhost	kristofer@localhost
+DROP USER 'kristofer'@'localhost';
+DROP USER 'kristofer2'@'localhost';
+GRANT ALL ON *.* TO 'kristofer'@'localhost';
+SET PASSWORD FOR 'kristofer'@'localhost'=PASSWORD('');
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+DROP USER 'kristofer'@'localhost';
+GRANT ALL ON *.* TO 'kristofer'@'33.33.33.33';
+SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
+Connection should fail for localhost
+ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
+DROP USER 'kristofer'@'33.33.33.33';
+GRANT ALL ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY 'awesomeness';
+SELECT USER(),CURRENT_USER();
+USER()	CURRENT_USER()
+kristofer@localhost	kristofer@localhost
+SHOW GRANTS FOR 'kristofer'@'localhost';
+Grants for kristofer@localhost
+GRANT ALL PRIVILEGES ON *.* TO 'kristofer'@'localhost' IDENTIFIED BY PASSWORD '<non-deterministic-password-hash>'
+SET @@OLD_PASSWORDS= 0;
+SET PASSWORD FOR 'kristofer'@'localhost'= PASSWORD('error');
+ERROR HY000: The password hash doesn't have the expected format. Check if the correct password algorithm is being used with the PASSWORD() function.
+DROP USER 'kristofer'@'localhost';

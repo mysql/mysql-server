@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -187,7 +187,7 @@
 #cmakedefine HAVE_LONGJMP 1
 #cmakedefine HAVE_LSTAT 1
 #cmakedefine HAVE_MEMALIGN 1
-/* #cmakedefine HAVE_MLOCK 1 see Bug#54662 */
+#cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_NPTL 1
 #cmakedefine HAVE_NL_LANGINFO 1
 #cmakedefine HAVE_MADVISE 1
@@ -495,8 +495,6 @@
 #define MACHINE_TYPE "@MYSQL_MACHINE_TYPE@"
 #cmakedefine HAVE_DTRACE 1
 
-#cmakedefine SIGNAL_WITH_VIO_CLOSE 1
-
 /* Windows stuff, mostly functions, that have Posix analogs but named differently */
 #cmakedefine S_IROTH @S_IROTH@
 #cmakedefine S_IFIFO @S_IFIFO@
@@ -545,7 +543,6 @@
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
-#cmakedefine USE_SYMDIR 1
 
 /*
    InnoDB config options
@@ -619,9 +616,7 @@
   WITH_<ENGINE>_STORAGE_ENGINE for the whole server)
 */
 #cmakedefine WITH_MYISAM_STORAGE_ENGINE 1
-#cmakedefine WITH_MYISAMMRG_STORAGE_ENGINE 1
 #cmakedefine WITH_HEAP_STORAGE_ENGINE 1
-#cmakedefine WITH_CSV_STORAGE_ENGINE 1
 #cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1

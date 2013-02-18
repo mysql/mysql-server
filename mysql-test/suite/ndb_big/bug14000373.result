@@ -1,0 +1,21 @@
+set max_heap_table_size = 286720000;
+create table t1 (a int key) engine=memory;
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 columns terminated by ' ' (a, @col2);
+insert into t1 select a + 10000 from t1;;
+insert into t1 select a + 10000 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 * 2 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 * 2 * 2 * 2 * 2 from t1;;
+insert into t1 select a + 10000 * 2 * 2 * 2 * 2 * 2 * 2 * 2 * 2 from t1;;
+select count(*) from t1;
+count(*)
+5120000
+alter table t1 engine=ndbcluster comment='NDB_TABLE=NOLOGGING' partition by key() partitions 1;
+alter table t1 engine=memory;
+select count(*) from t1;
+count(*)
+5120000
+drop table t1;

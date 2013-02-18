@@ -1128,8 +1128,10 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   DBUG_PRINT("enter",("line='%s'", _line));
   m_error= 0;
 
-  if(_line == NULL) {
-    ndbout_c("ERROR: Internal error at %s:%d.", __FILE__, __LINE__);
+  if(_line == NULL)
+  {
+    // Pressing Ctrl-C on some platforms will cause 'readline' to
+    // to return NULL, handle it as graceful exit of ndb_mgm 
     m_error = -1;
     DBUG_RETURN(false); // Terminate gracefully
   }
@@ -1154,7 +1156,7 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     }
     // for mysql client compatability remove trailing ';'
     {
-      unsigned last= strlen(line)-1;
+      unsigned last= (unsigned)(strlen(line)-1);
       if (line[last] == ';')
       {
 	line[last]= 0;
@@ -2431,7 +2433,7 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
     return -1;
   }
 
-  for (size_t i = 0; i < args.size(); i++)
+  for (unsigned i = 0; i < args.size(); i++)
   {
     const char* arg = args[i].c_str();
 

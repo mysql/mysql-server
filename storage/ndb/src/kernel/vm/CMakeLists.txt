@@ -17,7 +17,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/src/mgmapi)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_kernel.cmake)
 
-ADD_LIBRARY(ndbkernel STATIC
+ADD_CONVENIENCE_LIBRARY(ndbkernel
     VMSignal.cpp
     Emulator.cpp
     Configuration.cpp
@@ -41,7 +41,7 @@ ADD_LIBRARY(ndbkernel STATIC
     mt_thr_config.cpp
 )
 
-ADD_LIBRARY(ndbsched STATIC
+ADD_CONVENIENCE_LIBRARY(ndbsched
     TimeQueue.cpp
     ThreadConfig.cpp
     FastScheduler.cpp
@@ -53,7 +53,7 @@ ADD_LIBRARY(ndbsched STATIC
 )
 
 IF(NDB_BUILD_NDBMTD)
-  ADD_LIBRARY(ndbsched_mt STATIC
+  ADD_CONVENIENCE_LIBRARY(ndbsched_mt
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp
     LongSignal_mt.cpp
@@ -62,8 +62,25 @@ IF(NDB_BUILD_NDBMTD)
     dummy_mt.cpp)
 ENDIF()
 
+ADD_CONVENIENCE_LIBRARY(ndbtest
+    test_context.cpp
+    ../blocks/dbtup/tuppage.cpp
+)
+
 ADD_EXECUTABLE(mt_thr_config-t mt_thr_config.cpp)
 SET_TARGET_PROPERTIES(mt_thr_config-t
                       PROPERTIES COMPILE_FLAGS "-DTEST_MT_THR_CONFIG")
 TARGET_LINK_LIBRARIES(mt_thr_config-t ndbgeneral)
 
+FOREACH(testprog CountingPool DynArr256 LHLevel)
+  ADD_EXECUTABLE(${testprog}-t ${testprog}.cpp)
+  SET_TARGET_PROPERTIES(${testprog}-t PROPERTIES COMPILE_FLAGS "-DTAP_TEST")
+  TARGET_LINK_LIBRARIES(${testprog}-t ndbtest ndbkernel ndbsched ndberror
+                ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+ENDFOREACH(testprog)
+
+IF(NDB_BUILD_NDBMTD)
+  ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
+  TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
+                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
+ENDIF()

@@ -35,6 +35,10 @@ VARIABLE_NAME	VARIABLE_VALUE
 INNODB_THREAD_SLEEP_DELAY	10
 set session innodb_thread_sleep_delay=1;
 ERROR HY000: Variable 'innodb_thread_sleep_delay' is a GLOBAL variable and should be set with SET GLOBAL
+set global innodb_thread_sleep_delay=DEFAULT;
+select @@global.innodb_thread_sleep_delay;
+@@global.innodb_thread_sleep_delay
+10000
 set global innodb_thread_sleep_delay=1.1;
 ERROR 42000: Incorrect argument type to variable 'innodb_thread_sleep_delay'
 set global innodb_thread_sleep_delay=1e1;

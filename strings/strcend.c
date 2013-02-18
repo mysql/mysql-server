@@ -25,7 +25,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-char *strcend(register const char *s, register pchar c)
+char *strcend(const char *s, pchar c)
 {
   for (;;)
   {

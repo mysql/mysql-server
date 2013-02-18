@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -26,14 +26,18 @@ import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptr;
 import com.mysql.ndbjtie.ndbapi.Ndb.Key_part_ptrArray;
 
 import com.mysql.ndbjtie.ndbapi.NdbErrorConst;
+import com.mysql.ndbjtie.ndbapi.NdbInterpretedCode;
+import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbTransaction;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.Dictionary;
 import com.mysql.ndbjtie.ndbapi.NdbDictionary.TableConst;
+import com.mysql.ndbjtie.ndbapi.NdbIndexScanOperation.IndexBound;
+import com.mysql.ndbjtie.ndbapi.NdbScanOperation.ScanOptions;
 
 import com.mysql.clusterj.ClusterJDatastoreException;
 import com.mysql.clusterj.ClusterJFatalInternalException;
-import com.mysql.clusterj.core.store.ClusterConnection;
 import com.mysql.clusterj.core.store.ClusterTransaction;
+import com.mysql.clusterj.core.store.Table;
 
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -49,7 +53,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     /** My logger */
     static final Logger logger = LoggerFactoryService.getFactory()
-            .getInstance(com.mysql.clusterj.core.store.ClusterConnection.class);
+            .getInstance(DbImpl.class);
 
     /** The Ndb instance that this instance is wrapping */
     private Ndb ndb;
@@ -62,11 +66,11 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
 
     // TODO change the allocation to a constant in ndbjtie
     /** The size of the coordinated transaction identifier buffer */
-    private int coordinatedTransactionIdBufferSize = 26;
+    private final static int COORDINATED_TRANSACTION_ID_SIZE = 44;
 
     /** The coordinated transaction identifier buffer */
     private ByteBuffer coordinatedTransactionIdBuffer =
-            ByteBuffer.allocateDirect(coordinatedTransactionIdBufferSize);
+            ByteBuffer.allocateDirect(COORDINATED_TRANSACTION_ID_SIZE);
 
     // TODO change the allocation to something reasonable
     /** The partition key scratch buffer */
@@ -82,20 +86,64 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     private DictionaryImpl dictionary;
 
     /** The ClusterConnection */
-    private ClusterConnection clusterConnection;
+    private ClusterConnectionImpl clusterConnection;
 
-    public DbImpl(ClusterConnection clusterConnection, Ndb ndb, int maxTransactions) {
+    /** The number of IndexBound created */
+    private int numberOfIndexBoundCreated;
+
+    /** The number of IndexBound deleted */
+    private int numberOfIndexBoundDeleted;
+
+    /** The number of InterpretedCode created */
+    private int numberOfInterpretedCodeCreated;
+
+    /** The number of InterpretedCode deleted */
+    private int numberOfInterpretedCodeDeleted;
+
+    /** The number of NdbScanFilters created */
+    private int numberOfNdbScanFilterCreated;
+
+    /** The number of NdbScanFilters deleted */
+    private int numberOfNdbScanFilterDeleted;
+
+    /** The number of ScanOptions created */
+    private int numberOfScanOptionsCreated;
+
+    /** The number of ScanOptions deleted */
+    private int numberOfScanOptionsDeleted;
+
+    public DbImpl(ClusterConnectionImpl clusterConnection, Ndb ndb, int maxTransactions) {
         this.clusterConnection = clusterConnection;
         this.ndb = ndb;
         int returnCode = ndb.init(maxTransactions);
         handleError(returnCode, ndb);
         ndbDictionary = ndb.getDictionary();
         handleError(ndbDictionary, ndb);
-        this.dictionary = new DictionaryImpl(ndbDictionary);
+        this.dictionary = new DictionaryImpl(ndbDictionary, clusterConnection);
     }
 
     public void close() {
-        Ndb.delete(ndb);
+        // check the counts of interface objects created versus deleted
+        if (numberOfIndexBoundCreated != numberOfIndexBoundDeleted) {
+            logger.warn("numberOfIndexBoundCreated " + numberOfIndexBoundCreated + 
+                    " != numberOfIndexBoundDeleted " + numberOfIndexBoundDeleted);
+        }
+        if (numberOfInterpretedCodeCreated != numberOfInterpretedCodeDeleted) {
+            logger.warn("numberOfInterpretedCodeCreated " + numberOfInterpretedCodeCreated + 
+                    " != numberOfInterpretedCodeDeleted " + numberOfInterpretedCodeDeleted);
+        }
+        if (numberOfNdbScanFilterCreated != numberOfNdbScanFilterDeleted) {
+            logger.warn("numberOfNdbScanFilterCreated " + numberOfNdbScanFilterCreated + 
+                    " != numberOfNdbScanFilterDeleted " + numberOfNdbScanFilterDeleted);
+        }
+        if (numberOfScanOptionsCreated != numberOfScanOptionsDeleted) {
+            logger.warn("numberOfScanOptionsCreated " + numberOfScanOptionsCreated + 
+                    " != numberOfScanOptionsDeleted " + numberOfScanOptionsDeleted);
+        }
+        if (ndb != null) {
+            Ndb.delete(ndb);
+            ndb = null;
+        }
         clusterConnection.close(this);
     }
 
@@ -103,8 +151,12 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
         return dictionary;
     }
 
+    public Dictionary getNdbDictionary() {
+        return ndbDictionary;
+    }
+
     public ClusterTransaction startTransaction(String joinTransactionId) {
-        return new ClusterTransactionImpl(this, ndbDictionary, joinTransactionId);
+        return new ClusterTransactionImpl(clusterConnection, this, ndbDictionary, joinTransactionId);
     }
 
     protected void handleError(int returnCode, Ndb ndb) {
@@ -138,7 +190,7 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
     /** Enlist an NdbTransaction using table and key data to specify 
      * the transaction coordinator.
      * 
-     * @param table the table
+     * @param tableName the name of the table
      * @param keyParts the list of partition key parts
      * @return the ndbTransaction
      */
@@ -195,8 +247,8 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
      * the transaction coordinator. This method is also used if
      * the key data is null.
      * 
-     * @param table the table
-     * @param keyParts the list of partition key parts
+     * @param tableName the name of the table
+     * @param partitionId the partition id
      * @return the ndbTransaction
      */
     public NdbTransaction enlist(String tableName, int partitionId) {
@@ -363,6 +415,50 @@ class DbImpl implements com.mysql.clusterj.core.store.Db {
             return resultDataBuffer;
         }
 
+    }
+
+    public NdbRecordOperationImpl newNdbRecordOperationImpl(Table storeTable) {
+        return clusterConnection.newNdbRecordOperationImpl(this, storeTable);
+    }
+
+    public IndexBound createIndexBound() {
+        ++numberOfIndexBoundCreated;
+        return IndexBound.create();
+    }
+
+    public void delete(IndexBound ndbIndexBound) {
+        ++numberOfIndexBoundDeleted;
+        IndexBound.delete(ndbIndexBound);
+    }
+
+    public NdbInterpretedCode createInterpretedCode(TableConst ndbTable, int i) {
+        ++numberOfInterpretedCodeCreated;
+        return NdbInterpretedCode.create(ndbTable, null, i);
+    }
+
+    public void delete(NdbInterpretedCode ndbInterpretedCode) {
+        ++numberOfInterpretedCodeDeleted;
+        NdbInterpretedCode.delete(ndbInterpretedCode);
+    }
+
+    public NdbScanFilter createScanFilter(NdbInterpretedCode ndbInterpretedCode) {
+        ++numberOfNdbScanFilterCreated;
+        return NdbScanFilter.create(ndbInterpretedCode);
+    }
+
+    public void delete(NdbScanFilter ndbScanFilter) {
+        ++numberOfNdbScanFilterDeleted;
+        NdbScanFilter.delete(ndbScanFilter);
+    }
+
+    public ScanOptions createScanOptions() {
+        ++numberOfScanOptionsCreated;
+        return ScanOptions.create();
+    }
+
+    public void delete(ScanOptions scanOptions) {
+        ++numberOfScanOptionsDeleted;
+        ScanOptions.delete(scanOptions);
     }
 
 }

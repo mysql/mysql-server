@@ -50,7 +50,7 @@ BaseString::BaseString(const char* s)
       return;
     }
     memcpy(m_chr, s, n + 1);
-    m_len = n;
+    m_len = (unsigned)n;
 }
 
 BaseString::BaseString(const char * s, size_t n)
@@ -70,7 +70,7 @@ BaseString::BaseString(const char * s, size_t n)
   }
   memcpy(m_chr, s, n);
   m_chr[n] = 0;
-  m_len = n;
+  m_len = (unsigned)n;
 }
 
 BaseString::BaseString(const BaseString& str)
@@ -93,7 +93,7 @@ BaseString::BaseString(const BaseString& str)
     }
     memcpy(t, s, n + 1);
     m_chr = t;
-    m_len = n;
+    m_len = (unsigned)n;
 }
 
 BaseString::~BaseString()
@@ -125,7 +125,7 @@ BaseString::assign(const char* s)
     }
     delete[] m_chr;
     m_chr = t;
-    m_len = n;
+    m_len = (unsigned)n;
     return *this;
 }
 
@@ -145,7 +145,7 @@ BaseString::assign(const char* s, size_t n)
     }
     delete[] m_chr;
     m_chr = t;
-    m_len = n;
+    m_len = (unsigned)n;
     return *this;
 }
 
@@ -178,7 +178,7 @@ BaseString::append(const char* s)
     }
     delete[] m_chr;
     m_chr = t;
-    m_len += n;
+    m_len += (unsigned)n;
     return *this;
 }
 
@@ -196,7 +196,7 @@ BaseString::append(const BaseString& str)
 BaseString&
 BaseString::append(const Vector<BaseString> &vector,
 		   const BaseString &separator) {
-    for(size_t i=0;i<vector.size(); i++) {
+    for(unsigned i=0;i<vector.size(); i++) {
 	append(vector[i]);
 	if(i<vector.size()-1)
 	    append(separator);
@@ -232,7 +232,7 @@ BaseString::assfmt(const char *fmt, ...)
     l = basestring_vsnprintf(m_chr, l, fmt, ap);
     assert(l == (int)strlen(m_chr));
     va_end(ap);
-    m_len = strlen(m_chr);
+    m_len = (unsigned)strlen(m_chr);
     return *this;
 }
 
@@ -279,7 +279,7 @@ BaseString::split(Vector<BaseString> &v,
 		  int maxSize) const {
     char *str = strdup(m_chr);
     int i, start, len, num = 0;
-    len = strlen(str);
+    len = (int)strlen(str);
     for(start = i = 0;
 	(i <= len) && ( (maxSize<0) || ((int)v.size()<=maxSize-1) );
 	i++) {
@@ -297,9 +297,24 @@ BaseString::split(Vector<BaseString> &v,
 }
 
 ssize_t
-BaseString::indexOf(char c) const {
-    char *p;
-    p = strchr(m_chr, c);
+BaseString::indexOf(char c, size_t pos) const {
+
+  if (pos >= m_len)
+    return -1;
+
+    char *p = strchr(m_chr + pos, c);
+    if(p == NULL)
+	return -1;
+    return (ssize_t)(p-m_chr);
+}
+
+ssize_t
+BaseString::indexOf(const char * needle, size_t pos) const {
+
+  if (pos >= m_len)
+    return -1;
+
+    char *p = strstr(m_chr + pos, needle);
     if(p == NULL)
 	return -1;
     return (ssize_t)(p-m_chr);
@@ -360,7 +375,7 @@ BaseString::argify(const char *argv0, const char *src) {
     char *tmp = new char[strlen(src)+1];
     if (tmp == NULL)
     {
-      for(size_t i = 0; i < vargv.size(); i++)
+      for(unsigned i = 0; i < vargv.size(); i++)
         free(vargv[i]);
       errno = ENOMEM;
       return NULL;
@@ -413,7 +428,7 @@ BaseString::argify(const char *argv0, const char *src) {
           if (t == NULL)
           {
             delete[] tmp;
-            for(size_t i = 0; i < vargv.size(); i++)
+            for(unsigned i = 0; i < vargv.size(); i++)
               free(vargv[i]);
             errno = ENOMEM;
             return NULL;
@@ -422,7 +437,7 @@ BaseString::argify(const char *argv0, const char *src) {
           {
             free(t);
             delete[] tmp;
-            for(size_t i = 0; i < vargv.size(); i++)
+            for(unsigned i = 0; i < vargv.size(); i++)
               free(vargv[i]);
             return NULL;
           }
@@ -433,7 +448,7 @@ BaseString::argify(const char *argv0, const char *src) {
     delete[] tmp;
     if (vargv.push_back(NULL))
     {
-      for(size_t i = 0; i < vargv.size(); i++)
+      for(unsigned i = 0; i < vargv.size(); i++)
         free(vargv[i]);
       return NULL;
     }
@@ -444,13 +459,13 @@ BaseString::argify(const char *argv0, const char *src) {
     char **argv = (char **)malloc(sizeof(*argv) * (vargv.size()));
     if(argv == NULL)
     {
-        for(size_t i = 0; i < vargv.size(); i++)
+        for(unsigned i = 0; i < vargv.size(); i++)
           free(vargv[i]);
         errno = ENOMEM;
 	return NULL;
     }
     
-    for(size_t i = 0; i < vargv.size(); i++){
+    for(unsigned i = 0; i < vargv.size(); i++){
 	argv[i] = vargv[i];
     }
     
@@ -460,13 +475,13 @@ BaseString::argify(const char *argv0, const char *src) {
 BaseString&
 BaseString::trim(const char * delim){
     trim(m_chr, delim);
-    m_len = strlen(m_chr);
+    m_len = (unsigned)strlen(m_chr);
     return * this;
 }
 
 char*
 BaseString::trim(char * str, const char * delim){
-    int len = strlen(str) - 1;
+    int len = (int)strlen(str) - 1;
     for(; len > 0 && strchr(delim, str[len]); len--)
       ;
 

@@ -29,7 +29,7 @@
 #define strmov strmov_overlapp
 #endif
 
-char *strmov(register char *dst, register const char *src)
+char *strmov(char *dst, const char *src)
 {
   while ((*dst++ = *src++)) ;
   return dst-1;

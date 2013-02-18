@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,8 @@ import com.mysql.clusterj.SessionFactory;
 
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
+
 import com.mysql.clusterj.core.metadata.DomainTypeHandlerFactoryImpl;
 
 import com.mysql.clusterj.core.store.Db;
@@ -86,10 +88,6 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
     /** DomainTypeHandlerFactory for this session factory. */
     DomainTypeHandlerFactory domainTypeHandlerFactory = new DomainTypeHandlerFactoryImpl();
 
-    /** The tables. */
-    // TODO make this non-static
-//    static final protected Map<String,Table> Tables = new HashMap<String,Table>();
-
     /** The session factories. */
     static final protected Map<String, SessionFactoryImpl> sessionFactoryMap =
             new HashMap<String, SessionFactoryImpl>();
@@ -107,6 +105,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         return ClusterJHelper.getServiceInstance(ClusterConnectionService.class,
                     CLUSTER_CONNECTION_SERVICE);
     }
+
+    /** The smart value handler factory */
+    protected ValueHandlerFactory smartValueHandlerFactory;
 
     /** Get a session factory. If using connection pooling and there is already a session factory
      * with the same connect string and database, return it, regardless of whether other
@@ -229,6 +230,10 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                 createClusterConnection(service, props, nodeIds.get(i));
             }
         }
+        // get the smart value handler factory for this connection; it will be the same for all connections
+        if (pooledConnections.size() != 0) {
+            smartValueHandlerFactory = pooledConnections.get(0).getSmartValueHandlerFactory();
+        }
     }
 
     protected ClusterConnection createClusterConnection(
@@ -329,8 +334,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
      * @return the type handler
      */
     
-    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls,
-            Dictionary dictionary) {
+    public <T> DomainTypeHandler<T> getDomainTypeHandler(Class<T> cls, Dictionary dictionary) {
         // synchronize here because the map is not synchronized
         synchronized(typeToHandlerMap) {
             @SuppressWarnings("unchecked")
@@ -340,7 +344,7 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
                     + ") returned " + domainTypeHandler);
             if (domainTypeHandler == null) {
                 domainTypeHandler = domainTypeHandlerFactory.createDomainTypeHandler(cls,
-                        dictionary);
+                        dictionary, smartValueHandlerFactory);
                 if (logger.isDetailEnabled()) logger.detail("createDomainTypeHandler for "
                         + cls.getName() + "(" + cls
                         + ") returned " + domainTypeHandler);
@@ -379,9 +383,9 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
         return cls;        
     }
 
-    public <T> T newInstance(Class<T> cls, Dictionary dictionary) {
+    public <T> T newInstance(Class<T> cls, Dictionary dictionary, Db db) {
         DomainTypeHandler<T> domainTypeHandler = getDomainTypeHandler(cls, dictionary);
-        return domainTypeHandler.newInstance();
+        return domainTypeHandler.newInstance(db);
     }
 
     public Table getTable(String tableName, Dictionary dictionary) {
@@ -487,6 +491,26 @@ public class SessionFactoryImpl implements SessionFactory, Constants {
             result.add(connection.dbCount());
         }
         return result;
+    }
+
+    public String unloadSchema(Class<?> cls, Dictionary dictionary) {
+        synchronized(typeToHandlerMap) {
+            String tableName = null;
+            DomainTypeHandler<?> domainTypeHandler = typeToHandlerMap.remove(cls);
+            if (domainTypeHandler != null) {
+                // remove the ndb dictionary cached table definition
+                tableName = domainTypeHandler.getTableName();
+                if (tableName != null) {
+                    if (logger.isDebugEnabled())logger.debug("Removing dictionary entry for table " + tableName
+                            + " for class " + cls.getName());
+                    dictionary.removeCachedTable(tableName);
+                }
+            }
+            for (ClusterConnection clusterConnection: pooledConnections) {
+                clusterConnection.unloadSchema(tableName);
+            }
+            return tableName;
+        }
     }
 
 }

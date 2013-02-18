@@ -211,7 +211,6 @@ doquery()
       {
         NdbIndexStat::Bound& b = (i == 0 ? b_lo : b_hi);
 
-        bool strict = false;
         if (ndb_rand() % 3 != 0)
         {
           if (ndb_rand() % 3 != 0)

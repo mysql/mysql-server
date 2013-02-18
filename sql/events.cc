@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -353,7 +353,7 @@ Events::create_event(THD *thd, Event_parse_data *parse_data,
     Event_queue_element *new_element;
     bool dropped= 0;
 
-    if (!event_already_exists)
+    if (opt_event_scheduler != Events::EVENTS_DISABLED && !event_already_exists)
     {
       if (!(new_element= new Event_queue_element()))
         ret= TRUE;                                // OOM
@@ -506,30 +506,33 @@ Events::update_event(THD *thd, Event_parse_data *parse_data,
     LEX_STRING dbname= new_dbname ? *new_dbname : parse_data->dbname;
     LEX_STRING name= new_name ? *new_name : parse_data->name;
 
-    if (!(new_element= new Event_queue_element()))
-      ret= TRUE;                                // OOM
-    else if ((ret= db_repository->load_named_event(thd, dbname, name,
-                                                   new_element)))
-      delete new_element;
-    else
+    if (opt_event_scheduler != Events::EVENTS_DISABLED)
     {
-      /*
-        TODO: check if an update actually has inserted an entry
-        into the queue.
-        If not, and the element is ON COMPLETION NOT PRESERVE, delete
-        it right away.
-      */
-      if (event_queue)
-        event_queue->update_event(thd, parse_data->dbname, parse_data->name,
-                                  new_element);
-      /* Binlog the alter event. */
-      DBUG_ASSERT(thd->query() && thd->query_length());
+      if (!(new_element= new Event_queue_element()))
+        ret= TRUE;                                // OOM
+      else if ((ret= db_repository->load_named_event(thd, dbname, name,
+                                                   new_element)))
+        delete new_element;
+      else
+      {
+        /*
+          TODO: check if an update actually has inserted an entry
+          into the queue.
+          If not, and the element is ON COMPLETION NOT PRESERVE, delete
+          it right away.
+        */
+        if (event_queue)
+          event_queue->update_event(thd, parse_data->dbname, parse_data->name,
+                                    new_element);
+        /* Binlog the alter event. */
+        DBUG_ASSERT(thd->query() && thd->query_length());
 
-      thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
-      if (new_dbname)
-        thd->add_to_binlog_accessed_dbs(new_dbname->str);
+        thd->add_to_binlog_accessed_dbs(parse_data->dbname.str);
+        if (new_dbname)
+          thd->add_to_binlog_accessed_dbs(new_dbname->str);
 
-      ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+        ret= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
+      }
     }
   }
   /* Restore the state of binlog format */
@@ -921,7 +924,7 @@ end:
   }
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  NULL);
+  my_pthread_set_THR_THD(NULL);
 
   DBUG_RETURN(res);
 }

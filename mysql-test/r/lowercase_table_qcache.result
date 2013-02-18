@@ -21,4 +21,4 @@ select * from MySQL.db;
 show status like "Qcache_queries_in_cache";
 Variable_name	Value
 Qcache_queries_in_cache	0
-set GLOBAL query_cache_size=0;
+set GLOBAL query_cache_size=DEFAULT;

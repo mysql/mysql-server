@@ -35,7 +35,7 @@ int
 clearOldBackups(NDBT_Context* ctx, NDBT_Step* step)
 {
   strcpy(tabname, ctx->getTab()->getName());
-  NdbBackup backup(GETNDB(step)->getNodeId());
+  NdbBackup backup;
   backup.clearOldBackups();
   return NDBT_OK;
 }
@@ -70,7 +70,7 @@ int setSlave(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runAbort(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
 
   NdbRestarter restarter;
 
@@ -104,7 +104,7 @@ int runAbort(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runFail(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
 
   NdbRestarter restarter;
 
@@ -138,7 +138,7 @@ int runFail(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned backupId = 0;
 
   if (backup.start(backupId) == -1){
@@ -151,7 +151,7 @@ int runBackupOne(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned backupId = rand() % (MAX_BACKUPS);
 
   if (backup.start(backupId) == -1){
@@ -165,7 +165,7 @@ int runBackupRandom(NDBT_Context* ctx, NDBT_Step* step){
 
 int
 runBackupLoop(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   
   int loops = ctx->getNumLoops();
   while(!ctx->isTestStopped() && loops--)
@@ -233,7 +233,7 @@ int runDropTablesRestart(NDBT_Context* ctx, NDBT_Step* step){
 }
 
 int runRestoreOne(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned backupId = ctx->getProperty("BackupId"); 
 
   ndbout << "Restoring backup " << backupId << endl;
@@ -379,7 +379,7 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
   int l = 0;
   int maxSleep = 30; // Max seconds between each backup
   Ndb* pNdb = GETNDB(step);
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned minBackupId = ~0;
   unsigned maxBackupId = 0;
   unsigned backupId = 0;
@@ -425,7 +425,7 @@ int runBackupBank(NDBT_Context* ctx, NDBT_Step* step){
 
 int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   NdbRestarter restarter;
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned minBackupId = ctx->getProperty("MinBackupId");
   unsigned maxBackupId = ctx->getProperty("MaxBackupId");
   unsigned backupId = minBackupId;
@@ -499,7 +499,7 @@ int runRestoreBankAndVerify(NDBT_Context* ctx, NDBT_Step* step){
   return result;
 }
 int runBackupUndoWaitStarted(NDBT_Context* ctx, NDBT_Step* step){
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   unsigned backupId = 0;
   int undoError = 10041;
   NdbRestarter restarter;
@@ -567,7 +567,7 @@ int runChangeUndoDataDuringBackup(NDBT_Context* ctx, NDBT_Step* step){
   hugoTrans.closeTransaction(pNdb);
 
   // make sure backup have finish
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
 
   // start log event
   if(backup.startLogEvent() != 0) {
@@ -651,7 +651,7 @@ int runVerifyUndoData(NDBT_Context* ctx, NDBT_Step* step){
 int
 runBug57650(NDBT_Context* ctx, NDBT_Step* step)
 {
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
   NdbRestarter res;
 
   int node0 = res.getNode(NdbRestarter::NS_RANDOM);
@@ -660,6 +660,15 @@ runBug57650(NDBT_Context* ctx, NDBT_Step* step)
   unsigned backupId = 0;
   if (backup.start(backupId) == -1)
     return NDBT_FAILED;
+
+  res.insertErrorInAllNodes(5057);
+  int val2[] = { 7099 }; // Force LCP
+  res.dumpStateAllNodes(val2, 1);
+
+  NdbSleep_SecSleep(5);
+  res.waitClusterStarted();
+
+  res.insertErrorInAllNodes(0);
 
   return NDBT_OK;
 }

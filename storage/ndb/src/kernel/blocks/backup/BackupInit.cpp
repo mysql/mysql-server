@@ -117,6 +117,8 @@ Backup::Backup(Block_context& ctx, Uint32 instanceNumber) :
   addRecSignal(GSN_BACKUP_LOCK_TAB_CONF, &Backup::execBACKUP_LOCK_TAB_CONF);
   addRecSignal(GSN_BACKUP_LOCK_TAB_REF, &Backup::execBACKUP_LOCK_TAB_REF);
 
+  addRecSignal(GSN_LCP_STATUS_REQ, &Backup::execLCP_STATUS_REQ);
+
   /**
    * Testing
    */
@@ -206,7 +208,31 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_LOG_BUFFER_MEM, &szLogBuf);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_WRITE_SIZE, &szWrite);
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MAX_WRITE_SIZE, &maxWriteSize);
-  
+
+  if (maxWriteSize < szWrite)
+  {
+    /**
+     * max can't be lower than min
+     */
+    maxWriteSize = szWrite;
+  }
+  if ((maxWriteSize % szWrite) != 0)
+  {
+    /**
+     * max needs to be a multiple of min
+     */
+    maxWriteSize = (maxWriteSize + szWrite - 1) / szWrite;
+    maxWriteSize *= szWrite;
+  }
+
+  /**
+   * add min writesize to buffer size...and the alignment added here and there
+   */
+  Uint32 extra = szWrite + 4 * (/* align * 512b */ 128);
+
+  szDataBuf += extra;
+  szLogBuf += extra;
+
   c_defaults.m_logBufferSize = szLogBuf;
   c_defaults.m_dataBufferSize = szDataBuf;
   c_defaults.m_minWriteSize = szWrite;
@@ -215,8 +241,12 @@ Backup::execREAD_CONFIG_REQ(Signal* signal)
 
   Uint32 szMem = 0;
   ndb_mgm_get_int_parameter(p, CFG_DB_BACKUP_MEM, &szMem);
-  Uint32 noPages = (szMem + c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) 
-    / sizeof(Page32);
+
+  szMem += 3 * extra; // (data+log+lcp);
+  Uint32 noPages =
+    (szMem + sizeof(Page32) - 1) / sizeof(Page32) +
+    (c_defaults.m_lcp_buffer_size + sizeof(Page32) - 1) / sizeof(Page32);
+
   // We need to allocate an additional of 2 pages. 1 page because of a bug in
   // ArrayPool and another one for DICTTAINFO.
   c_pagePool.setSize(noPages + NO_OF_PAGES_META_FILE + 2, true); 

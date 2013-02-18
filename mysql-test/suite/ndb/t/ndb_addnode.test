@@ -20,9 +20,19 @@ CREATE TABLESPACE ts_1
 create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
 create table t2(id int NOT NULL PRIMARY KEY, data char(8))
 TABLESPACE ts_1 STORAGE DISK engine=ndb;
+# BUG#13714648
+create table t5(id int NOT NULL PRIMARY KEY, data char(8)) max_rows=50000000 engine=ndb;
 
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t1 fields terminated by ' ' lines terminated by '\n';
 load data local infile 'suite/ndb/data/table_data10000.dat' into table t2 fields terminated by ' ' lines terminated by '\n';
+load data local infile 'suite/ndb/data/table_data10000.dat' into table t5 fields terminated by ' ' lines terminated by '\n';
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+select @init_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+
+## Check details of t5 partitioning
+--exec $NDB_DESC -dtest -p -n t5
 
 ## Create nodegroup for "new" nodes
 --exec $NDB_MGM -e "create nodegroup 3,4"
@@ -48,6 +58,23 @@ insert into t4(id, data) VALUES
 
 alter online table t1 reorganize partition;
 alter online table t2 reorganize partition;
+alter online table t5 max_rows=100000000;
+
+select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';
+select count(1) as t2_part_count from information_schema.partitions where table_schema='test' and table_name='t2';
+select count(1) as t3_part_count from information_schema.partitions where table_schema='test' and table_name='t3';
+select count(1) as t4_part_count from information_schema.partitions where table_schema='test' and table_name='t4';
+select @reorg_t5_part_count:= count(1) as t5_part_count from information_schema.partitions where table_schema='test' and table_name='t5';
+
+## Check details of t5 partitioning
+--exec $NDB_DESC -dtest -p -n t5
+
+--let $t5_part_diff=query_get_value('select @reorg_t5_part_count-@init_t5_part_count as Value',Value,1)
+
+if (!$t5_part_diff)
+{
+  --die Table t5 was not reorganised
+}
 
 ## Drop nodegroup with "new" nodes is not allowed with data one those nodes
 # NOTE: --error=0 is due to return codes doesnt work on windoze
@@ -57,7 +84,7 @@ alter online table t2 reorganize partition;
 ## Nodegroup with "new" nodes still exist after dropping it as shown:
 --exec $NDB_MGM -e show
 
-drop table t1,t2,t3,t4;
+drop table t1,t2,t3,t4,t5;
 
 ## Drop nodegroup with "new" nodes
 --exec $NDB_MGM -e "drop nodegroup 1"

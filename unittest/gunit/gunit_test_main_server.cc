@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,10 +16,15 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "my_getopt.h"
 #include "test_utils.h"
 #include <stdlib.h>
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+#include "../storage/perfschema/pfs_server.h"
+#endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
 
 namespace {
 
@@ -57,6 +62,12 @@ extern void install_tap_listener();
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+
+#ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
+  pre_initialize_performance_schema();
+#endif /*WITH_PERFSCHEMA_STORAGE_ENGINE */
+
+  ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
 
   if (handle_options(&argc, &argv, unittest_options, get_one_option))

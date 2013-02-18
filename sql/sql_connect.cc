@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
+#include "log.h"
 
 #include <algorithm>
 
@@ -441,6 +442,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+      global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }    
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -501,9 +510,8 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   thd->set_active_vio(net->vio);
-#endif
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
@@ -784,7 +792,7 @@ void end_connection(THD *thd)
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
                         (thd->get_stmt_da()->is_error() ?
-                         thd->get_stmt_da()->message() :
+                         thd->get_stmt_da()->message_text() :
                          ER(ER_UNKNOWN_ERROR)));
     }
   }
@@ -826,7 +834,7 @@ void prepare_new_connection_state(THD* thd)
                         thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->get_stmt_da()->message());
+      sql_print_warning("%s", thd->get_stmt_da()->message_text());
 
       thd->lex->current_select= 0;
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);

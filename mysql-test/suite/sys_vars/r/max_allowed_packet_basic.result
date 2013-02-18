@@ -102,12 +102,23 @@ Warning	1292	Truncated incorrect max_allowed_packet value: '10737418241'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
+SET @@global.max_allowed_packet = 1073741826;
+Warnings:
+Warning	1292	Truncated incorrect max_allowed_packet value: '1073741826'
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
 SET @@global.max_allowed_packet = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
 1073741824
 SET @@global.max_allowed_packet = test;
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
+SET @@global.max_allowed_packet = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@global.max_allowed_packet;
 @@global.max_allowed_packet
@@ -135,6 +146,11 @@ SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet
 4194304
 SET @@session.max_allowed_packet = test;
+ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
+SELECT @@session.max_allowed_packet;
+@@session.max_allowed_packet
+4194304
+SET @@session.max_allowed_packet = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_allowed_packet'
 SELECT @@session.max_allowed_packet;
 @@session.max_allowed_packet

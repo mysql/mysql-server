@@ -31,7 +31,7 @@
 #include <sys/wait.h>                           // for WEXITSTATUS
 #endif
 
-namespace {
+namespace opt_trace_unittest {
 
 const ulonglong all_features= Opt_trace_context::default_features;
 

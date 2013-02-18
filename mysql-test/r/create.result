@@ -2102,7 +2102,7 @@ CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW
 BEGIN 
 UPDATE A SET `pk`=1 WHERE `pk`=0 ; 
 END ;|
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR HY000: Trigger already exists
 DROP TABLE t1;
 DROP TABLE B;
 #

@@ -1,6 +1,8 @@
 select @@global.have_profiling="1";
 @@global.have_profiling="1"
 0
+Warnings:
+Warning	1287	'@@have_profiling' is deprecated and will be removed in a future release.
 select @@session.have_profiling;
 ERROR HY000: Variable 'have_profiling' is a GLOBAL variable
 show global variables like 'have_profiling';

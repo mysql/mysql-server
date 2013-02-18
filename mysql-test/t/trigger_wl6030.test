@@ -1,0 +1,1794 @@
+--echo #
+--echo # WL#6030: Triggers are not processed for NOT NULL columns.
+--echo #
+
+CREATE TABLE t2(a INT, b INT, c INT);
+
+--echo
+--echo ###################################################################
+--echo # Test 1: BEFORE INSERT, NOT NULL.
+--echo #   - Test 1.1: SET to NOT NULL.
+--echo ###################################################################
+
+CREATE TABLE t1(a INT NOT NULL, b INT, c INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+--echo
+--echo # Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # INSERT ... SELECT.
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # REPLACE ... SELECT.
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+DELETE FROM t2;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo ###################################################################
+--echo #   - Test 1.2: SET to NULL.
+--echo ###################################################################
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = NULL;
+# For a single-row INSERT, no warning occurs when NULL is inserted into a NOT
+# NULL column. Instead, the statement fails with an error.
+
+INSERT INTO t2 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Single INSERT ... VALUES.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (1, 2, 3);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(b, c) VALUES (2, 3);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a) VALUES (1);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Single REPLACE ... VALUES.
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 VALUES (1, 2, 3);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b, c) VALUES (1, 2, 3);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(b, c) VALUES (2, 3);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a) VALUES (1);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi INSERT ... VALUES.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a) VALUES (1), (10), (100);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi REPLACE ... VALUES.
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a) VALUES (1), (10), (100);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # INSERT ... SELECT.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 SELECT * FROM t2;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # REPLACE ... SELECT.
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 SELECT * FROM t2;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo ###################################################################
+--echo # Test 2: BEFORE UPDATE, NOT NULL.
+--echo #   - Test 2.1: SET to NOT NULL.
+--echo ###################################################################
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = 999;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Regular UPDATE.
+UPDATE t1 SET a = NULL WHERE a = 1;
+UPDATE t1 SET a = NULL, c = NULL WHERE a = 100;
+
+--echo
+SELECT * FROM t1;
+--echo
+
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+
+UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
+
+--echo
+SELECT * FROM t1;
+--echo
+SELECT * FROM t3;
+--echo
+
+DROP TRIGGER t1_bu;
+DROP TABLE t3;
+DELETE FROM t1;
+
+CREATE TABLE t3(a INT NOT NULL, b INT);
+CREATE TRIGGER t3_bu BEFORE UPDATE ON t3 FOR EACH ROW SET NEW.a = 999;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+INSERT INTO t3 VALUES (10, -10);
+
+UPDATE t1, t3 SET t1.a = -20, t3.a = NULL WHERE t1.a = t3.a AND t3.a = 10;
+
+SELECT * FROM t1;
+SELECT * FROM t3;
+DROP TRIGGER t3_bu;
+DROP TABLE t3;
+
+--echo
+--echo #   - Test 2.1: SET to NULL.
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = NULL;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Regular UPDATE.
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET a = 99 WHERE a = 1;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET a = 99, b = 99 WHERE a = 1;
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--echo # Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+
+--error ER_BAD_NULL_ERROR
+UPDATE t1, t3 SET t1.a = 99, t3.a = -10 WHERE t1.a = t3.a AND t3.a = 10;
+
+--echo
+SELECT * FROM t1;
+--echo
+SELECT * FROM t3;
+--echo
+
+DELETE FROM t1;
+DELETE FROM t2;
+DROP TABLE t3;
+
+DROP TRIGGER t1_bu;
+
+--echo
+--echo ###################################################################
+--echo # Test 3: Using illegal NULL-value as r-value.
+--echo #   - Test 3.1: using NULL.
+--echo ###################################################################
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.b = NEW.a;
+  SET NEW.a = 1;
+END|
+delimiter ;|
+
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+--echo
+--echo # Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # INSERT ... SELECT
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # REPLACE ... SELECT
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo ###################################################################
+--echo #   - Test 3.2: using NOT NULL.
+--echo ###################################################################
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a = 99;
+  SET NEW.b = NEW.a;
+END|
+delimiter ;|
+
+--echo
+--echo # Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # INSERT ... SELECT
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # REPLACE ... SELECT
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+DELETE FROM t2;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo ###################################################################
+--echo # Test 4: Temporarily setting to illegal NULL-value in trigger
+--echo # (here we only check that it's possible to temporarily assign
+--echo # NULL in triggers).
+--echo ###################################################################
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a = NULL;
+  SET NEW.b = NEW.a;
+  SET NEW.a = 99;
+END|
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a = NULL;
+  SET NEW.b = NEW.a;
+  SET NEW.a = 199;
+END|
+delimiter ;|
+
+--echo
+--echo # Checking BEFORE INSERT trigger.
+INSERT INTO t1 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+SELECT * FROM t1;
+
+--echo
+--echo # Checking BEFORE UPDATE trigger.
+UPDATE t1 SET b = 999 WHERE c = 300;
+SELECT * FROM t1;
+
+--echo
+DROP TRIGGER t1_bi;
+DROP TRIGGER t1_bu;
+DELETE FROM t1;
+
+--echo
+--echo ###################################################################
+--echo # Test 5: Using IS NULL inside trigger.
+--echo #   - Test 5.1: BEFORE INSERT trigger.
+--echo ###################################################################
+
+ALTER TABLE t1 ADD COLUMN a_new_is_null BOOLEAN DEFAULT NULL;
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a_new_is_null = NEW.a IS NULL;
+  SET NEW.a = 99;
+END|
+delimiter ;|
+
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+--echo
+--echo # Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3, NULL);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3, NULL);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES
+  (-1, 2, 3, NULL), (NULL, 20, 30, NULL), (NULL, 200, 300, NULL);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES
+  (-1, 2, 3, NULL), (NULL, 20, 30, NULL), (NULL, 200, 300, NULL);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # INSERT ... SELECT
+INSERT INTO t1 SELECT t2.*, NULL FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+--echo
+--echo # REPLACE ... SELECT
+REPLACE INTO t1 SELECT t2.*, NULL FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+DELETE FROM t1;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo ###################################################################
+--echo #   - Test 5.2: BEFORE UPDATE trigger.
+--echo ###################################################################
+
+ALTER TABLE t1 ADD COLUMN a_old_is_null BOOLEAN DEFAULT NULL;
+ALTER TABLE t1 ADD COLUMN b_new_is_null BOOLEAN DEFAULT NULL;
+ALTER TABLE t1 ADD COLUMN b_old_is_null BOOLEAN DEFAULT NULL;
+
+delimiter |;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.a_new_is_null = NEW.a IS NULL;
+  SET NEW.a_old_is_null = OLD.a IS NULL;
+
+  SET NEW.b_new_is_null = NEW.b IS NULL;
+  SET NEW.b_old_is_null = OLD.b IS NULL;
+
+  SET NEW.a = 99;
+END|
+delimiter ;|
+
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Regular UPDATE.
+UPDATE t1 SET a = NULL WHERE a = 1;
+UPDATE t1 SET a = NULL, c = NULL WHERE a = 10;
+UPDATE t1 SET b = NULL WHERE a = 100;
+
+--echo
+SELECT * FROM t1;
+--echo
+
+DELETE FROM t1;
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+--echo
+--echo # Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+
+UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
+
+--echo
+SELECT * FROM t1;
+--echo
+SELECT * FROM t3;
+--echo
+
+DROP TABLE t3;
+
+DROP TRIGGER t1_bu;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo
+--echo ###################################################################
+--echo # Test 6: Nullability of non-updated columns.
+--echo ###################################################################
+
+CREATE TABLE t1(a INT, b INT NOT NULL);
+
+--echo
+--echo # - Unconditional SET in a trigger.
+--echo
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.b = NULL;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a) VALUES (1);
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a) VALUES (1);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo # - Conditional SET in a trigger, which is executed for every row.
+--echo
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  SET NEW.b = NEW.a;
+  IF NEW.b IS NULL THEN
+    SET NEW.b = 1;
+  END IF;
+END|
+delimiter ;|
+
+--echo
+INSERT INTO t1(a) VALUES (NULL);
+
+--echo
+REPLACE INTO t1(a) VALUES (NULL);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+DROP TRIGGER t1_bi;
+
+--echo
+--echo # - Conditional SET in a trigger, which is NOT executed for every row.
+--echo
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  IF (MOD(NEW.a, 2) = 0) THEN
+    SET NEW.b = NEW.a - 1;
+  END IF;
+END|
+delimiter ;|
+
+--echo
+INSERT INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
+
+--echo
+REPLACE INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
+
+--echo
+SELECT * FROM t1;
+
+DROP TABLE t1;
+
+--echo
+--echo ###################################################################
+--echo # Test 7: Nullability of column being copied as result of INSERT SELECT.
+--echo ###################################################################
+
+CREATE TABLE t1(a INT NOT NULL);
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (NULL);
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.a = 1;
+
+--echo
+INSERT INTO t1 SELECT * FROM t2;
+REPLACE INTO t1 SELECT * FROM t2;
+
+--echo
+SELECT * FROM t1;
+--echo
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1,t2;
+
+CREATE TABLE t1(a INT NOT NULL);
+INSERT INTO t1 VALUES (1);
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+  SET NEW.a = 2;
+
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (NULL);
+
+--echo
+UPDATE t1, t2 SET t1.a = t2.a;
+
+--echo
+SELECT * FROM t1;
+--echo
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
+
+--echo
+--echo ###################################################################
+--echo # Test 8: Nullability of column being copied as result of
+--echo #         LOAD DATA INFILE.
+--echo ###################################################################
+
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(10) NOT NULL);
+
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+  IF NEW.b IS NULL THEN
+    SET NEW.b = '123';
+  END IF;
+END |
+delimiter ;|
+
+LOAD DATA INFILE '../../std_data/wl6030.dat' INTO TABLE t1 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+
+SELECT * FROM t1;
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo
+--echo ###################################################################
+--echo # Misc tests.
+--echo ###################################################################
+--echo
+
+# A table with one NOT NULL column.
+CREATE TABLE t1(a INT, b INT NOT NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+
+# A table with a few NOT NULL columns.
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL);
+CREATE VIEW v2 AS SELECT * FROM t2;
+
+# Aux table with data for t1.
+CREATE TABLE t1_data(a INT, b INT);
+INSERT INTO t1_data VALUES
+  (11, 12),
+  (NULL, 22),
+  (31, NULL),
+  (NULL, NULL);
+
+# Aux table with data for t2.
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT);
+INSERT INTO t2_data VALUES
+  (11, 12, 13, 14),
+  (NULL, 22, 23, 24),
+  (31, NULL, 33, 34),
+  (41, 42, NULL, 44),
+  (51, 52, 53, NULL),
+  (NULL, NULL, NULL, NULL);
+
+
+SET @sql_mode_saved = @@sql_mode;
+
+--echo
+--echo ###################################################################
+--echo # Checking permissive SQL_MODE.
+--echo ###################################################################
+--echo
+
+SET sql_mode = '';
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking INSERT INTO ... VALUES ...
+--echo #------------------------------------------------------------------
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1 VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1 VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2 VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2 VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2 VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--echo #   - All columns + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1(a, b) VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b) VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1(a, b) VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b) VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--echo #   - Single nullable column, no values for NOT NULL columns.
+--echo #     Expect exactly 4 warnings and 8 rows being inserted into t1.
+
+--echo
+INSERT INTO t1(a) VALUES (1);
+INSERT INTO t1(a) VALUES (2), (3), (4);
+INSERT INTO v1(a) VALUES (5);
+INSERT INTO v1(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+REPLACE INTO t1(a) VALUES (1);
+REPLACE INTO t1(a) VALUES (2), (3), (4);
+REPLACE INTO v1(a) VALUES (5);
+REPLACE INTO v1(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+INSERT INTO t2(a) VALUES (1);
+INSERT INTO t2(a) VALUES (2), (3), (4);
+INSERT INTO v2(a) VALUES (5);
+INSERT INTO v2(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+REPLACE INTO t2(a) VALUES (1);
+REPLACE INTO t2(a) VALUES (2), (3), (4);
+REPLACE INTO v2(a) VALUES (5);
+REPLACE INTO v2(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking INSERT INTO ... SELECT ...
+--echo #------------------------------------------------------------------
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--echo #     Expect 4 warnings for each statement.
+
+--echo
+INSERT INTO t1 SELECT * FROM t1_data;
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+REPLACE INTO t1 SELECT * FROM t1_data;
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--echo #     Expect 4 warnings for each statement.
+
+--echo
+INSERT INTO t2 SELECT * FROM t2_data;
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+REPLACE INTO t2 SELECT * FROM t2_data;
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - All columns + NULL-value for NOT NULL column.
+--echo #     Expect 4 warnings for each statement.
+
+--echo
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - Single nullable column, no values for NOT NULL columns.
+--echo #     Expect 4 warnings for each statement.
+
+--echo
+INSERT INTO t1(a) SELECT a FROM t1_data;
+INSERT INTO v1(a) SELECT a * 100 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+REPLACE INTO t1(a) SELECT a FROM t1_data;
+REPLACE INTO v1(a) SELECT a * 100 FROM t1_data;
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+INSERT INTO t2(a) SELECT a FROM t2_data;
+INSERT INTO v2(a) SELECT a * 100 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+REPLACE INTO t2(a) SELECT a FROM t2_data;
+REPLACE INTO v2(a) SELECT a * 100 FROM t2_data;
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking LOAD DATA INFILE ...
+--echo #------------------------------------------------------------------
+
+--echo
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+
+--echo
+SELECT * FROM t2;
+
+--echo
+DELETE FROM t2;
+
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+
+--echo
+SELECT * FROM t2;
+
+--echo
+DELETE FROM t2;
+
+--echo
+--echo ###################################################################
+--echo # Checking strict SQL_MODE.
+--echo ###################################################################
+--echo
+
+SET sql_mode = 'traditional';
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking INSERT INTO ... VALUES ...
+--echo #------------------------------------------------------------------
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1 VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1 VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2 VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2 VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2 VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--echo #   - All columns + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1(a, b) VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b) VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1(a, b) VALUES (1, NULL);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b) VALUES (1, NULL);
+
+--echo
+SELECT * FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+
+--echo
+SELECT * FROM t2;
+
+--echo
+--echo #   - Single nullable column, no values for NOT NULL columns.
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t1(a) VALUES (1);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t1(a) VALUES (2), (3), (4);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v1(a) VALUES (5);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v1(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t1(a) VALUES (1);
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t1(a) VALUES (2), (3), (4);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v1(a) VALUES (5);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v1(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t2(a) VALUES (1);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t2(a) VALUES (2), (3), (4);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v2(a) VALUES (5);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v2(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t2(a) VALUES (1);
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t2(a) VALUES (2), (3), (4);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v2(a) VALUES (5);
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v2(a) VALUES (6), (7), (8);
+
+--echo
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking INSERT INTO ... SELECT ...
+--echo #------------------------------------------------------------------
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1 SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - No column list (all columns) + NULL-value for NOT NULL column.
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2 SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - All columns + NULL-value for NOT NULL column.
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--error ER_BAD_NULL_ERROR
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+--error ER_BAD_NULL_ERROR
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 4 rows.
+--echo # t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #   - Single nullable column, no values for NOT NULL columns.
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t1(a) SELECT a FROM t1_data;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v1(a) SELECT a * 100 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t1(a) SELECT a FROM t1_data;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v1(a) SELECT a * 100 FROM t1_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+SELECT * FROM t1;
+DELETE FROM t1;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t2(a) SELECT a FROM t2_data;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+INSERT INTO v2(a) SELECT a * 100 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--error ER_NO_DEFAULT_FOR_FIELD
+REPLACE INTO t2(a) SELECT a FROM t2_data;
+--error ER_NO_DEFAULT_FOR_VIEW_FIELD
+REPLACE INTO v2(a) SELECT a * 100 FROM t2_data;
+
+--echo
+--echo # The following SELECT output should have 0 rows.
+SELECT * FROM t2;
+DELETE FROM t2;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # Checking LOAD DATA INFILE ...
+--echo #------------------------------------------------------------------
+
+--error ER_WARN_NULL_TO_NOTNULL
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+
+--echo
+SELECT * FROM t2;
+
+--echo
+DELETE FROM t2;
+
+--error ER_WARN_NULL_TO_NOTNULL
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+
+--echo
+SELECT * FROM t2;
+
+--echo
+SET sql_mode = @sql_mode_saved;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
+
+--echo
+--echo #------------------------------------------------------------------
+--echo # The following tests were suggested by QA
+--echo #------------------------------------------------------------------
+--echo
+
+--echo "Test UPDATE SET inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+UPDATE t1 SET NEW.a1 = 1 WHERE a1 IS NULL;
+
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+INSERT INTO t1 VALUES (NULL);
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for recursive trigger"
+CREATE TABLE t1(a1 INT NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+UPDATE t1 SET NEW.a1 = 1;
+
+--error ER_CANT_UPDATE_USED_TABLE_IN_SF_OR_TRG
+INSERT INTO t1 VALUES (NULL);
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for IFNULL inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 2);
+delimiter |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+  SET NEW.a1 = IFNULL(NEW.a1, 10);
+  SET NEW.a2 = IFNULL(NEW.a2, 20);
+END;
+|
+delimiter ;|
+INSERT INTO t1 VALUES (NULL, 1);
+# expect here the row (10, 1);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for COALESCE Inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+DELIMITER |;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+ SET NEW.a1 = COALESCE(NEW.a1, 5);
+ SET NEW.a2 = COALESCE(NEW.a2, 7);
+END;
+|
+DELIMITER ;|
+INSERT INTO t1 VALUES (NULL, 3);
+# expect here the row (5, 3)
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for PRIMARY KEY"
+CREATE TABLE t1 (a1 INT PRIMARY KEY); 
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for PRIMARY KEY (constraint violation)"
+CREATE TABLE t1 (a1 INT PRIMARY KEY); 
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for date/timestamp datatype"
+CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = '2012-03-03', NEW.a2 = '2001-01-01 09:01:00';
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for CHAR/VARCHAR datatype"
+CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 'MySQL' , NEW.a2 = 'Includes testing of MySQL';
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for BINARY/VARBINARY datatype"
+CREATE TABLE t1(a1 BINARY(10) NOT NULL, a2 VARBINARY(255) NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = '0x41', NEW.a2 = '0x42';
+
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for UNIQUE column‚ constraint violation"
+CREATE TABLE t1(a1 INT UNIQUE, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (NULL, 2);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for UPDATE .. SET .. SELECT"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t2 VALUES (1, NULL);
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+
+UPDATE t1 SET a1 = (SELECT a2 FROM t2);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+
+--echo "Test for multi table update (across engines)"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ENGINE = INNODB;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1, NULL),(2, 2);
+INSERT INTO t2 VALUES (1, NULL),(2876543, 2098);
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 10;
+
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2
+FOR EACH ROW
+SET NEW.a1 = 20;
+
+UPDATE t1, t2 SET t1.a1 = NULL , t2.a1 = NULL;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TRIGGER t1_bu;
+DROP TRIGGER t2_bu;
+DROP TABLE t1, t2;
+
+--echo "Test for update on PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+UPDATE t1 SET a1 =  NULL;
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+
+--echo "Test for update on UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+UPDATE t1 SET a1 =  NULL;
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+
+--echo "INSERT NOT NULL into NOT NULL column if BEFORE INSERT trigger sets it to NULL."
+
+--echo "Test for PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (2, 2);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (2, 2),(3,3);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for timestamp"
+CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL , NEW.a3 = NULL;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES ('2012-12-12','2012-12-12 12:12:12','1980-01-01 01:01:01');
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for CHAR/VARCHAR datatype"
+CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL, a3 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES ('MySQL','MySQL Testing', 1);
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "Test for BINARY/VARBINARY datatype"
+CREATE TABLE t1(a1 BINARY(10) NOT NULL, a2 VARBINARY(255) NOT NULL, a3 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL;
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES ('0x101','0x101', 1);
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+--echo "UPDATE NOT NULL into NOT NULL column if BEFORE UPDATE trigger sets it to NULL."
+
+--echo "Test for UPDATE .. SET .. SELECT"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1, 1);
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET a1 = (SELECT MAX(a2) FROM t2);
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+
+--echo "Test for multi table update (across engines)"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ENGINE = INNODB;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1, NULL),(2, 2);
+INSERT INTO t2 VALUES (1, NULL),(2876543, 20111098);
+
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+--error ER_BAD_NULL_ERROR
+UPDATE t1, t2 SET t1.a1 = 1 , t2.a1 = 2;
+SELECT * FROM t1;
+SELECT * FROM t2;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+
+--echo "Test for update on PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET a1 = 2;
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+
+--echo "Test for update on UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1),(2, 2);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+--error ER_BAD_NULL_ERROR
+UPDATE t1 SET a1 = 3; 
+SELECT * FROM t1;
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+
