@@ -166,7 +166,7 @@ A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
 the number is not global, as it used to be before MySQL 4.0.18.  */
 UNIV_INLINE
-void
+dberr_t
 dict_create_add_foreign_id(
 /*=======================*/
 	ulint*		id_nr,	/*!< in/out: number to use in id generation;
