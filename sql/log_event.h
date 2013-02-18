@@ -1201,7 +1201,7 @@ public:
                             mysql_mutex_t* log_lock,
                             uint8 checksum_alg_arg,
                             const char *log_file_name_arg= NULL,
-                            bool* is_binlog_active= false);
+                            bool* is_binlog_active= NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
