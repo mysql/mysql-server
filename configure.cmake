@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -212,6 +212,11 @@ IF(UNIX)
     IF(HAVE_LIBWRAP)
       SET(MYSYS_LIBWRAP_SOURCE  ${CMAKE_SOURCE_DIR}/mysys/my_libwrap.c)
       SET(LIBWRAP "wrap")
+    ELSE()
+      MESSAGE(FATAL_ERROR 
+      "WITH_LIBWRAP is defined, but can not find a working libwrap. "
+      "Make sure both the header files (tcpd.h) "
+      "and the library (libwrap) are installed.")
     ENDIF()
   ENDIF()
 ENDIF()
