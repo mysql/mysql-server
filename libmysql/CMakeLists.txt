@@ -258,7 +258,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
       get_charset_by_csname
       net_realloc
       client_errors
-      THR_key_mysys
+      THR_KEY_mysys
     )  
   
     # Add special script to fix symbols renames by Fedora
