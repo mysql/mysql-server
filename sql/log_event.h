@@ -1024,7 +1024,7 @@ public:
   static int read_log_event(IO_CACHE* file, String* packet,
                             mysql_mutex_t* log_lock,
                             const char *log_file_name_arg= NULL,
-                            bool* is_binlog_active= false);
+                            bool* is_binlog_active= NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
