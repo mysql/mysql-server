@@ -2219,8 +2219,11 @@ trx_start_for_ddl_low(
 
 /*************************************************************//**
 Set the transaction as a read-write transaction if it is not already
-tagged as such. Ignore read-only transactions that are writing to
-temporary tables. */
+tagged as such. Read-only transactions that are writing to temporary
+tables are assigned an ID and a rollback segment but are not added
+to the trx read-write list because their updates should not be visible
+to other transactions and therefore their changes can be ignored by
+by MVCC. */
 UNIV_INTERN
 void
 trx_set_rw_mode(
@@ -2228,7 +2231,6 @@ trx_set_rw_mode(
 	trx_t*		trx)		/*!< in/out: transaction that is RW */
 {
 	ut_a(trx->rseg == 0);
-	ut_ad(!trx->read_only);
 	ut_ad(trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx_is_autocommit_non_locking(trx));
@@ -2262,11 +2264,13 @@ trx_set_rw_mode(
 
 	ut_ad(trx->in_ro_trx_list == true);
 
-	UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
+	if (!trx->read_only) {
+		UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
 
-	ut_d(trx->in_ro_trx_list = false);
+		ut_d(trx->in_ro_trx_list = false);
 
-	trx_list_rw_insert_ordered(trx);
+		trx_list_rw_insert_ordered(trx);
+	}
 
 	mutex_exit(&trx_sys->mutex);
 }
