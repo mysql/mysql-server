@@ -9765,6 +9765,26 @@ int ha_ndbcluster::rename_table(const char *from, const char *to)
     DBUG_RETURN(handler::rename_table(from, to));
   }
 
+  /*
+    ALTER RENAME with some more change is currently not supported
+    by Ndb due to
+    Bug #16021021 ALTER ... RENAME FAILS TO RENAME ON PARTICIPANT MYSQLD
+
+    Check if command is not RENAME and some more alter_flag
+    except ALTER_RENAME is set.
+  */
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE)
+  {
+    Alter_info *alter_info= &(thd->lex->alter_info);
+    uint flags= alter_info->flags;
+
+    if (flags & ALTER_RENAME && flags & ~ALTER_RENAME)
+      {
+	my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+	DBUG_RETURN(my_errno= ER_NOT_SUPPORTED_YET);
+      }
+  }
+
   set_dbname(from, old_dbname);
   set_dbname(to, new_dbname);
   set_tabname(from);
