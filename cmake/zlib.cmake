@@ -15,7 +15,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA 
 
 MACRO (MYSQL_USE_BUNDLED_ZLIB)
-  SET(ZLIB_LIBRARY  zlib)
+  SET(ZLIB_LIBRARY zlib CACHE INTERNAL "Bundled zlib library")
   SET(ZLIB_INCLUDE_DIR  ${CMAKE_SOURCE_DIR}/zlib)
   SET(ZLIB_FOUND  TRUE)
   SET(WITH_ZLIB "bundled" CACHE STRING "Use bundled zlib")
@@ -59,7 +59,7 @@ MACRO (MYSQL_CHECK_ZLIB_WITH_COMPRESS)
       CHECK_FUNCTION_EXISTS(crc32 HAVE_CRC32)
       SET(CMAKE_REQUIRED_LIBRARIES)
       IF(HAVE_CRC32)
-        SET(ZLIB_LIBRARY z CACHE INTERNAL "System zlib library")
+        SET(ZLIB_LIBRARY ${ZLIB_LIBRARIES} CACHE INTERNAL "System zlib library")
         SET(WITH_ZLIB "system" CACHE STRING "Which zlib to use (possible values are 'bundled' or 'system')")
         SET(ZLIB_SOURCES "")
       ELSE()
