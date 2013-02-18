@@ -787,7 +787,7 @@ exports.UserContext.prototype.executeBatch = function(operationContexts) {
   var executeBatchOnOperationDefined = function(definedOperationCount) {
     userContext.numberOfOperationsDefined += definedOperationCount;
     udebug.log_detail('UserContext.executeBatch expecting', userContext.numberOfOperations, 
-        'operations with', userContext.numberOfOperationsDefined, ' already defined.');
+        'operations with', userContext.numberOfOperationsDefined, 'already defined.');
     if (userContext.numberOfOperationsDefined === userContext.numberOfOperations) {
       var operations = [];
       // collect all operations from the operation contexts

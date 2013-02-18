@@ -282,11 +282,14 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           if (rawDefaultValue === 'NULL') {
             // default value is null
             defaultValue = null;
-          } else if (rawDefaultValue[0] === '\'') {
-            // default value is a quoted string; strip leading and trailing quotes
-            defaultValue = rawDefaultValue.substr(1, rawDefaultValue.length -2);
+          } else {
+            // default value is a quoted string, so separate by \'
+            // this will return the first (and presumed only) quoted string in the line
+            rawDefaultValue = line.split('\'')[1];
             if (column.isIntegral) {
-              defaultValue = parseInt(defaultValue);
+              defaultValue = parseInt(rawDefaultValue);
+            } else {
+              defaultValue = rawDefaultValue;
             }
           }
           udebug.log_detail('parseCreateTable for:', columnName,

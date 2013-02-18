@@ -27,7 +27,7 @@ ColumnMetadata = {
   columnSpace      : 0     ,  // buffer space required for encoded stored value
   defaultValue     : null  ,  // default value for column: null for default NULL; 
                               // undefined for no default; or a type-appropriate
-                              // value for colum
+                              // value for column
   
   /* Optional Properties, depending on columnType */
   /* Group A: Numeric */
@@ -51,7 +51,7 @@ ColumnMetadata = {
 
    An NDB primary key might be viewed through the NDBAPI adapter as two indexes 
    (one unique, the other ordered), but through a MySQL adapter as a single 
-   index that is both unique and ordered.  We tolerate this discrepency and note 
+   index that is both unique and ordered.  We tolerate this discrepancy and note 
    that the code in Adapter/api must treat the two descriptions as equivalent. 
 */
 IndexMetadata = {

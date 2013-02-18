@@ -38,16 +38,26 @@ global.unified_debug   = require(udebug_module);
 
 
 /* Find the build directory */
-var build1 = path.join(spi_dir, "build", "Release");
-var build2 = path.join(parent_dir, "build", "Release");
+var build1 = path.join(spi_dir, "build");
+var build2 = path.join(parent_dir, "build");
 var existsSync = fs.existsSync || path.existsSync;
 
-if(existsSync(path.join(build1, "ndb_adapter.node"))) {
-  global.build_dir = build1;
+if(existsSync(path.join(build1, "Release", "ndb_adapter.node"))) {
+  global.build_dir = path.join(build1, "Release");
 }
-else if(existsSync(path.join(build2, "ndb_adapter.node"))) {
-  global.build_dir = build2;
+else if(existsSync(path.join(build2, "Release", "ndb_adapter.node"))) {
+  global.build_dir = path.join(build2, "Release");
 }
+else if(existsSync(path.join(build1, "Debug", "ndb_adapter.node"))) {
+  global.build_dir = path.join(build1, "Debug");
+}
+else if(existsSync(path.join(build2, "Debug", "ndb_adapter.node"))) {
+  global.build_dir = path.join(build2, "Debug");
+}
+
+
+
+
 
 
 

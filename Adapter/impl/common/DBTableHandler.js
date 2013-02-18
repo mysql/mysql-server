@@ -155,6 +155,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         n = c.columnNumber;
         this.columnNumberToFieldMap[n] = f;
         f.columnNumber = n;
+        f.defaultValue = c.defaultValue;
       }
     }
   }
@@ -169,6 +170,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.stubFields.push(f);
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
+        f.defaultValue = c.defaultValue;
       }
     }
   }
@@ -407,22 +409,35 @@ function chooseIndex(self, keys, uniqueOnly) {
 }
 
 
-/* Return the property of obj corresponding to fieldNumber */
-DBTableHandler.prototype.get = function(obj, fieldNumber) { 
+/** Return the property of obj corresponding to fieldNumber.
+ * If resolveDefault is true, replace undefined with the default column value.
+ * ResolveDefault is used only for persist, not for write or update.
+ */
+DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) { 
   udebug.log("get", fieldNumber);
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
     return obj;
   }
   var f = this.fieldNumberToFieldMap[fieldNumber];
-  return f ? obj[f.fieldName] : null;
+  var result;
+  if (!f) {
+    throw new Error('FatalInternalError: field number does not exist: ' + fieldNumber);
+  }
+  result = obj[f.fieldName];
+  if ((result === undefined) && resolveDefault) {
+    udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
+    result = f.defaultValue;
+  }
+  return result;
+  //  return f ? obj[f.fieldName] : null;
 };
 
 
 /* Return an array of values in field order */
-DBTableHandler.prototype.getFields = function(obj) {
+DBTableHandler.prototype.getFields = function(obj, resolveDefault) {
   var i, fields = [];
   for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
-    fields[i] = this.get(obj, i);
+    fields[i] = this.get(obj, i, resolveDefault);
   }
   return fields;
 };
