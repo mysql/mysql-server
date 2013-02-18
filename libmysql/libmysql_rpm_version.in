@@ -21,6 +21,8 @@ libmysqlclient_16 {
 	my_print_help;
 # pure-ftpd requires this
 	my_make_scrambled_password;
+# fedora18 export
+	THR_KEY_mysys;
 # hydra requires this
 	scramble;
 # DBD::mysql requires this

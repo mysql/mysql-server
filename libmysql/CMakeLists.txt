@@ -257,10 +257,12 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
       get_charset
       get_charset_by_csname
       net_realloc
-      client_errors)  
+      client_errors
+      THR_key_mysys
+    )  
   
     # Add special script to fix symbols renames by Fedora
-    SET(CLIENT_SOURCES_EXTRA ${CLIENT_SOURCES} rpm_support.cc)
+    SET(CLIENT_SOURCES_EXTRA rpm_support.cc)
     SET(VERSION_SCRIPT_TEMPLATE 
     ${CMAKE_CURRENT_SOURCE_DIR}/libmysql_rpm_version.in)	  
   ELSEIF(DEB)
@@ -349,7 +351,7 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} ${CLIENT_API_EXTRA} COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
