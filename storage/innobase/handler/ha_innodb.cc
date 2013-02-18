@@ -3635,7 +3635,7 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (!trx->read_only) {
+	if (trx->insert_undo != 0 || trx->update_undo != 0) {
 		error = trx_rollback_for_mysql(trx);
 	}
 
@@ -13590,7 +13590,7 @@ innobase_rollback_by_xid(
 
 	trx = trx_get_trx_by_xid(xid);
 
-	if (trx) {
+	if (trx != 0) {
 		int	ret = innobase_rollback_trx(trx);
 		trx_free_for_background(trx);
 		return(ret);
