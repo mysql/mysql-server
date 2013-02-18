@@ -177,6 +177,27 @@ public:
     if(errorHandler) AsyncCall_Returning<R>::error = 
       errorHandler(AsyncCall_Returning<R>::return_val, native_obj);
   }
+  
+protected:
+  /* Alternative constructor used only by AsyncAsyncCall */
+  NativeMethodCall<R, C>(C * obj, Local<Value> callback) :
+    AsyncCall_Returning<R>(callback),
+    native_obj(obj),
+    errorHandler(0)                    {};
+};
+
+
+/** AsyncAsyncCall is used to wrap returns from NDB Asynchronoous APIs.
+**/
+template <typename R, typename C>
+class AsyncAsyncCall : public NativeMethodCall<R, C> {
+public:
+  /* Constructor */
+  AsyncAsyncCall<R, C>(C * obj, Local<Value> callback) :
+    NativeMethodCall<R, C>(obj, callback)                   {};
+  
+  /* Methods */
+  void run(void) {};
 };
 
 
