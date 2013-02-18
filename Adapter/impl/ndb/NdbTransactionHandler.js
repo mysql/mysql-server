@@ -45,6 +45,7 @@ function DBTransactionHandler(dbsession) {
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
+  this.canUseNdbAsynch    = false;
 }
 DBTransactionHandler.prototype = proto;
 
@@ -86,7 +87,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
   function prepareOperationsAndExecute() {
     udebug.log("execute prepareOperationsAndExecute");
-    var i, op, fatalError;
+    var i, op, fatalError, forceSend;
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
@@ -100,7 +101,25 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       }
     }
 
-    self.ndbtx.execute(execMode, abortFlag, 0, onCompleteTx);    
+    /* forceSend flag:
+       Single operations are sent forceSend = 1 (optimized for latency).
+       Batches are sent with forceSend = 0 (optimized for throughput).
+    */
+    forceSend = (dbOperationList.length == 1 ? 1 : 0);
+     
+
+    /* NDB Execute.
+       "Sync" execute is an async operation for the JavaScript user,
+        but the uv worker thread uses syncrhonous NDBAPI execute().
+        In "Async" execute, the uv worker thread uses executeAsynch(),
+        and the DBConnectionPool listener thread runs callbacks.
+    */
+    if(self.canUseNdbAsynch) {
+      self.ndbtx.executeAsynch(execMode, abortFlag, forceSend, onCompleteTx);
+    }
+    else {
+      self.ndbtx.execute(execMode, abortFlag, forceSend, onCompleteTx);
+    }
   }
 
   function onStartTx(err, ndbtx) {

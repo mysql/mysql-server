@@ -35,6 +35,8 @@ def build(ctx):
   "src/NdbTransaction_wrapper.cpp " +\
   "src/NdbOperation_wrapper.cpp " +\
   "src/Native_encoders.cpp " +\
+  "src/AsyncNdbContext.cpp " +\
+  "src/AsyncNdbContext_wrapper.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""

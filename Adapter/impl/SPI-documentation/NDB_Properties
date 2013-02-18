@@ -20,6 +20,8 @@ var NdbDefaultConnectionProperties = {
   "ndb_connect_delay" : 5,
   "ndb_connect_verbose" : 0,
   "ndb_connect_timeout_before" : 30,
-  "ndb_connect_timeout_after" : 20
+  "ndb_connect_timeout_after" : 20,
+  
+  "ndb_use_async_ndbapi" : false
 };
 
