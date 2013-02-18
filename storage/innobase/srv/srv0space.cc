@@ -735,7 +735,8 @@ Tablespace::check_file_status(
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The system tablespace must be %s",
+					"%s must be %s",
+					file.m_filename,
 					!srv_read_only_mode
 					? "writable" : "readable");
 
