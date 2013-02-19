@@ -92,6 +92,8 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
       ../storage/innobase/buf/buf0checksum.cc
       ../storage/innobase/ut/ut0crc32.cc
       ../storage/innobase/ut/ut0ut.cc
+      ../storage/innobase/buf/buf0buf.cc
+      ../storage/innobase/page/page0zip.cc
      )
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
