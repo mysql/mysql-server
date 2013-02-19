@@ -31,8 +31,10 @@
 
 #ifdef FORCE_UV_LEGACY_COMPAT
 #define RUN_THREAD_RETURN void *
+#define PTHREAD_RETURN_VAL NULL
 #else
 #define RUN_THREAD_RETURN void
+#define PTHREAD_RETURN_VAL
 #endif
 
 extern "C" {
@@ -53,6 +55,8 @@ public:
   int executeAsynch(NdbTransaction *,
                     int execType, int abortOption, int forceSend,
                     v8::Local<v8::Value> execCompleteCallback);
+
+  void shutdown();
 
   /* Friend functions have C linkage but call the protected methods */
   friend RUN_THREAD_RETURN ::run_ndb_listener_thread(void *);

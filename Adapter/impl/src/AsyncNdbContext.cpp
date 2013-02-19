@@ -78,6 +78,8 @@ void main_thd_complete(AsyncCall *m) {
   }
 }
 
+/* ====== Signals ===== */
+static int SignalShutdown = 1;
 
 /* ====== Class AsyncNdbContext ====== */
 
@@ -121,6 +123,10 @@ void * AsyncNdbContext::runListenerThread() {
     while(sentNdbs != 0) {
       currentNode = sentNdbs;
       sentNdbs = sentNdbs->next;
+      if(currentNode->signalinfo == SignalShutdown) {
+        delete currentNode;
+        return PTHREAD_RETURN_VAL;      
+      }
       ndb = currentNode->item;
       waitgroup->addNdb(ndb);
       n_added++;
@@ -155,10 +161,21 @@ void * AsyncNdbContext::runListenerThread() {
 }
 
 
+/* Shut down the context 
+*/
+void AsyncNdbContext::shutdown() {
+  ListNode<Ndb> * finalNode = new ListNode<Ndb>((Ndb *) 0);
+  finalNode->signalinfo = SignalShutdown;
+
+  /* Queue the shutdown node, and wake up the listener thread for it */
+  sent_queue.produce(finalNode);
+  waitgroup->wakeup();
+}
+  
+
 /* This could run in a UV worker thread (JavaScript async execution)
    or possibly in the JavaScript thread (JavaScript sync execution)
 */
-
 int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
                                    int execType,
                                    int abortOption,
@@ -209,3 +226,5 @@ void AsyncNdbContext::completeCallbacks() {
     delete currentNode;  // Frees the ListNode runListenerThread()
   }
 }
+
+

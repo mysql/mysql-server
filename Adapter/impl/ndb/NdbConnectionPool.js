@@ -288,16 +288,25 @@ proto.isConnected = function() {
 */
 proto.closeSync = function() {
   var i;
+  var self = this;
   this.isDisconnecting = true;
   adapter.ndb.impl.DBSession.destroy(this.dictionary);
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
   }
+
+  /* Shut down the async listener thread */
+  if(this.asyncNdbContext) { this.asyncNdbContext.shutdown(); }
   
+  function disconnect() {
+    udebug.log("Disconnecting cluster");
+    self.ndbconn.delete();
+  }
   /* This timer is a brute-force workaround for race conditions where some 
      operation is in progress (e.g. filling the connection pool) 
   */
-  setTimeout(this.ndbconn.delete, 1000);
+  assert(typeof disconnect == 'function');
+  setTimeout(disconnect, 1000);
 };
 
 
