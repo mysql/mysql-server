@@ -23,6 +23,8 @@
 #include "node.h"
 #include "uv.h"
 
+#include "legacy_uv_compat.h"
+
 
 /* Simple LIFO sharable list.
    Has no built-in signaling.

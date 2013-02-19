@@ -104,5 +104,7 @@ Handle<Value> executeAsynch(const Arguments &args) {
 }
 
 void AsyncNdbContext_initOnLoad(Handle<Object> target) {
-
+  HandleScope scope;
+  DEFINE_JS_FUNCTION(target, "AsyncNdbConext", createAsyncNdbContext);
+  
 }
