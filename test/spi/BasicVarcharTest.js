@@ -350,10 +350,7 @@ t9.run = function() {
   prepare(t9, deleteKey);
 };
 
-
-// exports.tests = [ t1, t2, t3, t4, t5, t6, t7, t8, t9];
-
-exports.tests = [ t5 ];
+exports.tests = [ t1, t2, t3, t4, t5, t6, t7, t8, t9];
 
 exports.tests[exports.tests.length - 1].teardown = function() {
   if(dbSession) {
