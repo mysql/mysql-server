@@ -97,7 +97,8 @@ proto = {
   pendingListTables    : {},
   pendingGetMetadata   : {},
   ndbSessionFreeList   : [],
-  isDisconnecting      : false
+  isDisconnecting      : false,
+  asyncNdbContext      : null,
 };
 
 exports.DBConnectionPool.prototype = proto;
@@ -206,19 +207,29 @@ proto.connect = function(user_callback) {
   function onGotDictionarySession(cb_err, dsess) {
     var i;
     udebug.log("connect onGotDictionarySession");
-    // Got the dictionary.  Next step is the user's callback.
+    self.dict_sess = dsess;
+    self.dictionary = self.dict_sess.impl;
+      
+    function onListenerStarted() {
+      udebug.log("connect onGotDictionarySession onListenerStarted");
+      user_callback(null, self);  // All done 
+    }
+
     if(cb_err) {
       user_callback(cb_err, null);
     }
     else {
-      /* Start filling the session pool */
-      for(i = 0 ; i < self.properties.ndb_session_pool_min ; i++) {
-        fetchPooledSession(self);
-      }
+      fetchPooledSession(self);  // Start filling the session pool
 
-      self.dict_sess = dsess;
-      self.dictionary = self.dict_sess.impl;
-      user_callback(null, self);
+      if(self.properties.ndb_use_async_ndbapi) {
+        /* Start the async listener thread. */
+        self.asyncNdbContext = new adapter.ndb.impl.AsyncNdbContext(self.ndbconn);
+        udebug.log("Starting listener...");
+        self.asyncNdbContext.startListenerThread(onListenerStarted);
+      }
+      else {
+        user_callback(null, self);  // All done 
+      }
     }
   }
 
