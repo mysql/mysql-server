@@ -1,0 +1,1013 @@
+###############################################################################
+#                                                                             #
+# Authorization and authentication using the SHA256_PASSWORD plugin at        # 
+# server and client side                                                      #
+#                                                                             #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-12-10                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of authenticating the hashed password using the      #
+# sha256_password plugin at the server side as well as the client side        #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+--source include/not_embedded.inc
+--source include/have_ssl.inc
+--source include/have_sha256_rsa_auth.inc
+--source include/mysql_upgrade_preparation.inc
+
+# This test will intentionally generate errors in the server error log
+# when a broken password is inserted into the mysql.user table.
+# The below suppression is to clear those errors.
+
+
+--disable_query_log
+call mtr.add_suppression(".*Password salt for user.*");
+--enable_query_log
+
+--echo
+--echo 
+--echo ===========================================================================================================================================
+--echo Checking the password authentication using the sha256_password plugin at the client and mysql_native_password plugin at the server side
+--echo ===========================================================================================================================================
+--echo 
+
+select @@Global.old_passwords;
+--echo 0 Expected
+
+select @@session.old_passwords;
+--echo 0 Expected
+
+# Checking the password authentication with sha256_password plugin
+# Creating 2 users and encrypting the server side password with the sha256_password plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+
+# Verifying the server side plugin used to be sha256_password
+
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
+--echo 1 Expected
+
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password';
+--echo 1 Expected
+
+# Verifying the client connection using the same sha256_password plugin and NULL password
+
+connect(con1,localhost,Tanjotuser1,,,);
+connect(con2,127.0.0.1,Tanjotuser2,,,);
+
+# Verifying the client connection using the same sha256_password plugin and junk password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con3,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con4,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+# setting the password for the 2 users using the sha256_password plugin
+
+connection default;
+
+# setting the old_passwords in sync with the sha256 plugin
+
+set @@session.old_passwords=2;
+
+
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+
+# Validating the old_passwords value from the created users.
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=sha256_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=sha256_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+# Verifying the client connection using the  sha256_password plugin and NULL password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con5,localhost,Tanjotuser1,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con6,127.0.0.1,Tanjotuser2,,,);
+--enable_query_log
+
+# Verifying the client connection using the  sha256_password plugin and junk password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con7,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con8,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con9,localhost,Tanjotuser1,"%",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con10,127.0.0.1,Tanjotuser2,"%",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con11,localhost,Tanjotuser1,"_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con12,127.0.0.1,Tanjotuser2,"_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con13,localhost,Tanjotuser1,"0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con14,127.0.0.1,Tanjotuser2,"0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con15,localhost,Tanjotuser1,"^",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con16,127.0.0.1,Tanjotuser2,"^",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con17,localhost,Tanjotuser1,'\$',,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con18,127.0.0.1,Tanjotuser2,'\$',,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con19,localhost,Tanjotuser1,"&",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con20,127.0.0.1,Tanjotuser2,"&",,);
+--enable_query_log
+
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure auth enabled
+
+connection default;
+
+select @@global.secure_auth;
+--echo 1 Expected
+
+connect(con21,localhost,Tanjotuser1,abc,,);
+connect(con22,127.0.0.1,Tanjotuser2,abc,,);
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth disabled
+
+connection default;
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--disable_warnings
+connect(con23,localhost,Tanjotuser1,abc,,);
+connect(con24,127.0.0.1,Tanjotuser2,abc,,);
+--enable_warnings
+
+# Below section is hashed till the bug16040690 is fixed.
+
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con25,localhost,Tanjotuser1,"abc ",,);
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con26,127.0.0.1,Tanjotuser2,"abc ",,);
+
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con27,localhost,Tanjotuser1," abc",,);
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con28,127.0.0.1,Tanjotuser2," abc",,);
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con29,localhost,Tanjotuser1,"0abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con30,127.0.0.1,Tanjotuser2,"0abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con31,localhost,Tanjotuser1,"abc0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con32,127.0.0.1,Tanjotuser2,"abc0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con33,localhost,Tanjotuser1,"@abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con34,127.0.0.1,Tanjotuser2,"@abc",,);
+--enable_query_log
+
+# Dropping the created users
+
+connection default;
+
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+--echo
+--echo 
+--echo ====================================================================================================
+--echo checking the integrity of long password (more than 40 chars) using sha256_password plugin
+--echo ====================================================================================================
+--echo
+
+
+# Checking the password authentication with sha256_password plugin
+# Creating 2 users and encrypting the server side password with the sha256_password plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+
+# setting the password for the 2 users using the sha256_password plugin
+
+SET @@session.old_passwords=2;
+
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth disabled
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--disable_warnings
+connect(con35,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+connect(con36,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--enable_warnings
+
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth enabled
+
+connection default;
+
+--disable_warnings
+set @@global.secure_auth=1;
+--enable_warnings
+
+--disable_warnings
+connect(con37,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+connect(con38,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--enable_warnings
+
+
+# Verifying the client access denied passing null password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con39,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con40,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con41,localhost,Tanjotuser1,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con42,127.0.0.1,Tanjotuser2,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con43,localhost,Tanjotuser1,"@_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con44,127.0.0.1,Tanjotuser2,"@_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con45,localhost,Tanjotuser1,"$_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con46,127.0.0.1,Tanjotuser2,"$_",,);
+--enable_query_log
+
+
+# Dropping the created users
+
+connection default;
+
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+--echo
+--echo 
+--echo ============================================================================================================================================
+--echo Checking the password authentication using the sha256_password plugin at the client and sha256_password plugin at the server side
+--echo ============================================================================================================================================
+--echo 
+
+--echo # Restart server with default-authentication-plugin=sha256_password;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--default-authentication-plugin=sha256_password  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+
+
+select @@Global.old_passwords;
+--echo 2 Expected
+
+select @@session.old_passwords;
+--echo 0 Expected
+
+# Checking the password authentication with sha256_password plugin
+# Creating 2 users and encrypting the server side password with the sha256_password plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+
+# Verifying the server side plugin used to be sha256_password
+
+select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='sha256_password';
+--echo 1 Expected
+
+select (select plugin from mysql.user where User='Tanjotuser2' and Host='127.0.0.1')='sha256_password';
+--echo 1 Expected
+
+# Verifying the client connection using the same sha256_password plugin and NULL password
+
+connect(con89,localhost,Tanjotuser1,,,);
+connect(con90,127.0.0.1,Tanjotuser2,,,);
+
+# Verifying the client connection using the same sha256_password plugin and junk password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con91,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con92,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+# setting the password for the 2 users using the sha256_password plugin
+
+connection default;
+
+SET @@session.old_passwords=2;
+
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
+
+
+# Validating the old_passwords value from the created users.
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_native_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=mysql_old_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost --default_auth=sha256_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 --default_auth=sha256_password -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+
+--echo **** connecting Tanjotuser1 with server 
+--exec $MYSQL -uTanjotuser1 -pabc -hlocalhost -e "select @@session.old_passwords"
+--echo 2 Expected
+
+--echo **** connecting Tanjotuser2 with server 
+--exec $MYSQL -uTanjotuser2 -pabc -h127.0.0.1 -e "select @@session.old_passwords"
+--echo 2 Expected
+
+
+# Verifying the client connection using the same sha256_password plugin and NULL password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con93,localhost,Tanjotuser1,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con94,127.0.0.1,Tanjotuser2,,,);
+--enable_query_log
+
+# Verifying the client connection using the same sha256_password plugin and junk password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con95,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con96,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con97,localhost,Tanjotuser1,"%",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con98,127.0.0.1,Tanjotuser2,"%",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con99,localhost,Tanjotuser1,"_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con100,127.0.0.1,Tanjotuser2,"_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con101,localhost,Tanjotuser1,"0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con102,127.0.0.1,Tanjotuser2,"0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con103,localhost,Tanjotuser1,"^",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con104,127.0.0.1,Tanjotuser2,"^",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con105,localhost,Tanjotuser1,"\$",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con106,127.0.0.1,Tanjotuser2,"\$",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con107,localhost,Tanjotuser1,"&",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con108,127.0.0.1,Tanjotuser2,"&",,);
+--enable_query_log
+
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth enabled
+
+connection default;
+
+select @@global.secure_auth;
+--echo 1 Expected
+
+connect(con109,localhost,Tanjotuser1,abc,,);
+connect(con110,127.0.0.1,Tanjotuser2,abc,,);
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth disabled
+
+connection default;
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--disable_warnings
+connect(con111,localhost,Tanjotuser1,abc,,);
+connect(con112,127.0.0.1,Tanjotuser2,abc,,);
+--enable_warnings
+
+# Below section is hashed till the bug16040690 is fixed.
+
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con113,localhost,Tanjotuser1,"abc ",,);
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con114,127.0.0.1,Tanjotuser2,"abc ",,);
+
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con115,localhost,Tanjotuser1," abc",,);
+#--error ER_SERVER_IS_IN_SECURE_AUTH_MODE
+#connect(con116,127.0.0.1,Tanjotuser2," abc",,);
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con117,localhost,Tanjotuser1,"0abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con118,127.0.0.1,Tanjotuser2,"0abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con119,localhost,Tanjotuser1,"abc0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con120,127.0.0.1,Tanjotuser2,"abc0",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con121,localhost,Tanjotuser1,"@abc",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con122,127.0.0.1,Tanjotuser2,"@abc",,);
+--enable_query_log
+
+# Dropping the created users
+
+connection default;
+
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+
+--echo
+--echo 
+--echo ====================================================================================================
+--echo checking the integrity of long password (more than 40 chars) using sha256_password plugin
+--echo ====================================================================================================
+--echo
+
+
+# Checking the password authentication with sha256_password plugin
+# Creating 2 users and encrypting the server side password with the sha256_password plugin
+
+CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
+
+CREATE USER 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+
+# setting the password for the 2 users using the sha256_password plugin
+
+SET @@session.old_passwords=2;
+
+SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('$$$$$$$$$$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________');
+
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth disabled
+
+--disable_warnings
+set @@global.secure_auth=0;
+--enable_warnings
+
+--disable_warnings
+connect(con123,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+connect(con124,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--enable_warnings
+
+# Verifying the client connection using the same sha256_password plugin and correct password with secure_auth enabled
+
+connection default;
+
+--disable_warnings
+set @@global.secure_auth=1;
+--enable_warnings
+
+--disable_warnings
+connect(con125,localhost,Tanjotuser1,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+connect(con126,127.0.0.1,Tanjotuser2,"\$\$\$\$\$\$\$\$\$\$^^^^^^^^^^&&&&&&&&&&**********((((((((((##########!!!!!!!!!!@@@@@@@@@@          @@@@@@@@@@__________",,);
+--enable_warnings
+
+# Verifying the client access denied passing null password
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con127,localhost,Tanjotuser1," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con128,127.0.0.1,Tanjotuser2," ",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con127,localhost,Tanjotuser1,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con128,127.0.0.1,Tanjotuser2,,,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con129,localhost,Tanjotuser1,"@_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con130,127.0.0.1,Tanjotuser2,"@_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con131,localhost,Tanjotuser1,"$_",,);
+--enable_query_log
+
+--replace_result $MASTER_MYSOCK MASTER_MYSOCK
+--replace_result "NO" "" "YES" ""
+--disable_query_log
+--error ER_ACCESS_DENIED_ERROR
+connect(con132,127.0.0.1,Tanjotuser2,"$_",,);
+--enable_query_log
+
+
+# Dropping the created users
+
+disconnect con1;
+disconnect con2;
+#disconnect con3;
+#disconnect con4;
+#disconnect con5;
+#disconnect con6;
+#disconnect con7;
+#disconnect con8;
+#disconnect con9;
+#disconnect con10;
+#disconnect con11;
+#disconnect con12;
+#disconnect con13;
+#disconnect con14;
+#disconnect con15;
+#disconnect con16;
+#disconnect con17;
+#disconnect con18;
+#disconnect con19;
+#disconnect con20;
+disconnect con21;
+disconnect con22;
+disconnect con23;
+disconnect con24;
+#disconnect con25;
+#disconnect con26;
+#disconnect con27;
+#disconnect con28;
+#disconnect con29;
+#disconnect con30;
+#disconnect con31;
+#disconnect con32;
+#disconnect con33;
+#disconnect con34;
+disconnect con35;
+disconnect con36;
+disconnect con37;
+disconnect con38;
+#disconnect con39;
+#disconnect con40;
+#disconnect con41;
+#disconnect con42;
+#disconnect con43;
+#disconnect con44;
+#disconnect con45;
+#disconnect con46;
+#disconnect con47;
+#disconnect con48;
+#disconnect con49;
+#disconnect con50;
+#disconnect con51;
+#disconnect con52;
+#disconnect con53;
+#disconnect con54;
+#disconnect con55;
+#disconnect con56;
+#disconnect con57;
+#disconnect con58;
+#disconnect con59;
+#disconnect con60;
+#disconnect con61;
+#disconnect con62;
+#disconnect con63;
+#disconnect con64;
+#disconnect con65;
+#disconnect con66;
+#disconnect con67;
+#disconnect con68;
+#disconnect con69;
+#disconnect con70;
+#disconnect con71;
+#disconnect con72;
+#disconnect con73;
+#disconnect con74;
+#disconnect con75;
+#disconnect con76;
+#disconnect con77;
+#disconnect con78;
+#disconnect con79;
+#disconnect con80;
+#disconnect con81;
+#disconnect con82;
+#disconnect con83;
+#disconnect con84;
+#disconnect con85;
+#disconnect con86;
+#disconnect con87;
+#disconnect con88;
+disconnect con89;
+disconnect con90;
+#disconnect con91;
+#disconnect con92;
+#disconnect con93;
+#disconnect con94;
+#disconnect con95;
+#disconnect con96;
+#disconnect con97;
+#disconnect con98;
+#disconnect con99;
+#disconnect con100;
+#disconnect con101;
+#disconnect con102;
+#disconnect con103;
+#disconnect con104;
+#disconnect con105;
+#disconnect con106;
+#disconnect con107;
+#disconnect con108;
+disconnect con109;
+disconnect con110;
+disconnect con111;
+disconnect con112;
+#disconnect con113;
+#disconnect con114;
+#disconnect con115;
+#disconnect con116;
+#disconnect con117;
+#disconnect con118;
+#disconnect con119;
+#disconnect con120;
+#disconnect con121;
+#disconnect con122;
+disconnect con123;
+disconnect con124;
+disconnect con125;
+disconnect con126;
+#disconnect con127;
+#disconnect con128;
+#disconnect con129;
+#disconnect con130;
+#disconnect con131;
+#disconnect con132;
+
+
+connection default;
+
+DROP USER 'Tanjotuser1'@'localhost';
+DROP USER 'Tanjotuser2'@'127.0.0.1';
+SET @@global.secure_auth=default;
+SET @@global.old_passwords=default;
+SET @@session.old_passwords=default;

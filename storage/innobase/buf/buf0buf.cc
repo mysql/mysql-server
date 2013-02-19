@@ -775,6 +775,29 @@ buf_page_is_corrupted(
 			}
 		}
 
+#ifdef UNIV_INNOCHECKSUM
+		if(checksum_field1 == BUF_NO_CHECKSUM_MAGIC ||
+			checksum_field2 == BUF_NO_CHECKSUM_MAGIC) {
+
+			if (verbose) {
+				DBUG_PRINT(
+					"info", ("page::%lu; old style:"
+					" calculated = %lu; recorded = "
+					"%lu", page_no,
+					buf_calc_page_old_checksum(read_buf),
+					checksum_field2));
+
+				DBUG_PRINT(
+					"info", ("page::%lu; new style: "
+					"calculated = %lu; crc32 = %u; "
+					"recorded = %lu",page_no,
+					buf_calc_page_new_checksum(read_buf),
+					buf_calc_page_crc32(read_buf),
+					checksum_field1));
+			}
+		}
+#endif
+
 		/* If CRC32 is stored in at least one of the fields, then the
 		other field must also be CRC32 */
 		if (crc32_inited
@@ -2593,7 +2616,6 @@ loop:
 			block = guess = NULL;
 		} else {
 			ut_ad(!block->page.in_zip_hash);
-			ut_ad(block->page.in_page_hash);
 		}
 	}
 

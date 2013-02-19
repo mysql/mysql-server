@@ -62,14 +62,8 @@ uncompress_ops	0
 database_name	test
 table_name	t
 index_name	PRIMARY
-compress_ops	50
-compress_ops_ok	50
-uncompress_ops	0
-database_name	unknown
-table_name	unknown
-index_name	index_id:idisnondeterministic
-compress_ops	1
-compress_ops_ok	1
+compress_ops	47
+compress_ops_ok	47
 uncompress_ops	0
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SELECT COUNT(*) FROM t;

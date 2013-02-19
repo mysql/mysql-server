@@ -412,6 +412,7 @@ void Optimize_table_order::best_access_path(
   double tmp;
   bool best_uses_jbuf= false;
   Opt_trace_context * const trace= &thd->opt_trace;
+  TABLE *const table= s->table;
 
   status_var_increment(thd->status_var.last_query_partial_plans);
 
@@ -461,7 +462,6 @@ void Optimize_table_order::best_access_path(
   */
   if (unlikely(s->keyuse != NULL))
   {                                            /* Use key if possible */
-    TABLE *const table= s->table;
     double best_records= DBL_MAX;
 
     /* Test how we can use keys */
@@ -898,15 +898,15 @@ void Optimize_table_order::best_access_path(
   }
 
   if ((s->quick && best_key && s->quick->index == best_key->key &&      // (2)
-       best_max_key_part >= s->table->quick_key_parts[best_key->key]))  // (2)
+       best_max_key_part >= table->quick_key_parts[best_key->key]))     // (2)
   {
     trace_access_scan.add_alnum("access_type", "range").
       add_alnum("cause", "heuristic_index_cheaper");
     goto skip_table_scan;
   }
 
-  if ((s->table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&    //(3)
-      !s->table->covering_keys.is_clear_all() && best_key &&            //(3)
+  if ((table->file->ha_table_flags() & HA_TABLE_SCAN_ON_INDEX) &&       //(3)
+      !table->covering_keys.is_clear_all() && best_key &&               //(3)
       (!s->quick ||                                                     //(3)
        (s->quick->get_type() == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT &&//(3)
         best < s->quick->read_time)))                                   //(3)
@@ -916,7 +916,7 @@ void Optimize_table_order::best_access_path(
     goto skip_table_scan;
   }
 
-  if ((s->table->force_index && best_key && !s->quick))                 // (4)
+  if ((table->force_index && best_key && !s->quick))                    // (4)
   {
       trace_access_scan.add_alnum("access_type", "scan").
         add_alnum("cause", "force_index");
@@ -941,8 +941,8 @@ void Optimize_table_order::best_access_path(
       If applicable, get a more accurate estimate. Don't use the two
       heuristics at once.
     */
-    if (s->table->quick_condition_rows != s->found_records)
-      rnd_records= s->table->quick_condition_rows;
+    if (table->quick_condition_rows != s->found_records)
+      rnd_records= table->quick_condition_rows;
 
     /*
       Range optimizer never proposes a RANGE if it isn't better
@@ -972,10 +972,10 @@ void Optimize_table_order::best_access_path(
     {
       trace_access_scan.add_alnum("access_type", "scan");
       /* Estimate cost of reading table. */
-      if (s->table->force_index && !best_key) // index scan
-        tmp= s->table->file->read_time(s->ref.key, 1, s->records);
+      if (table->force_index && !best_key) // index scan
+        tmp= table->file->read_time(s->ref.key, 1, s->records);
       else // table scan
-        tmp= s->table->file->scan_time();
+        tmp= table->file->scan_time();
 
       if (disable_jbuf)
       {
@@ -1038,6 +1038,18 @@ void Optimize_table_order::best_access_path(
 skip_table_scan:
   trace_access_scan.add("chosen", best_key == NULL);
 
+  /*
+    Storage engines that track exact sizes may report an empty table
+    as having row count equal to 0.
+    If this table is an inner table of an outer join, adjust row count to 1,
+    so that the join planner can make a better fanout calculation for
+    the remaining tables of the join. (With size 0, the fanout would always
+    become 0, meaning that the cost of adding one more table would also
+    become 0, regardless of access method).
+  */
+  if (records == 0 && (join->outer_join & table->map))
+    records= 1;
+
   /* Update the cost information for the current partial plan */
   pos->records_read= records;
   pos->read_time=    best;
@@ -1051,7 +1063,7 @@ skip_table_scan:
 
   if (!best_key &&
       idx == join->const_tables &&
-      s->table == join->sort_by_table &&
+      table == join->sort_by_table &&
       join->unit->select_limit_cnt >= records)
   {
     trace_access_scan.add("use_tmp_table", true);

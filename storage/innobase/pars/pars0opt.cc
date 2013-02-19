@@ -32,6 +32,7 @@ Created 12/21/1997 Heikki Tuuri
 #include "row0sel.h"
 #include "row0ins.h"
 #include "row0upd.h"
+#include "dict0boot.h"
 #include "dict0dict.h"
 #include "dict0mem.h"
 #include "que0que.h"
@@ -1117,9 +1118,10 @@ opt_clust_access(
 		/* We optimize here only queries to InnoDB's internal system
 		tables, and they should not contain column prefix indexes. */
 
-		if (dict_index_get_nth_field(index, pos)->prefix_len != 0
+		if (dict_is_sys_table(index->table->id)
+		    && (dict_index_get_nth_field(index, pos)->prefix_len != 0
 		    || dict_index_get_nth_field(clust_index, i)
-		    ->prefix_len != 0) {
+		    ->prefix_len != 0)) {
 			fprintf(stderr,
 				"InnoDB: Error in pars0opt.cc:"
 				" table %s has prefix_len != 0\n",
