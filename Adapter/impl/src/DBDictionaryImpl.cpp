@@ -381,7 +381,7 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
            Boolean::New(col->getNullable()),
            ReadOnly);
 
-  obj->Set(String::NewSymbol("isPrimaryKey"),
+  obj->Set(String::NewSymbol("isInPrimaryKey"),
            Boolean::New(col->getPrimaryKey()),
            ReadOnly);
 

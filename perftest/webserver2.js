@@ -73,6 +73,7 @@ function main() {
   properties.database = "jscrund";
   properties.mysql_user = "root";
   process.on('SIGINT', showStatsOnExit); 
+  process.on('SIGUSR1', stats.peek);
   mynode.connect(properties, null, startWebServer);
 }
 

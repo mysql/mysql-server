@@ -96,9 +96,46 @@ proto = {
   dictionary           : null,
   pendingListTables    : {},
   pendingGetMetadata   : {},
+  ndbSessionFreeList   : [],
 };
 
 exports.DBConnectionPool.prototype = proto;
+
+
+exports.closeNdbSession = function(ndbConnectionPool, ndbSession) {
+  if(ndbConnectionPool.ndbSessionFreeList.length > 
+     ndbConnectionPool.properties.ndb_session_pool_max) {
+    adapter.ndb.impl.DBSession.destroy(ndbSession.impl);
+  }
+  else { 
+    ndbConnectionPool.ndbSessionFreeList.push(ndbSession);
+  }
+}
+
+/* Prefetch an NdbSSession and keep it on the freelist
+*/
+function fetchPooledSession(ndbConnectionPool) {
+  udebug.log("fetchPooledSession");
+  var db   = ndbConnectionPool.properties.database,
+      self = ndbConnectionPool,
+      ndbSession;
+
+  function onFetch(err, ndbSessionImpl) {
+    if(err) {
+      stats.incr("ndbSession","prefetch","errors");
+      udebug.log("fetchPooledSession onFetch ERROR", err);
+    }
+    else {
+      stats.incr("ndbSession","prefetch","success");
+      udebug.log("fetchPooledSession adding to session pool.");
+      ndbSession = ndbsession.newDBSession(self, ndbSessionImpl);
+      self.ndbSessionFreeList.push(ndbSession);
+    }
+  }
+
+  stats.incr("ndbSession","prefetch","attempts");
+  adapter.ndb.impl.DBSession.create(self.ndbconn, db, onFetch);
+}
 
 
 /* Blocking connect.  
@@ -107,7 +144,7 @@ exports.DBConnectionPool.prototype = proto;
 */
 proto.connectSync = function() {
   stats.incr("connect", "sync");
-  var r, nnodes;
+  var r, nnodes, i;
   var db = this.properties.database;
   r = this.ndbconn.connect(this.properties.ndb_connect_retries,
                            this.properties.ndb_connect_delay,
@@ -131,11 +168,15 @@ proto.connectSync = function() {
     /* Get sessionImpl and session for dictionary use */
     this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
     this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
+    
+    /* Start filling the session pool */
+    for(i = 0 ; i < this.properties.ndb_session_pool_min ; i++) {
+      fetchPooledSession(this);
+    }
   }
   else {
     stats.incr("connections","failed");
   }
-
     
   return this.is_connected;
 };
@@ -150,12 +191,18 @@ proto.connect = function(user_callback) {
       err = null;
 
   function onGotDictionarySession(cb_err, dsess) {
+    var i;
     udebug.log("connect onGotDictionarySession");
     // Got the dictionary.  Next step is the user's callback.
     if(cb_err) {
       user_callback(cb_err, null);
     }
     else {
+      /* Start filling the session pool */
+      for(i = 0 ; i < self.properties.ndb_session_pool_min ; i++) {
+        fetchPooledSession(self);
+      }
+
       self.dict_sess = dsess;
       self.dictionary = self.dict_sess.impl;
       user_callback(null, self);
@@ -231,7 +278,8 @@ proto.getDBSession = function(index, user_callback) {
   assert(this.ndbconn);
   assert(user_callback);
   var db   = this.properties.database,
-      self = this;
+      self = this,
+      user_session;
 
   function private_callback(err, sessImpl) {
     udebug.log("getDBSession private_callback");
@@ -246,7 +294,15 @@ proto.getDBSession = function(index, user_callback) {
     }
   }
 
-  adapter.ndb.impl.DBSession.create(this.ndbconn, db, private_callback);
+  user_session = this.ndbSessionFreeList.pop();
+  if(user_session) {
+    stats.incr("ndbSession","pool","hits");
+    user_callback(null, user_session);
+  }
+  else {
+    stats.incr("ndbSession","pool","misses");
+    adapter.ndb.impl.DBSession.create(this.ndbconn, db, private_callback);
+  }
 };
 
 

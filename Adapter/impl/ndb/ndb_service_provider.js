@@ -31,6 +31,8 @@ catch(e) {
 
 var udebug  = unified_debug.getLogger("ndb_service_provider.js");
 
+var NdbDefaultConnectionProperties = 
+  require(path.join(spi_doc_dir, "NDB_Properties"));
 
 exports.loadRequiredModules = function() {
   var err, ldp, module, msg;
@@ -61,20 +63,6 @@ exports.loadRequiredModules = function() {
     throw err;
   }
 };
-
-
-var NdbDefaultConnectionProperties = {  
-  "implementation" : "ndb",
-  "database" : "test",
-  
-  "ndb_connectstring" : "localhost:1186",
-  "ndb_connect_retries" : 4, 
-  "ndb_connect_delay" : 5,
-  "ndb_connect_verbose" : 0,
-  "ndb_connect_timeout_before" : 30,
-  "ndb_connect_timeout_after" : 20
-};
-
 
 exports.getDefaultConnectionProperties = function() {
   return NdbDefaultConnectionProperties;

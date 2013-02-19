@@ -101,7 +101,7 @@ function RandomGeneratorForColumn(column) {
     case "MEDIUMINT":
     case "INT":
     case "BIGINT":
-      if(column.isPrimaryKey || column.isInPrimaryKey) {  // fixme!
+      if(column.isInPrimaryKey) {
         g = new SequentialIntGenerator(0);
       }
       else {
