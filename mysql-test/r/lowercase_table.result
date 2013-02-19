@@ -114,3 +114,20 @@ Database	Create Database
 mysql_TEST	CREATE DATABASE `mysql_TEST` /*!40100 DEFAULT CHARACTER SET latin1 */
 drop database mysql_TEST;
 End of 6.0 tests
+#
+# WL#6613: Refactor logging code - split logging and binlogging code
+#
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+@@general_log
+1
+SELECT @@lower_case_table_names;
+@@lower_case_table_names
+1
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+ALTER TABLE MYSQL.general_log DISCARD TABLESPACE;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+ALTER TABLE mysql.GENERAL_LOG DISCARD TABLESPACE;
+ERROR HY000: You cannot 'ALTER' a log table if logging is enabled
+SET GLOBAL log_output= DEFAULT;

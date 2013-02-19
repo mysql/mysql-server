@@ -324,7 +324,7 @@ parse_page(
 				" garbage=%lu\n",
 				page_header_get_field(page, PAGE_LEVEL),
 				page_header_get_field(page, PAGE_N_RECS),
-			 	page_header_get_field(page, PAGE_GARBAGE));
+				page_header_get_field(page, PAGE_GARBAGE));
 		}
 		break;
 
@@ -650,7 +650,6 @@ int main(
 	uchar		min_page[UNIV_PAGE_SIZE_MIN];
 	/* Buffer the remaining portion of first page. */
 	uchar*		page;
-	
 	ulong		bytes;		/* bytes read count */
 	time_t		now;		/* current time */
 	time_t		lastt;		/* last time */
@@ -670,6 +669,7 @@ int main(
 	FILE*		pagedump;
 	struct flock	lk;			/* advisory lock. */
 	fpos_t pos;
+	ulint		logseq, logseqfield;
 
 	ut_crc32_init();
 	MY_INIT(argv[0]);
@@ -684,13 +684,13 @@ int main(
 
 	if (strict_verify && no_check) {
 		fprintf(stderr, "Error: --strict-check option cannot be used "
-			"together with --no-check option.");
+			"together with --no-check option.\n");
 		DBUG_RETURN(1);
 	}
 
 	if (no_check && !do_write) {
 		fprintf(stderr, "Error: --no-check must be associated with "
-			"--write option.");
+			"--write option.\n");
 		DBUG_RETURN(1);
 	}
 
@@ -735,7 +735,8 @@ int main(
 			else
 				f = fopen(filename, "rb");
 			if (f == NULL) {
-				fprintf(stderr, "Error: %s cannot be opened",
+
+				fprintf(stderr, "Error: %s cannot be opened\n",
 					filename);
 				perror(" ");
 
@@ -743,6 +744,30 @@ int main(
 			}
 			/* Save the current file pointer in pos variable.*/
 			fgetpos(f,&pos);
+		}
+
+		if(!read_from_stdin) {
+			fd = fileno(f);
+			if (!fd) {
+				perror("Error: Unable to obtain file "
+					"descriptor number");
+
+				DBUG_RETURN(1);
+			}
+
+			if(do_write)
+				lk.l_type = F_WRLCK;
+			else
+				lk.l_type = F_RDLCK;
+			lk.l_whence = SEEK_SET;
+			lk.l_start = lk.l_len = 0;
+			if (fcntl(fd, F_SETLK, &lk) == -1) {
+				fprintf(stderr, "Error:Unable to lock file::"
+					" %s\n",filename);
+				perror("fcntl");
+
+				DBUG_RETURN(1);
+			}
 		}
 
 		/* Read the minimum page size. */
@@ -777,28 +802,6 @@ int main(
 					   "pages in range %lu to %lu",
 					   start_page, use_end_page ?
 					   end_page : (pages - 1)));
-		}
-
-		if(!read_from_stdin) {
-			fd = fileno(f);
-			if (!fd) {
-				perror("Error: Unable to obtain file "
-					"descriptor number");
-
-				DBUG_RETURN(1);
-			}
-
-			if(do_write)
-				lk.l_type = F_WRLCK;
-			else
-				lk.l_type = F_RDLCK;
-			lk.l_whence = SEEK_SET;
-			lk.l_start = lk.l_len = 0;
-			if (fcntl(fd, F_SETLK, &lk) == -1) {
-				perror("fcntl");
-
-				DBUG_RETURN(1);
-			}
 		}
 
 		/* seek to the necessary position */
@@ -897,10 +900,24 @@ int main(
 			checksum verification.*/
 			if (!no_check) {
 				/* Checksum verification */
-				if (compressed)
+				if (compressed) {
+
+					/* check the stored log sequence numbers
+					for uncompressed tablespace. */
+						logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
+						logseqfield = mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
+						if (verbose)
+						DBUG_PRINT("info", ("page::%lu; log sequence number: first = %lu; second = %lu",
+							   ct, logseq, logseqfield));
+
+						if (logseq != logseqfield) {
+							iscorrupted = 1;
+							if (verbose)
+								DBUG_PRINT("info", ("Fail; page %lu invalid (fails log sequence number check)", ct));
+						} else
+							iscorrupted = buf_page_is_corrupted(true,buf,0);
+				} else
 					iscorrupted = buf_page_is_corrupted(true,buf,physical_page_size);
-				else
-					iscorrupted = buf_page_is_corrupted(true,buf,0);
 
 				if (iscorrupted) {
 					fprintf(stderr, "Fail: page %lu invalid"
@@ -944,7 +961,7 @@ int main(
 
 			/* do counter increase and progress printing */
 			ct++;
-			if (verbose) {
+			if (verbose && !read_from_stdin) {
 				if (ct % 64 == 0) {
 					now= time(0);
 					if (!lastt) lastt= now;

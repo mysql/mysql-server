@@ -1864,7 +1864,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                          &syntax_len,
                                                          TRUE, TRUE,
                                                          lpt->create_info,
-                                                         lpt->alter_info)))
+                                                         lpt->alter_info,
+                                                         NULL)))
         {
           DBUG_RETURN(TRUE);
         }
@@ -1957,7 +1958,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                        &syntax_len,
                                                        TRUE, TRUE,
                                                        lpt->create_info,
-                                                       lpt->alter_info)))
+                                                       lpt->alter_info,
+                                                       NULL)))
       {
         error= 1;
         goto err;
@@ -2069,8 +2071,7 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   /* Disable drop of enabled log tables, must be done before name locking */
   for (table= tables; table; table= table->next_local)
   {
-    if (check_if_log_table(table->db_length, table->db,
-                           table->table_name_length, table->table_name, true))
+    if (query_logger.check_if_log_table(table, true))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
@@ -3972,6 +3973,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
+              /*
+               If SQL_MODE is STRICT, then report error, else report warning
+               and continue execution.
+              */
+              if (thd->is_error())
+                DBUG_RETURN(true);
 	    }
 	    else
 	    {
@@ -4019,6 +4026,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
+          /*
+            If SQL_MODE is STRICT, then report error, else report warning
+            and continue execution.
+          */
+          if (thd->is_error())
+            DBUG_RETURN(true);
 	}
 	else
 	{
@@ -4543,7 +4556,8 @@ bool create_table_impl(THD *thd,
                                                      &syntax_len,
                                                      TRUE, TRUE,
                                                      create_info,
-                                                     alter_info)))
+                                                     alter_info,
+                                                     NULL)))
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
@@ -5964,6 +5978,31 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
     end= key->key_part + key->user_defined_key_parts;
     for (key_part= key->key_part; key_part < end; key_part++)
       altered_table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
+  }
+}
+
+
+/**
+  Initialize TABLE::field for the new table with appropriate
+  column defaults. Can be default values from TABLE_SHARE or
+  function defaults from Create_field.
+
+  @param altered_table  TABLE object for the new version of the table.
+  @param create         Create_field containing function defaults.
+*/
+
+static void set_column_defaults(TABLE *altered_table,
+                                List<Create_field> &create)
+{
+  // Initialize TABLE::field default values
+  restore_record(altered_table, s->default_values);
+
+  List_iterator<Create_field> iter(create);
+  for (uint i= 0; i < altered_table->s->fields; ++i)
+  {
+    const Create_field *definition= iter++;
+    if (definition->field == NULL) // this column didn't exist in old table.
+      altered_table->field[i]->evaluate_insert_default_function();
   }
 }
 
@@ -7560,14 +7599,13 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     it is the case.
     TODO: this design is obsolete and will be removed.
   */
-  int table_kind= check_if_log_table(table_list->db_length, table_list->db,
-                                     table_list->table_name_length,
-                                     table_list->table_name, false);
+  enum_log_table_type table_kind=
+    query_logger.check_if_log_table(table_list, false);
 
-  if (table_kind)
+  if (table_kind != QUERY_LOG_NONE)
   {
-    /* Disable alter of enabled log tables */
-    if (logger.is_log_table_enabled(table_kind))
+    /* Disable alter of enabled query log tables */
+    if (query_logger.is_log_table_enabled(table_kind))
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "ALTER");
       DBUG_RETURN(true);
@@ -8027,6 +8065,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     */
     altered_table->column_bitmaps_set_no_signal(&altered_table->s->all_set,
                                                 &altered_table->s->all_set);
+
+    set_column_defaults(altered_table, alter_info->create_list);
 
     if (ha_alter_info.handler_flags == 0)
     {
@@ -8670,7 +8710,9 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   if (ignore && !alter_ctx->fk_error_if_delete_row)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   thd->get_stmt_da()->reset_current_row_for_condition();
-  restore_record(to, s->default_values);        // Create empty record
+
+  set_column_defaults(to, create);
+
   while (!(error=info.read_record(&info)))
   {
     if (thd->killed)
@@ -8698,19 +8740,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-
-    /* Set the function defaults. */
-    List_iterator<Create_field> iter(create);
-    for (uint i= 0; i < to->s->fields; ++i)
-    {
-      const Create_field *definition= iter++;
-      if (definition->field == NULL) // this column didn't exist in old table.
-      {
-        Field *column= to->field[i];
-        if (column->has_insert_default_function())
-          column->evaluate_insert_default_function();
-      }            
-    }
 
     error=to->file->ha_write_row(to->record[0]);
     to->auto_increment_field_not_null= FALSE;

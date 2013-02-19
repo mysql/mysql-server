@@ -52,14 +52,14 @@ Created June 2005 by Marko Makela
 #include "mem0mem.h"
 
 /* Compression level to be used by zlib. Settable by user. */
-extern ulint	page_compression_level;
+extern uint	page_zip_level;
 
 /* Default compression level. */
 #define DEFAULT_COMPRESSION_LEVEL	6
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
-extern bool	page_log_compressed_pages;
+extern my_bool	page_zip_log_pages;
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
@@ -136,7 +136,7 @@ page_zip_compress(
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	ulint		level,	/*!< in: commpression level */
+	ulint		level,	/*!< in: compression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2,3)));
 
@@ -509,7 +509,7 @@ page_zip_parse_compress_no_data(
 	byte*		end_ptr,	/*!< in: buffer end */
 	page_t*		page,		/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip,	/*!< out: compressed page */
-	dict_index_t* index)		/*!< in: index */
+	dict_index_t*	index)		/*!< in: index */
 	__attribute__((nonnull(1,2)));
 
 /**********************************************************************//**

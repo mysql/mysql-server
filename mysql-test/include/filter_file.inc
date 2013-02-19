@@ -113,7 +113,7 @@ perl;
   while (<FILE>)
   {
     chomp;
-    s/\r//g;
+    s/\015?\012?$//;
     if (!%column_names)
     {
       my $n = 1;
@@ -123,7 +123,11 @@ perl;
     {
       ' . $script . '
     }
-    $filtered_contents .= $_."\n";
+
+    if (length($_) > 0)
+    {
+      $filtered_contents .= $_."\n";
+    }
   }
   close FILE or die "Error closing $input_file: $!";
   open FILE, "> $output_file" or die "Error opening $output_file: $!";

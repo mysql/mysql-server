@@ -71,6 +71,10 @@ std::ostream &operator<< (std::ostream &s, const TestFailLinePrinter &v)
                            X & !X       <==>  false
     A6 (idempotence of |): X | X        <==>  X
     A7 (idempotence of &): X & X        <==>  X
+
+  Also note that the range optimizer follows a relaxed boolean algebra
+  where the result may be bigger than boolean algebra rules dictate.
+  @See get_mm_tree() for explanation.
 */
 
 using my_testing::Server_initializer;
@@ -262,7 +266,7 @@ protected:
     Types of range predicates that create_tree() and create_item()
     can create
   */
-  enum pred_type_enum { GREATER, LESS, BETWEEN, EQUAL };
+  enum pred_type_enum { GREATER, LESS, BETWEEN, EQUAL, NOT_EQUAL };
 
   /**
     Utility funtion used to simplify creation of SEL_TREEs with
@@ -295,6 +299,11 @@ protected:
       result= get_mm_tree(m_opt_param,
                           new Item_cond_and(create_item(GREATER, fld, val1),
                                             create_item(LESS, fld, val2)));
+      break;
+    case NOT_EQUAL:
+      result= get_mm_tree(m_opt_param,
+                          new Item_cond_or(create_item(LESS, fld, val1),
+                                           create_item(GREATER, fld, val1)));
       break;
     default:
       result= get_mm_tree(m_opt_param, create_item(type, fld, val1));
@@ -965,6 +974,231 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex1)
     ),
     create_tree(BETWEEN, field_long3, 20, 30, exected_fld3),
      SEL_TREE::KEY, expected_incorrect_or
+  );
+}
+
+/**
+  Test for BUG#16164031
+*/
+TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
+{
+  create_table_singlecol_idx(3);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+  Mock_field_long *field_long3= m_table_fields[2];
+
+  // Single-index predicates
+  const char exp_f2_eq1[]=  "result keys[1]: (1 <= field_2 <= 1)\n";
+  const char exp_f2_eq2[]=  "result keys[1]: (2 <= field_2 <= 2)\n";
+  const char exp_f3_eq[]=   "result keys[2]: (1 <= field_3 <= 1)\n";
+  const char exp_f1_lt1[]=  "result keys[0]: (field_1 < 256)\n";
+
+  // OR1: Result of OR'ing f2_eq with f3_eq
+  const char exp_or1[]= 
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+
+  // OR2: Result of OR'ing f1_lt with f2_eq
+  const char exp_or2[]= 
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (field_1 < 256)\n"
+    "  merge_tree keys[1]: (2 <= field_2 <= 2)\n";
+
+  // AND1: Result of "OR1 & OR2"
+  const char exp_and1[]= 
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (field_1 < 256)\n"
+    "  merge_tree keys[1]: (2 <= field_2 <= 2)\n";
+
+  SEL_TREE *tree_and1=
+    create_and_check_tree_and(
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long2, 1, 0, exp_f2_eq1),
+        create_tree(EQUAL, field_long3, 1, 0, exp_f3_eq),
+        SEL_TREE::KEY, exp_or1),
+      create_and_check_tree_or(
+        create_tree(LESS, field_long1, 256, 0, exp_f1_lt1),
+        create_tree(EQUAL, field_long2, 2, 0, exp_f2_eq2),
+        SEL_TREE::KEY, exp_or2),
+      SEL_TREE::KEY, exp_and1
+    );
+
+  // OR3: Result of "AND1 | field3 = 1"
+  const char exp_or3[]= 
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (field_1 < 256)\n"
+    "  merge_tree keys[1]: (2 <= field_2 <= 2)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+  
+  SEL_TREE *tree_or3=
+    create_and_check_tree_or(
+      tree_and1,
+      create_tree(EQUAL, field_long3, 1, 0, exp_f3_eq),
+      SEL_TREE::KEY, exp_or3
+    );
+
+  // More single-index predicates
+  const char exp_f1_lt2[]= "result keys[0]: (field_1 < 35)\n";
+  const char exp_f1_gt2[]= "result keys[0]: (257 < field_1)\n";
+  const char exp_f1_or[]=  "result keys[0]: (field_1 < 35) OR (257 < field_1)\n";
+
+  // OR4: Result of "OR3 | exp_f1_or"
+  const char exp_or4[]= 
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[1]: (1 <= field_2 <= 1)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n"
+    "  merge_tree keys[0]: (field_1 < 35) OR (257 < field_1)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (field_1 < 256) OR (257 < field_1)\n"
+    "  merge_tree keys[1]: (2 <= field_2 <= 2)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n";
+
+  SEL_TREE *tree_or4=
+    create_and_check_tree_or(
+      tree_or3,
+      create_and_check_tree_or(
+        create_tree(LESS, field_long1, 35, 0, exp_f1_lt2),
+        create_tree(GREATER, field_long1, 257, 0, exp_f1_gt2),
+        SEL_TREE::KEY, exp_f1_or
+      ),
+      SEL_TREE::KEY, exp_or4
+    );
+
+  // More single-index predicates
+  const char exp_f1_neq[]= "result keys[0]: (field_1 < 255) OR (255 < field_1)\n";
+  const char exp_f2_eq3[]= "result keys[1]: (3 <= field_2 <= 3)\n";
+  
+  // AND2: Result of ANDing these two ^
+  const char exp_and2[]=
+    "result keys[0]: (field_1 < 255) OR (255 < field_1)\n"
+    "result keys[1]: (3 <= field_2 <= 3)\n";
+
+  // OR5: Result of "OR4 | AND3"
+  /*
+    "(field_1 < 255) OR (255 < field_1)" is lost when performing this
+    OR. This results in a bigger set than correct boolean algebra
+    rules dictate. @See note about relaxed boolean algebra in
+    get_mm_tree().
+  */
+  const char exp_or5[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[1]: (1 <= field_2 <= 1) OR (3 <= field_2 <= 3)\n"
+    "  merge_tree keys[2]: (1 <= field_3 <= 1)\n"
+    "  merge_tree keys[0]: (field_1 < 35) OR (257 < field_1)\n";
+
+  create_and_check_tree_or(
+    tree_or4,
+    create_and_check_tree_and(
+      create_tree(NOT_EQUAL, field_long1, 255, 0, exp_f1_neq),
+      create_tree(EQUAL, field_long2, 3, 0, exp_f2_eq3),
+      SEL_TREE::KEY, exp_and2),
+    SEL_TREE::KEY, exp_or5
+  );
+}
+
+
+/**
+  Test for BUG#16241773
+*/
+TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
+{
+  create_table_singlecol_idx(2);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+
+  // Single-index predicates
+  const char exp_f1_eq10[]=  "result keys[0]: (10 <= field_1 <= 10)\n";
+  const char exp_f2_gtr20[]= "result keys[1]: (20 < field_2)\n";
+
+  const char exp_f1_eq11[]=  "result keys[0]: (11 <= field_1 <= 11)\n";
+  const char exp_f2_gtr10[]= "result keys[1]: (10 < field_2)\n";
+
+  // OR1: Result of ORing f1_eq10 and f2_gtr20
+  const char exp_or1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n";
+
+  // OR2: Result of ORing f1_eq11 and f2_gtr10
+  const char exp_or2[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  // AND1: Result of ANDing OR1 and OR2
+  const char exp_and1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  SEL_TREE *tree_and1=
+    create_and_check_tree_and(
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 10, 0, exp_f1_eq10),
+        create_tree(GREATER, field_long2, 20, 0, exp_f2_gtr20),
+        SEL_TREE::KEY, exp_or1),
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 11, 0, exp_f1_eq11),
+        create_tree(GREATER, field_long2, 10, 0, exp_f2_gtr10),
+        SEL_TREE::KEY, exp_or2),
+      SEL_TREE::KEY, exp_and1
+    );
+
+  const char exp_f2_eq5[]= "result keys[1]: (5 <= field_2 <= 5)\n";
+  // OR3: Result of OR'ing AND1 with f2_eq5
+  const char exp_or3[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (10 < field_2)\n";
+  SEL_TREE *tree_or3=
+    create_and_check_tree_or(
+      tree_and1,
+      create_tree(EQUAL, field_long2, 5, 0, exp_f2_eq5),
+      SEL_TREE::KEY, exp_or3
+    );
+
+  const char exp_f2_lt2[]= "result keys[1]: (field_2 < 2)\n";
+  // OR4: Result of OR'ing OR3 with f2_lt2
+  const char exp_or4[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (10 < field_2)\n";
+
+  create_and_check_tree_or(
+    tree_or3,
+    create_tree(LESS, field_long2, 2, 0, exp_f2_lt2),
+    SEL_TREE::KEY, exp_or4
   );
 }
 

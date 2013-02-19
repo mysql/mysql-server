@@ -85,7 +85,7 @@ explain extended select @t1:=(@t2:=1)+@t3:=4,@t1,@t2,@t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@t1) AS `@t1`,(@t2) AS `@t2`,(@t3) AS `@t3`
+Note	1003	/* select#1 */ select (@t1:=((@t2:=1) + (@t3:=4))) AS `@t1:=(@t2:=1)+@t3:=4`,(@`t1`) AS `@t1`,(@`t2`) AS `@t2`,(@`t3`) AS `@t3`
 select @t5;
 @t5
 1.23456
@@ -1799,3 +1799,26 @@ End of 5.5 tests
 #
 SET @@sql_mode= 4294967296;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of '4294967296'
+#
+# Bug #59860: log-slow-admin-statements and log-slow-slave-statements not displayed
+#
+show variables like 'log_slow%';
+Variable_name	Value
+log_slow_admin_statements	OFF
+log_slow_slave_statements	OFF
+set global log_slow_admin_statements = on;
+show global variables like 'log_slow_admin_statements';
+Variable_name	Value
+log_slow_admin_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_admin_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_ADMIN_STATEMENTS	ON
+set global log_slow_slave_statements = on;
+show global variables like 'log_slow_slave_statements';
+Variable_name	Value
+log_slow_slave_statements	ON
+select * from information_schema.global_variables where variable_name like 'log_slow_slave_statements';
+VARIABLE_NAME	VARIABLE_VALUE
+LOG_SLOW_SLAVE_STATEMENTS	ON
+set global log_slow_admin_statements = default;
+set global log_slow_slave_statements = default;

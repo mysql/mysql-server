@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4102,7 +4102,6 @@ longlong Item_master_gtid_set_wait::val_int()
   return event_count;
 }
 
-#ifdef HAVE_REPLICATION
 /**
   Return 1 if both arguments are Gtid_sets and the first is a subset
   of the second.  Generate an error if any of the arguments is not a
@@ -4138,7 +4137,6 @@ longlong Item_func_gtid_subset::val_int()
   }
   DBUG_RETURN(ret);
 }
-#endif
 
 
 /**
@@ -4518,6 +4516,27 @@ longlong Item_func_sleep::val_int()
   DBUG_ASSERT(fixed == 1);
 
   timeout= args[0]->val_real();
+ 
+  /*
+    Prepare to report error or warning depends on the value of SQL_MODE.
+    If SQL is STRICT then report error, else report warning and continue
+    execution.
+  */
+  bool save_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning= thd->is_strict_mode();
+
+  if (args[0]->null_value || timeout < 0)
+    push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
+                        ER(ER_WRONG_ARGUMENTS), "sleep.");
+
+  thd->abort_on_warning= save_abort_on_warning;
+  /*
+    If conversion error occurred in the strict SQL_MODE
+    then leave method.
+  */
+  if (thd->is_error())
+    return 0;
+ 
   /*
     On 64-bit OSX mysql_cond_timedwait() waits forever
     if passed abstime time has already been exceeded by 
@@ -5559,7 +5578,7 @@ enum Item_result Item_func_get_user_var::result_type() const
 void Item_func_get_user_var::print(String *str, enum_query_type query_type)
 {
   str->append(STRING_WITH_LEN("(@"));
-  str->append(name);
+  append_identifier(current_thd, str, name);
   str->append(')');
 }
 
@@ -5656,7 +5675,7 @@ my_decimal* Item_user_var_as_out_param::val_decimal(my_decimal *decimal_buffer)
 void Item_user_var_as_out_param::print(String *str, enum_query_type query_type)
 {
   str->append('@');
-  str->append(name);
+  append_identifier(current_thd, str, name);
 }
 
 
