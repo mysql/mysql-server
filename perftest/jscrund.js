@@ -48,6 +48,8 @@ function usage() {
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
   "   -i      :  Specify number of iterations per test (default 4000)\n" +
+  "   --tests :\n" +
+  "   --test  :  Specify tests to run (default persist,find,remove)\n" +
   "   --table':\n" +
   "   -t      :  Use table name for operations\n" + 
   "   --set other=value: set property other to value"
@@ -133,6 +135,23 @@ function parse_command_line(options) {
             }
           }
           break;
+        case '--test':
+        case '--tests':
+          options.tests = values[1];
+          options.testNames = options.tests.split('\,');
+          // validate test names
+          for (var t = 0; t < options.testNames.length; ++t) {
+            switch (options.testNames[t]) {
+            case 'persist':
+            case 'find':
+            case 'remove':
+              break;
+            default:
+              console.log('Invalid test ' + options.testNames[t]);
+              options.exit = true;
+            }
+          }
+          break;
         default:
           console.log('Invalid option ' + val);
           options.exit = true;
@@ -159,6 +178,7 @@ function main() {
     'database': 'jscrund',
     'mysql_user': 'root',
     'modes': 'indy,each,bulk',
+    'tests': 'persist,find,remove',
     'iterations': 4000
   };
   parse_command_line(options);
@@ -225,7 +245,7 @@ function main() {
     var mode;
     var modeName;
 
-    var testNames = ['persist', 'find', 'remove'];
+    var testNames = options.tests.split('\,');
     var testNumber = 0;
     var operation;
     var testName;
