@@ -27,26 +27,25 @@
 
 
 /* Simple LIFO sharable list.
-   Has no built-in signaling.
    Uses uv_mutex_t for synchronization.
-*/
-
-/* The note can serve to document a list item,
-   and also as cache-line padding.
+   signalinfo can be used for in-band metadata. 
+   The note can serve to document a list item, and also as cache-line padding.
 */
 #define VPSZ sizeof(void *)
-#define LIST_ITEM_NOTE_SIZE 64 - ( 2 * VPSZ)
+#define ISZ  sizeof(int)
+#define LIST_ITEM_NOTE_SIZE 64 - (ISZ + VPSZ + VPSZ)
 
 template<typename T> class ListNode {
 public:
   ListNode<T> * next;
   T * item;
+  int signalinfo;
 private:
   char note[LIST_ITEM_NOTE_SIZE];
 
 public:
   /* Constructor */
-  ListNode<T>(T *t) : item(t)
+  ListNode<T>(T *t) : item(t), signalinfo(0)
   {
     note[0] = '\0';
   };

@@ -114,12 +114,12 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
         In "Async" execute, the uv worker thread uses executeAsynch(),
         and the DBConnectionPool listener thread runs callbacks.
     */
-    if(self.canUseNdbAsynch) {
-      self.ndbtx.executeAsynch(execMode, abortFlag, forceSend, onCompleteTx);
-    }
-    else {
+    //if(self.canUseNdbAsynch) {
+    //  self.ndbtx.executeAsynch(execMode, abortFlag, forceSend, onCompleteTx);
+    //}
+    //else {
       self.ndbtx.execute(execMode, abortFlag, forceSend, onCompleteTx);
-    }
+    //}
   }
 
   function onStartTx(err, ndbtx) {
