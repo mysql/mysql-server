@@ -97,27 +97,31 @@ proto = {
   pendingListTables    : {},
   pendingGetMetadata   : {},
   ndbSessionFreeList   : [],
+  isDisconnecting      : false
 };
 
 exports.DBConnectionPool.prototype = proto;
 
 
-exports.closeNdbSession = function(ndbConnectionPool, ndbSession) {
-  if(ndbConnectionPool.ndbSessionFreeList.length > 
-     ndbConnectionPool.properties.ndb_session_pool_max) {
+exports.closeNdbSession = function(ndbPool, ndbSession) {
+  if(ndbPool.isDisconnecting  || 
+      ( ndbPool.ndbSessionFreeList.length > 
+        ndbPool.properties.ndb_session_pool_max))
+  {
     adapter.ndb.impl.DBSession.destroy(ndbSession.impl);
   }
-  else { 
-    ndbConnectionPool.ndbSessionFreeList.push(ndbSession);
+  else 
+  { 
+    ndbPool.ndbSessionFreeList.push(ndbSession);
   }
 }
 
 /* Prefetch an NdbSSession and keep it on the freelist
 */
-function fetchPooledSession(ndbConnectionPool) {
+function fetchPooledSession(ndbPool) {
   udebug.log("fetchPooledSession");
-  var db   = ndbConnectionPool.properties.database,
-      self = ndbConnectionPool,
+  var db       = ndbPool.properties.database,
+      pool_min = ndbPool.properties.ndb_session_pool_min,
       ndbSession;
 
   function onFetch(err, ndbSessionImpl) {
@@ -125,16 +129,26 @@ function fetchPooledSession(ndbConnectionPool) {
       stats.incr("ndbSession","prefetch","errors");
       udebug.log("fetchPooledSession onFetch ERROR", err);
     }
+    else if(ndbPool.isDisconnecting) {
+       adapter.ndb.impl.DBSession.destroy(ndbSessionImpl);
+    }
     else {
       stats.incr("ndbSession","prefetch","success");
       udebug.log("fetchPooledSession adding to session pool.");
-      ndbSession = ndbsession.newDBSession(self, ndbSessionImpl);
-      self.ndbSessionFreeList.push(ndbSession);
+      ndbSession = ndbsession.newDBSession(ndbPool, ndbSessionImpl);
+      ndbPool.ndbSessionFreeList.push(ndbSession);
+      /* If the pool is wanting, fetch another */
+      if(ndbPool.ndbSessionFreeList.length < pool_min) {
+        stats.incr("ndbSession","prefetch","attempts");
+        adapter.ndb.impl.DBSession.create(ndbPool.ndbconn, db, onFetch);
+      }
     }
   }
 
-  stats.incr("ndbSession","prefetch","attempts");
-  adapter.ndb.impl.DBSession.create(self.ndbconn, db, onFetch);
+  if(! ndbPool.isDisconnecting) {
+    stats.incr("ndbSession","prefetch","attempts");
+    adapter.ndb.impl.DBSession.create(ndbPool.ndbconn, db, onFetch);
+  }
 }
 
 
@@ -170,9 +184,8 @@ proto.connectSync = function() {
     this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
     
     /* Start filling the session pool */
-    for(i = 0 ; i < this.properties.ndb_session_pool_min ; i++) {
-      fetchPooledSession(this);
-    }
+    fetchPooledSession(this);
+
   }
   else {
     stats.incr("connections","failed");
@@ -236,7 +249,7 @@ proto.connect = function(user_callback) {
       self.ndbconn.wait_until_ready(1, 1, onReady);
     }
     else {
-      stats.incr("connectios","failed");
+      stats.incr("connections","failed");
       err = new Error('NDB Connect failed ' + rval);       
       user_callback(err, self);
     }
@@ -263,8 +276,17 @@ proto.isConnected = function() {
    SYNCHRONOUS.
 */
 proto.closeSync = function() {
+  var i;
+  this.isDisconnecting = true;
   adapter.ndb.impl.DBSession.destroy(this.dictionary);
-  this.ndbconn.delete();
+  for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
+    adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
+  }
+  
+  /* This timer is a brute-force workaround for race conditions where some 
+     operation is in progress (e.g. filling the connection pool) 
+  */
+  setTimeout(this.ndbconn.delete, 1000);
 };
 
 
