@@ -25,6 +25,7 @@
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndboperation   = require("./NdbOperation.js"),
     dbtxhandler    = require("./NdbTransactionHandler.js"),
+    ndbconnection  = require("./NdbConnectionPool.js"),
     util           = require("util"),
     assert         = require("assert"),
     udebug         = unified_debug.getLogger("NdbSession.js"),
@@ -176,10 +177,9 @@ NdbSession.prototype.getConnectionPool = function() {
 */
 NdbSession.prototype.close = function(userCallback) {
   udebug.log("close");
-  stats.incr("closed");
-  if(this.impl) {
-    adapter.ndb.impl.DBSession.destroy(this.impl);
-  }
+  
+  ndbconnection.closeNdbSession(this.parentPool, this);
+
   if(userCallback) {
     userCallback(null, null);
   }
