@@ -48,7 +48,7 @@ function DBOperationError(ndb_error) {
   var mappedCode = errorClassificationMap[ndb_error.classification];
   this.ndb_error = ndb_error;
   this.message = ndb_error.message + " [" + ndb_error.code + "]";
-  this.code = mappedCode || "NDB00";
+  this.sqlstate = mappedCode || "NDB00";
 }
 
 DBOperationError.prototype = doc.DBOperationError;
@@ -174,7 +174,7 @@ function encodeRowBuffer(op) {
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
-    if(value) {
+    if(value !== null) {
       op.columnMask.push(col[i].columnNumber);
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
