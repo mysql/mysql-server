@@ -9,17 +9,17 @@ t_wl6455	CREATE TABLE `t_wl6455` (
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
 INSERT INTO t_wl6455 VALUES(2, POINT(2,2));
 SET @mp = 'MULTIPOINT(0 0, 20 20, 60 60)';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mp));
-INSERT INTO t_wl6455 VALUES(3, LINESTRING(POINT(1,1), POINT(4, 4)));
-INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(2,2), POINT(5, 5)));
+INSERT INTO t_wl6455 VALUES(3, GeomFromText(@mp));
+INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(1,1), POINT(4, 4)));
+INSERT INTO t_wl6455 VALUES(5, LINESTRING(POINT(2,2), POINT(5, 5)));
 SET @mls = 'MultiLineString((1 1,2 2,3 3),(4 4,5 5))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mls));
+INSERT INTO t_wl6455 VALUES(6, GeomFromText(@mls));
 SET @poly = 'Polygon((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@poly));
+INSERT INTO t_wl6455 VALUES(7, GeomFromText(@poly));
 SET @mpoly = 'MultiPolygon(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mpoly));
+INSERT INTO t_wl6455 VALUES(8, GeomFromText(@mpoly));
 SET @gc = 'GeometryCollection(Point(1 1),LineString(2 2, 3 3))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@gc));
+INSERT INTO t_wl6455 VALUES(9, GeomFromText(@gc));
 SELECT AsText(g) FROM t_wl6455;
 AsText(g)
 POINT(1 1)
@@ -38,6 +38,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 AsText(g)
 POINT(2 2)
+SET AUTOCOMMIT = 0;
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+AsText(g)
+POINT(10 10)
+ROLLBACK;
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+AsText(g)
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+COMMIT;
+INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
 SET DEBUG='+d,crash_commit_before';
 INSERT INTO t_wl6455 VALUES(1, POINT(1,1));
 ERROR HY000: Lost connection to MySQL server during query
@@ -55,6 +66,7 @@ MULTILINESTRING((1 1,2 2,3 3),(4 4,5 5))
 POLYGON((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))
 MULTIPOLYGON(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
+POINT(10 10)
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
 INNER JOIN information_schema.innodb_sys_tables st
