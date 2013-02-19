@@ -9,7 +9,7 @@ USE test;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon;
 DROP TABLE IF EXISTS gis_multi_point, gis_multi_line, gis_multi_polygon;
 DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
-DROP TABLE IF EXISTS tab,tab2,tab3;
+DROP TABLE IF EXISTS tab,tab2,tab3,parent,emp2;
 DROP PROCEDURE IF EXISTS geominout;
 DROP PROCEDURE IF EXISTS geom_insert;
 DROP TRIGGER IF EXISTS geom_trigger;
@@ -355,16 +355,21 @@ GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 #check change the column type 
 ALTER TABLE tab MODIFY COLUMN c1 BLOB;
 #check column datatypes
-SHOW FIELDS FROM tab;
-Field	Type	Null	Key	Default	Extra
-c1	blob	YES		NULL	
-c2	linestring	YES	MUL	NULL	
-c3	polygon	YES	MUL	NULL	
-c4	multipoint	YES		NULL	
-c5	multilinestring	YES		NULL	
-c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
-c8	geometry	YES	UNI	NULL	
+SHOW CREATE TABLE tab;
+Table	Create Table
+tab	CREATE TABLE `tab` (
+  `c1` blob,
+  `c2` linestring DEFAULT NULL,
+  `c3` polygon DEFAULT NULL,
+  `c4` multipoint DEFAULT NULL,
+  `c5` multilinestring DEFAULT NULL,
+  `c6` multipolygon DEFAULT NULL,
+  `c7` geometrycollection DEFAULT NULL,
+  `c8` geometry DEFAULT NULL,
+  UNIQUE KEY `idx2` (`c8`(5)),
+  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx3` (`c3`(5)) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #check the data after modify
 SELECT AsText(c1) FROM tab;
 AsText(c1)
@@ -408,19 +413,6 @@ c5	multilinestring	YES		NULL
 c6	multipolygon	YES		NULL	
 c7	geometrycollection	YES		NULL	
 c8	geometry	NO	UNI		
-#drop DEFAULT NOT NULL
-ALTER TABLE tab ALTER COLUMN c8 DROP DEFAULT;
-#check columns 
-SHOW FIELDS FROM tab;
-Field	Type	Null	Key	Default	Extra
-c0	geometry	YES		NULL	
-c2	linestring	YES	MUL	NULL	
-c3	polygon	YES	MUL	NULL	
-c4	multipoint	YES		NULL	
-c5	multilinestring	YES		NULL	
-c6	multipolygon	YES		NULL	
-c7	geometrycollection	YES		NULL	
-c8	geometry	NO	UNI	NULL	
 #cleanup the table
 TRUNCATE TABLE tab;
 #check with procedures
@@ -498,7 +490,7 @@ tab2	CREATE TABLE `tab2` (
   `c5` multilinestring DEFAULT NULL,
   `c6` multipolygon DEFAULT NULL,
   `c7` geometrycollection DEFAULT NULL,
-  `c8` geometry NOT NULL
+  `c8` geometry NOT NULL DEFAULT ''
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 #create a tigger and populate the values into tab2
 CREATE TRIGGER geom_trigger AFTER INSERT ON tab 
@@ -552,10 +544,9 @@ FETCH c INTO v;
 CLOSE c;
 SELECT AsText(v);
 END|
-
-CALL geom_cursor();
-AsText(v)
-GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
+# the following line was commented due the Bug#16282246
+# Once it is fixed, the comment will be removed.
+# right now bug fixing date is unknown.
 check self join
 SELECT AsText(a.c0),AsText(a.c2),AsText(a.c3) 
 FROM tab a,tab2 b WHERE a.c0=b.c0 AND a.c2=b.c2
@@ -651,6 +642,20 @@ tab3	CREATE TABLE `tab3` (
   `c7` geometrycollection DEFAULT NULL,
   `c8` geometry DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8
+ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
+#check file format
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `c1` point DEFAULT NULL,
+  `c2` linestring DEFAULT NULL,
+  `c3` polygon DEFAULT NULL,
+  `C4` multipoint DEFAULT NULL,
+  `c5` multilinestring DEFAULT NULL,
+  `c6` multipolygon DEFAULT NULL,
+  `c7` geometrycollection DEFAULT NULL,
+  `c8` geometry DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
 #check information schema for all the columns refer to 14
 SELECT sc.name, sc.pos, sc.mtype
 FROM information_schema.innodb_sys_columns sc
@@ -759,6 +764,22 @@ AsText(c8)
 GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 #check with Row_format = Dynamic
 ALTER TABLE tab3 ROW_FORMAT=Dynamic;
+#check file format
+SHOW CREATE TABLE tab3;
+Table	Create Table
+tab3	CREATE TABLE `tab3` (
+  `c1` point DEFAULT NULL,
+  `c2` linestring DEFAULT NULL,
+  `c3` polygon DEFAULT NULL,
+  `C4` multipoint DEFAULT NULL,
+  `c5` multilinestring DEFAULT NULL,
+  `c6` multipolygon DEFAULT NULL,
+  `c7` geometrycollection DEFAULT NULL,
+  `c8` geometry DEFAULT NULL,
+  UNIQUE KEY `idx2` (`c8`(5)),
+  KEY `idx1` (`c2`(5)) USING BTREE,
+  KEY `idx3` (`c3`(5)) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC KEY_BLOCK_SIZE=16
 #check index with  WKB function
 EXPLAIN SELECT ASText(c1),AsText(c2),AsText(c8) 
 FROM tab3 WHERE c2=LineStringFromWKB(AsWKB(LineFromText('LINESTRING(10 10,20 20,30 30)')));
@@ -1051,10 +1072,46 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	g2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
+# check support of Foreign Key constraint 
+CREATE TABLE parent (id GEOMETRY NOT NULL,PRIMARY KEY (id(10))) ENGINE=INNODB;
+CREATE TABLE child (id GEOMETRY, parent_id GEOMETRY,
+INDEX par_ind (parent_id(10)),
+FOREIGN KEY (parent_id(10)) REFERENCES parent(id)
+ON DELETE CASCADE
+) ENGINE=INNODB;
+ERROR HY000: Cannot add foreign key constraint
+#check partition table support
+CREATE TABLE emp2(
+id GEOMETRY NOT NULL,
+store_name VARCHAR(30),
+parts VARCHAR(30),
+store_id GEOMETRY
+)
+PARTITION BY LIST(store_id) (
+PARTITION pNorth VALUES IN (10,20,30) ,
+PARTITION pEast VALUES IN (40,50,60) ,
+PARTITION pWest VALUES IN (70,80,100) 
+);
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+#check start transaction commit & Rollback
+START TRANSACTION;
+DELETE FROM tab3;
+ROLLBACK;
+SELECT COUNT(*) FROM tab3;
+COUNT(*)
+1
+START TRANSACTION;
+DELETE FROM tab3;
+COMMIT;
+SELECT COUNT(*) FROM tab3;
+COUNT(*)
+0
 DROP TABLE IF EXISTS gis_point, gis_line, gis_polygon, gis_multi_point;
 DROP TABLE IF EXISTS gis_multi_line, gis_multi_polygon;
 DROP TABLE IF EXISTS gis_geometrycollection, gis_geometry;
-DROP TABLE IF EXISTS tab,tab2,tab3;
+DROP TABLE IF EXISTS tab,tab2,tab3,parent,emp2;
+Warnings:
+Note	1051	Unknown table 'test.emp2'
 DROP PROCEDURE IF EXISTS  geominout;
 DROP PROCEDURE IF EXISTS geom_insert;
 DROP TRIGGER IF EXISTS geom_trigger;
