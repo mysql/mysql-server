@@ -701,13 +701,15 @@ Tablespace::read_lsn_and_check_flags(
 
 /**
 Check if a file can be opened in the correct mode.
-@param file - data file spec
+@param file 	- data file spec
+@param reason_if_failed - exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 UNIV_INTERN
 dberr_t
 Tablespace::check_file_status(
 /*==========================*/
-	const file_t&	file)
+	const file_t&	file,
+	file_status_t&  reason_if_failed)
 {
 	os_file_stat_t	stat;
 
@@ -715,6 +717,7 @@ Tablespace::check_file_status(
 
 	dberr_t	err = os_file_get_status(file.m_filename, &stat, true);
 
+	reason_if_failed = FILE_STATUS_VOID;
 	/* File exists but we can't read the rw-permission settings. */
 	switch (err) {
 	case DB_FAIL:
@@ -724,6 +727,7 @@ Tablespace::check_file_status(
 			file.m_filename);
 
 		err = DB_ERROR;
+		reason_if_failed = FILE_STATUS_RW_PERMISSION_ERROR;
 		break;
 
 	case DB_SUCCESS:
@@ -741,6 +745,8 @@ Tablespace::check_file_status(
 					? "writable" : "readable");
 
 				err = DB_ERROR;
+				reason_if_failed =
+					FILE_STATUS_READ_WRITE_ERROR;
 			}
 
 		} else {
@@ -751,6 +757,7 @@ Tablespace::check_file_status(
 				file.m_filename);
 
 			err = DB_ERROR;
+			reason_if_failed = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
 		}
 		break;
 
@@ -793,14 +800,13 @@ Tablespace::file_not_found(
 		ut_a(!*create_new_db);
 		*create_new_db = TRUE;
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The first specified %sdata file \"%s\" "
-			"did not exist%s",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			file.m_name,
-			(m_space_id == TRX_SYS_SPACE)
-			? " : a new database to be created!"
-			: "");
+		if (m_space_id == TRX_SYS_SPACE) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"The first specified data file \"%s\" "
+				"did not exist%s",
+				file.m_name,
+				" : a new database to be created!");
+		}
 
 	} else if (&file == &m_files.back()) {
 
@@ -926,7 +932,8 @@ Tablespace::check_file_spec(
 
 		make_name(*it, m_tablespace_path);
 
-		err = check_file_status(*it);
+		file_status_t reason_if_failed;
+		err = check_file_status(*it, reason_if_failed);
 
 		if (err == DB_NOT_FOUND) {
 
@@ -937,6 +944,14 @@ Tablespace::check_file_spec(
 			}
 
 		} else if (err != DB_SUCCESS) {
+			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The system %stablespace must be %s",
+					m_space_id == TRX_SYS_SPACE
+					? "" : "temp-",
+					!srv_read_only_mode
+					? "writable" : "readable");
+			}
 
 			ut_a(err != DB_FAIL);
 			break;
