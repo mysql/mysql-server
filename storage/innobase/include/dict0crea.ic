@@ -31,7 +31,7 @@ A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
 where the numbers start from 1, and are given locally for this table, that is,
 the number is not global, as it used to be before MySQL 4.0.18.  */
 UNIV_INLINE
-void
+dberr_t
 dict_create_add_foreign_id(
 /*=======================*/
 	ulint*		id_nr,	/*!< in/out: number to use in id generation;
@@ -47,5 +47,15 @@ dict_create_add_foreign_id(
 		/* no overflow if number < 1e13 */
 		sprintf(id, "%s_ibfk_%lu", name, (ulong) (*id_nr)++);
 		foreign->id = id;
+
+		char* stripped_name = strchr(foreign->id, '/') + 1;
+		if (innobase_check_identifier_length(stripped_name)) {
+			fprintf(stderr, "InnoDB: Generated foreign key "
+				"name (%s) is too long\n", foreign->id);
+			return(DB_IDENTIFIER_TOO_LONG);
+		}
 	}
+
+	return(DB_SUCCESS);
 }
+

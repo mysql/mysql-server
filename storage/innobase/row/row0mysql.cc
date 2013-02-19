@@ -1970,7 +1970,11 @@ run_again:
 
 		que_thr_stop_for_mysql(thr);
 
+		thr->lock_state = QUE_THR_LOCK_ROW;
+
 		lock_wait_suspend_thread(thr);
+
+		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		/* Note that a lock wait may also end in a lock wait timeout,
 		or this transaction is picked as a victim in selective
@@ -2801,7 +2805,7 @@ row_discard_tablespace_begin(
 		name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table) {
-		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+		dict_stats_wait_bg_to_stop_using_table(table, trx);
 		ut_a(table->space != TRX_SYS_SPACE);
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
@@ -3253,7 +3257,7 @@ row_truncate_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+	dict_stats_wait_bg_to_stop_using_table(table, trx);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -3803,8 +3807,8 @@ row_drop_table_for_mysql(
 		tables since we know temp tables do not use persistent
 		stats. */
 		if (!dict_table_is_temporary(table)) {
-			dict_stats_wait_bg_to_stop_using_tables(
-				table, NULL, trx);
+			dict_stats_wait_bg_to_stop_using_table(
+				table, trx);
 		}
 	}
 
@@ -4174,6 +4178,11 @@ check_next_foreign:
 		DICT_TF2_FTS flag set. So keep this out of above
 		dict_table_has_fts_index condition */
 		if (table->fts) {
+			/* Need to set TABLE_DICT_LOCKED bit, since
+			fts_que_graph_free_check_lock would try to acquire
+			dict mutex lock */
+			table->fts->fts_status |= TABLE_DICT_LOCKED;
+
 			fts_free(table);
 		}
 

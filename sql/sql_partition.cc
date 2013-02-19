@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,9 @@ const LEX_STRING partition_keywords[]=
   { C_STRING_WITH_LEN("KEY") },
   { C_STRING_WITH_LEN("MAXVALUE") },
   { C_STRING_WITH_LEN("LINEAR ") },
-  { C_STRING_WITH_LEN(" COLUMNS") }
+  { C_STRING_WITH_LEN(" COLUMNS") },
+  { C_STRING_WITH_LEN("ALGORITHM") }
+
 };
 static const char *part_str= "PARTITION";
 static const char *sub_str= "SUB";
@@ -315,7 +317,7 @@ int get_parts_for_update(const uchar *old_data, uchar *new_data,
   longlong old_func_value;
   DBUG_ENTER("get_parts_for_update");
 
-  DBUG_ASSERT(new_data == rec0);
+  DBUG_ASSERT(new_data == rec0);             // table->record[0]
   set_field_ptr(part_field_array, old_data, rec0);
   error= part_info->get_partition_id(part_info, old_part_id,
                                      &old_func_value);
@@ -473,12 +475,12 @@ static bool set_up_field_array(TABLE *table,
   }
   if (num_fields > MAX_REF_PARTS)
   {
-    char *ptr;
+    char *err_str;
     if (is_sub_part)
-      ptr= (char*)"subpartition function";
+      err_str= (char*)"subpartition function";
     else
-      ptr= (char*)"partition function";
-    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), ptr);
+      err_str= (char*)"partition function";
+    my_error(ER_TOO_MANY_PARTITION_FUNC_FIELDS_ERROR, MYF(0), err_str);
     DBUG_RETURN(TRUE);
   }
   if (num_fields == 0)
@@ -2446,6 +2448,58 @@ end:
   return err;
 }
 
+
+/**
+  Add 'KEY' word, with optional 'ALGORTIHM = N'.
+
+  @param fptr                   File to write to.
+  @param part_info              partition_info holding the used key_algorithm
+  @param current_comment_start  NULL, or comment string encapsulating the
+                                PARTITION BY clause.
+
+  @return Operation status.
+    @retval 0    Success
+    @retval != 0 Failure
+*/
+
+static int add_key_with_algorithm(File fptr, partition_info *part_info,
+                                  const char *current_comment_start)
+{
+  int err= 0;
+  err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+
+  /*
+    current_comment_start is given when called from SHOW CREATE TABLE,
+    Then only add ALGORITHM = 1, not the default 2 or non-set 0!
+    For .frm current_comment_start is NULL, then add ALGORITHM if != 0.
+  */
+  if (part_info->key_algorithm == partition_info::KEY_ALGORITHM_51 || // SHOW
+      (!current_comment_start &&                                      // .frm
+       (part_info->key_algorithm != partition_info::KEY_ALGORITHM_NONE)))
+  {
+    /* If we already are within a comment, end that comment first. */
+    if (current_comment_start)
+      err+= add_string(fptr, "*/ ");
+    err+= add_string(fptr, "/*!50611 ");
+    err+= add_part_key_word(fptr, partition_keywords[PKW_ALGORITHM].str);
+    err+= add_equal(fptr);
+    err+= add_space(fptr);
+    err+= add_int(fptr, part_info->key_algorithm);
+    err+= add_space(fptr);
+    err+= add_string(fptr, "*/ ");
+    if (current_comment_start)
+    {
+      /* Skip new line. */
+      if (current_comment_start[0] == '\n')
+        current_comment_start++;
+      err+= add_string(fptr, current_comment_start);
+      err+= add_space(fptr);
+    }
+  }
+  return err;
+}
+
+
 /*
   Generate the partition syntax from the partition data structure.
   Useful for support of generating defaults, SHOW CREATE TABLES
@@ -2490,7 +2544,8 @@ char *generate_partition_syntax(partition_info *part_info,
                                 bool use_sql_alloc,
                                 bool show_partition_options,
                                 HA_CREATE_INFO *create_info,
-                                Alter_info *alter_info)
+                                Alter_info *alter_info,
+                                const char *current_comment_start)
 {
   uint i,j, tot_num_parts, num_subparts;
   partition_element *part_elem;
@@ -2524,7 +2579,8 @@ char *generate_partition_syntax(partition_info *part_info,
         err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
       if (part_info->list_of_part_fields)
       {
-        err+= add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
+        err+= add_key_with_algorithm(fptr, part_info,
+                                     current_comment_start);
         err+= add_part_field_list(fptr, part_info->part_field_list);
       }
       else
@@ -2564,8 +2620,9 @@ char *generate_partition_syntax(partition_info *part_info,
       err+= add_string(fptr, partition_keywords[PKW_LINEAR].str);
     if (part_info->list_of_subpart_fields)
     {
-      add_part_key_word(fptr, partition_keywords[PKW_KEY].str);
-      add_part_field_list(fptr, part_info->subpart_field_list);
+      err+= add_key_with_algorithm(fptr, part_info,
+                                   current_comment_start);
+      err+= add_part_field_list(fptr, part_info->subpart_field_list);
     }
     else
       err+= add_part_key_word(fptr, partition_keywords[PKW_HASH].str);
@@ -4011,20 +4068,26 @@ err:
 void prune_partition_set(const TABLE *table, part_id_range *part_spec)
 {
   int last_partition= -1;
-  uint i;
+  uint i= part_spec->start_part;
   partition_info *part_info= table->part_info;
-
   DBUG_ENTER("prune_partition_set");
-  for (i= part_spec->start_part; i <= part_spec->end_part; i++)
+
+  if (i)
+    i= bitmap_get_next_set(&part_info->read_partitions, i - 1);
+  else
+    i= bitmap_get_first_set(&part_info->read_partitions);
+
+  part_spec->start_part= i;
+
+  for (;
+       i <= part_spec->end_part;
+       i= bitmap_get_next_set(&part_info->read_partitions, i))
   {
-    if (bitmap_is_set(&(part_info->read_partitions), i))
-    {
-      DBUG_PRINT("info", ("Partition %d is set", i));
-      if (last_partition == -1)
-        /* First partition found in set and pruned bitmap */
-        part_spec->start_part= i;
-      last_partition= i;
-    }
+    DBUG_PRINT("info", ("Partition %d is set", i));
+    if (last_partition == -1)
+      /* First partition found in set and pruned bitmap */
+      part_spec->start_part= i;
+    last_partition= i;
   }
   if (last_partition == -1)
     /* No partition found in pruned bitmap */
@@ -5682,13 +5745,26 @@ the generated partition syntax in a correct manner.
         Need to cater for engine types that can handle partition without
         using the partition handler.
       */
-      if (thd->work_part_info != tab_part_info)
+      if (part_info != tab_part_info)
       {
-        DBUG_PRINT("info", ("partition changed"));
-        *partition_changed= TRUE;
-        if (thd->work_part_info->fix_parser_data(thd))
+        if (part_info->fix_parser_data(thd))
         {
           goto err;
+        }
+        /*
+          Compare the old and new part_info. If only key_algorithm
+          change is done, don't consider it as changed partitioning (to avoid
+          rebuild). This is to handle KEY (numeric_cols) partitioned tables
+          created in 5.1. For more info, see bug#14521864.
+        */
+        if (alter_info->flags != Alter_info::ALTER_PARTITION ||
+            !table->part_info ||
+            alter_info->requested_algorithm !=
+              Alter_info::ALTER_TABLE_ALGORITHM_INPLACE ||
+            !table->part_info->has_same_partitioning(part_info))
+        {
+          DBUG_PRINT("info", ("partition changed"));
+          *partition_changed= true;
         }
       }
       /*

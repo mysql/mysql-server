@@ -1267,7 +1267,8 @@ row_sel_try_search_shortcut(
 			ret = SEL_RETRY;
 			goto func_exit;
 		}
-	} else if (!lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+	} else if (!srv_read_only_mode
+		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1710,8 +1711,10 @@ skip_lock:
 
 				rec = old_vers;
 			}
-		} else if (!lock_sec_rec_cons_read_sees(rec,
-							node->read_view)) {
+		} else if (!srv_read_only_mode
+			   && !lock_sec_rec_cons_read_sees(
+				   rec, node->read_view)) {
+
 			cons_read_requires_clust_rec = TRUE;
 		}
 	}
@@ -4009,7 +4012,8 @@ release_search_latch_if_needed:
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
-	      || trx->read_view);
+	      || trx->read_view
+	      || srv_read_only_mode);
 
 	trx_start_if_not_started(trx);
 
@@ -4046,9 +4050,9 @@ release_search_latch_if_needed:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
-		if (UNIV_UNLIKELY
-		    (trx->read_view == NULL
-		     && prebuilt->select_lock_type == LOCK_NONE)) {
+		if (trx->read_view == NULL
+		    && !srv_read_only_mode
+		    && prebuilt->select_lock_type == LOCK_NONE) {
 
 			fputs("InnoDB: Error: MySQL is trying to"
 			      " perform a consistent read\n"
@@ -4062,7 +4066,10 @@ release_search_latch_if_needed:
 		/* This is a consistent read */
 		/* Assign a read view for the query */
 
-		trx_assign_read_view(trx);
+		if (!srv_read_only_mode) {
+			trx_assign_read_view(trx);
+		}
+
 		prebuilt->sql_stat_start = FALSE;
 	} else {
 wait_table_again:
@@ -4577,7 +4584,8 @@ no_gap_lock:
 
 			ut_ad(!dict_index_is_clust(index));
 
-			if (!lock_sec_rec_cons_read_sees(
+			if (!srv_read_only_mode
+			    && !lock_sec_rec_cons_read_sees(
 				    rec, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
@@ -5186,7 +5194,8 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && !trx->read_view
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
@@ -5327,7 +5336,7 @@ row_search_max_autoinc(
 		btr_pcur_open_at_index_side(
 			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
 			const rec_t*	rec;
 
 			rec = row_search_autoinc_get_rec(&pcur, &mtr);

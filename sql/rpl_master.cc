@@ -568,7 +568,7 @@ static ulonglong get_heartbeat_period(THD * thd)
     the dump thread.
 */
 static int send_heartbeat_event(NET* net, String* packet,
-                                const struct event_coordinates *coord,
+                                const struct rpl_event_coordinates *coord,
                                 uint8 checksum_alg_arg)
 {
   DBUG_ENTER("send_heartbeat_event");
@@ -636,7 +636,7 @@ static int send_heartbeat_event(NET* net, String* packet,
    @retval          -1                  error
 */
 static int send_last_skip_group_heartbeat(THD *thd, NET* net, String *packet,
-                                          const struct event_coordinates *last_skip_coord,
+                                          const struct rpl_event_coordinates *last_skip_coord,
                                           ulong *ev_offset,
                                           uint8 checksum_alg_arg, const char **errmsg)
 {
@@ -741,8 +741,8 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
 
-  general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
-                    packet + 10, (long) pos);
+  query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
+                                 packet + 10, (long) pos);
   mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
@@ -794,8 +794,9 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
-  general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
-                    name, pos, gtid_string);
+  query_logger.general_log_print(thd, thd->get_command(),
+                                 "Log: '%s' Pos: %llu GTIDs: '%s'",
+                                 name, pos, gtid_string);
   my_free(gtid_string);
   mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed);
 
@@ -842,7 +843,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   NET* net = &thd->net;
   mysql_mutex_t *log_lock;
   mysql_cond_t *log_cond;
-  bool binlog_can_be_corrupted= FALSE;
   uint8 current_checksum_alg= BINLOG_CHECKSUM_ALG_UNDEF;
   Format_description_log_event fdle(BINLOG_VERSION), *p_fdle= &fdle;
 
@@ -895,7 +895,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     set_timespec_nsec(*heartbeat_ts, 0);
   }
   if (log_warnings > 1)
-    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%d), pos(%s, %lu)",
+    sql_print_information("Start binlog_dump to master_thread_id(%lu) slave_server(%u), pos(%s, %lu)",
                         thd->thread_id, thd->server_id, log_ident, (ulong)pos);
   if (RUN_HOOK(binlog_transmit, transmit_start, (thd, 0/*flags*/, log_ident, pos)))
   {
@@ -1076,8 +1076,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                             "slaves that cannot process them");
           GOTO_ERR;
         }
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
         /*
           mark that this event with "log_pos=0", so the slave
@@ -1141,8 +1139,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg))
       GOTO_ERR;
 
+    bool is_active_binlog= false;
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
-                                              current_checksum_alg)))
+                                              current_checksum_alg,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
       DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
@@ -1195,8 +1196,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                             "slaves that cannot process them");
           GOTO_ERR;
         }
-        binlog_can_be_corrupted= test((*packet)[FLAGS_OFFSET+ev_offset] &
-                                      LOG_EVENT_BINLOG_IN_USE_F);
         (*packet)[FLAGS_OFFSET+ev_offset] &= ~LOG_EVENT_BINLOG_IN_USE_F;
         /*
           Fixes the information on the checksum algorithm when a new
@@ -1249,8 +1248,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         break;
 
       case STOP_EVENT:
-        binlog_can_be_corrupted= false;
-        /* FALLTHROUGH */
       case INCIDENT_EVENT:
         skip_group= searching_first_gtid;
         break;
@@ -1290,28 +1287,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       DBUG_PRINT("info", ("EVENT_TYPE %d SEARCHING %d SKIP_GROUP %d file %s pos %lld\n",
                  event_type, searching_first_gtid, skip_group, log_file_name,
                  my_b_tell(&log)));
-
-      /*
-        Introduced this code to make the gcc 4.6.1 compiler happy. When
-        warnings are converted to errors, the compiler complains about
-        the fact that binlog_can_be_corrupted is defined but never used.
-
-        We need to check if this is a dead code or if someone removed any
-        code by mistake.
-
-        /Alfranio
-      */
-      if (binlog_can_be_corrupted)
-      {
-        /*
-           Don't try to print out warning messages because this generates
-           erroneous messages in the error log and causes performance
-           problems.
-
-           /Alfranio
-        */
-      }
-
       pos = my_b_tell(&log);
       if (RUN_HOOK(binlog_transmit, before_send_event,
                    (thd, 0/*flags*/, packet, log_file_name, pos)))
@@ -1393,6 +1368,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         GOTO_ERR;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1403,7 +1385,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       GOTO_ERR;
 
-    if (mysql_bin_log.is_active(log_file_name) && !goto_next_binlog)
+    if (!is_active_binlog)
+      goto_next_binlog= true;
+
+    if (!goto_next_binlog)
     {
       /*
         Block until there is more data in the log
@@ -1600,8 +1585,6 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
             break;
 
           case STOP_EVENT:
-            binlog_can_be_corrupted= false;
-            /* FALLTHROUGH */
           case INCIDENT_EVENT:
             skip_group= searching_first_gtid;
             break;
@@ -1698,14 +1681,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         log.error=0;
       }
     }
-    else
-      goto_next_binlog= true;
 
     if (goto_next_binlog)
     {
-      // need this to break out of the for loop from switch
-      bool loop_breaker = 0;
-
       // clear flag because we open a new binlog
       binlog_has_previous_gtids_log_event= false;
 
@@ -1713,20 +1691,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
         break;
-      case LOG_INFO_EOF:
-        if (mysql_bin_log.is_active(log_file_name))
-        {
-          loop_breaker= 0;
-          break;
-        }
       default:
         errmsg = "could not find next log";
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
         GOTO_ERR;
       }
-
-      if (loop_breaker)
-        break;
 
       end_io_cache(&log);
       mysql_file_close(file, MYF(MY_WME));

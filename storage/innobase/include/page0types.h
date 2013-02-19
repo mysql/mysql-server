@@ -43,9 +43,7 @@ typedef	byte		page_t;
 struct page_cur_t;
 
 /** Compressed index page */
-typedef byte				page_zip_t;
-/** Compressed page descriptor */
-struct page_zip_des_t;
+typedef byte		page_zip_t;
 
 /* The following definitions would better belong to page0zip.h,
 but we cannot include page0zip.h from rem0rec.ic, because
