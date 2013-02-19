@@ -174,12 +174,15 @@ function encodeRowBuffer(op) {
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
-    if(value !== null) {
+    if(value === null) {
+      record.setNull(i, op.buffers.row);
+    }
+    else if(typeof value !== 'undefined') {
+      record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
       encoder.write(col[i], value, op.buffers.row, offset);
-      record.setNotNull(i, op.buffers.row);
     }
   }
 }
