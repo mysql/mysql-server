@@ -38,7 +38,7 @@ extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
 extern LOADER_FUNCTION DBOperationHelper_initOnLoad;
 extern LOADER_FUNCTION udebug_initOnLoad;
-
+extern LOADER_FUNCTION AsyncNdbContext_initOnLoad;
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
@@ -51,6 +51,7 @@ void init_impl(Handle<Object> target) {
   DBSessionImpl_initOnLoad(target);
   DBDictionaryImpl_initOnLoad(target);
   DBOperationHelper_initOnLoad(target);
+  AsyncNdbContext_initOnLoad(target);
 }
 
 

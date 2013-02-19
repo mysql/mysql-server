@@ -29,11 +29,16 @@
 */
 #define MAX_CONCURRENCY 1024
 
+#ifdef FORCE_UV_LEGACY_COMPAT
+#define RUN_THREAD_RETURN void *
+#else
+#define RUN_THREAD_RETURN void
+#endif
 
 extern "C" {
-  void run_ndb_listener_thread(void *);
   void ioCompleted(uv_async_t *, int);
   void ndbTxCompleted(int, NdbTransaction *, void *);
+  RUN_THREAD_RETURN run_ndb_listener_thread(void *);
 }
 
 
@@ -50,7 +55,7 @@ public:
                     v8::Local<v8::Value> execCompleteCallback);
 
   /* Friend functions have C linkage but call the protected methods */
-  friend void ::run_ndb_listener_thread(void *);
+  friend RUN_THREAD_RETURN ::run_ndb_listener_thread(void *);
   friend void ::ioCompleted(uv_async_t *, int);
   
 protected:

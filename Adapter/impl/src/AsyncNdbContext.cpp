@@ -31,9 +31,12 @@
 
 /* Thread starter, for pthread_create()
 */
-void run_ndb_listener_thread(void *v) {
+RUN_THREAD_RETURN run_ndb_listener_thread(void *v) {
   AsyncNdbContext * ctx = (AsyncNdbContext *) v;
   ctx->runListenerThread();
+#ifdef FORCE_UV_LEGACY_COMPAT 
+  return NULL;
+#endif
 }
 
 /* ioCompleted will run in the JavaScript main thread.
@@ -59,6 +62,22 @@ void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
   tx->getNdb()->setCustomData(mcallptr);  
 }
 
+/* Launch the JavaScript callback for an individual execute call.
+   Runs in the main thread.
+*/
+void main_thd_complete(AsyncCall *m) {
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+
+  m->doAsyncCallback(v8::Context::GetCurrent()->Global());
+
+  /* exceptions */
+  if(try_catch.HasCaught()) {
+    try_catch.ReThrow();
+  }
+}
+
 
 /* ====== Class AsyncNdbContext ====== */
 
@@ -69,18 +88,18 @@ AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn)
   /* Create the multi-wait group */
   waitgroup = conn->create_ndb_wait_group(MAX_CONCURRENCY);
 
-  /* Store some context in the uv_async_t */
-  async_handle.data = (void *) this;
-
   /* Register the completion function */
   uv_async_init(uv_default_loop(), & async_handle, ioCompleted);
+  
+  /* Store some context in the uv_async_t */
+  async_handle.data = (void *) this;
 }
 
 
 /* Start the listener thread.
    This is separated from the constructor so that the constructor can be 
-   wrapped by a synchronous JavaScript call, and then startListenerThread() is
-   wrapped by an async JavaScript call.
+   wrapped by a synchronous JavaScript call, but then startListenerThread() is
+   wrapped by an async call.
 */
 void AsyncNdbContext::startListenerThread() {
   uv_thread_create(& listener_thread_id, run_ndb_listener_thread, (void *) this);
@@ -105,7 +124,7 @@ void * AsyncNdbContext::runListenerThread() {
       ndb = currentNode->item;
       waitgroup->addNdb(ndb);
       n_added++;
-      delete currentNode;
+      delete currentNode;   // Frees the ListNode from executeAsynch() 
     }
 
     /* What's the minimum number of ready Ndb's to wake up for? */
@@ -168,20 +187,6 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
 }
 
 
-void main_thd_complete(AsyncCall *m) {
-  v8::HandleScope scope;
-  v8::TryCatch try_catch;
-  try_catch.SetVerbose(true);
-
-  m->doAsyncCallback(v8::Context::GetCurrent()->Global());
-
-  /* exceptions */
-  if(try_catch.HasCaught()) {
-    try_catch.ReThrow();
-  }
-}
-
-
 /* This runs in the JavaScript main thread, at most once per uv_async_send().
    It dispatches JavaScript callbacks for completed operations.
 */
@@ -200,7 +205,7 @@ void AsyncNdbContext::completeCallbacks() {
     main_thd_complete(mcallptr);
     completedNdbs = currentNode->next;
 
-    delete mcallptr;
-    delete currentNode;
+    delete mcallptr;     // Frees the AsyncAsyncCall from executeAsynch() 
+    delete currentNode;  // Frees the ListNode runListenerThread()
   }
 }
