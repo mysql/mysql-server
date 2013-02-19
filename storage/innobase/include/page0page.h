@@ -29,12 +29,15 @@ Created 2/2/1994 Heikki Tuuri
 #include "univ.i"
 
 #include "page0types.h"
+#ifndef UNIV_INNOCHECKSUM
 #include "fil0fil.h"
 #include "buf0buf.h"
 #include "data0data.h"
 #include "dict0dict.h"
 #include "rem0rec.h"
+#endif /* !UNIV_INNOCHECKSUM*/
 #include "fsp0fsp.h"
+#ifndef UNIV_INNOCHECKSUM
 #include "mtr0mtr.h"
 
 #ifdef UNIV_MATERIALIZE
@@ -48,6 +51,7 @@ Created 2/2/1994 Heikki Tuuri
 Index page header starts at the first offset left free by the FIL-module */
 
 typedef	byte		page_header_t;
+#endif /* !UNIV_INNOCHECKSUM */
 
 #define	PAGE_HEADER	FSEG_PAGE_DATA	/* index page header starts at this
 				offset */
@@ -78,6 +82,9 @@ typedef	byte		page_header_t;
 #define	PAGE_INDEX_ID	 28	/* index id where the page belongs.
 				This field should not be written to after
 				page creation. */
+
+#ifndef UNIV_INNOCHECKSUM
+
 #define PAGE_BTR_SEG_LEAF 36	/* file segment header for the leaf pages in
 				a B-tree: defined only on the root page of a
 				B-tree, but not in the root of an ibuf tree */
@@ -204,6 +211,8 @@ page_update_max_trx_id(
 				uncompressed part will be updated, or NULL */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+
+#endif /* !UNIV_INNOCHECKSUM */
 /*************************************************************//**
 Reads the given header field. */
 UNIV_INLINE
@@ -212,6 +221,8 @@ page_header_get_field(
 /*==================*/
 	const page_t*	page,	/*!< in: page */
 	ulint		field);	/*!< in: PAGE_N_DIR_SLOTS, ... */
+
+#ifndef UNIV_INNOCHECKSUM
 /*************************************************************//**
 Sets the given header field. */
 UNIV_INLINE
@@ -1107,6 +1118,7 @@ page_find_rec_with_heap_no(
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL
 #endif
 
+#endif /* !UNIV_INNOCHECKSUM */
 #ifndef UNIV_NONINL
 #include "page0page.ic"
 #endif

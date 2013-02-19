@@ -34,9 +34,9 @@ Created 12/18/1995 Heikki Tuuri
 #include "fut0lst.h"
 #include "ut0byte.h"
 #include "page0types.h"
-#include "fsp0types.h"
 
 #endif /* !UNIV_INNOCHECKSUM */
+#include "fsp0types.h"
 
 /* @defgroup fsp_flags InnoDB Tablespace Flag Constants @{ */
 

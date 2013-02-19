@@ -31,6 +31,7 @@ Created June 2005 by Marko Makela
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
+#ifndef UNIV_INNOCHECKSUM
 #include "page0page.h"
 #include "mtr0log.h"
 #include "dict0dict.h"
@@ -4769,6 +4770,7 @@ corrupt:
 	return(ptr + 8 + size + trailer_size);
 }
 
+#endif /* !UNIV_INNOCHECKSUM */
 /**********************************************************************//**
 Calculate the compressed page checksum.
 @return	page checksum */
@@ -4838,21 +4840,70 @@ page_zip_verify_checksum(
 	ib_uint32_t	crc32 = 0 /* silence bogus warning */;
 	ib_uint32_t	innodb = 0 /* silence bogus warning */;
 
+	my_bool		verbose = 0;
+	ulint		page_no = 0;
+	my_bool		strict_check = 0; /* enable for strict_check for innochecksum tool*/
+
+#ifdef UNIV_INNOCHECKSUM
+	extern my_bool	debug;
+	extern ulint	ct;
+	extern my_bool	strict_verify;
+	verbose = debug;
+	page_no = ct;
+	strict_check = strict_verify;
+#endif
+
 	stored = mach_read_from_4(
 		(const unsigned char*) data + FIL_PAGE_SPACE_OR_CHKSUM);
 
 	/* declare empty pages non-corrupted */
 	if (stored == 0) {
 		/* make sure that the page is really empty */
+#ifdef UNIV_INNOCHECKSUM
+		ulint i;
+		for (i = 0; i < size; i++) {
+			if (*((const char*) data + i) != 0)
+				break;
+		}
+		if (i >= size) {
+			if (verbose)
+				DBUG_PRINT("info", ("Page::%lu is empty and "
+					   "uncorrupted",page_no));
+			return(TRUE);
+		}
+#else
 		ut_d(ulint i; for (i = 0; i < size; i++) {
 		     ut_a(*((const char*) data + i) == 0); });
 
 		return(TRUE);
+#endif
 	}
 
 	calc = page_zip_calc_checksum(
 		data, size, static_cast<srv_checksum_algorithm_t>(
 			srv_checksum_algorithm));
+
+	if (verbose) {
+		DBUG_PRINT("info", ("page::%lu; %s checksum: calculated = %u; "
+			   "recorded = %u",page_no,
+			   buf_checksum_algorithm_name(
+				static_cast<srv_checksum_algorithm_t>(
+					srv_checksum_algorithm)),
+			   calc,stored));
+
+		if (!strict_check) {
+
+			crc32 = page_zip_calc_checksum(
+				data,size, SRV_CHECKSUM_ALGORITHM_CRC32);
+			DBUG_PRINT("info", ("page::%lu: crc32 checksum: "
+				   "calculated = %u; recorded = %u",
+				   page_no, crc32, stored));
+			DBUG_PRINT("info", ("page::%lu: none checksum: "
+				   "calculated = %lu; recorded = %u",
+				   page_no, BUF_NO_CHECKSUM_MAGIC, stored));
+		}
+
+	}
 
 	if (stored == calc) {
 		return(TRUE);
