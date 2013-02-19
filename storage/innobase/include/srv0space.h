@@ -42,6 +42,17 @@ class Tablespace {
 		SRV_OLD_RAW		/*!< An initialized raw partition */
 	};
 
+	enum file_status_t {
+		FILE_STATUS_VOID = 0,			/* File status
+							not set */
+		FILE_STATUS_RW_PERMISSION_ERROR,	/* rw-permission
+							error */
+		FILE_STATUS_READ_WRITE_ERROR,		/* file is not
+							readable/writable */
+		FILE_STATUS_NOT_REGULAR_FILE_ERROR	/* file is not
+							a regular file */
+	};
+
 	/** Data file control information. */
 	struct file_t {
 
@@ -428,8 +439,11 @@ private:
 	/**
 	Check if a file can be opened in the correct mode.
 	@param file - file control information
+	@param reason_if_failed	- exact reason if file_status check failed.
 	@return DB_SUCCESS or error code. */
-	static dberr_t check_file_status(const file_t& file);
+	static dberr_t check_file_status(
+		const file_t& 	file,
+		file_status_t& 	reason_if_failed);
 
 	/**
 	Set the size of the file.
