@@ -1902,7 +1902,9 @@ dict_create_add_foreigns_to_dictionary(
 
 	trx->op_info = "committing foreign key definitions";
 
-	trx_commit(trx);
+	if (trx->state != TRX_STATE_NOT_STARTED) {
+		trx_commit(trx);
+	}
 
 	trx->op_info = "";
 

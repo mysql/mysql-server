@@ -429,6 +429,7 @@ row_table_add_foreign_constraints(
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
+	bool		is_temp_table,	/*!< in: true if temp-table */
 	ibool		reject_fks)	/*!< in: if TRUE, fail with error
 					code DB_CANNOT_ADD_CONSTRAINT if
 					any foreign keys are found. */

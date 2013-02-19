@@ -2393,7 +2393,9 @@ row_create_index_for_mysql(
 	table = dict_table_open_on_name(table_name, TRUE, TRUE,
 					DICT_ERR_IGNORE_NONE);
 
-	trx_start_if_not_started_xa(trx);
+	if (!dict_table_is_temporary(table)) {
+		trx_start_if_not_started_xa(trx);
+	}
 
 	for (i = 0; i < index->n_def; i++) {
 		/* Check that prefix_len and actual length
@@ -2493,7 +2495,9 @@ error_handling:
 
 		row_drop_table_for_mysql(table_name, trx, FALSE);
 
-		trx_commit_for_mysql(trx);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_commit_for_mysql(trx);
+		}
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -2529,6 +2533,7 @@ row_table_add_foreign_constraints(
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
+	bool		is_temp_table,	/*!< in: true if temp-table */
 	ibool		reject_fks)	/*!< in: if TRUE, fail with error
 					code DB_CANNOT_ADD_CONSTRAINT if
 					any foreign keys are found. */
@@ -2543,7 +2548,9 @@ row_table_add_foreign_constraints(
 
 	trx->op_info = "adding foreign keys";
 
-	trx_start_if_not_started_xa(trx);
+	if (!is_temp_table) {
+		trx_start_if_not_started_xa(trx);
+	}
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
@@ -3484,7 +3491,11 @@ row_truncate_table_for_mysql(
 		return(DB_TABLESPACE_NOT_FOUND);
 	}
 
-	trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
+	if (!dict_table_is_temporary(table)) {
+		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
+	} else {
+		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+	}
 
 	trx->op_info = "truncating table";
 
@@ -3749,7 +3760,9 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 
-	trx_commit_for_mysql(trx);
+	if (trx->state != TRX_STATE_NOT_STARTED) {
+		trx_commit_for_mysql(trx);
+	}
 
 funct_exit:
 
@@ -3855,11 +3868,6 @@ row_drop_table_for_mysql(
 
 	trx->op_info = "dropping table";
 
-	/* This function is called recursively via fts_drop_tables(). */
-	if (trx->state == TRX_STATE_NOT_STARTED) {
-		trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
-	}
-
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
 		/* Prevent foreign key checks etc. while we are dropping the
 		table */
@@ -3897,6 +3905,15 @@ row_drop_table_for_mysql(
 		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
 		      stderr);
 		goto funct_exit;
+	}
+
+	/* This function is called recursively via fts_drop_tables(). */
+	if (trx->state == TRX_STATE_NOT_STARTED) {
+		if (!dict_table_is_temporary(table)) {
+			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
+		} else {
+			trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+		}
 	}
 
 	/* Turn on this drop bit before we could release the dictionary
@@ -4442,7 +4459,9 @@ funct_exit:
 	}
 
 	if (locked_dictionary) {
-		trx_commit_for_mysql(trx);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_commit_for_mysql(trx);
+		}
 
 		row_mysql_unlock_data_dictionary(trx);
 	}
