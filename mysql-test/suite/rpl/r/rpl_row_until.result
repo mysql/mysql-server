@@ -51,6 +51,8 @@ ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UN
 START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=MASTER_LOG_POS;
 ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UNTIL
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
+include/stop_slave.inc
+RESET SLAVE;
 include/start_slave.inc
 include/rpl_reset.inc
 CREATE TABLE t1 (a INT);
