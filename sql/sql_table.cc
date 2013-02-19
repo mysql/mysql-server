@@ -3975,6 +3975,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
+              /*
+               If SQL_MODE is STRICT, then report error, else report warning
+               and continue execution.
+              */
+              if (thd->is_error())
+                DBUG_RETURN(true);
 	    }
 	    else
 	    {
@@ -4022,6 +4028,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
+          /*
+            If SQL_MODE is STRICT, then report error, else report warning
+            and continue execution.
+          */
+          if (thd->is_error())
+            DBUG_RETURN(true);
 	}
 	else
 	{
