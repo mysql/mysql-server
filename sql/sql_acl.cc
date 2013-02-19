@@ -7851,6 +7851,11 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   bool save_binlog_row_based;
   DBUG_ENTER("mysql_user_password_expire");
 
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(true);
+  }
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
