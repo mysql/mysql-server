@@ -25,28 +25,28 @@ INSERT INTO t_wl6455 VALUES(2, POINT(2,2));
 
 # Insert MultiPoint.
 SET @mp = 'MULTIPOINT(0 0, 20 20, 60 60)';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mp));
+INSERT INTO t_wl6455 VALUES(3, GeomFromText(@mp));
 
 # Insert LineString.
-INSERT INTO t_wl6455 VALUES(3, LINESTRING(POINT(1,1), POINT(4, 4)));
+INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(1,1), POINT(4, 4)));
 
-INSERT INTO t_wl6455 VALUES(4, LINESTRING(POINT(2,2), POINT(5, 5)));
+INSERT INTO t_wl6455 VALUES(5, LINESTRING(POINT(2,2), POINT(5, 5)));
 
 # Insert MultiLineString.
 SET @mls = 'MultiLineString((1 1,2 2,3 3),(4 4,5 5))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mls));
+INSERT INTO t_wl6455 VALUES(6, GeomFromText(@mls));
 
 # Insert Polygon.
 SET @poly = 'Polygon((0 0,0 3,3 0,0 0),(1 1,1 2,2 1,1 1))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@poly));
+INSERT INTO t_wl6455 VALUES(7, GeomFromText(@poly));
 
 # Insert MultiPolygon.
 SET @mpoly = 'MultiPolygon(((0 0,0 3,3 3,3 0,0 0),(1 1,1 2,2 2,2 1,1 1)))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@mpoly));
+INSERT INTO t_wl6455 VALUES(8, GeomFromText(@mpoly));
 
 # Insert GeometryCollection.
 SET @gc = 'GeometryCollection(Point(1 1),LineString(2 2, 3 3))';
-INSERT INTO t_wl6455 VALUES(5, GeomFromText(@gc));
+INSERT INTO t_wl6455 VALUES(9, GeomFromText(@gc));
 
 # Show result.
 SELECT AsText(g) FROM t_wl6455;
@@ -57,6 +57,18 @@ CREATE INDEX i_p ON t_wl6455 (g(10));
 # Select on prefix index.
 EXPLAIN SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
+
+# Test rollback/commit
+SET AUTOCOMMIT = 0;
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+ROLLBACK;
+SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(10,10);
+
+INSERT INTO t_wl6455 VALUES(10, POINT(10,10));
+COMMIT;
+
+INSERT INTO t_wl6455 VALUES(11, POINT(11,11));
 
 # Test crash and recover.
 # Request a crash, and restart the server.
