@@ -37,16 +37,7 @@ Handle<Value> executeAsynch(const Arguments &args);
 
 /* Envelope
 */
-class AsyncNdbContextEnvelopeClass : public Envelope {
-public:
-  AsyncNdbContextEnvelopeClass() : Envelope("AsyncNdbContext") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "startListenerThread", startListenerThread);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "executeAsynch", executeAsynch);
-  }
-};
-
-AsyncNdbContextEnvelopeClass AsyncNdbContextEnvelope;
-
+Envelope AsyncNdbContextEnvelope("AsyncNdbContext");
 
 /* Constructor 
 */
@@ -103,8 +94,13 @@ Handle<Value> executeAsynch(const Arguments &args) {
   return scope.Close(JS_VOID_RETURN);
 }
 
+
 void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   HandleScope scope;
-  DEFINE_JS_FUNCTION(target, "AsyncNdbConext", createAsyncNdbContext);
+  Local<FunctionTemplate> JsAsyncNdbContext;
   
+  DEFINE_JS_CLASS(JsAsyncNdbContext, "AsyncNdbContext", createAsyncNdbContext);
+  DEFINE_JS_METHOD(JsAsyncNdbContext, "startListenerThread", startListenerThread);
+  DEFINE_JS_METHOD(JsAsyncNdbContext, "executeAsynch", executeAsynch);
+  DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);
 }

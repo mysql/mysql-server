@@ -45,7 +45,7 @@ function DBTransactionHandler(dbsession) {
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
-  this.canUseNdbAsynch    = false;
+  this.canUseNdbAsynch    = dbsession.parentPool.properties.ndb_use_async_ndbapi;
 }
 DBTransactionHandler.prototype = proto;
 
