@@ -2115,7 +2115,7 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       idx_cond->update_used_tables();
       if ((idx_cond->used_tables() & tab->table->map) == 0)
       {
-        DBUG_ASSERT(other_tbls_ok);
+        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
         DBUG_VOID_RETURN;
       }
 
