@@ -29,14 +29,14 @@
 #ifdef __linux__
 #include <sys/epoll.h>
 typedef struct epoll_event native_event;
-#endif
-#if defined (__FreeBSD__) || defined (__APPLE__)
+#elif defined(HAVE_KQUEUE)
 #include <sys/event.h>
 typedef struct kevent native_event;
-#endif
-#if defined (__sun)
+#elif defined (__sun)
 #include <port.h>
 typedef port_event_t native_event;
+#else
+#error threadpool is not available on this platform
 #endif
 
 /** Maximum number of native events a listener can read in one go */
@@ -285,7 +285,7 @@ static void *native_event_get_userdata(native_event *event)
   return event->data.ptr;
 }
 
-#elif defined (__FreeBSD__) || defined (__APPLE__)
+#elif defined(HAVE_KQUEUE)
 int io_poll_create()
 {
   return kqueue();
@@ -386,8 +386,6 @@ static void* native_event_get_userdata(native_event *event)
 {
   return event->portev_user;
 }
-#else
-#error not ported yet to this OS
 #endif
 
 
