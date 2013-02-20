@@ -2894,12 +2894,31 @@ mem_free_and_error:
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		goto mem_free_and_error;
+	}
+
+	if (innobase_mirrored_log_groups == 1) {
+		sql_print_warning(
+			"innodb_mirrored_log_groups is an unimplemented "
+			"feature and the variable will be completely "
+			"removed in a future version.");
+	}
+
+	if (innobase_mirrored_log_groups > 1) {
+		sql_print_error(
+		"innodb_mirrored_log_groups is an unimplemented feature and "
+		"the variable will be completely removed in a future version. "
+		"Using values other than 1 is not supported.");
+		goto mem_free_and_error;
+	}
+
+	if (innobase_mirrored_log_groups == 0) {
+		/* To throw a deprecation warning message when the option is
+		passed, the default was changed to '0' (as a workaround). Since
+		the only value accepted for this option is '1', reset it to 1 */
+		innobase_mirrored_log_groups = 1;
 	}
 
 	/* Validate the file format by animal name */
@@ -15866,10 +15885,12 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
+/* Note that the default and minimum values are set to 0 to
+detect if the option is passed and print deprecation message */
 static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
+  NULL, NULL, 0, 0, 10, 0);
 
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,

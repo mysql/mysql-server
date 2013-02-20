@@ -206,13 +206,14 @@ let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
 --echo "test misc 1"
 --error 1
 --exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
-let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir, or a wrong number of mirrored log groups;
+let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
 --echo "test misc 2"
 --error 1
 --exec $MYSQLD_CMD $args --innodb-mirrored-log-groups=2
+let SEARCH_PATTERN= innodb_mirrored_log_groups is an unimplemented feature and the variable will be completely removed in a future version. Using values other than 1 is not supported.;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
