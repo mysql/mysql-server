@@ -4723,7 +4723,13 @@ put_info(const char *str,INFO_TYPE info_type, uint error, const char *sqlstate)
     if (info_type == INFO_ERROR)
     {
       if (!opt_nobeep)
+      {
+#ifdef _WIN32
+        MessageBeep(MB_ICONWARNING);
+#else
         putchar('\a');		      	/* This should make a bell */
+#endif
+      }
       vidattr(A_STANDOUT);
       if (error)
       {
