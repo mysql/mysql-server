@@ -3,6 +3,7 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
 // measure the performance of insertions into multiple dictionaries using ENV->put_multiple
 // the table schema is t(a bigint, b bigint, c bigint, d bigint, primary key(a), key(b), key(c,d), clustering key(d))
 // the primary key(a) is represented with key=a and value=b,c,d
