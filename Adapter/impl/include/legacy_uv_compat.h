@@ -43,6 +43,6 @@
 #define uv_mutex_destroy(X) pthread_mutex_destroy(X) 
 
 #define uv_thread_create(A, B, C) pthread_create(A, NULL, B, C)
-#define uv_thread_join(A) pthread_join(A, NULL)
+#define uv_thread_join(A) pthread_join(* A, NULL)
 
 #endif
