@@ -4221,6 +4221,7 @@ rec_loop:
 				goto lock_wait_or_error;
 			}
 		}
+
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
 
@@ -4780,8 +4781,7 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && !prebuilt->innodb_api
-	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
