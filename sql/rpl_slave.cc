@@ -1587,8 +1587,10 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   else if (!master_row && master_res)
   {
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
-               "Unknown system variable 'SERVER_UUID' on master, "
-               "maybe it is a *VERY OLD MASTER*.");
+               "Unknown system variable 'SERVER_UUID' on master. "
+               "A probable cause is that the variable is not supported on the "
+               "master (version: %s), even though it is on the slave (version: %s)",
+               mysql->server_version, server_version);
   }
 
   if (master_res)
@@ -1616,6 +1618,9 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   char err_buff[MAX_SLAVE_ERRMSG];
   const char* errmsg= 0;
   int err_code= 0;
+  int version_number=0;
+  version_number= atoi(mysql->server_version);
+
   MYSQL_RES *master_res= 0;
   MYSQL_ROW master_row;
   DBUG_ENTER("get_master_version_and_clock");
@@ -1626,7 +1631,7 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
   */
   DBUG_EXECUTE_IF("unrecognized_master_version",
                  {
-                   *mysql->server_version= '1';
+                   version_number= 1;
                  };);
   mysql_mutex_lock(&mi->data_lock);
   mi->set_mi_description_event(NULL);
@@ -1642,20 +1647,20 @@ static int get_master_version_and_clock(MYSQL* mysql, Master_info* mi)
     /*
       Note the following switch will bug when we have MySQL branch 30 ;)
     */
-    switch (*mysql->server_version)
+    switch (version_number)
     {
-    case '0':
-    case '1':
-    case '2':
+    case 0:
+    case 1:
+    case 2:
       errmsg = "Master reported unrecognized MySQL version";
       err_code= ER_SLAVE_FATAL_ERROR;
       sprintf(err_buff, ER(err_code), errmsg);
       break;
-    case '3':
+    case 3:
       mi->set_mi_description_event(new
         Format_description_log_event(1, mysql->server_version));
       break;
-    case '4':
+    case 4:
       mi->set_mi_description_event(new
         Format_description_log_event(3, mysql->server_version));
       break;

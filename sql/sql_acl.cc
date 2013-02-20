@@ -2847,7 +2847,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       combo->plugin.str= default_auth_plugin_name.str;
       combo->plugin.length= default_auth_plugin_name.length;
-      combo->uses_identified_with_clause= false;
     }
     /* 2. Digest password if needed (plugin must have been resolved) */
     if (combo->uses_identified_by_clause)
@@ -2924,8 +2923,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #endif
     {
       /* Use the legacy Password field */
-      if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        WARN_DEPRECATED_41_PWD_HASH(thd);
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
       table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
@@ -2944,26 +2941,50 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     /* 1. resolve plugins in the LEX_USER struct if needed */
     if (!combo->uses_identified_with_clause)
     {
+      LEX_STRING old_plugin;
+
       /*
         Get old plugin value from storage.
       */
-      combo->plugin.str=
+
+      old_plugin.str=
         get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
       /* 
         It is important not to include the trailing '\0' in the string length 
         because otherwise the plugin hash search will fail.
       */
-      if (combo->plugin.str)
+      if (old_plugin.str)
       {
-        combo->plugin.length= strlen(combo->plugin.str);
+        old_plugin.length= strlen(old_plugin.str);
 
         /*
           Optimize for pointer comparision of built-in plugin name
         */
 
-        optimize_plugin_compare_by_pointer(&combo->plugin);
+        optimize_plugin_compare_by_pointer(&old_plugin);
+ 
+        /*
+          Disable plugin change for existing rows with anything but
+          the built in plugins.
+          The idea is that all built in plugins support
+          IDENTIFIED BY ... and none of the external ones currently do.
+        */
+        if ((combo->uses_identified_by_clause ||
+             combo->uses_identified_by_password_clause) &&
+            !auth_plugin_is_built_in(old_plugin.str))
+        {
+          const char *new_plugin= (combo->plugin.str && combo->plugin.str[0]) ?
+            combo->plugin.str : default_auth_plugin_name.str;
+
+          if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
+          {
+            push_warning(thd, Sql_condition::SL_WARNING, 
+              ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
+          }
+        }
       }
+      combo->plugin= old_plugin;
     }    
     
     /* No value for plugin field means default plugin is used */
@@ -3025,23 +3046,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
 #endif
       {
-        /*
-          We need to check for has validity here since later, when
-          set_user_salt() is executed it will be too late to signal
-          an error.
-        */
-        if ((combo->plugin.str == native_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
-            (combo->plugin.str == old_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
-        {
-          my_error(ER_PASSWORD_FORMAT, MYF(0));
-          error= 1;
-          goto end;
-        }
-        /* The legacy Password field is used */
-        if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          WARN_DEPRECATED_41_PWD_HASH(thd);
         table->field[MYSQL_USER_FIELD_PASSWORD]->
           store(password, password_len, system_charset_info);
         table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
@@ -3056,6 +3060,28 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       DBUG_PRINT("info", ("Proxy user exit path"));
       DBUG_RETURN(0);
     }
+  }
+
+  /* error checks on password */
+  if (password_len > 0)
+  {
+    /*
+     We need to check for hash validity here since later, when
+     set_user_salt() is executed it will be too late to signal
+     an error.
+    */
+    if ((combo->plugin.str == native_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
+        (combo->plugin.str == old_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
+    {
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      error= 1;
+      goto end;
+    }
+    /* The legacy Password field is used */
+    if (combo->plugin.str == old_password_plugin_name.str)
+      WARN_DEPRECATED_41_PWD_HASH(thd);
   }
 
   /* Update table columns with new privileges */
@@ -7825,6 +7851,11 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   bool save_binlog_row_based;
   DBUG_ENTER("mysql_user_password_expire");
 
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(true);
+  }
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION

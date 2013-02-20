@@ -1187,8 +1187,36 @@ public:
                                    const Format_description_log_event
                                    *description_event,
                                    my_bool crc_check);
+
+  /**
+    Reads an event from a binlog or relay log. Used by the dump thread
+    this method reads the event into a raw buffer without parsing it.
+
+    @Note If mutex is 0, the read will proceed without mutex.
+
+    @Note If a log name is given than the method will check if the
+    given binlog is still active.
+
+    @param[in]  file                log file to be read
+    @param[out] packet              packet to hold the event
+    @param[in]  lock                the lock to be used upon read
+    @param[in]  checksum_alg_arg    the checksum algorithm
+    @param[in]  log_file_name_arg   the log's file name
+    @param[out] is_binlog_active    is the current log still active
+
+    @retval 0                   success
+    @retval LOG_READ_EOF        end of file, nothing was read
+    @retval LOG_READ_BOGUS      malformed event
+    @retval LOG_READ_IO         io error while reading
+    @retval LOG_READ_MEM        packet memory allocation failed
+    @retval LOG_READ_TRUNC      only a partial event could be read
+    @retval LOG_READ_TOO_LARGE  event too large
+   */
   static int read_log_event(IO_CACHE* file, String* packet,
-                            mysql_mutex_t* log_lock, uint8 checksum_alg_arg);
+                            mysql_mutex_t* log_lock,
+                            uint8 checksum_alg_arg,
+                            const char *log_file_name_arg= NULL,
+                            bool* is_binlog_active= NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -1966,6 +1994,38 @@ protected:
     statement and used by slave to apply filter rules without opening
     all the tables on slave. This is required because some tables may
     not exist on slave because of the filter rules.
+    </td>
+  </tr>
+  <tr>
+    <td>master_data_written</td>
+    <td>Q_MASTER_DATA_WRITTEN_CODE == 10</td>
+    <td>4 byte bitfield</td>
+
+    <td>The value of the original length of a Query_log_event that comes from a
+    master. Master's event is relay-logged with storing the original size of
+    event in this field by the IO thread. The size is to be restored by reading
+    Q_MASTER_DATA_WRITTEN_CODE-marked event from the relay log.
+
+    This field is not written to slave's server binlog by the SQL thread.
+    This field only exists in relay logs where master has binlog_version<4 i.e.
+    server_version < 5.0 and the slave has binlog_version=4.
+    </td>
+  </tr>
+  <tr>
+    <td>m_binlog_invoker</td>
+    <td>Q_INVOKER == 11</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by characters, again followed by length in bytes (1 byte) followed
+    by characters</td>
+
+    <td>The value of boolean variable m_binlog_invoker is set TRUE if
+    CURRENT_USER() is called in account management statements. SQL thread
+    uses it as a default definer in CREATE/ALTER SP, SF, Event, TRIGGER or
+    VIEW statements.
+
+    The field Q_INVOKER has length of user stored in 1 byte followed by the
+    user string which is assigned to 'user' and the length of host stored in
+    1 byte followed by host string which is assigned to 'host'.
     </td>
   </tr>
   </table>
