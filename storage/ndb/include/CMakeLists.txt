@@ -22,7 +22,7 @@ CHECK_TYPE_SIZE(long NDB_SIZEOF_LONG)
 CHECK_TYPE_SIZE("char*" NDB_SIZEOF_CHARP)
 CHECK_TYPE_SIZE("long long" NDB_SIZEOF_LONG_LONG)
 CONFIGURE_FILE(ndb_types.h.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/ndb_types.h
+               ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
                @ONLY)
 # Exclude ndb_types.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_types\\\\.h$)
@@ -68,7 +68,7 @@ ENDIF()
 
 # Create ndb_version.h
 CONFIGURE_FILE(ndb_version.h.in
-               ${CMAKE_CURRENT_SOURCE_DIR}/ndb_version.h
+               ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h
                @ONLY)
 # Exclude ndb_version.h from "make dist"
 LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
@@ -78,8 +78,9 @@ LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 SET(NDB_GENERAL_HEADERS
     ndb_constants.h
     ndb_init.h
-    ndb_types.h
-    ndb_version.h)
+    # The below files are generated and thus found in build dir
+    ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
+    ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h)
 
 
 SET(NDB_NDBAPI_HEADERS
