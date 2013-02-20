@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -1227,17 +1227,25 @@ my_hash_sort_utf16(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   int res;
   const uchar *e= s + cs->cset->lengthsp(cs, (const char *) s, slen);
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  ulong tmp1;
+  ulong tmp2;
+
+  tmp1= *n1;
+  tmp2= *n2;
 
   while ((s < e) && (res= cs->cset->mb_wc(cs, &wc,
                                           (uchar *) s, (uchar *) e)) > 0)
   {
     my_tosort_utf16(uni_plane, &wc);
-    n1[0]^= (((n1[0] & 63) + n2[0]) * (wc & 0xFF)) + (n1[0] << 8);
-    n2[0]+= 3;
-    n1[0]^= (((n1[0] & 63) + n2[0]) * (wc >> 8)) + (n1[0] << 8);
-    n2[0]+= 3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
+    tmp2+= 3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc >> 8)) + (tmp1 << 8);
+    tmp2+= 3;
     s+= res;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
@@ -1604,12 +1612,21 @@ my_hash_sort_utf16_bin(const CHARSET_INFO *cs,
                        const uchar *pos, size_t len, ulong *nr1, ulong *nr2)
 {
   const uchar *end= pos + cs->cset->lengthsp(cs, (const char *) pos, len);
+  ulong tmp1;
+  ulong tmp2;
+
+  tmp1= *nr1;
+  tmp2= *nr2;
+
   for ( ; pos < end ; pos++)
   {
-    nr1[0]^= (ulong) ((((uint) nr1[0] & 63) + nr2[0]) * 
-              ((uint)*pos)) + (nr1[0] << 8);
-    nr2[0]+= 3;
+    tmp1^= (ulong) ((((uint) tmp1 & 63) + tmp2) *
+                    ((uint)*pos)) + (tmp1 << 8);
+    tmp2+= 3;
   }
+
+  *nr1= tmp1;
+  *nr2= tmp2;
 }
 
 
@@ -2001,14 +2018,6 @@ my_caseup_utf32(const CHARSET_INFO *cs, char *src, size_t srclen,
 }
 
 
-static inline void
-my_hash_add(ulong *n1, ulong *n2, uint ch)
-{
-  n1[0]^= (((n1[0] & 63) + n2[0]) * (ch)) + (n1[0] << 8);
-  n2[0]+= 3;
-}
-
-
 static void
 my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s, size_t slen,
                    ulong *n1, ulong *n2)
@@ -2017,20 +2026,42 @@ my_hash_sort_utf32(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   int res;
   const uchar *e= s + slen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  ulong tmp1;
+  ulong tmp2;
+  uint ch;
 
   /* Skip trailing spaces */
   while (e > s + 3 && e[-1] == ' ' && !e[-2] && !e[-3] && !e[-4])
     e-= 4;
 
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((res= my_utf32_uni(cs, &wc, (uchar*) s, (uchar*) e)) > 0)
   {
     my_tosort_utf32(uni_plane, &wc);
-    my_hash_add(n1, n2, (uint) (wc >> 24));
-    my_hash_add(n1, n2, (uint) (wc >> 16) & 0xFF);
-    my_hash_add(n1, n2, (uint) (wc >> 8)  & 0xFF);
-    my_hash_add(n1, n2, (uint) (wc & 0xFF));
+
+    ch= (wc >> 24);
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
+    ch= (wc >> 16) & 0xFF;
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
+    ch= (wc >> 8)  & 0xFF;
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
+    ch= (wc & 0xFF);
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
     s+= res;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
@@ -2982,19 +3013,27 @@ static void my_hash_sort_ucs2(const CHARSET_INFO *cs, const uchar *s,
   int res;
   const uchar *e=s+slen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  ulong tmp1;
+  ulong tmp2;
 
   while (e > s+1 && e[-1] == ' ' && e[-2] == '\0')
     e-= 2;
 
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((s < e) && (res=my_ucs2_uni(cs,&wc, (uchar *)s, (uchar*)e)) >0)
   {
     my_tosort_ucs2(uni_plane, &wc);
-    n1[0]^= (((n1[0] & 63)+n2[0])*(wc & 0xFF))+ (n1[0] << 8);
-    n2[0]+=3;
-    n1[0]^= (((n1[0] & 63)+n2[0])*(wc >> 8))+ (n1[0] << 8);
-    n2[0]+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
+    tmp2+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc >> 8)) + (tmp1 << 8);
+    tmp2+=3;
     s+=res;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
@@ -3298,18 +3337,26 @@ void my_hash_sort_ucs2_bin(const CHARSET_INFO *cs __attribute__((unused)),
 			   const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
-  
+  ulong tmp1;
+  ulong tmp2;
+
   key+= len;
 
   while (key > pos+1 && key[-1] == ' ' && key[-2] == '\0')
     key-= 2;
 
+  tmp1= *nr1;
+  tmp2= *nr2;
+
   for (; pos < (uchar*) key ; pos++)
   {
-    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
-	     ((uint)*pos)) + (nr1[0] << 8);
-    nr2[0]+=3;
+    tmp1^=(ulong) ((((uint) tmp1 & 63) + tmp2) *
+     ((uint)*pos)) + (tmp1 << 8);
+    tmp2+=3;
   }
+
+  *nr1= tmp1;
+  *nr2= tmp2;
 }
 
 

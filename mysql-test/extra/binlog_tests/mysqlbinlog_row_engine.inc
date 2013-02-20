@@ -1809,6 +1809,10 @@ INSERT INTO t3 VALUES
   ('2008-03-08','VARCHAR-03-08',38),
   ('2008-03-09','VARCHAR-03-09',39);
 
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+
 --echo #
 --echo # Multi-table update.
 --echo #
