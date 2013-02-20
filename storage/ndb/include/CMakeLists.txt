@@ -78,8 +78,9 @@ LIST(APPEND CPACK_SOURCE_IGNORE_FILES include/ndb_version\\\\.h$)
 SET(NDB_GENERAL_HEADERS
     ndb_constants.h
     ndb_init.h
-    ndb_types.h
-    ndb_version.h)
+    # The below files are generated and thus found in build dir
+    ${CMAKE_CURRENT_BINARY_DIR}/ndb_types.h
+    ${CMAKE_CURRENT_BINARY_DIR}/ndb_version.h)
 
 
 SET(NDB_NDBAPI_HEADERS
