@@ -17,7 +17,6 @@
 #--source include/not_crashrep.inc
 
 SET default_storage_engine=InnoDB;
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -405,7 +404,6 @@ SET SESSION debug="+d,crash_commit_before";
 COMMIT;
 --source include/wait_until_disconnected.inc
 --sleep 2
---remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --echo #
 --echo # Now that the engine is not running, move files around to test various scenarios.

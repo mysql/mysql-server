@@ -14,7 +14,6 @@ call mtr.add_suppression("MySQL thread id .*, query id .* localhost.*root Checki
 --source include/not_crashrep.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
 SET GLOBAL delay_key_write=ALL;
 CREATE TABLE t1(a INT, 
                 b INT, 
@@ -34,7 +33,7 @@ FLUSH TABLE t1;
 
 --echo # Write file to make mysql-test-run.pl start the server 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---remove_file $MYSQL_TMP_DIR/ibtmp1
+
 --echo # Turn on reconnect
 --enable_reconnect
 

@@ -20,7 +20,6 @@ RESET MASTER;
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let $INDEX=$MYSQLD_DATADIR/master-bin.index;
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
 #
 # testing purge binary logs TO
@@ -92,7 +91,6 @@ SET SESSION debug="+d,crash_purge_before_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000002';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -113,7 +111,6 @@ SET SESSION debug="+d,crash_purge_non_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000004';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -137,7 +134,6 @@ SET SESSION debug="+d,crash_purge_critical_after_update_index";
 --error 2013
 purge binary logs TO 'master-bin.000006';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -161,7 +157,6 @@ SET SESSION debug="+d,crash_create_non_critical_before_update_index";
 --error 2013
 flush logs;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -180,7 +175,6 @@ SET SESSION debug="+d,crash_create_critical_before_update_index";
 --error 2013
 flush logs;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -201,7 +195,6 @@ SET SESSION debug="+d,crash_create_after_update_index";
 --error 2013
 flush logs;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
@@ -307,7 +300,6 @@ SET SESSION debug="+d,crash_create_before_rename_index_file";
 --error 2013
 flush logs;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -332,7 +324,6 @@ SET SESSION debug="+d,crash_create_after_rename_index_file";
 -- error 2013
 flush logs;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -359,7 +350,6 @@ SET SESSION debug="+d,crash_create_after_rename_index_file";
 -- error 2013
 purge binary logs TO 'master-bin.000010';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -387,7 +377,6 @@ SET SESSION debug="+d,crash_create_before_rename_index_file";
 -- error 2013
 purge binary logs TO 'master-bin.000012';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server
@@ -415,7 +404,6 @@ SET SESSION debug="+d,fault_injection_copy_part_file";
 -- error 2013
 purge binary logs TO 'master-bin.000014';
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- source include/wait_until_disconnected.inc
 -- enable_reconnect
 -- echo # Restart the master server

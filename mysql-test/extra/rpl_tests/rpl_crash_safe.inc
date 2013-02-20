@@ -118,10 +118,8 @@ if ($commands != '')
   if ($failure != '')
   {
     connection slave;
-    let $MYSQL_TMP_DIR = `select @@tmpdir`;
     --error 0, 2013
     START SLAVE SQL_THREAD;
-    --remove_file $MYSQL_TMP_DIR/ibtmp1
     --source include/wait_until_disconnected.inc
     --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
     --let $rpl_server_number= 2

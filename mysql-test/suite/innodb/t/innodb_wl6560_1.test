@@ -40,7 +40,6 @@ call mtr.add_suppression("The table 't1' is full");
 
 # 4. Temp table operation -
 #    a) restart on existing datadir and see ibtmp1 removed on clean shutdown
-#    b) check temp tablesace created in 1st tmpdir if multiple specified
 #
 
 ################################################################################
@@ -70,7 +69,7 @@ CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
---list_files $MYSQL_TMP_DIR/ ibtmp1*
+--list_files $MYSQL_DATA_DIR/ ibtmp1*
 
 --echo # check no entries made INNODB_SYS_DATAFILES
 SELECT @mycount_SYS_DATAFILES=COUNT(*)  FROM information_schema.INNODB_SYS_DATAFILES;
@@ -216,7 +215,7 @@ DROP DATABASE test_db;
 USE test;
 --enable_query_log
 --echo # creation of shared temp-tablespace in MYSQL_DATA_DIR
---list_files $MYSQL_TMP_DIR/ ibtmp1*
+--list_files $MYSQL_DATA_DIR/ ibtmp1*
 
 #-----------------------------------------------------------------------------
 #
@@ -290,7 +289,7 @@ DELETE FROM t4;
 SELECT * FROM t3,t4;
 UNLOCK TABLES;
 
---list_files $MYSQL_TMP_DIR/ ibtmp1*
+--list_files $MYSQL_DATA_DIR/ ibtmp1*
 --list_files $MYSQL_DATA_DIR/test/ t4*ibd*
 DROP TABLE t1,t2,t3,t4;
 
@@ -299,7 +298,6 @@ DROP TABLE t1,t2,t3,t4;
 #
 # 4. Temp table operation -
 #    a) restart on existing datadir and see ibtmp1 removed on clean shutdown
-#    b) check temp tablesace created in 1st tmpdir if multiple specified
 #
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2;
@@ -313,7 +311,6 @@ c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 
-
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
 REPEAT('a1',50));
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
@@ -323,7 +320,6 @@ UPDATE t1 SET a = a + 5;
 DELETE FROM t1 WHERE a > 6;
 SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t1;
 
-
 INSERT INTO t2(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
 REPEAT('a1',50));
 SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
@@ -331,46 +327,19 @@ UPDATE t2 SET a = a + 5;
 DELETE FROM t2 WHERE a > 6;
 SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 
---mkdir $MYSQLTEST_VARDIR/tmp/testdir1
---mkdir $MYSQLTEST_VARDIR/tmp/testdir2
-let $platform_windows = `select convert(@@version_compile_os using latin1) IN ("Win32","Win64","Windows")`;
 #
 --echo # shutting down the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
---echo # list_file ,no files expected - temp tablespace cleared on stopping server
---list_files $MYSQL_TMP_DIR/ ibtmp1*
-
---echo # restarting the server with following arguments:
-
-# Write file to make mysql-test-run.pl start up the server again
-if ($platform_windows != 0) {
-  # write ';' instead of ':' for windows
-  --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/;$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>\$MYSQLTEST_VARDIR/tmp/testdir2
-}
-if ($platform_windows == 0) {
-  --exec echo "restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/:$MYSQLTEST_VARDIR/tmp/testdir2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
-  --echo #restart: --tmpdir=\$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>\$MYSQLTEST_VARDIR/tmp/testdir2
-}
+--echo # list_file, no files expected - temp tablespace cleared on stopping server
+--list_files $MYSQL_DATA_DIR/ ibtmp1*
+#
+--source include/wait_until_disconnected.inc
+--exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
-#
---echo # list_file ,temp tablespace goes into 1st tmpdir if mutiple tmpdir listed
---list_files $MYSQLTEST_VARDIR/tmp/testdir1/ ibtmp1*
---echo # list_file ,temp tablespace does not go into 2nd tmp dir
---list_files $MYSQLTEST_VARDIR/tmp/testdir2/ ibtmp1*
-
-#
-USE test;
-# check not temp table
-SHOW TABLES;
-SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
-UPDATE t2 SET a = a + 5;
-SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
-
 
 # check temp table after restart
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
@@ -390,7 +359,6 @@ DROP TABLE t1;
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
-# Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart:  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
