@@ -41,7 +41,9 @@
          "Adapter/impl/src/NdbTransaction_wrapper.cpp",
          "Adapter/impl/src/Ndb_wrapper.cpp",
          "Adapter/impl/src/NdbError_wrapper.cpp",
-         "Adapter/impl/src/NdbOperation_wrapper.cpp"
+         "Adapter/impl/src/NdbOperation_wrapper.cpp",
+         "Adapter/impl/src/AsyncNdbContext.cpp",
+         "Adapter/impl/src/AsyncNdbContext_wrapper.cpp",
       ],
 
       'conditions': 
