@@ -111,6 +111,8 @@ START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', MASTER_LOG_POS=561;
 --replace_result 740 MASTER_LOG_POS
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=740;
 
+--source include/stop_slave.inc
+RESET SLAVE;
 --source include/start_slave.inc
 
 ##############################################################################
