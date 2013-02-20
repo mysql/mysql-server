@@ -45,7 +45,7 @@ private:
 
 public:
   /* Constructor */
-  ListNode<T>(T *t) : item(t), signalinfo(0)
+  ListNode<T>(T *t) : next(0), item(t), signalinfo(0)
   {
     note[0] = '\0';
   };

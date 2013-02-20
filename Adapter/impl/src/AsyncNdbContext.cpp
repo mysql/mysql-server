@@ -83,10 +83,11 @@ static int SignalShutdown = 1;
 
 /* Constructor 
 */
-AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn)
+AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn) :
+  connection(conn)
 {
   /* Create the multi-wait group */
-  waitgroup = conn->create_ndb_wait_group(MAX_CONCURRENCY);
+  waitgroup = connection->create_ndb_wait_group(MAX_CONCURRENCY);
 
   /* Register the completion function */
   uv_async_init(uv_default_loop(), & async_handle, ioCompleted);
@@ -99,34 +100,51 @@ AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn)
 }
 
 
+/* Destructor 
+*/
+AsyncNdbContext::~AsyncNdbContext()
+{
+  uv_thread_join(& listener_thread_id);
+  connection->release_ndb_wait_group(waitgroup);  
+}
+
+
+/* Methods 
+*/
 void * AsyncNdbContext::runListenerThread() {
   ListNode<Ndb> * sentNdbs, * completedNdbs, * currentNode;
   Ndb * ndb;
   Ndb ** ready_list;
   int wait_timeout_millisec = 5000;
-  int n_added, min_ready, nwaiting;
+  int min_ready, nwaiting, npending = 0;
+  bool running = true;
 
-  while(1) {  // Listener thread main loop
+  while(running) {  // Listener thread main loop
   
     /* Add new Ndbs to the wait group */
-    n_added = 0;
     sentNdbs = sent_queue.consumeAll();
     while(sentNdbs != 0) {
       currentNode = sentNdbs;
       sentNdbs = sentNdbs->next;
       if(currentNode->signalinfo == SignalShutdown) {
-        delete currentNode;
-        return 0;
+        running = false;
       }
-      ndb = currentNode->item;
-      waitgroup->addNdb(ndb);
-      n_added++;
+      else {
+        waitgroup->addNdb(currentNode->item);
+        npending++;
+      }
       delete currentNode;   // Frees the ListNode from executeAsynch() 
     }
 
     /* What's the minimum number of ready Ndb's to wake up for? */
-    int n = n_added / 4;
-    min_ready = n > 0 ? n : 1;
+    if(! running) {
+      min_ready = npending;  // Wait one final time for all outstanding Ndbs
+      wait_timeout_millisec = 500;
+    }
+    else {
+      int n = npending / 4;
+      min_ready = n > 0 ? n : 1;
+    }
     
     /* Wait until something is ready to poll */
     nwaiting = waitgroup->wait(ready_list, wait_timeout_millisec, min_ready);
@@ -135,6 +153,8 @@ void * AsyncNdbContext::runListenerThread() {
     if(nwaiting > 0) {
       /* Poll the ones that are ready */
       for(int i = 0 ; i < nwaiting ; i++) {
+        npending--;
+        assert(npending >= 0);
         ndb = ready_list[i];
         ndb->pollNdb(0, 1);
         currentNode = new ListNode<Ndb>(ndb);
@@ -149,6 +169,8 @@ void * AsyncNdbContext::runListenerThread() {
       uv_async_send(& async_handle);
     }
   } // Listener thread main loop
+
+  return 0;
 }
 
 
@@ -217,5 +239,4 @@ void AsyncNdbContext::completeCallbacks() {
     delete currentNode;  // Frees the ListNode runListenerThread()
   }
 }
-
 
