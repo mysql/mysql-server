@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -688,23 +688,32 @@ void my_hash_sort_latin1_de(const CHARSET_INFO *cs __attribute__((unused)),
 			    ulong *nr1, ulong *nr2)
 {
   const uchar *end;
+  ulong tmp1;
+  ulong tmp2;
+
   /*
     Remove end space. We have to do this to be able to compare
     'AE' and 'Ä' as identical
   */
   end= skip_trailing_space(key, len);
 
+  tmp1= *nr1;
+  tmp2= *nr2;
+
   for (; key < end ; key++)
   {
     uint X= (uint) combo1map[(uint) *key];
-    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * X) + (nr1[0] << 8);
-    nr2[0]+=3;
+    tmp1^=(ulong) ((((uint) tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+    tmp2+=3;
     if ((X= combo2map[*key]))
     {
-      nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * X) + (nr1[0] << 8);
-      nr2[0]+=3;
+      tmp1^=(ulong) ((((uint) tmp1 & 63) + tmp2) * X) + (tmp1 << 8);
+      tmp2+=3;
     }
   }
+
+  *nr1= tmp1;
+  *nr2= tmp2;
 }
 
 
