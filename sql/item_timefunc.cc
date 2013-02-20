@@ -90,6 +90,10 @@ adjust_time_range_with_warn(MYSQL_TIME *ltime, uint8 decimals)
     If the 'seconds' argument is inside MYSQL_TIME data range, convert it to a
     corresponding value.
     Otherwise, truncate the resulting value to the nearest endpoint.
+    Note: Truncation in this context means setting the result to the MAX/MIN
+          value of TIME type if value is outside the allowed range.
+          If the number of decimals exceeds what is supported, the value
+          is rounded to the supported number of decimals.
 
   RETURN
     1                if the value was truncated during conversion
@@ -119,7 +123,7 @@ static bool sec_to_time(lldiv_t seconds, MYSQL_TIME *ltime)
   uint sec= (uint) (seconds.quot % 3600);
   ltime->minute= sec / 60;
   ltime->second= sec % 60;
-  ltime->second_part= (uint) (seconds.rem / 1000);
+  time_add_nanoseconds_with_round(ltime, seconds.rem, &warning);
   
   adjust_time_range(ltime, &warning);
 
