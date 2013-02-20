@@ -40,6 +40,7 @@ function Driver() {
   this.result.listener = new harness.Listener();
   this.suites = [];
   this.fileToRun = "";
+  this.testInFile = null;
   this.suitesToRun = "";
   this.skipSmokeTest = false;
   this.skipClearSmokeTest = false;
@@ -54,6 +55,7 @@ Driver.prototype.findSuites = function(directory) {
     suite = new harness.Suite(suitename, pathname);
     if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
     if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
+    if(this.testInFile)         { suite.testInFile = this.testInFile; }
     this.suites.push(suite);
   }
   else { 
@@ -128,6 +130,7 @@ var usageMessage =
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
+  "         --test=<n>: only run test # n in file; use with --file\n " +
   "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
   "     --timeout=<ms>: set timeout (in msec); set to 0 to disable timeout.\n" +
   "--set <var>=<value>: set a global variable\n" +
@@ -186,6 +189,9 @@ for(i = 2; i < process.argv.length ; i++) {
         break;
       case '--file':
         driver.fileToRun = values[1];
+        break;
+      case '--test':
+        driver.testInFile = values[1];
         break;
       case '--adapter':
         global.adapter = values[1];
