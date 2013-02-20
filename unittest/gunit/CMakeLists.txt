@@ -253,6 +253,7 @@ SET(SERVER_TESTS
   handler
   item
   item_func_now_local
+  item_timefunc
   join_tab_sort
   make_sortkey
   my_decimal
