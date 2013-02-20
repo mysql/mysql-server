@@ -119,8 +119,8 @@ exports.closeNdbSession = function(ndbPool, ndbSession) {
 
 /* Prefetch an NdbSSession and keep it on the freelist
 */
-function fetchPooledSession(ndbPool) {
-  udebug.log("fetchPooledSession");
+function prefetchSession(ndbPool) {
+  udebug.log("prefetchSession");
   var db       = ndbPool.properties.database,
       pool_min = ndbPool.properties.ndb_session_pool_min,
       ndbSession;
@@ -128,14 +128,14 @@ function fetchPooledSession(ndbPool) {
   function onFetch(err, ndbSessionImpl) {
     if(err) {
       stats.incr("ndbSession","prefetch","errors");
-      udebug.log("fetchPooledSession onFetch ERROR", err);
+      udebug.log("prefetchSession onFetch ERROR", err);
     }
     else if(ndbPool.isDisconnecting) {
        adapter.ndb.impl.DBSession.destroy(ndbSessionImpl);
     }
     else {
       stats.incr("ndbSession","prefetch","success");
-      udebug.log("fetchPooledSession adding to session pool.");
+      udebug.log("prefetchSession adding to session pool.");
       ndbSession = ndbsession.newDBSession(ndbPool, ndbSessionImpl);
       ndbPool.ndbSessionFreeList.push(ndbSession);
       /* If the pool is wanting, fetch another */
@@ -185,7 +185,7 @@ proto.connectSync = function() {
     this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
     
     /* Start filling the session pool */
-    fetchPooledSession(this);
+    prefetchSession(this);
 
   }
   else {
@@ -209,27 +209,20 @@ proto.connect = function(user_callback) {
     udebug.log("connect onGotDictionarySession");
     self.dict_sess = dsess;
     self.dictionary = self.dict_sess.impl;
-      
-    function onListenerStarted() {
-      udebug.log("connect onGotDictionarySession onListenerStarted");
-      user_callback(null, self);  // All done 
-    }
-
+    
     if(cb_err) {
       user_callback(cb_err, null);
     }
     else {
-      fetchPooledSession(self);  // Start filling the session pool
-
       if(self.properties.ndb_use_async_ndbapi) {
-        /* Start the async listener thread. */
         self.asyncNdbContext = new adapter.ndb.impl.AsyncNdbContext(self.ndbconn);
-        udebug.log("Starting listener...");
-        self.asyncNdbContext.startListenerThread(onListenerStarted);
       }
-      else {
-        user_callback(null, self);  // All done 
-      }
+
+      /* Start filling the session pool */
+      prefetchSession(self);
+
+      /* All done */
+      user_callback(null, self);
     }
   }
 

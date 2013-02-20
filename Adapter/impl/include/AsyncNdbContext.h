@@ -50,8 +50,6 @@ public:
   AsyncNdbContext(Ndb_cluster_connection *);
   
   /* Methods */
-  void startListenerThread();
-  
   int executeAsynch(NdbTransaction *,
                     int execType, int abortOption, int forceSend,
                     v8::Local<v8::Value> execCompleteCallback);

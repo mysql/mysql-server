@@ -57,22 +57,6 @@ Handle<Value> createAsyncNdbContext(const Arguments &args) {
 }
 
 
-/* startListenerThread
-   ASYNC
-*/
-Handle<Value> startListenerThread(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH(1);
-
-  typedef NativeVoidMethodCall_0_<AsyncNdbContext> NCALL;
-  NCALL * ncallptr = new NCALL(& AsyncNdbContext::startListenerThread, args);
-  ncallptr->runAsync();
-  return scope.Close(JS_VOID_RETURN);
-}
-
-
 /* executeAsynch(NdbTransaction *,
                  execType,
                  abortOption,
@@ -116,7 +100,6 @@ void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   Local<FunctionTemplate> JsAsyncNdbContext;
   
   DEFINE_JS_CLASS(JsAsyncNdbContext, "AsyncNdbContext", createAsyncNdbContext);
-  DEFINE_JS_METHOD(JsAsyncNdbContext, "startListenerThread", startListenerThread);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "executeAsynch", executeAsynch);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "shutdown", shutdown);
   DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);
