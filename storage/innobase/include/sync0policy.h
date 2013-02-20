@@ -30,80 +30,12 @@ Created 2012-08-21 Sunny Bains.
 #include "ut0rnd.h"
 #include "sync0types.h"
 
-extern ulong	srv_spin_wait_delay;
-extern ulong	srv_n_spin_wait_rounds;
-extern ulong 	srv_force_recovery_crash;
-
-/** Default mutex policy. Should be as simple as possible so that
-it doesn't occupy any space. No vptrs etc. */
-template <typename Mutex>
-struct DefaultPolicy {
-
-	DefaultPolicy(bool track=false) { }
-
-	/** Poll waiting for mutex to be unlocked.
-	@return value of lock word before locking. */
-	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
-	{
-		lock_word_t	lock;
-		ulint		delay;
-
-		delay = ut_rnd_interval(0, srv_spin_wait_delay) * 10;
-
-		for (ulint i = 0; i <= srv_n_spin_wait_rounds; ++i) {
-
-			if ((lock = mutex.trylock()) == MUTEX_STATE_UNLOCKED) {
-
-				return(lock);
-
-			} else if (srv_spin_wait_delay > 0) {
-
-				for (ulint j = 0; j < delay; ++j) {
-					UT_RELAX_CPU();
-				}
-			}
-		}
-
-		return(lock);
-	}
-
-	/** Poll waiting for mutex to be unlocked */
-	static void test_poll(const Mutex& mutex) UNIV_NOTHROW
-	{
-		ulint	delay = ut_rnd_interval(0, srv_spin_wait_delay) * 10;
-
-		for (ulint i = 0; i <= srv_n_spin_wait_rounds; ++i) {
-
-			if (!mutex.is_locked()) {
-
-				break;
-
-			} else if (srv_spin_wait_delay > 0) {
-
-				for (ulint j = 0; j < delay; ++j) {
-					UT_RELAX_CPU();
-				}
-			}
-		}
-	}
-
-	void enter(const Mutex&) UNIV_NOTHROW { }
-	void locked(const Mutex&) UNIV_NOTHROW { }
-	void release(const Mutex&) UNIV_NOTHROW { }
-
-	void init(
-		const Mutex&,
-		const char*, const char*, ulint) UNIV_NOTHROW { }
-
-	void destroy() UNIV_NOTHROW {}
-};
-
 /** Track policy. */
 template <typename Mutex>
 struct TrackPolicy {
 
 	/** Default constructor. */
-	TrackPolicy()
+	TrackPolicy(bool track = false)
 		:
 		m_name(),
 		m_cline(ULINT_UNDEFINED),
@@ -123,18 +55,6 @@ struct TrackPolicy {
 
 	/** Called when the mutex is destroyed. */
 	void destroy() UNIV_NOTHROW { }
-
-	/** The mutex wants to do a trlock poll. */
-	static lock_word_t trylock_poll(Mutex& mutex) UNIV_NOTHROW
-	{
-		return(DefaultPolicy<Mutex>::trylock_poll(mutex));
-	}
-
-	/** The mutes wants to spin. */
-	static void test_poll(Mutex& mutex) UNIV_NOTHROW
-	{
-		DefaultPolicy<Mutex>::test_poll(mutex);
-	}
 
 	void enter(const Mutex&) UNIV_NOTHROW { }
 	void locked(const Mutex&) UNIV_NOTHROW { }
