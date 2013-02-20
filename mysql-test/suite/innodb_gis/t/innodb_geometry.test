@@ -454,6 +454,10 @@ SELECT AVG(AsText(g)) FROM gis_geometry;
 
 --disable_warnings
 --echo #check Datatypes with compression tables 
+
+# Save innodb variables.
+let $innodb_file_format_orig=`select @@innodb_file_format`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 SET GLOBAL innodb_file_format=barracuda;
 
 CREATE TABLE tab3(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
@@ -668,5 +672,7 @@ DROP PROCEDURE IF EXISTS  geominout;
 DROP PROCEDURE IF EXISTS geom_insert;
 DROP TRIGGER IF EXISTS geom_trigger;
 DROP PROCEDURE IF EXISTS geom_cursor;
-SET GLOBAL innodb_file_format=Default;
+eval SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+eval SET GLOBAL innodb_file_format_max=$innodb_file_format_max_orig;
+#SET GLOBAL innodb_file_format=Default;
 
