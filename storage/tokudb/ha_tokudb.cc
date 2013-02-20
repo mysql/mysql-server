@@ -300,7 +300,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_flags");
     assert(table_share);
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
-#ifdef MARIADB_BASE_VERSION
+#if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     flags |= HA_DO_INDEX_COND_PUSHDOWN;
 #endif
     if (table_share->key_info[idx].flags & HA_CLUSTERING) {
@@ -4914,15 +4914,23 @@ smart_dbt_bf_callback(DBT const *key, DBT  const *row, void *context) {
     return info->ha->fill_range_query_buf(info->need_val, key, row, info->direction, info->thd, info->buf);
 }
 
-#ifdef MARIADB_BASE_VERSION
+#if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
 enum icp_result ha_tokudb::toku_handler_index_cond_check(Item* pushed_idx_cond)
 {
-  enum icp_result res;
-  if (end_range && compare_key2(end_range) > 0) {
-      return ICP_OUT_OF_RANGE;
-  }  
-  res = pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
-  return res;
+    enum icp_result res;
+    if (end_range ) {
+        int cmp;
+#ifdef MARIADB_BASE_VERSION
+        cmp = compare_key2(end_range);
+#else
+        cmp = compare_key_icp(end_range);
+#endif
+        if (cmp > 0) {
+            return ICP_OUT_OF_RANGE;
+        }
+    }  
+    res = pushed_idx_cond->val_int() ? ICP_MATCH : ICP_NO_MATCH;
+    return res;
 }
 #endif
 
@@ -4944,13 +4952,13 @@ int ha_tokudb::fill_range_query_buf(
     uint32_t user_defined_size = get_tokudb_read_buf_size(thd);
     uchar* curr_pos = NULL;
 
-#ifdef MARIADB_BASE_VERSION
+#if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     // if we have an index condition pushed down, we check it
     if (toku_pushed_idx_cond && (tokudb_active_index == toku_pushed_idx_cond_keyno)) {
         unpack_key(buf, key, tokudb_active_index);
         enum icp_result result = toku_handler_index_cond_check(toku_pushed_idx_cond);
         // If we have reason to stop, we set icp_went_out_of_range and get out
-        if (result == ICP_ABORTED_BY_USER || result == ICP_OUT_OF_RANGE || thd_killed(thd)) {
+        if (result == ICP_OUT_OF_RANGE || thd_killed(thd)) {
             icp_went_out_of_range = true;
             error = 0;
             goto cleanup;
@@ -5286,7 +5294,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 //
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
-    ha_statistic_increment(&SSV::ha_read_next_count);
+    ha_statistic_increment(&SSV::ha_read_prev_count);
     int error = get_next(buf, -1);
     TOKUDB_DBUG_RETURN(error);
 }
