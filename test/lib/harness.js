@@ -208,6 +208,7 @@ function Suite(name, path) {
   this.firstSerialTestIndex = -1;
   this.nextSerialTestIndex = -1;
   this.clearSmokeTest = {};
+  this.testInFile = null;
   this.suite = {};
   this.numberOfRunningConcurrentTests = 0;
   this.skipSmokeTest = false;
@@ -224,13 +225,15 @@ Suite.prototype.addTest = function(filename, test) {
   return test;
 };
 
-Suite.prototype.addTestsFromFile = function(f) {
+Suite.prototype.addTestsFromFile = function(f, onlyTest) {
   var t, j;
   if(re_matching_test_case.test(f)) {
     t = require(f);
     if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
       for(j = 0 ; j < t.tests.length ; j++) {
-        this.addTest(f, t.tests[j]);
+        if(onlyTest === null || onlyTest == j+1) {
+          this.addTest(f, t.tests[j]);
+        }
       }
     }      
     else if(typeof(t.isTest) === 'function' && t.isTest()) {
@@ -251,17 +254,17 @@ Suite.prototype.createTests = function() {
     var testFile = this.path;
     this.path = path.dirname(testFile);
     try {
-      this.addTestsFromFile(path.join(this.path, "SmokeTest.js"));
+      this.addTestsFromFile(path.join(this.path, "SmokeTest.js"), null);
     } catch(e1) {}
-    this.addTestsFromFile(testFile);
+    this.addTestsFromFile(testFile, this.testInFile);
     try {
-      this.addTestsFromFile(path.join(this.path, "ClearSmokeTest.js"));
+      this.addTestsFromFile(path.join(this.path, "ClearSmokeTest.js"), null);
     } catch(e2) {}
   }
   else if(stat.isDirectory()) {
     var files = fs.readdirSync(this.path);
     for(i = 0; i < files.length ; i++) {
-      this.addTestsFromFile(path.join(this.path, files[i]));
+      this.addTestsFromFile(path.join(this.path, files[i]), null);
     }
   }
 
