@@ -7907,7 +7907,6 @@ class ha_partition_inplace_ctx : public inplace_alter_handler_ctx
 {
 public:
   inplace_alter_handler_ctx **handler_ctx_array;
-  bool rollback_done;
 private:
   uint m_tot_parts;
 
@@ -7915,7 +7914,6 @@ public:
   ha_partition_inplace_ctx(THD *thd, uint tot_parts)
     : inplace_alter_handler_ctx(),
       handler_ctx_array(NULL),
-      rollback_done(false),
       m_tot_parts(tot_parts)
   {}
 
@@ -7934,14 +7932,11 @@ enum_alter_inplace_result
 ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
                                                Alter_inplace_info *ha_alter_info)
 {
-#ifdef PARTITION_SUPPORTS_INPLACE_ALTER
   uint index= 0;
   enum_alter_inplace_result result= HA_ALTER_INPLACE_NO_LOCK;
   ha_partition_inplace_ctx *part_inplace_ctx;
+  bool first_is_set= false;
   THD *thd= ha_thd();
-#else
-  enum_alter_inplace_result result= HA_ALTER_INPLACE_NOT_SUPPORTED;
-#endif
 
   DBUG_ENTER("ha_partition::check_if_supported_inplace_alter");
   /*
@@ -7950,34 +7945,20 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
     prep_alter_part_table() in mysql_alter_table().
   */
   if (ha_alter_info->alter_info->flags == Alter_info::ALTER_PARTITION)
-    result= HA_ALTER_INPLACE_NO_LOCK;
+    DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 
-#ifndef PARTITION_SUPPORTS_INPLACE_ALTER
-  /*
-    Due to bug#14760210 partitions can be out-of-sync in case
-    commit_inplace_alter_table fails after the first partition.
-
-    Until we can either commit all partitions at the same time or
-    have an atomic recover on failure/crash we don't support any
-    inplace alter.
-
-    TODO: investigate what happens when indexes are out-of-sync
-    between partitions. If safe and possible to recover from,
-    then we could allow ADD/DROP INDEX.
-  */
-  DBUG_RETURN(result);
-#else
   part_inplace_ctx=
     new (thd->mem_root) ha_partition_inplace_ctx(thd, m_tot_parts);
   if (!part_inplace_ctx)
     DBUG_RETURN(HA_ALTER_ERROR);
 
   part_inplace_ctx->handler_ctx_array= (inplace_alter_handler_ctx **)
-    thd->alloc(sizeof(inplace_alter_handler_ctx *) * m_tot_parts);
+    thd->alloc(sizeof(inplace_alter_handler_ctx *) * (m_tot_parts + 1));
   if (!part_inplace_ctx->handler_ctx_array)
     DBUG_RETURN(HA_ALTER_ERROR);
 
-  for (index= 0; index < m_tot_parts; index++)
+  /* Set all to NULL, including the terminating one. */
+  for (index= 0; index <= m_tot_parts; index++)
     part_inplace_ctx->handler_ctx_array[index]= NULL;
 
   for (index= 0; index < m_tot_parts; index++)
@@ -7987,15 +7968,32 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
                                                       ha_alter_info);
     part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
 
+    if (index == 0)
+    {
+      first_is_set= (ha_alter_info->handler_ctx != NULL);
+    }
+    else if (first_is_set != (ha_alter_info->handler_ctx != NULL))
+    {
+      /* Either none or all partitions must set handler_ctx! */
+      DBUG_ASSERT(0);
+      DBUG_RETURN(HA_ALTER_ERROR);
+    }
     if (p_result < result)
       result= p_result;
     if (result == HA_ALTER_ERROR)
       break;
   }
+
   ha_alter_info->handler_ctx= part_inplace_ctx;
+  /*
+    To indicate for future inplace calls that there are several
+    partitions/handlers that need to be committed together,
+    we set group_commit_ctx to the NULL terminated array of
+    the partitions handlers.
+  */
+  ha_alter_info->group_commit_ctx= part_inplace_ctx->handler_ctx_array;
 
   DBUG_RETURN(result);
-#endif
 }
 
 
@@ -8076,8 +8074,8 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
                                               Alter_inplace_info *ha_alter_info,
                                               bool commit)
 {
-  uint index= 0;
   ha_partition_inplace_ctx *part_inplace_ctx;
+  bool error= false;
 
   DBUG_ENTER("ha_partition::commit_inplace_alter_table");
 
@@ -8091,117 +8089,52 @@ bool ha_partition::commit_inplace_alter_table(TABLE *altered_table,
   part_inplace_ctx=
     static_cast<class ha_partition_inplace_ctx*>(ha_alter_info->handler_ctx);
 
-  if (!commit && part_inplace_ctx->rollback_done)
-    DBUG_RETURN(false); // We have already rolled back changes.
-
-  for (index= 0; index < m_tot_parts; index++)
+  if (commit)
   {
-    ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
-    if (m_file[index]->ha_commit_inplace_alter_table(altered_table,
-                                                     ha_alter_info, commit))
+    DBUG_ASSERT(ha_alter_info->group_commit_ctx ==
+                part_inplace_ctx->handler_ctx_array);
+    ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[0];
+    error= m_file[0]->ha_commit_inplace_alter_table(altered_table,
+                                                    ha_alter_info, commit);
+    if (error)
+      goto end;
+    if (ha_alter_info->group_commit_ctx)
     {
-      part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
-      goto err;
-    }
-    part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
-    DBUG_EXECUTE_IF("ha_partition_fail_final_add_index", {
-      /* Simulate failure by rollback of the second partition */
-      if (m_tot_parts > 1)
+      /*
+        If ha_alter_info->group_commit_ctx is not set to NULL,
+        then the engine did only commit the first partition!
+        The engine is probably new, since both innodb and the default
+        implementation of handler::commit_inplace_alter_table sets it to NULL
+        and simply return false, since it allows metadata changes only.
+        Loop over all other partitions as to follow the protocol!
+      */
+      uint i;
+      DBUG_ASSERT(0);
+      for (i= 1; i < m_tot_parts; i++)
       {
-        index++;
-        ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[index];
-        m_file[index]->ha_commit_inplace_alter_table(altered_table,
-                                                     ha_alter_info, false);
-        part_inplace_ctx->handler_ctx_array[index]= ha_alter_info->handler_ctx;
-        goto err;
+        ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[i];
+        error|= m_file[i]->ha_commit_inplace_alter_table(altered_table,
+                                                         ha_alter_info,
+                                                         true);
       }
-    });
+    }
   }
-  ha_alter_info->handler_ctx= part_inplace_ctx;
-
-  DBUG_RETURN(false);
-
-err:
-  ha_alter_info->handler_ctx= part_inplace_ctx;
-  /*
-    Reverting committed changes is (for now) only possible for ADD INDEX
-    For other changes we will just try to rollback changes.
-  */
-  if (index > 0 &&
-      ha_alter_info->handler_flags & (Alter_inplace_info::ADD_INDEX |
-                                      Alter_inplace_info::ADD_UNIQUE_INDEX |
-                                      Alter_inplace_info::ADD_PK_INDEX))
+  else
   {
-    Alter_inplace_info drop_info(ha_alter_info->create_info,
-                                 ha_alter_info->alter_info,
-                                 NULL, 0,
-                                 ha_alter_info->modified_part_info,
-                                 ha_alter_info->ignore);
-
-    if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_INDEX)
-      drop_info.handler_flags|= Alter_inplace_info::DROP_INDEX;
-    if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_UNIQUE_INDEX)
-      drop_info.handler_flags|= Alter_inplace_info::DROP_UNIQUE_INDEX;
-    if (ha_alter_info->handler_flags & Alter_inplace_info::ADD_PK_INDEX)
-      drop_info.handler_flags|= Alter_inplace_info::DROP_PK_INDEX;
-    drop_info.index_drop_count= ha_alter_info->index_add_count;
-    drop_info.index_drop_buffer=
-      (KEY**) ha_thd()->alloc(sizeof(KEY*) * drop_info.index_drop_count);
-    if (!drop_info.index_drop_buffer)
+    uint i;
+    for (i= 0; i < m_tot_parts; i++)
     {
-      sql_print_error("Failed with error handling of adding index:\n"
-                      "committing index failed, and when trying to revert "
-                      "already committed partitions we failed allocating\n"
-                      "memory for the index for table '%s'",
-                      table_share->table_name.str);
-      DBUG_RETURN(true);
-    }
-    for (uint i= 0; i < drop_info.index_drop_count; i++)
-      drop_info.index_drop_buffer[i]=
-        &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[i]];
-
-    // Drop index for each partition where we already committed new index.
-    for (uint i= 0; i < index; i++)
-    {
-      bool error= m_file[i]->ha_prepare_inplace_alter_table(altered_table,
-                                                            &drop_info);
-      error|= m_file[i]->ha_inplace_alter_table(altered_table, &drop_info);
-      error|= m_file[i]->ha_commit_inplace_alter_table(altered_table,
-                                                       &drop_info, true);
-      if (error)
-        sql_print_error("Failed with error handling of adding index:\n"
-                        "committing index failed, and when trying to revert "
-                        "already committed partitions we failed removing\n"
-                        "the index for table '%s' partition nr %d",
-                        table_share->table_name.str, i);
-    }
-
-    // Rollback uncommitted changes.
-    for (uint i= index+1; i < m_tot_parts; i++)
-    {
+      /* Rollback, commit == false,  is done for each partition! */
       ha_alter_info->handler_ctx= part_inplace_ctx->handler_ctx_array[i];
       if (m_file[i]->ha_commit_inplace_alter_table(altered_table,
                                                    ha_alter_info, false))
-      {
-        /* How could this happen? */
-        sql_print_error("Failed with error handling of adding index:\n"
-                        "Rollback of add_index failed for table\n"
-                        "'%s' partition nr %d",
-                        table_share->table_name.str, i);
-      }
-      part_inplace_ctx->handler_ctx_array[i]= ha_alter_info->handler_ctx;
+        error= true;
     }
-
-    // We have now reverted/rolled back changes. Set flag to prevent
-    // it from being done again.
-    part_inplace_ctx->rollback_done= true;
-
-    print_error(HA_ERR_NO_PARTITION_FOUND, MYF(0));
   }
-
+end:
   ha_alter_info->handler_ctx= part_inplace_ctx;
 
-  DBUG_RETURN(true);
+  DBUG_RETURN(error);
 }
 
 
