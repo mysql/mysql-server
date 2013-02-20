@@ -38,7 +38,7 @@ Wait in the sync array.
 
 template <template <typename> class Policy>
 bool
-TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
+TTASEventMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 {
 	sync_array_t*	sync_arr = sync_array_get();
 
@@ -86,7 +86,7 @@ TTASWaitMutex<Policy>::wait(const char* file_name, ulint line) UNIV_NOTHROW
 
 template <template <typename> class Policy>
 void
-TTASWaitMutex<Policy>::signal() UNIV_NOTHROW
+TTASEventMutex<Policy>::signal() UNIV_NOTHROW
 {
 	clear_waiters();
 

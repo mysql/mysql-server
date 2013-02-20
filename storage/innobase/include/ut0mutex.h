@@ -28,10 +28,14 @@ Created 2012-03-24 Sunny Bains.
 #ifndef ut0mutex_h
 #define ut0mutex_h
 
+extern ulong	srv_spin_wait_delay;
+extern ulong	srv_n_spin_wait_rounds;
+extern ulong 	srv_force_recovery_crash;
+
 /** OS event mutex. We can't track the locking because this mutex is used
 by the events code. The mutex can be released by the condition variable
 and therefore we lose the tracking information. */
-template <template <typename> class Policy = DefaultPolicy>
+template <template <typename> class Policy = TrackPolicy>
 struct OSBasicMutex {
 
 	typedef Policy<OSBasicMutex> MutexPolicy;
@@ -185,19 +189,19 @@ protected:
 };
 
 /** OS debug mutex. */
-template <template <typename> class Policy = DefaultPolicy>
-struct OSTrackedMutex : public OSBasicMutex<Policy> {
+template <template <typename> class Policy = TrackPolicy>
+struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
 
-	OSTrackedMutex() 
+	OSTrackMutex() 
 		:
 		OSBasicMutex<Policy>(true) UNIV_NOTHROW
 	{
 		ut_d(m_locked = false);
 	}
 
-	~OSTrackedMutex() UNIV_NOTHROW
+	~OSTrackMutex() UNIV_NOTHROW
 	{
 		ut_ad(!m_locked);
 	}
@@ -283,12 +287,12 @@ private:
 #include <sys/syscall.h>
 
 /** Mutex implementation that used the Linux futex. */
-template <template <typename> class Policy = DefaultPolicy>
-struct Futex {
+template <template <typename> class Policy = TrackPolicy>
+struct TTASFutexMutex {
 
-	typedef Policy<Futex> MutexPolicy;
+	typedef Policy<TTASFutexMutex> MutexPolicy;
 
-	Futex() UNIV_NOTHROW
+	TTASFutexMutex() UNIV_NOTHROW
 		:
 		m_lock_word(MUTEX_STATE_UNLOCKED)
 	{
@@ -296,7 +300,7 @@ struct Futex {
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
 	}
 
-	~Futex()
+	~TTASFutexMutex()
 	{
 		ut_a(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
@@ -322,7 +326,7 @@ struct Futex {
 	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
-		lock_word_t	lock = MutexPolicy::trylock_poll(*this);
+		lock_word_t	lock = ttas();
 
 		/* If there were no waiters when this lock tried
 		to acquire the mutex then set the waiters flag now. */
@@ -465,14 +469,39 @@ private:
 		// FIXME: Do we care about the return value?
 	}
 
+	/** Poll waiting for mutex to be unlocked.
+	@return value of lock word before locking. */
+	lock_word_t ttas() UNIV_NOTHROW
+	{
+		ulint	delay = srv_spin_wait_delay;
+		ulint	n_rounds = srv_n_spin_wait_rounds;
+
+		/* The TTAS loop. */
+		for (ulint i = 0; i < n_rounds; ++i) {
+
+			if (!is_locked()) {
+				lock_word_t	lock = trylock();
+				
+				if (lock == MUTEX_STATE_UNLOCKED) {
+					return(lock);
+				}
+
+			} else if (delay > 0) {
+				ut_delay(ut_rnd_interval(0, delay));
+			}
+		}
+
+		return(trylock());
+	}
+
 private:
-	MutexPolicy			m_policy;
-	volatile mutable lock_word_t	m_lock_word;
+	MutexPolicy		m_policy;
+	volatile lock_word_t	m_lock_word;
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
 
-template <template <typename> class Policy = DefaultPolicy>
+template <template <typename> class Policy = TrackPolicy>
 struct TTASMutex {
 
 	typedef Policy<TTASMutex> MutexPolicy;
@@ -550,7 +579,7 @@ struct TTASMutex {
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
 		if (!try_lock()) {
-			busy_wait();
+			ttas();
 		}
 	}
 
@@ -592,24 +621,24 @@ struct TTASMutex {
 private:
 	/**
 	Spin and try to acquire the lock. */
-	void busy_wait() UNIV_NOTHROW
+	void ttas() UNIV_NOTHROW
 	{
 		/* The Test, Test again And Set (TTAS) loop. */
+
+		ulint		delay = srv_spin_wait_delay;
+		ulint		n_rounds = srv_n_spin_wait_rounds;
 
 		do {
 			ulint	i;
 
-			for (i  = 0;
-			     !is_locked() && i < srv_n_spin_wait_rounds;
-			     ++i) {
+			for (i = 0; !is_locked() && i < n_rounds; ++i) {
 
-				if (srv_spin_wait_delay) {
-					ut_delay(ut_rnd_interval(
-						 0, srv_spin_wait_delay));
+				if (delay > 0) {
+					ut_delay(ut_rnd_interval(0, delay));
 				}
 			}
 
-			if (i == srv_n_spin_wait_rounds) {
+			if (i == n_rounds) {
 				os_thread_yield();
 			}
 
@@ -622,19 +651,19 @@ private:
 	TTASMutex& operator=(const TTASMutex&);
 
 	/** Policy data */
-	MutexPolicy			m_policy;
+	MutexPolicy		m_policy;
 
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
-	volatile mutable lock_word_t	m_lock_word;
+	volatile lock_word_t	m_lock_word;
 };
 
-template <template <typename> class Policy = DefaultPolicy>
-struct TTASWaitMutex {
+template <template <typename> class Policy = TrackPolicy>
+struct TTASEventMutex {
 
-	typedef Policy<TTASWaitMutex> MutexPolicy;
+	typedef Policy<TTASEventMutex> MutexPolicy;
 
-	TTASWaitMutex() UNIV_NOTHROW
+	TTASEventMutex() UNIV_NOTHROW
 		:
 		m_event(),
 		m_waiters(),
@@ -644,7 +673,7 @@ struct TTASWaitMutex {
 		ut_ad(!((ulint) &m_lock_word % sizeof(ulint)));
 	}
  
-	~TTASWaitMutex()
+	~TTASEventMutex()
 	{
 		// FIXME: This invariant doesn't hold if we exit
 		// without invoking the shutdown code.
@@ -770,9 +799,12 @@ private:
 	Spin and wait for the mutex to become free.
 	@param i - spin start index
 	@return number of spins */
-	ulint spin(ulint i) const UNIV_NOTHROW
+	ulint ttas(ulint i) const UNIV_NOTHROW
 	{
-		ut_ad(i >= 0 && i < srv_n_spin_wait_rounds);
+		ulint	delay = srv_spin_wait_delay;
+		ulint	n_rounds = srv_n_spin_wait_rounds;
+
+		ut_ad(i >= 0 && i < n_rounds);
 
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
@@ -780,12 +812,11 @@ private:
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		while (is_locked() && i < srv_n_spin_wait_rounds) {
+		while (is_locked() && i < n_rounds) {
 
-			if (srv_spin_wait_delay) {
+			if (delay) {
 
-				ut_delay(ut_rnd_interval(
-						0, srv_spin_wait_delay));
+				ut_delay(ut_rnd_interval(0, delay));
 			}
 
 			++i;
@@ -809,7 +840,7 @@ private:
 
 		for (;;) {
 
-			n_spins = spin(n_spins);
+			n_spins = ttas(n_spins);
 
 			if (n_spins < srv_n_spin_wait_rounds) {
 
@@ -881,8 +912,8 @@ private:
 
 private:
 	// Disable copying
-	TTASWaitMutex(const TTASWaitMutex&);
-	TTASWaitMutex& operator=(const TTASWaitMutex&);
+	TTASEventMutex(const TTASEventMutex&);
+	TTASEventMutex& operator=(const TTASEventMutex&);
 
 	/** Used by sync0arr.cc for the wait queue */
 	os_event_t		m_event;
@@ -896,7 +927,7 @@ private:
 
 	/** lock_word is the target of the atomic test-and-set instruction
 	when atomic operations are enabled. */
-	volatile mutable lock_word_t	m_lock_word;
+	volatile lock_word_t	m_lock_word;
 };
 
 /** Mutex interface for all policy mutexes. This class handles the interfacing
@@ -1105,28 +1136,28 @@ private:
 #ifndef UNIV_DEBUG
 
 # ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<Futex<DefaultPolicy> >  FutexMutex;
+typedef PolicyMutex<TTASFutexMutex<TrackPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASWaitMutex<TrackPolicy> > Mutex;
-typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
-typedef PolicyMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
-typedef PolicyMutex<OSBasicMutex<DefaultPolicy> > EventMutex;
+typedef PolicyMutex<TTASEventMutex<TrackPolicy> > Mutex;
+typedef PolicyMutex<TTASMutex<TrackPolicy> > SpinMutex;
+typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SysMutex;
+typedef PolicyMutex<OSBasicMutex<TrackPolicy> > EventMutex;
 
 #else /* !UNIV_DEBUG */
 
 # ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<Futex<DebugPolicy> > FutexMutex;
+typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASWaitMutex<DebugPolicy> > Mutex;
+typedef PolicyMutex<TTASEventMutex<DebugPolicy> > Mutex;
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
-typedef PolicyMutex<OSTrackedMutex<DebugPolicy> > SysMutex;
+typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 
 #endif /* !UNIV_DEBUG */
 
-typedef Mutex ib_mutex_t;
+typedef FutexMutex ib_mutex_t;
 
 #include "ut0mutex.ic"
 
