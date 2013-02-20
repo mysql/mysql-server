@@ -758,7 +758,7 @@ SPATIAL KEY(g)
 INSERT INTO t1 (g) VALUES (GeomFromText('LineString(1 2, 2 3)')),(GeomFromText('LineString(1 2, 2 4)'));
 drop table t1;
 CREATE TABLE t1 (
-line LINESTRING NOT NULL,
+line GEOMETRY NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32),
 SPATIAL KEY (line)
@@ -1553,7 +1553,7 @@ End of 5.0 tests.
 # Bug #57323/11764487: myisam corruption with insert ignore 
 # and invalid spatial data
 #
-CREATE TABLE t1(a LINESTRING NOT NULL, b GEOMETRY NOT NULL,
+CREATE TABLE t1(a POINT NOT NULL, b GEOMETRY NOT NULL,
 SPATIAL KEY(a), SPATIAL KEY(b)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES(GEOMFROMTEXT("point (0 0)"), GEOMFROMTEXT("point (1 1)"));
 INSERT IGNORE INTO t1 SET a=GEOMFROMTEXT("point (-6 0)"), b=GEOMFROMTEXT("error");

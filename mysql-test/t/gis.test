@@ -741,7 +741,7 @@ SET @a=POLYFROMWKB(@a);
 # Bug #57321    crashes and valgrind errors from spatial types
 #
 
-create table t1(a polygon NOT NULL)engine=myisam;
+create table t1(a geometry NOT NULL)engine=myisam;
 insert into t1 values (geomfromtext("point(0 1)"));
 insert into t1 values (geomfromtext("point(1 0)"));
 select * from (select polygon(t1.a) as p from t1 order by t1.a) d;
@@ -1357,5 +1357,14 @@ SELECT 1 FROM g1 WHERE a >= ANY
 (SELECT 1 FROM g1 WHERE a = geomfromtext('') OR a) ;
 
 DROP TABLE g1;
+
+--echo #
+--echo # MDEV-3819 missing constraints for spatial column types
+--echo #
+
+create table t1 (pt point);
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
+insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
+drop table t1;
 
 --echo End of 5.5 tests
