@@ -15,8 +15,6 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
-
 # Following are test for crash recovery on FTS index, the first scenario
 # is for bug Bug #14586855 INNODB: FAILING ASSERTION: (DICT_INDEX_GET_N_UNIQUE(
 # PLAN->INDEX) <= PLAN->N_EXAC
@@ -58,7 +56,6 @@ SET SESSION debug="+d,crash_commit_before";
 --error 2013
 COMMIT;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --source include/wait_until_disconnected.inc
 --sleep 2
 
@@ -109,7 +106,6 @@ SET SESSION debug="+d,crash_commit_before";
 --error 2013
 COMMIT;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --source include/wait_until_disconnected.inc
 --sleep 2
 
@@ -170,7 +166,6 @@ SET SESSION debug="+d,crash_commit_before";
 --error 2013
 COMMIT;
 
---remove_file $MYSQL_TMP_DIR/ibtmp1
 --source include/wait_until_disconnected.inc
 --sleep 2
 

@@ -17,7 +17,7 @@
 # allow test to run only when innodb-page-size=16  
 --source include/have_innodb_16k.inc
 
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
+
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $innodb_file_format = `SELECT @@innodb_file_format`;
@@ -87,7 +87,6 @@ SELECT * FROM test_wl5522.t1;
 # Execute the statement that causes the crash
 --error 2013
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
---remove_file $MYSQL_TMP_DIR/ibtmp1
 
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -110,7 +109,6 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 # Execute the statement that causes the crash
 --error 2013
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
---remove_file $MYSQL_TMP_DIR/ibtmp1
 
 # After the above test the results are non-deterministic,
 # delete the old tablespace files and drop the table,

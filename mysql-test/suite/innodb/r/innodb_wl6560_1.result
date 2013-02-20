@@ -164,23 +164,7 @@ SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
 a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
 6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
 # shutting down the server
-# list_file ,no files expected - temp tablespace cleared on stopping server
-# restarting the server with following arguments:
-#restart: --tmpdir=$MYSQLTEST_VARDIR/tmp/testdir1/<DELIM>$MYSQLTEST_VARDIR/tmp/testdir2
-# list_file ,temp tablespace goes into 1st tmpdir if mutiple tmpdir listed
-ibtmp1
-# list_file ,temp tablespace does not go into 2nd tmp dir
-USE test;
-SHOW TABLES;
-Tables_in_test
-t2
-SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
-a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
-6	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
-UPDATE t2 SET a = a + 5;
-SELECT a,b,RIGHT(c,10),RIGHT(d,10),RIGHT(e,10) FROM t2;
-a	b	RIGHT(c,10)	RIGHT(d,10)	RIGHT(e,10)
-11	11.111	a1a1a1a1a1	a1a1a1a1a1	a1a1a1a1a1
+# list_file, no files expected - temp tablespace cleared on stopping server
 CREATE TEMPORARY TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b FLOAT(5,3),
 c BLOB(100),d VARCHAR(100),e TEXT) ENGINE=InnoDB;
 INSERT INTO t1(b,c,d,e) VALUES (11.111,REPEAT('a1',50),REPEAT('a1',50),
