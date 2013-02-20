@@ -1118,4 +1118,5 @@ DROP TRIGGER IF EXISTS geom_trigger;
 Warnings:
 Note	1360	Trigger does not exist
 DROP PROCEDURE IF EXISTS geom_cursor;
-SET GLOBAL innodb_file_format=Default;
+SET GLOBAL innodb_file_format=Antelope;
+SET GLOBAL innodb_file_format_max=Antelope;
