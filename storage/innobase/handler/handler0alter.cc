@@ -947,7 +947,7 @@ innobase_get_foreign_key_info(
 						dict_foreign_find_index(
 							referenced_table, 0,
 							referenced_column_names,
-							i, NULL,
+							i, index,
 							TRUE, FALSE);
 
 					DBUG_EXECUTE_IF(
