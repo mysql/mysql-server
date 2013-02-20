@@ -3369,11 +3369,13 @@ update_new_object_ids(
 		should be fixed by atomic truncate table */
 		table->corrupted = true;
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Unable to assign a new identifier to table %s"
-			" after truncating it.  Background"
-			" processes may corrupt the table!",
-			table->name);
+		ut_print_timestamp(stderr);
+		fputs("  InnoDB: Unable to assign a new identifier to table ",
+		      stderr);
+		ut_print_name(stderr, trx, TRUE, table->name);
+		fputs("\n"
+		      "InnoDB: after truncating it.  Background processes"
+		      " may corrupt the table!\n", stderr);
 
 		/* Failed to update the table id, so drop the new
 		FTS auxiliary tables */
