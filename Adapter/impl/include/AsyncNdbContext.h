@@ -30,17 +30,17 @@
 #define MAX_CONCURRENCY 1024
 
 #ifdef FORCE_UV_LEGACY_COMPAT
-#define RUN_THREAD_RETURN void *
+#define PTHREAD_RETURN_TYPE void *
 #define PTHREAD_RETURN_VAL NULL
 #else
-#define RUN_THREAD_RETURN void
+#define PTHREAD_RETURN_TYPE void
 #define PTHREAD_RETURN_VAL
 #endif
 
 extern "C" {
   void ioCompleted(uv_async_t *, int);
   void ndbTxCompleted(int, NdbTransaction *, void *);
-  RUN_THREAD_RETURN run_ndb_listener_thread(void *);
+  PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *);
 }
 
 
@@ -59,7 +59,7 @@ public:
   void shutdown();
 
   /* Friend functions have C linkage but call the protected methods */
-  friend RUN_THREAD_RETURN ::run_ndb_listener_thread(void *);
+  friend PTHREAD_RETURN_TYPE ::run_ndb_listener_thread(void *);
   friend void ::ioCompleted(uv_async_t *, int);
   
 protected:

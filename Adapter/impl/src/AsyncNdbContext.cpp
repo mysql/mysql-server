@@ -31,12 +31,10 @@
 
 /* Thread starter, for pthread_create()
 */
-RUN_THREAD_RETURN run_ndb_listener_thread(void *v) {
+PTHREAD_RETURN_TYPE run_ndb_listener_thread(void *v) {
   AsyncNdbContext * ctx = (AsyncNdbContext *) v;
   ctx->runListenerThread();
-#ifdef FORCE_UV_LEGACY_COMPAT 
-  return NULL;
-#endif
+  return PTHREAD_RETURN_VAL;
 }
 
 /* ioCompleted will run in the JavaScript main thread.
@@ -125,7 +123,7 @@ void * AsyncNdbContext::runListenerThread() {
       sentNdbs = sentNdbs->next;
       if(currentNode->signalinfo == SignalShutdown) {
         delete currentNode;
-        return PTHREAD_RETURN_VAL;      
+        return 0;
       }
       ndb = currentNode->item;
       waitgroup->addNdb(ndb);
