@@ -982,14 +982,12 @@ Tablespace::check_file_spec(
 Opens/Creates the data files if they don't exist.
 
 @param sum_of_new_sizes - sum of sizes of the new files added
-@param err_if_pre_exist	- error out if file already exist.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 Tablespace::open(
 /*=============*/
-	ulint*	sum_of_new_sizes,
-	bool	err_if_pre_exist)
+	ulint*	sum_of_new_sizes)
 {
 	dberr_t		err = DB_SUCCESS;
 
@@ -1004,25 +1002,7 @@ Tablespace::open(
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
 		if (it->m_exists) {
-			if (!err_if_pre_exist) {
-				err = open_file(*it);
-			} else {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"%sTablespace data-file \"%s\""
-					" pre-exist."
-					" Please remove the file and restart"
-					" the server.",
-					((m_space_id == TRX_SYS_SPACE) ?
-					"" : "Temp-"),
-					it->m_name);
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Check that you do not already have "
-					"another mysqld process using the "
-					"same InnoDB data files.");
-
-				err = DB_ERROR;
-			}
+			err = open_file(*it);
 		} else {
 			err = create_file(*it);
 

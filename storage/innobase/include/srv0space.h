@@ -331,9 +331,8 @@ public:
 	Open the data files.
 
 	@param sum_of_new_sizes - sum of sizes of new files added
-	@param err_if_pre_exist	- error out if file already exist.
 	@return DB_SUCCESS or error code */
-	dberr_t open(ulint* sum_of_new_sizes, bool err_if_pre_exist);
+	dberr_t open(ulint* sum_of_new_sizes);
 
 	/**
 	Read the flush lsn values and check the header flags.

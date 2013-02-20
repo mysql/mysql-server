@@ -2914,7 +2914,7 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery. */
 
 	/* Doesn't support raw devices. */
-	srv_tmp_space.set_tablespace_path(mysql_tmpdir_list.list[0]);
+	srv_tmp_space.set_tablespace_path(srv_data_home);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -2925,6 +2925,13 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
+
+	srv_tmp_space.set_sanity_check_status(true);
+	srv_sys_space.set_sanity_check_status(true);
+
+	/* Delete the data files in the temporary tablespace. They are not
+	required for recovery. */
+	srv_tmp_space.delete_files();
 
 	/* -------------- All log files ---------------------------*/
 

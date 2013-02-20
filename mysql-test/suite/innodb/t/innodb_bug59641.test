@@ -3,8 +3,6 @@
 -- source include/not_embedded.inc
 -- source include/have_innodb.inc
 
-let $MYSQL_TMP_DIR = `select @@tmpdir`;
-
 CREATE TABLE t(a INT PRIMARY KEY, b INT)ENGINE=InnoDB;
 INSERT INTO t VALUES(2,2),(4,4),(8,8),(16,16),(32,32);
 COMMIT;
@@ -42,7 +40,6 @@ call mtr.add_suppression("Found 3 prepared XA transactions");
 
 # Restart the server.
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---remove_file $MYSQL_TMP_DIR/ibtmp1
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
