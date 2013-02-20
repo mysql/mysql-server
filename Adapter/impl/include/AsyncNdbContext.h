@@ -48,6 +48,9 @@ class AsyncNdbContext {
 public:
   /* Constructor */
   AsyncNdbContext(Ndb_cluster_connection *);
+
+  /* Destructor */
+  ~AsyncNdbContext();
   
   /* Methods */
   int executeAsynch(NdbTransaction *,
@@ -72,6 +75,10 @@ private:
      The NDB Wait Thread waits for all pending transactions to return.
   */
   uv_async_t async_handle;
+
+  /* An AsyncNdbContext serves a single cluster connection
+  */
+  Ndb_cluster_connection * connection;
 
   /* The wait group manages the list of NDBs that have been sent.
   */

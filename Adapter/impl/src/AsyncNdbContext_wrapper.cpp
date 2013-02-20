@@ -94,6 +94,19 @@ Handle<Value> shutdown(const Arguments &args) {
   return scope.Close(JS_VOID_RETURN);
 }
 
+/* Call destructor 
+*/
+Handle<Value> destroy(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(0);
+
+  AsyncNdbContext *c = unwrapPointer<AsyncNdbContext *>(args.Holder());
+  delete c;
+  return scope.Close(JS_VOID_RETURN);
+}
+
 
 void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   HandleScope scope;
@@ -102,5 +115,6 @@ void AsyncNdbContext_initOnLoad(Handle<Object> target) {
   DEFINE_JS_CLASS(JsAsyncNdbContext, "AsyncNdbContext", createAsyncNdbContext);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "executeAsynch", executeAsynch);
   DEFINE_JS_METHOD(JsAsyncNdbContext, "shutdown", shutdown);
+  DEFINE_JS_METHOD(JsAsyncNdbContext, "delete", destroy);
   DEFINE_JS_CONSTRUCTOR(target, "AsyncNdbContext", JsAsyncNdbContext);
 }

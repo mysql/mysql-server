@@ -187,6 +187,10 @@ proto.connectSync = function() {
     /* Start filling the session pool */
     prefetchSession(this);
 
+    /* Create Async Context */
+    if(this.properties.ndb_use_async_ndbapi) {
+      this.asyncNdbContext = new adapter.ndb.impl.AsyncNdbContext(this.ndbconn);
+    }
   }
   else {
     stats.incr("connections","failed");
@@ -278,6 +282,7 @@ proto.isConnected = function() {
 
 /* closeSync()
    SYNCHRONOUS.
+   HELP ME:  This method is no longer really synchronous.
 */
 proto.closeSync = function() {
   var i;
@@ -292,6 +297,7 @@ proto.closeSync = function() {
   if(this.asyncNdbContext) { this.asyncNdbContext.shutdown(); }
   
   function disconnect() {
+    if(self.asyncNdbContext) { self.asyncNdbContext.delete(); }
     udebug.log("Disconnecting cluster");
     self.ndbconn.delete();
   }
@@ -299,7 +305,7 @@ proto.closeSync = function() {
      operation is in progress (e.g. filling the connection pool) 
   */
   assert(typeof disconnect == 'function');
-  setTimeout(disconnect, 1000);
+  setTimeout(disconnect, 500);
 };
 
 
