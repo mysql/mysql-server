@@ -280,8 +280,9 @@ int main(int argc, char *argv[]) {
     long key_range = 100000;
     bool do_txn = true;
     u_int32_t pagesize = 0;
-    u_int64_t cachesize = 0;
+    u_int64_t cachesize = 1000000000;
     int ndbs = 4;
+    u_int32_t checkpoint_period = 60;
 
     int i;
     for (i = 1; i < argc; i++) {
@@ -326,6 +327,10 @@ int main(int argc, char *argv[]) {
             force_multiple = atoi(argv[++i]);
             continue;
         }
+        if (strcmp(arg, "--checkpoint_period") == 0 && i+1 < argc) {
+            checkpoint_period = atoi(argv[++i]);
+            continue;
+        }
 
         assert(0);
     }
@@ -350,6 +355,14 @@ int main(int argc, char *argv[]) {
     r = db_env->set_generate_row_callback_for_put(db_env, my_generate_row_for_put); assert(r == 0);
 #endif
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
+#if defined(TOKUDB)
+    if (checkpoint_period) {
+        r = db_env->checkpointing_set_period(db_env, checkpoint_period); assert(r == 0);
+        u_int32_t period;
+        r = db_env->checkpointing_get_period(db_env, &period); assert(r == 0 && period == checkpoint_period);
+    }
+#endif
+
 
     // create the db
     DB *dbs[ndbs];

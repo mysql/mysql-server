@@ -47,7 +47,7 @@ static void insert (long long v);
 int keysize = sizeof (long long);
 int valsize = sizeof (long long);
 int pagesize = 0;
-long long cachesize = 128*1024*1024;
+long long cachesize = 1000000000; // 1GB
 int do_1514_point_query = 0;
 int dupflags = 0;
 int noserial = 0; // Don't do the serial stuff
@@ -70,8 +70,7 @@ int env_open_flags = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
 u_int32_t put_flags = 0;
 double compressibility = -1; // -1 means make it very compressible.  1 means use random bits everywhere.  2 means half the bits are random.
 int do_append = 0;
-int do_checkpoint_period = 0;
-u_int32_t checkpoint_period = 0;
+u_int32_t checkpoint_period = 60;
 
 static void do_prelock(DB* db, DB_TXN* txn) {
     if (prelock) {
@@ -132,12 +131,11 @@ static void benchmark_setup (void) {
     }
 
 #if defined(TOKUDB)
-    if (do_checkpoint_period) {
-        r = dbenv->checkpointing_set_period(dbenv, checkpoint_period);
-        assert(r == 0);
+    if (checkpoint_period) {
+        printf("set checkpoint_period %u\n", checkpoint_period);
+        r = dbenv->checkpointing_set_period(dbenv, checkpoint_period); assert(r == 0);
         u_int32_t period;
-        r = dbenv->checkpointing_get_period(dbenv, &period);
-        assert(r == 0 && period == checkpoint_period);
+        r = dbenv->checkpointing_get_period(dbenv, &period); assert(r == 0 && period == checkpoint_period);
     }
 #endif
 
@@ -331,20 +329,26 @@ static void biginsert (long long n_elements, struct timeval *starttime) {
 	    gettimeofday(&t1,0);
 	    serial_insert_from(i);
 	    gettimeofday(&t2,0);
-	    if (verbose) printf("serial %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
-	    fflush(stdout);
+	    if (verbose) {
+                printf("serial %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
+                fflush(stdout);
+            }
 	}
         if (!norandom) {
-	gettimeofday(&t1,0);
-	random_insert_below((i+items_per_iteration)*SERIAL_SPACING);
-	gettimeofday(&t2,0);
-	if (verbose) printf("random %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
+            gettimeofday(&t1,0);
+            random_insert_below((i+items_per_iteration)*SERIAL_SPACING);
+            gettimeofday(&t2,0);
+            if (verbose) {
+                printf("random %9.6fs %8.0f/s    ", toku_tdiff(&t2, &t1), items_per_iteration/toku_tdiff(&t2, &t1));
+                fflush(stdout);
+            }
         }
-	if (verbose) printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
+	if (verbose) {
+            printf("cumulative %9.6fs %8.0f/s\n", toku_tdiff(&t2, starttime), (((float)items_per_iteration*(!noserial+!norandom))/toku_tdiff(&t2, starttime))*(iteration+1));
+            fflush(stdout);
+        }
     }
 }
-
-
 
 const long long default_n_items = 1LL<<22;
 
@@ -458,7 +462,6 @@ int main (int argc, const char *argv[]) {
             do_append = 1;
         } else if (strcmp(arg, "--checkpoint-period") == 0) {
             if (i+1 >= argc) return print_usage(argv[9]);
-            do_checkpoint_period = 1;
             checkpoint_period = (u_int32_t) atoi(argv[++i]);
         } else if (strcmp(arg, "--unique_checks") == 0) {
             if (i+1 >= argc) return print_usage(argv[0]);
