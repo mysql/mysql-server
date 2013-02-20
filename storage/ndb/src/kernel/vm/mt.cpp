@@ -213,7 +213,7 @@ struct thr_wait
   NdbCondition *m_cond;
   bool m_need_wakeup;
   char padding[NDB_CL_PADSZ(sizeof(bool) + (2*sizeof(void*)))];
-  thr_wait() : m_need_wakeup(false), m_mutex(0), m_cond(0) {}
+  thr_wait() : m_mutex(0), m_cond(0), m_need_wakeup(false) {}
 
   void init() {
     m_mutex = NdbMutex_Create();
