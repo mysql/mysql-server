@@ -157,7 +157,11 @@ trx_in_trx_list(
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		assert_trx_in_list(trx);
-		ut_ad((trx->rseg == 0) == (trx_list == &trx_sys->ro_trx_list));
+
+		ut_ad(!(trx->rseg == 0 || trx->read_only)
+		      == (trx_list == &trx_sys->rw_trx_list)
+		      || (trx->rseg != 0 && trx->read_only)
+		      == (trx_list == &trx_sys->ro_trx_list));
 	}
 
 	return(trx != 0);
