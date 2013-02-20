@@ -566,7 +566,7 @@ static int
 update_estimated_rows(DB_INDEXER *indexer) {
     DBT key;  toku_init_dbt(&key);
     DBT data; toku_init_dbt(&data);
-    DBC* crsr;
+    DBC* crsr = NULL;
     DB_TXN* txn = NULL;
     uint64_t less, equal, greater;
     int is_exact;
