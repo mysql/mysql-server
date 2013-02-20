@@ -225,13 +225,22 @@ Suite.prototype.addTest = function(filename, test) {
   return test;
 };
 
-Suite.prototype.addTestsFromFile = function(f, onlyTest) {
-  var t, j;
+Suite.prototype.addTestsFromFile = function(f, onlyTests) {
+  var t, i, j, k, testList, testHash;
+  if(onlyTests) {
+    onlyTests = String(onlyTests);
+    testList = onlyTests.split(",");
+    testHash = [];
+    for(i = 0 ; i < testList.length ; i ++) {
+      k = Number(testList[i]) - 1;
+      testHash[k] = 1;
+    }
+  }
   if(re_matching_test_case.test(f)) {
     t = require(f);
     if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
       for(j = 0 ; j < t.tests.length ; j++) {
-        if(onlyTest === null || onlyTest == j+1) {
+        if(onlyTests === null || testHash[j] == 1) {
           this.addTest(f, t.tests[j]);
         }
       }
