@@ -483,13 +483,15 @@ private:
 				lock_word_t	lock = trylock();
 				
 				if (lock == MUTEX_STATE_UNLOCKED) {
+					/* Lock successful */
 					return(lock);
 				}
-
-			} else if (delay > 0) {
-				ut_delay(ut_rnd_interval(0, delay));
 			}
+
+			ut_delay(ut_rnd_interval(0, delay));
 		}
+
+		os_thread_yield();
 
 		return(trylock());
 	}
@@ -633,9 +635,7 @@ private:
 
 			for (i = 0; !is_locked() && i < n_rounds; ++i) {
 
-				if (delay > 0) {
-					ut_delay(ut_rnd_interval(0, delay));
-				}
+				ut_delay(ut_rnd_interval(0, delay));
 			}
 
 			if (i == n_rounds) {
@@ -814,10 +814,7 @@ private:
 
 		while (is_locked() && i < n_rounds) {
 
-			if (delay) {
-
-				ut_delay(ut_rnd_interval(0, delay));
-			}
+			ut_delay(ut_rnd_interval(0, delay));
 
 			++i;
 		}
@@ -1157,7 +1154,8 @@ typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 
 #endif /* !UNIV_DEBUG */
 
-typedef FutexMutex ib_mutex_t;
+/** The default mutex type. */
+typedef Mutex ib_mutex_t;
 
 #include "ut0mutex.ic"
 
