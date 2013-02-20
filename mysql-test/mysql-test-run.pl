@@ -5786,6 +5786,7 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
   if ( $mode eq "before" )
   {
