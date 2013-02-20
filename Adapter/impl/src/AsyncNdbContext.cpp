@@ -93,15 +93,8 @@ AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn)
   
   /* Store some context in the uv_async_t */
   async_handle.data = (void *) this;
-}
-
-
-/* Start the listener thread.
-   This is separated from the constructor so that the constructor can be 
-   wrapped by a synchronous JavaScript call, but then startListenerThread() is
-   wrapped by an async call.
-*/
-void AsyncNdbContext::startListenerThread() {
+  
+  /* Start the listener thread. */
   uv_thread_create(& listener_thread_id, run_ndb_listener_thread, (void *) this);
 }
 
