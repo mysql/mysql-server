@@ -212,7 +212,7 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 
 /*****************************************************************//**
-Check whether the Innodb persistent cursor is positioned.
+Check whether the InnoDB persistent cursor is positioned.
 @return	IB_TRUE if positioned */
 UNIV_INLINE
 ib_bool_t
