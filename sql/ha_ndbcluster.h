@@ -533,7 +533,6 @@ private:
   int check_ndb_connection(THD* thd) const;
 
   void set_rec_per_key();
-  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
 
