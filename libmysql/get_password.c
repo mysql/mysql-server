@@ -62,13 +62,34 @@
 /* were just going to fake it here and get input from the keyboard */
 void get_tty_password_buff(const char *opt_message, char *to, size_t length)
 {
+  HANDLE consoleinput;
+  DWORD oldstate;
   char *pos=to,*end=to+length-1;
   int i=0;
+
+  consoleinput= GetStdHandle(STD_INPUT_HANDLE);
+  if (!consoleinput) 
+  {
+     /* This is a GUI application or service  without console input, bail out. */
+     *to= 0;
+     return;
+  }
   _cputs(opt_message ? opt_message : "Enter password: ");
+
+  /* 
+     Switch to raw mode (no line input, no echo input).
+     Allow Ctrl-C handler with ENABLE_PROCESSED_INPUT.
+  */
+  GetConsoleMode(consoleinput, &oldstate);
+  SetConsoleMode(consoleinput, ENABLE_PROCESSED_INPUT);
   for (;;)
   {
-    int tmp;
-    tmp=_getch();
+    char tmp;
+    DWORD chars_read;
+    if (!ReadConsole(consoleinput, &tmp, 1, &chars_read, NULL))
+      break;
+    if (chars_read == 0)
+      break;
     if (tmp == '\b' || tmp == 127)
     {
       if (pos != to)
@@ -78,13 +99,15 @@ void get_tty_password_buff(const char *opt_message, char *to, size_t length)
 	continue;
       }
     }
-    if (tmp == -1 || tmp == '\n' || tmp == '\r' || tmp == 3)
+    if (tmp == '\n' || tmp == '\r')
       break;
     if (iscntrl(tmp) || pos == end)
       continue;
     _cputs("*");
-    *(pos++) = (char)tmp;
+    *(pos++) = tmp;
   }
+  /* Reset console mode after password input. */ 
+  SetConsoleMode(consoleinput, oldstate);
   *pos=0;
   _cputs("\n");
 }
