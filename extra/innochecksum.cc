@@ -900,22 +900,21 @@ int main(
 			checksum verification.*/
 			if (!no_check) {
 				/* Checksum verification */
-				if (compressed) {
+				if (!compressed) {
 
 					/* check the stored log sequence numbers
 					for uncompressed tablespace. */
-						logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
-						logseqfield = mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
-						if (verbose)
+					logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
+					logseqfield = mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
+					if (verbose)
 						DBUG_PRINT("info", ("page::%lu; log sequence number: first = %lu; second = %lu",
 							   ct, logseq, logseqfield));
 
-						if (logseq != logseqfield) {
-							iscorrupted = 1;
-							if (verbose)
-								DBUG_PRINT("info", ("Fail; page %lu invalid (fails log sequence number check)", ct));
-						} else
-							iscorrupted = buf_page_is_corrupted(true,buf,0);
+					if (logseq != logseqfield) {
+						if (verbose)
+							DBUG_PRINT("info", ("Fail; page %lu invalid (fails log sequence number check)", ct));
+					}
+					iscorrupted = buf_page_is_corrupted(true,buf,0);
 				} else
 					iscorrupted = buf_page_is_corrupted(true,buf,physical_page_size);
 
@@ -986,8 +985,11 @@ int main(
 		}
 
 		/* Enabled for page type summary. */
-		if (page_type_summary)
+		if (page_type_summary) {
+			if(!read_from_stdin)
+				printf("\nFile::%s",filename);
 			print_summary();
+		}
 	}
 
 	DBUG_RETURN(0);

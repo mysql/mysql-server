@@ -1,0 +1,930 @@
+# Set the environmental variables
+DROP TABLE IF EXISTS tab1;
+# set the servervariables
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	innodb
+# create a base table,Index & insert a record
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+# Shutdown the Server
+#R01 : check the innochecksum without --strict-check
+# INNOCHECKSUM  MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with full form --strict-check=Innodb
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with short form -C Innodb
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  -C innodb MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with --no-check ignores algorithm check, warning is expected
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --no-check MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with short form --no-check ignores algorithm check, warning is expected
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  -n MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with full form strict-check & no-check , an error is expected
+when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=innodb  --no-check MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with short form strict-check & no-check , an error is expected
+#when server Default checksum=InnoDB
+# INNOCHECKSUM -C innodb -n MYSQLD_DATADIR/test/tab1.ibd
+#R01 : check the innochecksum with short & full form combination
+#strict-check & no-check, an error is expected
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=innodb -n MYSQLD_DATADIR/test/tab1.ibd
+R01 : (negative scenario) check the innochecksum with full form --strict-check=crc32
+when server Default checksum=InnoDB
+# INNOCHECKSUM  --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+#R01 : (negative scenario) check the innochecksum with full form --strict-check=None
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  --strict-check=none MYSQLD_DATADIR/test/tab1.ibd
+#R01 : (negative scenario) check the innochecksum with short form -C crc32
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  -C crc32 MYSQLD_DATADIR/test/tab1.ibd
+#R01 : (negative scenario) check the innochecksum with short form -C none
+#when server Default checksum=InnoDB
+# INNOCHECKSUM  -C none MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=strict_innodb MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM -C strict_innodb MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=strict_crc32 MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM -C strict_crc32 MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=strict_none MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM -C strict_none MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=InnoBD MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM -C InnoBD MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=crc MYSQLD_DATADIR/test/tab1.ibd
+#R01: check strict-check with invalid values
+#when server Default checksum=InnoDB
+# INNOCHECKSUM --strict-check=no MYSQLD_DATADIR/test/tab1.ibd
+#R02: when server default checksum=InnoDB rewrite new checksum=crc32 & then check DML
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+# INNOCHECKSUM --no-check --write=crc32 MYSQLD_DATADIR/test/tab1.ibd
+#Rewrite done, verify with --strict-check=crc32
+# INNOCHECKSUM --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+#without restarting the server 
+#After rewriting into new checksum algorithm crc32,check with DML
+INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
+#check the records 
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+#R02: when server default checksum=InnoDB rewrite new checksum=none & then check DML
+#without restarting the server
+# INNOCHECKSUM --no-check --write=none MYSQLD_DATADIR/test/tab1.ibd
+#Rewrite done, verify with --strict-check=none
+# INNOCHECKSUM --strict-check=none MYSQLD_DATADIR/test/tab1.ibd
+#After rewriting into new checksum algorithm None,check with DML
+#without restarting the server
+#After rewriting into new checksum algorithm crc32,check with DML
+INSERT INTO tab1 VALUES(3, 'Innochecksum None');
+#check the records
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+3	Innochecksum None
+#R02: rewrite into new checksum=crc32
+#restart the DB server default checksum=crc32
+# INNOCHECKSUM --no-check --write=crc32 MYSQLD_DATADIR/test/tab1.ibd
+# Restart the DB server with  innodb_checksum_algorithm=crc32
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	crc32
+#check the records
+SELECT * FROM tab1;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+3	Innochecksum None
+#check DML, after restarting the server default checksum=crc32
+DELETE FROM tab1 where c1=3;
+#check the records
+SELECT c1,c2 FROM tab1 order by c1,c2;
+c1	c2
+1	Innochecksum InnoDB1
+2	Innochecksum CRC32
+# Stop server
+#R02: rewrite into new checksum=InnoDB
+#restart the DB server default checksum=InnoDB
+# INNOCHECKSUM --no-check --write=InnoDB MYSQLD_DATADIR/test/tab1.ibd
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	innodb
+#check DML, after restarting the server default checksum=InnoDB
+DELETE FROM tab1 where c1=2;
+#check the records
+SELECT * FROM tab1;
+c1	c2
+1	Innochecksum InnoDB1
+# Stop server
+#check Innochecksum with invalid write options
+# INNOCHECKSUM --no-check --write=strict_crc32 MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM --no-check --write=strict_innodb MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM --no-check --write=crc23 MYSQLD_DATADIR/test/tab1.ibd
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DROP TABLE tab1;
+SET GLOBAL innodb_file_format=default;
+# Shutdown the server
+# Further test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
+CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+SET GLOBAL innodb_file_per_table=on;
+# Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+INSERT INTO t1 (b) VALUES ('corrupt me');
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# We give 30 seconds to do a clean shutdown because we do not want
+# to redo apply the pages of t1.ibd at the time of recovery.
+# We want SQL to initiate the first access to t1.ibd.
+# Wait until disconnected.
+# Backup the t1.ibd before corrupting
+# Corrupt the table
+Munged a string.
+Munged a string.
+# Backup the corrupted t1.ibd for reuse for further testing.
+# Write file to make mysql-test-run.pl start up the server again
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# The below SELECT query will crash the server because some pages
+# on the disk are corrupted
+SELECT * FROM t1;
+ERROR HY000: Lost connection to MySQL server during query
+#Repair the ibd file with innochecksum with --write=innodb
+# INNOCHECKSUM --no-check --write=innodb  MYSQLD_DATADIR/test/t1.ibd
+#Verify the t1.ibd for --strict-check=innodb
+# INNOCHECKSUM --strict-check=innodb  MYSQLD_DATADIR/test/t1.ibd
+# Write file to make mysql-test-run.pl start up the server again
+# Server Started normally
+# Shutdown the server
+#Move the corrupted ibd file to t1.ibd
+#Repair the ibd file with innochecksum with --write=crc32
+# INNOCHECKSUM --no-check --write=crc32  MYSQLD_DATADIR/test/t1.ibd
+#Verify the t1.ibd for --strict-check=crc32
+# INNOCHECKSUM --strict-check=crc32  MYSQLD_DATADIR/test/t1.ibd
+# Write file to make mysql-test-run.pl start up the server again
+# Shutdown the server
+#Move the corrupted ib file to t1.ibd 
+#Repair the ibd file with innochecksum with --write=none
+# INNOCHECKSUM --no-check --write=none  MYSQLD_DATADIR/test/t1.ibd
+#Verify the t1.ibd for --strict-check=none
+# INNOCHECKSUM --strict-check=none  MYSQLD_DATADIR/test/t1.ibd
+# Write file to make mysql-test-run.pl start up the server again
+DROP TABLE t1;
+#Done with all checksum for repair for ibd file through innochecksum tool.
+# set the servervariables
+SET GLOBAL innodb_file_per_table=on;
+SET GLOBAL innodb_file_format='barracuda';
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	innodb
+# create a base table,Index & insert a record
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+# Next Test Count the no. of pages
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             TRUE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Print the contents of trace file.
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: Number of pages:7
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
+# Print the contents of trace file without --strict-check for innochecksum.
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking pages in range 0 to 6
+main: info: page::0; log sequence number: first = 1734730; second = 1734730
+main: info: page::0; old style: calculated = 441779300; recorded = 441779300
+main: info: page::0; new style: calculated = 3942798140; crc32 = 2239390476; recorded = 3942798140
+main: info: page::1; log sequence number: first = 1733626; second = 1733626
+main: info: page::1; old style: calculated = 221841160; recorded = 221841160
+main: info: page::1; new style: calculated = 1467558023; crc32 = 4094646167; recorded = 1467558023
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
+main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
+main: info: page::3; log sequence number: first = 1740897; second = 1740897
+main: info: page::3; old style: calculated = 268427060; recorded = 268427060
+main: info: page::3; new style: calculated = 3589193682; crc32 = 629368665; recorded = 3589193682
+main: info: page::4; log sequence number: first = 1740946; second = 1740946
+main: info: page::4; old style: calculated = 2962854778; recorded = 2962854778
+main: info: page::4; new style: calculated = 3496246649; crc32 = 3290456622; recorded = 3496246649
+main: info: page::5; log sequence number: first = 0; second = 0
+main: info: Page::5 is empty and uncorrupted
+main: info: page::6; log sequence number: first = 0; second = 0
+main: info: Page::6 is empty and uncorrupted
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      innodb
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
+# Print the contents of trace file for --strict-check=innodb having Innodb checksum algorithm at server end.
+find_type: enter: x: 'innodb'  lib: 0x669440
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking pages in range 0 to 6
+main: info: page::0; log sequence number: first = 1734730; second = 1734730
+main: info: page::0; old style:calculated = 441779300; recorded checksum = 441779300
+main: info: page::0; new style: calculated = 3942798140; recorded checksum  = 3942798140
+main: info: page::1; log sequence number: first = 1733626; second = 1733626
+main: info: page::1; old style:calculated = 221841160; recorded checksum = 221841160
+main: info: page::1; new style: calculated = 1467558023; recorded checksum  = 1467558023
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; old style:calculated = 4096953886; recorded checksum = 4096953886
+main: info: page::2; new style: calculated = 3086812042; recorded checksum  = 3086812042
+main: info: page::3; log sequence number: first = 1740897; second = 1740897
+main: info: page::3; old style:calculated = 268427060; recorded checksum = 268427060
+main: info: page::3; new style: calculated = 3589193682; recorded checksum  = 3589193682
+main: info: page::4; log sequence number: first = 1740946; second = 1740946
+main: info: page::4; old style:calculated = 2962854778; recorded checksum = 2962854778
+main: info: page::4; new style: calculated = 3496246649; recorded checksum  = 3496246649
+main: info: page::5; log sequence number: first = 0; second = 0
+main: info: Page::5 is empty and uncorrupted
+main: info: page::6; log sequence number: first = 0; second = 0
+main: info: Page::6 is empty and uncorrupted
+# Next Test
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  99
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Expect the fails for checksum mismatches. Print the error message.
+Fail: page 0 invalid
+Fail: page 1 invalid
+Fail: page 2 invalid
+Fail: page 3 invalid
+Fail: page 4 invalid
+# Print the contents of trace file.
+find_type: enter: x: 'crc32'  lib: 0x669440
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking pages in range 0 to 6
+main: info: page::0; log sequence number: first = 1734730; second = 1734730
+main: info: page::0; crc32 calculated = 2239390476;recorded checksum field1 = 3942798140 recorded checksum field2 =441779300
+main: info: page::1; log sequence number: first = 1733626; second = 1733626
+main: info: page::1; crc32 calculated = 4094646167;recorded checksum field1 = 1467558023 recorded checksum field2 =221841160
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; crc32 calculated = 2649948763;recorded checksum field1 = 3086812042 recorded checksum field2 =4096953886
+main: info: page::3; log sequence number: first = 1740897; second = 1740897
+main: info: page::3; crc32 calculated = 629368665;recorded checksum field1 = 3589193682 recorded checksum field2 =268427060
+main: info: page::4; log sequence number: first = 1740946; second = 1740946
+main: info: page::4; crc32 calculated = 3290456622;recorded checksum field1 = 3496246649 recorded checksum field2 =2962854778
+main: info: page::5; log sequence number: first = 0; second = 0
+main: info: Page::5 is empty and uncorrupted
+main: info: page::6; log sequence number: first = 0; second = 0
+main: info: Page::6 is empty and uncorrupted
+# Next Test 
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  99
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Expect the fails for checksum mismatches. Print the error message.
+Fail: page 0 invalid
+Fail: page 1 invalid
+Fail: page 2 invalid
+Fail: page 3 invalid
+Fail: page 4 invalid
+# Print the contents of trace file.
+find_type: enter: x: 'crc32'  lib: 0x669440
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking pages in range 0 to 6
+main: info: page::0; log sequence number: first = 1734730; second = 1734730
+main: info: page::0; crc32 calculated = 2239390476;recorded checksum field1 = 3942798140 recorded checksum field2 =441779300
+main: info: page::1; log sequence number: first = 1733626; second = 1733626
+main: info: page::1; crc32 calculated = 4094646167;recorded checksum field1 = 1467558023 recorded checksum field2 =221841160
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; crc32 calculated = 2649948763;recorded checksum field1 = 3086812042 recorded checksum field2 =4096953886
+main: info: page::3; log sequence number: first = 1740897; second = 1740897
+main: info: page::3; crc32 calculated = 629368665;recorded checksum field1 = 3589193682 recorded checksum field2 =268427060
+main: info: page::4; log sequence number: first = 1740946; second = 1740946
+main: info: page::4; crc32 calculated = 3290456622;recorded checksum field1 = 3496246649 recorded checksum field2 =2962854778
+main: info: page::5; log sequence number: first = 0; second = 0
+main: info: Page::5 is empty and uncorrupted
+main: info: page::6; log sequence number: first = 0; second = 0
+main: info: Page::6 is empty and uncorrupted
+# Next Test: checksum check for page: 2 to page:5
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        2
+end-page                          5
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Print the contents of trace file.
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking pages in range 2 to 5
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
+main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
+main: info: page::3; log sequence number: first = 1740897; second = 1740897
+main: info: page::3; old style: calculated = 268427060; recorded = 268427060
+main: info: page::3; new style: calculated = 3589193682; crc32 = 629368665; recorded = 3589193682
+main: info: page::4; log sequence number: first = 1740946; second = 1740946
+main: info: page::4; old style: calculated = 2962854778; recorded = 2962854778
+main: info: page::4; new style: calculated = 3496246649; crc32 = 3290456622; recorded = 3496246649
+main: info: page::5; log sequence number: first = 0; second = 0
+main: info: Page::5 is empty and uncorrupted
+# Next Test: checksum check for only pageno.= 2
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+count                             FALSE
+start-page                        2
+end-page                          2
+page                              2
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+# Print the contents of trace file.
+main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
+main: info: InnoChecksum; checking page 2
+main: info: page::2; log sequence number: first = 1734730; second = 1734730
+main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
+main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DROP TABLE tab1;
+SET GLOBAL innodb_file_per_table=default;
+SET GLOBAL innodb_file_format=default;
+#Further Test are for rewrite checksum (innodb|crc32|none) for all ibd file & start the server.
+#Also --strict-check or --write operation for multiple tablespace using regular expression.
+# Write file to make mysql-test-run.pl start up the server again
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	innodb
+#drop the table
+DROP TABLE IF EXISTS tab1;
+# create a table tab1
+CREATE TABLE tab1 (pk INTEGER NOT NULL PRIMARY KEY,
+linestring_key GEOMETRY NOT NULL,
+linestring_nokey GEOMETRY NOT NULL)
+ENGINE=InnoDB ;
+SHOW CREATE TABLE tab1;
+Table	Create Table
+tab1	CREATE TABLE `tab1` (
+  `pk` int(11) NOT NULL,
+  `linestring_key` geometry NOT NULL,
+  `linestring_nokey` geometry NOT NULL,
+  PRIMARY KEY (`pk`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+#insert some records
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (1, GeomFromText('POINT(10 10) '), GeomFromText('POINT(10 10) '));
+# create index on the table tab1
+CREATE INDEX linestring_index ON tab1(linestring_nokey(5));
+ALTER TABLE tab1 ADD  KEY (linestring_key(5));
+# set the Eneviron variable barracuda
+SET GLOBAL innodb_file_format='barracuda';
+# create a compressed table
+CREATE TABLE tab2(col_1 CHAR (255) ,
+col_2 VARCHAR (255), col_3 longtext,
+col_4 longtext,col_5 longtext,
+col_6 longtext , col_7 int )
+engine = innodb row_format=compressed key_block_size=4;
+# create index on the compress table
+CREATE INDEX idx1 ON tab2(col_3(10));
+CREATE INDEX idx2 ON tab2(col_4(10));
+CREATE INDEX idx3 ON tab2(col_5(10));
+#load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+#insert 5 records
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,5);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,4);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,3);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,2);
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,1);
+#check the records from table
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+#stop the server
+#R02: rewrite into new checksum=InnoDB for tab1 & tab2
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/test/tab*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             innodb
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=InnoDB for ibdata1
+# INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/ibdata1
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             innodb
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=InnoDB for all (mysql/*.ibd)
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/mysql/*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             innodb
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02 : Restart the DB server with innodb_checksum_algorithm=strcit_innoDB
+# The strict_InnoDB algorithm is only compatible with InnoDB
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	strict_innodb
+#check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+#check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (2, GeomFromText('LINESTRING(10 10,20 20,30 30)'), GeomFromText('LINESTRING(10 10,20 20,30 30)'));
+#load the with repeat function
+SET @col_1 = repeat('a', 5);
+SET @col_2 = repeat('b', 20);
+SET @col_3 = repeat('c', 100);
+SET @col_4 = repeat('d', 100);
+SET @col_5 = repeat('e', 100);
+SET @col_6 = repeat('f', 100);
+#check the table status is GOOD with DML
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,6);
+#check the records from table
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+#stop the server
+# Testcase 2 : Begin
+#R02: rewrite into new checksum=crc32 for tab1 & tab2
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/test/tab?.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=crc32 for ibdata1
+# INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/ibdata1
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=crc32 for all (mysql/*.ibd)
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/mysql/*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02 : Restart the DB server with innodb_checksum_algorithm=strict_crc32
+# The strict_crc32 algorithm is only compatible with CRC32
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	strict_crc32
+#check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+#check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
+VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'), 
+GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
+#load the with repeat function
+SET @col_1 = repeat('g', 5);
+SET @col_2 = repeat('h', 20);
+SET @col_3 = repeat('i', 100);
+SET @col_4 = repeat('j', 100);
+SET @col_5 = repeat('k', 100);
+SET @col_6 = repeat('l', 100);
+#check the table status is GOOD with DML
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,7);
+#check the records from table
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+#stop the server
+#R02: rewrite into new checksum=None for tab1 & tab2
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM --no-check --verbose --write=NONE  MYSQLD_DATADIR/test/*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             none
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=None for ibdata1
+# INNOCHECKSUM --no-check --verbose --write=NONE MYSQLD_DATADIR/ibdata1
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             none
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02: rewrite into new checksum=None for all (mysql/*.ibd)
+#R06: rewrite the checksum with multiple tablespace files.
+# INNOCHECKSUM --no-check --verbose --write=NONE MYSQLD_DATADIR/mysql/*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          TRUE
+allow-mismatches                  0
+write                             none
+page-type-summary                 FALSE
+page-type-dump                    (No default value)
+#R02 : Restart the DB server with innodb_checksum_algorithm=strcit_None
+# The strict_None algorithm is only compatible with None
+#check the server startup option
+SHOW variables like '%innodb_checksum_algorithm%';
+Variable_name	Value
+innodb_checksum_algorithm	strict_none
+#check the default engine is always InnoDB after restart
+SELECT @@default_storage_engine;
+@@default_storage_engine
+InnoDB
+#check the table status is GOOD with DML
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey) 
+VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
+#load the with repeat function
+SET @col_1 = repeat('m', 5);
+SET @col_2 = repeat('n', 20);
+SET @col_3 = repeat('o', 100);
+SET @col_4 = repeat('p', 100);
+SET @col_5 = repeat('q', 100);
+SET @col_6 = repeat('r', 100);
+#check the table status is GOOD with DML
+INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
+VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,8);
+#check the records from table
+SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
+FROM tab1 ORDER BY pk;
+SELECT * FROM tab2 ORDER BY col_7;
+#stop the server
+#R07: Check the page type summary with shortform for tab1.ibd
+# INNOCHECKSUM -V  MYSQLD_DATADIR/test/tab1.ibd
+/home/anil/work/repo/wl6045/extra/innochecksum Ver 5.7.1, for Linux (x86_64)
+#R07: Check the page type summary with longform for tab1.ibd
+# INNOCHECKSUM --page-type-summary  MYSQLD_DATADIR/test/tab1.ibd
+
+File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+================PAGE TYPE SUMMARY=====================
+3	FIL_PAGE_INDEX
+0	FIL_PAGE_UNDO_LOG
+1	FIL_PAGE_INODE
+0	FIL_PAGE_IBUF_FREE_LIST
+2	FIL_PAGE_TYPE_ALLOCATED
+1	FIL_PAGE_IBUF_BITMAP
+0	FIL_PAGE_TYPE_SYS
+0	FIL_PAGE_TYPE_TRX_SYS
+1	FIL_PAGE_TYPE_FSP_HDR
+0	FIL_PAGE_TYPE_XDES
+0	FIL_PAGE_TYPE_BLOB
+0	FIL_PAGE_TYPE_ZBLOB
+0	other
+undo type: 0 insert, 0 update, 0 other
+undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+#R07: Check the page type summary with longform for *.ibd
+# INNOCHECKSUM --page-type-summary MYSQLD_DATADIR/test/*.ibd
+
+File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+================PAGE TYPE SUMMARY=====================
+3	FIL_PAGE_INDEX
+0	FIL_PAGE_UNDO_LOG
+1	FIL_PAGE_INODE
+0	FIL_PAGE_IBUF_FREE_LIST
+2	FIL_PAGE_TYPE_ALLOCATED
+1	FIL_PAGE_IBUF_BITMAP
+0	FIL_PAGE_TYPE_SYS
+0	FIL_PAGE_TYPE_TRX_SYS
+1	FIL_PAGE_TYPE_FSP_HDR
+0	FIL_PAGE_TYPE_XDES
+0	FIL_PAGE_TYPE_BLOB
+0	FIL_PAGE_TYPE_ZBLOB
+0	other
+undo type: 0 insert, 0 update, 0 other
+undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+
+File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab2.ibd
+================PAGE TYPE SUMMARY=====================
+4	FIL_PAGE_INDEX
+0	FIL_PAGE_UNDO_LOG
+1	FIL_PAGE_INODE
+0	FIL_PAGE_IBUF_FREE_LIST
+9	FIL_PAGE_TYPE_ALLOCATED
+1	FIL_PAGE_IBUF_BITMAP
+0	FIL_PAGE_TYPE_SYS
+0	FIL_PAGE_TYPE_TRX_SYS
+1	FIL_PAGE_TYPE_FSP_HDR
+0	FIL_PAGE_TYPE_XDES
+0	FIL_PAGE_TYPE_BLOB
+0	FIL_PAGE_TYPE_ZBLOB
+0	other
+undo type: 0 insert, 0 update, 0 other
+undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+# Page type dump for tab1.ibd
+# INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    /home/anil/work/repo/wl6045/mysql-test/var/tmp/dump.txt
+# Print the contents stored in dump.txt
+
+
+Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+==============================================================================
+	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
+==============================================================================
+#::       0		|		File Space Header		|	-
+#::       1		|		Insert Buffer Bitmap		|	-
+#::       2		|		Inode Page			|	-
+#::       3		|		Index page			|	index id=27, page level=0,No. of records=4, garbage=0
+#::       4		|		Index page			|	index id=28, page level=0,No. of records=4, garbage=0
+#::       5		|		Index page			|	index id=29, page level=0,No. of records=4, garbage=0
+#::       6		|		Freshly allocated page		|	-
+#::       7		|		Freshly allocated page		|	-
+# Page type dump for *.ibd
+# INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,/tmp/innochecksum.trace
+count                             FALSE
+start-page                        0
+end-page                          0
+page                              0
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  0
+write                             crc32
+page-type-summary                 FALSE
+page-type-dump                    /home/anil/work/repo/wl6045/mysql-test/var/tmp/dump.txt
+# Print the contents stored in dump.txt
+
+
+Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+==============================================================================
+	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
+==============================================================================
+#::       0		|		File Space Header		|	-
+#::       1		|		Insert Buffer Bitmap		|	-
+#::       2		|		Inode Page			|	-
+#::       3		|		Index page			|	index id=27, page level=0,No. of records=4, garbage=0
+#::       4		|		Index page			|	index id=28, page level=0,No. of records=4, garbage=0
+#::       5		|		Index page			|	index id=29, page level=0,No. of records=4, garbage=0
+#::       6		|		Freshly allocated page		|	-
+#::       7		|		Freshly allocated page		|	-
+
+
+Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab2.ibd
+==============================================================================
+	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
+==============================================================================
+#::       0		|		File Space Header		|	-
+#::       1		|		Insert Buffer Bitmap		|	-
+#::       2		|		Inode Page			|	-
+#::       3		|		Index page			|	index id=30, page level=0,No. of records=8, garbage=0
+#::       4		|		Index page			|	index id=31, page level=0,No. of records=8, garbage=0
+#::       5		|		Index page			|	index id=32, page level=0,No. of records=8, garbage=0
+#::       6		|		Index page			|	index id=33, page level=0,No. of records=8, garbage=0
+#::       7		|		Freshly allocated page		|	-
+#::       8		|		Freshly allocated page		|	-
+#::       9		|		Freshly allocated page		|	-
+#::      10		|		Freshly allocated page		|	-
+#::      11		|		Freshly allocated page		|	-
+#::      12		|		Freshly allocated page		|	-
+#::      13		|		Freshly allocated page		|	-
+#::      14		|		Freshly allocated page		|	-
+#::      15		|		Freshly allocated page		|	-
+#R07 : Restart the DB server with innodb_checksum_algorithm=strict_None
+select * from tab2;
+#Test for lock. Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+# INNOCHECKSUM MYSQLD_DATADIR/test/tab2.ibd
+#cleanup
+DROP TABLE IF EXISTS tab1;
+DROP TABLE IF EXISTS tab2;
+SET GLOBAL innodb_file_format=default;
+#TEST END
