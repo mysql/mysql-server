@@ -461,7 +461,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ref	a	a	5	test.t0.a	1	100.00	Using where; FirstMatch(t2)
 Warnings:
 Note	1276	Field or reference 'test.t0.a' of SELECT #2 was resolved in SELECT #1
-Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t1`.`b` = `test`.`t2`.`b`) and (`test`.`t2`.`a` = `test`.`t0`.`a`) and (`test`.`t1`.`a` = `test`.`t0`.`a`))
+Note	1003	select `test`.`t0`.`a` AS `a` from `test`.`t2` semi join (`test`.`t1`) join `test`.`t0` where ((`test`.`t2`.`a` = `test`.`t0`.`a`) and (`test`.`t1`.`a` = `test`.`t0`.`a`) and (`test`.`t1`.`b` = `test`.`t2`.`b`))
 update t1 set a=3, b=11 where a=4;
 update t2 set b=11 where a=3;
 select * from t0 where t0.a in 
@@ -1227,5 +1227,57 @@ t3.cat_id IN (SELECT cat_id FROM t2) AND
 t3.sack_id = 33479 AND t3.kit_id = 6;
 count(*)
 2
+DROP TABLE t1,t2,t3,t4;
+set optimizer_switch=@save_optimizer_switch;
+#
+# mdev-3913: LEFT JOIN with materialized multi-table IN subquery in WHERE
+#
+set @save_optimizer_switch=@@optimizer_switch;
+CREATE TABLE t1 (a1 char(1), b1 char(1), index idx(b1,a1));
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+CREATE TABLE t2 (a2 char(1), b2 char(1));
+INSERT INTO t2 VALUES ('y','y'),('y','y'),('w','w');
+CREATE TABLE t3 (a3 int);
+INSERT INTO t3 VALUES (8),(6);
+CREATE TABLE t4 (a4 char(1), b4 char(1));
+INSERT INTO t4 VALUES ('y','y'),('y','y'),('w','w');
+set optimizer_switch='materialization=off';
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	Start temporary
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+1	PRIMARY	t1	ref	idx	idx	2	test.t4.a4	1	100.00	Using index; End temporary
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t4`) left join `test`.`t2` on((`test`.`t2`.`a2` = `test`.`t4`.`a4`)) where ((`test`.`t4`.`b4` = `test`.`t4`.`a4`) and (`test`.`t1`.`b1` = `test`.`t4`.`a4`))
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+a1	b1	a2	b2
+g	y	y	y
+g	y	y	y
+g	y	y	y
+g	y	y	y
+set optimizer_switch='materialization=on';
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	ref	idx	idx	2	test.t4.a4	1	100.00	Using index
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+2	MATERIALIZED	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
+Warnings:
+Note	1003	select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`b1` AS `b1`,`test`.`t2`.`a2` AS `a2`,`test`.`t2`.`b2` AS `b2` from `test`.`t1` semi join (`test`.`t3` join `test`.`t4`) left join `test`.`t2` on(((`test`.`t1`.`b1` = `test`.`t4`.`a4`) and (`test`.`t2`.`a2` = `test`.`t4`.`a4`))) where ((`test`.`t4`.`b4` = `test`.`t4`.`a4`) and (`test`.`t1`.`b1` = `test`.`t4`.`a4`))
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+a1	b1	a2	b2
+g	y	y	y
+g	y	y	y
+g	y	y	y
+g	y	y	y
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch=@save_optimizer_switch;

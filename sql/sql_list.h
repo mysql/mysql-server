@@ -284,13 +284,15 @@ public:
       if (node == &end_of_list)
         return;
     }
-    *prev= *last;
+    *prev= &end_of_list;
     last= prev;
   }
   inline void prepand(base_list *list)
   {
     if (!list->is_empty())
     {
+      if (is_empty())
+        last= list->last;
       *list->last= first;
       first= list->first;
       elements+= list->elements;

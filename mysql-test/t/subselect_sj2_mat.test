@@ -36,7 +36,6 @@ WHERE a IN
 DROP TABLE t1, t2;
 set max_join_size= @tmp_906385;
 
-
 --echo # 
 --echo # mdev-3995: Wrong result for semijoin with materialization  
 --echo # 
@@ -135,6 +134,45 @@ SELECT count(*) FROM t1, t3
          t3.cat_id IN (SELECT cat_id FROM t2) AND 
          t3.sack_id = 33479 AND t3.kit_id = 6;
 
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # mdev-3913: LEFT JOIN with materialized multi-table IN subquery in WHERE
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t1 (a1 char(1), b1 char(1), index idx(b1,a1));
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+INSERT INTO t1 VALUES ('f','c'),('d','m'),('g','y');
+
+CREATE TABLE t2 (a2 char(1), b2 char(1));
+INSERT INTO t2 VALUES ('y','y'),('y','y'),('w','w');
+
+CREATE TABLE t3 (a3 int);
+INSERT INTO t3 VALUES (8),(6);
+
+CREATE TABLE t4 (a4 char(1), b4 char(1));
+INSERT INTO t4 VALUES ('y','y'),('y','y'),('w','w');
+
+set optimizer_switch='materialization=off';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+
+set optimizer_switch='materialization=on';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
+SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 ) 
+  WHERE ( b1, b1 )  IN ( SELECT a4, b4 FROM t3, t4);
 
 DROP TABLE t1,t2,t3,t4;
 
