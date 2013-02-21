@@ -907,7 +907,7 @@ fid	Y(g)
 104	20
 explain extended select X(g),Y(g) FROM gis_point;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	4	100.00	NULL
+1	SIMPLE	gis_point	ALL	NULL	NULL	NULL	NULL	#	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select st_x(`test`.`gis_point`.`g`) AS `X(g)`,st_y(`test`.`gis_point`.`g`) AS `Y(g)` from `test`.`gis_point`
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
