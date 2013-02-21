@@ -122,7 +122,6 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-static long innobase_mirrored_log_groups;
 static long innobase_log_buffer_size;
 static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
@@ -672,7 +671,7 @@ static
 int
 innobase_close_connection(
 /*======================*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd);		/*!< in: MySQL thread handle for
 					which to close the connection */
 
@@ -684,7 +683,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -700,7 +699,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -743,7 +742,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -755,7 +754,7 @@ static
 handler*
 innobase_create_handler(
 /*====================*/
-	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
 
@@ -869,7 +868,7 @@ static
 void
 innobase_set_cursor_view(
 /*=====================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent cursor view to
 					be set */
@@ -881,7 +880,7 @@ static
 void
 innobase_close_cursor_view(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent read view to be
 					closed */
@@ -891,7 +890,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	char*		path);		/*!< in: database path; inside InnoDB
 					the name of the last directory in
 					the path is used as the database name:
@@ -903,7 +902,7 @@ static
 int
 innobase_end(
 /*=========*/
-	handlerton*		hton,	/* in: Innodb handlerton */
+	handlerton*		hton,	/* in: InnoDB handlerton */
 	ha_panic_function	type);
 
 /*****************************************************************//**
@@ -916,7 +915,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton*	hton,		/* in: Innodb handlerton */
+	handlerton*	hton,		/* in: InnoDB handlerton */
 	THD*		thd);		/* in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -2193,9 +2192,12 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
-		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
-		  HA_CAN_FULLTEXT_EXT | HA_CAN_EXPORT),
+		  HA_CAN_GEOMETRY |
+		  HA_PARTIAL_COLUMN_READ |
+		  HA_TABLE_SCAN_ON_INDEX |
+		  HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_EXPORT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2786,7 +2788,7 @@ innobase_init(
 	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
-	handlerton *innobase_hton= (handlerton*) p;
+	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
 	innobase_hton->state = SHOW_OPTION_YES;
@@ -2953,11 +2955,8 @@ innobase_init(
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3389,7 +3388,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton*	hton,	/*!< in: Innodb handlerton */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
 	THD*		thd)	/*!< in: MySQL thread handle of the user for
 				whom the transaction should be committed */
 {
@@ -3434,7 +3433,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -3495,18 +3494,18 @@ retry:
 		/* The following call read the binary log position of
 		the transaction being committed.
 
-                Binary logging of other engines is not relevant to
+		Binary logging of other engines is not relevant to
 		InnoDB as all InnoDB requires is that committing
 		InnoDB transactions appear in the same order in the
 		MySQL binary log as they appear in InnoDB logs, which
 		is guaranteed by the server.
 
-                If the binary log is not enabled, or the transaction
-                is not written to the binary log, the file name will
-                be a NULL pointer. */
-                unsigned long long pos;
-                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
+		If the binary log is not enabled, or the transaction
+		is not written to the binary log, the file name will
+		be a NULL pointer. */
+		unsigned long long pos;
+		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
 		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
@@ -3561,7 +3560,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -3652,7 +3651,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back to savepoint */
@@ -3698,7 +3697,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in: handlerton for InnoDB */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -3733,7 +3732,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,	/*!< in: handle to the Innodb handlerton */
+	handlerton*	hton,	/*!< in: handle to the InnoDB handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread */
 	void*	savepoint)	/*!< in: savepoint data */
 {
@@ -4240,7 +4239,7 @@ innobase_match_index_columns(
 	const KEY*		key_info,	/*!< in: Index info
 						from mysql */
 	const dict_index_t*	index_info)	/*!< in: Index info
-						from Innodb */
+						from InnoDB */
 {
 	const KEY_PART_INFO*	key_part;
 	const KEY_PART_INFO*	key_end;
@@ -4265,7 +4264,7 @@ innobase_match_index_columns(
 	column name got modified in mysql but such change does not
 	propagate to InnoDB.
 	One hidden assumption here is that the index column sequences
-	are matched up between those in mysql and Innodb. */
+	are matched up between those in mysql and InnoDB. */
 	for (; key_part != key_end; ++key_part) {
 		ulint	col_type;
 		ibool	is_unsigned;
@@ -4276,7 +4275,7 @@ innobase_match_index_columns(
 		col_type = get_innobase_type_from_mysql_type(&is_unsigned,
 							     key_part->field);
 
-		/* Ignore Innodb specific system columns. */
+		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
 			innodb_idx_fld++;
 
@@ -4300,7 +4299,7 @@ innobase_match_index_columns(
 This function builds a translation table in INNOBASE_SHARE
 structure for fast index location with mysql array number from its
 table->key_info structure. This also provides the necessary translation
-between the key order in mysql key_info and Innodb ib_table->indexes if
+between the key order in mysql key_info and InnoDB ib_table->indexes if
 they are not fully matched with each other.
 Note we do not have any mutex protecting the translation table
 building based on the assumption that there is no concurrent
@@ -4313,7 +4312,7 @@ innobase_build_index_translation(
 /*=============================*/
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
-	dict_table_t*		ib_table,/*!< in: table in Innodb data
+	dict_table_t*		ib_table,/*!< in: table in InnoDB data
 					dictionary */
 	INNOBASE_SHARE*		share)	/*!< in/out: share structure
 					where index translation table
@@ -7533,7 +7532,7 @@ ha_innobase::innobase_get_index(
 
 	if (!index) {
 		sql_print_error(
-			"Innodb could not find key n:o %u with name %s "
+			"InnoDB could not find key n:o %u with name %s "
 			"from dict cache for table %s",
 			keynr, key ? key->name : "NULL",
 			prebuilt->table->name);
@@ -8916,7 +8915,7 @@ create_options_are_invalid(
 		}
 	}
 
-	/* Check for a valid Innodb ROW_FORMAT specifier and
+	/* Check for a valid InnoDB ROW_FORMAT specifier and
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
@@ -10019,7 +10018,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-	handlerton*	hton,	/*!< in: handlerton of Innodb */
+	handlerton*	hton,	/*!< in: handlerton of InnoDB */
 	char*		path)	/*!< in: database path; inside InnoDB the name
 				of the last directory in the path is used as
 				the database name: for example, in
@@ -10348,7 +10347,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -10579,7 +10578,7 @@ innobase_get_mysql_key_number_for_index(
 					translation table. */
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
-	dict_table_t*		ib_table,/*!< in: table in Innodb data
+	dict_table_t*		ib_table,/*!< in: table in InnoDB data
 					dictionary */
 	const dict_index_t*	index)	/*!< in: index */
 {
@@ -11282,7 +11281,7 @@ ha_innobase::check(
 		prebuilt->index_usable = row_merge_is_index_usable(
 			prebuilt->trx, prebuilt->index);
 
-		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		if (!prebuilt->index_usable) {
 			innobase_format_name(
 				index_name, sizeof index_name,
 				prebuilt->index->name, TRUE);
@@ -15925,11 +15924,6 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
-static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
-
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of the buffer pool to reserve for 'old' blocks.",
@@ -16272,7 +16266,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
-  MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
