@@ -56,6 +56,7 @@ class Thd_ndb
 
   Thd_ndb(THD*);
   ~Thd_ndb();
+  const bool m_slave_thread; // cached value of thd->slave_thread
 public:
   static Thd_ndb* seize(THD*);
   static void release(Thd_ndb* thd_ndb);
@@ -132,6 +133,8 @@ public:
   unsigned m_connect_count;
   bool valid_ndb(void) const;
   bool recycle_ndb(void);
+
+  bool is_slave_thread(void) const { return m_slave_thread; }
 };
 
 #endif
