@@ -13,9 +13,8 @@
 # 4. Import/Discard of temp-table (to check blocked action)		#
 # 5. Renaming of temp-table						#
 # 6. Creating temp-table with large prefix enabled.			#
-# 7. Temp table with PK-FK -FK constraint is igonered for temp tables   #
-# 8. Check Temp table info not stored in I_S datafile and tables	#
-# 9. Vary innodb_change_buffering value for temp-table			#
+# 7. Check Temp table info not stored in I_S datafile and tables	#
+# 8. Vary innodb_change_buffering value for temp-table			#
 #########################################################################
 
 
@@ -267,40 +266,7 @@ eval set global innodb_large_prefix = $large_prefix;
 
 #-------------------------------------------------------------
 #
-# 7. Temp table with PK-FK -FK constraint is igonered for temp
-# tables
-#
---disable_warnings
-drop table if exists parent,child;
---enable_warnings
-create temporary table parent ( i int primary key ) engine = innodb;
-create table child ( j int references parent(i)) engine = innodb;
-insert into parent values (1),(2),(3),(4);
-insert into child values (1),(2),(3),(4);
-# We can insert non referencing values as constraint is ignored for temp table
-insert into child values (5),(6);
-select * from parent;
-select * from child;
-#
---echo # restart server
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 40 
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
-#
-# parent table will be removed on restart as its temp table
---error ER_NO_SUCH_TABLE 
-select * from parent ;
-select * from child ;
-drop table child;
-
-#-------------------------------------------------------------
-#
-# 8. Temp table info not stored in I_S
+# 7. Temp table info not stored in I_S
 #
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;
@@ -319,7 +285,7 @@ SELECT COUNT(*) FROM information_schema.INNODB_SYS_TABLES WHERE NAME LIKE '%test
 
 #-------------------------------------------------------------
 #
-# 9. Vary innodb_change_buffering value
+# 8. Vary innodb_change_buffering value
 #
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2;
