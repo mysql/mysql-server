@@ -424,7 +424,7 @@ SimpleCpcClient::cpc_send(const char *cmd,
 			  const Properties &args) {
   SocketOutputStream cpc_out(cpc_sock);
 
-  cpc_out.println(cmd);
+  cpc_out.println("%s", cmd);
 
   Properties::Iterator iter(&args);
   const char *name;
