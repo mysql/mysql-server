@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -221,8 +221,7 @@ rec_get_n_extern_new(
 			stored in one byte for 0..127.  The length
 			will be encoded in two bytes when it is 128 or
 			more, or when the field is stored externally. */
-			if (UNIV_UNLIKELY(col->len > 255)
-			    || UNIV_UNLIKELY(col->mtype == DATA_BLOB)) {
+			if (DATA_BIG_COL(col)) {
 				if (len & 0x80) {
 					/* 1exxxxxxx xxxxxxxx */
 					if (len & 0x40) {
@@ -320,9 +319,7 @@ rec_init_offsets_comp_ordinary(
 			stored in one byte for 0..127.  The length
 			will be encoded in two bytes when it is 128 or
 			more, or when the field is stored externally. */
-			if (UNIV_UNLIKELY(col->len > 255)
-			    || UNIV_UNLIKELY(col->mtype
-					     == DATA_BLOB)) {
+			if (DATA_BIG_COL(col)) {
 				if (len & 0x80) {
 					/* 1exxxxxxx xxxxxxxx */
 					len <<= 8;
@@ -459,9 +456,7 @@ rec_init_offsets(
 				encoded in two bytes when it is 128 or
 				more, or when the field is stored
 				externally. */
-				if (UNIV_UNLIKELY(col->len > 255)
-				    || UNIV_UNLIKELY(col->mtype
-						     == DATA_BLOB)) {
+				if (DATA_BIG_COL(col)) {
 					if (len & 0x80) {
 						/* 1exxxxxxx xxxxxxxx */
 
@@ -695,8 +690,7 @@ rec_get_offsets_reverse(
 			stored in one byte for 0..127.  The length
 			will be encoded in two bytes when it is 128 or
 			more, or when the field is stored externally. */
-			if (UNIV_UNLIKELY(col->len > 255)
-			    || UNIV_UNLIKELY(col->mtype == DATA_BLOB)) {
+			if (DATA_BIG_COL(col)) {
 				if (len & 0x80) {
 					/* 1exxxxxxx xxxxxxxx */
 					len <<= 8;
@@ -840,7 +834,7 @@ rec_get_converted_size_comp_prefix_low(
 			continue;
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB
+		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype)
 		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
 		fixed_len = field->fixed_len;
@@ -870,10 +864,9 @@ rec_get_converted_size_comp_prefix_low(
 			      || fixed_len == field->prefix_len);
 #endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(&fields[i])) {
-			ut_ad(col->len >= 256 || col->mtype == DATA_BLOB);
+			ut_ad(DATA_BIG_COL(col));
 			extra_size += 2;
-		} else if (len < 128
-			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
+		} else if (len < 128 || !DATA_BIG_COL(col)) {
 			extra_size++;
 		} else {
 			/* For variable-length columns, we look up the
@@ -1261,20 +1254,18 @@ rec_convert_dtuple_to_rec_comp(
 			ut_ad(!dfield_is_ext(field));
 #endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
-			ut_ad(ifield->col->len >= 256
-			      || ifield->col->mtype == DATA_BLOB);
+			ut_ad(DATA_BIG_COL(ifield->col));
 			ut_ad(len <= REC_ANTELOPE_MAX_INDEX_COL_LEN
 			      + BTR_EXTERN_FIELD_REF_SIZE);
 			*lens-- = (byte) (len >> 8) | 0xc0;
 			*lens-- = (byte) len;
 		} else {
 			ut_ad(len <= dtype_get_len(type)
-			      || dtype_get_mtype(type) == DATA_BLOB
+			      || DATA_LARGE_MTYPE(dtype_get_mtype(type))
 			      || !strcmp(index->name,
 					 FTS_INDEX_TABLE_IND_NAME));
-			if (len < 128
-			    || (dtype_get_len(type) < 256
-				&& dtype_get_mtype(type) != DATA_BLOB)) {
+			if (len < 128 || !DATA_BIG_LEN_MTYPE(
+				dtype_get_len(type), dtype_get_mtype(type))) {
 
 				*lens-- = (byte) len;
 			} else {
@@ -1603,7 +1594,7 @@ rec_copy_prefix_to_buf(
 			stored in one byte for 0..127.  The length
 			will be encoded in two bytes when it is 128 or
 			more, or when the column is stored externally. */
-			if (col->len > 255 || col->mtype == DATA_BLOB) {
+			if (DATA_BIG_COL(col)) {
 				if (len & 0x80) {
 					/* 1exxxxxx */
 					len &= 0x3f;
