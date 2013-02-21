@@ -1896,7 +1896,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join buffer (flat, BNL join)
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	
 Warnings:
-Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from  <materialize> (select max(`test`.`t2`.`c`) from `test`.`t2`) join `test`.`t1` where ((`test`.`t1`.`a` = `<subquery2>`.`MAX(c)`) and (`test`.`t1`.`b` = 7) and (isnull(`<subquery2>`.`MAX(c)`) or (`<subquery2>`.`MAX(c)` = 7)))
+Note	1003	select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from  <materialize> (select max(`test`.`t2`.`c`) from `test`.`t2`) join `test`.`t1` where ((`test`.`t1`.`b` = 7) and (`test`.`t1`.`a` = `<subquery2>`.`MAX(c)`) and (isnull(`<subquery2>`.`MAX(c)`) or (`<subquery2>`.`MAX(c)` = 7)))
 SELECT * FROM t1
 WHERE a IN (SELECT MAX(c) FROM t2) AND b=7 AND (a IS NULL OR a=b);
 a	b
