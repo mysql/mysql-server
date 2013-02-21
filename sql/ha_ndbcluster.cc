@@ -1047,9 +1047,9 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
 
 static inline
 int
-execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
-                      bool ignore_no_key,
-                      uint *ignore_count = 0)
+execute_no_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
+                  bool ignore_no_key,
+                  uint *ignore_count = 0)
 {
   DBUG_ENTER("execute_no_commit");
   ha_ndbcluster::release_completed_operations(trans);
@@ -1079,7 +1079,7 @@ execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                                                ignore_count);
   } while (0);
 
-  if (unlikely(thd->slave_thread &&
+  if (unlikely(thd_ndb->is_slave_thread() &&
                rc != 0))
   {
     g_ndb_slave_state.atTransactionAbort();
@@ -1092,7 +1092,7 @@ execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
 
 static inline
 int
-execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
+execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                int force_send, int ignore_error, uint *ignore_count = 0)
 {
   DBUG_ENTER("execute_commit");
@@ -1130,7 +1130,7 @@ execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                                    ignore_count);
   } while (0);
 
-  if (thd->slave_thread)
+  if (thd_ndb->is_slave_thread())
   {
     if (likely(rc == 0))
     {
@@ -1178,6 +1178,7 @@ uchar *thd_ndb_share_get_key(THD_NDB_SHARE *thd_ndb_share, size_t *length,
 
 Thd_ndb::Thd_ndb(THD* thd) :
   m_thd(thd),
+  m_slave_thread(thd->slave_thread),
   schema_locks_count(0)
 {
   connection= ndb_get_cluster_connection();
@@ -3054,7 +3055,7 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
       if (error != 0)
         ERR_RETURN(op->getNdbError());
     }
-    if (execute_no_commit(thd, m_thd_ndb, trans, m_ignore_no_key) != 0)
+    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       table->status= STATUS_NOT_FOUND;
       DBUG_RETURN(ndb_err(trans));
@@ -3459,7 +3460,7 @@ inline int ha_ndbcluster::fetch_next(NdbScanOperation* cursor)
     */
     if (m_thd_ndb->m_unsent_bytes && m_blobs_pending)
     {
-      if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
+      if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
         DBUG_RETURN(ndb_err(trans));
     }
     
@@ -4068,7 +4069,7 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     m_thd_ndb->m_sorted_scan_count++;
   }
 
-  if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
+  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   
   DBUG_RETURN(next_result(buf));
@@ -4230,7 +4231,7 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       ERR_RETURN(op->getNdbError());
   } // if (check_if_pushable(NdbQueryOperationDef::TableScan))
   
-  if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
+  if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     DBUG_RETURN(ndb_err(trans));
   DBUG_PRINT("exit", ("Scan started successfully"));
   DBUG_RETURN(next_result(buf));
@@ -5404,7 +5405,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
     DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
     const int ignore_error= 1;
-    if (execute_commit(table->in_use, m_thd_ndb, trans,
+    if (execute_commit(m_thd_ndb, trans,
                        m_thd_ndb->m_force_send, ignore_error,
                        &ignore_count) != 0)
     {
@@ -5448,14 +5449,14 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
   }
 
   uint ignore_count= 0;
-  THD *thd= table->in_use;
-  if (execute_no_commit(thd, m_thd_ndb, trans,
+  if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
+  THD *thd= table->in_use;
   if (!applying_binlog(thd))
   {
     assert(m_rows_changed >= ignore_count);
@@ -5767,7 +5768,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
       !(cursor || (batch_allowed && have_pk)) ||
       need_flush)
   {
-    if (execute_no_commit(thd, m_thd_ndb, trans,
+    if (execute_no_commit(m_thd_ndb, trans,
                           m_ignore_no_key || m_read_before_write_removal_used,
                           &ignore_count) != 0)
     {
@@ -5834,7 +5835,7 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_PRINT("info", ("committing auto-commit+rbwr early"));
     uint ignore_count= 0;
     const int ignore_error= 1;
-    if (execute_commit(table->in_use, m_thd_ndb, trans,
+    if (execute_commit(m_thd_ndb, trans,
                        m_thd_ndb->m_force_send, ignore_error,
                        &ignore_count) != 0)
     {
@@ -5875,8 +5876,7 @@ int ha_ndbcluster::end_bulk_delete()
   }
 
   uint ignore_count= 0;
-  THD *thd= table->in_use;
-  if (execute_no_commit(thd, m_thd_ndb, trans,
+  if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
@@ -5884,6 +5884,7 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_RETURN(ndb_err(trans));
   }
 
+  THD *thd= table->in_use;
   if (!applying_binlog(thd))
   {
     assert(m_rows_deleted >= ignore_count);
@@ -6085,7 +6086,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
 
   // Execute delete operation
   uint ignore_count= 0;
-  if (execute_no_commit(thd, m_thd_ndb, trans,
+  if (execute_no_commit(m_thd_ndb, trans,
                         m_ignore_no_key || m_read_before_write_removal_used,
                         &ignore_count) != 0)
   {
@@ -6655,7 +6656,7 @@ int ha_ndbcluster::close_scan()
     */
     DBUG_PRINT("info", ("thd_ndb->m_unsent_bytes: %ld",
                         (long) m_thd_ndb->m_unsent_bytes));    
-    if (execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
+    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -7225,7 +7226,7 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
   if (! (m_thd_ndb->trans_options & TNTO_TRANSACTIONS_OFF))
   {
     if (!allow_batch &&
-        execute_no_commit(table->in_use, m_thd_ndb, trans, m_ignore_no_key) != 0)
+        execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
       DBUG_RETURN(ndb_err(trans));
@@ -7240,7 +7241,7 @@ ha_ndbcluster::flush_bulk_insert(bool allow_batch)
     THD *thd= table->in_use;
     thd->transaction.all.modified_non_trans_table=
       thd->transaction.stmt.modified_non_trans_table= TRUE;
-    if (execute_commit(thd, m_thd_ndb, trans, m_thd_ndb->m_force_send,
+    if (execute_commit(m_thd_ndb, trans, m_thd_ndb->m_force_send,
                        m_ignore_no_key) != 0)
     {
       no_uncommitted_rows_execute_failure();
@@ -8059,7 +8060,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     if (g_ndb_slave_state.conflict_flags & SCS_OPS_DEFINED)
     {
       if (thd_ndb->m_unsent_bytes)
-        res = execute_no_commit(thd, thd_ndb, trans, TRUE);
+        res = execute_no_commit(thd_ndb, trans, TRUE);
     }
 
     if (likely(res == 0))
@@ -8067,7 +8068,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
 #endif /* HAVE_NDB_BINLOG */
 
     if (likely(res == 0))
-      res= execute_commit(thd, thd_ndb, trans, 1, TRUE);
+      res= execute_commit(thd_ndb, trans, 1, TRUE);
 
     update_slave_api_stats(thd_ndb->ndb);
   }
@@ -8092,7 +8093,7 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     else
     {
       bool applying_binlog= (thd_ndb->trans_options & TNTO_APPLYING_BINLOG);
-      res= execute_commit(thd, thd_ndb, trans, THDVAR(thd, force_send), applying_binlog);
+      res= execute_commit(thd_ndb, trans, THDVAR(thd, force_send), applying_binlog);
     }
   }
 
