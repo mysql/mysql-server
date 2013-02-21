@@ -2316,11 +2316,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         */
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          append_identifier(thd, built_ptr_query, db, db_len);
+          append_identifier(thd, built_ptr_query, db, db_len,
+                            system_charset_info, thd->charset());
           built_ptr_query->append(".");
         }
         append_identifier(thd, built_ptr_query, table->table_name,
-                          strlen(table->table_name));
+                           strlen(table->table_name), system_charset_info,
+                           thd->charset());
         built_ptr_query->append(",");
       }
       /*
@@ -2382,12 +2384,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         */
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          append_identifier(thd, &built_query, db, db_len);
+          append_identifier(thd, &built_query, db, db_len,
+                            system_charset_info, thd->charset());
           built_query.append(".");
         }
-
         append_identifier(thd, &built_query, table->table_name,
-                          strlen(table->table_name));
+                          strlen(table->table_name), system_charset_info,
+                          thd->charset());
         built_query.append(",");
       }
     }
