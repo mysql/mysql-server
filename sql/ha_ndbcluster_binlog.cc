@@ -2752,6 +2752,17 @@ class Ndb_schema_event_handler {
     Ndb *ndb= thd_ndb->ndb;
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
+    {
+      /*
+        Bug#14773491 reports crash in 'cmp_frm' due to
+        ndbtab* being NULL -> bail out here
+      */
+      sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
+                      db_name, table_name);
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
 
     char key[FN_REFLEN];
     build_table_filename(key, sizeof(key)-1,
