@@ -97,7 +97,6 @@ test_writer_priority_thread (void *arg) {
 static void
 test_writer_priority (void) {
     struct rw_event rw_event, *rwe = &rw_event;
-    ZERO_STRUCT(rw_event);
     int r;
 
     rw_event_init(rwe);
@@ -153,7 +152,6 @@ test_single_writer_thread (void *arg) {
 static void
 test_single_writer (void) {
     struct rw_event rw_event, *rwe = &rw_event;
-    ZERO_STRUCT(rw_event);
     int r;
 
     rw_event_init(rwe);

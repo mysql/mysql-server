@@ -210,7 +210,6 @@ static uint64_t nontransactional_open_id = 0;
 static int 
 toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYPE dbtype, uint32_t flags, int mode) {
     HANDLE_PANICKED_DB(db);
-    HANDLE_READ_ONLY_TXN(txn);
     if (dbname != NULL) {
         return db_open_subdb(db, txn, fname, dbname, dbtype, flags, mode);
     }
@@ -348,7 +347,6 @@ void toku_db_lt_on_destroy_callback(toku::locktree *lt) {
 int 
 toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t flags, int mode) {
     //Set comparison functions if not yet set.
-    HANDLE_READ_ONLY_TXN(txn);
     if (!db->i->key_compare_was_set && db->dbenv->i->bt_compare) {
         toku_ft_set_bt_compare(db->i->ft_handle, db->dbenv->i->bt_compare);
         db->i->key_compare_was_set = true;
@@ -471,7 +469,6 @@ int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn) {
 static int 
 toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t flags) {
     HANDLE_PANICKED_DB(db);
-    HANDLE_READ_ONLY_TXN(txn);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
@@ -698,7 +695,6 @@ autotxn_db_getf_set (DB *db, DB_TXN *txn, uint32_t flags, DBT *key, YDB_CALLBACK
 static int 
 locked_db_open(DB *db, DB_TXN *txn, const char *fname, const char *dbname, DBTYPE dbtype, uint32_t flags, int mode) {
     int ret, r;
-    HANDLE_READ_ONLY_TXN(txn);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
 
     //
@@ -1028,7 +1024,6 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
 int
 locked_load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], char * new_inames_in_env[/*N*/], LSN *load_lsn, bool mark_as_loader) {
     int ret, r;
-    HANDLE_READ_ONLY_TXN(txn);
 
     DB_TXN *child_txn = NULL;
     int using_txns = env->i->open_flags & DB_INIT_TXN;

@@ -29,15 +29,13 @@ void toku_txn_lock(TOKUTXN txn);
 void toku_txn_unlock(TOKUTXN txn);
 
 uint64_t toku_txn_get_root_id(TOKUTXN txn);
-bool txn_declared_read_only(TOKUTXN txn);
 
 int toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
     TOKUTXN *tokutxn, 
     TOKULOGGER logger,
-    TXN_SNAPSHOT_TYPE snapshot_type,
-    bool read_only
+    TXN_SNAPSHOT_TYPE snapshot_type
     );
 
 DB_TXN * toku_txn_get_container_db_txn (TOKUTXN tokutxn);
@@ -51,12 +49,11 @@ int toku_txn_begin_with_xid (
     TXNID_PAIR xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
-    bool for_recovery,
-    bool read_only
+    bool for_recovery
     );
 
 // Allocate and initialize a txn
-void toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn, bool for_checkpoint);
+void toku_txn_create_txn(TOKUTXN *txn_ptr, TOKUTXN parent, TOKULOGGER logger, TXN_SNAPSHOT_TYPE snapshot_type, DB_TXN *container_db_txn, XIDS xids, bool for_checkpoint);
 void toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid);
 
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);

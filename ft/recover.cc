@@ -480,16 +480,7 @@ recover_transaction(TOKUTXN *txnp, TXNID_PAIR xid, TXNID_PAIR parentxid, TOKULOG
         toku_txnid2txn(logger, xid, &txn);
         assert(txn==NULL);
     }
-    r = toku_txn_begin_with_xid(
-        parent, 
-        &txn, 
-        logger, 
-        xid, 
-        TXN_SNAPSHOT_NONE, 
-        NULL, 
-        true, // for_recovery
-        false // read_only
-        );
+    r = toku_txn_begin_with_xid(parent, &txn, logger, xid, TXN_SNAPSHOT_NONE, NULL, true);
     assert(r == 0);
     // We only know about it because it was logged.  Restore the log bit.
     // Logging is 'off' but it will still set the bit.

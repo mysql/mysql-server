@@ -31,7 +31,7 @@ static int commit_and_create_txn(
     int rand_txn_id = random() % num_txns;
     int r = txns[rand_txn_id]->commit(txns[rand_txn_id], 0);
     CKERR(r);
-    r = arg->env->txn_begin(arg->env, 0, &txns[rand_txn_id], arg->txn_flags); 
+    r = arg->env->txn_begin(arg->env, 0, &txns[rand_txn_id], arg->txn_type); 
     CKERR(r);
     return 0;
 }
