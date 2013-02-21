@@ -31,7 +31,7 @@
 --source include/not_embedded.inc
 --source include/not_windows.inc
 --source include/have_perfschema.inc
-
+--source include/have_myisam.inc
 # The values in the performance_schema tables depend on how much communication
 # happens per SQL statement within our MTR tests. And there is a significant
 # difference between standard statement execution and execution via

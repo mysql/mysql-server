@@ -5,7 +5,7 @@
 
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
-
+--source include/have_myisam.inc
 
 # Some initial settings + Preemptive cleanup
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
