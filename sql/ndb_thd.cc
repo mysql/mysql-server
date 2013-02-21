@@ -46,6 +46,8 @@ Ndb* check_ndb_in_thd(THD* thd, bool validate_ndb)
       return NULL;
   }
 
+  DBUG_ASSERT(thd_ndb->is_slave_thread() == thd->slave_thread);
+
   return thd_ndb->ndb;
 }
 
