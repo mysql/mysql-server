@@ -372,7 +372,7 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
 }
 
 
-Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements), 
+Item_sum::Item_sum(List<Item> &list) :next(NULL), arg_count(list.elements), 
   forced_const(FALSE)
 {
   if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
@@ -402,6 +402,7 @@ Item_sum::Item_sum(List<Item> &list) :arg_count(list.elements),
 
 Item_sum::Item_sum(THD *thd, Item_sum *item):
   Item_result_field(thd, item),
+  next(NULL),
   aggr_sel(item->aggr_sel),
   nest_level(item->nest_level), aggr_level(item->aggr_level),
   quick_group(item->quick_group),
@@ -520,29 +521,32 @@ bool Item_sum::walk (Item_processor processor, bool walk_subquery,
 bool Item_sum::clean_up_after_removal(uchar *arg)
 {
   /*
-    Sometimes we remove unresolved items. This may happen if an
-    expression occurs twice in the same query. In that case, the whole
-    item tree for the second occurence is replaced by the item tree
-    for the first occurence, without calling fix_fields() on the
-    second tree. Therefore there's nothing to clean up.
+    Don't do anything if
+    1) this is an unresolved item (This may happen if an
+       expression occurs twice in the same query. In that case, the
+       whole item tree for the second occurence is replaced by the
+       item tree for the first occurence, without calling fix_fields()
+       on the second tree. Therefore there's nothing to clean up.), or
+    2) there is no inner_sum_func_list, or
+    3) the item is not an element in the inner_sum_func_list.
   */
-  if (!fixed)
+  if (!fixed ||                                                    // 1
+      aggr_sel == NULL || aggr_sel->inner_sum_func_list == NULL || // 2
+      next == NULL)                                                // 3
     return false;
 
-  if (aggr_sel && aggr_sel->inner_sum_func_list)
+  if (next == this)
+    aggr_sel->inner_sum_func_list= NULL;
+  else
   {
-    if (next == this)
-      aggr_sel->inner_sum_func_list= NULL;
-    else
-    {
-      Item_sum *prev;
-      for (prev= this; prev->next != this; prev= prev->next)
-        ;
-      prev->next= next;
-      if (aggr_sel->inner_sum_func_list == this)
-        aggr_sel->inner_sum_func_list= prev;
-    }
+    Item_sum *prev;
+    for (prev= this; prev->next != this; prev= prev->next)
+      ;
+    prev->next= next;
+    if (aggr_sel->inner_sum_func_list == this)
+      aggr_sel->inner_sum_func_list= prev;
   }
+
   return false;
 }
 
