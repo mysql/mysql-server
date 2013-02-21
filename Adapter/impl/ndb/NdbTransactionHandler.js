@@ -45,6 +45,7 @@ function DBTransactionHandler(dbsession) {
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
+  this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.ndb_use_async_ndbapi;
 }
 DBTransactionHandler.prototype = proto;
@@ -110,16 +111,22 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
     /* NDB Execute.
        "Sync" execute is an async operation for the JavaScript user,
-        but the uv worker thread uses syncrhonous NDBAPI execute().
+        but the uv worker thread uses synchronous NDBAPI execute().
         In "Async" execute, the uv worker thread uses executeAsynch(),
         and the DBConnectionPool listener thread runs callbacks.
     */
-    //if(self.canUseNdbAsynch) {
-    //  self.ndbtx.executeAsynch(execMode, abortFlag, forceSend, onCompleteTx);
-    //}
-    //else {
+    function onAsyncSent(a,b) {
+      udebug.log("execute onAsyncSent");
+    };
+
+    var ASYNC_ON = 1 ;
+    if(self.canUseNdbAsynch && ASYNC_ON) {
+      self.asyncContext.executeAsynch(self.ndbtx, execMode, abortFlag,
+                                      forceSend, onCompleteTx, onAsyncSent);
+    }
+    else {
       self.ndbtx.execute(execMode, abortFlag, forceSend, onCompleteTx);
-    //}
+    }
   }
 
   function onStartTx(err, ndbtx) {
