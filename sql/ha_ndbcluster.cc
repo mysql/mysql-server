@@ -1355,16 +1355,6 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
   DBUG_VOID_RETURN;
 }
 
-void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
-{
-  DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  thd_ndb->count++;
-  thd_ndb->m_error= FALSE;
-  thd_ndb->m_unsent_bytes= 0;
-  DBUG_VOID_RETURN;
-}
-
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans,
                            bool have_lock)
