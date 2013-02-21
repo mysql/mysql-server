@@ -2252,8 +2252,14 @@ err:
   }
 
   if (errmsg)
-    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+  {
+    if(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS)
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+             "SHOW RELAYLOG EVENTS", errmsg);
+    else
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
              "SHOW BINLOG EVENTS", errmsg);
+  }
   else
     my_eof(thd);
 
