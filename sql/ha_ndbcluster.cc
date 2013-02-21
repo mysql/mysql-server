@@ -4929,9 +4929,9 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   uint32 tmpBitmapSpace[bitmapSz];
   MY_BITMAP tmpBitmap;
   MY_BITMAP *user_cols_written_bitmap;
+  bool haveConflictFunction = false;
 #ifdef HAVE_NDB_BINLOG
   /* Conflict resolution in slave thread */
-  bool haveConflictFunction = false;
   if (thd->slave_thread)
   {
     haveConflictFunction =
@@ -4957,30 +4957,24 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
     }
   };
 #endif
-  if (m_use_write
-#ifdef HAVE_NDB_BINLOG
-      /* Conflict detection must use normal Insert */
-      && !haveConflictFunction
-#endif
-      )
+
+  if (m_use_write &&
+      !haveConflictFunction) // Conflict detection must use normal insert()
   {
-    /* Should we use the supplied table writeset or not?
-     * For a REPLACE command, we should ignore it, and write
-     * all columns to get correct REPLACE behaviour.
-     * For applying Binlog events, we need to use the writeset
-     * to avoid trampling unchanged columns when an update is
-     * logged as a WRITE
-     */
-    bool useWriteSet= applying_binlog(thd);
     uchar* mask;
 
-    if (useWriteSet)
+    if (applying_binlog(thd))
     {
+      /*
+        Use write_set when applying binlog to avoid trampling
+        unchanged columns
+      */
       user_cols_written_bitmap= table->write_set;
       mask= (uchar *)(user_cols_written_bitmap->bitmap);
     }
     else
     {
+      /* Ignore write_set for REPLACE command */
       user_cols_written_bitmap= NULL;
       mask= NULL;
     }
