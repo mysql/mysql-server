@@ -3,6 +3,12 @@
 -- source include/have_innodb.inc
 -- source include/have_debug.inc
 
+call mtr.add_suppression("Cannot find index i1 in InnoDB index dictionary");
+call mtr.add_suppression("Build InnoDB index translation table for Table ./test/t failed");
+call mtr.add_suppression("InnoDB: Table test/t contains 0 indexes inside InnoDB, which is different from the number of indexes 1 defined in the MySQL");
+call mtr.add_suppression("Innodb could not find key n:o 0 with name i1 from dict cache for table test/t");
+call mtr.add_suppression("Table test/t contains fewer indexes inside InnoDB than are defined in the MySQL .frm file");
+
 CREATE TABLE t (c1 INT, c2 INT, KEY i2 (c2)) ENGINE=INNODB;
 
 SET DEBUG='+d,ib_rename_index_fail1';
@@ -29,12 +35,6 @@ ORDER BY 1, 2;
 DROP TABLE t;
 
 # Test an attempt to rename a nonexistent index inside InnoDB
-
-call mtr.add_suppression("Cannot find index i1 in InnoDB index dictionary");
-call mtr.add_suppression("Build InnoDB index translation table for Table ./test/t failed");
-call mtr.add_suppression("InnoDB: Table test/t contains 0 indexes inside InnoDB, which is different from the number of indexes 1 defined in the MySQL");
-call mtr.add_suppression("Innodb could not find key n:o 0 with name i1 from dict cache for table test/t");
-call mtr.add_suppression("Table test/t contains fewer indexes inside InnoDB than are defined in the MySQL .frm file");
 
 -- let $MYSQL_DATA_DIR = `SELECT @@datadir`
 
