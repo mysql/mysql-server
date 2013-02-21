@@ -47,7 +47,7 @@ DROP TABLE t;
 CREATE TABLE t (a INT) ENGINE=INNODB;
 
 -- remove_file $MYSQL_DATA_DIR/test/t.frm
--- copy_file $MYSQL_DATA_DIR/test/t.fr_ $MYSQL_DATA_DIR/test/t.frm
+-- move_file $MYSQL_DATA_DIR/test/t.fr_ $MYSQL_DATA_DIR/test/t.frm
 
 SHOW CREATE TABLE t;
 
