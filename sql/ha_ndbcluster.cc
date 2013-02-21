@@ -827,12 +827,12 @@ static int ndb_to_mysql_error(const NdbError *ndberr)
 
 #ifdef HAVE_NDB_BINLOG
 
-int
+static int
 handle_conflict_op_error(NdbTransaction* trans,
                          const NdbError& err,
                          const NdbOperation* op);
 
-int
+static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* tab_name,
                     bool table_has_blobs,
@@ -847,7 +847,8 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
 
 static const Uint32 error_op_after_refresh_op = 920;
 
-inline int
+static inline
+int
 check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
                                       const NdbOperation *first,
                                       const NdbOperation *last,
@@ -982,7 +983,8 @@ check_completed_operations_pre_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_RETURN(0);
 }
 
-inline int
+static inline
+int
 check_completed_operations(Thd_ndb *thd_ndb, NdbTransaction *trans,
                            const NdbOperation *first,
                            const NdbOperation *last,
@@ -1042,13 +1044,12 @@ ha_ndbcluster::release_completed_operations(NdbTransaction *trans)
   trans->releaseCompletedQueries();
 }
 
-int execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
+
+static inline
+int
+execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
                       bool ignore_no_key,
-                      uint *ignore_count= 0);
-inline
-int execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
-                      bool ignore_no_key,
-                      uint *ignore_count)
+                      uint *ignore_count = 0)
 {
   DBUG_ENTER("execute_no_commit");
   ha_ndbcluster::release_completed_operations(trans);
@@ -1088,11 +1089,11 @@ int execute_no_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_RETURN(rc);
 }
 
-int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
-                   int force_send, int ignore_error, uint *ignore_count= 0);
-inline
-int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
-                   int force_send, int ignore_error, uint *ignore_count)
+
+static inline
+int
+execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
+               int force_send, int ignore_error, uint *ignore_count = 0)
 {
   DBUG_ENTER("execute_commit");
   NdbOperation::AbortOption ao= NdbOperation::AO_IgnoreError;
@@ -1146,7 +1147,7 @@ int execute_commit(THD* thd, Thd_ndb *thd_ndb, NdbTransaction *trans,
   DBUG_RETURN(rc);
 }
 
-inline
+static inline
 int execute_no_commit_ie(Thd_ndb *thd_ndb, NdbTransaction *trans)
 {
   DBUG_ENTER("execute_no_commit_ie");
@@ -4575,7 +4576,7 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
    refreshing the row and inserting an entry into the exceptions table
 */
 
-int
+static int
 handle_conflict_op_error(NdbTransaction* trans,
                          const NdbError& err,
                          const NdbOperation* op)
@@ -5139,7 +5140,7 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 static Ndb_exceptions_data StaticRefreshExceptionsData=
 { NULL, NULL, NULL, REFRESH_ROW, 0 };
 
-int
+static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     const char* table_name,
                     bool table_has_blobs,
@@ -5352,7 +5353,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
   } /* if (cfn_share->m_ex_tab != NULL) */
 
   DBUG_RETURN(0);
-};
+}
 #endif /* HAVE_NDB_BINLOG */
 
 /**
