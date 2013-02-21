@@ -14,7 +14,6 @@ drop.sql: a file containing mysql commands to tear down the environment
 SmokeTest.js: set up and verify the test environment (create tables, populate
   data in tables, open a connection to the database, etc.)
 ClearSmokeTest.js: tear down the test environment (drop tables, databases)
-SomeTest.js, which contains tests of two types: ConcurrentTest and SerialTest
 
 ConcurrentTest: tests to be run concurrently, using the test setup
   (test schema and test data) and having no side effects (do not insert

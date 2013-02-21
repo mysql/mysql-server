@@ -65,7 +65,7 @@ Driver.prototype.findSuites = function(directory) {
       f = files[i];
       st = fs.statSync(path.join(directory, f));
       if (st.isDirectory() && this.isSuiteToRun(f)) {
-        udebug.log('Driver.findSuites found directory', f);
+        udebug.log_detail('Driver.findSuites found directory', f);
         suite = new harness.Suite(f, path.join(directory, f));
         if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
         if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
@@ -84,7 +84,7 @@ Driver.prototype.isSuiteToRun = function(directoryName) {
 
 Driver.prototype.testCompleted = function(testCase) {
   var suite = testCase.suite;
-  udebug.log('Driver.testCompleted Test:', testCase.name, 'Suite:', suite.name);
+  udebug.log_detail('Driver.testCompleted Test:', testCase.name, 'Suite:', suite.name);
   if (suite.testCompleted(testCase)) {
     // this suite is done; remove it from the list of running suites
     if (--this.numberOfRunningSuites === 0) {
@@ -95,12 +95,6 @@ Driver.prototype.testCompleted = function(testCase) {
 };
 
 Driver.prototype.reportResultsAndExit = function() {
-  // close all session factories
-  var sessionFactories = mynode.getOpenSessionFactories();
-  //sessionFactories.forEach(function(sessionFactory) {
-  //  udebug.log('Driver.reportResultsAndExit closing', sessionFactory.key);
-  //  sessionFactory.close();
-  //});
   console.log("Started: ", this.result.listener.started);
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
@@ -171,7 +165,7 @@ for(i = 2; i < process.argv.length ; i++) {
     i++;  // next argument
     pair = process.argv[i].split('=');
     if(pair.length === 2) {
-      udebug.log("Setting global:", pair[0], "=", pair[1]);
+      udebug.log_detail("Setting global:", pair[0], "=", pair[1]);
       global[pair[0]] = pair[1];
     }
     else {
@@ -220,17 +214,17 @@ global.test_conn_properties = tprops.connectionProperties();
 
 // Find suites
 driver.findSuites(suites_dir);
-udebug.log('suites found', driver.suites.length);
+udebug.log_detail('suites found', driver.suites.length);
 
 driver.suites.forEach(function(suite) {
-  udebug.log('createTests for', suite.name);
+  udebug.log_detail('createTests for', suite.name);
   suite.createTests();
 });
 
 // now run tests
 driver.numberOfRunningSuites = driver.suites.length;
 driver.suites.forEach(function(suite) {
-  udebug.log('main running tests for', suite.name);
+  udebug.log_detail('main running tests for', suite.name);
   if (!suite.runTests(driver.result)) {
     // if there are no tests to run, this suite is finished
     driver.numberOfRunningSuites--;
@@ -252,6 +246,6 @@ function onTimeout() {
 
 // set a timeout to prevent process from waiting forever
 if(timeoutMillis > 0) {
-  udebug.log('Setting timeout of', timeoutMillis);
+  udebug.log_detail('Setting timeout of', timeoutMillis);
   setTimeout(onTimeout, timeoutMillis);
 }
