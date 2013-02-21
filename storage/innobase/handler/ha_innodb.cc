@@ -2751,7 +2751,8 @@ innobase_space_shutdown()
 	DBUG_ENTER("innobase_space_shutdown");
 
 	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status()) {
+	if (srv_tmp_space.get_sanity_check_status()
+	    && !srv_read_only_mode) {
 		srv_tmp_space.delete_files();
 	}
 	srv_tmp_space.shutdown();
@@ -2933,7 +2934,9 @@ innobase_init(
 
 	/* Delete the data files in the temporary tablespace. They are not
 	required for recovery. */
-	srv_tmp_space.delete_files();
+	if (!srv_read_only_mode) {
+		srv_tmp_space.delete_files();
+	}
 
 	/* -------------- All log files ---------------------------*/
 
