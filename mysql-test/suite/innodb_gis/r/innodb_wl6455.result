@@ -34,7 +34,7 @@ GEOMETRYCOLLECTION(POINT(1 1),LINESTRING(2 2,3 3))
 CREATE INDEX i_p ON t_wl6455 (g(10));
 EXPLAIN SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t_wl6455	ALL	i_p	NULL	NULL	NULL	9	Using where
+1	SIMPLE	t_wl6455	ALL	i_p	NULL	NULL	NULL	#	Using where
 SELECT AsText(g) FROM t_wl6455 WHERE g = POINT(2,2);
 AsText(g)
 POINT(2 2)
