@@ -365,8 +365,11 @@ fil_space_belongs_in_lru(
 /*=====================*/
 	const fil_space_t*	space)	/*!< in: file space */
 {
+	/* Even if temp-tablespace id > undo-tablespace-open it serve
+	as system-level-tablepsace so indicate it accordingly.*/
 	return(space->purpose == FIL_TABLESPACE
-	       && fil_is_user_tablespace_id(space->id));
+	       && (space->id == srv_tmp_space.space_id()
+		   ? false : fil_is_user_tablespace_id(space->id)));
 }
 
 /********************************************************************//**

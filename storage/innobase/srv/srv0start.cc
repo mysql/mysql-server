@@ -2143,6 +2143,9 @@ files_checked:
 		return(srv_init_abort(err));
 	}
 
+	/* Will open temp-tablespace and will keep it open till server lifetime */
+	fil_open_log_and_system_tablespace_files();
+
 #ifdef UNIV_LOG_ARCHIVE
 	/* Archiving is always off under MySQL */
 	if (!srv_log_archive_on) {
