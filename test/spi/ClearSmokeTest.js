@@ -27,13 +27,18 @@ var spi_lib = require("./lib.js");
 var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
-  var t = this;
+  var test = this;
 
-  // commented out to avoid "Closing ndb_cluster_connection with open ndb" warning
-  // spi_lib.closeConnectionPool();  
-  harness.SQL.drop(this.suite, null);
+  function onDrop() {
+    test.pass();
+  }
   
-  return true;
+  function onClose() {
+    harness.SQL.drop(test.suite, onDrop);
+  }
+  
+  /* ClearSmokeTest starts here: */
+  spi_lib.closeConnectionPool(onClose);  
 };
 
 module.exports.tests = [test];

@@ -115,19 +115,22 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   }
 };
 
-exports.DBConnectionPool.prototype.closeSync = function() {
-  udebug.log('closeSync');
+exports.DBConnectionPool.prototype.close = function(user_callback) {
+//
+// FIXME. 
+//
+  udebug.log('close');
   var i;
   for (i = 0; i < this.pooledConnections.length; ++i) {
     var pooledConnection = this.pooledConnections[i];
-    udebug.log('closeSync ending pooled connection ' + i);
+    udebug.log('close ending pooled connection ' + i);
     if (pooledConnection._connectCalled) {
         pooledConnection.end();
     }
   }
   this.pooledConnections = [];
   for (i = 0; i < this.openConnections.length; ++i) {
-    udebug.log('closeSync ending open connection ' + i);
+    udebug.log('close ending open connection ' + i);
     var openConnection = this.openConnections[i];
     if (openConnection._connectCalled) {
       this.openConnections[i].end();
@@ -135,6 +138,8 @@ exports.DBConnectionPool.prototype.closeSync = function() {
   }
   this.openConnections = [];
   this.is_connected = false;
+
+  user_callback();
 };
 
 exports.DBConnectionPool.prototype.destroy = function() { 

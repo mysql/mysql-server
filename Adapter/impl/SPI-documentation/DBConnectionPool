@@ -51,30 +51,9 @@ DBConnectionPool(Properties connectionProperties);
 
 /* DBConnectionPool.close() method.
    ASYNC.
-   On successful close, the connection object is passed to the callback.
-   It can subsequently be either reopened or destroyed.
+   Upon close, the user's callback function will be called with no arguments.
 */
-   close(function(error, DBConnectionPool) callback); 
-
-
-/* DBConnectionPool.closeSync() method.
-   SYNC.
-   Wait for the connection to close, and destroy the DBConnectionPool object.
-   This is a convenience method for code shutdown.
-   Returns null.
-*/
-  closeSync();
-
-
-/* DBConnectionPool.destroy() method.
-   IMMEDIATE. 
-   Frees any native code resources associated with the connection, so that 
-   the DBConnectionPool object can safely be freed by the garbage collector.
-   
-   Returns true on success and false on error.
-   It is an error if the DBConnectionPool is not closed.
-*/
-   destroy();
+   close(function() callback); 
 
 
 /* getDBSession().

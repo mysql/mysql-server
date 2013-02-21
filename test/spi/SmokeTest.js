@@ -31,28 +31,24 @@ try {
   require("./suite_config.js");
 } catch (e) {}
 
-
 var test = new harness.SmokeTest("LoadModule");
 
 test.run = function() {
-  var spi = require(spi_module),
-      // This will fail if the adapter cannot be loaded: 
-      service = spi.getDBServiceProvider(global.adapter),
-      test = this,
-      i;
-  
-  /* Get a database connection.  Do this in the smokeTest so that we can
-     abort the whole suite if it fails.
-  */
-  var properties = service.getDefaultConnectionProperties();
-  var connection = service.connectSync(properties);
-  assert(connection.isConnected(), "failed to connect");
-  connection.closeSync();
+  var lib = require("./lib.js"),
+      test = this;  
 
-  /* Create SQL if there is a file */
-  harness.SQL.create(this.suite, function() {
+  function onCreate() {
     test.pass();
-  });
+  }
+
+  function onConnected(err, connection) {
+    if(err) {
+      test.fail("Connection error");
+    }
+    harness.SQL.create(test.suite, onCreate);  
+  }
+
+  lib.getConnectionPool(onConnected);
 };
 
 

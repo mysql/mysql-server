@@ -115,7 +115,7 @@ exports.closeNdbSession = function(ndbPool, ndbSession) {
   { 
     ndbPool.ndbSessionFreeList.push(ndbSession);
   }
-}
+};
 
 /* Prefetch an NdbSSession and keep it on the freelist
 */
@@ -280,11 +280,10 @@ proto.isConnected = function() {
 };
 
 
-/* closeSync()
-   SYNCHRONOUS.
-   HELP ME:  This method is no longer really synchronous.
+/* close()
+   ASYNC.
 */
-proto.closeSync = function() {
+proto.close = function(user_callback) {
   var i;
   var self = this;
   this.isDisconnecting = true;
@@ -300,11 +299,14 @@ proto.closeSync = function() {
     if(self.asyncNdbContext) { self.asyncNdbContext.delete(); }
     udebug.log("Disconnecting cluster");
     self.ndbconn.delete();
+    if(typeof user_callback === 'function') {
+      user_callback();
+    }
   }
-  /* This timer is a brute-force workaround for race conditions where some 
-     operation is in progress (e.g. filling the connection pool) 
+  /* Perhaps async transactions are still executing.
+     Perhaps the connection pool is still being filled. 
+     This timer is a brute-force workaround for these race conditions.
   */
-  assert(typeof disconnect == 'function');
   setTimeout(disconnect, 500);
 };
 

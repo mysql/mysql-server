@@ -144,7 +144,6 @@ deleteFactory = function(key, database) {
     // no more factories in this connection
     udebug.log('deleteFactory closing dbConnectionPool for key', key, 'database', database);
     if (dbConnectionPool != null) {
-      dbConnectionPool.closeSync();
       dbConnectionPool = null;
       delete connections[key];
     }

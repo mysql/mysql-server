@@ -792,14 +792,6 @@ exports.DBSession.prototype.rollback = function(callback) {
   this.autocommit = true;
 };
 
-exports.DBSession.prototype.closeSync = function() {
-  if (this.pooledConnection) {
-    this.pooledConnection.end();
-    this.pooledConnection = null;
-  }
-};
-
-
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
   session_stats.incr("closed");
