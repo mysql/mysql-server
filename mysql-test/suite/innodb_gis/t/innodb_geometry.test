@@ -579,6 +579,7 @@ explain extended select Dimension(g), GeometryType(g), IsEmpty(g), AsText(Envelo
 --echo #check Geometry point functions
 SELECT fid, X(g) FROM gis_point;
 SELECT fid, Y(g) FROM gis_point;
+--replace_column 9 #
 explain extended select X(g),Y(g) FROM gis_point;
 
 SELECT fid, AsText(StartPoint(g)) FROM gis_line;
