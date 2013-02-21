@@ -1315,10 +1315,8 @@ static void close_connections(void)
     LINT_INIT(error);
     DBUG_PRINT("info",("Waiting for select thread"));
 
-#ifndef DONT_USE_THR_ALARM
     if (pthread_kill(select_thread, thr_client_alarm))
       break;          // allready dead
-#endif
     set_timespec(abstime, 2);
     for (uint tmp=0 ; tmp < 10 && select_thread_in_use; tmp++)
     {
