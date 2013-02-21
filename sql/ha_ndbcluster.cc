@@ -7496,13 +7496,6 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
     THDVAR(thd, optimized_node_selection)=
       THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
   }
-#ifndef EMBEDDED_LIBRARY
-  bool applying_binlog=
-    thd->rli_fake? 
-    ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false;
-  if (applying_binlog)
-    thd_ndb->trans_options|= TNTO_APPLYING_BINLOG;
-#endif
 }
 
 int ha_ndbcluster::start_statement(THD *thd,
@@ -8086,8 +8079,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
     }
     else
     {
-      bool applying_binlog= (thd_ndb->trans_options & TNTO_APPLYING_BINLOG);
-      res= execute_commit(thd, thd_ndb, trans, THDVAR(thd, force_send), applying_binlog);
+      const bool ignore_error= applying_binlog(thd);
+      res= execute_commit(thd, thd_ndb, trans,
+                          THDVAR(thd, force_send),
+                          ignore_error);
     }
   }
 
