@@ -54,7 +54,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d)",
   "Can't change permissions of the file '%s' (Errcode: %d)",
-  "Can't seek in file '%s' (Errcode: %d)"
+  "Can't seek in file '%s' (Errcode: %d)",
   "Can't change mode for file '%s' to 0x%lx (Error: %d)",
   "Warning: Can't copy ownership for file '%s' (Error: %d)"
 };
