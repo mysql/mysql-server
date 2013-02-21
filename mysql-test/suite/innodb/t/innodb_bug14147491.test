@@ -91,6 +91,7 @@ SET DEBUG = '+d,innodb_page_corruption_retries';
 SELECT * FROM t1;
 
 --echo # Restore the original t1.ibd
+--remove_file $MYSQLD_DATADIR/test/t1.ibd
 --move_file $MYSQLD_DATADIR/test/t1.ibd.backup $MYSQLD_DATADIR/test/t1.ibd
 
 --echo # Write file to make mysql-test-run.pl start up the server again
