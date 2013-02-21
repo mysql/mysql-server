@@ -529,19 +529,6 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
-   /*
-     Check if we are applying a binlog, either as a slave or
-     by applying BINLOG statements (from mysqlbinlog command line tool)
-    */
-  bool applying_binlog(THD* thd)
-  { 
-    return 
-#ifdef HAVE_NDB_BINLOG
-      thd->slave_thread ||
-#endif
-      m_thd_ndb->trans_options & TNTO_APPLYING_BINLOG;
-  };
-  
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name) const;
