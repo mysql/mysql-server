@@ -7438,20 +7438,13 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
                                           user->password.length);
           str->append(tmp);
         }
-#if defined(HAVE_OPENSSL)
-        else if (thd->variables.old_passwords == 2)
-        {
-          char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
-          my_make_scrambled_password(tmp, user->password.str,
-                                     user->password.length);
-          str->append(tmp, user->password.length, system_charset_info);
-        }
-#endif
         else
         {
           /*
             Legacy password algorithm is just an obfuscation of a plain text
             so we're not going to write this.
+            Same with old_passwords == 2 since the scrambled password will
+            be binary anyway.
           */
           str->append("<secret>");
         }
