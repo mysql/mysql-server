@@ -948,7 +948,6 @@ terminate_slave_thread(THD *thd,
     DBUG_PRINT("loop", ("killing slave thread"));
 
     mysql_mutex_lock(&thd->LOCK_thd_data);
-#ifndef DONT_USE_THR_ALARM
     /*
       Error codes from pthread_kill are:
       EINVAL: invalid signal number (can't happen)
@@ -956,7 +955,6 @@ terminate_slave_thread(THD *thd,
     */
     int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
     DBUG_ASSERT(err != EINVAL);
-#endif
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
 
