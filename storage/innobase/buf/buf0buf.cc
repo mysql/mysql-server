@@ -740,9 +740,9 @@ buf_page_is_corrupted(
 
 				if (verbose)
 					DBUG_PRINT(
-						"info", ("page::%lu;new style: "
-						"calculated = %lu; crc32 = %u; "
-						"recorded = %lu",page_no,
+						"info", ("page::%lu; new style:"
+						" calculated = %lu; crc32 = %u;"
+						" recorded = %lu",page_no,
 						buf_calc_page_new_checksum(
 							read_buf),
 						buf_calc_page_crc32(read_buf),
