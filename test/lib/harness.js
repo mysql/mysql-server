@@ -81,7 +81,7 @@ ClearSmokeTest.prototype = new Test();
 
 
 Test.prototype.test = function(result) {
-  udebug.log('test starting:', this.suite.name, this.name);
+  udebug.log_detail('test starting:', this.suite.name, this.name);
   this.result = result;
   result.listener.startTest(this);
   this.setup();
@@ -103,11 +103,11 @@ Test.prototype.test = function(result) {
     // fail if any error messages have been reported
     if(! this.skipped) {
       if (this.errorMessages === '') {
-        udebug.log(this.name, this.suite.name, 'result.pass');
+        udebug.log_detail(this.name, this.suite.name, 'result.pass');
         result.pass(this);
       } else {
         this.failed = true;
-        udebug.log(this.name, this.suite.name, 'result.fail');
+        udebug.log_detail(this.name, this.suite.name, 'result.fail');
         result.fail(this, this.errorMessages);
       }
     }
@@ -213,7 +213,7 @@ function Suite(name, path) {
   this.numberOfRunningConcurrentTests = 0;
   this.skipSmokeTest = false;
   this.skipClearSmokeTest = false;
-  udebug.log('Creating Suite for', name, path);
+  udebug.log_detail('Creating Suite for', name, path);
 }
 
 Suite.prototype.addTest = function(filename, test) {
@@ -240,7 +240,7 @@ Suite.prototype.addTestsFromFile = function(f, onlyTests) {
     t = require(f);
     if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
       for(j = 0 ; j < t.tests.length ; j++) {
-        if(onlyTests === null || testHash[j] == 1) {
+        if(onlyTests === null || testHash[j] === 1) {
           this.addTest(f, t.tests[j]);
         }
       }
@@ -277,7 +277,7 @@ Suite.prototype.createTests = function() {
     }
   }
 
-  udebug.log('Suite', this.name, 'found', this.tests.length, 'tests.');
+  udebug.log_detail('Suite', this.name, 'found', this.tests.length, 'tests.');
 
   this.tests.forEach(function(t, index) {
     t.original = index;
@@ -319,9 +319,9 @@ Suite.prototype.createTests = function() {
     udebug.log_detail('createTests sorted test case', t.name, ' ', t.phase, ' ', t.index);
     });
   suite.numberOfConcurrentTests = suite.concurrentTests.length;
-  udebug.log('numberOfConcurrentTests for', suite.name, 'is', suite.numberOfConcurrentTests);
+  udebug.log_detail('numberOfConcurrentTests for', suite.name, 'is', suite.numberOfConcurrentTests);
   suite.numberOfSerialTests = suite.serialTests.length;
-  udebug.log('numberOfSerialTests for', suite.name, 'is', suite.numberOfSerialTests);
+  udebug.log_detail('numberOfSerialTests for', suite.name, 'is', suite.numberOfSerialTests);
 };
 
 
@@ -386,7 +386,7 @@ Suite.prototype.startConcurrentTests = function(result) {
 
 Suite.prototype.startSerialTests = function(result) {
   assert(result);
-  udebug.log('Suite.startSerialTests');
+  udebug.log_detail('Suite.startSerialTests');
   if (this.firstSerialTestIndex !== -1) {
     this.startNextSerialTest(this.firstSerialTestIndex, result);
     return false;
@@ -398,7 +398,7 @@ Suite.prototype.startSerialTests = function(result) {
 
 Suite.prototype.startClearSmokeTest = function(result) {
   assert(result);
-  udebug.log('Suite.startClearSmokeTest');
+  udebug.log_detail('Suite.startClearSmokeTest');
   if (this.skipClearSmokeTest) {
     this.clearSmokeTest.result = result;
     this.clearSmokeTest.skip("skipping ClearSmokeTest");
@@ -437,7 +437,7 @@ Suite.prototype.testCompleted = function(testCase) {
       return this.startConcurrentTests(result);
 
     case 1:     // one of the concurrent tests completed
-      udebug.log('Completed ', this.numberOfConcurrentTestsCompleted, 
+      udebug.log_detail('Completed ', this.numberOfConcurrentTestsCompleted, 
                  ' out of ', this.numberOfConcurrentTests);
       if (++this.numberOfConcurrentTestsCompleted === this.numberOfConcurrentTests) {
         return this.startSerialTests(result);   // go on to the serial tests
@@ -457,11 +457,11 @@ Suite.prototype.testCompleted = function(testCase) {
         return false;
       }
       /* Done */
-      udebug.log('Suite.testCompleted there is no ClearSmokeTest so we are done with ' + testCase.suite.name);
+      udebug.log_detail('Suite.testCompleted there is no ClearSmokeTest so we are done with ' + testCase.suite.name);
       return true;
 
     case 3:   // the clear smoke test completed
-      udebug.log('Suite.testCompleted completed ClearSmokeTest.');
+      udebug.log_detail('Suite.testCompleted completed ClearSmokeTest.');
       return true;
   }
 };
@@ -549,13 +549,13 @@ Result.prototype.skip = function(t, reason) {
 var runSQL = function(sqlPath, source, callback) {  
 
   function childProcess(error, stdout, stderr) {
-    udebug.log('harness runSQL process completed.');
-    udebug.log(source + ' stdout: ' + stdout);
-    udebug.log(source + ' stderr: ' + stderr);
+    udebug.log_detail('harness runSQL process completed.');
+    udebug.log_detail(source + ' stdout: ' + stdout);
+    udebug.log_detail(source + ' stderr: ' + stderr);
     if (error !== null) {
       console.log(source + 'exec error: ' + error);
     } else {
-      udebug.log(source + ' exec OK');
+      udebug.log_detail(source + ' exec OK');
     }
     if(callback) {
       callback(error);  
@@ -572,7 +572,7 @@ var runSQL = function(sqlPath, source, callback) {
     if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
   }
   cmd += ' <' + sqlPath; 
-  udebug.log('harness runSQL forking process...' + cmd);
+  udebug.log_detail('harness runSQL forking process...' + cmd);
   var child = exec(cmd, childProcess);
 };
 
