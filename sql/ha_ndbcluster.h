@@ -536,7 +536,6 @@ private:
   int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
-  void no_uncommitted_rows_reset(THD *);
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx,
