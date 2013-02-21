@@ -1641,7 +1641,7 @@ row_update_for_mysql(
 		return(DB_ERROR);
 	}
 
-	if (UNIV_UNLIKELY(prebuilt->magic_n != ROW_PREBUILT_ALLOCATED)) {
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
 			"InnoDB: table handle. Magic n %lu, table name ",
@@ -2806,7 +2806,7 @@ row_discard_tablespace_begin(
 		name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table) {
-		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+		dict_stats_wait_bg_to_stop_using_table(table, trx);
 		ut_a(table->space != TRX_SYS_SPACE);
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
@@ -3258,7 +3258,7 @@ row_truncate_table_for_mysql(
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+	dict_stats_wait_bg_to_stop_using_table(table, trx);
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -3808,8 +3808,8 @@ row_drop_table_for_mysql(
 		tables since we know temp tables do not use persistent
 		stats. */
 		if (!dict_table_is_temporary(table)) {
-			dict_stats_wait_bg_to_stop_using_tables(
-				table, NULL, trx);
+			dict_stats_wait_bg_to_stop_using_table(
+				table, trx);
 		}
 	}
 
