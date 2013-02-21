@@ -59,10 +59,18 @@ SessionFactory.prototype.getTableMetadata = function() {
 };
 
 
-SessionFactory.prototype.close = function() {
+SessionFactory.prototype.close = function(user_callback) {
+  var self = this;
+  
   // TODO: close all sessions first
-  this.dbConnectionPool.closeSync();
-  this.delete_callback(this.key, this.properties.database);
+  function onClose() {
+    self.delete_callback(self.key, self.properties.database);
+    if(user_callback) { 
+      user_callback();
+    }
+  }
+  
+  this.dbConnectionPool.close(onClose);
 };
 
 

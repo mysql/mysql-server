@@ -25,34 +25,28 @@ var spi        = require(spi_module),
     
 var spi_test_connection = null;
 
-
 exports.getConnectionPool = function(userCallback) {
-  udebug.log("getConnectionPool");
-
-  var p = global.test_conn_properties;
-  if(p) {
-    // todo: merge 
-  }
 
   function onConnect(err, conn) {
     udebug.log("getConnectionPool onConnect");    
-    userCallback(err, conn);
     spi_test_connection = conn;
+    userCallback(err, conn);
   }
 
-  if(! spi_test_connection) {
-    spi_test_connection = service.connect(properties, onConnect);
+  if(spi_test_connection) {
+    udebug.log("getConnectionPool returning established connection");
+    userCallback(null, spi_test_connection);
   }
   else {
-    udebug.log("getConnectionPool returning pre-established connection");
-    userCallback(null, spi_test_connection);
+    udebug.log("getConnectionPool opening new connection");
+    service.connect(properties, onConnect);
   }
 };
 
 
-exports.closeConnectionPool = function() {
+exports.closeConnectionPool = function(callback) {
   if(spi_test_connection) {
-    spi_test_connection.closeSync();
+    spi_test_connection.close(callback);
   }
 };
 

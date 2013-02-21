@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-/*global fs, path, build_dir, unified_debug */
+/*global fs, spi_doc_dir, path, build_dir, unified_debug */
 
 "use strict";
 

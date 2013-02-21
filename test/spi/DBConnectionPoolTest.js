@@ -40,29 +40,23 @@ var t2 = new harness.ConcurrentSubTest("connect");
 var t4 = new harness.ConcurrentSubTest("PublicFunctions");
 var t3 = new harness.ConcurrentTest("openDBSession");
 
-function runSPIDocTest(dbConnection) {
+function runSPIDocTest(dbConnection, testCase) {
   var docFile = path.join(spi_doc_dir, "DBConnectionPool");
   var functionList = doc_parser.listFunctions(docFile);
   var tester = new doc_parser.ClassTester(dbConnection, "DBConnectionPool");
-  tester.test(functionList, t4);
+  tester.test(functionList, testCase);
 }
 
 
 t3.run = function() {
-  var x_session = null;
-  
-  this.teardown = function() {
-    if(x_session !== null) { x_session.close(); }
-  };
-
-  function onSession(err, dbSessionHandler) {
-    if(err) {
-      t3.fail(err);
-    }
-    else {
-      t3.pass();
-      x_session = dbSessionHandler;
-    }
+  // work around bug where ConcurrentSubTest doesn't have its own result obj
+  t2.result = this.result; 
+  t4.result = this.result;
+    
+  function onSession(err, dbSession) {
+    t3.errorIfError(err);
+    dbSession.close();
+    t3.failOnError();
   }
 
   function onConnect(err, connection) {
@@ -72,8 +66,8 @@ t3.run = function() {
     }
     else {
       t2.pass();
+      runSPIDocTest(connection, t4);
     }
-    runSPIDocTest(connection);
     
     connection.getDBSession(0, onSession);
   }

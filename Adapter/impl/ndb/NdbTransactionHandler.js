@@ -105,7 +105,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
        Single operations are sent forceSend = 1 (optimized for latency).
        Batches are sent with forceSend = 0 (optimized for throughput).
     */
-    forceSend = (dbOperationList.length == 1 ? 1 : 0);
+    forceSend = (dbOperationList.length === 1 ? 1 : 0);
      
 
     /* NDB Execute.

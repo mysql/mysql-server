@@ -27,6 +27,7 @@
 /* This test harness is documented in the README file.
 */
 
+var util = require("util");
 var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
@@ -187,6 +188,12 @@ Test.prototype.errorIfNull = function(message, val) {
   }
 };
 
+/* Use this with the error argument in a callback */
+Test.prototype.errorIfError = function(val) {
+  if(typeof val !== 'undefined' && val !== null) {
+    this.errorMessages += util.inspect(val);
+  }
+};
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
