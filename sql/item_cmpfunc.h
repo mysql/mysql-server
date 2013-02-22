@@ -1739,7 +1739,11 @@ class Item_equal: public Item_bool_func
     used in the original equality.
   */
   Item_field *context_field;
+
 public:
+
+  COND_EQUAL *upper_levels;       /* multiple equalities of upper and levels */
+
   inline Item_equal()
     : Item_bool_func(), with_const(FALSE), eval_item(0), cond_false(0),
       context_field(NULL)

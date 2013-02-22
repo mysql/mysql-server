@@ -177,3 +177,45 @@ SELECT * FROM t1 LEFT JOIN t2 ON ( b1 = a2 )
 DROP TABLE t1,t2,t3,t4;
 
 set optimizer_switch=@save_optimizer_switch;
+
+--echo #
+--echo # mdev-4172: LEFT JOIN with materialized multi-table IN subquery in WHERE
+--echo #            and OR in ON condition
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+CREATE TABLE t1 (a1 int, c1 varchar(1));
+INSERT t1 VALUES (7,'v'), (3,'y');
+
+CREATE TABLE t2 (c2 varchar(1));
+INSERT INTO t2 VALUES ('y'), ('y');
+
+CREATE TABLE t3 (c3 varchar(1));
+INSERT INTO t3 VALUES
+  ('j'), ('v'), ('c'), ('m'), ('d'),
+  ('d'), ('y'), ('t'), ('d'), ('s');
+
+CREATE TABLE t4 (a4 int, c4 varchar(1));
+INSERT INTO t4 SELECT * FROM t1;
+
+set optimizer_switch='materialization=off';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+
+set optimizer_switch='materialization=on';
+
+EXPLAIN EXTENDED
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+SELECT * FROM t1 LEFT JOIN t2 ON (c2 = c1 OR c1 > 'z')
+  WHERE c1 IN ( SELECT c4 FROM t3,t4 WHERE c3 = c4);
+
+DROP TABLE t1,t2,t3,t4;
+
+set optimizer_switch=@save_optimizer_switch;
+

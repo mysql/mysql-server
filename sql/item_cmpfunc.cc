@@ -5458,6 +5458,7 @@ Item_equal::Item_equal(Item *f1, Item *f2, bool with_const_item)
   equal_items.push_back(f1);
   equal_items.push_back(f2);
   compare_as_dates= with_const_item && f2->cmp_type() == TIME_RESULT;
+  upper_levels= NULL;  
 }
 
 
@@ -5486,6 +5487,7 @@ Item_equal::Item_equal(Item_equal *item_equal)
   with_const= item_equal->with_const;
   compare_as_dates= item_equal->compare_as_dates;
   cond_false= item_equal->cond_false;
+  upper_levels= item_equal->upper_levels;
 }
 
 

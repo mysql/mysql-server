@@ -11438,6 +11438,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select->max_equal_elems,
                         item_equal->n_field_items());  
+          item_equal->upper_levels= inherited;
           return item_equal;
 	}
 
@@ -12121,6 +12122,7 @@ static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
   {
     item_equal= (Item_equal *) cond;
     item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+    cond_equal= item_equal->upper_levels;
     if (cond_equal && cond_equal->current_level.head() == item_equal)
       cond_equal= cond_equal->upper_levels;
     cond= eliminate_item_equal(0, cond_equal, item_equal);
