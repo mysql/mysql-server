@@ -7461,20 +7461,24 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
+
+void
+Thd_ndb::transaction_checks()
 {
+  THD* thd = m_thd;
+
   if (thd->lex->sql_command == SQLCOM_LOAD)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+    trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!thd->transaction.on)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+    trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  thd_ndb->m_force_send= THDVAR(thd, force_send);
+    trans_options|= TNTO_TRANSACTIONS_OFF;
+  m_force_send= THDVAR(thd, force_send);
   if (!thd->slave_thread)
-    thd_ndb->m_batch_size= THDVAR(thd, batch_size);
+    m_batch_size= THDVAR(thd, batch_size);
   else
   {
-    thd_ndb->m_batch_size= THDVAR(NULL, batch_size); /* using global value */
+    m_batch_size= THDVAR(NULL, batch_size); /* using global value */
     /* Do not use hinted TC selection in slave thread */
     THDVAR(thd, optimized_node_selection)=
       THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
@@ -7484,9 +7488,10 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
     thd->rli_fake? 
     ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false;
   if (applying_binlog)
-    thd_ndb->trans_options|= TNTO_APPLYING_BINLOG;
+    trans_options|= TNTO_APPLYING_BINLOG;
 #endif
 }
+
 
 int ha_ndbcluster::start_statement(THD *thd,
                                    Thd_ndb *thd_ndb,
@@ -7497,7 +7502,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   DBUG_ENTER("ha_ndbcluster::start_statement");
 
   m_thd_ndb= thd_ndb;
-  transaction_checks(thd, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   if (table_count == 0)
   {
@@ -7854,7 +7859,7 @@ ha_ndbcluster::start_transaction_row(const NdbRecord *ndb_record,
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   Ndb *ndb= m_thd_ndb->ndb;
 
@@ -7885,7 +7890,7 @@ ha_ndbcluster::start_transaction_key(uint inx_no,
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   Ndb *ndb= m_thd_ndb->ndb;
   const NdbRecord *key_rec= m_index[inx_no].ndb_unique_record_key;
@@ -7916,7 +7921,8 @@ ha_ndbcluster::start_transaction(int &error)
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
+
   const uint opti_node_select= THDVAR(table->in_use, optimized_node_selection);
   m_thd_ndb->connection->set_optimized_node_selection(opti_node_select & 1);
   if ((trans= m_thd_ndb->ndb->startTransaction()))
@@ -7939,7 +7945,8 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
+
   if ((trans= m_thd_ndb->ndb->startTransaction(m_table, part_id)))
   {
     m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
