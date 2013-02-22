@@ -76,6 +76,7 @@ public:
 
   uint32 options;
   uint32 trans_options;
+  void transaction_checks(void);
   List<NDB_SHARE> changed_tables;
   HASH open_tables;
   /*
@@ -89,6 +90,7 @@ public:
   */
   uint m_unsent_bytes;
   uint m_batch_size;
+  bool add_row_check_if_batch_full(uint size);
 
   uint m_execute_count;
 

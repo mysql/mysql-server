@@ -488,10 +488,6 @@ private:
     return m_table->getColumn(index);
   }
 
-  bool add_row_check_if_batch_full_size(Thd_ndb *thd_ndb, uint size);
-  bool add_row_check_if_batch_full(Thd_ndb *thd_ndb) {
-    return add_row_check_if_batch_full_size(thd_ndb, m_bytes_per_write);
-  }
   uchar *get_buffer(Thd_ndb *thd_ndb, uint size);
   uchar *copy_row_to_buffer(Thd_ndb *thd_ndb, const uchar *record);
 
@@ -536,10 +532,8 @@ private:
   int check_ndb_connection(THD* thd) const;
 
   void set_rec_per_key();
-  int records_update();
   void no_uncommitted_rows_execute_failure();
   void no_uncommitted_rows_update(int);
-  void no_uncommitted_rows_reset(THD *);
 
   /* Ordered index statistics v4 */
   int ndb_index_stat_query(uint inx,
