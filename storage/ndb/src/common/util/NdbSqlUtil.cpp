@@ -1352,7 +1352,7 @@ NdbSqlUtil::unpack_datetime(Datetime& s, const uchar* d)
   w /= f;
   s.month = (w % f);
   w /= f;
-  s.year = w;
+  s.year = (uint)w;
 }
 
 void
