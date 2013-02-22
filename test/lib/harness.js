@@ -121,20 +121,28 @@ Test.prototype.test = function(result) {
 };
 
 Test.prototype.pass = function() {
-  assert(this.failed === null); // must have not yet passed or failed
-  this.failed = false;
-  this.result.pass(this);
-  this.teardown();
+  if (this.failed !== null) {
+    console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
+    assert(this.failed === null);
+  } else {
+    this.failed = false;
+    this.result.pass(this);
+    this.teardown();
+  }
 };
 
 Test.prototype.fail = function(message) {
-  assert(this.failed === null);  // must have not yet passed or failed
-  this.failed = true;
-  if (message) {
-    this.appendErrorMessage(message);
+  if (this.failed !== null) {
+    console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
+    assert(this.failed === null);
+  } else {
+    this.failed = true;
+    if (message) {
+      this.appendErrorMessage(message);
+    }
+    this.result.fail(this, { 'message' : this.errorMessages});
+    this.teardown();
   }
-  this.result.fail(this, { 'message' : this.errorMessages});
-  this.teardown();
 };
 
 Test.prototype.appendErrorMessage = function(message) {
@@ -175,14 +183,34 @@ Test.prototype.run = function() {
 };
 
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
-	if (o1 !== o2) {
-	  message += ': expected ' + o1 + '; actual ' + o2 + '\n';
-		this.errorMessages += message;
-	}
+  if (o1 !== o2) {
+    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfTrue = function(message, o1) {
+  if (o1) {
+    message += ': expected not true; actual ' + o1 + '\n';
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfNotTrue = function(message, o1) {
+  if (o1 !== true) {
+    message += ': expected true; actual ' + o1 + '\n';
+    this.errorMessages += message;
+  }
 };
 
 Test.prototype.errorIfNull = function(message, val) {
   if(val === null) {
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfNotNull = function(message, val) {
+  if(val !== null) {
     this.errorMessages += message;
   }
 };
@@ -240,7 +268,7 @@ Suite.prototype.addTestsFromFile = function(f, onlyTests) {
     t = require(f);
     if(typeof(t.tests) === 'object' && t.tests instanceof Array) {
       for(j = 0 ; j < t.tests.length ; j++) {
-        if(onlyTests === null || testHash[j] == 1) {
+        if(onlyTests === null || testHash[j] === 1) {
           this.addTest(f, t.tests[j]);
         }
       }
