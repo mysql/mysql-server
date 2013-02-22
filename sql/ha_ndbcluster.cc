@@ -15841,8 +15841,8 @@ public:
     dictionary(dict),
     old_table(table),
     new_table(new NdbDictionary::Table(*table)),
-      table_id(table->getObjectId()),
-      old_table_version(table->getObjectVersion())
+    table_id(table->getObjectId()),
+    old_table_version(table->getObjectVersion())
   {}
   ~NDB_ALTER_DATA()
   { delete new_table; }
@@ -15853,11 +15853,15 @@ public:
   Uint32 old_table_version;
 };
 
-static
-Alter_inplace_info::HA_ALTER_FLAGS supported_alter_operations()
+enum_alter_inplace_result
+  ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
+                                                  Alter_inplace_info *ha_alter_info)
 {
-  Alter_inplace_info::HA_ALTER_FLAGS alter_flags= 0;
-  return alter_flags |
+  THD *thd= current_thd;
+  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
+  Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
+      ha_alter_info->handler_flags;
+  const Alter_inplace_info::HA_ALTER_FLAGS supported=
     Alter_inplace_info::ADD_INDEX |
     Alter_inplace_info::DROP_INDEX |
     Alter_inplace_info::ADD_UNIQUE_INDEX |
@@ -15871,34 +15875,23 @@ Alter_inplace_info::HA_ALTER_FLAGS supported_alter_operations()
     Alter_inplace_info::CHANGE_CREATE_OPTION |
     Alter_inplace_info::ADD_FOREIGN_KEY |
     Alter_inplace_info::DROP_FOREIGN_KEY;
-}
 
-enum_alter_inplace_result
-  ha_ndbcluster::check_if_supported_inplace_alter(TABLE *altered_table,
-                                                  Alter_inplace_info *ha_alter_info)
-{
-  THD *thd= current_thd;
-  HA_CREATE_INFO *create_info= ha_alter_info->create_info;
-  Alter_inplace_info::HA_ALTER_FLAGS alter_flags= ha_alter_info->handler_flags;
-  Alter_inplace_info::HA_ALTER_FLAGS supported= supported_alter_operations();
-  Alter_inplace_info::HA_ALTER_FLAGS not_supported= ~supported;
-  uint i;
-  const NDBTAB *tab= (const NDBTAB *) m_table;
-  Alter_inplace_info::HA_ALTER_FLAGS add_column= 0;
-  Alter_inplace_info::HA_ALTER_FLAGS adding= 0;
-  Alter_inplace_info::HA_ALTER_FLAGS dropping= 0;
+  const Alter_inplace_info::HA_ALTER_FLAGS not_supported= ~supported;
+
+  Alter_inplace_info::HA_ALTER_FLAGS add_column=
+    Alter_inplace_info::ADD_COLUMN;
+
+  const Alter_inplace_info::HA_ALTER_FLAGS adding=
+    Alter_inplace_info::ADD_INDEX |
+    Alter_inplace_info::ADD_UNIQUE_INDEX;
+
+  const Alter_inplace_info::HA_ALTER_FLAGS dropping=
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX;
+
   enum_alter_inplace_result result= HA_ALTER_INPLACE_SHARED_LOCK;
-  bool auto_increment_value_changed= false;
-  bool max_rows_changed= false;
 
   DBUG_ENTER("ha_ndbcluster::check_if_supported_inplace_alter");
-  add_column= add_column | Alter_inplace_info::ADD_COLUMN;
-  adding= adding |
-    Alter_inplace_info::ADD_INDEX
-    | Alter_inplace_info::ADD_UNIQUE_INDEX;
-  dropping= dropping |
-    Alter_inplace_info::DROP_INDEX
-    | Alter_inplace_info::DROP_UNIQUE_INDEX;
   partition_info *part_info= altered_table->part_info;
   const NDBTAB *old_tab= m_table;
 
@@ -15907,16 +15900,15 @@ enum_alter_inplace_result
     DBUG_PRINT("info", ("On-line alter table disabled"));
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
   }
-#ifndef DBUG_OFF
-  {
-    DBUG_PRINT("info", ("Passed alter flags 0x%lx", alter_flags));
-    DBUG_PRINT("info", ("Supported 0x%lx", supported));
-    DBUG_PRINT("info", ("Not supported 0x%lx", not_supported));
-    DBUG_PRINT("info", ("alter_flags & not_supported 0x%lx",
-                        alter_flags & not_supported));
-  }
-#endif
 
+  DBUG_PRINT("info", ("Passed alter flags 0x%lx", alter_flags));
+  DBUG_PRINT("info", ("Supported 0x%lx", supported));
+  DBUG_PRINT("info", ("Not supported 0x%lx", not_supported));
+  DBUG_PRINT("info", ("alter_flags & not_supported 0x%lx",
+                        alter_flags & not_supported));
+
+  bool auto_increment_value_changed= false;
+  bool max_rows_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     if (create_info->auto_increment_value !=
@@ -15948,11 +15940,8 @@ enum_alter_inplace_result
 
   if (alter_flags & not_supported)
   {
-#ifndef DBUG_OFF
-    Alter_inplace_info::HA_ALTER_FLAGS tmp= alter_flags;
-    tmp&= not_supported;
-    DBUG_PRINT("info", ("Detected unsupported change: 0x%lx", tmp));
-#endif
+    DBUG_PRINT("info", ("Detected unsupported change: 0x%lx",
+                        alter_flags & not_supported));
     DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
   }
 
@@ -16126,10 +16115,10 @@ enum_alter_inplace_result
     }
   }
 
-  for (i= 0; i < table->s->fields; i++)
+  for (uint i= 0; i < table->s->fields; i++)
   {
     Field *field= table->field[i];
-    const NDBCOL *col= tab->getColumn(i);
+    const NDBCOL *col= m_table->getColumn(i);
 
     NDBCOL new_col;
     create_ndb_column(0, new_col, field, create_info);
@@ -16254,43 +16243,40 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
   Ndb *ndb= get_ndb(thd);
   NDBDICT *dict= ndb->getDictionary();
   ndb->setDatabaseName(m_dbname);
-  NDB_ALTER_DATA *alter_data;
-  const NDBTAB *old_tab;
-  NdbDictionary::Table *new_tab;
+
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
-  Alter_inplace_info::HA_ALTER_FLAGS alter_flags= ha_alter_info->handler_flags;
-  Alter_inplace_info::HA_ALTER_FLAGS adding= 0;
-  Alter_inplace_info::HA_ALTER_FLAGS dropping= 0;
-  bool auto_increment_value_changed= false;
-  bool max_rows_changed= false;
+
+  const Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
+    ha_alter_info->handler_flags;
+
+  const Alter_inplace_info::HA_ALTER_FLAGS adding=
+    Alter_inplace_info::ADD_INDEX |
+    Alter_inplace_info::ADD_UNIQUE_INDEX;
+
+  const Alter_inplace_info::HA_ALTER_FLAGS dropping=
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX;
 
   DBUG_ENTER("ha_ndbcluster::prepare_inplace_alter_table");
-  adding=  adding |
-    Alter_inplace_info::ADD_INDEX
-    |  Alter_inplace_info::ADD_UNIQUE_INDEX;
-  dropping= dropping |
-    Alter_inplace_info::DROP_INDEX
-    |  Alter_inplace_info::DROP_UNIQUE_INDEX;
 
   ha_alter_info->handler_ctx= 0;
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::prepare_inplace_alter_table"))
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(true);
 
+  NDB_ALTER_DATA *alter_data;
   if (!(alter_data= new NDB_ALTER_DATA(dict, m_table)))
-    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
-  old_tab= alter_data->old_table;
-  new_tab= alter_data->new_table;
+    DBUG_RETURN(true);
+
+  const NDBTAB* const old_tab = alter_data->old_table;
+  NdbDictionary::Table * const new_tab = alter_data->new_table;
   ha_alter_info->handler_ctx= alter_data;
 
-#ifndef DBUG_OFF
-  {
-    DBUG_PRINT("info", ("altered_table %s, alter_flags 0x%lx",
-                        altered_table->s->table_name.str,
-                        alter_flags));
+  DBUG_PRINT("info", ("altered_table: '%s, alter_flags: 0x%lx",
+                      altered_table->s->table_name.str,
+                      alter_flags));
 
-  }
-#endif
-
+  bool auto_increment_value_changed= false;
+  bool max_rows_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     if (create_info->auto_increment_value !=
@@ -16479,7 +16465,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     }
   }
 
-  DBUG_RETURN(0);
+  DBUG_RETURN(false);
 abort:
   if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
         == -1)
@@ -16490,7 +16476,7 @@ abort:
   }
 
 err:
-  DBUG_RETURN(error);
+  DBUG_RETURN(true);
 }
 
 int ha_ndbcluster::alter_frm(THD *thd, const char *file, 
