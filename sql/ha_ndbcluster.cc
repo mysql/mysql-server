@@ -1363,16 +1363,6 @@ void ha_ndbcluster::no_uncommitted_rows_update(int c)
   DBUG_VOID_RETURN;
 }
 
-void ha_ndbcluster::no_uncommitted_rows_reset(THD *thd)
-{
-  DBUG_ENTER("ha_ndbcluster::no_uncommitted_rows_reset");
-  Thd_ndb *thd_ndb= get_thd_ndb(thd);
-  thd_ndb->count++;
-  thd_ndb->m_error= FALSE;
-  thd_ndb->m_unsent_bytes= 0;
-  DBUG_VOID_RETURN;
-}
-
 
 int ha_ndbcluster::ndb_err(NdbTransaction *trans,
                            bool have_lock)
@@ -1499,22 +1489,6 @@ static bool field_type_forces_var_part(enum_field_types type)
   default:
     return FALSE;
   }
-}
-
-/*
- * This is used for every additional row operation, to update the guesstimate
- * of pending bytes to send, and to check if it is now time to flush a batch.
- */
-bool
-ha_ndbcluster::add_row_check_if_batch_full_size(Thd_ndb *thd_ndb, uint size)
-{
-  if (thd_ndb->m_unsent_bytes == 0)
-    free_root(&(thd_ndb->m_batch_mem_root), MY_MARK_BLOCKS_FREE);
-
-  uint unsent= thd_ndb->m_unsent_bytes;
-  unsent+= size;
-  thd_ndb->m_unsent_bytes= unsent;
-  return unsent >= thd_ndb->m_batch_size;
 }
 
 /*
@@ -4895,7 +4869,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   options.optionsPresent=0;
   
   eventSetAnyValue(thd, &options); 
-  bool need_flush= add_row_check_if_batch_full(thd_ndb);
+  const bool need_flush=
+      thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
   const Uint32 authorValue = 1;
   if ((thd->slave_thread) &&
@@ -5647,7 +5622,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   
   eventSetAnyValue(thd, &options);
   
-  bool need_flush= add_row_check_if_batch_full(thd_ndb);
+  const bool need_flush=
+      thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
  const Uint32 authorValue = 1;
  if ((thd->slave_thread) &&
@@ -5951,7 +5927,8 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     Poor approx. let delete ~ tabsize / 4
   */
   uint delete_size= 12 + (m_bytes_per_write >> 2);
-  bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+  const bool need_flush =
+      thd_ndb->add_row_check_if_batch_full(delete_size);
 
   if (thd->slave_thread || THDVAR(thd, deferred_constraints))
   {
@@ -7480,25 +7457,30 @@ static int ndbcluster_update_apply_status(THD *thd, int do_update)
 }
 #endif /* HAVE_NDB_BINLOG */
 
-static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
+
+void
+Thd_ndb::transaction_checks()
 {
+  THD* thd = m_thd;
+
   if (thd->lex->sql_command == SQLCOM_LOAD)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+    trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!thd->transaction.flags.enabled)
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
+    trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
-    thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  thd_ndb->m_force_send= THDVAR(thd, force_send);
+    trans_options|= TNTO_TRANSACTIONS_OFF;
+  m_force_send= THDVAR(thd, force_send);
   if (!thd->slave_thread)
-    thd_ndb->m_batch_size= THDVAR(thd, batch_size);
+    m_batch_size= THDVAR(thd, batch_size);
   else
   {
-    thd_ndb->m_batch_size= THDVAR(NULL, batch_size); /* using global value */
+    m_batch_size= THDVAR(NULL, batch_size); /* using global value */
     /* Do not use hinted TC selection in slave thread */
     THDVAR(thd, optimized_node_selection)=
       THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
   }
 }
+
 
 int ha_ndbcluster::start_statement(THD *thd,
                                    Thd_ndb *thd_ndb,
@@ -7509,7 +7491,7 @@ int ha_ndbcluster::start_statement(THD *thd,
   DBUG_ENTER("ha_ndbcluster::start_statement");
 
   m_thd_ndb= thd_ndb;
-  transaction_checks(thd, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   if (table_count == 0)
   {
@@ -7866,7 +7848,7 @@ ha_ndbcluster::start_transaction_row(const NdbRecord *ndb_record,
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   Ndb *ndb= m_thd_ndb->ndb;
 
@@ -7897,7 +7879,7 @@ ha_ndbcluster::start_transaction_key(uint inx_no,
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
 
   Ndb *ndb= m_thd_ndb->ndb;
   const NdbRecord *key_rec= m_index[inx_no].ndb_unique_record_key;
@@ -7928,7 +7910,8 @@ ha_ndbcluster::start_transaction(int &error)
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
+
   const uint opti_node_select= THDVAR(table->in_use, optimized_node_selection);
   m_thd_ndb->connection->set_optimized_node_selection(opti_node_select & 1);
   if ((trans= m_thd_ndb->ndb->startTransaction()))
@@ -7951,7 +7934,8 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
   DBUG_ASSERT(m_thd_ndb);
   DBUG_ASSERT(m_thd_ndb->trans == NULL);
 
-  transaction_checks(table->in_use, m_thd_ndb);
+  m_thd_ndb->transaction_checks();
+
   if ((trans= m_thd_ndb->ndb->startTransaction(m_table, part_id)))
   {
     m_thd_ndb->m_transaction_hint_count[trans->getConnectedNodeId()]++;
