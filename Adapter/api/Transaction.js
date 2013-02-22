@@ -49,20 +49,6 @@ var userContext    = require('../impl/common/UserContext.js');
  * (Idle) begin -> (Active) setRollbackOnly -> (RollbackOnly) rollback -> (Idle)
  */
 
-var callbackErrOrThrow = function(err, user_arguments) {
-  if (typeof(user_arguments[0]) == 'function') {
-    var return_arguments = [];
-    var i;
-    for (i = 1; i < user_arguments.length; ++i) {
-      return_arguments[i] = user_arguments[i];
-    }
-    return_arguments[0] = err;
-    user_arguments[0].apply(null, return_arguments);
-  } else {
-    throw err;
-  }
-};
-
 function Idle() {
   this.name = 'Idle';
 };
@@ -78,6 +64,26 @@ function RollbackOnly() {
 };
 var rollbackOnly = new RollbackOnly();
 
+/** An error occurred. If there is a callback defined, signal the error via the callback,
+ * and return the new transaction state. The state should remain the same (the current state
+ * is passed in the function).
+ * If no callback is defined, throw an error (and remain in the current state).
+ */
+var callbackErrOrThrow = function(err, user_arguments, newState) {
+  if (typeof(user_arguments[0]) == 'function') {
+    var return_arguments = [];
+    var i;
+    for (i = 1; i < user_arguments.length; ++i) {
+      return_arguments[i] = user_arguments[i];
+    }
+    return_arguments[0] = err;
+    user_arguments[0].apply(null, return_arguments);
+    return newState;
+  } else {
+    throw err;
+  }
+};
+
 Idle.prototype.begin = function(session) {
   udebug.log('Idle begin');
   // notify dbSession if they are interested
@@ -90,13 +96,13 @@ Idle.prototype.begin = function(session) {
 Idle.prototype.commit = function(session, user_arguments) {
   udebug.log('Idle commit');
   var err = new Error('Illegal state: Idle cannot commit.');
-  callbackErrOrThrow(err, user_arguments);
+  return callbackErrOrThrow(err, user_arguments, idle);
 };
 
 Idle.prototype.rollback = function(session, user_arguments) {
   udebug.log('Idle rollback');
   var err = new Error('Illegal state: Idle cannot rollback.');
-  callbackErrOrThrow(err, user_arguments);
+  return callbackErrOrThrow(err, user_arguments, idle);
 };
 
 Idle.prototype.isActive = function() {
@@ -158,7 +164,7 @@ RollbackOnly.prototype.begin = function() {
 RollbackOnly.prototype.commit = function(session, user_arguments) {
   udebug.log('RollbackOnly commit');
   var err = new Error('Illegal state: RollbackOnly cannot commit.');
-  callbackErrOrThrow(err, user_arguments);
+  return callbackErrOrThrow(err, user_arguments, rollbackOnly);
 };
 
 RollbackOnly.prototype.rollback = function(session, user_arguments) {
