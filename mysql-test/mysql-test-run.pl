@@ -704,7 +704,7 @@ sub run_test_server ($$$) {
               #saving the log file as filename.failed in case of retry
               my $worker_logdir= $result->{savedir};
               my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-              rename $log_file_name,$log_file_name.".failed";
+              rename($log_file_name, $log_file_name.".failed");
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -4383,6 +4383,15 @@ sub run_testcase ($) {
 	}
 	mtr_appendfile_to_file($path_current_testlog, $path_testlog);
 	unlink($path_current_testlog);
+      }
+
+      # Remove testcase .log file produce in var/log/ to save space since
+      # relevant part of logfile has already been appended to master log
+      {
+	my $log_file_name= $opt_vardir."/log/".$tinfo->{shortname}.".log";
+	if (-e $log_file_name) {
+	  unlink($log_file_name);
+	}
       }
 
       return ($res == 62) ? 0 : $res;
