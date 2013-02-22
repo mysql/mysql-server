@@ -263,6 +263,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed
