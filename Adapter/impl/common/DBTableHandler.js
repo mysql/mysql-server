@@ -18,12 +18,11 @@
  02110-1301  USA
 */
 
-/*global unified_debug, path, api_dir, api_doc_dir */
+/*global assert, unified_debug, path, api_dir, api_doc_dir */
 
 "use strict";
 
-var assert = require("assert"),
-    TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
+var TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
     FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping")),
     stats_module    = require(path.join(api_dir, "stats")),
     stats           = stats_module.getWriter("spi","common","DBTableHandler"),

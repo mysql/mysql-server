@@ -27,7 +27,6 @@
 /* This test harness is documented in the README file.
 */
 
-var util = require("util");
 var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
@@ -177,7 +176,7 @@ Test.prototype.run = function() {
 
 Test.prototype.errorIfNotEqual = function(message, o1, o2) {
 	if (o1 !== o2) {
-	  message += ': expected ' + o1 + '; actual ' + o2 + '\n';
+    message += ': expected ' + o1 + '; actual ' + o2 + '\n';
 		this.errorMessages += message;
 	}
 };
