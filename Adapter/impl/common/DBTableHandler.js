@@ -67,7 +67,7 @@ var proto = {
 /* getColumnByName() is a utility function used in the building of maps.
 */
 function getColumnByName(dbTable, colName) {
-  udebug.log("getColumnByName", colName);
+  udebug.log_detail("getColumnByName", colName);
   var i, col;
   
   for(i = 0 ; i < dbTable.columns.length ; i++) {
@@ -285,7 +285,7 @@ DBTableHandler.prototype.registerFieldConverter = function(fieldName, converter)
    Returns the number of fields mapped to columns in the table 
 */
 DBTableHandler.prototype.getMappedFieldCount = function() {
-  udebug.log("getMappedFieldCount");
+  udebug.log_detail("getMappedFieldCount");
   return this.fieldNumberToColumnMap.length;
 };
 
@@ -414,7 +414,7 @@ function chooseIndex(self, keys, uniqueOnly) {
  * ResolveDefault is used only for persist, not for write or update.
  */
 DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) { 
-  udebug.log("get", fieldNumber);
+  udebug.log_detail("get", fieldNumber);
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
     return obj;
   }
@@ -445,7 +445,7 @@ DBTableHandler.prototype.getFields = function(obj, resolveDefault) {
 
 /* Set field to value */
 DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
-  udebug.log("set", fieldNumber);
+  udebug.log_detail("set", fieldNumber);
   var f = this.fieldNumberToFieldMap[fieldNumber];
   if(f) {
     obj[f.fieldName] = value;
