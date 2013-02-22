@@ -918,12 +918,17 @@ exports.UserContext.prototype.closeSession = function() {
  * Apply the user callback using the current arguments and the extra parameters from the original function.
  * Create the args for the callback by copying the current arguments to this function. Then, copy
  * the extra parameters from the original function. Finally, call the user callback.
+ * If there is no user callback, return after validating the number of returned parameters.
  */
 exports.UserContext.prototype.applyCallback = function() {
   if (arguments.length !== this.returned_parameter_count) {
     throw new Error(
         'Fatal internal exception: wrong parameter count ' + arguments.length +' for UserContext applyCallback' + 
         '; expected ' + this.returned_parameter_count);
+  }
+  if (typeof(this.user_callback) === 'undefined') {
+    // if there is no user callback for this operation, we are done
+    return;
   }
   var args = [];
   var i, j;
