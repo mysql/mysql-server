@@ -15,7 +15,7 @@ ALTER TABLE log_slow_admin_statements ADD COLUMN k INT;
 INSERT INTO log_slow_admin_statements VALUES (1,2,3), (4,5,6);
 OPTIMIZE TABLE log_slow_admin_statements;
 Table	Op	Msg_type	Msg_text
-test.log_slow_admin_statements  optimize        note    Table does not support optimize, doing recreate + analyze instead
+test.log_slow_admin_statements	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.log_slow_admin_statements	optimize	status	OK
 INSERT INTO log_slow_admin_statements VALUES (7,8,9), (10,11,12);
 ANALYZE TABLE log_slow_admin_statements;
