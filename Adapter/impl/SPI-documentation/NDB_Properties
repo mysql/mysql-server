@@ -1,29 +1,42 @@
 
 
-/* Based on clusterj-api/Constants.java.
 
-   The dotted hierarchy from the Java file becomes a flat namespace.   
-
-   This is the complete list of allowed properties for NDB, along with
-   their default values.
-   If a property does not have a default value, it should be set to null here.
+/*
+  NDB Connection Pool Properties
 
 */ 
 
 var NdbDefaultConnectionProperties = {
+  "implementation" : "ndb",               // This must always be "ndb".
+ 
+  "ndb_connectstring" : "localhost:1186", // MySQL Cluster Connect String
+  "database"          : "test",           // MySQL Database name
 
-  "implementation" : "ndb",
-  "database" : "test",
 
-  "ndb_connectstring" : "localhost:1186",
-  "ndb_connect_retries" : 4, 
-  "ndb_connect_delay" : 5,
-  "ndb_connect_verbose" : 0,
-  "ndb_connect_timeout_before" : 30,
-  "ndb_connect_timeout_after" : 20,  
-  "ndb_use_async_ndbapi" : true,
-  "ndb_session_pool_min" : 10,
-  "ndb_session_pool_max" : 100,
+  /* The next 3 properties control the behavior when opening a connection. */
+  "ndb_connect_retries" : 4,         // if < 0, keep trying forever
+  "ndb_connect_delay"   : 5,         // full seconds between connection retries
+  "ndb_connect_verbose" : 0,         // enable extra console output
+
+  "linger_on_close_msec": 1500,      /* When a client closes a DBConnectionPool,
+                                        the underlying connection is kept open 
+                                        for this many milliseconds in case 
+                                        another client tries to re-open it.
+                                     */
+
+  "use_ndb_async_api"   : true,      /* If true, some operations will be
+                                        executed using asynchronous calls for
+                                        improved concurrency. If false, the
+                                        number of operations in transit will be
+                                        limited to one per uv worker thread.
+                                     */
+  
+  "ndb_session_pool_min" : 4,
+  "ndb_session_pool_max" : 100,      /* Each NdbConnectionPool maintains a
+                                        pool of DBSessions (and their underlying
+                                        Ndb objects).  These parameters set 
+                                        guidelines for the size of that pool.
+                                     */
 };
 
 /* This file is valid JavaScript 

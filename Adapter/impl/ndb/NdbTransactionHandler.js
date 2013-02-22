@@ -46,7 +46,7 @@ function DBTransactionHandler(dbsession) {
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.executedOperations = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
-  this.canUseNdbAsynch    = dbsession.parentPool.properties.ndb_use_async_ndbapi;
+  this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
 }
 DBTransactionHandler.prototype = proto;
 
@@ -117,9 +117,9 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     */
     function onAsyncSent(a,b) {
       udebug.log("execute onAsyncSent");
-    };
+    }
 
-    var ASYNC_ON = 1 ;
+    var ASYNC_ON = false;
     if(self.canUseNdbAsynch && ASYNC_ON) {
       self.asyncContext.executeAsynch(self.ndbtx, execMode, abortFlag,
                                       forceSend, onCompleteTx, onAsyncSent);
