@@ -1,6 +1,3 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
- --source include/have_myisam.inc
-
 # This test takes long time, so only run it with the --big-test mtr-flag.
 --source include/big_test.inc
 ################################################################################
