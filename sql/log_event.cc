@@ -1299,7 +1299,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
-                              uint8 checksum_alg_arg)
+                              uint8 checksum_alg_arg,
+                              const char *log_file_name_arg,
+                              bool* is_binlog_active)
 {
   ulong data_len;
   int result=0;
@@ -1309,6 +1311,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
   if (log_lock)
     mysql_mutex_lock(log_lock);
+
+  if (log_file_name_arg)
+    *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -12156,8 +12162,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(m_dbnam != NULL);
   DBUG_ASSERT(m_tblnam != NULL);
   /* We use only one byte per length for storage in event: */
-  DBUG_ASSERT(m_dblen < 128);
-  DBUG_ASSERT(m_tbllen < 128);
+  DBUG_ASSERT(m_dblen <= 128);
+  DBUG_ASSERT(m_tbllen <= 128);
 
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
@@ -13486,12 +13492,13 @@ void Previous_gtids_log_event::print(FILE *file,
 int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 {
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
-#ifndef DBUG_OFF
-  char *str= get_str(NULL, &Gtid_set::default_string_format);
-  DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
-  my_free(str);
-#endif
-  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf, buf_size));
+  size_t end_pos= 0;
+  size_t add_size= DBUG_EVALUATE_IF("gtid_has_extra_data", 10, 0);
+  /* Silently ignore additional unknown data at the end of the encoding */
+  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf,
+                                                         buf_size + add_size,
+                                                         &end_pos));
+  DBUG_ASSERT(end_pos <= (size_t) buf_size);
   DBUG_RETURN(0);
 }
 

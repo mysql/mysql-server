@@ -31,7 +31,7 @@ SET @@GLOBAL.DEBUG = '+d,simulate_hold_run_locks_on_stop_slave';
 --connection slave1
 --let $assert_text= SHOW SLAVE STATUS NONBLOCKING must not wait for locks, if it waits Slave_SQL_Running will be "No"
 --let $assert_cond= "[SHOW SLAVE STATUS NONBLOCKING, Slave_SQL_Running, 1]" = "Yes"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo [connection slave]
 --connection slave

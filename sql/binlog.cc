@@ -2252,8 +2252,14 @@ err:
   }
 
   if (errmsg)
-    my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+  {
+    if(thd->lex->sql_command == SQLCOM_SHOW_RELAYLOG_EVENTS)
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
+             "SHOW RELAYLOG EVENTS", errmsg);
+    else
+      my_error(ER_ERROR_WHEN_EXECUTING_COMMAND, MYF(0),
              "SHOW BINLOG EVENTS", errmsg);
+  }
   else
     my_eof(thd);
 
@@ -2344,6 +2350,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
     mysql_cond_destroy(&m_prep_xids_cond);
+    stage_manager.deinit();
   }
   DBUG_VOID_RETURN;
 }

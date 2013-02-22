@@ -25,6 +25,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "sql_acl.h"                         // *_ACL
 #include "sp.h"                              // Sroutine_hash_entry
+#include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
 
@@ -421,7 +422,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-            DBUG_RETURN(TRUE);
+            goto err;
           }
           
           if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
@@ -954,6 +955,10 @@ send_result_message:
 err:
   trans_rollback_stmt(thd);
   trans_rollback(thd);
+
+  if (thd->sp_runtime_ctx)
+    thd->sp_runtime_ctx->end_partial_result_set= true;
+
   /* Make sure this table instance is not reused after the operation. */
   if (table->table)
     table->table->m_needs_reopen= true;

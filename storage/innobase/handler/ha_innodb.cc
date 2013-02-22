@@ -122,7 +122,6 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-static long innobase_mirrored_log_groups;
 static long innobase_log_buffer_size;
 static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
@@ -131,7 +130,6 @@ static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
 static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
-static long innobase_buffer_pool_instances = 1;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
 
@@ -673,7 +671,7 @@ static
 int
 innobase_close_connection(
 /*======================*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd);		/*!< in: MySQL thread handle for
 					which to close the connection */
 
@@ -685,7 +683,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -701,7 +699,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in/out: Innodb handlerton */
+	handlerton*	hton,		/*!< in/out: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -744,7 +742,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -756,7 +754,7 @@ static
 handler*
 innobase_create_handler(
 /*====================*/
-	handlerton*	hton,		/*!< in/out: handlerton for Innodb */
+	handlerton*	hton,		/*!< in/out: handlerton for InnoDB */
 	TABLE_SHARE*	table,
 	MEM_ROOT*	mem_root);
 
@@ -870,7 +868,7 @@ static
 void
 innobase_set_cursor_view(
 /*=====================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent cursor view to
 					be set */
@@ -882,7 +880,7 @@ static
 void
 innobase_close_cursor_view(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	THD*		thd,		/*!< in: user thread handle */
 	void*		curview);	/*!< in: Consistent read view to be
 					closed */
@@ -892,7 +890,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-	handlerton*	hton,		/*!< in: handlerton of Innodb */
+	handlerton*	hton,		/*!< in: handlerton of InnoDB */
 	char*		path);		/*!< in: database path; inside InnoDB
 					the name of the last directory in
 					the path is used as the database name:
@@ -904,7 +902,7 @@ static
 int
 innobase_end(
 /*=========*/
-	handlerton*		hton,	/* in: Innodb handlerton */
+	handlerton*		hton,	/* in: InnoDB handlerton */
 	ha_panic_function	type);
 
 /*****************************************************************//**
@@ -917,7 +915,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton*	hton,		/* in: Innodb handlerton */
+	handlerton*	hton,		/* in: InnoDB handlerton */
 	THD*		thd);		/* in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -1498,6 +1496,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_OUT_OF_MEM);
 	case DB_TABLESPACE_EXISTS:
 		return(HA_ERR_TABLESPACE_EXISTS);
+	case DB_IDENTIFIER_TOO_LONG:
+		return(HA_ERR_INTERNAL_ERROR);
 	}
 }
 
@@ -1588,6 +1588,37 @@ innobase_convert_from_table_id(
 	uint	errors;
 
 	strconvert(cs, from, &my_charset_filename, to, (uint) len, &errors);
+}
+
+/**********************************************************************
+Check if the length of the identifier exceeds the maximum allowed.
+The input to this function is an identifier in charset my_charset_filename.
+return true when length of identifier is too long. */
+UNIV_INTERN
+my_bool
+innobase_check_identifier_length(
+/*=============================*/
+	const char*	id)	/* in: identifier to check.  it must belong
+				to charset my_charset_filename */
+{
+	char		tmp[MAX_TABLE_NAME_LEN + 10];
+	uint		errors;
+	uint		len;
+	int		well_formed_error = 0;
+	CHARSET_INFO*	cs1 = &my_charset_filename;
+	CHARSET_INFO*	cs2 = thd_charset(current_thd);
+
+	len = strconvert(cs1, id, cs2, tmp, MAX_TABLE_NAME_LEN + 10, &errors);
+
+	uint res = cs2->cset->well_formed_len(cs2, tmp, tmp + len,
+					      NAME_CHAR_LEN,
+					      &well_formed_error);
+
+	if (well_formed_error || res != len) {
+		my_error(ER_TOO_LONG_IDENT, MYF(0), tmp);
+		return(true);
+	}
+	return(false);
 }
 
 /******************************************************************//**
@@ -2161,9 +2192,12 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
-		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
-		  HA_CAN_FULLTEXT_EXT | HA_CAN_EXPORT),
+		  HA_CAN_GEOMETRY |
+		  HA_PARTIAL_COLUMN_READ |
+		  HA_TABLE_SCAN_ON_INDEX |
+		  HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_EXPORT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2754,7 +2788,7 @@ innobase_init(
 	ulong		num_pll_degree;
 
 	DBUG_ENTER("innobase_init");
-	handlerton *innobase_hton= (handlerton*) p;
+	handlerton* innobase_hton= (handlerton*) p;
 	innodb_hton_ptr = innobase_hton;
 
 	innobase_hton->state = SHOW_OPTION_YES;
@@ -2921,11 +2955,8 @@ innobase_init(
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3087,21 +3118,7 @@ innobase_change_buffering_inited_ok:
 
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
-	if (innobase_buffer_pool_instances == 0) {
-		innobase_buffer_pool_instances = 8;
-
-#if defined(__WIN__) && !defined(_WIN64)
-		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
-			innobase_buffer_pool_instances
-				= ut_min(MAX_BUFFER_POOLS,
-					(long) (innobase_buffer_pool_size
-					/ (128 * 1024 * 1024)));
-		}
-#endif /* defined(__WIN__) && !defined(_WIN64) */
-	}
-
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
-	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
 
 	srv_mem_pool_size = (ulint) innobase_additional_mem_pool_size;
 
@@ -3371,7 +3388,7 @@ static
 int
 innobase_start_trx_and_assign_read_view(
 /*====================================*/
-	handlerton*	hton,	/*!< in: Innodb handlerton */
+	handlerton*	hton,	/*!< in: InnoDB handlerton */
 	THD*		thd)	/*!< in: MySQL thread handle of the user for
 				whom the transaction should be committed */
 {
@@ -3416,7 +3433,7 @@ static
 int
 innobase_commit(
 /*============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: MySQL thread handle of the
 					user for whom the transaction should
 					be committed */
@@ -3477,18 +3494,18 @@ retry:
 		/* The following call read the binary log position of
 		the transaction being committed.
 
-                Binary logging of other engines is not relevant to
+		Binary logging of other engines is not relevant to
 		InnoDB as all InnoDB requires is that committing
 		InnoDB transactions appear in the same order in the
 		MySQL binary log as they appear in InnoDB logs, which
 		is guaranteed by the server.
 
-                If the binary log is not enabled, or the transaction
-                is not written to the binary log, the file name will
-                be a NULL pointer. */
-                unsigned long long pos;
-                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
+		If the binary log is not enabled, or the transaction
+		is not written to the binary log, the file name will
+		be a NULL pointer. */
+		unsigned long long pos;
+		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
 		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
@@ -3543,7 +3560,7 @@ static
 int
 innobase_rollback(
 /*==============*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back */
@@ -3634,7 +3651,7 @@ static
 int
 innobase_rollback_to_savepoint(
 /*===========================*/
-	handlerton*	hton,		/*!< in: Innodb handlerton */
+	handlerton*	hton,		/*!< in: InnoDB handlerton */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction should
 					be rolled back to savepoint */
@@ -3680,7 +3697,7 @@ static
 int
 innobase_release_savepoint(
 /*=======================*/
-	handlerton*	hton,		/*!< in: handlerton for Innodb */
+	handlerton*	hton,		/*!< in: handlerton for InnoDB */
 	THD*		thd,		/*!< in: handle to the MySQL thread
 					of the user whose transaction's
 					savepoint should be released */
@@ -3715,7 +3732,7 @@ static
 int
 innobase_savepoint(
 /*===============*/
-	handlerton*	hton,	/*!< in: handle to the Innodb handlerton */
+	handlerton*	hton,	/*!< in: handle to the InnoDB handlerton */
 	THD*	thd,		/*!< in: handle to the MySQL thread */
 	void*	savepoint)	/*!< in: savepoint data */
 {
@@ -4210,67 +4227,6 @@ test_ut_format_name()
 }
 #endif /* !DBUG_OFF */
 
-/********************************************************************//**
-Get the upper limit of the MySQL integral and floating-point type.
-@return maximum allowed value for the field */
-UNIV_INTERN
-ulonglong
-innobase_get_int_col_max_value(
-/*===========================*/
-	const Field*	field)	/*!< in: MySQL field */
-{
-	ulonglong	max_value = 0;
-
-	switch (field->key_type()) {
-	/* TINY */
-	case HA_KEYTYPE_BINARY:
-		max_value = 0xFFULL;
-		break;
-	case HA_KEYTYPE_INT8:
-		max_value = 0x7FULL;
-		break;
-	/* SHORT */
-	case HA_KEYTYPE_USHORT_INT:
-		max_value = 0xFFFFULL;
-		break;
-	case HA_KEYTYPE_SHORT_INT:
-		max_value = 0x7FFFULL;
-		break;
-	/* MEDIUM */
-	case HA_KEYTYPE_UINT24:
-		max_value = 0xFFFFFFULL;
-		break;
-	case HA_KEYTYPE_INT24:
-		max_value = 0x7FFFFFULL;
-		break;
-	/* LONG */
-	case HA_KEYTYPE_ULONG_INT:
-		max_value = 0xFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONG_INT:
-		max_value = 0x7FFFFFFFULL;
-		break;
-	/* BIG */
-	case HA_KEYTYPE_ULONGLONG:
-		max_value = 0xFFFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_LONGLONG:
-		max_value = 0x7FFFFFFFFFFFFFFFULL;
-		break;
-	case HA_KEYTYPE_FLOAT:
-		/* We use the maximum as per IEEE754-2008 standard, 2^24 */
-		max_value = 0x1000000ULL;
-		break;
-	case HA_KEYTYPE_DOUBLE:
-		/* We use the maximum as per IEEE754-2008 standard, 2^53 */
-		max_value = 0x20000000000000ULL;
-		break;
-	default:
-		ut_error;
-	}
-
-	return(max_value);
-}
 
 /*******************************************************************//**
 This function checks whether the index column information
@@ -4283,7 +4239,7 @@ innobase_match_index_columns(
 	const KEY*		key_info,	/*!< in: Index info
 						from mysql */
 	const dict_index_t*	index_info)	/*!< in: Index info
-						from Innodb */
+						from InnoDB */
 {
 	const KEY_PART_INFO*	key_part;
 	const KEY_PART_INFO*	key_end;
@@ -4308,7 +4264,7 @@ innobase_match_index_columns(
 	column name got modified in mysql but such change does not
 	propagate to InnoDB.
 	One hidden assumption here is that the index column sequences
-	are matched up between those in mysql and Innodb. */
+	are matched up between those in mysql and InnoDB. */
 	for (; key_part != key_end; ++key_part) {
 		ulint	col_type;
 		ibool	is_unsigned;
@@ -4319,7 +4275,7 @@ innobase_match_index_columns(
 		col_type = get_innobase_type_from_mysql_type(&is_unsigned,
 							     key_part->field);
 
-		/* Ignore Innodb specific system columns. */
+		/* Ignore InnoDB specific system columns. */
 		while (mtype == DATA_SYS) {
 			innodb_idx_fld++;
 
@@ -4343,7 +4299,7 @@ innobase_match_index_columns(
 This function builds a translation table in INNOBASE_SHARE
 structure for fast index location with mysql array number from its
 table->key_info structure. This also provides the necessary translation
-between the key order in mysql key_info and Innodb ib_table->indexes if
+between the key order in mysql key_info and InnoDB ib_table->indexes if
 they are not fully matched with each other.
 Note we do not have any mutex protecting the translation table
 building based on the assumption that there is no concurrent
@@ -4356,7 +4312,7 @@ innobase_build_index_translation(
 /*=============================*/
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
-	dict_table_t*		ib_table,/*!< in: table in Innodb data
+	dict_table_t*		ib_table,/*!< in: table in InnoDB data
 					dictionary */
 	INNOBASE_SHARE*		share)	/*!< in/out: share structure
 					where index translation table
@@ -4503,7 +4459,7 @@ ha_innobase::innobase_initialize_autoinc()
 	const Field*	field = table->found_next_number_field;
 
 	if (field != NULL) {
-		auto_inc = innobase_get_int_col_max_value(field);
+		auto_inc = field->get_max_int_value();
 	} else {
 		/* We have no idea what's been passed in to us as the
 		autoinc column. We set it to the 0, effectively disabling
@@ -4551,7 +4507,7 @@ ha_innobase::innobase_initialize_autoinc()
 		case DB_SUCCESS: {
 			ulonglong	col_max_value;
 
-			col_max_value = innobase_get_int_col_max_value(field);
+			col_max_value = field->get_max_int_value();
 
 			/* At the this stage we do not know the increment
 			nor the offset, so use a default increment of 1. */
@@ -5111,6 +5067,7 @@ innobase_mysql_cmp(
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_GEOMETRY:
 	case MYSQL_TYPE_LONG_BLOB:
 	case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
@@ -5557,6 +5514,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
 	case MYSQL_TYPE_GEOMETRY:
+		return(DATA_GEOMETRY);
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
@@ -6031,7 +5989,7 @@ build_template_field(
 			+ templ->mysql_col_len;
 	}
 
-	if (templ->type == DATA_BLOB) {
+	if (DATA_LARGE_MTYPE(templ->type)) {
 		prebuilt->templ_contains_blob = TRUE;
 	}
 
@@ -6591,8 +6549,8 @@ no_commit:
 
 		/* We need the upper limit of the col type to check for
 		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
+		col_max_value =
+			table->next_number_field->get_max_int_value();
 
 		/* Get the value that MySQL attempted to store in the table.*/
 		auto_inc = table->next_number_field->val_int();
@@ -6759,6 +6717,7 @@ calc_row_difference(
 		switch (col_type) {
 
 		case DATA_BLOB:
+		case DATA_GEOMETRY:
 			o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len);
 			n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len);
 
@@ -7054,8 +7013,8 @@ ha_innobase::update_row(
 
 		/* We need the upper limit of the col type to check for
 		whether we update the table autoinc counter or not. */
-		col_max_value = innobase_get_int_col_max_value(
-			table->next_number_field);
+		col_max_value =
+			table->next_number_field->get_max_int_value();
 
 		if (auto_inc <= col_max_value && auto_inc != 0) {
 
@@ -7576,7 +7535,7 @@ ha_innobase::innobase_get_index(
 
 	if (!index) {
 		sql_print_error(
-			"Innodb could not find key n:o %u with name %s "
+			"InnoDB could not find key n:o %u with name %s "
 			"from dict cache for table %s",
 			keynr, key ? key->name : "NULL",
 			prebuilt->table->name);
@@ -8743,7 +8702,7 @@ found:
 		col_type = get_innobase_type_from_mysql_type(
 			&is_unsigned, key_part->field);
 
-		if (DATA_BLOB == col_type
+		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
 			&& field->type() != MYSQL_TYPE_VARCHAR)
 		    || (field->type() == MYSQL_TYPE_VARCHAR
@@ -8959,7 +8918,7 @@ create_options_are_invalid(
 		}
 	}
 
-	/* Check for a valid Innodb ROW_FORMAT specifier and
+	/* Check for a valid InnoDB ROW_FORMAT specifier and
 	other incompatibilities. */
 	switch (row_format) {
 	case ROW_TYPE_COMPRESSED:
@@ -10062,7 +10021,7 @@ static
 void
 innobase_drop_database(
 /*===================*/
-	handlerton*	hton,	/*!< in: handlerton of Innodb */
+	handlerton*	hton,	/*!< in: handlerton of InnoDB */
 	char*		path)	/*!< in: database path; inside InnoDB the name
 				of the last directory in the path is used as
 				the database name: for example, in
@@ -10391,7 +10350,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -10622,7 +10581,7 @@ innobase_get_mysql_key_number_for_index(
 					translation table. */
 	const TABLE*		table,	/*!< in: table in MySQL data
 					dictionary */
-	dict_table_t*		ib_table,/*!< in: table in Innodb data
+	dict_table_t*		ib_table,/*!< in: table in InnoDB data
 					dictionary */
 	const dict_index_t*	index)	/*!< in: index */
 {
@@ -11325,7 +11284,7 @@ ha_innobase::check(
 		prebuilt->index_usable = row_merge_is_index_usable(
 			prebuilt->trx, prebuilt->index);
 
-		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		if (!prebuilt->index_usable) {
 			innobase_format_name(
 				index_name, sizeof index_name,
 				prebuilt->index->name, TRUE);
@@ -13109,8 +13068,8 @@ ha_innobase::get_auto_increment(
 
 	/* We need the upper limit of the col type to check for
 	whether we update the table autoinc counter or not. */
-	ulonglong	col_max_value = innobase_get_int_col_max_value(
-		table->next_number_field);
+	ulonglong	col_max_value =
+		table->next_number_field->get_max_int_value();
 
 	/* Called for the first time ? */
 	if (trx->n_autoinc_rows == 0) {
@@ -15771,6 +15730,11 @@ static MYSQL_SYSVAR_ULONG(autoextend_increment,
   "Data file autoextend increment in megabytes",
   NULL, NULL, 64L, 1L, 1000L, 0);
 
+/* If the default value of innodb_buffer_pool_size is increased to be more than
+BUF_POOL_SIZE_THRESHOLD (srv/srv0start.cc), then SRV_BUF_POOL_INSTANCES_NOT_SET
+can be removed and 8 used instead. The problem with the current setup is that
+with 128MiB default buffer pool size and 8 instances by default we would emit
+a warning when no options are specified. */
 static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
@@ -15788,10 +15752,10 @@ static MYSQL_SYSVAR_ULONG(doublewrite_batch_size, srv_doublewrite_batch_size,
   NULL, NULL, 120, 1, 127, 0);
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
 
-static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
+static MYSQL_SYSVAR_ULONG(buffer_pool_instances, srv_buf_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
-  NULL, NULL, 0L, 0L, MAX_BUFFER_POOLS, 1L);
+  NULL, NULL, SRV_BUF_POOL_INSTANCES_NOT_SET, 0, MAX_BUFFER_POOLS, 0);
 
 static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
@@ -15962,11 +15926,6 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
-
-static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
 
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
@@ -16310,7 +16269,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
-  MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),

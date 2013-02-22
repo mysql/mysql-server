@@ -1150,6 +1150,26 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   packet->append(&quote_char, 1, system_charset_info);
 }
 
+/**
+  Convert the given identifier into to_charset if needed
+  and append it to target string.
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the input identifier
+  @param from_cs               Charset information about the input string
+  @param to_cs                 Charset information about the target string
+*/
+
+void
+append_identifier(THD *thd, String *packet, const char *name, uint length,
+                  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
+{
+        String to_name(name,length, from_cs);
+        if (from_cs != to_cs)
+            thd->convert_string(&to_name, from_cs, to_cs);
+        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+}
 
 /*
   Get the quote character for displaying an identifier.
@@ -1755,24 +1775,30 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   {
-    /*
-      Partition syntax for CREATE TABLE is at the end of the syntax.
-    */
-    uint part_syntax_len;
-    char *part_syntax;
     if (table->part_info &&
-        (!table->part_info->is_auto_partitioned) &&
-        ((part_syntax= generate_partition_syntax(table->part_info,
+        !((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+          table->part_info->is_auto_partitioned))
+    {
+      /*
+        Partition syntax for CREATE TABLE is at the end of the syntax.
+      */
+      uint part_syntax_len;
+      char *part_syntax;
+      String comment_start;
+      table->part_info->set_show_version_string(&comment_start);
+      if ((part_syntax= generate_partition_syntax(table->part_info,
                                                   &part_syntax_len,
                                                   FALSE,
                                                   show_table_options,
-                                                  NULL, NULL))))
-    {
-       table->part_info->set_show_version_string(packet);
-       if (packet->append(part_syntax, part_syntax_len) ||
-           packet->append(STRING_WITH_LEN(" */")))
-        error= 1;
-       my_free(part_syntax);
+                                                  NULL, NULL,
+                                                  comment_start.c_ptr())))
+      {
+         packet->append(comment_start);
+         if (packet->append(part_syntax, part_syntax_len) ||
+             packet->append(STRING_WITH_LEN(" */")))
+          error= 1;
+         my_free(part_syntax);
+      }
     }
   }
 #endif
