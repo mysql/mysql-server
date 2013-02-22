@@ -1,6 +1,3 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
- --source include/have_myisam.inc
-
 #Considering the time taken for this test on slow solaris platforms making it a big test
 --source include/big_test.inc
 # Skiping this test from Valgrind execution as per Bug-14627884
