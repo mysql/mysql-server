@@ -20,7 +20,8 @@
 
 var global_stats;
 var running_servers = {};
-
+var unified_debug = require("./unified_debug");
+var udebug = unified_debug.getLogger("STATS");
 var http = require("http");
 
 /* Because modules are cached, this initialization should happen only once. 
@@ -44,14 +45,26 @@ function getStatsDomain(root, keys, nparts) {
   return stat;
 }
 
+function dot(argsList, length) {
+  var i, r = "";
+  for (i = 0 ; i < length ; i++) {
+    if(typeof argsList[i] !== 'undefined') {
+      if(i) r += ".";
+      r += argsList[i];
+    }
+  }
+  return r;
+}
 
 exports.getWriter = function() {
   var statWriter = {};
   var thisDomain = getStatsDomain(global_stats, arguments, arguments.length);
+  var prefix = dot(arguments, arguments.length);
   
   statWriter.incr = function() {
     var len = arguments.length - 1;
     var domain = getStatsDomain(thisDomain, arguments, len);
+    var dottedName = prefix + "." + dot(arguments, arguments.length);
     var key = arguments[(len)];
 
     if(domain[key]) {
@@ -60,20 +73,24 @@ exports.getWriter = function() {
     else { 
       domain[key] = 1;
     }
+    udebug.log(dottedName, "INCR", "(" + domain[key] + ")");
   };
 
   statWriter.set = function() {
     var len = arguments.length - 2;
     var domain = getStatsDomain(thisDomain, arguments, len);
+    var dottedName = prefix + "." + dot(arguments, len+1);
     var key = arguments[len];
     var value = arguments[len + 1];
     
     domain[key] = value;
+    udebug.log(dottedName, "SET", value);
   };
   
   statWriter.push = function() {
     var len = arguments.length - 2;
     var domain = getStatsDomain(thisDomain, arguments, len);
+    var dottedName = prefix + "." + dot(arguments, len+1);
     var key = arguments[len];
     var value = arguments[len + 1];
     
@@ -82,6 +99,7 @@ exports.getWriter = function() {
     }
     
     domain[key].push(value);
+    udebug.log(dottedName, "PUSH", value);
   };
   
   return statWriter;
