@@ -48,6 +48,8 @@ function usage() {
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
   "   -i      :  Specify number of iterations per test (default 4000)\n" +
+  "   --modes :\n" +
+  "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
   "   --test  :  Specify tests to run (default persist,find,remove)\n" +
   "   --table':\n" +
