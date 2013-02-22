@@ -919,6 +919,11 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	/* Will try to remove if there is existing file left-over by last
+	unclean shutdown */
+	tmp_space->set_sanity_check_status(true);
+	tmp_space->delete_files();
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Creating shared tablespace for temporary tables");
 
