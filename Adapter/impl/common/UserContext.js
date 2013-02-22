@@ -18,12 +18,11 @@
  02110-1301  USA
 */
 
-/*global unified_debug */
+/*global assert, unified_debug */
 
 "use strict";
 
-var assert = require("assert"),
-    commonDBTableHandler = require("./DBTableHandler.js"),
+var commonDBTableHandler = require("./DBTableHandler.js"),
     apiSession = require("../../api/Session.js"),
     query      = require("../../api/Query.js"),
     udebug     = unified_debug.getLogger("UserContext.js");
