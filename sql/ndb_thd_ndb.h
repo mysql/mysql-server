@@ -90,6 +90,7 @@ public:
   */
   uint m_unsent_bytes;
   uint m_batch_size;
+  bool add_row_check_if_batch_full(uint size);
 
   uint m_execute_count;
 

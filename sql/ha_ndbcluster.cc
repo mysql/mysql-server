@@ -1484,22 +1484,6 @@ static bool field_type_forces_var_part(enum_field_types type)
 }
 
 /*
- * This is used for every additional row operation, to update the guesstimate
- * of pending bytes to send, and to check if it is now time to flush a batch.
- */
-bool
-ha_ndbcluster::add_row_check_if_batch_full_size(Thd_ndb *thd_ndb, uint size)
-{
-  if (thd_ndb->m_unsent_bytes == 0)
-    free_root(&(thd_ndb->m_batch_mem_root), MY_MARK_BLOCKS_FREE);
-
-  uint unsent= thd_ndb->m_unsent_bytes;
-  unsent+= size;
-  thd_ndb->m_unsent_bytes= unsent;
-  return unsent >= thd_ndb->m_batch_size;
-}
-
-/*
   Return a generic buffer that will remain valid until after next execute.
 
   The memory is freed by the first call to add_row_check_if_batch_full_size()
@@ -4889,7 +4873,8 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
   options.optionsPresent=0;
   
   eventSetAnyValue(thd, &options); 
-  bool need_flush= add_row_check_if_batch_full(thd_ndb);
+  const bool need_flush=
+      thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
   const Uint32 authorValue = 1;
   if ((thd->slave_thread) &&
@@ -5646,7 +5631,8 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   
   eventSetAnyValue(thd, &options);
   
-  bool need_flush= add_row_check_if_batch_full(thd_ndb);
+  const bool need_flush=
+      thd_ndb->add_row_check_if_batch_full(m_bytes_per_write);
 
  const Uint32 authorValue = 1;
  if ((thd->slave_thread) &&
@@ -5950,7 +5936,8 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
     Poor approx. let delete ~ tabsize / 4
   */
   uint delete_size= 12 + (m_bytes_per_write >> 2);
-  bool need_flush= add_row_check_if_batch_full_size(thd_ndb, delete_size);
+  const bool need_flush =
+      thd_ndb->add_row_check_if_batch_full(delete_size);
 
   if (thd->slave_thread || THDVAR(thd, deferred_constraints))
   {
