@@ -14002,45 +14002,6 @@ bool ha_ndbcluster::choose_mrr_impl(uint keyno, uint n_ranges, ha_rows n_rows,
    * Cost based MRR optimization is known to be incorrect.
    * Disabled -> always use NDB-MRR whenever possible
    */
-if (false)
-{
-  /**
-   * FIXME: Cost calculation is a copy of current default-MRR 
-   *        cost calculation. (Which also is incorrect!)
-   * TODO:  We have to invent our own metrics for NDB-MRR.
-   */
-  Cost_estimate mrr_cost;
-  if ((*flags & HA_MRR_INDEX_ONLY) && n_rows > 2)
-    cost->add_io(index_only_read_time(keyno, n_rows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
-  else
-    cost->add_io(read_time(keyno, n_ranges, n_rows) *
-                 Cost_estimate::IO_BLOCK_READ_COST());
-  cost->add_cpu(n_rows * ROW_EVALUATE_COST + 0.01);
-
-  bool force_mrr;
-  /* 
-    If @@optimizer_switch has "mrr" on and "mrr_cost_based" off, then set cost
-    of DS-MRR to be minimum of DS-MRR and Default implementations cost. This
-    allows one to force use of DS-MRR whenever it is applicable without
-    affecting other cost-based choices.
-  */
-  if ((force_mrr=
-       (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR) &&
-        !thd->optimizer_switch_flag(OPTIMIZER_SWITCH_MRR_COST_BASED))) &&
-      mrr_cost.total_cost() > cost->total_cost())
-  {
-    mrr_cost= *cost;
-  }
-  if (!force_mrr && mrr_cost.total_cost() > cost->total_cost())
-  {
-    /* Use the default MRR implementation */
-    return true;
-  }
-  *cost= mrr_cost;
-} // if (false)
-
-  /* Use the NDB-MRR implementation */
   *flags&= ~HA_MRR_USE_DEFAULT_IMPL;
   *flags|= HA_MRR_SUPPORT_SORTED;
 
