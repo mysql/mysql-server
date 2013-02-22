@@ -424,7 +424,7 @@ while ($i) {
 --enable_query_log
 --let $assert_cond= [SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > $rcvd_heartbeats_before
 --let $assert_text= Should receive at least one heartbeat event while running FLUSH LOGS for 10 seconds
---source include/rpl_assert.inc
+--source include/assert.inc
 --echo
 
 # Use compressed protocol between master and slave

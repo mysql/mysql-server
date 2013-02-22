@@ -127,7 +127,7 @@ using std::vector;
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
 
-#if defined(HAVE_DEC_3_2_THREADS) || defined(SIGNALS_DONT_BREAK_READ) || defined(HAVE_purify) && defined(__linux__)
+#if defined(HAVE_DEC_3_2_THREADS) || defined(HAVE_purify) && defined(__linux__)
 #define HAVE_CLOSE_SERVER_SOCK 1
 #endif
 
@@ -1201,7 +1201,7 @@ static const char* default_dbug_option;
 const char *libwrapName= NULL;
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
-#endif
+#endif /* HAVE_LIBWRAP */
 #ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
@@ -1315,10 +1315,8 @@ static void close_connections(void)
     LINT_INIT(error);
     DBUG_PRINT("info",("Waiting for select thread"));
 
-#ifndef DONT_USE_THR_ALARM
     if (pthread_kill(select_thread, thr_client_alarm))
       break;          // allready dead
-#endif
     set_timespec(abstime, 2);
     for (uint tmp=0 ; tmp < 10 && select_thread_in_use; tmp++)
     {
@@ -1512,11 +1510,6 @@ void kill_mysql(void)
 {
   DBUG_ENTER("kill_mysql");
 
-#if defined(SIGNALS_DONT_BREAK_READ) && !defined(EMBEDDED_LIBRARY)
-  abort_loop=1;         // Break connection loops
-  close_server_sock();        // Force accept to wake up
-#endif
-
 #if defined(__WIN__)
 #if !defined(EMBEDDED_LIBRARY)
   {
@@ -1537,22 +1530,11 @@ void kill_mysql(void)
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
-#elif !defined(SIGNALS_DONT_BREAK_READ)
+#else 
   kill(current_pid, MYSQL_KILL_SIGNAL);
 #endif
   DBUG_PRINT("quit",("After pthread_kill"));
   shutdown_in_progress=1;     // Safety if kill didn't work
-#ifdef SIGNALS_DONT_BREAK_READ
-  if (!kill_in_progress)
-  {
-    pthread_t tmp;
-    abort_loop=1;
-    if (mysql_thread_create(0, /* Not instrumented */
-                            &tmp, &connection_attrib, kill_server_thread,
-                            (void*) 0))
-      sql_print_error("Can't create thread to kill server");
-  }
-#endif
   DBUG_VOID_RETURN;
 }
 
@@ -1676,10 +1658,6 @@ static void clean_up_error_log_mutex()
 /**
   cleanup all memory and end program nicely.
 
-    If SIGNALS_DONT_BREAK_READ is defined, this function is called
-    by the main thread. To get MySQL to shut down nicely in this case
-    (Mac OS X) we have to call exit() instead if pthread_exit().
-
   @note
     This function never returns.
 */
@@ -1687,11 +1665,7 @@ void unireg_end(void)
 {
   clean_up(1);
   my_thread_end();
-#if defined(SIGNALS_DONT_BREAK_READ)
-  exit(0);
-#else
   pthread_exit(0);        // Exit is in main thread
-#endif
 }
 
 
@@ -5335,7 +5309,7 @@ int mysqld_main(int argc, char **argv)
 #ifdef HAVE_LIBWRAP
   libwrapName= my_progname+dirname_length(my_progname);
   openlog(libwrapName, LOG_PID, LOG_AUTH);
-#endif
+#endif /* HAVE_LIBWRAP */
 
 #ifndef DBUG_OFF
   test_lc_time_sz();
@@ -5557,7 +5531,7 @@ int mysqld_main(int argc, char **argv)
     /* Signal threads waiting for server to be started */
     mysql_mutex_lock(&LOCK_server_started);
     mysqld_server_started= 1;
-    mysql_cond_signal(&COND_server_started);
+    mysql_cond_broadcast(&COND_server_started);
     mysql_mutex_unlock(&LOCK_server_started);
 
     bootstrap(mysql_stdin);
@@ -5585,7 +5559,7 @@ int mysqld_main(int argc, char **argv)
   /* Signal threads waiting for server to be started */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
-  mysql_cond_signal(&COND_server_started);
+  mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -6096,24 +6070,6 @@ static void create_new_thread(THD *thd)
 }
 #endif /* EMBEDDED_LIBRARY */
 
-
-#ifdef SIGNALS_DONT_BREAK_READ
-inline void kill_broken_server()
-{
-  /* hack to get around signals ignored in syscalls for problem OS's */
-  if (mysql_get_fd(unix_sock) == INVALID_SOCKET ||
-      (!opt_disable_networking && mysql_socket_getfd(ip_sock) == INVALID_SOCKET))
-  {
-    select_thread_in_use = 0;
-    /* The following call will never return */
-    kill_server((void*) MYSQL_KILL_SIGNAL);
-  }
-}
-#define MAYBE_BROKEN_SYSCALL kill_broken_server();
-#else
-#define MAYBE_BROKEN_SYSCALL
-#endif
-
   /* Handle new connections and spawn new process to handle them */
 
 #ifndef EMBEDDED_LIBRARY
@@ -6176,7 +6132,6 @@ void handle_connections_sockets()
 #endif
 
   DBUG_PRINT("general",("Waiting for connections."));
-  MAYBE_BROKEN_SYSCALL;
   while (!abort_loop)
   {
 #ifdef HAVE_POLL
@@ -6200,13 +6155,11 @@ void handle_connections_sockets()
         if (!select_errors++ && !abort_loop)  /* purecov: inspected */
           sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
-      MAYBE_BROKEN_SYSCALL
       continue;
     }
 
     if (abort_loop)
     {
-      MAYBE_BROKEN_SYSCALL;
       break;
     }
 
@@ -6258,7 +6211,6 @@ void handle_connections_sockets()
       if (mysql_socket_getfd(new_sock) != INVALID_SOCKET ||
           (socket_errno != SOCKET_EINTR && socket_errno != SOCKET_EAGAIN))
         break;
-      MAYBE_BROKEN_SYSCALL;
 #if !defined(NO_FCNTL_NONBLOCK)
       if (!(test_flags & TEST_BLOCKING))
       {
@@ -6281,7 +6233,6 @@ void handle_connections_sockets()
       statistic_increment_rwlock(connection_errors_accept, &LOCK_status);
       if ((error_count++ & 255) == 0)   // This can happen often
         sql_perror("Error in accept");
-      MAYBE_BROKEN_SYSCALL;
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
         sleep(1);       // Give other threads some time
       continue;
@@ -6321,7 +6272,7 @@ void handle_connections_sockets()
             The connection was refused by TCP wrappers.
             There are no details (by client IP) available to update the host_cache.
           */
-          statistic_increment_rwlock(connection_tcpwrap_errors, &LOCK_status);
+          statistic_increment_rwlock(connection_errors_tcpwrap, &LOCK_status);
           continue;
         }
       }
@@ -6970,14 +6921,6 @@ struct my_option my_long_options[]=
    "Don't log extra information to update and slow-query logs.",
    &opt_short_log_format, &opt_short_log_format,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"log-slow-admin-statements", 0,
-   "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
-   "the slow log if it is open.", &opt_log_slow_admin_statements,
-   &opt_log_slow_admin_statements, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
- {"log-slow-slave-statements", 0,
-  "Log slow statements executed by slave thread to the slow log if it is open.",
-  &opt_log_slow_slave_statements, &opt_log_slow_slave_statements,
-  0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"log-tc", 0,
    "Path to transaction coordinator log (used for transactions that affect "
    "more than one storage engine, when binary log is disabled).",

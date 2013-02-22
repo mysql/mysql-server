@@ -154,7 +154,7 @@ Windows XP/2000.
 We use condition for events on Windows if possible, even if os_event
 resembles Windows kernel event object well API-wise. The reason is
 performance, kernel objects are heavyweights and WaitForSingleObject() is a
-performance killer causing calling thread to context switch. Besides, Innodb
+performance killer causing calling thread to context switch. Besides, InnoDB
 is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
@@ -198,7 +198,7 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
-UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+UNIV_INTERN ulong	srv_buf_pool_instances;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/

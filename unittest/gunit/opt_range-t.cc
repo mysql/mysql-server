@@ -1111,6 +1111,98 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
 }
 
 
+/**
+  Test for BUG#16241773
+*/
+TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
+{
+  create_table_singlecol_idx(2);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+
+  // Single-index predicates
+  const char exp_f1_eq10[]=  "result keys[0]: (10 <= field_1 <= 10)\n";
+  const char exp_f2_gtr20[]= "result keys[1]: (20 < field_2)\n";
+
+  const char exp_f1_eq11[]=  "result keys[0]: (11 <= field_1 <= 11)\n";
+  const char exp_f2_gtr10[]= "result keys[1]: (10 < field_2)\n";
+
+  // OR1: Result of ORing f1_eq10 and f2_gtr20
+  const char exp_or1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n";
+
+  // OR2: Result of ORing f1_eq11 and f2_gtr10
+  const char exp_or2[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  // AND1: Result of ANDing OR1 and OR2
+  const char exp_and1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  SEL_TREE *tree_and1=
+    create_and_check_tree_and(
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 10, 0, exp_f1_eq10),
+        create_tree(GREATER, field_long2, 20, 0, exp_f2_gtr20),
+        SEL_TREE::KEY, exp_or1),
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 11, 0, exp_f1_eq11),
+        create_tree(GREATER, field_long2, 10, 0, exp_f2_gtr10),
+        SEL_TREE::KEY, exp_or2),
+      SEL_TREE::KEY, exp_and1
+    );
+
+  const char exp_f2_eq5[]= "result keys[1]: (5 <= field_2 <= 5)\n";
+  // OR3: Result of OR'ing AND1 with f2_eq5
+  const char exp_or3[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (10 < field_2)\n";
+  SEL_TREE *tree_or3=
+    create_and_check_tree_or(
+      tree_and1,
+      create_tree(EQUAL, field_long2, 5, 0, exp_f2_eq5),
+      SEL_TREE::KEY, exp_or3
+    );
+
+  const char exp_f2_lt2[]= "result keys[1]: (field_2 < 2)\n";
+  // OR4: Result of OR'ing OR3 with f2_lt2
+  const char exp_or4[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (10 < field_2)\n";
+
+  create_and_check_tree_or(
+    tree_or3,
+    create_tree(LESS, field_long2, 2, 0, exp_f2_lt2),
+    SEL_TREE::KEY, exp_or4
+  );
+}
+
+
 /*
   Create SelArg with various single valued predicate
 */

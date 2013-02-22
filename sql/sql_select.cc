@@ -1494,18 +1494,18 @@ bool JOIN::set_access_methods()
       continue;                      // Handled in make_join_statistics()
 
     Key_use *const keyuse= tab->position->key;
-    if (!keyuse)
-    {
-      tab->type= JT_ALL;
-      if (tableno > const_tables)
-       full_join= true;
-     }
-    else if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
     {
       DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
       tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
       tab->index= tab->position->loosescan_key;
      }
+    else if (!keyuse)
+    {
+      tab->type= JT_ALL;
+      if (tableno > const_tables)
+       full_join= true;
+    }
     else
     {
       if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
@@ -2105,6 +2105,20 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
     DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond)
     {
+      /*
+        Check that the condition to push actually contains fields from
+        the index. Without any fields from the index it is unlikely
+        that it will filter out any records since the conditions on
+        fields from other tables in most cases have already been
+        evaluated.
+      */
+      idx_cond->update_used_tables();
+      if ((idx_cond->used_tables() & tab->table->map) == 0)
+      {
+        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
+        DBUG_VOID_RETURN;
+      }
+
       Item *idx_remainder_cond= 0;
       tab->pre_idx_push_cond= tab->condition();
 
