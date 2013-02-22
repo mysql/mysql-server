@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -414,7 +414,7 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
 
 		fixed_len = ifield->fixed_len;
 		if (fixed_len && !dict_table_is_comp(index->table)
@@ -443,7 +443,7 @@ row_merge_buf_add(
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
-			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
+			   || (!DATA_BIG_COL(col))) {
 			extra_size++;
 		} else {
 			/* For variable-length columns, we look up the
@@ -3338,7 +3338,7 @@ row_merge_is_index_usable(
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
-dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

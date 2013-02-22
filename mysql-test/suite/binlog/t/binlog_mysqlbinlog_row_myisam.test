@@ -13,6 +13,7 @@
 #
 
 #--source include/have_myisam.inc
+--source include/not_gtid_enabled.inc
 let $engine_type=MyISAM;
 
 #

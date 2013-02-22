@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -212,7 +212,7 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 
 /*****************************************************************//**
-Check whether the Innodb persistent cursor is positioned.
+Check whether the InnoDB persistent cursor is positioned.
 @return	IB_TRUE if positioned */
 UNIV_INLINE
 ib_bool_t
@@ -2395,6 +2395,7 @@ ib_col_set_value(
 		break;
 	}
 	case DATA_BLOB:
+	case DATA_GEOMETRY:
 	case DATA_BINARY:
 	case DATA_MYSQL:
 	case DATA_DECIMAL:

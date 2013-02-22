@@ -1552,6 +1552,19 @@ static Sys_var_mybool Sys_log_queries_not_using_indexes(
        GLOBAL_VAR(opt_log_queries_not_using_indexes),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
+static Sys_var_mybool Sys_log_slow_admin_statements(
+       "log_slow_admin_statements",
+       "Log slow OPTIMIZE, ANALYZE, ALTER and other administrative statements to "
+       "the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_admin_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
+static Sys_var_mybool Sys_log_slow_slave_statements(
+       "log_slow_slave_statements",
+       "Log slow statements executed by slave thread to the slow log if it is open.",
+       GLOBAL_VAR(opt_log_slow_slave_statements),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE));
+
 static bool update_log_throttle_queries_not_using_indexes(sys_var *self,
                                                           THD *thd,
                                                           enum_var_type type)
@@ -2168,7 +2181,7 @@ static Sys_var_uint Sys_port(
 #endif
        "built-in default (" STRINGIFY_ARG(MYSQL_PORT) "), whatever comes first",
        READ_ONLY GLOBAL_VAR(mysqld_port), CMD_LINE(REQUIRED_ARG, 'P'),
-       VALID_RANGE(0, UINT_MAX32), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 
 static Sys_var_ulong Sys_preload_buff_size(
        "preload_buffer_size",
@@ -3589,7 +3602,7 @@ static Sys_var_uint Sys_repl_report_port(
        "port or if you have a special tunnel from the master or other clients "
        "to the slave. If not sure, leave this option unset",
        READ_ONLY GLOBAL_VAR(report_port), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1));
+       VALID_RANGE(0, 65535), DEFAULT(0), BLOCK_SIZE(1));
 #endif
 
 static Sys_var_mybool Sys_keep_files_on_create(

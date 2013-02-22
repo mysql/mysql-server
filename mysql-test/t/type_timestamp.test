@@ -535,14 +535,7 @@ SHOW CREATE TABLE t1;
 
 --echo # The new behavior affects CREATE SELECT with column definitions
 --echo # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
---echo # with the new behavior. Following is expected out of SHOW CREATE TABLE
---echo #
---echo # `f1` timestamp NULL DEFAULT NULL,
---echo # `f2` timestamp NULL DEFAULT NULL,
---echo # `f3` timestamp NOT NULL,
---echo # `f4` timestamp NULL DEFAULT NULL,
---echo # `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
---echo # `f6` timestamp NULL DEFAULT NULL
+--echo # with the new behavior.
 
 CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
 SHOW CREATE TABLE t2;
