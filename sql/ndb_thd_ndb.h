@@ -77,6 +77,7 @@ public:
 
   uint32 options;
   uint32 trans_options;
+  void transaction_checks(void);
   List<NDB_SHARE> changed_tables;
   HASH open_tables;
   /*
