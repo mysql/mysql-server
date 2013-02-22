@@ -19,6 +19,7 @@ test.log_slow_admin_statements	optimize	status	OK
 INSERT INTO log_slow_admin_statements VALUES (7,8,9), (10,11,12);
 ANALYZE TABLE log_slow_admin_statements;
 Table	Op	Msg_type	Msg_text
+test.log_slow_admin_statements	optimize	note	Table does not support optimize, doing recreate + analyze instead
 test.log_slow_admin_statements	analyze	status	OK
 DROP TABLE log_slow_admin_statements;
 SELECT sql_text FROM mysql.slow_log WHERE sql_text LIKE '%TABLE log_slow_admin_statements%';
