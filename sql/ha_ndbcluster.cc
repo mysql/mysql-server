@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -1979,9 +1979,9 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
 
         if (unlikely(!defaults_aligned))
         {
-          DBUG_PRINT("info", ("Default values differ for column %u",
-                              field->field_index));
-          break;
+          sql_print_error("NDB Internal error: Default values differ "
+                          "for column %u, ndb_default: %d",
+                          field->field_index, ndb_default != NULL);
         }
       }
       else
@@ -1990,12 +1990,26 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
         if (unlikely(ndbCol->getDefaultValue() != NULL))
         {
           /* Didn't expect that */
-          DBUG_PRINT("info", ("Column %u has native default, but shouldn't."
-                              " Flags=%u, type=%u",
-                              field->field_index, field->flags, field->real_type()));
+          sql_print_error("NDB Internal error: Column %u has native "
+                          "default, but shouldn't. Flags=%u, type=%u",
+                          field->field_index, field->flags,
+                          field->real_type());
           defaults_aligned= false;
-          break;
         }
+      }
+      if (unlikely(!defaults_aligned))
+      {
+        // Dump field
+        sql_print_error("field[ name: '%s', type: %u, real_type: %u, "
+                        "flags: 0x%x, is_null: %d]",
+                        field->field_name, field->type(), field->real_type(),
+                        field->flags, field->is_null());
+        // Dump ndbCol
+        sql_print_error("ndbCol[name: '%s', type: %u, column_no: %d, "
+                        "nullable: %d]",
+                        ndbCol->getName(), ndbCol->getType(),
+                        ndbCol->getColumnNo(), ndbCol->getNullable());
+        break;
       }
     } 
     tmp_restore_column_map(table->read_set, old_map);
