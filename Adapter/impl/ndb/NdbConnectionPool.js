@@ -47,6 +47,7 @@ function NdbConnection(connectString) {
   this.ndb_cluster_connection  = new Ndb_cluster_connection(connectString);
   this.referenceCount          = 1;
   this.asyncNdbContext         = null;
+  this.pendingConnections      = [];
   this.isConnected             = false;
   this.isDisconnecting         = false;
   this.ndb_cluster_connection.set_name("nodejs");
@@ -58,14 +59,21 @@ function NdbConnection(connectString) {
 NdbConnection.prototype.connect = function(properties, callback) {
   var self = this;
 
+  function runCallbacks(a, b) {
+    var i;
+    for(i = 0 ; i < self.pendingConnections.length ; i++) {
+      self.pendingConnections[i](a, b);
+    }  
+  }
+
   function onReady(cb_err, nnodes) {
     logReadyNodes(self.ndb_cluster_connection, nnodes);
     if(nnodes < 0) {
-      callback("Timeout waiting for cluster to become ready.", self);
+      runCallbacks("Timeout waiting for cluster to become ready.", self);
     }
     else {
       self.isConnected = true;
-      callback(null, self);
+      runCallbacks(null, self);
     }
   }
 
@@ -77,26 +85,33 @@ NdbConnection.prototype.connect = function(properties, callback) {
     }
     else {
       connStats.incr("connections","failed");
-      callback('NDB Connect failed ' + rval, self);
+      runCallbacks('NDB Connect failed ' + rval, self);
     }
   }
   
   /* connect() starts here */
   if(this.isConnected) {
+    connStats.incr("connect", "join");
     callback(null, this);
   }
   else {
-    connStats.incr("connect", "async");
-    this.ndb_cluster_connection.connect(
-      properties.ndb_connect_retries, properties.ndb_connect_delay,
-      properties.ndb_connect_verbose, onConnected
-    );
+    this.pendingConnections.push(callback);
+    if(this.pendingConnections.length === 1) {
+      connStats.incr("connect", "async");
+      this.ndb_cluster_connection.connect(
+        properties.ndb_connect_retries, properties.ndb_connect_delay,
+        properties.ndb_connect_verbose, onConnected);
+    }
+    else {
+      connStats.incr("connect","queued");
+    }
   }
 };
 
 
 NdbConnection.prototype.connectSync = function(properties) {
   if(this.isConnected) {
+    connStats.incr("connect", "join");
     return true;
   }
 
@@ -127,7 +142,7 @@ NdbConnection.prototype.getAsyncContext = function() {
 };
 
 
-NdbConnection.prototype.close = function(user_callback) {
+NdbConnection.prototype.close = function() {
   var self = this;
 
   function disconnect() {
@@ -141,7 +156,6 @@ NdbConnection.prototype.close = function(user_callback) {
       self.ndb_cluster_connection = null;
     }
     self.isConnected = false;
-    user_callback(null);
   }
 
   /* close() starts here */
@@ -150,7 +164,6 @@ NdbConnection.prototype.close = function(user_callback) {
   }
   else if(this.isDisconnecting) { 
     connStats.incr("very_strange_simultaneous_disconnects");
-    user_callback(new Error("Already disconnecting"));
   }
   else { 
     this.isDisconnecting = true;
@@ -199,18 +212,26 @@ function getNdbConnection(connectString) {
   return baseConnections[connectString];
 }
 
-/* Release an underlying connection 
+/* Release an underlying connection.  
+   If the refcount reaches zero, we may even decide to close the underlying
+   connection at some future point.  But we don't announce when this happens, 
+   and we may keep it open in case other clients arrive.
 */
-function releaseNdbConnection(connectString, callback) {
+function releaseNdbConnection(connectString) {
   var ndbConnection = baseConnections[connectString];
   ndbConnection.referenceCount -= 1;
   assert(ndbConnection.referenceCount >= 0);
+  connStats.set(connectString, "refcount", ndbConnection.referenceCount);
+
+  function closeReally() {
+    if(ndbConnection.referenceCount === 0) {
+      baseConnections[connectString] = null;  // lock the door ...
+      ndbConnection.close();  // then actually start shutting down.
+    }
+  }
 
   if(ndbConnection.referenceCount === 0) {
-    ndbConnection.close(callback);
-  }
-  else {
-    callback(null);
+    setTimeout(closeReally, 1500);  /* 1.5 seconds now; another .5 in close() */
   }
 }
 
@@ -352,7 +373,6 @@ DBConnectionPool.prototype.connectSync = function() {
 /* Async connect 
 */
 DBConnectionPool.prototype.connect = function(user_callback) {
-  udebug.log("connect");
   poolStats.incr("connect", "async");
   var self = this;
 
@@ -413,7 +433,8 @@ DBConnectionPool.prototype.close = function(user_callback) {
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
   }
-  releaseNdbConnection(this.properties.ndb_connectstring, user_callback);
+  releaseNdbConnection(this.properties.ndb_connectstring);
+  user_callback(null);
 };
 
 
