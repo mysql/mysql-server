@@ -22,26 +22,17 @@
 
 "use strict";
 
-var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
-    ndbsession     = require("./NdbSession.js"),
-    dbtablehandler = require("../common/DBTableHandler.js"),
-    ndbencoders    = require("./NdbTypeEncoders.js"),
-    udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
-    ndb_is_initialized = false,
-    stats_module   = require(path.join(api_dir,"stats.js")),
-    stats          = stats_module.getWriter("spi","ndb","DBConnectionPool"),
-    proto;
-
-
-function initialize_ndb() {
-  if(! ndb_is_initialized) {
-    adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
-    // adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
-    unified_debug.register_client(adapter.debug);
-    ndb_is_initialized = true;
-  }
-}
-
+var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
+    ndbsession       = require("./NdbSession.js"),
+    dbtablehandler   = require("../common/DBTableHandler.js"),
+    ndbencoders      = require("./NdbTypeEncoders.js"),
+    udebug           = unified_debug.getLogger("NdbConnectionPool.js"),
+    stats_module     = require(path.join(api_dir,"stats.js")),
+    poolStats        = stats_module.getWriter("spi","ndb","DBConnectionPool"),
+    connStats        = stats_module.getWriter("spi","ndb","NdbConnection"),
+    baseConnections  = { 'initialized' : false }, 
+    assert           = require("assert"),
+    logReadyNodes;
 
 /* Load-Time Function Asserts */
 
@@ -49,6 +40,196 @@ assert(typeof adapter.ndb.ndbapi.Ndb_cluster_connection === 'function');
 assert(typeof adapter.ndb.impl.DBSession.create === 'function');
 assert(typeof adapter.ndb.impl.DBDictionary.listTables === 'function');
 assert(typeof adapter.ndb.impl.DBDictionary.getTable === 'function');
+
+
+function NdbConnection(connectString) {
+  var Ndb_cluster_connection   = adapter.ndb.ndbapi.Ndb_cluster_connection;
+  this.ndb_cluster_connection  = new Ndb_cluster_connection(connectString);
+  this.referenceCount          = 1;
+  this.asyncNdbContext         = null;
+  this.isConnected             = false;
+  this.isDisconnecting         = false;
+  this.ndb_cluster_connection.set_name("nodejs");
+}
+
+
+///////////       Class NdbConnection       /////////////
+
+NdbConnection.prototype.connect = function(properties, callback) {
+  var self = this;
+
+  function onReady(cb_err, nnodes) {
+    logReadyNodes(self.ndb_cluster_connection, nnodes);
+    if(nnodes < 0) {
+      callback("Timeout waiting for cluster to become ready.", self);
+    }
+    else {
+      self.isConnected = true;
+      callback(null, self);
+    }
+  }
+
+  function onConnected(cb_err, rval) {
+    udebug.log("connect() onConnected rval =", rval);
+    if(rval === 0) {
+      connStats.incr("connections","successful");
+      self.ndb_cluster_connection.wait_until_ready(1, 1, onReady);
+    }
+    else {
+      connStats.incr("connections","failed");
+      callback('NDB Connect failed ' + rval, self);
+    }
+  }
+  
+  /* connect() starts here */
+  if(this.isConnected) {
+    callback(null, this);
+  }
+  else {
+    connStats.incr("connect", "async");
+    this.ndb_cluster_connection.connect(
+      properties.ndb_connect_retries, properties.ndb_connect_delay,
+      properties.ndb_connect_verbose, onConnected
+    );
+  }
+};
+
+
+NdbConnection.prototype.connectSync = function(properties) {
+  if(this.isConnected) {
+    return true;
+  }
+
+  connStats.incr("connect", "sync");
+  var r, nnodes;
+  r = this.ndb_cluster_connection.connect(properties.ndb_connect_retries,
+                                          properties.ndb_connect_delay,
+                                          properties.ndb_connect_verbose);
+  if(r === 0) {
+    connStats.incr("connections","successful");
+    nnodes = this.ndb_cluster_connection.wait_until_ready(1, 1);
+    logReadyNodes(this.ndb_cluster_connection, nnodes);
+    if(nnodes >= 0) {
+      this.isConnected = true;
+    }
+  }
+  
+  return this.isConnected;
+};
+
+
+NdbConnection.prototype.getAsyncContext = function() {
+  var AsyncNdbContext = adapter.ndb.impl.AsyncNdbContext;
+  if(! this.asyncNdbContext) {
+    this.asyncNdbContext = new AsyncNdbContext(this.ndb_cluster_connection);
+  }
+  return this.asyncNdbContext;
+};
+
+
+NdbConnection.prototype.close = function(user_callback) {
+  var self = this;
+
+  function disconnect() {
+    if(self.asyncNdbContext) { 
+      self.asyncNdbContext.delete();  // C++ Destructor
+      self.asyncNdbContext = null;    
+    }
+    udebug.log("Disconnecting cluster");
+    if(self.ndb_cluster_connection) {
+      self.ndb_cluster_connection.delete();  // C++ Destructor
+      self.ndb_cluster_connection = null;
+    }
+    self.isConnected = false;
+    user_callback(null);
+  }
+
+  /* close() starts here */
+  if(! this.isConnected) {
+    disconnect();  /* Free Resources anyway */
+  }
+  else if(this.isDisconnecting) { 
+    connStats.incr("very_strange_simultaneous_disconnects");
+    user_callback(new Error("Already disconnecting"));
+  }
+  else { 
+    this.isDisconnecting = true;
+
+    /* Shut down the async listener thread */
+    if(this.asyncNdbContext) { this.asyncNdbContext.shutdown(); }
+    
+    /* Perhaps async transactions are still executing.
+       Perhaps the connection pool is still being filled. 
+       This timer is a brute-force workaround for these race conditions.
+    */
+    setTimeout(disconnect, 500);
+  }
+};
+
+
+/////////////////////////
+
+
+function initialize() {
+  adapter.ndb.ndbapi.ndb_init();                       // ndb_init()
+  // adapter.ndb.util.CharsetMap_init();           // CharsetMap::init()
+  unified_debug.register_client(adapter.debug);
+  return true;
+}
+
+
+/* We keep only one actual underlying connection, 
+   per distinct NDB connect string.
+   It is reference-counted, and actually closed when its final user closes it.
+*/
+function getNdbConnection(connectString) {
+  if(! baseConnections.initialized) {    
+    baseConnections.initialized = initialize();
+  }
+
+  if(baseConnections[connectString]) {
+    baseConnections[connectString].referenceCount += 1;
+  }
+  else {
+    baseConnections[connectString] = new NdbConnection(connectString);
+  }
+  
+  connStats.set(connectString, "refcount", 
+                baseConnections[connectString].referenceCount);
+  return baseConnections[connectString];
+}
+
+/* Release an underlying connection 
+*/
+function releaseNdbConnection(connectString, callback) {
+  var ndbConnection = baseConnections[connectString];
+  ndbConnection.referenceCount -= 1;
+  assert(ndbConnection.referenceCount >= 0);
+
+  if(ndbConnection.referenceCount === 0) {
+    ndbConnection.close(callback);
+  }
+  else {
+    callback(null);
+  }
+}
+
+
+function logReadyNodes(ndb_cluster_connection, nnodes) {
+  var node_id;
+  if(nnodes < 0) {
+    connStats.incr("wait_until_ready","timeouts");
+  }
+  else {
+    node_id = ndb_cluster_connection.node_id();
+    if(nnodes > 0) {
+      udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
+    }
+    udebug.log_notice("Connected to cluster as node id:", node_id);
+    connStats.push("node_ids", node_id);
+  }
+  return nnodes;
+}
 
 
 /* Each NdbSession object has a lock protecting dictionary access 
@@ -67,43 +248,6 @@ function releaseDictionaryLock(ndbSession) {
 }
 
 
-
-/* DBConnectionPool constructor.
-   IMMEDIATE.
-   Does not perform any IO. 
-   Throws an exception if the Properties object is invalid.
-*/   
-exports.DBConnectionPool = function(props) {
-  udebug.log("constructor");
-  stats.incr("created");
-
-  initialize_ndb();
-  
-  this.properties = props;
-  this.ndbconn = 
-    new adapter.ndb.ndbapi.Ndb_cluster_connection(props.ndb_connectstring);
-  this.ndbconn.set_name("nodejs");
-  udebug.log("constructor returning");
-};
-
-/* NdbConnectionPool prototype 
-*/
-proto = {
-  properties           : null,
-  ndbconn              : null,
-  is_connected         : false,
-  dict_sess            : null,
-  dictionary           : null,
-  pendingListTables    : {},
-  pendingGetMetadata   : {},
-  ndbSessionFreeList   : [],
-  isDisconnecting      : false,
-  asyncNdbContext      : null,
-};
-
-exports.DBConnectionPool.prototype = proto;
-
-
 exports.closeNdbSession = function(ndbPool, ndbSession) {
   if(ndbPool.isDisconnecting  || 
       ( ndbPool.ndbSessionFreeList.length > 
@@ -117,6 +261,7 @@ exports.closeNdbSession = function(ndbPool, ndbSession) {
   }
 };
 
+
 /* Prefetch an NdbSSession and keep it on the freelist
 */
 function prefetchSession(ndbPool) {
@@ -127,29 +272,50 @@ function prefetchSession(ndbPool) {
 
   function onFetch(err, ndbSessionImpl) {
     if(err) {
-      stats.incr("ndbSession","prefetch","errors");
+      poolStats.incr("ndbSession","prefetch","errors");
       udebug.log("prefetchSession onFetch ERROR", err);
     }
-    else if(ndbPool.isDisconnecting) {
+    else if(ndbPool.ndbConnection.isDisconnecting) {
        adapter.ndb.impl.DBSession.destroy(ndbSessionImpl);
     }
     else {
-      stats.incr("ndbSession","prefetch","success");
+      poolStats.incr("ndbSession","prefetch","success");
       udebug.log("prefetchSession adding to session pool.");
       ndbSession = ndbsession.newDBSession(ndbPool, ndbSessionImpl);
       ndbPool.ndbSessionFreeList.push(ndbSession);
       /* If the pool is wanting, fetch another */
       if(ndbPool.ndbSessionFreeList.length < pool_min) {
-        stats.incr("ndbSession","prefetch","attempts");
-        adapter.ndb.impl.DBSession.create(ndbPool.ndbconn, db, onFetch);
+        poolStats.incr("ndbSession","prefetch","attempts");
+        adapter.ndb.impl.DBSession.create(ndbPool.impl, db, onFetch);
       }
     }
   }
 
-  if(! ndbPool.isDisconnecting) {
-    stats.incr("ndbSession","prefetch","attempts");
-    adapter.ndb.impl.DBSession.create(ndbPool.ndbconn, db, onFetch);
+  if(! ndbPool.ndbConnection.isDisconnecting) {
+    poolStats.incr("ndbSession","prefetch","attempts");
+    adapter.ndb.impl.DBSession.create(ndbPool.impl, db, onFetch);
   }
+}
+
+
+///////////       Class DBConnectionPool       /////////////
+
+/* DBConnectionPool constructor.
+   IMMEDIATE.
+   Does not perform any IO. 
+   Throws an exception if the Properties object is invalid.
+*/   
+function DBConnectionPool(props) {
+  poolStats.incr("created");
+  this.properties         = props;
+  this.ndbConnection      = null;
+  this.impl               = null;
+  this.dict_sess          = null;
+  this.dictionary         = null;
+  this.asyncNdbContext    = null;
+  this.pendingListTables  = {};
+  this.pendingGetMetadata = {};
+  this.ndbSessionFreeList = [];
 }
 
 
@@ -157,31 +323,17 @@ function prefetchSession(ndbPool) {
    SYNC.
    Returns true on success and false on error.
 */
-proto.connectSync = function() {
-  stats.incr("connect", "sync");
-  var r, nnodes, i;
+DBConnectionPool.prototype.connectSync = function() {
+  udebug.log("connectSync");
   var db = this.properties.database;
-  r = this.ndbconn.connect(this.properties.ndb_connect_retries,
-                           this.properties.ndb_connect_delay,
-                           this.properties.ndb_connect_verbose);
-  if(r === 0) {
-    stats.incr("connections","successful");
-    nnodes = this.ndbconn.wait_until_ready(1, 1);
-    if(nnodes < 0) {
-      stats.incr("on_ready","timeouts");
-      throw new Error("Timeout waiting for cluster to become ready.");
-    }
-    else {
-      this.is_connected = true;
-      if(nnodes > 0) {
-        udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
-      }
-      udebug.log_notice("Connected to cluster as node id:", this.ndbconn.node_id());
-      stats.push("node_ids", this.ndbconn.node_id());
-    }
+  
+  this.ndbConnection = getNdbConnection(this.properties.ndb_connectstring);
 
+  if(this.ndbConnection.connectSync(this.properties)) {
+    this.impl = this.ndbConnection.ndb_cluster_connection;
+    
     /* Get sessionImpl and session for dictionary use */
-    this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
+    this.dictionary = adapter.ndb.impl.DBSession.create(this.impl, db);
     this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
     
     /* Start filling the session pool */
@@ -189,28 +341,23 @@ proto.connectSync = function() {
 
     /* Create Async Context */
     if(this.properties.ndb_use_async_ndbapi) {
-      this.asyncNdbContext = new adapter.ndb.impl.AsyncNdbContext(this.ndbconn);
+      this.asyncNdbContext = this.ndbConnection.getAsyncContext();
     }
   }
-  else {
-    stats.incr("connections","failed");
-  }
     
-  return this.is_connected;
+  return this.ndbConnection.isConnected;
 };
 
 
 /* Async connect 
 */
-proto.connect = function(user_callback) {
+DBConnectionPool.prototype.connect = function(user_callback) {
   udebug.log("connect");
-  stats.incr("connect", "async");
-  var self = this,
-      err = null;
+  poolStats.incr("connect", "async");
+  var self = this;
 
   function onGotDictionarySession(cb_err, dsess) {
-    var i;
-    udebug.log("connect onGotDictionarySession");
+    udebug.log("DBConnectionPool.connect onGotDictionarySession");
     self.dict_sess = dsess;
     self.dictionary = self.dict_sess.impl;
     
@@ -218,56 +365,33 @@ proto.connect = function(user_callback) {
       user_callback(cb_err, null);
     }
     else {
-      if(self.properties.ndb_use_async_ndbapi) {
-        self.asyncNdbContext = new adapter.ndb.impl.AsyncNdbContext(self.ndbconn);
-      }
-
       /* Start filling the session pool */
       prefetchSession(self);
+
+      /* Create Async Context */
+      if(self.properties.ndb_use_async_ndbapi) {
+        self.asyncNdbContext = self.ndbConnection.getAsyncContext();
+      }
 
       /* All done */
       user_callback(null, self);
     }
   }
-
-  function onReady(cb_err, nnodes) {
-    // Cluster is ready.  Next step is to get the dictionary session
-    udebug.log("connect() onReady nnodes =", nnodes);
-    if(nnodes < 0) {
-      stats.incr("on_ready","timeouts");
-      err = new Error("Timeout waiting for cluster to become ready.");
+  
+  function onConnected(err) {
+    udebug.log("DBConnectionPool.connect onConnected");
+    if(err) {
       user_callback(err, self);
     }
     else {
-      self.is_connected = true;
-      if(nnodes > 0) {
-        udebug.log_notice("Warning: only " + nnodes + " data nodes are running.");
-      }
-      udebug.log_notice("Connected to cluster as node id: " + self.ndbconn.node_id());
-     }
-     self.getDBSession(0, onGotDictionarySession);
-  }
-  
-  function onConnected(cb_err, rval) {
-    // Connected to NDB.  Next step is wait_until_ready().
-    udebug.log("connect() onConnected rval =", rval);
-    if(rval === 0) {
-      stats.incr("connections","successful");
-      assert(typeof self.ndbconn.wait_until_ready === 'function');
-      self.ndbconn.wait_until_ready(1, 1, onReady);
-    }
-    else {
-      stats.incr("connections","failed");
-      err = new Error('NDB Connect failed ' + rval);       
-      user_callback(err, self);
+      self.impl = self.ndbConnection.ndb_cluster_connection;
+      self.getDBSession(0, onGotDictionarySession);
     }
   }
   
-  // Fist step is to connect to the cluster
-  self.ndbconn.connect(self.properties.ndb_connect_retries,
-                       self.properties.ndb_connect_delay,
-                       self.properties.ndb_connect_verbose,
-                       onConnected);
+  /* Connect starts here */
+  this.ndbConnection = getNdbConnection(this.properties.ndb_connectstring);
+  this.ndbConnection.connect(this.properties, onConnected);
 };
 
 
@@ -275,39 +399,21 @@ proto.connect = function(user_callback) {
    IMMEDIATE.
    Returns bool true/false
  */
-proto.isConnected = function() {
-  return this.is_connected;
+DBConnectionPool.prototype.isConnected = function() {
+  return this.ndbConnection.isConnected;
 };
 
 
 /* close()
    ASYNC.
 */
-proto.close = function(user_callback) {
+DBConnectionPool.prototype.close = function(user_callback) {
   var i;
-  var self = this;
-  this.isDisconnecting = true;
   adapter.ndb.impl.DBSession.destroy(this.dictionary);
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
   }
-
-  /* Shut down the async listener thread */
-  if(this.asyncNdbContext) { this.asyncNdbContext.shutdown(); }
-  
-  function disconnect() {
-    if(self.asyncNdbContext) { self.asyncNdbContext.delete(); }
-    udebug.log("Disconnecting cluster");
-    self.ndbconn.delete();
-    if(typeof user_callback === 'function') {
-      user_callback();
-    }
-  }
-  /* Perhaps async transactions are still executing.
-     Perhaps the connection pool is still being filled. 
-     This timer is a brute-force workaround for these race conditions.
-  */
-  setTimeout(disconnect, 500);
+  releaseNdbConnection(this.properties.ndb_connectstring, user_callback);
 };
 
 
@@ -316,9 +422,9 @@ proto.close = function(user_callback) {
    Creates and opens a new DBSession.
    Users's callback receives (error, DBSession)
 */
-proto.getDBSession = function(index, user_callback) {
+DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
   udebug.log("getDBSession");
-  assert(this.ndbconn);
+  assert(this.impl);
   assert(user_callback);
   var db   = this.properties.database,
       self = this,
@@ -339,12 +445,12 @@ proto.getDBSession = function(index, user_callback) {
 
   user_session = this.ndbSessionFreeList.pop();
   if(user_session) {
-    stats.incr("ndbSession","pool","hits");
+    poolStats.incr("ndbSession","pool","hits");
     user_callback(null, user_session);
   }
   else {
-    stats.incr("ndbSession","pool","misses");
-    adapter.ndb.impl.DBSession.create(this.ndbconn, db, private_callback);
+    poolStats.incr("ndbSession","pool","misses");
+    adapter.ndb.impl.DBSession.create(this.impl, db, private_callback);
   }
 };
 
@@ -370,7 +476,7 @@ proto.getDBSession = function(index, user_callback) {
 
 
 function makeGroupCallback(dbSession, container, key) {
-  stats.incr("group_callbacks","created");
+  poolStats.incr("group_callbacks","created");
   var groupCallback = function(param1, param2) {
     var callbackList, i, nextCall;
     /* The Dictionay Call is complete */
@@ -424,9 +530,9 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   * 
   * listTables(databaseName, dbSession, callback(error, array));
   */
-proto.listTables = function(databaseName, dbSession, user_callback) {
-  udebug.log("listTables");
-  stats.incr("listTables");
+DBConnectionPool.prototype.listTables = function(databaseName, dbSession, 
+                                                 user_callback) {
+  poolStats.incr("listTables");
   assert(databaseName && user_callback);
   var dictSession = dbSession || this.dict_sess; 
   var dictionaryCall;
@@ -458,10 +564,10 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   * 
   * getTableMetadata(databaseName, tableName, dbSession, callback(error, TableMetadata));
   */
-proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
+DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname, 
+                                                       dbSession, user_callback) {
   var dictSession, tableKey, dictionaryCall;
-  udebug.log("getTableMetadata");
-  stats.incr("getTableMetadata");
+  poolStats.incr("getTableMetadata");
   assert(dbname && tabname && user_callback);
   dictSession = dbSession || this.dict_sess; 
   tableKey = dbname + "." + tabname;
@@ -520,7 +626,8 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
    IMMEDIATE
    Creates and returns a DBTableHandler for table and mapping
 */
-proto.createDBTableHandler = function(tableMetadata, apiMapping) { 
+DBConnectionPool.prototype.createDBTableHandler = function(tableMetadata, 
+                                                           apiMapping) { 
   udebug.log("createDBTableHandler", tableMetadata.name);
   var handler;
   handler = new dbtablehandler.DBTableHandler(tableMetadata, apiMapping);
@@ -528,4 +635,7 @@ proto.createDBTableHandler = function(tableMetadata, apiMapping) {
      needs to be annotated with some Records */
   return handler;
 };
+
+
+exports.DBConnectionPool = DBConnectionPool; 
 
