@@ -536,7 +536,7 @@ QuietListener.prototype.startTest = Listener.prototype.startTest;
 QuietListener.prototype.pass = function(t) {
   this.ended++;
   delete this.running[t.index];
-}
+};
 
 QuietListener.prototype.skip = QuietListener.prototype.pass;
 QuietListener.prototype.fail = QuietListener.prototype.pass;

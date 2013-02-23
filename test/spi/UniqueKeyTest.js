@@ -55,9 +55,13 @@ function prepare(testCase, runTestMethod, testObj) {
   function onTable(err, dbTable) {
     udebug.log("prepare onTable");
     table = dbTable;         // set global
-    dbt = new dbtablehandler.DBTableHandler(table, mapping, null);   // set global
-    if(err) {  testCase.fail(err);               }
-    else    {  runTestMethod(testCase, testObj);  }
+    if(err) {  
+      testCase.fail(err); 
+    }
+    else { // set global
+      dbt = new dbtablehandler.DBTableHandler(table, mapping, null); 
+      runTestMethod(testCase, testObj);
+    }
   }
 
   function onSession(err, sess) {

@@ -94,7 +94,6 @@ function getColumnByName(dbTable, colName) {
      perform no remapping between field names and column names
 */
 function DBTableHandler(dbtable, tablemapping, ctor) {
-  udebug.log('DBTableHandler<ctor> ', dbtable.database, ':', dbtable.name);
   assert(arguments.length === 3);
   var i,               // an iterator
       f,               // a FieldMapping
