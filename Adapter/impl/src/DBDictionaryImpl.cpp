@@ -39,7 +39,8 @@ using namespace v8;
  * thread, as they may require network waits.
  *
  * Looking at NdbDictionaryImpl.cpp, any method that calls into 
- * NdbDictInterface (m_receiver) might block.
+ * NdbDictInterface (m_receiver) might block.  But any NdbDictionary.hpp method 
+ * marked as "const" should be safe from blocking.
  *
  * We assume that once a table has been fetched, all NdbDictionary::getColumn() 
  * calls are immediately served from the local dictionary cache.
@@ -157,8 +158,7 @@ class GetTableCall : public NativeCFunctionCall_3_<int, ndb_session *,
 {
 private:
   const NdbDictionary::Table * ndb_table;
-  const NdbDictionary::Index ** indexes;
-  int n_index;
+  NdbDictionary::Dictionary::List idx_list;
   
   Handle<Object> buildDBIndex_PK();
   Handle<Object> buildDBIndex(const NdbDictionary::Index *);
@@ -168,7 +168,7 @@ public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(NULL, args),
-    ndb_table(0), indexes(0), n_index(0)
+    ndb_table(0), idx_list()
   {
   }
   
@@ -182,23 +182,14 @@ public:
 
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
-  NdbDictionary::Dictionary * dict = arg0->dict;
-  NdbDictionary::Dictionary::List idx_list;
+  NdbDictionary::Dictionary * dict;
   
-  // TODO: Set database name? 
-  ndb_table = dict->getTable(arg2);
-  if(ndb_table) {
-    return_val = dict->listIndexes(idx_list, *ndb_table);
-    if(return_val != -1) {
-      n_index = idx_list.count;
-      indexes = new const NdbDictionary::Index *[idx_list.count];
-      for(unsigned int i = 0 ; i < idx_list.count ; i++) {
-        indexes[i] = dict->getIndex(idx_list.elements[i].name, arg2);
-      }
-    }
+  if(strlen(arg1)) {
+    arg0->ndb->setDatabaseName(arg1);
   }
-  else
-    return_val = -1;
+  dict = arg0->ndb->getDictionary();
+  ndb_table = dict->getTable(arg2);
+  return_val = ndb_table ? dict->listIndexes(idx_list, arg2) : -1;
 }
 
 
@@ -239,10 +230,17 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     table->Set(String::NewSymbol("columns"), columns);
 
     // indexes (primary key & secondary) 
-    Local<Array> js_indexes = Array::New(n_index + 1);
-    js_indexes->Set(0, buildDBIndex_PK());                // primary key
-    for(int i = 0 ; i < n_index ; i++) {                  // secondary indexes
-      js_indexes->Set(i+1, buildDBIndex(indexes[i]));
+    Local<Array> js_indexes = Array::New(idx_list.count + 1);
+    js_indexes->Set(0, buildDBIndex_PK());                   // primary key
+    for(unsigned int i = 0 ; i < idx_list.count ; i++) {   // secondary indexes
+      const NdbDictionary::Index * idx =
+        arg0->dict->getIndex(idx_list.elements[i].name, arg2);
+      if(strcmp(idx->getTable(), arg2)) {
+        cb_args[0] = String::New("NDB BUG. TRY AGAIN.");
+        callback->Call(ctx, 2, cb_args);
+        return;
+      }
+      js_indexes->Set(i+1, buildDBIndex(idx));
     }    
     table->Set(String::NewSymbol("indexes"), js_indexes, ReadOnly);
 
@@ -253,7 +251,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     DEBUG_PRINT("Creating Table Record");
     Record * rec = new Record(arg0->dict, ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
-      rec->addColumn(ndb_table->getColumn(i));      
+      rec->addColumn(ndb_table->getColumn(i));
     }
     rec->completeTableRecord(ndb_table);
 
