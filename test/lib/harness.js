@@ -523,6 +523,27 @@ Listener.prototype.listRunningTests = function() {
   this.running.forEach(listElement);
 };
 
+
+/* QuietListener */
+function QuietListener() {
+  this.started = 0;
+  this.ended   = 0;
+  this.running = [];
+}
+
+QuietListener.prototype.startTest = Listener.prototype.startTest;
+
+QuietListener.prototype.pass = function(t) {
+  this.ended++;
+  delete this.running[t.index];
+}
+
+QuietListener.prototype.skip = QuietListener.prototype.pass;
+QuietListener.prototype.fail = QuietListener.prototype.pass;
+
+QuietListener.prototype.listRunningTests = Listener.prototype.listRunningTests;
+
+
 /* Result 
 */
 function Result(driver) {
@@ -599,6 +620,7 @@ SQL.drop = function(suite, callback) {
 exports.Test              = Test;
 exports.Suite             = Suite;
 exports.Listener          = Listener;
+exports.QuietListener     = QuietListener;
 exports.Result            = Result;
 exports.SmokeTest         = SmokeTest;
 exports.ConcurrentTest    = ConcurrentTest;
