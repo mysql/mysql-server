@@ -44,6 +44,7 @@ function Driver() {
   this.suitesToRun = "";
   this.skipSmokeTest = false;
   this.skipClearSmokeTest = false;
+  this.doStats = false;
 }
 
 Driver.prototype.findSuites = function(directory) {
@@ -99,6 +100,9 @@ Driver.prototype.reportResultsAndExit = function() {
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);
+  if(this.doStats) {
+    require(path.join(api_dir, "stats")).peek();
+  }
   unified_debug.close();
   process.exit(this.result.failed.length > 0);
 };
@@ -131,7 +135,8 @@ var usageMessage =
   "     --timeout=<ms>: set timeout (in msec); set to 0 to disable timeout.\n" +
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
-  "       --skip-clear: do not run ClearSmokeTest\n"
+  "       --skip-clear: do not run ClearSmokeTest\n" +
+  "            --stats: show server statistics after test run\n"
   ;
 
 // handle command line arguments
@@ -177,6 +182,9 @@ for(i = 2; i < process.argv.length ; i++) {
     break;
   case '-q':
     driver.result.listener = new harness.QuietListener();
+    break;
+  case '--stats':
+    driver.doStats = true;
     break;
   default:
     values = val.split('=');
