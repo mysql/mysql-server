@@ -171,7 +171,7 @@ typedef void (*CACHETABLE_PUT_CALLBACK)(CACHEKEY key, void *value_data, PAIR p);
 // TODO(leif) XXX TODO XXX
 typedef int (*CACHETABLE_CLEANER_CALLBACK)(void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *write_extraargs);
 
-typedef void (*CACHETABLE_CLONE_CALLBACK)(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
+typedef void (*CACHETABLE_CLONE_CALLBACK)(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 
 typedef void (*CACHETABLE_CHECKPOINT_COMPLETE_CALLBACK)(void *value_data);
 

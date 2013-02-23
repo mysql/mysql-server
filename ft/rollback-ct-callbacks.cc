@@ -202,6 +202,7 @@ int toku_rollback_cleaner_callback (
 void toku_rollback_clone_callback(
     void* value_data,
     void** cloned_value_data,
+    long* clone_size,
     PAIR_ATTR* new_attr,
     bool UU(for_checkpoint),
     void* UU(write_extraargs)
@@ -213,9 +214,11 @@ void toku_rollback_clone_callback(
         XMALLOC(serialized);
         toku_serialize_rollback_log_to_memory_uncompressed(log, serialized);
         *cloned_value_data = serialized;
+        *clone_size = sizeof(struct serialized_rollback_log_node) + serialized->len;
     }
     else {
         *cloned_value_data = &cloned_rollback;
+        *clone_size = sizeof(cloned_rollback);
     }
     // clear the dirty bit, because the node has been cloned
     log->dirty = 0;

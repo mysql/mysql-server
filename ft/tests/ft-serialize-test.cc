@@ -191,7 +191,8 @@ static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA*
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
-        toku_ftnode_clone_callback(sn, &cloned_node_v, &attr, false, brt->ft);
+        long clone_size;
+        toku_ftnode_clone_callback(sn, &cloned_node_v, &clone_size, &attr, false, brt->ft);
         FTNODE CAST_FROM_VOIDP(cloned_node, cloned_node_v);
         r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, brt->ft, false);
         assert(r==0);        

@@ -884,6 +884,7 @@ static void
 clone_pair(evictor* ev, PAIR p) {
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr;
+    long clone_size = 0;
 
     // act of cloning should be fast,
     // not sure if we have to release
@@ -892,6 +893,7 @@ clone_pair(evictor* ev, PAIR p) {
     p->clone_callback(
         p->value_data,
         &p->cloned_value_data,
+        &clone_size,
         &new_attr,
         true,
         p->write_extraargs
@@ -909,7 +911,7 @@ clone_pair(evictor* ev, PAIR p) {
         p->attr = new_attr;
         ev->change_pair_attr(old_attr, new_attr);
     }
-    p->cloned_value_size = p->attr.size;
+    p->cloned_value_size = clone_size;
     ev->add_to_size_current(p->cloned_value_size);
 }
 

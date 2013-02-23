@@ -29,6 +29,7 @@ static void
 clone_callback(
     void* value_data, 
     void** cloned_value_data, 
+    long* clone_size,
     PAIR_ATTR* new_attr, 
     bool UU(for_checkpoint), 
     void* UU(write_extraargs)
@@ -37,7 +38,8 @@ clone_callback(
     new_attr->is_valid = false;
     int64_t* XMALLOC(data_val);
     *data_val = *(int64_t *)value_data;
-    *cloned_value_data = data_val;   
+    *cloned_value_data = data_val; 
+    *clone_size = 8;
 }
 
 
