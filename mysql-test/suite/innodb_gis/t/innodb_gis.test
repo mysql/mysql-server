@@ -1,7 +1,5 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
- --source include/have_myisam.inc
-
 --source include/have_innodb.inc
+--source include/not_valgrind.inc
 SET default_storage_engine=innodb;
 --source include/gis_generic.inc
 --source include/gis_keys.inc
