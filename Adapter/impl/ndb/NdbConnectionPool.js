@@ -148,6 +148,7 @@ function prefetchSession(ndbPool) {
       ndbPool.ndbSessionFreeList.push(ndbSession);
       /* If the pool is wanting, fetch another */
       if(ndbPool.ndbSessionFreeList.length < pool_min) {
+        stats.incr("ndbSession","prefetch","attempts");
         adapter.ndb.impl.DBSession.create(ndbPool.impl, db, onFetch);
       }
     }
