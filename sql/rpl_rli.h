@@ -249,6 +249,14 @@ private:
   bool rli_fake;
 
 public:
+  /*
+    Reset the mts_bgc slave applier.
+   */
+  void reset_mts_bgc()
+  {
+    mts_last_known_commit_parent= PC_UNINIT;
+  }
+
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;

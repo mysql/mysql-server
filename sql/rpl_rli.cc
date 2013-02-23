@@ -262,13 +262,6 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
                "worker->bitmap_shifted --> %lu, worker --> %u.",
                shift, w->bitmap_shifted, i));  
   }
-  /*
-    There should not be a call where (shift == 0 && checkpoint_seqno != 0).
-
-    Then the new checkpoint sequence is updated by subtracting the number
-    of consecutive jobs that were successfully processed.
-  */
-  DBUG_ASSERT(!(shift == 0 && checkpoint_seqno != 0));
   checkpoint_seqno= checkpoint_seqno - shift;
   DBUG_PRINT("mts", ("reset_notified_checkpoint shift --> %lu, "
              "checkpoint_seqno --> %u.", shift, checkpoint_seqno));  
