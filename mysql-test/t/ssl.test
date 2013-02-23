@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
 # Turn on ssl between the client and server
