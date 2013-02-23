@@ -122,8 +122,9 @@ exports.set_file_level = function(filename, level) {
   if(logger) {
     logger.file_level = level;
   }
-  else {
-    throw new Error("File has not yet registered its debug logger.");
+  for(var i = 0 ; i < nativeCodeClients.length ; i++) {
+    var client = nativeCodeClients[i];
+    client.setFileLevel(filename,level);
   }
 };
 

@@ -64,10 +64,12 @@ function prepare(testCase, testObj) {
 
   function onTable(err, dbTable) {
     udebug.log("prepare onTable");
-    table = dbTable;         // set global
-    dbt = new dbtablehandler.DBTableHandler(table, mapping, null);   // set global
     if(err) {  testCase.fail(err);               }
-    else    {  testCase.runTestMethod(testCase, testObj);  }
+    else {
+      table = dbTable;         // set global
+      dbt = new dbtablehandler.DBTableHandler(table, mapping, null);   // set global
+      testCase.runTestMethod(testCase, testObj);
+    }
   }
 
   function onSession(err, sess) {

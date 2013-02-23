@@ -36,6 +36,7 @@
 int uni_debug        = 0;
 int udeb_level       = 0;
 int udeb_initialized = 0;
+int udeb_per_file    = 0;
 
 #undef UNIFIED_DEBUG
 #include "unified_debug.h"
@@ -43,6 +44,9 @@ int udeb_initialized = 0;
 using namespace v8;
 
 Persistent<Function> JSLoggerFunction;
+
+/* Initialized to all zeros? */
+unsigned char bit_index[UDEB_SOURCE_FILE_BITMASK_BYTES];
 
 
 /////  Internal Utility Functions
@@ -76,6 +80,29 @@ inline int udeb_hash(const char *name) {
   return h;
 }
 
+inline int index_read(unsigned int bit_number) {
+  unsigned short byte = bit_number / 8;
+  unsigned char  mask = 1 << ( bit_number % 8);
+  return bit_index[byte] & mask;
+}
+
+inline void index_set(unsigned int bit_number) {
+  unsigned short byte = bit_number / 8;
+  unsigned char  mask = 1 << ( bit_number % 8);
+  bit_index[byte] |= mask;
+}
+
+inline void index_clear(unsigned int bit_number) {
+  unsigned short byte = bit_number / 8;
+  unsigned char  mask = ((1 << ( bit_number % 8)) ^ 0xFF);
+  bit_index[byte] &= mask;
+}
+
+
+inline int log_level(const char *path) {
+  return index_read(udeb_hash(path)) ? UDEB_DETAIL : udeb_level;
+}
+
 
 ////// The Logging API for C:  udeb_print() and udeb_enter() 
 
@@ -100,7 +127,7 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   sz += snprintf(message, UDEB_MSG_BUF, "%s ", src_file);
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
 
-  if(udeb_initialized && udeb_level >= level) {
+  if(udeb_initialized && log_level(src_file) >= level) {
 #if SEND_MESSAGES_TO_JAVASCRIPT
     HandleScope scope;
     Handle<Value> jsArgs[3];
@@ -151,7 +178,7 @@ Handle<Value> udeb_setLevel(const Arguments &args) {
   
   udeb_level = args[0]->Int32Value();
   // C code cannot log below UDEB_INFO
-  uni_debug = (udeb_level > UDEB_NOTICE) ? 1 : 0;  
+  uni_debug = (udeb_per_file || (udeb_level > UDEB_NOTICE)) ? 1 : 0;
   
   // leave uni_debug off until stack corruption in udeb_print() is fixed
   //uni_debug = 0;
@@ -160,9 +187,20 @@ Handle<Value> udeb_setLevel(const Arguments &args) {
   return scope.Close(True());
 }
 
+Handle<Value> udeb_setFileLevel(const Arguments &args) {
+  HandleScope scope;
+  char filename[250];
+  
+  args[0]->ToString()->WriteAscii(filename, 0, 250);
+  index_set(udeb_hash(udeb_basename(filename)));
+  uni_debug = udeb_per_file = 1;
+
+  return scope.Close(True());
+}
 
 void udebug_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "setLogger", udeb_setLogger);
   DEFINE_JS_FUNCTION(target, "setLevel" , udeb_setLevel );
+  DEFINE_JS_FUNCTION(target, "setFileLevel", udeb_setFileLevel);
 }
 
