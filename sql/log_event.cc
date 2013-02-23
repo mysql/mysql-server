@@ -2833,10 +2833,11 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
         (commit_seq_no != rli->mts_last_known_commit_parent ||
          rli->mts_last_known_commit_parent == PC_UNINIT))
     {
+      rli->mts_last_known_commit_parent= commit_seq_no;
       rli->mts_last_known_parent_group_id=
         gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
         rli->mts_groups_assigned - 1;
-        return;
+      return;
     }
     gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       rli->mts_last_known_parent_group_id;
@@ -2963,7 +2964,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
-
+        mts_assign_parent_group_id(this, rli);
         DBUG_RETURN (ret_worker);
       }
     }
@@ -2980,9 +2981,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       rli->mts_end_group_sets_max_dbs= true;
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
-      DBUG_RETURN(ret_worker);
+      mts_assign_parent_group_id(this, rli);
+      DBUG_RETURN (ret_worker);
     }
-    mts_assign_parent_group_id(this, rli);
   }
 
   if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
@@ -3133,8 +3134,9 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         data locks are handled for a short duration while updating the
         log positions.
       */
-      while(ptr_group->parent_seqno &&
-            ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
+      DBUG_PRINT("info", ("parent_seq= %lld lwm_seq=%lld",
+                           ptr_group->parent_seqno,  rli->gaq->lwm.total_seqno));
+      while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
         (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
     }
 
