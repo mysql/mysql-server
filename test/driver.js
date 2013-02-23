@@ -120,6 +120,7 @@ var usageMessage =
   "       -h or --help: print this message\n" +
   "      -d or --debug: set the debug flag\n" +
   "           --detail: set the detail debug flag\n" +
+  "         -df=<file>: enable debug output from source file <file> \n" +
   "      -t or --trace: print stack trace from failing tests\n" +
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
@@ -192,6 +193,12 @@ for(i = 2; i < process.argv.length ; i++) {
         break;
       case '--timeout':
         timeoutMillis = values[1];
+        break;
+      case '-df':
+        unified_debug.on();
+        var client = require(path.join(build_dir,"ndb_adapter")).debug;
+        unified_debug.register_client(client);
+        unified_debug.set_file_level(values[1], 5);
         break;
       default:
         console.log('Invalid option ' + val);
