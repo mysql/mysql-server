@@ -173,7 +173,7 @@ typedef struct st_slave_job_group
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
   */
-  void reset(my_off_t master_pos, ulonglong seqno)
+  void reset (my_off_t master_pos, ulonglong seqno)
   {
     master_log_pos= master_pos;
     group_master_log_pos= group_relay_log_pos= 0;
