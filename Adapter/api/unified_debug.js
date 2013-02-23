@@ -119,9 +119,10 @@ exports.register_receiver = function(rFunc) {
 /* Set per-file debugging level
 */
 exports.set_file_level = function(filename, level) {
+  var i;
   perFileLevel[filename] = level;
   
-  for(var i = 0 ; i < nativeCodeClients.length ; i++) {
+  for(i = 0 ; i < nativeCodeClients.length ; i++) {
     var client = nativeCodeClients[i];
     client.setFileLevel(filename,level);
   }
@@ -257,7 +258,7 @@ exports.getLogger = function(filename) {
   theLogger.log_detail     = makeLogFunction(UDEB_DETAIL);
   theLogger.log            = theLogger.log_debug;
 
-  if(typeof perFileLevel[filename] == 'undefined') {
+  if(typeof perFileLevel[filename] === 'undefined') {
     perFileLevel[filename] = UDEB_URGENT;
   }
   
