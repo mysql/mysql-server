@@ -338,10 +338,12 @@ row_mysql_store_geometry(
 
 		if (g)
 		{
-			g->as_wkt(&wkt, &end);
-			fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
-					"InnoDB: as wkt: %s.\n",
-				wkt.ptr());
+			if (g->as_wkt(&wkt, &end) == 0)
+			{
+				fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
+						"InnoDB: as wkt: %s.\n",
+					wkt.c_ptr_safe());
+			}
 		}
 	});
 }
@@ -377,10 +379,12 @@ row_mysql_read_geometry(
 
 		if (g)
 		{
-			g->as_wkt(&wkt, &end);
-			fprintf(stderr, "InnoDB: read a new geometry data from MySQL.\n"
-					"InnoDB: as wkt: %s.\n",
-					wkt.ptr());
+			if (g->as_wkt(&wkt, &end) == 0)
+			{
+				fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
+						"InnoDB: as wkt: %s.\n",
+					wkt.c_ptr_safe());
+			}
 		}
 	});
 
