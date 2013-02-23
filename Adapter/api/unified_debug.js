@@ -39,6 +39,7 @@ var path = require("path"),
     nativeCodeClients = [],
     logListeners      = [],
     fileLoggers       = {},
+    perFileLevel      = {},
     myOwnLogger       = null;
 
 
@@ -64,7 +65,7 @@ var path = require("path"),
  * udebug.log_info(<message>)        // write message at INFO level
  * udebug.log_debug(<message>)       // write message at DEBUG level
  * udebug.log_detail(<message>)      // write message at DETAIL level
- * udebug.file_level = UDB_X         // set per-filename output level
+ * udebug.set_file_level(level)      // override output level for this file
  *
  *
  * unified_debug.on()                // turn debugging on
@@ -118,10 +119,8 @@ exports.register_receiver = function(rFunc) {
 /* Set per-file debugging level
 */
 exports.set_file_level = function(filename, level) {
-  var logger = fileLoggers[filename];
-  if(logger) {
-    logger.file_level = level;
-  }
+  perFileLevel[filename] = level;
+  
   for(var i = 0 ; i < nativeCodeClients.length ; i++) {
     var client = nativeCodeClients[i];
     client.setFileLevel(filename,level);
@@ -192,10 +191,8 @@ function handle_log_event(level, file, message) {
 }
 
 function write_log_message(level, file, message) {
-  if(udeb_level >= level) {
-    message += "\n";
-    destinationStream.write(message, 'ascii');
-  }
+  message += "\n";
+  destinationStream.write(message, 'ascii');
 }
 
 /// INITIALIZATION TIME: REGISTER write_log_message as a listener: ///
@@ -226,8 +223,9 @@ exports.getLogger = function(filename) {
   function makeLogFunction(level) {
     var message;
     var f = function() {
-      var activeLevel = this.file_level > udeb_level ? 
-        this.file_level : udeb_level;
+      
+      var activeLevel = perFileLevel[filename] > udeb_level ?
+        perFileLevel[filename] : udeb_level;
             
       if(activeLevel >= level) {
         message = util.format.apply(null, arguments);
@@ -246,7 +244,8 @@ exports.getLogger = function(filename) {
     NOTICE : UDEB_NOTICE,
     INFO   : UDEB_INFO,
     DEBUG  : UDEB_DEBUG,
-    DETAIL : UDEB_DETAIL
+    DETAIL : UDEB_DETAIL,
+    set_file_level : function(x) { perFileLevel[filename] = x; }
   };
 
   var theLogger = new Logger();
@@ -257,7 +256,10 @@ exports.getLogger = function(filename) {
   theLogger.log_debug      = makeLogFunction(UDEB_DEBUG);
   theLogger.log_detail     = makeLogFunction(UDEB_DETAIL);
   theLogger.log            = theLogger.log_debug;
-  theLogger.file_level     = UDEB_URGENT;
+
+  if(typeof perFileLevel[filename] == 'undefined') {
+    perFileLevel[filename] = UDEB_URGENT;
+  }
   
   fileLoggers[filename] = theLogger;
   
