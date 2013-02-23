@@ -2149,8 +2149,8 @@ public:
     return res;
   }
 
-  void attach_temp_tables_worker(THD*);
-  void detach_temp_tables_worker(THD*);
+  void attach_temp_tables_worker(THD*, const Relay_log_info *);
+  void detach_temp_tables_worker(THD*, const Relay_log_info *);
 
   virtual uchar mts_number_dbs() { return mts_accessed_dbs; }
 

@@ -598,30 +598,6 @@ TABLE* mts_move_temp_table_to_entry(TABLE *table, THD *thd,
 
   return ret;
 }
-
-/**
-  Auxiliary function to fetch the server_id and pseudo_thread_id from a
-  temporary table
-  @param  : instance pointer of TABLE structure.
-  @return : std:pair<uint, my_thread_id>
-  @Note   : It is the caller's responsibility to make sure we call this
-            function only for temp tables.
- */
-std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table)
-{
-  DBUG_ENTER("get_server_and_thread_id");
-  // assert will fail when called with non temporary tables.
-  DBUG_ASSERT(table->s->table_cache_key.length > 0);
-  std::pair<uint, my_thread_id>ret_pair= std::make_pair
-    (
-      /* first 4 bytes contains the server_id */
-      uint4korr(table->s->table_cache_key.str),
-      /* next  4 bytes contains the pseudo_thread_id */
-      uint4korr(table->s->table_cache_key.str + 4)
-    );
-  return ret_pair;
-}
-
 /**
    Relocation of the list of temporary tables to thd->temporary_tables.
 
@@ -636,110 +612,23 @@ std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table)
 */
 TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables)
 {
-  // use the DB partitioned  temp table movement from the source to the
-  // thread
-  return mts_move_temp_tables_to_thd(thd, temporary_tables,
-                                     MTS_PARALLEL_TYPE_DB_NAME);
-}
-
-/*
-   Auxiliary overload to handle the temp table movement in two types of
-   Multi-threaded-slaves.
-   @param thd     THD instance pointer of the destination
-   @param temporary_tables
-                  the source temporary_tables list
-   @parm mts_parallel_type
-                  the type of MTS being hansled.
-   @note     destroying references to the source list, if necessary,
-             is left to the caller.
-
-   @return   the post-merge value of thd->temporary_tables.
- */
-
-TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables,
-                                   enum_mts_parallel_type mts_parallel_type)
-{
   DBUG_ENTER ("mts_move_temp_tables_to_thd");
   TABLE *table= temporary_tables;
   if (!table)
     return NULL;
   // accept only the list head
   DBUG_ASSERT(!table->prev);
-  switch (mts_parallel_type)
+  // walk along the source list and associate the tables with thd
+  do
   {
-  case MTS_PARALLEL_TYPE_DB_NAME:
+    table->in_use= thd;
+  } while(table->next && (table= table->next));
 
-    // walk along the source list and associate the tables with thd
-    do
-    {
-      table->in_use= thd;
-    } while(table->next && (table= table->next));
-
-    // link the former list against the tail of the source list
-    if (thd->temporary_tables)
-      thd->temporary_tables->prev= table;
-    table->next= thd->temporary_tables;
-    thd->temporary_tables= temporary_tables;
-    break;
-  case MTS_PARALLEL_TYPE_BGC:
-    /*
-      We will handle the temporary tables in this case the following way.
-      1. Iterate over the list of temp tables of the coordinator
-      2. For relevant tables mark table->in_use= thd.
-      3. Add the temporary table to start of thd->temporary_tables
-         and reset the temporary table pointer for the thd
-      4. Fix the broken link of the coordinator_table list.
-      5. While detaching the tables we will un-mark the tables in
-         thd->temporary_tables.
-      @Note: Since in a group, there can only be one thread accessing a given
-      temp table (owing to the fact that each thread on master would have
-      committed once per group), we may choose to skip marking the tables as in-use.
-      We will however not skip this to keep the rest of the code unchanged
-      (and still happy).
-      @Note: the ordering of temp tables will be changed once the attaching and
-      detaching completes.
-     */
-    do
-    {
-      std::pair<uint, my_thread_id> st_id_pair= get_server_and_thread_id(table);
-      if (thd->server_id == st_id_pair.first  &&
-          thd->variables.pseudo_thread_id == st_id_pair.second)
-      {
-        /* Mark the table as in_use */
-        table->in_use= thd;
-        /*
-          C->Temp_tables: NULL<---t1<-->t2<--->t3<--->t4--->NULL
-          W->Temp_tables: NULL;
-
-          Say, t2 and t3 should be moved to the Worker thread.
-          STEP:1
-          C->Temp_tables: NULL<---t1<--->t3<--->t4--->NULL
-          W->Temp_tables: NULL<---t2--->NULL
-          STEP:2
-          C->Temp_tables: NULL<---t1<--->t4--->NULL
-          W->Temp_tables: NULL<---t3<--->t2--->NULL
-        */
-        /* Mend the link that we are about to break */
-        if (table->prev)//not the first node
-          (table->prev)->next= table->next;
-        if (table->next) // not the last node 
-        (table->next)->prev= table->prev;
-
-        /* Add this table to the beginning of the thd->temporary_table */
-        if (thd->temporary_tables)
-          thd->temporary_tables->prev= table;
-
-        /* fix the next pointer of the newly added node */
-        table->next=thd->temporary_tables;
-
-        /* fix the head of the list */
-        thd->temporary_tables= table;
-
-        /* make the newly added node as the list beginner */
-        thd->temporary_tables->prev= 0;
-      }
-    } while(table->next && (table= table->next));
-  }
+  // link the former list against the tail of the source list
+  if (thd->temporary_tables)
+    thd->temporary_tables->prev= table;
+  table->next= thd->temporary_tables;
+  thd->temporary_tables= temporary_tables;
   DBUG_RETURN(thd->temporary_tables);
 }
 
@@ -1089,6 +978,7 @@ Slave_worker *get_least_occupied_worker(Relay_log_info *rli, DYNAMIC_ARRAY *ws)
                                                  w_rr % ws->elements));
     sql_print_information("Chosing worker id %lu, the following is"
                           " going to be %lu", worker->id, w_rr % ws->elements);
+    DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
 
@@ -1129,8 +1019,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     Slave_job_group *ptr_g= gaq->get_job_group(gaq_idx);
 
     // first ever group must have relay log name
-    DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
-                ptr_g->group_relay_log_name != NULL);
+   // DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
+    //            ptr_g->group_relay_log_name != NULL);
     DBUG_ASSERT(ptr_g->worker_id == id);
 
     if (ev->get_type_code() != XID_EVENT)
@@ -1435,6 +1325,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 */
 ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 {
+  DBUG_ENTER("Slave_committed_queue::move_queue_head");
   ulong i, cnt= 0;
 
   for (i= entry; i != avail && !empty(); cnt++, i= (i + 1) % size)
@@ -1447,7 +1338,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 #ifndef DBUG_OFF
     if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
         cnt == opt_mts_checkpoint_period)
-      return cnt;
+      DBUG_RETURN(cnt);
 #endif
 
     grl_name[0]= 0;
@@ -1518,7 +1409,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 
   DBUG_ASSERT(cnt <= size);
 
-  return cnt;
+  DBUG_RETURN(cnt);
 }
 
 /**
@@ -1923,7 +1814,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   struct slave_job_item item= {NULL}, *job_item= &item;
   THD *thd= worker->info_thd;
   Log_event *ev= NULL;
-  bool part_event= FALSE;
+  bool part_event= false;
 
   DBUG_ENTER("slave_worker_exec_job");
 
@@ -1990,13 +1881,12 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   error= ev->do_apply_event_worker(worker);
+
   if (ev->ends_group() || (!worker->curr_group_seen_begin &&
-                           /*
-                              p-events of B/T-less {p,g} group (see
-                              legends of Log_event::get_slave_worker)
-                              obviously can't commit.
-                           */
-                           part_event && !is_gtid_event(ev)))
+  /* p-events of B/T-less {p,g} group (see legends of
+     Log_event::get_slave_worker) obviously can't commit. */
+  (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC || part_event) &&
+   !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",

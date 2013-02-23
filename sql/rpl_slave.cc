@@ -4871,7 +4871,6 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   struct timespec curr_clock;
 
   DBUG_ENTER("checkpoint_routine");
-
 #ifndef DBUG_OFF
   if (DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))
   {
@@ -4905,7 +4904,6 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     */
     DBUG_RETURN(FALSE);
   }
-
   do
   {
     cnt= rli->gaq->move_queue_head(&rli->workers);
@@ -4916,14 +4914,14 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
 #endif
   } while (!sql_slave_killed(rli->info_thd, rli) &&
            cnt == 0 && force &&
-           !DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0) &&
-           (my_sleep(rli->mts_coordinator_basic_nap), 1));
+           !DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0));// &&
+//           (my_sleep(rli->mts_coordinator_basic_nap), 1));
   /*
     This checks how many consecutive jobs where processed.
     If this value is different than zero the checkpoint
     routine can proceed. Otherwise, there is nothing to be
     done.
-  */      
+  */
   if (cnt == 0)
     goto end;
 
@@ -4992,7 +4990,7 @@ end:
     DBUG_SUICIDE();
 #endif
   set_timespec_nsec(rli->last_clock, 0);
-  
+
   DBUG_RETURN(error);
 }
 
@@ -5210,7 +5208,8 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       At this point the coordinator has been stopped and the checkpoint
       routine is executed to eliminate possible gaps.
     */
-    (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
+    if (rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC)
+      (void) mts_checkpoint_routine(rli, 0, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
   }
   for (i= rli->workers.elements - 1; i >= 0; i--)
   {
@@ -7055,8 +7054,9 @@ static Log_event* next_event(Relay_log_info* rli)
           At this point the coordinator has is delegating jobs to workers and
           the checkpoint routine must be periodically invoked.
         */
-        (void) mts_checkpoint_routine(rli, period, force, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-        DBUG_ASSERT(!force ||
+        if (rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC)
+          (void) mts_checkpoint_routine(rli, period, force, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
+        DBUG_ASSERT(!force || rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC ||
                     (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
                     sql_slave_killed(thd, rli));
         mysql_mutex_lock(&rli->data_lock);
@@ -7240,7 +7240,8 @@ static Log_event* next_event(Relay_log_info* rli)
               However, workers are executing their assigned jobs and as such
               the checkpoint routine must be periodically invoked.
             */
-            (void) mts_checkpoint_routine(rli, period, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
+            if (rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC)
+              (void) mts_checkpoint_routine(rli, period, false, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
             mysql_mutex_lock(log_lock);
             // More to the empty relay-log all assigned events done so reset it.
             if (rli->gaq->empty())
