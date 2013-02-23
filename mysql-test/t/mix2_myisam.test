@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # t/mix2_myisam.test
 #
 # Last update: 2006-07-26 ML create this test as derivate from innodb.test
