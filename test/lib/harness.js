@@ -121,20 +121,28 @@ Test.prototype.test = function(result) {
 };
 
 Test.prototype.pass = function() {
-  assert(this.failed === null); // must have not yet passed or failed
-  this.failed = false;
-  this.result.pass(this);
-  this.teardown();
+  if (this.failed !== null) {
+    console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
+    assert(this.failed === null);
+  } else {
+    this.failed = false;
+    this.result.pass(this);
+    this.teardown();
+  }
 };
 
 Test.prototype.fail = function(message) {
-  assert(this.failed === null);  // must have not yet passed or failed
-  this.failed = true;
-  if (message) {
-    this.appendErrorMessage(message);
+  if (this.failed !== null) {
+    console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
+    assert(this.failed === null);
+  } else {
+    this.failed = true;
+    if (message) {
+      this.appendErrorMessage(message);
+    }
+    this.result.fail(this, { 'message' : this.errorMessages});
+    this.teardown();
   }
-  this.result.fail(this, { 'message' : this.errorMessages});
-  this.teardown();
 };
 
 Test.prototype.appendErrorMessage = function(message) {
@@ -181,8 +189,28 @@ Test.prototype.errorIfNotEqual = function(message, o1, o2) {
 	}
 };
 
+Test.prototype.errorIfTrue = function(message, o1) {
+  if (o1) {
+    message += ': expected not true; actual ' + o1 + '\n';
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfNotTrue = function(message, o1) {
+  if (o1 !== true) {
+    message += ': expected true; actual ' + o1 + '\n';
+    this.errorMessages += message;
+  }
+};
+
 Test.prototype.errorIfNull = function(message, val) {
   if(val === null) {
+    this.errorMessages += message;
+  }
+};
+
+Test.prototype.errorIfNotNull = function(message, val) {
+  if(val !== null) {
     this.errorMessages += message;
   }
 };
@@ -193,6 +221,7 @@ Test.prototype.errorIfError = function(val) {
     this.errorMessages += util.inspect(val);
   }
 };
+
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
