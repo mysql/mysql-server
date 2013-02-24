@@ -727,6 +727,7 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
     bfe->bytes_read = 0;
     bfe->io_time = 0;
     bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
 }
 
 //
@@ -766,6 +767,8 @@ static inline void fill_bfe_for_subset_read(
     bfe->read_all_partitions = read_all_partitions;
     bfe->bytes_read = 0;
     bfe->io_time = 0;
+    bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
 }
 
 //
@@ -788,6 +791,8 @@ static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
     bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
     bfe->io_time = 0;
+    bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
 }
 
 static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
@@ -821,6 +826,8 @@ static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
     bfe->read_all_partitions = false;
     bfe->bytes_read = 0;
     bfe->io_time = 0;
+    bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
 }
 
 struct ancestors {
