@@ -94,7 +94,7 @@ exports.DBSession = function(pooledConnection, connectionPool) {
  * caused by a duplicate key error on insert will contain the DBOperationError as the cause.
  */
 exports.DBSession.prototype.TransactionHandler = function(dbSession) {
-
+  udebug.log('new TransactionHandler');
   var TransactionRolledBackError = function(err) {
     this.cause = err;
     this.sqlstate = 'HY000';
@@ -110,6 +110,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.pendingBatches = [];
 
   this.executeOperations = function() {
+//    var operationTypes = [];
+//    for (var o = 0; o < transactionHandler.operationsList.length; ++o) {
+//      operationTypes.push(transactionHandler.operationsList[o].type);
+//    }
+//    udebug.log('TransactionHandler.executeOperations with', transactionHandler.operationsList.length,
+//        'operations:', operationTypes);
     // transactionHandler.operationsList must have been set before calling executeOperations
     // transactionHandler.transactionExecuteCallback must also have been set
     transactionHandler.isCommitting = false;
@@ -129,6 +135,11 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   };
 
   this.execute = function(operationsList, transactionExecuteCallback) {
+//    var operationTypes = [];
+//    for (var o = 0; o < operationsList.length; ++o) {
+//      operationTypes.push(operationsList[o].type);
+//    }
+//    udebug.log('TransactionHandler.execute with', operationsList.length, 'operations:', operationTypes);
     transactionHandler = this;
     
     var executeOnBegin = function(err) {
@@ -192,6 +203,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   };
 
   this.operationCompleteCallback = function(completedOperation) {
+    udebug.log('TransactionHandler.operationCompleteCallback', completedOperation.type);
     // analyze the completed operation to see if it had an error
     if (completedOperation.result.error) {
       // this is AbortOnError behavior
@@ -286,6 +298,7 @@ var DBOperationError = function(cause) {
 function InsertOperation(sql, data, callback) {
   udebug.log('dbSession.InsertOperation with', sql, data);
   var op = this;
+  this.type = 'insert';
   this.sql = sql;
   this.data = data;
   this.callback = callback;
@@ -322,6 +335,7 @@ function InsertOperation(sql, data, callback) {
 function WriteOperation(sql, data, callback) {
   udebug.log('dbSession.WriteOperation with', sql, data);
   var op = this;
+  this.type = 'write';
   this.sql = sql;
   this.data = data;
   this.callback = callback;
@@ -358,6 +372,7 @@ function WriteOperation(sql, data, callback) {
 function DeleteOperation(sql, keys, callback) {
   udebug.log('dbSession.DeleteOperation with ', sql, keys);
   var op = this;
+  this.type = 'delete';
   this.sql = sql;
   this.keys = keys;
   this.callback = callback;
@@ -401,6 +416,7 @@ function DeleteOperation(sql, keys, callback) {
 function ReadOperation(sql, keys, callback) {
   udebug.log('dbSession.ReadOperation with', sql, keys);
   var op = this;
+  this.type = 'read';
   this.sql = sql;
   this.keys = keys;
   this.callback = callback;
@@ -458,6 +474,7 @@ function ReadOperation(sql, keys, callback) {
 function UpdateOperation(sql, keys, values, callback) {
   udebug.log('dbSession.UpdateOperation with', sql, values, keys);
   var op = this;
+  this.type = 'update';
   this.sql = sql;
   this.keys = keys;
   this.values = values;
@@ -592,7 +609,7 @@ function getMetadata(dbTableHandler) {
   if (dbTableHandler.mysql) {
     return;
   }
-  udebug.log_detail('getMetadata with dbTableHandler', dbTableHandler);
+  udebug.log_detail('getMetadata with dbTableHandler', dbTableHandler.dbTable.name);
   dbTableHandler.mysql = {};
   dbTableHandler.mysql.indexes = {};
   dbTableHandler.mysql.deleteSQL = {};
@@ -610,7 +627,7 @@ function getMetadata(dbTableHandler) {
 
 exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, object, transaction, callback) {
   udebug.log_detail('dbSession.buildInsertOperation with tableHandler:', 
-                    dbTableHandler, 'object:', object);
+                    dbTableHandler.dbTable.name, 'object:', object);
   getMetadata(dbTableHandler);
   var fields = dbTableHandler.getFields(object, true);
   var insertSQL = dbTableHandler.mysql.insertSQL;
@@ -619,7 +636,7 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
 
 
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler, keys);
+  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler.dbIndex.name, keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
@@ -628,7 +645,7 @@ exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys
 
 
 exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler, 'keys:', keys);
+  udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler.dbIndex.name, 'keys:', keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
@@ -778,7 +795,7 @@ exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, value
 exports.DBSession.prototype.begin = function() {
   udebug.log('dbSession.begin');
   this.autocommit = false;
-  this.transactionHandler = new this.TransactionHandler(this);
+  this.transactionHandler = this.getTransactionHandler();
   this.transactionHandler.autocommit = false;
 };
 
