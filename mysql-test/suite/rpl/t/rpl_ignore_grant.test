@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test that GRANT is not replicated to the slave
 # when --replicate-wild-ignore-table=mysql.%
 # In BUG#980, this test would _randomly_ fail.

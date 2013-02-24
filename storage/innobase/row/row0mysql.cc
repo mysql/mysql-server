@@ -32,7 +32,8 @@ Created 9/17/2000 Heikki Tuuri
 
 #include <debug_sync.h>
 #include <my_dbug.h>
-
+#include <gstream.h>
+#include <spatial.h>
 #include "row0ins.h"
 #include "row0merge.h"
 #include "row0sel.h"
@@ -284,6 +285,112 @@ row_mysql_read_blob_ref(
 	return(data);
 }
 
+/*******************************************************************//**
+Converting InnoDB geometry data format to MySQL data format. */
+UNIV_INTERN
+void
+row_mysql_store_geometry(
+/*=====================*/
+	byte*		dest,	/*!< in/out: where to store */
+	ulint		dest_len,/*!< in: dest buffer size: determines into
+				how many bytes the BLOB length is stored,
+				the space for the length may vary from 1
+				to 4 bytes */
+	const byte*	src,	/*!< in: BLOB data; if the value to store
+				is SQL NULL this should be NULL pointer */
+	ulint		src_len)/*!< in: BLOB length; if the value to store
+				is SQL NULL this should be 0; remember
+				also to set the NULL bit in the MySQL record
+				header! */
+{
+	/* MySQL might assume the field is set to zero except the length and
+	the pointer fields */
+	UNIV_MEM_ASSERT_RW(src, src_len);
+	UNIV_MEM_ASSERT_W(dest, dest_len);
+	UNIV_MEM_INVALID(dest, dest_len);
+
+	memset(dest, '\0', dest_len);
+
+	/* In dest there are 1 - 4 bytes reserved for the BLOB length,
+	and after that 8 bytes reserved for the pointer to the data.
+	In 32-bit architectures we only use the first 4 bytes of the pointer
+	slot. */
+
+	ut_ad(dest_len - 8 > 1 || src_len < 1<<8);
+	ut_ad(dest_len - 8 > 2 || src_len < 1<<16);
+	ut_ad(dest_len - 8 > 3 || src_len < 1<<24);
+
+	mach_write_to_n_little_endian(dest, dest_len - 8, src_len);
+
+	memcpy(dest + dest_len - 8, &src, sizeof src);
+
+	DBUG_EXECUTE_IF("row_print_geometry_data",
+	{
+		String  res;
+		Geometry_buffer buffer;
+		String  wkt;
+		const char* end;
+
+		/** Show the meaning of geometry data. */
+		Geometry* g = Geometry::construct(&buffer,
+						 (const char*)src,
+						 src_len);
+
+		if (g)
+		{
+			if (g->as_wkt(&wkt, &end) == 0)
+			{
+				fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
+						"InnoDB: as wkt: %s.\n",
+					wkt.c_ptr_safe());
+			}
+		}
+	});
+}
+
+/*******************************************************************//**
+Read geometry data in the MySQL format.
+@return	pointer to geometry data */
+UNIV_INTERN
+const byte*
+row_mysql_read_geometry(
+/*====================*/
+	ulint*		len,		/*!< out: data length */
+	const byte*	ref,		/*!< in: geometry data in the
+					MySQL format */
+	ulint		col_len)	/*!< in: MySQL format length */
+{
+	byte*	data;
+	*len = mach_read_from_n_little_endian(ref, col_len - 8);
+
+	memcpy(&data, ref + col_len - 8, sizeof data);
+
+	DBUG_EXECUTE_IF("row_print_geometry_data",
+	{
+		String  res;
+		Geometry_buffer buffer;
+		String  wkt;
+		const char* end;
+
+		/** Show the meaning of geometry data. */
+		Geometry* g = Geometry::construct(&buffer,
+						 (const char*)data,
+						 *len);
+
+		if (g)
+		{
+			if (g->as_wkt(&wkt, &end) == 0)
+			{
+				fprintf(stderr, "InnoDB: write a geometry data to MySQL format.\n"
+						"InnoDB: as wkt: %s.\n",
+					wkt.c_ptr_safe());
+			}
+		}
+	});
+
+	return(data);
+}
+
 /**************************************************************//**
 Pad a column with spaces. */
 UNIV_INTERN
@@ -497,9 +604,16 @@ row_mysql_store_col_in_innobase_format(
 		while (col_len > n_chars && ptr[col_len - 1] == 0x20) {
 			col_len--;
 		}
-	} else if (type == DATA_BLOB && row_format_col) {
+	} else if (!row_format_col) {
+		/* if mysql data is from a MySQL key value
+		since the length is always stored in 2 bytes,
+		we need do nothing here. */
+	} else if (type == DATA_BLOB) {
 
 		ptr = row_mysql_read_blob_ref(&col_len, mysql_data, col_len);
+	} else if (type == DATA_GEOMETRY) {
+		/* We still use blob to store geometry data */
+		ptr = row_mysql_read_geometry(&col_len, mysql_data, col_len);
 	}
 
 	dfield_set_data(dfield, ptr, col_len);

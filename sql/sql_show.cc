@@ -1150,6 +1150,26 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   packet->append(&quote_char, 1, system_charset_info);
 }
 
+/**
+  Convert the given identifier into to_charset if needed
+  and append it to target string.
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the input identifier
+  @param from_cs               Charset information about the input string
+  @param to_cs                 Charset information about the target string
+*/
+
+void
+append_identifier(THD *thd, String *packet, const char *name, uint length,
+                  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
+{
+        String to_name(name,length, from_cs);
+        if (from_cs != to_cs)
+            thd->convert_string(&to_name, from_cs, to_cs);
+        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+}
 
 /*
   Get the quote character for displaying an identifier.

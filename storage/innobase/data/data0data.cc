@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -120,8 +120,8 @@ dfield_check_typed_no_assert(
 /*=========================*/
 	const dfield_t*	field)	/*!< in: data field */
 {
-	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
+	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		fprintf(stderr,
 			"InnoDB: Error: data field type %lu, len %lu\n",
@@ -180,8 +180,8 @@ dfield_check_typed(
 /*===============*/
 	const dfield_t*	field)	/*!< in: data field */
 {
-	if (dfield_get_type(field)->mtype > DATA_MYSQL
-	    || dfield_get_type(field)->mtype < DATA_VARCHAR) {
+	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
+	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
 		fprintf(stderr,
 			"InnoDB: Error: data field type %lu, len %lu\n",
@@ -644,8 +644,7 @@ dtuple_convert_big_rec(
 			there we always store locally columns whose
 			length is up to local_len == 788 bytes.
 			@see rec_init_offsets_comp_ordinary */
-			if (ifield->col->mtype != DATA_BLOB
-			    && ifield->col->len < 256) {
+			if (!DATA_BIG_COL(ifield->col)) {
 				goto skip_field;
 			}
 
