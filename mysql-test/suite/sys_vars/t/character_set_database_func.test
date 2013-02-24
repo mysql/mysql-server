@@ -19,6 +19,9 @@
 #                                                                             #
 ###############################################################################
 
+# Not supported in embedded
+--source include/not_embedded.inc
+
 --source include/have_utf8.inc
 
 --echo '#--------------------FN_DYNVARS_008_01-------------------------#'

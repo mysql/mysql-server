@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # this test mostly test privilege control (what doesn't work
 # in the embedded server by default). So skip the test in embedded-server mode.
 -- source include/not_embedded.inc

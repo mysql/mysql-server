@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # check 0x00 padding
 create table t1 (s1 binary(3));
 insert into t1 values (0x61), (0x6120), (0x612020);

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # This test does a create-select with ORDER BY, where there is so many
 # rows MySQL needs to use a merge during the sort phase.
