@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --disable_warnings
 --enable_warnings
 CREATE TABLE t1 (c1 TINYINT NOT NULL PRIMARY KEY, c2 INTEGER, KEY(c2));

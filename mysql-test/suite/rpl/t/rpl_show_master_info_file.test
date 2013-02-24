@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Bug #50316  	Add Master_info_file to SHOW SLAVE STATUS
 # Testing of matching --master-info-file value to the value of the 
