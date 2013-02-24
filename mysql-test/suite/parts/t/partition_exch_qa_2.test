@@ -1,6 +1,9 @@
 # Author: Horst Hunger
 # Created: 2010-07-05
 
+# Not supported in embedded
+--source include/not_embedded.inc
+
 --source include/have_partition.inc
 
 let $engine_table= InnoDB;
