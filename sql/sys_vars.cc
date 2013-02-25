@@ -4459,7 +4459,7 @@ static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ENTER("check_gtid_purged");
 
-  if (check_top_level_stmt(self, thd, var) ||
+  if (!var->value || check_top_level_stmt(self, thd, var) ||
       check_outside_transaction(self, thd, var) ||
       check_outside_sp(self, thd, var))
     DBUG_RETURN(true);

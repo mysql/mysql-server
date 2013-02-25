@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2209,7 +2209,10 @@ end:
   }
 
   void global_save_default(THD *thd, set_var *var)
-  { DBUG_ASSERT(FALSE); }
+  {
+    /* gtid_purged does not have default value */
+    my_error(ER_NO_DEFAULT, MYF(0), var->var->name.str);
+  }
 
   bool do_check(THD *thd, set_var *var)
   {
