@@ -11,7 +11,6 @@
 --source include/have_myisam.inc
 --source include/have_geometry.inc
 --source include/not_embedded.inc
---source include/not_valgrind.inc
 --source include/have_debug.inc
 
 SET default_storage_engine=InnoDB;

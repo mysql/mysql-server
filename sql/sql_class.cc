@@ -1708,8 +1708,13 @@ void THD::awake(THD::killed_state state_to_set)
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
-  /* Set the 'killed' flag of 'this', which is the target THD object. */
-  killed= state_to_set;
+  /*
+    If there is no command executing on the server, we should not set the
+    killed flag so that it does not affect the next command incorrectly.
+  */
+  if (!this->m_server_idle)
+    /* Set the 'killed' flag of 'this', which is the target THD object. */
+    killed= state_to_set;
 
   if (state_to_set != THD::KILL_QUERY)
   {
