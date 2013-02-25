@@ -29,8 +29,9 @@ Created 9/5/1995 Heikki Tuuri
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
+#elif defined(HAVE_IB_LINUX_FUTEX)
+typedef int	lock_word_t;
 #else
-// FIXME: For SYS_futex this should be an int
 typedef ulint	lock_word_t;
 #endif /* HAVE_WINDOWS_ATOMICS */
 

@@ -355,16 +355,13 @@ rw_lock_s_lock_spin(
 {
 	ulint		i = 0;	/* spin round count */
 	sync_array_t*	sync_arr;
-	size_t		counter_index;
 
 	/* We reuse the thread id to index into the counter, cache
 	it here for efficiency. */
 
-	counter_index = (size_t) os_thread_get_curr_id();
-
 	ut_ad(rw_lock_validate(lock));
 
-	rw_lock_stats.rw_s_spin_wait_count.add(counter_index, 1);
+	rw_lock_stats.rw_s_spin_wait_count.inc();
 lock_loop:
 
 	/* Spin waiting for the writer field to become free */
@@ -382,7 +379,7 @@ lock_loop:
 
 	/* We try once again to obtain the lock */
 	if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
-		rw_lock_stats.rw_s_spin_round_count.add(counter_index, i);
+		rw_lock_stats.rw_s_spin_round_count.inc();
 
 		return; /* Success */
 	} else {
@@ -391,7 +388,7 @@ lock_loop:
 			goto lock_loop;
 		}
 
-		rw_lock_stats.rw_s_spin_round_count.add(counter_index, i);
+		rw_lock_stats.rw_s_spin_round_count.inc();
 
 		sync_arr = sync_array_get();
 
@@ -410,7 +407,7 @@ lock_loop:
 
 		/* these stats may not be accurate */
 		lock->count_os_wait++;
-		rw_lock_stats.rw_s_os_wait_count.add(counter_index, 1);
+		rw_lock_stats.rw_s_os_wait_count.inc();
 
 		sync_array_wait_event(sync_arr, cell);
 
@@ -456,12 +453,6 @@ rw_lock_x_lock_wait(
 {
 	ulint		i = 0;
 	sync_array_t*	sync_arr;
-	size_t		counter_index;
-
-	/* We reuse the thread id to index into the counter, cache
-	it here for efficiency. */
-
-	counter_index = (size_t) os_thread_get_curr_id();
 
 	ut_ad(lock->lock_word <= 0);
 
@@ -475,7 +466,7 @@ rw_lock_x_lock_wait(
 		}
 
 		/* If there is still a reader, then go to sleep.*/
-		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+		rw_lock_stats.rw_x_spin_round_count.inc();
 
 		sync_arr = sync_array_get();
 
@@ -490,7 +481,7 @@ rw_lock_x_lock_wait(
 
 			/* these stats may not be accurate */
 			lock->count_os_wait++;
-			rw_lock_stats.rw_x_os_wait_count.add(counter_index, 1);
+			rw_lock_stats.rw_x_os_wait_count.inc();
 
 			/* Add debug info as it is needed to detect possible
 			deadlock. We must add info for WAIT_EX thread for
@@ -511,7 +502,7 @@ rw_lock_x_lock_wait(
 			sync_array_free_cell(sync_arr, cell);
 		}
 	}
-	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+	rw_lock_stats.rw_x_spin_round_count.inc();
 }
 
 /******************************************************************//**
@@ -595,12 +586,6 @@ rw_lock_x_lock_func(
 	ulint		i;	/*!< spin round count */
 	sync_array_t*	sync_arr;
 	ibool		spinning = FALSE;
-	size_t		counter_index;
-
-	/* We reuse the thread id to index into the counter, cache
-	it here for efficiency. */
-
-	counter_index = (size_t) os_thread_get_curr_id();
 
 	ut_ad(rw_lock_validate(lock));
 #ifdef UNIV_SYNC_DEBUG
@@ -612,7 +597,7 @@ rw_lock_x_lock_func(
 lock_loop:
 
 	if (rw_lock_x_lock_low(lock, pass, file_name, line)) {
-		rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+		rw_lock_stats.rw_x_spin_round_count.inc();
 
 		return;	/* Locking succeeded */
 
@@ -621,8 +606,7 @@ lock_loop:
 		if (!spinning) {
 			spinning = TRUE;
 
-			rw_lock_stats.rw_x_spin_wait_count.add(
-				counter_index, 1);
+			rw_lock_stats.rw_x_spin_wait_count.inc();
 		}
 
 		/* Spin waiting for the lock_word to become free */
@@ -642,7 +626,7 @@ lock_loop:
 		}
 	}
 
-	rw_lock_stats.rw_x_spin_round_count.add(counter_index, i);
+	rw_lock_stats.rw_x_spin_round_count.inc();
 
 	sync_arr = sync_array_get();
 
@@ -660,7 +644,7 @@ lock_loop:
 
 	/* these stats may not be accurate */
 	lock->count_os_wait++;
-	rw_lock_stats.rw_x_os_wait_count.add(counter_index, 1);
+	rw_lock_stats.rw_x_os_wait_count.inc();
 
 	sync_array_wait_event(sync_arr, cell);
 
