@@ -32,24 +32,93 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     proto           = doc.DBTransactionHandler,
     COMMIT          = adapter.ndbapi.Commit,
     NOCOMMIT        = adapter.ndbapi.NoCommit,
+    ROLLBACK        = adapter.ndbapi.Rollback,
     AO_ABORT        = adapter.ndbapi.AbortOnError,
     AO_IGNORE       = adapter.ndbapi.AO_IgnoreError,
-    AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption;
-    
+    AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
+    serial          = 1;
 
 function DBTransactionHandler(dbsession) {
-  udebug.log("constructor");
-  stats.incr("created");
   this.dbSession          = dbsession;
   this.autocommit         = true;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
   this.pendingOperations  = [];
   this.executedOperations = [];
+  this.pendingApiCalls    = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
+  this.serial             = serial++;
+  udebug.log("NEW (",this.serial,")");
+  stats.incr("created");  
 }
 DBTransactionHandler.prototype = proto;
+
+
+function onAsyncSent(a,b) {
+  udebug.log("execute onAsyncSent");
+}
+
+function ApiCall(execMode, abortFlag, forceSend, callback) {
+  this.execMode   = execMode;
+  this.abortFlag  = abortFlag;
+  this.forceSend  = forceSend;
+  this.callback   = callback;
+}
+
+
+/* NDB Execute.
+   "Sync" execute is an async operation for the JavaScript user,
+    but the uv worker thread uses synchronous NDBAPI execute().
+    In "Async" execute, the uv worker thread uses executeAsynch(),
+    and the DBConnectionPool listener thread runs callbacks.
+*/
+ApiCall.prototype.run = function(tx) {
+  var ASYNC_ON = false;
+  if(tx.canUseNdbAsynch && ASYNC_ON) {
+    tx.asyncContext.executeAsynch(tx.ndbtx, 
+                                  this.execMode, this.abortFlag,
+                                  this.forceSend, this.callback, 
+                                  onAsyncSent);
+  }
+  else {
+    tx.ndbtx.execute(this.execMode, this.abortFlag, this.forceSend, this.callback);
+  }
+};
+
+/* NdbTransactionHandler internal run():
+   Send an execute call to NDB, or queue it if there is already one running.
+*/
+function run(self, execMode, abortFlag, forceSend, callback) {
+
+  /* Take the user's callback, and wrap it in a function that checks the tail
+     of the pendingApiCalls queue
+  */
+  function makeCallback(f) {
+    function wrappedCallback(a, b) {
+      self.pendingApiCalls.shift();  // Our own ApiCall
+      var next = self.pendingApiCalls.shift();   // The next ApiCall
+      if(next) {
+        udebug.log("Run from queue (", self.serial, ")");
+        next.run(self);
+      }
+      f(a, b);   // The user's callback function
+    }
+    return wrappedCallback;
+  }
+
+  /* run() starts here */
+  var apiCall = new ApiCall(execMode, abortFlag, forceSend, makeCallback(callback));
+  self.pendingApiCalls.push(apiCall);
+  if(self.pendingApiCalls.length === 1) {
+    udebug.log("Run immediate");
+    self.pendingApiCalls[0].run(self);
+  }
+  else {
+    udebug.log("Run deferred");
+  }
+}
+
 
 
 /* Internal execute()
@@ -68,7 +137,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       self.success = true;
     }     
     /* If we just executed with Commit or Rollback, close the NdbTransaction */
-    if(execMode === adapter.ndbapi.Commit || execMode === adapter.ndbapi.Rollback) {
+    if(execMode === COMMIT || execMode === ROLLBACK) {
       self.ndbtx.close();
       ndbsession.txIsClosed(self);
     }
@@ -79,7 +148,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
     /* Attach results to their operations */
     ndboperation.completeExecutedOps(err, self.pendingOperations, self.executedOperations);
-    udebug.log("BACK IN execute onCompleteTx AFTER COMPLETED OPS");
+    udebug.log("Back in execute onCompleteTx AFTER COMPLETED OPS");
 
     /* Next callback */
     if(callback) {
@@ -108,26 +177,8 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
        Batches are sent with forceSend = 0 (optimized for throughput).
     */
     forceSend = (dbOperationList.length === 1 ? 1 : 0);
-     
-
-    /* NDB Execute.
-       "Sync" execute is an async operation for the JavaScript user,
-        but the uv worker thread uses synchronous NDBAPI execute().
-        In "Async" execute, the uv worker thread uses executeAsynch(),
-        and the DBConnectionPool listener thread runs callbacks.
-    */
-    function onAsyncSent(a,b) {
-      udebug.log("execute onAsyncSent");
-    }
-
-    var ASYNC_ON = false;
-    if(self.canUseNdbAsynch && ASYNC_ON) {
-      self.asyncContext.executeAsynch(self.ndbtx, execMode, abortFlag,
-                                      forceSend, onCompleteTx, onAsyncSent);
-    }
-    else {
-      self.ndbtx.execute(execMode, abortFlag, forceSend, onCompleteTx);
-    }
+    
+    run(self, execMode, abortFlag, forceSend, onCompleteTx);
   }
 
   function onStartTx(err, ndbtx) {
@@ -143,25 +194,26 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
     self.ndbtx = ndbtx;
     self.state = doc.DBTransactionStates[1]; // STARTED
-    udebug.log("execute onStartTx. TC node:", ndbtx.getConnectedNodeId(),
+    udebug.log("execute onStartTx. (", self.serial, 
+               ") TC node:", ndbtx.getConnectedNodeId(),
                "operations:",  dbOperationList.length);
     prepareOperationsAndExecute();    
   }
 
   /* execute() starts here */
-  udebug.log("Internal execute");
+  udebug.log("Internal execute (", self.serial, ")" );
   var table = dbOperationList[0].tableHandler.dbTable;
 
   if(self.state === "DEFINED") {
     if(ndbsession.txCanRunImmediately(self)) {
       // TODO: partitionKey
-      // TODO: stat counter
+      stats.incr("start","immediate");
       var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
       ndbsession.txIsOpen(self);
       ndb.startTransaction(table, 0, 0, onStartTx); 
     }
     else {          // We cannot get an NdbTransaction right now; queue one
-      // TODO: stat counter
+      stats.incr("start","queued");
       ndbsession.enqueueTransaction(self, dbOperationList, callback);
     }
   }
@@ -180,7 +232,6 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
    Commits the transaction if autocommit is true.
 */
 proto.execute = function(dbOperationList, userCallback) {
-  udebug.log("execute");
 
   function onExecCommit(err, dbTxHandler) {
     udebug.log("execute onExecCommit");
@@ -193,19 +244,19 @@ proto.execute = function(dbOperationList, userCallback) {
   }
 
   if(! dbOperationList.length) {
-    udebug.log("execute STUB EXECUTE (no operation list)");
+    udebug.log("Execute -- STUB EXECUTE (no operation list)");
     userCallback(null, this);
     return;
   }
   
   if(this.autocommit) {
-    udebug.log(" -- AutoCommit");
+    udebug.log("Execute -- AutoCommit");
     stats.incr("execute","commit");
     ndbsession.closeActiveTransaction(this);
     execute(this, COMMIT, AO_IGNORE, dbOperationList, onExecCommit);
   }
   else {
-    udebug.log(" -- NoCommit");
+    udebug.log("Execute -- NoCommit");
     stats.incr("execute","no_commit");
     execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
@@ -253,7 +304,7 @@ proto.commit = function commit(userCallback) {
   udebug.log("commit");
   ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
-    self.ndbtx.execute(adapter.ndbapi.Commit, AO_IGNORE, 0, onNdbCommit);
+    run(self, COMMIT, AO_IGNORE, 0, onNdbCommit);
   }
   else {
     udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
@@ -306,7 +357,7 @@ proto.rollback = function rollback(callback) {
   ndbsession.closeActiveTransaction(this);
 
   if(self.ndbtx) {
-    self.ndbtx.execute(adapter.ndbapi.Rollback, AO_DEFAULT, 0, onNdbRollback);
+    run(self, ROLLBACK, AO_DEFAULT, 0, onNdbRollback);
   }
   else {
     udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");

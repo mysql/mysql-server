@@ -47,6 +47,8 @@ function usage() {
   "   --detail:  Enable detail debug output\n" +
   "   --debug :\n" +
   "   -d      :  Enable debug output\n" +
+  "   -df=file:  Enable debug output only from source file <file>\n" +
+  "   --debugFile=<file>  \n" +
   "   -i      :  Specify number of iterations per test (default 4000)\n" +
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
@@ -154,6 +156,14 @@ function parse_command_line(options) {
             }
           }
           break;
+        case '--debugFile':
+        case '-df':
+          unified_debug.on();
+          var client = require(path.join(build_dir,"ndb_adapter")).debug;
+          unified_debug.register_client(client);
+          unified_debug.set_file_level(values[1], 5);
+          break;
+
         default:
           console.log('Invalid option ' + val);
           options.exit = true;
