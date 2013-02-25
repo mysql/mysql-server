@@ -5,6 +5,7 @@
 
 # Not supported in embedded
 --source include/not_embedded.inc
+# Exclude valgrind, since it'll complain when restart.
 --source include/not_valgrind.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc

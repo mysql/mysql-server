@@ -3517,7 +3517,6 @@ eval KILL QUERY $con1_id;
 --echo # Connection con1
 connection con1;
 # Here the server asserts when running with "--ps-protocol"
---error ER_QUERY_INTERRUPTED
 SELECT * FROM t1;
 disconnect con1;
 --source include/wait_until_disconnected.inc
