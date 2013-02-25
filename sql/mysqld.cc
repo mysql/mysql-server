@@ -4574,7 +4574,7 @@ static int init_server_components()
     }
   }
   else
-    log_error_file_ptr= const_cast<char*>("STDERR");
+    log_error_file_ptr= const_cast<char*>("stderr");
 
   proc_info_hook= set_thd_stage_info;
 
