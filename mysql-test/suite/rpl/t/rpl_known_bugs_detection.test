@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test to see if slave can detect certain known bugs present
 # on the master, and appropriately decides to stop
 # (assuming the bug is fixed in the slave, slave cannot of course
