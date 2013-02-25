@@ -58,8 +58,9 @@ static mysql_rwlock_t THR_LOCK_servers;
 static bool get_server_from_table_to_cache(TABLE *table);
 
 /* insert functions */
-static bool insert_server(THD *thd, FOREIGN_SERVER *server_options);
-static bool insert_server_record(TABLE *table, FOREIGN_SERVER *server);
+static bool insert_server(THD *thd, LEX_SERVER_OPTIONS *server_options);
+static bool insert_server_record(TABLE *table,
+                                 LEX_SERVER_OPTIONS *server_options);
 static bool insert_server_record_into_cache(FOREIGN_SERVER *server);
 static FOREIGN_SERVER *
 prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options);
@@ -72,12 +73,13 @@ static bool delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options,
                                           bool if_exists);
 
 /* update functions */
-static void prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
-                                             FOREIGN_SERVER *existing,
-                                             FOREIGN_SERVER *altered);
+static FOREIGN_SERVER *
+prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
+                                 FOREIGN_SERVER *existing);
 static bool update_server(THD *thd, FOREIGN_SERVER *existing,
-                          FOREIGN_SERVER *altered);
-static bool update_server_record(TABLE *table, FOREIGN_SERVER *server);
+                          LEX_SERVER_OPTIONS *server_options);
+static bool update_server_record(TABLE *table, FOREIGN_SERVER *existing,
+                                 LEX_SERVER_OPTIONS *server_options);
 static bool update_server_record_in_cache(FOREIGN_SERVER *existing,
                                           FOREIGN_SERVER *altered);
 /* utility functions */
@@ -366,12 +368,12 @@ get_server_from_table_to_cache(TABLE *table)
 
 
 /**
-   This function takes a server object that is has all members properly
-   prepared, ready to be inserted both into the mysql.servers table and
-   the servers cache.
+   This function takes a pointer to a LEX_SERVER_OPTIONS struct from the
+   parser. It has all members properly prepared, ready to be inserted
+   both into the mysql.servers table and the servers cache.
 
-   @param thd     thread pointer
-   @param server  pointer to prepared FOREIGN_SERVER struct
+   @param thd             thread pointer
+   @param server_options  LEX_SERVER_OPTIONS from parser
 
    @note THR_LOCK_servers must be write locked.
 
@@ -379,7 +381,7 @@ get_server_from_table_to_cache(TABLE *table)
    @retval true  Error
 */
 
-static bool insert_server(THD *thd, FOREIGN_SERVER *server)
+static bool insert_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   DBUG_ENTER("insert_server");
 
@@ -392,12 +394,11 @@ static bool insert_server(THD *thd, FOREIGN_SERVER *server)
     DBUG_RETURN(true);
 
   /* insert the server into the table and the cache */
-  bool error= (insert_server_record(table, server) ||
-               insert_server_record_into_cache(server));
+  bool error= insert_server_record(table, server_options);
 
   close_mysql_tables(thd);
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || thd->killed);
 }
 
 
@@ -493,23 +494,25 @@ store_server_fields(TABLE *table, FOREIGN_SERVER *server)
 
 /**
    This function takes the arguments of an open table object and a pointer
-   to an allocated FOREIGN_SERVER struct. It stores the server_name into
-   the first field of the table (the primary key, server_name column). With
-   this, index_read_idx is called, if the record is found, an error is set
-   to ER_FOREIGN_SERVER_EXISTS (the server with that server name exists in the
-   table), if not, then store_server_fields stores all fields of the
-   FOREIGN_SERVER to the table, then ha_write_row is inserted. If an error
-   is encountered in either index_read_idx or ha_write_row, then that error
-   is returned
+   to LEX_SERVER_OPTIONS from parser.The member 'server_name' of this
+   LEX_SERVER_OPTIONS struct contains the value of the server to be inserted.
+   It stores the server_name into the first field of the table (the primary
+   key, server_name column). With this, index_read_idx is called, if the
+   record is found, an error is set to ER_FOREIGN_SERVER_EXISTS (the server
+   with that server name exists in the table), if not, then store_server_fields
+   stores all fields of the FOREIGN_SERVER to the table, then ha_write_row is
+   inserted. Also The server is inserted into Servers Cache. Servers Cache also
+   serves the purpose of making sure that call to ha_write_row succeeds.
+   If an error is encountered in index_read_idx then that error is returned.
 
-   @param table   table for storing server record
-   @param server  pointer to prepared FOREIGN_SERVER struct
+   @param table            table for storing server record
+   @param server_options   LEX_SERVER_OPTIONS from parser
 
    @retval false OK
    @retval true  Error
 */
 
-static bool insert_server_record(TABLE *table, FOREIGN_SERVER *server)
+static bool insert_server_record(TABLE *table, LEX_SERVER_OPTIONS *server_options)
 {
   int error;
   DBUG_ENTER("insert_server_record");
@@ -519,8 +522,8 @@ static bool insert_server_record(TABLE *table, FOREIGN_SERVER *server)
   empty_record(table);
 
   /* set the field that's the PK to the value we're looking for */
-  table->field[0]->store(server->server_name,
-                         server->server_name_length,
+  table->field[0]->store(server_options->server_name,
+                         server_options->server_name_length,
                          system_charset_info);
 
   /* read index until record is that specified in server_name */
@@ -530,9 +533,21 @@ static bool insert_server_record(TABLE *table, FOREIGN_SERVER *server)
                                             HA_READ_KEY_EXACT);
   if (error)
   {
+    FOREIGN_SERVER *server;
     /* if not found, err */
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    {
       table->file->print_error(error, MYF(0));
+      goto end;
+    }
+
+    server= prepare_server_struct_for_insert(server_options);
+    if (!server)
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      error= 1;
+      goto end;
+    }
 
     /* store each field to be inserted */
     store_server_fields(table, server);
@@ -541,14 +556,21 @@ static bool insert_server_record(TABLE *table, FOREIGN_SERVER *server)
                        server->server_name));
     /* write/insert the new server */
     if ((error=table->file->ha_write_row(table->record[0])))
+    {
       table->file->print_error(error, MYF(0));
+      goto end;
+    }
+
+    /* insert the server into the cache */
+    error= insert_server_record_into_cache(server);
   }
   else
   {
-    my_error(ER_FOREIGN_SERVER_EXISTS, MYF(0), server->server_name);
+    my_error(ER_FOREIGN_SERVER_EXISTS, MYF(0), server_options->server_name);
     error= 1;
   }
 
+end:
   reenable_binlog(table->in_use);
   DBUG_RETURN(error != 0);
 }
@@ -665,16 +687,18 @@ static bool delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options,
    This function takes as arguments a THD object pointer, and two pointers,
    one pointing to the existing FOREIGN_SERVER struct "existing" (which is
    the current record as it is) and another pointer pointing to the
-   FOREIGN_SERVER struct with the members containing the modified/altered
+   LEX_SERVER_OPTIONS struct with the members containing the modified/altered
    values that need to be updated in both the mysql.servers table and the
-   servers_cache. It opens a table, passes the table and the altered
-   FOREIGN_SERVER pointer, which will be used to update the mysql.servers
-   table for the particular server via the call to update_server_record,
-   and in the servers_cache via update_server_record_in_cache.
+   servers_cache. It opens a table, passes the table and the server_options
+   pointer(which contains the new values supplied to it from the parser),
+   which will be used to update the mysql.servers table for the particular
+   server via the call to update_server_record and in the servers_cache
+   via update_server_record_in_cache.
 
-   @param thd       thread pointer
-   @param existing  pointer to FOREIGN_SERVER struct for current server values
-   @param altered   pointer to FOREIGN_SERVER struct for modified server values
+   @param thd             thread pointer
+   @param existing        pointer to FOREIGN_SERVER struct for current server
+                          values
+   @param server_options  LEX_SERVER_OPTIONS from parser
 
    @note THR_LOCK_servers must be write locked.
 
@@ -682,7 +706,8 @@ static bool delete_server_record_in_cache(LEX_SERVER_OPTIONS *server_options,
    @retval true  Error
 */
 
-bool update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
+bool update_server(THD *thd, FOREIGN_SERVER *existing,
+                   LEX_SERVER_OPTIONS *server_options)
 {
   DBUG_ENTER("update_server");
 
@@ -693,15 +718,14 @@ bool update_server(THD *thd, FOREIGN_SERVER *existing, FOREIGN_SERVER *altered)
   if (!table)
     DBUG_RETURN(true);
 
-  bool error= (update_server_record(table, altered) ||
-               update_server_record_in_cache(existing, altered));
+  bool error= update_server_record(table, existing, server_options);
 
   /* Perform a reload so we don't have a 'hole' in our mem_root */
   servers_load(thd, &tables);
 
   close_mysql_tables(thd);
 
-  DBUG_RETURN(error);
+  DBUG_RETURN(error || thd->killed);
 }
 
 
@@ -795,31 +819,36 @@ void merge_server_struct(FOREIGN_SERVER *from, FOREIGN_SERVER *to)
 
 /**
    This function takes as its arguments an open TABLE pointer, and a pointer
-   to an allocated FOREIGN_SERVER structure representing an updated record
+   to LEX_SERVER_OPTIONS structure from the parser representing an updated record
    which needs to be inserted. The primary key, server_name is stored to field
    0, then index_read_idx is called to read the index to that record, the
    record then being ready to be updated, if found. If not found an error is
    set and error message printed. If the record is found, store_record is
    called, then store_server_fields stores each field from the the members of
-   the updated FOREIGN_SERVER struct.
+   the updated FOREIGN_SERVER struct. The record is also updated by calling
+   ha_update_row and in servers cache via call to update_server_record_in_cache.
 
-   @param table   table for storing server record
-   @param server  pointer to prepared FOREIGN_SERVER struct
+   @param table           table for storing server record
+   @param existing        pointer to FOREIGN_SERVER struct for current
+                          server values
+   @param server_options  LEX_SERVER_OPTIONS from parser
 
    @retval false OK
    @retval true  Error
 */
 
 
-static bool update_server_record(TABLE *table, FOREIGN_SERVER *server)
+static bool update_server_record(TABLE *table,
+                                 FOREIGN_SERVER *existing,
+                                 LEX_SERVER_OPTIONS *server_options)
 {
   int error;
   DBUG_ENTER("update_server_record");
   tmp_disable_binlog(table->in_use);
   table->use_all_columns();
   /* set the field that's the PK to the value we're looking for */
-  table->field[0]->store(server->server_name,
-                         server->server_name_length,
+  table->field[0]->store(server_options->server_name,
+                         server_options->server_name_length,
                          system_charset_info);
 
   error= table->file->ha_index_read_idx_map(table->record[0], 0,
@@ -829,26 +858,41 @@ static bool update_server_record(TABLE *table, FOREIGN_SERVER *server)
   if (error)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    {
       table->file->print_error(error, MYF(0));
+      goto end;
+    }
     DBUG_PRINT("info",("server not found!"));
-    my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0), server->server_name);
+    my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0),
+             server_options->server_name);
   }
   else
   {
+    FOREIGN_SERVER *altered= prepare_server_struct_for_update(server_options,
+                                                              existing);
+    if (!altered)
+    {
+      my_error(ER_OUT_OF_RESOURCES, MYF(0));
+      error= 1;
+      goto end;
+    }
+
     /* ok, so we can update since the record exists in the table */
     store_record(table,record[1]);
-    store_server_fields(table, server);
+    store_server_fields(table, altered);
     if ((error=table->file->ha_update_row(table->record[1],
                                           table->record[0])) &&
         error != HA_ERR_RECORD_IS_THE_SAME)
     {
       table->file->print_error(error, MYF(0));
       DBUG_PRINT("info",("problems with ha_update_row %d", error));
+      goto end;
     }
-    else
-      error= 0;
+
+    error= update_server_record_in_cache(existing, altered);
   }
 
+end:
   reenable_binlog(table->in_use);
   DBUG_RETURN(error != 0);
 }
@@ -882,7 +926,10 @@ static bool delete_server_record(TABLE *table, char *server_name,
   if (error)
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
+    {
       table->file->print_error(error, MYF(0));
+      goto end;
+    }
     DBUG_PRINT("info",("server not found!"));
     if (!if_exists)
       my_error(ER_FOREIGN_SERVER_DOESNT_EXIST, MYF(0), server_name);
@@ -893,6 +940,7 @@ static bool delete_server_record(TABLE *table, char *server_name,
       table->file->print_error(error, MYF(0));
   }
 
+end:
   reenable_binlog(table->in_use);
   DBUG_RETURN(error != 0);
 }
@@ -909,7 +957,6 @@ static bool delete_server_record(TABLE *table, char *server_name,
 bool create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   bool error= true;
-  FOREIGN_SERVER *server;
 
   DBUG_ENTER("create_server");
   DBUG_PRINT("info", ("server_options->server_name %s",
@@ -925,14 +972,7 @@ bool create_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
     goto end;
   }
 
-  server= prepare_server_struct_for_insert(server_options);
-  if (!server)
-  {
-    my_error(ER_OUT_OF_RESOURCES, MYF(0));
-    goto end;
-  }
-
-  error= insert_server(thd, server);
+  error= insert_server(thd, server_options);
 
 end:
   mysql_rwlock_unlock(&THR_LOCK_servers);
@@ -951,7 +991,7 @@ end:
 bool alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
 {
   bool error= true;
-  FOREIGN_SERVER *altered, *existing;
+  FOREIGN_SERVER *existing;
   LEX_STRING name= { server_options->server_name, 
                      server_options->server_name_length };
 
@@ -970,11 +1010,7 @@ bool alter_server(THD *thd, LEX_SERVER_OPTIONS *server_options)
     goto end;
   }
 
-  altered= (FOREIGN_SERVER *)alloc_root(&mem, sizeof(FOREIGN_SERVER));
-
-  prepare_server_struct_for_update(server_options, existing, altered);
-
-  error= update_server(thd, existing, altered);
+  error= update_server(thd, existing, server_options);
 
   if (close_cached_connection_tables(thd, &name))
   {
@@ -1060,20 +1096,27 @@ prepare_server_struct_for_insert(LEX_SERVER_OPTIONS *server_options)
       LEX_SERVER_OPTIONS *server_options
 
   NOTES
+    As FOREIGN_SERVER members are allocated on mem_root, we do not need to
+    free them in case of error.
 
   RETURN VALUE
-    0 - no error
+    On success filled FOREIGN_SERVER, or NULL in case out of memory.
 
 */
 
-static void
+static FOREIGN_SERVER *
 prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
-                                 FOREIGN_SERVER *existing,
-                                 FOREIGN_SERVER *altered)
+                                 FOREIGN_SERVER *existing)
 {
+  FOREIGN_SERVER *altered;
   DBUG_ENTER("prepare_server_struct_for_update");
 
-  altered->server_name= strdup_root(&mem, server_options->server_name);
+  if (!(altered= (FOREIGN_SERVER *)alloc_root(&mem, sizeof(FOREIGN_SERVER))))
+    DBUG_RETURN(NULL);
+
+  /* these two must be set */
+  if (!(altered->server_name= strdup_root(&mem, server_options->server_name)))
+    DBUG_RETURN(NULL);
   altered->server_name_length= server_options->server_name_length;
   DBUG_PRINT("info", ("existing name %s altered name %s",
                       existing->server_name, altered->server_name));
@@ -1082,23 +1125,29 @@ prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
     The logic here is this: is this value set AND is it different
     than the existing value?
   */
-  altered->host=
-    (server_options->host && (strcmp(server_options->host, existing->host))) ?
-     strdup_root(&mem, server_options->host) : 0;
+  altered->host= NULL;
+  if (server_options->host &&
+      strcmp(server_options->host, existing->host) &&
+      !(altered->host= strdup_root(&mem, server_options->host)))
+    DBUG_RETURN(NULL);
 
-  altered->db=
-      (server_options->db && (strcmp(server_options->db, existing->db))) ?
-        strdup_root(&mem, server_options->db) : 0;
+  altered->db= NULL;
+  if (server_options->db &&
+      strcmp(server_options->db, existing->db) &&
+      !(altered->db= strdup_root(&mem, server_options->db)))
+    DBUG_RETURN(NULL);
 
-  altered->username=
-      (server_options->username &&
-      (strcmp(server_options->username, existing->username))) ?
-        strdup_root(&mem, server_options->username) : 0;
+  altered->username= NULL;
+  if (server_options->username &&
+      strcmp(server_options->username, existing->username) &&
+      !(altered->username= strdup_root(&mem, server_options->username)))
+    DBUG_RETURN(NULL);
 
-  altered->password=
-      (server_options->password &&
-      (strcmp(server_options->password, existing->password))) ?
-        strdup_root(&mem, server_options->password) : 0;
+  altered->password= NULL;
+  if (server_options->password &&
+      strcmp(server_options->password, existing->password) &&
+      !(altered->password= strdup_root(&mem, server_options->password)))
+    DBUG_RETURN(NULL);
 
   /*
     port is initialised to -1, so if unset, it will be -1
@@ -1107,22 +1156,25 @@ prepare_server_struct_for_update(LEX_SERVER_OPTIONS *server_options,
                  server_options->port != existing->port) ?
     server_options->port : -1;
 
-  altered->socket=
-    (server_options->socket &&
-    (strcmp(server_options->socket, existing->socket))) ?
-      strdup_root(&mem, server_options->socket) : 0;
+  altered->socket= NULL;
+  if (server_options->socket &&
+      strcmp(server_options->socket, existing->socket) &&
+      !(altered->socket= strdup_root(&mem, server_options->socket)))
+    DBUG_RETURN(NULL);
 
-  altered->scheme=
-    (server_options->scheme &&
-    (strcmp(server_options->scheme, existing->scheme))) ?
-      strdup_root(&mem, server_options->scheme) : 0;
+  altered->scheme= NULL;
+  if (server_options->scheme &&
+      strcmp(server_options->scheme, existing->scheme) &&
+      !(altered->scheme= strdup_root(&mem, server_options->scheme)))
+    DBUG_RETURN(NULL);
 
-  altered->owner=
-    (server_options->owner &&
-    (strcmp(server_options->owner, existing->owner))) ?
-      strdup_root(&mem, server_options->owner) : 0;
+  altered->owner= NULL;
+  if (server_options->owner &&
+      strcmp(server_options->owner, existing->owner) &&
+      !(altered->owner= strdup_root(&mem, server_options->owner)))
+    DBUG_RETURN(NULL);
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(altered);
 }
 
 /*

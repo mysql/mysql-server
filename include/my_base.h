@@ -275,6 +275,18 @@ enum ha_base_keytype {
   This flag can be calculated -- it's based on key lengths comparison.
 */
 #define HA_KEY_HAS_PART_KEY_SEG 65536
+/**
+  Key was renamed (or is result of renaming a key).
+
+  This is another flag internal to SQL-layer.
+  Used by in-place ALTER TABLE implementation.
+
+  @note This flag can be set for keys which have other changes than
+        simple renaming as well. So from the point of view of storage
+        engine such key might have to be dropped and re-created with
+        new definition.
+*/
+#define HA_KEY_RENAMED          (1 << 17)
 
 	/* Automatic bits in key-flag */
 
