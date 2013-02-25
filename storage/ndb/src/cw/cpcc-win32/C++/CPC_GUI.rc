@@ -89,7 +89,7 @@ FONT 8, "MS Sans Serif"
 BEGIN
     LTEXT           "NDB Cluster Process Control Applet v1.0",IDC_STATIC,7,8,
                     213,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2003 MySQL AB",
+    LTEXT           "Copyright (c) 2003, 2005 MySQL AB
                     IDC_STATIC,7,20,213,20
     DEFPUSHBUTTON   "OK",IDOK,185,55,41,16,WS_GROUP
 END
