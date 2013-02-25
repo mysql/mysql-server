@@ -4569,11 +4569,12 @@ static int init_server_components()
 #else
       res= reopen_fstreams(log_error_file, NULL, stderr);
 #endif
-
       if (!res)
         setbuf(stderr, NULL);
     }
   }
+  else
+    log_error_file_ptr= const_cast<char*>("STDERR");
 
   proc_info_hook= set_thd_stage_info;
 
