@@ -800,7 +800,6 @@ innobase_get_foreign_key_info(
 {
 	Key*		key;
 	Foreign_key*	fk_key;
-	ulint		i = 0;
 	dict_table_t*	referenced_table = NULL;
 	char*		referenced_table_name = NULL;
 	ulint		num_fk = 0;
@@ -811,206 +810,205 @@ innobase_get_foreign_key_info(
 	List_iterator<Key> key_iterator(alter_info->key_list);
 
 	while ((key=key_iterator++)) {
-		if (key->type == Key::FOREIGN_KEY) {
-			const char*	column_names[MAX_NUM_FK_COLUMNS];
-			dict_index_t*	index = NULL;
-			const char*	referenced_column_names[MAX_NUM_FK_COLUMNS];
-			dict_index_t*	referenced_index = NULL;
-			ulint		num_col = 0;
-			ulint		referenced_num_col = 0;
-			bool		correct_option;
-			char*		db_namep = NULL;
-			char*		tbl_namep = NULL;
-			ulint		db_name_len = 0;
-			ulint		tbl_name_len = 0;
+		if (key->type != Key::FOREIGN_KEY) {
+			continue;
+		}
+
+		const char*	column_names[MAX_NUM_FK_COLUMNS];
+		dict_index_t*	index = NULL;
+		const char*	referenced_column_names[MAX_NUM_FK_COLUMNS];
+		dict_index_t*	referenced_index = NULL;
+		ulint		num_col = 0;
+		ulint		referenced_num_col = 0;
+		bool		correct_option;
+		char*		db_namep = NULL;
+		char*		tbl_namep = NULL;
+		ulint		db_name_len = 0;
+		ulint		tbl_name_len = 0;
 #ifdef __WIN__
-			char		db_name[MAX_DATABASE_NAME_LEN];
-			char		tbl_name[MAX_TABLE_NAME_LEN];
+		char		db_name[MAX_DATABASE_NAME_LEN];
+		char		tbl_name[MAX_TABLE_NAME_LEN];
 #endif
 
-			fk_key= static_cast<Foreign_key*>(key);
+		fk_key = static_cast<Foreign_key*>(key);
 
-			if (fk_key->columns.elements > 0) {
-				Key_part_spec* column;
-				List_iterator<Key_part_spec> key_part_iterator(
-					fk_key->columns);
+		if (fk_key->columns.elements > 0) {
+			ulint	i = 0;
+			Key_part_spec* column;
+			List_iterator<Key_part_spec> key_part_iterator(
+				fk_key->columns);
 
-				/* Get all the foreign key column info for the
-				current table */
-				while ((column = key_part_iterator++)) {
-					column_names[i] =
-						 column->field_name.str;
-					ut_ad(i < MAX_NUM_FK_COLUMNS);
-					i++;
-				}
+			/* Get all the foreign key column info for the
+			current table */
+			while ((column = key_part_iterator++)) {
+				column_names[i] = column->field_name.str;
+				ut_ad(i < MAX_NUM_FK_COLUMNS);
+				i++;
+			}
 
-				index = innobase_find_fk_index(
-					ha_alter_info,
-					table, col_names,
-					drop_index, n_drop_index,
-					column_names, i);
+			index = innobase_find_fk_index(
+				ha_alter_info,
+				table, col_names,
+				drop_index, n_drop_index,
+				column_names, i);
 
-				/* MySQL would add a index in the creation
-				list if no such index for foreign table,
-				so we have to use DBUG_EXECUTE_IF to simulate
-				the scenario */
-				DBUG_EXECUTE_IF("innodb_test_no_foreign_idx",
-						index = NULL;);
+			/* MySQL would add a index in the creation
+			list if no such index for foreign table,
+			so we have to use DBUG_EXECUTE_IF to simulate
+			the scenario */
+			DBUG_EXECUTE_IF("innodb_test_no_foreign_idx",
+					index = NULL;);
+
+			/* Check whether there exist such
+			index in the the index create clause */
+			if (!index && !innobase_find_equiv_index(
+				    column_names, i,
+				    ha_alter_info->key_info_buffer,
+				    ha_alter_info->index_add_buffer,
+				    ha_alter_info->index_add_count)) {
+				my_error(
+					ER_FK_NO_INDEX_CHILD,
+					MYF(0),
+					fk_key->name.str
+					? fk_key->name.str : "",
+					table_share->table_name.str);
+				goto err_exit;
+			}
+
+			num_col = i;
+		}
+
+		add_fk[num_fk] = dict_mem_foreign_create();
+
+#ifndef __WIN__
+		tbl_namep = fk_key->ref_table.str;
+		tbl_name_len = fk_key->ref_table.length;
+		db_namep = fk_key->ref_db.str;
+		db_name_len = fk_key->ref_db.length;
+#else
+		ut_ad(fk_key->ref_table.str);
+
+		memcpy(tbl_name, fk_key->ref_table.str,
+		       fk_key->ref_table.length);
+		tbl_name[fk_key->ref_table.length] = 0;
+		innobase_casedn_str(tbl_name);
+		tbl_name_len = strlen(tbl_name);
+		tbl_namep = &tbl_name[0];
+
+		if (fk_key->ref_db.str != NULL) {
+			memcpy(db_name, fk_key->ref_db.str,
+			       fk_key->ref_db.length);
+			db_name[fk_key->ref_db.length] = 0;
+			innobase_casedn_str(db_name);
+			db_name_len = strlen(db_name);
+			db_namep = &db_name[0];
+		}
+#endif
+		mutex_enter(&dict_sys->mutex);
+
+		referenced_table_name = dict_get_referenced_table(
+			table->name,
+			db_namep,
+			db_name_len,
+			tbl_namep,
+			tbl_name_len,
+			&referenced_table,
+			add_fk[num_fk]->heap);
+
+		/* Test the case when referenced_table failed to
+		open, if trx->check_foreigns is not set, we should
+		still be able to add the foreign key */
+		DBUG_EXECUTE_IF("innodb_test_open_ref_fail",
+				referenced_table = NULL;);
+
+		if (!referenced_table && trx->check_foreigns) {
+			mutex_exit(&dict_sys->mutex);
+			my_error(ER_FK_CANNOT_OPEN_PARENT,
+				 MYF(0), tbl_namep);
+
+			goto err_exit;
+		}
+
+		if (fk_key->ref_columns.elements > 0) {
+			ulint	i = 0;
+			Key_part_spec* column;
+			List_iterator<Key_part_spec> key_part_iterator(
+				fk_key->ref_columns);
+
+			while ((column = key_part_iterator++)) {
+				referenced_column_names[i] =
+					column->field_name.str;
+				ut_ad(i < MAX_NUM_FK_COLUMNS);
+				i++;
+			}
+
+			if (referenced_table) {
+				referenced_index =
+					dict_foreign_find_index(
+						referenced_table, 0,
+						referenced_column_names,
+						i, index,
+						TRUE, FALSE);
+
+				DBUG_EXECUTE_IF(
+					"innodb_test_no_reference_idx",
+					referenced_index = NULL;);
 
 				/* Check whether there exist such
 				index in the the index create clause */
-				if (!index && !innobase_find_equiv_index(
-					column_names, i,
-					ha_alter_info->key_info_buffer,
-					ha_alter_info->index_add_buffer,
-					ha_alter_info->index_add_count)) {
-					my_error(
-						ER_FK_NO_INDEX_CHILD,
-						MYF(0),
-						fk_key->name.str,
-						table_share->table_name.str);
-					goto err_exit;
-				}
-
-				num_col = i;
-			}
-
-			add_fk[num_fk] = dict_mem_foreign_create();
-
-#ifndef __WIN__
-			tbl_namep = fk_key->ref_table.str;
-			tbl_name_len = fk_key->ref_table.length;
-			db_namep = fk_key->ref_db.str;
-			db_name_len = fk_key->ref_db.length;
-#else
-			ut_ad(fk_key->ref_table.str);
-
-			memcpy(tbl_name, fk_key->ref_table.str,
-			       fk_key->ref_table.length);
-			tbl_name[fk_key->ref_table.length] = 0;
-			innobase_casedn_str(tbl_name);
-			tbl_name_len = strlen(tbl_name);
-			tbl_namep = &tbl_name[0];
-
-			if (fk_key->ref_db.str != NULL) {
-				memcpy(db_name, fk_key->ref_db.str,
-				       fk_key->ref_db.length);
-				db_name[fk_key->ref_db.length] = 0;
-				innobase_casedn_str(db_name);
-				db_name_len = strlen(db_name);
-				db_namep = &db_name[0];
-			}
-#endif
-			mutex_enter(&dict_sys->mutex);
-
-			referenced_table_name = dict_get_referenced_table(
-				table->name,
-				db_namep,
-				db_name_len,
-				tbl_namep,
-				tbl_name_len,
-				&referenced_table,
-				add_fk[num_fk]->heap);
-
-			/* Test the case when referenced_table failed to
-			open, if trx->check_foreigns is not set, we should
-			still be able to add the foreign key */
-			DBUG_EXECUTE_IF("innodb_test_open_ref_fail",
-					referenced_table = NULL;);
-
-			if (!referenced_table && trx->check_foreigns) {
-				mutex_exit(&dict_sys->mutex);
-				my_error(ER_FK_CANNOT_OPEN_PARENT,
-					 MYF(0), tbl_namep);
-
-				goto err_exit;
-			}
-
-			i = 0;
-
-			if (fk_key->ref_columns.elements > 0) {
-				Key_part_spec* column;
-				List_iterator<Key_part_spec> key_part_iterator(
-					fk_key->ref_columns);
-
-				while ((column = key_part_iterator++)) {
-					referenced_column_names[i] =
-						 column->field_name.str;
-					ut_ad(i < MAX_NUM_FK_COLUMNS);
-					i++;
-				}
-
-				if (referenced_table) {
-					referenced_index =
-						dict_foreign_find_index(
-							referenced_table, 0,
-							referenced_column_names,
-							i, index,
-							TRUE, FALSE);
-
-					DBUG_EXECUTE_IF(
-						"innodb_test_no_reference_idx",
-						referenced_index = NULL;);
-
-					/* Check whether there exist such
-					index in the the index create clause */
-					if (!referenced_index) {
-						mutex_exit(&dict_sys->mutex);
-						my_error(
-							ER_FK_NO_INDEX_PARENT,
-							MYF(0),
-							fk_key->name.str,
-							tbl_namep);
-						goto err_exit;
-					}
-				} else {
-					ut_a(!trx->check_foreigns);
-				}
-
-				referenced_num_col = i;
-			}
-
-			if (!innobase_init_foreign(
-				add_fk[num_fk], fk_key->name.str,
-				table, index, column_names,
-				num_col, referenced_table_name,
-				referenced_table, referenced_index,
-				referenced_column_names, referenced_num_col)) {
+				if (!referenced_index) {
 					mutex_exit(&dict_sys->mutex);
-					my_error(
-						ER_FK_DUP_NAME,
-						MYF(0),
-						add_fk[num_fk]->id);
+					my_error(ER_FK_NO_INDEX_PARENT, MYF(0),
+						 fk_key->name.str
+						 ? fk_key->name.str : "",
+						 tbl_namep);
 					goto err_exit;
+				}
+			} else {
+				ut_a(!trx->check_foreigns);
 			}
 
-			mutex_exit(&dict_sys->mutex);
-
-			correct_option = innobase_set_foreign_key_option(
-						add_fk[num_fk], fk_key);
-
-			DBUG_EXECUTE_IF("innodb_test_wrong_fk_option",
-					correct_option = false;);
-
-			if (!correct_option) {
-				my_error(ER_FK_INCORRECT_OPTION,
-					 MYF(0),
-					 table_share->table_name.str,
-					 add_fk[num_fk]->id);
-				goto err_exit;
-			}
-
-			num_fk++;
-			i = 0;
+			referenced_num_col = i;
 		}
 
+		if (!innobase_init_foreign(
+			    add_fk[num_fk], fk_key->name.str,
+			    table, index, column_names,
+			    num_col, referenced_table_name,
+			    referenced_table, referenced_index,
+			    referenced_column_names, referenced_num_col)) {
+			mutex_exit(&dict_sys->mutex);
+			my_error(
+				ER_FK_DUP_NAME,
+				MYF(0),
+				add_fk[num_fk]->id);
+			goto err_exit;
+		}
+
+		mutex_exit(&dict_sys->mutex);
+
+		correct_option = innobase_set_foreign_key_option(
+			add_fk[num_fk], fk_key);
+
+		DBUG_EXECUTE_IF("innodb_test_wrong_fk_option",
+				correct_option = false;);
+
+		if (!correct_option) {
+			my_error(ER_FK_INCORRECT_OPTION,
+				 MYF(0),
+				 table_share->table_name.str,
+				 add_fk[num_fk]->id);
+			goto err_exit;
+		}
+
+		num_fk++;
 	}
 
 	*n_add_fk = num_fk;
 
 	return(true);
 err_exit:
-	for (i = 0; i <= num_fk; i++) {
+	for (ulint i = 0; i <= num_fk; i++) {
 		if (add_fk[i]) {
 			dict_foreign_free(add_fk[i]);
 		}
