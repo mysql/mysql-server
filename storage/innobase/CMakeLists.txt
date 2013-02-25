@@ -172,7 +172,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   #include <sys/syscall.h>
 
    int futex_wait(int* futex, int v) {
-	return(syscall(SYS_futex, futex, FUTEX_WAIT, v, NULL, NULL, 0));
+	return(syscall(SYS_futex, futex, FUTEX_WAIT_PRIVATE, v, NULL, NULL, 0));
    }
 
    int futex_signal(int* futex) {
