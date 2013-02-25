@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # The slave is started with relay_log_space_limit=10 bytes,
 # to force the deadlock after one event.
 

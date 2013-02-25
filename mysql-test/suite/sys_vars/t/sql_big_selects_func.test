@@ -18,6 +18,7 @@
 # Reference: http://dev.mysql.com/doc/refman/5.1/en/set-option.html       #
 #                                                                         #
 ###########################################################################
+--source include/have_myisam.inc
 
 --echo ** Setup **
 --echo
