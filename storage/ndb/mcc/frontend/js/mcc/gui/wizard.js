@@ -167,7 +167,30 @@ var configWizardPages = {
         },
         exit: function() {
             mcc.util.dbg("Exit configWizardDefineCluster");
-            return mcc.gui.saveClusterDefinition();
+            mcc.gui.saveClusterDefinition();
+            // Check errors after a timeout to allow hosts to be contacted
+            setTimeout(
+                function() {
+                    mcc.storage.hostStorage().getItems().then(function (hosts) {
+                        var errMsgSummary = null;
+                        for (var i in hosts) {
+                            var errMsg = hosts[i].getValue("errMsg");
+                            if (errMsg) {
+                                if (!errMsgSummary) {
+                                    errMsgSummary = "There were errors when connecting to remote hosts:\n\n";
+                                }
+                                errMsgSummary += "Host '" + hosts[i].getValue("name") + "': " + errMsg + "\n"
+                            }
+                        }
+                        if (errMsgSummary) {                
+                            errMsgSummary += "\nPress 'OK' to continue to the next page anyway, or 'Cancel' to stay at the previous page";
+                            mcc.storage.hostStorage().save();                
+                            if (!confirm(errMsgSummary)) {
+                                cancelTabChange("configWizardDefineCluster");
+                            }
+                        }
+                    });
+                }, 1000);
         }
     },
     configWizardDefineHosts: {
@@ -860,6 +883,7 @@ function initialize() {
             }
 
             preCondition.then(function () {
+                
                 // Exit old page
                 if (configWizardPages[prev.id].exit) {
                     configWizardPages[prev.id].exit();
