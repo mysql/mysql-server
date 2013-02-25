@@ -126,7 +126,7 @@ function saveClusterDefinition() {
                     mcc.util.dbg("Re-fetch resource information for host " + 
                             host.getValue("name"));
                     mcc.storage.getHostResourceInfo(host.getValue("name"), 
-                            host.getId(), true);
+                            host.getId(), false);
                 }
             });
         }
@@ -199,7 +199,7 @@ function saveClusterDefinition() {
                 hostStorage.newItem({
                     name: newHosts[i],
                     anyHost: false
-                });
+                }, false);
             }
         }
         hostStorage.save();

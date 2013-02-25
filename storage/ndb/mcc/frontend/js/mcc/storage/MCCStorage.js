@@ -373,6 +373,9 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                             mcc.util.dbg("Cancel reply to previous request");
                             return;
                         }
+                        
+                        // Delete error message
+                        host.deleteAttribute("errMsg");
 
                         // Set resource info
                         if (!host.getValue("ram")) {
@@ -432,6 +435,9 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
                                     "definition page to edit hardware " +
                                     "resource information manually");
                         }
+                        // Also save error message, can be viewed in the grid
+                        host.setValue("errMsg", errMsg);                       
+                        hostStorage.save();
                     }
                 );
             } else {
@@ -444,7 +450,7 @@ function getHostResourceInfo(hostName, hostId, showAlert) {
 }
 
 // Special handling for new hosts: Get hw details and add to host tree storage
-function newHostItem(item) {
+function newHostItem(item, showAlert) {
     this.inherited(arguments);
     if (!item.anyHost) {
         hostTreeStorage.newItem({id: item.id, type: "host", name: item.name});
@@ -453,7 +459,7 @@ function newHostItem(item) {
     }
     // Get hardware resources unless this is a wildcard host
     if (!item.anyHost) {
-        getHostResourceInfo(item.name, item.id, true);
+        getHostResourceInfo(item.name, item.id, showAlert);
     } else {
         mcc.util.dbg("Skip obtaining hwresource information for wildcard host");
     }

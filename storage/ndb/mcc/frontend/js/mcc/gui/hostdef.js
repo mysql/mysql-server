@@ -128,7 +128,7 @@ function addHostList(event) {
                 mcc.storage.hostStorage().newItem({
                     name: hosts[i],
                     anyHost: false
-                });
+                }, true);
             }
             dijit.byId('addHostsDlg').hide();
         }
@@ -598,6 +598,17 @@ function hostGridSetup() {
     function hideTT(event) {
         dijit.hideTooltip(event.cellNode);
     }; 
+    
+    dojo.connect(hostGrid, "onCellClick", function(e) {
+        if (e.cell.field == "hwResFetch") {
+            mcc.storage.hostStorage().getItem(hostGrid._by_idx[e.rowIndex].idty).then(function (host) {
+                var errMsg = host.getValue("errMsg");
+                if (errMsg) {
+                    alert("Error: " + errMsg);                    
+                }
+            });
+        }
+    });
 
     dojo.connect(hostGrid, "onCellMouseOver", showTT);
     dojo.connect(hostGrid, "onCellMouseOut", hideTT); 

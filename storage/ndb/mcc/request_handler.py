@@ -345,6 +345,7 @@ def handle_runMgmdCommandReq(req, body):
 
     hostname = body['hostname'].encode('ascii', 'ignore')
     port = body['port']
+    mgmd = None
 
     try:
         mgmd = socket.create_connection((hostname, port))
