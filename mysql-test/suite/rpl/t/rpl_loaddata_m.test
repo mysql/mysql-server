@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # See if the master logs LOAD DATA INFILE correctly when binlog_*_db rules
 # exist.
 # This is for BUG#1100 (LOAD DATA INFILE was half-logged).
