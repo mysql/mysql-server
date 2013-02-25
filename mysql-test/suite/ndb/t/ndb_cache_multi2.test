@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # query cache is local to each mysqld, so counting hits
 # will not be the same when using one and several mysqld's
 # hence disable test for embedded

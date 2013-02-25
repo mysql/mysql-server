@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Note: This test is tricky. It reuses the prerequisites generated for
 #       replication tests (master+slave server and connections) for its
 #       own purposes. But the replication feature itself is stopped.

@@ -123,7 +123,6 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-static long innobase_mirrored_log_groups;
 static long innobase_log_buffer_size;
 static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
@@ -2195,9 +2194,12 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
-		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
-		  HA_CAN_FULLTEXT_EXT | HA_CAN_EXPORT),
+		  HA_CAN_GEOMETRY |
+		  HA_PARTIAL_COLUMN_READ |
+		  HA_TABLE_SCAN_ON_INDEX |
+		  HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_EXPORT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2955,11 +2957,8 @@ innobase_init(
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3497,18 +3496,18 @@ retry:
 		/* The following call read the binary log position of
 		the transaction being committed.
 
-                Binary logging of other engines is not relevant to
+		Binary logging of other engines is not relevant to
 		InnoDB as all InnoDB requires is that committing
 		InnoDB transactions appear in the same order in the
 		MySQL binary log as they appear in InnoDB logs, which
 		is guaranteed by the server.
 
-                If the binary log is not enabled, or the transaction
-                is not written to the binary log, the file name will
-                be a NULL pointer. */
-                unsigned long long pos;
-                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
+		If the binary log is not enabled, or the transaction
+		is not written to the binary log, the file name will
+		be a NULL pointer. */
+		unsigned long long pos;
+		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
 		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
@@ -5070,6 +5069,7 @@ innobase_mysql_cmp(
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_GEOMETRY:
 	case MYSQL_TYPE_LONG_BLOB:
 	case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
@@ -5516,6 +5516,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
 	case MYSQL_TYPE_GEOMETRY:
+		return(DATA_GEOMETRY);
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
@@ -5990,7 +5991,7 @@ build_template_field(
 			+ templ->mysql_col_len;
 	}
 
-	if (templ->type == DATA_BLOB) {
+	if (DATA_LARGE_MTYPE(templ->type)) {
 		prebuilt->templ_contains_blob = TRUE;
 	}
 
@@ -6718,6 +6719,7 @@ calc_row_difference(
 		switch (col_type) {
 
 		case DATA_BLOB:
+		case DATA_GEOMETRY:
 			o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len);
 			n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len);
 
@@ -8702,7 +8704,7 @@ found:
 		col_type = get_innobase_type_from_mysql_type(
 			&is_unsigned, key_part->field);
 
-		if (DATA_BLOB == col_type
+		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
 			&& field->type() != MYSQL_TYPE_VARCHAR)
 		    || (field->type() == MYSQL_TYPE_VARCHAR
@@ -10350,7 +10352,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -11284,7 +11286,7 @@ ha_innobase::check(
 		prebuilt->index_usable = row_merge_is_index_usable(
 			prebuilt->trx, prebuilt->index);
 
-		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		if (!prebuilt->index_usable) {
 			innobase_format_name(
 				index_name, sizeof index_name,
 				prebuilt->index->name, TRUE);
@@ -15876,11 +15878,6 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
-static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
-
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of the buffer pool to reserve for 'old' blocks.",
@@ -16223,7 +16220,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
-  MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
