@@ -902,7 +902,7 @@ struct DictForeignKeyInfo
 };
 
 #define DFKIMAP(x, y, z) \
-  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, (~0), 0 }
+  { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, 0, UINT_MAX32, 0 }
 
 #define DFKIMAP2(x, y, z, u, v) \
   { DictForeignKeyInfo::y, my_offsetof(x, z), SimpleProperties::Uint32Value, u, v, 0 }
