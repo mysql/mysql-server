@@ -95,7 +95,7 @@ protected:
 
 
 /*************************************************************************
-  Item_func_inet_bool_base implements common code for INET6/IP-related
+  Item_func_inet_str_base implements common code for INET6/IP-related
   functions returning string value.
 *************************************************************************/
 
