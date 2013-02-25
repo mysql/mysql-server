@@ -44,6 +44,7 @@ function DBTransactionHandler(dbsession) {
   this.autocommit         = true;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
+  this.pendingOperations  = [];
   this.executedOperations = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
@@ -77,7 +78,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     ndbsession.runQueuedTransaction(self);
 
     /* Attach results to their operations */
-    ndboperation.completeExecutedOps(err, self.executedOperations);
+    ndboperation.completeExecutedOps(err, self.pendingOperations, self.executedOperations);
     udebug.log("BACK IN execute onCompleteTx AFTER COMPLETED OPS");
 
     /* Next callback */
@@ -93,7 +94,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
       if(op.ndbop) {
-        self.executedOperations.push(dbOperationList[i]);
+        self.pendingOperations.push(dbOperationList[i]);
       }
       else {
         fatalError = self.ndbtx.getNdbError();
@@ -242,7 +243,7 @@ proto.commit = function commit(userCallback) {
     ndbsession.runQueuedTransaction(self);
 
     /* Attach results to their operations */
-    ndboperation.completeExecutedOps(err, self.executedOperations);
+    ndboperation.completeExecutedOps(err, self.pendingOperations, self.executedOperations);
 
     /* Next callback */
     userCallback(err, self);
