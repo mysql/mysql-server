@@ -5012,6 +5012,7 @@ lock_rec_fetch_page(
 	ulint	zip_size = fil_space_get_zip_size(space);
 	ulint	page_no = lock->un_member.rec_lock.page_no;
 
+	/* Check if the .ibd file exists. */
 	if (zip_size != ULINT_UNDEFINED) {
 		mtr_t	mtr;
 

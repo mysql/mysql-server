@@ -203,7 +203,7 @@ Clones a read view object. This function will allocate space for two read
 views contiguously (only if the creator_trx_id > 0), one identical in size
 and content as @param view (starting at returned pointer) and another view
 immediately following the trx_ids array.
-The second view will have space for an extra trx_id_t element only if the
+The second view will have and extra slot for a trx_id_t element iff
 view->creator_trx_id > 0.
 @return	read view struct */
 UNIV_INLINE
@@ -225,7 +225,7 @@ read_view_clone(
 	sz = sizeof(*view) + view->n_trx_ids * sizeof(*view->trx_ids);
 
 	if (view->creator_trx_id > 0) {
-		/* Add an extra trx_id_t slot for the new view, if required */
+		/* Add an extra trx_id_t slot for the new view. */
 		clone = static_cast<read_view_t*>(
 			mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t)));
 	} else {
