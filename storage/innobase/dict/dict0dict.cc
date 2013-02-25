@@ -3295,6 +3295,8 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_table && !for_in_cache->foreign_table) {
+		ut_ad(for_in_cache->referenced_index);
+
 		index = dict_foreign_find_index(
 			for_table, col_names,
 			for_in_cache->foreign_col_names,
