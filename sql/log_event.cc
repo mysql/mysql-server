@@ -2988,6 +2988,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
   if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
   {
+    mts_assign_parent_group_id(this, rli);
     ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
     // compute worker, for BGC based MTS we will have round-robin scheduling.
     if (rli->last_assigned_worker)
@@ -4675,14 +4676,17 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table)
 {
   DBUG_ENTER("get_server_and_thread_id");
+  char* extra_string= table->s->table_cache_key.str;
+  size_t extra_string_len= table->s->table_cache_key.length;
   // assert will fail when called with non temporary tables.
   DBUG_ASSERT(table->s->table_cache_key.length > 0);
   std::pair<uint, my_thread_id>ret_pair= std::make_pair
     (
-      /* first 4 bytes contains the server_id */
-      uint4korr(table->s->table_cache_key.str),
+      /* last 8  bytes contains the server_id + pseudo_thread_id */
+      // fetch first 4 bytes to get the server id.
+      uint4korr(extra_string + extra_string_len - 8),
       /* next  4 bytes contains the pseudo_thread_id */
-      uint4korr(table->s->table_cache_key.str + 4)
+      uint4korr(extra_string + extra_string_len - 4)
     );
   DBUG_RETURN(ret_pair);
 }
@@ -4699,7 +4703,8 @@ void Query_log_event::attach_temp_tables_worker(THD *thd,
                                                 const Relay_log_info* rli)
 {
   int i, parts;
-  TABLE * table;
+  bool shifted= false;
+  TABLE *table, *cur_table;
   DBUG_ENTER("Query_log_event::attach_temp_tables_worker");
 
   if (!is_mts_worker(thd) || (ends_group() || starts_group()))
@@ -4732,24 +4737,45 @@ void Query_log_event::attach_temp_tables_worker(THD *thd,
     break;
 
   case MTS_PARALLEL_TYPE_BGC:
+    mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
     if (!(table= c_rli->info_thd->temporary_tables))
+    {
+      mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
       DBUG_VOID_RETURN;
+    }
+    c_rli->info_thd->temporary_tables= 0;
     do
     {
-      std::pair<uint, my_thread_id> st_id_pair= get_server_and_thread_id(table);
+      /* store the current table */
+      cur_table= table;
+      /* move the table pointer to next in list, so that we can isolate the
+      current table */
+      table= table->next;
+      std::pair<uint, my_thread_id> st_id_pair= get_server_and_thread_id(cur_table);
       if (thd->server_id == st_id_pair.first  &&
           thd->variables.pseudo_thread_id == st_id_pair.second)
       {
         /* short the list singling out the current table */
-        if (table->prev) //not the first node
-          table->prev->next= table->next;
-        if (table->next) //not the last node
-          table->next->prev= table->prev;
+        if (cur_table->prev) //not the first node
+          cur_table->prev->next= cur_table->next;
+        if (cur_table->next) //not the last node
+          cur_table->next->prev= cur_table->prev;
         /* isolate the table */
-        table->prev= table->next= NULL;
-        mts_move_temp_tables_to_thd(thd, table);
+        cur_table->prev= NULL;
+        cur_table->next= NULL;
+        mts_move_temp_tables_to_thd(thd, cur_table);
       }
-    } while(table->next && (table= table->next));
+      else
+        /* We must shift the C->temp_table pointer to the fist table unused in
+           this iteration. If all the tables have ben used C->temp_tables will
+           point to NULL */
+        if (!shifted)
+        {
+          c_rli->info_thd->temporary_tables= cur_table;
+          shifted= true;
+        }
+    } while(table);
+    mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
     break;
   }
   DBUG_VOID_RETURN;
@@ -4851,8 +4877,12 @@ void Query_log_event::detach_temp_tables_worker(THD *thd,
     break;
   case MTS_PARALLEL_TYPE_BGC:
     // here in detach section we will move the tables from the worker to the
-    // coordinaor thread.
+    // coordinaor thread. Since coordinator is hared we need to make sure that
+    // there are no race conditions which may lead to assert failures and
+    // non-deterministic results.
+    mysql_mutex_lock(&c_rli->mts_temp_table_LOCK);
     mts_move_temp_tables_to_thd(c_rli->info_thd, thd->temporary_tables);
+    mysql_mutex_unlock(&c_rli->mts_temp_table_LOCK);
     thd->temporary_tables= 0;
     break;
   }
