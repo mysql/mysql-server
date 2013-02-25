@@ -189,11 +189,6 @@ int pthread_cancel(pthread_t thread);
 
 #else /* Normal threads */
 
-#ifdef HAVE_rts_threads
-#define sigwait org_sigwait
-#include <signal.h>
-#undef sigwait
-#endif
 #include <pthread.h>
 #ifndef _REENTRANT
 #define _REENTRANT
@@ -223,18 +218,6 @@ typedef void *(* pthread_handler)(void *);
 #endif
 #define my_pthread_once(C,F) pthread_once(C,F)
 
-/* Test first for RTS or FSU threads */
-
-#if defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM)
-#define HAVE_rts_threads
-extern int my_pthread_create_detached;
-#define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define PTHREAD_CREATE_DETACHED &my_pthread_create_detached
-#define PTHREAD_SCOPE_SYSTEM  PTHREAD_SCOPE_GLOBAL
-#define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_LOCAL
-#define USE_ALARM_THREAD
-#endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
-
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
 int sigwait(sigset_t *set, int *sig);
 #endif
@@ -260,7 +243,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
 #endif
 
-#if !defined(HAVE_SIGWAIT) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --disable_abort_on_error
 # Run this test only when mysqld don't has partitioning (not compiled with)
 # the statements are not expected to work, just check that we

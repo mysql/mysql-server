@@ -35,7 +35,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) COLLATE utf8_roman_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
 '---check if updating collation_database effects new table/column---'
 SET @@session.collation_database = latin7_general_cs;
 CREATE TABLE t2(a CHAR(10));
@@ -43,7 +43,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` char(10) COLLATE utf8_roman_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_roman_ci
 DROP TABLE t1,t2;
 '--check value of collation and character set when current db is dropped'
 DROP DATABASE db1;
@@ -84,9 +84,6 @@ MX Systems
 '----check if indexing is effected by collation_database---'
 SET @@session.collation_database = latin1_swedish_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
 SELECT * FROM t1 ORDER BY a;
 a
 Muffler
@@ -95,9 +92,6 @@ Müller
 ALTER TABLE t1 DROP PRIMARY KEY;
 SET @@session.collation_database = latin1_german1_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-test.t1	repair	status	OK
 SELECT * FROM t1 ORDER BY a;
 a
 Muffler
