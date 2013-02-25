@@ -236,6 +236,14 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
       const NdbDictionary::Index * idx =
         arg0->dict->getIndex(idx_list.elements[i].name, arg2);
       if(strcmp(idx->getTable(), arg2)) {
+        DEBUG_PRINT("Expected: %s.%s.%s (TableId %d, Table Object Version: %d). \n"
+                    "Got:      %s.%s.%s (TableId %d, Table Object Version: %d)",
+                    arg1,arg2,idx_list.elements[i].name,
+                    ndb_table->getTableId(), ndb_table->getObjectVersion(),
+                    arg1,idx->getTable(), idx->getName(),
+                    arg0->dict->getTable(idx->getTable())->getTableId(),
+                    arg0->dict->getTable(idx->getTable())->getObjectVersion(),
+                    idx->getObjectId());
         cb_args[0] = String::New("NDB BUG. TRY AGAIN.");
         callback->Call(ctx, 2, cb_args);
         return;
