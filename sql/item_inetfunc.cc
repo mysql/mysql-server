@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -152,15 +152,14 @@ longlong Item_func_inet_bool_base::val_int()
 {
   DBUG_ASSERT(fixed);
 
-  if (args[0]->result_type() != STRING_RESULT ||  // String argument expected
-      args[0]->null_value)                        // Not-NULL argument expected
+  if (args[0]->result_type() != STRING_RESULT) // String argument expected
     return 0;
 
   String buffer;
   String *arg_str= args[0]->val_str(&buffer);
 
   if (!arg_str) // Out-of memory happened. The error has been reported.
-    return 0;
+    return 0;   // Or: the underlying field is NULL
 
   return calc_value(arg_str) ? 1 : 0;
 }
@@ -179,17 +178,15 @@ String *Item_func_inet_str_base::val_str_ascii(String *buffer)
 {
   DBUG_ASSERT(fixed);
 
-  if (args[0]->result_type() != STRING_RESULT ||  // String argument expected
-      args[0]->null_value)                        // Not-NULL argument expected
+  if (args[0]->result_type() != STRING_RESULT) // String argument expected
   {
     null_value= true;
     return NULL;
   }
 
   String *arg_str= args[0]->val_str(buffer);
-
   if (!arg_str) // Out-of memory happened. The error has been reported.
-  {
+  {             // Or: the underlying field is NULL
     null_value= true;
     return NULL;
   }

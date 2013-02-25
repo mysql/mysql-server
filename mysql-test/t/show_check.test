@@ -1218,7 +1218,7 @@ eval KILL QUERY $ID;
 --enable_query_log
 
 CONNECTION con1;
---error ER_QUERY_INTERRUPTED
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE non_existent;
 
 DISCONNECT con1;
