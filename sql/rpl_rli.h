@@ -128,6 +128,15 @@ public:
     DBUG_ASSERT(info_thd);
     return !info_thd->slave_thread;
   }
+/* Instrumentation key for performance schema for mts_temp_table_LOCK */
+#ifdef HAVE_PSI_INTERFACE
+  PSI_mutex_key m_key_mts_temp_table_LOCK;
+#endif
+  /*
+     Lock to protect race condition while transferring temporary table from
+     worker thread to coordinator thread and vice-versa
+   */
+  mysql_mutex_t mts_temp_table_LOCK;
 
   /*
     If true, events with the same server id should be replicated. This

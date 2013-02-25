@@ -616,8 +616,10 @@ TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables)
   TABLE *table= temporary_tables;
   if (!table)
     return NULL;
-  // accept only the list head
+
+  // accept only if this is the start of the list.
   DBUG_ASSERT(!table->prev);
+
   // walk along the source list and associate the tables with thd
   do
   {

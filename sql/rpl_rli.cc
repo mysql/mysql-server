@@ -143,6 +143,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                    MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond, NULL);
+  mysql_mutex_init(m_key_mts_temp_table_LOCK, &mts_temp_table_LOCK, MY_MUTEX_INIT_FAST);
 
   relay_log.init_pthread_objects();
   do_server_version_split(::server_version, slave_version_split);
