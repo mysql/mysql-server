@@ -1,5 +1,5 @@
 #-----------------------------------------------------------------------------
-# Copyright (C) 2002 MySQL AB and Jeremy Cole
+# Copyright (c) 2002, 2003 MySQL AB
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
