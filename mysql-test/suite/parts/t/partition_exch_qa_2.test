@@ -1,11 +1,14 @@
 # Author: Horst Hunger
 # Created: 2010-07-05
 
+# Not supported in embedded
+--source include/not_embedded.inc
+
 --source include/have_partition.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= InnoDB;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
 
 use test;
 

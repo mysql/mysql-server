@@ -2558,6 +2558,10 @@ loop:
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
 			++retries;
+			DBUG_EXECUTE_IF(
+				"innodb_page_corruption_retries",
+				retries = BUF_PAGE_READ_MAX_RETRIES;
+			);
 		} else {
 			fprintf(stderr, "InnoDB: Error: Unable"
 				" to read tablespace %lu page no"
