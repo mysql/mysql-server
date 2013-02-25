@@ -4484,14 +4484,8 @@ int ha_tokudb::handle_cursor_error(int error, int err_to_return, uint keynr) {
         }
         last_cursor_error = error;
         table->status = STATUS_NOT_FOUND;
-        int r = cursor->c_close(cursor);
-        assert(r==0);
-        cursor = NULL;
         if (error == DB_NOTFOUND) {
             error = err_to_return;
-            if ((share->key_file[keynr]->cursor(share->key_file[keynr], transaction, &cursor, cursor_flags))) {
-                cursor = NULL;             // Safety
-            }
         }
     }
     TOKUDB_DBUG_RETURN(error);
@@ -5181,6 +5175,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
         error = read_data_from_range_query_buff(buf, need_val);
     }
     else if (icp_went_out_of_range) {
+      icp_went_out_of_range = false;
         error = HA_ERR_END_OF_FILE;
     }
     else {
@@ -5213,6 +5208,7 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             // if there is no data set and we went out of range, 
             // then there is nothing to return
             if (bytes_used_in_range_query_buff == 0 && icp_went_out_of_range) {
+                icp_went_out_of_range = false;
                 error = HA_ERR_END_OF_FILE;
             }
             if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
