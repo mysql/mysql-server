@@ -2256,6 +2256,7 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       break;
     case MDL_wait::KILLED:
+      my_error(ER_QUERY_INTERRUPTED, MYF(0));
       break;
     default:
       DBUG_ASSERT(0);
