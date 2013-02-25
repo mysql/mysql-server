@@ -1333,3 +1333,61 @@ a1	c1	c2
 7	v	NULL
 DROP TABLE t1,t2,t3,t4;
 set optimizer_switch=@save_optimizer_switch;
+#
+# mdev-4177: materialization of a subquery whose WHERE condition is OR
+# formula with two disjucts such that the second one is always false
+#
+set @save_optimizer_switch=@@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (7), (4), (8), (4);
+CREATE TABLE t2 (i2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7), (5);
+CREATE TABLE t3 (i3 int) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (7), (2), (9);
+set join_cache_level=3;
+set optimizer_switch='materialization=off,semijoin=off';
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+2	DEPENDENT SUBQUERY	t3	hash_ALL	NULL	#hash#$hj	5	func	3	100.00	Using where; Using join buffer (flat, BNLH join)
+Warnings:
+Note	1003	select `test`.`t1`.`i1` AS `i1` from `test`.`t1` where <expr_cache><`test`.`t1`.`i1`>(<in_optimizer>(`test`.`t1`.`i1`,<exists>(select `test`.`t3`.`i3` from `test`.`t2` join `test`.`t3` where ((`test`.`t3`.`i3` = `test`.`t2`.`i2`) and (<cache>(`test`.`t1`.`i1`) = `test`.`t3`.`i3`)))))
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+i1
+7
+set optimizer_switch='materialization=on,semijoin=on';
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	5	test.t2.i2	5	100.00	Using where; Using join buffer (flat, BNLH join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	MATERIALIZED	t3	hash_ALL	NULL	#hash#$hj	5	test.t2.i2	3	100.00	Using where; Using join buffer (flat, BNLH join)
+Warnings:
+Note	1003	select `test`.`t1`.`i1` AS `i1` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i3` = `test`.`t2`.`i2`) and (`test`.`t1`.`i1` = `test`.`t2`.`i2`))
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+i1
+7
+EXPLAIN EXTENDED 
+SELECT * FROM t1 
+WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	3	100.00	
+1	PRIMARY	t1	hash_ALL	NULL	#hash#$hj	5	test.t2.i2	5	100.00	Using where; Using join buffer (flat, BNLH join)
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	MATERIALIZED	t3	hash_ALL	NULL	#hash#$hj	5	test.t2.i2	3	100.00	Using where; Using join buffer (flat, BNLH join)
+Warnings:
+Note	1003	select `test`.`t1`.`i1` AS `i1` from `test`.`t1` semi join (`test`.`t2` join `test`.`t3`) where ((`test`.`t3`.`i3` = `test`.`t2`.`i2`) and (`test`.`t1`.`i1` = `test`.`t2`.`i2`) and (`test`.`t3`.`i3` > 0))
+SELECT * FROM t1 
+WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+i1
+7
+SELECT * FROM t1 
+WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 7 AND i3 = i2 OR 1=2);
+i1
+DROP TABLE t1,t2,t3;
+set join_cache_level= @save_join_cache_level;
+set optimizer_switch=@save_optimizer_switch;

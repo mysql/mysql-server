@@ -13159,7 +13159,61 @@ remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	li.remove();
       else if (item != new_item)
       {
-	VOID(li.replace(new_item));
+        if (and_level)
+	{
+          /*
+            Take a special care of multiple equality predicates
+            that may be part of 'cond' and 'new_item'.
+            Those multiple equalities that have common members
+            must be merged.
+	  */  
+          Item_cond_and *cond_and= (Item_cond_and *) cond;
+          List<Item_equal> *cond_equal_items=
+            &cond_and->cond_equal.current_level;
+          List<Item> *cond_and_list= cond_and->argument_list();
+
+          if (new_item->type() == Item::COND_ITEM && 
+              ((Item_cond*) new_item)->functype() == Item_func::COND_AND_FUNC)
+          {
+            Item_cond_and *new_item_and= (Item_cond_and *) new_item;
+            List<Item_equal> *new_item_equal_items=
+              &new_item_and->cond_equal.current_level;
+            List<Item> *new_item_and_list= new_item_and->argument_list();
+            cond_and_list->disjoin((List<Item>*) cond_equal_items);
+            new_item_and_list->disjoin((List<Item>*) new_item_equal_items);
+            Item_equal *equal_item;
+            List_iterator<Item_equal> it(*new_item_equal_items);
+	    while ((equal_item= it++))
+	    {
+              equal_item->merge_into_list(cond_equal_items);
+            }
+            if (new_item_and_list->is_empty())
+              li.remove();
+            else
+              li.replace(*new_item_and_list);
+            cond_and_list->concat((List<Item>*) cond_equal_items); 
+          }
+          else if (new_item->type() == Item::FUNC_ITEM && 
+                   ((Item_cond*) new_item)->functype() ==
+                   Item_func::MULT_EQUAL_FUNC)
+	  {
+            cond_and_list->disjoin((List<Item>*) cond_equal_items);
+            ((Item_equal *) new_item)->merge_into_list(cond_equal_items);
+            li.remove();
+            cond_and_list->concat((List<Item>*) cond_equal_items); 
+          }
+          else
+            li.replace(new_item);
+        }
+        else
+	{ 
+          if (new_item->type() == Item::COND_ITEM &&
+              ((Item_cond*) new_item)->functype() == 
+              ((Item_cond*) cond)->functype())
+            li.replace(*((Item_cond*) new_item)->argument_list());
+	  else
+            li.replace(new_item);
+        } 
 	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)

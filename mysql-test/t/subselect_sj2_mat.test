@@ -219,3 +219,47 @@ DROP TABLE t1,t2,t3,t4;
 
 set optimizer_switch=@save_optimizer_switch;
 
+--echo #
+--echo # mdev-4177: materialization of a subquery whose WHERE condition is OR
+--echo # formula with two disjucts such that the second one is always false
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
+
+CREATE TABLE t1 (i1 int) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1), (7), (4), (8), (4);
+
+CREATE TABLE t2 (i2 int) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7), (5);
+
+CREATE TABLE t3 (i3 int) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (7), (2), (9);
+
+set join_cache_level=3;
+
+set optimizer_switch='materialization=off,semijoin=off';
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+
+set optimizer_switch='materialization=on,semijoin=on';
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+SELECT * FROM t1 WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 = i2 OR 1=2);
+
+EXPLAIN EXTENDED 
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 0 AND i3 = i2 OR 1=2);
+SELECT * FROM t1 
+  WHERE i1 IN (SELECT i3 FROM t2, t3 WHERE i3 > 7 AND i3 = i2 OR 1=2);
+
+DROP TABLE t1,t2,t3;
+
+set join_cache_level= @save_join_cache_level;
+set optimizer_switch=@save_optimizer_switch;
+

@@ -5491,7 +5491,7 @@ Item_equal::Item_equal(Item_equal *item_equal)
 }
 
 
-/*
+/**
   @brief
   Add a constant item to the Item_equal object
 
@@ -5536,6 +5536,7 @@ void Item_equal::add_const(Item *c, Item *f)
   if (cond_false)
     const_item_cache= 1;
 }
+
 
 /**
   @brief
@@ -5601,6 +5602,87 @@ void Item_equal::merge(Item_equal *item)
   }
   cond_false|= item->cond_false;
 } 
+
+
+/**
+  @brief
+  Merge members of another Item_equal object into this one
+  
+  @param item    multiple equality whose members are to be merged
+
+  @details
+  If the Item_equal 'item' happened to have some elements of the list
+  of equal items belonging to 'this' object then the function merges
+  the equal items from 'item' into this list.
+  If both lists contains constants and they are different then
+  the value of the cond_false flag is set to TRUE.
+
+  @retval
+    1    the lists of equal items in 'item' and 'this' contain common elements 
+  @retval
+    0    otherwise 
+
+  @notes
+  The method 'merge' just joins the list of equal items belonging to 'item'
+  to the list of equal items belonging to this object assuming that the lists
+  are disjoint. It would be more correct to call the method 'join'.
+  The method 'merge_with_check' really merges two lists of equal items if they
+  have common members.  
+*/
+  
+bool Item_equal::merge_with_check(Item_equal *item)
+{
+  bool intersected= FALSE;
+  Item_equal_fields_iterator_slow fi(*this);
+  while (fi++)
+  {
+    if (item->contains(fi.get_curr_field()))
+    {
+      fi.remove();
+      intersected= TRUE;
+    }
+  }
+  if (intersected)
+    item->merge(this);
+  return intersected;
+}
+
+
+/**
+  @brief
+  Merge this object into a list of Item_equal objects 
+  
+  @param list   the list of Item_equal objects to merge into
+
+  @details
+  If the list of equal items from 'this' object contains common members
+  with the lists of equal items belonging to Item_equal objects from 'list'
+  then all involved Item_equal objects e1,...,ek are merged into one 
+  Item equal that replaces e1,...,ek in the 'list'. Otherwise this
+  Item_equal is joined to the 'list'.
+*/
+
+void Item_equal::merge_into_list(List<Item_equal> *list)
+{
+  Item_equal *item;
+  List_iterator<Item_equal> it(*list);
+  Item_equal *merge_into= NULL;
+  while((item= it++))
+  {
+    if (!merge_into)
+    {
+      if (merge_with_check(item))
+        merge_into= item;
+    }
+    else
+    {
+      if (item->merge_with_check(merge_into))
+        it.remove();
+    }
+  }
+  if (!merge_into)
+    list->push_back(this);
+}
 
 
 /**

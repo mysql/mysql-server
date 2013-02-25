@@ -1612,6 +1612,7 @@ public:
   bool eval_not_null_tables(uchar *opt_arg);
 };
 
+template <template<class> class LI, class T> class Item_equal_iterator;
 
 /*
   The class Item_equal is used to represent conjunctions of equality
@@ -1760,6 +1761,8 @@ public:
   /** Get number of field items / references to field items in this object */   
   uint n_field_items() { return equal_items.elements-test(with_const); }
   void merge(Item_equal *item);
+  bool merge_with_check(Item_equal *equal_item);
+  void merge_into_list(List<Item_equal> *list);
   void update_const();
   enum Functype functype() const { return MULT_EQUAL_FUNC; }
   longlong val_int(); 
@@ -1775,7 +1778,8 @@ public:
   CHARSET_INFO *compare_collation();
 
   void set_context_field(Item_field *ctx_field) { context_field= ctx_field; }
-  friend class Item_equal_fields_iterator;
+  friend class Item_equal_iterator<List_iterator_fast,Item>;
+  friend class Item_equal_iterator<List_iterator,Item>;
   friend Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
                            Item_equal *item_equal);
   friend bool setup_sj_materialization_part1(struct st_join_table *tab);
@@ -1798,39 +1802,42 @@ public:
 
 
 /* 
-  The class Item_equal_fields_iterator is used to iterate over references
-  to table/view columns from a list of equal items.
+  The template Item_equal_iterator is used to define classes
+  Item_equal_fields_iterator and Item_equal_fields_iterator_slow.
+  These are helper classes for the class Item equal
+  Both classes are used to iterate over references to table/view columns
+  from the list of equal items that included in an Item_equal object. 
+  The second class supports the operation of removal of the current member
+  from the list when performing an iteration.
 */ 
 
-class Item_equal_fields_iterator : public List_iterator_fast<Item>
+template <template<class> class LI, class T> class Item_equal_iterator
+  : public LI<T>
 {
+protected:
   Item_equal *item_equal;
   Item *curr_item;
 public:
-  Item_equal_fields_iterator(Item_equal &item_eq) 
-    :List_iterator_fast<Item> (item_eq.equal_items)
+  Item_equal_iterator<LI,T>(Item_equal &item_eq) 
+    :LI<T> (item_eq.equal_items)
   {
     curr_item= NULL;
     item_equal= &item_eq;
     if (item_eq.with_const)
     {
-      List_iterator_fast<Item> *list_it= this;
+      LI<T> *list_it= this;
       curr_item=  (*list_it)++;
     }
   }
   Item* operator++(int)
   { 
-    List_iterator_fast<Item> *list_it= this;
+    LI<T> *list_it= this;
     curr_item= (*list_it)++;
     return curr_item;
   }
-  Item ** ref()
-  {
-    return List_iterator_fast<Item>::ref();
-  }
   void rewind(void) 
   { 
-    List_iterator_fast<Item> *list_it= this;
+    LI<T> *list_it= this;
     list_it->rewind();
     if (item_equal->with_const)
       curr_item= (*list_it)++;
@@ -1840,6 +1847,34 @@ public:
     Item_field *item= (Item_field *) (curr_item->real_item());
      return item->field;
   }  
+};
+
+
+class Item_equal_fields_iterator
+  :public Item_equal_iterator<List_iterator_fast,Item >
+{
+public:
+  Item_equal_fields_iterator(Item_equal &item_eq) 
+    :Item_equal_iterator(item_eq)
+  { }
+  Item ** ref()
+  {
+    return List_iterator_fast<Item>::ref();
+  }
+};
+
+
+class Item_equal_fields_iterator_slow
+  :public Item_equal_iterator<List_iterator,Item >
+{
+public:
+  Item_equal_fields_iterator_slow(Item_equal &item_eq) 
+    :Item_equal_iterator(item_eq)
+  { }
+  void remove()
+  {
+    List_iterator<Item>::remove();
+  }
 };
 
 
