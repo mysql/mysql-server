@@ -30,6 +30,21 @@ Created 2012-08-21 Sunny Bains.
 #include "ut0rnd.h"
 #include "sync0types.h"
 
+/* Do nothing */
+template <typename Mutex>
+struct NoPolicy {
+
+	/** Default constructor. */
+	NoPolicy(bool track = false) { }
+
+	void init(const Mutex&, const char*, const char*, int) UNIV_NOTHROW { }
+	void destroy() UNIV_NOTHROW { }
+	void enter(const Mutex&) UNIV_NOTHROW { }
+	void locked(const Mutex&) UNIV_NOTHROW { }
+	void release(const Mutex&) UNIV_NOTHROW { }
+	void print(FILE* stream) const { };
+};
+
 /** Track policy. */
 template <typename Mutex>
 struct TrackPolicy {

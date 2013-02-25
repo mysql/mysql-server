@@ -35,7 +35,7 @@ extern ulong 	srv_force_recovery_crash;
 /** OS event mutex. We can't track the locking because this mutex is used
 by the events code. The mutex can be released by the condition variable
 and therefore we lose the tracking information. */
-template <template <typename> class Policy = TrackPolicy>
+template <template <typename> class Policy = NoPolicy>
 struct OSBasicMutex {
 
 	typedef Policy<OSBasicMutex> MutexPolicy;
@@ -189,7 +189,7 @@ protected:
 };
 
 /** OS debug mutex. */
-template <template <typename> class Policy = TrackPolicy>
+template <template <typename> class Policy = NoPolicy>
 struct OSTrackMutex : public OSBasicMutex<Policy> {
 
 	typedef typename OSBasicMutex<Policy>::MutexPolicy MutexPolicy;
@@ -235,6 +235,26 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
+#if 0
+		/* The Test, Test again And Set (TTAS) loop. */
+
+		ulint		delay = srv_spin_wait_delay;
+		ulint		n_rounds = srv_n_spin_wait_rounds;
+
+		bool	locked = try_lock();
+
+		for (ulint i = 0; !locked && i < n_rounds; ++i) {
+
+			ut_delay(ut_rnd_interval(0, delay));
+
+			locked = try_lock();
+		}
+
+		if (locked) {
+			return;
+		}
+#endif
+
                 OSBasicMutex<Policy>::enter(filename, line);
 
 		ut_ad(!m_locked);
@@ -287,7 +307,7 @@ private:
 #include <sys/syscall.h>
 
 /** Mutex implementation that used the Linux futex. */
-template <template <typename> class Policy = TrackPolicy>
+template <template <typename> class Policy = NoPolicy>
 struct TTASFutexMutex {
 
 	typedef Policy<TTASFutexMutex> MutexPolicy;
@@ -328,19 +348,15 @@ struct TTASFutexMutex {
 	{
 		lock_word_t	lock = ttas();
 
-		/* If there were no waiters when this lock tried
-		to acquire the mutex then set the waiters flag now. */
+		/* If there were no waiters when this thread tried
+		to acquire the mutex then set the waiters flag now.
+		Additionally, when this thread set the waiters flag it is
+		possible that the mutex had already been released
+		by then. In this case the thread can assume it
+		was granted the mutex. */
 
-		if (lock != MUTEX_STATE_UNLOCKED) {
-
-			/* When this thread set the waiters flag it is
-			possible that the mutex had already been released
-			by then. In this case the thread can assume it
-			was granted the mutex. */
-
-			if (lock == MUTEX_STATE_LOCKED && set_waiters()) {
-				return;
-			}
+		if (lock != MUTEX_STATE_UNLOCKED
+		    && (lock != MUTEX_STATE_LOCKED || !set_waiters())) {
 
 			wait();
 		}
@@ -353,7 +369,7 @@ struct TTASFutexMutex {
 		them up. Reset the lock state to unlocked so that waiting
 		threads can test for success. */
 
-		if (m_lock_word == MUTEX_STATE_WAITERS) {
+		if (state() == MUTEX_STATE_WAITERS) {
 
 			m_lock_word = MUTEX_STATE_UNLOCKED;
 
@@ -437,34 +453,28 @@ private:
 	{
 		return(CAS(&m_lock_word,
 			   MUTEX_STATE_LOCKED, MUTEX_STATE_WAITERS)
-		       == MUTEX_STATE_LOCKED);
+		       != MUTEX_STATE_UNLOCKED);
 	}
 
 	/** Wait if the lock is contended. */
 	void wait() UNIV_NOTHROW
 	{
-		do {
-			/* Use FUTEX_WAIT_PRIVATE because our mutexes are
-			not shared between processes. */
+		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
+		not shared between processes. */
 
+		do {
 			syscall(SYS_futex, &m_lock_word,
 				FUTEX_WAIT_PRIVATE, MUTEX_STATE_WAITERS,
 				0, 0, 0);
 
-		// FIXME: Do we care about the return value?
-
+			// FIXME: Do we care about the return value?
 		} while (!set_waiters());
 	}
 
 	/** Wakeup a waiting thread */
-	void signal() UNIV_NOTHROW
+	void signal () UNIV_NOTHROW
 	{
-		/* Use FUTEX_WAIT_PRIVATE because our mutexes are
-		not shared between processes. */
-
-		syscall(SYS_futex, &m_lock_word,
-			FUTEX_WAKE_PRIVATE, MUTEX_STATE_LOCKED,
-			0, 0, 0);
+		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE, 1, 0, 0, 0);
 
 		// FIXME: Do we care about the return value?
 	}
@@ -491,19 +501,18 @@ private:
 			ut_delay(ut_rnd_interval(0, delay));
 		}
 
-		os_thread_yield();
-
 		return(trylock());
 	}
 
 private:
 	MutexPolicy		m_policy;
+
 	volatile lock_word_t	m_lock_word;
 };
 
 #endif /* HAVE_IB_LINUX_FUTEX */
 
-template <template <typename> class Policy = TrackPolicy>
+template <template <typename> class Policy = NoPolicy>
 struct TTASMutex {
 
 	typedef Policy<TTASMutex> MutexPolicy;
@@ -1133,13 +1142,13 @@ private:
 #ifndef UNIV_DEBUG
 
 # ifdef HAVE_IB_LINUX_FUTEX
-typedef PolicyMutex<TTASFutexMutex<TrackPolicy> >  FutexMutex;
+typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<TTASEventMutex<TrackPolicy> > Mutex;
-typedef PolicyMutex<TTASMutex<TrackPolicy> > SpinMutex;
-typedef PolicyMutex<OSTrackMutex<TrackPolicy> > SysMutex;
-typedef PolicyMutex<OSBasicMutex<TrackPolicy> > EventMutex;
+typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
+typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
+typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
 
 #else /* !UNIV_DEBUG */
 

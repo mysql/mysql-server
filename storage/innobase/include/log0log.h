@@ -710,6 +710,9 @@ extern log_t*	log_sys;
 #define LOG_GROUP_OK		301
 #define LOG_GROUP_CORRUPTED	302
 
+typedef ib_mutex_t	LogSysMutex;
+typedef ib_mutex_t	FlushOrderMutex;
+
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil. */
 struct log_group_t{
@@ -772,9 +775,9 @@ struct log_t{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	ib_mutex_t		mutex;		/*!< mutex protecting the log */
+	LogSysMutex	mutex;		/*!< mutex protecting the log */
 
-	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+	FlushOrderMutex	log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
 					behind this mutex is to be able

@@ -52,7 +52,7 @@ struct generic_indexer_t {
 #include <utmpx.h>
 /** Use the cpu id to index into the counter array. If it fails then
 use the thread id. */
-template <typename Type, int N>
+template <typename Type=int, int N=1>
 struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should be OK. */
 
@@ -71,7 +71,7 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	}
 };
 #elif HAVE_GETCURRENTPROCESSORNUMBER
-template <typename Type, int N>
+template <typename Type=int, int N=1>
 struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/** Default constructor/destructor should be OK. */
 
