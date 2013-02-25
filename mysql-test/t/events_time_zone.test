@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # 1. This test case is sensitive to execution timing.  You may control
 #    this sensitivity by the parameter below.  Small values will result
 #    in fast but more unstable execution, large values will improve
