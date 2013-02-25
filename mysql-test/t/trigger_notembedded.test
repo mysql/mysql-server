@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test case(s) in this file contain(s) GRANT/REVOKE statements, which are not
 # supported in embedded server. So, this test should not be run on embedded
 # server.

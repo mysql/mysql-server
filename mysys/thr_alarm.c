@@ -17,8 +17,6 @@
 #define FORCE_DBUG_OFF
 #include "mysys_priv.h"
 #include <my_global.h>
-
-#if !defined(DONT_USE_THR_ALARM)
 #include <errno.h>
 #include <my_pthread.h>
 #include <signal.h>
@@ -53,12 +51,7 @@ pthread_t alarm_thread;
 
 #define MY_THR_ALARM_QUEUE_EXTENT 10
 
-#ifdef USE_ALARM_THREAD
-static void *alarm_handler(void *arg);
-#define reschedule_alarms() mysql_cond_signal(&COND_alarm)
-#else
 #define reschedule_alarms() pthread_kill(alarm_thread,THR_SERVER_ALARM)
-#endif
 
 static sig_handler thread_alarm(int sig __attribute__((unused)));
 
@@ -84,27 +77,14 @@ void init_thr_alarm(uint max_alarms)
     thr_client_alarm= SIGALRM;
   else
     thr_client_alarm= SIGUSR1;
-#ifndef USE_ALARM_THREAD
   if (thd_lib_detected != THD_LIB_LT)
-#endif
   {
     my_sigset(thr_client_alarm, thread_alarm);
   }
   sigemptyset(&s);
   sigaddset(&s, THR_SERVER_ALARM);
   alarm_thread=pthread_self();
-#if defined(USE_ALARM_THREAD)
-  {
-    pthread_attr_t thr_attr;
-    pthread_attr_init(&thr_attr);
-    pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_PROCESS);
-    pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
-    pthread_attr_setstacksize(&thr_attr,8196);
-    mysql_thread_create(key_thread_alarm,
-                        &alarm_thread, &thr_attr, alarm_handler, NULL);
-    pthread_attr_destroy(&thr_attr);
-  }
-#elif defined(USE_ONE_SIGNAL_HAND)
+#if defined(USE_ONE_SIGNAL_HAND)
   pthread_sigmask(SIG_BLOCK, &s, NULL);		/* used with sigwait() */
   if (thd_lib_detected == THD_LIB_LT)
   {
@@ -313,18 +293,14 @@ sig_handler process_alarm(int sig __attribute__((unused)))
     process_alarm() at the same time
   */
 
-#ifndef USE_ALARM_THREAD
   pthread_sigmask(SIG_SETMASK,&full_signal_set,&old_mask);
   mysql_mutex_lock(&LOCK_alarm);
-#endif
   process_alarm_part2(sig);
-#ifndef USE_ALARM_THREAD
 #if defined(SIGNAL_HANDLER_RESET_ON_DELIVERY) && !defined(USE_ONE_SIGNAL_HAND)
   my_sigset(THR_SERVER_ALARM,process_alarm);
 #endif
   mysql_mutex_unlock(&LOCK_alarm);
   pthread_sigmask(SIG_SETMASK,&old_mask,NULL);
-#endif
   return;
 }
 
@@ -358,10 +334,8 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	else
 	  i++;					/* Signal next thread */
       }
-#ifndef USE_ALARM_THREAD
       if (alarm_queue.elements)
 	alarm(1);				/* Signal soon again */
-#endif
     }
     else
     {
@@ -387,7 +361,6 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	  queue_replaced(&alarm_queue);
 	}
       }
-#ifndef USE_ALARM_THREAD
       if (alarm_queue.elements)
       {
 #ifdef __bsdi__
@@ -396,7 +369,6 @@ static sig_handler process_alarm_part2(int sig __attribute__((unused)))
 	alarm((uint) (alarm_data->expire_time-now));
         next_alarm_expire_time= alarm_data->expire_time;
       }
-#endif
     }
   }
   else
@@ -533,66 +505,6 @@ static sig_handler thread_alarm(int sig __attribute__((unused)))
 #define tv_nsec ts_nsec
 #endif
 
-/* set up a alarm thread with uses 'sleep' to sleep between alarms */
-
-#ifdef USE_ALARM_THREAD
-static void *alarm_handler(void *arg __attribute__((unused)))
-{
-  int error;
-  struct timespec abstime;
-#ifdef MAIN
-  puts("Starting alarm thread");
-#endif
-  my_thread_init();
-  alarm_thread_running= 1;
-  mysql_mutex_lock(&LOCK_alarm);
-  for (;;)
-  {
-    if (alarm_queue.elements)
-    {
-      ulong sleep_time,now= my_time(0);
-      if (alarm_aborted)
-	sleep_time=now+1;
-      else
-	sleep_time= ((ALARM*) queue_top(&alarm_queue))->expire_time;
-      if (sleep_time > now)
-      {
-	abstime.tv_sec=sleep_time;
-	abstime.tv_nsec=0;
-        next_alarm_expire_time= sleep_time;
-        if ((error= mysql_cond_timedwait(&COND_alarm, &LOCK_alarm, &abstime)) &&
-	    error != ETIME && error != ETIMEDOUT)
-	{
-#ifdef MAIN
-	  printf("Got error: %d from ptread_cond_timedwait (errno: %d)\n",
-		 error,errno);
-#endif
-	}
-      }
-    }
-    else if (alarm_aborted == -1)
-      break;
-    else
-    {
-      next_alarm_expire_time= ~ (time_t) 0;
-      if ((error= mysql_cond_wait(&COND_alarm, &LOCK_alarm)))
-      {
-#ifdef MAIN
-        printf("Got error: %d from ptread_cond_wait (errno: %d)\n",
-               error,errno);
-#endif
-      }
-    }
-    process_alarm(0);
-  }
-  memset(&alarm_thread, 0, sizeof(alarm_thread)); /* For easy debugging */
-  alarm_thread_running= 0;
-  mysql_cond_signal(&COND_alarm);
-  mysql_mutex_unlock(&LOCK_alarm);
-  pthread_exit(0);
-  return 0;					/* Impossible */
-}
-#endif /* USE_ALARM_THREAD */
 
 /*****************************************************************************
   thr_alarm for win95
@@ -680,14 +592,11 @@ void resize_thr_alarm(uint max_alarms)
 
 #endif /* __WIN__ */
 
-#endif
-
 /****************************************************************************
   Handling of test case (when compiled with -DMAIN)
 ***************************************************************************/
 
 #ifdef MAIN
-#if !defined(DONT_USE_THR_ALARM)
 
 static mysql_cond_t COND_thread_count;
 static mysql_mutex_t LOCK_thread_count;
@@ -954,13 +863,4 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
   return 0;
 }
 
-#else /* !defined(DONT_USE_ALARM_THREAD) */
-
-int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
-{
-  printf("thr_alarm disabled with DONT_USE_THR_ALARM\n");
-  exit(1);
-}
-
-#endif /* !defined(DONT_USE_ALARM_THREAD) */
 #endif /* MAIN */

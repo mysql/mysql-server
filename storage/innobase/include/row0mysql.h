@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,6 +105,36 @@ row_mysql_read_blob_ref(
 					MySQL format */
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
+/*******************************************************************//**
+Converts InnoDB geometry data format to MySQL data format. */
+UNIV_INTERN
+void
+row_mysql_store_geometry(
+/*=====================*/
+	byte*		dest,		/*!< in/out: where to store */
+	ulint		dest_len,	/*!< in: dest buffer size: determines into
+					how many bytes the geometry length is stored,
+					the space for the length may vary from 1
+					to 4 bytes */
+	const byte*	src,		/*!< in: geometry data; if the value to store
+					is SQL NULL this should be NULL pointer */
+	ulint		src_len);	/*!< in: geometry length; if the value to store
+					is SQL NULL this should be 0; remember
+					also to set the NULL bit in the MySQL record
+					header! */
+/*******************************************************************//**
+Reads a reference to a geometry data in the MySQL format.
+@return	pointer to geometry data */
+UNIV_INTERN
+const byte*
+row_mysql_read_geometry(
+/*====================*/
+	ulint*		len,		/*!< out: geometry data length */
+	const byte*	ref,		/*!< in: reference in the
+					MySQL format */
+	ulint		col_len)	/*!< in: BLOB reference length
+					(not BLOB length) */
+	__attribute__((nonnull(1,2), warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 UNIV_INTERN

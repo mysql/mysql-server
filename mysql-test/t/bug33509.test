@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # BUG#33509: Server crashes with number of recursive subqueries=61
 #  (the query may or may not fail with an error so we're using it with SP 

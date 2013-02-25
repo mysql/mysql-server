@@ -378,19 +378,19 @@ protected:
 public:  
 
   void mark_as_sum_func();
-  Item_sum() :quick_group(1), arg_count(0), forced_const(FALSE)
+  Item_sum() :next(NULL), quick_group(1), arg_count(0), forced_const(FALSE)
   {
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum(Item *a) :quick_group(1), arg_count(1), args(tmp_args),
+  Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum( Item *a, Item *b ) :quick_group(1), arg_count(2), args(tmp_args),
+  Item_sum( Item *a, Item *b ) :next(NULL), quick_group(1), arg_count(2), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
