@@ -1611,7 +1611,7 @@ YY_BUFFER_STATE fts0b_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 
 static void yy_fatal_error (yyconst char* msg ,     yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
-    	(void) fprintf( stderr, "%s\n", msg );
+	(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
 }
 

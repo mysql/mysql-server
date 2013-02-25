@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -167,6 +167,8 @@ int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
+void append_identifier(THD *thd, String *packet, const char *name, uint length,
+                       const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs);
 inline void append_identifier(THD *thd, String *packet, Simple_cstring str)
 {
   append_identifier(thd, packet, str.ptr(), static_cast<uint>(str.length()));

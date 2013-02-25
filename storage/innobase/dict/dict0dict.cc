@@ -4182,7 +4182,10 @@ col_loop1:
 	}
 
 	/* Try to find an index which contains the columns
-	as the first fields and in the right order */
+	as the first fields and in the right order. There is
+	no need to check column type match (on types_idx), since
+	the referenced table can be NULL if foreign_key_checks is
+	set to 0 */
 
 	index = dict_foreign_find_index(
 		table, NULL, column_names, i, NULL, TRUE, FALSE);
