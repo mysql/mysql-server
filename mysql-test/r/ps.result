@@ -3917,6 +3917,6 @@ CREATE TABLE t1 (col1 INT);
 KILL QUERY <con1_id>;
 # Connection con1
 SELECT * FROM t1;
-ERROR 70100: Query execution was interrupted
+col1
 # Connection default
 DROP TABLE t1;
