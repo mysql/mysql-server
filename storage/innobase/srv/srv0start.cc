@@ -1110,6 +1110,8 @@ innobase_start_or_create_for_mysql(void)
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
 	}
 
+	ib_logf(IB_LOG_LEVEL_INFO, MUTEX_TYPE);
+
 #ifdef HAVE_DARWIN_THREADS
 # ifdef F_FULLFSYNC
 	/* This executable has been compiled on Mac OS X 10.3 or later.
