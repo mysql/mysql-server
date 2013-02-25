@@ -71,7 +71,7 @@ keep the global wait array for the sake of diagnostics and also to avoid
 infinite wait The error_monitor thread scans the global wait array to signal
 any waiting threads who have missed the signal. */
 
-typedef Mutex::MutexType WaitMutex;
+typedef SyncArrayMutex::MutexType WaitMutex;
 
 /** The latch types that use the sync array. */
 union sync_object_t {

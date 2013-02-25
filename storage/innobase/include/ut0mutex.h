@@ -1145,7 +1145,7 @@ private:
 typedef PolicyMutex<TTASFutexMutex<NoPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASEventMutex<TrackPolicy> > Mutex;
+typedef PolicyMutex<TTASEventMutex<TrackPolicy> > SyncArrayMutex;
 typedef PolicyMutex<TTASMutex<NoPolicy> > SpinMutex;
 typedef PolicyMutex<OSTrackMutex<NoPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
@@ -1156,15 +1156,26 @@ typedef PolicyMutex<OSBasicMutex<NoPolicy> > EventMutex;
 typedef PolicyMutex<TTASFutexMutex<DebugPolicy> > FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
-typedef PolicyMutex<TTASEventMutex<DebugPolicy> > Mutex;
+typedef PolicyMutex<TTASEventMutex<DebugPolicy> > SyncArrayMutex;
 typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<OSTrackMutex<DebugPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
 
 #endif /* !UNIV_DEBUG */
 
+#ifdef MUTEX_FUTEX
 /** The default mutex type. */
-typedef Mutex ib_mutex_t;
+typedef FutexMutex ib_mutex_t;
+#define MUTEX_TYPE	"Uses futexes"
+#elif defined(MUTEX_SYS)
+typedef SysMutex ib_mutex_t;
+#define MUTEX_TYPE	"Uses system mutexes"
+#elif defined(MUTEX_EVENT)
+typedef SyncArrayMutex ib_mutex_t;
+#define MUTEX_TYPE	"Uses event mutexes"
+#else
+#error "ib_mutex_t type is unknown"
+#endif /* MUTEX_FUTEX */
 
 #include "ut0mutex.ic"
 

@@ -251,9 +251,6 @@ MARK_AS_ADVANCED(WITH_FAST_MUTEXES)
 
 OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 
-OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
-MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
-
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
