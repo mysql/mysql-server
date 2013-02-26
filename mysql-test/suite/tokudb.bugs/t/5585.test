@@ -1,8 +1,6 @@
 --source include/have_innodb.inc
 --source include/have_tokudb.inc
 
-set global tokudb_debug=0;
-
 --disable_warnings
 drop table if exists t1, t2;
 --enable_warnings
