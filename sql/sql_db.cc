@@ -873,7 +873,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     tmp_disable_binlog(thd);
     query_cache_invalidate1(db);
     (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db);
 #endif
     reenable_binlog(thd);
