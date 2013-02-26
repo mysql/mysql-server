@@ -8077,11 +8077,8 @@ static int mysql_init_variables(void)
 
   have_query_cache=SHOW_OPTION_YES;
 
-#ifdef HAVE_SPATIAL
   have_geometry=SHOW_OPTION_YES;
-#else
-  have_geometry=SHOW_OPTION_NO;
-#endif
+
 #ifdef HAVE_RTREE_KEYS
   have_rtree_keys=SHOW_OPTION_YES;
 #else

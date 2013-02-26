@@ -2857,7 +2857,6 @@ int prepare_create_field(Create_field *sql_field,
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_GEOMETRY:
-#ifdef HAVE_SPATIAL
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
       my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
@@ -2873,11 +2872,6 @@ int prepare_create_field(Create_field *sql_field,
     sql_field->unireg_check=Field::BLOB_FIELD;
     (*blob_columns)++;
     break;
-#else
-    my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-                    sym_group_geom.name, sym_group_geom.needed_define);
-    DBUG_RETURN(1);
-#endif /*HAVE_SPATIAL*/
   case MYSQL_TYPE_VARCHAR:
 #ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
     if (table_flags & HA_NO_VARCHAR)
@@ -3725,14 +3719,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           key_info->parser_name= 0;
 	break;
     case Key::SPATIAL:
-#ifdef HAVE_SPATIAL
 	key_info->flags= HA_SPATIAL;
 	break;
-#else
-	my_error(ER_FEATURE_DISABLED, MYF(0),
-                 sym_group_geom.name, sym_group_geom.needed_define);
-	DBUG_RETURN(TRUE);
-#endif
     case Key::FOREIGN_KEY:
       key_number--;				// Skip this key
       continue;
@@ -3908,7 +3896,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    DBUG_RETURN(TRUE);
 	  }
 	}
-#ifdef HAVE_SPATIAL
 	if (key->type == Key::SPATIAL)
 	{
 	  if (!column->length)
@@ -3920,7 +3907,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    column->length= 4*sizeof(double);
 	  }
 	}
-#endif
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)

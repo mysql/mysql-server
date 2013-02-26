@@ -602,7 +602,6 @@
 /*
   Stuff that always need to be defined (compile breaks without it)
 */
-#define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
 #define BIG_TABLES 1
 

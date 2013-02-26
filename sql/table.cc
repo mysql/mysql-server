@@ -1623,13 +1623,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* charset and geometry_type share the same byte in frm */
       if (field_type == MYSQL_TYPE_GEOMETRY)
       {
-#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
-#else
-	error= 4;  // unsupported field type
-	goto err;
-#endif
       }
       else
       {
