@@ -752,7 +752,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      query_cache_invalidate3(thd, table_list, 1);
+      query_cache.invalidate(thd, table_list, TRUE);
     }
 
     if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
@@ -1968,7 +1968,7 @@ bool select_insert::send_eof()
       We must invalidate the table in the query cache before binlog writing
       and ha_autocommit_or_rollback.
     */
-    query_cache_invalidate3(thd, table, 1);
+    query_cache.invalidate(thd, table, TRUE);
   }
 
   DBUG_ASSERT(trans_table || !changed || 
@@ -2086,7 +2086,7 @@ void select_insert::abort_result_set() {
                                    transactional_table, FALSE, FALSE, errcode);
         }
 	if (changed)
-	  query_cache_invalidate3(thd, table, 1);
+	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
 		thd->transaction.stmt.cannot_safely_rollback());

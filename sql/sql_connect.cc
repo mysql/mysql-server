@@ -483,7 +483,7 @@ bool init_new_connection_handler_thread()
   pthread_detach_this_thread();
   if (my_thread_init())
   {
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1;
   }
   return 0;
@@ -589,7 +589,7 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable for peer address errors.
       */
-      statistic_increment_rwlock(connection_errors_peer_addr, &LOCK_status);
+      connection_errors_peer_addr++;
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
@@ -600,7 +600,7 @@ static int check_connection(THD *thd)
         this is treated as a global server OOM error.
         TODO: remove the need for my_strdup.
       */
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      connection_errors_internal++;
       return 1; /* The error is set by my_strdup(). */
     }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -665,7 +665,7 @@ static int check_connection(THD *thd)
       Hence, there is no reason to account on OOM conditions per client IP,
       we count failures in the global server status instead.
     */
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1; /* The error is set by alloc(). */
   }
 
@@ -702,7 +702,7 @@ bool setup_connection_thread_globals(THD *thd)
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
@@ -747,7 +747,7 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -778,7 +778,7 @@ void end_connection(THD *thd)
 
   if (thd->killed || (net->error && net->vio != 0))
   {
-    statistic_increment_rwlock(aborted_threads,&LOCK_status);
+    aborted_threads++;
   }
 
   if (net->error && net->vio != 0)
@@ -929,7 +929,7 @@ void do_handle_one_connection(THD *thd_arg)
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
   }
@@ -944,7 +944,7 @@ void do_handle_one_connection(THD *thd_arg)
     ulong launch_time= (ulong) (thd->thr_create_utime -
                                 thd->prior_thr_create_utime);
     if (launch_time >= slow_launch_time*1000000L)
-      statistic_increment_rwlock(slow_launch_threads, &LOCK_status);
+      slow_launch_threads++;
     thd->prior_thr_create_utime= 0;
   }
 

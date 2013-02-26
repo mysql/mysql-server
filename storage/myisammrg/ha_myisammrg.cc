@@ -824,7 +824,7 @@ int ha_myisammrg::attach_children(void)
     goto err;
   }
   DBUG_PRINT("myrg", ("calling myrg_extrafunc"));
-  myrg_extrafunc(file, query_cache_invalidate_by_MyISAM_filename_ref);
+  myrg_extrafunc(file, &query_cache_invalidate_by_MyISAM_filename);
   if (!(test_if_locked == HA_OPEN_WAIT_IF_LOCKED ||
 	test_if_locked == HA_OPEN_ABORT_IF_LOCKED))
     myrg_extra(file,HA_EXTRA_NO_WAIT_LOCK,0);

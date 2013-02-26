@@ -1899,7 +1899,7 @@ buf_page_set_file_page_was_freed(
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		/* bpage->file_page_was_freed can already hold
-		when this code is invoked from dict_drop_index_tree() */
+		when this code is invoked from dict_drop_index_tree_step() */
 		bpage->file_page_was_freed = TRUE;
 		mutex_exit(block_mutex);
 	}
@@ -3735,7 +3735,6 @@ buf_page_create(
 
 	/* Delete possible entries for the page from the insert buffer:
 	such can exist if the page belonged to an index which was dropped */
-
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	frame = block->frame;
