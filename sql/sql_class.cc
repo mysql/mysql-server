@@ -1281,7 +1281,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache_abort(&query_cache_tls);
+  query_cache.abort(&query_cache_tls);
 
   /* 
      Avoid pushing a condition for fatal out of memory errors as this will 
@@ -2867,7 +2867,6 @@ bool select_export::send_data(List<Item> &items)
 	     pos != end ;
 	     pos++)
 	{
-#ifdef USE_MB
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -2877,7 +2876,6 @@ bool select_export::send_data(List<Item> &items)
 	      continue;
 	    }
 	  }
-#endif
 
           /*
             Special case when dumping BINARY/VARBINARY/BLOB values
@@ -4218,7 +4216,7 @@ void THD::inc_examined_row_count(ha_rows count)
 
 void THD::inc_status_created_tmp_disk_tables()
 {
-  status_var_increment(status_var.created_tmp_disk_tables);
+  status_var.created_tmp_disk_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -4226,7 +4224,7 @@ void THD::inc_status_created_tmp_disk_tables()
 
 void THD::inc_status_created_tmp_tables()
 {
-  status_var_increment(status_var.created_tmp_tables);
+  status_var.created_tmp_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
@@ -4234,7 +4232,7 @@ void THD::inc_status_created_tmp_tables()
 
 void THD::inc_status_select_full_join()
 {
-  status_var_increment(status_var.select_full_join_count);
+  status_var.select_full_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
@@ -4242,7 +4240,7 @@ void THD::inc_status_select_full_join()
 
 void THD::inc_status_select_full_range_join()
 {
-  status_var_increment(status_var.select_full_range_join_count);
+  status_var.select_full_range_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
@@ -4250,7 +4248,7 @@ void THD::inc_status_select_full_range_join()
 
 void THD::inc_status_select_range()
 {
-  status_var_increment(status_var.select_range_count);
+  status_var.select_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
@@ -4258,7 +4256,7 @@ void THD::inc_status_select_range()
 
 void THD::inc_status_select_range_check()
 {
-  status_var_increment(status_var.select_range_check_count);
+  status_var.select_range_check_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
@@ -4266,7 +4264,7 @@ void THD::inc_status_select_range_check()
 
 void THD::inc_status_select_scan()
 {
-  status_var_increment(status_var.select_scan_count);
+  status_var.select_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
@@ -4274,7 +4272,7 @@ void THD::inc_status_select_scan()
 
 void THD::inc_status_sort_merge_passes()
 {
-  status_var_increment(status_var.filesort_merge_passes);
+  status_var.filesort_merge_passes++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
@@ -4282,7 +4280,7 @@ void THD::inc_status_sort_merge_passes()
 
 void THD::inc_status_sort_range()
 {
-  status_var_increment(status_var.filesort_range_count);
+  status_var.filesort_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
@@ -4290,7 +4288,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  statistic_add_rwlock(status_var.filesort_rows, count, &LOCK_status);
+  status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
@@ -4298,7 +4296,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 
 void THD::inc_status_sort_scan()
 {
-  status_var_increment(status_var.filesort_scan_count);
+  status_var.filesort_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif

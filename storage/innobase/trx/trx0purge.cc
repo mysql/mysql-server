@@ -1397,5 +1397,5 @@ trx_purge_run(void)
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
-	srv_wake_purge_thread_if_not_active();
+	srv_purge_wakeup();
 }

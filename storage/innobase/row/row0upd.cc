@@ -1720,8 +1720,11 @@ row_upd_sec_index_entry(
 		}
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
@@ -1732,8 +1735,11 @@ row_upd_sec_index_entry(
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
 	}
@@ -2394,7 +2400,7 @@ row_upd_clust_step(
 
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
+		dict_drop_index_tree_step(btr_pcur_get_rec(pcur), &mtr);
 
 		mtr_commit(&mtr);
 

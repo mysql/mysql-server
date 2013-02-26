@@ -2587,7 +2587,7 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode	= mode | BTR_INSERT;
+	ulint		search_mode	= mode;
 	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
@@ -2599,6 +2599,11 @@ row_ins_sec_index_entry_low(
 	cursor.thr = thr;
 	ut_ad(thr_get_trx(thr)->id);
 	mtr_start(&mtr);
+
+	/* Disable insert buffering for temp-table indexes */
+	if (!dict_table_is_temporary(index->table)) {
+		search_mode |= BTR_INSERT;
+	}
 
 	/* Ensure that we acquire index->lock when inserting into an
 	index with index->online_status == ONLINE_INDEX_COMPLETE, but

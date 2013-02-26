@@ -724,7 +724,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
 
-  status_var_increment(thd->status_var.com_other);
+  thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
@@ -773,7 +773,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
-  status_var_increment(thd->status_var.com_other);
+  thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
