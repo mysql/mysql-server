@@ -1383,7 +1383,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
   }
   else if (thd->lex->sql_command == SQLCOM_SELECT)
-    statistic_increment(refused, &structure_guard_mutex);
+    refused++;
 
 end:
   DBUG_VOID_RETURN;

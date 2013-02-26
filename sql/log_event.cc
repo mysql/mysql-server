@@ -7372,7 +7372,7 @@ bool Xid_log_event::do_commit(THD *thd)
     Increment the global status commit count variable
   */
   if (!error)
-    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
+    thd->status_var.com_stat[SQLCOM_COMMIT]++;
 
   return error;
 }
@@ -12268,7 +12268,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     Increment the global status insert count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+    thd->status_var.com_stat[SQLCOM_INSERT]++;
 
   /**
      todo: to introduce a property for the event (handler?) which forces
@@ -12756,7 +12756,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status delete count variable
    */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);  
+    thd->status_var.com_stat[SQLCOM_DELETE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -12865,7 +12865,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status update count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+    thd->status_var.com_stat[SQLCOM_UPDATE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
