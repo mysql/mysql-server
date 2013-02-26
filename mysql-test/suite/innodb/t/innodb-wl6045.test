@@ -208,11 +208,11 @@ let SEARCH_PATTERN= Error while setting value \'no\' to \'strict-check\';
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
---echo #without restarting the server 
+--echo #without restarting the server
 --echo #After rewriting into new checksum algorithm crc32,check with DML
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
 
---echo #check the records 
+--echo #check the records
 SELECT c1,c2 FROM tab1 order by c1,c2;
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -458,7 +458,7 @@ SELECT * FROM t1;
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
 
---echo #Move the corrupted ib file to t1.ibd 
+--echo #Move the corrupted ib file to t1.ibd
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
 
@@ -486,7 +486,7 @@ SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo # create a base table,Index & insert a record
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
-CREATE INDEX idx1 ON tab1(c2(10)); 
+CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -495,107 +495,203 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
 --echo # Next Test Count the no. of pages
 --echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -c --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd
+let TRACE= $MYSQLTEST_VARDIR/tmp;
 
 perl;
 use strict;
 use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -c $mysqld_datadir/test/tab1.ibd");
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/field1/field_first/g;
+ $_=~ s/field2/field_second/g;
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
+EOF
+--echo # Print the contents of trace file.
+cat_file $TRACE/mtrchecksum.trace;
+
+--echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
-
-perl;
-use strict;
-use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' $mysqld_datadir/test/tab1.ibd");
-EOF
-
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
---echo # Print the contents of trace file without --strict-check for innochecksum.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
-
-perl;
-use strict;
-use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' --strict-check=innodb $mysqld_datadir/test/tab1.ibd");
-EOF
+cat_file $TRACE/mtrchecksum.trace;
 
 --echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
+EOF
+
 --echo # Print the contents of trace file for --strict-check=innodb having Innodb checksum algorithm at server end.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+cat_file $TRACE/mtrchecksum.trace;
 
 --echo # Next Test
 --echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
-perl;
-use strict;
-use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -v --allow-mismatches=99 --strict-check=crc32 $mysqld_datadir/test/tab1.ibd 2>$mysqltest_vardir/log/my_restart.err");
-EOF
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -v --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
 cat_file $SEARCH_FILE;
 
---echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
-
---echo # Next Test 
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 perl;
 use strict;
 use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 $mysqld_datadir/test/tab1.ibd");
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
 EOF
 
---echo # Expect the fails for checksum mismatches. Print the error message.
-cat_file $SEARCH_FILE;
 --echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+cat_file $TRACE/mtrchecksum.trace;
 
 --echo # Next Test: checksum check for page: 2 to page:5
 --echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -s 2 -e 5 $mysqld_datadir/test/tab1.ibd");
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+cat_file $TRACE/mtrchecksum.trace;
 
 --echo # Next Test: checksum check for only pageno.= 2
 --echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
-my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
-my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-exec("$innochecksum -v --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -p 2 $mysqld_datadir/test/tab1.ibd");
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'mtrchecksum.trace';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ #Replace all intergers to #
+ $_=~ s/\d+/#/g;
+ $_=~ s/crc#/crc32/g;
+ $_=~ s/Filename =.+/Filename = tab1.ibd/g;
+ $_=~ s/file .+ =/file tab1.ibd =/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+cat_file $TRACE/mtrchecksum.trace;
+
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -687,15 +783,18 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo #R02: rewrite into new checksum=InnoDB for tab1 & tab2
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/test/tab*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM  --verbose --no-check --write=InnoDB  $MYSQLD_DATADIR/test/tab*.ibd
 
 --echo #R02: rewrite into new checksum=InnoDB for ibdata1
 --echo # INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/ibdata1
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM  --verbose --no-check --write=InnoDB $MYSQLD_DATADIR/ibdata1
 
 --echo #R02: rewrite into new checksum=InnoDB for all (mysql/*.ibd)
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM  --verbose --no-check --write=InnoDB MYSQLD_DATADIR/mysql/*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM  --verbose --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/*.ibd
 
 --echo #R02 : Restart the DB server with innodb_checksum_algorithm=strcit_innoDB
@@ -747,15 +846,18 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo #R02: rewrite into new checksum=crc32 for tab1 & tab2
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/test/tab?.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=CRC32 $MYSQLD_DATADIR/test/tab?.ibd
 
 --echo #R02: rewrite into new checksum=crc32 for ibdata1
 --echo # INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/ibdata1
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=CRC32 $MYSQLD_DATADIR/ibdata1
 
 --echo #R02: rewrite into new checksum=crc32 for all (mysql/*.ibd)
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM --no-check --verbose --write=CRC32 MYSQLD_DATADIR/mysql/*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=CRC32 $MYSQLD_DATADIR/mysql/*.ibd
 
 --echo #R02 : Restart the DB server with innodb_checksum_algorithm=strict_crc32
@@ -771,10 +873,10 @@ SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo #check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
- 
+
 --echo #check the table status is GOOD with DML
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'), 
+VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
 GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
 
 --echo #load the with repeat function
@@ -806,15 +908,18 @@ SELECT * FROM tab2 ORDER BY col_7;
 --echo #R02: rewrite into new checksum=None for tab1 & tab2
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM --no-check --verbose --write=NONE  MYSQLD_DATADIR/test/*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=NONE  $MYSQLD_DATADIR/test/*.ibd
 
 --echo #R02: rewrite into new checksum=None for ibdata1
 --echo # INNOCHECKSUM --no-check --verbose --write=NONE MYSQLD_DATADIR/ibdata1
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=NONE  $MYSQLD_DATADIR/ibdata1
 
 --echo #R02: rewrite into new checksum=None for all (mysql/*.ibd)
 --echo #R06: rewrite the checksum with multiple tablespace files.
 --echo # INNOCHECKSUM --no-check --verbose --write=NONE MYSQLD_DATADIR/mysql/*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
 --exec $INNOCHECKSUM --no-check --verbose --write=NONE $MYSQLD_DATADIR/mysql/*.ibd
 
 --echo #R02 : Restart the DB server with innodb_checksum_algorithm=strcit_None
@@ -830,9 +935,9 @@ SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo #check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
- 
+
 --echo #check the table status is GOOD with DML
-INSERT INTO tab1 (pk, linestring_key, linestring_nokey) 
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
 
 --echo #load the with repeat function
@@ -862,28 +967,82 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo #R07: Check the page type summary with shortform for tab1.ibd
---echo # INNOCHECKSUM -V  MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM -V  $MYSQLD_DATADIR/test/tab1.ibd
+--echo # INNOCHECKSUM -S  MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /File::.*ibd/File::tab1.ibd/
+--exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo #R07: Check the page type summary with longform for tab1.ibd
 --echo # INNOCHECKSUM --page-type-summary  MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /File::.*ibd/File::tab1.ibd/
 --exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo #R07: Check the page type summary with longform for *.ibd
 --echo # INNOCHECKSUM --page-type-summary MYSQLD_DATADIR/test/*.ibd
+--replace_regex /File::.*tab1\.ibd/File::tab1.ibd/ /File::.*tab2\.ibd/File::tab2.ibd/
 --exec $INNOCHECKSUM --page-type-summary $MYSQLD_DATADIR/test/*.ibd
 
 --echo # Page type dump for tab1.ibd
---echo # INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+--echo # INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
+EOF
+
 --echo # Print the contents stored in dump.txt
 cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
 
 --echo # Page type dump for *.ibd
---echo # INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
---exec $INNOCHECKSUM -v --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/*.ibd
+--echo # INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
+--replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
+--exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/*.ibd
+
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'TRACE'};
+opendir(DIR, $dir) or die $!;
+my $file= 'dump.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp" or die $!;
+while(<IN_FILE>) {
+ $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmp", "$dir/$file");
+closedir(DIR);
+EOF
+
 --echo # Print the contents stored in dump.txt
 cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo #R07 : Restart the DB server with innodb_checksum_algorithm=strict_None
 

@@ -493,9 +493,9 @@ buf_page_is_corrupted(
 
 	#ifdef UNIV_INNOCHECKSUM
 	extern my_bool	debug;
-	extern ulint	ct;
+	extern ulint	cur_page_num;
 	verbose = debug;
-	page_no = ct;
+	page_no = cur_page_num;
 	#endif /* !UNIV_INNOCHECKSUM */
 
 	if (!zip_size
