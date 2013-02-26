@@ -327,8 +327,6 @@
 #cmakedefine HAVE_SYS_EVENT_H 1
 #cmakedefine HAVE_SYS_QUEUE_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
-#define USE_MB 1
-#define USE_MB_IDENT 1
 
 #cmakedefine HAVE_VALGRIND
 
@@ -553,8 +551,6 @@
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
-#cmakedefine USE_MB 1
-#cmakedefine USE_MB_IDENT 1
 #cmakedefine USE_STRCOLL 1
 
 /* This should mean case insensitive file system */
