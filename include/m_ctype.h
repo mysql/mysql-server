@@ -767,11 +767,7 @@ uint32 my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
 
 #define use_mb(s)                     ((s)->cset->ismbchar != NULL)
 #define my_ismbchar(s, a, b)          ((s)->cset->ismbchar((s), (a), (b)))
-#ifdef USE_MB
 #define my_mbcharlen(s, a)            ((s)->cset->mbcharlen((s),(a)))
-#else
-#define my_mbcharlen(s, a)            1
-#endif
 
 #define my_caseup_str(s, a)           ((s)->cset->caseup_str((s), (a)))
 #define my_casedn_str(s, a)           ((s)->cset->casedn_str((s), (a)))
