@@ -228,7 +228,7 @@ static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
 #endif
 
-#if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
 static uint tokudb_alter_table_flags(uint flags);
 #endif
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
@@ -388,7 +388,7 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
-#if defined(HA_GENERAL_ONLINE) || defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
     tokudb_hton->alter_table_flags = tokudb_alter_table_flags;
 #endif
     if (!tokudb_home)
@@ -1766,20 +1766,7 @@ static void tokudb_cleanup_log_files(void) {
     DBUG_VOID_RETURN;
 }
 
-#if defined(HA_GENERAL_ONLINE)
-//
-// *******NOTE*****
-// If the flags HA_ONLINE_DROP_INDEX and HA_ONLINE_DROP_UNIQUE_INDEX
-// are ever added, prepare_drop_index and final_drop_index will need to be modified
-// so that the actual deletion of DB's is done in final_drop_index and not prepare_drop_index
-//
-static uint tokudb_alter_table_flags(uint flags)
-{
-    return (HA_ONLINE_ADD_INDEX_NO_WRITES| HA_ONLINE_DROP_INDEX_NO_WRITES |
-            HA_ONLINE_ADD_UNIQUE_INDEX_NO_WRITES| HA_ONLINE_DROP_UNIQUE_INDEX_NO_WRITES|HA_GENERAL_ONLINE);
-
-}
-#elif defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
+#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
 static uint tokudb_alter_table_flags(uint flags) {
     return HA_INPLACE_ADD_INDEX_NO_READ_WRITE
         |  HA_INPLACE_ADD_INDEX_NO_WRITE
