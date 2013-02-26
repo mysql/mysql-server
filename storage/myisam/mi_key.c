@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,11 +63,7 @@ uint _mi_make_key(MI_INFO *info, uint keynr, uchar *key,
     /*
       TODO: nulls processing
     */
-#ifdef HAVE_SPATIAL
     DBUG_RETURN(sp_make_key(info,keynr,key,record,filepos));
-#else
-    DBUG_ASSERT(0); /* mi_open should check that this never happens*/
-#endif
   }
 
   start=key;

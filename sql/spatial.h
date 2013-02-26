@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,9 +18,6 @@
 
 #include "sql_string.h"                         /* String, LEX_STRING */
 #include <my_compiler.h>
-
-#ifdef HAVE_SPATIAL
-
 #include "gcalc_tools.h"
 
 #include <algorithm>
@@ -619,5 +616,4 @@ public:
 struct Geometry_buffer : public
   my_aligned_storage<sizeof(Gis_point), MY_ALIGNOF(Gis_point)> {};
 
-#endif /*HAVE_SPATAIAL*/
 #endif
