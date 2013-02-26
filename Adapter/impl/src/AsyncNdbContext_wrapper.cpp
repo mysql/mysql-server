@@ -71,9 +71,13 @@ Handle<Value> executeAsynch(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(6);
-  
+
+  /* TODO: The JsValueConverter constructor for arg4 creates a 
+     Persistent<Function> from a Local<Value>, but is there 
+     actually a chain of destructors that will call Dispose() on the it? 
+  */  
   typedef NativeMethodCall_5_<int, AsyncNdbContext, NdbTransaction *,
-                              int, int, int, Local<Value> > NCALL;
+                              int, int, int, Persistent<Function> > NCALL;
   NCALL * ncallptr = new NCALL(& AsyncNdbContext::executeAsynch, args);
   ncallptr->runAsync();
   return scope.Close(JS_VOID_RETURN);

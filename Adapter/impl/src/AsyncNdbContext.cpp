@@ -54,7 +54,6 @@ void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
   typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
   MCALL * mcallptr = (MCALL *) v;
   mcallptr->return_val = status;
-  mcallptr->handleErrors();
   
   /* Now stuff the AsyncAsyncCall into the Ndb */
   tx->getNdb()->setCustomData(mcallptr);  
@@ -68,6 +67,8 @@ void main_thd_complete(AsyncCall *m) {
   v8::TryCatch try_catch;
   try_catch.SetVerbose(true);
 
+  m->handleErrors();
+  DEBUG_PRINT("Dispatching Callback");
   m->doAsyncCallback(v8::Context::GetCurrent()->Global());
 
   /* exceptions */
@@ -86,6 +87,8 @@ static int SignalShutdown = 1;
 AsyncNdbContext::AsyncNdbContext(Ndb_cluster_connection *conn) :
   connection(conn)
 {
+  DEBUG_MARKER(UDEB_DEBUG);
+
   /* Create the multi-wait group */
   waitgroup = connection->create_ndb_wait_group(MAX_CONCURRENCY);
 
@@ -112,6 +115,7 @@ AsyncNdbContext::~AsyncNdbContext()
 /* Methods 
 */
 void * AsyncNdbContext::runListenerThread() {
+  DEBUG_MARKER(UDEB_DEBUG);
   ListNode<Ndb> * sentNdbs, * completedNdbs, * currentNode;
   Ndb * ndb;
   Ndb ** ready_list;
@@ -126,12 +130,14 @@ void * AsyncNdbContext::runListenerThread() {
     while(sentNdbs != 0) {
       currentNode = sentNdbs;
       sentNdbs = sentNdbs->next;
+
       if(currentNode->signalinfo == SignalShutdown) {
         running = false;
       }
       else {
         waitgroup->addNdb(currentNode->item);
         npending++;
+        DEBUG_PRINT("Listener: %d pending", npending);
       }
       delete currentNode;   // Frees the ListNode from executeAsynch() 
     }
@@ -152,11 +158,12 @@ void * AsyncNdbContext::runListenerThread() {
     completedNdbs = 0;
     if(nwaiting > 0) {
       /* Poll the ones that are ready */
+      DEBUG_PRINT("Listener: %d ready", nwaiting);
       for(int i = 0 ; i < nwaiting ; i++) {
         npending--;
         assert(npending >= 0);
         ndb = ready_list[i];
-        ndb->pollNdb(0, 1);
+        ndb->pollNdb(0, 1);  /* runs txNdbCompleted() */
         currentNode = new ListNode<Ndb>(ndb);
         currentNode->next = completedNdbs;
         completedNdbs = currentNode;
@@ -177,6 +184,7 @@ void * AsyncNdbContext::runListenerThread() {
 /* Shut down the context 
 */
 void AsyncNdbContext::shutdown() {
+  DEBUG_MARKER(UDEB_DEBUG);
   ListNode<Ndb> * finalNode = new ListNode<Ndb>((Ndb *) 0);
   finalNode->signalinfo = SignalShutdown;
 
@@ -193,12 +201,14 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
                                    int execType,
                                    int abortOption,
                                    int forceSend,
-                                   v8::Local<v8::Value> jsCallback) {
+                                   v8::Persistent<v8::Function> jsCallback) {
+
+  DEBUG_MARKER(UDEB_DEBUG);
   
   /* Create a container to help pass return values up the JS callback stack */
   typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
-  MCALL * mcallptr = new MCALL(tx, jsCallback);
-  mcallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
+  MCALL * mcallptr = new MCALL(tx, jsCallback,
+                               getNdbErrorIfNonZero<int, NdbTransaction>);
   
   /* send the transaction to NDB */
   tx->executeAsynch((NdbTransaction::ExecType) execType,
@@ -231,12 +241,12 @@ void AsyncNdbContext::completeCallbacks() {
     Ndb * ndb = currentNode->item;
     MCALL * mcallptr = (MCALL *) ndb->getCustomData();
     ndb->setCustomData(0);
-    
+
     main_thd_complete(mcallptr);
     completedNdbs = currentNode->next;
 
     delete mcallptr;     // Frees the AsyncAsyncCall from executeAsynch() 
-    delete currentNode;  // Frees the ListNode runListenerThread()
+    delete currentNode;  // Frees the ListNode from runListenerThread()
   }
 }
 

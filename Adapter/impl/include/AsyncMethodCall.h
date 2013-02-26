@@ -56,6 +56,13 @@ using namespace v8;
   *
   * The templated class AsyncCall_Returning<R> inherits from AsyncCall and
   * adds a return type, which is initialized at 0.
+  *
+  * OTHER NOTES:
+  *   The standard AsyncCall constructor allocates a persistent V8 object, so
+  *   it can only run in the main JavaScript thread.
+  *   However, the constructor for AsyncAsyncCall runs in a UV worker thread,
+  *   so there is an alternative chain of protected constructors from 
+  *   AsyncAsyncCall up to AsyncCall.
   */
 
 
@@ -65,6 +72,9 @@ class AsyncCall {
   protected:
     /* Member variables */
     Persistent<Function> callback;
+    
+    /* Protected constructor chain from AsyncAsyncCall */
+    AsyncCall(Persistent<Function> cb) : callback(cb) {};
 
   public:
     AsyncCall(Local<Value> callbackFunc) {
@@ -101,7 +111,12 @@ class AsyncCall_Returning : public AsyncCall {
 private:
   /* Private Member variables */
   Envelope * returnValueEnvelope;
-  
+
+protected:
+  /* Protected Constructor Chain */
+  AsyncCall_Returning<RETURN_TYPE>(Persistent<Function> callback) :
+    AsyncCall(callback), returnValueEnvelope(0), error(0)  {}
+    
 public:
   /* Member variables */
   NativeCodeError *error;
@@ -160,8 +175,9 @@ template <typename R, typename C>
 class NativeMethodCall : public AsyncCall_Returning<R> {
 public:
   /* Member variables */
+  typedef NativeCodeError * (*errorHandler_fn_t)(R, C *);
   C * native_obj;
-  NativeCodeError * (*errorHandler)(R, C *);
+  errorHandler_fn_t errorHandler;
 
   /* Constructor */
   NativeMethodCall<R, C>(const Arguments &args, int callback_idx) :
@@ -180,10 +196,12 @@ public:
   
 protected:
   /* Alternative constructor used only by AsyncAsyncCall */
-  NativeMethodCall<R, C>(C * obj, Local<Value> callback) :
+  NativeMethodCall<R, C>(C * obj, 
+                         Persistent<Function> callback, 
+                         errorHandler_fn_t errHandler) :
     AsyncCall_Returning<R>(callback),
     native_obj(obj),
-    errorHandler(0)                    {};
+    errorHandler(errHandler)                                {};
 };
 
 
@@ -192,9 +210,12 @@ protected:
 template <typename R, typename C>
 class AsyncAsyncCall : public NativeMethodCall<R, C> {
 public:
+  typedef NativeCodeError * (*errorHandler_fn_t)(R, C *);
+
   /* Constructor */
-  AsyncAsyncCall<R, C>(C * obj, Local<Value> callback) :
-    NativeMethodCall<R, C>(obj, callback)                   {};
+  AsyncAsyncCall<R, C>(C * obj, Persistent<Function> callback, 
+                       errorHandler_fn_t errHandler) :
+    NativeMethodCall<R, C>(obj, callback, errHandler)       {};
   
   /* Methods */
   void run(void) {};
