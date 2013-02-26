@@ -4546,7 +4546,7 @@ static int fast_end_partition(THD *thd, ulonglong copied,
 
   thd->proc_info="end";
 
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   my_snprintf(tmp_name, sizeof(tmp_name), ER(ER_INSERT_INFO),
               (ulong) (copied + deleted),

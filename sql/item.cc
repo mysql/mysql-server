@@ -6070,11 +6070,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     else
       field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation);
     break;					// Blob handled outside of case
-#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
                           item_name.ptr(), table->s, get_geometry_type());
-#endif /* HAVE_SPATIAL */
   }
   if (field)
     field->init(table);
@@ -9139,10 +9137,8 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
   prev_decimal_int_part= item->decimal_int_part();
-#ifdef HAVE_SPATIAL
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= item->get_geometry_type();
-#endif /* HAVE_SPATIAL */
 }
 
 
