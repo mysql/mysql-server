@@ -38,7 +38,7 @@ sync_array_t*
 sync_array_get()
 /*============*/
 {
-	if (sync_array_size == 0) {
+	if (sync_array_size <= 1) {
 		return(sync_wait_array[0]);
 	}
 
