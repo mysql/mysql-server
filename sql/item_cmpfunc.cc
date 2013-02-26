@@ -5172,8 +5172,13 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (const_item_cache)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
   {
+    /*
+     TODO: Currently this branch never executes, since used_tables_cache
+     is never equal to 0 --  it always contains RAND_TABLE_BIT,
+     see get_initial_pseudo_tables().
+    */
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
     DBUG_RETURN(cached_value);
@@ -5195,11 +5200,9 @@ void Item_is_not_null_test::update_used_tables()
 {
   const table_map initial_pseudo_tables= get_initial_pseudo_tables();
   used_tables_cache= initial_pseudo_tables;
-  const_item_cache= false;
   if (!args[0]->maybe_null)
   {
     cached_value= 1;
-    const_item_cache= true;
     return;
   }
   args[0]->update_used_tables();
@@ -5208,11 +5211,8 @@ void Item_is_not_null_test::update_used_tables()
   used_tables_cache|= args[0]->used_tables();
   if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
       !with_stored_program)
-  {
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
-    const_item_cache= true;
-  }
 }
 
 
