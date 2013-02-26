@@ -64,33 +64,41 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 #endif
 
 /* Global variables */
-static my_bool	verbose;
-my_bool		debug = 0;
-static my_bool	just_count;
-static ulong	start_page;
-static ulong	end_page;
-static ulong	do_page;
-static my_bool	use_end_page;
-static my_bool	do_one_page;
-ulong		srv_page_size;		/* replaces declaration in srv0srv.c */
-extern ulong	srv_checksum_algorithm;
-ulint		ct;			/* Current page number (0 based). */
-static my_bool	no_check;		/* Skip the checksum verification. */
-my_bool		strict_verify = 0;	/* Enabled for strict checksum
-					verification. */
-static my_bool	do_write;		/* Enabled for rewrite checksum. */
-static ulong	allow_mismatches;	/* Mismatches count allowed
-					(0 by default). */
-static my_bool	page_type_summary;
-static my_bool	page_type_dump;
-char*		dump_filename = 0;		/* Store filename for page-type-dump option. */
-const char	*default_dbug_option = IF_WIN("d:O,\\innochecksum.trace","d:o,/tmp/innochecksum.trace");
-/* strict check algorithm name. */
+static my_bool			verbose;
+my_bool				debug = 0;
+static my_bool			just_count;
+static ulong			start_page;
+static ulong			end_page;
+static ulong			do_page;
+static my_bool			use_end_page;
+static my_bool			do_one_page;
+/* replaces declaration in srv0srv.c */
+ulong				srv_page_size;
+extern ulong			srv_checksum_algorithm;
+/* Current page number (0 based). */
+ulint				cur_page_num;
+/* Skip the checksum verification. */
+static my_bool			no_check;
+/* Enabled for strict checksum verification. */
+my_bool				strict_verify = 0;
+/* Enabled for rewrite checksum. */
+static my_bool			do_write;
+/* Mismatches count allowed (0 by default). */
+static ulong			allow_mismatches;
+static my_bool			page_type_summary;
+static my_bool			page_type_dump;
+/* Store filename for page-type-dump option. */
+char*				page_dump_filename = 0;
+
+const char	*default_dbug_option = IF_WIN("d:O,\\innochecksum.trace",
+					      "d:o,/tmp/innochecksum.trace");
+
+/* Strict check algorithm name. */
 static srv_checksum_algorithm_t	strict_check;
 /* Rewrite checksum algorithm name. */
 static srv_checksum_algorithm_t	write_check;
 
-/* Innodb page type */
+/* Innodb page type. */
 struct innodb_page_type {
 	int n_undo_state_active;
 	int n_undo_state_cached;
@@ -161,12 +169,12 @@ get_page_size(
 
 	/* fsp_flags_get_zip_size() will return zero if not compressed. */
 	*physical_page_size = fsp_flags_get_zip_size(flags);
+
 	if (*physical_page_size == 0) {
-		/* uncompressed page */
+		/* uncompressed page. */
 		*physical_page_size= *logical_page_size;
 		*compressed = 0;
-	}
-	else
+	} else
 		*compressed = 1;
 
 }
@@ -187,9 +195,9 @@ is_page_empty(
 
 	while (len--) {
 		if (*page++)
-			return(FALSE);
+			return (FALSE);
         }
-        return(TRUE);
+        return (TRUE);
 }
 
 /********************************************************************//**
@@ -216,7 +224,7 @@ update_checksum(
 
 	memcpy(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4);
 	memcpy(stored2, page + physical_page_size -
-		FIL_PAGE_END_LSN_OLD_CHKSUM, 4);
+	       FIL_PAGE_END_LSN_OLD_CHKSUM, 4);
 
 	/* Checked is page is empty ,exclude the checksum field */
 	if (is_page_empty(page + 4, physical_page_size - 12) &&
@@ -224,21 +232,22 @@ update_checksum(
 
 		memset(page + FIL_PAGE_SPACE_OR_CHKSUM, 0, 4);
 		memset(page + physical_page_size -
-			FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 4);
+		       FIL_PAGE_END_LSN_OLD_CHKSUM, 0, 4);
 
 		goto func_exit;
 	}
 
 	if (iscompressed) {
-		/* means page is compressed */
+		/* page is compressed */
 		checksum = page_zip_calc_checksum(page, physical_page_size,
 						  write_check);
+
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 		if (debug)
 			DBUG_PRINT("info",("page %lu: Updated checksum = %u;\n",
-				ct, checksum));
+				   cur_page_num, checksum));
 	} else {
-		/*means page is uncompressed. */
+		/* page is uncompressed. */
 
 		/* Store the new formula checksum */
 		switch (write_check) {
@@ -265,8 +274,8 @@ update_checksum(
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 
 		if (debug)
-		DBUG_PRINT("info", ("page %lu: Updated checksum field1 = %u;",
-			   ct, checksum));
+			DBUG_PRINT("info", ("page %lu: Updated checksum field1"
+				   " = %u;", cur_page_num, checksum));
 
 		if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
 			|| write_check == SRV_CHECKSUM_ALGORITHM_INNODB)
@@ -278,24 +287,26 @@ update_checksum(
 
 		if (debug)
 		DBUG_PRINT("info", ("page %lu: Updated checksum field2 =%u;",
-			   ct, checksum));
+			   cur_page_num, checksum));
 
 	}
 
 	func_exit:
-
+	/* The following code is to check the stored checksum with the
+	calculated checksum. If it matches, then return FALSE to skip
+	the rewrite of checksum, otherwise return TRUE. */
 	if (iscompressed) {
-		if (!memcmp(stored1,page + FIL_PAGE_SPACE_OR_CHKSUM,4))
-			return FALSE;
-		return TRUE;
+		if (!memcmp(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM, 4))
+			return (FALSE);
+		return (TRUE);
 	}
 
-	if (!memcmp(stored1,page + FIL_PAGE_SPACE_OR_CHKSUM,4) &&
-	    !memcmp(stored2,page + physical_page_size -
-		FIL_PAGE_END_LSN_OLD_CHKSUM,4))
-		return FALSE;
+	if (!memcmp(stored1, page + FIL_PAGE_SPACE_OR_CHKSUM,4) &&
+	    !memcmp(stored2, page + physical_page_size -
+		    FIL_PAGE_END_LSN_OLD_CHKSUM,4))
+		return (FALSE);
 
-	return TRUE;
+	return (TRUE);
 }
 
 /*
@@ -317,7 +328,8 @@ parse_page(
 		page_type.n_fil_page_index++;
 		id = mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID);
 		if(page_type_dump) {
-			fprintf(f,"#::%8lu\t\t|\t\tIndex page\t\t\t|\tindex id=%llu,",ct,(ullint)id);
+			fprintf(f, "#::%8lu\t\t|\t\tIndex page\t\t\t|"
+				"\tindex id=%llu,", cur_page_num, (ullint)id);
 
 			fprintf(f,
 				" page level=%lu,No. of records=%lu,"
@@ -330,9 +342,11 @@ parse_page(
 
 	case FIL_PAGE_UNDO_LOG:
 		page_type.n_fil_page_undo_log++;
-		x = mach_read_from_2(page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE);
+		x = mach_read_from_2(page +
+				     TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_TYPE);
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tUndo log page\t\t\t|",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tUndo log page\t\t\t|",
+				cur_page_num);
 		if (x == TRX_UNDO_INSERT) {
 			page_type.n_undo_insert++;
 			if(page_type_dump)
@@ -349,28 +363,39 @@ parse_page(
 			case TRX_UNDO_ACTIVE:
 				page_type.n_undo_state_active++;
 				if(page_type_dump)
-					fprintf(f, " %-65s\n","Undo log of an active transaction");
+					fprintf(f, " %-65s\n", "Undo log of an "
+						"active transaction");
 				break;
+
 			case TRX_UNDO_CACHED:
 				page_type.n_undo_state_cached++;
 				if(page_type_dump)
-					fprintf(f, " %-65s\n","Page is cached for quick reuse");
+					fprintf(f, " %-65s\n","Page is cached "
+						"for quick reuse");
 				break;
+
 			case TRX_UNDO_TO_FREE:
 				page_type.n_undo_state_to_free++;
 				if(page_type_dump)
-					fprintf(f, " %-65s\n","Insert undo segment that can be freed");
+					fprintf(f, " %-65s\n","Insert undo "
+						"segment that can be freed");
 				break;
+
 			case TRX_UNDO_TO_PURGE:
 				page_type.n_undo_state_to_purge++;
 				if(page_type_dump)
-					fprintf(f, " %-65s\n","Will be freed in purge when all undo data in it is removed");
+					fprintf(f, " %-65s\n","Will be freed in"
+						" purge when all undo data in "
+						"it is removed");
 				break;
+
 			case TRX_UNDO_PREPARED:
 				page_type.n_undo_state_prepared++;
 				if(page_type_dump)
-					fprintf(f, " %-65s\n","Undo log of an prepared transaction");
+					fprintf(f, " %-65s\n","Undo log of an "
+						"prepared transaction");
 				break;
+
 			default:
 				page_type.n_undo_state_other++;
 				break;
@@ -380,67 +405,76 @@ parse_page(
 	case FIL_PAGE_INODE:
 		page_type.n_fil_page_inode++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tInode Page\t\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tInode Page\t\t\t|\t-\n",
+				cur_page_num);
 		break;
 
 	case FIL_PAGE_IBUF_FREE_LIST:
 		page_type.n_fil_page_ibuf_free_list++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tInsert buffer free list page\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tInsert buffer free list "
+				"page\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_ALLOCATED:
 		page_type.n_fil_page_type_allocated++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tFreshly allocated page\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tFreshly allocated "
+				"page\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_IBUF_BITMAP:
 		page_type.n_fil_page_ibuf_bitmap++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tInsert Buffer Bitmap\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tInsert Buffer "
+				"Bitmap\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_SYS:
 		page_type.n_fil_page_type_sys++;
 		if(page_type_dump)
-			fprintf(f, "#::%lud\t\t|\t\tSystem page\t\t\t|\t-\n",ct);
+			fprintf(f, "#::%lud\t\t|\t\tSystem page\t\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_TRX_SYS:
 		page_type.n_fil_page_type_trx_sys++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tTransaction system page\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tTransaction system "
+				"page\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_FSP_HDR:
 		page_type.n_fil_page_type_fsp_hdr++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tFile Space Header\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tFile Space "
+				"Header\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_XDES:
 		page_type.n_fil_page_type_xdes++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tan extent descriptor page\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tan extent descriptor "
+				"page\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_BLOB:
 		page_type.n_fil_page_type_blob++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tBLOB page\t\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tBLOB page\t\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_ZBLOB:
 		page_type.n_fil_page_type_zblob++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tCompressed BLOB page\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tCompressed BLOB "
+				"page\t\t|\t-\n", cur_page_num);
 		break;
 
 	case FIL_PAGE_TYPE_ZBLOB2:
 		page_type.n_fil_page_type_zblob2++;
 		if(page_type_dump)
-			fprintf(f, "#::%8lu\t\t|\t\tCompressed BLOB page\t\t|\t-\n",ct);
+			fprintf(f, "#::%8lu\t\t|\t\tSubsequent Compressed BLOB "
+				"page\t\t|\t-\n", cur_page_num);
 			break;
 
 	default:
@@ -454,21 +488,35 @@ void
 print_summary() {
 
 	printf("\n================PAGE TYPE SUMMARY=====================\n");
-	printf("%d\tFIL_PAGE_INDEX\n", page_type.n_fil_page_index);
-	printf("%d\tFIL_PAGE_UNDO_LOG\n", page_type.n_fil_page_undo_log);
-	printf("%d\tFIL_PAGE_INODE\n", page_type.n_fil_page_inode);
-	printf("%d\tFIL_PAGE_IBUF_FREE_LIST\n", page_type.n_fil_page_ibuf_free_list);
-	printf("%d\tFIL_PAGE_TYPE_ALLOCATED\n", page_type.n_fil_page_type_allocated);
-	printf("%d\tFIL_PAGE_IBUF_BITMAP\n", page_type.n_fil_page_ibuf_bitmap);
-	printf("%d\tFIL_PAGE_TYPE_SYS\n", page_type.n_fil_page_type_sys);
-	printf("%d\tFIL_PAGE_TYPE_TRX_SYS\n", page_type.n_fil_page_type_trx_sys);
-	printf("%d\tFIL_PAGE_TYPE_FSP_HDR\n",page_type.n_fil_page_type_fsp_hdr);
-	printf("%d\tFIL_PAGE_TYPE_XDES\n", page_type.n_fil_page_type_xdes);
-	printf("%d\tFIL_PAGE_TYPE_BLOB\n", page_type.n_fil_page_type_blob);
-	printf("%d\tFIL_PAGE_TYPE_ZBLOB\n", page_type.n_fil_page_type_zblob);
-	printf("%d\tother\n", page_type.n_fil_page_type_other);
+	printf("%d\tFIL_PAGE_INDEX\n",
+		page_type.n_fil_page_index);
+	printf("%d\tFIL_PAGE_UNDO_LOG\n",
+		page_type.n_fil_page_undo_log);
+	printf("%d\tFIL_PAGE_INODE\n",
+		page_type.n_fil_page_inode);
+	printf("%d\tFIL_PAGE_IBUF_FREE_LIST\n",
+		page_type.n_fil_page_ibuf_free_list);
+	printf("%d\tFIL_PAGE_TYPE_ALLOCATED\n",
+		page_type.n_fil_page_type_allocated);
+	printf("%d\tFIL_PAGE_IBUF_BITMAP\n",
+		page_type.n_fil_page_ibuf_bitmap);
+	printf("%d\tFIL_PAGE_TYPE_SYS\n",
+		page_type.n_fil_page_type_sys);
+	printf("%d\tFIL_PAGE_TYPE_TRX_SYS\n",
+		page_type.n_fil_page_type_trx_sys);
+	printf("%d\tFIL_PAGE_TYPE_FSP_HDR\n",
+		page_type.n_fil_page_type_fsp_hdr);
+	printf("%d\tFIL_PAGE_TYPE_XDES\n",
+		page_type.n_fil_page_type_xdes);
+	printf("%d\tFIL_PAGE_TYPE_BLOB\n",
+		page_type.n_fil_page_type_blob);
+	printf("%d\tFIL_PAGE_TYPE_ZBLOB\n",
+		page_type.n_fil_page_type_zblob);
+	printf("%d\tother\n",
+		page_type.n_fil_page_type_other);
 	printf("undo type: %d insert, %d update, %d other\n",
-		page_type.n_undo_insert, page_type.n_undo_update,
+		page_type.n_undo_insert,
+		page_type.n_undo_update,
 		page_type.n_undo_other);
 	printf("undo state: %d active, %d cached, %d to_free, %d"
 		"to_purge, %d prepared, %d other\n",
@@ -519,7 +567,8 @@ static struct my_option innochecksum_options[] = {
    "of a tablespace.", &page_type_summary, &page_type_summary, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"page-type-dump", 'D', "Dump the all different page type of a tablespace.",
-   &dump_filename,&dump_filename, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &page_dump_filename, &page_dump_filename, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -641,33 +690,45 @@ int main(
 	int	argc,
 	char	**argv) {
 
-	FILE*		f;		/* our input file. */
-	char*		filename;	/* our input filename. */
-
+	/* our input file. */
+	FILE*		fil_in;
+	/* our input filename. */
+	char*		filename;
 	/* Buffer to store pages read. */
 	uchar		buf[UNIV_PAGE_SIZE_MAX];
 	/* Buffer the minimum page size for first page. */
 	uchar		min_page[UNIV_PAGE_SIZE_MIN];
 	/* Buffer the remaining portion of first page. */
 	uchar*		page;
-	ulong		bytes;		/* bytes read count */
-	time_t		now;		/* current time */
-	time_t		lastt;		/* last time */
-	struct stat	st;		/* for stat, if you couldn't guess */
-	unsigned long long int	size = 0;/* size of file (has to be 64 bits) */
-	ulint		pages;		/* number of pages in file */
-	off_t		offset = 0;
+	/* bytes read count */
+	ulong		bytes;
+	/* current time */
+	time_t		now;
+	/* last time */
+	time_t		lastt;
+	/* for stat, if you couldn't guess */
+	struct stat	st;
+	/* Page size in bytes on disk. */
+        static ulong    physical_page_size;
+        /* Page size when uncompressed. */
+        static ulong    logical_page_size;
+
+	/* size of file (has to be 64 bits) */
+	unsigned long long int	size		= 0;
+	/* number of pages in file */
+	ulint		pages;
+
+	off_t		offset			= 0;
 	int		fd;
-	my_bool		compressed = 0;
-	ulint		mismatch_count =0;
-	static ulong	physical_page_size;	/* Page size in bytes on disk. */
-	static ulong	logical_page_size;	/* Page size when uncompressed. */
-	bool		iscorrupted = 0;
-	bool		flag = 0;
+	my_bool		compressed		= 0;
+	ulint		mismatch_count		= 0;
+	bool		iscorrupted		= 0;
+	bool		partial_page_read	= 0;
 	ulong		min_bytes;
-	bool		read_from_stdin = 0;
-	FILE*		pagedump;
-	struct flock	lk;			/* advisory lock. */
+	bool		read_from_stdin		= 0;
+	FILE*		fil_page_type;
+	/* advisory lock. */
+	struct flock	lk;
 	fpos_t pos;
 	ulint		logseq, logseqfield;
 
@@ -676,7 +737,7 @@ int main(
 
 	DBUG_ENTER("main");
 	DBUG_PROCESS(argv[0]);
-	DBUG_PRINT("info",("InnoDB File Checksum Utility."));
+	DBUG_PRINT("info", ("InnoDB File Checksum Utility."));
 
 
 	if (get_options(&argc,&argv))
@@ -695,18 +756,18 @@ int main(
 	}
 
 	if (page_type_dump)
-		pagedump = fopen(dump_filename,"wb");
+		fil_page_type = fopen(page_dump_filename,"wb");
 
 	if (verbose)
 		my_print_variables(innochecksum_options);
 
 	/* The file name is not optional */
-	for (int i=0; i < argc;++i) {
+	for (int i = 0; i < argc; ++i) {
 		/* Initialize the parameters */
 		filename = argv[i];
 		memset(&page_type, 0, sizeof(innodb_page_type));
 		iscorrupted = 0;
-		flag = 0;
+		partial_page_read = 0;
 
 		DBUG_PRINT("info", ("Filename = %s",filename));
 		if (*filename == '\0') {
@@ -716,7 +777,7 @@ int main(
 		}
 		if (*filename == '-') {
 			/* read from stdin */
-			f = stdin;
+			fil_in = stdin;
 			read_from_stdin = 1;
 		}
 
@@ -731,11 +792,10 @@ int main(
 		if (!read_from_stdin) {
 			size = st.st_size;
 			if (do_write)
-				f = fopen(filename, "rb+");
+				fil_in = fopen(filename, "rb+");
 			else
-				f = fopen(filename, "rb");
-			if (f == NULL) {
-
+				fil_in = fopen(filename, "rb");
+			if (fil_in == NULL) {
 				fprintf(stderr, "Error: %s cannot be opened\n",
 					filename);
 				perror(" ");
@@ -743,11 +803,11 @@ int main(
 				DBUG_RETURN(1);
 			}
 			/* Save the current file pointer in pos variable.*/
-			fgetpos(f,&pos);
+			fgetpos(fil_in, &pos);
 		}
 
-		if(!read_from_stdin) {
-			fd = fileno(f);
+		if (!read_from_stdin) {
+			fd = fileno(fil_in);
 			if (!fd) {
 				perror("Error: Unable to obtain file "
 					"descriptor number");
@@ -755,7 +815,7 @@ int main(
 				DBUG_RETURN(1);
 			}
 
-			if(do_write)
+			if (do_write)
 				lk.l_type = F_WRLCK;
 			else
 				lk.l_type = F_RDLCK;
@@ -771,8 +831,8 @@ int main(
 		}
 
 		/* Read the minimum page size. */
-		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, f);
-		flag = 1;
+		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, fil_in);
+		partial_page_read = 1;
 
 		if (min_bytes != UNIV_PAGE_SIZE_MIN) {
 			fprintf(stderr, "Error: Was not able to read the "
@@ -806,42 +866,50 @@ int main(
 
 		/* seek to the necessary position */
 		if (start_page) {
-			if(!read_from_stdin) {
+			if (!read_from_stdin) {
 				/* If buffer read is not from stdin, we
 				can seek the buffer read */
-				flag = 0;
+				partial_page_read = 0;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
-				if (fseeko(f, offset, SEEK_SET)) {
+				if (fseeko(fil_in, offset, SEEK_SET)) {
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
 					DBUG_RETURN(1);
 				}
-				/* Save the current file pointer in pos variable. */
-				fgetpos(f, &pos);
+				/* Save the current file pointer in
+				pos variable. */
+				fgetpos(fil_in, &pos);
 			} else {
 
 				ulong count = 0;
 
-				while (!feof(f)) {
-					if(start_page==count)
+				while (!feof(fil_in)) {
+					if (start_page == count)
 						break;
-					/* flag is enabled, means have
-					to read the remaining data for first
-					page. */
-					if (flag) {
-						flag = 0;
+					/* Flag is enabled as buffered the
+					remaining portion of data for first
+					page only. This is used to overcome
+					the seek to start of page which can't
+					be done when read from stdin. */
+					if (partial_page_read) {
+						partial_page_read = 0;
 						page = (unsigned char*)malloc(
 							sizeof(unsigned char) * (physical_page_size - UNIV_PAGE_SIZE_MIN));
-						bytes= fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, f);
-						memcpy(buf, min_page, UNIV_PAGE_SIZE_MIN);
-						memcpy(buf + UNIV_PAGE_SIZE_MIN, page, physical_page_size - UNIV_PAGE_SIZE_MIN);
-						 bytes += min_bytes;
+						bytes = fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, fil_in);
+						memcpy(
+							buf, min_page,
+							UNIV_PAGE_SIZE_MIN);
+						memcpy(
+							buf + UNIV_PAGE_SIZE_MIN,
+							page, physical_page_size
+							- UNIV_PAGE_SIZE_MIN);
+						bytes += min_bytes;
 					} else
-						bytes= fread(buf, 1, physical_page_size, f);
+						bytes= fread(buf, 1, physical_page_size, fil_in);
 					count++;
-					if (!bytes || feof(f)) {
+					if (!bytes || feof(fil_in)) {
 						fprintf(stderr,"Error: Unable "
 							"to seek to necessary offset");
 
@@ -852,36 +920,44 @@ int main(
 		}
 
 		if(page_type_dump) {
-			fprintf(pagedump,"\n\nFilename::%s\n",filename);
-			fprintf(pagedump,"===================================="
-				"==========================================\n");
-			fprintf(pagedump, "\tPAGE_NO\t\t|\t\tPAGE_TYPE\t\t\t|\tEXTRA INFO\n");
-			fprintf(pagedump,"===================================="
-				"==========================================\n");
+			fprintf(fil_page_type, "\n\nFilename::%s\n", filename);
+			fprintf(fil_page_type, "==============================="
+					"======================================"
+					"========\n");
+			fprintf(fil_page_type, "\tPAGE_NO\t\t|\t\tPAGE_TYPE\t\t"
+				"\t|\tEXTRA INFO\n");
+			fprintf(fil_page_type, "=============================="
+				"============================================="
+				"===\n");
 
 		}
 
 		/* main checksumming loop */
-		ct = start_page;
+		cur_page_num = start_page;
 		lastt = 0;
-		while (!feof(f)) {
-			if (flag) {
+		while (!feof(fil_in)) {
+			if (partial_page_read) {
 				/* Read the remaining buffer for first
 				page */
-				flag = 0;
-				page=(unsigned char*)malloc(sizeof(unsigned char) * (physical_page_size - UNIV_PAGE_SIZE_MIN));
-				bytes= fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, f);
+				partial_page_read = 0;
+				page = (unsigned char*)malloc(
+					sizeof(unsigned char) * (physical_page_size - UNIV_PAGE_SIZE_MIN));
+				bytes = fread(page, 1, physical_page_size - UNIV_PAGE_SIZE_MIN, fil_in);
 				memcpy(buf, min_page, UNIV_PAGE_SIZE_MIN);
-				memcpy(buf + UNIV_PAGE_SIZE_MIN, page, physical_page_size - UNIV_PAGE_SIZE_MIN);
-				bytes +=min_bytes;
+				memcpy(
+					buf + UNIV_PAGE_SIZE_MIN,
+					page,
+					physical_page_size - UNIV_PAGE_SIZE_MIN
+				);
+				bytes += min_bytes;
 			}
 			else
-				bytes= fread(buf, 1, physical_page_size, f);
+				bytes= fread(buf, 1, physical_page_size, fil_in);
 
-			if (!bytes && feof(f))
+			if (!bytes && feof(fil_in))
 				break;
 
-			if (ferror(f)) {
+			if (ferror(fil_in)) {
 				fprintf(stderr, "Error reading %lu bytes",
 					physical_page_size);
 				perror(" ");
@@ -904,23 +980,41 @@ int main(
 
 					/* check the stored log sequence numbers
 					for uncompressed tablespace. */
-					logseq = mach_read_from_4(buf + FIL_PAGE_LSN + 4);
-					logseqfield = mach_read_from_4(buf + logical_page_size - FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
+					logseq = mach_read_from_4(
+							buf + FIL_PAGE_LSN + 4);
+					logseqfield = mach_read_from_4(
+							buf + logical_page_size
+							- FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 					if (verbose)
-						DBUG_PRINT("info", ("page::%lu; log sequence number: first = %lu; second = %lu",
-							   ct, logseq, logseqfield));
+						DBUG_PRINT("info", ("page::%lu;"
+							   " log sequence "
+							   "number:first = %lu"
+							   "; second = %lu",
+							   cur_page_num, logseq,
+							   logseqfield));
 
 					if (logseq != logseqfield) {
 						if (verbose)
-							DBUG_PRINT("info", ("Fail; page %lu invalid (fails log sequence number check)", ct));
+							DBUG_PRINT(
+								"info",
+								("Fail; page "
+								"%lu invalid"
+								" (fails log "
+								"sequence"
+								" number"
+								" check)", cur_page_num));
 					}
-					iscorrupted = buf_page_is_corrupted(true,buf,0);
+					iscorrupted = buf_page_is_corrupted(
+							true, buf, 0);
 				} else
-					iscorrupted = buf_page_is_corrupted(true,buf,physical_page_size);
+					iscorrupted = buf_page_is_corrupted(
+							true,
+							buf,
+							physical_page_size);
 
 				if (iscorrupted) {
 					fprintf(stderr, "Fail: page %lu invalid"
-						"\n", ct);
+						"\n", cur_page_num);
 					mismatch_count++;
 					if(mismatch_count>allow_mismatches) {
 						fprintf(stderr, "Exceeded the "
@@ -935,53 +1029,59 @@ int main(
 			/* Rewrite checksum */
 			if (do_write) {
 
-				if(read_from_stdin) {
-					update_checksum(buf, physical_page_size, compressed);
-					fwrite(buf, physical_page_size, 1, stdout);
+				if (read_from_stdin) {
+					update_checksum(
+						buf,
+						physical_page_size, compressed);
+					fwrite(buf,
+					       physical_page_size, 1, stdout);
 				} else {
-					if(update_checksum(buf, physical_page_size, compressed)) {
+					if (update_checksum(
+						buf, physical_page_size,
+						compressed)) {
 						/* Set the previous file pointer
-						stored in pos to current file position. */
-						fsetpos(f, &pos);
-						fwrite(buf, physical_page_size, 1, f);
+						saved in pos to current file position. */
+						fsetpos(fil_in, &pos);
+						fwrite(buf, physical_page_size, 1, fil_in);
 					}
 					/* Save the current file pointer in pos
 					variable */
-					fgetpos(f, &pos);
+					fgetpos(fil_in, &pos);
 				}
 			}
 
 			/* end if this was the last page we were supposed to check */
-			if (use_end_page && (ct >= end_page))
+			if (use_end_page && (cur_page_num >= end_page))
 				break;
 
-			if(page_type_summary || page_type_dump)
-				parse_page(buf,pagedump);
+			if (page_type_summary || page_type_dump)
+				parse_page(buf, fil_page_type);
 
 			/* do counter increase and progress printing */
-			ct++;
+			cur_page_num++;
 			if (verbose && !read_from_stdin) {
-				if (ct % 64 == 0) {
+				if (cur_page_num % 64 == 0) {
 					now= time(0);
 					if (!lastt) lastt= now;
 					if (now - lastt >= 1) {
 						DBUG_PRINT("info",("page %lu "
-							"okay: %.3f%% done",
-							(ct - 1), (float) ct / pages * 100));
+							   "okay: %.3f%% done",
+							   (cur_page_num - 1),
+							   (float) cur_page_num / pages * 100));
 						lastt= now;
 					}
 				}
 			}
 		}
 
-		if(!read_from_stdin) {
+		if (!read_from_stdin) {
 			/* Remove the lock. */
 			lk.l_type = F_UNLCK;
 			if (fcntl(fd, F_SETLK, &lk) == -1) {
 				perror("fcntl");
 				DBUG_RETURN(1);
 			}
-			fclose(f);
+			fclose(fil_in);
 		}
 
 		/* Enabled for page type summary. */

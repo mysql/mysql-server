@@ -4842,14 +4842,15 @@ page_zip_verify_checksum(
 
 	my_bool		verbose = 0;
 	ulint		page_no = 0;
-	my_bool		strict_check = 0; /* enable for strict_check for innochecksum tool*/
+/* enable for strict_check for innochecksum tool. */
+	my_bool		strict_check = 0;
 
 #ifdef UNIV_INNOCHECKSUM
 	extern my_bool	debug;
-	extern ulint	ct;
+	extern ulint	cur_page_num;
 	extern my_bool	strict_verify;
 	verbose = debug;
-	page_no = ct;
+	page_no = cur_page_num;
 	strict_check = strict_verify;
 #endif
 
