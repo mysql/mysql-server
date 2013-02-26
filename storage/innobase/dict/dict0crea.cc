@@ -292,16 +292,14 @@ dict_build_tablespace(
 
 	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
-	dict_hdr_get_new_id(
-		&table->id, NULL, NULL, dict_table_is_temporary(table));
+	dict_hdr_get_new_id(&table->id, NULL, NULL, table, false);
 
 	trx->table_id = table->id;
 
 	if (use_tablespace) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
-		dict_hdr_get_new_id(
-			NULL, NULL, &space, dict_table_is_temporary(table));
+		dict_hdr_get_new_id(NULL, NULL, &space, table, false);
 
 		DBUG_EXECUTE_IF(
 			"ib_create_table_fail_out_of_space_ids",
@@ -341,8 +339,7 @@ dict_build_tablespace(
 		}
 
 		mtr_start(&mtr);
-		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(table), &mtr);
+		dict_disable_redo_if_temporary(table, &mtr);
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
@@ -355,9 +352,9 @@ dict_build_tablespace(
 		if (dict_table_is_temporary(table)) {
 			table->space = srv_tmp_space.space_id();
 		} else {
-			/* Create in the system tablespace: disallow Barracuda
-			features by keeping only the first bit which says
-			whether the row format is redundant or compact */
+			/* Create in the system tablespace.
+			Disallow compressed page creation as it needs
+			per-tablespace. Update row_format accordingly */
 			table->flags &= DICT_TF_COMPACT;
 		}
 
@@ -638,8 +635,7 @@ dict_build_index_def_step(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(
-		NULL, &index->id, NULL, dict_table_is_temporary(table));
+	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -680,8 +676,7 @@ dict_build_index_def(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(
-		NULL, &index->id, NULL, dict_table_is_temporary(table));
+	dict_hdr_get_new_id(NULL, &index->id, NULL, table, false);
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -809,16 +804,15 @@ dict_create_index_tree(
 	sys_indexes */
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	dberr_t		err = DB_SUCCESS;
 	ulint		zip_size = dict_table_zip_size(index->table);
 
 	/* Currently this function is being used by temp-tables only.
 	Import/Discard of temp-table is blocked and so this assert. */
-	ut_ad((index->table->ibd_file_missing == 0)
-	      && (dict_table_is_discarded(index->table) == false));
+	ut_ad(index->table->ibd_file_missing == 0
+	      && dict_table_is_discarded(index->table) == false);
 
 	page_no = btr_create(
 		index->type, index->space, zip_size,
@@ -920,8 +914,7 @@ dict_drop_index_tree(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	root_page_no = page_no;
 	space = index->space;
@@ -1101,8 +1094,7 @@ dict_truncate_index_tree(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	type = index->type;
 
@@ -1149,8 +1141,7 @@ dict_truncate_index_tree(
 	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
-	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	root_page_no = btr_create(type, space, zip_size,
 				  index->id, index, &mtr);

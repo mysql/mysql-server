@@ -66,19 +66,27 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
-	table_id_t*	table_id,	/*!< out: table id
-					(not assigned if NULL) */
-	index_id_t*	index_id,	/*!< out: index id
-					(not assigned if NULL) */
-	ulint*		space_id,	/*!< out: space id
-					(not assigned if NULL) */
-	bool		is_temp_table)	/*!< in: true if temp table */
+	table_id_t*		table_id,	/*!< out: table id
+						(not assigned if NULL) */
+	index_id_t*		index_id,	/*!< out: index id
+						(not assigned if NULL) */
+	ulint*			space_id,	/*!< out: space id
+						(not assigned if NULL) */
+	const dict_table_t*	table,		/*!< in: table */
+	bool			disable_redo)	/*!< in: if true and table
+						object is NULL
+						then disable-redo */
 {
 	dict_hdr_t*	dict_hdr;
 	ib_id_t		id;
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
+	if (table) {	
+		dict_disable_redo_if_temporary(table, &mtr);
+	} else if (disable_redo) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	/* Server started and let's say space-id = x
 	- table created with file-per-table
@@ -99,8 +107,6 @@ dict_hdr_get_new_id(
 		x (original) and x+2 (new) and disk hdr will be updated
 		to reflect x + 2 entry.
 		We cannot allocate the same space id to different objects. */
-	turn_off_logging_if_temp_table(is_temp_table, &mtr);
-
 	dict_hdr = dict_hdr_get(&mtr);
 
 	if (table_id) {

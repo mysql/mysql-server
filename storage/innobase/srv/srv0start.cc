@@ -930,7 +930,7 @@ srv_open_tmp_tablespace(
 	ibool	create_new_temp_space;
 	ulint	temp_space_id = ULINT_UNDEFINED;
 
-	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, true);
+	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
 
 	tmp_space->set_space_id(temp_space_id);
 
