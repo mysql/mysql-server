@@ -218,14 +218,6 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
-/***************************************************************//**
-Turn off redo logging if table is temp-table. */
-UNIV_INTERN
-void
-turn_off_logging_if_temp_table(
-/*===========================*/
-	bool	is_temp,	/*!< in: true if temp-table */
-	mtr_t*	mtr);		/*!< out: mini-transaction */
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */

@@ -2907,8 +2907,7 @@ row_mysql_table_id_reassign(
 	dberr_t		err;
 	pars_info_t*	info	= pars_info_create();
 
-	dict_hdr_get_new_id(
-		new_id, NULL, NULL, dict_table_is_temporary(table));
+	dict_hdr_get_new_id(new_id, NULL, NULL, table, false);
 
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
@@ -3317,8 +3316,8 @@ run_again:
 Truncate index and update SYSTEM TABLES accordingly. */
 UNIV_INLINE
 void
-truncate_index_with_sys_table_update(
-/*=================================*/
+row_truncate_index_with_sys_table_update(
+/*=====================================*/
 	const dict_table_t*	table,		/*!< in: table */
 	bool			truncate_tablespace_objects)
 					/* !< in: if true: truncate
@@ -3415,8 +3414,8 @@ Update these ids to SYSTEM TABLES.
 @return	error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
-update_new_object_ids(
-/*==================*/
+row_update_new_object_ids(
+/*======================*/
 	dict_table_t*	table,			/*!< in/out: table */
 	table_id_t	new_id,			/*!< in: new table id */
 	ulint		old_space,		/*!< in: old space id */
@@ -3729,9 +3728,7 @@ row_truncate_table_for_mysql(
 
 			dict_index_t*	index;
 
-			dict_hdr_get_new_id(
-				NULL, NULL, &space,
-				dict_table_is_temporary(table));
+			dict_hdr_get_new_id(NULL, NULL, &space, table, false);
 
 			/* Lock all index trees for this table. We must
 			do so after dict_hdr_get_new_id() to preserve
@@ -3797,7 +3794,7 @@ row_truncate_table_for_mysql(
 	}
 
 	if (!dict_table_is_temporary(table)) {
-		truncate_index_with_sys_table_update(
+		row_truncate_index_with_sys_table_update(
 			table, truncate_tablespace_objects);
 	} else {
 		/* For temporary tables we don't have entries in
@@ -3815,8 +3812,7 @@ row_truncate_table_for_mysql(
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
 
-	dict_hdr_get_new_id(
-		&new_id, NULL, NULL, dict_table_is_temporary(table));
+	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
@@ -3864,7 +3860,7 @@ row_truncate_table_for_mysql(
 	}
 
 	if (!dict_table_is_temporary(table)) {
-		err = update_new_object_ids(
+		err = row_update_new_object_ids(
 			table, new_id, old_space, has_internal_doc_id, trx);
 	} else {
 		dict_table_change_id_in_cache(table, new_id);

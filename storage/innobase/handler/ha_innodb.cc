@@ -8572,11 +8572,10 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	/* If temp table, then we avoid creation of entries in SYSTEM TABLES
-	to save on performance. This doesn't compromise on
-	correctness as temp-table information is still maintained
-	in memory and temp-table life-time doesn't go beyond server
-	shut-down cycle. */
+	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
+	Given that temp table lifetime is limited to connection/server lifetime
+	on re-start we don't need to restore temp-table and so no entry is needed
+	in SYSTEM tables. */
 	if (!dict_table_is_temporary(table)) {
 		err = row_create_table_for_mysql(table, trx, false);
 	} else {
@@ -8585,16 +8584,14 @@ err_col:
 		if (err == DB_SUCCESS) {
 			/* Temp-table are maintained in memory and so
 			can_be_evicted is FALSE. */
-			mem_heap_t* add_to_cache_heap = mem_heap_create(256);
+			mem_heap_t* temp_table_heap = mem_heap_create(256);
 
-			dict_table_add_to_cache(
-				table, FALSE, add_to_cache_heap);
+			dict_table_add_to_cache(table, FALSE, temp_table_heap);
 
 			DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
 					DBUG_SUICIDE(););
 
-
-			mem_heap_free(add_to_cache_heap);
+			mem_heap_free(temp_table_heap);
 		}
 	}
 
