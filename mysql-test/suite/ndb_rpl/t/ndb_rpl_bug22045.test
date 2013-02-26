@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --source include/have_ndb.inc
 # Test case currently fails for statement-based replication, as BUG#22045 is
 # not fixed in the replication slave thread.

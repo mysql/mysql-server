@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # We want to check the number of deadlocks, lock wait timeouts, etc. that have
 # been counted so far.
 #
