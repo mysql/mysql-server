@@ -1171,7 +1171,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   inc_thread_running();
 
   if (!(server_command_flags[command] & CF_SKIP_QUESTIONS))
-    statistic_increment_rwlock(thd->status_var.questions, &LOCK_status);
+    thd->status_var.questions++;
 
   /**
     Clear the set of flags that are expected to be cleared at the
@@ -1204,7 +1204,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_INIT_DB:
   {
     LEX_STRING tmp;
-    status_var_increment(thd->status_var.com_stat[SQLCOM_CHANGE_DB]);
+    thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
     thd->convert_string(&tmp, system_charset_info,
 			packet, packet_length, thd->charset());
     if (!mysql_change_db(thd, &tmp, FALSE))
@@ -1225,7 +1225,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_CHANGE_USER:
   {
     int auth_rc;
-    status_var_increment(thd->status_var.com_other);
+    thd->status_var.com_other++;
 
     thd->change_user();
     thd->clear_error();                         // if errors from rollback
@@ -1391,7 +1391,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /*
         Count each statement from the client.
       */
-      statistic_increment_rwlock(thd->status_var.questions, &LOCK_status);
+      thd->status_var.questions++;
       thd->set_time(); /* Reset the query start time. */
       parser_state.reset(beginning_of_next_stmt, length);
       /* TODO: set thd->lex->sql_command to SQLCOM_END here */
@@ -1414,7 +1414,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
 
-    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]);
+    thd->status_var.com_stat[SQLCOM_SHOW_FIELDS]++;
     if (thd->copy_db_to(&db.str, &db.length))
       break;
     /*
@@ -1529,7 +1529,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     */
     lex_start(thd);
     
-    status_var_increment(thd->status_var.com_stat[SQLCOM_FLUSH]);
+    thd->status_var.com_stat[SQLCOM_FLUSH]++;
     ulong options= (ulong) (uchar) packet[0];
     if (trans_commit_implicit(thd))
       break;
@@ -1570,7 +1570,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 #ifndef EMBEDDED_LIBRARY
   case COM_SHUTDOWN:
   {
-    status_var_increment(thd->status_var.com_other);
+    thd->status_var.com_other++;
     if (check_global_access(thd,SHUTDOWN_ACL))
       break; /* purecov: inspected */
     /*
@@ -1609,7 +1609,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     uint buff_len= sizeof(buff);
 
     query_logger.general_log_print(thd, command, NullS);
-    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_STATUS]);
+    thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
     calc_sum_of_all_status(&current_global_status_var);
     if (!(uptime= (ulong) (thd->start_time.tv_sec - server_start_time)))
       queries_per_second1000= 0;
@@ -1639,11 +1639,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_PING:
-    status_var_increment(thd->status_var.com_other);
+    thd->status_var.com_other++;
     my_ok(thd);				// Tell client we are alive
     break;
   case COM_PROCESS_INFO:
-    status_var_increment(thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]);
+    thd->status_var.com_stat[SQLCOM_SHOW_PROCESSLIST]++;
     if (!thd->security_ctx->priv_user[0] &&
         check_global_access(thd, PROCESS_ACL))
       break;
@@ -1658,7 +1658,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       my_error(ER_DATA_OUT_OF_RANGE, MYF(0), "thread_id", "mysql_kill()");
     else
     {
-      status_var_increment(thd->status_var.com_stat[SQLCOM_KILL]);
+      thd->status_var.com_stat[SQLCOM_KILL]++;
       ulong id=(ulong) uint4korr(packet);
       sql_kill(thd,id,false);
     }
@@ -1666,7 +1666,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   }
   case COM_SET_OPTION:
   {
-    status_var_increment(thd->status_var.com_stat[SQLCOM_SET_OPTION]);
+    thd->status_var.com_stat[SQLCOM_SET_OPTION]++;
     uint opt_command= uint2korr(packet);
 
     switch (opt_command) {
@@ -1685,7 +1685,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_DEBUG:
-    status_var_increment(thd->status_var.com_other);
+    thd->status_var.com_other++;
     if (check_global_access(thd, SUPER_ACL))
       break;					/* purecov: inspected */
     mysql_print_status();
@@ -2317,7 +2317,7 @@ mysql_execute_command(THD *thd)
   } /* endif unlikely slave */
 #endif
 
-  status_var_increment(thd->status_var.com_stat[lex->sql_command]);
+  thd->status_var.com_stat[lex->sql_command]++;
 
   Opt_trace_start ots(thd, all_tables, lex->sql_command, &lex->var_list,
                       thd->query(), thd->query_length(), NULL,
