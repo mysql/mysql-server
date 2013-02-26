@@ -76,10 +76,10 @@ when server Default checksum=InnoDB
 #Rewrite done, verify with --strict-check=crc32
 # INNOCHECKSUM --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 # Restart the DB server with innodb_checksum_algorithm=InnoDB
-#without restarting the server 
+#without restarting the server
 #After rewriting into new checksum algorithm crc32,check with DML
 INSERT INTO tab1 VALUES(2, 'Innochecksum CRC32');
-#check the records 
+#check the records
 SELECT c1,c2 FROM tab1 order by c1,c2;
 c1	c2
 1	Innochecksum InnoDB1
@@ -184,7 +184,7 @@ ERROR HY000: Lost connection to MySQL server during query
 # INNOCHECKSUM --strict-check=crc32  MYSQLD_DATADIR/test/t1.ibd
 # Write file to make mysql-test-run.pl start up the server again
 # Shutdown the server
-#Move the corrupted ib file to t1.ibd 
+#Move the corrupted ib file to t1.ibd
 #Repair the ibd file with innochecksum with --write=none
 # INNOCHECKSUM --no-check --write=none  MYSQLD_DATADIR/test/t1.ibd
 #Verify the t1.ibd for --strict-check=none
@@ -210,7 +210,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             TRUE
 start-page                        0
 end-page                          0
@@ -222,14 +222,16 @@ write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
 # Print the contents of trace file.
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: Number of pages:7
+find_type: enter: x: 'crc32'  lib: #x#
+main: info: Filename = tab1.ibd
+main: info: Number of pages:#
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -240,36 +242,36 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
-# Print the contents of trace file without --strict-check for innochecksum.
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking pages in range 0 to 6
-main: info: page::0; log sequence number: first = 1734730; second = 1734730
-main: info: page::0; old style: calculated = 441779300; recorded = 441779300
-main: info: page::0; new style: calculated = 3942798140; crc32 = 2239390476; recorded = 3942798140
-main: info: page::1; log sequence number: first = 1733626; second = 1733626
-main: info: page::1; old style: calculated = 221841160; recorded = 221841160
-main: info: page::1; new style: calculated = 1467558023; crc32 = 4094646167; recorded = 1467558023
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
-main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
-main: info: page::3; log sequence number: first = 1740897; second = 1740897
-main: info: page::3; old style: calculated = 268427060; recorded = 268427060
-main: info: page::3; new style: calculated = 3589193682; crc32 = 629368665; recorded = 3589193682
-main: info: page::4; log sequence number: first = 1740946; second = 1740946
-main: info: page::4; old style: calculated = 2962854778; recorded = 2962854778
-main: info: page::4; new style: calculated = 3496246649; crc32 = 3290456622; recorded = 3496246649
-main: info: page::5; log sequence number: first = 0; second = 0
-main: info: Page::5 is empty and uncorrupted
-main: info: page::6; log sequence number: first = 0; second = 0
-main: info: Page::6 is empty and uncorrupted
+# Print the contents of trace file.
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum; checking pages in range # to #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -280,31 +282,30 @@ allow-mismatches                  0
 write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
 # Print the contents of trace file for --strict-check=innodb having Innodb checksum algorithm at server end.
-find_type: enter: x: 'innodb'  lib: 0x669440
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking pages in range 0 to 6
-main: info: page::0; log sequence number: first = 1734730; second = 1734730
-main: info: page::0; old style:calculated = 441779300; recorded checksum = 441779300
-main: info: page::0; new style: calculated = 3942798140; recorded checksum  = 3942798140
-main: info: page::1; log sequence number: first = 1733626; second = 1733626
-main: info: page::1; old style:calculated = 221841160; recorded checksum = 221841160
-main: info: page::1; new style: calculated = 1467558023; recorded checksum  = 1467558023
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; old style:calculated = 4096953886; recorded checksum = 4096953886
-main: info: page::2; new style: calculated = 3086812042; recorded checksum  = 3086812042
-main: info: page::3; log sequence number: first = 1740897; second = 1740897
-main: info: page::3; old style:calculated = 268427060; recorded checksum = 268427060
-main: info: page::3; new style: calculated = 3589193682; recorded checksum  = 3589193682
-main: info: page::4; log sequence number: first = 1740946; second = 1740946
-main: info: page::4; old style:calculated = 2962854778; recorded checksum = 2962854778
-main: info: page::4; new style: calculated = 3496246649; recorded checksum  = 3496246649
-main: info: page::5; log sequence number: first = 0; second = 0
-main: info: Page::5 is empty and uncorrupted
-main: info: page::6; log sequence number: first = 0; second = 0
-main: info: Page::6 is empty and uncorrupted
+find_type: enter: x: 'innodb'  lib: #x#
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum; checking pages in range # to #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style:calculated = #; recorded checksum = #
+main: info: page::#; new style: calculated = #; recorded checksum  = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
 # Next Test
 # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 
@@ -312,7 +313,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -330,67 +331,24 @@ Fail: page 2 invalid
 Fail: page 3 invalid
 Fail: page 4 invalid
 # Print the contents of trace file.
-find_type: enter: x: 'crc32'  lib: 0x669440
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking pages in range 0 to 6
-main: info: page::0; log sequence number: first = 1734730; second = 1734730
-main: info: page::0; crc32 calculated = 2239390476;recorded checksum field1 = 3942798140 recorded checksum field2 =441779300
-main: info: page::1; log sequence number: first = 1733626; second = 1733626
-main: info: page::1; crc32 calculated = 4094646167;recorded checksum field1 = 1467558023 recorded checksum field2 =221841160
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; crc32 calculated = 2649948763;recorded checksum field1 = 3086812042 recorded checksum field2 =4096953886
-main: info: page::3; log sequence number: first = 1740897; second = 1740897
-main: info: page::3; crc32 calculated = 629368665;recorded checksum field1 = 3589193682 recorded checksum field2 =268427060
-main: info: page::4; log sequence number: first = 1740946; second = 1740946
-main: info: page::4; crc32 calculated = 3290456622;recorded checksum field1 = 3496246649 recorded checksum field2 =2962854778
-main: info: page::5; log sequence number: first = 0; second = 0
-main: info: Page::5 is empty and uncorrupted
-main: info: page::6; log sequence number: first = 0; second = 0
-main: info: Page::6 is empty and uncorrupted
-# Next Test 
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
-
-Variables (--variable-name=value)
-and boolean options {FALSE|TRUE}  Value (after reading options)
---------------------------------- ----------------------------------------
-verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
-count                             FALSE
-start-page                        0
-end-page                          0
-page                              0
-strict-check                      crc32
-no-check                          FALSE
-allow-mismatches                  99
-write                             crc32
-page-type-summary                 FALSE
-page-type-dump                    (No default value)
-# Expect the fails for checksum mismatches. Print the error message.
-Fail: page 0 invalid
-Fail: page 1 invalid
-Fail: page 2 invalid
-Fail: page 3 invalid
-Fail: page 4 invalid
-# Print the contents of trace file.
-find_type: enter: x: 'crc32'  lib: 0x669440
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking pages in range 0 to 6
-main: info: page::0; log sequence number: first = 1734730; second = 1734730
-main: info: page::0; crc32 calculated = 2239390476;recorded checksum field1 = 3942798140 recorded checksum field2 =441779300
-main: info: page::1; log sequence number: first = 1733626; second = 1733626
-main: info: page::1; crc32 calculated = 4094646167;recorded checksum field1 = 1467558023 recorded checksum field2 =221841160
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; crc32 calculated = 2649948763;recorded checksum field1 = 3086812042 recorded checksum field2 =4096953886
-main: info: page::3; log sequence number: first = 1740897; second = 1740897
-main: info: page::3; crc32 calculated = 629368665;recorded checksum field1 = 3589193682 recorded checksum field2 =268427060
-main: info: page::4; log sequence number: first = 1740946; second = 1740946
-main: info: page::4; crc32 calculated = 3290456622;recorded checksum field1 = 3496246649 recorded checksum field2 =2962854778
-main: info: page::5; log sequence number: first = 0; second = 0
-main: info: Page::5 is empty and uncorrupted
-main: info: page::6; log sequence number: first = 0; second = 0
-main: info: Page::6 is empty and uncorrupted
+find_type: enter: x: 'crc32'  lib: #x#
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum; checking pages in range # to #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
 # Next Test: checksum check for page: 2 to page:5
 # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
 
@@ -398,7 +356,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        2
 end-page                          5
@@ -410,20 +368,20 @@ write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
 # Print the contents of trace file.
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking pages in range 2 to 5
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
-main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
-main: info: page::3; log sequence number: first = 1740897; second = 1740897
-main: info: page::3; old style: calculated = 268427060; recorded = 268427060
-main: info: page::3; new style: calculated = 3589193682; crc32 = 629368665; recorded = 3589193682
-main: info: page::4; log sequence number: first = 1740946; second = 1740946
-main: info: page::4; old style: calculated = 2962854778; recorded = 2962854778
-main: info: page::4; new style: calculated = 3496246649; crc32 = 3290456622; recorded = 3496246649
-main: info: page::5; log sequence number: first = 0; second = 0
-main: info: Page::5 is empty and uncorrupted
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum; checking pages in range # to #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: Page::# is empty and uncorrupted
 # Next Test: checksum check for only pageno.= 2
 # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
 
@@ -431,7 +389,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/home/anil/work/repo/wl6045/mysql-test/var/tmp/mtrchecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        2
 end-page                          2
@@ -443,12 +401,12 @@ write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
 # Print the contents of trace file.
-main: info: Filename = /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-main: info: file /home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd = 114688 bytes (7 pages)
-main: info: InnoChecksum; checking page 2
-main: info: page::2; log sequence number: first = 1734730; second = 1734730
-main: info: page::2; old style: calculated = 4096953886; recorded = 4096953886
-main: info: page::2; new style: calculated = 3086812042; crc32 = 2649948763; recorded = 3086812042
+main: info: Filename = tab1.ibd
+main: info: file tab1.ibd = # bytes (# pages)
+main: info: InnoChecksum; checking page #
+main: info: page::#; log sequence number:first = #; second = #
+main: info: page::#; old style: calculated = #; recorded = #
+main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
 # Restart the DB server with innodb_checksum_algorithm=InnoDB
 DROP TABLE tab1;
 SET GLOBAL innodb_file_per_table=default;
@@ -524,7 +482,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -542,7 +500,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -561,7 +519,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -609,7 +567,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -627,7 +585,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -646,7 +604,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -669,7 +627,7 @@ SELECT @@default_storage_engine;
 InnoDB
 #check the table status is GOOD with DML
 INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
-VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'), 
+VALUES (3, GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'),
 GeomFromText('POLYGON((0 0,5 5,10 10,15 15,0 0),(10 10,20 20,30 30,40 40,10 10))'));
 #load the with repeat function
 SET @col_1 = repeat('g', 5);
@@ -694,7 +652,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -712,7 +670,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -731,7 +689,7 @@ Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
 verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
+debug                             d:o,mtrchecksum.trace
 count                             FALSE
 start-page                        0
 end-page                          0
@@ -753,7 +711,7 @@ SELECT @@default_storage_engine;
 @@default_storage_engine
 InnoDB
 #check the table status is GOOD with DML
-INSERT INTO tab1 (pk, linestring_key, linestring_nokey) 
+INSERT INTO tab1 (pk, linestring_key, linestring_nokey)
 VALUES (4, GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '), GeomFromText('MULTIPOINT(0 0,5 5,10 10,20 20) '));
 #load the with repeat function
 SET @col_1 = repeat('m', 5);
@@ -771,12 +729,29 @@ FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 #stop the server
 #R07: Check the page type summary with shortform for tab1.ibd
-# INNOCHECKSUM -V  MYSQLD_DATADIR/test/tab1.ibd
-/home/anil/work/repo/wl6045/extra/innochecksum Ver 5.7.1, for Linux (x86_64)
+# INNOCHECKSUM -S  MYSQLD_DATADIR/test/tab1.ibd
+
+File::tab1.ibd
+================PAGE TYPE SUMMARY=====================
+3	FIL_PAGE_INDEX
+0	FIL_PAGE_UNDO_LOG
+1	FIL_PAGE_INODE
+0	FIL_PAGE_IBUF_FREE_LIST
+2	FIL_PAGE_TYPE_ALLOCATED
+1	FIL_PAGE_IBUF_BITMAP
+0	FIL_PAGE_TYPE_SYS
+0	FIL_PAGE_TYPE_TRX_SYS
+1	FIL_PAGE_TYPE_FSP_HDR
+0	FIL_PAGE_TYPE_XDES
+0	FIL_PAGE_TYPE_BLOB
+0	FIL_PAGE_TYPE_ZBLOB
+0	other
+undo type: 0 insert, 0 update, 0 other
+undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
 #R07: Check the page type summary with longform for tab1.ibd
 # INNOCHECKSUM --page-type-summary  MYSQLD_DATADIR/test/tab1.ibd
 
-File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+File::tab1.ibd
 ================PAGE TYPE SUMMARY=====================
 3	FIL_PAGE_INDEX
 0	FIL_PAGE_UNDO_LOG
@@ -796,7 +771,7 @@ undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
 #R07: Check the page type summary with longform for *.ibd
 # INNOCHECKSUM --page-type-summary MYSQLD_DATADIR/test/*.ibd
 
-File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
+File::tab1.ibd
 ================PAGE TYPE SUMMARY=====================
 3	FIL_PAGE_INDEX
 0	FIL_PAGE_UNDO_LOG
@@ -814,7 +789,7 @@ File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
 undo type: 0 insert, 0 update, 0 other
 undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
 
-File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab2.ibd
+File::tab2.ibd
 ================PAGE TYPE SUMMARY=====================
 4	FIL_PAGE_INDEX
 0	FIL_PAGE_UNDO_LOG
@@ -832,28 +807,12 @@ File::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab2.ibd
 undo type: 0 insert, 0 update, 0 other
 undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
 # Page type dump for tab1.ibd
-# INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
-
-Variables (--variable-name=value)
-and boolean options {FALSE|TRUE}  Value (after reading options)
---------------------------------- ----------------------------------------
-verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
-count                             FALSE
-start-page                        0
-end-page                          0
-page                              0
-strict-check                      crc32
-no-check                          FALSE
-allow-mismatches                  0
-write                             crc32
-page-type-summary                 FALSE
-page-type-dump                    /home/anil/work/repo/wl6045/mysql-test/var/tmp/dump.txt
+# INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
 # Print the contents stored in dump.txt
 
 
-Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-==============================================================================
+Filename::tab1.ibd
+=============================================================================
 	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
 ==============================================================================
 #::       0		|		File Space Header		|	-
@@ -865,28 +824,12 @@ Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ib
 #::       6		|		Freshly allocated page		|	-
 #::       7		|		Freshly allocated page		|	-
 # Page type dump for *.ibd
-# INNOCHECKSUM -v --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
-
-Variables (--variable-name=value)
-and boolean options {FALSE|TRUE}  Value (after reading options)
---------------------------------- ----------------------------------------
-verbose                           TRUE
-debug                             d:o,/tmp/innochecksum.trace
-count                             FALSE
-start-page                        0
-end-page                          0
-page                              0
-strict-check                      crc32
-no-check                          FALSE
-allow-mismatches                  0
-write                             crc32
-page-type-summary                 FALSE
-page-type-dump                    /home/anil/work/repo/wl6045/mysql-test/var/tmp/dump.txt
+# INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
 # Print the contents stored in dump.txt
 
 
-Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ibd
-==============================================================================
+Filename::tab1.ibd
+=============================================================================
 	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
 ==============================================================================
 #::       0		|		File Space Header		|	-
@@ -899,8 +842,8 @@ Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab1.ib
 #::       7		|		Freshly allocated page		|	-
 
 
-Filename::/home/anil/work/repo/wl6045/mysql-test/var/mysqld.1/data//test/tab2.ibd
-==============================================================================
+Filename::tab1.ibd
+=============================================================================
 	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
 ==============================================================================
 #::       0		|		File Space Header		|	-
