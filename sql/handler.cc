@@ -1487,10 +1487,8 @@ int ha_commit_low(THD *thd, bool all)
     trans->rw_ha_count= 0;
     if (all)
     {
-#ifdef HAVE_QUERY_CACHE
       if (thd->transaction.changed_tables)
         query_cache.invalidate(thd->transaction.changed_tables);
-#endif
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */

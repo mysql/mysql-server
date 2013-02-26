@@ -608,7 +608,6 @@
 */
 #define HAVE_SPATIAL 1
 #define HAVE_RTREE_KEYS 1
-#define HAVE_QUERY_CACHE 1
 #define BIG_TABLES 1
 
 /*

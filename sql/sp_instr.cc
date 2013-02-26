@@ -783,7 +783,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
     query_logger.general_log_write(thd, COM_QUERY, thd->query(),
                                    thd->query_length());
 
-  if (query_cache_send_result_to_client(thd, thd->query(),
+  if (query_cache.send_result_to_client(thd, thd->query(),
                                         thd->query_length()) <= 0)
   {
     rc= validate_lex_and_execute_core(thd, nextp, false);
@@ -796,7 +796,7 @@ bool sp_instr_stmt::execute(THD *thd, uint *nextp)
       thd->protocol->end_statement();
     }
 
-    query_cache_end_of_result(thd);
+    query_cache.end_of_result(thd);
 
     if (!rc && unlikely(log_slow_applicable(thd)))
     {
