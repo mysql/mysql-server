@@ -327,7 +327,7 @@ private:
     // if the system goes single threaded, it ought to be pretty quick
     // for 100 transactions to go by, so we won't have to wait long before
     // we start doing the single txind optimzation again.
-    static const int STO_BUFFER_MAX_SIZE = 1 * 1024 * 1024;
+    static const int STO_BUFFER_MAX_SIZE = 50 * 1024;
     static const int STO_SCORE_THRESHOLD = 100;
     int m_sto_score;
 
