@@ -4150,7 +4150,7 @@ static int init_thread_environment()
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
   sp_cache_init();
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #endif
   /* Parameter for threads created for connections */
@@ -6742,16 +6742,12 @@ vector<my_option> all_options;
 
 struct my_option my_long_early_options[]=
 {
-#ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-#ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", 0,
    "Start without grant tables. This gives all users FULL ACCESS to all tables.",
    &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#endif
   {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},

@@ -44,7 +44,7 @@
 #include "sql_trigger.h"
 #include "sql_derived.h"
 #include "sql_partition.h"
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #include "event_data_objects.h"
 #endif
@@ -265,7 +265,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
 #endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
@@ -6269,7 +6269,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 /*
   Loads an event from mysql.event and copies it's data to a row of
   I_S.EVENTS
@@ -8017,7 +8017,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
 #else // for alignment with enum_schema_tables
