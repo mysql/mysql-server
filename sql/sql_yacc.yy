@@ -6494,15 +6494,9 @@ type:
           }
         | spatial_type
           {
-#ifdef HAVE_SPATIAL
             Lex->charset=&my_charset_bin;
             Lex->uint_geom_type= (uint)$1;
             $$=MYSQL_TYPE_GEOMETRY;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         | MEDIUMBLOB
           {
@@ -7127,13 +7121,7 @@ fulltext:
 spatial:
           SPATIAL_SYM
           {
-#ifdef HAVE_SPATIAL
             $$= Key::SPATIAL;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         ;
 
@@ -9961,16 +9949,10 @@ function_call_conflict:
           }
         | geometry_function
           {
-#ifdef HAVE_SPATIAL
             $$= $1;
             /* $1 may be NULL, GEOM_NEW not tested for out of memory */
             if ($$ == NULL)
               MYSQL_YYABORT;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         ;
 

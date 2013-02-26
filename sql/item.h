@@ -1320,7 +1320,8 @@ public:
   virtual bool is_bool_func() { return 0; }
   virtual void save_in_result_field(bool no_conversions) {}
   /*
-    set value of aggregate function in case of no rows for grouping were found
+    Set value of aggregate function in case of no rows for grouping were found.
+    Also used for subqueries with outer references in SELECT list.
   */
   virtual void no_rows_in_result() {}
   virtual Item *copy_or_same(THD *thd) { return this; }
