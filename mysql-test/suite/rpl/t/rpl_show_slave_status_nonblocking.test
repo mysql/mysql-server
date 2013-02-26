@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # WL6402: Non blocking show slave status
 #
 # Add a option to "SHOW SLAVE STATUS" command that when used,

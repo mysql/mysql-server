@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test for BUG#11729: see if, when STOP SLAVE occurs while the slave
 # SQL thread has processed a Table_map_log_event but has not processed
 # the last Rows_log_event associated to it, the slave thread does not

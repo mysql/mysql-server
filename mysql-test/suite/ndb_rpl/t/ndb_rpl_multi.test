@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --source include/have_multi_ndb.inc
 --source include/have_binlog_format_mixed_or_row.inc
 

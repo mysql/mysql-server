@@ -4757,11 +4757,6 @@ finish:
     /* report error issued during command execution */
     if (thd->killed_errno())
       thd->send_kill_message();
-    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
-    {
-      thd->killed= THD::NOT_KILLED;
-      thd->mysys_var->abort= 0;
-    }
     if (thd->is_error() || (thd->variables.option_bits & OPTION_MASTER_SQL_ERROR))
       trans_rollback_stmt(thd);
     else
@@ -4770,6 +4765,11 @@ finish:
       thd->get_stmt_da()->set_overwrite_status(true);
       trans_commit_stmt(thd);
       thd->get_stmt_da()->set_overwrite_status(false);
+    }
+    if (thd->killed == THD::KILL_QUERY || thd->killed == THD::KILL_BAD_DATA)
+    {
+      thd->killed= THD::NOT_KILLED;
+      thd->mysys_var->abort= 0;
     }
   }
 
