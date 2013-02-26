@@ -440,9 +440,9 @@ private:
   {
     if (!is_binlog_empty())
     {
-      statistic_increment_rwlock(*ptr_binlog_cache_use, &LOCK_status);
+      (*ptr_binlog_cache_use)++;
       if (cache_log.disk_writes != 0)
-        statistic_increment_rwlock(*ptr_binlog_cache_disk_use, &LOCK_status);
+        (*ptr_binlog_cache_disk_use)++;
     }
   }
 

@@ -1750,6 +1750,16 @@ dict_table_is_temporary(
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((nonnull, pure, warn_unused_result));
 
+/********************************************************************//**
+Turn-off redo-logging if temporary table. */
+UNIV_INLINE
+void
+dict_disable_redo_if_temporary(
+/*===========================*/
+	const dict_table_t*	table,  /*!< in: table to check */
+	mtr_t*			mtr)    /*!< out: mini-transaction */
+	__attribute__((nonnull));
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 This function should be called whenever a page is successfully

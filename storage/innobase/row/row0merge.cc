@@ -38,6 +38,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0import.h"
 #include "handler0alter.h"
 #include "ha_prototypes.h"
+#include "srv0space.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -1692,10 +1693,16 @@ all_done:
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
 #endif
 	if (fts_pll_sort) {
+		bool	all_exit = false;
+		ulint	trial_count = 0;
+		const ulint max_trial_count = 10000;
+
+		/* Tell all children that parent has done scanning */
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
 			psort_info[i].state = FTS_PARENT_COMPLETE;
 		}
 wait_again:
+		/* Now wait all children to report back to be completed */
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);
 
@@ -1706,6 +1713,31 @@ wait_again:
 					fts_parallel_sort_event);
 				goto wait_again;
 			}
+		}
+
+		/* Now all children should complete, wait a bit until
+		they all finish setting the event, before we free everything.
+		This has a 10 second timeout */
+		do {
+			all_exit = true;
+
+			for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+				if (psort_info[j].child_status
+				    != FTS_CHILD_EXITING) {
+					all_exit = false;
+					os_thread_sleep(1000);
+					break;
+				}
+			}
+			trial_count++;
+		} while (!all_exit && trial_count < max_trial_count);
+
+		if (!all_exit) {
+			ut_ad(0);
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Not all child sort threads exited"
+				" when creating FTS index '%s'",
+				fts_sort_idx->name);
 		}
 	}
 
@@ -3095,7 +3127,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(table->space != TRX_SYS_SPACE);
+	ut_ad(!Tablespace::is_system_tablespace(table->space));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);
@@ -3156,7 +3188,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && old_table->space != TRX_SYS_SPACE
+	    && !Tablespace::is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3184,7 +3216,8 @@ row_merge_rename_tables_dict(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS && new_table->space != TRX_SYS_SPACE) {
+	if (err == DB_SUCCESS
+	    && !Tablespace::is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
 			new_table, old_table->name);
@@ -3499,41 +3532,16 @@ row_merge_build_indexes(
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
-			bool		all_exit = false;
-			ulint		trial_count = 0;
 
 			sort_idx = fts_sort_idx;
-
-			/* Now all children should complete, wait
-			a bit until they all finish using event */
-			while (!all_exit && trial_count < 10000) {
-				all_exit = true;
-
-				for (j = 0; j < fts_sort_pll_degree;
-				     j++) {
-					if (psort_info[j].child_status
-					    != FTS_CHILD_EXITING) {
-						all_exit = false;
-						os_thread_sleep(1000);
-						break;
-					}
-				}
-				trial_count++;
-			}
-
-			if (!all_exit) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Not all child sort threads exited"
-					" when creating FTS index '%s'",
-					indexes[i]->name);
-			}
 
 			fts_parallel_merge_event
 				= merge_info[0].psort_common->merge_event;
 
 			if (FTS_PLL_MERGE) {
-				trial_count = 0;
-				all_exit = false;
+				ulint	trial_count = 0;
+				bool	all_exit = false;
+
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:

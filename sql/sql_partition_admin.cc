@@ -659,7 +659,7 @@ err:
   // For query cache
   table_list->table= NULL;
   table_list->next_local->table= NULL;
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   DBUG_RETURN(error);
 }
@@ -773,7 +773,9 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     TODO: Add support for TRUNCATE PARTITION for NDB and other
           engines supporting native partitioning.
   */
-  if (first_table->table->s->db_type() != partition_hton)
+
+  if (!first_table->table || first_table->view ||
+      first_table->table->s->db_type() != partition_hton)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
@@ -842,7 +844,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   // Invalidate query cache
   DBUG_ASSERT(!first_table->next_local);
-  query_cache_invalidate3(thd, first_table, FALSE);
+  query_cache.invalidate(thd, first_table, FALSE);
 
   DBUG_RETURN(error);
 }
