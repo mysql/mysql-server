@@ -1,4 +1,5 @@
-use test;
+--source include/have_innodb.inc
+--source include/have_tokudb.inc
 
 set global tokudb_debug=0;
 
@@ -48,6 +49,8 @@ insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 
 insert into t2 select t2.file_id, t2.country, 5, date_sub(t2.insert_ts,interval 16 day) from t2;
 
 
+# ignore rows column
+--replace_column 9 NULL;
 explain
 select t1.file_id, 
        t1.file_number, 
@@ -56,6 +59,8 @@ from t1;
 
 alter table t2 engine=tokudb;
 
+# ignore rows column
+--replace_column 9 NULL;
 explain
 select t1.file_id, 
        t1.file_number, 
