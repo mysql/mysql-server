@@ -40,7 +40,7 @@ Created 11/26/1995 Heikki Tuuri
 #define MTR_LOG_ALL			21	/* default mode: log all
 						operations modifying
 						disk-based data */
-#define MTR_LOG_NONE			22	/* log no operations and dirty
+#define	MTR_LOG_NONE			22	/* log no operations and dirty
 						pages are not added to the
 						flush list */
 #define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
@@ -218,15 +218,6 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
-/***************************************************************//**
-Turn off redo logging + locking if table is temp-table. */
-UNIV_INTERN
-void
-optimize_log_and_lock_level_if_temp_table(
-/*======================================*/
-	bool    is_temp,	/*!< in: true if temp-table */
-	mtr_t*  mtr,		/*!< out: mini-transaction */
-	ulint*  flags);		/*!< out: flags indicating locking level */
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */

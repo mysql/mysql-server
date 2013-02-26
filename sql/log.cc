@@ -1910,8 +1910,8 @@ void TC_LOG_MMAP::get_active_from_pool()
   active=*best_p;
   if (active->free == active->size) // we've chosen an empty page
   {
-    statistic_inc_set_big_rwlock(tc_log_cur_pages_used, tc_log_max_pages_used,
-                                 &LOCK_status);
+    tc_log_cur_pages_used++;
+    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
   }
 
   if ((*best_p)->next)              // unlink the page from the pool
@@ -2118,7 +2118,7 @@ int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
   if (p->free == p->size)               // the page is completely empty
-    statistic_decrement_rwlock(tc_log_cur_pages_used, &LOCK_status);
+    tc_log_cur_pages_used--;
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);

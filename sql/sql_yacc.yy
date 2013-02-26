@@ -6494,15 +6494,9 @@ type:
           }
         | spatial_type
           {
-#ifdef HAVE_SPATIAL
             Lex->charset=&my_charset_bin;
             Lex->uint_geom_type= (uint)$1;
             $$=MYSQL_TYPE_GEOMETRY;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         | MEDIUMBLOB
           {
@@ -7127,13 +7121,7 @@ fulltext:
 spatial:
           SPATIAL_SYM
           {
-#ifdef HAVE_SPATIAL
             $$= Key::SPATIAL;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         ;
 
@@ -7903,6 +7891,16 @@ alter_list_item:
               MYSQL_YYABORT;
             lex->name= $3->table;
             lex->alter_info.flags|= Alter_info::ALTER_RENAME;
+          }
+        | RENAME key_or_index field_ident TO_SYM field_ident
+          {
+            LEX *lex=Lex;
+            Alter_rename_key *ak= new (YYTHD->mem_root)
+                                    Alter_rename_key($3.str, $5.str);
+            if (ak == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.alter_rename_key_list.push_back(ak);
+            lex->alter_info.flags|= Alter_info::ALTER_RENAME_INDEX;
           }
         | CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
           {
@@ -9951,16 +9949,10 @@ function_call_conflict:
           }
         | geometry_function
           {
-#ifdef HAVE_SPATIAL
             $$= $1;
             /* $1 may be NULL, GEOM_NEW not tested for out of memory */
             if ($$ == NULL)
               MYSQL_YYABORT;
-#else
-            my_error(ER_FEATURE_DISABLED, MYF(0),
-                     sym_group_geom.name, sym_group_geom.needed_define);
-            MYSQL_YYABORT;
-#endif
           }
         ;
 

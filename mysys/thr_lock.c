@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -429,7 +429,7 @@ wait_for_lock(struct st_lock_list *wait, THR_LOCK_DATA *data,
     wait->last= &data->next;
   }
 
-  statistic_increment(locks_waited, &THR_LOCK_lock);
+  locks_waited++;
 
   /* Set up control struct to allow others to abort locks */
   thread_var->current_mutex= &data->lock->mutex;
@@ -602,7 +602,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
 	check_locks(lock,"read lock with old write lock",0);
 	if (lock->get_status)
 	  (*lock->get_status)(data->status_param, 0);
-	statistic_increment(locks_immediate,&THR_LOCK_lock);
+	locks_immediate++;
 	goto end;
       }
       if (lock->write.data->type == TL_WRITE_ONLY)
@@ -626,7 +626,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
       if (lock_type == TL_READ_NO_INSERT)
 	lock->read_no_write_count++;
       check_locks(lock,"read lock with no write locks",0);
-      statistic_increment(locks_immediate,&THR_LOCK_lock);
+      locks_immediate++;
       goto end;
     }
     /*
@@ -707,7 +707,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
 	check_locks(lock,"second write lock",0);
 	if (data->lock->get_status)
 	  (*data->lock->get_status)(data->status_param, 0);
-	statistic_increment(locks_immediate,&THR_LOCK_lock);
+	locks_immediate++;
 	goto end;
       }
       DBUG_PRINT("lock",("write locked 2 by thread: 0x%lx",
@@ -742,7 +742,7 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
 	  if (data->lock->get_status)
 	    (*data->lock->get_status)(data->status_param, concurrent_insert);
 	  check_locks(lock,"only write lock",0);
-	  statistic_increment(locks_immediate,&THR_LOCK_lock);
+	  locks_immediate++;
 	  goto end;
 	}
       }

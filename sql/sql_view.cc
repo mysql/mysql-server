@@ -766,7 +766,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   if (mode != VIEW_CREATE_NEW)
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
   if (res)
     goto err;
 
@@ -1894,7 +1894,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
                      FALSE);
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
     sp_cache_invalidate();
   }
 
@@ -2208,7 +2208,7 @@ mysql_rename_view(THD *thd,
     DBUG_RETURN(1);  
 
   /* remove cache entries */
-  query_cache_invalidate3(thd, view, 0);
+  query_cache.invalidate(thd, view, FALSE);
   sp_cache_invalidate();
   error= FALSE;
 
