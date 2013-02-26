@@ -74,14 +74,15 @@ function ApiCall(execMode, abortFlag, forceSend, callback) {
     and the DBConnectionPool listener thread runs callbacks.
 */
 ApiCall.prototype.run = function(tx) {
-  var ASYNC_ON = false;
-  if(tx.canUseNdbAsynch && ASYNC_ON) {
+  if(tx.canUseNdbAsynch) {
+    stats.incr("run","async");
     tx.asyncContext.executeAsynch(tx.ndbtx, 
                                   this.execMode, this.abortFlag,
                                   this.forceSend, this.callback, 
                                   onAsyncSent);
   }
   else {
+    stats.incr("run","async");
     tx.ndbtx.execute(this.execMode, this.abortFlag, this.forceSend, this.callback);
   }
 };

@@ -55,7 +55,7 @@ public:
   /* Methods */
   int executeAsynch(NdbTransaction *,
                     int execType, int abortOption, int forceSend,
-                    v8::Local<v8::Value> execCompleteCallback);
+                    v8::Persistent<v8::Function> execCompleteCallback);
 
   void shutdown();
 

@@ -89,7 +89,7 @@ public:
     
     uv_mutex_lock(& lock);
     tail->next = head;
-    head = tail;
+    head = node;
     uv_mutex_unlock(& lock);
   };
   

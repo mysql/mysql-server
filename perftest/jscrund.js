@@ -64,7 +64,7 @@ function usage() {
 
 //handle command line arguments
 function parse_command_line(options) {
-  var i, val, values;
+  var i, val, values, pair;
   for(i = 2; i < process.argv.length ; i++) {
     val = process.argv[i];
     switch (val) {
@@ -104,7 +104,7 @@ function parse_command_line(options) {
       i++;  // next argument
       pair = process.argv[i].split('=');
       if(pair.length === 2) {
-        JSCRUND.unified_debug.log("Setting global:", pair[0], "=", pair[1]);
+        JSCRUND.udebug.log("Setting global:", pair[0], "=", pair[1]);
         global[pair[0]] = pair[1];
       }
       else {
