@@ -2749,7 +2749,8 @@ innobase_space_shutdown()
 	DBUG_ENTER("innobase_space_shutdown");
 
 	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status()) {
+	if (srv_tmp_space.get_sanity_check_status()
+	    && !srv_read_only_mode) {
 		srv_tmp_space.delete_files();
 	}
 	srv_tmp_space.shutdown();
@@ -2914,7 +2915,7 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery. */
 
 	/* Doesn't support raw devices. */
-	srv_tmp_space.set_tablespace_path(mysql_tmpdir_list.list[0]);
+	srv_tmp_space.set_tablespace_path(srv_data_home);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -2925,14 +2926,7 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
-
-	srv_tmp_space.set_sanity_check_status(true);
-	srv_sys_space.set_sanity_check_status(true);
-
-	/* Delete the data files in the temporary tablespace. They are not
-	required for recovery. */
-	srv_tmp_space.delete_files();
-
+	
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -8576,7 +8570,28 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx, false);
+	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
+	Given that temp table lifetime is limited to connection/server lifetime
+	on re-start we don't need to restore temp-table and so no entry is needed
+	in SYSTEM tables. */
+	if (!dict_table_is_temporary(table)) {
+		err = row_create_table_for_mysql(table, trx, false);
+	} else {
+		/* Create tablespace if configured. */
+		err = dict_build_tablespace(table, trx);
+		if (err == DB_SUCCESS) {
+			/* Temp-table are maintained in memory and so
+			can_be_evicted is FALSE. */
+			mem_heap_t* temp_table_heap = mem_heap_create(256);
+
+			dict_table_add_to_cache(table, FALSE, temp_table_heap);
+
+			DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
+					DBUG_SUICIDE(););
+
+			mem_heap_free(temp_table_heap);
+		}
+	}
 
 	mem_heap_free(heap);
 
@@ -9603,6 +9618,7 @@ ha_innobase::create(
 	if (stmt) {
 		dberr_t	err = row_table_add_foreign_constraints(
 			trx, stmt, stmt_len, norm_name,
+			create_info->options & HA_LEX_CREATE_TMP_TABLE,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		switch (err) {
@@ -9639,7 +9655,7 @@ ha_innobase::create(
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
 	if (flags2 & DICT_TF2_FTS) {
-		fts_t*          fts = innobase_table->fts;
+		fts_t*	fts = innobase_table->fts;
 
 		ut_a(fts != NULL);
 
@@ -9769,7 +9785,6 @@ ha_innobase::discard_or_import_tablespace(
 	}
 
 	if (dict_table->space == srv_sys_space.space_id()) {
-
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
@@ -16373,6 +16388,7 @@ i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
+i_s_innodb_temp_table_info,
 i_s_innodb_metrics,
 i_s_innodb_ft_default_stopword,
 i_s_innodb_ft_inserted,
