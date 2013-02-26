@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -480,7 +480,7 @@ bool Sql_cmd_truncate_table::truncate_table(THD *thd, TABLE_LIST *table_ref)
       query_cache_invalidate does not need a valid TABLE object.
     */
     table_ref->table= NULL;
-    query_cache_invalidate3(thd, table_ref, FALSE);
+    query_cache.invalidate(thd, table_ref, FALSE);
   }
 
   /* DDL is logged in statement format, regardless of binlog format. */
