@@ -56,7 +56,7 @@ function lintTest(basePath, sourceFile) {
     var e, i, n=0;
     var data = fs.readFileSync(this.sourceFile, "utf8");  
     var result = linter(data, lintOptions);
-    var ok, errors, msg;
+    var ok, errors, msg = "";
 
     /* Adapt to differing APIs of jslint and jshint */
     if(typeof result === 'boolean') {
@@ -70,15 +70,14 @@ function lintTest(basePath, sourceFile) {
     }
 
     if(! ok) {
-      console.log("Errors for "+ this.name +":");
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
         if(e) {
           n += 1;
-          console.log(' * Line %d[%d]: %s', e.line, e.character, e.reason);
+          msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
         }
       }
-      msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s');
+      msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
       this.appendErrorMessage(msg);
     }
     return true;
