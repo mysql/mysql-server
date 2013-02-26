@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Testing replication threads stopping concurrency issue
 # at the server shutdown
 # Related bugs: bug#38694, bug#29968, bug#25306
