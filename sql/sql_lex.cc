@@ -644,7 +644,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
   {
     c= lip->yyGet();
     lip->tok_bitmap|= c;
-#ifdef USE_MB
     {
       int l;
       if (use_mb(cs) &&
@@ -655,7 +654,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
         continue;
       }
     }
-#endif
     if (c == '\\' &&
         !(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
     {					// Escaped character
@@ -703,7 +701,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 
 	for (to=start ; str != end ; str++)
 	{
-#ifdef USE_MB
 	  int l;
 	  if (use_mb(cs) &&
               (l = my_ismbchar(cs, str, end))) {
@@ -712,7 +709,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 	      str--;
 	      continue;
 	  }
-#endif
 	  if (!(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
               *str == '\\' && str+1 != end)
 	  {
@@ -1082,7 +1078,6 @@ int lex_one_token(void *arg, void *yythd)
       }
     case MY_LEX_IDENT:
       const char *start;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
@@ -1111,7 +1106,6 @@ int lex_one_token(void *arg, void *yythd)
         }
       }
       else
-#endif
       {
         for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
@@ -1237,7 +1231,6 @@ int lex_one_token(void *arg, void *yythd)
       // fall through
     case MY_LEX_IDENT_START:			// We come here after '.'
       result_state= IDENT;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
@@ -1255,7 +1248,6 @@ int lex_one_token(void *arg, void *yythd)
         }
       }
       else
-#endif
       {
         for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
@@ -1298,14 +1290,12 @@ int lex_one_token(void *arg, void *yythd)
 	    continue;
 	  }
 	}
-#ifdef USE_MB
         else if (use_mb(cs))
         {
           if ((var_length= my_ismbchar(cs, lip->get_ptr() - 1,
                                        lip->get_end_of_query())))
             lip->skip_binary(var_length-1);
         }
-#endif
       }
       if (double_quotes)
 	yylval->lex_str=get_quoted_token(lip, 1,

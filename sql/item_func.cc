@@ -3324,7 +3324,6 @@ longlong Item_func_ord::val_int()
   }
   null_value=0;
   if (!res->length()) return 0;
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     const char *str=res->ptr();
@@ -3335,7 +3334,6 @@ longlong Item_func_ord::val_int()
       n=(n<<8)|(uint32)((uchar) *str++);
     return (longlong) n;
   }
-#endif
   return (longlong) ((uchar) (*res)[0]);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
 #include <my_global.h>
 #include "m_ctype.h"
 #include "m_string.h"
-
-#ifdef USE_MB
 
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
@@ -1489,6 +1487,3 @@ MY_COLLATION_HANDLER my_collation_mb_bin_handler =
     my_hash_sort_mb_bin,
     my_propagate_simple
 };
-
-
-#endif

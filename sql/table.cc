@@ -2866,7 +2866,7 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
-#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+#if MYSQL_VERSION_ID < 40100
     uint mblen;
     if (use_mb(default_charset_info) &&
         (mblen= my_ismbchar(default_charset_info, pos, end)))
@@ -3217,16 +3217,10 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return IDENT_NAME_WRONG;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   bool last_char_is_space= FALSE;
-#else
-  if (name[length-1]==' ')
-    return IDENT_NAME_WRONG;
-#endif
 
   while (name != end)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3238,19 +3232,16 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   if (last_char_is_space)
    return IDENT_NAME_WRONG;
   else if (name_length > NAME_CHAR_LEN)
    return IDENT_NAME_TOO_LONG;
-#endif
   return IDENT_NAME_OK;
 }
 
@@ -3263,7 +3254,6 @@ bool check_column_name(const char *name)
 
   while (*name)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3276,9 +3266,6 @@ bool check_column_name(const char *name)
         continue;
       }
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
