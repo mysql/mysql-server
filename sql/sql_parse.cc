@@ -1402,11 +1402,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     break;
   }
   case COM_FIELD_LIST:				// This isn't actually needed
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0));	/* purecov: inspected */
-    break;
-#else
   {
     char *fields, *packet_end= packet + packet_length, *arg_end;
     /* Locked closure of all tables */
@@ -1508,7 +1503,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     thd->cleanup_after_query();
     break;
   }
-#endif
   case COM_QUIT:
     /* We don't calculate statistics for this command */
     query_logger.general_log_print(thd, command, NullS);
@@ -1798,24 +1792,13 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
 
   switch (schema_table_idx) {
   case SCH_SCHEMATA:
-#if defined(DONT_ALLOW_SHOW_COMMANDS)
-    my_message(ER_NOT_ALLOWED_COMMAND,
-               ER(ER_NOT_ALLOWED_COMMAND), MYF(0));   /* purecov: inspected */
-    DBUG_RETURN(1);
-#else
     break;
-#endif
 
   case SCH_TABLE_NAMES:
   case SCH_TABLES:
   case SCH_VIEWS:
   case SCH_TRIGGERS:
   case SCH_EVENTS:
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND,
-               ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(1);
-#else
     {
       LEX_STRING db;
       size_t dummy;
@@ -1833,15 +1816,9 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
         DBUG_RETURN(1);
       break;
     }
-#endif
   case SCH_COLUMNS:
   case SCH_STATISTICS:
   {
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND,
-               ER(ER_NOT_ALLOWED_COMMAND), MYF(0)); /* purecov: inspected */
-    DBUG_RETURN(1);
-#else
     DBUG_ASSERT(table_ident);
     TABLE_LIST **query_tables_last= lex->query_tables_last;
     schema_select_lex= new SELECT_LEX();
@@ -1854,7 +1831,6 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     lex->query_tables_last= query_tables_last;
     break;
   }
-#endif
   case SCH_PROFILES:
     /* 
       Mark this current profiling record to be discarded.  We don't
@@ -2453,7 +2429,7 @@ mysql_execute_command(THD *thd)
     break;
   }
   case SQLCOM_SHOW_EVENTS:
-#ifndef HAVE_EVENT_SCHEDULER
+#ifdef EMBEDDED_LIBRARY
     my_error(ER_NOT_SUPPORTED_YET, MYF(0), "embedded server");
     break;
 #endif
@@ -3032,26 +3008,15 @@ end_with_restore_list:
   }
 #ifndef EMBEDDED_LIBRARY
   case SQLCOM_SHOW_BINLOGS:
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0)); /* purecov: inspected */
-    goto error;
-#else
     {
       if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
 	goto error;
       res = show_binlogs(thd);
       break;
     }
-#endif
 #endif /* EMBEDDED_LIBRARY */
   case SQLCOM_SHOW_CREATE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0)); /* purecov: inspected */
-    goto error;
-#else
     {
      /*
         Access check:
@@ -3111,7 +3076,6 @@ end_with_restore_list:
       res= mysqld_show_create(thd, first_table);
       break;
     }
-#endif
   case SQLCOM_CHECKSUM:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
@@ -3471,18 +3435,12 @@ end_with_restore_list:
     res= mysqld_show_privileges(thd);
     break;
   case SQLCOM_SHOW_ENGINE_LOGS:
-#ifdef DONT_ALLOW_SHOW_COMMANDS
-    my_message(ER_NOT_ALLOWED_COMMAND, ER(ER_NOT_ALLOWED_COMMAND),
-               MYF(0));	/* purecov: inspected */
-    goto error;
-#else
     {
       if (check_access(thd, FILE_ACL, any_db, NULL, NULL, 0, 0))
 	goto error;
       res= ha_show_status(thd, lex->create_info.db_type, HA_ENGINE_LOGS);
       break;
     }
-#endif
   case SQLCOM_CHANGE_DB:
   {
     LEX_STRING db_str= { (char *) select_lex->db, strlen(select_lex->db) };
@@ -3728,7 +3686,7 @@ end_with_restore_list:
   }
   case SQLCOM_CREATE_EVENT:
   case SQLCOM_ALTER_EVENT:
-  #ifdef HAVE_EVENT_SCHEDULER
+  #ifndef EMBEDDED_LIBRARY
   do
   {
     DBUG_ASSERT(lex->event_parse_data);

@@ -1246,7 +1246,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
        DEPRECATED(""));
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
 static bool event_scheduler_check(sys_var *self, THD *thd, set_var *var)
 {
@@ -1404,11 +1404,7 @@ static Sys_var_lexstring Sys_init_connect(
 static Sys_var_charptr Sys_init_file(
        "init_file", "Read SQL commands from this file at startup",
        READ_ONLY GLOBAL_VAR(opt_init_file),
-#ifdef DISABLE_GRANT_OPTIONS
-       NO_CMD_LINE,
-#else
        CMD_LINE(REQUIRED_ARG),
-#endif
        IN_FS_CHARSET, DEFAULT(0));
 
 static PolyLock_rwlock PLock_sys_init_slave(&LOCK_sys_init_slave);
