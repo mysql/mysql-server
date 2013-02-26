@@ -1281,7 +1281,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache_abort(&query_cache_tls);
+  query_cache.abort(&query_cache_tls);
 
   /* 
      Avoid pushing a condition for fatal out of memory errors as this will 

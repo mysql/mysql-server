@@ -1339,7 +1339,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       /* Finalize server status flags after executing a statement. */
       thd->update_server_status();
       thd->protocol->end_statement();
-      query_cache_end_of_result(thd);
+      query_cache.end_of_result(thd);
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -1712,7 +1712,7 @@ done:
   if (thd->killed)
     thd->send_kill_message();
   thd->protocol->end_statement();
-  query_cache_end_of_result(thd);
+  query_cache.end_of_result(thd);
 
   if (!thd->is_error() && !thd->killed_errno())
     mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_RESULT, 0, 0);
@@ -3563,10 +3563,8 @@ end_with_restore_list:
     }
     else
     {
-#ifdef HAVE_QUERY_CACHE
       if (thd->variables.query_cache_wlock_invalidate)
         query_cache.invalidate_locked_for_write(first_table);
-#endif /*HAVE_QUERY_CACHE*/
       my_ok(thd);
     }
     break;
@@ -5883,7 +5881,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
   lex_start(thd);
   mysql_reset_thd_for_next_command(thd);
 
-  if (query_cache_send_result_to_client(thd, rawbuf, length) <= 0)
+  if (query_cache.send_result_to_client(thd, rawbuf, length) <= 0)
   {
     LEX *lex= thd->lex;
 
@@ -6011,7 +6009,7 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
       DBUG_PRINT("info",("Command aborted. Fatal_error: %d",
 			 thd->is_fatal_error));
 
-      query_cache_abort(&thd->query_cache_tls);
+      query_cache.abort(&thd->query_cache_tls);
     }
 
     THD_STAGE_INFO(thd, stage_freeing_items);

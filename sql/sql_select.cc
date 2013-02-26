@@ -1216,7 +1216,7 @@ mysql_select(THD *thd,
       Transactional engines must been signalled that the statement started,
       which external_lock signals.
     */
-    query_cache_store_query(thd, thd->lex->query_tables);
+    query_cache.store_query(thd, thd->lex->query_tables);
   }
 
   DBUG_RETURN(mysql_execute_select(thd, select_lex, free_join));

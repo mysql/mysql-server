@@ -1334,9 +1334,7 @@ static bool check_ftb_syntax(sys_var *self, THD *thd, set_var *var)
 }
 static bool query_cache_flush(sys_var *self, THD *thd, enum_var_type type)
 {
-#ifdef HAVE_QUERY_CACHE
   query_cache.flush();
-#endif /* HAVE_QUERY_CACHE */
   return false;
 }
 /// @todo make SESSION_VAR (usability enhancement and a fix for a race condition)
@@ -2471,7 +2469,6 @@ static Sys_var_enum Sys_thread_handling(
        , READ_ONLY GLOBAL_VAR(thread_handling), CMD_LINE(REQUIRED_ARG),
        thread_handling_names, DEFAULT(0));
 
-#ifdef HAVE_QUERY_CACHE
 static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
 {
   ulong new_cache_size= query_cache.resize(query_cache_size);
@@ -2539,7 +2536,6 @@ static Sys_var_mybool Sys_query_cache_wlock_invalidate(
        "Invalidate queries in query cache on LOCK for write",
        SESSION_VAR(query_cache_wlock_invalidate), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE));
-#endif /* HAVE_QUERY_CACHE */
 
 static bool
 on_check_opt_secure_auth(sys_var *self, THD *thd, set_var *var)
