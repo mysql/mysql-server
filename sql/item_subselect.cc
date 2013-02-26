@@ -1017,7 +1017,13 @@ void Item_singlerow_subselect::fix_length_and_dec()
 
 void Item_singlerow_subselect::no_rows_in_result()
 {
-  no_rows= true;
+  /*
+    This is only possible if we have a dependent subquery in the SELECT list
+    and an aggregated outer query based on zero rows, which is an illegal query
+    according to the SQL standard. ONLY_FULL_GROUP_BY rejects such queries.
+  */
+  if (unit->uncacheable & UNCACHEABLE_DEPENDENT)
+    no_rows= true;
 }
 
 uint Item_singlerow_subselect::cols()

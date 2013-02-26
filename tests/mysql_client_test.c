@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18000,8 +18000,6 @@ static void test_bug43560(void)
   Bug#36326: nested transaction and select
 */
 
-#ifdef HAVE_QUERY_CACHE
-
 static void test_bug36326()
 {
   int rc;
@@ -18047,8 +18045,6 @@ static void test_bug36326()
 
   DBUG_VOID_RETURN;
 }
-
-#endif
 
 /**
   Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
@@ -19489,9 +19485,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
   { "test_bug43560", test_bug43560 },
-#ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
-#endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },
