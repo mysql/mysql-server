@@ -337,7 +337,6 @@ TODO list:
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
 #include "sql_table.h"
-#ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -1005,7 +1004,7 @@ void Query_cache::end_of_result(THD *thd)
 
   if (thd->killed || thd->is_error())
   {
-    query_cache_abort(&thd->query_cache_tls);
+    abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
 
@@ -3718,7 +3717,9 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
-  if (query_cache_is_cacheable_query(lex) &&
+  if (lex->sql_command == SQLCOM_SELECT &&
+      lex->safe_to_cache_query &&
+      !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))))
@@ -4910,6 +4911,4 @@ err2:
 }
 
 #endif /* DBUG_OFF */
-
-#endif /*HAVE_QUERY_CACHE*/
 

@@ -2448,12 +2448,10 @@ innobase_invalidate_query_cache(
 	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
-#ifdef HAVE_QUERY_CACHE
 	mysql_query_cache_invalidate4(trx->mysql_thd,
 				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
-#endif
 }
 
 /*****************************************************************//**

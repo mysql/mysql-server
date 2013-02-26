@@ -659,7 +659,7 @@ err:
   // For query cache
   table_list->table= NULL;
   table_list->next_local->table= NULL;
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   DBUG_RETURN(error);
 }
@@ -842,7 +842,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   // Invalidate query cache
   DBUG_ASSERT(!first_table->next_local);
-  query_cache_invalidate3(thd, first_table, FALSE);
+  query_cache.invalidate(thd, first_table, FALSE);
 
   DBUG_RETURN(error);
 }

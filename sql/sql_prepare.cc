@@ -3117,7 +3117,8 @@ void Prepared_statement::setup_set_params()
     Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
     db from "prepare" time).
   */
-  if (query_cache_maybe_disabled(thd)) // we won't expand the query
+  if (thd->variables.query_cache_type == 0 ||
+      query_cache.query_cache_size == 0) // we won't expand the query
     lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
 
   /*
@@ -3126,7 +3127,9 @@ void Prepared_statement::setup_set_params()
   */
   if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
       opt_general_log || opt_slow_log ||
-      query_cache_is_cacheable_query(lex))
+      (lex->sql_command == SQLCOM_SELECT &&
+       lex->safe_to_cache_query &&
+       !lex->describe))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
@@ -3864,7 +3867,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       Note that multi-statements cannot exist here (they are not supported in
       prepared statements).
     */
-    if (query_cache_send_result_to_client(thd, thd->query(),
+    if (query_cache.send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
       PSI_statement_locker *parent_locker;
