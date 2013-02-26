@@ -141,7 +141,9 @@ bool Alter_table_truncate_partition_statement::execute(THD *thd)
     TODO: Add support for TRUNCATE PARTITION for NDB and other
           engines supporting native partitioning.
   */
-  if (first_table->table->s->db_type() != partition_hton)
+
+  if (!first_table->table || first_table->view ||
+      first_table->table->s->db_type() != partition_hton)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
