@@ -2719,7 +2719,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
-  status_var_increment(thd->status_var.com_stmt_fetch);
+  thd->status_var.com_stmt_fetch++;
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
@@ -2779,7 +2779,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  status_var_increment(thd->status_var.com_stmt_reset);
+  thd->status_var.com_stmt_reset++;
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
@@ -2894,7 +2894,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
-  status_var_increment(thd->status_var.com_stmt_send_long_data);
+  thd->status_var.com_stmt_send_long_data++;
 
   thd->get_stmt_da()->disable_status();
 #ifndef EMBEDDED_LIBRARY
@@ -3273,7 +3273,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     However, it seems handy if com_stmt_prepare is increased always,
     no matter what kind of prepare is processed.
   */
-  status_var_increment(thd->status_var.com_stmt_prepare);
+  thd->status_var.com_stmt_prepare++;
 
   if (! (lex= new (mem_root) st_lex_local))
     DBUG_RETURN(TRUE);
@@ -3618,7 +3618,7 @@ Prepared_statement::reprepare()
 
   copy.set_sql_prepare(); /* To suppress sending metadata to the client. */
 
-  status_var_increment(thd->status_var.com_stmt_reprepare);
+  thd->status_var.com_stmt_reprepare++;
 
   if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
@@ -3774,7 +3774,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   LEX_STRING stmt_db_name= { db, db_length };
 
-  status_var_increment(thd->status_var.com_stmt_execute);
+  thd->status_var.com_stmt_execute++;
 
   if (flags & (uint) IS_IN_USE)
   {
@@ -3946,7 +3946,7 @@ error:
 void Prepared_statement::deallocate()
 {
   /* We account deallocate in the same manner as mysqld_stmt_close */
-  status_var_increment(thd->status_var.com_stmt_close);
+  thd->status_var.com_stmt_close++;
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
 }

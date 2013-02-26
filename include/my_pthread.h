@@ -897,60 +897,6 @@ extern uint thd_lib_detected;
 #endif
 #endif
 
-
-/*
-  statistics_xxx functions are for non critical statistic,
-  maintained in global variables.
-  When compiling with SAFE_STATISTICS:
-  - race conditions can not occur.
-  - some locking occurs, which may cause performance degradation.
-
-  When compiling without SAFE_STATISTICS:
-  - race conditions can occur, making the result slightly inaccurate.
-  - the lock given is not honored.
-*/
-#ifdef SAFE_STATISTICS
-#define statistic_increment(V,L) thread_safe_increment((V),(L))
-#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
-#define statistic_increment_rwlock(V,L) thread_safe_increment_rwlock((V),(L))
-#define statistic_decrement_rwlock(V,L) thread_safe_decrement_rwlock((V),(L))
-#define statistic_add(V,C,L)     thread_safe_add((V),(C),(L))
-#define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
-#define statistic_add_rwlock(V,C,L)     thread_safe_add_rwlock((V),(C),(L))
-#define statistic_sub_rwlock(V,C,L)     thread_safe_sub_rwlock((V),(C),(L))
-#define statistic_inc_set_big_rwlock(V,B,L) \
-  do {                                      \
-    mysql_rwlock_wrlock((L));               \
-    (V)++;                                  \
-    set_if_bigger((B),(V));                 \
-    mysql_rwlock_unlock((L));               \
-  } while(0)
-
-#else
-#define statistic_decrement(V,L) (V)--
-#define statistic_increment(V,L) (V)++
-#define statistic_decrement_rwlock(V,L) (V)--
-#define statistic_increment_rwlock(V,L) (V)++
-#define statistic_add(V,C,L)     (V)+=(C)
-#define statistic_sub(V,C,L)     (V)-=(C)
-#define statistic_add_rwlock(V,C,L)     (V)+=(C)
-#define statistic_sub_rwlock(V,C,L)     (V)-=(C)
-#define statistic_inc_set_big_rwlock(V,B,L) \
-  do {                                      \
-    (V)++;                                  \
-    set_if_bigger((B),(V));                 \
-  } while(0)
-
-#endif /* SAFE_STATISTICS */
-
-/*
-  No locking needed, the counter is owned by the thread
-*/
-#define status_var_increment(V) (V)++
-#define status_var_decrement(V) (V)--
-#define status_var_add(V,C)     (V)+=(C)
-#define status_var_sub(V,C)     (V)-=(C)
-
 #ifdef  __cplusplus
 }
 #endif

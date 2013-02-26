@@ -417,7 +417,7 @@ void Optimize_table_order::best_access_path(
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE *const table= s->table;
 
-  status_var_increment(thd->status_var.last_query_partial_plans);
+  thd->status_var.last_query_partial_plans++;
 
   /*
     Cannot use join buffering if either
