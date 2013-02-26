@@ -193,7 +193,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     invalidation till the end of a transaction, but do it
     immediately.
   */
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -570,7 +570,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */
-      query_cache_invalidate3(thd, table->table, 0);
+      query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
         flush that is made later in the execution flow. 
@@ -920,7 +920,7 @@ send_result_message:
           invalidate the query cache.
         */
         table->table= 0;                        // For query cache
-        query_cache_invalidate3(thd, table, 0);
+        query_cache.invalidate(thd, table, FALSE);
       }
     }
     /* Error path, a admin command failed. */
