@@ -365,8 +365,11 @@ fil_space_belongs_in_lru(
 /*=====================*/
 	const fil_space_t*	space)	/*!< in: file space */
 {
+	/* Even if temp-tablespace id > undo-tablespace-open it serve
+	as system-level-tablepsace so indicate it accordingly.*/
 	return(space->purpose == FIL_TABLESPACE
-	       && fil_is_user_tablespace_id(space->id));
+	       && (space->id == srv_tmp_space.space_id()
+		   ? false : fil_is_user_tablespace_id(space->id)));
 }
 
 /********************************************************************//**
@@ -2553,7 +2556,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2636,7 +2639,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+		os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 		mem_free(cfg_name);
 	}
 
@@ -2665,7 +2668,8 @@ fil_delete_tablespace(
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
 	} else if (!os_file_delete(innodb_file_data_key, path)
-		   && !os_file_delete_if_exists(innodb_file_data_key, path)) {
+		   && !os_file_delete_if_exists(
+			innodb_file_data_key, path, NULL)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3134,7 +3138,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(innodb_file_data_key, link_filepath);
+	os_file_delete_if_exists(innodb_file_data_key, link_filepath, NULL);
 
 	mem_free(link_filepath);
 }
@@ -6085,11 +6089,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, ibd_name);
+	os_file_delete_if_exists(innodb_file_data_key, ibd_name, NULL);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
 
 	mem_free(cfg_name);
 }
@@ -6156,12 +6160,12 @@ fil_mtr_rename_log(
 					swapping */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	if (old_space_id != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(old_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
 				 0, 0, old_name, tmp_name, mtr);
 	}
 
-	if (new_space_id != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(new_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
 				 0, 0, new_name, old_name, mtr);
 	}
