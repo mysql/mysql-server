@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -369,14 +369,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{
-#ifdef HAVE_SPATIAL
 	  uint sp_segs=SPDIMS*2;
 	  share->keyinfo[i].seg=pos-sp_segs;
 	  share->keyinfo[i].keysegs--;
-#else
-	  my_errno=HA_ERR_UNSUPPORTED;
-	  goto err;
-#endif
 	}
         else if (share->keyinfo[i].flag & HA_FULLTEXT)
 	{
