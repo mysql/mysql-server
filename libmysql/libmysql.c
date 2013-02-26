@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1191,16 +1191,13 @@ void STDCALL
 myodbc_remove_escape(MYSQL *mysql,char *name)
 {
   char *to;
-#ifdef USE_MB
   my_bool use_mb_flag=use_mb(mysql->charset);
   char *UNINIT_VAR(end);
   if (use_mb_flag)
     for (end=name; *end ; end++) ;
-#endif
 
   for (to=name ; *name ; name++)
   {
-#ifdef USE_MB
     int l;
     if (use_mb_flag && (l = my_ismbchar( mysql->charset, name , end ) ) )
     {
@@ -1209,7 +1206,6 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
       name--;
       continue;
     }
-#endif
     if (*name == '\\' && name[1])
       name++;
     *to++= *name;

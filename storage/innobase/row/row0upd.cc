@@ -1687,8 +1687,10 @@ row_upd_sec_index_entry(
 			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, &flags);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -1723,8 +1725,11 @@ row_upd_sec_index_entry(
 		}
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
@@ -1735,8 +1740,11 @@ row_upd_sec_index_entry(
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
 	}
@@ -2083,8 +2091,10 @@ err_exit:
 		cursor succeeds. */
 
 		mtr_start(mtr);
-		optimize_log_and_lock_level_if_temp_table(
-			dict_table_is_temporary(table), mtr, &flags);
+		dict_disable_redo_if_temporary(table, mtr);
+		if (dict_table_is_temporary(table)) {
+			flags |= BTR_NO_LOCKING_FLAG;
+		}
 
 		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
 			ut_error;
@@ -2191,8 +2201,10 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), mtr, &flags);
+	dict_disable_redo_if_temporary(index->table, mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
 	therefore other transactions cannot modify the record when we have no
@@ -2362,8 +2374,10 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, &flags);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
@@ -2407,7 +2421,7 @@ row_upd_clust_step(
 
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
+		dict_drop_index_tree_step(btr_pcur_get_rec(pcur), &mtr);
 
 		mtr_commit(&mtr);
 

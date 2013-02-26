@@ -2316,8 +2316,10 @@ row_ins_clust_index_entry_low(
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, &flags);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
@@ -2541,8 +2543,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	ut_ad(!dict_index_is_clust(index));
 
 	mtr_start(mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, mtr);
 
 	if (!check) {
 		return(false);
@@ -2595,7 +2596,7 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode	= mode | BTR_INSERT;
+	ulint		search_mode	= mode;
 	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
@@ -2608,8 +2609,15 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, &flags);
+	dict_disable_redo_if_temporary(index->table, &mtr);
+	if (dict_table_is_temporary(index->table)) {
+		flags |= BTR_NO_LOCKING_FLAG;
+	}
+
+	/* Disable insert buffering for temp-table indexes */
+	if (!dict_table_is_temporary(index->table)) {
+		search_mode |= BTR_INSERT;
+	}
 
 	/* Ensure that we acquire index->lock when inserting into an
 	index with index->online_status == ONLINE_INDEX_COMPLETE, but
@@ -2808,8 +2816,7 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
 				    BTR_MODIFY_TREE, &cursor, 0,

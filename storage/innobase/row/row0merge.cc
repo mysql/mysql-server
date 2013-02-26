@@ -38,6 +38,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0import.h"
 #include "handler0alter.h"
 #include "ha_prototypes.h"
+#include "srv0space.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -3095,7 +3096,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(table->space != TRX_SYS_SPACE);
+	ut_ad(!Tablespace::is_system_tablespace(table->space));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);
@@ -3156,7 +3157,7 @@ row_merge_rename_tables_dict(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && old_table->space != TRX_SYS_SPACE
+	    && !Tablespace::is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3184,7 +3185,8 @@ row_merge_rename_tables_dict(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS && new_table->space != TRX_SYS_SPACE) {
+	if (err == DB_SUCCESS
+	    && !Tablespace::is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(
 			new_table, old_table->name);

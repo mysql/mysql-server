@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,8 +20,6 @@
 #include "gstream.h"                            // Gis_read_stream
 #include "spatial.h"
 #include <mysqld_error.h>
-
-#ifdef HAVE_SPATIAL
 
 /* 
   exponential notation :
@@ -2351,5 +2349,3 @@ const Geometry::Class_info *Gis_geometry_collection::get_class_info() const
 {
   return &geometrycollection_class;
 }
-
-#endif /*HAVE_SPATIAL*/

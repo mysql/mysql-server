@@ -1,6 +1,6 @@
 #ifndef SET_VAR_INCLUDED
 #define SET_VAR_INCLUDED
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,9 +104,15 @@ public:
 
   bool check(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
-  bool set_default(THD *thd, enum_var_type type);
   virtual void update_default(longlong new_def_value)
   { option.def_value= new_def_value; }
+
+  /**
+     Update the system variable with the default value from either
+     session or global scope.  The default value is stored in the
+     'var' argument. Return false when successful.
+  */
+  bool set_default(THD *thd, set_var *var);
   bool update(THD *thd, set_var *var);
 
   SHOW_TYPE show_type() { return show_val_type; }
@@ -229,13 +235,23 @@ public:
     if (value_arg && value_arg->type() == Item::FIELD_ITEM)
     {
       Item_field *item= (Item_field*) value_arg;
-      if (!(value=new Item_string(item->field_name,
-                                  (uint) strlen(item->field_name),
-                                  system_charset_info))) // names are utf8
-        value=value_arg;                        /* Give error message later */
+      if (item->field_name)
+      {
+        if (!(value= new Item_string(item->field_name,
+                                     (uint) strlen(item->field_name),
+                                     system_charset_info))) // names are utf8
+	  value= value_arg;			/* Give error message later */
+      }
+      else
+      {
+        /* Both Item_field and Item_insert_value will return the type as
+        Item::FIELD_ITEM. If the item->field_name is NULL, we assume the
+        object to be Item_insert_value. */
+        value= value_arg;
+      }
     }
     else
-      value=value_arg;
+      value= value_arg;
   }
   int check(THD *thd);
   int update(THD *thd);

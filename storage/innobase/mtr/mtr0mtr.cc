@@ -343,25 +343,6 @@ mtr_commit(
 	ut_d(mtr->state = MTR_COMMITTED);
 }
 
-/***************************************************************//**
-Turn off redo logging + locking if table is temp-table. */
-UNIV_INTERN
-void
-optimize_log_and_lock_level_if_temp_table(
-/*======================================*/
-	bool	is_temp,	/*!< in: true if temp-table */
-	mtr_t*	mtr,		/*!< out: mini-transaction */
-	ulint*	flags)		/*!< out: flags indicating locking level */
-{
-	if (is_temp) {
-		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
-		if (flags) {
-			*flags |= BTR_NO_LOCKING_FLAG;
-		}
-	}
-	return;
-}
-
 #ifndef UNIV_HOTBACKUP
 /***************************************************//**
 Releases an object in the memo stack. */

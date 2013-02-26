@@ -78,8 +78,7 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	/* This is similar to row_undo_mod_clust(). Even though we
 	call row_log_table_rollback() elsewhere, the DDL thread may
@@ -126,7 +125,7 @@ row_undo_ins_remove_clust_rec(
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
 
-		dict_drop_index_tree(btr_pcur_get_rec(&(node->pcur)), &mtr);
+		dict_drop_index_tree_step(btr_pcur_get_rec(&node->pcur), &mtr);
 
 		mtr_commit(&mtr);
 
@@ -146,8 +145,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
 					    &(node->pcur), &mtr);
@@ -203,8 +201,7 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;

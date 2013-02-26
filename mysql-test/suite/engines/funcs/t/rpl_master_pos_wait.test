@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # See if master_pos_wait(,,timeout)
 # Terminates with "timeout expired" (-1)
 source include/master-slave.inc;
