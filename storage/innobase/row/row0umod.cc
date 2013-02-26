@@ -236,8 +236,7 @@ row_undo_mod_clust(
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
 	if (online) {
@@ -266,8 +265,7 @@ row_undo_mod_clust(
 		descent down the index tree */
 
 		mtr_start(&mtr);
-		optimize_log_and_lock_level_if_temp_table(
-			dict_table_is_temporary(index->table), &mtr, NULL);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		err = row_undo_mod_clust_low(
 			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
@@ -310,8 +308,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
 		mtr_start(&mtr);
-		optimize_log_and_lock_level_if_temp_table(
-			dict_table_is_temporary(index->table), &mtr, NULL);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		/* It is not necessary to call row_log_table,
 		because the record is delete-marked and would thus
@@ -325,9 +322,7 @@ row_undo_mod_clust(
 			pessimistic descent down the index tree */
 
 			mtr_start(&mtr);
-			optimize_log_and_lock_level_if_temp_table(
-				dict_table_is_temporary(index->table),
-				&mtr, NULL);
+			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(node, thr, &mtr,
 							    BTR_MODIFY_TREE);
@@ -375,8 +370,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 
 	log_free_check();
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -433,8 +427,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	we should delete mark the record. */
 
 	mtr_start(&mtr_vers);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 					    &mtr_vers);
@@ -551,8 +544,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	log_free_check();
 	mtr_start(&mtr);
-	optimize_log_and_lock_level_if_temp_table(
-		dict_table_is_temporary(index->table), &mtr, NULL);
+	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the

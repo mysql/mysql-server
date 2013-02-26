@@ -32,7 +32,7 @@ Created 12/7/1995 Heikki Tuuri
 
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
-@return	buffer, NULL if log mode MTR_LOG_NONE */
+@return	buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
 byte*
 mlog_open(

@@ -426,14 +426,25 @@ row_purge_remove_sec_if_poss_leaf(
 			goto func_exit_no_pcur;
 		}
 
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED | BTR_DELETE;
+		/* Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (dict_table_is_temporary(index->table))
+			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			| BTR_DELETE;
 	} else {
 		/* For secondary indexes,
 		index->online_status==ONLINE_INDEX_CREATION unless
 		index->name starts with TEMP_INDEX_PREFIX. */
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		mode = BTR_MODIFY_LEAF | BTR_DELETE;
+		/* Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (dict_table_is_temporary(index->table))
+			? BTR_MODIFY_LEAF
+			: BTR_MODIFY_LEAF | BTR_DELETE;
 	}
 
 	/* Set the purge node for the call to row_purge_poss_sec(). */
@@ -781,8 +792,7 @@ row_purge_parse_undo_rec(
 	/* Disable purging for temp-tables as they are short-lived
 	and no point in re-organzing such short lived tables */
 	if (dict_table_is_temporary(node->table)) {
-		dict_table_close(node->table, FALSE, FALSE);
-		goto err_exit;
+		goto close_exit;
 	}
 
 	if (node->table->ibd_file_missing) {

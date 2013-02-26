@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Testcase for BUG#4552 (DROP on two tables, one of which does not
 # exist, must be binlogged with a non-zero error code)
 source include/master-slave.inc;

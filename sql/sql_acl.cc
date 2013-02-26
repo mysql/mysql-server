@@ -11108,8 +11108,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (!count_ok)
     {                                         // too many connections
       release_user_connection(thd);
-      statistic_increment_rwlock(connection_errors_max_connection, 
-                                 &LOCK_status);
+      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

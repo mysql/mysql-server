@@ -18,8 +18,8 @@ SELECT @@global.max_seeks_for_key;
 INSERT INTO t1(b) VALUES("AREc");
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t2	system	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SET @@session.max_seeks_for_key = 2;
 SELECT @@session.max_seeks_for_key;
 @@session.max_seeks_for_key

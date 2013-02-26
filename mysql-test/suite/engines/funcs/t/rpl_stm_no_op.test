@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # It's true only in statement-based replication that a statement which
 # updates no rows (UPDATE/DELETE) is binlogged; in row-based
 # replication, as we log modified rows, nothing is binlogged in this
