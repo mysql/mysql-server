@@ -334,6 +334,9 @@ private:
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
+#if TOKU_INCLUDE_EXTENDED_KEYS
+    DBT *pack_ext_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
+#endif
     bool key_changed(uint keynr, const uchar * old_row, const uchar * new_row);
     int handle_cursor_error(int error, int err_to_return, uint keynr);
     DBT *get_pos(DBT * to, uchar * pos);

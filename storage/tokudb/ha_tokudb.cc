@@ -282,6 +282,16 @@ static inline uint get_key_parts(const KEY *key) {
 #endif
 }
 
+#if TOKU_INCLUDE_EXTENDED_KEYS
+static inline uint get_ext_key_parts(const KEY *key) {
+#if defined(MARIADB_BASE_VERSION)
+    return key->ext_key_parts;
+#else
+    return get_key_parts(key);
+#endif
+}
+#endif
+
 ulonglong ha_tokudb::table_flags() const {
     return (table && do_ignore_flag_optimization(ha_thd(), table, share->replace_into_fast) ? 
         int_table_flags | HA_BINLOG_STMT_CAPABLE : 
@@ -2818,6 +2828,11 @@ DBT *ha_tokudb::pack_key(
     ) 
 {
     TOKUDB_DBUG_ENTER("ha_tokudb::pack_key");
+#if TOKU_INCLUDE_EXTENDED_KEYS
+    if (keynr != primary_key && !test(hidden_primary_key)) {
+        DBUG_RETURN(pack_ext_key(key, keynr, buff, key_ptr, key_length, inf_byte));
+    }
+#endif
     KEY *key_info = &table->key_info[keynr];
     KEY_PART_INFO *key_part = key_info->key_part;
     KEY_PART_INFO *end = key_part + get_key_parts(key_info);
@@ -2826,10 +2841,8 @@ DBT *ha_tokudb::pack_key(
     memset((void *) key, 0, sizeof(*key));
     key->data = buff;
 
-    //
     // first put the "infinity" byte at beginning. States if missing columns are implicitly
     // positive infinity or negative infinity
-    //
     *buff++ = (uchar)inf_byte;
 
     for (; key_part != end && (int) key_length > 0; key_part++) {
@@ -2857,11 +2870,111 @@ DBT *ha_tokudb::pack_key(
         key_ptr += key_part->store_length;
         key_length -= key_part->store_length;
     }
+
     key->size = (buff - (uchar *) key->data);
     DBUG_DUMP("key", (uchar *) key->data, key->size);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     DBUG_RETURN(key);
 }
+
+#if TOKU_INCLUDE_EXTENDED_KEYS
+DBT *ha_tokudb::pack_ext_key(
+    DBT * key, 
+    uint keynr, 
+    uchar * buff, 
+    const uchar * key_ptr, 
+    uint key_length, 
+    int8_t inf_byte
+    ) 
+{
+    TOKUDB_DBUG_ENTER("ha_tokudb::pack_ext_key");
+
+    // build a list of PK parts that are in the SK.  we will use this list to build the
+    // extended key if necessary. 
+    KEY *pk_key_info = &table->key_info[primary_key];
+    uint pk_parts = get_key_parts(pk_key_info);
+    uint pk_next = 0;
+    struct {
+        const uchar *key_ptr;
+        KEY_PART_INFO *key_part;
+    } pk_info[pk_parts];
+
+    KEY *key_info = &table->key_info[keynr];
+    KEY_PART_INFO *key_part = key_info->key_part;
+    KEY_PART_INFO *end = key_part + get_key_parts(key_info);
+    my_bitmap_map *old_map = dbug_tmp_use_all_columns(table, table->write_set);
+
+    memset((void *) key, 0, sizeof(*key));
+    key->data = buff;
+
+    // first put the "infinity" byte at beginning. States if missing columns are implicitly
+    // positive infinity or negative infinity
+    *buff++ = (uchar)inf_byte;
+
+    for (; key_part != end && (int) key_length > 0; key_part++) {
+        // if the SK part is part of the PK, then append it to the list.
+        if (key_part->field->part_of_key.is_set(primary_key)) {
+            assert(pk_next < pk_parts);
+            pk_info[pk_next].key_ptr = key_ptr;
+            pk_info[pk_next].key_part = key_part;
+            pk_next++;
+        }
+        uint offset = 0;
+        if (key_part->null_bit) {
+            if (!(*key_ptr == 0)) {
+                *buff++ = NULL_COL_VAL;
+                key_length -= key_part->store_length;
+                key_ptr += key_part->store_length;
+                continue;
+            }
+            *buff++ = NONNULL_COL_VAL;
+            offset = 1;         // Data is at key_ptr+1
+        }
+#if !defined(MARIADB_BASE_VERSION)
+        assert(table->s->db_low_byte_first);
+#endif
+        buff = pack_key_toku_key_field(
+            buff,
+            (uchar *) key_ptr + offset,
+            key_part->field,
+            key_part->length
+            );
+        
+        key_ptr += key_part->store_length;
+        key_length -= key_part->store_length;
+    }
+
+    if (key_length > 0) {
+        assert(key_part == end);
+        end = key_info->key_part + get_ext_key_parts(key_info);
+
+        // pack PK in order of PK key parts
+        for (uint pk_index = 0; key_part != end && (int) key_length > 0 && pk_index < pk_parts; pk_index++) {
+            uint i;
+            for (i = 0; i < pk_next; i++) {
+                // TODO how to really compare key parts?
+                if (pk_info[i].key_part->field == pk_key_info->key_part[pk_index].field)
+                    break;
+            }
+            if (i < pk_next) {
+                const uchar *this_key_ptr = pk_info[i].key_ptr;
+                KEY_PART_INFO *this_key_part = pk_info[i].key_part;
+                buff = pack_key_toku_key_field(buff, (uchar *) this_key_ptr, this_key_part->field, this_key_part->length);
+            } else {
+                buff = pack_key_toku_key_field(buff, (uchar *) key_ptr, key_part->field, key_part->length);
+                key_ptr += key_part->store_length;
+                key_length -= key_part->store_length;
+                key_part++;
+            }
+        }
+    }
+
+    key->size = (buff - (uchar *) key->data);
+    DBUG_DUMP("key", (uchar *) key->data, key->size);
+    dbug_tmp_restore_column_map(table->write_set, old_map);
+    DBUG_RETURN(key);
+}
+#endif
 
 //
 // get max used hidden primary key value

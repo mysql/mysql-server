@@ -358,7 +358,7 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->state = SHOW_OPTION_YES;
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
     tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT;
-#ifdef DB_TYPE_TOKUDB
+#if DB_TYPE_TOKUDB_DEFINED
     tokudb_hton->db_type = DB_TYPE_TOKUDB;
 #else
     tokudb_hton->db_type = DB_TYPE_UNKNOWN;
