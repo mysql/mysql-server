@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "myisamdef.h"
-
-#ifdef HAVE_SPATIAL
-
 #include "sp_defs.h"
 
 static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims, 
@@ -282,5 +279,3 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   }
   return res;
 }
-
-#endif /*HAVE_SPATIAL*/
