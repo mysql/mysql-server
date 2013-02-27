@@ -39,8 +39,10 @@ using namespace v8;
  * thread, as they may require network waits.
  *
  * Looking at NdbDictionaryImpl.cpp, any method that calls into 
- * NdbDictInterface (m_receiver) might block.  But any NdbDictionary.hpp method 
- * marked as "const" should be safe from blocking.
+ * NdbDictInterface (m_receiver) might block.  Any method that blocks 
+ * will cause the ndb's WaitMetaRequestCount to increment. If a method 
+ * is marked const in NdbDictionaryImpl.hpp (*NOT* NdbDictionary.hpp)
+ * perhaps we can assume it will not block.
  *
  * We assume that once a table has been fetched, all NdbDictionary::getColumn() 
  * calls are immediately served from the local dictionary cache.
@@ -183,16 +185,42 @@ public:
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
   NdbDictionary::Dictionary * dict;
+  return_val = -1;
   
   if(strlen(arg1)) {
     arg0->ndb->setDatabaseName(arg1);
   }
   dict = arg0->ndb->getDictionary();
   ndb_table = dict->getTable(arg2);
-  return_val = ndb_table ? dict->listIndexes(idx_list, arg2) : -1;
+  if(ndb_table) {
+    return_val = dict->listIndexes(idx_list, arg2);
+  }
+  if(return_val == 0) {
+    /* Fetch the indexes now.  These calls may perform network IO, populating 
+       the (connection) global and (Ndb) local dictionary caches.  Later,
+       in the JavaScript main thread, we will call getIndex() again knowing
+       that the caches are populated.
+    */
+    for(unsigned int i = 0 ; i < idx_list.count ; i++) { 
+      const NdbDictionary::Index * idx = dict->getIndex(idx_list.elements[i].name, arg2);
+      /* It is possible to get an index for a recently dropped table rather 
+         than the desired table.  This is a known bug likely to be fixed later.
+      */
+      if(ndb_table->getObjectVersion() != 
+         dict->getTable(idx->getTable())->getObjectVersion()) 
+      {
+        dict->invalidateIndex(idx);
+        idx = dict->getIndex(idx_list.elements[i].name, arg2);
+      }
+    }
+  }
 }
 
 
+/* doAsyncCallback() runs in the main thread.  We don't want it to block.
+   TODO: verify whether any IO is done 
+         by checking WaitMetaRequestCount at the start and end.
+*/    
 void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   HandleScope scope;  
   DEBUG_PRINT("GetTableCall::doAsyncCallback: return_val %d", return_val);
@@ -236,30 +264,6 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
       const NdbDictionary::Index * idx =
         arg0->dict->getIndex(idx_list.elements[i].name, arg2);
 
-      /* This code concerns the possibility of retreiving an index for a recently
-         dropped table rather than the desired table. 
-      */
-      if(ndb_table->getObjectVersion() != 
-         arg0->dict->getTable(idx->getTable())->getObjectVersion()) {
-        DEBUG_PRINT("\n  **  Expected: %s.%s.%s (TableId %d, Table Object Version: %d)."
-                    "\n  **  Got:      %s.%s.%s (TableId %d, Table Object Version: %d)",
-                    arg1,arg2,idx_list.elements[i].name,
-                    ndb_table->getTableId(), ndb_table->getObjectVersion(),
-                    arg1,idx->getTable(), idx->getName(),
-                    arg0->dict->getTable(idx->getTable())->getTableId(),
-                    arg0->dict->getTable(idx->getTable())->getObjectVersion(),
-                    idx->getObjectId());
-        arg0->dict->invalidateIndex(idx);
-        idx = arg0->dict->getIndex(idx_list.elements[i].name, arg2);
-        DEBUG_PRINT("\n  **  Expected: %s.%s.%s (TableId %d, Table Object Version: %d)."
-            "\n  **  Got:      %s.%s.%s (TableId %d, Table Object Version: %d)",
-            arg1,arg2,idx_list.elements[i].name,
-            ndb_table->getTableId(), ndb_table->getObjectVersion(),
-            arg1,idx->getTable(), idx->getName(),
-            arg0->dict->getTable(idx->getTable())->getTableId(),
-            arg0->dict->getTable(idx->getTable())->getObjectVersion(),
-            idx->getObjectId());
-      }
 
       js_indexes->Set(i+1, buildDBIndex(idx));
     }    
