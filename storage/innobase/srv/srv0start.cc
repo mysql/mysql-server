@@ -1876,7 +1876,7 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+	for (i = 0; i < srv_n_file_io_threads; ++i) {
 
 		n[i] = i;
 

@@ -873,6 +873,8 @@ mach_read_ulint(
 	default:
 		ut_error;
 	}
+
+	return(0);
 }
 
 #endif /* !UNIV_HOTBACKUP */
