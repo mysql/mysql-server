@@ -56,6 +56,7 @@ exports.DBOperationError = DBOperationError;
 
 function IndirectError(dbOperationErr) {
   this.message = "Error";
+  this.sqlstate = dbOperationErr.sqlstate;
   this.cause = dbOperationErr;
 }
 IndirectError.prototype = doc.DBOperationError;
@@ -235,14 +236,16 @@ function buildOperationResult(transactionHandler, op) {
   op_ndb_error = op.ndbop.getNdbError();
   result_code = op_ndb_error.code;
 
+  /* Error Handling */
   if(result_code === 0) {
-    if(transactionHandler.ndb_error) {
+    if(transactionHandler.error) {
       /* This operation has no error, but the transaction failed. */
+      udebug.log("Case txErr + opOK", transactionHandler.moniker);
       op.result.success = false;
-      op.error = new IndirectError(transactionHandler.error);      
+      op.result.error = new IndirectError(transactionHandler.error);      
     }
     else {
-      /* All Clear */
+      udebug.log("Case txOK + opOK", transactionHandler.moniker);
       op.result.success = true;
     }
   }
@@ -250,7 +253,16 @@ function buildOperationResult(transactionHandler, op) {
     /* This operation has an error. */
     op.result.success = false;
     op.result.error = new DBOperationError(op_ndb_error);
-
+    if(transactionHandler.error) {
+      udebug.log("Case txErr + OpErr", transactionHandler.moniker);
+      if(! transactionHandler.error.cause) {
+        transactionHandler.error.cause = op.result.error;
+      }
+    }
+    else {
+      udebug.log("Case txOK + OpErr", transactionHandler.moniker);
+      transactionHandler.error = new IndirectError(op.result.error);
+    }
   }
   stats.incr("result_code", result_code);
 
@@ -259,7 +271,7 @@ function buildOperationResult(transactionHandler, op) {
      readResultRow(op);
    }  
 
-  udebug.log_detail("buildOperationResult", op.result);
+  udebug.log_detail("buildOperationResult finished:", op.result);
 }
 
 

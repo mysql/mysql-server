@@ -282,7 +282,7 @@ DBConnectionPool.prototype.close = function(userCallback) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
   }
   releaseNdbConnection(this.properties.ndb_connectstring,
-                       this.properties.linger_on_close_msec
+                       this.properties.linger_on_close_msec,
                        userCallback);
 };
 
