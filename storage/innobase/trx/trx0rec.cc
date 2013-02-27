@@ -1235,7 +1235,6 @@ trx_undo_report_row_operation(
 
 	trx = thr_get_trx(thr);
 
-printf("%s(): insert %s\n", __func__, index->table->name);
 	trx->mod_tables.insert(index->table);
 
 	/* This table is visible only to the session that created it. */

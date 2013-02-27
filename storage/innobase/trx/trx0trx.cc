@@ -1052,8 +1052,6 @@ trx_update_mod_tables_timestamp(
 /*============================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	printf("%s(): begin\n", __func__);
-
 	/* consider using trx->start_time if calling time() is too
 	expensive here */
 	time_t	now = time(NULL);
@@ -1065,14 +1063,10 @@ trx_update_mod_tables_timestamp(
 
 		dict_table_t*	table = *iter;
 
-		printf("%s(): modified table: %s\n", __func__, table->name);
-
 		table->update_time = now;
 	}
 
 	trx->mod_tables.clear();
-
-	printf("%s(): end\n", __func__);
 }
 
 /****************************************************************//**
@@ -1276,11 +1270,6 @@ trx_commit(
 	ut_ad(!trx->in_rw_trx_list);
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	/* trx_commit() is also called during rollback, so we do not
-	call trx_update_mod_tables_timestamp() here but call it
-	from trx_commit_for_mysql() instead. */
-	//trx_update_mod_tables_timestamp(trx);
 
 	trx->error_state = DB_SUCCESS;
 
