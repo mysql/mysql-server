@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -633,6 +633,10 @@ typedef void* os_thread_ret_t;
 			(const void*) (addr), (unsigned) (size), (long)	\
 			(((const char*) _p) - ((const char*) (addr))));	\
 	} while (0)
+# define UNIV_MEM_TRASH(addr, c, size) do {				\
+	ut_d(memset(addr, c, size));					\
+	UNIV_MEM_INVALID(addr, size);					\
+	} while (0)
 #else
 # define UNIV_MEM_VALID(addr, size) do {} while(0)
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
@@ -644,6 +648,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_RW_ABORT(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
+# define UNIV_MEM_TRASH(addr, c, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\
 	UNIV_MEM_ASSERT_W(addr, size);			\
