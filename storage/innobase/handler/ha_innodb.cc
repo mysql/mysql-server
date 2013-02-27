@@ -7599,11 +7599,17 @@ innobase_rename_table(
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
 	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
+	no deadlocks can occur then in these operations.  Start the
+	transaction first to avoid a possible deadlock in the server. */
 
+	trx_start_if_not_started(trx);
 	if (lock_and_commit) {
 		row_mysql_lock_data_dictionary(trx);
 	}
+
+	/* Flag this transaction as a dictionary operation, so that
+	the data dictionary will be locked in crash recovery. */
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	error = row_rename_table_for_mysql(
 		norm_from, norm_to, trx, lock_and_commit);
