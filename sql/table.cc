@@ -2092,6 +2092,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
     goto err;
   outparam->quick_keys.init();
+  outparam->possible_quick_keys.init();
   outparam->covering_keys.init();
   outparam->merge_keys.init();
   outparam->keys_in_use_for_query.init();
