@@ -600,12 +600,6 @@
 #cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
-  Stuff that always need to be defined (compile breaks without it)
-*/
-#define HAVE_RTREE_KEYS 1
-#define BIG_TABLES 1
-
-/*
   Important storage engines (those that really need define 
   WITH_<ENGINE>_STORAGE_ENGINE for the whole server)
 */
