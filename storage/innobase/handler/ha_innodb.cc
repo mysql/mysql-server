@@ -14923,6 +14923,45 @@ innodb_srv_buf_dump_filename_validate(
 static char* srv_buffer_pool_evict;
 
 /****************************************************************//**
+Evict all uncompressed pages of compressed tables from the buffer pool.
+Keep the compressed pages in the buffer pool.
+@return whether all uncompressed pages were evicted */
+static __attribute__((warn_unused_result))
+bool
+innodb_buffer_pool_evict_uncompressed(void)
+/*=======================================*/
+{
+	bool	all_evicted = true;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+
+		buf_pool_mutex_enter(buf_pool);
+
+		for (buf_block_t* block = UT_LIST_GET_LAST(
+			     buf_pool->unzip_LRU);
+		     block != NULL; ) {
+			buf_block_t*	prev_block = UT_LIST_GET_PREV(
+				unzip_LRU, block);
+			ut_ad(buf_block_get_state(block)
+			      == BUF_BLOCK_FILE_PAGE);
+			ut_ad(block->in_unzip_LRU_list);
+			ut_ad(block->page.in_LRU_list);
+
+			if (!buf_LRU_free_page(&block->page, false)) {
+				all_evicted = false;
+			}
+
+			block = prev_block;
+		}
+
+		buf_pool_mutex_exit(buf_pool);
+	}
+
+	return(all_evicted);
+}
+
+/****************************************************************//**
 Called on SET GLOBAL innodb_buffer_pool_evict=...
 Handles some values specially, to evict pages from the buffer pool.
 SET GLOBAL innodb_buffer_pool_evict='uncompressed'
@@ -14939,33 +14978,16 @@ innodb_buffer_pool_evict_update(
 {
 	if (const char* op = *static_cast<const char*const*>(save)) {
 		if (!strcmp(op, "uncompressed")) {
-			/* Evict all uncompressed pages of compressed
-			tables from the buffer pool. Keep the compressed
-			pages in the buffer pool. */
-
-			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
-
-				buf_pool_mutex_enter(buf_pool);
-
-				for (buf_block_t* block = UT_LIST_GET_LAST(
-					     buf_pool->unzip_LRU);
-				     block != NULL; ) {
-
-					buf_block_t*	prev_block
-						= UT_LIST_GET_PREV(unzip_LRU,
-								   block);
-					ut_ad(buf_block_get_state(block)
-					      == BUF_BLOCK_FILE_PAGE);
-					ut_ad(block->in_unzip_LRU_list);
-					ut_ad(block->page.in_LRU_list);
-
-					buf_LRU_free_page(&block->page, false);
-					block = prev_block;
+			for (uint tries = 0; tries < 10000; tries++) {
+				if (innodb_buffer_pool_evict_uncompressed()) {
+					return;
 				}
 
-				buf_pool_mutex_exit(buf_pool);
+				os_thread_sleep(10000);
 			}
+
+			/* We failed to evict all uncompressed pages. */
+			ut_ad(0);
 		}
 	}
 }
