@@ -239,13 +239,11 @@ t5.checkResult = function(err, tx) {
   var op;
   if(err) { 
     if (err.cause) {
-      t5.errorIfNotEqual("t5 cause.code", 1062, err.cause.code);
       t5.errorIfNotEqual("t5 cause.sqlstate", '23000', err.cause.sqlstate);
     } else {
       t5.appendErrorMessage("t5 transaction error has no cause.");
     }
     op = tx.executedOperations.pop();
-    t5.errorIfNotEqual("t5 error.code", 1062, op.result.error.code);
     t5.errorIfNotEqual("t5 error.sqlstate", "23000", op.result.error.sqlstate);
   } else {
     t5.appendErrorMessage("t5 transaction error did not occur.");
@@ -333,13 +331,11 @@ t9.checkResult = function(err, tx) {
   udebug.log("checkResult t9");
   if(err) {
     if (err.cause) {
-      t9.errorIfNotEqual("t9 cause.code", 1032, err.cause.code);
       t9.errorIfNotEqual("t9 cause.sqlstate", '02000', err.cause.sqlstate);
     } else {
       t9.appendErrorMessage("t9 transaction error has no cause.");
     }
     op = tx.executedOperations.pop();
-    t9.errorIfNotEqual("t9 code", 1032, op.result.error.code);
     t9.errorIfNotEqual("t9 sqlstate", '02000', op.result.error.sqlstate);
   } else {
     t9.appendErrorMessage("t9 transaction error did not occur.");

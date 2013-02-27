@@ -134,18 +134,13 @@ t2.run = function() {
 };
 
 t2.checkResult = function(err, tx) {
-  if (err) {
-    if (err.cause) {
-      t2.errorIfNotEqual("t2 cause.code", 1062, err.cause.code);
+  try {
       t2.errorIfNotEqual("t2 cause.sqlstate", '23000', err.cause.sqlstate);
-    } else {
-      t2.appendErrorMessage("t2 err has no cause.");
-    }
-  } else {
-    t2.appendErrorMessage("t2 transaction error did not occur.");
+      t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   }
-  t2.errorIfNotEqual("t2 operation error code", 1062, tx.executedOperations[0].result.error.code);
-  t2.errorIfNotEqual("t2 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
+  catch(e) {
+    t2.appendErrorMessage("t2 exception " + e.message);
+  }
   t2.failOnError();
 };
 
@@ -158,11 +153,10 @@ t3.run = function() {
 
 t3.checkResult = function(err, tx) {
   try {
-    t3.errorIfNotEqual("t3 operation error code", 1062, tx.executedOperations[0].result.error.code);
-    t3.errorIfNotEqual("t3 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
+      t3.errorIfNotEqual("t3 operation error sqlstate", '23000', tx.executedOperations[0].result.error.sqlstate);
   } 
   catch(e) {
-    t3.appendErrorMessage('t3 exception:' + e.message);
+    t3.appendErrorMessage('t3 exception ' + e.message);
   }
   t3.failOnError();
 };
@@ -179,11 +173,8 @@ t4.checkResult = function(err, tx) {
   // The transaction and second op must have errors. 
   // We make no claim on the status of the first operation
   try {
-    t4.errorIfNotEqual("t4 Transaction Error Code", 1062, err.cause.code);
-    t4.errorIfNotEqual("t4 Transaction Error Sqlstate", "23000", err.cause.sqlstate);
-    t4.errorIfNotEqual("t4 Operation Error Code", 1062, 
-                        tx.executedOperations[1].result.error.code);
-    t4.errorIfNotEqual("t4 operation sqlstate", "23000", 
+      t4.errorIfNotEqual("t4 Transaction Error Sqlstate", "23000", err.cause.sqlstate);
+      t4.errorIfNotEqual("t4 operation sqlstate", "23000", 
                         tx.executedOperations[1].result.error.sqlstate);
   }
   catch(e) {
@@ -204,9 +195,9 @@ t5.checkResult = function(err, tx) {
   // The Transaction & second op must have errors
   // We make no claim on the status of the first operation
   try {
-    t5.errorIfNotEqual("t5 Transaction Error Code", 1062, err.cause.code);
-    t5.errorIfNotEqual("t5 Operation Error Code", 1062, 
-                       tx.executedOperations[1].result.error.code);
+    t5.errorIfNotEqual("t5 Transaction Error Sqlstate", "23000", err.cause.sqlstate);
+    t5.errorIfNotEqual("t5 Operation Error Sqlstate", "23000",
+                      tx.executedOperations[1].result.error.sqlstate);
   }
   catch(e) {
     t5.appendErrorMessage("t5 exception " + e.message);
@@ -223,21 +214,19 @@ t6.run = function() {
 };
 t6.checkResult = function(err, tx) {
   // Transaction and both operations must have an error
-  if (err) {
-    if (err.cause) {
-      t6.errorIfNotEqual("t6 Transaction Error Code", 1062, err.cause.code);
-    } else {
-      t6.appendErrorMessage("t6 transaction error has no cause.");
+  try {
+    t6.errorIfNotEqual("t6 Transaction ErrorSqlstate", "23000", err.cause.sqlstate);
+    if (!tx.executedOperations[0].result.error) {
+      t6.appendErrorMessage("t6 operation 0 error did not occur.");
     }
-  } else {
-    t6.appendErrorMessage("t6 transaction error did not occur.");
+    if (!tx.executedOperations[1].result.error) {
+      t6.appendErrorMessage("t6 operation 1 error did not occur.");
+    }
   }
-  if (!tx.executedOperations[0].result.error) {
-    t6.appendErrorMessage("t6 operation 0 error did not occur.");
+  catch(e) {
+    t6.appendErrorMessage("t6 exception " + e.message);
   }
-  if (!tx.executedOperations[1].result.error) {
-    t6.appendErrorMessage("t6 operation 1 error did not occur.");
-  }
+
   t6.failOnError();
 };
 

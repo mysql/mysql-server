@@ -44,7 +44,7 @@ public:
     DEFINE_JS_ACCESSOR(Envelope::stencil, "status", get_status);
     DEFINE_JS_ACCESSOR(Envelope::stencil, "classification", get_classification);
     DEFINE_JS_ACCESSOR(Envelope::stencil, "code", get_code);
-    DEFINE_JS_ACCESSOR(Envelope::stencil, "mysql_code", get_mysql_code);
+    DEFINE_JS_ACCESSOR(Envelope::stencil, "handler_error_code", get_mysql_code);
     DEFINE_JS_ACCESSOR(Envelope::stencil, "message", get_message);
 }
 
