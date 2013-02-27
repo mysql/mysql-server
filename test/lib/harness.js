@@ -84,7 +84,6 @@ Test.prototype.test = function(result) {
   udebug.log_detail('test starting:', this.suite.name, this.name);
   this.result = result;
   result.listener.startTest(this);
-  this.setup();
 
   /* If a concurrent test has a proxy, then it is considered to be an async 
      test incorporated into some larger test, and it will pass or fail while 
@@ -116,7 +115,6 @@ Test.prototype.test = function(result) {
     udebug.log_detail('result.fail');
     this.failed = true;
     result.fail(this, e);
-    this.teardown();
   }
 };
 
@@ -127,7 +125,6 @@ Test.prototype.pass = function() {
   } else {
     this.failed = false;
     this.result.pass(this);
-    this.teardown();
   }
 };
 
@@ -141,7 +138,6 @@ Test.prototype.fail = function(message) {
       this.appendErrorMessage(message);
     }
     this.result.fail(this, { 'message' : this.errorMessages});
-    this.teardown();
   }
 };
 
@@ -165,8 +161,6 @@ Test.prototype.skip = function(message) {
 };
 
 Test.prototype.isTest = function() { return true; };
-Test.prototype.setup = function() {};
-Test.prototype.teardown = function() {};
 
 Test.prototype.fullName = function() {
   var n = "";
