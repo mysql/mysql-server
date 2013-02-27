@@ -152,7 +152,7 @@ NdbConnection.prototype.getAsyncContext = function() {
 };
 
 
-NdbConnection.prototype.close = function() {
+NdbConnection.prototype.close = function(userCallback) {
   var self = this;
 
   function disconnect() {
@@ -166,6 +166,9 @@ NdbConnection.prototype.close = function() {
       self.ndb_cluster_connection = null;
     }
     self.isConnected = false;
+    if(typeof userCallback === 'function') {
+      userCallback();
+    }
   }
 
   /* close() starts here */
