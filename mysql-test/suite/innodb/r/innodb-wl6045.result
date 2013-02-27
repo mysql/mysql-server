@@ -204,7 +204,7 @@ CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 # Next Test Count the no. of pages
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -225,7 +225,7 @@ page-type-dump                    (No default value)
 find_type: enter: x: 'crc32'  lib: #x#
 main: info: Filename = tab1.ibd
 main: info: Number of pages:#
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -265,7 +265,7 @@ main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -307,7 +307,7 @@ main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Next Test
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -350,7 +350,7 @@ main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Next Test: checksum check for page: 2 to page:5
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -383,7 +383,7 @@ main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 # Next Test: checksum check for only pageno.= 2
-# innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
+# innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -807,7 +807,7 @@ File::tab2.ibd
 undo type: 0 insert, 0 update, 0 other
 undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
 # Page type dump for tab1.ibd
-# INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
+# INNOCHECKSUM --page-type-dump MYSQL_TMP_DIR/dump.txt MYSQLD_DATADIR/test/tab1.ibd
 # Print the contents stored in dump.txt
 
 
@@ -824,7 +824,7 @@ Filename::tab1.ibd
 #::       6		|		Freshly allocated page		|	-
 #::       7		|		Freshly allocated page		|	-
 # Page type dump for *.ibd
-# INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
+# INNOCHECKSUM --page-type-dump MYSQL_TMP_DIR/dump.txt MYSQLD_DATADIR/test/*.ibd
 # Print the contents stored in dump.txt
 
 
