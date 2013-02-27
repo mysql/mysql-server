@@ -985,24 +985,23 @@ int main(
 					logseqfield = mach_read_from_4(
 							buf + logical_page_size
 							- FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
-					if (verbose)
-						DBUG_PRINT("info", ("page::%lu;"
-							   " log sequence "
-							   "number:first = %lu"
-							   "; second = %lu",
-							   cur_page_num, logseq,
-							   logseqfield));
+					DBUG_PRINT("info", ("page::%lu;"
+						   " log sequence "
+						   "number:first = %lu"
+						   "; second = %lu",
+						   cur_page_num, logseq,
+						   logseqfield));
 
 					if (logseq != logseqfield) {
-						if (verbose)
-							DBUG_PRINT(
-								"info",
-								("Fail; page "
-								"%lu invalid"
-								" (fails log "
-								"sequence"
-								" number"
-								" check)", cur_page_num));
+						DBUG_PRINT(
+							"info",
+							("Fail; page "
+							"%lu invalid"
+							" (fails log "
+							"sequence"
+							" number"
+							" check)",
+							cur_page_num));
 					}
 					iscorrupted = buf_page_is_corrupted(
 							true, buf, 0);
