@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "sql_manager.h"
 #include "unireg.h"                    // REQUIRED: for other includes
 #include "sql_base.h"                           // flush_tables
+#include "log.h"
 
 static bool volatile manager_thread_in_use;
 static bool abort_manager;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -629,7 +629,7 @@ public:
   bool prepare(THD *thd, select_result *result, ulong additional_options);
   bool optimize();
   bool exec();
-  void explain();
+  bool explain();
   bool cleanup();
   inline void unclean() { cleaned= 0; }
   void reinit_exec_mechanism();
@@ -779,7 +779,8 @@ public:
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
   int nest_level;     /* nesting level of select */
-  Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
+  /* Circularly linked list of sum func in nested selects */
+  Item_sum *inner_sum_func_list;
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
@@ -1370,6 +1371,11 @@ public:
     */
     BINLOG_STMT_UNSAFE_AUTOINC_NOT_FIRST,
 
+    /**
+       Using a plugin is unsafe.
+    */
+    BINLOG_STMT_UNSAFE_FULLTEXT_PLUGIN,
+
     /* The last element of this enumeration type. */
     BINLOG_STMT_UNSAFE_COUNT
   };
@@ -1393,6 +1399,11 @@ public:
   */
   inline bool is_stmt_unsafe() const {
     return get_stmt_unsafe_flags() != 0;
+  }
+
+  inline bool is_stmt_unsafe(enum_binlog_stmt_unsafe unsafe)
+  {
+    return binlog_stmt_flags & (1 << unsafe);
   }
 
   /**
@@ -1671,6 +1682,8 @@ public:
   bool uses_stored_routines() const
   { return sroutines_list.elements != 0; }
 
+  void set_using_match() { using_match= TRUE; }
+  bool get_using_match() { return using_match; }
 private:
 
   /**
@@ -1711,6 +1724,11 @@ private:
     be accessed while executing a statement.
   */
   uint32 stmt_accessed_table_flag;
+
+  /**
+     It will be set TRUE if 'MATCH () AGAINST' is used in the statement.
+  */
+  bool using_match;
 };
 
 

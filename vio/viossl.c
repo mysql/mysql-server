@@ -210,11 +210,11 @@ static long yassl_send(void *ptr, const void *buf, size_t len)
 
 #endif
 
-int vio_ssl_close(Vio *vio)
+int vio_ssl_shutdown(Vio *vio)
 {
   int r= 0;
   SSL *ssl= (SSL*)vio->ssl_arg;
-  DBUG_ENTER("vio_ssl_close");
+  DBUG_ENTER("vio_ssl_shutdown");
 
   if (ssl)
   {
@@ -245,7 +245,7 @@ int vio_ssl_close(Vio *vio)
       break;
     }
   }
-  DBUG_RETURN(vio_close(vio));
+  DBUG_RETURN(vio_shutdown(vio));
 }
 
 
@@ -254,8 +254,8 @@ void vio_ssl_delete(Vio *vio)
   if (!vio)
     return; /* It must be safe to delete null pointer */
 
-  if (vio->type == VIO_TYPE_SSL)
-    vio_ssl_close(vio); /* Still open, close connection first */
+  if (vio->inactive == FALSE)
+    vio_ssl_shutdown(vio); /* Still open, close connection first */
 
   if (vio->ssl_arg)
   {
@@ -327,6 +327,9 @@ static int ssl_do(struct st_VioSSLFd *ptr, Vio *vio, long timeout,
   SSL_clear(ssl);
   SSL_SESSION_set_timeout(SSL_get_session(ssl), timeout);
   SSL_set_fd(ssl, sd);
+#ifndef HAVE_YASSL
+  SSL_set_options(ssl, SSL_OP_NO_COMPRESSION);
+#endif
 
   /*
     Since yaSSL does not support non-blocking send operations, use

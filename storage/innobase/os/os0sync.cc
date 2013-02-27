@@ -51,7 +51,8 @@ struct os_mutex_t{
 				/* list of all 'slow' OS mutexes created */
 };
 
-/** Mutex protecting counts and the lists of OS mutexes and events */
+/** Mutex protecting counts and the event and OS 'slow' mutex lists
+as well as the win_thread_map. */
 UNIV_INTERN os_ib_mutex_t	os_sync_mutex;
 /** TRUE if os_sync_mutex has been initialized */
 static ibool		os_sync_mutex_inited	= FALSE;

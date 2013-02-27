@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,6 +42,10 @@
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_FILE_CALL
+#define PSI_FILE_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup File_instrumentation File Instrumentation

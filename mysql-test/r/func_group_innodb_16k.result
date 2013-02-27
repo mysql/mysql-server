@@ -11,6 +11,6 @@ MIN(c)
 0
 EXPLAIN SELECT MIN(c) FROM t1 GROUP BY b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	b	263	NULL	3	Using index for group-by
+1	SIMPLE	t1	range	b	b	263	NULL	3	Using index for group-by
 DROP TABLE t1;
 End of 5.6 tests

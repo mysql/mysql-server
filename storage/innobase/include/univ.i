@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -42,8 +42,8 @@ Created 1/20/1994 Heikki Tuuri
 #define _IB_TO_STR(s)	#s
 #define IB_TO_STR(s)	_IB_TO_STR(s)
 
-#define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	3
+#define INNODB_VERSION_MAJOR	MYSQL_VERSION_MAJOR
+#define INNODB_VERSION_MINOR	MYSQL_VERSION_MINOR
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
@@ -152,6 +152,13 @@ be excluded from instrumentation. */
 
 # define PFS_IS_INSTRUMENTED(key)	((key) != PFS_NOT_INSTRUMENTED)
 
+/* For PSI_MUTEX_CALL() and similar. */
+#include "pfs_thread_provider.h"
+#include "mysql/psi/mysql_thread.h"
+/* For PSI_FILE_CALL(). */
+#include "pfs_file_provider.h"
+#include "mysql/psi/mysql_file.h"
+
 #endif /* HAVE_PSI_INTERFACE */
 
 #ifdef __WIN__
@@ -256,6 +263,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed

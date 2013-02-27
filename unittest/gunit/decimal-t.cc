@@ -115,6 +115,9 @@ void dump_decimal(decimal_t *d)
 #define test_ro(p1, p2, p3, p4, p5) \
   { SCOPED_TRACE(""); do_test_ro(p1, p2, p3, p4, p5); }
 
+#define test_format(p1, p2, p3, p4, p5) \
+  { SCOPED_TRACE(""); do_test_format(p1, p2, p3, p4, p5); }
+
 #define test_mx(p1, p2, p3) \
   { SCOPED_TRACE(""); do_test_mx(p1, p2, p3); }
 
@@ -403,6 +406,32 @@ void do_test_ro(const char *s1, int n, decimal_round_mode mode,
 }
 
 
+void do_test_format(const char *s1, const char *s2, int n, const char *orig, 
+                    int ex)
+{
+  char s[200], *end;
+  decimal_t a,b,c,d;
+  decimal_digit_t buf1[9],buf2[9],buf3[9],buf4[9];
+  int res;
+  a.buf= buf1;
+  b.buf= buf2;
+  c.buf= buf3;
+  d.buf= buf4;
+  a.len= sizeof(buf1)/sizeof(dec1);
+  b.len= sizeof(buf2)/sizeof(dec1);
+  c.len= sizeof(buf3)/sizeof(dec1);
+  d.len= sizeof(buf4)/sizeof(dec1);
+
+  sprintf(s, "'%s' %% '%s'", s1, s2);
+  end= strend(s1);
+  string2decimal(s1, &a, &end);
+  end= strend(s2);
+  string2decimal(s2, &b, &end);
+  decimal_mod(&a, &b, &c);
+  res=decimal_round(&c, &d, n, HALF_UP);
+  print_decimal(&d, orig, res, ex, s);
+
+}
 void do_test_mx(int precision, int frac, const char *orig)
 {
   char s[100];
@@ -720,6 +749,14 @@ TEST_F(DecimalTest, DecimalRound)
   {
     ADD_FAILURE() << "underflow " << b.buf[0];
   }
+}
+
+
+TEST_F(DecimalTest, FormatFunc)
+{
+  test_format("999999999999999999999999999999999999999999999999999999999999999",
+              "999999999999999999999999999999999999999999999999999999999999999",
+              42,"0.000000000000000000000000000000000000000000",0);
 }
 
 

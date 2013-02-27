@@ -36,9 +36,18 @@
 --echo ########################################################################
 --echo #                               SET UP
 --echo ########################################################################
-let $max_groups=3;
-let $max_workers=3;
-
+if (`select '$crash_safe_small' <> ''`)
+{
+  --echo 'Small rpl_mts_crash_safe'
+  let $max_groups=2;
+  let $max_workers=2;
+}
+if (`select '$crash_safe_small' = ''`)
+{
+  --echo 'Big rpl_mts_crash_safe'
+  let $max_groups=3;
+  let $max_workers=3;
+}
 --let $verbose= 0
 --connection master
 --let $commands= configure

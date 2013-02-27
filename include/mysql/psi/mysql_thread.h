@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -55,6 +55,23 @@
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_MUTEX_CALL
+
+#define PSI_MUTEX_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_RWLOCK_CALL
+#define PSI_RWLOCK_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_COND_CALL
+#define PSI_COND_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
+
+#ifndef PSI_THREAD_CALL
+#define PSI_THREAD_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup Thread_instrumentation Thread Instrumentation

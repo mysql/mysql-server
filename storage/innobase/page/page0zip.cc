@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -25,17 +25,14 @@ Created June 2005 by Marko Makela
 *******************************************************/
 
 #include <map>
-using namespace std;
+#include <algorithm>
 
-#define THIS_MODULE
 #include "page0zip.h"
 #ifdef UNIV_NONINL
 # include "page0zip.ic"
 #endif
-#undef THIS_MODULE
 #include "page0page.h"
 #include "mtr0log.h"
-#include "ut0sort.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
 #include "page0types.h"
@@ -69,11 +66,11 @@ UNIV_INTERN mysql_pfs_key_t		page_zip_stat_per_index_mutex_key;
 #endif /* !UNIV_HOTBACKUP */
 
 /* Compression level to be used by zlib. Settable by user. */
-UNIV_INTERN ulint	page_compression_level = 6;
+UNIV_INTERN uint	page_zip_level = DEFAULT_COMPRESSION_LEVEL;
 
 /* Whether or not to log compressed page images to avoid possible
 compression algorithm changes in zlib. */
-UNIV_INTERN bool	page_log_compressed_pages = true;
+UNIV_INTERN my_bool	page_zip_log_pages = true;
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -508,8 +505,7 @@ page_zip_fields_encode(
 			const dict_col_t*	column
 				= dict_field_get_col(field);
 
-			if (UNIV_UNLIKELY(column->len > 255)
-			    || UNIV_UNLIKELY(column->mtype == DATA_BLOB)) {
+			if (DATA_BIG_COL(column)) {
 				val |= 0x7e; /* max > 255 bytes */
 			}
 
@@ -864,11 +860,12 @@ page_zip_compress_node_ptrs(
 		c_stream->next_in = (byte*) rec;
 		c_stream->avail_in = rec_offs_data_size(offsets)
 			- REC_NODE_PTR_SIZE;
-		ut_ad(c_stream->avail_in);
 
-		err = deflate(c_stream, Z_NO_FLUSH);
-		if (UNIV_UNLIKELY(err != Z_OK)) {
-			break;
+		if (c_stream->avail_in) {
+			err = deflate(c_stream, Z_NO_FLUSH);
+			if (UNIV_UNLIKELY(err != Z_OK)) {
+				break;
+			}
 		}
 
 		ut_ad(!c_stream->avail_in);
@@ -1199,7 +1196,7 @@ page_zip_compress(
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	ulint		level,	/*!< in: commpression level */
+	ulint		level,	/*!< in: compression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	z_stream	c_stream;
@@ -1246,7 +1243,7 @@ page_zip_compress(
 	ut_a(!memcmp(page + (PAGE_NEW_SUPREMUM - REC_N_NEW_EXTRA_BYTES + 1),
 		     supremum_extra_data, sizeof supremum_extra_data));
 
-	if (UNIV_UNLIKELY(!page_get_n_recs(page))) {
+	if (page_is_empty(page)) {
 		ut_a(rec_get_next_offs(page + PAGE_NEW_INFIMUM, TRUE)
 		     == PAGE_NEW_SUPREMUM);
 	}
@@ -1263,7 +1260,7 @@ page_zip_compress(
 	if (UNIV_UNLIKELY(page_zip_compress_dbg)) {
 		fprintf(stderr, "compress %p %p %lu %lu %lu\n",
 			(void*) page_zip, (void*) page,
-			page_is_leaf(page),
+			(ibool) page_is_leaf(page),
 			n_fields, n_dense);
 	}
 	if (UNIV_UNLIKELY(page_zip_compress_log)) {
@@ -1527,34 +1524,6 @@ err_exit:
 }
 
 /**********************************************************************//**
-Compare two page directory entries.
-@return	positive if rec1 > rec2 */
-UNIV_INLINE
-ibool
-page_zip_dir_cmp(
-/*=============*/
-	const rec_t*	rec1,	/*!< in: rec1 */
-	const rec_t*	rec2)	/*!< in: rec2 */
-{
-	return(rec1 > rec2);
-}
-
-/**********************************************************************//**
-Sort the dense page directory by address (heap_no). */
-static
-void
-page_zip_dir_sort(
-/*==============*/
-	rec_t**	arr,	/*!< in/out: dense page directory */
-	rec_t**	aux_arr,/*!< in/out: work area */
-	ulint	low,	/*!< in: lower bound of the sorting area, inclusive */
-	ulint	high)	/*!< in: upper bound of the sorting area, exclusive */
-{
-	UT_SORT_FUNCTION_BODY(page_zip_dir_sort, arr, aux_arr, low, high,
-			      page_zip_dir_cmp);
-}
-
-/**********************************************************************//**
 Deallocate the index information initialized by page_zip_fields_decode(). */
 static
 void
@@ -1691,7 +1660,7 @@ page_zip_fields_decode(
 /**********************************************************************//**
 Populate the sparse page directory from the dense directory.
 @return	TRUE on success, FALSE on failure */
-static
+static __attribute__((nonnull, warn_unused_result))
 ibool
 page_zip_dir_decode(
 /*================*/
@@ -1702,9 +1671,8 @@ page_zip_dir_decode(
 					filled in */
 	rec_t**			recs,	/*!< out: dense page directory sorted by
 					ascending address (and heap_no) */
-	rec_t**			recs_aux,/*!< in/out: scratch area */
 	ulint			n_dense)/*!< in: number of user records, and
-					size of recs[] and recs_aux[] */
+					size of recs[] */
 {
 	ulint	i;
 	ulint	n_recs;
@@ -1779,9 +1747,7 @@ page_zip_dir_decode(
 		recs[i] = page + offs;
 	}
 
-	if (UNIV_LIKELY(n_dense > 1)) {
-		page_zip_dir_sort(recs, recs_aux, 0, n_dense);
-	}
+	std::sort(recs, recs + n_dense);
 	return(TRUE);
 }
 
@@ -2957,7 +2923,7 @@ page_zip_decompress(
 	heap = mem_heap_create(n_dense * (3 * sizeof *recs) + UNIV_PAGE_SIZE);
 
 	recs = static_cast<rec_t**>(
-		mem_heap_alloc(heap, n_dense * (2 * sizeof *recs)));
+		mem_heap_alloc(heap, n_dense * sizeof *recs));
 
 	if (all) {
 		/* Copy the page header. */
@@ -2992,7 +2958,7 @@ page_zip_decompress(
 
 	/* Copy the page directory. */
 	if (UNIV_UNLIKELY(!page_zip_dir_decode(page_zip, page, recs,
-					       recs + n_dense, n_dense))) {
+					       n_dense))) {
 zlib_error:
 		mem_heap_free(heap);
 		return(FALSE);
@@ -3001,7 +2967,7 @@ zlib_error:
 	/* Copy the infimum and supremum records. */
 	memcpy(page + (PAGE_NEW_INFIMUM - REC_N_NEW_EXTRA_BYTES),
 	       infimum_extra, sizeof infimum_extra);
-	if (UNIV_UNLIKELY(!page_get_n_recs(page))) {
+	if (page_is_empty(page)) {
 		rec_set_next_offs_new(page + PAGE_NEW_INFIMUM,
 				      PAGE_NEW_SUPREMUM);
 	} else {
@@ -4630,8 +4596,7 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (!page_zip_compress(page_zip, page, index,
-			       page_compression_level, mtr)) {
+	if (!page_zip_compress(page_zip, page, index, page_zip_level, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);

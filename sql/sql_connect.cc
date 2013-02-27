@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
                       // reset_host_errors
 #include "sql_acl.h"  // acl_getroot, NO_ACCESS, SUPER_ACL
 #include "sql_callback.h"
+#include "log.h"
 
 #include <algorithm>
 
@@ -441,6 +442,14 @@ bool thd_init_client_charset(THD *thd, uint cs_number)
                      global_system_variables.character_set_client->name,
                      cs->name))
   {
+    if (!is_supported_parser_charset(
+      global_system_variables.character_set_client))
+    {
+      /* Disallow non-supported parser character sets: UCS2, UTF16, UTF32 */
+      my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), "character_set_client",
+               global_system_variables.character_set_client->csname);
+      return true;
+    }    
     thd->variables.character_set_client=
       global_system_variables.character_set_client;
     thd->variables.collation_connection=
@@ -474,7 +483,7 @@ bool init_new_connection_handler_thread()
   pthread_detach_this_thread();
   if (my_thread_init())
   {
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1;
   }
   return 0;
@@ -501,9 +510,8 @@ static int check_connection(THD *thd)
 
   DBUG_PRINT("info",
              ("New connection received on %s", vio_description(net->vio)));
-#ifdef SIGNAL_WITH_VIO_CLOSE
+
   thd->set_active_vio(net->vio);
-#endif
 
   if (!thd->main_security_ctx.host)         // If TCP/IP connection
   {
@@ -581,7 +589,7 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable for peer address errors.
       */
-      statistic_increment_rwlock(connection_errors_peer_addr, &LOCK_status);
+      connection_errors_peer_addr++;
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
@@ -592,7 +600,7 @@ static int check_connection(THD *thd)
         this is treated as a global server OOM error.
         TODO: remove the need for my_strdup.
       */
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      connection_errors_internal++;
       return 1; /* The error is set by my_strdup(). */
     }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -657,7 +665,7 @@ static int check_connection(THD *thd)
       Hence, there is no reason to account on OOM conditions per client IP,
       we count failures in the global server status instead.
     */
-    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+    connection_errors_internal++;
     return 1; /* The error is set by alloc(). */
   }
 
@@ -694,7 +702,7 @@ bool setup_connection_thread_globals(THD *thd)
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
@@ -739,7 +747,7 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -770,7 +778,7 @@ void end_connection(THD *thd)
 
   if (thd->killed || (net->error && net->vio != 0))
   {
-    statistic_increment_rwlock(aborted_threads,&LOCK_status);
+    aborted_threads++;
   }
 
   if (net->error && net->vio != 0)
@@ -921,7 +929,7 @@ void do_handle_one_connection(THD *thd_arg)
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment_rwlock(aborted_connects,&LOCK_status);
+    aborted_connects++;
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
   }
@@ -936,7 +944,7 @@ void do_handle_one_connection(THD *thd_arg)
     ulong launch_time= (ulong) (thd->thr_create_utime -
                                 thd->prior_thr_create_utime);
     if (launch_time >= slow_launch_time*1000000L)
-      statistic_increment_rwlock(slow_launch_threads, &LOCK_status);
+      slow_launch_threads++;
     thd->prior_thr_create_utime= 0;
   }
 

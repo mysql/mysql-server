@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -60,6 +60,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h" /* dict_stats_event */
+#include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -153,33 +154,14 @@ Windows XP/2000.
 We use condition for events on Windows if possible, even if os_event
 resembles Windows kernel event object well API-wise. The reason is
 performance, kernel objects are heavyweights and WaitForSingleObject() is a
-performance killer causing calling thread to context switch. Besides, Innodb
+performance killer causing calling thread to context switch. Besides, InnoDB
 is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
 UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
 #endif /* __WIN__ */
 
-UNIV_INTERN ulint	srv_n_data_files = 0;
-UNIV_INTERN char**	srv_data_file_names = NULL;
-/* size in database pages */
-UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
-
-/* if TRUE, then we auto-extend the last data file */
-UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
-/* if != 0, this tells the max size auto-extending may increase the
-last data file size */
-UNIV_INTERN ulint	srv_last_file_size_max	= 0;
-/* If the last data file is auto-extended, we add this
-many pages to it at a time */
-UNIV_INTERN ulong	srv_auto_extend_increment = 8;
-UNIV_INTERN ulint*	srv_data_file_is_raw_partition = NULL;
-
-/* If the following is TRUE we do not allow inserts etc. This protects
-the user from forgetting the 'newraw' keyword to my.cnf */
-
-UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
-
+/*------------------------- LOG FILES ------------------------ */
 UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
 
 UNIV_INTERN ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
@@ -216,7 +198,7 @@ UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
 /* requested number of buffer pool instances */
-UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
+UNIV_INTERN ulong	srv_buf_pool_instances;
 /* number of locks to protect buf_pool->page_hash */
 UNIV_INTERN ulong	srv_n_page_hash_locks = 16;
 /** Scan depth for LRU flush batch i.e.: number of blocks scanned*/
@@ -1028,22 +1010,13 @@ void
 srv_normalize_init_values(void)
 /*===========================*/
 {
-	ulint	n;
-	ulint	i;
+	srv_sys_space.normalize();
 
-	n = srv_n_data_files;
+	srv_tmp_space.normalize();
 
-	for (i = 0; i < n; i++) {
-		srv_data_file_sizes[i] = srv_data_file_sizes[i]
-			* ((1024 * 1024) / UNIV_PAGE_SIZE);
-	}
+	srv_log_file_size /= UNIV_PAGE_SIZE;
 
-	srv_last_file_size_max = srv_last_file_size_max
-		* ((1024 * 1024) / UNIV_PAGE_SIZE);
-
-	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
-
-	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;
+	srv_log_buffer_size /= UNIV_PAGE_SIZE;
 
 	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 }
@@ -1454,20 +1427,26 @@ srv_export_innodb_status(void)
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
 #ifdef UNIV_DEBUG
-	if (purge_sys->done.trx_no == 0
-	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+	rw_lock_s_lock(&purge_sys->latch);
+	trx_id_t	done_trx_no	= purge_sys->done.trx_no;
+	trx_id_t	up_limit_id	= purge_sys->view
+		? purge_sys->view->up_limit_id
+		: 0;
+	rw_lock_s_unlock(&purge_sys->latch);
+
+	if (!done_trx_no || trx_sys->rw_max_trx_id < done_trx_no - 1) {
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+			trx_sys->rw_max_trx_id - done_trx_no + 1;
 	}
 
-	if (!purge_sys->view
-	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+	if (!up_limit_id
+	    || trx_sys->rw_max_trx_id < up_limit_id) {
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
+			trx_sys->rw_max_trx_id - up_limit_id;
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1858,13 +1837,10 @@ thread stays suspended (we do not protect our operation with the
 srv_sys_t->mutex, for performance reasons). */
 UNIV_INTERN
 void
-srv_active_wake_master_thread(void)
-/*===============================*/
+srv_active_wake_master_thread_low(void)
+/*===================================*/
 {
-	if (srv_read_only_mode) {
-		return;
-	}
-
+	ut_ad(!srv_read_only_mode);
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2535,7 +2511,9 @@ srv_do_purge(
 	}
 
 	do {
-		if (trx_sys->rseg_history_len > rseg_history_len) {
+		if (trx_sys->rseg_history_len > rseg_history_len
+		    || (srv_max_purge_lag > 0
+			&& rseg_history_len > srv_max_purge_lag)) {
 
 			/* History length is now longer than what it was
 			when we took the last snapshot. Use more threads. */
@@ -2571,7 +2549,8 @@ srv_do_purge(
 
 		if (!(count++ % TRX_SYS_N_RSEGS)) {
 			/* Force a truncate of the history list. */
-			trx_purge(1, srv_purge_batch_size, true);
+			n_pages_purged += trx_purge(
+				1, srv_purge_batch_size, true);
 		}
 
 		*n_total_purged += n_pages_purged;
@@ -2600,9 +2579,10 @@ srv_purge_coordinator_suspend(
 	/** Maximum wait time on the purge event, in micro-seconds. */
 	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
+	ib_int64_t	sig_count = srv_suspend_thread(slot);
+
 	do {
 		ulint		ret;
-		ib_int64_t	sig_count = srv_suspend_thread(slot);
 
 		rw_lock_x_lock(&purge_sys->latch);
 
@@ -2639,6 +2619,8 @@ srv_purge_coordinator_suspend(
 
 		srv_sys_mutex_exit();
 
+		sig_count = srv_suspend_thread(slot);
+
 		rw_lock_x_lock(&purge_sys->latch);
 
 		stop = (purge_sys->state == PURGE_STATE_STOP);
@@ -2672,7 +2654,15 @@ srv_purge_coordinator_suspend(
 
 	} while (stop);
 
-	ut_a(!slot->suspended);
+	srv_sys_mutex_enter();
+
+	if (slot->suspended) {
+		slot->suspended = FALSE;
+		++srv_sys->n_threads_active[slot->type];
+		ut_a(srv_sys->n_threads_active[slot->type] == 1);
+	}
+
+	srv_sys_mutex_exit();
 }
 
 /*********************************************************************//**

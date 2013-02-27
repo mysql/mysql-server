@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Completed by Sunny Bains and Marko Makela
 #include "row0import.h"
 #include "handler0alter.h"
 #include "ha_prototypes.h"
+#include "srv0space.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -414,7 +415,7 @@ row_merge_buf_add(
 			dfield_set_len(field, len);
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || DATA_LARGE_MTYPE(col->mtype));
 
 		fixed_len = ifield->fixed_len;
 		if (fixed_len && !dict_table_is_comp(index->table)
@@ -443,7 +444,7 @@ row_merge_buf_add(
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
-			   || (col->len < 256 && col->mtype != DATA_BLOB)) {
+			   || (!DATA_BIG_COL(col))) {
 			extra_size++;
 		} else {
 			/* For variable-length columns, we look up the
@@ -1692,10 +1693,16 @@ all_done:
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
 #endif
 	if (fts_pll_sort) {
+		bool	all_exit = false;
+		ulint	trial_count = 0;
+		const ulint max_trial_count = 10000;
+
+		/* Tell all children that parent has done scanning */
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
 			psort_info[i].state = FTS_PARENT_COMPLETE;
 		}
 wait_again:
+		/* Now wait all children to report back to be completed */
 		os_event_wait_time_low(fts_parallel_sort_event,
 				       1000000, sig_count);
 
@@ -1706,6 +1713,31 @@ wait_again:
 					fts_parallel_sort_event);
 				goto wait_again;
 			}
+		}
+
+		/* Now all children should complete, wait a bit until
+		they all finish setting the event, before we free everything.
+		This has a 10 second timeout */
+		do {
+			all_exit = true;
+
+			for (ulint j = 0; j < fts_sort_pll_degree; j++) {
+				if (psort_info[j].child_status
+				    != FTS_CHILD_EXITING) {
+					all_exit = false;
+					os_thread_sleep(1000);
+					break;
+				}
+			}
+			trial_count++;
+		} while (!all_exit && trial_count < max_trial_count);
+
+		if (!all_exit) {
+			ut_ad(0);
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Not all child sort threads exited"
+				" when creating FTS index '%s'",
+				fts_sort_idx->name);
 		}
 	}
 
@@ -3095,7 +3127,7 @@ row_make_new_pathname(
 	char*	new_path;
 	char*	old_path;
 
-	ut_ad(table->space != TRX_SYS_SPACE);
+	ut_ad(!Tablespace::is_system_tablespace(table->space));
 
 	old_path = fil_space_get_first_path(table->space);
 	ut_a(old_path);
@@ -3114,40 +3146,26 @@ will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_merge_rename_tables(
-/*====================*/
+row_merge_rename_tables_dict(
+/*=========================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
 					tmp_name */
 	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx)		/*!< in: transaction handle */
+	trx_t*		trx)		/*!< in/out: dictionary transaction */
 {
 	dberr_t		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
-
-	/* store the old/current name to an automatic variable */
-	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
-		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
-	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Too long table name: '%s', max length is %d",
-			old_table->name, MAX_FULL_NAME_LEN);
-		ut_error;
-	}
+	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE
+	      || trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	trx->op_info = "renaming tables";
-
-	DBUG_EXECUTE_IF(
-		"ib_rebuild_cannot_rename",
-		err = DB_ERROR; goto err_exit;);
 
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data in system tables. */
@@ -3155,7 +3173,7 @@ row_merge_rename_tables(
 	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "new_name", new_table->name);
-	pars_info_add_str_literal(info, "old_name", old_name);
+	pars_info_add_str_literal(info, "old_name", old_table->name);
 	pars_info_add_str_literal(info, "tmp_name", tmp_name);
 
 	err = que_eval_sql(info,
@@ -3170,7 +3188,7 @@ row_merge_rename_tables(
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the old
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS
-	    && old_table->space != TRX_SYS_SPACE
+	    && !Tablespace::is_system_tablespace(old_table->space)
 	    && !old_table->ibd_file_missing) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* tmp_path = row_make_new_pathname(old_table, tmp_name);
@@ -3198,13 +3216,15 @@ row_merge_rename_tables(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS && new_table->space != TRX_SYS_SPACE) {
+	if (err == DB_SUCCESS
+	    && !Tablespace::is_system_tablespace(new_table->space)) {
 		/* Make pathname to update SYS_DATAFILES. */
-		char* old_path = row_make_new_pathname(new_table, old_name);
+		char* old_path = row_make_new_pathname(
+			new_table, old_table->name);
 
 		info = pars_info_create();
 
-		pars_info_add_str_literal(info, "old_name", old_name);
+		pars_info_add_str_literal(info, "old_name", old_table->name);
 		pars_info_add_str_literal(info, "old_path", old_path);
 		pars_info_add_int4_literal(info, "new_space",
 					   (lint) new_table->space);
@@ -3223,75 +3243,9 @@ row_merge_rename_tables(
 		mem_free(old_path);
 	}
 
-	if (err != DB_SUCCESS) {
-		goto err_exit;
-	}
-
-	/* Generate the redo logs for file operations */
-	fil_mtr_rename_log(old_table->space, old_name,
-			   new_table->space, new_table->name, tmp_name);
-
-	/* What if the redo logs are flushed to disk here?  This is
-	tested with following crash point */
-	DBUG_EXECUTE_IF("bug14669848_precommit", log_buffer_flush_to_disk();
-			DBUG_SUICIDE(););
-
-	/* File operations cannot be rolled back.  So, before proceeding
-	with file operations, commit the dictionary changes.*/
-	trx_commit_for_mysql(trx);
-
-	/* If server crashes here, the dictionary in InnoDB and MySQL
-	will differ.  The .ibd files and the .frm files must be swapped
-	manually by the administrator. No loss of data. */
-	DBUG_EXECUTE_IF("bug14669848", DBUG_SUICIDE(););
-
-	/* Ensure that the redo logs are flushed to disk.  The config
-	innodb_flush_log_at_trx_commit must not affect this. */
-	log_buffer_flush_to_disk();
-
-	/* The following calls will also rename the .ibd data files if
-	the tables are stored in a single-table tablespace */
-
-	err = dict_table_rename_in_cache(old_table, tmp_name, FALSE);
-
-	if (err == DB_SUCCESS) {
-
-		ut_ad(dict_table_is_discarded(old_table)
-		      == dict_table_is_discarded(new_table));
-
-		err = dict_table_rename_in_cache(new_table, old_name, FALSE);
-
-		if (err != DB_SUCCESS) {
-
-			if (dict_table_rename_in_cache(
-					old_table, old_name, FALSE)
-			    != DB_SUCCESS) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Cannot undo the rename in cache "
-					"from %s to %s", old_name, tmp_name);
-			}
-
-			goto err_exit;
-		}
-
-		if (dict_table_is_discarded(new_table)) {
-
-			err = row_import_update_discarded_flag(
-				trx, new_table->id, true, true);
-		}
-	}
-
-	DBUG_EXECUTE_IF("ib_rebuild_cannot_load_fk",
-			err = DB_ERROR; goto err_exit;);
-
-	err = dict_load_foreigns(old_name, FALSE, TRUE);
-
-	if (err != DB_SUCCESS) {
-err_exit:
-		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
+	if (err == DB_SUCCESS && dict_table_is_discarded(new_table)) {
+		err = row_import_update_discarded_flag(
+			trx, new_table->id, true, true);
 	}
 
 	trx->op_info = "";
@@ -3417,7 +3371,7 @@ row_merge_is_index_usable(
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
-dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -3502,6 +3456,14 @@ row_merge_build_indexes(
 	merge_files = static_cast<merge_file_t*>(
 		mem_alloc(n_indexes * sizeof *merge_files));
 
+	/* Initialize all the merge file descriptors, so that we
+	don't call row_merge_file_destroy() on uninitialized
+	merge file descriptor */
+
+	for (i = 0; i < n_indexes; i++) {
+		merge_files[i].fd = -1;
+	}
+
 	for (i = 0; i < n_indexes; i++) {
 		if (row_merge_file_create(&merge_files[i]) < 0) {
 			error = DB_OUT_OF_MEMORY;
@@ -3570,41 +3532,16 @@ row_merge_build_indexes(
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
-			bool		all_exit = false;
-			ulint		trial_count = 0;
 
 			sort_idx = fts_sort_idx;
-
-			/* Now all children should complete, wait
-			a bit until they all finish using event */
-			while (!all_exit && trial_count < 10000) {
-				all_exit = true;
-
-				for (j = 0; j < fts_sort_pll_degree;
-				     j++) {
-					if (psort_info[j].child_status
-					    != FTS_CHILD_EXITING) {
-						all_exit = false;
-						os_thread_sleep(1000);
-						break;
-					}
-				}
-				trial_count++;
-			}
-
-			if (!all_exit) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Not all child sort threads exited"
-					" when creating FTS index '%s'",
-					indexes[i]->name);
-			}
 
 			fts_parallel_merge_event
 				= merge_info[0].psort_common->merge_event;
 
 			if (FTS_PLL_MERGE) {
-				trial_count = 0;
-				all_exit = false;
+				ulint	trial_count = 0;
+				bool	all_exit = false;
+
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:

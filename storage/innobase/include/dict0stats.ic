@@ -31,8 +31,7 @@ Created Jan 23, 2012 Vasil Dimov
 /*********************************************************************//**
 Set the persistent statistics flag for a given table. This is set only
 in the in-memory table object and is not saved on disk. It will be read
-from the .frm file upon first open from MySQL after a server restart.
-dict_stats_set_persistent() @{ */
+from the .frm file upon first open from MySQL after a server restart. */
 UNIV_INLINE
 void
 dict_stats_set_persistent(
@@ -61,11 +60,9 @@ dict_stats_set_persistent(
 	/* we rely on this assignment to be atomic */
 	table->stat_persistent = stat_persistent;
 }
-/* @} */
 
 /*********************************************************************//**
 Check whether persistent statistics is enabled for a given table.
-dict_stats_is_persistent_enabled() @{
 @return TRUE if enabled, FALSE otherwise */
 UNIV_INLINE
 ibool
@@ -100,14 +97,12 @@ dict_stats_is_persistent_enabled(
 		return(srv_stats_persistent);
 	}
 }
-/* @} */
 
 /*********************************************************************//**
 Set the auto recalc flag for a given table (only honored for a persistent
 stats enabled table). The flag is set only in the in-memory table object
 and is not saved in InnoDB files. It will be read from the .frm file upon
-first open from MySQL after a server restart.
-dict_stats_auto_recalc_set() @{ */
+first open from MySQL after a server restart. */
 UNIV_INLINE
 void
 dict_stats_auto_recalc_set(
@@ -131,11 +126,9 @@ dict_stats_auto_recalc_set(
 	/* we rely on this assignment to be atomic */
 	table->stats_auto_recalc = stats_auto_recalc;
 }
-/* @} */
 
 /*********************************************************************//**
 Check whether auto recalc is enabled for a given table.
-dict_stats_auto_recalc_is_enabled() @{
 @return TRUE if enabled, FALSE otherwise */
 UNIV_INLINE
 ibool
@@ -155,11 +148,9 @@ dict_stats_auto_recalc_is_enabled(
 		return(srv_stats_auto_recalc);
 	}
 }
-/* @} */
 
 /*********************************************************************//**
-Initialize table's stats for the first time when opening a table.
-dict_stats_init() @{ */
+Initialize table's stats for the first time when opening a table. */
 UNIV_INLINE
 void
 dict_stats_init(
@@ -182,12 +173,10 @@ dict_stats_init(
 
 	dict_stats_update(table, opt);
 }
-/* @} */
 
 /*********************************************************************//**
 Deinitialize table's stats after the last close of the table. This is
-used to detect "FLUSH TABLE" and refresh the stats upon next open.
-dict_stats_deinit() @{ */
+used to detect "FLUSH TABLE" and refresh the stats upon next open. */
 UNIV_INLINE
 void
 dict_stats_deinit(
@@ -245,6 +234,3 @@ dict_stats_deinit(
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 }
-/* @} */
-
-/* vim: set foldmethod=marker foldmarker=@{,@}: */

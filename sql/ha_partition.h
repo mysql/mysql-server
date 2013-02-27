@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 enum partition_keywords
 {
   PKW_HASH= 0, PKW_RANGE, PKW_LIST, PKW_KEY, PKW_MAXVALUE, PKW_LINEAR,
-  PKW_COLUMNS
+  PKW_COLUMNS, PKW_ALGORITHM
 };
 
 
@@ -152,6 +152,7 @@ private:
   */
   KEY *m_curr_key_info[3];              // Current index
   uchar *m_rec0;                        // table->record[0]
+  const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
   /*
     Since the partition handler is a handler on top of other handlers, it
@@ -260,6 +261,7 @@ private:
   /** partitions that returned HA_ERR_KEY_NOT_FOUND. */
   MY_BITMAP m_key_not_found_partitions;
   bool m_key_not_found;
+  bool m_reverse_order;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -616,7 +618,7 @@ private:
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
-  int handle_ordered_index_scan(uchar * buf, bool reverse_order);
+  int handle_ordered_index_scan(uchar * buf);
   int handle_ordered_index_scan_key_not_found();
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);
@@ -884,7 +886,7 @@ public:
     special file for handling names of partitions, engine types.
     HA_REC_NOT_IN_SEQ is always set for partition handler since we cannot
     guarantee that the records will be returned in sequence.
-    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPLICATE_POS,
+    HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_DUPLICATE_POS,
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
     until further investigated.
   */
@@ -1180,9 +1182,18 @@ public:
     virtual bool check_and_repair(THD *thd);
     virtual bool auto_repair() const;
     virtual bool is_crashed() const;
+    virtual int check_for_upgrade(HA_CHECK_OPT *check_opt);
 
     private:
     int handle_opt_partitions(THD *thd, HA_CHECK_OPT *check_opt, uint flags);
+    int handle_opt_part(THD *thd, HA_CHECK_OPT *check_opt, uint part_id,
+                        uint flag);
+    /**
+      Check if the rows are placed in the correct partition.  If the given
+      argument is true, then move the rows to the correct partition.
+    */
+    int check_misplaced_rows(uint read_part_id, bool repair);
+    void append_row_to_str(String &str);
     public:
   /*
     -------------------------------------------------------------------------

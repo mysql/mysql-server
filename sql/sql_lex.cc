@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -74,7 +74,8 @@ Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
   ER_BINLOG_UNSAFE_CREATE_SELECT_AUTOINC,
   ER_BINLOG_UNSAFE_UPDATE_IGNORE,
   ER_BINLOG_UNSAFE_INSERT_TWO_KEYS,
-  ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST
+  ER_BINLOG_UNSAFE_AUTOINC_NOT_FIRST,
+  ER_BINLOG_UNSAFE_FULLTEXT_PLUGIN
 };
 
 
@@ -643,7 +644,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
   {
     c= lip->yyGet();
     lip->tok_bitmap|= c;
-#ifdef USE_MB
     {
       int l;
       if (use_mb(cs) &&
@@ -654,7 +654,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
         continue;
       }
     }
-#endif
     if (c == '\\' &&
         !(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES))
     {					// Escaped character
@@ -702,7 +701,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 
 	for (to=start ; str != end ; str++)
 	{
-#ifdef USE_MB
 	  int l;
 	  if (use_mb(cs) &&
               (l = my_ismbchar(cs, str, end))) {
@@ -711,7 +709,6 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 	      str--;
 	      continue;
 	  }
-#endif
 	  if (!(lip->m_thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES) &&
               *str == '\\' && str+1 != end)
 	  {
@@ -1081,7 +1078,6 @@ int lex_one_token(void *arg, void *yythd)
       }
     case MY_LEX_IDENT:
       const char *start;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
@@ -1110,7 +1106,6 @@ int lex_one_token(void *arg, void *yythd)
         }
       }
       else
-#endif
       {
         for (result_state= c; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
@@ -1236,7 +1231,6 @@ int lex_one_token(void *arg, void *yythd)
       // fall through
     case MY_LEX_IDENT_START:			// We come here after '.'
       result_state= IDENT;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
       if (use_mb(cs))
       {
 	result_state= IDENT_QUOTED;
@@ -1254,7 +1248,6 @@ int lex_one_token(void *arg, void *yythd)
         }
       }
       else
-#endif
       {
         for (result_state=0; ident_map[c= lip->yyGet()]; result_state|= c) ;
         /* If there were non-ASCII characters, mark that we must convert */
@@ -1297,14 +1290,12 @@ int lex_one_token(void *arg, void *yythd)
 	    continue;
 	  }
 	}
-#ifdef USE_MB
         else if (use_mb(cs))
         {
           if ((var_length= my_ismbchar(cs, lip->get_ptr() - 1,
                                        lip->get_end_of_query())))
             lip->skip_binary(var_length-1);
         }
-#endif
       }
       if (double_quotes)
 	yylval->lex_str=get_quoted_token(lip, 1,
@@ -2806,6 +2797,7 @@ void Query_tables_list::reset_query_tables_list(bool init)
   stmt_accessed_table_flag= 0;
   lock_tables_state= LTS_NOT_LOCKED;
   table_count= 0;
+  using_match= FALSE;
 }
 
 
@@ -3640,12 +3632,16 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
     }
     if (*conds)
     {
+      /*
+        In "WHERE outer_field", *conds may be an Item_outer_ref allocated in
+        the execution memroot.
+      */
       prep_where= (*conds)->real_item();
       *conds= where= prep_where->copy_andor_structure(thd);
     }
     if (*having_conds)
     {
-      prep_having= (*having_conds)->real_item();
+      prep_having= *having_conds;
       *having_conds= having= prep_having->copy_andor_structure(thd);
     }
     fix_prepare_info_in_table_list(thd, table_list.first);

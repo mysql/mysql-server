@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,19 +79,19 @@ buf_LRU_insert_zip_clean(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns TRUE, it will temporarily
+NOTE: If this function returns true, it will temporarily
 release buf_pool->mutex.  Furthermore, the page frame will no longer be
 accessible via bpage.
 
 The caller must hold buf_pool->mutex and must not hold any
 buf_page_get_mutex() when calling this function.
-@return TRUE if freed, FALSE otherwise. */
+@return true if freed, false otherwise. */
 UNIV_INTERN
-ibool
-buf_LRU_free_block(
-/*===============*/
+bool
+buf_LRU_free_page(
+/*==============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
-	ibool		zip)	/*!< in: TRUE if should remove also the
+	bool		zip)	/*!< in: true if should remove also the
 				compressed page of an uncompressed page */
 	__attribute__((nonnull));
 /******************************************************************//**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@
 #include "debug_sync.h"                      // DEBUG_SYNC
 #include "sql_acl.h"                         // *_ACL
 #include "sp.h"                              // Sroutine_hash_entry
+#include "sp_rcontext.h"                     // sp_rcontext
 #include "sql_parse.h"                       // check_table_access
 #include "sql_admin.h"
 
@@ -192,7 +193,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     invalidation till the end of a transaction, but do it
     immediately.
   */
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
   if (mysql_file_rename(key_file_misc, tmp, from, MYF(MY_WME)))
   {
     error= send_check_errmsg(thd, table_list, "repair",
@@ -285,7 +286,8 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
   item->maybe_null = 1;
   field_list.push_back(item = new Item_empty_string("Msg_type", 10));
   item->maybe_null = 1;
-  field_list.push_back(item = new Item_empty_string("Msg_text", 255));
+  field_list.push_back(item = new Item_empty_string("Msg_text",
+                                                    SQL_ADMIN_MSG_TEXT_SIZE));
   item->maybe_null = 1;
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -420,7 +422,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           if (!table->table->part_info)
           {
             my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
-            DBUG_RETURN(TRUE);
+            goto err;
           }
           
           if (set_part_state(alter_info, table->table->part_info, PART_ADMIN))
@@ -568,7 +570,7 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */
-      query_cache_invalidate3(thd, table->table, 0);
+      query_cache.invalidate(thd, table->table, FALSE);
       /*
         XXX: hack: switch off open_for_modify to skip the
         flush that is made later in the execution flow. 
@@ -918,7 +920,7 @@ send_result_message:
           invalidate the query cache.
         */
         table->table= 0;                        // For query cache
-        query_cache_invalidate3(thd, table, 0);
+        query_cache.invalidate(thd, table, FALSE);
       }
     }
     /* Error path, a admin command failed. */
@@ -953,6 +955,10 @@ send_result_message:
 err:
   trans_rollback_stmt(thd);
   trans_rollback(thd);
+
+  if (thd->sp_runtime_ctx)
+    thd->sp_runtime_ctx->end_partial_result_set= true;
+
   /* Make sure this table instance is not reused after the operation. */
   if (table->table)
     table->table->m_needs_reopen= true;

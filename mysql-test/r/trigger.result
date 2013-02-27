@@ -1970,7 +1970,7 @@ drop table if exists t1;
 create table t1 (i int, j int);
 create trigger t1_bi before insert on t1 for each row begin end;
 create trigger t1_bi before insert on t1 for each row begin end;
-ERROR 42000: This version of MySQL doesn't yet support 'multiple triggers with the same action time and event for one table'
+ERROR HY000: Trigger already exists
 drop trigger t1_bi;
 drop trigger t1_bi;
 ERROR HY000: Trigger does not exist
@@ -2279,4 +2279,38 @@ a	b
 1000	150
 DROP TABLE t1;
 DROP TEMPORARY TABLE t2;
-End of 6.0 tests.
+#
+# Bug#15985318 - ASSERTION FAILED: ! thd->in_sub_stmt with certain
+#                                    commands in triggers
+#
+CREATE TABLE t1(a INT);
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW START SLAVE;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW STOP SLAVE;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER t1_au AFTER UPDATE ON t1 FOR EACH ROW
+CREATE SERVER s FOREIGN DATA WRAPPER mysql OPTIONS (USER 'Remote',
+HOST '192.168.1.106',
+DATABASE 'test');
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+ALTER SERVER s OPTIONS (password '1');
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+DROP SERVER IF EXISTS s;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+CREATE DATABASE db1;
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+ALTER DATABASE db1 CHARACTER SET latin1;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+DROP DATABASE db1;
+CREATE USER 'u1'@'localhost' IDENTIFIED BY 'pass';
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+DROP USER 'u1'@'localhost';
+CREATE TRIGGER tr1 AFTER UPDATE ON t1 FOR EACH ROW
+CHANGE MASTER TO MASTER_SSL = 0;
+ERROR HY000: Explicit or implicit commit is not allowed in stored function or trigger.
+DROP TABLE t1;
+End of 5.7 tests.

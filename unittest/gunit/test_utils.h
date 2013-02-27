@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 
 extern pthread_key(MEM_ROOT**,THR_MALLOC);
 extern pthread_key(THD*, THR_THD);
+extern bool THR_THD_initialized;
+extern bool THR_MALLOC_initialized;
 extern mysql_mutex_t LOCK_open;
 extern uint    opt_debug_sync_timeout;
 extern "C" void sql_alloc_error_handler(void);

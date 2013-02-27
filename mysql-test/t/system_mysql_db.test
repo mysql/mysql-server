@@ -1,10 +1,9 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # This test must examine integrity of system database "mysql"
 #
-
-# check that CSV engine was compiled in, as the result of the test
-# depends on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
 
 -- disable_query_log
 use mysql;

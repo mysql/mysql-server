@@ -1,7 +1,7 @@
 #ifndef ITEM_SUBSELECT_INCLUDED
 #define ITEM_SUBSELECT_INCLUDED
 
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,10 +163,13 @@ public:
   */
   virtual void reset_value_registration() {}
   enum_parsing_place place() { return parsing_place; }
+  bool walk_join_condition(List<TABLE_LIST> *tables, Item_processor processor,
+                           bool walk_subquery, uchar *argument);
   bool walk_body(Item_processor processor, bool walk_subquery, uchar *arg);
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
   virtual bool explain_subquery_checker(uchar **arg);
   bool inform_item_in_cond_of_tab(uchar *join_tab_index);
+  virtual bool clean_up_after_removal(uchar *arg);
 
   const char *func_name() const { DBUG_ASSERT(0); return "subselect"; }
 

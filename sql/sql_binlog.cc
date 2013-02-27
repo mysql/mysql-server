@@ -178,7 +178,7 @@ void mysql_client_binlog_statement(THD* thd)
   */
   if (!(rli && buf))
   {
-    my_error(ER_OUTOFMEMORY, MYF(0), 1);  /* needed 1 bytes */
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 1);  /* needed 1 bytes */
     goto end;
   }
 

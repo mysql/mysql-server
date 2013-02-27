@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -329,7 +329,7 @@ void thd_unlock_thread_count(THD *)
 void thd_close_connection(THD *thd)
 {
   if (thd->net.vio)
-    vio_close(thd->net.vio);
+    vio_shutdown(thd->net.vio);
 }
 
 /**
@@ -988,9 +988,7 @@ THD::THD(bool enable_plugins)
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
   transaction.flags.enabled= true;
-#ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
-#endif
   mysql_mutex_init(key_LOCK_thd_data, &LOCK_thd_data, MY_MUTEX_INIT_FAST);
 
   /* Variables with default values */
@@ -1255,12 +1253,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
     DBUG_RETURN(cond);
 
-  /* When simulating OOM, skip writing to error log to avoid mtr errors. */
-  cond= DBUG_EVALUATE_IF(
-    "simulate_out_of_memory",
-    NULL,
-    da->push_warning(this, sql_errno, sqlstate, level, msg));
-
   if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
@@ -1289,8 +1281,18 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     }
   }
 
-  query_cache_abort(&query_cache_tls);
+  query_cache.abort(&query_cache_tls);
 
+  /* 
+     Avoid pushing a condition for fatal out of memory errors as this will 
+     require memory allocation and therefore might fail. Non fatal out of 
+     memory errors can occur if raised by SIGNAL/RESIGNAL statement.
+  */
+  if (!(is_fatal_error && (sql_errno == EE_OUTOFMEMORY ||
+                           sql_errno == ER_OUTOFMEMORY)))
+  {
+    cond= da->push_warning(this, sql_errno, sqlstate, level, msg);
+  }
   DBUG_RETURN(cond);
 }
 
@@ -1342,7 +1344,7 @@ void thd_get_xid(const MYSQL_THD thd, MYSQL_XID *xid)
 #ifdef _WIN32
 extern "C"   THD *_current_thd_noinline(void)
 {
-  return my_pthread_getspecific_ptr(THD*,THR_THD);
+  return my_pthread_get_THR_THD();
 }
 #endif
 /*
@@ -1500,11 +1502,6 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-#if defined(ENABLED_DEBUG_SYNC)
-  /* End the Debug Sync Facility. See debug_sync.cc. */
-  debug_sync_end_thread(this);
-#endif /* defined(ENABLED_DEBUG_SYNC) */
-
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   if (gtid_mode > 0)
@@ -1528,6 +1525,11 @@ void THD::cleanup(void)
    */
   if (tc_log)
     tc_log->commit(this, true);
+
+#if defined(ENABLED_DEBUG_SYNC)
+  /* End the Debug Sync Facility. See debug_sync.cc. */
+  debug_sync_end_thread(this);
+#endif /* defined(ENABLED_DEBUG_SYNC) */
 
   cleanup_done=1;
   DBUG_VOID_RETURN;
@@ -1605,7 +1607,7 @@ THD::~THD()
 
   if (variables.gtid_next_list.gtid_set != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     delete variables.gtid_next_list.gtid_set;
     variables.gtid_next_list.gtid_set= NULL;
     variables.gtid_next_list.is_non_null= false;
@@ -1706,12 +1708,16 @@ void THD::awake(THD::killed_state state_to_set)
   THD_CHECK_SENTRY(this);
   mysql_mutex_assert_owner(&LOCK_thd_data);
 
-  /* Set the 'killed' flag of 'this', which is the target THD object. */
-  killed= state_to_set;
+  /*
+    If there is no command executing on the server, we should not set the
+    killed flag so that it does not affect the next command incorrectly.
+  */
+  if (!this->m_server_idle)
+    /* Set the 'killed' flag of 'this', which is the target THD object. */
+    killed= state_to_set;
 
   if (state_to_set != THD::KILL_QUERY)
   {
-#ifdef SIGNAL_WITH_VIO_CLOSE
     if (this != current_thd)
     {
       /*
@@ -1740,9 +1746,8 @@ void THD::awake(THD::killed_state state_to_set)
         reading the next statement.
       */
 
-      close_active_vio();
+      shutdown_active_vio();
     }
-#endif
 
     /* Mark the target thread's alarm request expired, and signal alarm. */
     thr_alarm_kill(thread_id);
@@ -1809,20 +1814,18 @@ void THD::disconnect()
 
   killed= THD::KILL_CONNECTION;
 
-#ifdef SIGNAL_WITH_VIO_CLOSE
   /*
     Since a active vio might might have not been set yet, in
     any case save a reference to avoid closing a inexistent
     one or closing the vio twice if there is a active one.
   */
   vio= active_vio;
-  close_active_vio();
-#endif
+  shutdown_active_vio();
 
   /* Disconnect even if a active vio is not associated. */
   if (net.vio != vio && net.vio != NULL)
   {
-    vio_close(net.vio);
+    vio_shutdown(net.vio);
   }
 
   mysql_mutex_unlock(&LOCK_thd_data);
@@ -1871,8 +1874,8 @@ bool THD::store_globals()
   */
   DBUG_ASSERT(thread_stack);
 
-  if (my_pthread_setspecific_ptr(THR_THD,  this) ||
-      my_pthread_setspecific_ptr(THR_MALLOC, &mem_root))
+  if (my_pthread_set_THR_THD(this) ||
+      my_pthread_set_THR_MALLOC(&mem_root))
     return 1;
   /*
     mysys_var is concurrently readable by a killer thread.
@@ -1911,11 +1914,11 @@ bool THD::restore_globals()
     to track stack overrun.
   */
   DBUG_ASSERT(thread_stack);
-  
+
   /* Undocking the thread specific data. */
-  my_pthread_setspecific_ptr(THR_THD, NULL);
-  my_pthread_setspecific_ptr(THR_MALLOC, NULL);
-  
+  my_pthread_set_THR_THD(NULL);
+  my_pthread_set_THR_MALLOC(NULL);
+
   return 0;
 }
 
@@ -2209,7 +2212,7 @@ CHANGED_TABLE_LIST* THD::changed_table_dup(const char *key, long key_length)
 				      key_length + 1);
   if (!new_table)
   {
-    my_error(EE_OUTOFMEMORY, MYF(ME_BELL),
+    my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_FATALERROR),
              ALIGN_SIZE(sizeof(TABLE_LIST)) + key_length + 1);
     killed= KILL_CONNECTION;
     return 0;
@@ -2269,21 +2272,19 @@ int THD::send_explain_fields(select_result *result)
                                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF));
 }
 
-#ifdef SIGNAL_WITH_VIO_CLOSE
-void THD::close_active_vio()
+void THD::shutdown_active_vio()
 {
-  DBUG_ENTER("close_active_vio");
+  DBUG_ENTER("shutdown_active_vio");
   mysql_mutex_assert_owner(&LOCK_thd_data);
 #ifndef EMBEDDED_LIBRARY
   if (active_vio)
   {
-    vio_close(active_vio);
+    vio_shutdown(active_vio);
     active_vio = 0;
   }
 #endif
   DBUG_VOID_RETURN;
 }
-#endif
 
 
 /*
@@ -2781,7 +2782,7 @@ bool select_export::send_data(List<Item> &items)
       set_if_smaller(estimated_bytes, UINT_MAX32);
       if (cvt_str.realloc((uint32) estimated_bytes))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), (uint32) estimated_bytes);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), (uint32) estimated_bytes);
         goto err;
       }
 
@@ -2866,7 +2867,6 @@ bool select_export::send_data(List<Item> &items)
 	     pos != end ;
 	     pos++)
 	{
-#ifdef USE_MB
 	  if (use_mb(res_charset))
 	  {
 	    int l;
@@ -2876,7 +2876,6 @@ bool select_export::send_data(List<Item> &items)
 	      continue;
 	    }
 	  }
-#endif
 
           /*
             Special case when dumping BINARY/VARBINARY/BLOB values
@@ -3547,11 +3546,11 @@ void Statement_map::reset()
 
 Statement_map::~Statement_map()
 {
-  /* Must go first, hash_free will reset st_hash.records */
-  mysql_mutex_lock(&LOCK_prepared_stmt_count);
-  DBUG_ASSERT(prepared_stmt_count >= st_hash.records);
-  prepared_stmt_count-= st_hash.records;
-  mysql_mutex_unlock(&LOCK_prepared_stmt_count);
+  /*
+    We do not want to grab the global LOCK_prepared_stmt_count mutex here.
+    reset() should already have been called to maintain prepared_stmt_count.
+   */
+  DBUG_ASSERT(st_hash.records == 0);
 
   my_hash_free(&names_hash);
   my_hash_free(&st_hash);
@@ -3818,160 +3817,6 @@ bool Security_context::user_matches(Security_context *them)
 }
 
 
-void Log_throttle::new_window(ulonglong now)
-{
-  count= 0;
-  total_exec_time= 0;
-  total_lock_time= 0;
-  window_end= now + window_size;
-}
-
-
-Log_throttle::Log_throttle(ulong *threshold, mysql_mutex_t *lock,
-                           ulong window_usecs,
-                           bool (*logger)(THD *, const char *, uint),
-                           const char *msg)
-  :total_exec_time(0), total_lock_time(0), window_end(0),
-   rate(threshold),
-   window_size(window_usecs), count(0),
-   summary_template(msg), LOCK_log_throttle(lock), log_summary(logger)
-{
-  aggregate_sctx.init();
-}
-
-
-ulong Log_throttle::prepare_summary(THD *thd)
-{
-  ulong ret= 0;
-  /*
-    Previous throttling window is over or rate changed.
-    Return the number of lines we throttled.
-  */
-  if (count > *rate)
-  {
-    ret= count - *rate;
-    count= 0;                                 // prevent writing it again.
-  }
-  return ret;
-}
-
-
-void Log_throttle::print_summary(THD *thd, ulong suppressed,
-                                 ulonglong print_lock_time,
-                                 ulonglong print_exec_time)
-{
-  /*
-    We synthesize these values so the totals in the log will be
-    correct (just in case somebody analyses them), even if the
-    start/stop times won't be (as they're an aggregate which will
-    usually mostly lie within [ window_end - window_size ; window_end ]
-  */
-  ulonglong save_start_utime=      thd->start_utime;
-  ulonglong save_utime_after_lock= thd->utime_after_lock;
-  Security_context *save_sctx=     thd->security_ctx;
-
-  char buf[128];
-
-  snprintf(buf, sizeof(buf), summary_template, suppressed);
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->start_utime=                thd->current_utime() - print_exec_time;
-  thd->utime_after_lock=           thd->start_utime + print_lock_time;
-  thd->security_ctx=               (Security_context *) &aggregate_sctx;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-
-  (*log_summary)(thd, buf, strlen(buf));
-
-  mysql_mutex_lock(&thd->LOCK_thd_data);
-  thd->security_ctx    = save_sctx;
-  thd->start_utime     = save_start_utime;
-  thd->utime_after_lock= save_utime_after_lock;
-  mysql_mutex_unlock(&thd->LOCK_thd_data);
-}
-
-
-bool Log_throttle::flush(THD *thd)
-{
-  // Write summary if we throttled.
-  lock_exclusive();
-  ulonglong print_lock_time=  total_lock_time;
-  ulonglong print_exec_time=  total_exec_time;
-  ulong     suppressed_count= prepare_summary(thd);
-  unlock();
-  if (suppressed_count > 0)
-  {
-    print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-    return true;
-  }
-  return false;
-}
-
-
-bool Log_throttle::log(THD *thd, bool eligible)
-{
-  bool  suppress_current= false;
-
-  /*
-    If throttling is enabled, we might have to write a summary even if
-    the current query is not of the type we handle.
-  */
-  if (*rate > 0)
-  {
-    lock_exclusive();
-
-    ulong     suppressed_count=   0;
-    ulonglong print_lock_time=    total_lock_time;
-    ulonglong print_exec_time=    total_exec_time;
-    ulonglong end_utime_of_query= thd->current_utime();
-
-    /*
-      If the window has expired, we'll try to write a summary line.
-      The subroutine will know whether we actually need to.
-    */
-    if (!in_window(end_utime_of_query))
-    {
-      suppressed_count= prepare_summary(thd);
-      // start new window only if this is the statement type we handle
-      if (eligible)
-        new_window(end_utime_of_query);
-    }
-    if (eligible && (inc_queries() > *rate))
-    {
-      /*
-        Current query's logging should be suppressed.
-        Add its execution time and lock time to totals for the current window.
-      */
-      total_exec_time += (end_utime_of_query - thd->start_utime);
-      total_lock_time += (thd->utime_after_lock - thd->start_utime);
-      suppress_current= true;
-    }
-
-    unlock();
-
-    /*
-      print_summary() is deferred until after we release the locks to
-      avoid congestion. All variables we hand in are local to the caller,
-      so things would even be safe if print_summary() hadn't finished by the
-      time the next one comes around (60s later at the earliest for now).
-      The current design will produce correct data, but does not guarantee
-      order (there is a theoretical race condition here where the above
-      new_window()/unlock() may enable a different thread to print a warning
-      for the new window before the current thread gets to print_summary().
-      If the requirements ever change, add a print_lock to the object that
-      is held during print_summary(), AND that is briefly locked before
-      returning from this function if(eligible && !suppress_current).
-      This should ensure correct ordering of summaries with regard to any
-      follow-up summaries as well as to any (non-suppressed) warnings (of
-      the type we handle) from the next window.
-    */
-    if (suppressed_count > 0)
-      print_summary(thd, suppressed_count, print_lock_time, print_exec_time);
-  }
-
-  return suppress_current;
-}
-
-
 /****************************************************************************
   Handling of open and locked tables states.
 
@@ -4030,6 +3875,19 @@ extern "C" unsigned long thd_get_thread_id(const MYSQL_THD thd)
   return((unsigned long)thd->thread_id);
 }
 
+/**
+  Check if batching is allowed for the thread
+  @param thd  user thread
+  @retval 1 batching allowed
+  @retval 0 batching not allowed
+*/
+extern "C" int thd_allow_batch(MYSQL_THD thd)
+{
+  if ((thd->variables.option_bits & OPTION_ALLOW_BATCH) ||
+      (thd->slave_thread && opt_slave_allow_batching))
+    return 1;
+  return 0;
+}
 
 #ifdef INNODB_COMPATIBILITY_HOOKS
 extern "C" const struct charset_info_st *thd_charset(MYSQL_THD thd)
@@ -4358,7 +4216,7 @@ void THD::inc_examined_row_count(ha_rows count)
 
 void THD::inc_status_created_tmp_disk_tables()
 {
-  status_var_increment(status_var.created_tmp_disk_tables);
+  status_var.created_tmp_disk_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_disk_tables)(m_statement_psi, 1);
 #endif
@@ -4366,7 +4224,7 @@ void THD::inc_status_created_tmp_disk_tables()
 
 void THD::inc_status_created_tmp_tables()
 {
-  status_var_increment(status_var.created_tmp_tables);
+  status_var.created_tmp_tables++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_created_tmp_tables)(m_statement_psi, 1);
 #endif
@@ -4374,7 +4232,7 @@ void THD::inc_status_created_tmp_tables()
 
 void THD::inc_status_select_full_join()
 {
-  status_var_increment(status_var.select_full_join_count);
+  status_var.select_full_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_join)(m_statement_psi, 1);
 #endif
@@ -4382,7 +4240,7 @@ void THD::inc_status_select_full_join()
 
 void THD::inc_status_select_full_range_join()
 {
-  status_var_increment(status_var.select_full_range_join_count);
+  status_var.select_full_range_join_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_full_range_join)(m_statement_psi, 1);
 #endif
@@ -4390,7 +4248,7 @@ void THD::inc_status_select_full_range_join()
 
 void THD::inc_status_select_range()
 {
-  status_var_increment(status_var.select_range_count);
+  status_var.select_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range)(m_statement_psi, 1);
 #endif
@@ -4398,7 +4256,7 @@ void THD::inc_status_select_range()
 
 void THD::inc_status_select_range_check()
 {
-  status_var_increment(status_var.select_range_check_count);
+  status_var.select_range_check_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_range_check)(m_statement_psi, 1);
 #endif
@@ -4406,7 +4264,7 @@ void THD::inc_status_select_range_check()
 
 void THD::inc_status_select_scan()
 {
-  status_var_increment(status_var.select_scan_count);
+  status_var.select_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_select_scan)(m_statement_psi, 1);
 #endif
@@ -4414,7 +4272,7 @@ void THD::inc_status_select_scan()
 
 void THD::inc_status_sort_merge_passes()
 {
-  status_var_increment(status_var.filesort_merge_passes);
+  status_var.filesort_merge_passes++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_merge_passes)(m_statement_psi, 1);
 #endif
@@ -4422,7 +4280,7 @@ void THD::inc_status_sort_merge_passes()
 
 void THD::inc_status_sort_range()
 {
-  status_var_increment(status_var.filesort_range_count);
+  status_var.filesort_range_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_range)(m_statement_psi, 1);
 #endif
@@ -4430,7 +4288,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  statistic_add_rwlock(status_var.filesort_rows, count, &LOCK_status);
+  status_var.filesort_rows+= count;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
@@ -4438,7 +4296,7 @@ void THD::inc_status_sort_rows(ha_rows count)
 
 void THD::inc_status_sort_scan()
 {
-  status_var_increment(status_var.filesort_scan_count);
+  status_var.filesort_scan_count++;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_scan)(m_statement_psi, 1);
 #endif

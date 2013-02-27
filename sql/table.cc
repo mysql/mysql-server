@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -360,7 +360,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
       elsewhere, and then assign a table map id inside open_table()
       under the protection of the LOCK_open mutex.
     */
-    share->table_map_id= ~0UL;
+    share->table_map_id= ~0ULL;
     share->cached_row_logging_check= -1;
 
     share->m_flush_tickets.empty();
@@ -428,7 +428,7 @@ void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
     table_map_id is also used for MERGE tables to suppress repeated
     compatibility checks.
   */
-  share->table_map_id= (ulong) thd->query_id;
+  share->table_map_id= (ulonglong) thd->query_id;
 
   share->m_flush_tickets.empty();
 
@@ -746,7 +746,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
 
   if (table_type == 1)
   {
-    root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
+    root_ptr= my_pthread_get_THR_MALLOC();
     old_root= *root_ptr;
     *root_ptr= &share->mem_root;
     error= open_binary_frm(thd, share, head, file);
@@ -1623,13 +1623,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* charset and geometry_type share the same byte in frm */
       if (field_type == MYSQL_TYPE_GEOMETRY)
       {
-#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
-#else
-	error= 4;  // unsupported field type
-	goto err;
-#endif
       }
       else
       {
@@ -2866,7 +2861,7 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
-#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+#if MYSQL_VERSION_ID < 40100
     uint mblen;
     if (use_mb(default_charset_info) &&
         (mblen= my_ismbchar(default_charset_info, pos, end)))
@@ -3217,16 +3212,10 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return IDENT_NAME_WRONG;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   bool last_char_is_space= FALSE;
-#else
-  if (name[length-1]==' ')
-    return IDENT_NAME_WRONG;
-#endif
 
   while (name != end)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3238,19 +3227,16 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   if (last_char_is_space)
    return IDENT_NAME_WRONG;
   else if (name_length > NAME_CHAR_LEN)
    return IDENT_NAME_TOO_LONG;
-#endif
   return IDENT_NAME_OK;
 }
 
@@ -3263,7 +3249,6 @@ bool check_column_name(const char *name)
 
   while (*name)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3276,9 +3261,6 @@ bool check_column_name(const char *name)
         continue;
       }
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
