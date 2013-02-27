@@ -123,10 +123,17 @@ global.fail_verify_integraltypes = function(err, instance, id, testCase, domainO
   if (instance.tbigint != id) {
     message += 'fail to verify tbigint: expected: ' + id + ', actual: ' + instance.tbigint + '\n';
   }
-  if (message == '') {
-    testCase.pass();
-  } else {
-    testCase.fail(message);
+  if (message !== '') {
+    testCase.appendErrorMessage(message);
+  }
+  if (testCase.session) {
+    testCase.session.close(function(err) {
+      if (err) {
+        testCase.appendErrorMessage(err);
+      }
+      testCase.session = null;
+      testCase.failOnError();
+    });
   }
 };
 
@@ -148,6 +155,7 @@ global.fail_integraltypesOpenSession = function(testCase, callback) {
       testCase.fail(err);
       return;
     }
+    testCase.session = session;
     callback(session, testCase);
  });
 };
