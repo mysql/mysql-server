@@ -54,6 +54,13 @@ function DBOperationError(ndb_error) {
 DBOperationError.prototype = doc.DBOperationError;
 exports.DBOperationError = DBOperationError;
 
+function IndirectError(dbOperationErr) {
+  this.message = "Error";
+  this.cause = dbOperationErr;
+}
+IndirectError.prototype = doc.DBOperationError;
+
+
 var DBOperation = function(opcode, tx, tableHandler) {
   assert(doc.OperationCodes.indexOf(opcode) !== -1);
   assert(tx);
@@ -213,34 +220,37 @@ function readResultRow(op) {
 }
 
 
-function buildOperationResult(txError, op) {
-  var op_ndb_error;
-  var result_code = -1;
+function buildOperationResult(transactionHandler, op) {
   udebug.log("buildOperationResult");
+  var op_ndb_error, result_code;
 
   op.result = new DBResult();
-
-  if(op.ndbop) {
-    op_ndb_error = op.ndbop.getNdbError();
-    result_code = op_ndb_error.code;
-  }
-
-  if(result_code === 0 && txError === null) {
-    op.result.success = true;
-  }
-  else {
-  /* If the whole transaction failed, but this operation does not have 
-     an error code, then attach the transaction's error to it.
-  */
+  
+  if(! op.ndbop) {
     op.result.success = false;
-    if(result_code > 0) {
-      op.result.error = new DBOperationError(op_ndb_error);
+    op.error = new IndirectError(transactionHandler.error);
+    return;
+  }
+  
+  op_ndb_error = op.ndbop.getNdbError();
+  result_code = op_ndb_error.code;
+
+  if(result_code === 0) {
+    if(transactionHandler.ndb_error) {
+      /* This operation has no error, but the transaction failed. */
+      op.result.success = false;
+      op.error = new IndirectError(transactionHandler.error);      
     }
     else {
-      op.result.error = new DBOperationError(txError.ndb_error);
-      result_code = txError.ndb_error.code;
-      stats.incr("applied_tx_error_to_operation", result_code);
+      /* All Clear */
+      op.result.success = true;
     }
+  }
+  else {
+    /* This operation has an error. */
+    op.result.success = false;
+    op.result.error = new DBOperationError(op_ndb_error);
+
   }
   stats.incr("result_code", result_code);
 
@@ -253,22 +263,17 @@ function buildOperationResult(txError, op) {
 }
 
 
-function completeExecutedOps(txError, txOperations, completedOperations) {
-  udebug.log("completeExecutedOps", txOperations.length);
+function completeExecutedOps(dbTxHandler) {
+  udebug.log("completeExecutedOps", dbTxHandler.pendingOperations.length);
   var op;
-  while(op = txOperations.shift()) {
-    if(op.state === "PREPARED") {
-      buildOperationResult(txError, op);
+  while(op = dbTxHandler.pendingOperations.shift()) {
+    assert(op.state === "PREPARED");
+    buildOperationResult(dbTxHandler, op);
+    dbTxHandler.executedOperations.push(op);
+    op.state = doc.OperationStates[2];  // COMPLETED
 
-      completedOperations.push(op);
-      op.state = doc.OperationStates[2];  // COMPLETED
-
-      if(op.userCallback) {
-        op.userCallback(txError, op);
-      }
-    }
-    else {
-      udebug.log("completeExecutedOps GOT AN OP IN STATE", op.state);
+    if(typeof op.userCallback === 'function') {
+      op.userCallback(op.error, op);
     }
   }
   udebug.log("completeExecutedOps done");
