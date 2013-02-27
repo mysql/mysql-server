@@ -69,7 +69,6 @@ bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
 
-
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
@@ -588,6 +587,8 @@ public:
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+static void validate_user_plugin_records();
+
 static ulong get_sort(uint count,...);
 static bool show_proxy_grants (THD *thd, LEX_USER *user,
                                char *buff, size_t buffsize);
@@ -1422,6 +1423,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   freeze_size(&acl_proxy_users);
 
+  validate_user_plugin_records();
   init_check_host();
 
   initialized=1;
@@ -11860,3 +11862,73 @@ int check_password_policy(String *password)
   }
   return (0);
 }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+my_bool validate_user_plugins= TRUE;
+
+/**
+  Iterate over the user records and check for irregularities.
+  Currently this includes :
+   - checking if the plugin referenced is present.
+   - if there's sha256 users and there's neither SSL nor RSA configured
+*/
+static void
+validate_user_plugin_records()
+{
+  DBUG_ENTER("validate_user_plugin_records");
+  if (!validate_user_plugins)
+    DBUG_VOID_RETURN;
+
+  lock_plugin_data();
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    struct st_plugin_int *plugin;
+    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
+
+    if (acl_user->plugin.length)
+    {
+      /* rule 1 : plugin does exit */
+      if (!auth_plugin_is_built_in(acl_user->plugin.str))
+      {
+        plugin= plugin_find_by_type(&acl_user->plugin,
+                                    MYSQL_AUTHENTICATION_PLUGIN);
+
+        if (!plugin)
+        {
+          sql_print_warning("The plugin '%.*s' used to authenticate "
+                            "user '%s'@'%.*s' is not loaded."
+                            " Nobody can currently login using this account.",
+                            (int) acl_user->plugin.length, acl_user->plugin.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+        }
+      }
+      if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+#if !defined(HAVE_YASSL)
+          (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key()) &&
+#endif
+          !ssl_acceptor_fd)
+      {
+          sql_print_warning("The plugin '%s' is used to authenticate "
+                            "user '%s'@'%.*s', "
+#if !defined(HAVE_YASSL)
+                            "but neither SSL nor RSA keys are "
+#else
+                            "but no SSL is "
+#endif
+                            "configured. "
+                            "Nobody can currently login using this account.",
+                            sha256_password_plugin_name.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+      }
+    }
+  }
+  unlock_plugin_data();
+  DBUG_VOID_RETURN;
+}
+
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+
