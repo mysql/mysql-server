@@ -5506,7 +5506,8 @@ lock_validate_table_locks(
 		const lock_t*	lock;
 
 		assert_trx_in_list(trx);
-		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+		ut_ad((trx->read_only || trx->rseg == 0)
+		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
 		     lock != NULL;
