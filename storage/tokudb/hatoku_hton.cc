@@ -285,6 +285,7 @@ static uint32_t tokudb_env_flags = 0;
 // static ulong tokudb_log_buffer_size = 0;
 // static ulong tokudb_log_file_size = 0;
 static my_bool tokudb_directio = FALSE;
+static my_bool tokudb_checkpoint_on_flush_logs = FALSE;
 static ulonglong tokudb_cache_size = 0;
 static ulonglong tokudb_max_lock_memory = 0;
 static char *tokudb_home;
@@ -643,14 +644,20 @@ bool tokudb_flush_logs(handlerton * hton) {
     int error;
     bool result = 0;
 
-    //
-    // take the checkpoint
-    //
-    error = db_env->txn_checkpoint(db_env, 0, 0, 0);
-    if (error) {
-        my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
-        result = 1;
-        goto exit;
+    if (tokudb_checkpoint_on_flush_logs) {
+        //
+        // take the checkpoint
+        //
+        error = db_env->txn_checkpoint(db_env, 0, 0, 0);
+        if (error) {
+            my_error(ER_ERROR_DURING_CHECKPOINT, MYF(0), error);
+            result = 1;
+            goto exit;
+        }
+    }
+    else {
+        error = db_env->log_flush(db_env, NULL);
+        assert(error == 0);
     }
 
     result = 0;
@@ -1855,6 +1862,10 @@ static MYSQL_SYSVAR_BOOL(directio, tokudb_directio,
   PLUGIN_VAR_READONLY,
   "TokuDB Enable Direct I/O ",
   NULL, NULL, FALSE);
+static MYSQL_SYSVAR_BOOL(checkpoint_on_flush_logs, tokudb_checkpoint_on_flush_logs,
+  0,
+  "TokuDB Checkpoint on Flush Logs ",
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_ULONG(cleaner_iterations, tokudb_cleaner_iterations,
         0, "TokuDB cleaner_iterations", 
@@ -1915,6 +1926,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_buf_size),
     MYSQL_SYSVAR(row_format),
     MYSQL_SYSVAR(directio),
+    MYSQL_SYSVAR(checkpoint_on_flush_logs),
 #if TOKU_INCLUDE_UPSERT
     MYSQL_SYSVAR(disable_slow_update),
     MYSQL_SYSVAR(disable_slow_upsert),
