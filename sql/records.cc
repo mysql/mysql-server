@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -321,7 +321,7 @@ void end_read_record(READ_RECORD *info)
 {                   /* free cache if used */
   if (info->cache)
   {
-    my_free_lock(info->cache);
+    my_free(info->cache);
     info->cache=0;
   }
   if (info->table && info->table->key_read)
@@ -608,9 +608,9 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 
   // We have to allocate one more byte to use uint3korr (see comments for it)
   if (info->cache_records <= 2 ||
-      !(info->cache=(uchar*) my_malloc_lock(rec_cache_size+info->cache_records*
-					   info->struct_length+1,
-					   MYF(0))))
+      !(info->cache=(uchar*) my_malloc(rec_cache_size+info->cache_records*
+                                       info->struct_length+1,
+                                       MYF(0))))
     DBUG_RETURN(1);
 
   DBUG_PRINT("info",("Allocated buffert for %d records",info->cache_records));

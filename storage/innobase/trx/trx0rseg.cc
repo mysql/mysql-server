@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,6 +35,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "ut0bh.h"
 #include "srv0mon.h"
+
+#include <algorithm>
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register rseg_mutex_key with performance schema */
@@ -375,7 +377,6 @@ trx_rseg_get_n_undo_tablespaces(
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 	ulint		n_undo_tablespaces = 0;
-	ulint		space_ids_aux[TRX_SYS_N_RSEGS + 1];
 
 	mtr_start(&mtr);
 
@@ -418,7 +419,7 @@ trx_rseg_get_n_undo_tablespaces(
 	space_ids[n_undo_tablespaces] = ULINT_UNDEFINED;
 
 	if (n_undo_tablespaces > 0) {
-		ut_ulint_sort(space_ids, space_ids_aux, 0, n_undo_tablespaces);
+		std::sort(space_ids, space_ids + n_undo_tablespaces);
 	}
 
 	return(n_undo_tablespaces);

@@ -11,12 +11,13 @@
 #   [--let $rpl_skip_start_slave= 1]
 #   [--let $rpl_debug= 1]
 #   [--let $slave_timeout= NUMBER]
+#   [--let $use_gtids= 1]
 #   --source include/master-slave.inc
 #
 # Parameters:
 #   $rpl_check_server_ids, $rpl_skip_reset_master_and_slave,
 #   $rpl_skip_change_master, $rpl_skip_start_slave, $rpl_debug,
-#   $slave_timeout
+#   $slave_timeout, $use_gtids
 #     See include/rpl_init.inc
 #
 #   $rpl_server_count

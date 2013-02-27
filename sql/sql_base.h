@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -617,5 +617,8 @@ private:
   int m_handled_errors;
   int m_unhandled_errors;
 };
+
+#include "pfs_table_provider.h"
+#include "mysql/psi/mysql_table.h"
 
 #endif /* SQL_BASE_INCLUDED */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -26,7 +26,6 @@
 
 #include "stub_print_error.h"
 #include "stub_pfs_defaults.h"
-#include "stub_server_misc.h"
 
 /* test helpers, to simulate the setup */
 
@@ -113,6 +112,7 @@ void test_bootstrap()
   param.m_digest_sizing= 0;
   param.m_session_connect_attrs_sizing= 0;
 
+  pre_initialize_performance_schema();
   boot= initialize_performance_schema(& param);
   ok(boot != NULL, "boot");
   ok(boot->get_interface != NULL, "boot->get_interface");

@@ -36,6 +36,12 @@ Created 9/8/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0sync.h"
 
+#ifdef __WIN__
+/** This STL map remembers the initial handle returned by CreateThread
+so that it can be closed when the thread exits. */
+static std::map<DWORD, HANDLE>	win_thread_map;
+#endif /* __WIN__ */
+
 /***************************************************************//**
 Compares two thread ids for equality.
 @return	TRUE if equal */
@@ -100,11 +106,13 @@ os_thread_get_curr_id(void)
 
 /****************************************************************//**
 Creates a new thread of execution. The execution starts from
-the function given. The start function takes a void* parameter
-and returns an ulint.
-@return	handle to the thread */
+the function given.
+NOTE: We count the number of threads in os_thread_exit(). A created
+thread should always use that to exit so thatthe thread count will be
+decremented.
+We do not return an error code because if there is one, we crash here. */
 UNIV_INTERN
-os_thread_t
+void
 os_thread_create_func(
 /*==================*/
 	os_thread_func_t	func,		/*!< in: pointer to function
@@ -114,29 +122,43 @@ os_thread_create_func(
 	os_thread_id_t*		thread_id)	/*!< out: id of the created
 						thread, or NULL */
 {
+	os_thread_id_t	new_thread_id;
+
 #ifdef __WIN__
-	os_thread_t	thread;
-	DWORD		win_thread_id;
+	HANDLE		handle;
 
 	os_mutex_enter(os_sync_mutex);
-	os_thread_count++;
-	os_mutex_exit(os_sync_mutex);
 
-	thread = CreateThread(NULL,	/* no security attributes */
+	handle = CreateThread(NULL,	/* no security attributes */
 			      0,	/* default size stack */
 			      func,
 			      arg,
 			      0,	/* thread runs immediately */
-			      &win_thread_id);
+			      &new_thread_id);
 
-	if (thread_id) {
-		*thread_id = win_thread_id;
+	if (!handle) {
+		os_mutex_exit(os_sync_mutex);
+		/* If we cannot start a new thread, life has no meaning. */
+		fprintf(stderr,
+			"InnoDB: Error: CreateThread returned %d\n",
+			GetLastError());
+		ut_ad(0);
+		exit(1);
 	}
 
-	return(thread);
-#else
+	std::pair<map<DWORD, HANDLE>::iterator,bool> ret;
+	ret = win_thread_map.insert(
+		std::pair<DWORD, HANDLE>(new_thread_id, handle));
+	ut_ad((*ret.first).first == new_thread_id);
+	ut_ad((*ret.first).second == handle);
+	ut_a(ret.second == true);	/* true means thread_id was new */
+	os_thread_count++;
+
+	os_mutex_exit(os_sync_mutex);
+
+#else /* __WIN__ else */
+
 	int		ret;
-	os_thread_t	pthread;
 	pthread_attr_t	attr;
 
 #ifndef UNIV_HPUX10
@@ -156,6 +178,7 @@ os_thread_create_func(
 		fprintf(stderr,
 			"InnoDB: Error: pthread_attr_setstacksize"
 			" returned %d\n", ret);
+		ut_ad(0);
 		exit(1);
 	}
 #endif
@@ -164,25 +187,27 @@ os_thread_create_func(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef UNIV_HPUX10
-	ret = pthread_create(&pthread, pthread_attr_default, func, arg);
+	ret = pthread_create(&new_thread_id, pthread_attr_default, func, arg);
 #else
-	ret = pthread_create(&pthread, &attr, func, arg);
+	ret = pthread_create(&new_thread_id, &attr, func, arg);
 #endif
 	if (ret) {
 		fprintf(stderr,
 			"InnoDB: Error: pthread_create returned %d\n", ret);
+		ut_ad(0);
 		exit(1);
 	}
 
 #ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
 #endif
-	if (thread_id) {
-		*thread_id = pthread;
-	}
 
-	return(pthread);
-#endif
+#endif /* not __WIN__ */
+
+	/* Return the thread_id if the caller requests it. */
+	if (thread_id != NULL) {
+		*thread_id = new_thread_id;
+	}
 }
 
 /*****************************************************************//**
@@ -205,11 +230,19 @@ os_thread_exit(
 
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count--;
-	os_mutex_exit(os_sync_mutex);
 
 #ifdef __WIN__
+	DWORD win_thread_id = GetCurrentThreadId();
+	HANDLE handle = win_thread_map[win_thread_id];
+	CloseHandle(handle);
+	int ret = win_thread_map.erase(win_thread_id);
+	ut_a(ret == 1);
+
+	os_mutex_exit(os_sync_mutex);
+
 	ExitThread((DWORD) exit_value);
 #else
+	os_mutex_exit(os_sync_mutex);
 	pthread_detach(pthread_self());
 	pthread_exit(exit_value);
 #endif

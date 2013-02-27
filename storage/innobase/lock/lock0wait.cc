@@ -346,6 +346,10 @@ lock_wait_suspend_thread(
 
 			lock_sys->n_lock_max_wait_time = diff_time;
 		}
+
+		/* Record the lock wait time for this thread */
+		thd_set_lock_wait_time(trx->mysql_thd, diff_time);
+
 	}
 
 	if (lock_wait_timeout < 100000000

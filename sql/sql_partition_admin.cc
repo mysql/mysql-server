@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 #include "ha_partition.h"                   // ha_partition
 #endif
 #include "sql_base.h"                       // open_and_lock_tables
+#include "log.h"
 
 #ifndef WITH_PARTITION_STORAGE_ENGINE
 
@@ -504,9 +505,7 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   /* Don't allow to exchange with log table */
   swap_table_list= table_list->next_local;
-  if (check_if_log_table(swap_table_list->db_length, swap_table_list->db,
-                         swap_table_list->table_name_length,
-                         swap_table_list->table_name, 0))
+  if (query_logger.check_if_log_table(swap_table_list, false))
   {
     my_error(ER_WRONG_USAGE, MYF(0), "PARTITION", "log table");
     DBUG_RETURN(TRUE);
@@ -660,7 +659,7 @@ err:
   // For query cache
   table_list->table= NULL;
   table_list->next_local->table= NULL;
-  query_cache_invalidate3(thd, table_list, FALSE);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   DBUG_RETURN(error);
 }
@@ -774,7 +773,9 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     TODO: Add support for TRUNCATE PARTITION for NDB and other
           engines supporting native partitioning.
   */
-  if (first_table->table->s->db_type() != partition_hton)
+
+  if (!first_table->table || first_table->view ||
+      first_table->table->s->db_type() != partition_hton)
   {
     my_error(ER_PARTITION_MGMT_ON_NONPARTITIONED, MYF(0));
     DBUG_RETURN(TRUE);
@@ -843,7 +844,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
 
   // Invalidate query cache
   DBUG_ASSERT(!first_table->next_local);
-  query_cache_invalidate3(thd, first_table, FALSE);
+  query_cache.invalidate(thd, first_table, FALSE);
 
   DBUG_RETURN(error);
 }

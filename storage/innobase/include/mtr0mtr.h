@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -37,15 +37,17 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 
 /* Logging modes for a mini-transaction */
-#define MTR_LOG_ALL		21	/* default mode: log all operations
-					modifying disk-based data */
-#define	MTR_LOG_NONE		22	/* log no operations */
-#define	MTR_LOG_NO_REDO		23	/* Don't generate REDO */
-/*#define	MTR_LOG_SPACE	23 */	/* log only operations modifying
-					file space page allocation data
-					(operations in fsp0fsp.* ) */
-#define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
-					form */
+#define MTR_LOG_ALL			21	/* default mode: log all
+						operations modifying
+						disk-based data */
+#define	MTR_LOG_NONE			22	/* log no operations and dirty
+						pages are not added to the
+						flush list */
+#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+						but add dirty pages to
+						flush list */
+#define	MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -304,9 +306,10 @@ UNIV_INTERN
 void
 mtr_memo_release(
 /*=============*/
-	mtr_t*	mtr,	/*!< in: mtr */
+	mtr_t*	mtr,	/*!< in/out: mini-transaction */
 	void*	object,	/*!< in: object */
-	ulint	type);	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
+	ulint	type)	/*!< in: object type: MTR_MEMO_S_LOCK, ... */
+	__attribute__((nonnull));
 #ifdef UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP
 /**********************************************************//**
@@ -318,7 +321,8 @@ mtr_memo_contains(
 /*==============*/
 	mtr_t*		mtr,	/*!< in: mtr */
 	const void*	object,	/*!< in: object to search */
-	ulint		type);	/*!< in: type of object */
+	ulint		type)	/*!< in: type of object */
+	__attribute__((warn_unused_result, nonnull));
 
 /**********************************************************//**
 Checks if memo contains the given page.

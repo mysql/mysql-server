@@ -1,7 +1,7 @@
 #ifndef ITEM_STRFUNC_INCLUDED
 #define ITEM_STRFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1019,7 +1019,6 @@ public:
   String *val_str(String *);
 };
 
-#ifdef HAVE_REPLICATION
 class Item_func_gtid_subtract: public Item_str_ascii_func
 {
   String buf1, buf2;
@@ -1029,6 +1028,5 @@ public:
   const char *func_name() const{ return "gtid_subtract"; }
   String *val_str_ascii(String *);
 };
-#endif // if HAVE_REPLICATION
 
 #endif /* ITEM_STRFUNC_INCLUDED */

@@ -23,12 +23,10 @@ Binary buddy allocator for compressed pages
 Created December 2006 by Marko Makela
 *******************************************************/
 
-#define THIS_MODULE
 #include "buf0buddy.h"
 #ifdef UNIV_NONINL
 # include "buf0buddy.ic"
 #endif
-#undef THIS_MODULE
 #include "buf0buf.h"
 #include "buf0lru.h"
 #include "buf0flu.h"

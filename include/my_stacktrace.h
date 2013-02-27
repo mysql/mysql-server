@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ C_MODE_START
 #if defined(HAVE_STACKTRACE) || defined(HAVE_BACKTRACE)
 void my_init_stacktrace();
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack);
-void my_safe_print_str(const char* val, int max_len);
+void my_safe_puts_stderr(const char* val, int max_len);
 void my_write_core(int sig);
 #if BACKTRACE_DEMANGLE
 char *my_demangle(const char *mangled_name, int *status);

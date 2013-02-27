@@ -1682,14 +1682,8 @@ row_upd_sec_index_entry(
 
 	log_free_check();
 
-#ifdef UNIV_DEBUG
-	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
-	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!trx->ddl) {
-		DEBUG_SYNC_C_IF_THD(trx->mysql_thd,
-				    "before_row_upd_sec_index_entry");
-	}
-#endif /* UNIV_DEBUG */
+	DEBUG_SYNC_C_IF_THD(trx->mysql_thd,
+			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
 
@@ -1726,8 +1720,11 @@ row_upd_sec_index_entry(
 		}
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
@@ -1738,8 +1735,11 @@ row_upd_sec_index_entry(
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		/* We can only buffer delete-mark operations if there
-		are no foreign key constraints referring to the index. */
-		mode = referenced
+		are no foreign key constraints referring to the index.
+		Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
+		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
 	}
@@ -2370,15 +2370,9 @@ row_upd_clust_step(
 
 	ulint	mode;
 
-#ifdef UNIV_DEBUG
-	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
-	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!thr_get_trx(thr)->ddl) {
-		DEBUG_SYNC_C_IF_THD(
-			thr_get_trx(thr)->mysql_thd,
-			"innodb_row_upd_clust_step_enter");
-	}
-#endif /* UNIV_DEBUG */
+	DEBUG_SYNC_C_IF_THD(
+		thr_get_trx(thr)->mysql_thd,
+		"innodb_row_upd_clust_step_enter");
 
 	if (dict_index_is_online_ddl(index)) {
 		ut_ad(node->table->id != DICT_INDEXES_ID);
@@ -2406,7 +2400,7 @@ row_upd_clust_step(
 
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
+		dict_drop_index_tree_step(btr_pcur_get_rec(pcur), &mtr);
 
 		mtr_commit(&mtr);
 
@@ -2566,14 +2560,8 @@ row_upd(
 		return(DB_SUCCESS);
 	}
 
-#ifdef UNIV_DEBUG
-	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
-	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
-	if (!thr_get_trx(thr)->ddl) {
-		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
-				    "after_row_upd_clust");
-	}
-#endif /* UNIV_DEBUG */
+	DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+			    "after_row_upd_clust");
 
 	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 

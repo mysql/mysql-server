@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace,parts";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_gis,innodb_fts,perfschema,funcs_1,opt_trace,parts,auth_sec";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -702,9 +702,11 @@ sub run_test_server ($$$) {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
               #saving the log file as filename.failed in case of retry
-              my $worker_logdir= $result->{savedir};
-              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
-              rename $log_file_name,$log_file_name.".failed";
+              if ( $result->is_failed() ) {
+                my $worker_logdir= $result->{savedir};
+                my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+                rename $log_file_name,$log_file_name.".failed";
+              }
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -3530,11 +3532,8 @@ sub mysql_install_db {
     }
   }
 
-  # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
-  # configure --disable-grant-options), mysqld will not recognize the
-  # --bootstrap or --skip-grant-tables options.  The user can set
-  # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
-  # --bootstrap, to accommodate this.
+  # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
+  # to run a different mysqld during --bootstrap.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 
@@ -5784,6 +5783,7 @@ sub start_check_testcase ($$$) {
   mtr_add_arg($args, "--result-file=%s", "$opt_vardir/tmp/$name.result");
   mtr_add_arg($args, "--test-file=%s", "include/check-testcase.test");
   mtr_add_arg($args, "--verbose");
+  mtr_add_arg($args, "--logdir=%s/tmp", $opt_vardir);
 
   if ( $mode eq "before" )
   {

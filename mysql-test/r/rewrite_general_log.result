@@ -97,7 +97,7 @@ EXPLAIN EXTENDED SELECT @a=5,@b:=10,@c:=20,@d:=40+5,(@e:=80)+5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select ((@a) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
+Note	1003	/* select#1 */ select ((@`a`) = 5) AS `@a=5`,(@b:=10) AS `@b:=10`,(@c:=20) AS `@c:=20`,(@d:=(40 + 5)) AS `@d:=40+5`,((@e:=80) + 5) AS `(@e:=80)+5`
 DROP TABLE test_log;
 SET GLOBAL general_log_file=  @old_general_log_file;
 SET GLOBAL general_log=       @old_general_log;

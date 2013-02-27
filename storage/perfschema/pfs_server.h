@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -211,6 +211,14 @@ struct PFS_global_param
   This global variable is set when parsing server startup options.
 */
 extern PFS_global_param pfs_param;
+
+/**
+  Null initialization.
+  Disable all instrumentation, size all internal buffers to 0.
+  This pre initialization step is needed to ensure that events can be collected
+  and discarded, until such time @c initialize_performance_schema() is called.
+*/
+void pre_initialize_performance_schema();
 
 /**
   Initialize the performance schema.

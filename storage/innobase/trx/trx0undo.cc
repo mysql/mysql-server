@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -983,7 +983,7 @@ trx_undo_free_page(
 		    undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_NODE, mtr);
 
 	fseg_free_page(header_page + TRX_UNDO_SEG_HDR + TRX_UNDO_FSEG_HEADER,
-		       space, page_no, mtr);
+		       space, page_no, false, mtr);
 
 	last_addr = flst_get_last(header_page + TRX_UNDO_SEG_HDR
 				  + TRX_UNDO_PAGE_LIST, mtr);
@@ -1227,7 +1227,7 @@ trx_undo_seg_free(
 
 		file_seg = seg_header + TRX_UNDO_FSEG_HEADER;
 
-		finished = fseg_free_step(file_seg, &mtr);
+		finished = fseg_free_step(file_seg, false, &mtr);
 
 		if (finished) {
 			/* Update the rseg header */

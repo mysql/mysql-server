@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,11 +35,8 @@ class my_decimal;
 class Sql_condition : public Sql_alloc
 {
 public:
-  /*
+  /**
     Enumeration value describing the severity of the condition.
-
-    Note that these enumeration values must correspond to the indices
-    of the sql_print_message_handlers array.
   */
   enum enum_severity_level
   { SL_NOTE, SL_WARNING, SL_ERROR, SEVERITY_END};

@@ -4747,10 +4747,27 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   if (mysql->passwd[0])
   {
-    char scrambled[SCRAMBLE_LENGTH_323 + 1];
-    scramble_323(scrambled, (char*)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+    /*
+       If --secure-auth option is used, throw an error.
+       Note that, we do not need to check for CLIENT_SECURE_CONNECTION
+       capability of server. If server is not capable of handling secure
+       connections, we would have raised error before reaching here.
+
+       TODO: Change following code to access MYSQL structure through
+       client-side plugin service.
+    */
+    if (mysql->options.secure_auth)
+    {
+      set_mysql_error(mysql, CR_SECURE_AUTH, unknown_sqlstate);
       DBUG_RETURN(CR_ERROR);
+    }
+    else
+    {
+      char scrambled[SCRAMBLE_LENGTH_323 + 1];
+      scramble_323(scrambled, (char*)pkt, mysql->passwd);
+      if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+        DBUG_RETURN(CR_ERROR);
+    }
   }
   else
     if (vio->write_packet(vio, 0, 0)) /* no password */

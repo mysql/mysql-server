@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -821,8 +821,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     for (table= tables; table; table= table->next_local)
     {
-      if (check_if_log_table(table->db_length, table->db,
-                             table->table_name_length, table->table_name, true))
+      if (query_logger.check_if_log_table(table, true))
       {
         my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
         goto exit;
@@ -872,9 +871,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache_invalidate1(db);
+    query_cache.invalidate(db);
     (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db);
 #endif
     reenable_binlog(thd);
@@ -1551,8 +1550,11 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
              sctx->priv_user,
              sctx->priv_host,
              new_db_file_name.str);
-    general_log_print(thd, COM_INIT_DB, ER(ER_DBACCESS_DENIED_ERROR),
-                      sctx->priv_user, sctx->priv_host, new_db_file_name.str);
+    query_logger.general_log_print(thd, COM_INIT_DB,
+                                   ER(ER_DBACCESS_DENIED_ERROR),
+                                   sctx->priv_user,
+                                   sctx->priv_host,
+                                   new_db_file_name.str);
     my_free(new_db_file_name.str);
     DBUG_RETURN(TRUE);
   }

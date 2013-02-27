@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Bug38499 flush tables and multitable table update with derived table cause crash
 # MySQL >= 5.0
 #

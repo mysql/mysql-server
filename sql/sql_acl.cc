@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1001,7 +1001,7 @@ my_bool acl_init(bool dont_read_acl_tables)
   return_val= acl_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -2800,43 +2800,6 @@ bool auth_plugin_supports_expiration(const char *plugin_name)
 }
 
 
-bool auth_plugin_is_built_in(const char *plugin_name)
-{
- return (plugin_name == native_password_plugin_name.str ||
-#if defined(HAVE_OPENSSL)
-         plugin_name == sha256_password_plugin_name.str ||
-#endif
-         plugin_name == old_password_plugin_name.str);
-}
-
-void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
-{
-#if defined(HAVE_OPENSSL)
-  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= sha256_password_plugin_name.str;
-    plugin_name->length= sha256_password_plugin_name.length;
-  }
-  else
-#endif
-  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= native_password_plugin_name.str;
-    plugin_name->length= native_password_plugin_name.length;
-  }
-  else
-  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
-                    plugin_name->str) == 0)
-  {
-    plugin_name->str= old_password_plugin_name.str;
-    plugin_name->length= old_password_plugin_name.length;
-  }
-
-  DBUG_ASSERT(auth_plugin_is_built_in(native_password_plugin_name.str));
-}
-
 /****************************************************************************
   Handle GRANT commands
 ****************************************************************************/
@@ -2884,14 +2847,13 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     {
       combo->plugin.str= default_auth_plugin_name.str;
       combo->plugin.length= default_auth_plugin_name.length;
-      combo->uses_identified_with_clause= false;
     }
     /* 2. Digest password if needed (plugin must have been resolved) */
     if (combo->uses_identified_by_clause)
     {
       if (digest_password(thd, combo))
       {
-        my_error(ER_OUTOFMEMORY, MYF(0), CRYPT_MAX_PASSWORD_SIZE);
+        my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), CRYPT_MAX_PASSWORD_SIZE);
         error= 1;
         goto end;
       }
@@ -2961,8 +2923,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 #endif
     {
       /* Use the legacy Password field */
-      if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        WARN_DEPRECATED_41_PWD_HASH(thd);
       table->field[MYSQL_USER_FIELD_PASSWORD]->store(password, password_len,
                                                      system_charset_info);
       table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->store("\0", 0,
@@ -2981,26 +2941,50 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     /* 1. resolve plugins in the LEX_USER struct if needed */
     if (!combo->uses_identified_with_clause)
     {
+      LEX_STRING old_plugin;
+
       /*
         Get old plugin value from storage.
       */
-      combo->plugin.str=
+
+      old_plugin.str=
         get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
       /* 
         It is important not to include the trailing '\0' in the string length 
         because otherwise the plugin hash search will fail.
       */
-      if (combo->plugin.str)
+      if (old_plugin.str)
       {
-        combo->plugin.length= strlen(combo->plugin.str);
+        old_plugin.length= strlen(old_plugin.str);
 
         /*
           Optimize for pointer comparision of built-in plugin name
         */
 
-        optimize_plugin_compare_by_pointer(&combo->plugin);
+        optimize_plugin_compare_by_pointer(&old_plugin);
+ 
+        /*
+          Disable plugin change for existing rows with anything but
+          the built in plugins.
+          The idea is that all built in plugins support
+          IDENTIFIED BY ... and none of the external ones currently do.
+        */
+        if ((combo->uses_identified_by_clause ||
+             combo->uses_identified_by_password_clause) &&
+            !auth_plugin_is_built_in(old_plugin.str))
+        {
+          const char *new_plugin= (combo->plugin.str && combo->plugin.str[0]) ?
+            combo->plugin.str : default_auth_plugin_name.str;
+
+          if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
+          {
+            push_warning(thd, Sql_condition::SL_WARNING, 
+              ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
+          }
+        }
       }
+      combo->plugin= old_plugin;
     }    
     
     /* No value for plugin field means default plugin is used */
@@ -3062,23 +3046,6 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       else
 #endif
       {
-        /*
-          We need to check for has validity here since later, when
-          set_user_salt() is executed it will be too late to signal
-          an error.
-        */
-        if ((combo->plugin.str == native_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
-            (combo->plugin.str == old_password_plugin_name.str &&
-             password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
-        {
-          my_error(ER_PASSWORD_FORMAT, MYF(0));
-          error= 1;
-          goto end;
-        }
-        /* The legacy Password field is used */
-        if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-          WARN_DEPRECATED_41_PWD_HASH(thd);
         table->field[MYSQL_USER_FIELD_PASSWORD]->
           store(password, password_len, system_charset_info);
         table->field[MYSQL_USER_FIELD_AUTHENTICATION_STRING]->
@@ -3093,6 +3060,28 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       DBUG_PRINT("info", ("Proxy user exit path"));
       DBUG_RETURN(0);
     }
+  }
+
+  /* error checks on password */
+  if (password_len > 0)
+  {
+    /*
+     We need to check for hash validity here since later, when
+     set_user_salt() is executed it will be too late to signal
+     an error.
+    */
+    if ((combo->plugin.str == native_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
+        (combo->plugin.str == old_password_plugin_name.str &&
+         password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323))
+    {
+      my_error(ER_PASSWORD_FORMAT, MYF(0));
+      error= 1;
+      goto end;
+    }
+    /* The legacy Password field is used */
+    if (combo->plugin.str == old_password_plugin_name.str)
+      WARN_DEPRECATED_41_PWD_HASH(thd);
   }
 
   /* Update table columns with new privileges */
@@ -4915,7 +4904,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    strnmov(tmp_db,db,NAME_LEN);
+    tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
@@ -5111,7 +5101,7 @@ my_bool grant_init()
   return_val=  grant_reload(thd);
   delete thd;
   /* Remember that we don't have a THD */
-  my_pthread_setspecific_ptr(THR_THD,  0);
+  my_pthread_set_THR_THD(0);
   DBUG_RETURN(return_val);
 }
 
@@ -5136,8 +5126,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   MEM_ROOT *memex_ptr;
   my_bool return_val= 1;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   DBUG_ENTER("grant_load_procs_priv");
   (void) my_hash_init(&proc_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
@@ -5152,7 +5141,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   if (!p_table->file->ha_index_first(p_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_NAME *mem_check;
@@ -5208,7 +5197,7 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
 
 end_unlock:
   p_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
   DBUG_RETURN(return_val);
 }
 
@@ -5234,8 +5223,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   my_bool return_val= 1;
   TABLE *t_table= 0, *c_table= 0;
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
-  MEM_ROOT **save_mem_root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**,
-                                                           THR_MALLOC);
+  MEM_ROOT **save_mem_root_ptr= my_pthread_get_THR_MALLOC();
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   DBUG_ENTER("grant_load");
 
@@ -5255,7 +5243,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   if (!t_table->file->ha_index_first(t_table->record[0]))
   {
     memex_ptr= &memex;
-    my_pthread_setspecific_ptr(THR_MALLOC, &memex_ptr);
+    my_pthread_set_THR_MALLOC(&memex_ptr);
     do
     {
       GRANT_TABLE *mem_check;
@@ -5294,7 +5282,7 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
 end_unlock:
   t_table->file->ha_index_end();
-  my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+  my_pthread_set_THR_MALLOC(save_mem_root_ptr);
 end_index_init:
   thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
@@ -5747,6 +5735,15 @@ bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
       my_message(ER_VIEW_NO_EXPLAIN, ER(ER_VIEW_NO_EXPLAIN), MYF(0));
       return TRUE;
     }
+  }
+  else if (table_ref->nested_join)
+  {
+    bool error= FALSE;
+    List_iterator<TABLE_LIST> it(table_ref->nested_join->join_list);
+    TABLE_LIST *table;
+    while (!error && (table= it++))
+      error|= check_column_grant_in_table_ref(thd, table, name, length);
+    return error;
   }
   else
   {
@@ -7485,20 +7482,13 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
                                           user->password.length);
           str->append(tmp);
         }
-#if defined(HAVE_OPENSSL)
-        else if (thd->variables.old_passwords == 2)
-        {
-          char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
-          my_make_scrambled_password(tmp, user->password.str,
-                                     user->password.length);
-          str->append(tmp, user->password.length, system_charset_info);
-        }
-#endif
         else
         {
           /*
             Legacy password algorithm is just an obfuscation of a plain text
             so we're not going to write this.
+            Same with old_passwords == 2 since the scrambled password will
+            be binary anyway.
           */
           str->append("<secret>");
         }
@@ -7855,6 +7845,11 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   bool save_binlog_row_based;
   DBUG_ENTER("mysql_user_password_expire");
 
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(true);
+  }
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
@@ -9196,6 +9191,41 @@ struct MPVIO_EXT :public MYSQL_PLUGIN_VIO
   int vio_is_encrypted;
 };
 
+bool auth_plugin_is_built_in(const char *plugin_name)
+{
+ return (plugin_name == native_password_plugin_name.str ||
+#if defined(HAVE_OPENSSL)
+         plugin_name == sha256_password_plugin_name.str ||
+#endif
+         plugin_name == old_password_plugin_name.str);
+}
+
+void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
+{
+#if defined(HAVE_OPENSSL)
+  if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= sha256_password_plugin_name.str;
+    plugin_name->length= sha256_password_plugin_name.length;
+  }
+  else
+#endif
+  if (my_strcasecmp(system_charset_info, native_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= native_password_plugin_name.str;
+    plugin_name->length= native_password_plugin_name.length;
+  }
+  else
+  if (my_strcasecmp(system_charset_info, old_password_plugin_name.str,
+                    plugin_name->str) == 0)
+  {
+    plugin_name->str= old_password_plugin_name.str;
+    plugin_name->length= old_password_plugin_name.length;
+  }
+}
+
 /**
  Sets the default default auth plugin value if no option was specified.
 */
@@ -9219,12 +9249,12 @@ void init_default_auth_plugin()
 
 int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
 {
-#if defined(HAVE_OPENSSL)
   default_auth_plugin_name.str= plugin_name;
   default_auth_plugin_name.length= plugin_name_length;
-  
+
   optimize_plugin_compare_by_pointer(&default_auth_plugin_name);
- 
+
+#if defined(HAVE_OPENSSL)
   if (default_auth_plugin_name.str == sha256_password_plugin_name.str)
   {
     /*
@@ -9233,7 +9263,11 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
     */
     global_system_variables.old_passwords= 2;
   }
+  else
 #endif
+  if (default_auth_plugin_name.str != native_password_plugin_name.str)
+    return 1;
+
   return 0;
 }
 
@@ -9248,9 +9282,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
     my_error(ER_ACCESS_DENIED_NO_PASSWORD_ERROR, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_ACCESS_DENIED_NO_PASSWORD_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9269,10 +9304,10 @@ static void login_failed_error(MPVIO_EXT *mpvio, int passwd_used)
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip,
              passwd_used ? ER(ER_YES) : ER(ER_NO));
-    general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip,
-                      passwd_used ? ER(ER_YES) : ER(ER_NO));
+    query_logger.general_log_print(thd, COM_CONNECT, ER(ER_ACCESS_DENIED_ERROR),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip,
+                                   passwd_used ? ER(ER_YES) : ER(ER_NO));
     /* 
       Log access denied messages to the error log when log-warnings = 2
       so that the overhead of the general query log is not required to track 
@@ -9426,14 +9461,16 @@ static bool secure_auth(MPVIO_EXT *mpvio)
     my_error(ER_SERVER_IS_IN_SECURE_AUTH_MODE, MYF(0),
              mpvio->auth_info.user_name,
              mpvio->auth_info.host_or_ip);
-    general_log_print(thd, COM_CONNECT, ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
-                      mpvio->auth_info.user_name,
-                      mpvio->auth_info.host_or_ip);
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_SERVER_IS_IN_SECURE_AUTH_MODE),
+                                   mpvio->auth_info.user_name,
+                                   mpvio->auth_info.host_or_ip);
   }
   else
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
   }
   return 1;
 }
@@ -9505,7 +9542,8 @@ static bool send_plugin_request_packet(MPVIO_EXT *mpvio,
   if (switch_from_short_to_long_scramble)
   {
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -9597,7 +9635,8 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
     DBUG_ASSERT(my_strcasecmp(system_charset_info, mpvio->acl_user->plugin.str,
                               old_password_plugin_name.str));
     my_error(ER_NOT_SUPPORTED_AUTH_MODE, MYF(0));
-    general_log_print(current_thd, COM_CONNECT, ER(ER_NOT_SUPPORTED_AUTH_MODE));
+    query_logger.general_log_print(current_thd, COM_CONNECT,
+                                   ER(ER_NOT_SUPPORTED_AUTH_MODE));
     DBUG_RETURN (1);
   }
 
@@ -9708,6 +9747,12 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   {
     if (mpvio->charset_adapter->init_client_charset(uint2korr(ptr)))
       DBUG_RETURN(1);
+  }
+  else
+  {
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      mpvio->charset_adapter->charset()->csname);
   }
 
 
@@ -10035,7 +10080,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   {
     mpvio->client_capabilities= uint4korr(end);
     mpvio->max_client_packet_length= 0xfffff;
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
     if (mpvio->charset_adapter->init_client_charset(charset_code))
       return packet_error;
     goto skip_to_ssl;
@@ -10072,7 +10120,10 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
       Old clients didn't have their own charset. Instead the assumption
       was that they used what ever the server used.
     */
-    charset_code= default_charset_info->number;
+    charset_code= global_system_variables.character_set_client->number;
+    sql_print_warning("Client failed to provide its character set. "
+                      "'%s' will be used as client character set.",
+                      global_system_variables.character_set_client->csname);
   }
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
@@ -10872,34 +10923,18 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
     if (strcmp(mpvio.auth_info.authenticated_as, mpvio.auth_info.user_name))
     {
-      general_log_print(thd, command, "%s@%s as %s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.auth_info.authenticated_as ? 
-                          mpvio.auth_info.authenticated_as : "anonymous",
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
+      query_logger.general_log_print(thd, command, "%s@%s as %s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.auth_info.authenticated_as ?
+                                     mpvio.auth_info.authenticated_as : "anonymous",
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
     }
     else
-      general_log_print(thd, command, (char*) "%s@%s on %s",
-                        mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
-                        mpvio.db.str ? mpvio.db.str : (char*) "");
-  }
-
-  if (unlikely(acl_user && acl_user->password_expired
-               && !(mpvio.client_capabilities &
-                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
-               && disconnect_on_expired_password))
-  {
-    /*
-      Clients that don't signal password expiration support
-      get a connect error.
-    */
-    res= CR_ERROR;
-    mpvio.status= MPVIO_EXT::FAILURE;
-
-    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
-    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
-    if (log_warnings > 1)
-      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
+      query_logger.general_log_print(thd, command, (char*) "%s@%s on %s",
+                                     mpvio.auth_info.user_name,
+                                     mpvio.auth_info.host_or_ip,
+                                     mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
@@ -11009,6 +11044,27 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
+    if (unlikely(acl_user && acl_user->password_expired
+        && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+        && disconnect_on_expired_password))
+    {
+      /*
+        Clients that don't signal password expiration support
+        get a connect error.
+      */
+      Host_errors errors;
+
+      my_error(ER_MUST_CHANGE_PASSWORD_LOGIN, MYF(0));
+      query_logger.general_log_print(thd, COM_CONNECT,
+                                     ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+      if (log_warnings > 1)
+        sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD_LOGIN));
+
+      errors.m_authentication= 1;
+      inc_host_errors(mpvio.ip, &errors);
+      DBUG_RETURN(1);
+    }
+
     /* Don't allow the user to connect if he has done too many queries */
     if ((acl_user->user_resource.questions || acl_user->user_resource.updates ||
          acl_user->user_resource.conn_per_hour ||
@@ -11053,8 +11109,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (!count_ok)
     {                                         // too many connections
       release_user_connection(thd);
-      statistic_increment_rwlock(connection_errors_max_connection, 
-                                 &LOCK_status);
+      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
@@ -11091,7 +11146,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     my_ok(thd);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
-  PSI_THREAD_CALL(set_thread_user_host)
+  PSI_THREAD_CALL(set_thread_account)
     (thd->main_security_ctx.user, strlen(thd->main_security_ctx.user),
     thd->main_security_ctx.host_or_ip, strlen(thd->main_security_ctx.host_or_ip));
 #endif
@@ -11275,12 +11330,107 @@ private:
   RSA *m_private_key;
   int m_cipher_len;
   char *m_pem_public_key;
+
+  /**
+    @brief Set key file path
+
+    @param  key[in]            Points to either auth_rsa_private_key_path or
+                               auth_rsa_public_key_path.
+    @param  key_file_path[out] Stores value of actual key file path.
+
+  */
+  void get_key_file_path(char *key, String *key_file_path)
+  {
+    /*
+       If a fully qualified path is entered use that, else assume the keys are 
+       stored in the data directory.
+     */
+    if (strchr(key, FN_LIBCHAR) != NULL ||
+        strchr(key, FN_LIBCHAR2) != NULL)
+      key_file_path->set_quick(key, strlen(key), system_charset_info);
+    else
+    {
+      key_file_path->append(mysql_real_data_home, strlen(mysql_real_data_home));
+      if ((*key_file_path)[key_file_path->length()] != FN_LIBCHAR)
+        key_file_path->append(FN_LIBCHAR);
+      key_file_path->append(key);
+    }
+  }
+
+  /**
+    @brief Read a key file and store its value in RSA structure
+
+    @param  key_ptr[out]         Address of pointer to RSA. This is set to
+                                 point to a non null value if key is correctly
+                                 read.
+    @param  is_priv_key[in]      Whether we are reading private key or public
+                                 key.
+    @param  key_text_buffer[out] To store key file content of public key.
+
+    @return Error status
+      @retval false              Success : Either both keys are read or none
+                                 are.
+      @retval true               Failure : An appropriate error is raised.
+  */
+  bool read_key_file(RSA **key_ptr, bool is_priv_key, char **key_text_buffer)
+  {
+    String key_file_path;
+    char *key;
+    const char *key_type;
+    FILE *key_file= NULL;
+
+    key= is_priv_key ? auth_rsa_private_key_path : auth_rsa_public_key_path;
+    key_type= is_priv_key ? "private" : "public";
+    *key_ptr= NULL;
+
+    get_key_file_path(key, &key_file_path);
+
+    /*
+       Check for existance of private key/public key file.
+    */
+    if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
+    {
+      sql_print_information("RSA %s key file not found: %s."
+                            " Some authentication plugins will not work.",
+                            key_type, key_file_path.c_ptr());
+    }
+    else
+    {
+        *key_ptr= is_priv_key ? PEM_read_RSAPrivateKey(key_file, 0, 0, 0) :
+                                PEM_read_RSA_PUBKEY(key_file, 0, 0, 0);
+
+      if (!(*key_ptr))
+      {
+        char error_buf[MYSQL_ERRMSG_SIZE];
+        ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
+        sql_print_error("Failure to parse RSA %s key (file exists): %s:"
+                        " %s", key_type, key_file_path.c_ptr(), error_buf);
+        return true;
+      }
+
+      /* For public key, read key file content into a char buffer. */
+      if (!is_priv_key)
+      {
+        int filesize;
+        fseek(key_file, 0, SEEK_END);
+        filesize= ftell(key_file);
+        fseek(key_file, 0, SEEK_SET);
+        *key_text_buffer= new char[filesize+1];
+        (void) fread(*key_text_buffer, filesize, 1, key_file);
+        (*key_text_buffer)[filesize]= '\0';
+      }
+      fclose(key_file);
+    }
+    return false;
+  }
+
 public:
   Rsa_authentication_keys()
   {
     m_cipher_len= 0;
     m_private_key= 0;
     m_public_key= 0;
+    m_pem_public_key= 0;
   }
   
   ~Rsa_authentication_keys()
@@ -11290,10 +11440,14 @@ public:
   void free_memory()
   {
     if (m_private_key)
-    {
       RSA_free(m_private_key);
+
+    if (m_public_key)
+    {
       RSA_free(m_public_key);
+      m_cipher_len= 0;
     }
+
     if (m_pem_public_key)
       delete [] m_pem_public_key;
   }
@@ -11319,16 +11473,78 @@ public:
     return (m_cipher_len= RSA_size(m_public_key));
   }
 
-  int set_private_key(RSA *pk)
-  {
-    m_private_key= pk;
-    return 0;
-  }
+  /**
+    @brief Read RSA private key and public key from file and store them
+           in m_private_key and m_public_key. Also, read public key in
+           text format and store it in m_pem_public_key.
 
-  int set_public_key(RSA *pk)
+    @return Error status
+      @retval false        Success : Either both keys are read or none are.
+      @retval true         Failure : An appropriate error is raised.
+  */
+  bool read_rsa_keys()
   {
-    m_public_key= pk;
-    return 0;
+    RSA *rsa_private_key_ptr= NULL;
+    RSA *rsa_public_key_ptr= NULL;
+    char *pub_key_buff= NULL; 
+
+    if ((strlen(auth_rsa_private_key_path) == 0) &&
+        (strlen(auth_rsa_public_key_path) == 0))
+    {
+      sql_print_information("RSA key files not found."
+                            " Some authentication plugins will not work.");
+      return false;
+    }
+
+    /*
+      Read private key in RSA format.
+    */
+    if (read_key_file(&rsa_private_key_ptr, true, NULL))
+        return true;
+    
+    /*
+      Read public key in RSA format.
+    */
+    if (read_key_file(&rsa_public_key_ptr, false, &pub_key_buff))
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+      return true;
+    }
+
+    /*
+       If both key files are read successfully then assign values to following
+       members of the class
+       1. m_pem_public_key
+       2. m_private_key
+       3. m_public_key
+
+       Else clean up.
+     */
+    if (rsa_private_key_ptr && rsa_public_key_ptr)
+    {
+      int buff_len= strlen(pub_key_buff);
+      char *pem_file_buffer= (char *)allocate_pem_buffer(buff_len + 1);
+      strncpy(pem_file_buffer, pub_key_buff, buff_len);
+      pem_file_buffer[buff_len]= '\0';
+
+      m_private_key= rsa_private_key_ptr;
+      m_public_key= rsa_public_key_ptr;
+
+      delete [] pub_key_buff; 
+    }
+    else
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+
+      if (rsa_public_key_ptr)
+      {
+        delete [] pub_key_buff; 
+        RSA_free(rsa_public_key_ptr);
+      }
+    }
+    return false;
   }
 
   const char *get_public_key_as_pem(void)
@@ -11375,119 +11591,13 @@ public:
  @see init_ssl()
  
  @return Error code
-   @retval 0 Success
-   @retval 1 Error
+   @retval false Success
+   @retval true Error
 */
 
-int init_rsa_keys(void)
+bool init_rsa_keys(void)
 {
-  FILE *priv_key_file;
-  FILE *public_key_file;
-  String priv_keypath;
-  String pub_keypath;
-  int auth_rsa_private_key_path_len;
-  int auth_rsa_public_key_path_len;
-  
-  auth_rsa_private_key_path_len= strlen(auth_rsa_private_key_path);
-  auth_rsa_public_key_path_len= strlen(auth_rsa_public_key_path);
-  if (auth_rsa_private_key_path_len == 0 || auth_rsa_public_key_path_len == 0)
-  {
-     sql_print_information("RSA key files not found."
-                          " Some authentication plugins will not work.");
-    return 0;
-  }
-
-  /*
-     If a fully qualified path is entered use that, else assume the keys are 
-     stored in the data directory.
-  */
-  if (strchr(auth_rsa_private_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_private_key_path, FN_LIBCHAR2) != NULL)
-    priv_keypath.set_quick(auth_rsa_private_key_path,
-                           auth_rsa_private_key_path_len, 
-                           system_charset_info);
-  else
-  {
-    priv_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (priv_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      priv_keypath.append(FN_LIBCHAR);
-    priv_keypath.append(auth_rsa_private_key_path);
-  }
-
-  if ((priv_key_file= fopen(priv_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA private key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          priv_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_priv(priv_key_file);
-
-  if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
-    pub_keypath.set_quick(auth_rsa_public_key_path,
-                          auth_rsa_public_key_path_len, 
-                          system_charset_info);
-  else
-  {
-    pub_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (pub_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      pub_keypath.append(FN_LIBCHAR);
-    pub_keypath.append(auth_rsa_public_key_path);
-  }
-
-  if ((public_key_file= fopen(pub_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA public key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          pub_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_public(public_key_file);
-
-  RSA *rsa_private_key= RSA_new();
-  if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,
-                                                        &rsa_private_key,
-                                                        0, 0)))
-  {
-    sql_print_error("Failure to parse RSA private key (file exists): %s",
-                    auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-    
-  }
-  
-  int filesize;
-  fseek(public_key_file, 0, SEEK_END);
-  filesize= ftell(public_key_file);
-  fseek(public_key_file, 0, SEEK_SET);
-  char *pem_file_buffer= (char *)g_rsa_keys.allocate_pem_buffer(filesize + 1);
-  (void) fread(pem_file_buffer, filesize, 1, public_key_file);
-  pem_file_buffer[filesize]= '\0';
-
-  if (int err= ferror(public_key_file))
-  {
-    sql_print_error("Failure code %d when reading RSA public key (%d bytes): %s",
-                    err, filesize, auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-  fseek(public_key_file, 0, SEEK_SET);
-
-  RSA *rsa_public_key= RSA_new();
-  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file,
-                                                    &rsa_public_key,
-                                                    0, 0)))
-  {
-     sql_print_error("Failure to parse RSA public key (file exists): %s",
-                    auth_rsa_public_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-
-  return 0;
+  return (g_rsa_keys.read_rsa_keys());
 }
 #endif // ifndef HAVE_YASSL
 

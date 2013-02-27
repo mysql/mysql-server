@@ -24,9 +24,12 @@ t3	CREATE TABLE `t3` (
   `a` int(11) NOT NULL,
   KEY `a` (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
-SHOW VARIABLES LIKE 'slave_transaction_retries';
-Variable_name	Value
-slave_transaction_retries	2
+SELECT @@GLOBAL.slave_transaction_retries;
+@@GLOBAL.slave_transaction_retries
+2
+SELECT @@GLOBAL.innodb_lock_wait_timeout;
+@@GLOBAL.innodb_lock_wait_timeout
+4
 include/stop_slave.inc
 BEGIN;
 INSERT INTO t1 VALUES (1);
@@ -38,18 +41,18 @@ COMMIT;
 BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 a
-START SLAVE;
+include/start_slave.inc
 SELECT COUNT(*) FROM t2;
 COUNT(*)
 0
 COMMIT;
+include/check_slave_is_running.inc
 SELECT * FROM t1;
 a
 1
 SELECT * FROM t3;
 a
 3
-include/check_slave_is_running.inc
 
 *** Test lock wait timeout ***
 include/stop_slave.inc
@@ -130,6 +133,17 @@ zero
 START SLAVE;
 *** Now the slave must be stopped due to timeout ***
 include/wait_for_slave_sql_error.inc [errno=1205]
+==== BEGIN include/wait_for_slave_sql_error.inc [errno=1205] ====
+ con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
+.==== BEGIN include/wait_for_slave_param.inc [Slave_SQL_Running] ====
+. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
+Waiting until 'Slave_SQL_Running' = 'No' [timeout='300', $slave_error_param='1']
+[connection slave]
+.==== END include/wait_for_slave_param.inc [Slave_SQL_Running] ====
+. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
+[connection slave]
+==== END include/wait_for_slave_sql_error.inc [errno=1205] ====
+ con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 rollback;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
 include/start_slave.inc

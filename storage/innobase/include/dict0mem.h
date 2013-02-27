@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -916,7 +916,9 @@ struct dict_table_t{
 				the background stats thread will detect this
 				and will eventually quit sooner */
 	byte		stats_bg_flag;
-				/*!< see BG_STAT_* above */
+				/*!< see BG_STAT_* above.
+				Writes are covered by dict_sys->mutex.
+				Dirty reads are possible. */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the

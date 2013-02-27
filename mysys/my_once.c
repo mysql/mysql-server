@@ -59,7 +59,7 @@ void* my_once_alloc(size_t Size, myf MyFlags)
     {
       my_errno=errno;
       if (MyFlags & (MY_FAE+MY_WME))
-	my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG),get_size);
+	my_error(EE_OUTOFMEMORY, MYF(ME_BELL+ME_WAITTANG+ME_FATALERROR), get_size);
       return((uchar*) 0);
     }
     DBUG_PRINT("test",("my_once_malloc %lu byte malloced", (ulong) get_size));

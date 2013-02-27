@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@
 #include <sys/malloc.h>
 #endif
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #endif
 
@@ -499,7 +499,6 @@ Open streams:  %10lu\n",
 	 (ulong) my_stream_opened);
 
   ALARM_INFO alarm_info;
-#ifndef DONT_USE_THR_ALARM
   thr_alarm_info(&alarm_info);
   printf("\nAlarm status:\n\
 Active alarms:   %u\n\
@@ -508,7 +507,6 @@ Next alarm time: %lu\n",
 	 alarm_info.active_alarms,
 	 alarm_info.max_used_alarms,
 	 alarm_info.next_alarm_time);
-#endif
   display_table_locks();
 #ifdef HAVE_MALLINFO
   struct mallinfo info= mallinfo();
@@ -538,7 +536,7 @@ Estimated memory (with thread stack):    %ld\n",
                  info.hblkhd + info.arena));
 #endif
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   Events::dump_internal_status();
 #endif
   puts("");

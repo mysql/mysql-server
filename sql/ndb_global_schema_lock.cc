@@ -173,6 +173,7 @@ private:
 
 #include "ndb_thd.h"
 #include "ndb_thd_ndb.h"
+#include "log.h"
 
 
 extern ulong opt_ndb_extra_logging;

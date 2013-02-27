@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # This test checks that the slave I/O thread refuses to start if slave
 # and master have the same server id (because this is a useless setup,
 # and otherwise SHOW SLAVE STATUS shows progress but all queries are

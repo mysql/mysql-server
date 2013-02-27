@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Replication is disabled in embedded mode.
 #
@@ -14,6 +17,7 @@
 SHOW SLAVE STATUS;
 --error ER_SLAVE_CONFIGURATION
 RESET SLAVE;
+--error ER_SLAVE_CONFIGURATION
 SHOW RELAYLOG EVENTS;
 --error ER_SLAVE_CONFIGURATION
 STOP SLAVE;

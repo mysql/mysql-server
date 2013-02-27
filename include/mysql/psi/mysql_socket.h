@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License as
@@ -41,6 +41,10 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
 */
 
 #include "mysql/psi/psi.h"
+
+#ifndef PSI_SOCKET_CALL
+#define PSI_SOCKET_CALL(M) PSI_DYNAMIC_CALL(M)
+#endif
 
 /**
   @defgroup Socket_instrumentation Socket Instrumentation

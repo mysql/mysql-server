@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -568,7 +568,10 @@ fseg_free_page(
 	fseg_header_t*	seg_header, /*!< in: segment header */
 	ulint		space,	/*!< in: space id */
 	ulint		page,	/*!< in: page offset */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	bool		ahi,	/*!< in: whether we may need to drop
+				the adaptive hash index */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /**********************************************************************//**
 Checks if a single page of a segment is free.
 @return	true if free */
@@ -594,7 +597,10 @@ fseg_free_step(
 				resides on the first page of the frag list
 				of the segment, this pointer becomes obsolete
 				after the last freeing step */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	bool		ahi,	/*!< in: whether we may need to drop
+				the adaptive hash index */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
 /**********************************************************************//**
 Frees part of a segment. Differs from fseg_free_step because this function
 leaves the header page unfreed.
@@ -605,7 +611,10 @@ fseg_free_step_not_header(
 /*======================*/
 	fseg_header_t*	header,	/*!< in: segment header which must reside on
 				the first fragment page of the segment */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	bool		ahi,	/*!< in: whether we may need to drop
+				the adaptive hash index */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Checks if a page address is an extent descriptor page address.
 @return	TRUE if a descriptor page */

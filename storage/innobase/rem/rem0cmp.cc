@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -82,7 +82,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern
+UNIV_INTERN
 int
 innobase_mysql_cmp(
 /*===============*/
@@ -99,7 +99,7 @@ This function is used to compare two data fields for which the data type
 is such that we must use MySQL code to compare them. The prototype here
 must be a copy of the one in ha_innobase.cc!
 @return	1, 0, -1, if a is greater, equal, less than b, respectively */
-extern
+UNIV_INTERN
 int
 innobase_mysql_cmp_prefix(
 /*======================*/
@@ -294,6 +294,8 @@ cmp_whole_field(
 			       (int)(prtype & DATA_MYSQL_TYPE_MASK),
 			       (uint) dtype_get_charset_coll(prtype),
 			       a, a_length, b, b_length));
+	case DATA_GEOMETRY:
+		return(0);
 	default:
 		fprintf(stderr,
 			"InnoDB: unknown type number %lu\n",
@@ -348,8 +350,8 @@ data type.
 @return	1, 0, -1, if data1 is greater, equal, less than data2, respectively */
 UNIV_INTERN
 int
-cmp_data_data_slow(
-/*===============*/
+cmp_data_data(
+/*==========*/
 	ulint		mtype,	/*!< in: main type */
 	ulint		prtype,	/*!< in: precise type */
 	const byte*	data1,	/*!< in: data field (== a pointer to a memory
@@ -431,8 +433,7 @@ cmp_data_data_slow(
 		}
 
 		if (mtype <= DATA_CHAR
-		    || (mtype == DATA_BLOB
-			&& 0 == (prtype & DATA_BINARY_TYPE))) {
+		    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 			data1_byte = cmp_collate(data1_byte);
 			data2_byte = cmp_collate(data2_byte);
@@ -458,7 +459,7 @@ next_byte:
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type to be VARCHAR */
-
+UNIV_INTERN
 int
 cmp_data_data_slow_varchar(
 /*=======================*/
@@ -512,7 +513,7 @@ cmp_data_data_slow_varchar(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_prefix(
 /*===========================*/
@@ -566,7 +567,7 @@ cmp_data_data_slow_like_prefix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_suffix(
 /*===========================*/
@@ -591,7 +592,7 @@ cmp_data_data_slow_like_suffix(
 /*****************************************************************
 This function is used to compare two data fields for which we know the
 data type. The comparison is done for the LIKE operator.*/
-
+UNIV_INTERN
 int
 cmp_data_data_slow_like_substr(
 /*===========================*/
@@ -808,8 +809,7 @@ cmp_dtuple_rec_with_match_low(
 			}
 
 			if (mtype <= DATA_CHAR
-			    || (mtype == DATA_BLOB
-				&& !(prtype & DATA_BINARY_TYPE))) {
+			    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 				rec_byte = cmp_collate(rec_byte);
 				dtuple_byte = cmp_collate(dtuple_byte);
@@ -999,8 +999,7 @@ cmp_rec_rec_simple_field(
 		}
 
 		if (col->mtype <= DATA_CHAR
-		    || (col->mtype == DATA_BLOB
-			&& !(col->prtype & DATA_BINARY_TYPE))) {
+		    || DATA_LARGE_BINARY(col->mtype, col->prtype)) {
 
 			rec1_byte = cmp_collate(rec1_byte);
 			rec2_byte = cmp_collate(rec2_byte);
@@ -1297,8 +1296,7 @@ cmp_rec_rec_with_match(
 			}
 
 			if (mtype <= DATA_CHAR
-			    || (mtype == DATA_BLOB
-				&& !(prtype & DATA_BINARY_TYPE))) {
+			    || (DATA_LARGE_BINARY(mtype, prtype))) {
 
 				rec1_byte = cmp_collate(rec1_byte);
 				rec2_byte = cmp_collate(rec2_byte);
