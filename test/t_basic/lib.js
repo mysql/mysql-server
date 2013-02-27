@@ -105,10 +105,18 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
   if (instance.name !== "Employee " + id) {
     message += 'fail to verify name: expected: ' + "Employee " + id + ', actual: ' + instance.name + '\n';
   }
-  if (message == '') {
-    testCase.pass();
-  } else {
-    testCase.fail(message);
+  if (message !== '') {
+    testCase.appendErrorMessage(message);
+  }
+  // close the session and pass or fail
+  if (testCase.session) {
+    testCase.session.close(function(err) {
+      if (err) {
+        testCase.appendErrorMessage(err);
+      }
+      testCase.session = null;
+      testCase.failOnError();
+    });
   }
 };
 
@@ -128,6 +136,7 @@ global.fail_openSession = function(testCase, callback) {
       testCase.fail(err);
       return;
     }
+    testCase.session = session;
     callback(session, testCase);
  });
 };
