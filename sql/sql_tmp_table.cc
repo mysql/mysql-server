@@ -600,6 +600,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   table->copy_blobs= 1;
   table->in_use= thd;
   table->quick_keys.init();
+  table->possible_quick_keys.init();
   table->covering_keys.init();
   table->merge_keys.init();
   table->keys_in_use_for_query.init();
@@ -1273,6 +1274,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
   table->copy_blobs= 1;
   table->in_use= thd;
   table->quick_keys.init();
+  table->possible_quick_keys.init();
   table->covering_keys.init();
   table->keys_in_use_for_query.init();
 
