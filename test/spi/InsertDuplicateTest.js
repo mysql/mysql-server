@@ -47,7 +47,8 @@ var t1 = new harness.SerialTest("Insert1"),
     t4 = new harness.SerialTest("Insert2_OK_dupPK"),
     t5 = new harness.SerialTest("Insert2_OK_dupUK"),
     t6 = new harness.SerialTest("Insert2_dupPK_dupUK"),
-    t7 = new harness.SerialTest("Delete");
+    t7 = new harness.SerialTest("Delete"),
+    close = new harness.SerialTest("CloseSession");
 
 /// Common prep
 
@@ -256,11 +257,17 @@ t7.checkResult = function(err, tx) {
   t7.failOnError();
 };
   
-
-exports.tests = [ t1, t2, t3, t4, t5, t6, t7 ];
-
-exports.tests[exports.tests.length - 1].teardown = function() {
-  if(dbSession) {
-    dbSession.close();
-  }
+/** This test function must be the last in the test file.
+ */
+close.run = function() {
+  dbSession.close(function(err) {
+    if (err) {
+      close.fail("Close got error: " + err);
+    } else {
+      close.pass();
+    }
+  });
 };
+
+
+exports.tests = [ t1, t2, t3, t4, t5, t6, t7, close ];

@@ -121,11 +121,18 @@ t2.run = function() {
   this.prepare(deleteKey);
 };
 
-t2.teardown = function() { 
-  if(dbSession) {
-    dbSession.close();
-  }
+/** This test function must be the last in the test file.
+ */
+var close = new harness.SerialTest("CloseSession");
+close.run = function() {
+  dbSession.close(function(err) {
+    if (err) {
+      close.fail("Close got error: " + err);
+    } else {
+      close.pass();
+    }
+  });
 };
 
-exports.tests = [ t1, t2  ];
+exports.tests = [ t1, t2, close  ];
 
