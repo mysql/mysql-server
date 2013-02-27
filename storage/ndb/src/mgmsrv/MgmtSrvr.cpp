@@ -3013,6 +3013,11 @@ MgmtSrvr::trp_deliver_signal(const NdbApiSignal* signal,
     }
     return;
   }
+  case GSN_CLOSE_COMREQ:
+  {
+    theFacade->perform_close_clnt(this);
+    break;
+  }
   default:
     g_eventLogger->error("Unknown signal received. SignalNumber: "
                          "%i from (%d, 0x%x)",
