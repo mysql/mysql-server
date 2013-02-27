@@ -10098,7 +10098,7 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
-	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+	trx_start_if_not_started(trx);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations. */
