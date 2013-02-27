@@ -13,7 +13,7 @@ SET @@GLOBAL.DEBUG = '+d,simulate_hold_run_locks_on_stop_slave';
 include/start_slave.inc
 STOP SLAVE;
 [connection slave1]
-# Asserted this: SHOW SLAVE STATUS NONBLOCKING must not wait for locks, if it waits Slave_SQL_Running will be "No"
+include/assert.inc [SHOW SLAVE STATUS NONBLOCKING must not wait for locks, if it waits Slave_SQL_Running will be "No"]
 [connection slave]
 include/wait_for_slave_to_stop.inc
 SET GLOBAL DEBUG= @slave_debug_save;

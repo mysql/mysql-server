@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Verify that mysqld init time --report-{host,port,user,password} parameters
 # are SHOW-able and SELECT-able FROM INFORMATION_SCHEMA.global_variables
 

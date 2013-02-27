@@ -122,7 +122,6 @@ static const long AUTOINC_OLD_STYLE_LOCKING = 0;
 static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
-static long innobase_mirrored_log_groups;
 static long innobase_log_buffer_size;
 static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
@@ -2193,9 +2192,12 @@ ha_innobase::ha_innobase(
 		  HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
 		  HA_PRIMARY_KEY_IN_READ_INDEX |
 		  HA_BINLOG_ROW_CAPABLE |
-		  HA_CAN_GEOMETRY | HA_PARTIAL_COLUMN_READ |
-		  HA_TABLE_SCAN_ON_INDEX | HA_CAN_FULLTEXT |
-		  HA_CAN_FULLTEXT_EXT | HA_CAN_EXPORT),
+		  HA_CAN_GEOMETRY |
+		  HA_PARTIAL_COLUMN_READ |
+		  HA_TABLE_SCAN_ON_INDEX |
+		  HA_CAN_FULLTEXT |
+		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_EXPORT),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2446,12 +2448,10 @@ innobase_invalidate_query_cache(
 	not have latches of a lower rank. */
 
 	/* Argument TRUE below means we are using transactions */
-#ifdef HAVE_QUERY_CACHE
 	mysql_query_cache_invalidate4(trx->mysql_thd,
 				      full_name,
 				      (uint32) full_name_len,
 				      TRUE);
-#endif
 }
 
 /*****************************************************************//**
@@ -2749,7 +2749,8 @@ innobase_space_shutdown()
 	DBUG_ENTER("innobase_space_shutdown");
 
 	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status()) {
+	if (srv_tmp_space.get_sanity_check_status()
+	    && !srv_read_only_mode) {
 		srv_tmp_space.delete_files();
 	}
 	srv_tmp_space.shutdown();
@@ -2914,7 +2915,7 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery. */
 
 	/* Doesn't support raw devices. */
-	srv_tmp_space.set_tablespace_path(mysql_tmpdir_list.list[0]);
+	srv_tmp_space.set_tablespace_path(srv_data_home);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
 		DBUG_RETURN(innobase_init_abort());
 	}
@@ -2925,14 +2926,7 @@ innobase_init(
 				" tablespace file name seems to be same");
 		DBUG_RETURN(innobase_init_abort());
 	}
-
-	srv_tmp_space.set_sanity_check_status(true);
-	srv_sys_space.set_sanity_check_status(true);
-
-	/* Delete the data files in the temporary tablespace. They are not
-	required for recovery. */
-	srv_tmp_space.delete_files();
-
+	
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
@@ -2953,11 +2947,8 @@ innobase_init(
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (strchr(srv_log_group_home_dir, ';')
-	    || innobase_mirrored_log_groups != 1) {
-		sql_print_error("syntax error in innodb_log_group_home_dir, "
-				"or a wrong number of mirrored log groups");
-
+	if (strchr(srv_log_group_home_dir, ';')) {
+		sql_print_error("syntax error in innodb_log_group_home_dir");
 		DBUG_RETURN(innobase_init_abort());
 	}
 
@@ -3495,18 +3486,18 @@ retry:
 		/* The following call read the binary log position of
 		the transaction being committed.
 
-                Binary logging of other engines is not relevant to
+		Binary logging of other engines is not relevant to
 		InnoDB as all InnoDB requires is that committing
 		InnoDB transactions appear in the same order in the
 		MySQL binary log as they appear in InnoDB logs, which
 		is guaranteed by the server.
 
-                If the binary log is not enabled, or the transaction
-                is not written to the binary log, the file name will
-                be a NULL pointer. */
-                unsigned long long pos;
-                thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
-                trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
+		If the binary log is not enabled, or the transaction
+		is not written to the binary log, the file name will
+		be a NULL pointer. */
+		unsigned long long pos;
+		thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
+		trx->mysql_log_offset= static_cast<ib_int64_t>(pos);
 		/* Don't do write + flush right now. For group commit
 		to work we want to do the flush later. */
 		trx->flush_log_later = TRUE;
@@ -5068,6 +5059,7 @@ innobase_mysql_cmp(
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
+	case MYSQL_TYPE_GEOMETRY:
 	case MYSQL_TYPE_LONG_BLOB:
 	case MYSQL_TYPE_VARCHAR:
 		/* Use the charset number to pick the right charset struct for
@@ -5514,6 +5506,7 @@ get_innobase_type_from_mysql_type(
 	case MYSQL_TYPE_DECIMAL:
 		return(DATA_DECIMAL);
 	case MYSQL_TYPE_GEOMETRY:
+		return(DATA_GEOMETRY);
 	case MYSQL_TYPE_TINY_BLOB:
 	case MYSQL_TYPE_MEDIUM_BLOB:
 	case MYSQL_TYPE_BLOB:
@@ -5988,7 +5981,7 @@ build_template_field(
 			+ templ->mysql_col_len;
 	}
 
-	if (templ->type == DATA_BLOB) {
+	if (DATA_LARGE_MTYPE(templ->type)) {
 		prebuilt->templ_contains_blob = TRUE;
 	}
 
@@ -6716,6 +6709,7 @@ calc_row_difference(
 		switch (col_type) {
 
 		case DATA_BLOB:
+		case DATA_GEOMETRY:
 			o_ptr = row_mysql_read_blob_ref(&o_len, o_ptr, o_len);
 			n_ptr = row_mysql_read_blob_ref(&n_len, n_ptr, n_len);
 
@@ -8576,7 +8570,28 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx, false);
+	/* If temp table, then we avoid creation of entries in SYSTEM TABLES.
+	Given that temp table lifetime is limited to connection/server lifetime
+	on re-start we don't need to restore temp-table and so no entry is needed
+	in SYSTEM tables. */
+	if (!dict_table_is_temporary(table)) {
+		err = row_create_table_for_mysql(table, trx, false);
+	} else {
+		/* Create tablespace if configured. */
+		err = dict_build_tablespace(table, trx);
+		if (err == DB_SUCCESS) {
+			/* Temp-table are maintained in memory and so
+			can_be_evicted is FALSE. */
+			mem_heap_t* temp_table_heap = mem_heap_create(256);
+
+			dict_table_add_to_cache(table, FALSE, temp_table_heap);
+
+			DBUG_EXECUTE_IF("ib_ddl_crash_during_create2",
+					DBUG_SUICIDE(););
+
+			mem_heap_free(temp_table_heap);
+		}
+	}
 
 	mem_heap_free(heap);
 
@@ -8700,7 +8715,7 @@ found:
 		col_type = get_innobase_type_from_mysql_type(
 			&is_unsigned, key_part->field);
 
-		if (DATA_BLOB == col_type
+		if (DATA_LARGE_MTYPE(col_type)
 		    || (key_part->length < field->pack_length()
 			&& field->type() != MYSQL_TYPE_VARCHAR)
 		    || (field->type() == MYSQL_TYPE_VARCHAR
@@ -9603,6 +9618,7 @@ ha_innobase::create(
 	if (stmt) {
 		dberr_t	err = row_table_add_foreign_constraints(
 			trx, stmt, stmt_len, norm_name,
+			create_info->options & HA_LEX_CREATE_TMP_TABLE,
 			create_info->options & HA_LEX_CREATE_TMP_TABLE);
 
 		switch (err) {
@@ -9639,7 +9655,7 @@ ha_innobase::create(
 	/* Cache all the FTS indexes on this table in the FTS specific
 	structure. They are used for FTS indexed column update handling. */
 	if (flags2 & DICT_TF2_FTS) {
-		fts_t*          fts = innobase_table->fts;
+		fts_t*	fts = innobase_table->fts;
 
 		ut_a(fts != NULL);
 
@@ -9769,7 +9785,6 @@ ha_innobase::discard_or_import_tablespace(
 	}
 
 	if (dict_table->space == srv_sys_space.space_id()) {
-
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
@@ -10348,7 +10363,7 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_INDEX_CORRUPT;
 		goto func_exit;
 	}
-	if (UNIV_UNLIKELY(!row_merge_is_index_usable(prebuilt->trx, index))) {
+	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
@@ -11282,7 +11297,7 @@ ha_innobase::check(
 		prebuilt->index_usable = row_merge_is_index_usable(
 			prebuilt->trx, prebuilt->index);
 
-		if (UNIV_UNLIKELY(!prebuilt->index_usable)) {
+		if (!prebuilt->index_usable) {
 			innobase_format_name(
 				index_name, sizeof index_name,
 				prebuilt->index->name, TRUE);
@@ -15925,11 +15940,6 @@ static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
   NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
-static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of identical copies of log groups we keep for the database. Currently this should be set to 1.",
-  NULL, NULL, 1, 1, 10, 0);
-
 static MYSQL_SYSVAR_UINT(old_blocks_pct, innobase_old_blocks_pct,
   PLUGIN_VAR_RQCMDARG,
   "Percentage of the buffer pool to reserve for 'old' blocks.",
@@ -16272,7 +16282,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flushing_avg_loops),
   MYSQL_SYSVAR(max_purge_lag),
   MYSQL_SYSVAR(max_purge_lag_delay),
-  MYSQL_SYSVAR(mirrored_log_groups),
   MYSQL_SYSVAR(old_blocks_pct),
   MYSQL_SYSVAR(old_blocks_time),
   MYSQL_SYSVAR(open_files),
@@ -16379,6 +16388,7 @@ i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
+i_s_innodb_temp_table_info,
 i_s_innodb_metrics,
 i_s_innodb_ft_default_stopword,
 i_s_innodb_ft_inserted,

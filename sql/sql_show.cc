@@ -44,7 +44,7 @@
 #include "sql_trigger.h"
 #include "sql_derived.h"
 #include "sql_partition.h"
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #include "event_data_objects.h"
 #endif
@@ -265,7 +265,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
 #endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
@@ -1150,6 +1150,26 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   packet->append(&quote_char, 1, system_charset_info);
 }
 
+/**
+  Convert the given identifier into to_charset if needed
+  and append it to target string.
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the input identifier
+  @param from_cs               Charset information about the input string
+  @param to_cs                 Charset information about the target string
+*/
+
+void
+append_identifier(THD *thd, String *packet, const char *name, uint length,
+                  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
+{
+        String to_name(name,length, from_cs);
+        if (from_cs != to_cs)
+            thd->convert_string(&to_name, from_cs, to_cs);
+        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+}
 
 /*
   Get the quote character for displaying an identifier.
@@ -6249,7 +6269,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 /*
   Loads an event from mysql.event and copies it's data to a row of
   I_S.EVENTS
@@ -7997,7 +8017,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
 #else // for alignment with enum_schema_tables

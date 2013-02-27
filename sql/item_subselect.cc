@@ -433,6 +433,36 @@ err:
   return res;
 }
 
+
+/**
+  Apply walk() processor to join conditions.
+
+  JOINs may be nested. Walk nested joins recursively to apply the
+  processor.
+*/
+bool Item_subselect::walk_join_condition(List<TABLE_LIST> *tables,
+                                         Item_processor processor,
+                                         bool walk_subquery,
+                                         uchar *argument)
+{
+  TABLE_LIST *table;
+  List_iterator<TABLE_LIST> li(*tables);
+
+  while ((table= li++))
+  {
+    if (table->join_cond() &&
+        table->join_cond()->walk(processor, walk_subquery, argument))
+      return true;
+
+    if (table->nested_join != NULL &&
+        walk_join_condition(&table->nested_join->join_list, processor,
+                            walk_subquery, argument))
+      return true;
+  }
+  return false;
+}
+
+
 /**
   Workaround for bug in gcc 4.1. @See Item_in_subselect::walk()
 */
@@ -447,26 +477,33 @@ bool Item_subselect::walk_body(Item_processor processor, bool walk_subquery,
       Item *item;
       ORDER *order;
 
-      if (lex->where && (lex->where)->walk(processor, walk_subquery, argument))
-        return 1;
-      if (lex->having && (lex->having)->walk(processor, walk_subquery,
-                                             argument))
-        return 1;
-
       while ((item=li++))
       {
         if (item->walk(processor, walk_subquery, argument))
-          return 1;
+          return true;
       }
-      for (order= lex->order_list.first ; order; order= order->next)
-      {
-        if ((*order->item)->walk(processor, walk_subquery, argument))
-          return 1;
-      }
+
+      if (lex->join_list != NULL &&
+          walk_join_condition(lex->join_list, processor, walk_subquery, argument))
+        return true;
+
+      if (lex->where && (lex->where)->walk(processor, walk_subquery, argument))
+        return true;
+
       for (order= lex->group_list.first ; order; order= order->next)
       {
         if ((*order->item)->walk(processor, walk_subquery, argument))
-          return 1;
+          return true;
+      }
+
+      if (lex->having && (lex->having)->walk(processor, walk_subquery,
+                                             argument))
+        return true;
+
+      for (order= lex->order_list.first ; order; order= order->next)
+      {
+        if ((*order->item)->walk(processor, walk_subquery, argument))
+          return true;
       }
     }
   }
@@ -980,7 +1017,13 @@ void Item_singlerow_subselect::fix_length_and_dec()
 
 void Item_singlerow_subselect::no_rows_in_result()
 {
-  no_rows= true;
+  /*
+    This is only possible if we have a dependent subquery in the SELECT list
+    and an aggregated outer query based on zero rows, which is an illegal query
+    according to the SQL standard. ONLY_FULL_GROUP_BY rejects such queries.
+  */
+  if (unit->uncacheable & UNCACHEABLE_DEPENDENT)
+    no_rows= true;
 }
 
 uint Item_singlerow_subselect::cols()
