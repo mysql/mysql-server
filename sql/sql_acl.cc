@@ -4904,7 +4904,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    strnmov(tmp_db,db,NAME_LEN);
+    tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
@@ -7481,20 +7482,13 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
                                           user->password.length);
           str->append(tmp);
         }
-#if defined(HAVE_OPENSSL)
-        else if (thd->variables.old_passwords == 2)
-        {
-          char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
-          my_make_scrambled_password(tmp, user->password.str,
-                                     user->password.length);
-          str->append(tmp, user->password.length, system_charset_info);
-        }
-#endif
         else
         {
           /*
             Legacy password algorithm is just an obfuscation of a plain text
             so we're not going to write this.
+            Same with old_passwords == 2 since the scrambled password will
+            be binary anyway.
           */
           str->append("<secret>");
         }
@@ -11115,8 +11109,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (!count_ok)
     {                                         // too many connections
       release_user_connection(thd);
-      statistic_increment_rwlock(connection_errors_max_connection, 
-                                 &LOCK_status);
+      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }

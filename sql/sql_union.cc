@@ -60,7 +60,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
     Transactional engines must been signalled that the statement started,
     which external_lock signals.
   */
-  query_cache_store_query(thd, thd->lex->query_tables);
+  query_cache.store_query(thd, thd->lex->query_tables);
 
   res= unit->optimize() || unit->exec();
   res|= unit->cleanup();

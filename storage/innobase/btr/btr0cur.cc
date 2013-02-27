@@ -472,6 +472,8 @@ btr_cur_search_to_nth_level(
 	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_ibuf(index));
 	/* Operations on the clustered index cannot be buffered. */
 	ut_ad(btr_op == BTR_NO_OP || !dict_index_is_clust(index));
+	/* Operations on the temporary table(indexes) cannot be buffered. */
+	ut_ad(btr_op == BTR_NO_OP || !dict_table_is_temporary(index->table));
 
 	estimate = latch_mode & BTR_ESTIMATE;
 
@@ -1421,7 +1423,9 @@ fail_err:
 		/* Reset the IBUF_BITMAP_FREE bits, because
 		page_cur_tuple_insert() will have attempted page
 		reorganize before failing. */
-		if (leaf && !dict_index_is_clust(index)) {
+		if (leaf
+		    && !dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)) {
 			ibuf_reset_free_bits(block);
 		}
 
@@ -1472,7 +1476,9 @@ fail_err:
 		buf_block_get_page_no(block), max_size,
 		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
 #endif
-	if (leaf && !dict_index_is_clust(index)) {
+	if (leaf
+	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update the free bits of the B-tree page in the
 		insert buffer bitmap. */
 
@@ -1903,7 +1909,9 @@ out_of_space:
 	ut_ad(rec_offs_validate(page_cur_get_rec(cursor), index, offsets));
 
 	/* Out of space: reset the free bits. */
-	if (!dict_index_is_clust(index) && page_is_leaf(page)) {
+	if (!dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(page)) {
 		ibuf_reset_free_bits(page_cur_get_block(cursor));
 	}
 
@@ -2048,6 +2056,7 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(buf_block_get_frame(block))) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -2290,6 +2299,7 @@ func_exit:
 	if (page_zip
 	    && !(flags & BTR_KEEP_IBUF_BITMAP)
 	    && !dict_index_is_clust(index)
+	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(page)) {
 		/* Update the free bits in the insert buffer. */
 		ibuf_update_free_bits_zip(block, mtr);
@@ -2439,6 +2449,7 @@ btr_cur_pessimistic_update(
 		if (page_zip
 		    && optim_err != DB_ZIP_OVERFLOW
 		    && !dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)
 		    && page_is_leaf(page)) {
 			ibuf_update_free_bits_zip(block, mtr);
 		}
@@ -2606,8 +2617,9 @@ make_external:
 				rec_offs_make_valid(
 					page_cursor->rec, index, *offsets);
 			}
-		} else if (page_zip &&
-			   !dict_index_is_clust(index)
+		} else if (page_zip
+			   && !dict_index_is_clust(index)
+			   && !dict_table_is_temporary(index->table)
 			   && page_is_leaf(page)) {
 			/* Update the free bits in the insert buffer.
 			This is the same block which was skipped by
@@ -2628,7 +2640,9 @@ make_external:
 		/* Out of space: reset the free bits.
 		This is the same block which was skipped by
 		BTR_KEEP_IBUF_BITMAP. */
-		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
+		if (!dict_index_is_clust(index)
+		    && !dict_table_is_temporary(index->table)
+		    && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 	}
@@ -3199,6 +3213,7 @@ btr_cur_optimistic_delete_func(
 			or into the change buffer. */
 			if (page_is_leaf(page)
 			    && !dict_index_is_clust(cursor->index)
+			    && !dict_table_is_temporary(cursor->index->table)
 			    && !dict_index_is_ibuf(cursor->index)) {
 				ibuf_update_free_bits_low(block, max_ins, mtr);
 			}

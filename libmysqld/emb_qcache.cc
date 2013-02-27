@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,7 +16,6 @@
 #include "sql_priv.h"
 #include "my_global.h"                          // HAVE_*
 
-#ifdef HAVE_QUERY_CACHE
 #include <mysql.h>
 #include "emb_qcache.h"
 #include "embedded_priv.h"
@@ -492,6 +491,4 @@ return_ok:
 err:
   DBUG_RETURN(1);
 }
-
-#endif /*HAVE_QUERY_CACHE*/
 
