@@ -4591,7 +4591,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (const_item_cache)
+  if (!used_tables_cache && !with_subselect)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
@@ -4612,12 +4612,10 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
-  const_item_cache= false;
   if (!args[0]->maybe_null)
   {
     used_tables_cache= 0;			/* is always true */
     cached_value= (longlong) 1;
-    const_item_cache= true;
   }
   else
   {
@@ -4626,7 +4624,6 @@ void Item_is_not_null_test::update_used_tables()
     {
       /* Remember if the value is always NULL or never NULL */
       cached_value= (longlong) !args[0]->is_null();
-      const_item_cache= true;
     }
   }
 }
