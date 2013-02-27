@@ -76,7 +76,7 @@ function getNdbConnection(connectString) {
    When we finally call close(), NdbConnection will close the connection at 
    some future point but we will not be notified about it.
 */
-function releaseNdbConnection(connectString, msecToLinger) {
+function releaseNdbConnection(connectString, msecToLinger, userCallback) {
   var ndbConnection = baseConnections[connectString];
   ndbConnection.referenceCount -= 1;
   assert(ndbConnection.referenceCount >= 0);
@@ -84,13 +84,18 @@ function releaseNdbConnection(connectString, msecToLinger) {
 
   function closeReally() {
     if(ndbConnection.referenceCount === 0) {        // No new customers.
-      baseConnections[connectString] = null;  // Lock the door.
-      ndbConnection.close();          // Then actually start shutting down.
+      baseConnections[connectString] = null;    // Lock the door.
+      ndbConnection.close(userCallback);  // Then actually start shutting down.
     }
   }
 
   if(ndbConnection.referenceCount === 0) {
     setTimeout(closeReally, msecToLinger);
+  }
+  else {
+    if(typeof userCallback === 'function') {
+      userCallback();
+    }
   }
 }
 
@@ -269,15 +274,16 @@ DBConnectionPool.prototype.isConnected = function() {
 /* close()
    ASYNC.
 */
-DBConnectionPool.prototype.close = function(user_callback) {
+DBConnectionPool.prototype.close = function(userCallback) {
+  // TODO: Set a closing flag
   var i;
   adapter.ndb.impl.DBSession.destroy(this.dictionary);
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
   }
   releaseNdbConnection(this.properties.ndb_connectstring,
-                       this.properties.linger_on_close_msec);
-  user_callback(null);
+                       this.properties.linger_on_close_msec
+                       userCallback);
 };
 
 
