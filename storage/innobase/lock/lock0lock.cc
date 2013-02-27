@@ -4809,7 +4809,6 @@ lock_print_info_all_transactions(
 	trx_list_t*	trx_list = &trx_sys->rw_trx_list;
 
 	fprintf(file, "LIST OF TRANSACTIONS FOR EACH SESSION:\n");
-
 	ut_ad(lock_mutex_own());
 
 	mutex_enter(&trx_sys->mutex);
@@ -5586,6 +5585,59 @@ lock_rec_insert_check_and_lock(
 	return(err);
 }
 
+
+/*********************************************************************//**
+If a transaction has an implicit x-lock on a record, but no explicit x-lock
+set on the record, sets one for it. */
+static
+void
+lock_rec_convert_impl_to_expl_for_trx(
+/*==================================*/
+	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	const rec_t*		rec,	/*!< in: user record on page */
+	dict_index_t*		index,	/*!< in: index of record */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	trx_t*			trx,	/*!< in/out: active transaction */
+	ulint			heap_no)/*!< in: rec heap number to lock */
+{
+	ut_a(trx->n_ref_count > 0);
+
+	lock_mutex_enter();
+
+	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block, heap_no, trx)) {
+
+		ulint	type_mode;
+
+		type_mode = (LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP);
+
+		/* If the delete-marked record was locked
+		already, we should reserve lock waiting for
+		impl_trx as implicit lock. Because cannot
+		lock at this moment.*/
+
+		if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
+		    && lock_rec_other_has_conflicting(
+			    static_cast<enum lock_mode>
+			    (LOCK_X | LOCK_REC_NOT_GAP), block,
+			    heap_no, trx)) {
+
+			type_mode |= (LOCK_WAIT | LOCK_CONV_BY_OTHER);
+		}
+
+		lock_rec_add_to_queue(
+			type_mode, block, heap_no, index, trx, FALSE);
+	}
+
+	lock_mutex_exit();
+
+	trx_mutex_enter(trx);
+
+	ut_a(trx->n_ref_count > 0);
+	--trx->n_ref_count;
+
+	trx_mutex_exit(trx);
+}
+
 /*********************************************************************//**
 If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it. */
@@ -5622,42 +5674,19 @@ lock_rec_convert_impl_to_expl(
 		trx_t*	impl_trx;
 		ulint	heap_no = page_rec_get_heap_no(rec);
 
-		lock_mutex_enter();
-
 		/* If the transaction is still active and has no
-		explicit x-lock set on the record, set one for it */
+		explicit x-lock set on the record, set one for it.
+	        Set the n_ref_count flag, we don't want the transaction
+		to commit/rollback while we are converting its locks. */
 
-		impl_trx = trx_rw_is_active(trx_id, NULL);
+		impl_trx = trx_rw_is_active(trx_id, NULL, true);
 
-		/* impl_trx cannot be committed until lock_mutex_exit()
-		because lock_trx_release_locks() acquires lock_sys->mutex */
+		/* impl_trx cannot be committed until the ref count is zero */
 
-		if (impl_trx != NULL
-		    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
-				       heap_no, impl_trx)) {
-			ulint	type_mode = (LOCK_REC | LOCK_X
-					     | LOCK_REC_NOT_GAP);
-
-			/* If the delete-marked record was locked already,
-			we should reserve lock waiting for impl_trx as
-			implicit lock. Because cannot lock at this moment.*/
-
-			if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
-			    && lock_rec_other_has_conflicting(
-					static_cast<enum lock_mode>
-					(LOCK_X | LOCK_REC_NOT_GAP), block,
-					heap_no, impl_trx)) {
-
-				type_mode |= (LOCK_WAIT
-					      | LOCK_CONV_BY_OTHER);
-			}
-
-			lock_rec_add_to_queue(
-				type_mode, block, heap_no, index,
-				impl_trx, FALSE);
+		if (impl_trx != NULL) {
+			lock_rec_convert_impl_to_expl_for_trx(
+				block, rec, index, offsets, impl_trx, heap_no);
 		}
-
-		lock_mutex_exit();
 	}
 }
 
@@ -6390,6 +6419,7 @@ lock_trx_release_locks(
 	/* The transition of trx->state to TRX_STATE_COMMITTED_IN_MEMORY
 	is protected by both the lock_sys->mutex and the trx->mutex. */
 	lock_mutex_enter();
+
 	trx_mutex_enter(trx);
 
 	/* The following assignment makes the transaction committed in memory
@@ -6409,6 +6439,27 @@ lock_trx_release_locks(
 	/*--------------------------------------*/
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
+
+	if (trx->n_ref_count > 0) {
+
+		lock_mutex_exit();
+
+		while (trx->n_ref_count > 0) {
+			trx_mutex_exit(trx);
+
+			os_thread_yield();
+
+			trx_mutex_enter(trx);
+		}
+
+		trx_mutex_exit(trx);
+
+		lock_mutex_enter();
+
+		trx_mutex_enter(trx);
+	}
+
+	ut_a(trx->n_ref_count == 0);
 
 	/* If the background thread trx_rollback_or_clean_recovered()
 	is still active then there is a chance that the rollback

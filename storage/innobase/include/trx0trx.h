@@ -998,6 +998,14 @@ struct trx_t{
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
 
+	ulint		n_ref_count;	/*!< Count of references, protected
+					by trx_t::mutex. We can't release the
+					locks nor commit the transaction until
+					this reference is 0.  We can change
+					the state to COMMITTED_IN_MEMORY to
+					signify that it is no longer
+					"active". */
+
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last
 					error, or empty. */
