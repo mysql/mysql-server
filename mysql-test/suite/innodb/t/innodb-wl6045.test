@@ -494,16 +494,15 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 --source include/wait_until_disconnected.inc
 
 --echo # Next Test Count the no. of pages
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -c --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -c --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd
-let TRACE= $MYSQLTEST_VARDIR/tmp;
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -c --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -511,8 +510,6 @@ open IN_FILE,"<", "$dir/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
- $_=~ s/field1/field_first/g;
- $_=~ s/field2/field_second/g;
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
@@ -526,16 +523,16 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 --echo # Print the contents of trace file.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -557,16 +554,16 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' --strict-check=innodb MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -588,12 +585,12 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file for --strict-check=innodb having Innodb checksum algorithm at server end.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
 --echo # Next Test
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' --allow-mismatches=99 --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -v --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -v --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
 cat_file $SEARCH_FILE;
@@ -602,7 +599,7 @@ perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -624,18 +621,18 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
 --echo # Next Test: checksum check for page: 2 to page:5
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -s 2 -e 5 MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -657,18 +654,18 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
 --echo # Next Test: checksum check for only pageno.= 2
---echo # innochecksum -v --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
+--echo # innochecksum -v --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM -v --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM -v --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
@@ -690,7 +687,7 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $TRACE/mtrchecksum.trace;
+cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
 
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
@@ -982,15 +979,15 @@ SELECT * FROM tab2 ORDER BY col_7;
 --exec $INNOCHECKSUM --page-type-summary $MYSQLD_DATADIR/test/*.ibd
 
 --echo # Page type dump for tab1.ibd
---echo # INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/tab1.ibd
+--echo # INNOCHECKSUM --page-type-dump MYSQL_TMP_DIR/dump.txt MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --page-type-dump $MYSQL_TMP_DIR/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -1008,18 +1005,18 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents stored in dump.txt
-cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+cat_file $MYSQL_TMP_DIR/dump.txt;
 
 --echo # Page type dump for *.ibd
---echo # INNOCHECKSUM --page-type-dump MYSQLTEST_VARDIR/tmp/dump.txt MYSQLD_DATADIR/test/*.ibd
+--echo # INNOCHECKSUM --page-type-dump MYSQL_TMP_DIR/dump.txt MYSQLD_DATADIR/test/*.ibd
 --replace_regex /d:o,.*trace/d:o,mtrchecksum.trace/
---exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/*.ibd
+--exec $INNOCHECKSUM --page-type-dump $MYSQL_TMP_DIR/dump.txt $MYSQLD_DATADIR/test/*.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'TRACE'};
+my $dir = $ENV{'MYSQL_TMP_DIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
@@ -1037,12 +1034,12 @@ closedir(DIR);
 EOF
 
 --echo # Print the contents stored in dump.txt
-cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+cat_file $MYSQL_TMP_DIR/dump.txt;
 
 --error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
+--remove_file $MYSQL_TMP_DIR/dump.txt
 --error 0,1
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
 
 --echo #R07 : Restart the DB server with innodb_checksum_algorithm=strict_None
 
