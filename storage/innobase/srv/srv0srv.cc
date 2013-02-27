@@ -1438,7 +1438,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			trx_sys->rw_max_trx_id - done_trx_no + 1;
+			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
@@ -1446,7 +1446,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			trx_sys->rw_max_trx_id - up_limit_id;
+			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
