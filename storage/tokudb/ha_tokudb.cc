@@ -284,10 +284,12 @@ static inline uint get_key_parts(const KEY *key) {
 
 #if TOKU_INCLUDE_EXTENDED_KEYS
 static inline uint get_ext_key_parts(const KEY *key) {
-#if defined(MARIADB_BASE_VERSION)
+#if 50609 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    return key->actual_key_parts;
+#elif defined(MARIADB_BASE_VERSION)
     return key->ext_key_parts;
 #else
-    return get_key_parts(key);
+#error
 #endif
 }
 #endif
@@ -2948,8 +2950,7 @@ DBT *ha_tokudb::pack_ext_key(
         for (uint pk_index = 0; key_part != end && (int) key_length > 0 && pk_index < pk_parts; pk_index++) {
             uint i;
             for (i = 0; i < pk_next; i++) {
-                // TODO how to really compare key parts?
-                if (pk_info[i].key_part->field == pk_key_info->key_part[pk_index].field)
+                if (pk_info[i].key_part->fieldnr == pk_key_info->key_part[pk_index].fieldnr)
                     break;
             }
             if (i < pk_next) {
