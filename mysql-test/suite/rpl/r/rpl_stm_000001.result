@@ -38,7 +38,7 @@ create table t1 (n int) engine=myisam;
 reset master;
 stop slave;
 reset slave;
-# Asserted this: We should have generated greater than 16 KB relay log
+include/assert.inc [We should have generated greater than 16 KB relay log]
 lock tables t1 read;
 start slave;
 include/sync_slave_io_with_master.inc

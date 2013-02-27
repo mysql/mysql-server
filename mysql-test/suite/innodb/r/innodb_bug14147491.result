@@ -4,14 +4,25 @@ CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed"
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
 INSERT INTO t1 (b) VALUES ('corrupt me');
 INSERT INTO t1 (b) VALUES ('corrupt me');
-# Restart server to flush buffers
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# We give 30 seconds to do a clean shutdown because we do not want
+# to redo apply the pages of t1.ibd at the time of recovery.
+# We want SQL to initiate the first access to t1.ibd.
+# Wait until disconnected.
+# Backup the t1.ibd before corrupting
 # Corrupt the table
 Munged a string.
 Munged a string.
-# Write file to make mysql-test-run.pl expect crash and restart
+# Write file to make mysql-test-run.pl start up the server again
+SET DEBUG = '+d,innodb_page_corruption_retries';
+# Write file to make mysql-test-run.pl expect the "crash", but don't
+# start it until it's told to
+# The below SELECT query will crash the server because some pages
+# on the disk are corrupted
 SELECT * FROM t1;
 ERROR HY000: Lost connection to MySQL server during query
-# Turn on reconnect
-# Wait for server to fully start
+# Restore the original t1.ibd
+# Write file to make mysql-test-run.pl start up the server again
 # Cleanup
 DROP TABLE t1;

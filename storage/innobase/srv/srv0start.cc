@@ -919,13 +919,18 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	/* Will try to remove if there is existing file left-over by last
+	unclean shutdown */
+	tmp_space->set_sanity_check_status(true);
+	tmp_space->delete_files();
+
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Creating shared tablespace for temporary tables");
 
 	ibool	create_new_temp_space;
 	ulint	temp_space_id = ULINT_UNDEFINED;
 
-	dict_hdr_get_new_id(NULL, NULL, &temp_space_id);
+	dict_hdr_get_new_id(NULL, NULL, &temp_space_id, NULL, true);
 
 	tmp_space->set_space_id(temp_space_id);
 
@@ -2142,6 +2147,9 @@ files_checked:
 	if (err != DB_SUCCESS) {
 		return(srv_init_abort(err));
 	}
+
+	/* Will open temp-tablespace and will keep it open till server lifetime */
+	fil_open_log_and_system_tablespace_files();
 
 #ifdef UNIV_LOG_ARCHIVE
 	/* Archiving is always off under MySQL */

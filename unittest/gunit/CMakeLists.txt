@@ -259,6 +259,7 @@ SET(SERVER_TESTS
   insert_delayed
   item
   item_func_now_local
+  item_timefunc
   join_tab_sort
   log_throttle
   make_sortkey
