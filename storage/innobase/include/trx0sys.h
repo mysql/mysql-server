@@ -256,8 +256,10 @@ trx_t*
 trx_rw_is_active(
 /*=============*/
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
-	ibool*		corrupt);	/*!< in: NULL or pointer to a flag
+	ibool*		corrupt,	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
+	bool		ref_count = false);/*!< in: if true then increment the
+					trx_t::n_ref_count */
 #ifdef UNIV_DEBUG
 /****************************************************************//**
 Checks whether a trx is in one of rw_trx_list or ro_trx_list.
