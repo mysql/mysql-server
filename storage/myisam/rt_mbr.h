@@ -16,8 +16,6 @@
 #ifndef _rt_mbr_h
 #define _rt_mbr_h
 
-#ifdef HAVE_RTREE_KEYS
-
 int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
                   uint nextflag);
 int rtree_combine_rect(HA_KEYSEG *keyseg,uchar *, uchar *, uchar*, 
@@ -32,5 +30,4 @@ double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 				uint key_length, double *ab_perim);
 int rtree_page_mbr(MI_INFO *info, HA_KEYSEG *keyseg, uchar *page_buf, 
                    uchar* c, uint key_length);
-#endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_mbr_h */

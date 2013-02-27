@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,7 +42,6 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 
   switch (keyinfo->key_alg)
   {
-#ifdef HAVE_RTREE_KEYS
     case HA_KEY_ALG_RTREE:
       if ((error=rtree_find_next(info,inx,
 				 myisam_read_vec[info->last_key_func])))
@@ -53,7 +52,6 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 	break;
       }
       break;
-#endif
     case HA_KEY_ALG_BTREE:
     default:
       if (!(info->update & HA_STATE_RNEXT_SAME))
