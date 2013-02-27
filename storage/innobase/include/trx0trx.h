@@ -676,7 +676,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 struct trx_t{
 	ulint		magic_n;
 
-	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
+	ib_mutex_t	mutex;		/*!< Mutex protecting the fields
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
