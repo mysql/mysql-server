@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -49,6 +49,17 @@ IF(NOT DEFINED MANUFACTURER)
   SET(MANUFACTURER "Built from Source" CACHE  STRING ${MANUFACTURER_DOCSTRING})
   MARK_AS_ADVANCED(MANUFACTURER)
 ENDIF()
+
+
+# MAX_INDEXES - Set the maximum number of indexes per table, default 64U
+IF (NOT MAX_INDEXES)
+  SET(MAX_INDEXES 64U)
+ENDIF(NOT MAX_INDEXES)
+
+IF (${MAX_INDEXES} GREATER 255)
+  MESSAGE(FATAL_ERROR "MAX_INDEXES values greater than 255 is not supported!")
+ENDIF()
+MESSAGE(STATUS "Configuring with MAX_INDEXES = ${MAX_INDEXES}")
 
 # We choose to provide WITH_DEBUG as alias to standard CMAKE_BUILD_TYPE=Debug
 # which turns out to be not trivial, as this involves synchronization 

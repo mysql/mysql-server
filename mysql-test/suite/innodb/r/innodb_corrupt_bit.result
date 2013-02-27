@@ -1,10 +1,11 @@
+call mtr.add_suppression("Flagged corruption of idx.*in CHECK TABLE");
 set names utf8;
 CREATE TABLE corrupt_bit_test_ā(
 a INT AUTO_INCREMENT PRIMARY KEY,
 b CHAR(100),
 c INT,
 z INT,
-INDEX(b))
+INDEX idx(b))
 ENGINE=InnoDB;
 INSERT INTO corrupt_bit_test_ā VALUES(0,'x',1, 1);
 CREATE UNIQUE INDEX idxā ON corrupt_bit_test_ā(c, b);
@@ -12,33 +13,20 @@ CREATE UNIQUE INDEX idxē ON corrupt_bit_test_ā(z, b);
 SELECT * FROM corrupt_bit_test_ā;
 a	b	c	z
 1	x	1	1
-select @@unique_checks;
-@@unique_checks
-0
-select @@innodb_change_buffering_debug;
-@@innodb_change_buffering_debug
-1
 INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+1,z+1 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+10,z+10 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+20,z+20 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+50,z+50 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+100,z+100 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+200,z+200 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+400,z+400 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+800,z+800 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+1600,z+1600 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+4000,z+4000 FROM corrupt_bit_test_ā;
 select count(*) from corrupt_bit_test_ā;
 count(*)
-1024
-CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
-INSERT INTO corrupt_bit_test_ā VALUES(13000,'x',1,1);
-CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
+2
+SET SESSION debug="+d,dict_set_index_corrupted";
 check table corrupt_bit_test_ā;
 Table	Op	Msg_type	Msg_text
+test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idx" is corrupted.
 test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxā" is corrupted.
 test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxē" is corrupted.
 test.corrupt_bit_test_ā	check	error	Corrupt
+SET SESSION debug="-d,dict_set_index_corrupted";
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 select c from corrupt_bit_test_ā;
 ERROR HY000: Index corrupt_bit_test_ā is corrupted
 select z from corrupt_bit_test_ā;
@@ -59,6 +47,7 @@ rollback;
 drop index idxā on corrupt_bit_test_ā;
 check table corrupt_bit_test_ā;
 Table	Op	Msg_type	Msg_text
+test.corrupt_bit_test_ā	check	Warning	InnoDB: Index "idx" is marked as corrupted
 test.corrupt_bit_test_ā	check	Warning	InnoDB: Index "idxē" is marked as corrupted
 test.corrupt_bit_test_ā	check	error	Corrupt
 set names utf8;
@@ -69,13 +58,5 @@ select z from corrupt_bit_test_ā limit 10;
 z
 20001
 1
-1
 2
-11
-12
-21
-22
-31
-32
 drop table corrupt_bit_test_ā;
-SET GLOBAL innodb_change_buffering_debug = 0;

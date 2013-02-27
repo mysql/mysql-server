@@ -20,7 +20,7 @@ select * from information_schema.session_variables where variable_name='gtid_pur
 VARIABLE_NAME	VARIABLE_VALUE
 GTID_PURGED	
 SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2';
-ERROR HY000: GTID_PURGED can only be set when GTID_MODE = ON.
+ERROR HY000: @@GLOBAL.GTID_PURGED can only be set when @@GLOBAL.GTID_MODE = ON.
 select @@global.gtid_purged;
 @@global.gtid_purged
 

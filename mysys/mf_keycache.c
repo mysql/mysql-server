@@ -444,7 +444,8 @@ int init_key_cache(KEY_CACHE *keycache, uint key_cache_block_size,
       if (blocks < 8)
       {
         my_errno= ENOMEM;
-        my_error(EE_OUTOFMEMORY, MYF(0), blocks * keycache->key_cache_block_size);
+        my_error(EE_OUTOFMEMORY, MYF(ME_FATALERROR),
+                 blocks * keycache->key_cache_block_size);
         goto err;
       }
       blocks= blocks / 4*3;

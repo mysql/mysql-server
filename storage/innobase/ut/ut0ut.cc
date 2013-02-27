@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,7 +27,6 @@ Created 5/11/1994 Heikki Tuuri
 
 #ifndef UNIV_INNOCHECKSUM
 
-#include "ut0sort.h"
 #include "os0thread.h" /* thread-ID */
 
 #ifdef UNIV_NONINL
@@ -451,21 +450,6 @@ ut_print_buf(
 	putc(';', file);
 }
 
-/**********************************************************************//**
-Sort function for ulint arrays. */
-UNIV_INTERN
-void
-ut_ulint_sort(
-/*==========*/
-	ulint*	arr,		/*!< in/out: array to sort */
-	ulint*	aux_arr,	/*!< in/out: aux array to use in sort */
-	ulint	low,		/*!< in: lower bound */
-	ulint	high)		/*!< in: upper bound */
-{
-	UT_SORT_FUNCTION_BODY(ut_ulint_sort, arr, aux_arr, low, high,
-			      ut_ulint_cmp);
-}
-
 /*************************************************************//**
 Calculates fast the number rounded up to the nearest power of 2.
 @return	first power of 2 which is >= n */
@@ -814,6 +798,8 @@ ut_strerr(
 		return("Log size exceeded during online index creation");
 	case DB_DICT_CHANGED:
 		return("Table dictionary has changed");
+	case DB_IDENTIFIER_TOO_LONG:
+		return("Identifier name is too long");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

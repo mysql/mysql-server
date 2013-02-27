@@ -400,12 +400,12 @@ vio_was_timeout(Vio *vio)
 }
 
 
-int vio_close(Vio * vio)
+int vio_shutdown(Vio * vio)
 {
   int r=0;
-  DBUG_ENTER("vio_close");
+  DBUG_ENTER("vio_shutdown");
 
- if (vio->type != VIO_CLOSED)
+ if (vio->inactive == FALSE)
   {
     DBUG_ASSERT(vio->type ==  VIO_TYPE_TCPIP ||
       vio->type == VIO_TYPE_SOCKET ||
@@ -422,7 +422,7 @@ int vio_close(Vio * vio)
     DBUG_PRINT("vio_error", ("close() failed, error: %d",socket_errno));
     /* FIXME: error handling (not critical for MySQL) */
   }
-  vio->type= VIO_CLOSED;
+  vio->inactive= TRUE;
   vio->mysql_socket= MYSQL_INVALID_SOCKET;
   DBUG_RETURN(r);
 }

@@ -58,7 +58,8 @@ CREATE EVENT test_ev_1
     ON SCHEDULE AT CURRENT_TIMESTAMP
     DO
        ALTER TABLE tp EXCHANGE PARTITION p0 WITH TABLE t_10;
-sleep 1;
+let $wait_condition=SELECT count(*)=1 from t_10 WHERE a=1;
+--source include/wait_condition.inc
 --sorted_result
 SELECT * FROM t_10;
 --sorted_result

@@ -376,6 +376,12 @@ innodb_initialize(
 
 	my_eng_config = (eng_config_info_t*) config_str;
 
+	/* If no call back function registered (InnoDB engine failed to load),
+	load InnoDB Memcached engine should fail too */
+	if (!my_eng_config->cb_ptr) {
+		return(ENGINE_TMPFAIL);
+	}
+
 	/* Register the call back function */
 	register_innodb_cb((void*) my_eng_config->cb_ptr);
 
@@ -471,6 +477,7 @@ innodb_conn_clean_data(
 
 	if (conn_data->crsr_trx) {
 		innodb_cb_trx_commit(conn_data->crsr_trx);
+		conn_data->crsr_trx = NULL;
 	}
 
 	if (conn_data->mysql_tbl) {
@@ -1022,7 +1029,7 @@ innodb_switch_mapping(
 	char			new_name[KEY_MAX_LENGTH];
 	meta_cfg_info_t*	meta_info = innodb_eng->meta_info;
 	char*			new_map_name;
-	int			new_map_name_len = 0;
+	unsigned int		new_map_name_len = 0;
 	char*			last;
 	meta_cfg_info_t*	new_meta_info;
 	int			sep_len = 0;
@@ -1059,6 +1066,18 @@ innodb_switch_mapping(
 		new_map_name_len = *name_len;
 	}
 
+	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
+
+	/* Check if we are getting the same configure setting as existing one */
+	if (conn_data && conn_data->conn_meta
+	    && (new_map_name_len
+		== conn_data->conn_meta->col_info[CONTAINER_NAME].col_name_len)
+	    && (strcmp(
+		new_map_name,
+		conn_data->conn_meta->col_info[CONTAINER_NAME].col_name) == 0)) {
+		goto get_key_name;
+	}
+
 	new_meta_info = innodb_config(
 		new_map_name, new_map_name_len, &innodb_eng->meta_hash);
 
@@ -1067,8 +1086,6 @@ innodb_switch_mapping(
 	}
 
 	/* Clean up the existing connection metadata if exists */
-	conn_data = innodb_eng->server.cookie->get_engine_specific(cookie);
-
 	if (conn_data) {
 		innodb_conn_clean_data(conn_data, false, false);
 	}
@@ -1079,6 +1096,7 @@ innodb_switch_mapping(
 	/* Point to the new metadata */
 	conn_data->conn_meta = new_meta_info;
 
+get_key_name:
 	/* Now calculate name length exclude the table mapping name,
 	this is the length for the remaining key portion */
 	if (has_prefix) {
@@ -1667,6 +1685,7 @@ innodb_flush(
 	innodb_flush_clean_conn(innodb_eng, cookie);
 
 	innodb_api_cursor_reset(innodb_eng, conn_data, CONN_OP_FLUSH, true);
+	meta_info = conn_data->conn_meta;
 
 	ib_err = innodb_api_flush(innodb_eng, conn_data,
 				  meta_info->col_info[CONTAINER_DB].col_name,

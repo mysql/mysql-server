@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # changes 2008-02-20 hhunger splitted events.test into events_1 and events_2
 # changes 2008-02-22 hhunger replaced all sleep by wait_condition
 #

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,10 @@
 
 #include <my_bitmap.h>
 #include "rpl_constants.h"
+/* These two header files are necessary for the List manipuation */
+#include "sql_list.h"                           /* I_List */
+#include "hash.h"
+#include "table_id.h"
 
 #ifdef MYSQL_CLIENT
 #include "sql_const.h"
@@ -37,6 +41,13 @@
 #include "hash.h"
 #include "rpl_tblmap.h"
 #include "rpl_tblmap.cc"
+
+/*
+  Variable to suppress the USE <DATABASE> command when using the
+  new mysqlbinlog option
+*/
+bool option_rewrite_set= FALSE;
+extern I_List<i_string_pair> binlog_rewrite_db;
 #endif
 
 #ifdef MYSQL_SERVER
@@ -1138,6 +1149,8 @@ public:
 
   /**
     MTS: associating the event with either an assigned Worker or Coordinator.
+    Additionally the member serves to tag deferred (IRU) events to avoid
+    the event regular time destruction.
   */
   Relay_log_info *worker;
 
@@ -1174,8 +1187,36 @@ public:
                                    const Format_description_log_event
                                    *description_event,
                                    my_bool crc_check);
+
+  /**
+    Reads an event from a binlog or relay log. Used by the dump thread
+    this method reads the event into a raw buffer without parsing it.
+
+    @Note If mutex is 0, the read will proceed without mutex.
+
+    @Note If a log name is given than the method will check if the
+    given binlog is still active.
+
+    @param[in]  file                log file to be read
+    @param[out] packet              packet to hold the event
+    @param[in]  lock                the lock to be used upon read
+    @param[in]  checksum_alg_arg    the checksum algorithm
+    @param[in]  log_file_name_arg   the log's file name
+    @param[out] is_binlog_active    is the current log still active
+
+    @retval 0                   success
+    @retval LOG_READ_EOF        end of file, nothing was read
+    @retval LOG_READ_BOGUS      malformed event
+    @retval LOG_READ_IO         io error while reading
+    @retval LOG_READ_MEM        packet memory allocation failed
+    @retval LOG_READ_TRUNC      only a partial event could be read
+    @retval LOG_READ_TOO_LARGE  event too large
+   */
   static int read_log_event(IO_CACHE* file, String* packet,
-                            mysql_mutex_t* log_lock, uint8 checksum_alg_arg);
+                            mysql_mutex_t* log_lock,
+                            uint8 checksum_alg_arg,
+                            const char *log_file_name_arg= NULL,
+                            bool* is_binlog_active= NULL);
   /*
     init_show_field_list() prepares the column names and types for the
     output of SHOW BINLOG EVENTS; it is used only by SHOW BINLOG
@@ -1953,6 +1994,38 @@ protected:
     statement and used by slave to apply filter rules without opening
     all the tables on slave. This is required because some tables may
     not exist on slave because of the filter rules.
+    </td>
+  </tr>
+  <tr>
+    <td>master_data_written</td>
+    <td>Q_MASTER_DATA_WRITTEN_CODE == 10</td>
+    <td>4 byte bitfield</td>
+
+    <td>The value of the original length of a Query_log_event that comes from a
+    master. Master's event is relay-logged with storing the original size of
+    event in this field by the IO thread. The size is to be restored by reading
+    Q_MASTER_DATA_WRITTEN_CODE-marked event from the relay log.
+
+    This field is not written to slave's server binlog by the SQL thread.
+    This field only exists in relay logs where master has binlog_version<4 i.e.
+    server_version < 5.0 and the slave has binlog_version=4.
+    </td>
+  </tr>
+  <tr>
+    <td>m_binlog_invoker</td>
+    <td>Q_INVOKER == 11</td>
+    <td>Variable-length string: the length in bytes (1 byte) followed
+    by characters, again followed by length in bytes (1 byte) followed
+    by characters</td>
+
+    <td>The value of boolean variable m_binlog_invoker is set TRUE if
+    CURRENT_USER() is called in account management statements. SQL thread
+    uses it as a default definer in CREATE/ALTER SP, SF, Event, TRIGGER or
+    VIEW statements.
+
+    The field Q_INVOKER has length of user stored in 1 byte followed by the
+    user string which is assigned to 'user' and the length of host stored in
+    1 byte followed by host string which is assigned to 'host'.
     </td>
   </tr>
   </table>
@@ -3804,7 +3877,8 @@ public:
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
 
 #ifdef MYSQL_SERVER
-  Table_map_log_event(THD *thd, TABLE *tbl, ulong tid, bool is_transactional);
+  Table_map_log_event(THD *thd, TABLE *tbl, const Table_id& tid,
+                      bool is_transactional);
 #endif
 #ifdef HAVE_REPLICATION
   Table_map_log_event(const char *buf, uint event_len, 
@@ -3820,12 +3894,15 @@ public:
                          m_field_metadata_size, m_null_bits, m_flags);
   }
 #endif
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const { return m_table_id; }
   const char *get_table_name() const { return m_tblnam; }
   const char *get_db_name() const    { return m_dbnam; }
 
   virtual Log_event_type get_type_code() { return TABLE_MAP_EVENT; }
-  virtual bool is_valid() const { return m_memory != NULL; /* we check malloc */ }
+  virtual bool is_valid() const
+  {
+    return (m_memory != NULL && m_meta_memory != NULL); /* we check malloc */
+  }
 
   virtual int get_data_size() { return (uint) m_data_size; } 
 #ifdef MYSQL_SERVER
@@ -3885,7 +3962,7 @@ private:
   uchar         *m_coltype;
 
   uchar         *m_memory;
-  ulong          m_table_id;
+  Table_id       m_table_id;
   flag_set       m_flags;
 
   size_t         m_data_size;
@@ -4009,7 +4086,7 @@ public:
   MY_BITMAP const *get_cols() const { return &m_cols; }
   MY_BITMAP const *get_cols_ai() const { return &m_cols_ai; }
   size_t get_width() const          { return m_width; }
-  ulong get_table_id() const        { return m_table_id; }
+  const Table_id& get_table_id() const        { return m_table_id; }
 
 #if defined(MYSQL_SERVER)
   /*
@@ -4085,7 +4162,7 @@ protected:
      this class, not create instances of this class.
   */
 #ifdef MYSQL_SERVER
-  Rows_log_event(THD*, TABLE*, ulong table_id, 
+  Rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		 MY_BITMAP const *cols, bool is_transactional,
                  Log_event_type event_type,
                  const uchar* extra_row_info);
@@ -4104,7 +4181,7 @@ protected:
 #ifdef MYSQL_SERVER
   TABLE *m_table;		/* The table the rows belong to */
 #endif
-  ulong       m_table_id;	/* Table ID */
+  Table_id    m_table_id;	/* Table ID */
   MY_BITMAP   m_cols;		/* Bitmap denoting columns available */
   ulong       m_width;          /* The width of the columns bitmap */
 #ifndef MYSQL_CLIENT
@@ -4362,7 +4439,7 @@ public:
   };
 
 #if defined(MYSQL_SERVER)
-  Write_rows_log_event(THD*, TABLE*, ulong table_id, 
+  Write_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 		       bool is_transactional,
                        const uchar* extra_row_info);
 #endif
@@ -4422,13 +4499,13 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
 			MY_BITMAP const *cols_bi,
 			MY_BITMAP const *cols_ai,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
-  Update_rows_log_event(THD*, TABLE*, ulong table_id,
+  Update_rows_log_event(THD*, TABLE*, const Table_id& table_id,
                         bool is_transactional,
                         const uchar* extra_row_info);
 
@@ -4502,7 +4579,7 @@ public:
   };
 
 #ifdef MYSQL_SERVER
-  Delete_rows_log_event(THD*, TABLE*, ulong, 
+  Delete_rows_log_event(THD*, TABLE*, const Table_id&,
 			bool is_transactional, const uchar* extra_row_info);
 #endif
 #ifdef HAVE_REPLICATION
@@ -4744,10 +4821,12 @@ private:
 
 
 static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
-                                                       FILE *file)
+                                                       FILE *file,
+                                                       bool flush_stream)
 {
   return         
     my_b_copy_to_file(cache, file) ||
+    (flush_stream ? (fflush(file) || ferror(file)) : 0) ||
     reinit_io_cache(cache, WRITE_CACHE, 0, FALSE, TRUE);
 }
 
@@ -4762,7 +4841,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
   but rather uses a data for immediate checks and throws away the event.
 
   Two members of the class log_ident and Log_event::log_pos comprise 
-  @see the event_coordinates instance. The coordinates that a heartbeat
+  @see the rpl_event_coordinates instance. The coordinates that a heartbeat
   instance carries correspond to the last event master has sent from
   its binlog.
 

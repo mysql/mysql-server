@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -189,11 +189,6 @@ int pthread_cancel(pthread_t thread);
 
 #else /* Normal threads */
 
-#ifdef HAVE_rts_threads
-#define sigwait org_sigwait
-#include <signal.h>
-#undef sigwait
-#endif
 #include <pthread.h>
 #ifndef _REENTRANT
 #define _REENTRANT
@@ -223,18 +218,6 @@ typedef void *(* pthread_handler)(void *);
 #endif
 #define my_pthread_once(C,F) pthread_once(C,F)
 
-/* Test first for RTS or FSU threads */
-
-#if defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM)
-#define HAVE_rts_threads
-extern int my_pthread_create_detached;
-#define pthread_sigmask(A,B,C) sigprocmask((A),(B),(C))
-#define PTHREAD_CREATE_DETACHED &my_pthread_create_detached
-#define PTHREAD_SCOPE_SYSTEM  PTHREAD_SCOPE_GLOBAL
-#define PTHREAD_SCOPE_PROCESS PTHREAD_SCOPE_LOCAL
-#define USE_ALARM_THREAD
-#endif /* defined(PTHREAD_SCOPE_GLOBAL) && !defined(PTHREAD_SCOPE_SYSTEM) */
-
 #if defined(_BSDI_VERSION) && _BSDI_VERSION < 199910
 int sigwait(sigset_t *set, int *sig);
 #endif
@@ -260,7 +243,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
 #endif
 
-#if !defined(HAVE_SIGWAIT) && !defined(HAVE_rts_threads) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 
@@ -813,6 +796,7 @@ extern int pthread_dummy(int);
 #endif
 #endif
 
+#include <pfs_thread_provider.h>
 #include <mysql/psi/mysql_thread.h>
 
 #define INSTRUMENT_ME 0
@@ -912,60 +896,6 @@ extern uint thd_lib_detected;
         (mysql_rwlock_wrlock((L)), (V)-=(C), mysql_rwlock_unlock((L)))
 #endif
 #endif
-
-
-/*
-  statistics_xxx functions are for non critical statistic,
-  maintained in global variables.
-  When compiling with SAFE_STATISTICS:
-  - race conditions can not occur.
-  - some locking occurs, which may cause performance degradation.
-
-  When compiling without SAFE_STATISTICS:
-  - race conditions can occur, making the result slightly inaccurate.
-  - the lock given is not honored.
-*/
-#ifdef SAFE_STATISTICS
-#define statistic_increment(V,L) thread_safe_increment((V),(L))
-#define statistic_decrement(V,L) thread_safe_decrement((V),(L))
-#define statistic_increment_rwlock(V,L) thread_safe_increment_rwlock((V),(L))
-#define statistic_decrement_rwlock(V,L) thread_safe_decrement_rwlock((V),(L))
-#define statistic_add(V,C,L)     thread_safe_add((V),(C),(L))
-#define statistic_sub(V,C,L)     thread_safe_sub((V),(C),(L))
-#define statistic_add_rwlock(V,C,L)     thread_safe_add_rwlock((V),(C),(L))
-#define statistic_sub_rwlock(V,C,L)     thread_safe_sub_rwlock((V),(C),(L))
-#define statistic_inc_set_big_rwlock(V,B,L) \
-  do {                                      \
-    mysql_rwlock_wrlock((L));               \
-    (V)++;                                  \
-    set_if_bigger((B),(V));                 \
-    mysql_rwlock_unlock((L));               \
-  } while(0)
-
-#else
-#define statistic_decrement(V,L) (V)--
-#define statistic_increment(V,L) (V)++
-#define statistic_decrement_rwlock(V,L) (V)--
-#define statistic_increment_rwlock(V,L) (V)++
-#define statistic_add(V,C,L)     (V)+=(C)
-#define statistic_sub(V,C,L)     (V)-=(C)
-#define statistic_add_rwlock(V,C,L)     (V)+=(C)
-#define statistic_sub_rwlock(V,C,L)     (V)-=(C)
-#define statistic_inc_set_big_rwlock(V,B,L) \
-  do {                                      \
-    (V)++;                                  \
-    set_if_bigger((B),(V));                 \
-  } while(0)
-
-#endif /* SAFE_STATISTICS */
-
-/*
-  No locking needed, the counter is owned by the thread
-*/
-#define status_var_increment(V) (V)++
-#define status_var_decrement(V) (V)--
-#define status_var_add(V,C)     (V)+=(C)
-#define status_var_sub(V,C)     (V)-=(C)
 
 #ifdef  __cplusplus
 }

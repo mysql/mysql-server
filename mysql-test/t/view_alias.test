@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --echo #
 --echo # Bug#40277 SHOW CREATE VIEW returns invalid SQL
 --echo # Bug#41999 SHOW CREATE VIEW returns invalid SQL if subquery is used in SELECT list

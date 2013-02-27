@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -231,11 +231,70 @@ private:
 #endif
 };
 
+/* log info errors */
+#define LOG_INFO_EOF -1
+#define LOG_INFO_IO  -2
+#define LOG_INFO_INVALID -3
+#define LOG_INFO_SEEK -4
+#define LOG_INFO_MEM -6
+#define LOG_INFO_FATAL -7
+#define LOG_INFO_IN_USE -8
+#define LOG_INFO_EMFILE -9
 
-class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
-{
- private:
+/* bitmap to MYSQL_BIN_LOG::close() */
+#define LOG_CLOSE_INDEX		1
+#define LOG_CLOSE_TO_BE_OPENED	2
+#define LOG_CLOSE_STOP_EVENT	4
+
 #ifdef HAVE_PSI_INTERFACE
+extern PSI_mutex_key key_LOG_INFO_lock;
+#endif
+
+/*
+  Note that we destroy the lock mutex in the destructor here.
+  This means that object instances cannot be destroyed/go out of scope
+  until we have reset thd->current_linfo to NULL;
+ */
+typedef struct st_log_info
+{
+  char log_file_name[FN_REFLEN];
+  my_off_t index_file_offset, index_file_start_offset;
+  my_off_t pos;
+  bool fatal; // if the purge happens to give us a negative offset
+  mysql_mutex_t lock;
+  st_log_info()
+    : index_file_offset(0), index_file_start_offset(0),
+      pos(0), fatal(0)
+    {
+      log_file_name[0] = '\0';
+      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
+    }
+  ~st_log_info() { mysql_mutex_destroy(&lock);}
+} LOG_INFO;
+
+/*
+  TODO use mmap instead of IO_CACHE for binlog
+  (mmap+fsync is two times faster than write+fsync)
+*/
+
+class MYSQL_BIN_LOG: public TC_LOG
+{
+  enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
+
+  /* LOCK_log is inited by init_pthread_objects() */
+  mysql_mutex_t LOCK_log;
+  char *name;
+  char log_file_name[FN_REFLEN];
+  char db[NAME_LEN + 1];
+  bool write_error, inited;
+  IO_CACHE log_file;
+  volatile enum_log_state log_state;
+  const enum cache_type io_cache_type;
+#ifdef HAVE_PSI_INTERFACE
+  /** Instrumentation key to use for file io in @c log_file */
+  PSI_file_key m_log_file_key;
+  /** The instrumentation key to use for @ LOCK_log. */
+  PSI_mutex_key m_key_LOCK_log;
   /** The instrumentation key to use for @ LOCK_index. */
   PSI_mutex_key m_key_LOCK_index;
 
@@ -366,9 +425,20 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   Stage_manager stage_manager;
   void do_flush(THD *thd);
 
+  bool open(
+#ifdef HAVE_PSI_INTERFACE
+            PSI_file_key log_file_key,
+#endif
+            const char *log_name,
+            const char *new_name);
+  bool init_and_set_log_file_name(const char *log_name,
+                                  const char *new_name);
+  int generate_new_name(char *new_name, const char *log_name);
+
 public:
-  using MYSQL_LOG::generate_name;
-  using MYSQL_LOG::is_open;
+  const char *generate_name(const char *log_name, const char *suffix,
+                            char *buff);
+  bool is_open() const { return log_state != LOG_CLOSED; }
 
   /* This is relay log */
   bool is_relay_log;
@@ -409,7 +479,8 @@ public:
   */
   uint8 relay_log_checksum_alg;
 
-  MYSQL_BIN_LOG(uint *sync_period);
+  MYSQL_BIN_LOG(uint *sync_period,
+                enum cache_type io_cache_type_arg);
   /*
     note that there's no destructor ~MYSQL_BIN_LOG() !
     The reason is that we don't want it to be automatically called
@@ -533,8 +604,6 @@ public:
     @param log_name Name of binlog
     @param new_name Name of binlog, too. todo: what's the difference
     between new_name and log_name?
-    @param io_cache_type_arg Specifies how the IO cache is opened:
-    read-only or read-write.
     @param max_size The size at which this binlog will be rotated.
     @param null_created If false, and a Format_description_log_event
     is written, then the Format_description_log_event will have the
@@ -548,7 +617,6 @@ public:
   */
   bool open_binlog(const char *log_name,
                    const char *new_name,
-                   enum cache_type io_cache_type_arg,
                    ulong max_size,
                    bool null_created,
                    bool need_lock_index, bool need_sid_lock,
@@ -679,6 +747,7 @@ void check_binlog_stmt_cache_size(THD *thd);
 bool binlog_enabled();
 void register_binlog_handler(THD *thd, bool trx);
 int gtid_empty_group_log_and_cleanup(THD *thd);
+int query_error_code(THD *thd, bool not_killed);
 
 extern const char *log_bin_index;
 extern const char *log_bin_basename;
@@ -686,7 +755,9 @@ extern bool opt_binlog_order_commits;
 
 /**
   Turns a relative log binary log path into a full path, based on the
-  opt_bin_logname or opt_relay_logname.
+  opt_bin_logname or opt_relay_logname. Also trims the cr-lf at the
+  end of the full_path before return to avoid any server startup
+  problem on windows.
 
   @param from         The log name we want to make into an absolute path.
   @param to           The buffer where to put the results of the 
@@ -735,10 +806,28 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   }
 
   DBUG_ASSERT(ptr);
-
   if (ptr)
-    strmake(to, ptr, strlen(ptr));
+  {
+    uint length= strlen(ptr);
 
+    // Strips the CR+LF at the end of log name and \0-terminates it.
+    if (length && ptr[length-1] == '\n')
+    {
+      ptr[length-1]= 0;
+      length--;
+      if (length && ptr[length-1] == '\r')
+      {
+        ptr[length-1]= 0;
+        length--;
+      }
+    }
+    if (!length)
+    {
+      error= true;
+      goto end;
+    }
+    strmake(to, ptr, length);
+  }
 end:
   DBUG_RETURN(error);
 }

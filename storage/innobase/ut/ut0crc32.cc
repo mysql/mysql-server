@@ -92,7 +92,7 @@ static ib_uint32_t	ut_crc32_slice8_table[8][256];
 static ibool		ut_crc32_slice8_table_initialized = FALSE;
 
 /* Flag that tells whether the CPU supports CRC32 or not */
-UNIV_INTERN bool		ut_crc32_sse2_enabled = false;
+UNIV_INTERN bool	ut_crc32_sse2_enabled = false;
 
 /********************************************************************//**
 Initializes the table that is used to generate the CRC32 if the CPU does

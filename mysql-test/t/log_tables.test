@@ -1,11 +1,11 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # this test needs multithreaded mysqltest
 -- source include/not_embedded.inc
 #
 # Basic log tables test
 #
-
-# check that CSV engine was compiled in
---source include/have_csv.inc
 
 SET @old_general_log_state = @@global.general_log;
 SET @old_log_output=       @@global.log_output;
@@ -986,6 +986,18 @@ RENAME TABLE slow_log TO renamed_slow_log;
 use test;
 flush tables with read lock;
 unlock tables;
+
+
+--echo #
+--echo # WL#6613: Refactor logging code - split logging and binlogging code
+--echo #
+
+# Additional test coverage
+SET GLOBAL log_output= 'TABLE';
+SELECT @@general_log;
+--error ER_BAD_LOG_STATEMENT
+ALTER TABLE mysql.general_log DISCARD TABLESPACE;
+
 
 SET @@session.long_query_time= @old_long_query_time;
 

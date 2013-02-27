@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test for BUG#8436: verify that a multi-query (i.e. one query
 # containing several queries (assuming client has
 # CLIENT_MULTI_STATEMENTS) will be binlogged ONE-query-per-event (not

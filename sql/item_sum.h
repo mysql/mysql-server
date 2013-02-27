@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -378,19 +378,19 @@ protected:
 public:  
 
   void mark_as_sum_func();
-  Item_sum() :quick_group(1), arg_count(0), forced_const(FALSE)
+  Item_sum() :next(NULL), quick_group(1), arg_count(0), forced_const(FALSE)
   {
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum(Item *a) :quick_group(1), arg_count(1), args(tmp_args),
+  Item_sum(Item *a) :next(NULL), quick_group(1), arg_count(1), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a;
     mark_as_sum_func();
     init_aggregator();
   }
-  Item_sum( Item *a, Item *b ) :quick_group(1), arg_count(2), args(tmp_args),
+  Item_sum( Item *a, Item *b ) :next(NULL), quick_group(1), arg_count(2), args(tmp_args),
     orig_args(tmp_orig_args), forced_const(FALSE)
   {
     args[0]=a; args[1]=b;
@@ -466,6 +466,7 @@ public:
   Item *get_tmp_table_item(THD *thd);
   virtual Field *create_tmp_field(bool group, TABLE *table);
   bool walk(Item_processor processor, bool walk_subquery, uchar *argument);
+  virtual bool clean_up_after_removal(uchar *arg);
   bool init_sum_func_check(THD *thd);
   bool check_sum_func(THD *thd, Item **ref);
   bool register_sum_func(THD *thd, Item **ref);

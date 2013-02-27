@@ -845,10 +845,6 @@ func_exit:
 	os_event_set(psort_info->psort_common->sort_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -867,9 +863,9 @@ row_fts_start_psort(
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		psort_info[i].thread_hdl = os_thread_create(
-			fts_parallel_tokenization,
-			(void*) &psort_info[i], &thd_id);
+		os_thread_create(fts_parallel_tokenization,
+				 (void*) &psort_info[i],
+				 &thd_id);
 	}
 }
 
@@ -897,10 +893,6 @@ fts_parallel_merge(
 	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
-#ifdef __WIN__
-	CloseHandle(psort_info->thread_hdl);
-#endif /*__WIN__ */
-
 	os_thread_exit(NULL);
 
 	OS_THREAD_DUMMY_RETURN;
@@ -922,8 +914,9 @@ row_fts_start_parallel_merge(
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		merge_info[i].thread_hdl = os_thread_create(
-			fts_parallel_merge, (void*) &merge_info[i], &thd_id);
+		os_thread_create(fts_parallel_merge,
+				 (void*) &merge_info[i],
+				 &thd_id);
 	}
 }
 

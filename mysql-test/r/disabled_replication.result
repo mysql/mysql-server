@@ -3,7 +3,7 @@ Slave_IO_State	Master_Host	Master_User	Master_Port	Connect_Retry	Master_Log_File
 RESET SLAVE;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 SHOW RELAYLOG EVENTS;
-Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 STOP SLAVE;
 ERROR HY000: Slave is not configured or failed to initialize properly. You must at least set --server-id to enable either a master or a slave. Additional error messages can be found in the MySQL error log.
 START SLAVE;

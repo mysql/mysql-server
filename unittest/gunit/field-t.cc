@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,7 +187,8 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_FALSE(field->get_date(&dateTime, 0));
 
   make_datetime((DATE_TIME_FORMAT *)0, &dateTime, &timeStr, 6);
-  EXPECT_STREQ("1970-01-06 03:45:45.555500", timeStr.c_ptr());
+  // Skip 'yyyy-mm-dd ' since that will depend on current time zone.
+  EXPECT_STREQ("03:45:45.555500", timeStr.c_ptr() + 11);
 
   MYSQL_TIME t;
   EXPECT_FALSE(field->get_time(&t));
@@ -258,8 +259,7 @@ TEST_F(FieldTest, FieldTimef)
   f->table= &m_table;
   struct timeval tv;
   int warnings= 0;
-  EXPECT_EQ(0, f->get_timestamp(&tv, &warnings));
-  // EXPECT_EQ(40992, tv.tv_sec);  // This is 11:23:12.  Why?  Time zone?
+  EXPECT_FALSE(f->get_timestamp(&tv, &warnings));
   EXPECT_EQ(123400, tv.tv_usec);
 
   delete field;

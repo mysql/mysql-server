@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ template <uint default_width> class Bitmap
   MY_BITMAP map;
   uint32 buffer[(default_width+31)/32];
 public:
+  enum { ALL_BITS= default_width };
   Bitmap() { init(); }
   Bitmap(const Bitmap& from) { *this=from; }
   explicit Bitmap(uint prefix_to_set) { init(prefix_to_set); }
@@ -50,8 +51,14 @@ public:
   void intersect(const Bitmap& map2) { bitmap_intersect(&map, &map2.map); }
   void intersect(ulonglong map2buff)
   {
+    // Use a spearate temporary buffer, as bitmap_init() clears all the bits.
+    ulonglong buf2;
     MY_BITMAP map2;
-    bitmap_init(&map2, (uint32 *)&map2buff, sizeof(ulonglong)*8, 0);
+
+    bitmap_init(&map2, (uint32 *) &buf2, sizeof(ulonglong) * 8, 0);
+
+    // Store the original bits.
+    buf2= map2buff;
     bitmap_intersect(&map, &map2);
   }
   /* Use highest bit for all bits above sizeof(ulonglong)*8. */
@@ -71,6 +78,7 @@ public:
   my_bool is_subset(const Bitmap& map2) const { return bitmap_is_subset(&map, &map2.map); }
   my_bool is_overlapping(const Bitmap& map2) const { return bitmap_is_overlapping(&map, &map2.map); }
   my_bool operator==(const Bitmap& map2) const { return bitmap_cmp(&map, &map2.map); }
+  my_bool operator!=(const Bitmap& map2) const { return !(*this == map2); }
   char *print(char *buf) const
   {
     char *s=buf;
@@ -141,6 +149,7 @@ public:
   my_bool is_subset(const Bitmap<64>& map2) const { return !(map & ~map2.map); }
   my_bool is_overlapping(const Bitmap<64>& map2) const { return (map & map2.map)!= 0; }
   my_bool operator==(const Bitmap<64>& map2) const { return map == map2.map; }
+  my_bool operator!=(const Bitmap<64>& map2) const { return !(*this == map2); }
   char *print(char *buf) const { longlong2str(map,buf,16); return buf; }
   ulonglong to_ulonglong() const { return map; }
 };

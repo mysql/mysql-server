@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -551,6 +551,7 @@ char *thd_security_context(MYSQL_THD thd, char *buffer, unsigned int length,
                            unsigned int max_query_len);
 /* Increments the row counter, see THD::row_count */
 void thd_inc_row_count(MYSQL_THD thd);
+int thd_allow_batch(MYSQL_THD thd);
 
 /**
   Create a temporary file.

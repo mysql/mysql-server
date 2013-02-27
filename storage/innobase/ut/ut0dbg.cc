@@ -35,16 +35,6 @@ Created 1/30/1994 Heikki Tuuri
 UNIV_INTERN ulint	ut_dbg_zero	= 0;
 #endif
 
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/** If this is set to TRUE by ut_dbg_assertion_failed(), all threads
-will stop at the next ut_a() or ut_ad(). */
-UNIV_INTERN ibool	ut_dbg_stop_threads	= FALSE;
-#endif
-#ifndef UT_DBG_USE_ABORT
-/** A null pointer that will be dereferenced to trigger a memory trap */
-UNIV_INTERN ulint*	ut_dbg_null_ptr		= NULL;
-#endif
-
 /*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
@@ -80,29 +70,7 @@ ut_dbg_assertion_failed(
 	      "InnoDB: corruption in the InnoDB tablespace. Please refer to\n"
 	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
 	      "InnoDB: about forcing recovery.\n", stderr);
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-	ut_dbg_stop_threads = TRUE;
-#endif
 }
-
-#if defined(UNIV_SYNC_DEBUG) || !defined(UT_DBG_USE_ABORT)
-/*************************************************************//**
-Stop a thread after assertion failure. */
-UNIV_INTERN
-void
-ut_dbg_stop_thread(
-/*===============*/
-	const char*	file,
-	ulint		line)
-{
-#ifndef UNIV_HOTBACKUP
-	fprintf(stderr, "InnoDB: Thread %lu stopped in file %s line %lu\n",
-		os_thread_pf(os_thread_get_curr_id()),
-		innobase_basename(file), line);
-	os_thread_sleep(1000000000);
-#endif /* !UNIV_HOTBACKUP */
-}
-#endif
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 

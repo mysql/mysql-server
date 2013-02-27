@@ -65,6 +65,15 @@ que_thr_t*
 dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/***************************************************************//**
+Builds a tablespace, if configured.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_build_tablespace(
+/*==================*/
+	dict_table_t*	table,	/*!< in/out: table */
+	trx_t*		trx);	/*!< in/out: InnoDB transaction handle */
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
@@ -74,33 +83,74 @@ que_thr_t*
 dict_create_index_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/***************************************************************//**
+Builds an index definition but doesn't update sys_table.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+void
+dict_build_index_def(
+/*=================*/
+	const dict_table_t*	table,	/*!< in: table */
+	dict_index_t*		index,	/*!< in/out: index */
+	trx_t*			trx);	/*!< in/out: InnoDB transaction
+					handle */
+/***************************************************************//**
+Creates an index tree for the index if it is not a member of a cluster.
+Don't update SYSTEM TABLES.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+UNIV_INTERN
+dberr_t
+dict_create_index_tree(
+/*===================*/
+	dict_index_t*	index,	/*!< in/out: index */
+	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
 /*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
+dict_truncate_index_tree_step(
+/*==========================*/
+	const dict_table_t*	table,	/*!< in: the table the index
+					belongs to */
+	bool			truncate_tablespace_objects,
+					/* !< in: if true: truncate tablespace
+					objects */
+	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
+					to record in the clustered index of
+					SYS_INDEXES table. The cursor may be
+					repositioned in this call. */
+	mtr_t*			mtr);	/*!< in: mtr having the latch
+					on the record page. The mtr may be
+					committed and restarted in this call. */
+/*******************************************************************//**
+Truncates the index tree but don't update SYSTEM TABLES.
+@return	new root page number, or FIL_NULL on failure */
+UNIV_INTERN
+void
 dict_truncate_index_tree(
 /*=====================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
-	ulint		space,	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
-				given tablespace */
-	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
-				record in the clustered index of
-				SYS_INDEXES table. The cursor may be
-				repositioned in this call. */
-	mtr_t*		mtr);	/*!< in: mtr having the latch
-				on the record page. The mtr may be
-				committed and restarted in this call. */
+	dict_index_t*	index,	/*!< in/out: index */
+	bool		truncate_tablespace_objects);
+				/* !< in: if true: truncate tablespace
+				objects */
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
 void
-dict_drop_index_tree(
-/*=================*/
+dict_drop_index_tree_step(
+/*======================*/
 	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
+/*******************************************************************//**
+Drops the index tree but don't update SYS_INDEXES table. */
+UNIV_INTERN
+void
+dict_drop_index_tree(
+/*=================*/
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			page_no);	/*!< in: index page-no */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
@@ -110,6 +160,20 @@ UNIV_INTERN
 dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
+/********************************************************************//**
+Generate a foreign key constraint name when it was not named by the user.
+A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
+where the numbers start from 1, and are given locally for this table, that is,
+the number is not global, as it used to be before MySQL 4.0.18.  */
+UNIV_INLINE
+dberr_t
+dict_create_add_foreign_id(
+/*=======================*/
+	ulint*		id_nr,	/*!< in/out: number to use in id generation;
+				incremented if used */
+	const char*	name,	/*!< in: table name */
+	dict_foreign_t*	foreign)/*!< in/out: foreign key */
+	__attribute__((nonnull));
 /********************************************************************//**
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were
@@ -158,25 +222,15 @@ dict_create_add_tablespace_to_dictionary(
 	bool		commit);	/*!< in: if true then commit the
 					transaction */
 /********************************************************************//**
-Table create node structure */
-
-/********************************************************************//**
-Add a single foreign key definition to the data dictionary tables in the
-database. We also generate names to constraints that were not named by the
-user. A generated constraint has a name of the format
-databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
-are given locally for this table, that is, the number is not global, as in
-the old format constraints < 4.0.18 it used to be.
-@return error code or DB_SUCCESS */
+Add a foreign key definition to the data dictionary tables.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
-	ulint*		id_nr,	/*!< in/out: number to use in id generation;
-				incremented if used */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in/out: dictionary transaction */
+	const char*		name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,/*!< in: foreign key */
+	trx_t*			trx)	/*!< in/out: dictionary transaction */
 	__attribute__((nonnull, warn_unused_result));
 
 /* Table create node structure */

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,13 +139,11 @@ class ha_myisam: public handler
   int assign_to_keycache(THD* thd, HA_CHECK_OPT* check_opt);
   int preload_keys(THD* thd, HA_CHECK_OPT* check_opt);
   bool check_if_incompatible_data(HA_CREATE_INFO *info, uint table_changes);
-#ifdef HAVE_QUERY_CACHE
   my_bool register_query_cache_table(THD *thd, char *table_key,
                                      uint key_length,
                                      qc_engine_callback
                                      *engine_callback,
                                      ulonglong *engine_data);
-#endif
   MI_INFO *file_ptr(void)
   {
     return file;

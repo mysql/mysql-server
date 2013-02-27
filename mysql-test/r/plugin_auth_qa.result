@@ -174,6 +174,8 @@ SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 
 user	plugin	authentication_string	password
 plug	test_plugin_server	plug_dest	
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd';
+Warnings:
+Warning	1699	SET PASSWORD has no significance for users authenticating via plugins
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 plug	test_plugin_server	plug_dest	

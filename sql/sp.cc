@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1525,9 +1525,9 @@ bool lock_db_routines(THD *thd, char *db)
     DBUG_RETURN(true);
   }
 
-  if (! table->file->index_read_map(table->record[0],
-                                    table->field[MYSQL_PROC_FIELD_DB]->ptr,
-                                    (key_part_map)1, HA_READ_KEY_EXACT))
+  if (! table->file->ha_index_read_map(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       (key_part_map)1, HA_READ_KEY_EXACT))
   {
     do
     {
@@ -1539,9 +1539,9 @@ bool lock_db_routines(THD *thd, char *db)
                         MDL_key::FUNCTION : MDL_key::PROCEDURE,
                         db, sp_name, MDL_EXCLUSIVE, MDL_TRANSACTION);
       mdl_requests.push_front(mdl_request);
-    } while (! (nxtres= table->file->index_next_same(table->record[0],
-                                         table->field[MYSQL_PROC_FIELD_DB]->ptr,
-						     key_len)));
+    } while (! (nxtres= table->file->ha_index_next_same(table->record[0],
+                                       table->field[MYSQL_PROC_FIELD_DB]->ptr,
+                                       key_len)));
   }
   table->file->ha_index_end();
   if (nxtres != 0 && nxtres != HA_ERR_END_OF_FILE)
@@ -2541,6 +2541,15 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_DROP_EVENT:
   case SQLCOM_INSTALL_PLUGIN:
   case SQLCOM_UNINSTALL_PLUGIN:
+  case SQLCOM_ALTER_DB_UPGRADE:
+  case SQLCOM_ALTER_DB:
+  case SQLCOM_ALTER_USER:
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
+  case SQLCOM_CHANGE_MASTER:
+  case SQLCOM_SLAVE_START:
+  case SQLCOM_SLAVE_STOP:
     flags= sp_head::HAS_COMMIT_OR_ROLLBACK;
     break;
   default:

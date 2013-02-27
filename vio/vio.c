@@ -84,7 +84,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
-    vio->vioclose	=vio_close_pipe;
+    vio->vioshutdown	=vio_shutdown_pipe;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_pipe;
@@ -95,7 +95,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
 #ifdef HAVE_SMEM
   if (type == VIO_TYPE_SHARED_MEMORY)
   {
-    vio->viodelete	=vio_delete;
+    vio->viodelete	=vio_delete_shared_memory;
     vio->vioerrno	=vio_errno;
     vio->read           =vio_read_shared_memory;
     vio->write          =vio_write_shared_memory;
@@ -103,7 +103,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
-    vio->vioclose	=vio_close_shared_memory;
+    vio->vioshutdown	=vio_shutdown_shared_memory;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =no_io_wait;
     vio->is_connected   =vio_is_connected_shared_memory;
@@ -122,7 +122,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
     vio->viokeepalive	=vio_keepalive;
     vio->should_retry	=vio_should_retry;
     vio->was_timeout    =vio_was_timeout;
-    vio->vioclose	=vio_ssl_close;
+    vio->vioshutdown	=vio_ssl_shutdown;
     vio->peer_addr	=vio_peer_addr;
     vio->io_wait        =vio_io_wait;
     vio->is_connected   =vio_is_connected;
@@ -139,7 +139,7 @@ static void vio_init(Vio *vio, enum enum_vio_type type,
   vio->viokeepalive     =vio_keepalive;
   vio->should_retry     =vio_should_retry;
   vio->was_timeout      =vio_was_timeout;
-  vio->vioclose         =vio_close;
+  vio->vioshutdown      =vio_shutdown;
   vio->peer_addr        =vio_peer_addr;
   vio->io_wait          =vio_io_wait;
   vio->is_connected     =vio_is_connected;
@@ -335,8 +335,8 @@ void vio_delete(Vio* vio)
   if (!vio)
     return; /* It must be safe to delete null pointers. */
 
-  if (vio->type != VIO_CLOSED)
-    vio->vioclose(vio);
+  if (vio->inactive == FALSE)
+    vio->vioshutdown(vio);
   my_free(vio->read_buffer);
   my_free(vio);
 }

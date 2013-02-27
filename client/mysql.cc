@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2402,8 +2402,6 @@ static bool add_line(String &buffer, char *line, ulong line_length,
           buffer.is_empty())
         continue;
     }
-        
-#ifdef USE_MB
     // Accept multi-byte characters as-is
     int length;
     if (use_mb(charset_info) &&
@@ -2419,7 +2417,6 @@ static bool add_line(String &buffer, char *line, ulong line_length,
         pos+= length - 1;
       continue;
     }
-#endif
     if (!*ml_comment && inchar == '\\' &&
         !(*in_string && 
           (mysql.server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)))

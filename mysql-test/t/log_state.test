@@ -1,8 +1,10 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 ### t/log_state.test ###
 #
 
 --source include/not_embedded.inc
---source include/have_csv.inc
 
 # Several subtests modify global variables. Save the initial values only here,
 # but reset to the initial values per subtest.

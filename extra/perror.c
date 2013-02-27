@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ static const char *get_ha_error_msg(int code)
   /*
     If you got compilation error here about compile_time_assert array, check
     that every HA_ERR_xxx constant has a corresponding error message in
-    handler_error_messages[] list (check mysys/ma_handler_errors.h and
+    handler_error_messages[] list (check mysys/my_handler_errors.h and
     include/my_base.h).
   */
   compile_time_assert(HA_ERR_FIRST + array_elements(handler_error_messages) ==

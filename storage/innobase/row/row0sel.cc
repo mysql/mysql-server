@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -57,6 +57,8 @@ Created 12/19/1997 Heikki Tuuri
 #include "read0read.h"
 #include "buf0lru.h"
 #include "ha_prototypes.h"
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 
 #include "my_compare.h" /* enum icp_result */
 
@@ -1265,7 +1267,8 @@ row_sel_try_search_shortcut(
 			ret = SEL_RETRY;
 			goto func_exit;
 		}
-	} else if (!lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+	} else if (!srv_read_only_mode
+		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1708,8 +1711,10 @@ skip_lock:
 
 				rec = old_vers;
 			}
-		} else if (!lock_sec_rec_cons_read_sees(rec,
-							node->read_view)) {
+		} else if (!srv_read_only_mode
+			   && !lock_sec_rec_cons_read_sees(
+				   rec, node->read_view)) {
+
 			cons_read_requires_clust_rec = TRUE;
 		}
 	}
@@ -2388,8 +2393,11 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-
-		if (type == DATA_BLOB) {
+                /* Temporarily, prefix index on geometry data follow
+                the current behavior (currently geometry is treated as
+                BLOB), and it will be replaced by R-tree index in another
+                worklog. */
+		if (DATA_LARGE_MTYPE(type)) {
 			/* The key field is a column prefix of a BLOB or
 			TEXT */
 
@@ -2685,6 +2693,12 @@ row_sel_field_store_in_mysql_format_func(
 					 len);
 		break;
 
+	case DATA_GEOMETRY:
+		/* We store geometry data as BLOB data. */
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data,
+					 len);
+		break;
+
 	case DATA_MYSQL:
 		memcpy(dest, data, len);
 
@@ -2793,7 +2807,7 @@ row_sel_store_mysql_field_func(
 		ut_a(!prebuilt->trx->has_search_latch);
 		ut_ad(field_no == templ->clust_rec_field_no);
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
@@ -2859,7 +2873,7 @@ row_sel_store_mysql_field_func(
 			return(TRUE);
 		}
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 
 			/* It is a BLOB field locally stored in the
 			InnoDB record: we MUST copy its contents to
@@ -4007,7 +4021,8 @@ release_search_latch_if_needed:
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE
-	      || trx->read_view);
+	      || trx->read_view
+	      || srv_read_only_mode);
 
 	trx_start_if_not_started(trx);
 
@@ -4044,9 +4059,9 @@ release_search_latch_if_needed:
 	if (!prebuilt->sql_stat_start) {
 		/* No need to set an intention lock or assign a read view */
 
-		if (UNIV_UNLIKELY
-		    (trx->read_view == NULL
-		     && prebuilt->select_lock_type == LOCK_NONE)) {
+		if (trx->read_view == NULL
+		    && !srv_read_only_mode
+		    && prebuilt->select_lock_type == LOCK_NONE) {
 
 			fputs("InnoDB: Error: MySQL is trying to"
 			      " perform a consistent read\n"
@@ -4060,7 +4075,10 @@ release_search_latch_if_needed:
 		/* This is a consistent read */
 		/* Assign a read view for the query */
 
-		trx_assign_read_view(trx);
+		if (!srv_read_only_mode) {
+			trx_assign_read_view(trx);
+		}
+
 		prebuilt->sql_stat_start = FALSE;
 	} else {
 wait_table_again:
@@ -4148,7 +4166,9 @@ wait_table_again:
 	}
 
 rec_loop:
+	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
+		btr_pcur_store_position(pcur, &mtr);
 		err = DB_INTERRUPTED;
 		goto normal_return;
 	}
@@ -4209,6 +4229,7 @@ rec_loop:
 				goto lock_wait_or_error;
 			}
 		}
+
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
 
@@ -4573,7 +4594,8 @@ no_gap_lock:
 
 			ut_ad(!dict_index_is_clust(index));
 
-			if (!lock_sec_rec_cons_read_sees(
+			if (!srv_read_only_mode
+			    && !lock_sec_rec_cons_read_sees(
 				    rec, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
@@ -4767,8 +4789,7 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && !prebuilt->innodb_api
-	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
@@ -5182,7 +5203,8 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && !trx->read_view
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);
@@ -5323,7 +5345,7 @@ row_search_max_autoinc(
 		btr_pcur_open_at_index_side(
 			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
-		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
+		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
 			const rec_t*	rec;
 
 			rec = row_search_autoinc_get_rec(&pcur, &mtr);

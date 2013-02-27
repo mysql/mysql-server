@@ -19,20 +19,20 @@ this program; if not, write to the Free Software Foundation, Inc.,
 /*
   This file is based on ha_berkeley.h of MySQL distribution
 
-  This file defines the Innodb handler: the interface between MySQL and
-  Innodb
+  This file defines the InnoDB handler: the interface between MySQL and
+  InnoDB
 */
 
 #include "dict0stats.h"
 
-/* Structure defines translation table between mysql index and innodb
+/* Structure defines translation table between mysql index and InnoDB
 index structures */
 struct innodb_idx_translate_t {
 	ulint		index_count;	/*!< number of valid index entries
 					in the index_mapping array */
 	ulint		array_size;	/*!< array size of index_mapping */
 	dict_index_t**	index_mapping;	/*!< index pointer array directly
-					maps to index in Innodb from MySQL
+					maps to index in InnoDB from MySQL
 					array index */
 };
 
@@ -49,14 +49,14 @@ typedef struct st_innobase_share {
 	void*			table_name_hash;/*!< hash table chain node */
 	innodb_idx_translate_t	idx_trans_tbl;	/*!< index translation
 						table between MySQL and
-						Innodb */
+						InnoDB */
 } INNOBASE_SHARE;
 
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
 
-/** The class defining a handle to an Innodb table */
+/** The class defining a handle to an InnoDB table */
 class ha_innobase: public handler
 {
 	row_prebuilt_t*	prebuilt;	/*!< prebuilt struct in InnoDB, used
@@ -633,8 +633,8 @@ UNIV_INTERN
 void
 innobase_copy_frm_flags_from_create_info(
 /*=====================================*/
-	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	HA_CREATE_INFO*	create_info);		/*!< in: create info */
+	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
+	const HA_CREATE_INFO*	create_info);	/*!< in: create info */
 
 /*********************************************************************//**
 Copy table flags from MySQL's TABLE_SHARE into an InnoDB table object.
@@ -645,5 +645,5 @@ UNIV_INTERN
 void
 innobase_copy_frm_flags_from_table_share(
 /*=====================================*/
-	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
-	TABLE_SHARE*	table_share);		/*!< in: table share */
+	dict_table_t*		innodb_table,	/*!< in/out: InnoDB table */
+	const TABLE_SHARE*	table_share);	/*!< in: table share */

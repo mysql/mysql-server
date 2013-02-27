@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -836,7 +836,7 @@ err:
   Explain join.
 */
 
-void
+bool
 JOIN::explain()
 {
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -845,21 +845,22 @@ JOIN::explain()
   trace_exec.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
   List<Item> *columns_list= &fields_list;
+  bool ret;
   DBUG_ENTER("JOIN::explain");
 
   THD_STAGE_INFO(thd, stage_explaining);
 
   if (prepare_result(&columns_list))
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(true);
 
   if (!tables_list && (tables || !select_lex->with_sum_func))
   {                                           // Only test of functions
-    explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
+    ret= explain_no_table(thd, this, zero_result_cause ? zero_result_cause 
                                                   : "No tables used");
     /* Single select (without union) always returns 0 or 1 row */
     thd->limit_found_rows= send_records;
     thd->set_examined_row_count(0);
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(ret);
   }
   /*
     Don't reset the found rows count if there're no tables as
@@ -871,16 +872,16 @@ JOIN::explain()
 
   if (zero_result_cause)
   {
-    explain_no_table(thd, this, zero_result_cause);
-    DBUG_VOID_RETURN;
+    ret= explain_no_table(thd, this, zero_result_cause);
+    DBUG_RETURN(ret);
   }
 
   if (tables)
-    explain_query_specification(thd, this);
+    ret= explain_query_specification(thd, this);
   else
-    explain_no_table(thd, this, "No tables used");
+    ret= explain_no_table(thd, this, "No tables used");
 
-  DBUG_VOID_RETURN;
+  DBUG_RETURN(ret);
 }
 
 
@@ -1215,7 +1216,7 @@ mysql_select(THD *thd,
       Transactional engines must been signalled that the statement started,
       which external_lock signals.
     */
-    query_cache_store_query(thd, thd->lex->query_tables);
+    query_cache.store_query(thd, thd->lex->query_tables);
   }
 
   DBUG_RETURN(mysql_execute_select(thd, select_lex, free_join));
@@ -1493,18 +1494,18 @@ bool JOIN::set_access_methods()
       continue;                      // Handled in make_join_statistics()
 
     Key_use *const keyuse= tab->position->key;
-    if (!keyuse)
-    {
-      tab->type= JT_ALL;
-      if (tableno > const_tables)
-       full_join= true;
-     }
-    else if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
     {
       DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
       tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
       tab->index= tab->position->loosescan_key;
      }
+    else if (!keyuse)
+    {
+      tab->type= JT_ALL;
+      if (tableno > const_tables)
+       full_join= true;
+    }
     else
     {
       if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
@@ -1699,7 +1700,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       j->ref.items[part_no]=keyuse->val;        // Save for cond removal
       j->ref.cond_guards[part_no]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
-        j->ref.null_rejecting |= 1 << part_no;
+        j->ref.null_rejecting|= (key_part_map)1 << part_no;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
       store_key* key= get_store_key(thd,
@@ -2104,6 +2105,20 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
     DBUG_EXECUTE("where", print_where(idx_cond, "idx cond", QT_ORDINARY););
     if (idx_cond)
     {
+      /*
+        Check that the condition to push actually contains fields from
+        the index. Without any fields from the index it is unlikely
+        that it will filter out any records since the conditions on
+        fields from other tables in most cases have already been
+        evaluated.
+      */
+      idx_cond->update_used_tables();
+      if ((idx_cond->used_tables() & tab->table->map) == 0)
+      {
+        DBUG_ASSERT(other_tbls_ok || idx_cond->const_item());
+        DBUG_VOID_RETURN;
+      }
+
       Item *idx_remainder_cond= 0;
       tab->pre_idx_push_cond= tab->condition();
 
