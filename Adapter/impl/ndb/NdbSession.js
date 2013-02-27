@@ -305,7 +305,7 @@ NdbSession.prototype.getTransactionHandler = function() {
 */
 NdbSession.prototype.begin = function() {
   var tx = this.getTransactionHandler();
-  assert(tx.state === "DEFINED");
+  assert(tx.executedOperations.length === 0);
   tx.autocommit = false;
 };
 
