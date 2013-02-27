@@ -1231,9 +1231,15 @@ page_cur_insert_rec_zip(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
+	const bool reorg_before_insert = page_has_garbage(page)
+		&& rec_size > page_get_max_insert_size(page, 1)
+		&& rec_size <= page_get_max_insert_size_after_reorganize(
+			page, 1);
+
 	/* 2. Try to find suitable space from page memory management */
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
-				rec_size, 1)) {
+				rec_size, 1)
+	    || reorg_before_insert) {
 		/* The values can change dynamically. */
 		bool	log_compressed	= page_zip_log_pages;
 		ulint	level		= page_zip_level;
@@ -1270,7 +1276,7 @@ page_cur_insert_rec_zip(
 		} else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
 			/* The page has been freshly compressed, so
 			reorganizing it will not help. */
-		} else if (log_compressed) {
+		} else if (log_compressed && !reorg_before_insert) {
 			/* Insert into uncompressed page only, and
 			try page_zip_reorganize() afterwards. */
 		} else if (btr_page_reorganize_low(
