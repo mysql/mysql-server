@@ -8080,11 +8080,8 @@ static int mysql_init_variables(void)
 
   have_geometry=SHOW_OPTION_YES;
 
-#ifdef HAVE_RTREE_KEYS
   have_rtree_keys=SHOW_OPTION_YES;
-#else
-  have_rtree_keys=SHOW_OPTION_NO;
-#endif
+
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
 #else
