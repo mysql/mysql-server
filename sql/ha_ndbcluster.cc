@@ -4183,7 +4183,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
         my_errno= HA_ERR_OUT_OF_MEM;
         DBUG_RETURN(my_errno);
       }       
-      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, start_key, end_key, buf))
+      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
+                                                start_key, end_key))
         ERR_RETURN(code.getNdbError());
     }
 
