@@ -3403,10 +3403,8 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
     if (!(op= scanOp->lockCurrentTuple(trans, m_ndb_record,
                                        dummy_row, empty_mask)))
     {
-      /* purecov: begin inspected */
       m_lock_tuple= FALSE;
       ERR_RETURN(trans->getNdbError());
-      /* purecov: end */    
     }
     m_thd_ndb->m_unsent_bytes+=12;
   }
