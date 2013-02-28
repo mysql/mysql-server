@@ -483,6 +483,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->is_set_password_sql= false;
   lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
@@ -2840,7 +2841,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), option_type(OPT_DEFAULT), is_change_password(false),
-  is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
