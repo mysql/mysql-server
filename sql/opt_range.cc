@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1371,12 +1371,9 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
+void QUICK_RANGE_SELECT::need_sorted_output()
 {
-  if (sort)
-    mrr_flags |= HA_MRR_SORTED;
-  else
-    mrr_flags &= ~HA_MRR_SORTED;
+  mrr_flags |= HA_MRR_SORTED;
 }
 
 
@@ -9408,6 +9405,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
       param->table->quick_condition_rows=
         min(param->table->quick_condition_rows, rows);
     }
+    param->table->possible_quick_keys.set_bit(keynr);
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
