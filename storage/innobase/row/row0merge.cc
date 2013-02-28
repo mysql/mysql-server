@@ -2935,7 +2935,7 @@ row_merge_file_create_low(void)
 	if (fd < 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create temporary merge file");
-		return -1;
+		return (-1);
 	}
 	return(fd);
 }
@@ -3429,7 +3429,7 @@ row_merge_build_indexes(
 	ulint			i;
 	ulint			j;
 	dberr_t			error;
-	int			tmpfd;
+	int			tmpfd = -1;
 	dict_index_t*		fts_sort_idx = NULL;
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
