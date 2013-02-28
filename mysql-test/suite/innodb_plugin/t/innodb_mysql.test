@@ -4,6 +4,10 @@
 # 2006-07-26 ML test refactored (MySQL 5.1)
 #               main testing code t/innodb_mysql.test -> include/mix1.inc
 #
+if (`select plugin_auth_version <= "1.0.17-14.1" from information_schema.plugins where plugin_name='innodb'`)
+{
+  --skip Not fixed in XtraDB 1.0.17-14.1 or earlier
+}
 
 -- source include/have_query_cache.inc
 

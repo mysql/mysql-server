@@ -56,7 +56,7 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
        and the number pf written bytes to -1.
      */
     DBUG_EXECUTE_IF ("simulate_file_write_error",
-                     {
+                     if (!errors) {
                        errno= ENOSPC;
                        writtenbytes= (size_t) -1;
                      });

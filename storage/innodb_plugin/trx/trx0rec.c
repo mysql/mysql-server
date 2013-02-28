@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "ut0mem.h"
+#include "read0read.h"
 #include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
@@ -1616,6 +1617,25 @@ trx_undo_prev_version_build(
 
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
+
+		/* We should confirm the existence of disowned external data,
+		if the previous version record is delete marked. If the trx_id
+		of the previous record is seen by purge view, we should treat
+		it as missing history, because the disowned external data
+		might be purged already.
+
+		The inherited external data (BLOBs) can be freed (purged)
+		after trx_id was committed, provided that no view was started
+		before trx_id. If the purge view can see the committed
+		delete-marked record by trx_id, no transactions need to access
+		the BLOB. */
+
+		if ((update->info_bits & REC_INFO_DELETED_FLAG)
+		    && read_view_sees_trx_id(purge_sys->view, trx_id)) {
+			/* treat as a fresh insert, not to
+			cause assertion error at the caller. */
+			return(DB_SUCCESS);
+		}
 
 		/* We have to set the appropriate extern storage bits in the
 		old version of the record: the extern bits in rec for those

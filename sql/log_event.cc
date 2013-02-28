@@ -4569,10 +4569,21 @@ do_server_version_split(char* version,
   for (uint i= 0; i<=2; i++)
   {
     number= strtoul(p, &r, 10);
-    split_versions->ver[i]= (uchar) number;
-    DBUG_ASSERT(number < 256); // fit in uchar
+    /*
+      It is an invalid version if any version number greater than 255 or
+      first number is not followed by '.'.
+    */
+    if (number < 256 && (*r == '.' || i != 0))
+      split_versions->ver[i]= (uchar) number;
+    else
+    {
+      split_versions->ver[0]= 0;
+      split_versions->ver[1]= 0;
+      split_versions->ver[2]= 0;
+      break;
+    }
+
     p= r;
-    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
     if (*r == '.')
       p++; // skip the dot
   }
@@ -4590,7 +4601,6 @@ do_server_version_split(char* version,
    into 'server_version_split':
    X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
    X.Yabc -> {X,Y,0}
-   Xabc -> {X,0,0}
    'server_version_split' is then used for lookups to find if the server which
    created this event has some known bug.
 */

@@ -54,7 +54,7 @@ const char * NEAR globerrs[GLOBERRS]=
   "File '%s' (fileno: %d) was not closed",
   "Can't change ownership of the file '%s' (Errcode: %d)",
   "Can't change permissions of the file '%s' (Errcode: %d)",
-  "Can't seek in file '%s' (Errcode: %d)"
+  "Can't seek in file '%s' (Errcode: %d)",
   "Can't change mode for file '%s' to 0x%lx (Error: %d)",
   "Warning: Can't copy ownership for file '%s' (Error: %d)"
 };
@@ -108,12 +108,12 @@ void init_glob_errs()
 void wait_for_free_space(const char *filename, int errors)
 {
   if (errors == 0)
-    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
+    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
              filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
     my_printf_error(EE_DISK_FULL,
                     "Retry in %d secs. Message reprinted in %d secs",
-                    MYF(ME_BELL | ME_NOREFRESH),
+                    MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
   VOID(sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC));

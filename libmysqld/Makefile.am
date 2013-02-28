@@ -86,7 +86,7 @@ sqlsources = derror.cc field.cc field_conv.cc strfunc.cc filesort.cc \
 	sql_expression_cache.cc
 
 # automake misses these
-sql_yacc.cc sql_yacc.h: $(top_srcdir)/sql/sql_yacc.yy
+sql_yacc.cc sql_yacc.$(YACC_HEXT): $(top_srcdir)/sql/sql_yacc.yy
 
 # The following libraries should be included in libmysqld.a
 INC_LIB=	$(top_builddir)/regex/libregex.la \

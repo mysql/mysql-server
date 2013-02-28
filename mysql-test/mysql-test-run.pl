@@ -667,6 +667,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
+              #saving the log file as filename.failed in case of retry
+              my $worker_logdir= $result->{savedir};
+              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+              rename $log_file_name,$log_file_name.".failed";
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -4481,6 +4485,7 @@ sub extract_warning_lines ($$) {
      qr|Access denied for user|,
      qr|Aborted connection|,
      qr|table.*is full|,
+     qr|setrlimit could not change the size of core files to 'infinity';|,
     );
 
   my $matched_lines= [];

@@ -343,7 +343,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index; Using temporary
 explain select distinct f1, f2 from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	PRIMARY	5	NULL	3	Using index for group-by; Using temporary
+1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
 INDEX (name));
