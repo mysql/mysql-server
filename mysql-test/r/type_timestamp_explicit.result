@@ -3,25 +3,23 @@ set time_zone="+03:00";
 CREATE TABLE t1 (a int, t timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 CREATE TABLE t2 (a int, t datetime);
 SET TIMESTAMP=1234;
-insert into t1 values(1,NULL);
 insert into t1 values(2,"2002-03-03");
 SET TIMESTAMP=1235;
-insert into t1 values(3,NULL);
 SET TIMESTAMP=1236;
 insert into t1 (a) values(4);
 insert into t2 values(5,"2002-03-04"),(6,NULL),(7,"2002-03-05"),(8,"00-00-00");
 SET TIMESTAMP=1237;
 insert into t1 select * from t2;
+Warnings:
+Warning	1048	Column 't' cannot be null
 SET TIMESTAMP=1238;
 insert into t1 (a) select a+1 from t2 where a=8;
 select * from t1;
 a	t
-1	1970-01-01 03:20:34
 2	2002-03-03 00:00:00
-3	1970-01-01 03:20:35
 4	1970-01-01 03:20:36
 5	2002-03-04 00:00:00
-6	1970-01-01 03:20:37
+6	0000-00-00 00:00:00
 7	2002-03-05 00:00:00
 8	0000-00-00 00:00:00
 9	1970-01-01 03:20:38
@@ -479,18 +477,12 @@ CREATE TABLE t1 ( f1 INT(11) NOT NULL AUTO_INCREMENT PRIMARY KEY,
 f2 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f3 TIMESTAMP NOT NULL default '0000-00-00 00:00:00');
 INSERT INTO t1 (f2,f3) VALUES (NOW(), "0000-00-00 00:00:00");
-INSERT INTO t1 (f2,f3) VALUES (NOW(), NULL);
-INSERT INTO t1 (f2,f3) VALUES (NOW(), ASCII(NULL));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), FROM_UNIXTIME('9999999999'));
-INSERT INTO t1 (f2,f3) VALUES (NOW(), TIME(NULL));
 UPDATE t1 SET f2=NOW(), f3=FROM_UNIXTIME('9999999999') WHERE f1=1;
+Warnings:
+Warning	1048	Column 'f3' cannot be null
 SELECT f1,f2-f3 FROM t1;
 f1	f2-f3
-1	0
-2	0
-3	0
-4	0
-5	0
+1	20010909044659
 DROP TABLE t1;
 End of 5.0 tests
 #
@@ -719,3 +711,80 @@ SET @@sql_mode= @org_mode;
 #
 # End of 5.6 tests
 #
+#
+# WL6292 - Test cases to test new behavior with 
+#          --explicit_defaults_for_timestamp
+# Almost all the scenario's required to test this WL, is already tested
+# by most of existing test case. Adding some basic tests here.
+#
+CREATE TABLE t1 (f1 TIMESTAMP, f2 TIMESTAMP);
+ALTER TABLE t1 ADD COLUMN (f3 TIMESTAMP NOT NULL);
+ALTER TABLE t1 ADD COLUMN (f4 TIMESTAMP DEFAULT NULL);
+ALTER TABLE t1 ADD COLUMN (f5 TIMESTAMP DEFAULT '0:0:0');
+ALTER TABLE t1 ADD COLUMN (f6 TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
+# Following is expected out of SHOW CREATE TABLE
+#  `f1` timestamp NULL DEFAULT NULL,
+#  `f2` timestamp NULL DEFAULT NULL,
+#  `f3` timestamp NOT NULL,
+#  `f4` timestamp NULL DEFAULT NULL,
+#  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00'
+#  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` timestamp NULL DEFAULT NULL,
+  `f2` timestamp NULL DEFAULT NULL,
+  `f3` timestamp NOT NULL,
+  `f4` timestamp NULL DEFAULT NULL,
+  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
+  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+# The new behavior affects CREATE SELECT with column definitions
+# before SELECT keyword. The columns f1,f2 in t2 do not get promoted
+# with the new behavior.
+CREATE TABLE t2 (f1 TIMESTAMP, f2 TIMESTAMP) SELECT f1,f2,f3,f4,f5,f6 FROM t1;
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` timestamp NULL DEFAULT NULL,
+  `f2` timestamp NULL DEFAULT NULL,
+  `f3` timestamp NOT NULL,
+  `f4` timestamp NULL DEFAULT NULL,
+  `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
+  `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+DROP TABLE t1;
+DROP TABLE t2;
+# With --explicit_defaults_for_timestamp,
+# inserting NULL in TIMESTAMP NOT NULL gives error, not NOW().
+# INT serves as model.
+CREATE TABLE t1(
+c1 TIMESTAMP NOT NULL,
+c2 TIMESTAMP NOT NULL DEFAULT '2001-01-01 01:01:01',
+c3 INT NOT NULL DEFAULT 42);
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` timestamp NOT NULL,
+  `c2` timestamp NOT NULL DEFAULT '2001-01-01 01:01:01',
+  `c3` int(11) NOT NULL DEFAULT '42'
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
+ERROR 23000: Column 'c1' cannot be null
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', NULL, DEFAULT);
+ERROR 23000: Column 'c2' cannot be null
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', DEFAULT, NULL);
+ERROR 23000: Column 'c3' cannot be null
+INSERT INTO t1 VALUES ('2005-05-05 06:06:06', DEFAULT, DEFAULT);
+SELECT * FROM t1;
+c1	c2	c3
+2005-05-05 06:06:06	2001-01-01 01:01:01	42
+UPDATE t1 SET c1=NULL,c2=NULL,c3=NULL;
+Warnings:
+Warning	1048	Column 'c1' cannot be null
+Warning	1048	Column 'c2' cannot be null
+Warning	1048	Column 'c3' cannot be null
+SELECT * FROM t1;
+c1	c2	c3
+0000-00-00 00:00:00	0000-00-00 00:00:00	0
+DROP TABLE t1;
