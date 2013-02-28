@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2614,6 +2614,16 @@ TESTCASE("ScanKeyInfoExhaust",
   FINALIZER(checkResourceSnapshot);
   FINALIZER(runInsertError);
   FINALIZER(createOrderedPkIndex_Drop);
+  FINALIZER(runClearTable);
+}
+TESTCASE("Bug16402744", 
+	 "Test scan behaviour with multiple DIH_SCAN_GET_NODES_REQ "\
+         "and _CONF handling possible delayed/incomplete due to "\
+         "CONTINUEB(ZSTART_FRAG_SCAN)"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("Parallelism", 240);
+  TC_PROPERTY("ErrorCode", 8097);
+  STEP(runScanReadError);
   FINALIZER(runClearTable);
 }
   
