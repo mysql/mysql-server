@@ -753,8 +753,7 @@ function getCreateCommands() {
                 });
 
                 // Mysqlds on Windows need a tmpdir and an install.sql
-                if (host.getValue("uname") == "CYGWIN" ||
-                        host.getValue("uname") == "Windows") {
+                if (mcc.util.isWin(host.getValue("uname"))) {
 
                     var installDir = mcc.util.unixPath(
                             getEffectiveInstalldir(host));
@@ -849,8 +848,7 @@ function getStartupCommand(process) {
         };
 
         // Windows: Append .exe to file name, set waitForCompletion = false
-        if (host.getValue("uname") == "Windows" || 
-                host.getValue("uname") == "CYGWIN") {
+        if (mcc.util.isWin(host.getValue("uname"))) {
             startupCommand.msg.procCtrl.waitForCompletion = false;
             startupCommand.msg.file.name += ".exe";
             startupCommand.html.name += ".exe";
@@ -905,14 +903,12 @@ function getStartupCommand(process) {
                     "<tr><td></td><td>--tmpdir=" + datadir + "tmp</td></tr>" +
                     "<tr><td></td><td>--basedir=" + startupCommand.html.path + 
                     "</td></tr>" +
-                    "<tr><td></td><td>--socket=" + socket + "</td></tr>" +
                     "<tr><td></td><td>--port=" + port + "</td></tr>" +
                     "<tr><td></td><td>--ndbcluster</td></tr>" +
                     "<tr><td></td><td>--ndb-nodeid=" + 
                     process.getValue("NodeId") + "</td></tr>" +
                     "<tr><td></td><td>--ndb-connectstring=" + connectString + 
-                    "</td></tr>" +
-                    "</table>";
+                    "</td></tr>";
 
             startupCommand.msg.procCtrl = {
                 hup: false,
@@ -928,7 +924,6 @@ function getStartupCommand(process) {
                     {name: "--datadir", val: mcc.util.quotePath(datadir)},
                     {name: "--tmpdir", val: mcc.util.quotePath(datadir + "tmp")},
                     {name: "--basedir", val: mcc.util.quotePath(getEffectiveInstalldir(host))},
-                    {name: "--socket", val: mcc.util.quotePath(socket)},
                     {name: "--port", val: port},
                     {name: "--ndbcluster"},
                     {name: "--ndb-nodeid", val: process.getValue("NodeId")},
@@ -936,9 +931,21 @@ function getStartupCommand(process) {
                 ]
             };
 
+            // Add socket option unless windows
+            if (!mcc.util.isWin(host.getValue("uname"))) {
+                startupCommand.msg.params.param.push({
+                    name: "--socket", 
+                    val: mcc.util.quotePath(socket)
+                });
+                startupCommand.html.optionString += 
+                    "<tr><td></td><td>--socket=" + socket + "</td></tr>";
+            }
+
+            // Terminate option string properly
+            startupCommand.html.optionString += "</table>";
+
             // We also need an init command for mysqld
-            if (host.getValue("uname") == "Windows" ||
-                    host.getValue("uname") == "CYGWIN") {
+            if (mcc.util.isWin(host.getValue("uname"))) {
 
                 var basedir = getEffectiveInstalldir(host);
                 var langdir = basedir + "share";
@@ -956,7 +963,6 @@ function getStartupCommand(process) {
                             "<tr><td></td><td>--datadir=" + datadir + "</td></tr>" +
                             "<tr><td></td><td>--tmpdir=" + tmpdir + "</td></tr>" +
                             "<tr><td></td><td>--log-warnings=0" + "</td></tr>" +
-                            "<tr><td></td><td>--loose-skip-innodb" + "</td></tr>" +
                             "<tr><td></td><td>--loose-skip-ndbcluster" + "</td></tr>" +
                             "<tr><td></td><td>--max_allowed_packet=8M" + "</td></tr>" +
                             "<tr><td></td><td>--default-storage-engine=myisam" + "</td></tr>" +
@@ -984,7 +990,6 @@ function getStartupCommand(process) {
                                 {name: "--datadir", val: mcc.util.quotePath(datadir)},
                                 {name: "--tmpdir", val: mcc.util.quotePath(tmpdir)},
                                 {name: "--log-warnings", val: 0},
-                                {name: "--loose-skip-innodb"},
                                 {name: "--loose-skip-ndbcluster"},
                                 {name: "--max-allowed-packet", val: "8M"},
                                 {name: "--default-storage-engine", val: "myisam"},
@@ -1110,10 +1115,6 @@ function getStopCommand(process) {
             waitForCompletion: false
         };
 
-        // Is this windows?
-        var isWin = host.getValue("uname") == "Windows" || 
-                host.getValue("uname") == "CYGWIN";
-
         // Add process specific options
         if (ptype.getValue("name") == "ndb_mgmd") {
             stopCommand.file.name = "ndb_mgm";
@@ -1137,7 +1138,7 @@ function getStopCommand(process) {
             };
             
             // Add socket option unless windows
-            if (!isWin) {
+            if (!mcc.util.isWin(host.getValue("uname"))) {
                 stopCommand.params.param.push({
                     name: "--socket", 
                     val: mcc.util.quotePath(getEffectiveInstanceValue(process, "Socket"))
@@ -1146,7 +1147,7 @@ function getStopCommand(process) {
         }
         
         // Windows: Append .exe to file name, set waitForCompletion = false
-        if (isWin) {
+        if (mcc.util.isWin(host.getValue("uname"))) {
             // stopCommand.procCtrl.waitForCompletion = false;
             stopCommand.file.name += ".exe";
         }
@@ -1317,7 +1318,8 @@ function startCluster() {
 
             // Get the start cluster commands
             var commands = getStartClusterCommands();
-            var layers = ["Management layer", "Data layer", "Data layer", "SQL layer"];
+            var layers = ["Management layer", "Data layer", "SQL layer", "SQL layer"];
+            var procNames = ["Cluster", "Cluster", "SQL install", "SQL server"];
             var currseq = 0;
 
             function onError(errMsg) {
@@ -1326,59 +1328,52 @@ function startCluster() {
                 waitCondition.resolve();
             }
 
-            function onReply() {
-                if (commands[currseq]) {
-                    
-                    function updateProgressAndStartNext() {
-                        mcc.util.dbg("Starting " + 
-                            commands[currseq].plist[0].file.name);
-
-                        updateProgressDialog("Starting cluster", 
-                                "Starting " + commands[currseq].plist[0].file.name + 
-                                " processes", {maximum: 9, progress: 
-                                (currseq+1)*2});
-
-                        mcc.server.startClusterReq([commands[currseq]], 
-                            onReply, onError);                        
-                            
-                        currseq++;
-                    }
-                    
-                    // Wait for processes at previous start level to be started
-                    if (currseq > 0 && !commands[currseq-1].plist[0].procCtrl.waiForCompletion) {
-                        //mcc.util.dbg("Wait for " + procs[currseq-1] + " processes to be started");  
-                        mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
-                            var procs = pfam[0].getValues("processes");
-                            var timer = null;
-                            for (var i in procs) {
-                                var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
-                                if (stat != "STARTED" && stat != "CONNECTED" && !timer) {
-                                    // Not all started, wait and call onReply again
-                                    mcc.util.dbg("Wait for " + layers[currseq-1] + " processes to be started");
-                                    timer = setTimeout(onReply, 2000);
-                                    break;
-                                }
-                            }
-                            if (!timer) {
-                                updateProgressAndStartNext();
-                            }
-                        });
-                    } else {
-                        updateProgressAndStartNext();
-                    }
-                    
-                } else {
+            function updateProgressAndStartNext() {
+                if (currseq < commands.length) {
+                    mcc.util.dbg("Starting " + procNames[currseq] + " processes");
                     updateProgressDialog("Starting cluster", 
-                            "Cluster processes starting", {progress: "100%"});
-                    alert("Cluster processes starting, will need some time " +
-                            "to initialize before being in a usable state");
+                            "Starting " + procNames[currseq] +
+                            " processes", {maximum: 5, progress: 1 + currseq});
+                    mcc.server.startClusterReq([commands[currseq]], 
+                        onReply, onError);                        
+                    currseq++;        
+                } else {
+                    mcc.util.dbg("Cluster started");
+                    updateProgressDialog("Starting cluster", 
+                            "Cluster started", 
+                            {progress: "100%"});
+                    alert("Cluster started");
                     removeProgressDialog();
                     waitCondition.resolve();
                 }
             }
             
+            function onReply() {
+                // Wait for processes at previous start level to be started
+                var timer = null;
+                if (commands[currseq-1].plist[0].procCtrl.waiForCompletion == false) {
+                    mcc.util.dbg("Wait for " + procNames[currseq-1] + " processes to be started");  
+                    mcc.storage.processTreeStorage().getItems({name: layers[currseq-1]}).then(function (pfam) {
+                        var procs = pfam[0].getValues("processes");
+                        for (var i in procs) {
+                            var stat = mcc.storage.processTreeStorage().store().getValue(procs[i], "status");
+                            if (stat && stat != "STARTED" && stat != "CONNECTED" && !timer) {
+                                // Not all started, wait and call onReply again
+                                mcc.util.dbg("Not all " + procNames[currseq-1] + " processes are stopped, continue waiting");
+                                timer = setTimeout(onReply, 2000);
+                                break;
+                            }
+                        }
+                    });
+                }
+                if (!timer) {
+                    mcc.util.dbg("All " + procNames[currseq-1] + " processes are started");
+                    updateProgressAndStartNext();
+                }
+            }
+
             // Initiate startup sequence by calling onReply
-            onReply();            
+            updateProgressAndStartNext();            
 
         } else {
             mcc.util.dbg("Not starting cluster due to previous error");
@@ -1428,7 +1423,7 @@ function stopCluster() {
                     "Stopping " + procNames[currseq] +
                     " processes", {maximum: 3, progress: 1 + currseq});
             mcc.server.startClusterReq([commands[currseq]], 
-                onReply, onReply);                        
+                onReply, onReply);       
             currseq++;        
         } else {
             mcc.util.dbg("Cluster stopped");
