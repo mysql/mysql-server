@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 /* TODO: check for overun of memory for names. */
 /*	 Convert MSDOS-TIME to standar time_t (still needed?) */
@@ -103,7 +104,7 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
   MEM_ROOT      *names_storage;
   DIR		*dirp;
   struct dirent *dp;
-  char		tmp_path[FN_REFLEN+1],*tmp_file;
+  char		tmp_path[FN_REFLEN + 2], *tmp_file;
 #ifdef THREAD
   char	dirent_tmp[sizeof(struct dirent)+_POSIX_PATH_MAX+1];
 #endif
@@ -215,10 +216,11 @@ char * directory_file_name (char * dst, const char *src)
   /* Process as Unix format: just remove test the final slash. */
 
   char * end;
+  DBUG_ASSERT(strlen(src) < (FN_REFLEN + 1));
 
   if (src[0] == 0)
     src= (char*) ".";				/* Use empty as current */
-  end=strmov(dst, src);
+  end= strnmov(dst, src, FN_REFLEN + 1);
   if (end[-1] != FN_LIBCHAR)
   {
     end[0]=FN_LIBCHAR;				/* Add last '/' */

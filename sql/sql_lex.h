@@ -47,7 +47,11 @@ class Event_parse_data;
 #else
 #include "lex_symbol.h"
 #if MYSQL_LEX
-#include "sql_yacc.h"
+#  if YACC_HEXT_HH
+#    include "sql_yacc.hh"
+#  else
+#    include "sql_yacc.h"
+#  endif
 #define LEX_YYSTYPE YYSTYPE *
 #else
 #define LEX_YYSTYPE void *
