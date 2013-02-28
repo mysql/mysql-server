@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -5238,7 +5238,7 @@ i_s_innodb_buffer_page_fill(
 		/* First three states are for compression pages and
 		are not states we would get as we scan pages through
 		buffer blocks */
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_ZIP_DIRTY:
 			state_str = NULL;
@@ -5939,7 +5939,7 @@ i_s_innodb_buf_page_lru_fill(
 			state_str = "NO";
 			break;
 		/* We should not see following states */
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_MEMORY:
