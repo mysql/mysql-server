@@ -1460,7 +1460,7 @@ dict_table_rename_in_cache(
 			filepath = fil_make_ibd_name(table->name, false);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_FLUSH_NO_WRITE);
+		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &type)
@@ -3296,8 +3296,6 @@ dict_foreign_add_to_cache(
 	}
 
 	if (for_table && !for_in_cache->foreign_table) {
-		ut_ad(for_in_cache->referenced_index);
-
 		index = dict_foreign_find_index(
 			for_table, col_names,
 			for_in_cache->foreign_col_names,

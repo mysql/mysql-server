@@ -47,6 +47,8 @@ typedef struct charset_info_st CHARSET_INFO;
 
 #if MAX_INDEXES <= 64
 typedef Bitmap<64>  key_map;          /* Used for finding keys */
+#elif MAX_INDEXES > 255
+#error "MAX_INDEXES values greater than 255 is not supported."
 #else
 typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #endif
