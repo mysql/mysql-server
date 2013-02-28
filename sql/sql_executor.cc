@@ -933,7 +933,15 @@ do_select(JOIN *join)
   }
 
   join->thd->limit_found_rows= join->send_records;
-  /* Use info provided by filesort. */
+  /*
+    Use info provided by filesort for "order by with limit":
+
+    When using a Priority Queue, we cannot rely on send_records, but need
+    to use the rowcount read originally into the join_tab applying the
+    filesort. There cannot be any post-filtering conditions, nor any
+    following join_tabs in this case, so this rowcount properly represents
+    the correct number of qualifying rows.
+  */
   if (join->order)
   {
     // Save # of found records prior to cleanup
@@ -950,7 +958,7 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->sortorder)
+        sort_tab->filesort->using_pq)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -2782,16 +2790,15 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         !join->do_send_rows)
     {
       /*
-        If filesort is used for sorting, stop after select_limit_cnt+1
-        records are read. Because of optimization in some cases it can
-        provide only select_limit_cnt+1 records.
+        If we have used Priority Queue for optimizing order by with limit,
+        then stop here, there are no more records to consume.
         When this optimization is used, end_send is called on the next
         join_tab.
       */
       if (join->order &&
           join->select_options & OPTION_FOUND_ROWS &&
           join_tab > join->join_tab &&
-          (join_tab - 1)->filesort && (join_tab - 1)->filesort->sortorder)
+          (join_tab - 1)->filesort && (join_tab - 1)->filesort->using_pq)
       {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
         DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);

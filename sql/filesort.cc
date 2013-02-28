@@ -280,6 +280,7 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *filesort,
     }
     // For PQ queries (with limit) we initialize all pointers.
     table_sort.init_record_pointers();
+    filesort->using_pq= true;
   }
   else
   {
