@@ -6646,9 +6646,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   int error;
-  if (m_active_cursor)
-    error= next_result(buf);
-  else if (m_active_query)
+  if (m_active_cursor || m_active_query)
     error= next_result(buf);
   else
     error= full_table_scan(NULL, NULL, NULL, buf);
