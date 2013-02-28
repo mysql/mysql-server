@@ -1850,6 +1850,19 @@ void THD::cleanup_after_query()
     stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
+#ifndef EMBEDDED_LIBRARY
+    /*
+      Clean possible unused INSERT_ID events by current statement.
+      is_update_query() is needed to ignore SET statements:
+        Statements that don't update anything directly and don't
+        used stored functions. This is mostly necessary to ignore
+        statements in binlog between SET INSERT_ID and DML statement
+        which is intended to consume its event (there can be other
+        SET statements between them).
+    */
+    if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
+      auto_inc_intervals_forced.empty();
+#endif
   }
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
@@ -4467,9 +4480,14 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   mysql_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
-                             xid_state->xid.key_length())==0);
-  my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
+  if (my_hash_search(&xid_cache, xid_state->xid.key(),
+      xid_state->xid.key_length()))
+  {
+    mysql_mutex_unlock(&LOCK_xid_cache);
+    my_error(ER_XAER_DUPID, MYF(0));
+    return true;
+  }
+  bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
   mysql_mutex_unlock(&LOCK_xid_cache);
   return res;
 }

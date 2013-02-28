@@ -31,7 +31,7 @@ use mysqltest;
 let $mms_tables=2;
 
 CREATE TABLE t1 (
-  line LINESTRING NOT NULL,
+  line POINT NOT NULL,
   kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
   name VARCHAR(32)
   ,SPATIAL key (line)

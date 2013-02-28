@@ -2167,19 +2167,19 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=Aria DEFAULT CHARSET=latin1 PAGE_CHECKSUM=0 TRANSACTIONAL=1
 drop table t1;
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=aria;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(0 0)"));
 checksum table t1;
 Table	Checksum
-test.t1	326284887
+test.t1	310616673
 CREATE TABLE t2 (line LINESTRING NOT NULL) engine=aria;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t2 VALUES (GeomFromText("LINESTRING(0 0)"));
 checksum table t2;
 Table	Checksum
-test.t2	326284887
+test.t2	310616673
 CREATE TABLE t3 select * from t1;
 checksum table t3;
 Table	Checksum
-test.t3	326284887
+test.t3	310616673
 drop table t1,t2,t3;
 End of 5.1 tests
 create table t2(a varchar(255),key(a))engine=aria row_format=dynamic transactional=0;

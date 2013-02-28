@@ -593,6 +593,15 @@ create database `aa``bb````cc`;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/backticks.sql
 drop database `aa``bb````cc`;
 
+#
+# MySQL Bug#13639125 DELIMITER STRIPS THE NEXT NEW LINE IN A SQL STATEMENT
+#
+--write_file $MYSQLTEST_VARDIR/tmp/13639125.sql
+select ">>
+delimiter
+<<" as a;
+EOF
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/13639125.sql
 
 --echo
 --echo End of tests

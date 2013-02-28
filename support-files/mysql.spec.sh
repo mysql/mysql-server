@@ -370,7 +370,6 @@ For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
 Summary:	MySQL - Shared libraries
 Group:		Applications/Databases
 Provides:	MySQL-shared
-Conflicts:	mysql-libs mysql-libs-advanced
 Obsoletes:	MySQL-shared-standard MySQL-shared-pro
 Obsoletes:	MySQL-shared-pro-cert MySQL-shared-pro-gpl
 Obsoletes:	MySQL-shared-pro-gpl-cert MySQL-shared

@@ -574,6 +574,9 @@ typedef struct system_variables
   ulong wt_timeout_long, wt_deadlock_search_depth_long;
 
   double long_query_time_double;
+
+  my_bool pseudo_slave_mode;
+
 } SV;
 
 /**

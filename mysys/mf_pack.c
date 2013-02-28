@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates.
    Copyright (c) 2012, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
@@ -12,7 +12,8 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+*/
 
 #include "mysys_priv.h"
 #include <m_string.h>
@@ -452,10 +453,10 @@ char *intern_filename(char *to, const char *from)
   char buff[FN_REFLEN + 1];
   if (from == to)
   {						/* Dirname may destroy from */
-    strmov(buff,from);
+    (void) strnmov(buff, from, FN_REFLEN);
     from=buff;
   }
   length= dirname_part(to, from, &to_length);	/* Copy dirname & fix chars */
-  (void) strmov(to + to_length,from+length);
+  (void) strnmov(to + to_length, from + length, FN_REFLEN - to_length);
   return (to);
 } /* intern_filename */

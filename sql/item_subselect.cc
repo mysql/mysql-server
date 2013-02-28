@@ -1852,7 +1852,8 @@ bool Item_allany_subselect::transform_into_max_min(JOIN *join)
                  print_where(item, "rewrite with MIN/MAX", QT_ORDINARY););
 
     save_allow_sum_func= thd->lex->allow_sum_func;
-    thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+    thd->lex->allow_sum_func|=
+        (nesting_map)1 << thd->lex->current_select->nest_level;
     /*
       Item_sum_(max|min) can't substitute other item => we can use 0 as
       reference, also Item_sum_(max|min) can't be fixed after creation, so

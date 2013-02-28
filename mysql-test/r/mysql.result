@@ -513,5 +513,7 @@ create database `aa``bb````cc`;
 DATABASE()
 aa`bb``cc
 drop database `aa``bb````cc`;
+a
+>>\ndelimiter\n<<
 
 End of tests

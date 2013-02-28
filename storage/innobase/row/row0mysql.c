@@ -4140,6 +4140,13 @@ end:
 			trx->error_state = DB_SUCCESS;
 			trx_general_rollback_for_mysql(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+		} else {
+			if (old_is_tmp && !new_is_tmp) {
+				/* After ALTER TABLE the table statistics
+				needs to be rebuilt.  It will be rebuilt
+				when the table is loaded again. */
+				table->stat_initialized = FALSE;
+			}
 		}
 	}
 

@@ -154,6 +154,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Begin_load_query	#	#	;file_id=#;block_len=#
 master-bin.000001	#	Execute_load_query	#	#	use `test`; LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/f\'le.txt' INTO TABLE `db1``; select 'oops!'`.`t``1` FIELDS TERMINATED BY ',' ENCLOSED BY '\'' ESCAPED BY '\\' LINES TERMINATED BY '\n' (`a``1`, `b``2`) SET `c``3`= concat('|', "b""a'z", "!") ;file_id=#
 master-bin.000001	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -197,6 +198,7 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 SELECT * FROM `db1``; select 'oops!'`.`t``1`;
 a`1	b`2	c`3
 fo\o	bar	|b"a'z!
@@ -246,6 +248,7 @@ master-bin.000001	#	User var	#	#	@```c`=-123450123456789012345678901234567890123
 master-bin.000001	#	User var	#	#	@```d```=_latin1 0x78787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878 COLLATE latin1_swedish_ci
 master-bin.000001	#	Query	#	#	use `db1``; select 'oops!'`; INSERT INTO t1 VALUES (@`a``1`+1, @`a``2`*100, @`a``3`-1, @`a``4`-1, @`b```/2, @```c`, substr(@```d```, 2, 98))
 master-bin.000001	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -291,6 +294,7 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 SELECT * FROM `db1``; select 'oops!'`.t1 ORDER BY a1;
 a1	a2	a3	a4	b	c	d
 -9223372036854775808	42	9223372036854775807	18446744073709551615	-1.234560123456789e125	-1234501234567890123456789012345678901234567890123456789.0123456789	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -337,6 +341,7 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000002	#	Query	#	#	BEGIN
 master-bin.000002	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1)
 master-bin.000002	#	Query	#	#	COMMIT
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -363,5 +368,6 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 DROP TABLE t1;
 include/rpl_end.inc

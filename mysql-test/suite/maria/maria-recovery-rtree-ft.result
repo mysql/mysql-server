@@ -4,7 +4,7 @@ create database mysqltest;
 use mysqltest;
 * shut down mysqld, removed logs, restarted it
 CREATE TABLE t1 (
-line LINESTRING NOT NULL,
+line POINT NOT NULL,
 kind ENUM('po', 'pp', 'rr', 'dr', 'rd', 'ts', 'cl') NOT NULL DEFAULT 'po',
 name VARCHAR(32)
 ,SPATIAL key (line)

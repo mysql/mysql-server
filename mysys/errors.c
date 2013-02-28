@@ -107,12 +107,12 @@ void init_glob_errs()
 void wait_for_free_space(const char *filename, int errors)
 {
   if (errors == 0)
-    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
+    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
              filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
     my_printf_error(EE_DISK_FULL,
                     "Retry in %d secs. Message reprinted in %d secs",
-                    MYF(ME_BELL | ME_NOREFRESH),
+                    MYF(ME_BELL | ME_NOREFRESH | ME_JUST_WARNING),
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
   (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);

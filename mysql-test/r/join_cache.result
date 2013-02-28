@@ -5595,7 +5595,7 @@ DROP TABLE t1,t2,t3;
 #
 CREATE TABLE t1 (
 col269 decimal(31,10) unsigned DEFAULT NULL,
-col280 multipoint DEFAULT NULL,
+col280 geometry DEFAULT NULL,
 col281 tinyint(1) DEFAULT NULL,
 col282 time NOT NULL,
 col284 datetime DEFAULT NULL,

@@ -1,0 +1,30 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+show variables like "performance_schema%";
+
+# Not empty
+select * from performance_schema.setup_instruments;
+select TIMER_NAME from performance_schema.performance_timers;
+select * from performance_schema.setup_consumers;
+select NAME from performance_schema.setup_timers;
+
+# All empty
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.threads;
+

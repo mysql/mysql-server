@@ -2291,19 +2291,19 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1 TRANSACTIONAL=1
 drop table t1;
 CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t1 VALUES (GeomFromText("LINESTRING(0 0)"));
 checksum table t1;
 Table	Checksum
-test.t1	326284887
+test.t1	310616673
 CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
+INSERT INTO t2 VALUES (GeomFromText("LINESTRING(0 0)"));
 checksum table t2;
 Table	Checksum
-test.t2	326284887
+test.t2	310616673
 CREATE TABLE t3 select * from t1;
 checksum table t3;
 Table	Checksum
-test.t3	326284887
+test.t3	310616673
 drop table t1,t2,t3;
 create table t1 (a1 int,a2 int,a3 int,a4 int,a5 int,a6 int,a7 int,a8 int,a9 int,a10 int,a11 int,a12 int,a13 int,a14 int,a15 int,a16 int,a17 int,a18 int,a19 int,a20 int,a21 int,a22 int,a23 int,a24 int,a25 int,a26 int,a27 int,a28 int,a29 int,a30 int,a31 int,a32 int,
 key(a1,a2,a3,a4,a5,a6,a7,a8,a9,a10,a11,a12,a13,a14,a15,a16,a17,a18,a19,a20,a21,a22,a23,a24,a25,a26,a27,a28,a29,a30,a31,a32)) engine=myisam;
@@ -2337,25 +2337,6 @@ h+0	d + 0	e	g + 0
 1	1	3	0
 1	1	4	0
 DROP TABLE t1;
-#
-# Test of BUG#35570 CHECKSUM TABLE unreliable if LINESTRING field
-# (same content / differen checksum)
-#
-CREATE TABLE t1 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t1 VALUES (GeomFromText("POINT(0 0)"));
-checksum table t1;
-Table	Checksum
-test.t1	326284887
-CREATE TABLE t2 (line LINESTRING NOT NULL) engine=myisam;
-INSERT INTO t2 VALUES (GeomFromText("POINT(0 0)"));
-checksum table t2;
-Table	Checksum
-test.t2	326284887
-CREATE TABLE t3 select * from t1;
-checksum table t3;
-Table	Checksum
-test.t3	326284887
-drop table t1,t2,t3;
 CREATE TABLE t1(a INT, b CHAR(10), KEY(a), KEY(b));
 INSERT INTO t1 VALUES(1,'0'),(2,'0'),(3,'0'),(4,'0'),(5,'0'),
 (6,'0'),(7,'0');

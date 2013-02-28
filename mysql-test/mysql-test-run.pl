@@ -333,8 +333,9 @@ sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 our $opt_warnings= 1;
 
-our $opt_include_ndbcluster= 0;
-our $opt_skip_ndbcluster= 1;
+our $ndbcluster_enabled= 0;
+my $opt_include_ndbcluster= 0;
+my $opt_skip_ndbcluster= 0;
 
 my $exe_ndbd;
 my $exe_ndbmtd;
@@ -361,14 +362,6 @@ my $opt_stop_keep_alive= $ENV{MTR_STOP_KEEP_ALIVE};
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
-# Used by --result-file for for formatting times
-
-sub isotime($) {
-  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
-  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
-    $yr+1900, $mon+1, $day, $hr, $min, $sec;
-}
-
 main();
 
 
@@ -393,26 +386,6 @@ sub main {
   
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
-	
-    # Check for any extra suites to enable based on the path name
-    my %extra_suites=
-      (
-       "mysql-5.1-new-ndb"              => "ndb_team",
-       "mysql-5.1-new-ndb-merge"        => "ndb_team",
-       "mysql-5.1-telco-6.2"            => "ndb_team",
-       "mysql-5.1-telco-6.2-merge"      => "ndb_team",
-       "mysql-5.1-telco-6.3"            => "ndb_team",
-       "mysql-6.0-ndb"                  => "ndb_team",
-      );
-
-    foreach my $dir ( reverse splitdir($basedir) ) {
-      my $extra_suite= $extra_suites{$dir};
-      if (defined $extra_suite) {
-	mtr_report("Found extra suite: $extra_suite");
-	$opt_suites= "$extra_suite,$opt_suites";
-	last;
-      }
-    }
   }
   mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
@@ -762,6 +735,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
+              #saving the log file as filename.failed in case of retry
+              my $worker_logdir= $result->{savedir};
+              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+              rename $log_file_name,$log_file_name.".failed";
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -1138,7 +1115,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force+'                   => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
-             'include-ndbcluster'       => \$opt_include_ndbcluster,
+             'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -1580,7 +1557,6 @@ sub command_line_setup {
   # --------------------------------------------------------------------------
   if ( $opt_embedded_server )
   {
-    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
     # Turn off use of bin log
@@ -2036,7 +2012,7 @@ sub executable_setup () {
 
   $exe_mysql_embedded= mtr_exe_maybe_exists("$basedir/libmysqld/examples/mysql_embedded");
 
-  if ( ! $opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     # Look for single threaded NDB
     $exe_ndbd=
@@ -2298,7 +2274,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
   # --------------------------------------------------------------------------
-  if ( !$opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     push(@ld_library_paths,  "$basedir/storage/ndb/src/.libs");
   }
@@ -2391,7 +2367,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
-  if ( ! $opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     $ENV{'NDB_MGM'}=
       my_find_bin($bindir,
@@ -2822,7 +2798,7 @@ sub fix_vs_config_dir () {
   $opt_vs_config="";
 
 
-  for (<$bindir/sql/*/mysqld.exe>) {
+  for (<$bindir/sql/*/mysqld.exe>) { #/
     if (-M $_ < $modified)
     {
       $modified = -M _;
@@ -2864,37 +2840,87 @@ sub vs_config_dirs ($$) {
 
 sub check_ndbcluster_support {
 
+  my $ndbcluster_supported = 0;
+  if ($mysqld_variables{'ndb-connectstring'})
+  {
+    $ndbcluster_supported = 1;
+  }
+
+  if ($opt_skip_ndbcluster && $opt_include_ndbcluster)
+  {
+    # User is ambivalent. Theoretically the arg which was
+    # given last on command line should win, but that order is
+    # unknown at this time.
+    mtr_error("Ambigous command, both --include-ndbcluster " .
+	      " and --skip-ndbcluster was specified");
+  }
+
   # Check if this is MySQL Cluster, ie. mysql version string ends
   # with -ndb-Y.Y.Y[-status]
   if ( defined $mysql_version_extra &&
-       $mysql_version_extra =~ /^-ndb-/ )
+       $mysql_version_extra =~ /-ndb-([0-9]*)\.([0-9]*)\.([0-9]*)/ )
   {
-    mtr_report(" - MySQL Cluster");
-    # Enable ndb engine and add more test suites
-    $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb";
+    # MySQL Cluster tree
+    mtr_report(" - MySQL Cluster detected");
+
+    if ($opt_skip_ndbcluster)
+    {
+      mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
+      return;
+    }
+
+    if (!$ndbcluster_supported)
+    {
+      # MySQL Cluster tree, but mysqld was not compiled with
+      # ndbcluster -> fail unless --skip-ndbcluster was used
+      mtr_error("This is MySQL Cluster but mysqld does not " .
+		"support ndbcluster. Use --skip-ndbcluster to " .
+		"force mtr to run without it.");
+    }
+
+    # mysqld was compiled with ndbcluster -> auto enable
+  }
+  else
+  {
+    # Not a MySQL Cluster tree
+    if (!$ndbcluster_supported)
+    {
+      if ($opt_include_ndbcluster)
+      {
+	mtr_error("Could not detect ndbcluster support ".
+		  "requested with --include-ndbcluster");
+      }
+
+      # Silently skip, mysqld was compiled without ndbcluster
+      # which is the default case
+      return;
+    }
+
+    if ($opt_skip_ndbcluster)
+    {
+      # Compiled with ndbcluster but ndbcluster skipped
+      mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
+      return;
+    }
+
+
+    # Not a MySQL Cluster tree, enable ndbcluster
+    # if --include-ndbcluster was used
+    if ($opt_include_ndbcluster)
+    {
+      # enable ndbcluster
+    }
+    else
+    {
+      mtr_report(" - skipping ndbcluster(disabled by default)");
+      return;
+    }
   }
 
-  if ($opt_include_ndbcluster)
-  {
-    $opt_skip_ndbcluster= 0;
-  }
-
-  if ($opt_skip_ndbcluster)
-  {
-    mtr_report(" - skipping ndbcluster");
-    return;
-  }
-
-  if ( ! $mysqld_variables{'ndb-connectstring'} )
-  {
-    #mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
-    $opt_skip_ndbcluster= 2;
-    return;
-  }
-
-  mtr_report(" - using ndbcluster when necessary, mysqld supports it");
-
+  mtr_report(" - enabling ndbcluster");
+  $ndbcluster_enabled= 1;
+  # Add MySQL Cluster test suites
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
   return;
 }
 

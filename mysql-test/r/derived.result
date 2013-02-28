@@ -441,3 +441,16 @@ ERROR 21000: Subquery returns more than 1 row
 DROP TABLE t1, t2;
 DROP VIEW v1, v2;
 set optimizer_switch=@save_derived_optimizer_switch;
+create table t1 (n bigint(20) unsigned, d1 datetime, d2 datetime, key (d1));
+insert t1 values (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+insert t1 values (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+insert t1 values (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+select * from (
+select n, d1, d2, @result := 0 as result
+from t1
+where d1 < '2012-12-12 12:12:12' and n in (2085, 2084) order by d2 asc
+) as calculated_result;
+n	d1	d2	result
+2085	2012-01-01 00:00:00	2013-01-01 00:00:00	0
+2084	2012-02-01 00:00:00	2013-01-01 00:00:00	0
+drop table t1;
