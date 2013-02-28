@@ -3856,7 +3856,8 @@ void SELECT_LEX::update_used_tables()
   {
     for (ORDER *order= order_list.first; order; order= order->next)
       (*order->item)->update_used_tables();
-  }      
+  }
+  join->result->update_used_tables();
 }
 
 

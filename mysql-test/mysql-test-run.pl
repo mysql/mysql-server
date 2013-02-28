@@ -4771,6 +4771,7 @@ sub extract_warning_lines ($$) {
      qr|Error: io_setup\(\) failed|,
      qr|Warning: io_setup\(\) failed|,
      qr|Warning: io_setup\(\) attempt|,
+     qr|setrlimit could not change the size of core files to 'infinity';|,
     );
 
   my $matched_lines= [];

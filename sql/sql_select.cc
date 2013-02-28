@@ -129,9 +129,10 @@ static int return_zero_rows(JOIN *join, select_result *res,
                             List<Item> &fields, bool send_row,
                             ulonglong select_options, const char *info,
                             Item *having, List<Item> &all_fields);
-static COND *build_equal_items(THD *thd, COND *cond,
+static COND *build_equal_items(JOIN *join, COND *cond,
                                COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
+                               bool ignore_on_conds,
                                COND_EQUAL **cond_equal_ref);
 static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
                                              COND *cond,
@@ -147,7 +148,8 @@ static uint build_bitmap_for_nested_joins(List<TABLE_LIST> *join_list,
 
 static COND *optimize_cond(JOIN *join, COND *conds,
                            List<TABLE_LIST> *join_list,
-                           Item::cond_result *cond_value, 
+                           bool ignore_on_conds,
+			   Item::cond_result *cond_value, 
                            COND_EQUAL **cond_equal);
 bool const_expression_in_where(COND *conds,Item *item, Item **comp_item);
 static bool create_internal_tmp_table_from_heap2(THD *, TABLE *,
@@ -1064,7 +1066,8 @@ JOIN::optimize()
   if (setup_jtbm_semi_joins(this, join_list, &conds))
     DBUG_RETURN(1);
 
-  conds= optimize_cond(this, conds, join_list, &cond_value, &cond_equal);
+  conds= optimize_cond(this, conds, join_list, FALSE,
+                       &cond_value, &cond_equal);
      
   if (thd->is_error())
   {
@@ -1074,7 +1077,9 @@ JOIN::optimize()
   }
 
   {
-    having= optimize_cond(this, having, join_list, &having_value, &having_equal);
+    having= optimize_cond(this, having, join_list, TRUE,
+                          &having_value, &having_equal);
+
     if (thd->is_error())
     {
       error= 1;
@@ -4993,6 +4998,7 @@ static void optimize_keyuse(JOIN *join, DYNAMIC_ARRAY *keyuse_array)
 }
 
 
+
 /**
   Check for the presence of AGGFN(DISTINCT a) queries that may be subject
   to loose index scan.
@@ -5319,6 +5325,8 @@ best_access_path(JOIN      *join,
                2. we won't get two ref-or-null's
           */
           if (!(remaining_tables & keyuse->used_tables) &&
+              s->access_from_tables_is_allowed(keyuse->used_tables,
+                                               join->sjm_lookup_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
           {
@@ -7856,7 +7864,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     */
     do
     {
-      if (!(~used_tables & keyuse->used_tables))
+      if (!(~used_tables & keyuse->used_tables) &&
+          j->access_from_tables_is_allowed(keyuse->used_tables,
+                                           join->sjm_lookup_tables))
       {
         if  (are_tables_local(j, keyuse->val->used_tables()))
         {
@@ -7924,7 +7934,9 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
     uint i;
     for (i=0 ; i < keyparts ; keyuse++,i++)
     {
-      while (((~used_tables) & keyuse->used_tables) || 
+      while (((~used_tables) & keyuse->used_tables) ||
+	     !j->access_from_tables_is_allowed(keyuse->used_tables,
+                                               join->sjm_lookup_tables) ||    
              keyuse->keypart == NO_KEYPART ||
 	     (keyuse->keypart != 
               (is_hash_join_key_no(key) ?
@@ -8138,9 +8150,9 @@ inline void add_cond_and_fix(THD *thd, Item **e1, Item *e2)
     Item *res;
     if ((res= new Item_cond_and(*e1, e2)))
     {
-      *e1= res;
       res->fix_fields(thd, 0);
       res->update_used_tables();
+      *e1= res;
     }
   }
   else
@@ -10393,7 +10405,6 @@ bool JOIN_TAB::preread_init()
 }
 
 
-
 /**
   Build a TABLE_REF structure for index lookup in the temporary table
 
@@ -11706,6 +11717,7 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
           item_equal->update_used_tables();
           set_if_bigger(thd->lex->current_select->max_equal_elems,
                         item_equal->n_field_items());  
+          item_equal->upper_levels= inherited;
           return item_equal;
 	}
 
@@ -11810,6 +11822,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
   @param inherited           path to all inherited multiple equality items
   @param join_list           list of join tables to which the condition
                              refers to
+  @ignore_on_conds           TRUE <-> do not build multiple equalities
+                             for on expressions
   @param[out] cond_equal_ref pointer to the structure to place built
                              equalities in
 
@@ -11817,10 +11831,13 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
     pointer to the transformed condition containing multiple equalities
 */
    
-static COND *build_equal_items(THD *thd, COND *cond, COND_EQUAL *inherited,
+static COND *build_equal_items(JOIN *join, COND *cond,
+                               COND_EQUAL *inherited,
                                List<TABLE_LIST> *join_list,
+                               bool ignore_on_conds,
                                COND_EQUAL **cond_equal_ref)
 {
+  THD *thd= join->thd;
   COND_EQUAL *cond_equal= 0;
 
   if (cond) 
@@ -11845,7 +11862,7 @@ static COND *build_equal_items(THD *thd, COND *cond, COND_EQUAL *inherited,
   }
   *cond_equal_ref= cond_equal;
 
-  if (join_list)
+  if (join_list && !ignore_on_conds)
   {
     TABLE_LIST *table;
     List_iterator<TABLE_LIST> li(*join_list);
@@ -11860,8 +11877,8 @@ static COND *build_equal_items(THD *thd, COND *cond, COND_EQUAL *inherited,
           We can modify table->on_expr because its old value will
           be restored before re-execution of PS/SP.
         */
-        table->on_expr= build_equal_items(thd, table->on_expr, inherited,
-                                          nested_join_list,
+        table->on_expr= build_equal_items(join, table->on_expr, inherited,
+                                          nested_join_list, ignore_on_conds,
                                           &table->cond_equal);
       }
     }
@@ -12058,11 +12075,16 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
   Item *item_const= item_equal->get_const();
   Item_equal_fields_iterator it(*item_equal);
   Item *head;
-  DBUG_ASSERT(!cond || cond->type() == Item::COND_ITEM);
-
   TABLE_LIST *current_sjm= NULL;
   Item *current_sjm_head= NULL;
 
+  DBUG_ASSERT(!cond ||
+              cond->type() == Item::INT_ITEM ||
+              (cond->type() == Item::FUNC_ITEM &&
+               ((Item_func *) cond)->functype() == Item_func::EQ_FUNC) ||  
+              (cond->type() == Item::COND_ITEM  && 
+               ((Item_func *) cond)->functype() == Item_func::COND_AND_FUNC));
+       
   /* 
     Pick the "head" item: the constant one or the first in the join order
     (if the first in the join order happends to be inside an SJM nest, that's
@@ -12137,8 +12159,8 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
 
     if (produce_equality)
     {
-      if (eq_item)
-        eq_list.push_back(eq_item);
+      if (eq_item && eq_list.push_back(eq_item))
+        return 0;
       
       /*
         If we're inside an SJM-nest (current_sjm!=NULL), and the multi-equality
@@ -12162,31 +12184,61 @@ Item *eliminate_item_equal(COND *cond, COND_EQUAL *upper_levels,
     current_sjm= field_sjm;
   }
 
-  if (!cond)
+  /*
+    We have produced zero, one, or more pair-wise equalities eq_i. We want to
+    return an expression in form:
+
+      cond AND eq_1 AND eq_2 AND eq_3 AND ...
+    
+    'cond' is a parameter for this function, which may be NULL, an Item_int(1),
+    or an Item_func_eq or an Item_cond_and.
+
+    We want to return a well-formed condition: no nested Item_cond_and objects,
+    or Item_cond_and with a single child:
+    - if 'cond' is an Item_cond_and, we add eq_i as its tail
+    - if 'cond' is Item_int(1), we return eq_i
+    - otherwise, we create our own Item_cond_and and put 'cond' at the front of
+      it.
+    - if we have only one condition to return, we don't create an Item_cond_and
+  */
+
+  if (eq_item && eq_list.push_back(eq_item))
+    return 0;
+  COND *res= 0;
+  switch (eq_list.elements)
   {
-    if (eq_list.is_empty())
+  case 0:
+    res= cond ? cond : new Item_int((longlong) 1, 1);
+    break;
+  case 1:
+    if (!cond || cond->type() ==  Item::INT_ITEM)
+      res= eq_item;
+    break;
+  default:
+    break;
+  }
+  if (!res) 
+  {
+    if (cond)
     {
-      if (eq_item)
-        return eq_item;
-      return new Item_int((longlong) 1, 1);
+      if (cond->type() == Item::COND_ITEM)
+      {
+        res= cond;
+        ((Item_cond *) res)->add_at_end(&eq_list);
+      }
+      else if (eq_list.push_front(cond))
+        return 0;
     }
-    /* eq_item is always set if list is not empty */
-    DBUG_ASSERT(eq_item);
-    eq_list.push_back(eq_item);
-    if (!(cond= new Item_cond_and(eq_list)))
-      return 0;                                 // Error
-  }
-  else
+  }  
+  if (!res)
+    res= new Item_cond_and(eq_list);
+  if (res)
   {
-    if (eq_item)
-      eq_list.push_back(eq_item);
-    if (!eq_list.is_empty())
-      ((Item_cond *) cond)->add_at_head(&eq_list);
+    res->quick_fix_field();
+    res->update_used_tables();
   }
-  cond->quick_fix_field();
-  cond->update_used_tables();
-   
-  return cond;
+
+  return res;
 }
 
 
@@ -12289,31 +12341,68 @@ static COND* substitute_for_best_equal_field(JOIN_TAB *context_tab,
 
     if (and_level)
     {
+      COND *eq_cond= 0;
       List_iterator_fast<Item_equal> it(cond_equal->current_level);
+      bool false_eq_cond= FALSE;
       while ((item_equal= it++))
       {
-        cond= eliminate_item_equal(cond, cond_equal->upper_levels, item_equal);
-        // This occurs when eliminate_item_equal() founds that cond is
-        // always false and substitutes it with Item_int 0.
-        // Due to this, value of item_equal will be 0, so just return it.
-        if (!cond)
-          return org_cond;                      // Error
-        if (cond->type() != Item::COND_ITEM)
+        eq_cond= eliminate_item_equal(eq_cond, cond_equal->upper_levels,
+                                               item_equal);
+        if (!eq_cond)
+	{
+          eq_cond= 0;
           break;
+        }
+        else if (eq_cond->type() == Item::INT_ITEM && !eq_cond->val_bool()) 
+	{
+          /*
+            This occurs when eliminate_item_equal() founds that cond is
+            always false and substitutes it with Item_int 0.
+            Due to this, value of item_equal will be 0, so just return it.
+	  */
+          cond= eq_cond;
+          false_eq_cond= TRUE;
+          break;
+        }
       }
-    }
-    if (cond->type() == Item::COND_ITEM &&
-        !((Item_cond*)cond)->argument_list()->elements)
-      cond= new Item_int((int32)cond->val_bool());
-
+      if (eq_cond && !false_eq_cond)
+      {
+        /* Insert the generated equalities before all other conditions */
+        if (eq_cond->type() == Item::COND_ITEM)
+          ((Item_cond *) cond)->add_at_head(
+                                  ((Item_cond *) eq_cond)->argument_list());
+        else
+	{
+          if (cond_list->is_empty())
+            cond= eq_cond;
+          else
+	  {
+             /* Do not add an equality condition if it's always true */ 
+             if (eq_cond->type() != Item::INT_ITEM &&
+                 cond_list->push_front(eq_cond))
+               eq_cond= 0;
+          }
+	}
+      }
+      if (!eq_cond)
+      {
+        /* 
+          We are out of memory doing the transformation.
+          This is a fatal error now. However we bail out by returning the
+          original condition that we had before we started the transformation. 
+	*/
+	cond_list->concat((List<Item> *) &cond_equal->current_level);
+      }
+    }	 
   }
   else if (cond->type() == Item::FUNC_ITEM && 
            ((Item_cond*) cond)->functype() == Item_func::MULT_EQUAL_FUNC)
   {
     item_equal= (Item_equal *) cond;
     item_equal->sort(&compare_fields_by_table_order, table_join_idx);
+    cond_equal= item_equal->upper_levels;
     if (cond_equal && cond_equal->current_level.head() == item_equal)
-      cond_equal= 0;
+      cond_equal= cond_equal->upper_levels;
     cond= eliminate_item_equal(0, cond_equal, item_equal);
     return cond ? cond : org_cond;
   }
@@ -13272,7 +13361,8 @@ void optimize_wo_join_buffering(JOIN *join, uint first_tab, uint last_tab,
 
 
 static COND *
-optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
+optimize_cond(JOIN *join, COND *conds, 
+              List<TABLE_LIST> *join_list, bool ignore_on_conds,
               Item::cond_result *cond_value, COND_EQUAL **cond_equal)
 {
   THD *thd= join->thd;
@@ -13281,7 +13371,9 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
   if (!conds)
   {
     *cond_value= Item::COND_TRUE;
-    build_equal_items(join->thd, NULL, NULL, join_list, cond_equal);
+    if (!ignore_on_conds)
+      build_equal_items(join, NULL, NULL, join_list, ignore_on_conds,
+                        cond_equal);
   }  
   else
   {
@@ -13294,7 +13386,8 @@ optimize_cond(JOIN *join, COND *conds, List<TABLE_LIST> *join_list,
       multiple equality contains a constant.
     */ 
     DBUG_EXECUTE("where", print_where(conds, "original", QT_ORDINARY););
-    conds= build_equal_items(join->thd, conds, NULL, join_list, cond_equal);
+    conds= build_equal_items(join, conds, NULL, join_list, ignore_on_conds,
+                             cond_equal);
      DBUG_EXECUTE("where",print_where(conds,"after equal_items", QT_ORDINARY););
 
     /* change field = field to field = const for each found field = const */
@@ -13350,7 +13443,61 @@ internal_remove_eq_conds(THD *thd, COND *cond, Item::cond_result *cond_value)
 	li.remove();
       else if (item != new_item)
       {
-	(void) li.replace(new_item);
+        if (and_level)
+	{
+          /*
+            Take a special care of multiple equality predicates
+            that may be part of 'cond' and 'new_item'.
+            Those multiple equalities that have common members
+            must be merged.
+	  */  
+          Item_cond_and *cond_and= (Item_cond_and *) cond;
+          List<Item_equal> *cond_equal_items=
+            &cond_and->cond_equal.current_level;
+          List<Item> *cond_and_list= cond_and->argument_list();
+
+          if (new_item->type() == Item::COND_ITEM && 
+              ((Item_cond*) new_item)->functype() == Item_func::COND_AND_FUNC)
+          {
+            Item_cond_and *new_item_and= (Item_cond_and *) new_item;
+            List<Item_equal> *new_item_equal_items=
+              &new_item_and->cond_equal.current_level;
+            List<Item> *new_item_and_list= new_item_and->argument_list();
+            cond_and_list->disjoin((List<Item>*) cond_equal_items);
+            new_item_and_list->disjoin((List<Item>*) new_item_equal_items);
+            Item_equal *equal_item;
+            List_iterator<Item_equal> it(*new_item_equal_items);
+	    while ((equal_item= it++))
+	    {
+              equal_item->merge_into_list(cond_equal_items);
+            }
+            if (new_item_and_list->is_empty())
+              li.remove();
+            else
+              li.replace(*new_item_and_list);
+            cond_and_list->concat((List<Item>*) cond_equal_items); 
+          }
+          else if (new_item->type() == Item::FUNC_ITEM && 
+                   ((Item_cond*) new_item)->functype() ==
+                   Item_func::MULT_EQUAL_FUNC)
+	  {
+            cond_and_list->disjoin((List<Item>*) cond_equal_items);
+            ((Item_equal *) new_item)->merge_into_list(cond_equal_items);
+            li.remove();
+            cond_and_list->concat((List<Item>*) cond_equal_items); 
+          }
+          else
+            li.replace(new_item);
+        }
+        else
+	{ 
+          if (new_item->type() == Item::COND_ITEM &&
+              ((Item_cond*) new_item)->functype() == 
+              ((Item_cond*) cond)->functype())
+            li.replace(*((Item_cond*) new_item)->argument_list());
+	  else
+            li.replace(new_item);
+        } 
 	should_fix_fields=1;
       }
       if (*cond_value == Item::COND_UNDEF)

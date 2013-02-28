@@ -1204,6 +1204,64 @@ drop table t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # MDEV-765 lp:825075 - Wrong result with GROUP BY + multipart key + MIN/MAX loose scan
+--echo #
+
+CREATE TABLE t1 (a varchar(1), b varchar(1), KEY (b,a));
+INSERT INTO t1 VALUES
+('0',NULL),('9',NULL),('8','c'),('4','d'),('7','d'),(NULL,'f'),
+('7','f'),('8','g'),(NULL,'j');
+
+explain
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+SELECT max(a) , b FROM t1 WHERE a IS NULL OR b = 'z' GROUP BY b; 
+
+explain
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a = '7' OR b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a = b OR b = 'd' OR b is NULL) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > ('0' = b) AND b = 'z' GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE a > '0' AND (b < (a = '7')) GROUP BY b;
+
+explain
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+SELECT b, min(a) FROM t1 WHERE (a > '0' AND (a > '1' OR b = 'd')) GROUP BY b;
+
+drop table t1;
+
+--echo #
+--echo # MDEV-4140 Wrong result with GROUP BY + multipart key + MIN/MAX loose scan and a subquery
+--echo #
+
+CREATE TABLE t1 (a int, b int, KEY (b, a)) ;
+INSERT INTO t1 VALUES (0,99),(9,99),(4,0),(7,0),(99,0),(7,0),(8,0),(99,0),(1,0);
+CREATE TABLE t2 (c int) ;
+INSERT INTO t2 VALUES (0),(1);
+
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > 0 GROUP BY b;
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT c FROM t2 WHERE c = 0 ) GROUP BY b;
+# this test is for 5.5 to ensure that the subquery is expensive
+EXPLAIN
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+SELECT MIN(a), b FROM t1 WHERE a > ( SELECT min(c) FROM t2, t1 t1a, t1 t1b WHERE c = 0 ) GROUP BY b;
+
+drop table t1, t2;
+
+--echo End of 5.3 tests
 
 --echo #
 --echo # WL#3220 (Loose index scan for COUNT DISTINCT)
@@ -1342,4 +1400,3 @@ explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
  
 drop table t1;
 --echo # End of test#50539.
-
