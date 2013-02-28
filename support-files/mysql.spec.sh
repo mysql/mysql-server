@@ -30,7 +30,7 @@
 %define mysqld_group    mysql
 %define mysqldatadir    /var/lib/mysql
 
-%define release         1
+%define release         2
 
 #
 # Macros we use which are not available in all supported versions of RPM
