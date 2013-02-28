@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -402,7 +402,7 @@ my $print_defaults;
 
 if ( $opt->{srcdir} and $opt->{basedir} )
 {
-  error("Specify either --basedir or --srcdir, not both");
+  error($opt,"Specify either --basedir or --srcdir, not both");
 }
 if ( $opt->{srcdir} )
 {
@@ -440,8 +440,8 @@ if (-e $copy_cfg_file)
   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
   # Too early to print warning here, the user may not notice
 }
-open (TEMPL, $cfg_template) or error("Could not open config template");
-open (CFG, "> $copy_cfg_file") or error("Could not open config file");
+open (TEMPL, $cfg_template) or error($opt,"Could not open config template $cfg_template");
+open (CFG, "> $copy_cfg_file") or error($opt,"Could not write to config file $copy_cfg_file");
 while (<TEMPL>)
 {
   # Remove lines beginning with # *** which are template comments
