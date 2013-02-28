@@ -785,7 +785,17 @@ public:
     complete fix_fields() procedure.
   */
   inline void quick_fix_field() { fixed= 1; }
-  /* Function returns 1 on overflow and -1 on fatal errors */
+
+  /**
+    Save the item into a field but do not emit any warnings.
+
+    @param field         field to save the item into
+    @param no_coversions whether or not to allow conversions of the value
+
+    @return the status from saving into the field
+      @retval TYPE_OK    item saved without any issues
+      @retval != TYPE_OK there were issues saving the item
+  */
   type_conversion_status save_in_field_no_warnings(Field *field,
                                                    bool no_conversions);
   /**

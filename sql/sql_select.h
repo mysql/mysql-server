@@ -1178,11 +1178,11 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   {
   case TYPE_OK:
     return store_key::STORE_KEY_OK;
+  case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
-  case TYPE_NOTE_TRUNCATED:
-  case TYPE_WARN_TRUNCATED:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:
