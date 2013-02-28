@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 */
 
 extern bool pfs_initialized;
-extern ulonglong pfs_allocated_memory;
+extern size_t pfs_allocated_memory;
 
 void *pfs_malloc(size_t size, myf flags);
 #define PFS_MALLOC_ARRAY(n, T, f) \
