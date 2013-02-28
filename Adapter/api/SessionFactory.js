@@ -75,9 +75,19 @@ SessionFactory.prototype.close = function(user_callback) {
 
 
 SessionFactory.prototype.closeSession = function(index, session) {
-  // TODO put session back into pool
   this.sessions[index] = null;
 };
 
+
+SessionFactory.prototype.getOpenSessions = function() {
+  var result = [];
+  var i;
+  for (i = 0; i < this.sessions.length; ++i) {
+    if (this.sessions[i]) {
+      result.push(this.sessions[i]);
+    }
+  }
+  return result;
+};
 
 exports.SessionFactory = SessionFactory;
