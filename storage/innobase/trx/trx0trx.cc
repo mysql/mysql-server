@@ -46,6 +46,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "srv0mon.h"
 #include "ut0vec.h"
+#include "ut0pool.h"
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
@@ -53,6 +54,8 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	pools_mutex_key;
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_undo_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -84,23 +87,14 @@ trx_set_detailed_error_from_file(
 }
 
 /****************************************************************//**
-Creates and initializes a transaction object. It must be explicitly
-started with trx_start_if_not_started() before using it. The default
-isolation level is TRX_ISO_REPEATABLE_READ.
-@return transaction instance, should never be NULL */
+Initializes a transaction object. It must be explicitly started with
+trx_start_if_not_started() before using it. The default isolation level
+is TRX_ISO_REPEATABLE_READ.
+@param trx_t	Transaction instance to initialise */
 static
-trx_t*
-trx_create(void)
-/*============*/
+void
+trx_initialise(trx_t* trx)
 {
-	trx_t*		trx;
-	mem_heap_t*	heap;
-	ib_alloc_t*	heap_alloc;
-
-	trx = static_cast<trx_t*>(mem_zalloc(sizeof(*trx)));
-
-	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
-
 	trx->magic_n = TRX_MAGIC_N;
 
 	trx->state = TRX_STATE_NOT_STARTED;
@@ -115,8 +109,6 @@ trx_create(void)
 	trx->check_unique_secondary = TRUE;
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 
 	trx->error_state = DB_SUCCESS;
 
@@ -133,75 +125,40 @@ trx_create(void)
 
 	trx->op_info = "";
 
+	mem_heap_t*	heap;
+	ib_alloc_t*	heap_alloc;
+
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	/* Remember to free the vector explicitly in trx_free(). */
 	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
 
+
 	/* Remember to free the vector explicitly in trx_free(). */
 	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
+
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
-	return(trx);
+	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
 }
 
 /********************************************************************//**
-Creates a transaction object for background operations by the master thread.
-@return	own: transaction object */
-UNIV_INTERN
-trx_t*
-trx_allocate_for_background(void)
-/*=============================*/
-{
-	trx_t*	trx;
-
-	trx = trx_create();
-
-	trx->sess = trx_dummy_sess;
-
-	return(trx);
-}
-
-/********************************************************************//**
-Creates a transaction object for MySQL.
-@return	own: transaction object */
-UNIV_INTERN
-trx_t*
-trx_allocate_for_mysql(void)
-/*========================*/
-{
-	trx_t*	trx;
-
-	trx = trx_allocate_for_background();
-
-	mutex_enter(&trx_sys->mutex);
-
-	ut_d(trx->in_mysql_trx_list = TRUE);
-	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
-
-	mutex_exit(&trx_sys->mutex);
-
-	return(trx);
-}
-
-/********************************************************************//**
-Frees a transaction object. */
+Release resources held by the transaction object.
+@param trx	the transaction for which to release resources */
 static
 void
-trx_free(
-/*=====*/
-	trx_t*	trx)	/*!< in, own: trx object */
+trx_release(
+	trx_t*		trx)
 {
 	ut_a(trx->magic_n == TRX_MAGIC_N);
 	ut_ad(!trx->in_ro_trx_list);
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx->in_mysql_trx_list);
-
-	mutex_free(&trx->undo_mutex);
 
 	if (trx->undo_no_arr != NULL) {
 		trx_undo_arr_free(trx->undo_no_arr);
@@ -234,8 +191,114 @@ trx_free(
 	}
 
 	mutex_free(&trx->mutex);
+	mutex_free(&trx->undo_mutex);
+}
 
-	mem_free(trx);
+/** For initialising the trx_t instance that we get from the pool. */
+struct TrxFactory {
+
+	static void init(trx_t* trx)
+	{
+		trx_initialise(trx);
+	}
+
+	static void destroy(trx_t* trx)
+	{
+		trx_release(trx);
+	}
+};
+
+typedef PoolManager<Pool<trx_t, TrxFactory> > trx_pool_t;
+static trx_pool_t* trx_pool;
+static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
+
+/** Create the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_init()
+{
+	trx_pool = new trx_pool_t(MAX_TRX_BLOCK_SIZE);
+
+	trx_pool->add_pool();
+}
+
+/** Destroy the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_close()
+{
+	delete trx_pool;
+
+	trx_pool = 0;
+}
+
+static
+trx_t*
+trx_create_low()
+{
+	trx_t*	trx = trx_pool->get();
+
+	ut_a(trx->state == TRX_STATE_NOT_STARTED);
+
+	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
+
+	ut_a(!trx->read_only);
+
+	return(trx);
+}
+
+static
+void
+trx_free(trx_t*& trx)
+{
+	ut_a(trx->state == TRX_STATE_NOT_STARTED);
+
+	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
+
+	ut_a(!trx->read_only);
+
+	trx->mysql_thd = 0;
+
+	trx_pool->free(trx);
+}
+
+/********************************************************************//**
+Creates a transaction object for background operations by the master thread.
+@return	own: transaction object */
+UNIV_INTERN
+trx_t*
+trx_allocate_for_background(void)
+/*=============================*/
+{
+	trx_t*	trx;
+
+	trx = trx_create_low();
+
+	trx->sess = trx_dummy_sess;
+
+	return(trx);
+}
+
+/********************************************************************//**
+Creates a transaction object for MySQL.
+@return	own: transaction object */
+UNIV_INTERN
+trx_t*
+trx_allocate_for_mysql(void)
+/*========================*/
+{
+	trx_t*	trx;
+
+	trx = trx_allocate_for_background();
+
+	mutex_enter(&trx_sys->mutex);
+
+	ut_d(trx->in_mysql_trx_list = TRUE);
+	UT_LIST_ADD_FIRST(mysql_trx_list, trx_sys->mysql_trx_list, trx);
+
+	mutex_exit(&trx_sys->mutex);
+
+	return(trx);
 }
 
 /********************************************************************//**
@@ -280,6 +343,8 @@ trx_free_for_background(
 	ut_a(trx->update_undo == NULL);
 	ut_a(trx->read_view == NULL);
 
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
 	trx_free(trx);
 }
 
@@ -304,6 +369,8 @@ trx_free_prepared(
 
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
+
+	trx->state = TRX_STATE_NOT_STARTED;
 
 	trx_free(trx);
 }

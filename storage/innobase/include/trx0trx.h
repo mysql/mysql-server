@@ -459,6 +459,17 @@ trx_assign_rseg(
 /*============*/
 	trx_t*		trx);		/*!< A read-only transaction that
 					needs to be assigned a RBS. */
+
+/** Create the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_init();
+
+/** Destroy the trx_t pool */
+UNIV_INTERN
+void
+trx_pool_close();
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
