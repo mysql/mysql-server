@@ -4658,12 +4658,16 @@ loop:
 
 			lock_mutex_exit_kernel();
 
-			mtr_start(&mtr);
+			if (srv_show_verbose_locks) {
+				mtr_start(&mtr);
 
-			buf_page_get_with_no_latch(space, zip_size,
-						   page_no, &mtr);
+				buf_page_get_gen(space, zip_size, page_no,
+						 RW_NO_LATCH, NULL,
+						 BUF_GET_POSSIBLY_FREED,
+						 __FILE__, __LINE__, &mtr);
 
-			mtr_commit(&mtr);
+				mtr_commit(&mtr);
+			}
 
 			load_page_first = FALSE;
 

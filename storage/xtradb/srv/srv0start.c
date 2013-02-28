@@ -1155,6 +1155,11 @@ void
 init_log_online(void)
 /*=================*/
 {
+	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
+		srv_track_changed_pages = FALSE;
+		return;
+	}
+
 	if (srv_track_changed_pages) {
 
 		log_online_read_init();

@@ -626,7 +626,7 @@ page_copy_rec_list_end(
 		Furthermore, btr_compress() may set FIL_PAGE_PREV to
 		FIL_NULL on new_page while leaving it intact on
 		new_page_zip.  So, we cannot validate new_page_zip. */
-		ut_a(page_zip_validate_low(page_zip, page, TRUE));
+		ut_a(page_zip_validate_low(page_zip, page, index, TRUE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 	ut_ad(buf_block_get_frame(block) == page);
@@ -796,8 +796,8 @@ zip_reorganize:
 			/* Before copying, "ret" was the predecessor
 			of the predefined supremum record.  If it was
 			the predefined infimum record, then it would
-			still be the infimum.  Thus, the assertion
-			ut_a(ret_pos > 0) would fail here. */
+			still be the infimum, and we would have
+			ret_pos == 0. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -946,7 +946,7 @@ page_delete_rec_list_end(
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page));
+	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
@@ -988,7 +988,7 @@ page_delete_rec_list_end(
 						  ULINT_UNDEFINED, &heap);
 			rec = rec_get_next_ptr(rec, TRUE);
 #ifdef UNIV_ZIP_DEBUG
-			ut_a(page_zip_validate(page_zip, page));
+			ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 			page_cur_delete_rec(&cur, index, offsets, mtr);
 		} while (page_offset(rec) != PAGE_NEW_SUPREMUM);
@@ -1052,6 +1052,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_new(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	} else {
 		rec_t*	rec2	= rec;
@@ -1067,6 +1068,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_old(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	}
 
@@ -1126,7 +1128,8 @@ page_delete_rec_list_start(
 		between btr_attach_half_pages() and insert_page = ...
 		when btr_page_get_split_rec_to_left() holds
 		(direction == FSP_DOWN). */
-		ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
+		ut_a(!page_zip
+		     || page_zip_validate_low(page_zip, page, index, TRUE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -1197,9 +1200,10 @@ page_move_rec_list_end(
 			= buf_block_get_page_zip(block);
 		ut_a(!new_page_zip == !page_zip);
 		ut_a(!new_page_zip
-		     || page_zip_validate(new_page_zip, new_page));
+		     || page_zip_validate(new_page_zip, new_page, index));
 		ut_a(!page_zip
-		     || page_zip_validate(page_zip, page_align(split_rec)));
+		     || page_zip_validate(page_zip, page_align(split_rec),
+					  index));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -1470,6 +1474,10 @@ page_rec_get_nth_const(
 	ulint			i;
 	ulint			n_owned;
 	const rec_t*		rec;
+
+	if (nth == 0) {
+		return(page_get_infimum_rec(page));
+	}
 
 	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 

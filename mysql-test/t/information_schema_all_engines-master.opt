@@ -2,9 +2,10 @@
 --loose-innodb-buffer-pool-pages
 --loose-innodb-buffer-pool-pages-blob
 --loose-innodb-buffer-pool-pages-index
+--loose-innodb-changed-pages
 --loose-innodb-cmp
---loose-innodb-cmpmem-reset
 --loose-innodb-cmp-reset
+--loose-innodb-cmpmem-reset
 --loose-innodb-index-stats
 --loose-innodb-lock-waits
 --loose-innodb-rseg

@@ -235,7 +235,8 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
-	if(sync) {
+
+	if (sync) {
 		thd_wait_end(NULL);
 	}
 

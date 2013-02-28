@@ -903,7 +903,7 @@ dict_index_get_nth_col_no(
 Looks for column n in an index.
 @return position in internal representation of the index;
 ULINT_UNDEFINED if not contained */
-UNIV_INLINE
+UNIV_INTERN
 ulint
 dict_index_get_nth_col_pos(
 /*=======================*/
