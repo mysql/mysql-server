@@ -103,7 +103,7 @@ UNIV_INTERN ulong	zip_pad_max = 50;
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_online_log_key;
-UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -901,7 +901,7 @@ dict_init(void)
 	}
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
-		rw_lock_create(dict_table_stats_latch_key,
+		rw_lock_create(dict_table_stats_key,
 			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
@@ -1465,7 +1465,7 @@ dict_table_rename_in_cache(
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &type)
 		    && exists
-		    && !os_file_delete_if_exists(innodb_file_temp_key,
+		    && !os_file_delete_if_exists(innodb_temp_file_key,
 						 filepath, NULL)) {
 
 			ib_logf(IB_LOG_LEVEL_INFO,
