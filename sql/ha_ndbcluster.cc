@@ -3401,12 +3401,12 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
     if (!(scanOp->lockCurrentTuple(trans, m_ndb_record,
                                    dummy_row, empty_mask)))
     {
-      m_lock_tuple= FALSE;
+      m_lock_tuple= false;
       ERR_RETURN(trans->getNdbError());
     }
     m_thd_ndb->m_unsent_bytes+=12;
+    m_lock_tuple= false;
   }
-  m_lock_tuple= FALSE;
   DBUG_RETURN(0);
 }
 
