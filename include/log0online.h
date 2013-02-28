@@ -41,23 +41,51 @@ typedef struct log_bitmap_iterator_struct log_bitmap_iterator_t;
 Initializes the online log following subsytem. */
 UNIV_INTERN
 void
-log_online_read_init();
-/*===================*/
+log_online_read_init(void);
+/*=======================*/
 
 /*********************************************************************//**
 Shuts down the online log following subsystem. */
 UNIV_INTERN
 void
-log_online_read_shutdown();
-/*=======================*/
+log_online_read_shutdown(void);
+/*===========================*/
 
 /*********************************************************************//**
 Reads and parses the redo log up to last checkpoint LSN to build the changed
-page bitmap which is then written to disk.  */
+page bitmap which is then written to disk.
+
+@return TRUE if log tracking succeeded, FALSE if bitmap write I/O error */
 UNIV_INTERN
-void
-log_online_follow_redo_log();
-/*=========================*/
+ibool
+log_online_follow_redo_log(void);
+/*=============================*/
+
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == 0 (i.e. set by RESET request) or
+IB_ULONGLONG_MAX, restart the bitmap file sequence, otherwise
+continue it.
+
+@return FALSE to indicate success, TRUE for failure. */
+UNIV_INTERN
+ibool
+log_online_purge_changed_page_bitmaps(
+/*==================================*/
+	ib_uint64_t lsn);	/*!<in: LSN to purge files up to */
+
+/************************************************************//**
+Delete all the bitmap files for data less than the specified LSN.
+If called with lsn == 0 (i.e. set by RESET request) or
+IB_ULONGLONG_MAX, restart the bitmap file sequence, otherwise
+continue it.
+
+@return FALSE to indicate success, TRUE for failure. */
+UNIV_INTERN
+ibool
+log_online_purge_changed_page_bitmaps(
+/*==================================*/
+	ib_uint64_t lsn);	/*!<in: LSN to purge files up to */
 
 #define LOG_BITMAP_ITERATOR_START_LSN(i) \
 	((i).start_lsn)

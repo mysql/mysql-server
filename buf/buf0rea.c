@@ -220,7 +220,10 @@ not_to_recover:
 
 	ut_ad(buf_page_in_file(bpage));
 
-	thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	if(sync) {
+		thd_wait_begin(NULL, THD_WAIT_DISKIO);
+	}
+
 	if (zip_size) {
 		*err = _fil_io(OS_FILE_READ | wake_later,
 			      sync, space, zip_size, offset, 0, zip_size,
@@ -232,7 +235,10 @@ not_to_recover:
 			      sync, space, 0, offset, 0, UNIV_PAGE_SIZE,
 			      ((buf_block_t*) bpage)->frame, bpage, trx);
 	}
-	thd_wait_end(NULL);
+
+	if (sync) {
+		thd_wait_end(NULL);
+	}
 
 	if (*err == DB_TABLESPACE_DELETED) {
 		buf_read_page_handle_error(bpage);

@@ -958,7 +958,7 @@ buf_block_set_file_page(
 	ulint			space,	/*!< in: tablespace id */
 	ulint			page_no);/*!< in: page number */
 /*********************************************************************//**
-Gets the io_fix state of a block.
+Gets the io_fix state of a block.  Requires that the block mutex is held.
 @return	io_fix state */
 UNIV_INLINE
 enum buf_io_fix
@@ -967,12 +967,32 @@ buf_page_get_io_fix(
 	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 /*********************************************************************//**
-Gets the io_fix state of a block.
+Gets the io_fix state of a block.  Does not assert that the block mutex is
+held, to be used in the cases where it is safe not to hold it.
+@return	io_fix state */
+UNIV_INLINE
+enum buf_io_fix
+buf_page_get_io_fix_unlocked(
+/*=========================*/
+	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
+	__attribute__((pure));
+/*********************************************************************//**
+Gets the io_fix state of a block.  Requires that the block mutex is held.
 @return	io_fix state */
 UNIV_INLINE
 enum buf_io_fix
 buf_block_get_io_fix(
 /*================*/
+	const buf_block_t*	block)	/*!< in: pointer to the control block */
+	__attribute__((pure));
+/*********************************************************************//**
+Gets the io_fix state of a block.  Does not assert that the block mutex is
+held, to be used in the cases where it is safe not to hold it.
+@return	io_fix state */
+UNIV_INLINE
+enum buf_io_fix
+buf_block_get_io_fix_unlocked(
+/*==========================*/
 	const buf_block_t*	block)	/*!< in: pointer to the control block */
 	__attribute__((pure));
 /*********************************************************************//**

@@ -89,6 +89,7 @@ extern mysql_pfs_key_t	hash_table_mutex_key;
 extern mysql_pfs_key_t	ibuf_bitmap_mutex_key;
 extern mysql_pfs_key_t	ibuf_mutex_key;
 extern mysql_pfs_key_t	ibuf_pessimistic_insert_mutex_key;
+extern mysql_pfs_key_t	log_bmp_sys_mutex_key;
 extern mysql_pfs_key_t	log_sys_mutex_key;
 extern mysql_pfs_key_t	log_flush_order_mutex_key;
 extern mysql_pfs_key_t	kernel_mutex_key;
@@ -672,6 +673,7 @@ or row lock! */
 #define	SYNC_TRX_LOCK_HEAP	298
 #define SYNC_TRX_SYS_HEADER	290
 #define	SYNC_PURGE_QUEUE	200
+#define SYNC_LOG_ONLINE		175
 #define SYNC_LOG		170
 #define SYNC_LOG_FLUSH_ORDER	156
 #define SYNC_RECV		168

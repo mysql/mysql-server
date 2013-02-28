@@ -190,6 +190,8 @@ extern ulint	os_n_file_reads;
 extern ulint	os_n_file_writes;
 extern ulint	os_n_fsyncs;
 
+#define OS_MIN_LOG_BLOCK_SIZE 512
+
 extern ulint	srv_log_block_size;
 
 #ifdef UNIV_PFS_IO

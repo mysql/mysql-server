@@ -156,9 +156,10 @@ page_zip_validate_low(
 /*==================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
 	const page_t*		page,	/*!< in: uncompressed page */
+	const dict_index_t*	index,	/*!< in: index of the page, if known */
 	ibool			sloppy)	/*!< in: FALSE=strict,
 					TRUE=ignore the MIN_REC_FLAG */
-	__attribute__((nonnull));
+	__attribute__((nonnull(1,2)));
 /**********************************************************************//**
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
@@ -166,8 +167,9 @@ ibool
 page_zip_validate(
 /*==============*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page)	/*!< in: uncompressed page */
-	__attribute__((nonnull));
+	const page_t*		page,	/*!< in: uncompressed page */
+	const dict_index_t*	index)	/*!< in: index of the page, if known */
+	__attribute__((nonnull(1,2)));
 #endif /* UNIV_ZIP_DEBUG */
 
 /**********************************************************************//**
