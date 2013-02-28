@@ -3072,9 +3072,9 @@ int select_dumpvar::send_data(List<Item> &items)
     else
     {
       Item_func_set_user_var *suv= new Item_func_set_user_var(mv->s, item);
+      suv->save_item_result(item);
       if (suv->fix_fields(thd, 0))
         DBUG_RETURN (1);
-      suv->save_item_result(item);
       if (suv->update())
         DBUG_RETURN (1);
     }

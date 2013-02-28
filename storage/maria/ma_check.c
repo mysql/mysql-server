@@ -3977,8 +3977,8 @@ int maria_repair_by_sort(HA_CHECK *param, register MARIA_HA *info,
 
   if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
-    my_off_t skr= (share->state.state.data_file_length +
-                   (sort_info.org_data_file_type == COMPRESSED_RECORD) ?
+    my_off_t skr= share->state.state.data_file_length +
+                   ((sort_info.org_data_file_type == COMPRESSED_RECORD) ?
                    MEMMAP_EXTRA_MARGIN : 0);
 #ifdef USE_RELOC
     if (sort_info.org_data_file_type == STATIC_RECORD &&
@@ -4499,8 +4499,8 @@ int maria_repair_parallel(HA_CHECK *param, register MARIA_HA *info,
 
   if (rep_quick && (param->testflag & T_FORCE_UNIQUENESS))
   {
-    my_off_t skr= (share->state.state.data_file_length +
-                   (sort_info.org_data_file_type == COMPRESSED_RECORD) ?
+    my_off_t skr= share->state.state.data_file_length +
+                   ((sort_info.org_data_file_type == COMPRESSED_RECORD) ?
                    MEMMAP_EXTRA_MARGIN : 0);
 #ifdef USE_RELOC
     if (sort_info.org_data_file_type == STATIC_RECORD &&

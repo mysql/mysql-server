@@ -901,6 +901,7 @@ static int test_if_case_insensitive(const char *dir_name);
 static void register_mutex_order();
 
 #ifndef EMBEDDED_LIBRARY
+static bool pid_file_created= false;
 static void usage(void);
 static void start_signal_handler(void);
 static void close_server_sock();
@@ -909,6 +910,7 @@ static void wait_for_signal_thread_to_end(void);
 static void create_pid_file();
 static void end_ssl();
 #endif
+static void delete_pid_file(myf flags);
 
 
 #ifndef EMBEDDED_LIBRARY
@@ -1395,7 +1397,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   item_create_cleanup();
   set_var_free();
-  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1450,15 +1451,13 @@ void clean_up(bool print_message)
 #ifdef USE_REGEX
   my_regex_end();
 #endif
+  free_charsets();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#if !defined(EMBEDDED_LIBRARY)
-  if (!opt_bootstrap)
-    (void) my_delete(pidfile_name,MYF(0));	// This may not always exist
-#endif
+  delete_pid_file(MYF(0));
   if (print_message && errmesg && server_start_time)
     sql_print_information(ER(ER_SHUTDOWN_COMPLETE),my_progname);
   thread_scheduler.end();
@@ -2092,7 +2091,7 @@ static bool cache_thread()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= thd->start_utime= my_micro_time();
       threads.append(thd);
       return(1);
     }
@@ -4594,9 +4593,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     (void) pthread_kill(signal_thread, MYSQL_KILL_SIGNAL);
 #endif /* __NETWARE__ */
 
-    if (!opt_bootstrap)
-      (void) my_delete(pidfile_name,MYF(MY_WME));	// Not needed anymore
-
+    delete_pid_file(MYF(MY_WME));
     if (unix_sock != INVALID_SOCKET)
       unlink(mysqld_unix_port);
     exit(1);
@@ -9667,12 +9664,13 @@ static void create_pid_file()
   if ((file = my_create(pidfile_name,0664,
 			O_WRONLY | O_TRUNC, MYF(MY_WME))) >= 0)
   {
-    char buff[21], *end;
+    char buff[MAX_BIGINT_WIDTH + 1], *end;
     end= int10_to_str((long) getpid(), buff, 10);
     *end++= '\n';
     if (!my_write(file, (uchar*) buff, (uint) (end-buff), MYF(MY_WME | MY_NABP)))
     {
       (void) my_close(file, MYF(0));
+      pid_file_created= true;
       return;
     }
     (void) my_close(file, MYF(0));
@@ -9681,6 +9679,26 @@ static void create_pid_file()
   exit(1);
 }
 #endif /* EMBEDDED_LIBRARY */
+
+
+/**
+  Remove the process' pid file.
+  
+  @param  flags  file operation flags
+*/
+
+static void delete_pid_file(myf flags)
+{
+#ifndef EMBEDDED_LIBRARY
+  if (opt_bootstrap || !pid_file_created)
+    return;
+
+  my_delete(pidfile_name, flags);
+  pid_file_created= false;
+#endif /* EMBEDDED_LIBRARY */
+  return;
+}
+
 
 /** Clear most status variables. */
 void refresh_status(THD *thd)
