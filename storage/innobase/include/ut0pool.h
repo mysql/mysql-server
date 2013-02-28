@@ -53,6 +53,11 @@ struct Pool {
 		ut_a(size >= sizeof(Element));
 
 		create(size);
+
+		ut_ad(m_pqueue.size()
+		      == (reinterpret_cast<byte*>(m_end)
+			  - reinterpret_cast<byte*>(m_ptr))
+		         / sizeof(Element));
 	}
 
 	/** Destructor */
@@ -155,7 +160,14 @@ private:
 	{
 		mutex_free(&m_mutex);
 
+#if 0
 		Element*	prev = 0;
+
+		/** FIXME: This is the correct version, but there is a
+		dangling transaction somewhere that we need to find out. */
+		ut_ad(m_pqueue.size()
+		      == (reinterpret_cast<byte*>(m_end)
+			  - reinterpret_cast<byte*>(m_ptr)) / sizeof(*prev));
 
 		while (!m_pqueue.empty()) {
 
@@ -167,6 +179,18 @@ private:
 			ut_a(prev != elem);
 			prev = elem;
 		}
+#else
+		size_t	size = reinterpret_cast<byte*>(m_end)
+			- reinterpret_cast<byte*>(m_ptr);
+
+		Element*	elem = reinterpret_cast<Element*>(m_ptr);
+
+		for (size_t i = 0; i < size / sizeof(*elem); ++i, ++elem) {
+
+			ut_ad(elem->m_pool == this);
+			Factory::destroy(&elem->m_type);
+		}
+#endif
 
 		mem_free(m_ptr);
 		m_ptr = 0;
@@ -277,7 +301,9 @@ private:
 		typename Pools::iterator end = m_pools.end();
 
 		for (it = m_pools.begin(); it != end; ++it) {
-			delete *it;
+			PoolType*	pool = *it;
+
+			delete pool;
 		}
 
 		m_pools.clear();

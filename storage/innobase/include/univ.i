@@ -243,6 +243,8 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
+#define UNIV_LIST_DEBUG
+
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
