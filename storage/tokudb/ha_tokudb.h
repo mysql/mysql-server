@@ -599,16 +599,16 @@ public:
  public:
 #endif
 #if TOKU_INCLUDE_ALTER_55
- public:
-    int add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys, handler_add_index **add);
-    int final_add_index(handler_add_index *add, bool commit);
-    int prepare_drop_index(TABLE *table_arg, uint *key_num, uint num_of_keys);
-    int final_drop_index(TABLE *table_arg);
-
-    bool is_alter_table_hot();
-    void prepare_for_alter();
-    int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
+public:
+    // Returns true of the 5.6 inplace alter table interface is used.
     bool try_hot_alter_table();
+
+    // We need a txn in the mysql_alter_table function to write new frm data, so this function
+    // gets called to sometimes create one.
+    void prepare_for_alter();
+
+    // Used by the partition storage engine to provide new frm data for the table.
+    int new_alter_table_frm_data(const uchar *frm_data, size_t frm_len);
 #endif
 
  private:

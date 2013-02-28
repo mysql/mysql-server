@@ -228,9 +228,6 @@ static int tokudb_commit_by_xid(handlerton* hton, XID* xid);
 static int tokudb_rollback_by_xid(handlerton* hton, XID*  xid);
 #endif
 
-#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
-static uint tokudb_alter_table_flags(uint flags);
-#endif
 static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint);
 static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoint);
@@ -389,9 +386,6 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->panic = tokudb_end;
     tokudb_hton->flush_logs = tokudb_flush_logs;
     tokudb_hton->show_status = tokudb_show_status;
-#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
-    tokudb_hton->alter_table_flags = tokudb_alter_table_flags;
-#endif
     if (!tokudb_home)
         tokudb_home = mysql_real_data_home;
     DBUG_PRINT("info", ("tokudb_home: %s", tokudb_home));
@@ -1772,18 +1766,6 @@ static void tokudb_cleanup_log_files(void) {
 
     DBUG_VOID_RETURN;
 }
-
-#if defined(HA_INPLACE_ADD_INDEX_NO_READ_WRITE)
-static uint tokudb_alter_table_flags(uint flags) {
-    return HA_INPLACE_ADD_INDEX_NO_READ_WRITE
-        |  HA_INPLACE_ADD_INDEX_NO_WRITE
-        |  HA_INPLACE_DROP_INDEX_NO_READ_WRITE
-        |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE
-        |  HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE
-        |  HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE;
-}
-#endif
-
 
 // options flags
 //   PLUGIN_VAR_THDLOCAL  Variable is per-connection
