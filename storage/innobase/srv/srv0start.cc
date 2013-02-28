@@ -2506,6 +2506,7 @@ innobase_shutdown_for_mysql(void)
 	/* 2. Make all threads created by InnoDB to exit */
 	srv_shutdown_all_bg_threads();
 
+
 	if (srv_monitor_file) {
 		fclose(srv_monitor_file);
 		srv_monitor_file = 0;
@@ -2538,6 +2539,7 @@ innobase_shutdown_for_mysql(void)
 	lock_sys_close();
 	trx_sys_file_format_close();
 	trx_sys_close();
+
 	trx_pool_close();
 
 	/* We don't create these mutexes in RO mode because we don't create
