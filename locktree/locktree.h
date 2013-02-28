@@ -8,6 +8,7 @@
 #define TOKU_LOCKTREE_H
 
 #include <db.h>
+#include <toku_time.h>
 #include <toku_pthread.h>
 
 #include <ft/fttypes.h>
@@ -18,6 +19,25 @@
 #include "txnid_set.h"
 #include "wfg.h"
 #include "range_buffer.h"
+
+enum {
+    LTM_SIZE_CURRENT = 0,
+    LTM_SIZE_LIMIT,
+    LTM_ESCALATION_COUNT,
+    LTM_ESCALATION_TIME,
+    LTM_ESCALATION_LATEST_RESULT,
+    LTM_NUM_LOCKTREES,
+    LTM_LOCK_REQUESTS_PENDING,
+    LTM_STO_NUM_ELIGIBLE,
+    LTM_STO_END_EARLY_COUNT,
+    LTM_STO_END_EARLY_TIME,
+    LTM_STATUS_NUM_ROWS
+};
+
+typedef struct {
+    bool initialized;
+    TOKU_ENGINE_STATUS_ROW_S status[LTM_STATUS_NUM_ROWS];
+} LTM_STATUS_S, *LTM_STATUS;
 
 namespace toku {
 
@@ -175,6 +195,8 @@ public:
         //            deterministicly trigger lock escalation.
         void run_escalation_for_test(void);
 
+        void get_status(LTM_STATUS status);
+
     private:
         static const uint64_t DEFAULT_MAX_LOCK_MEMORY = 64L * 1024 * 1024;
         static const uint64_t DEFAULT_LOCK_WAIT_TIME = 0;
@@ -183,6 +205,11 @@ public:
         uint64_t m_max_lock_memory;
         uint64_t m_current_lock_memory;
         memory_tracker m_mem_tracker;
+
+        // statistics about lock escalation.
+        uint64_t m_escalation_count;
+        tokutime_t m_escalation_time;
+        uint64_t m_escalation_latest_result;
 
         // lock wait time for blocking row locks, in ms
         uint64_t m_lock_wait_time_ms;
@@ -331,6 +358,10 @@ private:
     static const int STO_SCORE_THRESHOLD = 100;
     int m_sto_score;
 
+    // statistics about time spent ending the STO early
+    uint64_t m_sto_end_early_count;
+    tokutime_t m_sto_end_early_time;
+
     // effect: begins the single txnid optimizaiton, setting m_sto_txnid
     //         to the given txnid.
     // requires: m_sto_txnid is invalid
@@ -352,6 +383,7 @@ private:
     //         sto_score back to zero.
     // requires: m_sto_txnid is valid
     void sto_end_early(void *prepared_lkr);
+    void sto_end_early_no_accounting(void *prepared_lkr);
 
     // params: prepared_lkr is a void * to a prepared locked keyrange. we can't use
     //         the real type because the compiler won't allow us to forward declare

@@ -1781,10 +1781,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += LE_STATUS_NUM_ROWS;
     num_rows += CP_STATUS_NUM_ROWS;
     num_rows += CT_STATUS_NUM_ROWS;
-    // TODO: 5416 determine necessary locktree statistics
-#if 0
     num_rows += LTM_STATUS_NUM_ROWS;
-#endif
     num_rows += FT_STATUS_NUM_ROWS;
     num_rows += FT_FLUSHER_STATUS_NUM_ROWS;
     num_rows += FT_HOT_STATUS_NUM_ROWS;
@@ -1871,6 +1868,13 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             toku_cachetable_get_status(env->i->cachetable, &ctstat);
             for (int i = 0; i < CT_STATUS_NUM_ROWS && row < maxrows; i++) {
                 engstat[row++] = ctstat.status[i];
+            }
+        }
+        {
+            LTM_STATUS_S ltmstat;
+            env->i->ltm.get_status(&ltmstat);
+            for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
+                engstat[row++] = ltmstat.status[i];
             }
         }
         {

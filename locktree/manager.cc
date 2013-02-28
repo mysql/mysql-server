@@ -15,6 +15,9 @@ namespace toku {
 void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb, lt_escalate_cb escalate_cb, void *escalate_extra) {
     m_max_lock_memory = DEFAULT_MAX_LOCK_MEMORY;
     m_current_lock_memory = 0;
+    m_escalation_count = 0;
+    m_escalation_time = 0;
+    m_escalation_latest_result = 0;
     m_lock_wait_time_ms = DEFAULT_LOCK_WAIT_TIME;
     m_mem_tracker.set_manager(this);
 
@@ -216,6 +219,7 @@ void locktree::manager::run_escalation(void) {
     // doing so would require some layering hackery (or a callback)
     // and more complicated locking. for now, just escalate each
     // locktree individually, in-place.
+    tokutime_t t0 = toku_time_now();
     size_t num_locktrees = m_locktree_map.size();
     for (size_t i = 0; i < num_locktrees; i++) {
         locktree *lt;
@@ -223,6 +227,11 @@ void locktree::manager::run_escalation(void) {
         invariant_zero(r);
         lt->escalate(m_lt_escalate_callback, m_lt_escalate_callback_extra);
     }
+    tokutime_t t1 = toku_time_now();
+
+    m_escalation_count++;
+    m_escalation_time += (t1 - t0);
+    m_escalation_latest_result = m_current_lock_memory;
 }
 
 void locktree::manager::memory_tracker::set_manager(manager *mgr) {
@@ -259,5 +268,51 @@ void locktree::manager::memory_tracker::note_mem_released(uint64_t mem_released)
 bool locktree::manager::memory_tracker::out_of_locks(void) const {
     return m_mgr->m_current_lock_memory >= m_mgr->m_max_lock_memory;
 }
+
+#define STATUS_SET(s, k, t, n, l) \
+        s->status[k].keyname = #k; \
+        s->status[k].type    = t;  \
+        s->status[k].value.num = n; \
+        s->status[k].legend  = "locktree: " l;
+
+void locktree::manager::get_status(LTM_STATUS status) {
+    STATUS_SET(status, LTM_SIZE_CURRENT, UINT64, m_current_lock_memory,                     "memory size");
+    STATUS_SET(status, LTM_SIZE_LIMIT, UINT64, m_max_lock_memory,                           "memory size limit");
+    STATUS_SET(status, LTM_ESCALATION_COUNT, UINT64, m_escalation_count,                    "number of times lock escalation ran");
+    STATUS_SET(status, LTM_ESCALATION_TIME, TOKUTIME, m_escalation_time,                    "time spent running escalation (seconds)");
+    STATUS_SET(status, LTM_ESCALATION_LATEST_RESULT, UINT64, m_escalation_latest_result,    "latest post-escalation memory size");
+
+    mutex_lock();
+
+    uint64_t lock_requests_pending = 0;
+    uint64_t sto_num_eligible = 0;
+    uint64_t sto_end_early_count = 0;
+    tokutime_t sto_end_early_time = 0;
+
+    size_t num_locktrees = m_locktree_map.size();
+    for (size_t i = 0; i < num_locktrees; i++) {
+        locktree *lt;
+        int r = m_locktree_map.fetch(i, &lt);
+        invariant_zero(r);
+
+        toku_mutex_lock(&lt->m_lock_request_info.mutex);
+        lock_requests_pending += lt->get_lock_request_info()->pending_lock_requests.size();
+        toku_mutex_unlock(&lt->m_lock_request_info.mutex);
+
+        sto_num_eligible += lt->sto_txnid_is_valid_unsafe() ? 1 : 0;
+        sto_end_early_count += lt->m_sto_end_early_count;
+        sto_end_early_time += lt->m_sto_end_early_time;
+    }
+
+    mutex_unlock();
+
+    STATUS_SET(status, LTM_NUM_LOCKTREES, UINT64, num_locktrees,                            "number of locktrees open now");
+    STATUS_SET(status, LTM_LOCK_REQUESTS_PENDING, UINT64, lock_requests_pending,            "number of pending lock requests");
+    STATUS_SET(status, LTM_STO_NUM_ELIGIBLE, UINT64, sto_num_eligible,                      "number of locktrees eligible for the STO");
+    STATUS_SET(status, LTM_STO_END_EARLY_COUNT, UINT64, sto_end_early_count,                "number of times a locktree ended the STO early");
+    STATUS_SET(status, LTM_STO_END_EARLY_TIME, TOKUTIME, sto_end_early_time,                "time spent ending the STO early");
+}
+
+#undef STATUS_SET
 
 } /* namespace toku */

@@ -21,6 +21,9 @@ void manager_unit_test::test_create_destroy(void) {
 
     invariant(mgr.m_max_lock_memory == locktree::manager::DEFAULT_MAX_LOCK_MEMORY);
     invariant(mgr.m_current_lock_memory == 0);
+    invariant(mgr.m_escalation_count == 0);
+    invariant(mgr.m_escalation_time == 0);
+    invariant(mgr.m_escalation_latest_result == 0);
     invariant(mgr.m_lock_wait_time_ms == locktree::manager::DEFAULT_LOCK_WAIT_TIME);
 
     invariant(mgr.m_locktree_map.size() == 0);
