@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -211,17 +211,6 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
 #define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
 
-/**
-   If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
-   optimizer features (semijoin) will be available.
- */
-#define OPTIMIZER_SWITCH_ALL 1
-
-/* 
-  The following must be kept in sync with optimizer_switch string in 
-  sys_vars.cc.
-*/
-#ifdef OPTIMIZER_SWITCH_ALL
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
@@ -237,18 +226,6 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
                                   OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
                                   OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
-#else
-#define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_SORT_UNION | \
-                                  OPTIMIZER_SWITCH_INDEX_MERGE_INTERSECT | \
-                                  OPTIMIZER_SWITCH_ENGINE_CONDITION_PUSHDOWN |\
-                                  OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
-                                  OPTIMIZER_SWITCH_MRR | \
-                                  OPTIMIZER_SWITCH_MRR_COST_BASED | \
-                                  OPTIMIZER_SWITCH_BNL | \
-                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
-#endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
   use strictly more than 64 bits by adding one more define above, you should

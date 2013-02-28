@@ -111,6 +111,7 @@ static inline void item_set_cas(const void *cookie, item *it, uint64_t cas) {
 }
 
 volatile sig_atomic_t memcached_shutdown;
+volatile sig_atomic_t memcached_initialized;
 
 /*
  * We keep the current time of day in a global variable that's updated by a
@@ -6713,6 +6714,13 @@ static void shutdown_server(void) {
 }
 
 #ifdef INNODB_MEMCACHED
+bool initialize_complete(void)
+{
+    return(memcached_initialized == 1);
+}
+#endif
+
+#ifdef INNODB_MEMCACHED
 bool shutdown_complete(void)
 {
     return(memcached_shutdown == 2);
@@ -7020,6 +7028,8 @@ int main (int argc, char **argv) {
     int option_argc = 0;
     char** option_argv = NULL;
     eng_config_info_t my_eng_config;
+
+    memcached_initialized = 0;
 
     if (m_config->m_engine_library) {
 	engine = m_config->m_engine_library;
@@ -7892,6 +7902,8 @@ int main (int argc, char **argv) {
 
     /* Drop privileges no longer needed */
     drop_privileges();
+
+    memcached_initialized = 1;
 
     /* enter the event loop */
     event_base_loop(main_base, 0);

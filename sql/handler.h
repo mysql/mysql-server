@@ -2573,7 +2573,7 @@ public:
   uint max_keys() const
   {
     using std::min;
-    return min(MAX_KEY, max_supported_keys());
+    return min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {

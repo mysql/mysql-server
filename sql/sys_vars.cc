@@ -2066,10 +2066,8 @@ static const char *optimizer_switch_names[]=
   "index_merge_intersection", "engine_condition_pushdown",
   "index_condition_pushdown" , "mrr", "mrr_cost_based",
   "block_nested_loop", "batched_key_access",
-#ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-#endif
   "use_index_extensions", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
@@ -2078,10 +2076,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, "
        "index_condition_pushdown, mrr, mrr_cost_based"
-#ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-#endif
        ", block_nested_loop, batched_key_access, use_index_extensions"
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
