@@ -2922,7 +2922,7 @@ row_merge_file_create_low(void)
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_open_begin(&state, locker, innodb_file_temp_key,
+	register_pfs_file_open_begin(&state, locker, innodb_temp_file_key,
 				     PSI_FILE_OPEN,
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
