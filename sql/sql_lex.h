@@ -2396,6 +2396,12 @@ struct LEX: public Query_tables_list
   bool all_privileges;
   bool proxy_priv;
   bool is_change_password;
+  /*
+    Temporary variable to distinguish SET PASSWORD command from others
+    SQLCOM_SET_OPTION commands. Should be removed when WL#6409 is
+    introduced.
+  */
+  bool is_set_password_sql;
   bool contains_plaintext_password;
 
 private:
