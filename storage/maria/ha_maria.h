@@ -35,7 +35,6 @@ C_MODE_START
 ICP_RESULT index_cond_func_maria(void *arg);
 C_MODE_END
 
-extern ulong maria_sort_buffer_size;
 extern TYPELIB maria_recover_typelib;
 extern ulonglong maria_recover_options;
 
