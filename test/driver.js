@@ -111,28 +111,23 @@ Driver.prototype.reportResultsAndExit = function() {
   if(this.doStats) {
     require(path.join(api_dir, "stats")).peek();
   }
+
+  // exit after closing sessions
+  var onSessionFactoryClose = function() {
+    unified_debug.close();
+    process.exit(driver.result.failed.length > 0);      
+  };
+
+  // close all open sessions and exit
   sessionFactory = mynode.connect(global.test_conn_properties, null, function(err, sessionFactory) {
     if (err) {
       console.log('mynode.connect returned', err);
       unified_debug.close();
       process.exit(driver.result.failed.length > 0);      
     } else {
-      openSessions = sessionFactory.getOpenSessions();
+      sessionFactory.close(onSessionFactoryClose);
     }
-    var afterClose = function() {
-      // count the number of sessions that were closed
-      ++closedSessions;
-      if (closedSessions === openSessions.length) {
-        unified_debug.close();
-        process.exit(driver.result.failed.length > 0);
-      }
-    };
-    // close all open sessions
-    for (i = 0; i < openSessions.length; ++i) {
-      openSessions[i].close(afterClose);
-    }
-  });
-  
+  });  
 };
 
 //// END OF DRIVER
