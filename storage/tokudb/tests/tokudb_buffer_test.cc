@@ -144,6 +144,51 @@ static void test_replace_null() {
     a.append((void *)"?", 1);
 }
 
+namespace tokudb {
+    template size_t vlq_encode_ui(uint8_t, void *, size_t);
+    template size_t vlq_decode_ui(uint8_t *, void *, size_t);
+    template size_t vlq_encode_ui(uint32_t, void *, size_t);
+    template size_t vlq_decode_ui(uint32_t *, void *, size_t);
+};
+
+static void test_ui8() {
+    tokudb::buffer a;
+    for (uint8_t n = 0; ; n++) {
+        assert(a.append_ui<uint8_t>(n) != 0);
+        if (n == 255)
+            break;
+    }
+    tokudb::buffer b(a.data(), 0, a.size());
+    for (uint8_t n = 0; ; n++) {
+        uint8_t v;
+        if (b.consume_ui<uint8_t>(&v) == 0)
+            break;
+        assert(v == n);
+        if (n == 255)
+            break;
+    }
+    assert(b.size() == b.limit());
+}
+
+static void test_ui32() {
+    tokudb::buffer a;
+    for (uint32_t n = 0; ; n++) {
+        assert(a.append_ui<uint32_t>(n) != 0);
+        if (n == 1<<22)
+            break;
+    }
+    tokudb::buffer b(a.data(), 0, a.size());
+    for (uint32_t n = 0; ; n++) {
+        uint32_t v;
+        if (b.consume_ui<uint32_t>(&v) == 0)
+            break;
+        assert(v == n);
+        if (n == 1<<22)
+            break;
+    }
+    assert(b.size() == b.limit());
+}
+
 int main() {
     test_null();
     test_append();
@@ -153,5 +198,7 @@ int main() {
     test_replace_grow();
     test_replace_shrink();
     test_replace_null();
+    test_ui8();
+    test_ui32();
     return 0;
 }

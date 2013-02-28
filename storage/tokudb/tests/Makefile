@@ -2,7 +2,7 @@ SRCS = $(wildcard *.cc)
 TARGETS = $(patsubst %.cc,%,$(SRCS))
 CHECKS = $(patsubst %,%.check,$(TARGETS))
 CPPFLAGS = -I..
-CXXFLAGS = -g
+CXXFLAGS = -g -fno-implicit-templates
 
 ifeq ($(GCOV),1)
 CXXFLAGS += -fprofile-arcs -ftest-coverage

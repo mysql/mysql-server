@@ -33,10 +33,14 @@ public:
         memcpy(append_ptr(s), p, s);
     }
 
-    void append_uint32(uint32_t n) {
-        maybe_realloc(5);
-        size_t s = tokudb::vlq_encode_uint32(n, (char *) m_data + m_size, 5);
+    // Append an unsigned int to the buffer.
+    // Returns the number of bytes used to encode the number.
+    // Returns 0 if the number could not be encoded.
+    template<class T> size_t append_ui(T n) {
+        maybe_realloc(10); // 10 bytes is big enough for up to 64 bit number
+        size_t s = tokudb::vlq_encode_ui<T>(n, (char *) m_data + m_size, 10);
         m_size += s;
+        return s;
     }
 
     // Return a pointer to the next location in the buffer where bytes are consumed from.
@@ -53,11 +57,13 @@ public:
         memcpy(p, consume_ptr(s), s);
     }
 
-    uint32_t consume_uint32() {
-        uint32_t n;
-        size_t s = tokudb::vlq_decode_uint32(&n, (char *) m_data + m_size, m_limit - m_size);
+    // Consume an unsigned int from the buffer.
+    // Returns 0 if the unsigned int could not be decoded, probably because the buffer is too short.
+    // Otherwise return the number of bytes consumed, and stuffs the decoded number in *p.
+    template<class T> size_t consume_ui(T *p) {
+        size_t s = tokudb::vlq_decode_ui<T>(p, (char *) m_data + m_size, m_limit - m_size);
         m_size += s;
-        return n;
+        return s;
     }
 
     // Write p_length bytes at an offset in the buffer
