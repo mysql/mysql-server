@@ -61,16 +61,37 @@ SessionFactory.prototype.getTableMetadata = function() {
 
 SessionFactory.prototype.close = function(user_callback) {
   var self = this;
+  var i;
+  var session;
+  var numberOfSessionsToClose = 0;
+  var closedSessions = 0;
   
-  // TODO: close all sessions first
-  function onClose() {
+  function onDbSessionPoolClose() {
     self.delete_callback(self.key, self.properties.database);
-    if(user_callback) { 
+    if(typeof(user_callback) === 'function') { 
       user_callback();
     }
   }
   
-  this.dbConnectionPool.close(onClose);
+  var onSessionClose = function(err) {
+    if (++closedSessions === numberOfSessionsToClose) {
+      self.dbConnectionPool.close(onDbSessionPoolClose);
+    }
+  };
+  
+  // count the number of sessions to close
+  for (i = 0; i < self.sessions.length; ++i) {
+    if (self.sessions[i]) {
+      ++numberOfSessionsToClose;
+    }
+  }
+  
+  // close the sessions
+  for (i = 0; i < self.sessions.length; ++i) {
+    if (self.sessions[i]) {
+      self.sessions[i].close(onSessionClose);
+    }
+  }
 };
 
 
