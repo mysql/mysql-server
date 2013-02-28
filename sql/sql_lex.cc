@@ -3135,14 +3135,6 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
     val= HA_POS_ERROR;
 
   select_limit_val= (ha_rows)val;
-#ifndef BIG_TABLES
-  /*
-    Check for overflow : ha_rows can be smaller then ulonglong if
-    BIG_TABLES is off.
-    */
-  if (val != (ulonglong)select_limit_val)
-    select_limit_val= HA_POS_ERROR;
-#endif
   if (sl->offset_limit)
   {
     Item *item = sl->offset_limit;
@@ -3160,11 +3152,6 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
     val= ULL(0);
 
   offset_limit_cnt= (ha_rows)val;
-#ifndef BIG_TABLES
-  /* Check for truncation. */
-  if (val != (ulonglong)offset_limit_cnt)
-    offset_limit_cnt= HA_POS_ERROR;
-#endif
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit
