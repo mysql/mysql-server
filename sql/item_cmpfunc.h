@@ -1855,7 +1855,7 @@ class Item_equal_fields_iterator
 {
 public:
   Item_equal_fields_iterator(Item_equal &item_eq) 
-    :Item_equal_iterator(item_eq)
+    :Item_equal_iterator<List_iterator_fast,Item>(item_eq)
   { }
   Item ** ref()
   {
@@ -1869,7 +1869,7 @@ class Item_equal_fields_iterator_slow
 {
 public:
   Item_equal_fields_iterator_slow(Item_equal &item_eq) 
-    :Item_equal_iterator(item_eq)
+    :Item_equal_iterator<List_iterator,Item>(item_eq)
   { }
   void remove()
   {
