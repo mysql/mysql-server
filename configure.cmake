@@ -65,6 +65,15 @@ IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
 ENDIF()
 
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
+
 # The default C++ library for SunPro is really old, and not standards compliant.
 # http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
 # Use stlport rather than Rogue Wave.

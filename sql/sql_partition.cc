@@ -284,7 +284,7 @@ bool partition_default_handling(TABLE *table, partition_info *part_info,
     }
   }
   part_info->set_up_defaults_for_partitioning(table->file,
-                                              (ulonglong)0, (uint)0);
+                                              NULL, 0U);
   DBUG_RETURN(FALSE);
 }
 
