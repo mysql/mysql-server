@@ -742,10 +742,13 @@ trx_start_low(
 	change must be protected by the trx_sys->mutex, so that
 	lock_print_info_all_transactions() will have a consistent view. */
 
-	trx->state = TRX_STATE_ACTIVE;
-
 	ut_ad(!trx->in_rw_trx_list);
 	ut_ad(!trx->in_ro_trx_list);
+
+	/* We tend to over assert and that complicates the code somewhat.
+	e.g., the transaction state can be set earlier but we are forced to
+	set it under the protection of the trx_sys_t::mutex because some
+	trx list assertions are triggered unnecessarily. */
 
 	/* By default all transactions are in the read-only list unless they
 	are non-locking auto-commit read only transactions or background
@@ -771,6 +774,8 @@ trx_start_low(
 		ut_d(trx->in_rw_trx_list = true);
 		ut_d(trx_sys->rw_max_trx_id = trx->id);
 
+		trx->state = TRX_STATE_ACTIVE;
+
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
@@ -793,12 +798,15 @@ trx_start_low(
 
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->ro_trx_list, trx);
 
+			trx->state = TRX_STATE_ACTIVE;
+
 			ut_d(trx->in_ro_trx_list = true);
 			ut_ad(trx_sys_validate_trx_list());
 
 			mutex_exit(&trx_sys->mutex);
 		} else {
 			ut_ad(!read_write);
+			trx->state = TRX_STATE_ACTIVE;
 		}
 	}
 
