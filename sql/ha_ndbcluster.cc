@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -3396,12 +3396,10 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
       LOCK WITH SHARE MODE) and row was not explictly unlocked 
       with unlock_row() call
     */
-    const NdbOperation *op;
-    // Lock row
     DBUG_PRINT("info", ("Keeping lock on scanned row"));
       
-    if (!(op= scanOp->lockCurrentTuple(trans, m_ndb_record,
-                                       dummy_row, empty_mask)))
+    if (!(scanOp->lockCurrentTuple(trans, m_ndb_record,
+                                   dummy_row, empty_mask)))
     {
       m_lock_tuple= FALSE;
       ERR_RETURN(trans->getNdbError());
