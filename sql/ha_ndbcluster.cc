@@ -14294,7 +14294,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
   {
     if (!m_next_row)
     {
-      NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_multi_cursor;
+      NdbIndexScanOperation *cursor= m_multi_cursor;
       int res= fetch_next(cursor);
       if (res == 0)
       {
