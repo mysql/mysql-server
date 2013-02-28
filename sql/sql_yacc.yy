@@ -14702,6 +14702,7 @@ option_value_no_option_type:
 
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_set_password_sql= true;
             lex->is_change_password= TRUE;
 
             if (sp)
@@ -14718,6 +14719,7 @@ option_value_no_option_type:
               MYSQL_YYABORT;
             lex->var_list.push_back(var);
             lex->autocommit= TRUE;
+            lex->is_set_password_sql= true;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
             /*
