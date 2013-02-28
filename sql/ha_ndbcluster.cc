@@ -3978,7 +3978,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (prunable)
       m_thd_ndb->m_pruned_scan_count++;
 
-    DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
+    // Can't have BLOB in pushed joins (yet)
+    DBUG_ASSERT(!uses_blob_value(table->read_set));
   }
   else
   {
@@ -4152,7 +4153,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       DBUG_RETURN(error);
 
     m_thd_ndb->m_scan_count++;
-    DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
+    // Can't have BLOB in pushed joins (yet)
+    DBUG_ASSERT(!uses_blob_value(table->read_set));
   }
   else
   {
@@ -13875,13 +13877,10 @@ ha_ndbcluster::read_multi_range_first(KEY_MULTI_RANGE **found_range_p,
 
         m_multi_cursor= scanOp;
 
-        /*
-          We do not get_blob_values() here, as when using blobs we always
-          fallback to non-batched multi range read (see if statement at
-          top of this function).
-        */
+        /* Can't have blobs in multi range read */
+        DBUG_ASSERT(!uses_blob_value(table->read_set));
 
-        /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
+        /* We set m_next_row=0 to m that no row was fetched from the scan yet. */
         m_next_row= 0;
       }
 
