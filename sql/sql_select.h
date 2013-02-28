@@ -651,8 +651,6 @@ public:
   enum quick_type use_quick;
   enum join_type type;
   bool          not_used_in_distinct;
-  /* TRUE <=> index-based access method must return records in order */
-  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 
@@ -861,6 +859,7 @@ public:
     return ref.has_guarded_conds();
   }
   bool prepare_scan();
+  bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();
   bool remove_duplicates();
 } JOIN_TAB;
@@ -917,7 +916,6 @@ st_join_table::st_join_table()
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
     not_used_in_distinct(false),
-    sorted(false),
 
     limit(0),
     ref(),
