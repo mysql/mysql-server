@@ -3415,21 +3415,17 @@ ha_ndbcluster::scan_handle_lock_tuple(NdbScanOperation *scanOp,
       LOCK WITH SHARE MODE) and row was not explictly unlocked 
       with unlock_row() call
     */
-    const NdbOperation *op;
-    // Lock row
     DBUG_PRINT("info", ("Keeping lock on scanned row"));
       
-    if (!(op= scanOp->lockCurrentTuple(trans, m_ndb_record,
-                                       dummy_row, empty_mask)))
+    if (!(scanOp->lockCurrentTuple(trans, m_ndb_record,
+                                   dummy_row, empty_mask)))
     {
-      /* purecov: begin inspected */
-      m_lock_tuple= FALSE;
+      m_lock_tuple= false;
       ERR_RETURN(trans->getNdbError());
-      /* purecov: end */    
     }
     m_thd_ndb->m_unsent_bytes+=12;
+    m_lock_tuple= false;
   }
-  m_lock_tuple= FALSE;
   DBUG_RETURN(0);
 }
 
@@ -4001,7 +3997,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (prunable)
       m_thd_ndb->m_pruned_scan_count++;
 
-    DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
+    // Can't have BLOB in pushed joins (yet)
+    DBUG_ASSERT(!uses_blob_value(table->read_set));
   }
   else
   {
@@ -4175,7 +4172,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
       DBUG_RETURN(error);
 
     m_thd_ndb->m_scan_count++;
-    DBUG_ASSERT(!uses_blob_value(table->read_set));  // Can't have BLOB in pushed joins (yet)
+    // Can't have BLOB in pushed joins (yet)
+    DBUG_ASSERT(!uses_blob_value(table->read_set));
   }
   else
   {
@@ -4204,7 +4202,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
         my_errno= HA_ERR_OUT_OF_MEM;
         DBUG_RETURN(my_errno);
       }       
-      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info, start_key, end_key, buf))
+      if (m_cond->generate_scan_filter_from_key(&code, &options, key_info,
+                                                start_key, end_key))
         ERR_RETURN(code.getNdbError());
     }
 
@@ -6600,16 +6599,6 @@ int ha_ndbcluster::rnd_init(bool scan)
 
 int ha_ndbcluster::close_scan()
 {
-  /*
-    workaround for bug #39872 - explain causes segv
-    - rnd_end/close_scan is called on unlocked table
-    - should be fixed in server code, but this will
-    not be done until 6.0 as it is too intrusive
-  */
-  if (m_thd_ndb == NULL)
-    return 0;
-  NdbTransaction *trans= m_thd_ndb->trans;
-  int error;
   DBUG_ENTER("close_scan");
 
   if (m_active_query)
@@ -6619,7 +6608,6 @@ int ha_ndbcluster::close_scan()
   }
 
   NdbScanOperation *cursor= m_active_cursor;
-  
   if (!cursor)
   {
     cursor = m_multi_cursor;
@@ -6627,6 +6615,8 @@ int ha_ndbcluster::close_scan()
       DBUG_RETURN(0);
   }
 
+  int error;
+  NdbTransaction *trans= m_thd_ndb->trans;
   if ((error= scan_handle_lock_tuple(cursor, trans)) != 0)
     DBUG_RETURN(error);
 
@@ -6664,9 +6654,7 @@ int ha_ndbcluster::rnd_next(uchar *buf)
   ha_statistic_increment(&SSV::ha_read_rnd_next_count);
 
   int error;
-  if (m_active_cursor)
-    error= next_result(buf);
-  else if (m_active_query)
+  if (m_active_cursor || m_active_query)
     error= next_result(buf);
   else
     error= full_table_scan(NULL, NULL, NULL, buf);
@@ -14310,13 +14298,10 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
 
         m_multi_cursor= scanOp;
 
-        /*
-          We do not get_blob_values() here, as when using blobs we always
-          fallback to non-batched multi range read (see multi_range_read_info
-          function).
-        */
+        /* Can't have blobs in multi range read */
+        DBUG_ASSERT(!uses_blob_value(table->read_set));
 
-        /* We set m_next_row=0 to say that no row was fetched from the scan yet. */
+        /* We set m_next_row=0 to m that no row was fetched from the scan yet. */
         m_next_row= 0;
       }
 
@@ -14737,7 +14722,7 @@ ha_ndbcluster::read_multi_range_fetch_next()
   {
     if (!m_next_row)
     {
-      NdbIndexScanOperation *cursor= (NdbIndexScanOperation *)m_multi_cursor;
+      NdbIndexScanOperation *cursor= m_multi_cursor;
       int res= fetch_next(cursor);
       if (res == 0)
       {
