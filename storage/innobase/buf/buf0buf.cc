@@ -1167,7 +1167,7 @@ buf_chunk_not_freed(
 		ibool	ready;
 
 		switch (buf_block_get_state(block)) {
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_ZIP_DIRTY:
 			/* The uncompressed buffer pool should never
@@ -1492,7 +1492,7 @@ buf_relocate(
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 #ifdef UNIV_DEBUG
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_FILE_PAGE:
@@ -2030,11 +2030,11 @@ err_exit:
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
 	case BUF_BLOCK_REMOVE_HASH:
-	case BUF_BLOCK_ZIP_FREE:
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -2240,7 +2240,7 @@ buf_block_align_instance(
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
-			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_POOL_WATCH:
 			case BUF_BLOCK_ZIP_PAGE:
 			case BUF_BLOCK_ZIP_DIRTY:
 				/* These types should only be used in
@@ -2760,7 +2760,7 @@ wait_until_unfixed:
 
 		break;
 
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -4310,7 +4310,7 @@ buf_pool_validate_instance(
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
-			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_POOL_WATCH:
 			case BUF_BLOCK_ZIP_PAGE:
 			case BUF_BLOCK_ZIP_DIRTY:
 				/* These should only occur on
@@ -4462,7 +4462,7 @@ assert_s_latched:
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
 			break;
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
@@ -4745,7 +4745,7 @@ buf_get_latched_pages_number_instance(
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
 			break;
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:

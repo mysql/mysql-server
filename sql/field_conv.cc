@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,8 +160,12 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     From the manual:
 
     TIMESTAMP columns [...] assigning NULL assigns the current timestamp.
+
+    But if explicit_defaults_for_timestamp, use standard-compliant behaviour:
+    no special value.
   */
-  if (field->type() == MYSQL_TYPE_TIMESTAMP)
+  if (field->type() == MYSQL_TYPE_TIMESTAMP &&
+      !field->table->in_use->variables.explicit_defaults_for_timestamp)
   {
     Item_func_now_local::store_in(field);
     return TYPE_OK;			// Ok to set time to NULL

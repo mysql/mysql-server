@@ -3183,6 +3183,7 @@ make_join_statistics(JOIN *join, TABLE_LIST *tables_arg, Item *conds,
       goto error;
     }
     table->quick_keys.clear_all();
+    table->possible_quick_keys.clear_all();
     table->reginfo.join_tab=s;
     table->reginfo.not_exists_optimize=0;
     memset(table->const_key_parts, 0, sizeof(key_part_map)*table->s->keys);

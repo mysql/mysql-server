@@ -381,7 +381,7 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
 	{&index_online_log_key, "index_online_log", 0},
 	{&dict_table_stats_latch_key, "dict_table_stats", 0},
-	{&hash_table_rw_lock_key, "hash table locks", 0}
+	{&hash_table_rw_lock_key, "hash_table_locks", 0}
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -398,7 +398,7 @@ static PSI_thread_info	all_innodb_threads[] = {
 	{&srv_master_thread_key, "srv_master_thread", 0},
 	{&srv_purge_thread_key, "srv_purge_thread", 0},
 	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0},
-	{&recv_writer_thread_key, "recovery writer thread", 0}
+	{&recv_writer_thread_key, "recv_writer_thread", 0}
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -10098,8 +10098,10 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
+	trx_start_if_not_started(trx);
+
 	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
+	no deadlocks can occur then in these operations. */
 
 	row_mysql_lock_data_dictionary(trx);
 
