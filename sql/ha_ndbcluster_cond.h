@@ -709,23 +709,24 @@ public:
   void cond_pop();
   void cond_clear();
   int generate_scan_filter(NdbInterpretedCode* code, 
-                           NdbScanOperation::ScanOptions* options);
-  int generate_scan_filter_from_cond(NdbScanFilter& filter);
+                           NdbScanOperation::ScanOptions* options) const;
+  int generate_scan_filter_from_cond(NdbScanFilter& filter) const;
   int generate_scan_filter_from_key(NdbInterpretedCode* code,
                                     NdbScanOperation::ScanOptions* options,
                                     const KEY* key_info, 
                                     const key_range *start_key,
                                     const key_range *end_key,
-                                    uchar *buf);
+                                    uchar *buf) const;
 private:
   bool serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-		      TABLE *table, const NdbDictionary::Table *ndb_table);
+                      TABLE *table,
+                      const NdbDictionary::Table *ndb_table) const;
   int build_scan_filter_predicate(Ndb_cond* &cond, 
                                   NdbScanFilter* filter,
-                                  bool negated= false);
+                                  bool negated= false) const;
   int build_scan_filter_group(Ndb_cond* &cond, 
-                              NdbScanFilter* filter);
-  int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter);
+                              NdbScanFilter* filter) const;
+  int build_scan_filter(Ndb_cond* &cond, NdbScanFilter* filter) const;
 
   Ndb_cond_stack *m_cond_stack;
 };
