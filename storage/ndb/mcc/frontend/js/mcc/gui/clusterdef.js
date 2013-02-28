@@ -248,7 +248,7 @@ function showClusterDefinition(initialize) {
     hostStorage.getItems({anyHost: false}).then(function (hosts) {
         var hostlist = "";
         if ((!hosts || hosts.length == 0) && initialize) {
-            hostlist = "localhost";
+            hostlist = "127.0.0.1";
         } else {
             for (var i in hosts) {
                 if (i > 0) {
