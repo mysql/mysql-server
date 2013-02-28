@@ -4175,7 +4175,7 @@ void Item_func_set_user_var::save_item_result(Item *item)
 {
   DBUG_ENTER("Item_func_set_user_var::save_item_result");
 
-  switch (cached_result_type) {
+  switch (args[0]->result_type()) {
   case REAL_RESULT:
     save_result.vreal= item->val_result();
     break;
