@@ -16540,20 +16540,18 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   HA_CREATE_INFO *create_info= ha_alter_info->create_info;
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   NDBDICT *dict= alter_data->dictionary;
-  Alter_inplace_info::HA_ALTER_FLAGS alter_flags= ha_alter_info->handler_flags;
-  Alter_inplace_info::HA_ALTER_FLAGS dropping= 0;
-  bool auto_increment_value_changed= false;
-
-  dropping= dropping  |
-    Alter_inplace_info::DROP_INDEX
-    | Alter_inplace_info::DROP_UNIQUE_INDEX;
+  const Alter_inplace_info::HA_ALTER_FLAGS alter_flags=
+    ha_alter_info->handler_flags;
+  const Alter_inplace_info::HA_ALTER_FLAGS dropping=
+    Alter_inplace_info::DROP_INDEX |
+    Alter_inplace_info::DROP_UNIQUE_INDEX;
 
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::inplace_alter_table"))
   {
-    error= HA_ERR_NO_CONNECTION;
-    goto err;
+    DBUG_RETURN(true);
   }
 
+  bool auto_increment_value_changed= false;
   if (alter_flags & Alter_inplace_info::CHANGE_CREATE_OPTION)
   {
     if (create_info->auto_increment_value !=
@@ -16582,8 +16580,6 @@ ha_ndbcluster::inplace_alter_table(TABLE *altered_table,
   }
 
   DBUG_PRINT("info", ("getting frm file %s", altered_table->s->path.str));
-
-  DBUG_ASSERT(alter_data);
   error= alter_frm(thd, altered_table->s->path.str, alter_data);
   if (!error)
   {
@@ -16618,7 +16614,7 @@ abort:
   }
 
 err:
-  DBUG_RETURN(error);
+  DBUG_RETURN(error ? true : false);
 }
 
 bool
@@ -16636,7 +16632,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   if (!thd_ndb->has_required_global_schema_lock("ha_ndbcluster::commit_inplace_alter_table"))
   {
-    DBUG_RETURN(HA_ERR_NO_CONNECTION);
+    DBUG_RETURN(true); // Error
   }
 
   const char *db= table->s->db.str;
@@ -16657,7 +16653,7 @@ ha_ndbcluster::commit_inplace_alter_table(TABLE *altered_table,
   ha_alter_info->handler_ctx= 0;
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
-  DBUG_RETURN(0);
+  DBUG_RETURN(false); // OK
 }
 
 bool
@@ -16665,14 +16661,16 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info)
 {
   DBUG_ENTER("ha_ndbcluster::abort_inplace_alter_table");
-  int error= 0;
+
   NDB_ALTER_DATA *alter_data= (NDB_ALTER_DATA *) ha_alter_info->handler_ctx;
   if (!alter_data)
-    DBUG_RETURN(0);
+  {
+    // Could not find any alter_data, nothing to abort or already aborted
+    DBUG_RETURN(false);
+  }
 
   NDBDICT *dict= alter_data->dictionary;
-  if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort)
-      == -1)
+  if (dict->endSchemaTrans(NdbDictionary::Dictionary::SchemaTransAbort) == -1)
   {
     DBUG_PRINT("info", ("Failed to abort schema transaction"));
     ERR_PRINT(dict->getNdbError());
@@ -16684,7 +16682,7 @@ ha_ndbcluster::abort_inplace_alter_table(TABLE *altered_table,
   ha_alter_info->handler_ctx= 0;
   set_ndb_share_state(m_share, NSS_INITIAL);
   free_share(&m_share); // Decrease ref_count
-  DBUG_RETURN(error);
+  DBUG_RETURN(false);
 }
 
 void ha_ndbcluster::notify_table_changed()
