@@ -7300,7 +7300,7 @@ static int mysql_init_variables(void)
   log_error_file_ptr= log_error_file;
   protocol_version= PROTOCOL_VERSION;
   what_to_log= ~ (1L << (uint) COM_TIME);
-  refresh_version= 1L;	/* Increments on each reload */
+  refresh_version= 2L;	/* Increments on each reload. 0 and 1 are reserved */
   executed_events= 0;
   global_query_id= thread_id= 1L;
   my_atomic_rwlock_init(&global_query_id_lock);

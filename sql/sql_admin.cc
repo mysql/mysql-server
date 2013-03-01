@@ -87,6 +87,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
   const char **ext;
   MY_STAT stat_info;
   Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                  MYSQL_OPEN_FOR_REPAIR |
                                   MYSQL_OPEN_HAS_MDL_LOCK |
                                   MYSQL_LOCK_IGNORE_TIMEOUT));
   DBUG_ENTER("prepare_for_repair");
@@ -197,7 +198,8 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     pos_in_locked_tables= table->pos_in_locked_tables;
     if (wait_while_table_is_used(thd, table,
-                                 HA_EXTRA_PREPARE_FOR_FORCED_CLOSE))
+                                 HA_EXTRA_PREPARE_FOR_FORCED_CLOSE,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
       goto end;
     /* Close table but don't remove from locked list */
     close_all_tables_for_name(thd, table_list->table->s,
@@ -589,8 +591,10 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     */
     if (lock_type == TL_WRITE && !table->table->s->tmp_table)
     {
+      table->table->s->protect_against_usage();
       if (wait_while_table_is_used(thd, table->table,
-                                   HA_EXTRA_PREPARE_FOR_RENAME))
+                                   HA_EXTRA_PREPARE_FOR_RENAME,
+                                   TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       DEBUG_SYNC(thd, "after_admin_flush");
       /* Flush entries in the query cache involving this table. */

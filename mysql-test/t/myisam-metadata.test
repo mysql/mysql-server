@@ -1,0 +1,49 @@
+#
+# Test bugs in MyISAM that may cause problems for metadata
+#
+
+--source include/big_test.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# LP:989055 - Querying myisam table metadata may corrupt the table
+#
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  a VARCHAR(100),
+  INDEX(a)
+) ENGINE=MyISAM;
+ALTER TABLE t1 DISABLE KEYS;
+
+let $1=100000;
+--disable_query_log
+while ($1)
+{
+ eval insert into t1 values($1, "line number $1");
+ dec $1;
+}
+--enable_query_log
+
+--connect(con1,localhost,root,,)
+--send
+  ALTER TABLE t1 ENABLE KEYS;
+
+--connection default
+--let $wait_timeout=10
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= = 'Repair by sorting'
+--source include/wait_show_condition.inc
+
+--replace_column 7 # 8 # 9 # 12 # 13 # 14 #
+SHOW TABLE STATUS LIKE 't1';
+
+--connection con1
+--reap
+--connection default
+--disconnect con1
+DROP TABLE t1;

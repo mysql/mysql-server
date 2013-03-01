@@ -1074,7 +1074,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
       if (share)
       {
         kill_delayed_threads_for_table(share);
-        /* tdc_remove_table() also sets TABLE_SHARE::version to 0. */
+        /* tdc_remove_table() calls share->remove_from_cache_at_close() */
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
                          table->table_name, TRUE);
 	found=1;
@@ -2333,7 +2333,8 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 */
 
 bool wait_while_table_is_used(THD *thd, TABLE *table,
-                              enum ha_extra_function function)
+                              enum ha_extra_function function,
+                              enum_tdc_remove_table_type remove_type)
 {
   DBUG_ENTER("wait_while_table_is_used");
   DBUG_PRINT("enter", ("table: '%s'  share: 0x%lx  db_stat: %u  version: %lu",
@@ -2344,7 +2345,7 @@ bool wait_while_table_is_used(THD *thd, TABLE *table,
              table->mdl_ticket, thd->variables.lock_wait_timeout))
     DBUG_RETURN(TRUE);
 
-  tdc_remove_table(thd, TDC_RT_REMOVE_NOT_OWN,
+  tdc_remove_table(thd, remove_type,
                    table->s->db.str, table->s->table_name.str,
                    FALSE);
   /* extra() call must come only after all instances above are closed */
@@ -3090,7 +3091,9 @@ retry_share:
     goto err_unlock;
   }
 
-  if (!(flags & MYSQL_OPEN_IGNORE_FLUSH))
+  if (!(flags & MYSQL_OPEN_IGNORE_FLUSH) ||
+      (share->protected_against_usage() &&
+       !(flags & MYSQL_OPEN_FOR_REPAIR)))
   {
     if (share->has_old_version())
     {
@@ -9371,6 +9374,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   TABLE *table;
   TABLE_SHARE *share;
   DBUG_ENTER("tdc_remove_table");
+  DBUG_PRINT("enter",("name: %s  remove_type: %d", table_name, remove_type));
 
   if (! has_lock)
     mysql_mutex_lock(&LOCK_open);
@@ -9396,7 +9400,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       {
         DBUG_ASSERT(share->used_tables.is_empty());
       }
-      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
+      else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
+               remove_type == TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE)
       {
         I_P_List_iterator<TABLE, TABLE_share> it2(share->used_tables);
         while ((table= it2++))
@@ -9407,8 +9412,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
       }
 #endif
       /*
-        Set share's version to zero in order to ensure that it gets
-        automatically deleted once it is no longer referenced.
+        Mark share to ensure that it gets automatically deleted once
+        it is no longer referenced.
 
         Note that code in TABLE_SHARE::wait_for_old_version() assumes
         that marking share as old and removal of its unused tables
@@ -9417,7 +9422,13 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      share->version= 0;
+      if (remove_type == TDC_RT_REMOVE_NOT_OWN)
+        share->remove_from_cache_at_close();
+      else
+      {
+        /* Ensure that no can open the table while it's used */
+        share->protect_against_usage();
+      }
 
       while ((table= it++))
         free_cache_entry(table);

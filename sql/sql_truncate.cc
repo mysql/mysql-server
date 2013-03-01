@@ -364,7 +364,8 @@ bool Truncate_statement::lock_table(THD *thd, TABLE_LIST *table_ref,
   {
     DEBUG_SYNC(thd, "upgrade_lock_for_truncate");
     /* To remove the table from the cache we need an exclusive lock. */
-    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DROP))
+    if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_DROP,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
       DBUG_RETURN(TRUE);
     m_ticket_downgrade= table->mdl_ticket;
     /* Close if table is going to be recreated. */
