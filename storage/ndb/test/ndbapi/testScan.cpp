@@ -864,8 +864,8 @@ int runCheckGetValue(NDBT_Context* ctx, NDBT_Step* step){
   AttribList alist; 
   alist.buildAttribList(pTab);
   UtilTransactions utilTrans(*pTab);  
-  for(size_t i = 0; i < alist.attriblist.size(); i++){
-    g_info << (unsigned)i << endl;
+  for(unsigned i = 0; i < alist.attriblist.size(); i++){
+    g_info << i << endl;
     if(utilTrans.scanReadRecords(GETNDB(step), 
 				 parallelism,
 				 NdbOperation::LM_Read,
@@ -1337,7 +1337,7 @@ int runBug42545(NDBT_Context* ctx, NDBT_Step* step){
           cnt++;
       }
       
-      for (size_t t = 0; t < translist.size(); t++)
+      for (unsigned t = 0; t < translist.size(); t++)
         translist[t]->close();
       translist.clear();
     }
