@@ -1252,7 +1252,6 @@ Thd_ndb::~Thd_ndb()
 }
 
 
-inline
 Ndb *ha_ndbcluster::get_ndb(THD *thd) const
 {
   return thd_get_thd_ndb(thd)->ndb;
