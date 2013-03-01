@@ -477,3 +477,37 @@ alter table t2
   partition by hash (a) partitions 5;
 
 drop table t2, t1;
+
+# Bug#16275684 - IMPLEMENT HA_NDBCLUSTER::GET_PARENT_FOREIGN_KEY_LIST
+
+# truncate of NDB table does not hit get_parent_foreign_key_list().
+# alter child FK to not null is tested in ndb_fk_alter.test.
+
+--echo # bug#16275684 - case: alter FK parent column
+
+create table t1 (
+  a int primary key,
+  b int not null,
+  unique key (b)
+) engine=ndb;
+
+create table t2 (
+  a int primary key,
+  b int not null,
+  key (b),
+  foreign key fk1 (b) references t1 (b)
+) engine=ndb;
+
+insert into t1 values (1,10),(2,20);
+insert into t2 values (1,10),(2,10),(3,20);
+
+--error ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+alter table t1 modify column b char(20) not null;
+alter table t2 drop foreign key fk1;
+alter table t1 modify column b char(20) not null;
+show create table t1;
+
+select * from t1 order by a;
+select * from t2 order by a;
+
+drop table t2, t1;
