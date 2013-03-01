@@ -677,9 +677,9 @@ struct trx_t{
 	ulint		magic_n;
 
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
-					state and lock
-					(except some fields of lock, which
-					are protected by lock_sys->mutex) */
+					state and lock (except some fields
+					of lock, which are protected by
+					lock_sys->mutex) */
 
 	/** State of the trx from the point of view of concurrency control
 	and the valid state transitions.

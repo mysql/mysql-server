@@ -69,7 +69,6 @@ bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
 
-
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
@@ -588,6 +587,8 @@ public:
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+static void validate_user_plugin_records();
+
 static ulong get_sort(uint count,...);
 static bool show_proxy_grants (THD *thd, LEX_USER *user,
                                char *buff, size_t buffsize);
@@ -1418,6 +1419,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   freeze_size(&acl_proxy_users);
 
+  validate_user_plugin_records();
   init_check_host();
 
   initialized=1;
@@ -11330,12 +11332,107 @@ private:
   RSA *m_private_key;
   int m_cipher_len;
   char *m_pem_public_key;
+
+  /**
+    @brief Set key file path
+
+    @param  key[in]            Points to either auth_rsa_private_key_path or
+                               auth_rsa_public_key_path.
+    @param  key_file_path[out] Stores value of actual key file path.
+
+  */
+  void get_key_file_path(char *key, String *key_file_path)
+  {
+    /*
+       If a fully qualified path is entered use that, else assume the keys are 
+       stored in the data directory.
+     */
+    if (strchr(key, FN_LIBCHAR) != NULL ||
+        strchr(key, FN_LIBCHAR2) != NULL)
+      key_file_path->set_quick(key, strlen(key), system_charset_info);
+    else
+    {
+      key_file_path->append(mysql_real_data_home, strlen(mysql_real_data_home));
+      if ((*key_file_path)[key_file_path->length()] != FN_LIBCHAR)
+        key_file_path->append(FN_LIBCHAR);
+      key_file_path->append(key);
+    }
+  }
+
+  /**
+    @brief Read a key file and store its value in RSA structure
+
+    @param  key_ptr[out]         Address of pointer to RSA. This is set to
+                                 point to a non null value if key is correctly
+                                 read.
+    @param  is_priv_key[in]      Whether we are reading private key or public
+                                 key.
+    @param  key_text_buffer[out] To store key file content of public key.
+
+    @return Error status
+      @retval false              Success : Either both keys are read or none
+                                 are.
+      @retval true               Failure : An appropriate error is raised.
+  */
+  bool read_key_file(RSA **key_ptr, bool is_priv_key, char **key_text_buffer)
+  {
+    String key_file_path;
+    char *key;
+    const char *key_type;
+    FILE *key_file= NULL;
+
+    key= is_priv_key ? auth_rsa_private_key_path : auth_rsa_public_key_path;
+    key_type= is_priv_key ? "private" : "public";
+    *key_ptr= NULL;
+
+    get_key_file_path(key, &key_file_path);
+
+    /*
+       Check for existance of private key/public key file.
+    */
+    if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
+    {
+      sql_print_information("RSA %s key file not found: %s."
+                            " Some authentication plugins will not work.",
+                            key_type, key_file_path.c_ptr());
+    }
+    else
+    {
+        *key_ptr= is_priv_key ? PEM_read_RSAPrivateKey(key_file, 0, 0, 0) :
+                                PEM_read_RSA_PUBKEY(key_file, 0, 0, 0);
+
+      if (!(*key_ptr))
+      {
+        char error_buf[MYSQL_ERRMSG_SIZE];
+        ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
+        sql_print_error("Failure to parse RSA %s key (file exists): %s:"
+                        " %s", key_type, key_file_path.c_ptr(), error_buf);
+        return true;
+      }
+
+      /* For public key, read key file content into a char buffer. */
+      if (!is_priv_key)
+      {
+        int filesize;
+        fseek(key_file, 0, SEEK_END);
+        filesize= ftell(key_file);
+        fseek(key_file, 0, SEEK_SET);
+        *key_text_buffer= new char[filesize+1];
+        (void) fread(*key_text_buffer, filesize, 1, key_file);
+        (*key_text_buffer)[filesize]= '\0';
+      }
+      fclose(key_file);
+    }
+    return false;
+  }
+
 public:
   Rsa_authentication_keys()
   {
     m_cipher_len= 0;
     m_private_key= 0;
     m_public_key= 0;
+    m_pem_public_key= 0;
   }
   
   ~Rsa_authentication_keys()
@@ -11345,10 +11442,14 @@ public:
   void free_memory()
   {
     if (m_private_key)
-    {
       RSA_free(m_private_key);
+
+    if (m_public_key)
+    {
       RSA_free(m_public_key);
+      m_cipher_len= 0;
     }
+
     if (m_pem_public_key)
       delete [] m_pem_public_key;
   }
@@ -11374,16 +11475,78 @@ public:
     return (m_cipher_len= RSA_size(m_public_key));
   }
 
-  int set_private_key(RSA *pk)
-  {
-    m_private_key= pk;
-    return 0;
-  }
+  /**
+    @brief Read RSA private key and public key from file and store them
+           in m_private_key and m_public_key. Also, read public key in
+           text format and store it in m_pem_public_key.
 
-  int set_public_key(RSA *pk)
+    @return Error status
+      @retval false        Success : Either both keys are read or none are.
+      @retval true         Failure : An appropriate error is raised.
+  */
+  bool read_rsa_keys()
   {
-    m_public_key= pk;
-    return 0;
+    RSA *rsa_private_key_ptr= NULL;
+    RSA *rsa_public_key_ptr= NULL;
+    char *pub_key_buff= NULL; 
+
+    if ((strlen(auth_rsa_private_key_path) == 0) &&
+        (strlen(auth_rsa_public_key_path) == 0))
+    {
+      sql_print_information("RSA key files not found."
+                            " Some authentication plugins will not work.");
+      return false;
+    }
+
+    /*
+      Read private key in RSA format.
+    */
+    if (read_key_file(&rsa_private_key_ptr, true, NULL))
+        return true;
+    
+    /*
+      Read public key in RSA format.
+    */
+    if (read_key_file(&rsa_public_key_ptr, false, &pub_key_buff))
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+      return true;
+    }
+
+    /*
+       If both key files are read successfully then assign values to following
+       members of the class
+       1. m_pem_public_key
+       2. m_private_key
+       3. m_public_key
+
+       Else clean up.
+     */
+    if (rsa_private_key_ptr && rsa_public_key_ptr)
+    {
+      int buff_len= strlen(pub_key_buff);
+      char *pem_file_buffer= (char *)allocate_pem_buffer(buff_len + 1);
+      strncpy(pem_file_buffer, pub_key_buff, buff_len);
+      pem_file_buffer[buff_len]= '\0';
+
+      m_private_key= rsa_private_key_ptr;
+      m_public_key= rsa_public_key_ptr;
+
+      delete [] pub_key_buff; 
+    }
+    else
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+
+      if (rsa_public_key_ptr)
+      {
+        delete [] pub_key_buff; 
+        RSA_free(rsa_public_key_ptr);
+      }
+    }
+    return false;
   }
 
   const char *get_public_key_as_pem(void)
@@ -11430,119 +11593,13 @@ public:
  @see init_ssl()
  
  @return Error code
-   @retval 0 Success
-   @retval 1 Error
+   @retval false Success
+   @retval true Error
 */
 
-int init_rsa_keys(void)
+bool init_rsa_keys(void)
 {
-  FILE *priv_key_file;
-  FILE *public_key_file;
-  String priv_keypath;
-  String pub_keypath;
-  int auth_rsa_private_key_path_len;
-  int auth_rsa_public_key_path_len;
-  
-  auth_rsa_private_key_path_len= strlen(auth_rsa_private_key_path);
-  auth_rsa_public_key_path_len= strlen(auth_rsa_public_key_path);
-  if (auth_rsa_private_key_path_len == 0 || auth_rsa_public_key_path_len == 0)
-  {
-     sql_print_information("RSA key files not found."
-                          " Some authentication plugins will not work.");
-    return 0;
-  }
-
-  /*
-     If a fully qualified path is entered use that, else assume the keys are 
-     stored in the data directory.
-  */
-  if (strchr(auth_rsa_private_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_private_key_path, FN_LIBCHAR2) != NULL)
-    priv_keypath.set_quick(auth_rsa_private_key_path,
-                           auth_rsa_private_key_path_len, 
-                           system_charset_info);
-  else
-  {
-    priv_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (priv_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      priv_keypath.append(FN_LIBCHAR);
-    priv_keypath.append(auth_rsa_private_key_path);
-  }
-
-  if ((priv_key_file= fopen(priv_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA private key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          priv_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_priv(priv_key_file);
-
-  if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
-    pub_keypath.set_quick(auth_rsa_public_key_path,
-                          auth_rsa_public_key_path_len, 
-                          system_charset_info);
-  else
-  {
-    pub_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (pub_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      pub_keypath.append(FN_LIBCHAR);
-    pub_keypath.append(auth_rsa_public_key_path);
-  }
-
-  if ((public_key_file= fopen(pub_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA public key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          pub_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_public(public_key_file);
-
-  RSA *rsa_private_key= RSA_new();
-  if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,
-                                                        &rsa_private_key,
-                                                        0, 0)))
-  {
-    sql_print_error("Failure to parse RSA private key (file exists): %s",
-                    auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-    
-  }
-  
-  int filesize;
-  fseek(public_key_file, 0, SEEK_END);
-  filesize= ftell(public_key_file);
-  fseek(public_key_file, 0, SEEK_SET);
-  char *pem_file_buffer= (char *)g_rsa_keys.allocate_pem_buffer(filesize + 1);
-  (void) fread(pem_file_buffer, filesize, 1, public_key_file);
-  pem_file_buffer[filesize]= '\0';
-
-  if (int err= ferror(public_key_file))
-  {
-    sql_print_error("Failure code %d when reading RSA public key (%d bytes): %s",
-                    err, filesize, auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-  fseek(public_key_file, 0, SEEK_SET);
-
-  RSA *rsa_public_key= RSA_new();
-  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file,
-                                                    &rsa_public_key,
-                                                    0, 0)))
-  {
-     sql_print_error("Failure to parse RSA public key (file exists): %s",
-                    auth_rsa_public_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-
-  return 0;
+  return (g_rsa_keys.read_rsa_keys());
 }
 #endif // ifndef HAVE_YASSL
 
@@ -11871,3 +11928,73 @@ int check_password_policy(String *password)
   }
   return (0);
 }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+my_bool validate_user_plugins= TRUE;
+
+/**
+  Iterate over the user records and check for irregularities.
+  Currently this includes :
+   - checking if the plugin referenced is present.
+   - if there's sha256 users and there's neither SSL nor RSA configured
+*/
+static void
+validate_user_plugin_records()
+{
+  DBUG_ENTER("validate_user_plugin_records");
+  if (!validate_user_plugins)
+    DBUG_VOID_RETURN;
+
+  lock_plugin_data();
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    struct st_plugin_int *plugin;
+    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
+
+    if (acl_user->plugin.length)
+    {
+      /* rule 1 : plugin does exit */
+      if (!auth_plugin_is_built_in(acl_user->plugin.str))
+      {
+        plugin= plugin_find_by_type(&acl_user->plugin,
+                                    MYSQL_AUTHENTICATION_PLUGIN);
+
+        if (!plugin)
+        {
+          sql_print_warning("The plugin '%.*s' used to authenticate "
+                            "user '%s'@'%.*s' is not loaded."
+                            " Nobody can currently login using this account.",
+                            (int) acl_user->plugin.length, acl_user->plugin.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+        }
+      }
+      if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+#if !defined(HAVE_YASSL)
+          (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key()) &&
+#endif
+          !ssl_acceptor_fd)
+      {
+          sql_print_warning("The plugin '%s' is used to authenticate "
+                            "user '%s'@'%.*s', "
+#if !defined(HAVE_YASSL)
+                            "but neither SSL nor RSA keys are "
+#else
+                            "but no SSL is "
+#endif
+                            "configured. "
+                            "Nobody can currently login using this account.",
+                            sha256_password_plugin_name.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+      }
+    }
+  }
+  unlock_plugin_data();
+  DBUG_VOID_RETURN;
+}
+
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+

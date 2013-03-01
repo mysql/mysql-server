@@ -10,3 +10,7 @@
 
 --source ../include/sizing_auto.inc
 
+# This test produces different result when run against a server built with
+# MAX_INDEXES value other than default (64U).
+--source include/have_max_indexes_64.inc
+
