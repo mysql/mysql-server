@@ -298,6 +298,8 @@ struct latch_t {
 		m_level(level),
        		m_rw_lock(false) { }
 
+	virtual ~latch_t() { }
+
 	bool is_rw_lock() const
 	{
 		return(m_rw_lock);
@@ -314,6 +316,7 @@ struct latch_t {
 
 /** Subclass this to iterate over a thread's latches. */
 struct sync_check_functor_t {
+	virtual ~sync_check_functor_t() { }
 	virtual bool operator()(const latch_t&) = 0;
 	virtual bool result() const = 0;
 };
@@ -325,6 +328,8 @@ struct btrsea_sync_check : public sync_check_functor_t {
 		:
 		m_result(false),
 		m_has_search_latch(has_search_latch) { }
+
+	virtual ~btrsea_sync_check() { }
 
 	virtual bool operator()(const latch_t& latch)
 	{
@@ -352,6 +357,8 @@ struct dict_sync_check : public sync_check_functor_t {
 		:
 		m_result(false),
 		m_dict_mutex_allowed(dict_mutex_allowed) { }
+
+	virtual ~dict_sync_check() { }
 
 	virtual bool operator()(const latch_t& latch)
 	{

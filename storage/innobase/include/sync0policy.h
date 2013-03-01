@@ -118,7 +118,7 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	}
 
 	/** Destructor */
-	~DebugPolicy() UNIV_NOTHROW
+	virtual ~DebugPolicy() UNIV_NOTHROW
 	{
 		// FIXME: This invariant doesn't hold if we exit
 		// without invoking the shutdown code.
