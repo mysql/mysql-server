@@ -696,3 +696,5 @@ extern Ndb_util_thread ndb_util_thread;
 
 #include "ha_ndb_index_stat.h"
 extern Ndb_index_stat_thread ndb_index_stat_thread;
+
+int ndb_to_mysql_error(const NdbError *ndberr);
