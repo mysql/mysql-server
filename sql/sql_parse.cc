@@ -2944,6 +2944,7 @@ end_with_restore_list:
       thd->first_successful_insert_id_in_cur_stmt=
         thd->first_successful_insert_id_in_prev_stmt;
 
+#ifdef ENABLED_DEBUG_SYNC
     DBUG_EXECUTE_IF("after_mysql_insert",
                     {
                       const char act1[]=
@@ -2959,6 +2960,7 @@ end_with_restore_list:
                                                          STRING_WITH_LEN(act2)));
                     };);
     DEBUG_SYNC(thd, "after_mysql_insert");
+#endif
     break;
   }
   case SQLCOM_REPLACE_SELECT:

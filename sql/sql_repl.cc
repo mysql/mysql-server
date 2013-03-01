@@ -897,6 +897,7 @@ impossible position";
 
       event_type=
         (Log_event_type)((uchar)(*packet)[LOG_EVENT_OFFSET+ev_offset]);
+#ifdef ENABLED_DEBUG_SYNC
       DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
                       {
                         if (event_type == XID_EVENT)
@@ -915,6 +916,7 @@ impossible position";
                                                              STRING_WITH_LEN(act2)));
                         }
                       });
+#endif
       if (event_type == FORMAT_DESCRIPTION_EVENT)
       {
         current_checksum_alg= get_checksum_alg(packet->ptr() + ev_offset,
