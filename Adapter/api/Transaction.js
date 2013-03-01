@@ -69,8 +69,8 @@ var rollbackOnly = new RollbackOnly();
  * is passed in the function).
  * If no callback is defined, throw an error (and remain in the current state).
  */
-var callbackErrOrThrow = function(err, user_arguments, newState) {
-  if (typeof(user_arguments[0]) == 'function') {
+var callbackErrOrThrow = function(err, user_arguments) {
+  if (typeof(user_arguments[0]) === 'function') {
     var return_arguments = [];
     var i;
     for (i = 1; i < user_arguments.length; ++i) {
@@ -78,7 +78,6 @@ var callbackErrOrThrow = function(err, user_arguments, newState) {
     }
     return_arguments[0] = err;
     user_arguments[0].apply(null, return_arguments);
-    return newState;
   } else {
     throw err;
   }
@@ -90,19 +89,19 @@ Idle.prototype.begin = function(session) {
   if (typeof(session.dbSession.begin) === 'function') {
     session.dbSession.begin();
   }
-  return active;
+  session.tx.setState(active);
 };
 
 Idle.prototype.commit = function(session, user_arguments) {
   udebug.log('Idle commit');
   var err = new Error('Illegal state: Idle cannot commit.');
-  return callbackErrOrThrow(err, user_arguments, idle);
+  callbackErrOrThrow(err, user_arguments);
 };
 
 Idle.prototype.rollback = function(session, user_arguments) {
   udebug.log('Idle rollback');
   var err = new Error('Illegal state: Idle cannot rollback.');
-  return callbackErrOrThrow(err, user_arguments, idle);
+  callbackErrOrThrow(err, user_arguments);
 };
 
 Idle.prototype.isActive = function() {
@@ -110,9 +109,10 @@ Idle.prototype.isActive = function() {
   return false;
 };
 
-Idle.prototype.setRollbackOnly = function() {
+Idle.prototype.setRollbackOnly = function(session, user_arguments) {
   udebug.log('Idle setRollbackOnly');
-  throw new Error('Illegal state: Idle cannot set rollback only.');
+  var err = new Error('Illegal state: Idle cannot set rollback only.');
+  callbackErrOrThrow(err, user_arguments);
 };
 
 Idle.prototype.getRollbackOnly = function() {
@@ -120,25 +120,24 @@ Idle.prototype.getRollbackOnly = function() {
   return false;
 };
 
-Active.prototype.begin = function() {
+Active.prototype.begin = function(session, user_arguments) {
   udebug.log('Active begin');
-  throw new Error('Illegal state: Active cannot begin.');
+  var err = new Error('Illegal state: Active cannot begin.');
+  callbackErrOrThrow(err, user_arguments, rollbackOnly);
 };
 
 Active.prototype.commit = function(session, user_arguments) {
   udebug.log('Active commit');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
-  // delegate to context's commit for execution
+  // delegate to context's commit for execution which will change the state to idle
   context.commit();
-  return idle;
 };
 
 Active.prototype.rollback = function(session, user_arguments) {
   udebug.log('Active rollback');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
-  // delegate to context's rollback for execution
+  // delegate to context's rollback for execution which will change the state to idle
   context.rollback();
-  return idle;
 };
 
 Active.prototype.isActive = function() {
@@ -146,9 +145,9 @@ Active.prototype.isActive = function() {
   return true;
 };
 
-Active.prototype.setRollbackOnly = function() {
+Active.prototype.setRollbackOnly = function(session) {
   udebug.log('Active setRollbackOnly');
-  return rollbackOnly;
+  session.tx.setState(rollbackOnly);
 };
 
 Active.prototype.getRollbackOnly = function() {
@@ -156,23 +155,23 @@ Active.prototype.getRollbackOnly = function() {
   return false;
 };
 
-RollbackOnly.prototype.begin = function() {
+RollbackOnly.prototype.begin = function(session, user_arguments) {
   udebug.log('RollbackOnly begin');
-  throw new Error('Illegal state: RollbackOnly cannot begin.');
+  var err = new Error('Illegal state: RollbackOnly cannot begin.');
+  callbackErrOrThrow(err, user_arguments);
 };
 
 RollbackOnly.prototype.commit = function(session, user_arguments) {
   udebug.log('RollbackOnly commit');
   var err = new Error('Illegal state: RollbackOnly cannot commit.');
-  return callbackErrOrThrow(err, user_arguments, rollbackOnly);
+  callbackErrOrThrow(err, user_arguments);
 };
 
 RollbackOnly.prototype.rollback = function(session, user_arguments) {
   udebug.log('RollbackOnly rollback');
   var context = new userContext.UserContext(user_arguments, 1, 1, session, session.sessionFactory);
-  // delegate to context's rollback for execution
+  // delegate to context's rollback for execution which will set the state to idle
   context.rollback();
-  return idle;
 };
 
 RollbackOnly.prototype.isActive = function() {
@@ -182,7 +181,6 @@ RollbackOnly.prototype.isActive = function() {
 
 RollbackOnly.prototype.setRollbackOnly = function() {
   udebug.log('RollbackOnly setRollbackOnly');
-  return rollbackOnly;
 };
 
 RollbackOnly.prototype.getRollbackOnly = function() {
@@ -195,34 +193,47 @@ function Transaction(session) {
   this.state = idle;
 }
 
+// States can be addressed by name in the Transaction object for setState(newState)
+Transaction.prototype.idle = idle;
+Transaction.prototype.active = active;
+Transaction.prototype.rollbackOnly = rollbackOnly;
+
 Transaction.prototype.begin = function() {
   udebug.log('Transaction.begin');
-  this.state = this.state.begin(this.session);
+  this.state.begin(this.session, arguments);
 };
 
 Transaction.prototype.commit = function() {
   udebug.log('Transaction.commit');
-  this.state = this.state.commit(this.session, arguments);
+  this.state.commit(this.session, arguments);
 };
 
 Transaction.prototype.rollback = function() {
   udebug.log('Transaction.rollback');
-  this.state = this.state.rollback(this.session, arguments);
+  this.state.rollback(this.session, arguments);
 };
 
-Transaction.prototype.isActive = function(session) {
+Transaction.prototype.isActive = function() {
   udebug.log('Transaction.isActive');
   return this.state.isActive();
 };
 
 Transaction.prototype.setRollbackOnly = function() {
   udebug.log('Transaction.setRollbackOnly');
-  this.state = this.state.setRollbackOnly();
+  this.state.setRollbackOnly(this.session, arguments);
 };
 
 Transaction.prototype.getRollbackOnly = function() {
   udebug.log('Transaction.getRollbackOnly');
   return this.state.getRollbackOnly();
+};
+
+/** This function is used by each state to change the state of the transaction.
+ * @param newState one of: Idle, Active, RollbackOnly
+ */
+Transaction.prototype.setState = function(newState) {
+  udebug.log('Transaction.setState to', newState.name);
+  this.state = newState;
 };
 
 exports.Transaction = Transaction;
