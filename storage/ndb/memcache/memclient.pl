@@ -30,6 +30,7 @@ use strict;
 use Term::ReadLine;
 use Getopt::Std;
 use Term::ANSIColor qw(:constants);
+use Text::Balanced qw(extract_quotelike);
 
 our $VERSION = "1.0";
 my $mc;      # Memcache connection
@@ -156,8 +157,15 @@ sub args_err {
 ### Run a storage command (potentially with options)
 sub run_storage_cmd {
   my ($cmd, $key, $argsX) = @_;
-  my ($flags, $exp_time, $cas_chk);
-  my ($value, $extra) = split(" ", $argsX, 2);
+  my ($quoted, $value, $extra, $flags, $exp_time, $cas_chk);
+  ($quoted, $extra, $value) = (extract_quotelike($argsX))[0,1,5];
+  if($quoted) {  # unescape any escaped quote marks
+    $value =~ s/\\\"/\"/g;   #"#
+    $value =~ s/\\\'/\'/g;
+  }
+  else {  # no quotes
+    ($value, $extra) = split(" ", $argsX, 2);
+  }
   return args_err($cmd) unless length($value);
   while($extra =~ m/\G\W*(\w+:)\W+(\d+)/gc) {
     $flags = $2    if $1 eq "flags:";
