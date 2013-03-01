@@ -15,6 +15,23 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include "ha_ndbcluster_glue.h"
+#include "ha_ndbcluster.h"
+#include "ndb_table_guard.h"
+
+#define ERR_RETURN(err)                  \
+{                                        \
+  const NdbError& tmp= err;              \
+  DBUG_RETURN(ndb_to_mysql_error(&tmp)); \
+}
+
+// Typedefs for long names 
+typedef NdbDictionary::Dictionary NDBDICT;
+typedef NdbDictionary::Table NDBTAB;
+typedef NdbDictionary::Column NDBCOL;
+typedef NdbDictionary::Index NDBINDEX;
+typedef NdbDictionary::ForeignKey NDBFK;
+
 /*
   Create all the fks  for a table.
 
