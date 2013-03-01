@@ -260,6 +260,8 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
+# define PSI_KEY(n) {&n##_key, #n, 0}
+
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
@@ -268,13 +270,13 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	{&commit_threads_m_key, "commit_threads_m", 0},
-	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&innobase_share_mutex_key, "innobase_share_mutex", 0}
+	PSI_KEY(commit_threads_m),
+	PSI_KEY(commit_cond_mutex),
+	PSI_KEY(innobase_share_mutex)
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
-	{&commit_cond_key, "commit_cond", 0}
+	PSI_KEY(commit_cond)
 };
 
 # ifdef UNIV_PFS_MUTEX
@@ -282,76 +284,75 @@ static PSI_cond_info	all_innodb_conds[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
-	{&autoinc_mutex_key, "autoinc_mutex", 0},
+	PSI_KEY(autoinc_mutex),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
+	PSI_KEY(buffer_block_mutex),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
-	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
-	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
-	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
-	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
-	{&dict_stats_recalc_pool_mutex_key, "dict_stats_recalc_pool_mutex_key", 0},
-	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
-	{&fil_system_mutex_key, "fil_system_mutex", 0},
-	{&flush_list_mutex_key, "flush_list_mutex", 0},
-	{&fts_bg_threads_mutex_key, "fts_bg_threads_mutex", 0},
-	{&fts_delete_mutex_key, "fts_delete_mutex", 0},
-	{&fts_optimize_mutex_key, "fts_optimize_mutex", 0},
-	{&fts_doc_id_mutex_key, "fts_doc_id_mutex", 0},
-	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
-	{&hash_table_mutex_key, "hash_table_mutex", 0},
-	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
-	{&ibuf_mutex_key, "ibuf_mutex", 0},
-	{&ibuf_pessimistic_insert_mutex_key,
-		 "ibuf_pessimistic_insert_mutex", 0},
+	PSI_KEY(buf_pool_mutex),
+	PSI_KEY(buf_pool_zip_mutex),
+	PSI_KEY(cache_last_read_mutex),
+	PSI_KEY(dict_foreign_err_mutex),
+	PSI_KEY(dict_sys_mutex),
+	PSI_KEY(dict_stats_recalc_pool_mutex),
+	PSI_KEY(file_format_max_mutex),
+	PSI_KEY(fil_system_mutex),
+	PSI_KEY(flush_list_mutex),
+	PSI_KEY(fts_bg_threads_mutex),
+	PSI_KEY(fts_delete_mutex),
+	PSI_KEY(fts_optimize_mutex),
+	PSI_KEY(fts_doc_id_mutex),
+	PSI_KEY(log_flush_order_mutex),
+	PSI_KEY(hash_table_mutex),
+	PSI_KEY(ibuf_bitmap_mutex),
+	PSI_KEY(ibuf_mutex),
+	PSI_KEY(ibuf_pessimistic_insert_mutex),
 #  ifndef HAVE_ATOMIC_BUILTINS
-	{&server_mutex_key, "server_mutex", 0},
+	PSI_KEY(server_mutex),
 #  endif /* !HAVE_ATOMIC_BUILTINS */
-	{&log_sys_mutex_key, "log_sys_mutex", 0},
+	PSI_KEY(log_sys_mutex),
 #  ifdef UNIV_MEM_DEBUG
-	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
+	PSI_KEY(mem_hash_mutex),
 #  endif /* UNIV_MEM_DEBUG */
-	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
-	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
-	{&page_zip_stat_per_index_mutex_key, "page_zip_stat_per_index_mutex", 0},
-	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
-	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
-	{&recv_writer_mutex_key, "recv_writer_mutex", 0},
-	{&rseg_mutex_key, "rseg_mutex", 0},
+	PSI_KEY(mem_pool_mutex),
+	PSI_KEY(mutex_list_mutex),
+	PSI_KEY(page_zip_stat_per_index_mutex),
+	PSI_KEY(purge_sys_bh_mutex),
+	PSI_KEY(recv_sys_mutex),
+	PSI_KEY(recv_writer_mutex),
+	PSI_KEY(rseg_mutex),
 #  ifdef UNIV_SYNC_DEBUG
-	{&rw_lock_debug_mutex_key, "rw_lock_debug_mutex", 0},
+	PSI_KEY(rw_lock_debug_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&rw_lock_list_mutex_key, "rw_lock_list_mutex", 0},
-	{&rw_lock_mutex_key, "rw_lock_mutex", 0},
-	{&srv_dict_tmpfile_mutex_key, "srv_dict_tmpfile_mutex", 0},
-	{&srv_innodb_monitor_mutex_key, "srv_innodb_monitor_mutex", 0},
-	{&srv_misc_tmpfile_mutex_key, "srv_misc_tmpfile_mutex", 0},
-	{&srv_monitor_file_mutex_key, "srv_monitor_file_mutex", 0},
+	PSI_KEY(rw_lock_list_mutex),
+	PSI_KEY(rw_lock_mutex),
+	PSI_KEY(srv_dict_tmpfile_mutex),
+	PSI_KEY(srv_innodb_monitor_mutex),
+	PSI_KEY(srv_misc_tmpfile_mutex),
+	PSI_KEY(srv_monitor_file_mutex),
 #  ifdef UNIV_SYNC_DEBUG
-	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
+	PSI_KEY(sync_thread_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&buf_dblwr_mutex_key, "buf_dblwr_mutex", 0},
-	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
-	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
-	{&lock_sys_mutex_key, "lock_mutex", 0},
-	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
-	{&trx_mutex_key, "trx_mutex", 0},
-	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
+	PSI_KEY(buf_dblwr_mutex),
+	PSI_KEY(trx_undo_mutex),
+	PSI_KEY(srv_sys_mutex),
+	PSI_KEY(lock_mutex),
+	PSI_KEY(lock_wait_mutex),
+	PSI_KEY(trx_mutex),
+	PSI_KEY(srv_threads_mutex),
 	/* mutex with os_fast_mutex_ interfaces */
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	{&event_os_mutex_key, "event_os_mutex", 0},
+	PSI_KEY(event_os_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	{&os_mutex_key, "os_mutex", 0},
+	PSI_KEY(os_mutex),
 #ifndef HAVE_ATOMIC_BUILTINS
-	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+	PSI_KEY(srv_conc_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS */
 #ifndef HAVE_ATOMIC_BUILTINS_64
-	{&monitor_mutex_key, "monitor_mutex", 0},
+	PSI_KEY(monitor_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
-	{&ut_list_mutex_key, "ut_list_mutex", 0},
-	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
-	{&zip_pad_mutex_key, "zip_pad_mutex", 0},
+	PSI_KEY(ut_list_mutex),
+	PSI_KEY(trx_sys_mutex),
+	PSI_KEY(zip_pad_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -361,26 +362,26 @@ performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
 #  ifdef UNIV_LOG_ARCHIVE
-	{&archive_lock_key, "archive_lock", 0},
+	PSI_KEY(archive_lock),
 #  endif /* UNIV_LOG_ARCHIVE */
-	{&btr_search_latch_key, "btr_search_latch", 0},
+	PSI_KEY(btr_search_latch),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	{&buf_block_lock_key, "buf_block_lock", 0},
+	PSI_KEY(buf_block_lock),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_SYNC_DEBUG
-	{&buf_block_debug_latch_key, "buf_block_debug_latch", 0},
+	PSI_KEY(buf_block_debug_latch),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&dict_operation_lock_key, "dict_operation_lock", 0},
-	{&fil_space_latch_key, "fil_space_latch", 0},
-	{&checkpoint_lock_key, "checkpoint_lock", 0},
-	{&fts_cache_rw_lock_key, "fts_cache_rw_lock", 0},
-	{&fts_cache_init_rw_lock_key, "fts_cache_init_rw_lock", 0},
-	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
-	{&trx_purge_latch_key, "trx_purge_latch", 0},
-	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
-	{&index_online_log_key, "index_online_log", 0},
-	{&dict_table_stats_latch_key, "dict_table_stats", 0},
-	{&hash_table_rw_lock_key, "hash table locks", 0}
+	PSI_KEY(dict_operation_lock),
+	PSI_KEY(fil_space_latch),
+	PSI_KEY(checkpoint_lock),
+	PSI_KEY(fts_cache_rw_lock),
+	PSI_KEY(fts_cache_init_rw_lock),
+	PSI_KEY(trx_i_s_cache_lock),
+	PSI_KEY(trx_purge_latch),
+	PSI_KEY(index_tree_rw_lock),
+	PSI_KEY(index_online_log),
+	PSI_KEY(dict_table_stats),
+	PSI_KEY(hash_table_locks)
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -389,19 +390,19 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
-	{&trx_rollback_clean_thread_key, "trx_rollback_clean_thread", 0},
-	{&io_ibuf_thread_key, "io_ibuf_thread", 0},
-	{&io_log_thread_key, "io_log_thread", 0},
-	{&io_read_thread_key, "io_read_thread", 0},
-	{&io_write_thread_key, "io_write_thread", 0},
-	{&io_handler_thread_key, "io_handler_thread", 0},
-	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
-	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
-	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
-	{&srv_master_thread_key, "srv_master_thread", 0},
-	{&srv_purge_thread_key, "srv_purge_thread", 0},
-	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0},
-	{&recv_writer_thread_key, "recovery writer thread", 0}
+	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(io_ibuf_thread),
+	PSI_KEY(io_log_thread),
+	PSI_KEY(io_read_thread),
+	PSI_KEY(io_write_thread),
+	PSI_KEY(io_handler_thread),
+	PSI_KEY(srv_lock_timeout_thread),
+	PSI_KEY(srv_error_monitor_thread),
+	PSI_KEY(srv_monitor_thread),
+	PSI_KEY(srv_master_thread),
+	PSI_KEY(srv_purge_thread),
+	PSI_KEY(page_cleaner_thread),
+	PSI_KEY(recv_writer_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -409,9 +410,9 @@ static PSI_thread_info	all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
-	{&innodb_file_data_key, "innodb_data_file", 0},
-	{&innodb_file_log_key, "innodb_log_file", 0},
-	{&innodb_file_temp_key, "innodb_temp_file", 0}
+	PSI_KEY(innodb_data_file),
+	PSI_KEY(innodb_log_file),
+	PSI_KEY(innodb_temp_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
