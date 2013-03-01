@@ -2101,6 +2101,10 @@ int ha_ndbcluster::get_metadata(THD *thd, const char *path)
   if ((error= open_indexes(thd, ndb, table, FALSE)) != 0)
     goto err;
 
+  /* Read foreign keys where this table is child or parent */
+  if ((error= get_fk_data(thd, ndb)) != 0)
+    goto err;
+
   /*
     Backward compatibility for tables created without tablespace
     in .frm => read tablespace setting from engine
@@ -2781,6 +2785,9 @@ void ha_ndbcluster::release_metadata(THD *thd, Ndb *ndb)
     }
     ndb_clear_index(dict, m_index[i]);
   }
+
+  // Release FK data
+  release_fk_data(thd);
 
   m_table= NULL;
   DBUG_VOID_RETURN;
@@ -9068,6 +9075,20 @@ void ha_ndbcluster::update_create_info(HA_CREATE_INFO *create_info)
     }
   }
 
+  /*
+    FK data is handled in get_metadata and release_metadata but
+    for some reason it is not enough
+  */
+  if (1)
+  {
+    int error= get_fk_data(thd, ndb);
+    if (error != 0)
+    {
+      sql_print_error("update_create_info: get FK data: error %d", error);
+      DBUG_VOID_RETURN;
+    }
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -10679,6 +10700,10 @@ ha_ndbcluster::ha_ndbcluster(handlerton *hton, TABLE_SHARE *table_arg):
   for (i= 0; i < MAX_KEY; i++)
     ndb_init_index(m_index[i]);
 
+  // make sure is initialized
+  init_alloc_root(&m_fk_mem_root, fk_root_block_size, 0);
+  m_fk_data= NULL;
+
   DBUG_VOID_RETURN;
 }
 
@@ -10721,6 +10746,10 @@ ha_ndbcluster::~ha_ndbcluster()
     delete m_pushed_join_member;             // Also delete QueryDef
   }
   m_pushed_join_member= NULL;
+
+  // make sure is released
+  free_root(&m_fk_mem_root, 0);
+  m_fk_data= NULL;
   DBUG_VOID_RETURN;
 }
 

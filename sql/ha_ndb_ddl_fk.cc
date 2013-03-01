@@ -32,6 +32,28 @@ typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Index NDBINDEX;
 typedef NdbDictionary::ForeignKey NDBFK;
 
+/*
+  Foreign key data where this table is child or parent or both.
+  Like indexes, these are cached under each handler instance.
+  Unlike indexes, no references to global dictionary are kept.
+*/
+
+struct Ndb_fk_item : Sql_alloc
+{
+  FOREIGN_KEY_INFO f_key_info;
+  int update_action;    // NDBFK::FkAction
+  int delete_action;
+  bool is_child;
+  bool is_parent;
+};
+
+struct Ndb_fk_data : Sql_alloc
+{
+  List<Ndb_fk_item> list;
+  uint cnt_child;
+  uint cnt_parent;
+};
+
 // Forward decl
 static
 const char *
@@ -735,6 +757,269 @@ fk_split_name(char dst[], const char * src, bool index)
   strcpy(dstptr, src);
   DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dstptr));
   return dstptr;
+}
+
+struct Ndb_mem_root_guard {
+  Ndb_mem_root_guard(MEM_ROOT *new_root) {
+    root_ptr= my_pthread_getspecific(MEM_ROOT**, THR_MALLOC);
+    DBUG_ASSERT(root_ptr != 0);
+    old_root= *root_ptr;
+    *root_ptr= new_root;
+  }
+  ~Ndb_mem_root_guard() {
+    *root_ptr= old_root;
+  }
+private:
+  MEM_ROOT **root_ptr;
+  MEM_ROOT *old_root;
+};
+
+int
+ha_ndbcluster::get_fk_data(THD *thd, Ndb *ndb)
+{
+  DBUG_ENTER("ha_ndbcluster::get_fk_data");
+
+  MEM_ROOT *mem_root= &m_fk_mem_root;
+  Ndb_mem_root_guard mem_root_guard(mem_root);
+
+  free_root(mem_root, 0);
+  m_fk_data= 0;
+  init_alloc_root(mem_root, fk_root_block_size, 0);
+
+  NdbError err_OOM;
+  err_OOM.code= 4000; // should we check OOM errors at all?
+  NdbError err_API;
+  err_API.code= 4011; // API internal should not happen
+
+  Ndb_fk_data *data= new (mem_root) Ndb_fk_data;
+  if (data == 0)
+    ERR_RETURN(err_OOM);
+  data->cnt_child= 0;
+  data->cnt_parent= 0;
+
+  DBUG_PRINT("info", ("%s.%s: list dependent objects",
+                      m_dbname, m_tabname));
+  int res;
+  NDBDICT *dict= ndb->getDictionary();
+  NDBDICT::List obj_list;
+  res= dict->listDependentObjects(obj_list, *m_table);
+  if (res != 0)
+    ERR_RETURN(dict->getNdbError());
+  DBUG_PRINT("info", ("found %u dependent objects", obj_list.count));
+
+  for (unsigned i = 0; i < obj_list.count; i++)
+  {
+    const NDBDICT::List::Element &e= obj_list.elements[i];
+    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+    {
+      DBUG_PRINT("info", ("skip non-FK %s type %d", e.name, e.type));
+      continue;
+    }
+    DBUG_PRINT("info", ("found FK %s", e.name));
+
+    NdbDictionary::ForeignKey fk;
+    res= dict->getForeignKey(fk, e.name);
+    if (res != 0)
+      ERR_RETURN(dict->getNdbError());
+
+    Ndb_fk_item *item= new (mem_root) Ndb_fk_item;
+    if (item == 0)
+      ERR_RETURN(err_OOM);
+    FOREIGN_KEY_INFO &f_key_info= item->f_key_info;
+
+    {
+      char fk_full_name[FN_LEN + 1];
+      const char * name = fk_split_name(fk_full_name, fk.getName());
+      f_key_info.foreign_id = thd_make_lex_string(thd, 0, name,
+                                                  (uint)strlen(name), 1);
+    }
+
+    {
+      char child_db_and_name[FN_LEN + 1];
+      const char * child_name = fk_split_name(child_db_and_name,
+                                              fk.getChildTable());
+
+      /* Dependent (child) database name */
+      f_key_info.foreign_db =
+        thd_make_lex_string(thd, 0, child_db_and_name,
+                            (uint)strlen(child_db_and_name),
+                            1);
+      /* Dependent (child) table name */
+      f_key_info.foreign_table =
+        thd_make_lex_string(thd, 0, child_name,
+                            (uint)strlen(child_name),
+                            1);
+
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, child_db_and_name);
+      Ndb_table_guard child_tab(dict, child_name);
+      if (child_tab.get_table() == 0)
+      {
+        DBUG_ASSERT(false);
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
+      {
+        const NdbDictionary::Column * col =
+          child_tab.get_table()->getColumn(fk.getChildColumnNo(i));
+        if (col == 0)
+          ERR_RETURN(err_API);
+        LEX_STRING * name =
+          thd_make_lex_string(thd, 0, col->getName(),
+                              (uint)strlen(col->getName()), 1);
+        f_key_info.foreign_fields.push_back(name);
+      }
+    }
+
+    {
+      char parent_db_and_name[FN_LEN + 1];
+      const char * parent_name = fk_split_name(parent_db_and_name,
+                                               fk.getParentTable());
+
+      /* Referenced (parent) database name */
+      f_key_info.referenced_db =
+        thd_make_lex_string(thd, 0, parent_db_and_name,
+                            (uint)strlen(parent_db_and_name),
+                            1);
+      /* Referenced (parent) table name */
+      f_key_info.referenced_table =
+        thd_make_lex_string(thd, 0, parent_name,
+                            (uint)strlen(parent_name),
+                            1);
+
+      Ndb_db_guard db_guard(ndb);
+      setDbName(ndb, parent_db_and_name);
+      Ndb_table_guard parent_tab(dict, parent_name);
+      if (parent_tab.get_table() == 0)
+      {
+        DBUG_ASSERT(false);
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
+      {
+        const NdbDictionary::Column * col =
+          parent_tab.get_table()->getColumn(fk.getParentColumnNo(i));
+        if (col == 0)
+          ERR_RETURN(err_API);
+        LEX_STRING * name =
+          thd_make_lex_string(thd, 0, col->getName(),
+                              (uint)strlen(col->getName()), 1);
+        f_key_info.referenced_fields.push_back(name);
+      }
+
+    }
+
+    {
+      const char *update_method = "";
+      switch (item->update_action= fk.getOnUpdateAction()){
+      case NdbDictionary::ForeignKey::NoAction:
+        update_method = "NO ACTION";
+        break;
+      case NdbDictionary::ForeignKey::Restrict:
+        update_method = "RESTRICT";
+        break;
+      case NdbDictionary::ForeignKey::Cascade:
+        update_method = "CASCADE";
+        break;
+      case NdbDictionary::ForeignKey::SetNull:
+        update_method = "SET NULL";
+        break;
+      case NdbDictionary::ForeignKey::SetDefault:
+        update_method = "SET DEFAULT";
+        break;
+      }
+      f_key_info.update_method =
+        thd_make_lex_string(thd, 0, update_method,
+                            (uint)strlen(update_method),
+                            1);
+    }
+
+    {
+      const char *delete_method = "";
+      switch (item->delete_action= fk.getOnDeleteAction()){
+      case NdbDictionary::ForeignKey::NoAction:
+        delete_method = "NO ACTION";
+        break;
+      case NdbDictionary::ForeignKey::Restrict:
+        delete_method = "RESTRICT";
+        break;
+      case NdbDictionary::ForeignKey::Cascade:
+        delete_method = "CASCADE";
+        break;
+      case NdbDictionary::ForeignKey::SetNull:
+        delete_method = "SET NULL";
+        break;
+      case NdbDictionary::ForeignKey::SetDefault:
+        delete_method = "SET DEFAULT";
+        break;
+      }
+      f_key_info.delete_method =
+        thd_make_lex_string(thd, 0, delete_method,
+                            (uint)strlen(delete_method),
+                            1);
+    }
+
+    if (fk.getParentIndex() != 0)
+    {
+      // sys/def/10/xb1$unique
+      char db_and_name[FN_LEN + 1];
+      const char * name=fk_split_name(db_and_name, fk.getParentIndex(), true);
+      f_key_info.referenced_key_name =
+        thd_make_lex_string(thd, 0, name,
+                            (uint)strlen(name),
+                            1);
+    }
+    else
+    {
+      const char* name= "PRIMARY";
+      f_key_info.referenced_key_name =
+        thd_make_lex_string(thd, 0, name,
+                            (uint)strlen(name),
+                            1);
+    }
+
+    item->is_child=
+      strcmp(m_dbname, f_key_info.foreign_db->str) == 0 &&
+      strcmp(m_tabname, f_key_info.foreign_table->str) == 0;
+
+    item->is_parent=
+      strcmp(m_dbname, f_key_info.referenced_db->str) == 0 &&
+      strcmp(m_tabname, f_key_info.referenced_table->str) == 0;
+
+    data->cnt_child+= item->is_child;
+    data->cnt_parent+= item->is_parent;
+
+    res= data->list.push_back(item);
+    if (res != 0)
+      ERR_RETURN(err_OOM);
+  }
+
+  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
+                      data->list.elements, data->cnt_child, data->cnt_parent));
+
+  m_fk_data= data;
+  DBUG_RETURN(0);
+}
+
+void
+ha_ndbcluster::release_fk_data(THD *thd)
+{
+  DBUG_ENTER("ha_ndbcluster::release_fk_data");
+
+  Ndb_fk_data *data= m_fk_data;
+  if (data != 0)
+  {
+    DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
+                        data->list.elements, data->cnt_child, data->cnt_parent));
+  }
+
+  MEM_ROOT *mem_root= &m_fk_mem_root;
+  free_root(mem_root, 0);
+  m_fk_data= 0;
+
+  DBUG_VOID_RETURN;
 }
 
 int
