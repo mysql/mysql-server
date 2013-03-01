@@ -362,6 +362,13 @@ fts_load_default_stopword(
 
 	allocator = stopword_info->heap;
 	heap = static_cast<mem_heap_t*>(allocator->arg);
+
+	if (!stopword_info->cached_stopword) {
+		/* For default stopword, we always use fts_utf8_string_cmp() */
+		stopword_info->cached_stopword = rbt_create(
+			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+	}
+
 	stop_words = stopword_info->cached_stopword;
 
 	str.f_n_char = 0;
@@ -475,9 +482,17 @@ fts_load_user_stopword(
 
 	/* Validate the user table existence and in the right
 	format */
-	if (!fts_valid_stopword_table(stopword_table_name)) {
+	stopword_info->charset = fts_valid_stopword_table(stopword_table_name);
+	if (!stopword_info->charset) {
 		ret = FALSE;
 		goto cleanup;
+	} else if (!stopword_info->cached_stopword) {
+		/* Create the stopword RB tree with the stopword column
+		charset. All comparison will use this charset */
+		stopword_info->cached_stopword = rbt_create_arg_cmp(
+			sizeof(fts_tokenizer_word_t), innobase_fts_text_cmp,
+			stopword_info->charset);
+
 	}
 
 	info = pars_info_create();
@@ -656,10 +671,8 @@ fts_cache_create(
 
 	fts_cache_init(cache);
 
-	/* Create stopword RB tree. The stopword tree will
-	remain in cache for the duration of FTS cache's lifetime */
-	cache->stopword_info.cached_stopword = rbt_create(
-		sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
+	cache->stopword_info.cached_stopword = NULL;
+	cache->stopword_info.charset = NULL;
 
 	cache->stopword_info.heap = cache->self_heap;
 
@@ -1210,7 +1223,10 @@ fts_cache_destroy(
 	mutex_free(&cache->optimize_lock);
 	mutex_free(&cache->deleted_lock);
 	mutex_free(&cache->doc_id_lock);
-	rbt_free(cache->stopword_info.cached_stopword);
+
+	if (cache->stopword_info.cached_stopword) {
+		rbt_free(cache->stopword_info.cached_stopword);
+	}
 
 	if (cache->sync_heap->arg) {
 		mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
@@ -6028,18 +6044,19 @@ fts_drop_orphaned_tables(void)
 /**********************************************************************//**
 Check whether user supplied stopword table is of the right format.
 Caller is responsible to hold dictionary locks.
-@return TRUE if the table qualifies */
+@return the stopword column charset if qualifies */
 UNIV_INTERN
-ibool
+CHARSET_INFO*
 fts_valid_stopword_table(
 /*=====================*/
 	 const char*	stopword_table_name)	/*!< in: Stopword table
 						name */
 {
 	dict_table_t*	table;
+	dict_col_t*     col = NULL;
 
 	if (!stopword_table_name) {
-		return(FALSE);
+		return(NULL);
 	}
 
 	table = dict_table_get_low(stopword_table_name);
@@ -6049,9 +6066,8 @@ fts_valid_stopword_table(
 			"InnoDB: user stopword table %s does not exist.\n",
 			stopword_table_name);
 
-		return(FALSE);
+		return(NULL);
 	} else {
-		dict_col_t*     col;
 		const char*     col_name;
 
 		col_name = dict_table_get_col_name(table, 0);
@@ -6062,22 +6078,27 @@ fts_valid_stopword_table(
 				"table %s. Its first column must be named as "
 				"'value'.\n", stopword_table_name);
 
-			return(FALSE);
+			return(NULL);
 		}
 
 		col = dict_table_get_nth_col(table, 0);
 
-		if (col->mtype != DATA_VARCHAR) {
+		if (col->mtype != DATA_VARCHAR
+		    && col->mtype != DATA_VARMYSQL) {
 			fprintf(stderr,
 				"InnoDB: invalid column type for stopword "
 				"table %s. Its first column must be of "
 				"varchar type\n", stopword_table_name);
 
-			return(FALSE);
+			return(NULL);
 		}
 	}
 
-	return(TRUE);
+	ut_ad(col);
+
+	return(innobase_get_fts_charset(
+		static_cast<int>(col->prtype & DATA_MYSQL_TYPE_MASK),
+		static_cast<ulint>(dtype_get_charset_coll(col->prtype))));
 }
 
 /**********************************************************************//**
@@ -6142,9 +6163,11 @@ fts_load_stopword(
 	}
 
 	/* If stopword is turned off, no need to continue to load the
-	stopword into cache */
+	stopword into cache, but still need to do initialization */
 	if (!use_stopword) {
 		cache->stopword_info.status = STOPWORD_OFF;
+		cache->stopword_info.cached_stopword = rbt_create(
+			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
 		goto cleanup;
 	}
 
