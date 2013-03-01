@@ -1379,6 +1379,8 @@ void Dbtc::sendSignalErrorRefuseLab(Signal* signal)
   ptrGuard(apiConnectptr);
   if (apiConnectptr.p->apiConnectstate != CS_DISCONNECTED) {
     jam();
+    /* Force state print */
+    printState(signal, 12, true);
     ndbrequire(false);
     signal->theData[0] = apiConnectptr.p->ndbapiConnect;
     signal->theData[1] = signal->theData[ttransid_ptr];
@@ -1396,9 +1398,21 @@ void Dbtc::abortBeginErrorLab(Signal* signal)
   abortErrorLab(signal);
 }//Dbtc::abortBeginErrorLab()
 
-void Dbtc::printState(Signal* signal, int place) 
+void Dbtc::printState(Signal* signal, int place, bool force_trace) 
 {
-#ifdef VM_TRACE // Change to if 0 to disable these printouts
+  /* Always give minimal ApiConnectState trace via jam */
+  jam();
+  jamLine(apiConnectptr.p->apiConnectstate);
+  jam();
+
+#ifdef VM_TRACE
+  /* Always trace in debug mode */
+  force_trace = true;
+#endif
+
+  if (!force_trace)
+    return;
+  
   ndbout << "-- Dbtc::printState -- " << endl;
   ndbout << "Received from place = " << place
 	 << " apiConnectptr.i = " << apiConnectptr.i
@@ -1434,7 +1448,6 @@ void Dbtc::printState(Signal* signal, int place)
       systemErrorLab(signal, __LINE__);
     }//if
   }//if
-#endif
   return;
 }//Dbtc::printState()
 
