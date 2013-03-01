@@ -1811,7 +1811,7 @@ public:
   from the list when performing an iteration.
 */ 
 
-template <template<class> class LI, class T> class Item_equal_iterator
+template <template<class> class LI, typename T> class Item_equal_iterator
   : public LI<T>
 {
 protected:
@@ -1849,13 +1849,14 @@ public:
   }  
 };
 
+typedef  Item_equal_iterator<List_iterator_fast,Item >  Item_equal_iterator_fast;
 
 class Item_equal_fields_iterator
-  :public Item_equal_iterator<List_iterator_fast,Item >
+  :public Item_equal_iterator_fast
 {
 public:
   Item_equal_fields_iterator(Item_equal &item_eq) 
-    :Item_equal_iterator<List_iterator_fast,Item>(item_eq)
+    :Item_equal_iterator_fast(item_eq)
   { }
   Item ** ref()
   {
@@ -1863,13 +1864,14 @@ public:
   }
 };
 
+typedef Item_equal_iterator<List_iterator,Item > Item_equal_iterator_iterator_slow;
 
 class Item_equal_fields_iterator_slow
-  :public Item_equal_iterator<List_iterator,Item >
+  :public Item_equal_iterator_iterator_slow
 {
 public:
   Item_equal_fields_iterator_slow(Item_equal &item_eq) 
-    :Item_equal_iterator<List_iterator,Item>(item_eq)
+    :Item_equal_iterator_iterator_slow(item_eq)
   { }
   void remove()
   {
