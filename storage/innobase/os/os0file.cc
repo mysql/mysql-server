@@ -150,9 +150,9 @@ UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_data_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_log_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_temp_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
