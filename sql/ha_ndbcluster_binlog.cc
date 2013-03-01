@@ -184,7 +184,6 @@ extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
 
 #ifndef DBUG_OFF
-/* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -204,7 +203,6 @@ static void print_records(TABLE *table, const uchar *record)
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
-/* purecov: end */
 #else
 #define print_records(a,b)
 #endif
