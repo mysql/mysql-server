@@ -19,9 +19,6 @@
 #                                                                          #
 ############################################################################
 
-# Not supported in embedded
---source include/not_embedded.inc
-
 --echo ** Setup **
 --echo
 #

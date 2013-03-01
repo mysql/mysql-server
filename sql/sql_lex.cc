@@ -238,12 +238,10 @@ Lex_input_stream::reset(char *buffer, unsigned int length)
   m_tok_start= NULL;
   m_tok_end= NULL;
   m_end_of_query= buffer + length;
-  m_tok_start_prev= NULL;
   m_buf= buffer;
   m_buf_length= length;
   m_echo= TRUE;
   m_cpp_tok_start= NULL;
-  m_cpp_tok_start_prev= NULL;
   m_cpp_tok_end= NULL;
   m_body_utf8= NULL;
   m_cpp_utf8_processed_ptr= NULL;
@@ -485,6 +483,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->is_set_password_sql= false;
   lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
@@ -514,6 +513,7 @@ Yacc_state::~Yacc_state()
   {
     my_free(yacc_yyss);
     my_free(yacc_yyvs);
+    my_free(yacc_yyls);
   }
 }
 
@@ -683,7 +683,7 @@ static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
       end -= post_skip;
       DBUG_ASSERT(end >= str);
 
-      if (!(start= (char*) lip->m_thd->alloc((uint) (end-str)+1)))
+      if (!(start= static_cast<char *>(lip->m_thd->alloc((uint) (end-str)+1))))
 	return (char*) "";		// Sql_alloc has set error flag
 
       lip->m_cpp_text_start= lip->get_cpp_tok_start() + pre_skip;
@@ -893,18 +893,28 @@ bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 
 
 /*
-  MYSQLlex remember the following states from the following MYSQLlex()
+  yylex() function implementation for the main parser
+
+  @param arg    [out]   semantic value of the token being parsed (yylval)
+  @param arg2   [out]   "location" of the token being parsed (yylloc)
+  @param yythd          THD
+
+  @return               token number
+
+  @note
+  MYSQLlex remember the following states from the following MYSQLlex():
 
   - MY_LEX_EOQ			Found end of query
   - MY_LEX_OPERATOR_OR_IDENT	Last state was an ident, text or number
 				(which can't be followed by a signed number)
 */
 
-int MYSQLlex(void *arg, void *yythd)
+int MYSQLlex(void *arg, void *arg2, void *yythd)
 {
   THD *thd= (THD *)yythd;
   Lex_input_stream *lip= & thd->m_parser_state->m_lip;
   YYSTYPE *yylval=(YYSTYPE*) arg;
+  YYLTYPE *yylloc=(YYLTYPE*) arg2;
   int token;
 
   if (lip->lookahead_token >= 0)
@@ -916,12 +926,18 @@ int MYSQLlex(void *arg, void *yythd)
     token= lip->lookahead_token;
     lip->lookahead_token= -1;
     *yylval= *(lip->lookahead_yylval);
+    yylloc->start= lip->get_cpp_tok_start();
+    yylloc->end= lip->get_cpp_ptr();
+    yylloc->raw_start= lip->get_tok_start();
+    yylloc->raw_end= lip->get_ptr();
     lip->lookahead_yylval= NULL;
     lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
     return token;
   }
 
   token= lex_one_token(arg, yythd);
+  yylloc->start= lip->get_cpp_tok_start();
+  yylloc->raw_start= lip->get_tok_start();
 
   switch(token) {
   case WITH:
@@ -935,10 +951,14 @@ int MYSQLlex(void *arg, void *yythd)
     token= lex_one_token(arg, yythd);
     switch(token) {
     case CUBE_SYM:
+      yylloc->end= lip->get_cpp_ptr();
+      yylloc->raw_end= lip->get_ptr();
       lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_CUBE_SYM,
                                          yylval);
       return WITH_CUBE_SYM;
     case ROLLUP_SYM:
+      yylloc->end= lip->get_cpp_ptr();
+      yylloc->raw_end= lip->get_ptr();
       lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH_ROLLUP_SYM,
                                          yylval);
       return WITH_ROLLUP_SYM;
@@ -949,6 +969,8 @@ int MYSQLlex(void *arg, void *yythd)
       lip->lookahead_yylval= lip->yylval;
       lip->yylval= NULL;
       lip->lookahead_token= token;
+      yylloc->end= lip->get_cpp_ptr();
+      yylloc->raw_end= lip->get_ptr();
       lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, WITH, yylval);
       return WITH;
     }
@@ -956,12 +978,13 @@ int MYSQLlex(void *arg, void *yythd)
   default:
     break;
   }
-
+  yylloc->end= lip->get_cpp_ptr();
+  yylloc->raw_end= lip->get_ptr();
   lip->m_digest_psi= MYSQL_ADD_TOKEN(lip->m_digest_psi, token, yylval);
   return token;
 }
 
-int lex_one_token(void *arg, void *yythd)
+static int lex_one_token(void *arg, void *yythd)
 {
   uchar c= 0;
   bool comment_closed;
@@ -2830,7 +2853,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), option_type(OPT_DEFAULT), is_change_password(false),
-  is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
