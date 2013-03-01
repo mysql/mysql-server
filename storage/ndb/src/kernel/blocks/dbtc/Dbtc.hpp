@@ -1397,7 +1397,7 @@ private:
                        UintR Tstart);
   void errorReport(Signal* signal, int place);
   void warningReport(Signal* signal, int place);
-  void printState(Signal* signal, int place);
+  void printState(Signal* signal, int place, bool force_trace=false);
   int seizeTcRecord(Signal* signal);
   int seizeCacheRecord(Signal* signal);
   void TCKEY_abort(Signal* signal, int place);
