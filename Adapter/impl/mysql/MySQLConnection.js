@@ -33,10 +33,16 @@ var mysql  = require("mysql"),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
 
-/** MySQLConnection wraps a mysql connection and implements the DBSession contract */
-exports.DBSession = function(pooledConnection, connectionPool) {
-  if (arguments.length !== 2) {
-    throw new Error('Fatal internal exception: expected 2 arguments; got ' + arguments.length);
+/** MySQLConnection wraps a mysql connection and implements the DBSession contract.
+ *  @param pooledConnection the felix connection to wrap
+ *  @param connectionPool the associated connection pool
+ *  @param index the index into connectionPool.openConnections for the pooledConnection;
+ *    also the index of the Session in SessionFactory.sessions
+ *  @return nothing
+ */
+exports.DBSession = function(pooledConnection, connectionPool, index) {
+  if (arguments.length !== 3) {
+    throw new Error('Fatal internal exception: expected 3 arguments; got ' + arguments.length);
   } else {
     if (typeof(pooledConnection) === 'undefined') {
       throw new Error('Fatal internal exception: got undefined for pooledConnection');
@@ -48,7 +54,7 @@ exports.DBSession = function(pooledConnection, connectionPool) {
     this.connectionPool = connectionPool;
     this.transactionHandler = null;
     this.autocommit = true;
-    this.index = -1;
+    this.index = index;
     session_stats.incr("created");
   }
 };
@@ -811,16 +817,17 @@ exports.DBSession.prototype.rollback = function(callback) {
 
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
+  var dbSession = this;
   session_stats.incr("closed");
-  if (this.pooledConnection) {
-    // TODO put the pooled connection back into the pool instead of ending it
-    this.pooledConnection.end();
-    this.pooledConnection = null;
-    // Not ready for this yet:
-    // this.connectionPool.pooledConnections[this.index] = null;
-  }
-  if (callback) {
-    callback(null, null);
+  if (dbSession.pooledConnection) {
+    dbSession.pooledConnection.end(function(err) {
+      udebug.log('close dbSession', dbSession);
+      dbSession.pooledConnection = null;
+      dbSession.connectionPool.openConnections[dbSession.index] = null;
+      if (typeof(callback) === 'function') {
+        callback(null);
+      }
+    });
   }
 };
 

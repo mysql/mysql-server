@@ -49,7 +49,8 @@ var t1 = new harness.SerialTest("Insert"),
     t6 = new harness.SerialTest("Write"),
     t7 = new harness.SerialTest("Read_3"),
     t8 = new harness.SerialTest("Delete"),
-    t9 = new harness.SerialTest("Delete_NotFound");
+    t9 = new harness.SerialTest("Delete_NotFound"),
+    close = new harness.SerialTest("CloseSession");
 
 
 /// Common prep
@@ -348,10 +349,16 @@ t9.run = function() {
   prepare(t9, deleteKey);
 };
 
-exports.tests = [ t1, t2, t3, t4, t5, t6, t7, t8, t9];
-
-exports.tests[exports.tests.length - 1].teardown = function() {
-  if(dbSession) {
-    dbSession.close();
-  }
+/** This test function must be the last in the test file.
+ */
+close.run = function() {
+  dbSession.close(function(err) {
+    if (err) {
+      close.fail("Close got error: " + err);
+    } else {
+      close.pass();
+    }
+  });
 };
+
+exports.tests = [ t1, t2, t3, t4, t5, t6, t7, t8, t9, close];

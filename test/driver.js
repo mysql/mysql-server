@@ -98,6 +98,12 @@ Driver.prototype.testCompleted = function(testCase) {
 };
 
 Driver.prototype.reportResultsAndExit = function() {
+  var driver = this;
+  var sessionFactory;
+  var openSessions;
+  var i;
+  var closedSessions = 0;
+  
   console.log("Started: ", this.result.listener.started);
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
@@ -105,8 +111,23 @@ Driver.prototype.reportResultsAndExit = function() {
   if(this.doStats) {
     require(path.join(api_dir, "stats")).peek();
   }
-  unified_debug.close();
-  process.exit(this.result.failed.length > 0);
+
+  // exit after closing sessions
+  var onSessionFactoryClose = function() {
+    unified_debug.close();
+    process.exit(driver.result.failed.length > 0);      
+  };
+
+  // close all open sessions and exit
+  sessionFactory = mynode.connect(global.test_conn_properties, null, function(err, sessionFactory) {
+    if (err) {
+      console.log('mynode.connect returned', err);
+      unified_debug.close();
+      process.exit(driver.result.failed.length > 0);      
+    } else {
+      sessionFactory.close(onSessionFactoryClose);
+    }
+  });  
 };
 
 //// END OF DRIVER

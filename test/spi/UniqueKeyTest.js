@@ -179,7 +179,8 @@ var
     t6 = new ReadTest("uk",11,"name","Henry V"),
     t7 = new ReadTest("uk",11,"id",1),
     t8 = new harness.SerialTest("UK_Delete"),
-    t9 = new harness.SerialTest("UK_Delete_NotFound");
+    t9 = new harness.SerialTest("UK_Delete_NotFound"),
+    close = new harness.SerialTest("CloseSession");
 
 
 // PRELIMINARY DELETE.  THIS TEST WILL ALWAYS PASS.
@@ -236,11 +237,17 @@ t9.checkResult = function(err, tx) {
   t9.failOnError();
 };
 
-
-exports.tests = [ t0, t1, t2, t3, t4, t5, t6, t7, t8, t9 ];
-
-exports.tests[exports.tests.length - 1].teardown = function() {
-  if(dbSession) {
-    dbSession.close();
-  }
+/** This test function must be the last in the test file.
+ */
+close.run = function() {
+  dbSession.close(function(err) {
+    if (err) {
+      close.fail("Close got error: " + err);
+    } else {
+      close.pass();
+    }
+  });
 };
+
+
+exports.tests = [ t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, close ];
