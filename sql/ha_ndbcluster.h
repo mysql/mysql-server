@@ -233,6 +233,8 @@ public:
   virtual bool is_fk_defined_on_table_or_index(uint index);
   virtual int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO>*f_key_list);
   virtual uint referenced_by_foreign_key();
+  uint is_child_or_parent_of_fk();
+  virtual bool can_switch_engines();
   virtual char* get_foreign_key_create_info();
   virtual void free_foreign_key_create_info(char* str);
 

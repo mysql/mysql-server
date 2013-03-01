@@ -574,6 +574,103 @@ ha_ndbcluster::referenced_by_foreign_key()
   DBUG_RETURN(0);
 }
 
+uint
+ha_ndbcluster::is_child_or_parent_of_fk()
+{
+  DBUG_ENTER("ha_ndbcluster::is_child_or_parent_of_fk");
+
+  if (m_table == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  THD* thd= table->in_use;
+  if (thd == 0)
+  {
+    thd= current_thd;
+  }
+
+  if (thd == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  Ndb *ndb= get_ndb(thd);
+  if (ndb == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  DBUG_PRINT("info", ("%s.%s: list dependent objects",
+                      m_dbname, m_tabname));
+
+  NDBDICT *dict= ndb->getDictionary();
+  NDBDICT::List obj_list;
+  dict->listDependentObjects(obj_list, *m_table);
+  for (unsigned i = 0; i < obj_list.count; i++)
+  {
+    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
+
+    NdbDictionary::ForeignKey fk;
+    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
+    if (res != 0)
+    {
+      DBUG_ASSERT(false);
+      DBUG_RETURN(0);
+    }
+
+    DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+bool
+ha_ndbcluster::can_switch_engines()
+{
+  DBUG_ENTER("ha_ndbcluster::can_switch_engines");
+
+  if (m_table == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  THD* thd= table->in_use;
+  if (thd == 0)
+  {
+    thd= current_thd;
+  }
+
+  if (thd == 0)
+  {
+    DBUG_RETURN(0);
+  }
+
+  // first shot
+
+  LEX *lex= thd->lex;
+  DBUG_ASSERT(lex != 0);
+  if (lex->sql_command != SQLCOM_ALTER_TABLE)
+    DBUG_RETURN(1);
+
+  Alter_info &alter_info= lex->alter_info;
+  uint alter_flags= alter_info.flags;
+
+  if (!(alter_flags & Alter_info::ALTER_OPTIONS))
+    DBUG_RETURN(1);
+
+  HA_CREATE_INFO &create_info= lex->create_info;
+  if (create_info.db_type->db_type == DB_TYPE_NDBCLUSTER)
+    DBUG_RETURN(1);
+
+  if (is_child_or_parent_of_fk())
+    DBUG_RETURN(0);
+
+  DBUG_RETURN(1);
+}
+
 static
 const char *
 fk_split_name(char dst[], const char * src, bool index)
