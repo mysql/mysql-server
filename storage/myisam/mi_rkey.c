@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,6 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
     use_key_length=USE_WHOLE_KEY;
 
   switch (info->s->keyinfo[inx].key_alg) {
-#ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
     if (rtree_find_first(info,inx,key_buff,use_key_length,nextflag) < 0)
     {
@@ -92,7 +91,6 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
       goto err;
     }
     break;
-#endif
   case HA_KEY_ALG_BTREE:
   default:
     myisam_search_flag= myisam_read_vec[search_flag];

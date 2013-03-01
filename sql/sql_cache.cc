@@ -601,20 +601,34 @@ void Query_cache::unlock(void)
 /**
   Helper function for determine if a SELECT statement has a SQL_NO_CACHE
   directive.
-  
-  @param sql A pointer to the first white space character after SELECT
-  
+
+  @param sql           Query string
+  @param offset        Offset of the first whitespace character after SELECT
+  @param query_length  The total length of the query string
+
   @return
    @retval TRUE The character string contains SQL_NO_CACHE
    @retval FALSE No directive found.
 */
- 
-static bool has_no_cache_directive(char *sql)
+
+static bool has_no_cache_directive(const char *sql, uint offset,
+                                   uint query_length)
 {
-  int i=0;
-  while (sql[i] == ' ')
+  uint i= offset;
+
+  // Must have at least one whitespace char before SQL_NO_CACHE
+  if (!my_isspace(system_charset_info, sql[i]))
+    return false;
+
+  // But can have several
+  while (i < query_length &&
+         my_isspace(system_charset_info, sql[i]))
     ++i;
-    
+
+  // Check that we have enough chars left for SQL_NO_CACHE
+  if (i + 12 >= query_length)
+    return false;
+
   if (my_toupper(system_charset_info, sql[i])    == 'S' &&
       my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
       my_toupper(system_charset_info, sql[i+2])  == 'L' &&
@@ -627,10 +641,10 @@ static bool has_no_cache_directive(char *sql)
       my_toupper(system_charset_info, sql[i+9])  == 'C' &&
       my_toupper(system_charset_info, sql[i+10]) == 'H' &&
       my_toupper(system_charset_info, sql[i+11]) == 'E' &&
-      my_toupper(system_charset_info, sql[i+12]) == ' ')
-    return TRUE;
-  
-  return FALSE;       
+      my_isspace(system_charset_info, sql[i+12]))
+    return true;
+
+  return false;
 }
 
 
@@ -1517,7 +1531,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
     
-    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    if (has_no_cache_directive(sql, i+6, query_length))
     {
       /*
         We do not increase 'refused' statistics here since it will be done
