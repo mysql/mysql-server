@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 2007/3/16 Sunny Bains.
 #include "mem0mem.h"
 #include "fts0ast.h"
 #include "fts0pars.h"
+#include "fts0fts.h"
 
 /******************************************************************//**
 Create an empty fts_ast_node_t.
@@ -66,7 +67,7 @@ fts_ast_create_node_oper(
 /******************************************************************//**
 This function takes ownership of the ptr and is responsible
 for free'ing it
-@return new node */
+@return new node or a node list with tokenized words */
 UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_term(
@@ -74,17 +75,62 @@ fts_ast_create_node_term(
 	void*		arg,			/*!< in: ast state instance */
 	const char*	ptr)			/*!< in: ast term string */
 {
-	ulint		len = strlen(ptr);
-	fts_ast_node_t*	node = fts_ast_node_create();
+	fts_ast_state_t*	state = static_cast<fts_ast_state_t*>(arg);
+	ulint			len = strlen(ptr);
+	ulint			cur_pos = 0;
+	fts_ast_node_t*         node = NULL;
+	fts_ast_node_t*		node_list = NULL;
+	fts_ast_node_t*		first_node = NULL;
 
-	node->type = FTS_AST_TERM;
+	/* Scan the incoming string and filter out any "non-word" characters */
+	while (cur_pos < len) {
+		fts_string_t	str;
+		ulint		offset;
+		ulint		cur_len;
 
-	node->term.ptr = static_cast<byte*>(ut_malloc(len + 1));
-	memcpy(node->term.ptr, ptr, len + 1);
+		cur_len = innobase_mysql_fts_get_token(
+			state->charset,
+			reinterpret_cast<const byte*>(ptr) + cur_pos,
+			reinterpret_cast<const byte*>(ptr) + len, &str, &offset);
 
-	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
+		if (cur_len == 0) {
+			break;
+		}
 
-	return(node);
+		cur_pos += cur_len;
+
+		if (str.f_n_char > 0) {
+			node = fts_ast_node_create();
+
+			node->type = FTS_AST_TERM;
+
+			node->term.ptr = static_cast<byte*>(ut_malloc(
+				str.f_len + 1));
+			memcpy(node->term.ptr, str.f_str, str.f_len);
+			node->term.ptr[str.f_len] = '\0';
+
+
+			fts_ast_state_add_node(
+				static_cast<fts_ast_state_t*>(arg), node);
+
+			if (first_node) {
+				/* There is more than one word, create
+				a list to organize them */
+				if (!node_list) {
+					node_list = fts_ast_create_node_list(
+						static_cast<fts_ast_state_t*>(
+							arg),
+						 first_node);
+				}
+
+				fts_ast_add_node(node_list, node);
+			} else {
+				first_node = node;
+			}
+		}
+	}
+
+	return((node_list != NULL) ? node_list : first_node);
 }
 
 /******************************************************************//**

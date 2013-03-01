@@ -62,8 +62,8 @@ uncompress_ops	0
 database_name	test
 table_name	t
 index_name	PRIMARY
-compress_ops	58
-compress_ops_ok	58
+compress_ops	65
+compress_ops_ok	65
 uncompress_ops	0
 database_name	unknown
 table_name	unknown
