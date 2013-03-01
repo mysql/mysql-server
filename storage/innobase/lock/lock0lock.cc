@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -559,9 +559,9 @@ static const ulint	lock_types = UT_ARR_SIZE(lock_compatibility_matrix);
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	lock_sys_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	lock_mutex_key;
 /* Key to register mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	lock_sys_wait_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	lock_wait_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
@@ -768,9 +768,9 @@ lock_sys_create(
 
 	lock_sys->last_slot = lock_sys->waiting_threads;
 
-	mutex_create(lock_sys_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
+	mutex_create(lock_mutex_key, &lock_sys->mutex, SYNC_LOCK_SYS);
 
-	mutex_create(lock_sys_wait_mutex_key,
+	mutex_create(lock_wait_mutex_key,
 		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
 
 	lock_sys->timeout_event = os_event_create();

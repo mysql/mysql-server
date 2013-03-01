@@ -328,7 +328,7 @@ create_log_file(
 	ibool		ret;
 
 	*file = os_file_create(
-		innodb_file_log_key, name,
+		innodb_log_file_key, name,
 		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -493,7 +493,7 @@ create_log_files_rename(
 	mutex_enter(&log_sys->mutex);
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	ibool success = os_file_rename(
-		innodb_file_log_key, logfile0, logfilename);
+		innodb_log_file_key, logfile0, logfilename);
 	ut_a(success);
 
 	RECOVERY_CRASH(10);
@@ -520,7 +520,7 @@ open_log_file(
 {
 	ibool	ret;
 
-	*file = os_file_create(innodb_file_log_key, name,
+	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
 			       OS_LOG_FILE, &ret);
 	if (!ret) {
@@ -552,7 +552,7 @@ srv_undo_tablespace_create(
 	os_file_create_subdirs_if_needed(name);
 
 	fh = os_file_create(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		name,
 		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
 		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
@@ -629,7 +629,7 @@ srv_undo_tablespace_open(
 	}
 
 	fh = os_file_create(
-		innodb_file_data_key, name,
+		innodb_data_file_key, name,
 		OS_FILE_OPEN_RETRY
 		| OS_FILE_ON_ERROR_NO_EXIT
 		| OS_FILE_ON_ERROR_SILENT,

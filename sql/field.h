@@ -1663,10 +1663,11 @@ public:
 
 class Field_longstr :public Field_str
 {
-protected:
+private:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
                                                   bool count_spaces);
+protected:
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,

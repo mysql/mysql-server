@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -990,7 +990,7 @@ trx_sys_read_file_format_id(
 	*format_id = ULINT_UNDEFINED;
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1070,7 +1070,7 @@ trx_sys_read_pertable_file_format_id(
 	*format_id = ULINT_UNDEFINED;
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,

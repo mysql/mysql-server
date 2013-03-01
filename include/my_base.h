@@ -615,13 +615,8 @@ typedef struct st_key_multi_range
 
 
 /* For number of records */
-#ifdef BIG_TABLES
 #define rows2double(A)	ulonglong2double(A)
 typedef my_off_t	ha_rows;
-#else
-#define rows2double(A)	(double) (A)
-typedef ulong		ha_rows;
-#endif
 
 #define HA_POS_ERROR	(~ (ha_rows) 0)
 #define HA_OFFSET_ERROR	(~ (my_off_t) 0)
