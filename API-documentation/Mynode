@@ -32,15 +32,13 @@
  *
  * It returns a SessionFactory in the callback function.
  * The "implementation" member of the properties object determines the 
- * implementation of the Session
+ * implementation of the SessionFactory.
  *
- * If Annotations is null, the entire schema for the database is read
- * and stored internally for later use. This allows unlimited access
- * to all tables in the database.
+ * If Annotations is null, the schema for the needed tables are only read
+ * when actually needed.
  * 
  * If Annotations is not null, the schema for only the tables named
- * is read. Subsequent references to tables not described in Annotations
- * will return errors.
+ * are read.
  *
  *  @param properties  properties object describing the session
  *  @param annotations Annotations object describing the mapping 
@@ -48,11 +46,6 @@
  *  @return void
  */
 connect(Properties, Annotations, Function(err, SessionFactory[, ...]) callback[, ...]);
-
-/* 
- * connectSync() -- synchronous version of connect.
- */
-SessionFactory connectSync(Properties, Annotations);
 
 /* 
  * openSession()
