@@ -141,13 +141,14 @@ mysql_load_plugin
 mysql_load_plugin_v
 mysql_plugin_options
 # Async API
+mysql_get_timeout_value
+mysql_get_timeout_value_ms
+mysql_get_socket
 mysql_autocommit_cont
 mysql_autocommit_start
 mysql_change_user_cont
 mysql_change_user_start
 mysql_close_cont
-mysql_close_slow_part_cont
-mysql_close_slow_part_start
 mysql_close_start
 mysql_commit_cont
 mysql_commit_start
