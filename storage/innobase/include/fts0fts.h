@@ -894,8 +894,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	charset,		/*!< in: Character set */
-	byte*		start,			/*!< in: start of text */
-	byte*		end,			/*!< in: one character past
+	const byte*	start,			/*!< in: start of text */
+	const byte*	end,			/*!< in: one character past
 						end of text */
 	fts_string_t*	token,			/*!< out: token's text */
 	ulint*		offset);		/*!< out: offset to token,
