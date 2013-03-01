@@ -564,7 +564,8 @@ ib_trx_start(
 
 	ut_a(ib_trx_level <= IB_TRX_SERIALIZABLE);
 
-	// FIXME
+	/* FIXME: We are unconditionally setting the RW flag here. This should
+	only be set for transactions that we know are read write for sure. */
 	trx_start_if_not_started(trx, true);
 
 	trx->isolation_level = ib_trx_level;
