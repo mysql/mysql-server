@@ -153,11 +153,6 @@ struct fts_aux_table_t {
 static const char* fts_create_common_tables_sql = {
 	"BEGIN\n"
 	""
-	"CREATE TABLE %s_ADDED (\n"
-	"  doc_id BIGINT UNSIGNED\n"
-	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_ADDED(doc_id);\n"
-	""
 	"CREATE TABLE %s_DELETED (\n"
 	"  doc_id BIGINT UNSIGNED\n"
 	") COMPACT;\n"
@@ -186,14 +181,11 @@ static const char* fts_create_common_tables_sql = {
 	"  value CHAR(50) NOT NULL\n"
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_CONFIG(key);\n"
-	""
-	"CREATE TABLE %s_STOPWORDS (\n"
-	"  word CHAR\n"
-	") COMPACT;\n"
-	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_STOPWORDS(word);\n",
 };
 
-/** Template for creating the FTS auxiliary index specific tables. */
+#ifdef FTS_DOC_STATS_DEBUG
+/** Template for creating the FTS auxiliary index specific tables. This is
+mainly designed for the statistics work in the future */
 static const char* fts_create_index_tables_sql = {
 	"BEGIN\n"
 	""
@@ -203,6 +195,7 @@ static const char* fts_create_index_tables_sql = {
 	") COMPACT;\n"
 	"CREATE UNIQUE CLUSTERED INDEX IND ON %s_DOC_ID(doc_id);\n"
 };
+#endif
 
 /** Template for creating the ancillary FTS tables word index tables. */
 static const char* fts_create_index_sql = {
@@ -214,13 +207,11 @@ static const char* fts_create_index_sql = {
 
 /** FTS auxiliary table suffixes that are common to all FT indexes. */
 static const char* fts_common_tables[] = {
-	"ADDED",
 	"BEING_DELETED",
 	"BEING_DELETED_CACHE",
 	"CONFIG",
 	"DELETED",
 	"DELETED_CACHE",
-	"STOPWORDS",
 	NULL
 };
 
@@ -1613,13 +1604,15 @@ fts_drop_index_tables(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index)		/*!< in: Index to drop */
 {
-	fts_table_t		fts_table;
 	dberr_t			error = DB_SUCCESS;
 
+#ifdef FTS_DOC_STATS_DEBUG
+	fts_table_t		fts_table;
 	static const char*	index_tables[] = {
 		"DOC_ID",
 		NULL
 	};
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	dberr_t	err = fts_drop_index_split_tables(trx, index);
 
@@ -1628,6 +1621,7 @@ fts_drop_index_tables(
 		error = err;
 	}
 
+#ifdef FTS_DOC_STATS_DEBUG
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
 	for (ulint i = 0; index_tables[i] != NULL; ++i) {
@@ -1646,6 +1640,7 @@ fts_drop_index_tables(
 
 		mem_free(table_name);
 	}
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	return(error);
 }
@@ -1911,7 +1906,6 @@ fts_create_index_tables_low(
 
 {
 	ulint		i;
-	char*		sql;
 	que_t*		graph;
 	fts_table_t	fts_table;
 	dberr_t		error = DB_SUCCESS;
@@ -1923,6 +1917,9 @@ fts_create_index_tables_low(
 	fts_table.parent = table_name;
 	fts_table.table = NULL;
 
+#ifdef FTS_DOC_STATS_DEBUG
+	char*		sql;
+
 	/* Create the FTS auxiliary tables that are specific
 	to an FTS index. */
 	sql = fts_prepare_sql(&fts_table, fts_create_index_tables_sql);
@@ -1932,6 +1929,7 @@ fts_create_index_tables_low(
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	for (i = 0; fts_index_selector[i].value && error == DB_SUCCESS; ++i) {
 		dict_table_t*	new_table;
@@ -4602,7 +4600,7 @@ fts_get_docs_clear(
 }
 
 /*********************************************************************//**
-Get the initial Doc ID by consulting the ADDED and the CONFIG table
+Get the initial Doc ID by consulting the CONFIG table
 @return initial Doc ID */
 UNIV_INTERN
 doc_id_t
