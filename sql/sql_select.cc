@@ -4022,7 +4022,7 @@ add_key_field(JOIN *join,
         !(field->table->pos_in_table_list->is_materialized_derived() &&
           field->table->created)) ||
        (field->table->pos_in_table_list->is_materialized_derived() &&
-        !field->table->created)))
+        !field->table->created && !(field->flags & BLOB_FLAG))))
   {
     optimize= KEY_OPTIMIZE_EQ;
   }   

@@ -2164,6 +2164,57 @@ a
 set optimizer_switch=@save3912_optimizer_switch;
 drop table t1, t2, t3;
 #
+# MDEV-4209: equi-join on BLOB column from materialized view
+#            or derived table
+#
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_with_keys=on';
+CREATE TABLE t1 (c1 text, c2 int);
+INSERT INTO t1 VALUES ('a',1), ('c',3), ('g',7), ('d',4), ('c',3);
+CREATE TABLE t2 (c1 text, c2 int);
+INSERT INTO t2 VALUES ('b',2), ('c',3);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+EXPLAIN EXTENDED 
+SELECT v1.c1, v1.c2 FROM v1, t2 WHERE v1.c1=t2.c1 AND v1.c2=t2.c2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t2.c2	2	100.00	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+Warnings:
+Note	1003	select `v1`.`c1` AS `c1`,`v1`.`c2` AS `c2` from `test`.`v1` join `test`.`t2` where ((`v1`.`c1` = `test`.`t2`.`c1`) and (`v1`.`c2` = `test`.`t2`.`c2`))
+SELECT v1.c1, v1.c2 FROM v1, t2 WHERE v1.c1=t2.c1 AND v1.c2=t2.c2;
+c1	c2
+c	3
+c	3
+EXPLAIN EXTENDED 
+SELECT t2.c1, t2.c2 FROM (SELECT c1 g, MAX(c2) m FROM t1 GROUP BY c1) t, t2
+WHERE t.g=t2.c1 AND t.m=t2.c2;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	PRIMARY	<derived2>	ref	key0	key0	5	test.t2.c2	2	100.00	Using where
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	Using temporary; Using filesort
+Warnings:
+Note	1003	select `test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from (select `test`.`t1`.`c1` AS `g`,max(`test`.`t1`.`c2`) AS `m` from `test`.`t1` group by `test`.`t1`.`c1`) `t` join `test`.`t2` where ((`t`.`g` = `test`.`t2`.`c1`) and (`t`.`m` = `test`.`t2`.`c2`))
+SELECT t2.c1, t2.c2 FROM (SELECT c1 g, MAX(c2) m FROM t1 GROUP BY c1) t, t2
+WHERE t.g=t2.c1 AND t.m=t2.c2;
+c1	c2
+c	3
+EXPLAIN EXTENDED 
+SELECT v1.c1, v1.c2, t2.c1, t2.c2 FROM v1, t2 WHERE v1.c1=t2.c1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	
+1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (flat, BNL join)
+2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	
+Warnings:
+Note	1003	select `v1`.`c1` AS `c1`,`v1`.`c2` AS `c2`,`test`.`t2`.`c1` AS `c1`,`test`.`t2`.`c2` AS `c2` from `test`.`v1` join `test`.`t2` where (`v1`.`c1` = `test`.`t2`.`c1`)
+SELECT v1.c1, v1.c2, t2.c1, t2.c2 FROM v1, t2 WHERE v1.c1=t2.c1;
+c1	c2	c1	c2
+c	3	c	3
+c	3	c	3
+DROP VIEW v1;
+DROP TABLE t1,t2;
+set optimizer_switch=@save_optimizer_switch;
+#
 # end of 5.3 tests
 #
 set optimizer_switch=@exit_optimizer_switch;
