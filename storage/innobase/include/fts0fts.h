@@ -923,9 +923,9 @@ fts_get_max_doc_id(
 /******************************************************************//**
 Check whether user supplied stopword table exists and is of
 the right format.
-@return TRUE if the table qualifies */
+@return the stopword column charset if qualifies */
 UNIV_INTERN
-ibool
+CHARSET_INFO*
 fts_valid_stopword_table(
 /*=====================*/
 	const char*	stopword_table_name);	/*!< in: Stopword table
