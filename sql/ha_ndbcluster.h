@@ -234,6 +234,9 @@ public:
   uint max_supported_key_part_length() const;
 
   virtual bool is_fk_defined_on_table_or_index(uint index);
+  int get_child_or_parent_fk_list(THD *thd,
+                                  List<FOREIGN_KEY_INFO>*f_key_list,
+                                  bool is_child, bool is_parent);
   virtual int get_foreign_key_list(THD *thd,
                                    List<FOREIGN_KEY_INFO>*f_key_list);
   virtual int get_parent_foreign_key_list(THD *thd,
