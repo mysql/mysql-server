@@ -116,24 +116,21 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
 };
 
 exports.DBConnectionPool.prototype.close = function(user_callback) {
-//
-// FIXME. 
-//
   udebug.log('close');
   var i;
   for (i = 0; i < this.pooledConnections.length; ++i) {
     var pooledConnection = this.pooledConnections[i];
-    udebug.log('close ending pooled connection ' + i);
-    if (pooledConnection._connectCalled) {
-        pooledConnection.end();
+    udebug.log('close ending pooled connection', i);
+    if (pooledConnection && pooledConnection._connectCalled) {
+      pooledConnection.end();
     }
   }
   this.pooledConnections = [];
   for (i = 0; i < this.openConnections.length; ++i) {
-    udebug.log('close ending open connection ' + i);
     var openConnection = this.openConnections[i];
-    if (openConnection._connectCalled) {
-      this.openConnections[i].end();
+    udebug.log('close ending open connection', i);
+    if (openConnection && openConnection._connectCalled) {
+      openConnection.end();
     }
   }
   this.openConnections = [];
@@ -171,7 +168,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
         ' openConnections: ', countOpenConnections(connectionPool));
     // pop a connection from the pool
     pooledConnection = connectionPool.pooledConnections.pop();
-    newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
+    newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
     connectionPool.openConnections[index] = pooledConnection;
     udebug.log_detail('MySQLConnectionPool.getDBSession after found a pooledConnection for index ' + index + ' in connectionPool; ', 
         ' pooledConnections:', connectionPool.pooledConnections.length,
@@ -180,7 +177,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   } else {
     // create a new pooled connection
     var connected_callback = function(err) {
-      newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool);
+      newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
       connectionPool.openConnections[index] = pooledConnection;
       udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
           ' pooledConnections:', connectionPool.pooledConnections.length,

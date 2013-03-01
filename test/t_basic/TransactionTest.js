@@ -32,19 +32,37 @@ t1.run = function() {
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
     if (tx.state.name !== 'Idle') {
-      testCase.fail(new Error('Transaction should start in idle state. Actual: ' +
+      testCase.fail(new Error('t1 Transaction should start in idle state. Actual: ' +
           tx.state.name));
       return;
     }
     if (tx.isActive() !== false) {
-      testCase.fail(new Error('Idle transaction should not be active.'));
+      testCase.fail(new Error('t1 Idle transaction should not be active.'));
       return;
     }
     if (tx.getRollbackOnly() !== false) {
-      testCase.fail(new Error('Idle transaction should not be rollback only.'));
+      testCase.fail(new Error('t1 Idle transaction should not be rollback only.'));
       return;
     }
-    testCase.pass();
+    tx.setRollbackOnly(function(err) {
+      if (!err) {
+        testCase.fail(new Error('t1 Idle transaction should not allow set rollback only'));
+      } else {
+        tx.commit(function(err) {
+          if (!err) {
+            testCase.fail(new Error('t1 Idle transaction should not allow commit.'));
+          } else {
+            tx.rollback(function(err) {
+              if (!err) {
+                testCase.fail(new Error('t1 Idle transaction should not allow rollback.'));
+              } else {
+                testCase.pass();
+              }
+            });
+          }
+        });
+      }
+    });
   });
 };
 
@@ -57,19 +75,25 @@ t2.run = function() {
     var tx = session.currentTransaction();
     tx.begin();
     if (tx.state.name !== 'Active') {
-      testCase.fail(new Error('Transaction after begin should be in active state. Actual: ' +
+      testCase.fail(new Error('t2 Transaction after begin should be in active state. Actual: ' +
           tx.state.name));
       return;
     }
     if (tx.isActive() !== true) {
-      testCase.fail(new Error('Active transaction should be active.'));
+      testCase.fail(new Error('t2 Active transaction should be active.'));
       return;
     }
     if (tx.getRollbackOnly() !== false) {
-      testCase.fail(new Error('Active transaction should not be rollback only.'));
+      testCase.fail(new Error('t2 Active transaction should not be rollback only.'));
       return;
     }
-    testCase.pass();
+    tx.begin(function(err) {
+      if (!err) {
+        testCase.fail(new Error('t2 Active transaction should not allow begin.'));
+      } else {
+        testCase.pass();
+      }
+    });
   });
 };
 
@@ -83,25 +107,31 @@ t3.run = function() {
     tx.begin();
     tx.setRollbackOnly();
     if (tx.state.name !== 'RollbackOnly') {
-      testCase.fail(new Error('Transaction after setRollbackOnly should be in rollback only state. Actual: ' +
+      testCase.fail(new Error('t3 Transaction after setRollbackOnly should be in rollback only state. Actual: ' +
           tx.state.name));
       return;
     }
     if (tx.isActive() !== true) {
-      testCase.fail(new Error('RollbackOnly transaction should be active.'));
+      testCase.fail(new Error('t3 RollbackOnly transaction should be active.'));
       return;
     }
     if (tx.getRollbackOnly() !== true) {
-      testCase.fail(new Error('RollbackOnly transaction should be rollback only.'));
+      testCase.fail(new Error('t3 RollbackOnly transaction should be rollback only.'));
       return;
     }
     tx.setRollbackOnly();
     if (tx.state.name !== 'RollbackOnly') {
-      testCase.fail(new Error('Rollback only after setRollbackOnly should be in rollback only state. Actual: ' +
+      testCase.fail(new Error('t3 Rollback only after setRollbackOnly should be in rollback only state. Actual: ' +
           tx.state.name));
       return;
     }
-    testCase.pass();
+    tx.begin(function(err) {
+      if (!err) {
+        testCase.fail(new Error('t3 Rollback only transaction should not allow begin.'));
+      } else {
+        testCase.pass();
+      }
+    });
   });
 };
 
@@ -113,8 +143,9 @@ t4.run = function() {
   fail_openSession(testCase, function(session) {
     var tx = session.currentTransaction();
     try {
-      tx.commit();
-      testCase.fail(new Error('Commit without begin should fail.'));
+      tx.begin();
+      tx.begin();
+      testCase.fail(new Error('t4 Begin Begin without commit or rollback should fail.'));
     } catch (err) {
       testCase.pass();
     }
@@ -129,7 +160,7 @@ t5.run = function() {
     var tx = session.currentTransaction();
     try {
       tx.commit();
-      testCase.fail(new Error('Commit without begin should fail.'));
+      testCase.fail(new Error('t5 Commit without begin should fail.'));
     } catch (err) {
       testCase.pass();
     }
@@ -145,13 +176,13 @@ t6.run = function() {
       // good
       try {
         tx.rollback();
-        testCase.fail(new Error('Rollback without begin should fail.'));
+        testCase.fail(new Error('t6 Rollback without begin should fail.'));
       } catch (err) {
         testCase.pass();
       }
     } else {
       // failed to signal an error
-      testCase.fail(new Error('Rollback without begin should fail.'));
+      testCase.fail(new Error('t6 Rollback without begin should fail.'));
     }
   };
   fail_openSession(testCase, function(session) {
@@ -170,7 +201,7 @@ t7.run = function() {
       // good
       try {
         tx.rollback();
-        testCase.fail(new Error('Commit with RollbackOnly and no callback should throw.'));
+        testCase.fail(new Error('t7 Commit with RollbackOnly and no callback should throw.'));
       } catch (err) {
         testCase.pass();
       }
@@ -198,7 +229,7 @@ t8.run = function() {
     tx.setRollbackOnly();
     try {
       tx.begin();
-      testCase.fail(new Error('Begin with rollback only should fail.'));
+      testCase.fail(new Error('t8 Begin with rollback only should fail.'));
     } catch (err) {
       testCase.pass();
     }
@@ -214,7 +245,7 @@ t9.run = function() {
     var tx = session.currentTransaction();
     try {
       tx.setRollbackOnly();
-      testCase.fail(new Error('SetRollbackOnly without begin should fail.'));
+      testCase.fail(new Error('t9 SetRollbackOnly without begin should fail.'));
     } catch (err) {
       testCase.pass();
     }
@@ -231,7 +262,7 @@ t10.run = function() {
     if (found.id === 1000) {
       testCase.pass();  
     } else {
-      testCase.fail('Failed to find 1000');
+      testCase.fail('t10 Failed to find 1000');
     }
   };
   
@@ -263,7 +294,7 @@ t11.run = function() {
     if (found === null) {
       testCase.pass();  
     } else {
-      testCase.fail('Found 1100 which was supposed to be rolled back.');
+      testCase.fail('t11 Found 1100 which was supposed to be rolled back.');
     }
   };
   var t11OnFind = function(err, found, session) {

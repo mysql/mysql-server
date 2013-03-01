@@ -50,7 +50,7 @@ t2.run = function() {
     function onClose() {
       udebug.log("onTable onClose");
       if(passed)     { t2.pass(); }
-      else           { t2.fail("getTable error"); }
+      else           { t2.fail("t2 onClose error"); }
     }
 
     dbSession.close(onClose);
@@ -81,13 +81,13 @@ t2.run = function() {
 
   function onSession(err, sess) {
     udebug.log("onSession");
-    dbSession = sess;   // for teardown
+    dbSession = sess;
     dbSession.getConnectionPool().listTables("test", null, onList);
   }
     
   function onConnect(err, connection) {
     udebug.log("onConnect");
-    conn = connection; // for teardown
+    conn = connection;
     conn.getDBSession(0, onSession);
   }
   

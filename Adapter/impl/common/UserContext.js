@@ -289,6 +289,10 @@ exports.UserContext.prototype.find = function() {
     var result, values;
     var error = checkOperation(err, dbOperation);
     if (error) {
+      // do not set rollback only on failure to find non-existent row
+      if (dbOperation.result.error.sqlstate !== '02000' && userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(err, null);
     } else {
       if (userContext.domainObject) {
@@ -450,6 +454,9 @@ exports.UserContext.prototype.persist = function() {
     // return any error code
     var error = checkOperation(err, dbOperation);
     if (error) {
+      if (userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(error);
     } else {
       userContext.applyCallback(null);      
@@ -506,6 +513,9 @@ exports.UserContext.prototype.save = function() {
     // return any error code
     var error = checkOperation(err, dbOperation);
     if (error) {
+      if (userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(error);
     } else {
       userContext.applyCallback(null);      
@@ -567,6 +577,9 @@ exports.UserContext.prototype.update = function() {
     // return any error code
     var error = checkOperation(err, dbOperation);
     if (error) {
+      if (userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(error);
     } else {
       userContext.applyCallback(null);      
@@ -632,6 +645,9 @@ exports.UserContext.prototype.load = function() {
     var result, values;
     var error = checkOperation(err, dbOperation);
     if (error) {
+      if (userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(err);
       return;
     }
@@ -697,6 +713,9 @@ exports.UserContext.prototype.remove = function() {
     // return any error code plus the original user object
     var error = checkOperation(err, dbOperation);
     if (error) {
+      if (userContext.session.tx.isActive()) {
+        userContext.session.tx.setRollbackOnly();
+      }
       userContext.applyCallback(error);
     } else {
       var result = dbOperation.result.value;
@@ -824,7 +843,8 @@ exports.UserContext.prototype.commit = function() {
   var userContext = this;
 
   var commitOnCommit = function(err) {
-    udebug.log('UserContext.commitOnCommit.')
+    udebug.log('UserContext.commitOnCommit.');
+    userContext.session.tx.setState(userContext.session.tx.idle);
     userContext.applyCallback(err);
   };
 
@@ -847,6 +867,7 @@ exports.UserContext.prototype.rollback = function() {
 
   var rollbackOnRollback = function(err) {
     udebug.log('UserContext.rollbackOnRollback.')
+    userContext.session.tx.setState(userContext.session.tx.idle);
     userContext.applyCallback(err);
   };
 
