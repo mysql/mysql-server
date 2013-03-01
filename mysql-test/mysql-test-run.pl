@@ -3532,11 +3532,8 @@ sub mysql_install_db {
     }
   }
 
-  # If DISABLE_GRANT_OPTIONS is defined when the server is compiled (e.g.,
-  # configure --disable-grant-options), mysqld will not recognize the
-  # --bootstrap or --skip-grant-tables options.  The user can set
-  # MYSQLD_BOOTSTRAP to the full path to a mysqld which does accept
-  # --bootstrap, to accommodate this.
+  # The user can set MYSQLD_BOOTSTRAP to the full path to a mysqld
+  # to run a different mysqld during --bootstrap.
   my $exe_mysqld_bootstrap =
     $ENV{'MYSQLD_BOOTSTRAP'} || find_mysqld($install_basedir);
 

@@ -1237,11 +1237,9 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 		 concurrent threads when running myisamchk
 	      */
               int search_result=
-#ifdef HAVE_RTREE_KEYS
                 (keyinfo->flag & HA_SPATIAL) ?
                 rtree_find_first(info, key, info->lastkey, key_length,
                                  MBR_EQUAL | MBR_DATA) : 
-#endif
                 _mi_search(info,keyinfo,info->lastkey,key_length,
                            SEARCH_SAME, info->s->state.key_root[key]);
               if (search_result)
