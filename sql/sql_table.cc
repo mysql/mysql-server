@@ -2211,7 +2211,8 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
 
       if (thd->locked_tables_mode)
       {
-        if (wait_while_table_is_used(thd, table->table, HA_EXTRA_NOT_USED))
+        if (wait_while_table_is_used(thd, table->table, HA_EXTRA_NOT_USED,
+                                     TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         {
           error= -1;
           goto err;
@@ -6258,13 +6259,15 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     case LEAVE_AS_IS:
       break;
     case ENABLE:
-      if (wait_while_table_is_used(thd, table, extra_func))
+      if (wait_while_table_is_used(thd, table, extra_func,
+                                   TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       DEBUG_SYNC(thd,"alter_table_enable_indexes");
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
     case DISABLE:
-      if (wait_while_table_is_used(thd, table, extra_func))
+      if (wait_while_table_is_used(thd, table, extra_func,
+                                   TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
       break;
@@ -6292,7 +6295,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         simple rename did nothing and therefore we can safely return
         without additional clean-up.
       */
-      if (wait_while_table_is_used(thd, table, extra_func))
+      if (wait_while_table_is_used(thd, table, extra_func,
+                                   TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       close_all_tables_for_name(thd, table->s, HA_EXTRA_PREPARE_FOR_RENAME);
       /*
@@ -6725,6 +6729,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (table->s->tmp_table)
     {
       Open_table_context ot_ctx(thd, (MYSQL_OPEN_IGNORE_FLUSH |
+                                      MYSQL_OPEN_FOR_REPAIR |
                                       MYSQL_LOCK_IGNORE_TIMEOUT));
       TABLE_LIST tbl;
       bzero((void*) &tbl, sizeof(tbl));
@@ -6797,7 +6802,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         table->file->indexes_are_disabled())
       need_lock_for_indexes= true;
     if (!table->s->tmp_table && need_lock_for_indexes &&
-        wait_while_table_is_used(thd, table, extra_func))
+        wait_while_table_is_used(thd, table, extra_func,
+                                 TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
       goto err_new_table_cleanup;
     thd_proc_info(thd, "manage keys");
     DEBUG_SYNC(thd, "alter_table_manage_keys");
@@ -7017,7 +7023,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   if (lower_case_table_names)
     my_casedn_str(files_charset_info, old_name);
 
-  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
+  if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME,
+                               TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
   {
     if (pending_inplace_add_index)
     {

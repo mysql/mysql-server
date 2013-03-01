@@ -323,7 +323,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, char *key,
     share->normalized_path.str=    share->path.str;
     share->normalized_path.length= path_length;
 
-    share->version=       refresh_version;
+    share->set_refresh_version();
 
     /*
       Since alloc_table_share() can be called without any locking (for
