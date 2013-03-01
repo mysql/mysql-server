@@ -31,16 +31,6 @@ DBConnectionPool(Properties connectionProperties);
    connect(callback);
 
 
-/* DBConnectionPool.connectSync() method.
-   SYNC.
-   Blocking connect.  
-   This is a convenience method for code startup.
-
-   Returns true on success and false on error.
-*/
-   connectSync();
-
-
 /* DBConnectionPool.isConnected() method.
    IMMEDIATE.
 
