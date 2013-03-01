@@ -795,16 +795,23 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
                             1);
     }
 
-    if (fk.getChildIndex() != 0)
+    if (fk.getParentIndex() != 0)
     {
+      // sys/def/10/xb1$unique
+      char db_and_name[FN_LEN + 1];
+      const char * name=fk_split_name(db_and_name, fk.getParentIndex(), true);
       f_key_info.referenced_key_name =
-        thd_make_lex_string(thd, 0, fk.getChildIndex(),
-                            (uint)strlen(fk.getChildIndex()),
+        thd_make_lex_string(thd, 0, name,
+                            (uint)strlen(name),
                             1);
     }
     else
     {
-      f_key_info.referenced_key_name = 0;
+      const char* name= "PRIMARY";
+      f_key_info.referenced_key_name =
+        thd_make_lex_string(thd, 0, name,
+                            (uint)strlen(name),
+                            1);
     }
 
     FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
