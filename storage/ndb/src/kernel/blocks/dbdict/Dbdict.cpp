@@ -10785,26 +10785,17 @@ void Dbdict::sendLIST_TABLES_CONF(Signal* signal, ListTablesReq* req)
       Ptr<ForeignKeyRec> fk_ptr;
       ndbrequire(find_object(fk_ptr, iter.curr.p->m_id));
 
-      // abuse temp to mark parent-only dependency
-      int temp = 0;
-      if (reqListDependent)
-      {
-        if (reqTableId == fk_ptr.p->m_childTableId ||
-            reqTableId == fk_ptr.p->m_childIndexId)
-          temp = 0;
-        else
-        if (reqTableId == fk_ptr.p->m_parentTableId ||
-            reqTableId == fk_ptr.p->m_parentIndexId)
-          temp = 1;
-        else
-          goto flush;
-      }
+      if (reqListDependent &&
+          (reqTableId != fk_ptr.p->m_parentTableId &&
+           reqTableId != fk_ptr.p->m_parentIndexId &&
+           reqTableId != fk_ptr.p->m_childTableId  &&
+           reqTableId != fk_ptr.p->m_childIndexId ))
+        goto flush;
 
       ltd.requestData = 0;
       ltd.setTableId(iter.curr.p->m_id);
       ltd.setTableType(type); // type
       ltd.setTableState(DictTabInfo::StateOnline); // XXX todo
-      ltd.setTableTemp(temp);
     }
     tableDataWriter.putWords((Uint32 *) &ltd, listTablesDataSizeInWords);
     count++;
