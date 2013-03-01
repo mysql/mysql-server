@@ -610,7 +610,7 @@ struct rw_lock_t
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
 /** Value of rw_lock_t::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
-
+	virtual ~rw_lock_t() { }
 	virtual void print(FILE* stream) const;
 #endif /* UNIV_DEBUG */
 
