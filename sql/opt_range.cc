@@ -1376,12 +1376,9 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
+void QUICK_RANGE_SELECT::need_sorted_output()
 {
-  if (sort)
-    mrr_flags |= HA_MRR_SORTED;
-  else
-    mrr_flags &= ~HA_MRR_SORTED;
+  mrr_flags |= HA_MRR_SORTED;
 }
 
 
@@ -6550,6 +6547,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   switch (err) {
   case TYPE_OK:
   case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
     return false;
   case TYPE_ERR_BAD_VALUE:
     /*
@@ -6675,9 +6673,13 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
       // Equality comparison is always false when time info has been truncated.
       goto impossible_cond;
     }
-    // Fall through
-  default:
     return true;
+  case TYPE_ERR_OOM:
+    return true;
+    /*
+      No default here to avoid adding new conversion status codes that are
+      unhandled in this function.
+    */
   }
 
   DBUG_ASSERT(FALSE); // Should never get here.
