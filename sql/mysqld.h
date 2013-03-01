@@ -315,8 +315,7 @@ my_pthread_set_THR_MALLOC(MEM_ROOT ** hdl)
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
-extern PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active,
-       key_LOCK_pool;
+extern PSI_mutex_key key_LOCK_tc;
 #endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
