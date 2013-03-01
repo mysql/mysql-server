@@ -32,6 +32,11 @@ typedef NdbDictionary::Column NDBCOL;
 typedef NdbDictionary::Index NDBINDEX;
 typedef NdbDictionary::ForeignKey NDBFK;
 
+// Forward decl
+static
+const char *
+fk_split_name(char dst[], const char * src, bool index= false);
+
 /*
   Create all the fks  for a table.
 
@@ -531,20 +536,47 @@ ha_ndbcluster::referenced_by_foreign_key()
     DBUG_RETURN(0);
   }
 
+  DBUG_PRINT("info", ("%s.%s: list dependent objects",
+                      m_dbname, m_tabname));
+
   NDBDICT *dict= ndb->getDictionary();
   NDBDICT::List obj_list;
   dict->listDependentObjects(obj_list, *m_table);
   for (unsigned i = 0; i < obj_list.count; i++)
   {
-    if (obj_list.elements[i].type == NdbDictionary::Object::ForeignKey)
-      DBUG_RETURN(1);
+    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
+      continue;
+
+    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
+
+    NdbDictionary::ForeignKey fk;
+    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
+    if (res != 0)
+    {
+      DBUG_ASSERT(false);
+      DBUG_RETURN(0);
+    }
+
+    char parent_db_and_name[FN_LEN + 1];
+    const char * parent_name= fk_split_name(parent_db_and_name,
+                                            fk.getParentTable());
+    if (strcmp(m_dbname, parent_db_and_name) != 0 ||
+        strcmp(m_tabname, parent_name) != 0)
+    {
+      DBUG_PRINT("info", ("skip: table %s.%s != FK parent %s.%s",
+                          m_dbname, m_tabname,
+                          parent_db_and_name, parent_name));
+      continue;
+    }
+
+    DBUG_RETURN(1);
   }
   DBUG_RETURN(0);
 }
 
 static
 const char *
-fk_split_name(char dst[], const char * src, bool index = false)
+fk_split_name(char dst[], const char * src, bool index)
 {
   DBUG_PRINT("info", ("fk_split_name: %s index=%d", src, index));
 
