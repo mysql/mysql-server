@@ -233,9 +233,6 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 	/** Acquire the mutex. */
 	void enter(const char* filename, ulint line) UNIV_NOTHROW
 	{
-#if 0
-		/* The Test, Test again And Set (TTAS) loop. */
-
 		ulint		delay = srv_spin_wait_delay;
 		ulint		n_rounds = srv_n_spin_wait_rounds;
 
@@ -251,7 +248,6 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		if (locked) {
 			return;
 		}
-#endif
 
                 OSBasicMutex<Policy>::enter(filename, line);
 
