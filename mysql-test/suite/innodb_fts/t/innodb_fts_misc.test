@@ -1201,3 +1201,31 @@ select * from t1 where match(content) against('"the complicated the phrase struc
 select * from t1 where match(content) against('"complicated a phrase structure"' in boolean mode);
 
 DROP TABLE t1;
+
+CREATE TABLE my (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+c VARCHAR(32), FULLTEXT(c)) ENGINE = INNODB;
+
+INSERT INTO my (c) VALUES ('green-iguana');
+
+SELECT * FROM my WHERE MATCH(c) AGAINST ('green-iguana');
+
+DROP TABLE my;
+
+CREATE TABLE ift (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`),
+  FULLTEXT KEY `b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO ift values (1, "skip");
+INSERT INTO ift values (2, "skip and networking");
+INSERT INTO ift values (3, "--skip-networking");
+INSERT INTO ift values (4, "-donot--skip-networking");
+
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('--skip-networking');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('skip-networking');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
+SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
+
+DROP TABLE ift;

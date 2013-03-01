@@ -6143,8 +6143,6 @@ fts_load_stopword(
 	stopword into cache, but still need to do initialization */
 	if (!use_stopword) {
 		cache->stopword_info.status = STOPWORD_OFF;
-		cache->stopword_info.cached_stopword = rbt_create(
-			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
 		goto cleanup;
 	}
 
@@ -6197,6 +6195,11 @@ cleanup:
 		}
 
 		trx_free_for_background(trx);
+	}
+
+	if (!cache->stopword_info.cached_stopword) {
+		cache->stopword_info.cached_stopword = rbt_create(
+			sizeof(fts_tokenizer_word_t), fts_utf8_string_cmp);
 	}
 
 	return(error == DB_SUCCESS);
@@ -6362,7 +6365,6 @@ fts_init_index(
 	dict_index_t*   index;
 	doc_id_t        start_doc;
 	fts_get_doc_t*  get_doc = NULL;
-	ibool		has_fts = TRUE;
 	fts_cache_t*    cache = table->fts->cache;
 	bool		need_init = false;
 
@@ -6400,11 +6402,15 @@ fts_init_index(
 
 		ut_a(index);
 
-		has_fts = FALSE;
 		fts_doc_fetch_by_doc_id(NULL, start_doc, index,
 					FTS_FETCH_DOC_BY_ID_LARGE,
 					fts_init_get_doc_id, cache);
 	} else {
+		if (table->fts->cache->stopword_info.status
+		    & STOPWORD_NOT_INIT) {
+			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
+		}
+
 		for (ulint i = 0; i < ib_vector_size(cache->get_docs); ++i) {
 			get_doc = static_cast<fts_get_doc_t*>(
 				ib_vector_get(cache->get_docs, i));
@@ -6414,13 +6420,6 @@ fts_init_index(
 			fts_doc_fetch_by_doc_id(NULL, start_doc, index,
 						FTS_FETCH_DOC_BY_ID_LARGE,
 						fts_init_recover_doc, get_doc);
-		}
-	}
-
-	if (has_fts) {
-		if (table->fts->cache->stopword_info.status
-		    & STOPWORD_NOT_INIT) {
-			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
 		}
 	}
 
