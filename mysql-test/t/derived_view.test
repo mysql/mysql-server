@@ -1512,6 +1512,40 @@ set optimizer_switch=@save3912_optimizer_switch;
 drop table t1, t2, t3;
 
 --echo #
+--echo # MDEV-4209: equi-join on BLOB column from materialized view
+--echo #            or derived table
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='derived_with_keys=on'; 
+
+CREATE TABLE t1 (c1 text, c2 int);
+INSERT INTO t1 VALUES ('a',1), ('c',3), ('g',7), ('d',4), ('c',3);
+CREATE TABLE t2 (c1 text, c2 int);
+INSERT INTO t2 VALUES ('b',2), ('c',3);
+CREATE ALGORITHM=TEMPTABLE VIEW v1 AS SELECT * FROM t1;
+
+EXPLAIN EXTENDED 
+SELECT v1.c1, v1.c2 FROM v1, t2 WHERE v1.c1=t2.c1 AND v1.c2=t2.c2;
+SELECT v1.c1, v1.c2 FROM v1, t2 WHERE v1.c1=t2.c1 AND v1.c2=t2.c2;
+
+EXPLAIN EXTENDED 
+SELECT t2.c1, t2.c2 FROM (SELECT c1 g, MAX(c2) m FROM t1 GROUP BY c1) t, t2
+  WHERE t.g=t2.c1 AND t.m=t2.c2;
+SELECT t2.c1, t2.c2 FROM (SELECT c1 g, MAX(c2) m FROM t1 GROUP BY c1) t, t2
+  WHERE t.g=t2.c1 AND t.m=t2.c2;
+
+EXPLAIN EXTENDED 
+SELECT v1.c1, v1.c2, t2.c1, t2.c2 FROM v1, t2 WHERE v1.c1=t2.c1;
+SELECT v1.c1, v1.c2, t2.c1, t2.c2 FROM v1, t2 WHERE v1.c1=t2.c1;
+
+DROP VIEW v1;
+DROP TABLE t1,t2;
+
+set optimizer_switch=@save_optimizer_switch;
+
+
+--echo #
 --echo # end of 5.3 tests
 --echo #
 
