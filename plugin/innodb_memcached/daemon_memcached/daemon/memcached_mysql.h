@@ -49,6 +49,7 @@ void* daemon_memcached_main(void *p);
 
 void shutdown_server(void);
 
+bool initialize_complete(void);
 bool shutdown_complete(void);
 
 # ifdef __cplusplus

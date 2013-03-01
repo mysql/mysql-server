@@ -779,7 +779,7 @@ int orig_argc;
 char **orig_argv;
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-int init_rsa_keys(void);
+bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 #endif
@@ -4246,6 +4246,7 @@ static int init_ssl()
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
 #endif
+  ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
@@ -5424,7 +5425,7 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (init_ssl())
-    return 1;
+    unireg_abort(1);
   network_init();
 
 #ifdef __WIN__
@@ -8079,11 +8080,8 @@ static int mysql_init_variables(void)
 
   have_geometry=SHOW_OPTION_YES;
 
-#ifdef HAVE_RTREE_KEYS
   have_rtree_keys=SHOW_OPTION_YES;
-#else
-  have_rtree_keys=SHOW_OPTION_NO;
-#endif
+
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
 #else
