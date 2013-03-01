@@ -536,64 +536,16 @@ ha_ndbcluster::referenced_by_foreign_key()
 {
   DBUG_ENTER("ha_ndbcluster::referenced_by_foreign_key");
 
-  if (m_table == 0)
+  Ndb_fk_data *data= m_fk_data;
+  if (data == 0)
   {
+    DBUG_ASSERT(false);
     DBUG_RETURN(0);
   }
 
-  THD* thd= table->in_use;
-  if (thd == 0)
-  {
-    thd= current_thd;
-  }
-
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  Ndb *ndb= get_ndb(thd);
-  if (ndb == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("%s.%s: list dependent objects",
-                      m_dbname, m_tabname));
-
-  NDBDICT *dict= ndb->getDictionary();
-  NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *m_table);
-  for (unsigned i = 0; i < obj_list.count; i++)
-  {
-    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
-
-    NdbDictionary::ForeignKey fk;
-    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
-    if (res != 0)
-    {
-      DBUG_ASSERT(false);
-      DBUG_RETURN(0);
-    }
-
-    char parent_db_and_name[FN_LEN + 1];
-    const char * parent_name= fk_split_name(parent_db_and_name,
-                                            fk.getParentTable());
-    if (strcmp(m_dbname, parent_db_and_name) != 0 ||
-        strcmp(m_tabname, parent_name) != 0)
-    {
-      DBUG_PRINT("info", ("skip: table %s.%s != FK parent %s.%s",
-                          m_dbname, m_tabname,
-                          parent_db_and_name, parent_name));
-      continue;
-    }
-
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
+                      data->list.elements, data->cnt_child, data->cnt_parent));
+  DBUG_RETURN(data->cnt_parent != 0);
 }
 
 uint
@@ -601,52 +553,16 @@ ha_ndbcluster::is_child_or_parent_of_fk()
 {
   DBUG_ENTER("ha_ndbcluster::is_child_or_parent_of_fk");
 
-  if (m_table == 0)
+  Ndb_fk_data *data= m_fk_data;
+  if (data == 0)
   {
+    DBUG_ASSERT(false);
     DBUG_RETURN(0);
   }
-
-  THD* thd= table->in_use;
-  if (thd == 0)
-  {
-    thd= current_thd;
-  }
-
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  Ndb *ndb= get_ndb(thd);
-  if (ndb == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("%s.%s: list dependent objects",
-                      m_dbname, m_tabname));
-
-  NDBDICT *dict= ndb->getDictionary();
-  NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *m_table);
-  for (unsigned i = 0; i < obj_list.count; i++)
-  {
-    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
-
-    NdbDictionary::ForeignKey fk;
-    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
-    if (res != 0)
-    {
-      DBUG_ASSERT(false);
-      DBUG_RETURN(0);
-    }
-
-    DBUG_RETURN(1);
-  }
-  DBUG_RETURN(0);
+  
+  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
+                      data->list.elements, data->cnt_child, data->cnt_parent));
+  DBUG_RETURN(data->list.elements != 0);
 }
 
 bool
@@ -1023,218 +939,53 @@ ha_ndbcluster::release_fk_data(THD *thd)
 }
 
 int
+ha_ndbcluster::get_child_or_parent_fk_list(THD *thd,
+                                           List<FOREIGN_KEY_INFO> * f_key_list,
+                                           bool is_child, bool is_parent)
+{
+  DBUG_ENTER("ha_ndbcluster::get_child_or_parent_fk_list");
+  DBUG_PRINT("info", ("table %s.%s", m_dbname, m_tabname));
+
+  Ndb_fk_data *data= m_fk_data;
+  if (data == 0)
+  {
+    DBUG_ASSERT(false);
+    DBUG_RETURN(0);
+  }
+
+  DBUG_PRINT("info", ("count FKs total %u child %u parent %u",
+                      data->list.elements, data->cnt_child, data->cnt_parent));
+
+  Ndb_fk_item *item= 0;
+  List_iterator<Ndb_fk_item> iter(data->list);
+  while ((item= iter++))
+  {
+    FOREIGN_KEY_INFO &f_key_info= item->f_key_info;
+    DBUG_PRINT("info", ("FK %s ref %s -> %s is_child %d is_parent %d",
+                        f_key_info.foreign_id->str,
+                        f_key_info.foreign_table->str,
+                        f_key_info.referenced_table->str,
+                        item->is_child, item->is_parent));
+    if (is_child && !item->is_child)
+      continue;
+    if (is_parent && !item->is_parent)
+      continue;
+
+    DBUG_PRINT("info", ("add %s to list", f_key_info.foreign_id->str));
+    f_key_list->push_back(&f_key_info);
+  }
+
+  DBUG_RETURN(0);
+}
+
+int
 ha_ndbcluster::get_foreign_key_list(THD *thd,
                                     List<FOREIGN_KEY_INFO> * f_key_list)
 {
   DBUG_ENTER("ha_ndbcluster::get_foreign_key_list");
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  if (m_table == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  Ndb *ndb= get_ndb(thd);
-  if (ndb == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("%s.%s: list dependent objects",
-                      m_dbname, m_tabname));
-
-  NDBDICT *dict= ndb->getDictionary();
-  NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *m_table);
-  for (unsigned i = 0; i < obj_list.count; i++)
-  {
-    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
-
-    FOREIGN_KEY_INFO f_key_info;
-
-    NdbDictionary::ForeignKey fk;
-    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
-    if (res != 0)
-    {
-      // Return code is usually ignored
-      DBUG_ASSERT(false);
-      DBUG_RETURN(1);
-    }
-
-    {
-      char fk_full_name[FN_LEN + 1];
-      const char * name = fk_split_name(fk_full_name, fk.getName());
-      f_key_info.foreign_id = thd_make_lex_string(thd, 0, name,
-                                                  (uint)strlen(name), 1);
-    }
-
-    {
-      char child_db_and_name[FN_LEN + 1];
-      const char * child_name = fk_split_name(child_db_and_name,
-                                              fk.getChildTable());
-
-      if (strcmp(m_dbname, child_db_and_name) != 0 ||
-          strcmp(m_tabname, child_name) != 0)
-      {
-        DBUG_PRINT("info", ("skip: table %s.%s != FK child %s.%s",
-                            m_dbname, m_tabname,
-                            child_db_and_name, child_name));
-        continue;
-      }
-
-      /* Dependent (child) database name */
-      f_key_info.foreign_db =
-        thd_make_lex_string(thd, 0, child_db_and_name,
-                            (uint)strlen(child_db_and_name),
-                            1);
-      /* Dependent (child) table name */
-      f_key_info.foreign_table =
-        thd_make_lex_string(thd, 0, child_name,
-                            (uint)strlen(child_name),
-                            1);
-
-      for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
-      {
-        const NdbDictionary::Column * col =
-          m_table->getColumn(fk.getChildColumnNo(i));
-        if (col == 0)
-        {
-          // Return code is usually ignored
-          DBUG_ASSERT(false);
-          DBUG_RETURN(1);
-        }
-        LEX_STRING * name =
-          thd_make_lex_string(thd, 0, col->getName(),
-                              (uint)strlen(col->getName()), 1);
-        f_key_info.foreign_fields.push_back(name);
-      }
-    }
-
-    {
-      char parent_db_and_name[FN_LEN + 1];
-      const char * parent_name = fk_split_name(parent_db_and_name,
-                                               fk.getParentTable());
-
-      /* Referenced (parent) database name */
-      f_key_info.referenced_db =
-        thd_make_lex_string(thd, 0, parent_db_and_name,
-                            (uint)strlen(parent_db_and_name),
-                            1);
-      /* Referenced (parent) table name */
-      f_key_info.referenced_table =
-        thd_make_lex_string(thd, 0, parent_name,
-                            (uint)strlen(parent_name),
-                            1);
-
-      Ndb_db_guard db_guard(ndb);
-      setDbName(ndb, parent_db_and_name);
-      Ndb_table_guard parent_tab(dict, parent_name);
-      if (parent_tab.get_table() == 0)
-      {
-        DBUG_ASSERT(false);
-        ERR_RETURN(dict->getNdbError());
-      }
-
-      for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
-      {
-        const NdbDictionary::Column * col =
-          parent_tab.get_table()->getColumn(fk.getParentColumnNo(i));
-        if (col == 0)
-        {
-          // Return code is usually ignored
-          DBUG_ASSERT(false);
-          DBUG_RETURN(1);
-        }
-        LEX_STRING * name =
-          thd_make_lex_string(thd, 0, col->getName(),
-                              (uint)strlen(col->getName()), 1);
-        f_key_info.referenced_fields.push_back(name);
-      }
-
-    }
-
-    {
-      const char *update_method = "";
-      switch(fk.getOnUpdateAction()){
-      case NdbDictionary::ForeignKey::NoAction:
-        update_method = "NO ACTION";
-        break;
-      case NdbDictionary::ForeignKey::Restrict:
-        update_method = "RESTRICT";
-        break;
-      case NdbDictionary::ForeignKey::Cascade:
-        update_method = "CASCADE";
-        break;
-      case NdbDictionary::ForeignKey::SetNull:
-        update_method = "SET NULL";
-        break;
-      case NdbDictionary::ForeignKey::SetDefault:
-        update_method = "SET DEFAULT";
-        break;
-      }
-      f_key_info.update_method =
-        thd_make_lex_string(thd, 0, update_method,
-                            (uint)strlen(update_method),
-                            1);
-    }
-
-    {
-      const char *delete_method = "";
-      switch(fk.getOnDeleteAction()){
-      case NdbDictionary::ForeignKey::NoAction:
-        delete_method = "NO ACTION";
-        break;
-      case NdbDictionary::ForeignKey::Restrict:
-        delete_method = "RESTRICT";
-        break;
-      case NdbDictionary::ForeignKey::Cascade:
-        delete_method = "CASCADE";
-        break;
-      case NdbDictionary::ForeignKey::SetNull:
-        delete_method = "SET NULL";
-        break;
-      case NdbDictionary::ForeignKey::SetDefault:
-        delete_method = "SET DEFAULT";
-        break;
-      }
-      f_key_info.delete_method =
-        thd_make_lex_string(thd, 0, delete_method,
-                            (uint)strlen(delete_method),
-                            1);
-    }
-
-    if (fk.getParentIndex() != 0)
-    {
-      // sys/def/10/xb1$unique
-      char db_and_name[FN_LEN + 1];
-      const char * name=fk_split_name(db_and_name, fk.getParentIndex(), true);
-      f_key_info.referenced_key_name =
-        thd_make_lex_string(thd, 0, name,
-                            (uint)strlen(name),
-                            1);
-    }
-    else
-    {
-      const char* name= "PRIMARY";
-      f_key_info.referenced_key_name =
-        thd_make_lex_string(thd, 0, name,
-                            (uint)strlen(name),
-                            1);
-    }
-
-    FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-      thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
-    f_key_list->push_back(pf_key_info);
-  }
-
-  DBUG_PRINT("info", ("total FKs: %u", f_key_list->elements));
-  DBUG_RETURN(0);
+  int res= get_child_or_parent_fk_list(thd, f_key_list, true, false);
+  DBUG_PRINT("info", ("count FKs child %u", f_key_list->elements));
+  DBUG_RETURN(res);
 }
 
 int
@@ -1242,211 +993,9 @@ ha_ndbcluster::get_parent_foreign_key_list(THD *thd,
                                            List<FOREIGN_KEY_INFO> * f_key_list)
 {
   DBUG_ENTER("ha_ndbcluster::get_parent_foreign_key_list");
-  if (thd == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  if (m_table == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  Ndb *ndb= get_ndb(thd);
-  if (ndb == 0)
-  {
-    DBUG_RETURN(0);
-  }
-
-  DBUG_PRINT("info", ("%s.%s: list dependent objects",
-                      m_dbname, m_tabname));
-
-  NDBDICT *dict= ndb->getDictionary();
-  NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *m_table);
-  for (unsigned i = 0; i < obj_list.count; i++)
-  {
-    if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
-
-    FOREIGN_KEY_INFO f_key_info;
-
-    NdbDictionary::ForeignKey fk;
-    int res= dict->getForeignKey(fk, obj_list.elements[i].name);
-    if (res != 0)
-    {
-      // Return code is usually ignored
-      DBUG_ASSERT(false);
-      DBUG_RETURN(1);
-    }
-
-    {
-      char fk_full_name[FN_LEN + 1];
-      const char * name = fk_split_name(fk_full_name, fk.getName());
-      f_key_info.foreign_id = thd_make_lex_string(thd, 0, name,
-                                                  (uint)strlen(name), 1);
-    }
-
-    {
-      char child_db_and_name[FN_LEN + 1];
-      const char * child_name = fk_split_name(child_db_and_name,
-                                              fk.getChildTable());
-
-      /* Dependent (child) database name */
-      f_key_info.foreign_db =
-        thd_make_lex_string(thd, 0, child_db_and_name,
-                            (uint)strlen(child_db_and_name),
-                            1);
-      /* Dependent (child) table name */
-      f_key_info.foreign_table =
-        thd_make_lex_string(thd, 0, child_name,
-                            (uint)strlen(child_name),
-                            1);
-
-      Ndb_db_guard db_guard(ndb);
-      setDbName(ndb, child_db_and_name);
-      Ndb_table_guard child_tab(dict, child_name);
-      if (child_tab.get_table() == 0)
-      {
-        DBUG_ASSERT(false);
-        ERR_RETURN(dict->getNdbError());
-      }
-
-      for (unsigned i = 0; i < fk.getChildColumnCount(); i++)
-      {
-        const NdbDictionary::Column * col =
-          child_tab.get_table()->getColumn(fk.getChildColumnNo(i));
-        if (col == 0)
-        {
-          // Return code is usually ignored
-          DBUG_ASSERT(false);
-          DBUG_RETURN(1);
-        }
-        LEX_STRING * name =
-          thd_make_lex_string(thd, 0, col->getName(),
-                              (uint)strlen(col->getName()), 1);
-        f_key_info.foreign_fields.push_back(name);
-      }
-    }
-
-    {
-      char parent_db_and_name[FN_LEN + 1];
-      const char * parent_name = fk_split_name(parent_db_and_name,
-                                               fk.getParentTable());
-
-      if (strcmp(m_dbname, parent_db_and_name) != 0 ||
-          strcmp(m_tabname, parent_name) != 0)
-      {
-        DBUG_PRINT("info", ("skip: table %s.%s != FK parent %s.%s",
-                            m_dbname, m_tabname,
-                            parent_db_and_name, parent_name));
-        continue;
-      }
-
-      /* Referenced (parent) database name */
-      f_key_info.referenced_db =
-        thd_make_lex_string(thd, 0, parent_db_and_name,
-                            (uint)strlen(parent_db_and_name),
-                            1);
-      /* Referenced (parent) table name */
-      f_key_info.referenced_table =
-        thd_make_lex_string(thd, 0, parent_name,
-                            (uint)strlen(parent_name),
-                            1);
-
-      for (unsigned i = 0; i < fk.getParentColumnCount(); i++)
-      {
-        const NdbDictionary::Column * col =
-          m_table->getColumn(fk.getParentColumnNo(i));
-        if (col == 0)
-        {
-          // Return code is usually ignored
-          DBUG_ASSERT(false);
-          DBUG_RETURN(1);
-        }
-        LEX_STRING * name =
-          thd_make_lex_string(thd, 0, col->getName(),
-                              (uint)strlen(col->getName()), 1);
-        f_key_info.referenced_fields.push_back(name);
-      }
-
-    }
-
-    {
-      const char *update_method = "";
-      switch(fk.getOnUpdateAction()){
-      case NdbDictionary::ForeignKey::NoAction:
-        update_method = "NO ACTION";
-        break;
-      case NdbDictionary::ForeignKey::Restrict:
-        update_method = "RESTRICT";
-        break;
-      case NdbDictionary::ForeignKey::Cascade:
-        update_method = "CASCADE";
-        break;
-      case NdbDictionary::ForeignKey::SetNull:
-        update_method = "SET NULL";
-        break;
-      case NdbDictionary::ForeignKey::SetDefault:
-        update_method = "SET DEFAULT";
-        break;
-      }
-      f_key_info.update_method =
-        thd_make_lex_string(thd, 0, update_method,
-                            (uint)strlen(update_method),
-                            1);
-    }
-
-    {
-      const char *delete_method = "";
-      switch(fk.getOnDeleteAction()){
-      case NdbDictionary::ForeignKey::NoAction:
-        delete_method = "NO ACTION";
-        break;
-      case NdbDictionary::ForeignKey::Restrict:
-        delete_method = "RESTRICT";
-        break;
-      case NdbDictionary::ForeignKey::Cascade:
-        delete_method = "CASCADE";
-        break;
-      case NdbDictionary::ForeignKey::SetNull:
-        delete_method = "SET NULL";
-        break;
-      case NdbDictionary::ForeignKey::SetDefault:
-        delete_method = "SET DEFAULT";
-        break;
-      }
-      f_key_info.delete_method =
-        thd_make_lex_string(thd, 0, delete_method,
-                            (uint)strlen(delete_method),
-                            1);
-    }
-
-    if (fk.getParentIndex() != 0)
-    {
-      f_key_info.referenced_key_name =
-        thd_make_lex_string(thd, 0, fk.getParentIndex(),
-                            (uint)strlen(fk.getParentIndex()),
-                            1);
-    }
-    else
-    {
-      const char* primary= "PRIMARY";
-      f_key_info.referenced_key_name =
-        thd_make_lex_string(thd, 0, primary,
-                            (uint)strlen(primary),
-                            1);
-    }
-
-    FOREIGN_KEY_INFO *pf_key_info = (FOREIGN_KEY_INFO *)
-      thd_memdup(thd, &f_key_info, sizeof(FOREIGN_KEY_INFO));
-    f_key_list->push_back(pf_key_info);
-  }
-
-  DBUG_PRINT("info", ("total FKs: %u", f_key_list->elements));
-  DBUG_RETURN(0);
+  int res= get_child_or_parent_fk_list(thd, f_key_list, false, true);
+  DBUG_PRINT("info", ("count FKs parent %u", f_key_list->elements));
+  DBUG_RETURN(res);
 }
 
 static
