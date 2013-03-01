@@ -381,7 +381,7 @@ Tablespace::open_data_file(
 	ibool	success;
 
 	file.m_handle = os_file_create(
-		innodb_file_data_key, file.m_filename, file.m_open_flags,
+		innodb_data_file_key, file.m_filename, file.m_open_flags,
 		OS_FILE_NORMAL, OS_DATA_FILE, &success);
 
 	if (!success) {
@@ -1162,7 +1162,7 @@ Tablespace::delete_files()
 		make_name(*it, m_tablespace_path);
 		bool file_pre_exists;
 		bool success = os_file_delete_if_exists(
-			innodb_file_data_key, it->m_filename, &file_pre_exists);
+			innodb_data_file_key, it->m_filename, &file_pre_exists);
 
 		if (success && file_pre_exists) {
 			ib_logf(IB_LOG_LEVEL_INFO,
