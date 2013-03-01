@@ -9074,7 +9074,7 @@ void refresh_status(THD *thd)
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
-PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
+PSI_mutex_key key_LOCK_tc;
 #endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
@@ -9126,10 +9126,7 @@ PSI_mutex_key key_LOCK_thread_created;
 static PSI_mutex_info all_server_mutexes[]=
 {
 #ifdef HAVE_MMAP
-  { &key_PAGE_lock, "PAGE::lock", 0},
-  { &key_LOCK_sync, "TC_LOG_MMAP::LOCK_sync", 0},
-  { &key_LOCK_active, "TC_LOG_MMAP::LOCK_active", 0},
-  { &key_LOCK_pool, "TC_LOG_MMAP::LOCK_pool", 0},
+  { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0},
 #endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
