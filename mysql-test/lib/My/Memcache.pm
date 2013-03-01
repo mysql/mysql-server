@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2011, Oracle and/or its affiliates. 
+# Copyright (c) 2013, Oracle and/or its affiliates. 
 # All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -32,7 +32,7 @@
 ###  $mc->append(key, value)            append value to existing data
 ###  $mc->prepend(key, value)           prepend value to existing data
 ###
-###  $mc->get(key, [ key ...])          returns value
+###  $mc->get(key, [ key ...])          returns a value or undef 
 ###  $mc->next_result()                 Fetch results after get()
 ### 
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
@@ -54,6 +54,12 @@
 ###    Wait for NDB/Memcache to complete online reconfiguration.  
 ###    Returns the generation number of the newly running configuration, 
 ###    or zero on timeout/error. 
+
+################ TODO ################################
+###  * Support explicit binary k/q commands with pipelining
+###  * Implement TOUCH & GAT commands
+###  * Support UDP
+###  * Standardize APIs to take (key, value, hashref-of-options)
 
 use strict;
 use IO::Socket::INET;
