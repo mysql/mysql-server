@@ -5544,7 +5544,7 @@ bool check_stack_overrun(THD *thd, long margin,
 #define MY_YACC_INIT 1000			// Start with big alloc
 #define MY_YACC_MAX  32000			// Because of 'short'
 
-bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
+bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls, ulong *yystacksize)
 {
   Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
@@ -5561,6 +5561,10 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
       !(state->yacc_yyss= (uchar*)
         my_realloc(state->yacc_yyss,
                    *yystacksize*sizeof(**yyss),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
+      !(state->yacc_yyls= (uchar*)
+        my_realloc(state->yacc_yyls,
+                   *yystacksize*sizeof(**yyls),
                    MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
@@ -5572,9 +5576,11 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
     */
     memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
     memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
+    memcpy(state->yacc_yyls, *yyls, old_info*sizeof(**yyls));
   }
   *yyss= (short*) state->yacc_yyss;
   *yyvs= (YYSTYPE*) state->yacc_yyvs;
+  *yyls= (YYLTYPE*) state->yacc_yyls;
   return 0;
 }
 
