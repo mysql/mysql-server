@@ -5380,8 +5380,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	cs,		/*!< in: Character set */
-	byte*           start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
+	const byte*	start,		/*!< in: start of text */
+	const byte*	end,		/*!< in: one character past end of
 					text */
 	fts_string_t*	token,		/*!< out: token's text */
 	ulint*		offset)		/*!< out: offset to token,
@@ -5389,7 +5389,7 @@ innobase_mysql_fts_get_token(
 					'start' */
 {
 	int		mbl;
-	uchar*		doc = start;
+	const uchar*	doc = start;
 
 	ut_a(cs);
 
@@ -5405,7 +5405,7 @@ innobase_mysql_fts_get_token(
 			int	ctype;
 
 			mbl = cs->cset->ctype(
-				cs, &ctype, (uchar*) doc, (uchar*) end);
+				cs, &ctype, doc, (const uchar*) end);
 
 			if (true_word_char(ctype, *doc)) {
 				break;
@@ -5417,7 +5417,7 @@ innobase_mysql_fts_get_token(
 		ulint	mwc = 0;
 		ulint	length = 0;
 
-		token->f_str = doc;
+		token->f_str = const_cast<byte*>(doc);
 
 		while (doc < end) {
 
