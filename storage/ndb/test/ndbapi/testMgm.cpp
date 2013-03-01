@@ -1431,7 +1431,7 @@ int runCheckConfig(NDBT_Context* ctx, NDBT_Step* step)
 
   // Connect to each mgmd and check
   // they all have the same config
-  for (size_t i = 0; i < mgmds.size(); i++)
+  for (unsigned i = 0; i < mgmds.size(); i++)
   {
     NdbMgmd mgmd2;
     g_info << "Connecting to " << mgmds[i].c_str() << endl;
@@ -1757,7 +1757,7 @@ check_set_config_any_node(NDBT_Context* ctx, NDBT_Step* step, NdbMgmd& mgmd)
 
   // Connect to each mgmd and check
   // they all have the same config
-  for (size_t i = 0; i < mgmds.size(); i++)
+  for (unsigned i = 0; i < mgmds.size(); i++)
   {
     NdbMgmd mgmd2;
     g_info << "Connecting to " << mgmds[i].c_str() << endl;
