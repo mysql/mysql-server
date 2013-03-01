@@ -86,6 +86,9 @@ typedef struct ndb_index_data {
   NdbRecord *ndb_unique_record_row;
 } NDB_INDEX_DATA;
 
+// Foreign key data cached under handler instance
+struct Ndb_fk_data;
+
 typedef enum ndb_write_op {
   NDB_INSERT = 0,
   NDB_UPDATE = 1,
@@ -415,6 +418,8 @@ private:
   int add_hidden_pk_ndb_record(NdbDictionary::Dictionary *dict);
   int add_index_ndb_record(NdbDictionary::Dictionary *dict,
                            KEY *key_info, uint index_no);
+  int get_fk_data(THD *thd, Ndb *ndb);
+  void release_fk_data(THD *thd);
   int create_fks(THD *thd, Ndb *ndb, TABLE *tab);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, NdbDictionary::Dictionary*,
@@ -617,6 +622,9 @@ private:
   NDB_SHARE *m_share;
   NDB_INDEX_DATA  m_index[MAX_KEY];
   key_map btree_keys;
+  static const size_t fk_root_block_size= 1024;
+  MEM_ROOT m_fk_mem_root;
+  Ndb_fk_data *m_fk_data;
 
   /*
     Pointer to row returned from scan nextResult().
