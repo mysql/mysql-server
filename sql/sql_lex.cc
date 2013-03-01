@@ -485,6 +485,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->is_set_password_sql= false;
   lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
@@ -2830,7 +2831,7 @@ void Query_tables_list::destroy_query_tables_list()
 
 LEX::LEX()
   :result(0), option_type(OPT_DEFAULT), is_change_password(false),
-  is_lex_started(0)
+  is_set_password_sql(false), is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -3135,14 +3136,6 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
     val= HA_POS_ERROR;
 
   select_limit_val= (ha_rows)val;
-#ifndef BIG_TABLES
-  /*
-    Check for overflow : ha_rows can be smaller then ulonglong if
-    BIG_TABLES is off.
-    */
-  if (val != (ulonglong)select_limit_val)
-    select_limit_val= HA_POS_ERROR;
-#endif
   if (sl->offset_limit)
   {
     Item *item = sl->offset_limit;
@@ -3160,11 +3153,6 @@ void st_select_lex_unit::set_limit(st_select_lex *sl)
     val= ULL(0);
 
   offset_limit_cnt= (ha_rows)val;
-#ifndef BIG_TABLES
-  /* Check for truncation. */
-  if (val != (ulonglong)offset_limit_cnt)
-    offset_limit_cnt= HA_POS_ERROR;
-#endif
   select_limit_cnt= select_limit_val + offset_limit_cnt;
   if (select_limit_cnt < select_limit_val)
     select_limit_cnt= HA_POS_ERROR;		// no limit

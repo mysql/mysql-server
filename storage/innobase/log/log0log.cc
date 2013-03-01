@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2379,14 +2379,14 @@ loop:
 		log_archived_file_name_gen(name, group->id,
 					   group->archived_file_no + n_files);
 
-		file_handle = os_file_create(innodb_file_log_key,
+		file_handle = os_file_create(innodb_log_file_key,
 					     name, open_mode,
 					     OS_FILE_AIO,
 					     OS_DATA_FILE, &ret);
 
 		if (!ret && (open_mode == OS_FILE_CREATE)) {
 			file_handle = os_file_create(
-				innodb_file_log_key, name, OS_FILE_OPEN,
+				innodb_log_file_key, name, OS_FILE_OPEN,
 				OS_FILE_AIO, OS_DATA_FILE, &ret);
 		}
 

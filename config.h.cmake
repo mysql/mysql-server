@@ -398,7 +398,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64U
+#cmakedefine MAX_INDEXES @MAX_INDEXES@
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@
@@ -598,12 +598,6 @@
 #cmakedefine HAVE_UCA_COLLATIONS 1
 #cmakedefine HAVE_COMPRESS 1
 #cmakedefine COMPILE_FLAG_WERROR 1
-
-/*
-  Stuff that always need to be defined (compile breaks without it)
-*/
-#define HAVE_RTREE_KEYS 1
-#define BIG_TABLES 1
 
 /*
   Important storage engines (those that really need define 
