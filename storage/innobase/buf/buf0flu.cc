@@ -64,7 +64,7 @@ reduce the wait time for the threads waiting for a clean block */
 #define PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE	100
 
 #ifdef UNIV_PFS_THREAD
-UNIV_INTERN mysql_pfs_key_t buf_page_cleaner_thread_key;
+UNIV_INTERN mysql_pfs_key_t page_cleaner_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /** If LRU list of a buf_pool is less than this size then LRU eviction
@@ -535,9 +535,9 @@ buf_flush_remove(
 	buf_flush_list_mutex_enter(buf_pool);
 
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE:
 		/* Clean compressed pages should not be on the flush list */
-	case BUF_BLOCK_ZIP_FREE:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -903,7 +903,7 @@ buf_flush_write_block_low(
 	log_write_up_to(bpage->newest_modification, LOG_WAIT_ALL_GROUPS, TRUE);
 #endif
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE: /* The page should be dirty. */
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -2370,7 +2370,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_PFS_THREAD
-	pfs_register_thread(buf_page_cleaner_thread_key);
+	pfs_register_thread(page_cleaner_thread_key);
 #endif /* UNIV_PFS_THREAD */
 
 #ifdef UNIV_DEBUG_THREAD_CREATION

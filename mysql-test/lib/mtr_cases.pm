@@ -1071,6 +1071,14 @@ sub collect_one_test_case {
       $tinfo->{'comment'}= "Not run for embedded server";
       return $tinfo;
     }
+#Setting the default storage engine to InnoDB for embedded tests as the default
+#storage engine for mysqld in embedded mode is still MyISAM.
+#To be removed after completion of WL #6911.
+    if ( !$tinfo->{'myisam_test'} && !defined $default_storage_engine)
+    {
+      push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=InnoDB");
+      push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=InnoDB");
+    }
   }
 
   if ( $tinfo->{'need_ssl'} )

@@ -212,9 +212,9 @@ extern ulint	os_n_fsyncs;
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-extern mysql_pfs_key_t	innodb_file_data_key;
-extern mysql_pfs_key_t	innodb_file_log_key;
-extern mysql_pfs_key_t	innodb_file_temp_key;
+extern mysql_pfs_key_t	innodb_data_file_key;
+extern mysql_pfs_key_t	innodb_log_file_key;
+extern mysql_pfs_key_t	innodb_temp_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.

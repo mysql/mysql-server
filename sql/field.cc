@@ -6656,8 +6656,8 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
     count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
-    false  - None was truncated (or we don't count cut fields)
-    true   - Some bytes were truncated
+    TYPE_OK    - None was truncated
+    != TYPE_OK - Some bytes were truncated
 
   NOTE
     Check if we lost any important data (anything in a binary string,
@@ -6670,19 +6670,26 @@ type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((pstr < end) && table->in_use->count_cuted_fields)
+  if (pstr < end)       // String is truncated
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      if (table->in_use->abort_on_warning)
-        set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
-      else
-        set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      // Warning should only be written when count_cuted_fields is set
+      if (table->in_use->count_cuted_fields)
+      {
+        if (table->in_use->abort_on_warning)
+          set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
+        else
+          set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_WARN_TRUNCATED;
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      if (table->in_use->count_cuted_fields)
+      {
+        set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_NOTE_TRUNCATED;
     }
   }
