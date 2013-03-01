@@ -4246,7 +4246,7 @@ lock_check_dict_lock(
 			ut_ad(lock->trx->dict_operation != TRX_DICT_OP_NONE);
 		}
 	}
-}	
+}
 #endif /* UNIV_DEBUG */
 
 /*********************************************************************//**
@@ -4999,7 +4999,7 @@ lock_trx_print_wait_and_mvcc_state(
 /*********************************************************************//**
 Prints info of locks for a transaction. This function will release the
 lock mutex and the trx_sys_t::mutex if the page was read from disk.
-@return true of page was read from the tablespace */
+@return true if page was read from the tablespace */
 static
 bool
 lock_rec_fetch_page(
@@ -7097,7 +7097,7 @@ DeadlockChecker::select_victim() const
 /**
 Looks iteratively for a deadlock. Note: the joining transaction may
 have been granted its lock by the deadlock checks.
-@return 0 if no deadlock else the victim transaction id.*/
+@return 0 if no deadlock else the victim transaction instance.*/
 const trx_t*
 DeadlockChecker::search()
 {
