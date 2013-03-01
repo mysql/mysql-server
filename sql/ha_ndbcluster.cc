@@ -364,8 +364,6 @@ ndbcluster_alter_table_flags(uint flags)
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
 
-static int ndb_to_mysql_error(const NdbError *ndberr);
-
 #define ERR_PRINT(err) \
   DBUG_PRINT("error", ("%d  message: %s", err.code, err.message))
 
@@ -791,7 +789,7 @@ SHOW_VAR ndb_status_index_stat_variables[]= {
 
 /* Note for merge: old mapping table, moved to storage/ndb/ndberror.c */
 
-static int ndb_to_mysql_error(const NdbError *ndberr)
+int ndb_to_mysql_error(const NdbError *ndberr)
 {
   /* read the mysql mapped error code */
   int error= ndberr->mysql_code;
@@ -18034,6 +18032,4 @@ ndbinfo_plugin, /* ndbinfo plugin */
 /* IS plugin table which maps between mysql connection id and ndb trans-id */
 i_s_ndb_transid_mysql_connection_map_plugin
 mysql_declare_plugin_end;
-
-#include "ha_ndb_ddl_fk.cc"
 
