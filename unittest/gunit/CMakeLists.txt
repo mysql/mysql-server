@@ -218,6 +218,7 @@ SET(TESTS
   alignment
   bounded_queue
   bounds_checked_array
+  bitmap
   byteorder
 ##  client_string TODO: move to a client test directory
   cost_estimate
