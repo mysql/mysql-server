@@ -546,6 +546,8 @@ static
 const char *
 fk_split_name(char dst[], const char * src, bool index = false)
 {
+  DBUG_PRINT("info", ("fk_split_name: %s index=%d", src, index));
+
   /**
    * Split a fully qualified (ndb) name into db and name
    *
@@ -571,6 +573,7 @@ fk_split_name(char dst[], const char * src, bool index = false)
      */
     dst[0] = 0;
     strcpy(dst + 1, save);
+    DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dst + 1));
     return dst + 1;
   }
 
@@ -601,6 +604,7 @@ fk_split_name(char dst[], const char * src, bool index = false)
     src++;
   }
   strcpy(dstptr, src);
+  DBUG_PRINT("info", ("fk_split_name: %s,%s", dst, dstptr));
   return dstptr;
 }
 
@@ -625,7 +629,8 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     DBUG_RETURN(0);
   }
 
-  DBUG_PRINT("info", ("%s: list dependent objects", m_table->getName()));
+  DBUG_PRINT("info", ("%s.%s: list dependent objects",
+                      m_dbname, m_tabname));
 
   NDBDICT *dict= ndb->getDictionary();
   NDBDICT::List obj_list;
@@ -633,10 +638,6 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
   for (unsigned i = 0; i < obj_list.count; i++)
   {
     if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
-      continue;
-
-    // abuse temp to mark parent-only dependency
-    if (obj_list.elements[i].temp != 0)
       continue;
 
     DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
@@ -663,6 +664,16 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
       char child_db_and_name[FN_LEN + 1];
       const char * child_name = fk_split_name(child_db_and_name,
                                               fk.getChildTable());
+
+      if (strcmp(m_dbname, child_db_and_name) != 0 ||
+          strcmp(m_tabname, child_name) != 0)
+      {
+        DBUG_PRINT("info", ("skip: table %s.%s != FK child %s.%s",
+                            m_dbname, m_tabname,
+                            child_db_and_name, child_name));
+        continue;
+      }
+
       /* Dependent (child) database name */
       f_key_info.foreign_db =
         thd_make_lex_string(thd, 0, child_db_and_name,
@@ -801,6 +812,7 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     f_key_list->push_back(pf_key_info);
   }
 
+  DBUG_PRINT("info", ("total FKs: %u", f_key_list->elements));
   DBUG_RETURN(0);
 }
 

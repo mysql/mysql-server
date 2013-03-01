@@ -2305,7 +2305,6 @@ public:
      * Fetch list of objects that table depend on
      * @param list  Reference to list where to store the listed objects
      * @param table  Reference to table that objects belongs to.
-     * @note For FK, Element::temp is set for parent-only dependency
      * @return  0 if successful, otherwise -1
      */
     int listDependentObjects(List & list, const Table &table) const;
