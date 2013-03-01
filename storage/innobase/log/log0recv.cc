@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -3601,7 +3601,7 @@ recv_reset_log_files_for_backup(
 		sprintf(name, "%s%s%lu", log_dir,
 			ib_logfile_basename, (ulong) i);
 
-		log_file = os_file_create_simple(innodb_file_log_key,
+		log_file = os_file_create_simple(innodb_log_file_key,
 						 name, OS_FILE_CREATE,
 						 OS_FILE_READ_WRITE,
 						 &success);
@@ -3639,7 +3639,7 @@ recv_reset_log_files_for_backup(
 				      LOG_BLOCK_HDR_SIZE);
 	sprintf(name, "%s%s%lu", log_dir, ib_logfile_basename, (ulong)0);
 
-	log_file = os_file_create_simple(innodb_file_log_key,
+	log_file = os_file_create_simple(innodb_log_file_key,
 					 name, OS_FILE_OPEN,
 					 OS_FILE_READ_WRITE, &success);
 	if (!success) {
@@ -3690,7 +3690,7 @@ try_open_again:
 
 	log_archived_file_name_gen(name, group->id, group->archived_file_no);
 
-	file_handle = os_file_create(innodb_file_log_key,
+	file_handle = os_file_create(innodb_log_file_key,
 				     name, OS_FILE_OPEN,
 				     OS_FILE_LOG, OS_FILE_AIO, &ret);
 

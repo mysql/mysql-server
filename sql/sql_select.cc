@@ -426,11 +426,10 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
            should not happen since LooseScan strategy is only picked if sorted 
            output is supported.
         */
-        tab->sorted= true;
         if (tab->select && tab->select->quick)
         {
           if (tab->select->quick->index == pos->loosescan_key)
-            tab->select->quick->need_sorted_output(true);
+            tab->select->quick->need_sorted_output();
           else
             tab->select->set_quick(NULL);
         }
@@ -2764,9 +2763,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
   const bool statistics= test(!(join->select_options & SELECT_DESCRIBE));
 
-  /* First table sorted if ORDER or GROUP BY was specified */
-  bool sorted= (join->order || join->group_list);
-
   DBUG_ENTER("make_join_readinfo");
 
   Opt_trace_context * const trace= &join->thd->opt_trace;
@@ -2787,14 +2783,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     tab->read_record.table= table;
     tab->next_select=sub_select;		/* normal select */
     tab->cache_idx_cond= 0;
-    /*
-      For eq_ref there is at most one join match for each row from
-      previous tables so ordering is not useful.
-      NOTE: setup_semijoin_dups_elimination() might have requested 
-            'sorted', thus a '|=' is required to preserve that.
-    */
-    tab->sorted|= (sorted && tab->type != JT_EQ_REF);
-    sorted= false;                              // only first must be sorted
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
     tab->read_first_record= NULL; // Access methods not set yet
     tab->read_record.read_record= NULL;
@@ -4275,7 +4263,7 @@ check_reverse_order:
       }
     }
     else if (select && select->quick)
-      select->quick->need_sorted_output(true);
+      select->quick->need_sorted_output();
   } // QEP has been modified
 
 fix_ICP:
@@ -5004,15 +4992,17 @@ bool JOIN::make_tmp_tables_info()
       optimize_distinct();
 
     /*
-      If there is no sorting or grouping, one may turn off
-      requirement that access method should deliver rows in sorted
-      order.  Exception: LooseScan strategy for semijoin requires
+      If there is no sorting or grouping, 'use_order'
+      index result should not have been requested.
+      Exception: LooseScan strategy for semijoin requires
       sorted access even if final result is not to be sorted.
     */
-    if (!sort_and_group &&
+    DBUG_ASSERT(
+      !(ordered_index_usage == ordered_index_void &&
         !plan_is_const() && 
-        join_tab[const_tables].position->sj_strategy != SJ_OPT_LOOSE_SCAN)
-      disable_sorted_access(&join_tab[const_tables]);
+        join_tab[const_tables].position->sj_strategy != SJ_OPT_LOOSE_SCAN &&
+        join_tab[const_tables].use_order()));
+
     /*
       We don't have to store rows in temp table that doesn't match HAVING if:
       - we are sorting the table and writing complete group rows to the
@@ -5132,8 +5122,14 @@ bool JOIN::make_tmp_tables_info()
           DBUG_RETURN(true);
       }
 
-      if (!sort_and_group && !plan_is_const())
-        disable_sorted_access(&join_tab[const_tables]);
+      /*
+        If there is no sorting or grouping, 'use_order'
+        index result should not have been requested.
+      */
+      DBUG_ASSERT(!(ordered_index_usage == ordered_index_void &&
+                    !plan_is_const() &&
+                    join_tab[const_tables].use_order()));
+
       // Setup sum funcs only when necessary, otherwise we might break info
       // for the first table
       if (group_list || tmp_table_param.sum_func_count)

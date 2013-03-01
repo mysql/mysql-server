@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -205,7 +205,7 @@ buf_page_get_state(
 
 #ifdef UNIV_DEBUG
 	switch (state) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
@@ -245,7 +245,7 @@ buf_page_set_state(
 	enum buf_page_state	old_state	= buf_page_get_state(bpage);
 
 	switch (old_state) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
@@ -300,9 +300,7 @@ buf_page_in_file(
 	const buf_page_t*	bpage)	/*!< in: pointer to control block */
 {
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
-		/* This is a free page in buf_pool->zip_free[].
-		Such pages should only be accessed by the buddy allocator. */
+	case BUF_BLOCK_POOL_WATCH:
 		ut_error;
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
@@ -347,7 +345,7 @@ buf_page_get_mutex(
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 		ut_error;
 		return(NULL);
 	case BUF_BLOCK_ZIP_PAGE:
@@ -666,7 +664,7 @@ buf_block_get_frame(
 	ut_ad(block);
 
 	switch (buf_block_get_state(block)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
@@ -1311,7 +1309,7 @@ buf_page_release_zip(
 		bpage->buf_fix_count--;
 		mutex_exit(&block->mutex);
 		return;
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:

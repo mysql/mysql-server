@@ -1553,7 +1553,20 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifndef DBUG_OFF
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
 #endif
-
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transaction is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
+  */
+  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
   DBUG_ENTER("ha_rollback_trans");
 
   /*
@@ -1581,7 +1594,7 @@ int ha_rollback_trans(THD *thd, bool all)
     tc_log->rollback(thd, all);
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
-  if (all)
+  if (is_real_trans)
     thd->transaction.cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
@@ -1590,7 +1603,7 @@ int ha_rollback_trans(THD *thd, bool all)
     Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
     complete transaction is being rollback or autocommit=1.
   */
-  if (all || 0 == thd->transaction.all.ha_list)
+  if (is_real_trans)
     gtid_rollback(thd);
 
   /*
@@ -1606,8 +1619,7 @@ int ha_rollback_trans(THD *thd, bool all)
   thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
-  if ((all || thd->transaction.stmt.ha_list == 0) &&
-      thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
