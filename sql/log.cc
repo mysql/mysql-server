@@ -971,10 +971,10 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   uint user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
                                 sctx->priv_user ? sctx->priv_user : "", "[",
                                 sctx->user ? sctx->user : "", "] @ ",
-                                sctx->host ? sctx->host : "", " [",
-                                sctx->ip ? sctx->ip : "", "]", NullS) -
-                       user_host_buff);
-
+                                sctx->get_host()->length() ?
+                                sctx->get_host()->ptr() : "", " [",
+                                sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
+                                "", "]", NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
   time_t current_time= my_time_possible_from_micro(current_utime);
   ulonglong query_utime, lock_utime;
