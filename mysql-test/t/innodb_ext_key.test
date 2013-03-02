@@ -414,6 +414,7 @@ INSERT INTO t1 (a) VALUES (4), (6);
 INSERT INTO t2 (b) VALUES (0), (8);
 
 set @save_optimizer_switch=@@optimizer_switch;
+set @save_join_cache_level=@@join_cache_level;
 
 SET join_cache_level=3;
 SET optimizer_switch='join_cache_hashed=on';
@@ -424,6 +425,7 @@ EXPLAIN
 SELECT * FROM t1, t2 WHERE b=a;
 SELECT * FROM t1, t2 WHERE b=a;
 
+set join_cache_level=@save_join_cache_level;
 set optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
@@ -466,6 +468,78 @@ set optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug mdev-4220: using ref instead of eq_ref
+--echo #                with extended_keys=on   
+--echo # (performance regression introduced in the patch for mdev-3851)
+--echo #
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+create table t1 (a int not null) engine=innodb;
+
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 (
+  pk int primary key, a int not null, b int, unique(a)
+)engine=innodb;
+
+insert into t2
+select 
+  A.a + 10 * B.a, A.a + 10 * B.a, A.a + 10 * B.a 
+from t1 A, t1 B;
+
+set optimizer_switch='extended_keys=off';
+explain 
+select * from t1, t2 where t2.a=t1.a and t2.b < 2;
+flush status;
+select * from t1, t2 where t2.a=t1.a and t2.b < 2;
+show status like 'handler_read%';
+
+set optimizer_switch='extended_keys=on';
+explain 
+select * from t1, t2 where t2.a=t1.a and t2.b < 2;
+flush status;
+select * from t1, t2 where t2.a=t1.a and t2.b < 2;
+show status like 'handler_read%';
+
+drop table t1,t2;
+
+# this test case did not demonstrate any regression
+# it is added for better testing
+
+create table t1(a int) engine=myisam;
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2(a int) engine=myisam;
+insert into t2 select A.a + 10*B.a + 100*C.a from t1 A, t1 B, t1 C;
+
+create table t3 (
+  pk1 int not null, pk2 int not null, col1 int not null, col2 int not null)
+engine=innodb;
+insert into t3 select a,a,a,a from t2;
+alter table t3 add primary key (pk1, pk2);
+alter table t3 add  key (col1, col2);
+
+set optimizer_switch='extended_keys=off';
+--replace_column 9 #
+explain 
+select * from t1, t3 where t3.col1=t1.a and  t3.col2=t1.a;
+--replace_column 9 #
+explain 
+select * from t1, t3 where t3.col1=t1.a and  t3.col2=t1.a and t3.pk1=t1.a;
+
+set optimizer_switch='extended_keys=on';
+--replace_column 9 #
+explain 
+select * from t1, t3 where t3.col1=t1.a and  t3.col2=t1.a;
+--replace_column 9 #
+explain 
+select * from t1, t3 where t3.col1=t1.a and  t3.col2=t1.a and t3.pk1=t1.a;
+
+drop table t1,t2,t3;
+
+set optimizer_switch=@save_optimizer_switch;
+
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;
-
