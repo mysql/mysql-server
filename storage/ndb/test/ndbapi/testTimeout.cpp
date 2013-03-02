@@ -483,7 +483,7 @@ int runScanRefreshNoTimeout(NDBT_Context* ctx, NDBT_Step* step){
         }
 
         int res;
-        for (size_t j = 0; j < ops.size(); j++)
+        for (unsigned j = 0; j < ops.size(); j++)
         {
           while((res = ops[j]->nextResult()) == 0);
           CHECK(res != -1);

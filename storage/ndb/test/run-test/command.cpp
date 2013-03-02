@@ -25,13 +25,13 @@
 MYSQL* find_atrtdb_client(atrt_config& config)
 {
   atrt_cluster* cluster = 0;
-  for (size_t i = 0; i<config.m_clusters.size(); i++)
+  for (unsigned i = 0; i<config.m_clusters.size(); i++)
   {
     if (strcmp(config.m_clusters[i]->m_name.c_str(), ".atrt") == 0)
     {
       cluster = config.m_clusters[i];
 
-      for (size_t i = 0; i<cluster->m_processes.size(); i++)
+      for (unsigned i = 0; i<cluster->m_processes.size(); i++)
       {
         if (cluster->m_processes[i]->m_type == atrt_process::AP_CLIENT)
         {
