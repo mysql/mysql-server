@@ -1972,7 +1972,7 @@ runTestDictionaryPerf(NDBT_Context* ctx, NDBT_Step* step){
     
     const NdbDictionary::Table * tab2 = pNdb->getDictionary()->getTable(tab->getName());
     
-    for(size_t j = 0; j<(size_t)tab->getNoOfColumns(); j++){
+    for(int j = 0; j<tab->getNoOfColumns(); j++){
       cols.push_back((char*)tab2);
       cols.push_back(strdup(tab->getColumn(j)->getName()));
     }
@@ -8159,11 +8159,11 @@ runBug53944(NDBT_Context* ctx, NDBT_Step* step)
    * With Bug53944 - none of the table-id have been reused in this scenario
    *   check that atleast 15 of the 25 have been to return OK
    */
-  size_t reused = 0;
-  for (size_t i = 0; i<ids.size(); i++)
+  unsigned reused = 0;
+  for (unsigned i = 0; i<ids.size(); i++)
   {
     int id = ids[i];
-    for (size_t j = 0; j<ids2.size(); j++)
+    for (unsigned j = 0; j<ids2.size(); j++)
     {
       if (ids2[j] == id)
       {

@@ -49,14 +49,15 @@ struct Attrib {
     indexCreated = false;
   }
 };
+
 class AttribList {
 public:
-  AttribList(){};
+  AttribList(){}
   ~AttribList(){
-    for(size_t i = 0; i < attriblist.size(); i++){      
+    for(unsigned i = 0; i < attriblist.size(); i++){
       delete attriblist[i];
     }
-  };
+  }
   void buildAttribList(const NdbDictionary::Table* pTab); 
   Vector<Attrib*> attriblist;
 };
