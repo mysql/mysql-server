@@ -404,6 +404,7 @@ int NdbThread_SetConcurrencyLevel(int level)
 #endif
 }
 
+#if defined(HAVE_LINUX_SCHEDULING) || defined(HAVE_PTHREAD_SET_SCHEDPARAM)
 static int
 get_max_prio(int policy)
 {
@@ -459,6 +460,7 @@ get_prio(my_bool rt_prio, my_bool high_prio, int policy)
     g_prio = g_min_prio;
   return g_prio;
 }
+#endif
 
 int
 NdbThread_SetScheduler(struct NdbThread* pThread,

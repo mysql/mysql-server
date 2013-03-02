@@ -1164,7 +1164,8 @@ ha_ndbcluster_cond::cond_clear()
 
 bool
 ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
-                                   TABLE *table, const NDBTAB *ndb_table)
+                                   TABLE *table,
+                                   const NDBTAB *ndb_table) const
 {
   DBUG_ENTER("serialize_cond");
   Item *item= (Item *) cond;
@@ -1181,7 +1182,7 @@ ha_ndbcluster_cond::serialize_cond(const Item *cond, Ndb_cond_stack *ndb_cond,
 int
 ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond, 
                                                 NdbScanFilter *filter,
-                                                bool negated)
+                                                bool negated) const
 {
   DBUG_ENTER("build_scan_filter_predicate");  
   switch (cond->ndb_item->type) {
@@ -1441,7 +1442,7 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
 
 int
 ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond, 
-                                            NdbScanFilter *filter)
+                                            NdbScanFilter *filter) const
 {
   uint level=0;
   bool negated= FALSE;
@@ -1515,7 +1516,8 @@ ha_ndbcluster_cond::build_scan_filter_group(Ndb_cond* &cond,
 
 
 int
-ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
+ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond,
+                                      NdbScanFilter *filter) const
 {
   bool simple_cond= TRUE;
   DBUG_ENTER("build_scan_filter");  
@@ -1546,7 +1548,7 @@ ha_ndbcluster_cond::build_scan_filter(Ndb_cond * &cond, NdbScanFilter *filter)
 
 int
 ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
-                                         NdbScanOperation::ScanOptions* options)
+                                         NdbScanOperation::ScanOptions* options) const
 {
   DBUG_ENTER("generate_scan_filter");
 
@@ -1584,7 +1586,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
 
 
 int
-ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter)
+ha_ndbcluster_cond::generate_scan_filter_from_cond(NdbScanFilter& filter) const
 {
   bool multiple_cond= FALSE;
   DBUG_ENTER("generate_scan_filter_from_cond");
@@ -1626,8 +1628,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
                                                       NdbScanOperation::ScanOptions* options,
                                                       const KEY* key_info, 
                                                       const key_range *start_key,
-                                                      const key_range *end_key,
-                                                      uchar *buf)
+                                                      const key_range *end_key) const
 {
   DBUG_ENTER("generate_scan_filter_from_key");
 
