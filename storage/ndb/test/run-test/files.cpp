@@ -29,10 +29,10 @@ setup_directories(atrt_config& config, int setup)
    * 1 = setup
    * 2 = setup+clean
    */
-  for (size_t i = 0; i < config.m_clusters.size(); i++)
+  for (unsigned i = 0; i < config.m_clusters.size(); i++)
   {
     atrt_cluster& cluster = *config.m_clusters[i];
-    for (size_t j = 0; j<cluster.m_processes.size(); j++)
+    for (unsigned j = 0; j<cluster.m_processes.size(); j++)
     {
       atrt_process& proc = *cluster.m_processes[j];
       const char * dir = proc.m_proc.m_cwd.c_str();
@@ -111,7 +111,7 @@ printfile(FILE* out, Properties& props, const char * section, ...)
     va_end(ap);
     fprintf(out, "\n");
     
-    for (; name; name = it.next())
+    for (; name;  name = it.next())
     {
       const char* val;
       props.get(name, &val);
@@ -185,10 +185,10 @@ setup_files(atrt_config& config, int setup, int sshx)
     /**
      * Do mysql_install_db
      */
-    for (size_t i = 0; i < config.m_clusters.size(); i++)
+    for (unsigned i = 0; i < config.m_clusters.size(); i++)
     {
       atrt_cluster& cluster = *config.m_clusters[i];
-      for (size_t j = 0; j<cluster.m_processes.size(); j++)
+      for (unsigned j = 0; j<cluster.m_processes.size(); j++)
       {
 	atrt_process& proc = *cluster.m_processes[j];
 	if (proc.m_type == atrt_process::AP_MYSQLD)
@@ -242,7 +242,7 @@ setup_files(atrt_config& config, int setup, int sshx)
     fprintf(out, "# %s\n", ctime(&now));
   }
   
-  for (size_t i = 0; i < config.m_clusters.size(); i++)
+  for (unsigned i = 0; i < config.m_clusters.size(); i++)
   {
     atrt_cluster& cluster = *config.m_clusters[i];
     if (out)
@@ -252,7 +252,7 @@ setup_files(atrt_config& config, int setup, int sshx)
 		"[mysql_cluster%s]", cluster.m_name.c_str());
     }
       
-    for (size_t j = 0; j<cluster.m_processes.size(); j++)
+    for (unsigned j = 0; j<cluster.m_processes.size(); j++)
     {
       atrt_process& proc = *cluster.m_processes[j];
       
@@ -345,7 +345,7 @@ setup_files(atrt_config& config, int setup, int sshx)
           keys.push_back("LD_LIBRARY_PATH");
         }
 
-	for (size_t k = 0; k<keys.size(); k++)
+        for (unsigned k = 0; k<keys.size(); k++)
 	  fprintf(fenv, "export %s\n", keys[k].c_str());
 
 	fflush(fenv);
@@ -400,7 +400,7 @@ create_directory(const char * path)
   }
   
   BaseString cwd = IF_WIN("","/");
-  for (size_t i = 0; i < list.size(); i++) 
+  for (unsigned i = 0; i < list.size(); i++)
   {
     cwd.append(list[i].c_str());
     cwd.append("/");

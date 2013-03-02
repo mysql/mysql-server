@@ -2822,12 +2822,12 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   printf("part0: ");
-  for (size_t i = 0; i<part0.size(); i++)
+  for (unsigned i = 0; i<part0.size(); i++)
     printf("%u ", part0[i]);
   printf("\n");
 
   printf("part1: ");
-  for (size_t i = 0; i<part1.size(); i++)
+  for (unsigned i = 0; i<part1.size(); i++)
     printf("%u ", part1[i]);
   printf("\n");
 
@@ -4071,12 +4071,12 @@ runForceStopAndRestart(NDBT_Context* ctx, NDBT_Step* step)
   }
 
   printf("group1: ");
-  for (size_t i = 0; i<group1.size(); i++)
+  for (unsigned i = 0; i<group1.size(); i++)
     printf("%d ", group1[i]);
   printf("\n");
 
   printf("group2: ");
-  for (size_t i = 0; i<group2.size(); i++)
+  for (unsigned i = 0; i<group2.size(); i++)
     printf("%d ", group2[i]);
   printf("\n");
 

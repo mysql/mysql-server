@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -117,6 +117,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int lookupFaults[] = {
+      5078,        // Pack TCKEYREF in ROUTE_ORD and send it via SPJ.
       7240,        // DIGETNODESREQ returns error 
       17001, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
@@ -147,7 +148,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "LookupJoinError: Injecting error "<<  inject_err <<
       " in node " << nodeId << " loop "<< i << endl;
 
-    if (restarter.insertErrorInNode(nodeId, inject_err) != 0)
+    if (restarter.getNodeStatus(nodeId) != NDB_MGM_NODE_STATUS_STARTED ||
+        restarter.insertErrorInNode(nodeId, inject_err) != 0)
     {
       ndbout << "Could not insert error in node "<< nodeId <<endl;
       g_info << endl;

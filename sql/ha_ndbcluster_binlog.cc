@@ -182,7 +182,6 @@ extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
 
 #ifndef DBUG_OFF
-/* purecov: begin deadcode */
 static void print_records(TABLE *table, const uchar *record)
 {
   for (uint j= 0; j < table->s->fields; j++)
@@ -202,7 +201,6 @@ static void print_records(TABLE *table, const uchar *record)
     DBUG_PRINT("info",("[%u]field_ptr[0->%d]: %s", j, n, buf));
   }
 }
-/* purecov: end */
 #else
 #define print_records(a,b)
 #endif
@@ -2752,6 +2750,17 @@ class Ndb_schema_event_handler {
     Ndb *ndb= thd_ndb->ndb;
     Ndb_table_guard ndbtab_g(ndb->getDictionary(), table_name);
     const NDBTAB *ndbtab= ndbtab_g.get_table();
+    if (!ndbtab)
+    {
+      /*
+        Bug#14773491 reports crash in 'cmp_frm' due to
+        ndbtab* being NULL -> bail out here
+      */
+      sql_print_error("NDB schema: Could not find table '%s.%s' in NDB",
+                      db_name, table_name);
+      DBUG_ASSERT(false);
+      DBUG_VOID_RETURN;
+    }
 
     char key[FN_REFLEN];
     build_table_filename(key, sizeof(key)-1,
@@ -2810,14 +2819,31 @@ class Ndb_schema_event_handler {
     DBUG_PRINT("info", ("Looking for files in directory %s", dbname));
     List<LEX_STRING> files;
     char path[FN_REFLEN + 1];
+    THD* thd= current_thd;
+    ulong col_access= thd->col_access;
+
+    /*
+      Allow injector thread to read all tables.
+      This is needed to be able to find all tables
+      when calling find_files.
+    */
+    thd->col_access&= TABLE_ACLS;
 
     build_table_filename(path, sizeof(path) - 1, dbname, "", "", 0);
     if (find_files(m_thd, &files, dbname, path, NullS, 0) != FIND_FILES_OK)
     {
       m_thd->clear_error();
       DBUG_PRINT("info", ("Failed to find files"));
+      /*
+	Reset column access rights to default
+      */
+      thd->col_access= col_access;
       DBUG_RETURN(true);
     }
+    /*
+      Reset column access rights to default
+    */
+    thd->col_access= col_access;
     DBUG_PRINT("info",("found: %d files", files.elements));
 
     LEX_STRING *tabname;
