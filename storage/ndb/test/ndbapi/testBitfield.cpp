@@ -497,7 +497,7 @@ testRanges(Uint32 bitmask_size)
       // 1) Look up allocation
       // 2) Check data
       // 3) free it
-      size_t j;
+      unsigned j;
       Uint32 min, max;
       for(j = 0; j<alloc_list.size(); j++)
       {
@@ -523,7 +523,7 @@ testRanges(Uint32 bitmask_size)
 	print(tmp.getBase(), max - min);
 
 	printf(" save: ");
-	size_t k;
+        unsigned k;
 	Alloc& a = alloc_list[j];
 	for(k = 0; k<a.data.size(); k++)
 	  printf("%.8x ", a.data[k]);
@@ -561,7 +561,7 @@ testRanges(Uint32 bitmask_size)
       a.data.fill(((sz+31)>> 5)-1, zero);
       if(BITMASK_DEBUG)
 	printf("pos %d -> alloc [ %d %d ]", pos, pos, pos+sz);
-      for(size_t j = 0; j<sz; j++)
+      for(Uint32 j = 0; j<sz; j++)
       {
 	BitmaskImpl::set(sz32, alloc_mask.getBase(), pos+j);
 	if((lrand() % 1000) > 500)

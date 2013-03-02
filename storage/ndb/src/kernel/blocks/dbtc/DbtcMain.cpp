@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11317,6 +11317,24 @@ void Dbtc::sendDihGetNodesReq(Signal* signal, ScanRecordPtr scanptr)
          list.next(ptr))
     {
       jam();
+
+      /**
+       * Check correct CONTINUEB(ZSTART_FRAG_SCAN) handling in
+       * combination with multiple DIH_SCAN_GET_NODES_REQ /_CONF.
+       * Setup such that we will have a one fragment REQ
+       * pending after this REQ.
+       * ::startFragScans executed when first _CONF arrives
+       * will be delayed with CONTINUEB in order to possibly
+       * bring it out of sequence with last (remaining) _CONF.       
+       */ 
+      if (ERROR_INSERTED(8097) &&
+          fragCnt > 0 &&
+          ptr.p->scanFragId == scanptr.p->scanNoFrag-1) //Last FragId
+      {
+        jam();
+        break;
+      }
+
       if (ptr.p->scanFragState == ScanFragRec::IDLE) // Start it NOW!.
       {
         jam();
@@ -11489,6 +11507,13 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     SectionHandle handle(this, signal);
     ndbassert(handle.m_cnt==1);
     startFragScansLab(signal, tableId, handle, 0);
+
+    /**
+     * NOTE: No sendDihGetNodesReq() as part of this branch!
+     * startFragScansLab() will, when required, sendDihGetNodesReq()
+     * after it has completed without a CONTINUEB, or after
+     * CONTINUEB(ZSTART_FRAG_SCAN) completed last fragment.
+     */
   }
   else   // Short signal, with single FragItem
   {
@@ -11500,19 +11525,16 @@ void Dbtc::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
     DihScanGetNodesConf::FragItem fragConf[1];
     memcpy(fragConf, conf->fragItem, 4 * DihScanGetNodesConf::FragItem::Length);
     startFragScanLab(signal, tableId, fragConf[0]);
+
+    /**
+     * As MAX_DIH_FRAG_REQS fragments can be requested at once,
+     * we may have to send more DIH_SCAN_GET_NODES_REQ now
+     */
+    ScanRecordPtr scanptr;
+    scanptr.i = scanFragptr.p->scanRec;
+    ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+    sendDihGetNodesReq(signal, scanptr);
   }
-
-  /**
-   * As MAX_DIH_FRAG_REQS fragments can be requested at once,
-   * we may have to send more DIH_SCAN_GET_NODES_REQ now
-   */
-  ScanRecordPtr scanptr;
-  scanptr.i = scanFragptr.p->scanRec;
-  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
-
-  jam();
-  sendDihGetNodesReq(signal, scanptr);
-
 }//Dbtc::execDIH_SCAN_GET_NODES_CONF
 
 /****************************************************************
@@ -11538,21 +11560,40 @@ void Dbtc::startFragScansLab(Signal* signal, Uint32 tableId,
   while (fragReader.getWords((Uint32*)&fragConf,DihScanGetNodesConf::FragItem::Length))
   {
     jam();
-    if (fragConf.nodes[0] == ownNodeId)
-      cntLocalSignals++;
 
     /**
-     * A max fanout of 1::4 of consumed::produced signals are allowed.
-     * If we are about to produce more, we have to contine later.
+     * ::startFragScans() should be allowed to take a CONTINUEB break 
+     * at any point. Execution of that CONTINUEB may be delayed 
+     * due to job buffer scheduling policy.
+     * Check that such delay will not be harmfull.
      */
-    if (cntLocalSignals >= 4)
+    if (ERROR_INSERTED_CLEAR(8097))
     {
       jam();
       signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
       signal->theData[1] = tableId;
       signal->theData[2] = secOffs;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB, &handle);
+      sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 3, 10, &handle);
       return;
+    }
+
+    if (fragConf.nodes[0] == ownNodeId)
+    {
+      cntLocalSignals++;
+   
+      /**
+       * A max fanout of 1::4 of consumed::produced signals are allowed.
+       * If we are about to produce more, we have to contine later.
+       */
+      if (cntLocalSignals >= 4)
+      {
+        jam();
+        signal->theData[0] = TcContinueB::ZSTART_FRAG_SCANS;
+        signal->theData[1] = tableId;
+        signal->theData[2] = secOffs;
+        sendSignal(reference(), GSN_CONTINUEB, signal, 3, JBB, &handle);
+        return;
+      }
     }
 
     startFragScanLab(signal, tableId, fragConf);
@@ -11561,6 +11602,16 @@ void Dbtc::startFragScansLab(Signal* signal, Uint32 tableId,
 
   jam();
   releaseSections(handle);
+
+  /**
+   * Scan for all fragments in current DIH_SCAN_GET_NODES_CONF
+   * completed. Send more DIH_SCAN_GET_NODES_REQ if required:
+   * (As MAX_DIH_FRAG_REQS fragments can be requested at once)
+   */
+  ScanRecordPtr scanptr;
+  scanptr.i = scanFragptr.p->scanRec;
+  ptrCheckGuard(scanptr, cscanrecFileSize, scanRecord);
+  sendDihGetNodesReq(signal, scanptr);
 }//Dbtc::startFragScansLab
 
 void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
@@ -11739,15 +11790,12 @@ void Dbtc::execDIH_SCAN_GET_NODES_REF(Signal* signal)
   {
     jam();
     scanFragptr.i = ref->fragItem[i].senderData;
-    jam(); jamLine(ref->fragItem[i].fragId);  //OJA
     c_scan_frag_pool.getPtr(scanFragptr);
 
-    jam();  //OJA TEMP
     ndbrequire(scanFragptr.p->scanFragState == ScanFragRec::WAIT_GET_PRIMCONF);
     scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
     scanFragptr.p->stopFragTimer();
 
-    jam();  //OJA TEMP
     // All scanFrags should belong to the same table scan
     ndbassert(scanptr.isNull() || scanptr.i==scanFragptr.p->scanRec);
     if (scanptr.isNull())
@@ -12138,7 +12186,6 @@ void Dbtc::execSCAN_NEXTREQ(Signal* signal)
        */
       jam();
       ndbrequire(scanptr.p->scanNextFragId < scanptr.p->scanNoFrag);
-      jam();
       ndbassert(scanptr.p->m_booked_fragments_count);
       scanptr.p->m_booked_fragments_count--;
       scanFragptr.p->scanFragState = ScanFragRec::WAIT_GET_PRIMCONF; 

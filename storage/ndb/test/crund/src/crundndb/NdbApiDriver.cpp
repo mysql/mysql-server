@@ -351,10 +351,10 @@ NdbApiDriver::initOperationsFeat() {
         new RelOp< &nullB0ToA_s, &CrundNdbApiOperations::nullB0ToA, feat >());
 
     operations.push_back(
-        new B0ByPKOp< &setAByPK_s, &CrundNdbApiOperations::delByPK, feat >());
+        new B0ByPKOp< &delAByPK_s, &CrundNdbApiOperations::delByPK, feat >());
 
     operations.push_back(
-        new AByPKOp< &setB0ByPK_s, &CrundNdbApiOperations::delByPK, feat >());
+        new AByPKOp< &delB0ByPK_s, &CrundNdbApiOperations::delByPK, feat >());
 
     operations.push_back(
         new AInsOp< setAttr, feat >());
