@@ -120,3 +120,21 @@ Thd_ndb::init_open_tables()
   m_error= FALSE;
   my_hash_reset(&open_tables);
 }
+
+
+/*
+  Used for every additional row operation, to update the guesstimate
+  of pending bytes to send, and to check if it is now time to flush a batch.
+*/
+
+bool
+Thd_ndb::add_row_check_if_batch_full(uint size)
+{
+  if (m_unsent_bytes == 0)
+    free_root(&m_batch_mem_root, MY_MARK_BLOCKS_FREE);
+
+  uint unsent= m_unsent_bytes;
+  unsent+= size;
+  m_unsent_bytes= unsent;
+  return unsent >= m_batch_size;
+}

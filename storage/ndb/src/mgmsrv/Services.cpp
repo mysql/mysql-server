@@ -325,7 +325,7 @@ MgmApiSession::MgmApiSession(class MgmtSrvr & mgm, NDB_SOCKET_TYPE sock, Uint64 
   DBUG_ENTER("MgmApiSession::MgmApiSession");
   m_input = new SocketInputStream(sock, SOCKET_TIMEOUT);
   m_output = new BufferedSockOutputStream(sock, SOCKET_TIMEOUT);
-  m_parser = new Parser_t(commands, *m_input, true, true, true);
+  m_parser = new Parser_t(commands, *m_input);
   m_stopSelf= 0;
   m_ctx= NULL;
   m_mutex= NdbMutex_Create();
