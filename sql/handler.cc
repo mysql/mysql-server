@@ -1845,13 +1845,26 @@ int ha_recover(HASH *commit_list)
   if (info.commit_list)
     sql_print_information("Starting crash recovery...");
 
-  /*
-    for now, only InnoDB supports 2pc. It means we can always safely
-    rollback all pending transactions, without risking inconsistent data
-  */
-  DBUG_ASSERT(total_ha_2pc == (ulong) opt_bin_log+1); // only InnoDB and binlog
-  tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
-  info.dry_run=FALSE;
+  if (total_ha_2pc > (ulong)opt_bin_log + 1)
+  {
+    if (tc_heuristic_recover == TC_HEURISTIC_RECOVER_ROLLBACK)
+    {
+      sql_print_error("--tc-heuristic-recover rollback strategy is not safe "
+                      "on systems with more than one 2-phase-commit-capable "
+                      "storage engine. Aborting crash recovery.");
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    /*
+      If there is only one 2pc capable storage engine it is always safe
+      to rollback. This setting will be ignored if we are in automatic
+      recovery mode.
+    */
+    tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
+    info.dry_run= false;
+  }
 
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)

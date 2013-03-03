@@ -798,7 +798,8 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
-  sctx->host_or_ip= sctx->host= (char*) my_localhost;
+  sctx->set_host(my_localhost);
+  sctx->host_or_ip= sctx->get_host()->ptr();
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
   sctx->user= my_strdup(mysql->user, MYF(0));
