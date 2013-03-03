@@ -208,8 +208,45 @@ struct TrxFactory {
 	}
 };
 
-typedef PoolManager<Pool<trx_t, TrxFactory> > trx_pool_t;
-static trx_pool_t* trx_pool;
+struct TrxPoolLock {
+	TrxPoolLock() { }
+
+	void create()
+	{
+		mutex_create(pool_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+	}
+
+	void enter() { mutex_enter(&m_mutex); }
+
+	void exit() { mutex_exit(&m_mutex); }
+
+	void destroy() { mutex_free(&m_mutex); }
+
+	ib_mutex_t	m_mutex;
+};
+
+struct TrxPoolManagerLock {
+	TrxPoolManagerLock() { }
+
+	void create()
+	{
+		mutex_create(pools_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+	}
+
+	void enter() { mutex_enter(&m_mutex); }
+
+	void exit() { mutex_exit(&m_mutex); }
+
+	void destroy() { mutex_free(&m_mutex); }
+
+	ib_mutex_t	m_mutex;
+};
+
+typedef Pool<trx_t, TrxFactory, TrxPoolLock> trx_pool_t;
+typedef PoolManager<trx_pool_t, TrxPoolManagerLock > trx_pools_t;
+
+static trx_pools_t* trx_pools;
+
 static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 
 /** Create the trx_t pool */
@@ -217,9 +254,9 @@ UNIV_INTERN
 void
 trx_pool_init()
 {
-	trx_pool = new trx_pool_t(MAX_TRX_BLOCK_SIZE);
+	trx_pools = new trx_pools_t(MAX_TRX_BLOCK_SIZE);
 
-	trx_pool->add_pool();
+	trx_pools->add_pool();
 }
 
 /** Destroy the trx_t pool */
@@ -227,16 +264,16 @@ UNIV_INTERN
 void
 trx_pool_close()
 {
-	delete trx_pool;
+	delete trx_pools;
 
-	trx_pool = 0;
+	trx_pools = 0;
 }
 
 static
 trx_t*
 trx_create_low()
 {
-	trx_t*	trx = trx_pool->get();
+	trx_t*	trx = trx_pools->get();
 
 	ut_a(trx->state == TRX_STATE_NOT_STARTED);
 
@@ -259,7 +296,7 @@ trx_free(trx_t*& trx)
 
 	trx->mysql_thd = 0;
 
-	trx_pool->free(trx);
+	trx_pools->free(trx);
 }
 
 /********************************************************************//**
