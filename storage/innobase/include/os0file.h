@@ -212,9 +212,9 @@ extern ulint	os_n_fsyncs;
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-extern mysql_pfs_key_t	innodb_file_data_key;
-extern mysql_pfs_key_t	innodb_file_log_key;
-extern mysql_pfs_key_t	innodb_file_temp_key;
+extern mysql_pfs_key_t	innodb_data_file_key;
+extern mysql_pfs_key_t	innodb_log_file_key;
+extern mysql_pfs_key_t	innodb_temp_file_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -339,8 +339,8 @@ The wrapper functions have the prefix of "innodb_". */
 # define os_file_delete(key, name)					\
 	pfs_os_file_delete_func(key, name, __FILE__, __LINE__)
 
-# define os_file_delete_if_exists(key, name)				\
-	pfs_os_file_delete_if_exists_func(key, name, __FILE__, __LINE__)
+# define os_file_delete_if_exists(key, name, exist)			\
+	pfs_os_file_delete_if_exists_func(key, name, exist, __FILE__, __LINE__)
 #else /* UNIV_PFS_IO */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
@@ -378,8 +378,8 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_delete(key, name)	os_file_delete_func(name)
 
-# define os_file_delete_if_exists(key, name)				\
-	os_file_delete_if_exists_func(name)
+# define os_file_delete_if_exists(key, name, exist)			\
+	os_file_delete_if_exists_func(name, exist)
 
 #endif /* UNIV_PFS_IO */
 
@@ -579,8 +579,9 @@ UNIV_INTERN
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
-	const char*	name);	/*!< in: file path as a null-terminated
+	const char*	name,	/*!< in: file path as a null-terminated
 				string */
+	bool*		exist);	/*!< out: indicate if file pre-exist */
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_rename(), not directly
 this function!
@@ -837,6 +838,7 @@ pfs_os_file_delete_if_exists_func(
 	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
 	const char*	name,	/*!< in: old file path as a null-terminated
 				string */
+	bool*		exist,	/*!< out: indicate if file pre-exist */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */

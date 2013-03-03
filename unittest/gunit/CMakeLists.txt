@@ -218,6 +218,7 @@ SET(TESTS
   alignment
   bounded_queue
   bounds_checked_array
+  bitmap
   byteorder
 ##  client_string TODO: move to a client test directory
   cost_estimate
@@ -269,6 +270,7 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
+  tc_log_mmap
 )
 
 ## Merging tests into fewer executables saves *a lot* of

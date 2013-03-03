@@ -1199,6 +1199,11 @@ void xid_cache_delete(XID_STATE *xid_state);
 */
 
 class Security_context {
+private:
+
+String host; 
+String ip; 
+String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
   /*
@@ -1208,13 +1213,11 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *ip;
+  char   *user;
   char   priv_user[USERNAME_LENGTH];
   char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
-  /* The external user (if available) */
-  char   *external_user;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
@@ -1230,7 +1233,13 @@ public:
   }
   
   bool set_user(char *user_arg);
-
+  String *get_host();
+  String *get_ip();
+  String *get_external_user();
+  void set_host(const char *p);
+  void set_ip(const char *p);
+  void set_external_user(const char *p);
+  void set_host(const char *str, size_t len);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
@@ -1820,9 +1829,7 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
-#ifdef HAVE_QUERY_CACHE
   Query_cache_tls query_cache_tls;
-#endif
   NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
