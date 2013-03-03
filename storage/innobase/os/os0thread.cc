@@ -50,9 +50,10 @@ static SysMutex	thread_mutex;
 UNIV_INTERN	ulint	os_thread_count;
 
 #ifdef __WIN__
+typedef std::map<DWORD, HANDLE> WinThreadMap;
 /** This STL map remembers the initial handle returned by CreateThread
 so that it can be closed when the thread exits. */
-static std::map<DWORD, HANDLE>	win_thread_map;
+static WinThreadMap win_thread_map;
 #endif /* __WIN__ */
 
 /***************************************************************//**
@@ -157,7 +158,7 @@ os_thread_create_func(
 
 	mutex_enter(&thread_mutex);
 
-	std::pair<std::map<DWORD, HANDLE>:iterator, bool> ret;
+	std::pair<WinThreadMap::iterator, bool> ret;
 
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
