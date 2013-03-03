@@ -1284,7 +1284,7 @@ innobase_start_or_create_for_mysql(void)
 	default:
 		/* Vista and later have both async IO and condition variables */
 		srv_use_native_aio = TRUE;
-		srv_use_native_conditions = TRUE;
+		srv_use_native_conditions = true;
 		break;
 	}
 

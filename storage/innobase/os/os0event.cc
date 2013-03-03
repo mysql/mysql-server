@@ -27,6 +27,10 @@ Created 2012-09-23 Sunny Bains
 #include "ut0mutex.h"
 #include "ha_prototypes.h"
 
+#ifdef __WIN__  
+#include <windows.h>
+#endif /* __WIN__ */
+
 #include <list>
 
 /** The number of microsecnds in a second. */
@@ -41,8 +45,22 @@ UNIV_INTERN mysql_pfs_key_t	event_manager_mutex_key;
 /** Native event (slow) */
 typedef HANDLE			os_win_event_t;
 
+/** For Windows native condition variables. We use runtime loading / function
+pointers, because they are not available on Windows Server 2003 and
+Windows XP/2000.
+
+We use condition for events on Windows if possible, even if os_event
+resembles Windows kernel event object well API-wise. The reason is
+performance, kernel objects are heavyweights and WaitForSingleObject() is a
+performance killer causing calling thread to context switch. Besides, InnoDB
+is preallocating large number (often millions) of os_events. With kernel event
+objects it takes a big chunk out of non-paged pool, which is better suited
+for tasks like IO than for storing idle event objects. */
+UNIV_INTERN bool	srv_use_native_conditions;
+
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
+
 #else
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
