@@ -157,9 +157,11 @@ os_thread_create_func(
 
 	mutex_enter(&thread_mutex);
 
-	std::pair<win_thread_map:iterator, bool> ret;
+	std::pair<std::map<DWORD, HANDLE>:iterator, bool> ret;
+
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
+
 	ut_ad((*ret.first).first == new_thread_id);
 	ut_ad((*ret.first).second == handle);
 	ut_a(ret.second == true);	/* true means thread_id was new */

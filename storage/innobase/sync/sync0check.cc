@@ -1020,7 +1020,7 @@ sync_latch_meta_init()
 		  SYNC_INDEX_TREE, dict_table_stats_key);
 
 	LATCH_ADD(SrvLatches, "hash_table_rw_lock",
-		  SYNC_BUF_PAGE_HASH, hash_table_key);
+		  SYNC_BUF_PAGE_HASH, hash_table_locks_key);
 }
 
 /**
