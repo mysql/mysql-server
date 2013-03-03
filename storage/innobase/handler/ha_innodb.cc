@@ -315,7 +315,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(mem_hash_mutex),
 #  endif /* UNIV_MEM_DEBUG */
 	PSI_KEY(mem_pool_mutex),
-	PSI_KEY(mutex_list_mutex),
 	PSI_KEY(page_zip_stat_per_index_mutex),
 	PSI_KEY(purge_sys_bh_mutex),
 	PSI_KEY(recv_sys_mutex),
@@ -340,11 +339,9 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(lock_wait_mutex),
 	PSI_KEY(trx_mutex),
 	PSI_KEY(srv_threads_mutex),
-	/* mutex with os_fast_mutex_ interfaces */
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	PSI_KEY(event_os_mutex),
+	PSI_KEY(event_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	PSI_KEY(os_mutex),
 #ifndef HAVE_ATOMIC_BUILTINS
 	PSI_KEY(srv_conc_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS */
