@@ -36,6 +36,8 @@ Created 9/8/1995 Heikki Tuuri
 #include "srv0srv.h"
 #include "os0event.h"
 
+#include <map>
+
 #ifdef UNIV_PFS_MUTEX
 /* Key to register server_mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	thread_mutex_key;
@@ -146,18 +148,16 @@ os_thread_create_func(
 			      &new_thread_id);
 
 	if (!handle) {
-		os_mutex_exit(os_sync_mutex);
 		/* If we cannot start a new thread, life has no meaning. */
-		fprintf(stderr,
-			"InnoDB: Error: CreateThread returned %d\n",
-			GetLastError());
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"CreateThread returned %d", GetLastError());
 		ut_ad(0);
 		exit(1);
 	}
 
 	mutex_enter(&thread_mutex);
 
-	std::pair<map<DWORD, HANDLE>::iterator,bool> ret;
+	std::pair<win_thread_map>::iterator,bool> ret;
 	ret = win_thread_map.insert(
 		std::pair<DWORD, HANDLE>(new_thread_id, handle));
 	ut_ad((*ret.first).first == new_thread_id);
