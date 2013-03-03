@@ -103,6 +103,50 @@ struct sys_var_with_base
   LEX_STRING base_name;
 };
 
+
+/**
+  Bison "location" class
+*/
+typedef struct YYLTYPE
+{
+  // TODO: replace all "char *" types with "const char *"
+  const char *start; // token start in the preprocessed buffer
+  const char *end;   // the 1st byte after the token in the preprocessed buffer
+  const char *raw_start; // token start in the raw buffer
+  const char *raw_end;   // the 1st byte after the token in the raw buffer
+} YYLTYPE;
+
+#define YYLTYPE_IS_DECLARED 1 // signal Bison that we have our own YYLTYPE
+
+
+/**
+  Bison calls this macro:
+  1. each time a rule is matched and
+  2. to compute a syntax error location.
+
+  @param Current [out] location of the whole matched rule
+  @param Rhs           locations of all right hand side elements in the rule
+  @param N             number of right hand side elements in the rule
+*/
+#define YYLLOC_DEFAULT(Current, Rhs, N)                             \
+    do                                                              \
+      if (YYID (N))                                                 \
+      {                                                             \
+        (Current).start=     YYRHSLOC(Rhs, 1).start;                \
+        (Current).end=       YYRHSLOC(Rhs, N).end;                  \
+        (Current).raw_start= YYRHSLOC(Rhs, 1).raw_start;            \
+        (Current).raw_end=   YYRHSLOC(Rhs, N).raw_end;              \
+      }                                                             \
+      else                                                          \
+      {                                                             \
+        (Current).start=     YYRHSLOC(Rhs, 0).start;                \
+        (Current).end=       YYRHSLOC(Rhs, 0).end;                  \
+        (Current).raw_start= YYRHSLOC(Rhs, 0).raw_start;            \
+        (Current).raw_end=   YYRHSLOC(Rhs, 0).raw_end;              \
+      }                                                             \
+    while (YYID (0))
+
+
 #ifdef MYSQL_SERVER
 /*
   The following hack is needed because mysql_yacc.cc does not define
@@ -1988,11 +2032,9 @@ public:
   /** Mark the stream position as the start of a new token. */
   void start_token()
   {
-    m_tok_start_prev= m_tok_start;
     m_tok_start= m_ptr;
     m_tok_end= m_ptr;
 
-    m_cpp_tok_start_prev= m_cpp_tok_start;
     m_cpp_tok_start= m_cpp_ptr;
     m_cpp_tok_end= m_cpp_ptr;
   }
@@ -2029,12 +2071,6 @@ public:
   const char *get_cpp_tok_end()
   {
     return m_cpp_tok_end;
-  }
-
-  /** Get the previous token start position, in the raw buffer. */
-  const char *get_tok_start_prev()
-  {
-    return m_tok_start_prev;
   }
 
   /** Get the current stream pointer, in the raw buffer. */
@@ -2116,9 +2152,6 @@ private:
   /** End of the query text in the input stream, in the raw buffer. */
   const char *m_end_of_query;
 
-  /** Starting position of the previous token parsed, in the raw buffer. */
-  const char *m_tok_start_prev;
-
   /** Begining of the query text in the input stream, in the raw buffer. */
   const char *m_buf;
 
@@ -2140,12 +2173,6 @@ private:
     in the pre-processed buffer.
   */
   const char *m_cpp_tok_start;
-
-  /**
-    Starting position of the previous token parsed,
-    in the pre-procedded buffer.
-  */
-  const char *m_cpp_tok_start_prev;
 
   /**
     Ending position of the previous token parsed,
@@ -2673,6 +2700,7 @@ public:
   {
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
+    yacc_yyls= NULL;
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
@@ -2702,6 +2730,12 @@ public:
     my_yyoverflow().
   */
   uchar *yacc_yyvs;
+
+  /**
+    Bison internal location value stack, yyls, when dynamically allocated using
+    my_yyoverflow().
+  */
+  uchar *yacc_yyls;
 
   /**
     Type of lock to be used for tables being added to the statement's
@@ -2794,7 +2828,7 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(void *arg, void *yythd);
+extern int MYSQLlex(void *arg, void *arg2, void *yythd);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 
