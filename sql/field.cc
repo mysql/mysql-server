@@ -6656,8 +6656,8 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
     count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
-    false  - None was truncated (or we don't count cut fields)
-    true   - Some bytes were truncated
+    TYPE_OK    - None was truncated
+    != TYPE_OK - Some bytes were truncated
 
   NOTE
     Check if we lost any important data (anything in a binary string,
@@ -6670,19 +6670,26 @@ type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((pstr < end) && table->in_use->count_cuted_fields)
+  if (pstr < end)       // String is truncated
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      if (table->in_use->abort_on_warning)
-        set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
-      else
-        set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      // Warning should only be written when count_cuted_fields is set
+      if (table->in_use->count_cuted_fields)
+      {
+        if (table->in_use->abort_on_warning)
+          set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
+        else
+          set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_WARN_TRUNCATED;
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      if (table->in_use->count_cuted_fields)
+      {
+        set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_NOTE_TRUNCATED;
     }
   }
@@ -8027,7 +8034,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
   uint32 blob_length= get_length(ptr);
   uchar *blob;
 
-#ifdef HAVE_SPATIAL
   if (type_arg == itMBR)
   {
     const char *dummy;
@@ -8054,7 +8060,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
     }
     return image_length;
   }
-#endif /*HAVE_SPATIAL*/
 
   get_ptr(&blob);
   uint local_char_length= length / field_charset->mbmaxlen;
@@ -8289,8 +8294,6 @@ uint Field_blob::is_equal(Create_field *new_field)
 }
 
 
-#ifdef HAVE_SPATIAL
-
 void Field_geom::sql_type(String &res) const
 {
   const CHARSET_INFO *cs= &my_charset_latin1;
@@ -8386,8 +8389,6 @@ uint Field_geom::is_equal(Create_field *new_field)
          new_field->pack_length == pack_length();
 }
 
-
-#endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
 ** enum type.
@@ -10287,12 +10288,10 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
-#ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
 			    pack_length, geom_type);
-#endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
@@ -10465,11 +10464,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     /* This is corrected in create_length_to_internal_length */
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
-#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
-#endif
   case MYSQL_TYPE_YEAR:
     if (length != 4)
     {

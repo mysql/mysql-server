@@ -389,7 +389,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 /** Key to register srv_sys_t::mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /** Key to register srv_sys_t::tasks_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	srv_threads_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** Temporary file for innodb monitor output */
@@ -917,7 +917,7 @@ srv_init(void)
 
 		mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
-		mutex_create(srv_sys_tasks_mutex_key,
+		mutex_create(srv_threads_mutex_key,
 			     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
 		srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
@@ -1439,7 +1439,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			trx_sys->rw_max_trx_id - done_trx_no + 1;
+			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
@@ -1447,7 +1447,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			trx_sys->rw_max_trx_id - up_limit_id;
+			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2550,7 +2550,8 @@ srv_do_purge(
 
 		if (!(count++ % TRX_SYS_N_RSEGS)) {
 			/* Force a truncate of the history list. */
-			trx_purge(1, srv_purge_batch_size, true);
+			n_pages_purged += trx_purge(
+				1, srv_purge_batch_size, true);
 		}
 
 		*n_total_purged += n_pages_purged;
@@ -2579,9 +2580,10 @@ srv_purge_coordinator_suspend(
 	/** Maximum wait time on the purge event, in micro-seconds. */
 	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
+	ib_int64_t	sig_count = srv_suspend_thread(slot);
+
 	do {
 		ulint		ret;
-		ib_int64_t	sig_count = srv_suspend_thread(slot);
 
 		rw_lock_x_lock(&purge_sys->latch);
 
@@ -2618,6 +2620,8 @@ srv_purge_coordinator_suspend(
 
 		srv_sys_mutex_exit();
 
+		sig_count = srv_suspend_thread(slot);
+
 		rw_lock_x_lock(&purge_sys->latch);
 
 		stop = (purge_sys->state == PURGE_STATE_STOP);
@@ -2651,7 +2655,15 @@ srv_purge_coordinator_suspend(
 
 	} while (stop);
 
-	ut_a(!slot->suspended);
+	srv_sys_mutex_enter();
+
+	if (slot->suspended) {
+		slot->suspended = FALSE;
+		++srv_sys->n_threads_active[slot->type];
+		ut_a(srv_sys->n_threads_active[slot->type] == 1);
+	}
+
+	srv_sys_mutex_exit();
 }
 
 /*********************************************************************//**

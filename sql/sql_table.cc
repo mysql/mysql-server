@@ -2476,7 +2476,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         }
         error|= new_error;
         /* Invalidate even if we failed to delete the .FRM file. */
-        query_cache_invalidate_single(thd, table, false);
+        query_cache.invalidate_single(thd, table, FALSE);
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
     }
@@ -2857,7 +2857,6 @@ int prepare_create_field(Create_field *sql_field,
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_GEOMETRY:
-#ifdef HAVE_SPATIAL
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
       my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
@@ -2873,11 +2872,6 @@ int prepare_create_field(Create_field *sql_field,
     sql_field->unireg_check=Field::BLOB_FIELD;
     (*blob_columns)++;
     break;
-#else
-    my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-                    sym_group_geom.name, sym_group_geom.needed_define);
-    DBUG_RETURN(1);
-#endif /*HAVE_SPATIAL*/
   case MYSQL_TYPE_VARCHAR:
 #ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
     if (table_flags & HA_NO_VARCHAR)
@@ -3725,14 +3719,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           key_info->parser_name= 0;
 	break;
     case Key::SPATIAL:
-#ifdef HAVE_SPATIAL
 	key_info->flags= HA_SPATIAL;
 	break;
-#else
-	my_error(ER_FEATURE_DISABLED, MYF(0),
-                 sym_group_geom.name, sym_group_geom.needed_define);
-	DBUG_RETURN(TRUE);
-#endif
     case Key::FOREIGN_KEY:
       key_number--;				// Skip this key
       continue;
@@ -3792,7 +3780,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
-#ifdef HAVE_RTREE_KEYS
       if ((key_info->user_defined_key_parts & 1) == 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
@@ -3801,11 +3788,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       /* TODO: To be deleted */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
       DBUG_RETURN(TRUE);
-#else
-      my_error(ER_FEATURE_DISABLED, MYF(0),
-               sym_group_rtree.name, sym_group_rtree.needed_define);
-      DBUG_RETURN(TRUE);
-#endif
     }
 
     /* Take block size from key part or table part */
@@ -3908,7 +3890,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    DBUG_RETURN(TRUE);
 	  }
 	}
-#ifdef HAVE_SPATIAL
 	if (key->type == Key::SPATIAL)
 	{
 	  if (!column->length)
@@ -3920,7 +3901,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    column->length= 4*sizeof(double);
 	  }
 	}
-#endif
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)
@@ -5401,7 +5381,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     The 0 in the call below means 'not in a transaction', which means
     immediate invalidation; that is probably what we wish here
   */
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   /* The ALTER TABLE is always in its own transaction */
   error= trans_commit_stmt(thd);
@@ -7647,7 +7627,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       my_ok(thd);
   }
   table_list->table= NULL;                    // For query cache
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
@@ -8583,7 +8563,7 @@ end_inplace:
     ha_flush_logs(old_db_type);
   }
   table_list->table= NULL;			// For query cache
-  query_cache_invalidate3(thd, table_list, false);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)

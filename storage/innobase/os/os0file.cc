@@ -150,9 +150,9 @@ UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_data_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_log_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_temp_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
@@ -1808,12 +1808,19 @@ UNIV_INTERN
 bool
 os_file_delete_if_exists_func(
 /*==========================*/
-	const char*	name)	/*!< in: file path as a null-terminated
+	const char*	name,	/*!< in: file path as a null-terminated
 				string */
+	bool*		exist)	/*!< out: indicate if file pre-exist.
+				If not-NULL, set to true if pre-exist
+				or false if doesn't pre-exist.
+				If NULL, then ignore setting this value. */
 {
 #ifdef __WIN__
 	bool	ret;
 	ulint	count	= 0;
+	if (exist) {
+		*exist = true;
+	}
 loop:
 	/* In Windows, deleting an .ibd file may fail if ibbackup is copying
 	it */
@@ -1828,7 +1835,9 @@ loop:
 	if (lasterr == ERROR_FILE_NOT_FOUND
 	    || lasterr == ERROR_PATH_NOT_FOUND) {
 		/* the file does not exist, this not an error */
-
+		if (exist) {
+			*exist = false;
+		}
 		return(true);
 	}
 
@@ -1850,10 +1859,17 @@ loop:
 	goto loop;
 #else
 	int	ret;
+	if (exist) {
+		*exist = true;
+	}
 
 	ret = unlink(name);
 
-	if (ret != 0 && errno != ENOENT) {
+	if (ret != 0 && errno == ENOENT) {
+		if (exist) {
+			*exist = false;
+		}
+	} else if (ret != 0 && errno != ENOENT) {
 		os_file_handle_error_no_exit(name, "delete", FALSE);
 
 		return(false);
