@@ -270,6 +270,7 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
+  tc_log_mmap
 )
 
 ## Merging tests into fewer executables saves *a lot* of

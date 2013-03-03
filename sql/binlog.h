@@ -520,6 +520,20 @@ public:
   }
 #endif
   /**
+    Find the oldest binary log that contains any GTID that
+    is not in the given gtid set.
+
+    @param[out] binlog_file_name, the file name of oldest binary log found
+    @param[in]  gtid_set, the given gtid set
+    @param[out] errmsg, the error message outputted, which is left untouched
+                if the function returns false
+    @return false on success, true on error.
+  */
+  bool find_first_log_not_in_gtid_set(char *binlog_file_name,
+                                      const Gtid_set *gtid_set,
+                                      const char **errmsg);
+
+  /**
     Reads the set of all GTIDs in the binary log, and the set of all
     lost GTIDs in the binary log, and stores each set in respective
     argument.
