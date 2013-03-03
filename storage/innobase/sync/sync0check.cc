@@ -899,10 +899,10 @@ sync_latch_meta_init()
 		  SYNC_TRX, trx_mutex_key);
 
 	LATCH_ADD(SrvLatches, "lock_sys",
-		  SYNC_LOCK_SYS, lock_sys_mutex_key);
+		  SYNC_LOCK_SYS, lock_mutex_key);
 
 	LATCH_ADD(SrvLatches, "lock_sys_wait",
-		  SYNC_LOCK_WAIT_SYS, lock_sys_wait_mutex_key);
+		  SYNC_LOCK_WAIT_SYS, lock_wait_mutex_key);
 
 	LATCH_ADD(SrvLatches, "trx_sys",
 		  SYNC_TRX_SYS, trx_sys_mutex_key);
