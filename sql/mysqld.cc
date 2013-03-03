@@ -779,7 +779,7 @@ int orig_argc;
 char **orig_argv;
 
 #if defined(HAVE_OPENSSL) && !defined(HAVE_YASSL)
-int init_rsa_keys(void);
+bool init_rsa_keys(void);
 void deinit_rsa_keys(void);
 int show_rsa_public_key(THD *thd, SHOW_VAR *var, char *buff);
 #endif
@@ -1202,10 +1202,8 @@ const char *libwrapName= NULL;
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
-#ifdef HAVE_QUERY_CACHE
 ulong query_cache_min_res_unit= QUERY_CACHE_MIN_RESULT_DATA_SIZE;
 Query_cache query_cache;
-#endif
 #ifdef HAVE_SMEM
 char *shared_memory_base_name= default_shared_memory_base_name;
 my_bool opt_enable_shared_memory;
@@ -1770,7 +1768,7 @@ void clean_up(bool print_message)
   acl_free(1);
   grant_free();
 #endif
-  query_cache_destroy();
+  query_cache.destroy();
   hostname_cache_free();
   item_user_lock_free();
   lex_free();       /* Free some memory */
@@ -2483,7 +2481,7 @@ extern "C" sig_handler end_thread_signal(int sig __attribute__((unused)))
   my_safe_printf_stderr("end_thread_signal %p", thd);
   if (thd && ! thd->bootstrap)
   {
-    statistic_increment_rwlock(killed_threads, &LOCK_status);
+    killed_threads++;
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd,0)); /* purecov: inspected */
   }
 }
@@ -3442,6 +3440,44 @@ SHOW_VAR com_status_vars[]= {
   {NullS, NullS, SHOW_LONG}
 };
 
+LEX_CSTRING sql_statement_names[(uint) SQLCOM_END + 1];
+
+void init_sql_statement_names()
+{
+  static LEX_CSTRING empty= { C_STRING_WITH_LEN("") };
+
+  char *first_com= (char*) offsetof(STATUS_VAR, com_stat[0]);
+  char *last_com= (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_END]);
+  int record_size= (char*) offsetof(STATUS_VAR, com_stat[1])
+                   - (char*) offsetof(STATUS_VAR, com_stat[0]);
+  char *ptr;
+  uint i;
+  uint com_index;
+
+  for (i= 0; i < ((uint) SQLCOM_END + 1); i++)
+    sql_statement_names[i]= empty;
+
+  SHOW_VAR *var= &com_status_vars[0];
+  while (var->name != NULL)
+  {
+    ptr= var->value;
+    if ((first_com <= ptr) && (ptr <= last_com))
+    {
+      com_index= ((int)(ptr - first_com))/record_size;
+      DBUG_ASSERT(com_index < (uint) SQLCOM_END);
+      sql_statement_names[com_index].str= var->name;
+      /* TODO: Change SHOW_VAR::name to a LEX_STRING, to avoid strlen() */
+      sql_statement_names[com_index].length= strlen(var->name);
+    }
+    var++;
+  }
+
+  DBUG_ASSERT(strcmp(sql_statement_names[(uint) SQLCOM_SELECT].str, "select") == 0);
+  DBUG_ASSERT(strcmp(sql_statement_names[(uint) SQLCOM_SIGNAL].str, "signal") == 0);
+
+  sql_statement_names[(uint) SQLCOM_END].str= "error";
+}
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info sql_statement_info[(uint) SQLCOM_END + 1];
 PSI_statement_info com_statement_info[(uint) COM_END + 1];
@@ -3454,38 +3490,17 @@ PSI_statement_info com_statement_info[(uint) COM_END + 1];
 */
 void init_sql_statement_info()
 {
-  char *first_com= (char*) offsetof(STATUS_VAR, com_stat[0]);
-  char *last_com= (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_END]);
-  int record_size= (char*) offsetof(STATUS_VAR, com_stat[1])
-                   - (char*) offsetof(STATUS_VAR, com_stat[0]);
-  char *ptr;
   uint i;
-  uint com_index;
 
-  static const char* dummy= "";
   for (i= 0; i < ((uint) SQLCOM_END + 1); i++)
   {
-    sql_statement_info[i].m_name= dummy;
+    sql_statement_info[i].m_name= sql_statement_names[i].str;
     sql_statement_info[i].m_flags= 0;
   }
 
-  SHOW_VAR *var= &com_status_vars[0];
-  while (var->name != NULL)
-  {
-    ptr= var->value;
-    if ((first_com <= ptr) && (ptr <= last_com))
-    {
-      com_index= ((int)(ptr - first_com))/record_size;
-      DBUG_ASSERT(com_index < (uint) SQLCOM_END);
-      sql_statement_info[com_index].m_name= var->name;
-    }
-    var++;
-  }
-
-  DBUG_ASSERT(strcmp(sql_statement_info[(uint) SQLCOM_SELECT].m_name, "select") == 0);
-  DBUG_ASSERT(strcmp(sql_statement_info[(uint) SQLCOM_SIGNAL].m_name, "signal") == 0);
-
+  /* "statement/sql/error" represents broken queries (syntax error). */
   sql_statement_info[(uint) SQLCOM_END].m_name= "error";
+  sql_statement_info[(uint) SQLCOM_END].m_flags= 0;
 }
 
 void init_com_statement_info()
@@ -4150,7 +4165,7 @@ static int init_thread_environment()
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
   sp_cache_init();
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #endif
   /* Parameter for threads created for connections */
@@ -4248,6 +4263,7 @@ static int init_ssl()
 #ifndef HAVE_YASSL
   CRYPTO_malloc_init();
 #endif
+  ssl_start();
 #ifndef EMBEDDED_LIBRARY
   if (opt_use_ssl)
   {
@@ -4504,10 +4520,10 @@ static void init_server_query_cache()
 {
   ulong set_cache_size;
 
-  query_cache_set_min_res_unit(query_cache_min_res_unit);
-  query_cache_init();
+  query_cache.set_min_res_unit(query_cache_min_res_unit);
+  query_cache.init();
 	
-  set_cache_size= query_cache_resize(query_cache_size);
+  set_cache_size= query_cache.resize(query_cache_size);
   if (set_cache_size != query_cache_size)
   {
     sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
@@ -4528,9 +4544,7 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
-#ifdef HAVE_QUERY_CACHE
   init_server_query_cache();
-#endif
 
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
@@ -5142,6 +5156,7 @@ int mysqld_main(int argc, char **argv)
   /* Must be initialized early for comparison of options name */
   system_charset_info= &my_charset_utf8_general_ci;
 
+  init_sql_statement_names();
   sys_var_init();
 
   int ho_error;
@@ -5428,7 +5443,7 @@ int mysqld_main(int argc, char **argv)
   }
 
   if (init_ssl())
-    return 1;
+    unireg_abort(1);
   network_init();
 
 #ifdef __WIN__
@@ -5983,8 +5998,8 @@ void create_thread_to_handle_connection(THD *thd)
       --connection_count;
       mysql_mutex_unlock(&LOCK_connection_count);
 
-      statistic_increment_rwlock(aborted_connects,&LOCK_status);
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      aborted_connects++;
+      connection_errors_internal++;
       /* Can't use my_error() since store_globals has not been called. */
       my_snprintf(error_message_buff, sizeof(error_message_buff),
                   ER_THD(thd, ER_CANT_CREATE_THREAD), error);
@@ -6043,7 +6058,7 @@ static void create_new_thread(THD *thd)
     */
     close_connection(thd, ER_CON_COUNT_ERROR);
     delete thd;
-    statistic_increment_rwlock(connection_errors_max_connection, &LOCK_status);
+    connection_errors_max_connection++;
     DBUG_VOID_RETURN;
   }
 
@@ -6152,7 +6167,7 @@ void handle_connections_sockets()
           There is not much details to report about the client,
           increment the server global status variable.
         */
-        statistic_increment_rwlock(connection_errors_select, &LOCK_status);
+        connection_errors_select++;
         if (!select_errors++ && !abort_loop)  /* purecov: inspected */
           sql_print_error("mysqld: Got error %d from select",socket_errno); /* purecov: inspected */
       }
@@ -6231,7 +6246,7 @@ void handle_connections_sockets()
         There is not much details to report about the client,
         increment the server global status variable.
       */
-      statistic_increment_rwlock(connection_errors_accept, &LOCK_status);
+      connection_errors_accept++;
       if ((error_count++ & 255) == 0)   // This can happen often
         sql_perror("Error in accept");
       if (socket_errno == SOCKET_ENFILE || socket_errno == SOCKET_EMFILE)
@@ -6273,7 +6288,7 @@ void handle_connections_sockets()
             The connection was refused by TCP wrappers.
             There are no details (by client IP) available to update the host_cache.
           */
-          statistic_increment_rwlock(connection_errors_tcpwrap, &LOCK_status);
+          connection_errors_tcpwrap++;
           continue;
         }
       }
@@ -6288,7 +6303,7 @@ void handle_connections_sockets()
     {
       (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       (void) mysql_socket_close(new_sock);
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      connection_errors_internal++;
       continue;
     }
 
@@ -6313,12 +6328,12 @@ void handle_connections_sockets()
         (void) mysql_socket_close(new_sock);
       }
       delete thd;
-      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
+      connection_errors_internal++;
       continue;
     }
     init_net_server_extension(thd);
     if (mysql_socket_getfd(sock) == mysql_socket_getfd(unix_sock))
-      thd->security_ctx->host=(char*) my_localhost;
+      thd->security_ctx->set_host(my_localhost);
 
     create_new_thread(thd);
   }
@@ -6422,7 +6437,7 @@ pthread_handler_t handle_connections_namedpipes(void *arg)
       continue;
     }
     /* Host is unknown */
-    thd->security_ctx->host= my_strdup(my_localhost, MYF(0));
+    thd->security_ctx->set_host(my_strdup(my_localhost, MYF(0)));
     create_new_thread(thd);
   }
   CloseHandle(connectOverlapped.hEvent);
@@ -6616,7 +6631,7 @@ pthread_handler_t handle_connections_shared_memory(void *arg)
       errmsg= 0;
       goto errorconn;
     }
-    thd->security_ctx->host= my_strdup(my_localhost, MYF(0)); /* Host is unknown */
+    thd->security_ctx->set_host(my_strdup(my_localhost, MYF(0)));
     create_new_thread(thd);
     connect_number++;
     continue;
@@ -6742,16 +6757,12 @@ vector<my_option> all_options;
 
 struct my_option my_long_early_options[]=
 {
-#ifndef DISABLE_GRANT_OPTIONS
   {"bootstrap", OPT_BOOTSTRAP, "Used by mysql installation scripts.", 0, 0, 0,
    GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#endif
-#ifndef DISABLE_GRANT_OPTIONS
   {"skip-grant-tables", 0,
    "Start without grant tables. This gives all users FULL ACCESS to all tables.",
    &opt_noacl, &opt_noacl, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0,
    0},
-#endif
   {"help", '?', "Display this help and exit.",
    &opt_help, &opt_help, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
@@ -7733,7 +7744,6 @@ SHOW_VAR status_vars[]= {
   {"Opened_tables",            (char*) offsetof(STATUS_VAR, opened_tables), SHOW_LONGLONG_STATUS},
   {"Opened_table_definitions", (char*) offsetof(STATUS_VAR, opened_shares), SHOW_LONGLONG_STATUS},
   {"Prepared_stmt_count",      (char*) &show_prepared_stmt_count, SHOW_FUNC},
-#ifdef HAVE_QUERY_CACHE
   {"Qcache_free_blocks",       (char*) &query_cache.free_memory_blocks, SHOW_LONG_NOFLUSH},
   {"Qcache_free_memory",       (char*) &query_cache.free_memory, SHOW_LONG_NOFLUSH},
   {"Qcache_hits",              (char*) &query_cache.hits,       SHOW_LONG},
@@ -7742,7 +7752,6 @@ SHOW_VAR status_vars[]= {
   {"Qcache_not_cached",        (char*) &query_cache.refused,    SHOW_LONG},
   {"Qcache_queries_in_cache",  (char*) &query_cache.queries_in_cache, SHOW_LONG_NOFLUSH},
   {"Qcache_total_blocks",      (char*) &query_cache.total_blocks, SHOW_LONG_NOFLUSH},
-#endif /*HAVE_QUERY_CACHE*/
   {"Queries",                  (char*) &show_queries,            SHOW_FUNC},
   {"Questions",                (char*) offsetof(STATUS_VAR, questions), SHOW_LONGLONG_STATUS},
   {"Select_full_join",         (char*) offsetof(STATUS_VAR, select_full_join_count), SHOW_LONGLONG_STATUS},
@@ -8084,21 +8093,13 @@ static int mysql_init_variables(void)
 #else
   have_dlopen=SHOW_OPTION_NO;
 #endif
-#ifdef HAVE_QUERY_CACHE
+
   have_query_cache=SHOW_OPTION_YES;
-#else
-  have_query_cache=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_SPATIAL
+
   have_geometry=SHOW_OPTION_YES;
-#else
-  have_geometry=SHOW_OPTION_NO;
-#endif
-#ifdef HAVE_RTREE_KEYS
+
   have_rtree_keys=SHOW_OPTION_YES;
-#else
-  have_rtree_keys=SHOW_OPTION_NO;
-#endif
+
 #ifdef HAVE_CRYPT
   have_crypt=SHOW_OPTION_YES;
 #else
@@ -8316,9 +8317,7 @@ mysqld_get_one_option(int optid,
     sp_automatic_privileges=0;
     my_enable_symlinks= 0;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
-#ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
-#endif
     break;
   case (int) OPT_SKIP_HOST_CACHE:
     opt_specialflag|= SPECIAL_NO_HOST_CACHE;
@@ -9075,7 +9074,7 @@ void refresh_status(THD *thd)
 
 #ifdef HAVE_PSI_INTERFACE
 #ifdef HAVE_MMAP
-PSI_mutex_key key_PAGE_lock, key_LOCK_sync, key_LOCK_active, key_LOCK_pool;
+PSI_mutex_key key_LOCK_tc;
 #endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
@@ -9127,10 +9126,7 @@ PSI_mutex_key key_LOCK_thread_created;
 static PSI_mutex_info all_server_mutexes[]=
 {
 #ifdef HAVE_MMAP
-  { &key_PAGE_lock, "PAGE::lock", 0},
-  { &key_LOCK_sync, "TC_LOG_MMAP::LOCK_sync", 0},
-  { &key_LOCK_active, "TC_LOG_MMAP::LOCK_active", 0},
-  { &key_LOCK_pool, "TC_LOG_MMAP::LOCK_pool", 0},
+  { &key_LOCK_tc, "TC_LOG_MMAP::LOCK_tc", 0},
 #endif /* HAVE_MMAP */
 
 #ifdef HAVE_OPENSSL
