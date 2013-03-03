@@ -911,7 +911,7 @@ sync_latch_meta_init()
 		  SYNC_THREADS, srv_sys_mutex_key);
 
 	LATCH_ADD(SrvLatches, "srv_sys_tasks",
-		  SYNC_ANY_LATCH, srv_sys_tasks_mutex_key);
+		  SYNC_ANY_LATCH, srv_threads_mutex_key);
 
 	LATCH_ADD(SrvLatches, "page_zip_stat_per_index",
 		  SYNC_ANY_LATCH, page_zip_stat_per_index_mutex_key);
@@ -1017,10 +1017,10 @@ sync_latch_meta_init()
 		  SYNC_INDEX_TREE, index_tree_rw_lock_key);
 
 	LATCH_ADD(SrvLatches, "dict_table_stats",
-		  SYNC_INDEX_TREE, dict_table_stats_latch_key);
+		  SYNC_INDEX_TREE, dict_table_stats_key);
 
 	LATCH_ADD(SrvLatches, "hash_table_rw_lock",
-		  SYNC_BUF_PAGE_HASH, hash_table_rw_lock_key);
+		  SYNC_BUF_PAGE_HASH, hash_table_key);
 }
 
 /**
