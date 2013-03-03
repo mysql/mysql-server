@@ -61,6 +61,28 @@ UNIV_INTERN bool	srv_use_native_conditions;
 /** Native condition variable. */
 typedef CONDITION_VARIABLE	os_cond_t;
 
+/* Prototypes and function pointers for condition variable functions */
+typedef VOID (WINAPI* InitializeConditionVariableProc)
+	(PCONDITION_VARIABLE ConditionVariable);
+
+static InitializeConditionVariableProc initialize_condition_variable;
+
+typedef BOOL (WINAPI* SleepConditionVariableCSProc)
+	     (PCONDITION_VARIABLE ConditionVariable,
+	      PCRITICAL_SECTION CriticalSection,
+	      DWORD dwMilliseconds);
+
+static SleepConditionVariableCSProc sleep_condition_variable;
+
+typedef VOID (WINAPI* WakeAllConditionVariableProc)
+	     (PCONDITION_VARIABLE ConditionVariable);
+
+static WakeAllConditionVariableProc wake_all_condition_variable;
+
+typedef VOID (WINAPI* WakeConditionVariableProc)
+	     (PCONDITION_VARIABLE ConditionVariable);
+
+static WakeConditionVariableProc wake_condition_variable;
 #else
 /** Native condition variable */
 typedef pthread_cond_t		os_cond_t;
@@ -283,29 +305,6 @@ protected:
 };
 
 #ifdef __WIN__
-/* Prototypes and function pointers for condition variable functions */
-typedef VOID (WINAPI* InitializeConditionVariableProc)
-	(PCONDITION_VARIABLE ConditionVariable);
-
-static InitializeConditionVariableProc initialize_condition_variable;
-
-typedef BOOL (WINAPI* SleepConditionVariableCSProc)
-	     (PCONDITION_VARIABLE ConditionVariable,
-	      PCRITICAL_SECTION CriticalSection,
-	      DWORD dwMilliseconds);
-
-static SleepConditionVariableCSProc sleep_condition_variable;
-
-typedef VOID (WINAPI* WakeAllConditionVariableProc)
-	     (PCONDITION_VARIABLE ConditionVariable);
-
-static WakeAllConditionVariableProc wake_all_condition_variable;
-
-typedef VOID (WINAPI* WakeConditionVariableProc)
-	     (PCONDITION_VARIABLE ConditionVariable);
-
-static WakeConditionVariableProc wake_condition_variable;
-
 /**
 On Windows (Vista and later), load function pointers for condition variable
 handling. Those functions are not available in prior versions, so we have to
