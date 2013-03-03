@@ -32,13 +32,13 @@ Created 2012-Feb-26 Sunny Bains
 /** Allocate the memory for the object in blocks. We keep the objects sorted
 on pointer so that they are closer together in case they have to be iterated
 over in a list. */
-template <typename Type, typename Factory>
+template <typename Type, typename Factory, typename LockStrategy>
 struct Pool {
 
 	typedef Type value_type;
 
 	// FIXME: Add an assertion to check alignment and offset is
-	// as we expect it. Also, sizeof(void*) is big, can we impove on this.
+	// as we expect it. Also, sizeof(void*) can be 8, can we impove on this.
 	struct Element {
 		Pool*		m_pool;
 		value_type	m_type;
@@ -72,14 +72,14 @@ struct Pool {
 	{
 		Element*	elem = NULL;
 
-		lock();
+		m_lock_strategy.enter();
 
 		if (!m_pqueue.empty()) {
 			elem = m_pqueue.top();
 			m_pqueue.pop();
 		}
 
-		unlock();
+		m_lock_strategy.exit();
 
 		return(elem != NULL ? &elem->m_type : 0);
 	}
@@ -103,18 +103,6 @@ protected:
 
 private:
 
-	/** Acquire the mutex */
-	void lock()
-	{
-		mutex_enter(&m_mutex);
-	}
-
-	/** Release the mutex */
-	void unlock()
-	{
-		mutex_exit(&m_mutex);
-	}
-
 	/* We only need to compare on pointer address. */
 	typedef std::priority_queue<
 		Element*, std::vector<Element*>, std::greater<Element*> >
@@ -124,13 +112,13 @@ private:
 	@param elem	element to free */
 	void put(Element* elem)
 	{
-		lock();
+		m_lock_strategy.enter();
 
 		ut_ad((void*) elem >= m_ptr && elem < m_end);
 
 		m_pqueue.push(elem);
 
-		unlock();
+		m_lock_strategy.exit();
 	}
 
 	/**
@@ -138,7 +126,7 @@ private:
 	@param size	Size of the the memory block */
 	void create(size_t size)
 	{
-		mutex_create(pool_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+		m_lock_strategy.create();
 
 		m_ptr = mem_zalloc(size);
 		ut_d(m_end = reinterpret_cast<byte*>(m_ptr) + size);
@@ -158,13 +146,14 @@ private:
 	/** Destroy the queue */
 	void destroy()
 	{
-		mutex_free(&m_mutex);
-
+		m_lock_strategy.destroy();
 #if 0
 		Element*	prev = 0;
 
-		/** FIXME: This is the correct version, but there is a
-		dangling transaction somewhere that we need to find out. */
+		/** FIXME: This should be the correct version, but there is a
+		dangling transaction somewhere that we need to find out. Only
+		in the following tests: innodb.innodb-multiple-tablespaces and
+		i_innodb.innodb_bug14669848 */
 		ut_ad(m_pqueue.size()
 		      == (reinterpret_cast<byte*>(m_end)
 			  - reinterpret_cast<byte*>(m_ptr)) / sizeof(*prev));
@@ -205,14 +194,14 @@ private:
 	/** Pointer to the base of the block */
 	void*			m_ptr;
 
-	/** Mutex to control concurrent acces to the queue. */
-	ib_mutex_t		m_mutex;
-
 	/** Priority queue ordered on the pointer addresse. */
 	pqueue_t		m_pqueue;
+
+	/** Lock strategy to use */
+	LockStrategy		m_lock_strategy;
 };
 
-template <typename Pool> 
+template <typename Pool, typename LockStrategy> 
 struct PoolManager {
 
 	typedef Pool PoolType;
@@ -240,14 +229,14 @@ struct PoolManager {
 		// FIXME: Add proper OOM handling
 		ut_a(pool != 0);
 
-		mutex_enter(&m_mutex);
+		m_lock_strategy.enter();
 
 		m_pools.push_back(pool);
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Number of pools: %lu", m_pools.size());
 
-		mutex_exit(&m_mutex);
+		m_lock_strategy.exit();
 	}
 
 	/** Get an element from one of the pools.
@@ -258,7 +247,7 @@ struct PoolManager {
 		value_type*	ptr = NULL;
 
 		do {
-			mutex_enter(&m_mutex);
+			m_lock_strategy.enter();
 
 			ut_ad(!m_pools.empty());
 
@@ -266,7 +255,7 @@ struct PoolManager {
 
 			PoolType*	pool = m_pools[index % n_pools];
 
-			mutex_exit(&m_mutex);
+			m_lock_strategy.exit();
 
 			ptr = pool->get();
 
@@ -291,7 +280,7 @@ private:
 	void create()
 	{
 		ut_a(m_size > sizeof(value_type));
-		mutex_create(pools_mutex_t, &m_mutex, SYNC_NO_ORDER_CHECK);
+		m_lock_strategy.create();
 	}
 
 	/** Release the resources. */
@@ -308,7 +297,7 @@ private:
 
 		m_pools.clear();
 
-		mutex_free(&m_mutex);
+		m_lock_strategy.destroy();
 	}
 private:
 	// Disable copying
@@ -323,8 +312,8 @@ private:
 	/** Pools managed this manager */
 	Pools		m_pools;
 
-	/** Mutex protecting this pool manager */
-	ib_mutex_t	m_mutex;
+	/** Lock strategy to use */
+	LockStrategy		m_lock_strategy;
 };
 
 #endif /* ut0pool_h */
