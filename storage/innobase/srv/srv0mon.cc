@@ -1217,7 +1217,7 @@ void
 srv_mon_create(void)
 /*================*/
 {
-	mutex_create(monitor_mutex_key, &monitor_mutex, SYNC_ANY_LATCH);
+	mutex_create("monitor", &monitor_mutex);
 }
 /****************************************************************//**
 Close the monitor subsystem. */
