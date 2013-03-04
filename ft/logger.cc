@@ -491,16 +491,12 @@ void toku_logger_fsync (TOKULOGGER logger)
 // Implementation note:  Acquire the output condition lock, then the output permission, then release the output condition lock, then get the input lock.
 // Then release everything.
 {
-    ml_lock(&logger->input_lock);
-    logger->input_lock_ctr++;
-    toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true);
+    toku_logger_maybe_fsync(logger, logger->inbuf.max_lsn_in_buf, true, false);
 }
 
 void toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
     if (logger->write_log_files) {
-        ml_lock(&logger->input_lock);
-        logger->input_lock_ctr++;
-        toku_logger_maybe_fsync(logger, lsn, true);
+        toku_logger_maybe_fsync(logger, lsn, true, false);
     }
 }
 
@@ -725,16 +721,18 @@ bool toku_logger_txns_exist(TOKULOGGER logger)
 }
 
 
-void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync)
+void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync, bool holds_input_lock)
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
-// Entry: Holds input lock.  The log entry has already been written to the input buffer.
+// Entry: Holds input lock iff 'holds_input_lock'.  The log entry has already been written to the input buffer.
 // Exit:  Holds no locks.
 // The input lock may be released and then reacquired.  Thus this function does not run atomically with respect to other threads.
 {
-    if (do_fsync) {
-        // reacquire the locks (acquire output permission first)
+    if (holds_input_lock) {
         logger->input_lock_ctr++;
         ml_unlock(&logger->input_lock);
+    }
+    if (do_fsync) {
+        // reacquire the locks (acquire output permission first)
         LSN  fsynced_lsn;
         bool already_done = wait_till_output_already_written_or_output_buffer_available(logger, lsn, &fsynced_lsn);
         if (already_done) {
@@ -745,7 +743,7 @@ void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync)
 
         ml_lock(&logger->input_lock);
         logger->input_lock_ctr++;
-    
+
         swap_inbuf_outbuf(logger);
 
         logger->input_lock_ctr++;
@@ -763,9 +761,6 @@ void toku_logger_maybe_fsync(TOKULOGGER logger, LSN lsn, int do_fsync)
             toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
         }
         release_output(logger, fsynced_lsn);
-    } else {
-        logger->input_lock_ctr++;
-        ml_unlock(&logger->input_lock);
     }
 }
 

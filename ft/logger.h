@@ -112,9 +112,9 @@ int toku_logger_write_inbuf (TOKULOGGER logger);
 // Rationale:  When the buffer becomes nearly full, call this function so that more can be put in.
 // Implementation note:  Since the output lock is acquired first, we must release the input lock, and then grab both in the right order.
 
-void toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync);
+void toku_logger_maybe_fsync (TOKULOGGER logger, LSN lsn, int do_fsync, bool holds_input_lock);
 // Effect: If fsync is nonzero, then make sure that the log is flushed and synced at least up to lsn.
-// Entry: Holds input lock.
+// Entry: Holds input lock iff 'holds_input_lock'.
 // Exit:  Holds no locks.
 
 // Discussion: How does the logger work:
