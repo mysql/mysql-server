@@ -21,4 +21,26 @@ AND update_time IS NOT NULL;
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
 
+CREATE TABLE big (a TEXT) ENGINE=INNODB;
+
+SELECT COUNT(*) FROM information_schema.innodb_buffer_page
+WHERE table_name = '`test`.`t`';
+
+-- disable_query_log
+-- let $i = 8192
+while ($i)
+{
+	INSERT INTO big VALUES (REPEAT('a', 1024));
+	dec $i;
+}
+-- enable_query_log
+
+# confirm that table 't' has been evicted
+SELECT COUNT(*) FROM information_schema.innodb_buffer_page
+WHERE table_name = '`test`.`t`';
+
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+
+DROP TABLE big;
 DROP TABLE t;
