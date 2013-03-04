@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -337,8 +337,13 @@ class Lgman;
 /* ------------------------------------------------------------------------- */
 /*       ERROR CODES FROM TUP                                                */
 /* ------------------------------------------------------------------------- */
-#define ZSEARCH_CONDITION_FALSE 899
-#define ZUSER_ERROR_CODE_LIMIT 6000
+/** 
+ * 899 would be returned by an interpreted program such as a scan filter. New
+ * such programs should use 626 instead, but 899 will also be supported to 
+ * remain backwards compatible. 899 is problematic since it is also used as
+ * "Rowid already allocated" (cf. ndberror.c).
+ */
+#define ZUSER_SEARCH_CONDITION_FALSE_CODE 899
 #endif
 
 /** 

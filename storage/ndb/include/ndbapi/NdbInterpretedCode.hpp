@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -364,15 +364,22 @@ public:
   
   /* interpret_exit_nok
    *
-   * Scanning operation     : This row should not be returned as part
-   *                          of the scan.  Move onto next row.
+   * Scanning operation     : Error codes 626 and 899: This row should not be 
+   *                          returned as part of the scan.  Move onto next row.
+   *                          Error codes [6000-6999]: Abort the scan.
+   *
    * Non-scanning operation : Abort the operation
    *
    * Space required        Buffer    Request message
    *   interpret_exit_nok  1 word    1 word   
    *
    * @param ErrorCode An error code which will be returned as part
-   * of the operation.  If not supplied, defaults to 899.
+   * of the operation.  If not supplied, defaults to 626. Applications should 
+   * use error code 626 or any code in the [6000-6999] range. Error code 899
+   * is supported for backwards compatibility, but 626 is recommmended instead.
+   * For other codes, the behavior is undefined and may change at any time 
+   * without prior notice.
+   *
    * @return 0 if successful, -1 otherwise
    */
   int interpret_exit_nok(Uint32 ErrorCode);
