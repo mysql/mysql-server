@@ -1153,7 +1153,7 @@ update_status(atrt_config& config, int){
     if(proc.m_proc.m_id != -1){
       Vector<SimpleCpcClient::Process> &h_procs= m_procs[proc.m_host->m_index];
       bool found = false;
-      for(size_t j = 0; j<h_procs.size(); j++){
+      for(unsigned j = 0; j<h_procs.size(); j++){
 	if(proc.m_proc.m_id == h_procs[j].m_id){
 	  found = true;
 	  proc.m_proc.m_status = h_procs[j].m_status;
@@ -1166,7 +1166,7 @@ update_status(atrt_config& config, int){
 		       proc.m_proc.m_id,
 		       proc.m_host->m_hostname.c_str(),
 		       proc.m_proc.m_path.c_str());
-	for(size_t j = 0; j<h_procs.size(); j++){
+        for(unsigned j = 0; j<h_procs.size(); j++){
 	  g_logger.error("found: %d %s", h_procs[j].m_id, 
 			 h_procs[j].m_path.c_str());
 	}

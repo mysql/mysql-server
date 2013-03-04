@@ -250,7 +250,7 @@ template <typename T>
 int
 find(T* obj, Vector<T*>& arr)
 {
-  for (size_t i = 0; i<arr.size(); i++)
+  for (unsigned i = 0; i<arr.size(); i++)
     if (arr[i] == obj)
       return (int)i;
   abort();
@@ -500,7 +500,7 @@ setup_repl(atrt_process* dst, atrt_process* src)
 bool
 setup_repl(atrt_config& config)
 {
-  for (size_t i = 0; i<config.m_processes.size(); i++)
+  for (unsigned i = 0; i<config.m_processes.size(); i++)
   {
     atrt_process * dst = config.m_processes[i];
     if (dst->m_rep_src)
