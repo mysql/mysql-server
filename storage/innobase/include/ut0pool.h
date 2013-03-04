@@ -48,11 +48,12 @@ struct Pool {
 	@param size	size of the memory block */
 	Pool(size_t size)
 		:
-		m_ptr()
+		m_ptr(),
+		m_size(size)
 	{
 		ut_a(size >= sizeof(Element));
 
-		create(size);
+		create();
 
 		ut_ad(m_pqueue.size()
 		      == (reinterpret_cast<byte*>(m_end)
@@ -124,16 +125,18 @@ private:
 	/**
 	Create the pool.
 	@param size	Size of the the memory block */
-	void create(size_t size)
+	void create()
 	{
 		m_lock_strategy.create();
 
-		m_ptr = mem_zalloc(size);
-		ut_d(m_end = reinterpret_cast<byte*>(m_ptr) + size);
+		ut_a(m_ptr == 0);
+		m_ptr = mem_zalloc(m_size);
+
+		ut_d(m_end = reinterpret_cast<byte*>(m_ptr) + m_size);
 
 		Element*	elem = reinterpret_cast<Element*>(m_ptr);
 
-		for (size_t i = 0; i < size / sizeof(*elem); ++i, ++elem) {
+		for (size_t i = 0; i < m_size / sizeof(*elem); ++i, ++elem) {
 
 			elem->m_pool = this;
 			Factory::init(&elem->m_type);
@@ -169,12 +172,9 @@ private:
 			prev = elem;
 		}
 #else
-		size_t	size = reinterpret_cast<byte*>(m_end)
-			- reinterpret_cast<byte*>(m_ptr);
-
 		Element*	elem = reinterpret_cast<Element*>(m_ptr);
 
-		for (size_t i = 0; i < size / sizeof(*elem); ++i, ++elem) {
+		for (size_t i = 0; i < m_size / sizeof(*elem); ++i, ++elem) {
 
 			ut_ad(elem->m_pool == this);
 			Factory::destroy(&elem->m_type);
@@ -183,6 +183,7 @@ private:
 
 		mem_free(m_ptr);
 		m_ptr = 0;
+		m_size = 0;
 	}
 
 private:
@@ -193,6 +194,9 @@ private:
 
 	/** Pointer to the base of the block */
 	void*			m_ptr;
+
+	/** Size of the block in bytes */
+	size_t			m_size;
 
 	/** Priority queue ordered on the pointer addresse. */
 	pqueue_t		m_pqueue;
