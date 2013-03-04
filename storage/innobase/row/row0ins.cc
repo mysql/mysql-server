@@ -2316,6 +2316,7 @@ row_ins_clust_index_entry_low(
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
+	/* disable redo-logging + locking given lifetime + scope of temptable */
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
@@ -2505,7 +2506,8 @@ err_exit:
 					IB_ULONGLONG_MAX, TRUE););
 			err = row_ins_index_entry_big_rec(
 				entry, big_rec, offsets, &offsets_heap, index,
-				thr_get_trx(thr), __FILE__, __LINE__);
+				thr_get_trx(thr)->mysql_thd,
+				__FILE__, __LINE__);
 			dtuple_convert_back_big_rec(index, entry, big_rec);
 		} else {
 			if (err == DB_SUCCESS
@@ -2536,7 +2538,6 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	mtr_t*		mtr,	/*!< out: mini-transaction */
 	dict_index_t*	index,	/*!< in/out: secondary index */
 	bool		check,	/*!< in: whether to check */
-	trx_t*		trx,	/*!< in : transaction */
 	ulint		search_mode)
 				/*!< in: flags */
 {
@@ -2609,6 +2610,7 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 
 	mtr_start(&mtr);
+	/* disable redo-logging + locking given lifetime + scope of temptable */
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
@@ -2679,8 +2681,7 @@ row_ins_sec_index_entry_low(
 		DEBUG_SYNC_C("row_ins_sec_index_unique");
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check,
-			    thr_get_trx(thr), search_mode)) {
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2715,8 +2716,7 @@ row_ins_sec_index_entry_low(
 		}
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check,
-			    thr_get_trx(thr), search_mode)) {
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2802,8 +2802,10 @@ row_ins_index_entry_big_rec_func(
 	ulint*			offsets,/*!< in/out: rec offsets */
 	mem_heap_t**		heap,	/*!< in/out: memory heap */
 	dict_index_t*		index,	/*!< in: index */
-	trx_t*			trx,	/*!< in: current active trx */
 	const char*		file,	/*!< in: file name of caller */
+#ifndef DBUG_OFF
+	const void*		thd,    /*!< in: connection, or NULL */
+#endif /* DBUG_OFF */
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;
@@ -2813,7 +2815,7 @@ row_ins_index_entry_big_rec_func(
 
 	ut_ad(dict_index_is_clust(index));
 
-	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_ins_extern_latch");
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
@@ -2825,11 +2827,11 @@ row_ins_index_entry_big_rec_func(
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, heap);
 
-	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_ins_extern");
+	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
 	error = btr_store_big_rec_extern_fields(
 		index, btr_cur_get_block(&cursor),
 		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
-	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "after_row_ins_extern");
+	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	if (error == DB_SUCCESS
 	    && dict_index_is_online_ddl(index)) {

@@ -34,8 +34,6 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
-#include "sql_priv.h"
-#include "btr0cur.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "log0recv.h"
