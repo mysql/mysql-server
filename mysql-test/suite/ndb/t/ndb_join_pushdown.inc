@@ -813,6 +813,46 @@ from
      x4.b=x1.d;
 
 
+# Bug#16198866:
+# Additional tests where equality set [t1.d, t3.b, t4.d]
+# propagation incorrectly allowed grandparent references
+# to be allowed 'through' outer joins (t2):
+#
+# Test: don't allow t4 to propagate parent deps past 
+# outer joined 't2' into t3.
+# (As that would implicit cause t3 to depend on t2.)
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+# However, if t3 already depends on t2 (t3.a = t2.b)
+# it *is* allowed as it will not introduce any new 
+# t3 dependencies.
+#
+# Note: Both these two queries are fully pushable, but 
+# the later will likely result in a better query plan.
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
 # Test a combination of pushed table scan (x, y)
 #  & pushed EQ-bound (indexScan) (z, t1)
 # This used to give incorrect results with random result for last table (t1)
