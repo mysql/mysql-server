@@ -1232,3 +1232,29 @@ SELECT * FROM ift WHERE MATCH (b) AGAINST ('----');
 SELECT * FROM ift WHERE MATCH (b) AGAINST ('-donot--skip-networking');
 
 DROP TABLE ift;
+
+# Test special cases of wildword.
+# Create FTS table
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Insert six rows
+INSERT INTO articles (title,body) VALUES
+        ('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+        ('How To Use MySQL Well','After you went through a ...'),
+        ('Optimizing MySQL','In this tutorial we will show ...'),
+        ('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+        ('MySQL vs. YourSQL','In the following database comparison ...'),
+        ('( that''s me )','When configured properly, MySQL ...');
+
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('( that''s* )' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body)
+	AGAINST ('s*' IN BOOLEAN MODE);
+
+DROP TABLE articles;
