@@ -2229,7 +2229,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
 /*==========================*/
-	trx_t*			trx,	/*!< in: transaction */
+	trx_id_t		trx_id, /*!< in: transaction identifier */
 	dict_index_t*		index,	/*!< in: index */
 	const dict_table_t*	old_table,/*!< in: old table */
 	int			fd,	/*!< in: file descriptor */
@@ -2246,7 +2246,7 @@ row_merge_insert_index_tuples(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(trx);
+	ut_ad(trx_id);
 
 	tuple_heap = mem_heap_create(1000);
 
@@ -2410,7 +2410,7 @@ row_merge_insert_index_tuples(
 				page_update_max_trx_id(
 					btr_cur_get_block(&cursor),
 					btr_cur_get_page_zip(&cursor),
-					trx->id, &mtr);
+					trx_id, &mtr);
 			}
 
 			mtr_commit(&mtr);
@@ -2428,7 +2428,7 @@ row_merge_insert_index_tuples(
 				error = row_ins_index_entry_big_rec(
 					dtuple, big_rec,
 					ins_offsets, &ins_heap,
-					index, trx, __FILE__, __LINE__);
+					index, NULL, __FILE__, __LINE__);
 				dtuple_convert_back_big_rec(
 					index, dtuple, big_rec);
 			}
@@ -3606,7 +3606,7 @@ wait_again:
 
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(
-					trx, sort_idx, old_table,
+					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block);
 			}
 		}
