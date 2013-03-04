@@ -782,6 +782,36 @@ from t1
  left join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c;
 
+# Bug#16199028:
+# Tescase where a too strict 'root' was checked:
+# In these cases t4 was not pushed as it was incorrectly
+# concluded that its grandparent ref of 't2' through 't3'
+# introduced dependencies on the outer joined t1.
+#
+explain extended
+select straight_join *
+from
+ ( t1 as t0 left join t1 as t1 on t1.a = t0.a and t1.b = t0.b
+ )
+ left join
+ ( t1 as t2 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
+            join t1 as t4 on t4.a = t3.c and t4.b = t2.c
+ )
+ on t2.a = t1.a and t2.b = t1.b;
+
+explain extended
+select straight_join *
+from
+  t1 as x1
+  left join 
+  ( t1 as x2 join t1 as x3 on x3.a=x2.c
+             join t1 as x4 on x4.a=x2.d
+             join t1 as x5 on x5.a=x3.d and x5.b=x4.d
+  )
+  on x2.a=x1.c and x2.b=x1.c and 
+     x3.b=x1.d and
+     x4.b=x1.d;
+
 
 # Test a combination of pushed table scan (x, y)
 #  & pushed EQ-bound (indexScan) (z, t1)
