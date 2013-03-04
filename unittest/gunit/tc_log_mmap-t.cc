@@ -114,8 +114,9 @@ TEST_F(TCLogMMapTest, FillAllPagesAndReuse)
   const uint MAX_XIDS= tc_log_mmap.size();
   ulong cookie;
   /* Fill TC log. */
-  for(my_xid xid= 1; xid <= MAX_XIDS; ++xid)
-    cookie= testLog(xid);
+  for(my_xid xid= 1; xid < MAX_XIDS; ++xid)
+    (void)testLog(xid);
+  cookie= testLog(MAX_XIDS);
   /*
     Now free one slot and try to reuse it.
     This should work and not crash on assert.

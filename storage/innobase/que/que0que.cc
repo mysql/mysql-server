@@ -819,9 +819,6 @@ que_thr_stop_for_mysql(
 
 	trx = thr_get_trx(thr);
 
-	/* Can't be the purge transaction. */
-	ut_a(trx->id != 0);
-
 	trx_mutex_enter(trx);
 
 	if (thr->state == QUE_THR_RUNNING) {
@@ -898,7 +895,6 @@ que_thr_stop_for_mysql_no_error(
 	trx_t*		trx)	/*!< in: transaction */
 {
 	ut_ad(thr->state == QUE_THR_RUNNING);
-	ut_ad(thr_get_trx(thr)->id != 0);
 	ut_ad(thr->is_active == TRUE);
 	ut_ad(trx->lock.n_active_thrs == 1);
 	ut_ad(thr->graph->n_active_thrs == 1);
