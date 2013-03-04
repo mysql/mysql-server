@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -383,8 +383,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	charset,	/*!< in: Character set */
-	byte*		start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
+	const byte*	start,		/*!< in: start of text */
+	const byte*	end,		/*!< in: one character past end of
 					text */
 	fts_string_t*	token,		/*!< out: token's text */
 	ulint*		offset);	/*!< out: offset to token,
