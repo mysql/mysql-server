@@ -4839,10 +4839,10 @@ page_zip_verify_checksum(
 	ib_uint32_t	crc32 = 0 /* silence bogus warning */;
 	ib_uint32_t	innodb = 0 /* silence bogus warning */;
 
-	my_bool		verbose = 0;
-	ulint		page_no = 0;
+	bool		verbose = FALSE;
+	ullint		page_no = 0;
 /* enable for strict_check for innochecksum tool. */
-	my_bool		strict_check = 0;
+	bool		strict_check = FALSE;
 
 #ifdef UNIV_INNOCHECKSUM
 	extern my_bool	debug;
@@ -4867,7 +4867,7 @@ page_zip_verify_checksum(
 		}
 		if (i >= size) {
 			if (verbose)
-				DBUG_PRINT("info", ("Page::%lu is empty and "
+				DBUG_PRINT("info", ("Page::%llu is empty and "
 					   "uncorrupted",page_no));
 			return(TRUE);
 		}
@@ -4884,7 +4884,7 @@ page_zip_verify_checksum(
 			srv_checksum_algorithm));
 
 	if (verbose) {
-		DBUG_PRINT("info", ("page::%lu; %s checksum: calculated = %u; "
+		DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
 			   "recorded = %u",page_no,
 			   buf_checksum_algorithm_name(
 				static_cast<srv_checksum_algorithm_t>(
@@ -4895,10 +4895,10 @@ page_zip_verify_checksum(
 
 			crc32 = page_zip_calc_checksum(
 				data,size, SRV_CHECKSUM_ALGORITHM_CRC32);
-			DBUG_PRINT("info", ("page::%lu: crc32 checksum: "
+			DBUG_PRINT("info", ("page::%llu: crc32 checksum: "
 				   "calculated = %u; recorded = %u",
 				   page_no, crc32, stored));
-			DBUG_PRINT("info", ("page::%lu: none checksum: "
+			DBUG_PRINT("info", ("page::%llu: none checksum: "
 				   "calculated = %lu; recorded = %u",
 				   page_no, BUF_NO_CHECKSUM_MAGIC, stored));
 		}

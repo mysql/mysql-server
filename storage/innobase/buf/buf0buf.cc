@@ -488,8 +488,8 @@ buf_page_is_corrupted(
 	ulint		checksum_field2;
 	ibool		crc32_inited = FALSE;
 	ib_uint32_t	crc32 = ULINT32_UNDEFINED;
-	my_bool		verbose = 0;
-	ulint		page_no = 0;
+	bool		verbose = FALSE;
+	ullint		page_no = 0;
 
 	#ifdef UNIV_INNOCHECKSUM
 	extern my_bool	debug;
@@ -574,7 +574,7 @@ buf_page_is_corrupted(
 		if (i >= UNIV_PAGE_SIZE) {
 			if (verbose)
 				DBUG_PRINT(
-					"info",("Page::%lu is empty and "
+					"info",("Page::%llu is empty and "
 					"uncorrupted",page_no));
 
 			return FALSE;
@@ -594,7 +594,7 @@ buf_page_is_corrupted(
 		crc32 = buf_calc_page_crc32(read_buf);
 		if (verbose)
 			DBUG_PRINT(
-				"info", ("page::%lu; crc32 calculated = %u;"
+				"info", ("page::%llu; crc32 calculated = %u;"
 				"recorded checksum field1 = %lu recorded "
 				"checksum field2 =%lu",page_no, crc32,
 				checksum_field1, checksum_field2));
@@ -604,13 +604,13 @@ buf_page_is_corrupted(
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 		if (verbose) {
 			DBUG_PRINT(
-				"info", ("page::%lu; old style:calculated = "
+				"info", ("page::%llu; old style:calculated = "
 				"%lu; recorded checksum = %lu",
 				page_no, buf_calc_page_old_checksum(read_buf),
 				checksum_field2));
 
 			DBUG_PRINT(
-			"info", ("page::%lu; new style: calculated = "
+			"info", ("page::%llu; new style: calculated = "
 			"%lu; recorded checksum  = %lu",
 			page_no, buf_calc_page_new_checksum(read_buf),
 			checksum_field1));
@@ -624,9 +624,9 @@ buf_page_is_corrupted(
 	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 		if (verbose)
 			DBUG_PRINT(
-				"info", ("page::%lu; none checksum: calculated "
-				"= %lu; recorded checksum_field1 = %lu recorded"
-				" checksum_field2 = %lu",
+				"info", ("page::%llu; none checksum: calculated"
+				" = %lu; recorded checksum_field1 = %lu "
+				"recorded checksum_field2 = %lu",
 				page_no, BUF_NO_CHECKSUM_MAGIC,
 				checksum_field1, checksum_field2));
 
@@ -677,9 +677,9 @@ buf_page_is_corrupted(
 
 				if (verbose)
 					DBUG_PRINT(
-						"info", ("page::%lu; old style:"
-						" calculated = %lu; recorded = "
-						"%lu", page_no,
+						"info", ("page::%llu; old style"
+						": calculated = %lu; recorded ="
+						" %lu", page_no,
 						buf_calc_page_old_checksum(
 							read_buf),
 						checksum_field2));
@@ -695,7 +695,7 @@ buf_page_is_corrupted(
 						if (verbose)
 							DBUG_PRINT(
 								"info", ("Fail;"
-								"page %lu "
+								"page %llu "
 								"invalid (fails"
 								" old style "
 								"checksum)",
@@ -740,9 +740,9 @@ buf_page_is_corrupted(
 
 				if (verbose)
 					DBUG_PRINT(
-						"info", ("page::%lu; new style:"
-						" calculated = %lu; crc32 = %u;"
-						" recorded = %lu",page_no,
+						"info", ("page::%llu; new style"
+						": calculated = %lu; crc32 = %u"
+						"; recorded = %lu",page_no,
 						buf_calc_page_new_checksum(
 							read_buf),
 						buf_calc_page_crc32(read_buf),
@@ -762,7 +762,7 @@ buf_page_is_corrupted(
 						if (verbose)
 							DBUG_PRINT(
 								"info", ("Fail;"
-								" page %lu "
+								" page %llu "
 								"invalid (fails"
 								" innodb and "
 								"crc32 "
@@ -781,14 +781,14 @@ buf_page_is_corrupted(
 
 			if (verbose) {
 				DBUG_PRINT(
-					"info", ("page::%lu; old style:"
+					"info", ("page::%llu; old style:"
 					" calculated = %lu; recorded = "
 					"%lu", page_no,
 					buf_calc_page_old_checksum(read_buf),
 					checksum_field2));
 
 				DBUG_PRINT(
-					"info", ("page::%lu; new style: "
+					"info", ("page::%llu; new style: "
 					"calculated = %lu; crc32 = %u; "
 					"recorded = %lu",page_no,
 					buf_calc_page_new_checksum(read_buf),
@@ -807,7 +807,7 @@ buf_page_is_corrupted(
 			    && checksum_field2 == crc32))) {
 
 			if (verbose)
-				DBUG_PRINT("info", ("Fail; page %lu invalid "
+				DBUG_PRINT("info", ("Fail; page %llu invalid "
 					   "(fails crc32 checksum)\n",page_no));
 
 			return(TRUE);
