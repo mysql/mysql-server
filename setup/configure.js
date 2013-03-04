@@ -43,6 +43,8 @@ switch(process.arch) {
   default:
     throw "Architecture " + process.arch + " unsupported.";
 }
+
+var path_sep = ( typeof path.sep == 'undefined' ? '/' : path.sep);
  
 archname = String(archbits) + '-bit';
 
@@ -193,7 +195,7 @@ function completion(line) {
   if(matches.length == 1) {
     try {
       stat = fs.statSync(matches[0]);
-      if(stat.isDirectory()) matches[0] += path.sep;
+      if(stat.isDirectory()) matches[0] += path_sep;
     }
     catch(e) {
     };
