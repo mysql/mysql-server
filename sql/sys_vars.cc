@@ -2066,10 +2066,8 @@ static const char *optimizer_switch_names[]=
   "index_merge_intersection", "engine_condition_pushdown",
   "index_condition_pushdown" , "mrr", "mrr_cost_based",
   "block_nested_loop", "batched_key_access",
-#ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-#endif
   "use_index_extensions", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
@@ -2078,10 +2076,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "{index_merge, index_merge_union, index_merge_sort_union, "
        "index_merge_intersection, engine_condition_pushdown, "
        "index_condition_pushdown, mrr, mrr_cost_based"
-#ifdef OPTIMIZER_SWITCH_ALL
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-#endif
        ", block_nested_loop, batched_key_access, use_index_extensions"
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
@@ -4576,3 +4572,14 @@ static Sys_var_mybool Sys_disconnect_on_expired_password(
        "Give clients that don't signal password expiration support execution time error(s) instead of connection error",
        READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
        CMD_LINE(OPT_ARG), DEFAULT(TRUE));
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS 
+static Sys_var_mybool Sys_validate_user_plugins(
+       "validate_user_plugins",
+       "Turns on additional validation of authentication plugins assigned "
+       "to user accounts. ",
+       READ_ONLY NOT_VISIBLE GLOBAL_VAR(validate_user_plugins),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+#endif
+
