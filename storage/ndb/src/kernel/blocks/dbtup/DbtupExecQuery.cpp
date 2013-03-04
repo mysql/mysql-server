@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -170,11 +170,12 @@ int
 Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
 {
   ndbout_c("Tuple corruption detected."); 
-  if (c_crashOnCorruptedTuple)
+  if (c_crashOnCorruptedTuple && !ERROR_INSERTED(4036))
   {
     ndbout_c(" Exiting."); 
     ndbrequire(false);
   }
+  ERROR_INSERTED_CLEAR(4036);
   terrorCode= ZTUPLE_CORRUPTED_ERROR;
   tupkeyErrorLab(req_struct);
   return -1;
@@ -1033,8 +1034,9 @@ int Dbtup::handleReadReq(Signal* signal,
   Uint32 *dst;
   Uint32 dstLen, start_index;
   const BlockReference sendBref= req_struct->rec_blockref;
-  if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
-      (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) {
+  if (((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
+       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) ||
+      ERROR_INSERTED(4036)) {
     jam();
     return corruptedTupleDetected(req_struct);
   }
