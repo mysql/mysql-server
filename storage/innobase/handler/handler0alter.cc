@@ -2601,7 +2601,7 @@ prepare_inplace_alter_table_dict(
 
 	user_table = ctx->new_table;
 
-	trx_start_if_not_started_xa(ctx->prebuilt->trx);
+	trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -5731,7 +5731,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	}
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, true);
 
 	for (inplace_alter_handler_ctx** pctx = ctx_array; *pctx; pctx++) {
 		ha_innobase_inplace_ctx*	ctx
@@ -6179,7 +6179,7 @@ foreign_fail:
 			/* Rebuild the prebuilt object. */
 			ctx->prebuilt = row_create_prebuilt(
 				ctx->new_table, altered_table->s->reclength);
-			trx_start_if_not_started(user_trx);
+			trx_start_if_not_started(user_trx, true);
 			user_trx->will_lock++;
 			prebuilt->trx = user_trx;
 		}

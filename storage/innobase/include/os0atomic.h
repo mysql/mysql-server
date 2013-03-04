@@ -80,6 +80,9 @@ compare to, new_val is the value to swap in. */
 Returns the resulting value, ptr is pointer to target, amount is the
 amount of increment. */
 
+# define os_atomic_fetch_and_increment(ptr, amount) \
+	__sync_fetch_and_add(ptr, amount)
+
 # define os_atomic_increment(ptr, amount) \
 	__sync_add_and_fetch(ptr, amount)
 
@@ -91,6 +94,9 @@ amount of increment. */
 
 # define os_atomic_increment_uint64(ptr, amount) \
 	os_atomic_increment(ptr, amount)
+
+# define os_atomic_fetch_and_increment_uint64(ptr, amount) \
+	os_atomic_fetch_and_increment(ptr, amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -170,6 +176,9 @@ amount of increment. */
 
 # define os_atomic_increment_uint64(ptr, amount) \
 	atomic_add_64_nv(ptr, amount)
+
+# define os_atomic_fetch_and_increment_uint64(ptr, amount) \
+	(os_atomic_increment_uint64(ptr, amount) - amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
@@ -278,10 +287,13 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add((lint*) ptr, (lint) amount) + amount))
 
-# define os_atomic_increment_uint64(ptr, amount)		\
+# define os_atomic_fetch_and_increment_uint64(ptr, amount)	\
 	((ib_uint64_t) (InterlockedExchangeAdd64(		\
 				(ib_int64_t*) ptr,		\
-				(ib_int64_t) amount) + amount))
+				(ib_int64_t) amount)))
+
+# define os_atomic_increment_uint64(ptr, amount)		\
+	(os_atomic_fetch_and_increment_uint64(ptr, amount) + amount)
 
 /**********************************************************//**
 Returns the resulting value, ptr is pointer to target, amount is the
