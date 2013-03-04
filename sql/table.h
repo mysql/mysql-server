@@ -807,6 +807,15 @@ struct TABLE_SHARE
     version= 0;
   }
   /*
+    This is used only for the case of locked tables, as we want to
+    allow one to do SHOW commands on them even after ALTER or REPAIR
+  */
+  inline void allow_access_to_protected_table()
+  {
+    DBUG_ASSERT(version == 0);
+    version= 1;
+  }
+  /*
     Remove from table definition cache at close.
     Table can still be opened by SHOW
   */

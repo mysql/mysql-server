@@ -6264,12 +6264,14 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         goto err;
       DEBUG_SYNC(thd,"alter_table_enable_indexes");
       error= table->file->ha_enable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      table->s->allow_access_to_protected_table();
       break;
     case DISABLE:
       if (wait_while_table_is_used(thd, table, extra_func,
                                    TDC_RT_REMOVE_NOT_OWN_AND_MARK_NOT_USABLE))
         goto err;
       error=table->file->ha_disable_indexes(HA_KEY_SWITCH_NONUNIQ_SAVE);
+      table->s->allow_access_to_protected_table();
       break;
     default:
       DBUG_ASSERT(FALSE);
@@ -6812,6 +6814,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     error= trans_commit_stmt(thd);
     if (trans_commit_implicit(thd))
       error= 1;
+    table->s->allow_access_to_protected_table();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
