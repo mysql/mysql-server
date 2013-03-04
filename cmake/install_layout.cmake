@@ -193,7 +193,7 @@ SET(INSTALL_SHAREDIR_DEB                "share")
 SET(INSTALL_MYSQLSHAREDIR_DEB           "share/mysql")
 SET(INSTALL_MYSQLTESTDIR_DEB            "mysql-test")
 SET(INSTALL_SQLBENCHDIR_DEB             ".")
-SET(INSTALL_SUPPORTFILESDIR_DEB         "support-files")
+SET(INSTALL_SUPPORTFILESDIR_DEB         "share/mysql")
 #
 SET(INSTALL_MYSQLDATADIR_DEB            "/var/lib/mysql")
 SET(INSTALL_PLUGINTESTDIR_DEB           ${plugin_tests})
