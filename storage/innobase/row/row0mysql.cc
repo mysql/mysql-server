@@ -793,8 +793,8 @@ handle_new_error:
 			" and try again\n", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
 		break;
 	default:
-		fprintf(stderr, "InnoDB: unknown error code %lu\n",
-			(ulong) err);
+		fprintf(stderr, "InnoDB: unknown error code %lu: %s\n",
+			(ulong) err, ut_strerr(err));
 		ut_error;
 	}
 
@@ -920,11 +920,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
-	ulint	i;
-
-	if (UNIV_UNLIKELY
-	    (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	     || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED)) {
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
+	    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED) {
 
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
@@ -974,7 +971,7 @@ row_prebuilt_free(
 		byte*	base = prebuilt->fetch_cache[0] - 4;
 		byte*	ptr = base;
 
-		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
+		for (ulint i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
 			byte*	row;
 			ulint	magic1;
 			ulint	magic2;
@@ -1226,7 +1223,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	err = lock_table(0, prebuilt->table, LOCK_AUTO_INC, thr);
 
@@ -1297,7 +1294,7 @@ run_again:
 	/* It may be that the current session has not yet started
 	its transaction, or it has been committed: */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, false);
 
 	if (table) {
 		err = lock_table(
@@ -1398,7 +1395,7 @@ row_insert_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	row_get_prebuilt_insert_row(prebuilt);
 	node = prebuilt->ins_node;
@@ -1786,7 +1783,9 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	trx_start_if_not_started_xa(trx);
+	init_fts_doc_id_for_ref(table, &fk_depth);
+
+	trx_start_if_not_started_xa(trx, true);
 
 	if (dict_table_is_referenced_by_foreign_key(table)) {
 		/* Share lock the data dictionary to prevent any
@@ -2288,7 +2287,7 @@ err_exit:
 		goto err_exit;
 	}
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	/* The table name is prefixed with the database name and a '/'.
 	Certain table names starting with 'innodb_' have their special
@@ -2509,7 +2508,7 @@ row_create_index_for_mysql(
 					DICT_ERR_IGNORE_NONE);
 
 	if (!dict_table_is_temporary(table)) {
-		trx_start_if_not_started_xa(trx);
+		trx_start_if_not_started_xa(trx, true);
 	}
 
 	for (i = 0; i < index->n_def; i++) {
@@ -2664,7 +2663,7 @@ row_table_add_foreign_constraints(
 	trx->op_info = "adding foreign keys";
 
 	if (!is_temp_table) {
-		trx_start_if_not_started_xa(trx);
+		trx_start_if_not_started_xa(trx, true);
 	}
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
@@ -2946,7 +2945,7 @@ row_discard_tablespace_begin(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	/* Serialize data dictionary operations with dictionary mutex:
 	this is to avoid deadlocks during data dictionary operations */
@@ -4761,7 +4760,8 @@ row_drop_database_for_mysql(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
+
 loop:
 	row_mysql_lock_data_dictionary(trx);
 
