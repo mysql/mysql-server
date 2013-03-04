@@ -236,7 +236,7 @@ lock_wait_suspend_thread(
 		if (trx->lock.was_chosen_as_deadlock_victim) {
 
 			trx->error_state = DB_DEADLOCK;
-			trx->lock.was_chosen_as_deadlock_victim = FALSE;
+			trx->lock.was_chosen_as_deadlock_victim = false;
 		}
 
 		lock_wait_mutex_exit();
@@ -390,7 +390,7 @@ lock_wait_release_thread_if_suspended(
 		if (trx->lock.was_chosen_as_deadlock_victim) {
 
 			trx->error_state = DB_DEADLOCK;
-			trx->lock.was_chosen_as_deadlock_victim = FALSE;
+			trx->lock.was_chosen_as_deadlock_victim = false;
 		}
 
 		os_event_set(thr->slot->event);
