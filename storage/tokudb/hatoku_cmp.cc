@@ -1577,6 +1577,109 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
     return cmp;
 }
 
+#if TOKU_INCLUDE_ANALYZE
+static int tokudb_compare_two_key_parts(
+    const void* new_key_data, 
+    const uint32_t new_key_size, 
+    const void*  saved_key_data,
+    const uint32_t saved_key_size,
+    const void*  row_desc,
+    const uint32_t row_desc_size,
+    uint max_parts
+    )
+{
+    int ret_val = 0;
+    
+    uchar* row_desc_ptr = (uchar *)row_desc;
+    uchar *new_key_ptr = (uchar *)new_key_data;
+    uchar *saved_key_ptr = (uchar *)saved_key_data;
+
+    //
+    // if the keys have an infinity byte, set it
+    //
+    if (row_desc_ptr[0]) {
+        // new_key_inf_val = (int8_t)new_key_ptr[0];
+        // saved_key_inf_val = (int8_t)saved_key_ptr[0];
+        new_key_ptr++;
+        saved_key_ptr++;
+    }
+    row_desc_ptr++;
+
+    for (uint i = 0; i < max_parts; i++) {
+        if (!((uint32_t)(new_key_ptr - (uchar *)new_key_data) < new_key_size &&
+               (uint32_t)(saved_key_ptr - (uchar *)saved_key_data) < saved_key_size &&
+               (uint32_t)(row_desc_ptr - (uchar *)row_desc) < row_desc_size))
+            break;
+        uint32_t new_key_field_length;
+        uint32_t saved_key_field_length;
+        uint32_t row_desc_field_length;
+        //
+        // if there is a null byte at this point in the key
+        //
+        if (row_desc_ptr[0]) {
+            //
+            // compare null bytes. If different, return
+            //
+            if (new_key_ptr[0] != saved_key_ptr[0]) {
+                ret_val = ((int) *new_key_ptr - (int) *saved_key_ptr);
+                goto exit;
+            }
+            saved_key_ptr++;
+            //
+            // in case we just read the fact that new_key_ptr and saved_key_ptr
+            // have NULL as their next field
+            //
+            if (!*new_key_ptr++) {
+                //
+                // skip row_desc_ptr[0] read in if clause
+                //
+                row_desc_ptr++;
+                //
+                // skip data that describes rest of field
+                //
+                row_desc_ptr += skip_field_in_descriptor(row_desc_ptr);
+                continue; 
+            }         
+        }
+        row_desc_ptr++;
+
+        ret_val = compare_toku_field(
+            new_key_ptr, 
+            saved_key_ptr, 
+            row_desc_ptr,
+            &new_key_field_length, 
+            &saved_key_field_length,
+            &row_desc_field_length
+            );
+        new_key_ptr += new_key_field_length;
+        saved_key_ptr += saved_key_field_length;
+        row_desc_ptr += row_desc_field_length;
+        if (ret_val) {
+            goto exit;
+        }
+
+        assert((uint32_t)(new_key_ptr - (uchar *)new_key_data) <= new_key_size);
+        assert((uint32_t)(saved_key_ptr - (uchar *)saved_key_data) <= saved_key_size);
+        assert((uint32_t)(row_desc_ptr - (uchar *)row_desc) <= row_desc_size);
+    }
+
+    ret_val = 0;
+exit:
+    return ret_val;
+}
+
+static int tokudb_cmp_dbt_key_parts(DB *file, const DBT *keya, const DBT *keyb, uint max_parts) {
+    assert(file->cmp_descriptor->dbt.size);
+    return tokudb_compare_two_key_parts(
+            keya->data, 
+            keya->size, 
+            keyb->data,
+            keyb->size,
+            (uchar *)file->cmp_descriptor->dbt.data + 4,
+            (*(uint32_t *)file->cmp_descriptor->dbt.data) - 4,
+            max_parts);
+}
+#endif
 
 uint32_t create_toku_main_key_pack_descriptor (
     uchar* buf

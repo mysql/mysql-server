@@ -1653,8 +1653,3 @@ int tokudb_update_fun(
     }
     return error;
 }
-
-namespace tokudb {
-    template size_t vlq_encode_ui(uint32_t n, void *p, size_t s);
-    template size_t vlq_decode_ui(uint32_t *np, void *p, size_t s);
-};
