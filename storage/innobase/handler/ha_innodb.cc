@@ -294,7 +294,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 	PSI_KEY(cache_last_read_mutex),
 	PSI_KEY(dict_foreign_err_mutex),
 	PSI_KEY(dict_sys_mutex),
-	PSI_KEY(dict_stats_recalc_pool_mutex),
+	PSI_KEY(recalc_pool_mutex),
 	PSI_KEY(file_format_max_mutex),
 	PSI_KEY(fil_system_mutex),
 	PSI_KEY(flush_list_mutex),
