@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,6 +98,9 @@ static const char* empty_string = "";
  * 4700 - "" Event
  * 4800 - API, QueryBuilder
  * 5000 - Management server
+ * 6000 - 6999 User error codes, to be used with 
+ *   NdbInterpretedCode::interpret_exit_nok(). Do not define internal error 
+ *   codes in this range!
  * 20000 - SPJ
  */
 
