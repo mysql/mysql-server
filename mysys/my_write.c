@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
   if (unlikely(!Count))
     DBUG_RETURN(0);
   
-  DBUG_EXECUTE_IF ("simulate_file_write_error_once",
+  DBUG_EXECUTE_IF ("simulate_no_free_space_error",
                    { DBUG_SET("+d,simulate_file_write_error");});
   for (;;)
   {
@@ -67,7 +67,7 @@ size_t my_write(File Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     {
       wait_for_free_space(my_filename(Filedes), errors);
       errors++;
-      DBUG_EXECUTE_IF("simulate_file_write_error_once",
+      DBUG_EXECUTE_IF("simulate_no_free_space_error",
                       { DBUG_SET("-d,simulate_file_write_error");});
       continue;
     }

@@ -725,7 +725,7 @@ fil_node_open_file(
 		async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, node->name, OS_FILE_OPEN,
+			innodb_data_file_key, node->name, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
@@ -854,18 +854,18 @@ add_size:
 	os_file_create() to fall back to the normal file I/O mode. */
 
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(innodb_file_log_key,
+		node->handle = os_file_create(innodb_log_file_key,
 					      node->name, OS_FILE_OPEN,
 					      OS_FILE_AIO, OS_LOG_FILE,
 					      &ret);
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(innodb_file_data_key,
+		node->handle = os_file_create(innodb_data_file_key,
 					      node->name,
 					      OS_FILE_OPEN_RAW,
 					      OS_FILE_AIO, OS_DATA_FILE,
 						     &ret);
 	} else {
-		node->handle = os_file_create(innodb_file_data_key,
+		node->handle = os_file_create(innodb_data_file_key,
 					      node->name, OS_FILE_OPEN,
 					      OS_FILE_AIO, OS_DATA_FILE,
 					      &ret);
@@ -2556,7 +2556,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2639,7 +2639,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
+		os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 		mem_free(cfg_name);
 	}
 
@@ -2667,9 +2667,9 @@ fil_delete_tablespace(
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
-	} else if (!os_file_delete(innodb_file_data_key, path)
+	} else if (!os_file_delete(innodb_data_file_key, path)
 		   && !os_file_delete_if_exists(
-			innodb_file_data_key, path, NULL)) {
+			innodb_data_file_key, path, NULL)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3014,7 +3014,7 @@ retry:
 			goto skip_second_rename; );
 
 		success = os_file_rename(
-			innodb_file_data_key, old_path, new_path);
+			innodb_data_file_key, old_path, new_path);
 
 		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 skip_second_rename:
@@ -3085,7 +3085,7 @@ fil_create_link_file(
 	link_filepath = fil_make_isl_name(tablename);
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, link_filepath,
+		innodb_data_file_key, link_filepath,
 		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
 
 	if (!success) {
@@ -3138,7 +3138,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(innodb_file_data_key, link_filepath, NULL);
+	os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
 	mem_free(link_filepath);
 }
@@ -3208,7 +3208,7 @@ fil_open_linked_file(
 	/* The filepath provided is different from what was
 	found in the link file. */
 	*remote_file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, *remote_filepath,
+		innodb_data_file_key, *remote_filepath,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY,
 		&success);
 
@@ -3293,7 +3293,7 @@ fil_create_new_single_table_tablespace(
 	}
 
 	file = os_file_create(
-		innodb_file_data_key, path,
+		innodb_data_file_key, path,
 		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
@@ -3449,7 +3449,7 @@ error_exit_1:
 error_exit_2:
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
-		os_file_delete(innodb_file_data_key, path);
+		os_file_delete(innodb_data_file_key, path);
 	}
 error_exit_3:
 	mem_free(path);
@@ -3599,7 +3599,7 @@ fil_open_single_table_tablespace(
 	/* Attempt to open the tablespace at other possible filepaths. */
 	if (dict.filepath) {
 		dict.file = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, dict.filepath, OS_FILE_OPEN,
+			innodb_data_file_key, dict.filepath, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &dict.success);
 		if (dict.success) {
 			/* possibility of multiple files. */
@@ -3611,7 +3611,7 @@ fil_open_single_table_tablespace(
 	/* Always look for a file at the default location. */
 	ut_a(def.filepath);
 	def.file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, def.filepath, OS_FILE_OPEN,
+		innodb_data_file_key, def.filepath, OS_FILE_OPEN,
 		OS_FILE_READ_ONLY, &def.success);
 	if (def.success) {
 		tablespaces_found++;
@@ -4012,7 +4012,7 @@ fil_load_single_table_tablespace(
 
 	/* Try to open the tablespace in the datadir. */
 	def.file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, def.filepath, OS_FILE_OPEN,
+		innodb_data_file_key, def.filepath, OS_FILE_OPEN,
 		OS_FILE_READ_ONLY, &def.success);
 
 	/* Read the first page of the remote tablespace */
@@ -4145,7 +4145,7 @@ will_not_choose:
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
 
 		bool	success = os_file_rename(
-			innodb_file_data_key, fsp->filepath, new_path));
+			innodb_data_file_key, fsp->filepath, new_path));
 
 		ut_a(success);
 
@@ -4184,7 +4184,7 @@ will_not_choose:
 		mutex_exit(&fil_system->mutex);
 
 		bool	success = os_file_rename(
-			innodb_file_data_key, fsp->filepath, new_path);
+			innodb_data_file_key, fsp->filepath, new_path);
 
 		ut_a(success);
 
@@ -5951,7 +5951,7 @@ fil_tablespace_iterate(
 		ibool	success;
 
 		file = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, filepath,
+			innodb_data_file_key, filepath,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 
 		DBUG_EXECUTE_IF("fil_tablespace_iterate_failure",
@@ -6089,11 +6089,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, ibd_name, NULL);
+	os_file_delete_if_exists(innodb_data_file_key, ibd_name, NULL);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name, NULL);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	mem_free(cfg_name);
 }

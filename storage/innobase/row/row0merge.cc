@@ -2922,7 +2922,7 @@ row_merge_file_create_low(void)
 	performance schema */
 	struct PSI_file_locker*	locker = NULL;
 	PSI_file_locker_state	state;
-	register_pfs_file_open_begin(&state, locker, innodb_file_temp_key,
+	register_pfs_file_open_begin(&state, locker, innodb_temp_file_key,
 				     PSI_FILE_OPEN,
 				     "Innodb Merge Temp File",
 				     __FILE__, __LINE__);
@@ -2935,7 +2935,7 @@ row_merge_file_create_low(void)
 	if (fd < 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create temporary merge file");
-		return -1;
+		return (-1);
 	}
 	return(fd);
 }
@@ -3429,7 +3429,7 @@ row_merge_build_indexes(
 	ulint			i;
 	ulint			j;
 	dberr_t			error;
-	int			tmpfd;
+	int			tmpfd = -1;
 	dict_index_t*		fts_sort_idx = NULL;
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
