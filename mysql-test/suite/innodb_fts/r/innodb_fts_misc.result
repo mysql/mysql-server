@@ -1315,3 +1315,27 @@ a	b
 3	--skip-networking
 1	skip
 DROP TABLE ift;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('( that''s me )','When configured properly, MySQL ...');
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('( that''s* )' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+SELECT * FROM articles WHERE MATCH (title,body)
+AGAINST ('s*' IN BOOLEAN MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+3	Optimizing MySQL	In this tutorial we will show ...
+DROP TABLE articles;
