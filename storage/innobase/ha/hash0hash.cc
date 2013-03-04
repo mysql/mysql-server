@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,7 +37,7 @@ UNIV_INTERN mysql_pfs_key_t	hash_table_mutex_key;
 # endif /* UNIV_PFS_MUTEX */
 
 # ifdef UNIV_PFS_RWLOCK
-UNIV_INTERN mysql_pfs_key_t	hash_table_rw_lock_key;
+UNIV_INTERN mysql_pfs_key_t	hash_table_locks_key;
 # endif /* UNIV_PFS_RWLOCK */
 /************************************************************//**
 Reserves the mutex for a fold value in a hash table. */
@@ -388,7 +388,7 @@ hash_create_sync_obj_func(
 			mem_alloc(n_sync_obj * sizeof(rw_lock_t)));
 
 		for (i = 0; i < n_sync_obj; i++) {
-			rw_lock_create(hash_table_rw_lock_key,
+			rw_lock_create(hash_table_locks_key,
 			     table->sync_obj.rw_locks + i, sync_level);
 		}
 

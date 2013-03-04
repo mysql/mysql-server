@@ -1,5 +1,9 @@
 --source include/have_max_indexes_64.inc
 
+# Temporarily disabled for embedded server, to be re-enabled after Bug#16029012
+# is fixed.
+--source include/not_embedded.inc
+
 ###################### ps_general.test #######################
 #                                                            #
 #   basic and miscellaneous tests for prepared statements    #
