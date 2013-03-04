@@ -10950,7 +10950,7 @@ ha_innobase::info_low(
 			}
 		}
 
-		stats.check_time = ib_table->check_time;
+		stats.check_time = 0;
 		stats.mrr_length_per_rec = ref_length + sizeof(void*);
 
 		if (stats.records == 0) {
@@ -11420,8 +11420,6 @@ ha_innobase::check(
 	if (thd_killed(user_thd)) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 	}
-
-	prebuilt->table->check_time = time(NULL);
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
 }
