@@ -852,8 +852,30 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
        * Found an outer joined ancestor which none of my parents
        * can depend / join with:
        */
-      if (!child_dependencies.is_clear_all() &&
-          !child_dependencies.contain(ancestor_no))
+      if (child_dependencies.is_clear_all())
+      {
+        /**
+         * As this was the last (outer joined) 'depend_parents',
+         * with no other mandatory dependencies, this table may still
+         * be added to the pushed join.
+         * However, it may contain 'common' & 'extend' parent candidates
+         * which may now be joined with this outer joined ancestor.
+         * These are removed below.
+         */
+        DBUG_ASSERT(extend_parents.contain(common_parents));
+        for (uint parent_no= extend_parents.last_table(tab_no-1);
+             parent_no > ancestor_no;
+             parent_no= extend_parents.last_table(parent_no-1))
+        {
+          if (!m_tables[parent_no].m_depend_parents.contain(ancestor_no))
+	  {
+            common_parents.clear_bit(parent_no);
+            extend_parents.clear_bit(parent_no);
+          }
+        }
+        DBUG_ASSERT(!extend_parents.is_clear_all());
+      }
+      else if (!child_dependencies.contain(ancestor_no))
       {
         /**
          * No child of this ancestor depends (joins) with this ancestor,
@@ -1141,16 +1163,21 @@ ndb_pushed_builder_ctx::optimize_query_plan()
       ndb_table_access_map dependency_mask;
       dependency_mask.set_prefix(depends_on_parent);
 
-      if (table.m_extend_parents.is_overlapping(dependency_mask))
+      /**
+       * Remove any parent candidates prior to last 'depends_on_parent':
+       * All 'depend_parents' must be made available as grandparents
+       * prior to joining with any 'extend_parents' / 'common_parents'
+       */
+      table.m_common_parents.subtract(dependency_mask);
+      table.m_extend_parents.subtract(dependency_mask);
+
+      /**
+       * Need some parent hints if all where cleared.
+       * Can always use closest depend_parent.
+       */
+      if (table.m_extend_parents.is_clear_all())
       {
-        table.m_extend_parents.subtract(dependency_mask);
-        DBUG_ASSERT(table.m_extend_parents.contain(depends_on_parent) ||
-                    m_plan.get_table_access(depends_on_parent)->get_join_type(m_join_root) == AQP::JT_INNER_JOIN);
         table.m_extend_parents.add(depends_on_parent);
-      }
-      if (table.m_common_parents.is_overlapping(dependency_mask))
-      {
-        table.m_common_parents.clear_all();
       }
     }
 
