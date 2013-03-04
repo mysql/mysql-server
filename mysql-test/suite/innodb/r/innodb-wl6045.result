@@ -245,7 +245,7 @@ page-type-dump                    (No default value)
 # Print the contents of trace file.
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
-main: info: InnoChecksum; checking pages in range # to #
+main: info: InnoChecksum: checking pages in range # to #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
 main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
@@ -286,7 +286,7 @@ page-type-dump                    (No default value)
 find_type: enter: x: 'innodb'  lib: #x#
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
-main: info: InnoChecksum; checking pages in range # to #
+main: info: InnoChecksum: checking pages in range # to #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style:calculated = #; recorded checksum = #
 main: info: page::#; new style: calculated = #; recorded checksum  = #
@@ -334,7 +334,7 @@ Fail: page 4 invalid
 find_type: enter: x: 'crc32'  lib: #x#
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
-main: info: InnoChecksum; checking pages in range # to #
+main: info: InnoChecksum: checking pages in range # to #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
 main: info: page::#; log sequence number:first = #; second = #
@@ -370,7 +370,7 @@ page-type-dump                    (No default value)
 # Print the contents of trace file.
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
-main: info: InnoChecksum; checking pages in range # to #
+main: info: InnoChecksum: checking pages in range # to #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
 main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
@@ -403,7 +403,7 @@ page-type-dump                    (No default value)
 # Print the contents of trace file.
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
-main: info: InnoChecksum; checking page #
+main: info: InnoChecksum: checking page #
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
 main: info: page::#; new style: calculated = #; crc32 = #; recorded = #
