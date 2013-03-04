@@ -1802,14 +1802,14 @@ NOTE that this function can return false positives but never false
 negatives. The caller must confirm all positive results by calling
 trx_is_active(). */
 static
-trx_id_t
+trx_t*
 lock_sec_rec_some_has_impl(
 /*=======================*/
 	const rec_t*	rec,	/*!< in: user record */
 	dict_index_t*	index,	/*!< in: secondary index */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	trx_id_t	trx_id;
+	trx_t*		trx;
 	trx_id_t	max_trx_id;
 	const page_t*	page = page_align(rec);
 
@@ -1829,23 +1829,23 @@ lock_sec_rec_some_has_impl(
 
 	if (max_trx_id < trx_rw_min_trx_id() && !recv_recovery_is_on()) {
 
-		trx_id = 0;
+		trx = 0;
 
 	} else if (!lock_check_trx_id_sanity(max_trx_id, rec, index, offsets)) {
 
 		buf_page_print(page, 0, 0);
 
 		/* The page is corrupt: try to avoid a crash by returning 0 */
-		trx_id = 0;
+		trx = 0;
 
 	/* In this case it is possible that some transaction has an implicit
 	x-lock. We have to look in the clustered index. */
 
 	} else {
-		trx_id = row_vers_impl_x_locked(rec, index, offsets);
+		trx = row_vers_impl_x_locked(rec, index, offsets);
 	}
 
-	return(trx_id);
+	return(trx);
 }
 
 /*********************************************************************//**
@@ -5585,7 +5585,6 @@ lock_rec_insert_check_and_lock(
 	return(err);
 }
 
-
 /*********************************************************************//**
 If a transaction has an implicit x-lock on a record, but no explicit x-lock
 set on the record, sets one for it. */
@@ -5604,7 +5603,8 @@ lock_rec_convert_impl_to_expl_for_trx(
 
 	lock_mutex_enter();
 
-	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block, heap_no, trx)) {
+	if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+			       block, heap_no, trx)) {
 
 		ulint	type_mode;
 
@@ -5650,7 +5650,7 @@ lock_rec_convert_impl_to_expl(
 	dict_index_t*		index,	/*!< in: index of record */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 {
-	trx_id_t		trx_id;
+	trx_t*		trx;
 
 	ut_ad(!lock_mutex_own());
 	ut_ad(page_rec_is_user_rec(rec));
@@ -5658,35 +5658,31 @@ lock_rec_convert_impl_to_expl(
 	ut_ad(!page_rec_is_comp(rec) == !rec_offs_comp(offsets));
 
 	if (dict_index_is_clust(index)) {
+		trx_id_t	trx_id;
+
 		trx_id = lock_clust_rec_some_has_impl(rec, index, offsets);
-		/* The clustered index record was last modified by
-		this transaction. The transaction may have been
-		committed a long time ago. */
+
+		trx = trx_rw_is_active(trx_id, NULL, true);
 	} else {
 		ut_ad(!dict_index_is_online_ddl(index));
-		trx_id = lock_sec_rec_some_has_impl(rec, index, offsets);
+
+		trx = lock_sec_rec_some_has_impl(rec, index, offsets);
 		/* The transaction can be committed before the
 		trx_is_active(trx_id, NULL) check below, because we are not
 		holding lock_mutex. */
 	}
 
-	if (trx_id != 0) {
-		trx_t*	impl_trx;
+	if (trx != 0) {
 		ulint	heap_no = page_rec_get_heap_no(rec);
+
+		ut_a(trx->n_ref_count > 0);
 
 		/* If the transaction is still active and has no
 		explicit x-lock set on the record, set one for it.
-	        Set the n_ref_count flag, we don't want the transaction
-		to commit/rollback while we are converting its locks. */
+		trx cannot be committed until the ref count is zero. */
 
-		impl_trx = trx_rw_is_active(trx_id, NULL, true);
-
-		/* impl_trx cannot be committed until the ref count is zero */
-
-		if (impl_trx != NULL) {
-			lock_rec_convert_impl_to_expl_for_trx(
-				block, rec, index, offsets, impl_trx, heap_no);
-		}
+		lock_rec_convert_impl_to_expl_for_trx(
+			block, rec, index, offsets, trx, heap_no);
 	}
 }
 
@@ -6439,6 +6435,27 @@ lock_trx_release_locks(
 	/*--------------------------------------*/
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
+
+	if (trx->n_ref_count > 0) {
+
+		lock_mutex_exit();
+
+		while (trx->n_ref_count > 0) {
+			trx_mutex_exit(trx);
+
+			os_thread_yield();
+
+			trx_mutex_enter(trx);
+		}
+
+		trx_mutex_exit(trx);
+
+		lock_mutex_enter();
+
+		trx_mutex_enter(trx);
+	}
+
+	ut_a(trx->n_ref_count == 0);
 
 	if (trx->n_ref_count > 0) {
 
