@@ -54,8 +54,8 @@ UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 #ifdef UNIV_PFS_MUTEX
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	pool_mutex_key;
-UNIV_INTERN mysql_pfs_key_t	pools_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	trx_pool_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	trx_pools_mutex_key;
 /* Key to register the mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	trx_undo_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -205,7 +205,9 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(pool_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create(
+			trx_pool_mutex_key, &m_mutex,
+			SYNC_NO_ORDER_CHECK);
 	}
 
 	/** Acquire the mutex */
@@ -228,7 +230,9 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(pools_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
+		mutex_create(
+			trx_pools_mutex_key, &m_mutex,
+			SYNC_NO_ORDER_CHECK);
 	}
 
 	/** Acquire the mutex */
