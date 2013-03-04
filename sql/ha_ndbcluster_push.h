@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -290,7 +290,7 @@ private:
      *  - 'common' are those parents for which ::collect_key_refs()
      *     will find key_refs[] (possibly through the EQ-sets) such that all
      *     linkedValues() refer fields from the same parent.
-     *  - 'extendeded' are those parents refered from some of the 
+     *  - 'extended' are those parents refered from some of the 
      *     key_refs[], and having the rest of the key_refs[] available as
      *     'grandparent refs'.
      */
@@ -300,6 +300,22 @@ private:
     /**
      * (sub)Set of a parents which *must* be available as ancestors
      * due to dependencies on these parents tables.
+     *
+     * NOTE1: When the 'm_parent' has been choosen by
+     *        ::optimize_query_plan(), any remaining grandparent 
+     *        dependencies has to be added the 'depend_parents' 
+     *        of the choosen parents such that it is taken into account
+     *        when calculating the ancestor tables.
+     *
+     * NOTE2: These 'depend_parents' place restrictions on which of the
+     *        'common', 'extend' parents above we actually may use:
+     *        As all 'depend_parents' must be joined as (grand)parents 
+     *        prior to one of the selected common/extend parents, only
+     *        parents >= the last 'depend_parents' are the real candidates.
+     *
+     *        We currently mask away the unusable common/extend parents
+     *        as part of ::optimize_query_plan() prior to selecting
+     *        the parent.
      */
     ndb_table_access_map m_depend_parents;
 

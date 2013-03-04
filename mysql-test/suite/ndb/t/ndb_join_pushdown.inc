@@ -788,6 +788,76 @@ from t1
  left join t1 as t3 on t3.a = t1.a
  left join t1 as t4 on t4.a = t3.c;
 
+# Bug#16199028:
+# Tescase where a too strict 'root' was checked:
+# In these cases t4 was not pushed as it was incorrectly
+# concluded that its grandparent ref of 't2' through 't3'
+# introduced dependencies on the outer joined t1.
+#
+explain extended
+select straight_join *
+from
+ ( t1 as t0 left join t1 as t1 on t1.a = t0.a and t1.b = t0.b
+ )
+ left join
+ ( t1 as t2 join t1 as t3 on t3.a = t2.c and t3.b = t2.d
+            join t1 as t4 on t4.a = t3.c and t4.b = t2.c
+ )
+ on t2.a = t1.a and t2.b = t1.b;
+
+explain extended
+select straight_join *
+from
+  t1 as x1
+  left join 
+  ( t1 as x2 join t1 as x3 on x3.a=x2.c
+             join t1 as x4 on x4.a=x2.d
+             join t1 as x5 on x5.a=x3.d and x5.b=x4.d
+  )
+  on x2.a=x1.c and x2.b=x1.c and 
+     x3.b=x1.d and
+     x4.b=x1.d;
+
+
+# Bug#16198866:
+# Additional tests where equality set [t1.d, t3.b, t4.d]
+# propagation incorrectly allowed grandparent references
+# to be allowed 'through' outer joins (t2):
+#
+# Test: don't allow t4 to propagate parent deps past 
+# outer joined 't2' into t3.
+# (As that would implicit cause t3 to depend on t2.)
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t1.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+# However, if t3 already depends on t2 (t3.a = t2.b)
+# it *is* allowed as it will not introduce any new 
+# t3 dependencies.
+#
+# Note: Both these two queries are fully pushable, but 
+# the later will likely result in a better query plan.
+#
+explain extended
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
+
+--sorted_result
+select straight_join * from
+ (t1 left join t1 as t2 on t2.a = t1.c and t2.b = t1.d)
+ inner join t1 as t3 on t3.a = t2.b and t3.b = t1.c
+ left join t1 as t4 on t4.a = t2.c and t4.b = t1.c;
 
 # Test a combination of pushed table scan (x, y)
 #  & pushed EQ-bound (indexScan) (z, t1)
