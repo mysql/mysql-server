@@ -86,167 +86,172 @@ trx_set_detailed_error_from_file(
 			    sizeof(trx->detailed_error));
 }
 
-/****************************************************************//**
-Initializes a transaction object. It must be explicitly started with
-trx_start_if_not_started() before using it. The default isolation level
-is TRX_ISO_REPEATABLE_READ.
-@param trx_t	Transaction instance to initialise */
-static
-void
-trx_initialise(trx_t* trx)
-{
-	trx->magic_n = TRX_MAGIC_N;
-
-	trx->state = TRX_STATE_NOT_STARTED;
-
-	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
-
-	trx->no = IB_ULONGLONG_MAX;
-
-	trx->support_xa = TRUE;
-
-	trx->check_foreigns = TRUE;
-	trx->check_unique_secondary = TRUE;
-
-	trx->dict_operation = TRX_DICT_OP_NONE;
-
-	trx->error_state = DB_SUCCESS;
-
-	trx->lock.que_state = TRX_QUE_RUNNING;
-
-	trx->lock.lock_heap = mem_heap_create_typed(
-		256, MEM_HEAP_FOR_LOCK_HEAP);
-
-	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
-	trx->global_read_view_heap = mem_heap_create(256);
-
-	trx->xid.formatID = -1;
-
-	trx->op_info = "";
-
-	mem_heap_t*	heap;
-	ib_alloc_t*	heap_alloc;
-
-	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
-	heap_alloc = ib_heap_allocator_create(heap);
-
-	/* Remember to free the vector explicitly in trx_free(). */
-	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
-
-
-	/* Remember to free the vector explicitly in trx_free(). */
-	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 128);
-
-	heap_alloc = ib_heap_allocator_create(heap);
-
-	trx->lock.table_locks = ib_vector_create(
-		heap_alloc, sizeof(void**), 32);
-
-	mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
-	mutex_create(trx_undo_mutex_key, &trx->undo_mutex, SYNC_TRX_UNDO);
-}
-
-/********************************************************************//**
-Release resources held by the transaction object.
-@param trx	the transaction for which to release resources */
-static
-void
-trx_release(
-	trx_t*		trx)
-{
-	ut_a(trx->magic_n == TRX_MAGIC_N);
-	ut_ad(!trx->in_ro_trx_list);
-	ut_ad(!trx->in_rw_trx_list);
-	ut_ad(!trx->in_mysql_trx_list);
-
-	if (trx->undo_no_arr != NULL) {
-		trx_undo_arr_free(trx->undo_no_arr);
-	}
-
-	ut_a(trx->lock.wait_lock == NULL);
-	ut_a(trx->lock.wait_thr == NULL);
-
-	ut_a(!trx->has_search_latch);
-
-	ut_a(trx->dict_operation_lock_mode == 0);
-
-	if (trx->lock.lock_heap) {
-		mem_heap_free(trx->lock.lock_heap);
-	}
-
-	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-	if (trx->global_read_view_heap) {
-		mem_heap_free(trx->global_read_view_heap);
-	}
-
-	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	/* We allocated a dedicated heap for the vector. */
-	ib_vector_free(trx->autoinc_locks);
-
-	if (trx->lock.table_locks != NULL) {
-		/* We allocated a dedicated heap for the vector. */
-		ib_vector_free(trx->lock.table_locks);
-	}
-
-	mutex_free(&trx->mutex);
-	mutex_free(&trx->undo_mutex);
-}
-
-/** For initialising the trx_t instance that we get from the pool. */
+/** For managing the life-cycle of the trx_t instance that we get
+from the pool. */
 struct TrxFactory {
 
+	/**
+	Initializes a transaction object. It must be explicitly started with
+	trx_start_if_not_started() before using it. The default isolation level
+	is TRX_ISO_REPEATABLE_READ.
+	@param trx_t	Transaction instance to initialise */
 	static void init(trx_t* trx)
 	{
-		trx_initialise(trx);
+		trx->magic_n = TRX_MAGIC_N;
+
+		trx->state = TRX_STATE_NOT_STARTED;
+
+		trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+		trx->no = IB_ULONGLONG_MAX;
+
+		trx->support_xa = TRUE;
+
+		trx->check_foreigns = TRUE;
+		trx->check_unique_secondary = TRUE;
+
+		trx->dict_operation = TRX_DICT_OP_NONE;
+
+		trx->error_state = DB_SUCCESS;
+
+		trx->lock.que_state = TRX_QUE_RUNNING;
+
+		trx->lock.lock_heap = mem_heap_create_typed(
+			256, MEM_HEAP_FOR_LOCK_HEAP);
+
+		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+		trx->global_read_view_heap = mem_heap_create(256);
+
+		trx->xid.formatID = -1;
+
+		trx->op_info = "";
+
+		mem_heap_t*	heap;
+		ib_alloc_t*	heap_alloc;
+
+		heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
+		heap_alloc = ib_heap_allocator_create(heap);
+
+		/* Remember to free the vector explicitly in trx_free(). */
+		trx->autoinc_locks = ib_vector_create(
+			heap_alloc, sizeof(void**), 4);
+
+		/* Remember to free the vector explicitly in trx_free(). */
+		heap = mem_heap_create(
+			sizeof(ib_vector_t) + sizeof(void*) * 128);
+
+		heap_alloc = ib_heap_allocator_create(heap);
+
+		trx->lock.table_locks = ib_vector_create(
+			heap_alloc, sizeof(void**), 32);
+
+		mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
+
+		mutex_create(
+			trx_undo_mutex_key,
+			&trx->undo_mutex, SYNC_TRX_UNDO);
 	}
 
+	/**
+	Release resources held by the transaction object.
+	@param trx	the transaction for which to release resources */
 	static void destroy(trx_t* trx)
 	{
-		trx_release(trx);
+		ut_a(trx->magic_n == TRX_MAGIC_N);
+		ut_ad(!trx->in_ro_trx_list);
+		ut_ad(!trx->in_rw_trx_list);
+		ut_ad(!trx->in_mysql_trx_list);
+
+		if (trx->undo_no_arr != NULL) {
+			trx_undo_arr_free(trx->undo_no_arr);
+		}
+
+		ut_a(trx->lock.wait_lock == NULL);
+		ut_a(trx->lock.wait_thr == NULL);
+
+		ut_a(!trx->has_search_latch);
+
+		ut_a(trx->dict_operation_lock_mode == 0);
+
+		if (trx->lock.lock_heap) {
+			mem_heap_free(trx->lock.lock_heap);
+		}
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+		if (trx->global_read_view_heap) {
+			mem_heap_free(trx->global_read_view_heap);
+		}
+
+		ut_a(ib_vector_is_empty(trx->autoinc_locks));
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->autoinc_locks);
+
+		if (trx->lock.table_locks != NULL) {
+			/* We allocated a dedicated heap for the vector. */
+			ib_vector_free(trx->lock.table_locks);
+		}
+
+		mutex_free(&trx->mutex);
+		mutex_free(&trx->undo_mutex);
 	}
 };
 
+/** The lock strategy for TrxPool */
 struct TrxPoolLock {
 	TrxPoolLock() { }
 
+	/** Create the mutex */
 	void create()
 	{
 		mutex_create(pool_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
 	}
 
+	/** Acquire the mutex */
 	void enter() { mutex_enter(&m_mutex); }
 
+	/** Release the mutex */
 	void exit() { mutex_exit(&m_mutex); }
 
+	/** Free the mutex */
 	void destroy() { mutex_free(&m_mutex); }
 
+	/** Mutex to use */
 	ib_mutex_t	m_mutex;
 };
 
+/** The lock strategy for the TrxPoolManager */
 struct TrxPoolManagerLock {
 	TrxPoolManagerLock() { }
 
+	/** Create the mutex */
 	void create()
 	{
 		mutex_create(pools_mutex_key, &m_mutex, SYNC_NO_ORDER_CHECK);
 	}
 
+	/** Acquire the mutex */
 	void enter() { mutex_enter(&m_mutex); }
 
+	/** Release the mutex */
 	void exit() { mutex_exit(&m_mutex); }
 
+	/** Free the mutex */
 	void destroy() { mutex_free(&m_mutex); }
 
+	/** Mutex to use */
 	ib_mutex_t	m_mutex;
 };
 
+/** Use explicit mutexes for the trx_t pool and its manager. */
 typedef Pool<trx_t, TrxFactory, TrxPoolLock> trx_pool_t;
 typedef PoolManager<trx_pool_t, TrxPoolManagerLock > trx_pools_t;
 
+/** The trx_t pool manager */
 static trx_pools_t* trx_pools;
 
+/** Size of on trx_t pool in bytes. */
 static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 
 /** Create the trx_t pool */
@@ -269,6 +274,7 @@ trx_pool_close()
 	trx_pools = 0;
 }
 
+/** @return a trx_t instance from trx_pools.  */
 static
 trx_t*
 trx_create_low()
@@ -284,6 +290,9 @@ trx_create_low()
 	return(trx);
 }
 
+/**
+Release a trx_t instance back to the pool.
+@param trx	the instance to release. */
 static
 void
 trx_free(trx_t*& trx)
