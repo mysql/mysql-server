@@ -141,8 +141,7 @@ struct read_view_t{
 	trx_id_t	up_limit_id;
 				/*!< The read should see all trx ids which
 				are strictly smaller (<) than this value.
-				In other words,
-				this is the "low water mark". */
+				In other words, this is the "low water mark". */
 	ulint		n_trx_ids;
 				/*!< Number of cells in the trx_ids array */
 	trx_id_t*	trx_ids;/*!< Additional trx ids which the read should
@@ -154,8 +153,7 @@ struct read_view_t{
 				between the "low" and "high" water marks,
 				that is, up_limit_id and low_limit_id. */
 	trx_id_t	creator_trx_id;
-				/*!< trx id of creating transaction, or
-				0 used in purge */
+				/*!< trx id of creating transaction */
 	UT_LIST_NODE_T(read_view_t) view_list;
 				/*!< List of read views in trx_sys */
 };
