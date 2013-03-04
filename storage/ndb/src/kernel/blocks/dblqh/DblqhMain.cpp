@@ -11724,6 +11724,7 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
   if (accOpPtr != (Uint32)-1)
   {
     c_acc->execACCKEY_ORD(signal, accOpPtr);
+    jamEntry();
   }
   else
   {
@@ -11745,13 +11746,16 @@ void Dblqh::scanTupkeyRefLab(Signal* signal)
     closeScanLab(signal);
     return;
   }//if
-  if ((terrorCode != ZSEARCH_CONDITION_FALSE) &&
-      (terrorCode != ZNO_TUPLE_FOUND) &&
-      (terrorCode >= ZUSER_ERROR_CODE_LIMIT)) {
+  if ((terrorCode != ZUSER_SEARCH_CONDITION_FALSE_CODE) &&
+      (terrorCode != ZNO_TUPLE_FOUND)) {
+#ifdef VM_TRACE
+    ndbout << "Dblqh::scanTupkeyRefLab() aborting scan terrorCode=" 
+           << terrorCode << endl;
+#endif
     scanptr.p->scanErrorCounter++;
     tcConnectptr.p->errorCode = terrorCode;
 
-    if (scanptr.p->scanLockHold == ZTRUE) {
+    if (scanptr.p->scanLockHold == ZTRUE && rows > 0) {
       jam();
       scanptr.p->scanReleaseCounter = 1;
     } else {
