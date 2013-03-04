@@ -3451,7 +3451,7 @@ row_merge_build_indexes(
 		return(DB_OUT_OF_MEMORY);
 	}
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	merge_files = static_cast<merge_file_t*>(
 		mem_alloc(n_indexes * sizeof *merge_files));

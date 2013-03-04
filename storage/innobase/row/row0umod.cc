@@ -362,7 +362,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	dberr_t			err	= DB_SUCCESS;
 	mtr_t			mtr;
 	mtr_t			mtr_vers;
-	enum row_search_result	search_result;
+	row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
@@ -532,9 +532,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	trx_t*			trx		= thr_get_trx(thr);
 	const ulint		flags
 		= BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG;
-	enum row_search_result	search_result;
+	row_search_result	search_result;
 
-	ut_ad(trx->id);
+	ut_ad(trx->id > 0);
 
 	log_free_check();
 	mtr_start(&mtr);
