@@ -2964,6 +2964,8 @@ row_ins_index_entry(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	ut_ad(thr_get_trx(thr)->id > 0);
+
 	if (dict_index_is_clust(index)) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0));
 	} else {
@@ -3226,7 +3228,7 @@ row_ins_step(
 
 	trx = thr_get_trx(thr);
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	node = static_cast<ins_node_t*>(thr->run_node);
 
