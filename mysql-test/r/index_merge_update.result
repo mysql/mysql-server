@@ -1,0 +1,328 @@
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(
+key1 INT NOT NULL,
+key2 INT NOT NULL,
+key3 INT NOT NULL,
+key4 INT NOT NULL,
+key5 INT,
+key6 INT,
+key7 INT NOT NULL,
+key8 INT NOT NULL,
+INDEX i1(key1),
+INDEX i2(key2),
+INDEX i3(key3),
+INDEX i4(key4),
+INDEX i5(key5),
+INDEX i6(key6)
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+EXPLAIN UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using union(i1,i4); Using where
+SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
+COUNT(*)	SUM(key6)
+3	129
+UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
+SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
+COUNT(*)	SUM(key6)
+3	21
+EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3,i5,i6	i3,i5,i2	4,5,4	NULL	#	Using union(intersect(i3,i5),i2); Using where
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+COUNT(*)	SUM(key1)
+1	80
+UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+COUNT(*)	SUM(key1)
+1	18
+EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	Using union(i4,i5); Using where
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)	SUM(key3)
+10	287
+UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)	SUM(key3)
+10	180
+EXPLAIN UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using union(i2,i3); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+COUNT(*)	SUM(key8)
+3	1185
+UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+COUNT(*)	SUM(key8)
+3	192
+EXPLAIN UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3,i4,i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+COUNT(*)	SUM(key8)
+1	1
+UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+COUNT(*)	SUM(key8)
+1	18
+EXPLAIN UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+COUNT(*)	SUM(key3)
+39	1168
+UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+COUNT(*)	SUM(key3)
+39	1248
+EXPLAIN UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
+COUNT(*)	SUM(key7)
+2	85
+UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
+SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
+COUNT(*)	SUM(key7)
+2	50
+EXPLAIN UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	#	Using where; Using filesort
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
+COUNT(*)	SUM(key1)
+11	56
+UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
+COUNT(*)	SUM(key1)
+11	110
+EXPLAIN UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5=40 OR t1.key4=15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i4,i5	i5,i4	5,4	NULL	#	Using union(i5,i4); Using where
+1	SIMPLE	t2	index	NULL	i1	4	NULL	#	Using where; Using index; Using join buffer (Block Nested Loop)
+SELECT COUNT(*), SUM(key4) FROM t1;
+COUNT(*)	SUM(key4)
+2057	2098421
+UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5=40 OR t1.key4=15;
+SELECT COUNT(*), SUM(key4) FROM t1;
+COUNT(*)	SUM(key4)
+2057	2098396
+EXPLAIN UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i3,i4	i3,i4	4,4	NULL	#	Using union(i3,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i5	i1,i5	4,5	NULL	#	Using union(i1,i5); Using where
+SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+COUNT(*)	SUM(key7)
+0	NULL
+UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+COUNT(*)	SUM(key7)
+0	NULL
+EXPLAIN UPDATE t2 SET key2=2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using union(i1,i4); Using where
+3	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+COUNT(*)	SUM(key2)
+1	25
+UPDATE t2 SET key2=2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+COUNT(*)	SUM(key2)
+1	2
+EXPLAIN UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
+2	SUBQUERY	t1	index_merge	i4,i6	i6,i4	5,4	NULL	#	Using sort_union(i6,i4); Using where
+SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+COUNT(*)	SUM(key3)
+2057	2098421
+UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+COUNT(*)	SUM(key3)
+2057	41140
+EXPLAIN UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using union(i5,i6); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
+COUNT(*)	SUM(key8)
+1	64
+UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
+COUNT(*)	SUM(key8)
+1	50
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1
+(
+key1 INT NOT NULL,
+key2 INT NOT NULL,
+key3 INT NOT NULL,
+key4 INT NOT NULL,
+key5 INT,
+key6 INT,
+key7 INT NOT NULL,
+key8 INT NOT NULL,
+INDEX i1(key1,key2),
+INDEX i2(key2,key1),
+INDEX i3(key3,key4),
+INDEX i4(key4,key3),
+INDEX i5(key5,key6),
+INDEX i6(key6,key5),
+INDEX i7(key7,key8),
+INDEX i8(key8,key7)
+);
+ANALYZE TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	Table is already up to date
+EXPLAIN UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
+COUNT(*)	SUM(key6)
+3	129
+UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
+SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
+COUNT(*)	SUM(key6)
+3	21
+EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3,i5,i6	i3,i2	4,4	NULL	#	Using sort_union(i3,i2); Using where; Using temporary
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+COUNT(*)	SUM(key1)
+1	80
+UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+COUNT(*)	SUM(key1)
+1	18
+EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i4,i5,i6	i4,i5	4,5	NULL	#	Using sort_union(i4,i5); Using where; Using temporary
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)	SUM(key3)
+10	287
+UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
+COUNT(*)	SUM(key3)
+10	180
+EXPLAIN UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i2,i3	i2,i3	4,4	NULL	#	Using sort_union(i2,i3); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+COUNT(*)	SUM(key8)
+3	1185
+UPDATE t1 SET key8=64 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key2=80 OR key3=1025 OR key4 <=> NULL;
+COUNT(*)	SUM(key8)
+3	192
+EXPLAIN UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2,i3,i4,i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+COUNT(*)	SUM(key8)
+1	1
+UPDATE t1 SET key8=18 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE (key1 < 3 OR key2 < 2) AND (key3 < 3 OR key4 < 3) AND (key5 < 2 OR key6 < 2);
+COUNT(*)	SUM(key8)
+1	18
+EXPLAIN UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+COUNT(*)	SUM(key3)
+39	1168
+UPDATE t1 SET key3=32 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+SELECT COUNT(*), SUM(key3) FROM t1 WHERE key1 between 25 AND 40 OR key2 between 15 AND 49;
+COUNT(*)	SUM(key3)
+39	1248
+EXPLAIN UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i1,i2	i1,i2	4,4	NULL	#	Using sort_union(i1,i2); Using where
+SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
+COUNT(*)	SUM(key7)
+2	85
+UPDATE t1 SET key7=25 WHERE key1 IN (15,70) OR key2 IN (15,70);
+SELECT COUNT(*), SUM(key7) FROM t1 WHERE key1 IN (15,70) OR key2 IN (15,70);
+COUNT(*)	SUM(key7)
+2	50
+EXPLAIN UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i5,i8	i5,i8	5,4	NULL	#	Using sort_union(i5,i8); Using where; Using filesort
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
+COUNT(*)	SUM(key1)
+11	56
+UPDATE t1 SET key1=10 WHERE key5<5 OR key8<10 ORDER BY key1;
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE key5<5 OR key8<10 ORDER BY key1;
+COUNT(*)	SUM(key1)
+11	110
+EXPLAIN UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5=40 OR t1.key4=15;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i4,i5	i5,i4	5,4	NULL	#	Using sort_union(i5,i4); Using where
+1	SIMPLE	t2	index	NULL	i1	8	NULL	#	Using where; Using index; Using join buffer (Block Nested Loop)
+SELECT COUNT(*), SUM(key4) FROM t1;
+COUNT(*)	SUM(key4)
+2057	2098421
+UPDATE t1 left join t2 ON (t2.key1=t2.key1) SET t1.key4=15 WHERE t1.key5=40 OR t1.key4=15;
+SELECT COUNT(*), SUM(key4) FROM t1;
+COUNT(*)	SUM(key4)
+2057	2098396
+EXPLAIN UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i3,i4	i3,i4	4,4	NULL	#	Using sort_union(i3,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i5	i1,i5	4,5	NULL	#	Using sort_union(i1,i5); Using where
+SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+COUNT(*)	SUM(key7)
+0	NULL
+UPDATE t2 SET key7=7 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+SELECT COUNT(*), SUM(key7) FROM t2 WHERE (key3=28 OR key4=10)  AND key6 < ANY (SELECT key6 FROM t1 WHERE key1=10 OR key5=3);
+COUNT(*)	SUM(key7)
+0	NULL
+EXPLAIN UPDATE t2 SET key2=2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where; Using temporary
+3	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+2	SUBQUERY	t1	index_merge	i1,i4	i1,i4	4,4	NULL	#	Using sort_union(i1,i4); Using where
+SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+COUNT(*)	SUM(key2)
+1	25
+UPDATE t2 SET key2=2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+SELECT COUNT(*), SUM(key2) FROM t2 WHERE key1=25 OR key4=40 AND (key4 < SOME (SELECT key4 FROM t1 WHERE key1<5 OR key4<8) OR key1 < ANY (SELECT key1 FROM t1 WHERE key1<5 OR key4<7));
+COUNT(*)	SUM(key2)
+1	2
+EXPLAIN UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	#	NULL
+2	SUBQUERY	t1	index_merge	i4,i6	i6,i4	5,4	NULL	#	Using sort_union(i6,i4); Using where
+SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+COUNT(*)	SUM(key3)
+2057	2098421
+UPDATE t2 SET key3=20 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+SELECT COUNT(*), SUM(key3) FROM t2 WHERE EXISTS (SELECT * FROM t1 WHERE key6<3 OR key4<10);
+COUNT(*)	SUM(key3)
+2057	41140
+EXPLAIN UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index_merge	i5,i6	i5,i6	5,5	NULL	#	Using sort_union(i5,i6); Using where
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
+COUNT(*)	SUM(key8)
+1	64
+UPDATE t1 SET key8=50 WHERE key5=80 OR key6=49;
+SELECT COUNT(*), SUM(key8) FROM t1 WHERE key5=80 OR key6=49;
+COUNT(*)	SUM(key8)
+1	50
+DROP TABLE t1;
+DROP TABLE t2;
