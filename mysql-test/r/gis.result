@@ -1498,4 +1498,19 @@ create table t1 (pt point);
 insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
 ERROR 22007: Incorrect POINT value: 'POLYGON' for column 'pt' at row 1
 drop table t1;
+#
+# TODO-424 geometry query crashes server
+#
+select astext(0x0100000000030000000100000000000010);
+astext(0x0100000000030000000100000000000010)
+NULL
+select st_area(0x0100000000030000000100000000000010);
+st_area(0x0100000000030000000100000000000010)
+NULL
+select astext(st_exteriorring(0x0100000000030000000100000000000010));
+astext(st_exteriorring(0x0100000000030000000100000000000010))
+NULL
+select astext(st_centroid(0x0100000000030000000100000000000010));
+astext(st_centroid(0x0100000000030000000100000000000010))
+NULL
 End of 5.5 tests

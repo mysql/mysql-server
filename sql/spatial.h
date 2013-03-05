@@ -210,6 +210,11 @@ struct Geometry_buffer;
 class Geometry
 {
 public:
+  // Maximum number of points in feature that can fit into String
+  static const uint32 max_n_points=
+    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+    POINT_DATA_SIZE;
+
   Geometry() {}                               /* Remove gcc warning */
   virtual ~Geometry() {}                        /* Remove gcc warning */
   static void *operator new(size_t size, void *buffer)
@@ -391,10 +396,6 @@ public:
 
 class Gis_line_string: public Geometry
 {
-  // Maximum number of points in LineString that can fit into String
-  static const uint32 max_n_points=
-    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
-    POINT_DATA_SIZE;
 public:
   Gis_line_string() {}                        /* Remove gcc warning */
   virtual ~Gis_line_string() {}               /* Remove gcc warning */

@@ -1367,4 +1367,11 @@ create table t1 (pt point);
 insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
 drop table t1;
 
+--echo #
+--echo # TODO-424 geometry query crashes server
+--echo #
+select astext(0x0100000000030000000100000000000010);
+select st_area(0x0100000000030000000100000000000010);
+select astext(st_exteriorring(0x0100000000030000000100000000000010));
+select astext(st_centroid(0x0100000000030000000100000000000010));
 --echo End of 5.5 tests
