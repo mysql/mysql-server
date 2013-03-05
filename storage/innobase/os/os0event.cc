@@ -718,3 +718,14 @@ os_event_destroy(
 		event = 0;
 	}
 }
+
+/**
+Initialise the event sub-system. */
+UNIV_INTERN
+void
+os_event_init()
+{
+#ifdef __WIN__
+	os_win_init()
+#endif /* __WIN__ */
+}
