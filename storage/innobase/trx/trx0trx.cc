@@ -1569,8 +1569,8 @@ trx_commit_for_mysql(
 	case TRX_STATE_ACTIVE:
 	case TRX_STATE_PREPARED:
 		trx->op_info = "committing";
-		trx_commit(trx);
 		trx_update_mod_tables_timestamp(trx);
+		trx_commit(trx);
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
 		return(DB_SUCCESS);
