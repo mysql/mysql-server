@@ -154,6 +154,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[n] = f;
         f.columnNumber = n;
         f.defaultValue = c.defaultValue;
+        if (c.isAutoincrement) {
+          this.autoincrementFieldNumber = i;
+        }
       }
     }
   }
@@ -169,6 +172,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
+        if (c.isAutoincrement) {
+          this.autoincrementFieldNumber = i;
+        }
       }
     }
   }
@@ -262,6 +268,15 @@ DBTableHandler.prototype.newResultObject = function(values) {
   }
   udebug.log("newResultObject done", newDomainObj);
   return newDomainObj;
+};
+
+
+/* setAutoincrement(object, autoincrementValue) 
+ * IMMEDIATE
+ * Store autoincrement values into object
+ */
+DBTableHandler.prototype.setAutoincrement = function(object, autoincrementValue) {
+  this.set(object, this.autoincrementFieldNumber, autoincrementValue);
 };
 
 
