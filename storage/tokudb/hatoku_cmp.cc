@@ -1577,7 +1577,6 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
     return cmp;
 }
 
-#if TOKU_INCLUDE_ANALYZE
 static int tokudb_compare_two_key_parts(
     const void* new_key_data, 
     const uint32_t new_key_size, 
@@ -1679,7 +1678,6 @@ static int tokudb_cmp_dbt_key_parts(DB *file, const DBT *keya, const DBT *keyb, 
             (*(uint32_t *)file->cmp_descriptor->dbt.data) - 4,
             max_parts);
 }
-#endif
 
 uint32_t create_toku_main_key_pack_descriptor (
     uchar* buf

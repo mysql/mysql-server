@@ -1,5 +1,3 @@
-#if TOKU_INCLUDE_ANALYZE
-
 volatile int ha_tokudb_analyze_wait = 0; // debug
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
@@ -123,8 +121,6 @@ int ha_tokudb::analyze_key(THD *thd, DB_TXN *txn, uint key_i, KEY *key_info, uin
     }
     TOKUDB_DBUG_RETURN(error);
 }
-
-#endif
 
 static int hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;

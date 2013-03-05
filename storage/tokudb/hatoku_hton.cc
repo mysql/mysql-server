@@ -155,7 +155,6 @@ static MYSQL_THDVAR_BOOL(disable_slow_upsert,
     false // default
 );
 #endif
-#if TOKU_INCLUDE_ANALYZE
 static MYSQL_THDVAR_UINT(analyze_time,
     0,
     "analyze time",
@@ -166,7 +165,6 @@ static MYSQL_THDVAR_UINT(analyze_time,
     ~0U,   // max
     1      // blocksize???
 );
-#endif
 
 static void tokudb_checkpoint_lock(THD * thd);
 static void tokudb_checkpoint_unlock(THD * thd);
@@ -724,11 +722,9 @@ bool get_disable_slow_upsert(THD *thd) {
     return (THDVAR(thd, disable_slow_upsert) != 0);
 }
 #endif
-#if TOKU_INCLUDE_ANALYZE
 uint get_analyze_time(THD *thd) {
     return THDVAR(thd, analyze_time);
 }
-#endif
 
 typedef struct txn_progress_info {
     char status[200];
@@ -1930,9 +1926,7 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(disable_slow_update),
     MYSQL_SYSVAR(disable_slow_upsert),
 #endif
-#if TOKU_INCLUDE_ANALYZE
     MYSQL_SYSVAR(analyze_time),
-#endif
     NULL
 };
 

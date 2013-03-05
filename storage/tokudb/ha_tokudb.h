@@ -494,10 +494,8 @@ public:
     int delete_table(const char *name);
     int rename_table(const char *from, const char *to);
     int optimize(THD * thd, HA_CHECK_OPT * check_opt);
-#if TOKU_INCLUDE_ANALYZE
     int analyze(THD * thd, HA_CHECK_OPT * check_opt);
     int analyze_key(THD *thd, DB_TXN *txn, uint key_i, KEY *key_info, uint64_t num_key_parts, uint64_t *rec_per_key_part);
-#endif
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
