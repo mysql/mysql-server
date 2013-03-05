@@ -152,15 +152,6 @@ function saveClusterDefinition() {
         cluster.setValue("writeload", 
                 dijit.byId("cd_writeload").getValue());
 
-        // If simple test, disable write load widget and adv mode menu item
-        if (cluster.getValue("apparea") == "simple testing") {
-            dijit.byId("cd_writeload").setAttribute("disabled", true);
-            dijit.byId("advancedModeMenuItem").setAttribute("disabled", true);
-        } else {
-            dijit.byId("cd_writeload").setAttribute("disabled", false);
-            dijit.byId("advancedModeMenuItem").setAttribute("disabled", false);
-        }
-
         clusterStorage.save();
     });
 
@@ -233,15 +224,6 @@ function showClusterDefinition(initialize) {
                 cluster.getValue("apparea"));
         dijit.byId("cd_writeload").setValue(
                 cluster.getValue("writeload"));
-
-        // If simple test, disable write load widget
-        if (cluster.getValue("apparea") == "simple testing") {
-            dijit.byId("cd_writeload").setAttribute("disabled", true);
-            dijit.byId("advancedModeMenuItem").setAttribute("disabled", true);
-        } else {
-            dijit.byId("cd_writeload").setAttribute("disabled", false);
-            dijit.byId("advancedModeMenuItem").setAttribute("disabled", false);
-        }
     });
 
     // If hosts exist, set value

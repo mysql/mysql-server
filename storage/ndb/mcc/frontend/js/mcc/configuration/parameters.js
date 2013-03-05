@@ -550,8 +550,7 @@ var processParameterDefaults= {
                 defaultValueInstance: [],
                 visibleType: true,
                 visibleInstance: false,
-                advancedLevel: true,
-                simpleCfg: true
+                advancedLevel: true
             },
             StringMemory: {
                 label: "StringMemory",
@@ -1194,12 +1193,7 @@ function setPara(family, instanceId, parameter, attribute, value) {
 
 // Check if the attribute is visible at the chosen configuration level
 function visiblePara(dest, appArea, family, param) {
-    if (appArea == "simple testing") {
-        return !mcc.configuration.getPara(family, null, 
-                param, "advancedLevel") ||
-	    (dest == "cfg" && mcc.configuration.getPara(family, null, 
-                param, "simpleCfg"));
-    } else if (dest == "cfg") {
+    if (dest == "cfg") {
         return true;
     } else if (dest == "gui") {
         var advanced = getPara(family, null, param, "advancedLevel");

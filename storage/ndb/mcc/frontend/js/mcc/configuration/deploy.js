@@ -901,14 +901,7 @@ function getStartupCommand(process) {
                     "<td>--no-defaults</td></tr>" +
                     "<tr><td></td><td>--datadir=" + datadir + "</td></tr>" +
                     "<tr><td></td><td>--tmpdir=" + datadir + "tmp</td></tr>" +
-                    "<tr><td></td><td>--basedir=" + startupCommand.html.path + 
-                    "</td></tr>" +
-                    "<tr><td></td><td>--port=" + port + "</td></tr>" +
-                    "<tr><td></td><td>--ndbcluster</td></tr>" +
-                    "<tr><td></td><td>--ndb-nodeid=" + 
-                    process.getValue("NodeId") + "</td></tr>" +
-                    "<tr><td></td><td>--ndb-connectstring=" + connectString + 
-                    "</td></tr>";
+                    "<tr><td></td><td>--basedir=" + startupCommand.html.path + "</td></tr>";
 
             startupCommand.msg.procCtrl = {
                 hup: false,
@@ -941,8 +934,13 @@ function getStartupCommand(process) {
                     "<tr><td></td><td>--socket=" + socket + "</td></tr>";
             }
 
-            // Terminate option string properly
-            startupCommand.html.optionString += "</table>";
+            // Add the rest of the option string
+            startupCommand.html.optionString += "<tr><td></td><td>--port=" + port + "</td></tr>" +
+                    "<tr><td></td><td>--ndbcluster</td></tr>" +
+                    "<tr><td></td><td>--ndb-nodeid=" + 
+                    process.getValue("NodeId") + "</td></tr>" +
+                    "<tr><td></td><td>--ndb-connectstring=" + connectString + 
+                    "</td></tr></table>";
 
             // We also need an init command for mysqld
             if (mcc.util.isWin(host.getValue("uname"))) {
