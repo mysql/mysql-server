@@ -285,7 +285,7 @@ dict_stats_exec_sql(
 	}
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	err = que_eval_sql(pinfo, sql, FALSE, trx); /* pinfo is freed here */
 
@@ -772,10 +772,9 @@ dict_stats_update_transient_for_index(
 /*==================================*/
 	dict_index_t*	index)	/*!< in/out: index */
 {
-	if (UNIV_LIKELY
-	    (srv_force_recovery < SRV_FORCE_NO_IBUF_MERGE
+	if (srv_force_recovery < SRV_FORCE_NO_TRX_UNDO
 	     || (srv_force_recovery < SRV_FORCE_NO_LOG_REDO
-		 && dict_index_is_clust(index)))) {
+		 && dict_index_is_clust(index))) {
 		mtr_t	mtr;
 		ulint	size;
 
@@ -2762,7 +2761,7 @@ dict_stats_fetch_from_ps(
 
 	trx->isolation_level = TRX_ISO_READ_UNCOMMITTED;
 
-	trx_start_if_not_started(trx);
+	trx_start_internal(trx);
 
 	dict_fs2utf8(table->name, db_utf8, sizeof(db_utf8),
 		     table_utf8, sizeof(table_utf8));
