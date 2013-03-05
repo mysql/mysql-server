@@ -365,6 +365,7 @@ static void print_db_env_struct (void) {
 			     "int (*get_txn_from_xid)                 (DB_ENV*, /*in*/ TOKU_XA_XID *, /*out*/ DB_TXN **)",
 			     "int (*get_cursor_for_directory)            (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
 			     "int (*get_cursor_for_persistent_environment) (DB_ENV*, /*in*/ DB_TXN *, /*out*/ DBC **)",
+                 "void (*change_fsync_log_period)(DB_ENV*, uint32_t)",
                              NULL};
 
 	sort_and_dump_fields("db_env", true, extra);

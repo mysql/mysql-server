@@ -53,7 +53,7 @@ test2 (void* v)
 {
     struct minicron m;
     ZERO_STRUCT(m);
-    int r = toku_minicron_setup(&m, 10, never_run, 0);   assert(r==0);
+    int r = toku_minicron_setup(&m, 10000, never_run, 0);   assert(r==0);
     sleep(2);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
     return v;
@@ -90,7 +90,7 @@ test3 (void* v)
     gettimeofday(&tx.tv, 0);
     tx.counter=0;
     ZERO_STRUCT(m);
-    int r = toku_minicron_setup(&m, 1, run_5x, &tx);   assert(r==0);
+    int r = toku_minicron_setup(&m, 1000, run_5x, &tx);   assert(r==0);
     sleep(5);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
     assert(tx.counter>=4 && tx.counter<=5); // after 5 seconds it could have run 4 or 5 times.
@@ -113,7 +113,7 @@ test4 (void *v) {
     struct minicron m;
     int counter = 0;
     ZERO_STRUCT(m);
-    int r = toku_minicron_setup(&m, 2, run_3sec, &counter); assert(r==0);
+    int r = toku_minicron_setup(&m, 2000, run_3sec, &counter); assert(r==0);
     sleep(9);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
     assert(counter==2);
@@ -125,8 +125,8 @@ test5 (void *v) {
     struct minicron m;
     int counter = 0;
     ZERO_STRUCT(m);
-    int r = toku_minicron_setup(&m, 10, run_3sec, &counter); assert(r==0);
-    toku_minicron_change_period(&m, 2);
+    int r = toku_minicron_setup(&m, 10000, run_3sec, &counter); assert(r==0);
+    toku_minicron_change_period(&m, 2000);
     sleep(9);
     r = toku_minicron_shutdown(&m);                     assert(r==0);
     assert(counter==2);
@@ -137,7 +137,7 @@ static void*
 test6 (void *v) {
     struct minicron m;
     ZERO_STRUCT(m);
-    int r = toku_minicron_setup(&m, 5, never_run, 0); assert(r==0);
+    int r = toku_minicron_setup(&m, 5000, never_run, 0); assert(r==0);
     toku_minicron_change_period(&m, 0);
     sleep(7);
     r = toku_minicron_shutdown(&m);                          assert(r==0);

@@ -179,20 +179,12 @@ void toku_set_checkpoint_period (CACHETABLE ct, uint32_t new_period) {
     ct->cp.set_checkpoint_period(new_period);
 }
 
-uint32_t toku_get_checkpoint_period (CACHETABLE ct) {
-    return ct->cp.get_checkpoint_period();
-}
-
 uint32_t toku_get_checkpoint_period_unlocked (CACHETABLE ct) {
     return ct->cp.get_checkpoint_period();
 }
 
 void toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period) {
     ct->cl.set_period(new_period);
-}
-
-uint32_t toku_get_cleaner_period (CACHETABLE ct) {
-    return ct->cl.get_period();
 }
 
 uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct) {
@@ -3016,16 +3008,15 @@ void cleaner::set_iterations(uint32_t new_iterations) {
     m_cleaner_iterations = new_iterations;
 }
 
-uint32_t cleaner::get_period(void) {
-    return toku_minicron_get_period(&m_cleaner_cron);
-}
-
 uint32_t cleaner::get_period_unlocked(void) {
-    return toku_minicron_get_period_unlocked(&m_cleaner_cron);
+    return toku_minicron_get_period_in_seconds_unlocked(&m_cleaner_cron);
 }
 
+//
+// Sets how often the cleaner thread will run, in seconds
+//
 void cleaner::set_period(uint32_t new_period) {
-    toku_minicron_change_period(&m_cleaner_cron, new_period);
+    toku_minicron_change_period(&m_cleaner_cron, new_period*1000);
 }
 
 // Effect:  runs a cleaner.
@@ -4218,17 +4209,17 @@ void checkpointer::destroy() {
 }
 
 //
-// Sets how often the checkpoint thread will run.
+// Sets how often the checkpoint thread will run, in seconds
 //
 void checkpointer::set_checkpoint_period(uint32_t new_period) {
-    toku_minicron_change_period(&m_checkpointer_cron, new_period);
+    toku_minicron_change_period(&m_checkpointer_cron, new_period*1000);
 }
 
 //
 // Sets how often the checkpoint thread will run.
 //
 uint32_t checkpointer::get_checkpoint_period() {
-    return toku_minicron_get_period(&m_checkpointer_cron);
+    return toku_minicron_get_period_in_seconds_unlocked(&m_checkpointer_cron);
 }
 
 //

@@ -44,16 +44,22 @@ minicron_do (void *pv)
             toku_mutex_unlock(&p->mutex);
             return 0;
         }
-        if (p->period_in_seconds==0) {
+        if (p->period_in_ms == 0) {
             // if we aren't supposed to do it then just do an untimed wait.
             toku_cond_wait(&p->condvar, &p->mutex);
-        } else {
+        } 
+        else if (p->period_in_ms <= 1000) {
+            toku_mutex_unlock(&p->mutex);
+            usleep(p->period_in_ms * 1000);
+            toku_mutex_lock(&p->mutex);
+        }
+        else {
             // Recompute the wakeup time every time (instead of once per call to f) in case the period changges.
             toku_timespec_t wakeup_at = p->time_of_last_call_to_f;
-            wakeup_at.tv_sec += p->period_in_seconds;
+            wakeup_at.tv_sec += (p->period_in_ms/1000);
+            wakeup_at.tv_nsec += (p->period_in_ms % 1000) * 1000000;
             toku_timespec_t now;
             toku_gettime(&now);
-            //printf("wakeup at %.6f (after %d seconds) now=%.6f\n", wakeup_at.tv_sec + wakeup_at.tv_nsec*1e-9, p->period_in_seconds, now.tv_sec + now.tv_nsec*1e-9);
             int r = toku_cond_timedwait(&p->condvar, &p->mutex, &wakeup_at);
             if (r!=0 && r!=ETIMEDOUT) fprintf(stderr, "%s:%d r=%d (%s)", __FILE__, __LINE__, r, strerror(r));
             assert(r==0 || r==ETIMEDOUT);
@@ -63,12 +69,12 @@ minicron_do (void *pv)
             toku_mutex_unlock(&p->mutex);
             return 0;
         }
-        if (p->period_in_seconds >0) {
-            // maybe do a checkpoint
+        if (p->period_in_ms > 1000) {
             toku_timespec_t now;
             toku_gettime(&now);
             toku_timespec_t time_to_call = p->time_of_last_call_to_f;
-            time_to_call.tv_sec += p->period_in_seconds;
+            time_to_call.tv_sec += p->period_in_ms/1000;
+            time_to_call.tv_nsec += (p->period_in_ms % 1000) * 1000000;
             int compare = timespec_compare(&time_to_call, &now);
             //printf("compare(%.6f, %.6f)=%d\n", time_to_call.tv_sec + time_to_call.tv_nsec*1e-9, now.tv_sec+now.tv_nsec*1e-9, compare);
             if (compare <= 0) {
@@ -80,21 +86,26 @@ minicron_do (void *pv)
                 
             }
         }
+        else {
+            toku_mutex_unlock(&p->mutex);
+            int r = p->f(p->arg);
+            assert(r==0);
+            toku_mutex_lock(&p->mutex);
+        }
     }
 }
 
 int
-toku_minicron_setup(struct minicron *p, uint32_t period_in_seconds, int(*f)(void *), void *arg)
+toku_minicron_setup(struct minicron *p, uint32_t period_in_ms, int(*f)(void *), void *arg)
 {
     p->f = f;
     p->arg = arg;
     toku_gettime(&p->time_of_last_call_to_f);
     //printf("now=%.6f", p->time_of_last_call_to_f.tv_sec + p->time_of_last_call_to_f.tv_nsec*1e-9);
-    p->period_in_seconds = period_in_seconds; 
+    p->period_in_ms = period_in_ms; 
     p->do_shutdown = false;
     toku_mutex_init(&p->mutex, 0);
     toku_cond_init (&p->condvar, 0);
-    //printf("%s:%d setup period=%d\n", __FILE__, __LINE__, period_in_seconds);
     return toku_pthread_create(&p->thread, 0, minicron_do, p);
 }
     
@@ -102,25 +113,24 @@ void
 toku_minicron_change_period(struct minicron *p, uint32_t new_period)
 {
     toku_mutex_lock(&p->mutex);
-    p->period_in_seconds = new_period;
+    p->period_in_ms = new_period;
     toku_cond_signal(&p->condvar);
     toku_mutex_unlock(&p->mutex);
 }
 
+/* unlocked function for use by engine status which takes no locks */
 uint32_t
-toku_minicron_get_period(struct minicron *p)
+toku_minicron_get_period_in_seconds_unlocked(struct minicron *p)
 {
-    toku_mutex_lock(&p->mutex);
-    uint32_t retval = toku_minicron_get_period_unlocked(p);
-    toku_mutex_unlock(&p->mutex);
+    uint32_t retval = p->period_in_ms/1000;
     return retval;
 }
 
 /* unlocked function for use by engine status which takes no locks */
 uint32_t
-toku_minicron_get_period_unlocked(struct minicron *p)
+toku_minicron_get_period_in_ms_unlocked(struct minicron *p)
 {
-    uint32_t retval = p->period_in_seconds;
+    uint32_t retval = p->period_in_ms;
     return retval;
 }
 
