@@ -54,10 +54,10 @@ Created 10/10/1995 Heikki Tuuri
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
+	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
 	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
 	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
-	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
 	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
 
 	/** Count the amount of data written in total (in bytes) */
