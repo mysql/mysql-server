@@ -84,7 +84,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     for (i = 0; i < columnNames.length; ++i) {
       udebug.log_detail('convertColumnNamesToNumbers looking for: ', columnNames[i]);
       for (j = 0; j < columns.length; ++j) {
-        if (columnNames[i] == columns[j].name) {
+        if (columnNames[i] === columns[j].name) {
           result.push(j);
           break;
         }
@@ -97,6 +97,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     udebug.log_detail('parseCreateTable: ', statement);
     var columns = [];
     var indexes = [];
+    var index, indexName, usingHash;
     var result = {'name' : tableName,
         'database' : databaseName,
         'columns' : columns,
@@ -106,6 +107,9 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     var lines = statement.split('\n');
     var i;
     var columnNumber = 0;
+    var column, columnName, columnNumberIndex,
+      columnTypeAndSize, columnTypeAndSizeSplit, columnSize, columnType,
+      unsigned, nullable;
     // first line has table name which we ignore because we already know it
     for (i = 1; i < lines.length; ++i) {
       var defaultValue;    // if DEFAULT is not specified, defaultValue is undefined
@@ -120,7 +124,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       var j = 0; // index into tokens in the line
       var token = tokens[j];
       // remove empty tokens
-      while (token.length == 0) {
+      while (token.length === 0) {
         token = tokens[++j];
       }
       var unique = false;
@@ -129,7 +133,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       case 'PRIMARY':
         // found primary key definition
         j+= 2; // skip 'PRIMARY KEY'
-        var index = {};
+        index = {};
         index.name = 'PRIMARY';
         udebug.log_detail('parseCreateTable PRIMARY:', token);
         index.isPrimaryKey = true;
@@ -138,13 +142,13 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         var columnNames = tokens[j];
         var indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNames:', indexColumnNames);
-        var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
+        var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result.columns);
         udebug.log_detail('parseCreateTable PRIMARY indexColumnNumbers: ', indexColumnNumbers);
         index.columnNumbers = indexColumnNumbers;
         // mark primary key index columns with 'isInPrimaryKey'
-        for (var columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
-          var columnNumber = indexColumnNumbers[columnNumberIndex];
-          var column = columns[columnNumber];
+        for (columnNumberIndex = 0; columnNumberIndex < indexColumnNumbers.length; ++columnNumberIndex) {
+          columnNumber = indexColumnNumbers[columnNumberIndex];
+          column = columns[columnNumber];
           udebug.log_detail('parseCreateTable marking column', columnNumber,
                              columns[columnNumber].name);
           column.isInPrimaryKey = true;
@@ -162,31 +166,28 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       case 'KEY':
         ++j;
         // found key definition, same as unique
-        var index = {};
-        var indexName = tokens[j].split('`')[1];
+        index = {};
+        indexName = tokens[j].split('`')[1];
         index.name = indexName;
         if (unique) {
           index.isUnique = true;
         }
         // get column names
-        var columnNames = tokens[++j];
-        var indexColumnNames = decodeIndexColumnNames(columnNames);
+        columnNames = tokens[++j];
+        indexColumnNames = decodeIndexColumnNames(columnNames);
         udebug.log_detail('parseCreateTable KEY indexColumnNames:', indexColumnNames);
-        var indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result['columns']);
+        indexColumnNumbers = convertColumnNamesToNumbers(indexColumnNames, result.columns);
         udebug.log_detail('parseCreateTable KEY indexColumnNumbers:', indexColumnNumbers);
         index.columnNumbers = indexColumnNumbers;
 
-        var usingHash = false;
+        usingHash = false;
         // get using statement
         if (++j < tokens.length) {
           // more tokens
-          usingHash = -1 != tokens[++j].indexOf('HASH');
+          usingHash = -1 !== tokens[++j].indexOf('HASH');
         }
-        if (usingHash) {
+        if (!usingHash) {
           // TODO create two index objects for unique btree index
-          // only HASH
-        } else {
-          // btree or both
           index.isOrdered = true;
         }
         udebug.log_detail('parseCreateTable for ', indexName, 'KEY USING HASH:', usingHash);
@@ -199,31 +200,31 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
 
       default:
         // found column definition
-        var nullable = true; // default if no 'NOT NULL' clause
-        var unsigned = false; // default if no 'unsigned' clause
-        var column = {};
+        nullable = true; // default if no 'NOT NULL' clause
+        unsigned = false; // default if no 'unsigned' clause
+        column = {};
 
         column.columnNumber = columnNumber++;
         // decode the column name
-        var columnName = (token.split('`'))[1];
+        columnName = (token.split('`'))[1];
         udebug.log_detail('parseCreateTable: columnName:', columnName);
         column.name = columnName;
         // analyze column type
-        var columnTypeAndSize = tokens[++j];
+        columnTypeAndSize = tokens[++j];
         udebug.log_detail('parseCreateTable: columnDefinition:', columnTypeAndSize);
-        var columnTypeAndSizeSplit = columnTypeAndSize.split('(');
-        var columnType = columnTypeAndSizeSplit[0];
+        columnTypeAndSizeSplit = columnTypeAndSize.split('(');
+        columnType = columnTypeAndSizeSplit[0];
         udebug.log_detail('parseCreateTable for: ', columnName, ': columnType: ', columnType);
         column.columnType = columnType;
         if (columnTypeAndSizeSplit.length > 1) {
-          var columnSize = columnTypeAndSizeSplit[1].split(')')[0];
+          columnSize = columnTypeAndSizeSplit[1].split(')')[0];
           udebug.log_detail('parseCreateTable for: ', columnName, ': columnSize: ', columnSize);
         }
         ++j;
 
         // check for unsigned
-        if (tokens[j] == 'unsigned') {
-          var unsigned = true;
+        if (tokens[j] === 'unsigned') {
+          unsigned = true;
           ++j;
         }
         udebug.log_detail('parseCreateTable for:', columnName, ': unsigned: ', unsigned);
@@ -244,11 +245,11 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         case 'binary':
         case 'varbinary':
           column.isBinary = true;
-          column.length = parseInt(columnSize);
+          column.length = parseInt(columnSize, 10);
           break;
         case 'char':
         case 'varchar':
-          column.length = parseInt(columnSize);
+          column.length = parseInt(columnSize, 10);
           break;
         case 'blob':
           column.isBinary = true;
@@ -258,26 +259,26 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
         // continue parsing the rest of the column definition line
 
         // check for character set
-        if (tokens[j] == 'CHARACTER') {
+        if (tokens[j] === 'CHARACTER') {
           var charset = tokens[j + 2];
           udebug.log_detail('parseCreateTable for:', columnName, ': charset: ', charset);
           j += 3; // skip 'CHARACTER SET charset'
           column.charsetName = charset;
           // check for collation
-          if (tokens[j] == 'COLLATE') {
+          if (tokens[j] === 'COLLATE') {
             var collation = tokens[j + 1];
             udebug.log_detail('parseCreateTable for: ', columnName, ': collation: ', collation);
             column.collationName = collation;
             j+= 2; // skip 'COLLATE collation'
           }
         }
-        if (tokens[j] == 'NOT') { // 'NOT NULL' clause
+        if (tokens[j] === 'NOT') { // 'NOT NULL' clause
           nullable = false;
           j += 2; // skip 'not null'
         }
         udebug.log_detail('parseCreateTable for: ', columnName, ' NOT NULL: ', !nullable);
         column.isNullable = nullable;
-        if (tokens[j] == 'DEFAULT') {
+        if (tokens[j] === 'DEFAULT') {
           rawDefaultValue = tokens[j + 1];
           if (rawDefaultValue === 'NULL') {
             // default value is null
@@ -287,7 +288,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
             // this will return the first (and presumed only) quoted string in the line
             rawDefaultValue = line.split('\'')[1];
             if (column.isIntegral) {
-              defaultValue = parseInt(rawDefaultValue);
+              defaultValue = parseInt(rawDefaultValue, 10);
             } else {
               defaultValue = rawDefaultValue;
             }
@@ -297,6 +298,11 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
           // add defaultValue to model
           column.defaultValue = defaultValue;
           j += 2; // skip 'DEFAULT <value>'
+        }
+        
+        if (tokens[j] === 'AUTO_INCREMENT') {
+          column.isAutoincrement = true;
+          j++; // skip 'AUTO_INCREMENT'
         }
 
         // add the column description metadata
@@ -330,6 +336,6 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     }
   };
 
-  this.connection.query('show create table ' + tableName + '', showCreateTable_callback);
+  this.connection.query('show create table ' + tableName, showCreateTable_callback);
 };
 
