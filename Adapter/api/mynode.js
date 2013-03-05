@@ -100,7 +100,7 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
     if (typeof(factory) === 'undefined') {
       // create a SessionFactory for the existing dbConnectionPool
       udebug.log('connect creating factory with existing', connectionKey, 'database', database);
-      factory = createFactory();
+      factory = createFactory(dbConnectionPool);
       connection.factories[database] = factory;
       connection.count++;
     } 
