@@ -13757,6 +13757,14 @@ enum multi_range_types
      bytes of row data.
 */
 
+static inline
+ulong multi_range_buffer_size(const HANDLER_BUFFER* buffer)
+{
+  const size_t buf_size = buffer->buffer_end - buffer->buffer;
+  DBUG_ASSERT(buf_size < ULONG_MAX);
+  return (ulong)buf_size;
+}
+
 /* Return the needed size of the fixed array at start of HANDLER_BUFFER. */
 static ulong
 multi_range_fixed_size(int num_ranges)
@@ -14066,7 +14074,7 @@ int ha_ndbcluster::multi_range_read_init(RANGE_SEQ_IF *seq_funcs,
     If supplied buffer is smaller than needed for just one range, we cannot do
     multi_range_read.
   */
-  ulong bufsize= buffer->buffer_end - buffer->buffer;
+  const ulong bufsize= multi_range_buffer_size(buffer);
 
   if (mode & HA_MRR_USE_DEFAULT_IMPL
       || bufsize < multi_range_fixed_size(1) +
@@ -14183,7 +14191,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
     multi_range_entry_size(!read_multi_needs_scan(cur_index_type, key_info,
                                                   &mrr_cur_range, is_pushed),
                                                   reclength);
-  ulong bufsize= end_of_buffer - multi_range_buffer->buffer;
+  const ulong bufsize= multi_range_buffer_size(multi_range_buffer);
   int max_range= multi_range_max_ranges(ranges_in_seq,
                                         bufsize - min_entry_size);
   DBUG_ASSERT(max_range > 0);
