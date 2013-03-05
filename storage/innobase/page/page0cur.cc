@@ -592,7 +592,7 @@ page_cur_insert_rec_write_log(
 		log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {
 			return;
-		} 
+		}
 		mlog_close(mtr, log_ptr);
 		log_ptr = NULL;
 	}
