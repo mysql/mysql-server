@@ -297,7 +297,7 @@ struct sql_ex_info
 #define OVER_MAX_DBS_IN_EVENT_MTS 254
 
 /* size of prepare and commit sequence numbers in the status vars */
-#define PREPARE_COMMIT_SEQ_LEN  8/*bytes*/
+#define COMMIT_SEQ_LEN  8/*bytes*/
 
 /* 
   Max number of possible extra bytes in a replication event compared to a
@@ -318,7 +318,7 @@ struct sql_ex_info
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
                                                    /* type, prepare & commit timestamp */ + \
-                                   1U+ 2 * PREPARE_COMMIT_SEQ_LEN + \
+                                   1U+ 2 * COMMIT_SEQ_LEN + \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
@@ -407,13 +407,11 @@ struct sql_ex_info
 #define Q_MICROSECONDS 13
 
 /*
-  Q_PREPARE_TS and Q_COMMIT_TS status variables stores the pepare
-  timestamp when the transaction entered the binlog prepare and commit
-  phases respectively. These wll be used to apply transactions in parallel
+  Q_COMMIT_TS status variable stores the logical timestamp when the transaction
+  entered the commit phase. This wll be used to apply transactions in parallel
   on the slave.
  */
-#define Q_PREPARE_TS 14
-#define Q_COMMIT_TS 15
+#define Q_COMMIT_TS 14
 
 /* GTID log event post header */
 #define G_PREPARE_TS 1
@@ -2221,7 +2219,6 @@ public:        /* !!! Public in this patch to allow old usage */
     Prepare and commit sequence number. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 prepare_seq_no;
   int64 commit_seq_no;
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
@@ -4849,7 +4846,6 @@ public:
     Prepare and commit sequence number. will be set to 0 if the event is not a
     transaction starter.
    */
-  int64 prepare_seq_no;
   int64 commit_seq_no;
 #ifndef MYSQL_CLIENT
   /**
@@ -4981,7 +4977,7 @@ public:
     ENCODED_GNO_LENGTH       +  /* GNO length */
     1                        +  /* TYPECODE for G_PREPARE_TS */
     1                        +  /* TYPECODE for G_COMMIT_TS  */
-    2 * PREPARE_COMMIT_SEQ_LEN; /* PREPARE COMMIT sequence length */
+    2 * COMMIT_SEQ_LEN; /* PREPARE COMMIT sequence length */
 
 private:
   /**

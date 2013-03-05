@@ -1895,7 +1895,7 @@ int reset_master(THD* thd)
 
   if (mysql_bin_log.reset_logs(thd))
     return 1;
-  mysql_bin_log.prepare_commit_clock.reset_both();
+  mysql_bin_log.commit_clock.reset();
   (void) RUN_HOOK(binlog_transmit, after_reset_master, (thd, 0 /* flags */));
   return 0;
 }
