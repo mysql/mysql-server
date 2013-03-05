@@ -258,11 +258,10 @@ function processTreeViewSetup(clusterName) {
 }
 
 // Setup a check box to toggle advanced mode. Also update the omnipresent menu
-function advancedModeCheckBoxSetup(disable) {    
+function advancedModeCheckBoxSetup() {    
     var advancedModeBox = new dijit.form.CheckBox({
         label: "Show advanced configuration options",
         checked: (mcc.util.getCookie("configLevel") == "advanced"),
-        disabled: disable,
         onChange: function(val) { 
             if (val) {
                 mcc.util.setCookie("configLevel", "advanced");
@@ -281,8 +280,7 @@ function processTreeSetup() {
     // Fetch cluster name, to be used in tree heading
     mcc.storage.clusterStorage().getItem(0).then(function(cluster) {
         processTreeViewSetup(cluster.getValue("name"));
-        advancedModeCheckBoxSetup(cluster.getValue("apparea")
-                == "simple testing");
+        advancedModeCheckBoxSetup();
     });
 }
 

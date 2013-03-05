@@ -93,7 +93,7 @@ class HostInfo(object):
         if (local == 'Windows' and (remote == 'CYGWIN' or remote == 'Windows')) or (local != 'Windows' and remote != 'CYGWIN' and remote != 'Windows'):
             _logger.debug('localhost and remote are similar type, apply local paths')
             reply['hostRes']['installdir'] = request_handler.basedir
-            reply['hostRes']['datadir'] = os.path.expanduser('~/MySQL_Cluster/data')
+            reply['hostRes']['datadir'] = os.path.expanduser('~/MySQL_Cluster')
 
         return reply
     

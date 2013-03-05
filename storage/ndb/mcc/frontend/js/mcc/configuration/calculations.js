@@ -416,17 +416,30 @@ function typeSetup(processItem) {
 
                     // Get overridden redo log file size
                     var fileSz = processItem.getValue("FragmentLogFileSize");
+                    
+                    // If not overridden, set value depending on app area
                     if (!fileSz) {
-                        fileSz = mcc.configuration.getPara(processtype, null, 
-                                "FragmentLogFileSize", "defaultValueType");
+                        // Lower value if simple testing, easier on resources
+                        if (cluster.getValue("apparea") == "simple testing") {
+                            fileSz = 64;
+                        } else {
+                            fileSz = 256;                        
+                        }
+                        mcc.configuration.setPara(processtype, null, 
+                                "FragmentLogFileSize", "defaultValueType", fileSz);
                     }
                     mcc.util.dbg("FragmentLogFileSize=" + fileSz);
 
                     // Caclulate and set number of files
                     var dataMem = mcc.configuration.getPara(processtype, null, 
                                     "DataMemory", "defaultValueType");
-                    var noOfFiles = Math.floor(6 * dataMem / fileSz / 4);
+                    var noOfFiles = 16;
 
+                    // Use def value unless not simple testing and DataMem defined
+                    if (cluster.getValue("apparea") != "simple testing" && dataMem) {
+                        noOfFiles = Math.floor(6 * dataMem / fileSz / 4);
+                    }
+                        
                     // At least three files in each set
                     if (noOfFiles < 3) {
                         noOfFiles = 3;
@@ -472,7 +485,7 @@ function ndb_mgmd_setup(processitem, processtype, host, waitCondition) {
     // Set datadir
     mcc.configuration.setPara(processtype, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep + "data" + dirSep);
+            processitem.getValue("NodeId") + dirSep);
 
     // Get colleague nodes, find own index on host
     mcc.util.getColleagueNodes(processitem).then(function (colleagues) {
@@ -507,7 +520,7 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
     // Set datadir
     mcc.configuration.setPara(processtype, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep + "data" + dirSep);
+            processitem.getValue("NodeId") + dirSep);
 
     // Get cluster attributes
     mcc.storage.clusterStorage().getItem(0).then(function (cluster) {
@@ -560,13 +573,18 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                     // Set number of cores
                     if (!isNaN(machineCores)) {
                         var nExecThreads = 2;
-                        // Divide by number of data nodes
-                        machineCores = machineCores / nNdbdOnHost; 
-                        if (machineCores > 6) {
-                            nExecThreads = 8;
-                        } else if (machineCores > 3) {
-                            nExecThreads = 4;
+
+                        // Lower value if simple testing, easier on resources
+                        if (cluster.getValue("apparea") != "simple testing") {
+                            // Divide by number of data nodes
+                            machineCores = machineCores / nNdbdOnHost; 
+                            if (machineCores > 6) {
+                                nExecThreads = 8;
+                            } else if (machineCores > 3) {
+                                nExecThreads = 4;
+                            }
                         }
+                        
                         mcc.configuration.setPara(processtype, id, 
                                 "MaxNoOfExecutionThreads",
                                 "defaultValueInstance", nExecThreads);
@@ -580,6 +598,11 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                                 tableObjectMemory - attrsObjectMemory - 
                                 indexes - RedoBuffer - ops - backup - 
                                 SharedGlobalMemory) / (8 * nNdbdOnHost));
+
+                        // Lower value if simple testing, easier on resources
+                        if (cluster.getValue("apparea") == "simple testing") {
+                            indexMemory = Math.floor(indexMemory / 4);
+                        }
 
                         // Obey constraints
                         var indexConstraints = mcc.configuration.
@@ -610,6 +633,11 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                                 RedoBuffer - ops - backup - SharedGlobalMemory -
                                 realIndexMemory) / (1000 * nNdbdOnHost));
 
+                        // Lower value if simple testing, easier on resources
+                        if (cluster.getValue("apparea") == "simple testing") {
+                            dataMemory = Math.floor(dataMemory / 4);
+                        }
+
                         // Obey constraints
                         var dataConstraints = mcc.configuration.
                                 getPara(processtype, null,
@@ -619,7 +647,7 @@ function ndbd_setup(processitem, processtype, host, waitCondition) {
                         } else if (dataMemory > dataConstraints.max) {
                             dataMemory = dataConstraints.max;
                         }
-
+                        
                         mcc.configuration.setPara(processtype, id, "DataMemory",
                                 "defaultValueInstance", dataMemory);
                     }
@@ -639,11 +667,11 @@ function mysqld_setup(processitem, processtype, host, waitCondition) {
     // Set datadir and socket
     mcc.configuration.setPara(processtype, id, "DataDir",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep + "data" + dirSep);
+            processitem.getValue("NodeId") + dirSep);
 
     mcc.configuration.setPara(processtype, id, "Socket",
             "defaultValueInstance", datadir +
-            processitem.getValue("NodeId") + dirSep + "sock" + dirSep + 
+            processitem.getValue("NodeId") + dirSep + 
             "mysql.socket");
 
     // Get colleague nodes, find own index on host

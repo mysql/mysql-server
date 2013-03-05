@@ -291,11 +291,11 @@ function getPredefinedDirectory(uname, type) {
     var dirs = {
         SunOS: {
             installdir: "/usr/local/bin/",
-            datadir: "/var/lib/mysql-cluster-data/"
+            datadir: "/var/lib/mysql-cluster/"
         },
         Linux: {
             installdir: "/usr/local/bin/",
-            datadir: "/var/lib/mysql-cluster-data/"
+            datadir: "/var/lib/mysql-cluster/"
         },
         CYGWIN: {
             installdir: "C:\\Program Files\\MySQL\\",
@@ -307,7 +307,7 @@ function getPredefinedDirectory(uname, type) {
         },
         unknown: {
             installdir: "/usr/local/bin/",
-            datadir: "/var/lib/mysql-cluster-data/"
+            datadir: "/var/lib/mysql-cluster/"
         }
     }
     if (!uname || !dirs[uname]) {
