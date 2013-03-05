@@ -208,6 +208,7 @@ trx_write_trx_id(
 #if DATA_TRX_ID_LEN != 6
 # error "DATA_TRX_ID_LEN != 6"
 #endif
+	ut_ad(id > 0);
 	mach_write_to_6(ptr, id);
 }
 
@@ -442,8 +443,8 @@ Allocates a new transaction id.
 @return	new, allocated trx id */
 UNIV_INLINE
 trx_id_t
-trx_sys_get_new_trx_id(void)
-/*========================*/
+trx_sys_get_new_trx_id()
+/*====================*/
 {
 	ut_ad(mutex_own(&trx_sys->mutex));
 
@@ -454,7 +455,7 @@ trx_sys_get_new_trx_id(void)
 	Thus trx id values will not overlap when the database is
 	repeatedly started! */
 
-	if (!(trx_sys->max_trx_id % (trx_id_t) TRX_SYS_TRX_ID_WRITE_MARGIN)) {
+	if (!(trx_sys->max_trx_id % TRX_SYS_TRX_ID_WRITE_MARGIN)) {
 
 		trx_sys_flush_max_trx_id();
 	}
