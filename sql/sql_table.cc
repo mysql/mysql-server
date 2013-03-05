@@ -6814,7 +6814,11 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     error= trans_commit_stmt(thd);
     if (trans_commit_implicit(thd))
       error= 1;
-    table->s->allow_access_to_protected_table();
+    /*
+      If the table was locked, allow one to still run SHOW commands against it
+    */
+    if (table->s->protected_against_usage())
+      table->s->allow_access_to_protected_table();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
 
