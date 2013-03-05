@@ -2799,7 +2799,6 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
 {
   Slave_committed_queue *gaq= rli->gaq;
   int64 commit_seq_no;
-  int64 prepare_seq_no;
 
   if (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
   {
@@ -2812,25 +2811,20 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
     {
     case QUERY_EVENT:
       commit_seq_no= static_cast<Query_log_event*>(ev)->commit_seq_no;
-      prepare_seq_no= static_cast<Query_log_event*>(ev)->prepare_seq_no;
       break;
 
     case GTID_LOG_EVENT:
       commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
-      prepare_seq_no= static_cast<Gtid_log_event*>(ev)->prepare_seq_no;
       break;
 
     default:
       // these can never be a group changer
       commit_seq_no= 0;
-      prepare_seq_no= 0;
       break;
     }
 
-    DBUG_PRINT("info", ("MTS::slave p=%lld, c=%lld",prepare_seq_no,
-                         commit_seq_no));
-    if (prepare_seq_no > 0 &&
-        (commit_seq_no != rli->mts_last_known_commit_parent ||
+    DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
+    if ((commit_seq_no != rli->mts_last_known_commit_parent ||
          rli->mts_last_known_commit_parent == PC_UNINIT))
     {
       rli->mts_last_known_commit_parent= commit_seq_no;
@@ -3696,21 +3690,17 @@ bool Query_log_event::write(IO_CACHE* file)
   }
 
   /*
-    We store 0 in the following two status vars since we don't have the prepare
-    and the commit timestamps. The logical timestamps will be updated in the
+    We store 0 in the following status var since we don't have the
+    commit timestamps. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (thd && !thd->prepare_commit_offset)
+  if (thd && !thd->commit_ts_offset)
   {
-    thd->prepare_commit_offset= QUERY_HEADER_LEN +
-                                (int)(start-start_of_status);
-    *start++= Q_PREPARE_TS;
-    int8store(start, 0);
-    start+= PREPARE_COMMIT_SEQ_LEN;
-
+    thd->commit_ts_offset= QUERY_HEADER_LEN +
+                           (int)(start-start_of_status);
     *start++= Q_COMMIT_TS;
     int8store(start, 0);
-    start+= PREPARE_COMMIT_SEQ_LEN;
+    start+= COMMIT_SEQ_LEN;
   }
   /*
     NOTE: When adding new status vars, please don't forget to update
@@ -4087,7 +4077,6 @@ code_name(int code)
   case Q_MASTER_DATA_WRITTEN_CODE: return "Q_MASTER_DATA_WRITTEN_CODE";
   case Q_UPDATED_DB_NAMES: return "Q_UPDATED_DB_NAMES";
   case Q_MICROSECONDS: return "Q_MICROSECONDS";
-  case Q_PREPARE_TS: return "Q_PREPARE_TS";
   case Q_COMMIT_TS: return "Q_COMMIT_TS";
   }
   sprintf(buf, "CODE#%d", code);
@@ -4351,17 +4340,10 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
         DBUG_VOID_RETURN;
       break;
     }
-
-    case Q_PREPARE_TS:
-      CHECK_SPACE(pos, end, PREPARE_COMMIT_SEQ_LEN);
-      prepare_seq_no= (int64)uint8korr(pos);
-      pos+= PREPARE_COMMIT_SEQ_LEN;
-      break;
-
     case Q_COMMIT_TS:
-      CHECK_SPACE(pos, end, PREPARE_COMMIT_SEQ_LEN);
+      CHECK_SPACE(pos, end, COMMIT_SEQ_LEN);
       commit_seq_no= (int64)uint8korr(pos);
-      pos+= PREPARE_COMMIT_SEQ_LEN;
+      pos+= COMMIT_SEQ_LEN;
       break;
     default:
       /* That's why you must write status vars in growing order of code */
@@ -13509,17 +13491,11 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   spec.gtid.gno= uint8korr(ptr_buffer);
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
-  /* fetch the prepare timestamp */
-  DBUG_ASSERT(*ptr_buffer == G_PREPARE_TS);
-  ptr_buffer++;
-  prepare_seq_no= (int64)uint8korr(ptr_buffer);
-  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
-
   /* fetch the commit timestamp */
   DBUG_ASSERT(*ptr_buffer == G_COMMIT_TS);
   ptr_buffer++;
   commit_seq_no= (int64)uint8korr(ptr_buffer);
-  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+  ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_VOID_RETURN;
 }
@@ -13612,14 +13588,14 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-  thd->prepare_commit_offset= ptr_buffer- buffer;
+  thd->commit_ts_offset= ptr_buffer- buffer;
   *ptr_buffer++= G_PREPARE_TS;
   int8store(ptr_buffer, 0);
-  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+  ptr_buffer+= COMMIT_SEQ_LEN;
 
   *ptr_buffer++= G_COMMIT_TS;
   int8store(ptr_buffer, 0);
-  ptr_buffer+= PREPARE_COMMIT_SEQ_LEN;
+  ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
   DBUG_RETURN(wrapper_my_b_safe_write(file, (uchar *) buffer, sizeof(buffer)));
