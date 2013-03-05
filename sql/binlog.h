@@ -32,12 +32,12 @@ class Logical_clock_state
 {
 private:
   volatile int64 state;
-  int64 step;
+  int64 clock_step;
 protected:
-  inline void init(){ state= 0; step= 1;}
+  inline void init(){state= 0; clock_step= 1;}
 public:
   Logical_clock_state(){init();}
-  int64 step_clock();
+  int64 step();
   int64 get_timestamp();
   void reset();
 };
@@ -538,54 +538,10 @@ public:
     m_key_file_log_index= key_file_log_index;
   }
 #endif
-  class Prepare_commit_clock
-  {
-  private:
-    my_atomic_rwlock_t state_LOCK;
 
-    /* clock to timestamp the binlog prepares */
-    Logical_clock_state prepare_clock;
-
-    /* Clock to timestamp the commits */
-    Logical_clock_state commit_clock;
-  public:
-    int64 step_prepare_clock()
-    {
-      int64 retval;
-      my_atomic_rwlock_wrlock(&state_LOCK);
-      retval= prepare_clock.step_clock();
-      if (retval == INT_MAX64 - 1) /* Wrap around to Tzero */
-      {
-        prepare_clock.reset();
-        commit_clock.reset();
-      }
-      my_atomic_rwlock_wrunlock(&state_LOCK);
-      return retval;
-    }
-    int64 step_commit_clock()
-    {
-      int64 retval;
-      my_atomic_rwlock_wrlock(&state_LOCK);
-      retval= commit_clock.step_clock();
-      my_atomic_rwlock_wrunlock(&state_LOCK);
-      return retval;
-    }
-    int64 get_commit_ts()
-    {
-      int64 retval;
-      my_atomic_rwlock_rdlock(&state_LOCK);
-      retval= commit_clock.get_timestamp();
-      my_atomic_rwlock_rdunlock(&state_LOCK);
-      return retval;
-    }
-    void reset_both()
-    {
-      my_atomic_rwlock_wrlock(&state_LOCK);
-      prepare_clock.reset();
-      commit_clock.reset();
-      my_atomic_rwlock_wrunlock(&state_LOCK);
-    }
-  } prepare_commit_clock;
+public:
+  /* Clock to timestamp the commits */
+  Logical_clock_state commit_clock;
 
   /**
     Reads the set of all GTIDs in the binary log, and the set of all

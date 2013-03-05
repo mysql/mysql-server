@@ -2186,14 +2186,11 @@ public:
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
 
-  /* MTS: Trans prepare timestamp  */
-  int64 prepare_seq_no;
-
   /* MTS: Trans commit timestamp */
   int64 commit_seq_no;
 
   /* MTS: offset to the prepare & commit seq. no. in the status vars */
-  int prepare_commit_offset;
+  int commit_ts_offset;
 
 #endif /* MYSQL_CLIENT */
 

@@ -1201,12 +1201,10 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
   */
-  if (all && thd->prepare_seq_no == PC_UNINIT)
+  if (all && thd->commit_seq_no == PC_UNINIT)
   {
     thd->commit_seq_no=
-      mysql_bin_log.prepare_commit_clock.get_commit_ts();
-    thd->prepare_seq_no=
-      mysql_bin_log.prepare_commit_clock.step_prepare_clock();
+      mysql_bin_log.commit_clock.get_timestamp();
 
   }
   return 0;
@@ -1566,12 +1564,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
      already written in function ha_commit_trans and will not step the prepare
      clock or overwrite the commit parent timestamp.
      */
-    if (thd->prepare_seq_no == PC_UNINIT)
+    if (thd->commit_seq_no == PC_UNINIT)
     {
       thd->commit_seq_no=
-        mysql_bin_log.prepare_commit_clock.get_commit_ts();
-      thd->prepare_seq_no=
-        mysql_bin_log.prepare_commit_clock.step_prepare_clock();
+        mysql_bin_log.commit_clock.get_timestamp();
     }
     error= ordered_commit(thd, all, /* skip_commit */ true);
   }
@@ -5335,28 +5331,18 @@ void fix_prepare_commit_seq_no(THD* thd, uchar* buff)
 {
   DBUG_ENTER("fix_prepare_commit_seq_no");
   uchar* pc_ptr= buff;
-  DBUG_ASSERT(thd->prepare_seq_no != PC_UNINIT);
   DBUG_ASSERT(thd->commit_seq_no != PC_UNINIT);
-  DBUG_PRINT("info", ("MTS:: PTS:=%lld, CTS:=%lld",
-             thd->prepare_seq_no, thd->commit_seq_no));
-  DBUG_DUMP("info", pc_ptr, 2*(PREPARE_COMMIT_SEQ_LEN+1));
+  DBUG_PRINT("info", ("MTS:: CTS:=%lld",
+                       thd->commit_seq_no));
+  DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
 
-  /* Additional check to prevent corrupting events */
-  DBUG_ASSERT((*pc_ptr == Q_PREPARE_TS || *pc_ptr == G_PREPARE_TS));
-  pc_ptr++;
-
-  //fix prepare seq no.
-  int8store(pc_ptr, thd->prepare_seq_no);
-  pc_ptr+= PREPARE_COMMIT_SEQ_LEN;
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
 
   //fix commit ts
   int8store(pc_ptr, thd->commit_seq_no);
-  DBUG_DUMP("info", pc_ptr, 2*(PREPARE_COMMIT_SEQ_LEN+1));
   thd->commit_seq_no= PC_UNINIT;
-  thd->prepare_seq_no= PC_UNINIT;
-  thd->prepare_commit_offset= 0;
+  thd->commit_ts_offset= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -5397,8 +5383,8 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   ulong remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
-  uint pc_offset= LOG_EVENT_HEADER_LEN + thd->prepare_commit_offset;
-  DBUG_PRINT("info",("pc_offset=%d", thd->prepare_commit_offset));
+  uint pc_offset= LOG_EVENT_HEADER_LEN + thd->commit_ts_offset;
+  DBUG_PRINT("info",("pc_offset=%d", thd->commit_ts_offset));
   uchar header[LOG_EVENT_HEADER_LEN];
   ha_checksum crc= 0, crc_0= 0; // assignments to keep compiler happy
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
@@ -6324,12 +6310,10 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       already written in function ha_commit_trans and will not step the prepare
       clock or overwrite the commit parent timestamp.
      */
-    if (thd->prepare_seq_no == PC_UNINIT)
+    if (thd->commit_seq_no == PC_UNINIT)
     {
       thd->commit_seq_no=
-        mysql_bin_log.prepare_commit_clock.get_commit_ts();
-      thd->prepare_seq_no=
-        mysql_bin_log.prepare_commit_clock.step_prepare_clock();
+        mysql_bin_log.commit_clock.get_timestamp();
     }
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
@@ -6837,7 +6821,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     themselves.
    */
   thd->commit_seq_no=
-    mysql_bin_log.prepare_commit_clock.step_commit_clock();
+    mysql_bin_log.commit_clock.step();
   if (opt_binlog_order_commits)
   {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,
@@ -8653,12 +8637,15 @@ SYNOPSIS:
   @ret_val: current timestamp
  */
 int64
-Logical_clock_state::step_clock()
+Logical_clock_state::step()
 {
   int64 retval;
   DBUG_ENTER("Logical_clock_state::step_clock");
-  (void) my_atomic_add64(&state, step);
-  retval= my_atomic_load64(&state);
+  my_atomic_rwlock_wrlock(&state_LOCK);
+  retval= my_atomic_add64(&state, clock_step);
+  if (retval == (INT_MAX64 - 1))
+    init();
+  my_atomic_rwlock_wrunlock(&state_LOCK);
   DBUG_RETURN(retval);
 }
 
@@ -8671,7 +8658,9 @@ Logical_clock_state::get_timestamp()
 {
   int64 retval= 0;
   DBUG_ENTER("Logical_clock_state::step_clock");
+  my_atomic_rwlock_rdlock(&state_LOCK);
   retval= my_atomic_load64(&state);
+  my_atomic_rwlock_rdunlock(&state_LOCK);
   DBUG_RETURN(retval);
 }
 /**
@@ -8682,7 +8671,9 @@ void
 Logical_clock_state::reset()
 {
   DBUG_ENTER("Logical_clock_state::reset");
+  my_atomic_rwlock_wrlock(&state_LOCK);
   (void) my_atomic_store64(&state, 0);
+  my_atomic_rwlock_wrunlock(&state_LOCK);
   DBUG_VOID_RETURN;
 }
 
