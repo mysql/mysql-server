@@ -726,6 +726,6 @@ void
 os_event_init()
 {
 #ifdef __WIN__
-	os_win_init()
+	os_win_init();
 #endif /* __WIN__ */
 }
