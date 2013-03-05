@@ -1383,11 +1383,12 @@ void THD::cleanup(void)
 #error xid_state in the cache should be replaced by the allocated value
   }
 #endif
-  {
-    transaction.xid_state.xa_state= XA_NOTR;
-    trans_rollback(this);
-    xid_cache_delete(&transaction.xid_state);
-  }
+
+  close_temporary_tables(this);
+
+  transaction.xid_state.xa_state= XA_NOTR;
+  trans_rollback(this);
+  xid_cache_delete(&transaction.xid_state);
 
   locked_tables_list.unlock_locked_tables(this);
   mysql_ha_cleanup(this);
@@ -1421,7 +1422,6 @@ void THD::cleanup(void)
 
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
-  close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
 
