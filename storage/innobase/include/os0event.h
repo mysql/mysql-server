@@ -143,4 +143,10 @@ os_event_wait_time_low(
 @param t - timeout in microseconds */
 #define os_event_wait_time(e, t) os_event_wait_time_low((e), (t), 0)
 
+/**
+Initialise the event sub-system. */
+UNIV_INTERN
+void
+os_event_init();
+
 #endif /* !os0event_h */
