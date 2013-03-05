@@ -497,19 +497,22 @@ fts_ast_visit(
 		} else if (node->type == FTS_AST_OPER) {
 			oper = node->oper;
 			oper_node = node;
+			if (oper == FTS_IGNORE) {
+				/* Change the operator to FTS_IGNORE_SKIP,
+				so that it is processed in the second pass */
+				oper_node->oper = FTS_IGNORE_SKIP;
+			}
 		} else {
 			if (node->visited) {
 				continue;
 			}
 
 			ut_a(oper == FTS_NONE || !oper_node
-			     || oper_node->oper == oper);
+			     || oper_node->oper == oper
+			     || oper_node->oper == FTS_IGNORE_SKIP);
 
 			if (oper == FTS_IGNORE) {
 				*has_ignore = true;
-				/* Change the operator to FTS_IGNORE_SKIP,
-				so that it is processed in the second pass */
-				oper_node->oper = FTS_IGNORE_SKIP;
 				continue;
 			}
 
@@ -533,12 +536,17 @@ fts_ast_visit(
 		     node = node->next) {
 
 			if (node->type == FTS_AST_LIST) {
+				fts_ast_oper_t	new_oper;
+
+				new_oper = FTS_IGNORE
+						? FTS_IGNORE_SKIP
+						: oper;
+
 				/* In this pass, it will process all those
 				operators ignored in the first pass, and those
 				whose operators are set to FTS_IGNORE_SKIP */
-				error = fts_ast_visit(
-					oper, node, visitor, arg,
-					&will_be_ignored);
+				error = fts_ast_visit(new_oper, node, visitor,
+						      arg, &will_be_ignored);
 			}
 		}
 	}
