@@ -42,7 +42,7 @@ Autoreqprov:  on
 Version:      %{version_cur}
 Release:      1
 BuildRoot:    %{_tmppath}/%{name}-%{version}-build
-Obsoletes:    MySQL-shared, mysql-shared
+Obsoletes:    mysql-shared
 Provides:     MySQL-shared
 Summary:      MySQL shared client libraries for MySQL %{version}, %{version41}, %{version40} and %{version3}
 # We simply use the "MySQL-shared" subpackages as input sources instead of
