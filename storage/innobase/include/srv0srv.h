@@ -178,10 +178,6 @@ extern FILE*	srv_misc_tmpfile;
 
 extern char*	srv_data_home;
 
-#ifdef UNIV_LOG_ARCHIVE
-extern char*	srv_arch_dir;
-#endif /* UNIV_LOG_ARCHIVE */
-
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
@@ -296,12 +292,6 @@ is 5% of the max where max is srv_io_capacity.  */
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
-
-#ifdef UNIV_LOG_ARCHIVE
-extern ibool		srv_log_archive_on;
-extern ibool		srv_archive_recovery;
-extern ib_uint64_t	srv_archive_recovery_limit_lsn;
-#endif /* UNIV_LOG_ARCHIVE */
 
 extern char*	srv_file_flush_method_str;
 extern ulint	srv_unix_file_flush_method;
