@@ -25,7 +25,7 @@ t1.run = function() {
   // use the id to find an instance
   var from = global.integraltypes;
   var key = 2;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // key and testCase are passed to fail_verify_t_basic as extra parameters
     session.find(from, key, fail_verify_integraltypes, key, testCase, true);
   });
