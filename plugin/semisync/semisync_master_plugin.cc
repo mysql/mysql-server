@@ -21,6 +21,14 @@
 
 ReplSemiSyncMaster repl_semisync;
 
+/* The place at where semi sync waits binlog events */
+enum enum_wait_point {
+  WAIT_AFTER_SYNC,
+  WAIT_AFTER_COMMIT
+};
+
+static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
+
 C_MODE_START
 
 int repl_semi_report_binlog_update(Binlog_storage_param *param,
@@ -43,6 +51,17 @@ int repl_semi_report_binlog_update(Binlog_storage_param *param,
   return error;
 }
 
+int repl_semi_report_binlog_sync(Binlog_storage_param *param,
+                                 const char *log_file,
+                                 my_off_t log_pos)
+{
+  /* Server should never call this function, when it is a old plugin */
+  DBUG_EXECUTE_IF("simulate_old_semisync_master_plugin", DBUG_SUICIDE(););
+  if (rpl_semi_sync_master_wait_point == WAIT_AFTER_SYNC)
+    return repl_semisync.commitTrx(log_file, log_pos);
+  return 0;
+}
+
 int repl_semi_request_commit(Trans_param *param)
 {
   return 0;
@@ -53,7 +72,8 @@ int repl_semi_report_commit(Trans_param *param)
 
   bool is_real_trans= param->flags & TRANS_IS_REAL_TRANS;
 
-  if (is_real_trans && param->log_pos)
+  if (rpl_semi_sync_master_wait_point == WAIT_AFTER_COMMIT &&
+      is_real_trans && param->log_pos)
   {
     const char *binlog_name= param->log_file;
     return repl_semisync.commitTrx(binlog_name, param->log_pos);
@@ -204,14 +224,40 @@ static MYSQL_SYSVAR_ULONG(trace_level, rpl_semi_sync_master_trace_level,
   &fix_rpl_semi_sync_master_trace_level, // update
   32, 0, ~0UL, 1);
 
+static const char *wait_point_names[]= {"AFTER_SYNC", "AFTER_COMMIT", NullS};
+static TYPELIB wait_point_typelib= {
+  array_elements(wait_point_names) - 1,
+  "",
+  wait_point_names,
+  NULL
+};
+static MYSQL_SYSVAR_ENUM(
+  wait_point,                      /* name     */
+  rpl_semi_sync_master_wait_point, /* var      */
+  PLUGIN_VAR_OPCMDARG,             /* flags    */
+  "Semisync can wait for slave ACKs at one of two points,"
+  "AFTER_SYNC or AFTER_COMMIT. AFTER_SYNC is the default value."
+  "AFTER_SYNC means that semisynchronous replication waits just after the "
+  "binary log file is flushed, but before the engine commits, and so "
+  "guarantees that no other sessions can see the data before replicated to "
+  "slave. AFTER_COMMIT means that semisynchronous replication waits just "
+  "after the engine commits. Other sessions may see the data before it is "
+  "replicated, even though the current session is still waiting for the commit "
+  "to end successfully.",
+  NULL,                            /* check()  */
+  NULL,                            /* update() */
+  WAIT_AFTER_SYNC,                 /* default  */
+  &wait_point_typelib              /* typelib  */
+);
+
 static SYS_VAR* semi_sync_master_system_vars[]= {
   MYSQL_SYSVAR(enabled),
   MYSQL_SYSVAR(timeout),
   MYSQL_SYSVAR(wait_no_slave),
   MYSQL_SYSVAR(trace_level),
+  MYSQL_SYSVAR(wait_point),
   NULL,
 };
-
 
 static void fix_rpl_semi_sync_master_timeout(MYSQL_THD thd,
 				      SYS_VAR *var,
@@ -264,6 +310,7 @@ Binlog_storage_observer storage_observer = {
   sizeof(Binlog_storage_observer), // len
 
   repl_semi_report_binlog_update, // report_update
+  repl_semi_report_binlog_sync,   // after_sync
 };
 
 Binlog_transmit_observer transmit_observer = {
@@ -395,10 +442,27 @@ static int semi_sync_master_plugin_init(void *p)
   init_semisync_psi_keys();
 #endif
 
+  char *endptr= NULL;
+  long i= strtol(server_version, &endptr, 10);
+  long j= strtol(++endptr, &endptr, 10);
+
+  if (i == LONG_MIN || i == LONG_MAX || j == LONG_MAX || j == LONG_MAX)
+    return 1;
+
+  // versions before 5.7
+  if (i < 5 || ( i == 5 && j < 7))
+    sql_print_warning("Server version is lower than 5.7, after_sync interface "
+                      "is not supported on this server, and AFTER_SYNC feature "
+                      "does not work.");
+
   if (repl_semisync.initObject())
     return 1;
   if (register_trans_observer(&trans_observer, p))
     return 1;
+
+  DBUG_EXECUTE_IF("simulate_old_semisync_master_plugin",
+                  storage_observer.len-= sizeof(void *););
+
   if (register_binlog_storage_observer(&storage_observer, p))
     return 1;
   if (register_binlog_transmit_observer(&transmit_observer, p))
