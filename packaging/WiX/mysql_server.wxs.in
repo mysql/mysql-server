@@ -2,7 +2,7 @@
       xmlns:util="http://schemas.microsoft.com/wix/UtilExtension">
 
 <!--
-   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 
   <Product 
     Id="*" 
-    UpgradeCode="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5"
+    UpgradeCode="F59F931A-0282-45D0-97CD-33F8B43AE3C2"
     Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
@@ -41,7 +41,7 @@
 
     <!-- Upgrade -->
     
-    <Upgrade Id="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5">
+    <Upgrade Id="F59F931A-0282-45D0-97CD-33F8B43AE3C2">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
@@ -58,16 +58,6 @@
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
-    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
-      <UpgradeVersion 
-        Minimum="5.6.0"
-        IncludeMinimum="yes"
-        Maximum="5.6.6"
-		IncludeMaximum="yes"
-        Property="OLDUPGRADECODE"
-        MigrateFeatures="yes"
-        />
-    </Upgrade>	
     <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
       NOT NEWERVERSIONDETECTED OR Installed
     </Condition>
