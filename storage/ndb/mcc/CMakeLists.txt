@@ -31,8 +31,8 @@ configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}"
   "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_NAME}")
 
 # Overwrites the checked-in version
-configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
-  "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_BASE}")
+#configure_file("${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_IN}" 
+#  "${CMAKE_CURRENT_SOURCE_DIR}/${MCC_SCRIPT_BASE}")
 
 set(MCC_LAUNCH_BASE "setup")
 
