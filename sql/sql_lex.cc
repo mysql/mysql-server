@@ -468,16 +468,7 @@ void lex_start(THD *thd)
     I tried "bzero" in the sql_yacc.yy code, but that for
     some reason made the values zero, even if they were set
   */
-  lex->server_options.server_name= 0;
-  lex->server_options.server_name_length= 0;
-  lex->server_options.host= 0;
-  lex->server_options.db= 0;
-  lex->server_options.username= 0;
-  lex->server_options.password= 0;
-  lex->server_options.scheme= 0;
-  lex->server_options.socket= 0;
-  lex->server_options.owner= 0;
-  lex->server_options.port= -1;
+  lex->server_options.reset();
   lex->explain_format= NULL;
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
