@@ -120,9 +120,6 @@ extern mysql_pfs_key_t  row_drop_list_mutex_key;
 #ifdef UNIV_PFS_RWLOCK
 /* Following are rwlock keys used to register with MySQL
 performance schema */
-# ifdef UNIV_LOG_ARCHIVE
-extern	mysql_pfs_key_t	archive_lock_key;
-# endif /* UNIV_LOG_ARCHIVE */
 extern	mysql_pfs_key_t btr_search_latch_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -141,7 +138,6 @@ extern	mysql_pfs_key_t	dict_table_stats_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
 extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
-
 #ifndef HAVE_ATOMIC_BUILTINS
 
 #include "sync0mutex.h"
