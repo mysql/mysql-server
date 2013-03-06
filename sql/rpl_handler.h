@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2010, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,6 +159,8 @@ public:
   typedef Binlog_storage_observer Observer;
   int after_flush(THD *thd, const char *log_file,
                   my_off_t log_pos);
+  int after_sync(THD *thd, const char *log_file,
+                 my_off_t log_pos);
 };
 
 #ifdef HAVE_REPLICATION

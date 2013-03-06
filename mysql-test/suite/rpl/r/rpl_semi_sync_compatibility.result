@@ -1,0 +1,68 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+include/install_semisync.inc
+#
+# Initialization
+#
+CALL mtr.add_suppression("The plugin's Binlog_storage_observer structure.*");
+CALL mtr.add_suppression(".* after_sync interface is not supported.*");
+CREATE TABLE t1(c1 INT);
+include/rpl_sync.inc
+#
+# New server and old plugin
+#
+SET GLOBAL DEBUG="d,simulate_old_semisync_master_plugin";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+SET GLOBAL rpl_semi_sync_master_enabled = 1;
+# Test AFTER_COMMIT, it should work well
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+include/rpl_sync.inc
+include/assert.inc [rpl_semi_sync_master_yes_tx increased 2]
+# Test AFTER_SYNC, it should does not work
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+include/rpl_sync.inc
+include/assert.inc [rpl_semi_sync_master_yes_tx increased 0]
+include/assert.inc [rpl_semi_sync_master_yes_no increased 0]
+#
+# Old server and new plugin(two old versions cover two check logics)
+#
+SET GLOBAL DEBUG="d,simulate_old_server_4.8";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+SET GLOBAL DEBUG="d,simulate_old_server_5.5";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+SET GLOBAL rpl_semi_sync_master_enabled = 1;
+# Test AFTER_COMMIT, it should work well
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+include/rpl_sync.inc
+include/assert.inc [rpl_semi_sync_master_yes_tx increased 2]
+# Test AFTER_SYNC, it should does not work
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+INSERT INTO t1 VALUES(2);
+INSERT INTO t1 VALUES(3);
+include/rpl_sync.inc
+include/assert.inc [rpl_semi_sync_master_yes_tx increased 0]
+include/assert.inc [rpl_semi_sync_master_yes_no increased 0]
+SET GLOBAL DEBUG="d,recover_server_version";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
+#
+# Cleanup
+#
+DROP TABLE t1;
+SET GLOBAL DEBUG="";
+include/uninstall_semisync.inc
+UNINSTALL PLUGIN rpl_semi_sync_slave;
+UNINSTALL PLUGIN rpl_semi_sync_master;
+include/rpl_end.inc

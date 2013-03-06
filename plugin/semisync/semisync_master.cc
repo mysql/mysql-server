@@ -47,7 +47,6 @@ unsigned long long rpl_semi_sync_master_net_wait_time = 0;
 unsigned long long rpl_semi_sync_master_trx_wait_time = 0;
 char rpl_semi_sync_master_wait_no_slave = 1;
 
-
 static int getWaitTime(const struct timespec& start_ts);
 
 static unsigned long long timespec_to_usec(const struct timespec *ts)
