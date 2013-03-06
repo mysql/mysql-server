@@ -53,7 +53,7 @@ GetOptions(\%opt,
 $opt{'help'} and usage();
 
 unless (@ARGV) {
-    my $defaults   = `my_print_defaults mysqld mariadb`;
+    my $defaults   = `my_print_defaults --mysqld`;
 
     my $datadir = ($defaults =~ m/--datadir=(.*)/g)[-1];
     if (!$datadir or $opt{i}) {

@@ -49,6 +49,7 @@ MariaDB bug reports should be submitted through https://mariadb.atlassian.net/
 SET(CPACK_RPM_SPEC_MORE_DEFINE "
 %define mysql_vendor ${CPACK_PACKAGE_VENDOR}
 %define mysqlversion ${MYSQL_NO_DASH_VERSION}
+%define mysqlbasedir ${CMAKE_INSTALL_PREFIX}
 %define mysqldatadir ${INSTALL_MYSQLDATADIR}
 %define mysqld_user  mysql
 %define mysqld_group mysql

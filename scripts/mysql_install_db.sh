@@ -257,7 +257,7 @@ fi
 
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
-parse_arguments `"$print_defaults" $defaults mysqld mariadb mysql_install_db client-server`
+parse_arguments `"$print_defaults" $defaults --mysqld mysql_install_db`
 parse_arguments PICK-ARGS-FROM-ARGV "$@"
 
 # Configure paths to support files
