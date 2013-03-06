@@ -299,3 +299,17 @@ if(timeoutMillis > 0) {
   udebug.log_detail('Setting timeout of', timeoutMillis);
   setTimeout(onTimeout, timeoutMillis);
 }
+
+/** Open a session or fail the test case */
+global.fail_openSession = function(testCase, callback) {
+  var properties = global.test_conn_properties;
+  mynode.openSession(properties, null, function(err, session) {
+    if (err) {
+      testCase.fail(err);
+      return;
+    }
+    testCase.session = session;
+    callback(session, testCase);
+ });
+};
+
