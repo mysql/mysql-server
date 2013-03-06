@@ -774,7 +774,7 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
          tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     {
       len+= tab->get_max_used_fieldlength();
-      len_last=+ tab->get_used_fieldlength();
+      len_last+= tab->get_used_fieldlength();
     }
     size_t len_addon= get_record_max_affix_length() +
                       get_max_key_addon_space_per_record();
