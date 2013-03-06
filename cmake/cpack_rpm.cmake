@@ -107,7 +107,7 @@ SET(CPACK_RPM_devel_PACKAGE_OBSOLETES "mysql-devel MySQL-devel MySQL-OurDelta-de
 SET(CPACK_RPM_devel_PACKAGE_PROVIDES "MariaDB-devel MySQL-devel mysql-devel")
 
 SET(CPACK_RPM_server_PACKAGE_OBSOLETES "MariaDB mysql mysql-server MySQL-server MySQL-OurDelta-server")
-SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MariaDB-server MySQL-server config(MariaDB-server) msqlormysql mysql mysql-server")
+SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MariaDB-server MySQL-server config(MariaDB-server) msqlormysql mysql mysql(x86-32) mysql(x86-64) mysql-server")
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
