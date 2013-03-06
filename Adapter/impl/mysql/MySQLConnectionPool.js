@@ -28,6 +28,7 @@ var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
+var util = require('util');
 var stats_module = require(path.join(api_dir, "stats.js"));
 var stats = stats_module.getWriter("spi","mysql","DBConnectionPool");
 
@@ -193,21 +194,21 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
 
 exports.DBConnectionPool.prototype.returnPooledConnection = function(index) {
 throw new Error('Fatal internal exception: returnPooledConnection is not supported.');
-var pooledConnection = this.openConnections[index];
-  this.openConnections[index] = null;
-  this.pooledConnections.push(pooledConnection);
-  udebug.log('MySQLConnectionPool.returnPooledConnection; ', 
-      ' pooledConnections:', this.pooledConnections.length,
-      ' openConnections: ', countOpenConnections(this));
+//var pooledConnection = this.openConnections[index];
+//  this.openConnections[index] = null;
+//  this.pooledConnections.push(pooledConnection);
+//  udebug.log('MySQLConnectionPool.returnPooledConnection; ', 
+//      ' pooledConnections:', this.pooledConnections.length,
+//      ' openConnections: ', countOpenConnections(this));
 };
 
 exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tableName, dbSession, user_callback) {
 
-  var TableMetadataHandler = function() {
-    this.databaseName = arguments[0];
-    this.tableName = arguments[1];
-    this.dbConnectionPool = arguments[2];
-    this.user_callback = arguments[3];
+  var TableMetadataHandler = function(databaseName, tableName, dbConnectionPool, user_callback) {
+    this.databaseName = databaseName;
+    this.tableName = tableName;
+    this.dbConnectionPool = dbConnectionPool;
+    this.user_callback = user_callback;
     
     this.getTableMetadata = function() {
       var metadataHandler = this;
@@ -264,10 +265,10 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
 };
 
 exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession, user_callback) {
-  var ListTablesHandler = function() {
-    this.databaseName = arguments[0];
-    this.dbConnectionPool = arguments[1];
-    this.user_callback = arguments[2];
+  var ListTablesHandler = function(databaseName, dbConnectionPool, user_callback) {
+    this.databaseName = databaseName;
+    this.dbConnectionPool = dbConnectionPool;
+    this.user_callback = user_callback;
     this.pooledConnection = null;
     
     this.listTables = function() {
