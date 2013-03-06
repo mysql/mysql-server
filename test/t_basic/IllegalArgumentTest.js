@@ -88,7 +88,7 @@ t5.run = function() {
   });
 };
 
-var t11 = new harness.SerialTest("testPersistNoArgument");
+var t11 = new harness.SerialTest("testPersistNoArgumentNoCallback");
 t11.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -101,7 +101,7 @@ t11.run = function() {
   });
 };
 
-var t12 = new harness.SerialTest("testRemoveNoArgument");
+var t12 = new harness.SerialTest("testRemoveNoArgumentNoCallback");
 t12.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -114,7 +114,7 @@ t12.run = function() {
   });
 };
 
-var t13 = new harness.SerialTest("testSaveNoArgument");
+var t13 = new harness.SerialTest("testSaveNoArgumentNoCallback");
 t13.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -127,7 +127,7 @@ t13.run = function() {
   });
 };
 
-var t14 = new harness.SerialTest("testUpdateNoArgument");
+var t14 = new harness.SerialTest("testUpdateNoArgumentNoCallback");
 t14.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -140,7 +140,7 @@ t14.run = function() {
   });
 };
 
-var t15 = new harness.SerialTest("testFindNoArgument");
+var t15 = new harness.SerialTest("testFindNoArgumentNoCallback");
 t15.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -153,5 +153,18 @@ t15.run = function() {
   });
 };
 
+var t16 = new harness.SerialTest("testFindUndefinedSecondArgumentNoCallback");
+t16.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.find(global.t_basic);
+      testCase.fail('Find with undefined second argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1, t2, t3, t4, t5, t11, t12, t13, t14, t15];
+module.exports.tests = [t1, t2, t3, t4, t5, t11, t12, t13, t14, t15, t16];
