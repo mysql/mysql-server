@@ -103,6 +103,7 @@ SessionFactory.prototype.close = function(user_callback) {
   for (i = 0; i < self.sessions.length; ++i) {
     if (self.sessions[i]) {
       self.sessions[i].close(onSessionClose);
+      self.sessions[i] = null;
     }
   }
 };
