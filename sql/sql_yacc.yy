@@ -61,6 +61,7 @@
 #include "sql_handler.h"                       // Sql_cmd_handler_*
 #include "sql_signal.h"
 #include "sql_get_diagnostics.h"               // Sql_cmd_get_diagnostics
+#include "sql_servers.h"
 #include "event_parse_data.h"
 #include <myisam.h>
 #include <myisammrg.h>
@@ -1860,7 +1861,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         fulltext_key_opt spatial_key_opt fulltext_key_opts spatial_key_opts
         key_using_alg
         part_column_list
-        server_def server_options_list server_option
+        server_options_list server_option
         definer_opt no_definer definer get_diagnostics
         alter_user_list
 END_OF_INPUT
@@ -2457,22 +2458,14 @@ create:
           {
             Lex->alter_tablespace_info->ts_cmd_type= CREATE_TABLESPACE;
           }
-        | CREATE server_def
+        | CREATE SERVER_SYM ident_or_text FOREIGN DATA_SYM WRAPPER_SYM
+          ident_or_text OPTIONS_SYM '(' server_options_list ')'
           {
             Lex->sql_command= SQLCOM_CREATE_SERVER;
-          }
-        ;
-
-server_def:
-          SERVER_SYM
-          ident_or_text
-          FOREIGN DATA_SYM WRAPPER_SYM
-          ident_or_text
-          OPTIONS_SYM '(' server_options_list ')'
-          {
-            Lex->server_options.server_name= $2.str;
-            Lex->server_options.server_name_length= $2.length;
-            Lex->server_options.scheme= $6.str;
+            Lex->server_options.m_server_name= $3;
+            Lex->server_options.set_scheme($7);
+            Lex->m_sql_cmd=
+              new (YYTHD->mem_root) Sql_cmd_create_server(&Lex->server_options);
           }
         ;
 
@@ -2484,32 +2477,32 @@ server_options_list:
 server_option:
           USER TEXT_STRING_sys
           {
-            Lex->server_options.username= $2.str;
+            Lex->server_options.set_username($2);
           }
         | HOST_SYM TEXT_STRING_sys
           {
-            Lex->server_options.host= $2.str;
+            Lex->server_options.set_host($2);
           }
         | DATABASE TEXT_STRING_sys
           {
-            Lex->server_options.db= $2.str;
+            Lex->server_options.set_db($2);
           }
         | OWNER_SYM TEXT_STRING_sys
           {
-            Lex->server_options.owner= $2.str;
+            Lex->server_options.set_owner($2);
           }
         | PASSWORD TEXT_STRING_sys
           {
-            Lex->server_options.password= $2.str;
+            Lex->server_options.set_password($2);
             Lex->contains_plaintext_password= true;
           }
         | SOCKET_SYM TEXT_STRING_sys
           {
-            Lex->server_options.socket= $2.str;
+            Lex->server_options.set_socket($2);
           }
         | PORT_SYM ulong_num
           {
-            Lex->server_options.port= $2;
+            Lex->server_options.set_port($2);
           }
         ;
 
@@ -7433,8 +7426,9 @@ alter:
           {
             LEX *lex= Lex;
             lex->sql_command= SQLCOM_ALTER_SERVER;
-            lex->server_options.server_name= $3.str;
-            lex->server_options.server_name_length= $3.length;
+            lex->server_options.m_server_name= $3;
+            lex->m_sql_cmd=
+              new (YYTHD->mem_root) Sql_cmd_alter_server(&Lex->server_options);
           }
         | ALTER USER clear_privileges alter_user_list
           {
@@ -11787,9 +11781,8 @@ drop:
         | DROP SERVER_SYM if_exists ident_or_text
           {
             Lex->sql_command = SQLCOM_DROP_SERVER;
-            Lex->drop_if_exists= $3;
-            Lex->server_options.server_name= $4.str;
-            Lex->server_options.server_name_length= $4.length;
+            Lex->m_sql_cmd=
+              new (YYTHD->mem_root) Sql_cmd_drop_server($4, $3);
           }
         ;
 
