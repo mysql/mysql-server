@@ -20,7 +20,7 @@ create temporary table spj_counts_at_startup
 # Load simple.zz
 # -o => with "oj-extensions"
 --echo Calling: $LOAD_RQG -d simple.zz -o
---system $LOAD_RQG -d simple.zz -o
+--exec bash -c "$LOAD_RQG -d simple.zz -o"
 
 ##
 # run spj_test.yy for 3600 seconds
@@ -35,12 +35,12 @@ create temporary table spj_counts_at_startup
 #
 let $cmd = $RUN_RQG -g spj_test.yy -t 600;
 --echo Calling: $cmd (6 times)
---system $cmd
---system $cmd
---system $cmd
---system $cmd
---system $cmd
---system $cmd
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
+--exec bash -c "$cmd"
 
 drop database spj_myisam;
 drop database spj_ndb;
