@@ -1,0 +1,165 @@
+################################################################################
+# It verifies the feature that semisync waits after binlog sync and before
+# transaction commit(WL#6355).
+#
+# Two wait points are there for semisync. AFTER_SYNC and AFTER_COMMIT
+# The main differece is that Other sessions could NOT see the data before it
+# replicated to slave if waiting at AFTER_SYNC wait point. In contrast, when
+# waiting at AFTER_COMMIT, other sessions could see the data before it is
+# replicated to slave.
+#################################################################################
+--source include/have_innodb.inc
+--source include/have_debug_sync.inc
+--source include/master-slave.inc
+--source include/have_semisync_plugin.inc
+--source include/install_semisync.inc
+
+--echo #
+--echo # Test on AFTER_SYNC wait point
+--echo # #######################################################################
+--echo # Case 1: Single statement transaction
+--echo #
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_SYNC;
+
+CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
+
+--sync_slave_with_master
+--source include/rpl_connection_master.inc
+
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--send SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done
+    		 WAIT_FOR end";
+
+--send INSERT INTO t1 VALUES(1);
+
+--source include/rpl_connection_master.inc
+
+--reap
+
+--let $assert_text= rpl_semi_sync_master_yes_tx increased 1
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--source include/assert.inc
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+--sync_slave_with_master
+
+--let $assert_text= Table has two records
+--let $assert_cond= COUNT(*) = 1 FROM t1;
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC= "now SIGNAL end";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--reap
+TRUNCATE t1;
+
+--echo #
+--echo # Test at AFTER_SYNC wait point
+--echo # #######################################################################
+--echo # Case 2: Real transaction
+--echo #
+
+--source include/rpl_connection_master.inc
+
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--send SET DEBUG_SYNC= "now WAIT_FOR after_sync_done";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "after_call_after_sync_observer SIGNAL after_sync_done
+    		 WAIT_FOR end";
+
+BEGIN;
+INSERT INTO t1 VALUES(1);
+INSERT INTO t1 VALUES(2);
+--send COMMIT
+
+--source include/rpl_connection_master.inc
+
+--reap
+
+--let $assert_text= rpl_semi_sync_master_yes_tx increased 1
+--let $assert_cond= VARIABLE_VALUE = $yes_tx+1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--source include/assert.inc
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 0 FROM t1
+--source include/assert.inc
+
+--sync_slave_with_master
+
+--let $assert_text= Table has two records
+--let $assert_cond= COUNT(*) = 2 FROM t1;
+--source include/assert.inc
+
+--source include/rpl_connection_master.inc
+SET DEBUG_SYNC= "now SIGNAL end";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--reap
+
+TRUNCATE t1;
+--echo #
+--echo # Test at AFTER_COMMIT wait point
+--echo # #######################################################################
+--echo #
+
+--source include/rpl_connection_slave.inc
+--source include/stop_slave_io.inc
+
+--source include/rpl_connection_master.inc
+SET GLOBAL rpl_semi_sync_master_wait_point= AFTER_COMMIT;
+
+--let $yes_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_yes_tx', Value, 1)
+--let $no_tx= query_get_value(SHOW STATUS LIKE 'Rpl_semi_sync_master_no_tx', Value, 1)
+--send SET DEBUG_SYNC= "now WAIT_FOR engine_commit_done";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+SET DEBUG_SYNC= "before_call_after_commit_observer SIGNAL engine_commit_done
+    		 WAIT_FOR end";
+
+--send INSERT INTO t1 VALUES(1);
+
+--source include/rpl_connection_master.inc
+
+--reap
+
+--let $assert_text= Table is empty right now.
+--let $assert_cond= COUNT(*) = 1 FROM t1
+--source include/assert.inc
+
+--let $assert_text= rpl_semi_sync_master_yes_tx did not increase
+--let $assert_cond= VARIABLE_VALUE = $yes_tx FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_yes_tx"
+--source include/assert.inc
+
+--let $assert_text= rpl_semi_sync_master_no_tx did not increase
+--let $assert_cond= VARIABLE_VALUE = $no_tx FROM INFORMATION_SCHEMA.GLOBAL_STATUS WHERE VARIABLE_NAME = "rpl_semi_sync_master_no_tx"
+--source include/assert.inc
+
+SET DEBUG_SYNC= "now SIGNAL end";
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--reap
+
+DROP TABLE t1;
+
+--source include/rpl_connection_slave.inc
+--source include/start_slave_io.inc
+
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

@@ -4587,6 +4587,13 @@ end_with_restore_list:
       my_ok(thd);
     break;
   case SQLCOM_INSTALL_PLUGIN:
+    DBUG_EXECUTE_IF("simulate_old_server_5.5",
+                    memcpy(server_version, "5.5.", 4););
+    DBUG_EXECUTE_IF("simulate_old_server_4.8",
+                    memcpy(server_version, "4.8.", 4););
+    DBUG_EXECUTE_IF("recover_server_version",
+                    memcpy(server_version, MYSQL_SERVER_VERSION, 4););
+
     if (! (res= mysql_install_plugin(thd, &thd->lex->comment,
                                      &thd->lex->ident)))
       my_ok(thd);

@@ -1,0 +1,46 @@
+################################################################################
+# Test the compatibility between new(old) server and old(new) plugin
+################################################################################
+--source include/have_semisync_plugin.inc
+--source include/have_debug.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+
+--echo #
+--echo # Initialization
+--echo #
+CALL mtr.add_suppression("The plugin's Binlog_storage_observer structure.*");
+CALL mtr.add_suppression(".* after_sync interface is not supported.*");
+
+CREATE TABLE t1(c1 INT);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # New server and old plugin
+--echo #
+SET GLOBAL DEBUG="d,simulate_old_semisync_master_plugin";
+--source extra/rpl_tests/rpl_semi_sync_compatibility.inc
+
+--echo #
+--echo # Old server and new plugin(two old versions cover two check logics)
+--echo #
+SET GLOBAL DEBUG="d,simulate_old_server_4.8";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+
+SET GLOBAL DEBUG="d,simulate_old_server_5.5";
+--source extra/rpl_tests/rpl_semi_sync_compatibility.inc
+
+SET GLOBAL DEBUG="d,recover_server_version";
+UNINSTALL PLUGIN rpl_semi_sync_master;
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+SET GLOBAL DEBUG="";
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc
