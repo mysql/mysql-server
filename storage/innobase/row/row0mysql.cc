@@ -4784,13 +4784,25 @@ loop:
 
 		}
 
-		if (row_is_mysql_tmp_table_name(table->name)) {
-			/* There could be an orphan temp table left from
-			interupted alter table rebuild operation */
-			dict_table_close(table, TRUE, FALSE);
-		} else {
-			ut_a(!table->can_be_evicted || table->ibd_file_missing);
+		if (!row_is_mysql_tmp_table_name(table->name)) {
+			/* There could be orphan temp tables left from
+			interrupted alter table. Leave them, and handle
+			the rest.*/
+			ut_a(!table->ibd_file_missing);
+			if (table->can_be_evicted) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Orphan table encountered during "
+					"DROP DATABASE. This is possible if "
+					"'%s.frm' was lost.", table->name);
+			}
 		}
+
+		dict_table_close(table, TRUE, FALSE);
+
+		/* The dict_table_t object must not be accessed before
+		dict_table_open() or after dict_table_close(). But this is OK
+		if we are holding, the dict_sys->mutex. */
+		ut_ad(mutex_own(&dict_sys->mutex));
 
 		/* Wait until MySQL does not have any queries running on
 		the table */
