@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@ set -e
 base="`dirname $0`"
 source "$base"/parseargs.sh
 
-ecp="set engine_condition_pushdown=on;"
+ecp="set optimizer_switch = 'engine_condition_pushdown=on';"
 
 if [ "$load" ]
 then
