@@ -46,8 +46,9 @@ var jshintOptions = {
 
 var lintOptions = lintName === "jslint" ? jslintOptions : jshintOptions;
 
-function lintTest(basePath, sourceFile) {
+function lintTest(basePath, sourceFile, ignoreLines) {
   var t = new harness.SerialTest(path.basename(sourceFile));
+  var ignore;
   t.sourceFile = path.join(basePath, sourceFile);
 
   t.run = function runLintTest() {
@@ -72,13 +73,16 @@ function lintTest(basePath, sourceFile) {
     if(! ok) {
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
-        if(e) {
+        ignore = -1 !== ignoreLines.indexOf(e.line);
+        if(e && !ignore) {
           n += 1;
           msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
         }
       }
       msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
-      this.appendErrorMessage(msg);
+      if (n > 0) {
+        this.appendErrorMessage(msg);
+      }
     }
     return true;
   };
@@ -87,15 +91,21 @@ function lintTest(basePath, sourceFile) {
 }
 
 function checkSource(file) {
-  exports.tests.push(lintTest(adapter_dir, file));
+  var ignoreLines = Array.prototype.slice.call(arguments);
+  ignoreLines.shift(); // remove the file name
+  exports.tests.push(lintTest(adapter_dir, file, ignoreLines));
 }
 
 function checkTest(file) {
-  exports.tests.push(lintTest(suites_dir, file));
+  var ignoreLines = Array.prototype.slice.call(arguments);
+  ignoreLines.shift(); // remove the file name
+  exports.tests.push(lintTest(suites_dir, file, ignoreLines));
 }
 
 function checkSpiDoc(file) {
-  exports.tests.push(lintTest(spi_doc_dir, file));
+  var ignoreLines = Array.prototype.slice.call(arguments);
+  ignoreLines.shift(); // remove the file name
+  exports.tests.push(lintTest(spi_doc_dir, file, ignoreLines));
 }
 
 /// ******** SMOKE TEST FOR THIS SUITE ******* ///
@@ -119,9 +129,10 @@ checkSource("impl/common/DBTableHandler.js");
 //checkSource("impl/common/UserContext.js");
 
 checkSource("impl/mysql/mysql_service_provider.js");
-//checkSource("impl/mysql/MySQLConnectionPool.js");
+checkSource("impl/mysql/MySQLConnectionPool.js");
 checkSource("impl/mysql/MySQLConnection.js");
-//checkSource("impl/mysql/MySQLDictionary.js");
+checkSource("impl/mysql/MySQLDictionary.js",
+    166); // Line 166[7]: Missing 'break' after 'case'
 
 checkSource("impl/ndb/ndb_service_provider.js");
 checkSource("impl/ndb/NdbConnection.js");
