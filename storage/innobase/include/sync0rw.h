@@ -124,9 +124,6 @@ extern rw_lock_stats_t	rw_lock_stats;
 #ifdef UNIV_PFS_RWLOCK
 /* Following are rwlock keys used to register with MySQL
 performance schema */
-# ifdef UNIV_LOG_ARCHIVE
-extern	mysql_pfs_key_t	archive_lock_key;
-# endif /* UNIV_LOG_ARCHIVE */
 extern	mysql_pfs_key_t btr_search_latch_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
 # ifdef UNIV_SYNC_DEBUG
