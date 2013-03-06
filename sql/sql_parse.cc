@@ -4604,50 +4604,6 @@ end_with_restore_list:
 #endif /* EMBEDDED_LIBRARY */
     break;
   }
-  case SQLCOM_CREATE_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    if (create_server(thd, &thd->lex->server_options))
-      goto error;
-
-    my_ok(thd, 1);
-    break;
-  }
-  case SQLCOM_ALTER_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    if (alter_server(thd, &thd->lex->server_options))
-      goto error;
-
-    my_ok(thd, 1);
-    break;
-  }
-  case SQLCOM_DROP_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    LEX *lex= thd->lex;
-    if (drop_server(thd, &lex->server_options, lex->drop_if_exists))
-    {
-      /*
-        drop_server() can fail without reporting an error
-        due to IF EXISTS clause. In this case, call my_ok().
-      */
-      if (thd->is_error() || thd->killed)
-        goto error;
-      DBUG_ASSERT(lex->drop_if_exists);
-      my_ok(thd, 0);
-      break;
-    }
-
-    my_ok(thd, 1);
-    break;
-  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4659,6 +4615,9 @@ end_with_restore_list:
   case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
