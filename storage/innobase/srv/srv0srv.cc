@@ -992,12 +992,11 @@ void
 srv_general_init(void)
 /*==================*/
 {
+	os_event_init();
 	sync_check_init();
-
 	ut_mem_init();
 	/* Reset the system variables in the recovery module. */
 	recv_sys_var_init();
-	os_event_init();
 	os_thread_init();
 	mem_init(srv_mem_pool_size);
 	que_init();
