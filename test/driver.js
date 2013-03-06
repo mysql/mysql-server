@@ -103,6 +103,9 @@ Driver.prototype.reportResultsAndExit = function() {
   var openSessions;
   var i;
   var closedSessions = 0;
+  var sessionFactories;
+  var numberOfSessionFactoriesToClose;
+  var numberOfSessionFactoriesClosed = 0;
   
   console.log("Started: ", this.result.listener.started);
   console.log("Passed:  ", this.result.passed.length);
@@ -112,22 +115,27 @@ Driver.prototype.reportResultsAndExit = function() {
     require(path.join(api_dir, "stats")).peek();
   }
 
-  // exit after closing sessions
+  // exit after closing all session factories
   var onSessionFactoryClose = function() {
-    unified_debug.close();
-    process.exit(driver.result.failed.length > 0);      
+    if (++numberOfSessionFactoriesClosed === numberOfSessionFactoriesToClose) {
+      // we have closed them all
+      unified_debug.close();
+      process.exit(driver.result.failed.length > 0);
+    }
   };
 
-  // close all open sessions and exit
-  sessionFactory = mynode.connect(global.test_conn_properties, null, function(err, sessionFactory) {
-    if (err) {
-      console.log('mynode.connect returned', err);
-      unified_debug.close();
-      process.exit(driver.result.failed.length > 0);      
-    } else {
-      sessionFactory.close(onSessionFactoryClose);
+  // close all open session factories and exit
+  sessionFactories = mynode.getOpenSessionFactories();
+  numberOfSessionFactoriesToClose = sessionFactories.length;
+  udebug.log('Closing', numberOfSessionFactoriesToClose, 'session factories.');
+  if (numberOfSessionFactoriesToClose > 0) {
+    for (i = 0; i < sessionFactories.length; ++i) {
+      sessionFactories[i].close(onSessionFactoryClose);
     }
-  });  
+  } else {
+    unified_debug.close();
+    process.exit(driver.result.failed.length > 0);
+  }
 };
 
 //// END OF DRIVER
