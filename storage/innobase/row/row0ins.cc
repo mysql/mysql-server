@@ -52,7 +52,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "m_string.h"
-#include "sql_priv.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -2316,7 +2315,11 @@ row_ins_clust_index_entry_low(
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
-	/* disable redo-logging + locking given lifetime + scope of temptable */
+
+	/* Disable REDO logging as lifetime of temp-tables is limited to
+	server or connection lifetime and so REDO information is not needed
+	on restart for recovery.
+	Disable locking as temp-tables are not shared across connection. */
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
@@ -2610,7 +2613,11 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 
 	mtr_start(&mtr);
-	/* disable redo-logging + locking given lifetime + scope of temptable */
+
+	/* Disable REDO logging as lifetime of temp-tables is limited to
+	server or connection lifetime and so REDO information is not needed
+	on restart for recovery.
+	Disable locking as temp-tables are not shared across connection. */
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
