@@ -918,7 +918,7 @@ exports.UserContext.prototype.openSession = function() {
       break;
     }
   }
-  this.session_factory.sessions[i] = {'placeholder':true, 'index':i};
+  this.session_factory.sessions[i] = {'placeholder':true, 'index':i, close: function(callback) {callback();}};
   // remember the session index
   this.session_index = i;
   // get a new DBSession from the DBConnectionPool

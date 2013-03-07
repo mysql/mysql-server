@@ -25,23 +25,6 @@ require("./lib.js");
 
 var test = new harness.SmokeTest("SmokeTest");
 
-var annotations = new mynode.Annotations();
-annotations.strict(true);
-
-var mapping_autopk = annotations.newTableMapping("test.autopk");
-mapping_autopk.mapField("id");
-mapping_autopk.mapField("age");
-mapping_autopk.mapField("name");
-mapping_autopk.mapField("magic");
-annotations.mapClass(global.autopk, mapping_autopk);
-
-var mapping_autouk = annotations.newTableMapping("test.autouk");
-mapping_autouk.mapField("id");
-mapping_autouk.mapField("age");
-mapping_autouk.mapField("name");
-mapping_autouk.mapField("magic");
-annotations.mapClass(global.autouk, mapping_autouk);
-
 test.run = function() {
   var t = this;
   harness.SQL.create(this.suite, function(error) {

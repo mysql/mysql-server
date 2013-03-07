@@ -37,6 +37,18 @@ global.integraltypes_key = function(id) {
   this.id = id;
 };
 
+/** map integraltypes domain object */
+var annotations = new mynode.Annotations();
+annotations.strict(true);
+var tablemapping = annotations.newTableMapping("test.integraltypes");
+tablemapping.mapField("id");
+tablemapping.mapField("ttinyint", "ttinyint");
+tablemapping.mapField("tsmallint", "tsmallint");
+tablemapping.mapField("tmediumint", "tmediumint");
+tablemapping.mapField("tint", "tint");
+tablemapping.mapField("tbigint", "tbigint");
+annotations.mapClass(global.integraltypes, tablemapping);
+
 global.integraltypes.prototype.getId = function() {return this.id;};
 
 /** Verify the instance or append an error message to the test case */
@@ -135,28 +147,5 @@ global.fail_verify_integraltypes = function(err, instance, id, testCase, domainO
       testCase.failOnError();
     });
   }
-};
-
-/** Open a session or fail the test case */
-global.fail_integraltypesOpenSession = function(testCase, callback) {
-  var properties = global.test_conn_properties;
-  var annotations = new mynode.Annotations();
-  annotations.strict(true);
-  var tablemapping = annotations.newTableMapping("test.integraltypes");
-  tablemapping.mapField("id");
-  tablemapping.mapField("ttinyint", "ttinyint");
-  tablemapping.mapField("tsmallint", "tsmallint");
-  tablemapping.mapField("tmediumint", "tmediumint");
-  tablemapping.mapField("tint", "tint");
-  tablemapping.mapField("tbigint", "tbigint");
-  annotations.mapClass(global.integraltypes, tablemapping);
-  mynode.openSession(properties, annotations, function(err, session) {
-    if (err) {
-      testCase.fail(err);
-      return;
-    }
-    testCase.session = session;
-    callback(session, testCase);
- });
 };
 
