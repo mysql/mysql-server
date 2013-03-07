@@ -19,7 +19,7 @@
 #include <my_global.h>
 #include <windows.h>
 #include <sspi.h>              // for CtxtHandle
-#include <mysql/plugin_auth.h> // for MYSQL_PLUGIN_VIO
+#include <mysql/plugin_auth_common.h> // for MYSQL_PLUGIN_VIO
 
 /// Maximum length of the target service name.
 #define MAX_SERVICE_NAME_LENGTH  1024
