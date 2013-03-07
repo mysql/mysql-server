@@ -1,10 +1,6 @@
 INCLUDE("${NDB_SOURCE_DIR}/config/type_mcc_utils.cmake")
 
-PY_INSTALL(FILES python.exe 
-	SRC_DIR "${MCC_PYTHON_TO_BUNDLE}"
-    DESTINATION "${MCC_INSTALL_SUBDIR}/Python")
-
-PY_INSTALL(FILES python27.dll
+PY_INSTALL(FILES python.exe python27.dll msvcr100.dll 
 	SRC_DIR "${MCC_PYTHON_TO_BUNDLE}"
     DESTINATION "${MCC_INSTALL_SUBDIR}/Python")
 
