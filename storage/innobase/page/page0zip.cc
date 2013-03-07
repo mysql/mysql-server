@@ -4586,6 +4586,11 @@ page_zip_reorganize(
 					page_get_infimum_rec(temp_page),
 					index, mtr);
 
+	/* Temp-Tables are not shared across connection and so we avoid
+	locking of temp-tables as there would be no 2 trx trying to
+	operate on same temp-table in parallel.
+	max_trx_id is use to track which all trxs wrote to the page
+	in parallel but in case of temp-table this can is not needed. */
 	if (!dict_index_is_clust(index)
 	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(temp_page)) {

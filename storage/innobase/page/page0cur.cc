@@ -588,6 +588,10 @@ page_cur_insert_rec_write_log(
 	const byte* log_end;
 	ulint	i;
 
+	/* REDO logging is disabled for temp-tables. This condition
+	does an early check that helps in saving computation which
+	otherwise if done is costlier with same end-result that this
+	condition will achieve. */
 	if (dict_table_is_temporary(index->table)) {
 		log_ptr = mlog_open(mtr, 0);
 		if (log_ptr == NULL) {

@@ -1252,6 +1252,7 @@ trx_undo_report_row_operation(
 	mutex_enter(&trx->undo_mutex);
 
 	/* If the undo log is not assigned yet, assign one */
+
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
 		undo = trx->insert_undo;
