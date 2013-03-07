@@ -426,14 +426,11 @@ recv_sys_empty_hash(void)
 	ut_ad(mutex_own(&(recv_sys->mutex)));
 
 	if (recv_sys->n_addrs != 0) {
-		fprintf(stderr,
-			"InnoDB: Error: %lu pages with log records"
-			" were left unprocessed!\n"
-			"InnoDB: Maximum page number with"
-			" log records on it %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"%lu pages with log records were left unprocessed! "
+			"Maximum page number with log records on it is %lu",
 			(ulong) recv_sys->n_addrs,
 			(ulong) recv_max_parsed_page_no);
-		ut_error;
 	}
 
 	hash_table_free(recv_sys->addr_hash);
@@ -1873,12 +1870,10 @@ recv_apply_log_recs_for_backup(void)
 				&actual_size,
 				recv_addr->space, recv_addr->page_no + 1);
 			if (!success) {
-				fprintf(stderr,
-					"InnoDB: Fatal error: cannot extend"
-					" tablespace %u to hold %u pages\n",
+				ib_logf(IB_LOG_LEVEL_FATAL,
+					"Cannot extend tablespace %u"
+					" to hold %u pages",
 					recv_addr->space, recv_addr->page_no);
-
-				exit(1);
 			}
 
 			/* Read the page from the tablespace file using the
@@ -1891,7 +1886,7 @@ recv_apply_log_recs_for_backup(void)
 					       block->page.zip.data, NULL);
 				if (error == DB_SUCCESS
 				    && !buf_zip_decompress(block, TRUE)) {
-					exit(1);
+					ut_error;
 				}
 			} else {
 				error = fil_io(OS_FILE_READ, TRUE,
@@ -1902,14 +1897,11 @@ recv_apply_log_recs_for_backup(void)
 			}
 
 			if (error != DB_SUCCESS) {
-				fprintf(stderr,
-					"InnoDB: Fatal error: cannot read"
-					" from tablespace"
-					" %lu page number %lu\n",
+				ib_logf(IB_LOG_LEVEL_FATAL,
+					"Cannot read from tablespace"
+					" %lu page number %lu",
 					(ulong) recv_addr->space,
 					(ulong) recv_addr->page_no);
-
-				exit(1);
 			}
 
 			/* Apply the log records to this page */
@@ -2118,19 +2110,18 @@ recv_report_corrupt_log(
 
 #ifndef UNIV_HOTBACKUP
 	if (!srv_force_recovery) {
-		fputs("InnoDB: Set innodb_force_recovery"
-		      " to ignore this error.\n", stderr);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Set innodb_force_recovery to ignore this error.");
 	}
 #endif /* !UNIV_HOTBACKUP */
 
-	fputs("InnoDB: WARNING: the log file may have been corrupt and it\n"
-	      "InnoDB: is possible that the log scan did not proceed\n"
-	      "InnoDB: far enough in recovery! Please run CHECK TABLE\n"
-	      "InnoDB: on your InnoDB tables to check that they are ok!\n"
-	      "InnoDB: If mysqld crashes after this recovery, look at\n"
-	      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
-	      "InnoDB: about forcing recovery.\n", stderr);
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"The log file may have been corrupt and it is possible"
+		" that the log scan did not proceed far enough in recovery!"
+		" Please run CHECK TABLE on your InnoDB tables to check"
+		" that they are ok! If mysqld crashes after this recovery,"
+		" look at " REFMAN "forcing-innodb-recovery.html"
+		" about forcing recovery.");
 
 	fflush(stderr);
 }
@@ -2249,16 +2240,13 @@ loop:
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
 					    space, page_no)) {
-					fprintf(stderr,
-						"InnoDB: Error: file op"
-						" log record of type %lu"
-						" space %lu not complete in\n"
-						"InnoDB: the replay phase."
-						" Path %s\n",
+					ib_logf(IB_LOG_LEVEL_FATAL,
+						"File op log record of type"
+						" %lu space %lu not complete"
+						" in the replay phase."
+						" Path %s",
 						(ulint) type, space,
 						(char*)(body + 2));
-
-					ut_error;
 				}
 			}
 #endif
@@ -2641,20 +2629,17 @@ recv_scan_log_recs(
 
 			if (recv_sys->len + 4 * OS_FILE_LOG_BLOCK_SIZE
 			    >= RECV_PARSING_BUF_SIZE) {
-				fprintf(stderr,
-					"InnoDB: Error: log parsing"
-					" buffer overflow."
-					" Recovery may have failed!\n");
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Log parsing buffer overflow."
+					" Recovery may have failed!");
 
 				recv_sys->found_corrupt_log = TRUE;
 
 #ifndef UNIV_HOTBACKUP
 				if (!srv_force_recovery) {
-					fputs("InnoDB: Set"
-					      " innodb_force_recovery"
-					      " to ignore this error.\n",
-					      stderr);
-					ut_error;
+					ib_logf(IB_LOG_LEVEL_FATAL,
+						"Set innodb_force_recovery"
+						" to ignore this error.");
 				}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -3289,24 +3274,21 @@ recv_reset_log_files_for_backup(
 						 OS_FILE_READ_WRITE,
 						 &success);
 		if (!success) {
-			fprintf(stderr,
-				"InnoDB: Cannot create %s. Check that"
-				" the file does not exist yet.\n", name);
-
-			exit(1);
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Cannot create %s. Check that"
+				" the file does not exist yet.", name);
 		}
 
-		fprintf(stderr,
-			"Setting log file size to %llu\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Setting log file size to %llu",
 			log_file_size);
 
 		success = os_file_set_size(name, log_file, log_file_size);
 
 		if (!success) {
-			fprintf(stderr,
-				"InnoDB: Cannot set %s size to %llu\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Cannot set %s size to %llu",
 				name, log_file_size);
-			exit(1);
 		}
 
 		os_file_flush(log_file);
@@ -3326,9 +3308,7 @@ recv_reset_log_files_for_backup(
 					 name, OS_FILE_OPEN,
 					 OS_FILE_READ_WRITE, &success);
 	if (!success) {
-		fprintf(stderr, "InnoDB: Cannot open %s.\n", name);
-
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_FATAL, "Cannot open %s.", name);
 	}
 
 	os_file_write(name, log_file, buf, 0,

@@ -228,10 +228,8 @@ trx_purge_add_update_undo_to_history(
 		/* The undo log segment will not be reused */
 
 		if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-			fprintf(stderr,
-				"InnoDB: Error: undo->id is %lu\n",
-				(ulong) undo->id);
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"undo->id is %lu", (ulong) undo->id);
 		}
 
 		trx_rsegf_set_nth_undo(rseg_header, undo->id, FIL_NULL, mtr);

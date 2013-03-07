@@ -2199,9 +2199,8 @@ yyerror(
 {
 	ut_ad(s);
 
-	fputs("PARSER ERROR: Syntax error in SQL string\n", stderr);
-
-	ut_error;
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"PARSER: Syntax error in SQL string");
 }
 
 /*************************************************************//**
