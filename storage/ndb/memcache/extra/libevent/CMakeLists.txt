@@ -32,7 +32,6 @@ SET(LIBEVENT_CORE_SOURCES
                 buffer.c
                 evbuffer.c
                 log.c
-                signal.c
                 evutil.c)
 
 SET(LIBEVENT_EXTRA_SOURCES
