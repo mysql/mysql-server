@@ -12,6 +12,17 @@
 ConnectionProperties(String impl);
 
 
+/***
+ * TableMapping()
+ * IMMEDIATE
+ * CONSTRUCTOR
+ *
+ * The TableMapping constructor is visible as a top-level function.
+ * Refer to the TableMapping documentation for details.
+ */
+TableMapping(tableName_or_tableMapping);
+
+ 
 /* 
  * connect()
  * ASYNC
