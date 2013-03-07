@@ -2686,6 +2686,11 @@ make_external:
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
+	/* Temp-Tables are not shared across connection and so we avoid
+	locking of temp-tables as there would be no 2 trx trying to
+	operate on same temp-table in parallel.
+	max_trx_id is use to track which all trxs wrote to the page
+	in parallel but in case of temp-table this can is not needed. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && !dict_table_is_temporary(index->table)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.

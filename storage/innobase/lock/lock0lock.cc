@@ -699,6 +699,8 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
+	/* Temp-Tables are not shared accross connection and so
+	optimize on complexity related to isolation level */
 	if (srv_read_only_mode || dict_table_is_temporary(index->table)) {
 		ut_ad(view == 0 || dict_table_is_temporary(index->table));
 		return(true);
@@ -744,6 +746,8 @@ lock_sec_rec_cons_read_sees(
 		return(false);
 	}
 
+	/* Temp-Tables are not shared accross connection and so
+	optimize on complexity related to isolation level */
 	if (dict_table_is_temporary(index->table)) {
 		return(true);
 	}
