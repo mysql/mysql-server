@@ -150,7 +150,7 @@ os_thread_create_func(
 
 	if (!handle) {
 		/* If we cannot start a new thread, life has no meaning. */
-		ib_logf(IB_LOG_LEVEL_ERROR,
+		ib_logf(IB_LOG_LEVEL_FATAL,
 			"CreateThread returned %d", GetLastError());
 		ut_ad(0);
 		exit(1);
@@ -190,11 +190,8 @@ os_thread_create_func(
 					(size_t)(PTHREAD_STACK_MIN
 						 + 32 * 1024));
 	if (ret) {
-		fprintf(stderr,
-			"InnoDB: Error: pthread_attr_setstacksize"
-			" returned %d\n", ret);
-		ut_ad(0);
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"pthread_attr_setstacksize returned %d", ret);
 	}
 #endif
 	mutex_enter(&thread_mutex);
@@ -207,10 +204,8 @@ os_thread_create_func(
 	ret = pthread_create(&new_thread_id, &attr, func, arg);
 #endif
 	if (ret) {
-		fprintf(stderr,
-			"InnoDB: Error: pthread_create returned %d\n", ret);
-		ut_ad(0);
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"pthread_create returned %d", ret);
 	}
 
 #ifndef UNIV_HPUX10

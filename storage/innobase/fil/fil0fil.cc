@@ -786,46 +786,36 @@ fil_node_open_file(
 		os_file_close(node->handle);
 
 		if (UNIV_UNLIKELY(space_id != space->id)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id is %lu"
-				" in the data dictionary\n"
-				"InnoDB: but in file %s it is %lu!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id is %lu in the data"
+				" dictionary but in file %s it is %lu!",
 				space->id, node->name, space_id);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
 				  || space_id == 0)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id %lu"
-				" in file %s is not sensible\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id %lu in file %s"
+				" is not sensible",
 				(ulong) space_id, node->name);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
 				  != page_size)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace file %s"
-				" has page size 0x%lx\n"
-				"InnoDB: but the data dictionary"
-				" expects page size 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: Tablespace file %s has page size"
+				" 0x%lx but the data dictionary expects"
+				" page size 0x%lx!",
 				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
-			fprintf(stderr,
-				"InnoDB: Error: table flags are 0x%lx"
-				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: table flags are 0x%lx in the"
+				" data dictionary but the flags in file"
+				" %s are 0x%lx!",
 				space->flags, node->name, flags);
-
-			ut_error;
 		}
 
 		if (size_bytes >= 1024 * 1024) {
@@ -1801,10 +1791,9 @@ fil_set_max_space_id_if_bigger(
 	ulint	max_id)	/*!< in: maximum known id */
 {
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
-		fprintf(stderr,
-			"InnoDB: Fatal error: max tablespace id"
-			" is too high, %lu\n", (ulong) max_id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Fatal error: max tablespace id"
+			" is too high, %lu", (ulong) max_id);
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -4027,10 +4016,7 @@ will_not_choose:
 			return;
 		}
 
-		/* If debug code, cause a core dump and call stack. For
-		release builds just exit and rely on the messages above. */
-		ut_ad(0);
-		exit(1);
+		ut_error;
 	}
 
 	if (def.success && remote.success) {

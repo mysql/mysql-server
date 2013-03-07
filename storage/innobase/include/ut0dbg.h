@@ -62,7 +62,10 @@ ut_dbg_assertion_failed(
 	UNIV_COLD __attribute__((nonnull(2)));
 
 /** Abort the execution. */
-# define UT_DBG_PANIC abort()
+# define UT_DBG_PANIC do {					\
+	fflush(stderr);						\
+	abort();						\
+} while (0)
 
 /** Abort execution if EXPR does not evaluate to nonzero.
 @param EXPR	assertion expression that should hold */

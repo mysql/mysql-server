@@ -436,8 +436,9 @@ sync_array_wait_event(
 
 	if (sync_array_detect_deadlock(arr, cell, cell, 0)) {
 
-		fprintf(stderr, "########################################\n");
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"########################################\n"
+			"Deadlock Detected!");
 	}
 
 	rw_lock_debug_mutex_exit();
