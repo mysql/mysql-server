@@ -1416,10 +1416,9 @@ dict_table_rename_in_cache(
 		memcpy(old_name, table->name, strlen(table->name) + 1);
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: too long table name: '%s', "
-			"max length is %d\n", table->name,
-			MAX_FULL_NAME_LEN);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Too long table name: '%s', max length is %d",
+			table->name, MAX_FULL_NAME_LEN);
 	}
 
 	fold = ut_fold_string(new_name);

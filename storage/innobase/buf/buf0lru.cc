@@ -1141,23 +1141,16 @@ buf_LRU_check_size_of_non_data_objects(
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
 		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: ERROR: over 95 percent of the buffer pool"
-			" is occupied by\n"
-			"InnoDB: lock heaps or the adaptive hash index!"
-			" Check that your\n"
-			"InnoDB: transactions do not set too many row locks.\n"
-			"InnoDB: Your buffer pool size is %lu MB."
-			" Maybe you should make\n"
-			"InnoDB: the buffer pool bigger?\n"
-			"InnoDB: We intentionally generate a seg fault"
-			" to print a stack trace\n"
-			"InnoDB: on Linux!\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Over 95 percent of the buffer pool is occupied by"
+			" lock heaps or the adaptive hash index!"
+			" Check that your transactions do not set too many"
+			" row locks. Your buffer pool size is %lu MB."
+			" Maybe you should make the buffer pool bigger?"
+			" We intentionally generate a seg fault to print"
+			" a stack trace on Linux!",
 			(ulong) (buf_pool->curr_size
 				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
-
-		ut_error;
 
 	} else if (!recv_recovery_on
 		   && (UT_LIST_GET_LEN(buf_pool->free)

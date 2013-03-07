@@ -171,9 +171,10 @@ void
 log_init(void);
 /*==========*/
 /******************************************************************//**
-Inits a log group to the log system. */
-UNIV_INTERN
-void
+Inits a log group to the log system.
+@return true if success, false if not */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 log_group_init(
 /*===========*/
 	ulint	id,			/*!< in: group id */
