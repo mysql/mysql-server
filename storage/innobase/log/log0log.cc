@@ -343,16 +343,13 @@ log_close(void)
 			log_last_warning_time = time(NULL);
 
 			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: ERROR: the age of the last"
-				" checkpoint is " LSN_PF ",\n"
-				"InnoDB: which exceeds the log group"
-				" capacity " LSN_PF ".\n"
-				"InnoDB: If you are using big"
-				" BLOB or TEXT rows, you must set the\n"
-				"InnoDB: combined size of log files"
-				" at least 10 times bigger than the\n"
-				"InnoDB: largest such row.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"The age of the last checkpoint is "
+				LSN_PF ", which exceeds the log group"
+				" capacity " LSN_PF ".  If you are using"
+				" big BLOB or TEXT rows, you must set the"
+				" combined size of log files at least 10"
+				" times bigger than the largest such row.",
 				checkpoint_age,
 				log->log_group_capacity);
 		}
@@ -542,17 +539,18 @@ log_group_set_fields(
 /*****************************************************************//**
 Calculates the recommended highest values for lsn - last_checkpoint_lsn,
 lsn - buf_get_oldest_modification(), and lsn - max_archive_lsn_age.
-@return error value FALSE if the smallest log group is too small to
+@retval true on success
+@retval false if the smallest log group is too small to
 accommodate the number of OS threads in the database server */
-static
-ibool
+static __attribute__((warn_unused_result))
+bool
 log_calc_max_ages(void)
 /*===================*/
 {
 	log_group_t*	group;
 	lsn_t		margin;
 	ulint		free;
-	ibool		success		= TRUE;
+	bool		success	= true;
 	lsn_t		smallest_capacity;
 	lsn_t		archive_margin;
 	lsn_t		smallest_archive_margin;
@@ -595,7 +593,7 @@ log_calc_max_ages(void)
 	free = LOG_CHECKPOINT_FREE_PER_THREAD * (10 + srv_thread_concurrency)
 		+ LOG_CHECKPOINT_EXTRA_FREE;
 	if (free >= smallest_capacity / 2) {
-		success = FALSE;
+		success = false;
 
 		goto failure;
 	} else {
@@ -619,24 +617,17 @@ failure:
 	mutex_exit(&(log_sys->mutex));
 
 	if (!success) {
-		fprintf(stderr,
-			"InnoDB: Error: ib_logfiles are too small"
-			" for innodb_thread_concurrency %lu.\n"
-			"InnoDB: The combined size of ib_logfiles"
-			" should be bigger than\n"
-			"InnoDB: 200 kB * innodb_thread_concurrency.\n"
-			"InnoDB: To get mysqld to start up, set"
-			" innodb_thread_concurrency in my.cnf\n"
-			"InnoDB: to a lower value, for example, to 8."
-			" After an ERROR-FREE shutdown\n"
-			"InnoDB: of mysqld you can adjust the size of"
-			" ib_logfiles, as explained in\n"
-			"InnoDB: " REFMAN "adding-and-removing.html\n"
-			"InnoDB: Cannot continue operation."
-			" Calling exit(1).\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot continue operation.  ib_logfiles are too"
+			" small for innodb_thread_concurrency %lu. The"
+			" combined size of ib_logfiles should be bigger than"
+			" 200 kB * innodb_thread_concurrency. To get mysqld"
+			" to start up, set innodb_thread_concurrency in"
+			" my.cnf to a lower value, for example, to 8. After"
+			" an ERROR-FREE shutdown of mysqld you can adjust"
+			" the size of ib_logfiles, as explained in " REFMAN
+			"adding-and-removing.html.",
 			(ulong) srv_thread_concurrency);
-
-		exit(1);
 	}
 
 	return(success);
@@ -747,9 +738,10 @@ log_init(void)
 }
 
 /******************************************************************//**
-Inits a log group to the log system. */
-UNIV_INTERN
-void
+Inits a log group to the log system.
+@return true if success, false if not */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 log_group_init(
 /*===========*/
 	ulint	id,			/*!< in: group id */
@@ -766,7 +758,6 @@ log_group_init(
 					used */
 {
 	ulint	i;
-
 	log_group_t*	group;
 
 	group = static_cast<log_group_t*>(mem_alloc(sizeof(log_group_t)));
@@ -803,7 +794,7 @@ log_group_init(
 
 	UT_LIST_ADD_LAST(log_sys->log_groups, group);
 
-	ut_a(log_calc_max_ages());
+	return(log_calc_max_ages());
 }
 
 /******************************************************************//**
