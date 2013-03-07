@@ -353,7 +353,13 @@ mem_heap_create_block(
 		block = (mem_block_t*) buf_block->frame;
 	}
 
-	ut_ad(block);
+	if(!block) {
+		ut_print_timestamp(stderr);
+		fprintf(stderr,
+			" InnoDB: Unable to allocate memory of size %lu.\n",
+			len);
+		ut_error;
+	}
 	block->buf_block = buf_block;
 	block->free_block = NULL;
 #else /* !UNIV_HOTBACKUP */
