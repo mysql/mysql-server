@@ -69,6 +69,11 @@ macro(SHOW_VAR_ var)
   message("${var}=${${var}}")
 endmacro(SHOW_VAR_)
 
+set(MCC_BUILDING_MSI FALSE)
+if(DEFINED CPACK_MONOLITHIC_INSTALL AND NOT CPACK_MONOLITHIC_INSTALL)
+  set(MCC_BUILDING_MSI TRUE)
+endif()
+
 add_subdirectory("host_info")
 add_subdirectory("frontend")
 
@@ -112,7 +117,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   # Install the python dir regardless of tests so that win packages can
   # be built on other platforms
   set(WS $ENV{WIXSOURCE})
-  if(NOT CPACK_MONOLITHIC_INSTALL)
+  if(MCC_BUILDING_MSI)
     message("Bundling custom Python for Wix")
     # Add a custom python when building msi to avoid path problems
     INCLUDE(python.cmake)
