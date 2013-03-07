@@ -45,6 +45,14 @@ global.t_basic_magic_key = function(id) {
   this.magic = id;
 };
 
+//map t_basic domain object
+var tablemapping = new mynode.TableMapping("test.t_basic");
+tablemapping.mapField("id");
+tablemapping.mapField("age");
+tablemapping.mapField("name");
+tablemapping.mapField("magic");
+tablemapping.applyToClass(global.t_basic);
+
 /** Verify the instance or append an error message to the test case */
 global.verify_t_basic = function(err, instance, id, testCase, domainObject) {
   if (err) {
@@ -119,23 +127,3 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
     });
   }
 };
-
-/** Open a session or fail the test case */
-global.fail_openSession = function(testCase, callback) {
-  var properties = global.test_conn_properties;
-  var tablemapping = new mynode.TableMapping("test.t_basic");
-  tablemapping.mapField("id");
-  tablemapping.mapField("age");
-  tablemapping.mapField("name");
-  tablemapping.mapField("magic");
-  tablemapping.applyToClass(global.t_basic);
-  mynode.openSession(properties, tablemapping, function(err, session) {
-    if (err) {
-      testCase.fail(err);
-      return;
-    }
-    testCase.session = session;
-    callback(session, testCase);
- });
-};
-

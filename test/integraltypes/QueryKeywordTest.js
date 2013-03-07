@@ -88,7 +88,7 @@ var t1 = new harness.ConcurrentTest("testQueryByConstructorAndPrimaryKeyQintWher
 t1.run = function() {
   var testCase = this;
   var key = 1;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     mapIntegraltypesKeyword();
     // query by id a.k.a. 'where'
     session.createQuery(IntegraltypesKeywordId, function(err, qint) {
@@ -109,7 +109,7 @@ var t2 = new harness.ConcurrentTest("testQueryByConstructorAndPrimaryKeyQintFiel
 t2.run = function() {
   var testCase = this;
   var key = 2;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     mapIntegraltypesKeyword();
     // query by id a.k.a. 'where'
     session.createQuery(IntegraltypesKeywordId, function(err, qint) {

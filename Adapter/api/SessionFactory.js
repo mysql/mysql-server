@@ -74,11 +74,13 @@ SessionFactory.prototype.close = function(user_callback) {
   }
   
   var closeDBConnectionPool = function() {
+    var dbConnectionPool = self.dbConnectionPool;
+    delete self.dbConnectionPool;
     // close the dbConnectionPool if it is still around
-    if (self.dbConnectionPool) {
-      self.dbConnectionPool.close(onDbSessionPoolClose);
-      self.dbConnectionPool = null;
+    if (dbConnectionPool) {
+      dbConnectionPool.close(onDbSessionPoolClose);
     } else {
+      // always call back
       onDbSessionPoolClose();
     }
   };
@@ -103,6 +105,7 @@ SessionFactory.prototype.close = function(user_callback) {
   for (i = 0; i < self.sessions.length; ++i) {
     if (self.sessions[i]) {
       self.sessions[i].close(onSessionClose);
+      self.sessions[i] = null;
     }
   }
 };

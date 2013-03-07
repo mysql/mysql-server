@@ -37,6 +37,16 @@ global.integraltypes_key = function(id) {
   this.id = id;
 };
 
+/** map integraltypes domain object */
+var tablemapping = new mynode.TableMapping("test.integraltypes");
+tablemapping.mapField("id");
+tablemapping.mapField("ttinyint", "ttinyint");
+tablemapping.mapField("tsmallint", "tsmallint");
+tablemapping.mapField("tmediumint", "tmediumint");
+tablemapping.mapField("tint", "tint");
+tablemapping.mapField("tbigint", "tbigint");
+tablemapping.applyToClass(global.integraltypes);
+
 global.integraltypes.prototype.getId = function() {return this.id;};
 
 /** Verify the instance or append an error message to the test case */
@@ -136,25 +146,3 @@ global.fail_verify_integraltypes = function(err, instance, id, testCase, domainO
     });
   }
 };
-
-/** Open a session or fail the test case */
-global.fail_integraltypesOpenSession = function(testCase, callback) {
-  var properties = global.test_conn_properties;
-  var tablemapping = new mynode.TableMapping("test.integraltypes");
-  tablemapping.mapField("id");
-  tablemapping.mapField("ttinyint", "ttinyint");
-  tablemapping.mapField("tsmallint", "tsmallint");
-  tablemapping.mapField("tmediumint", "tmediumint");
-  tablemapping.mapField("tint", "tint");
-  tablemapping.mapField("tbigint", "tbigint");
-  tablemapping.applyToClass(global.integraltypes);
-  mynode.openSession(properties, tablemapping, function(err, session) {
-    if (err) {
-      testCase.fail(err);
-      return;
-    }
-    testCase.session = session;
-    callback(session, testCase);
- });
-};
-

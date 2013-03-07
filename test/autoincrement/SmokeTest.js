@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,18 +18,29 @@
  02110-1301  USA
  */
 
-/***** Find with id ***/
-var t1 = new harness.ConcurrentTest("testFindById");
-t1.run = function() {
-  var testCase = this;
-  // use the id to find an instance
-  var from = global.integraltypes;
-  var key = 2;
-  fail_openSession(testCase, function(session) {
-    // key and testCase are passed to fail_verify_t_basic as extra parameters
-    session.find(from, key, fail_verify_integraltypes, key, testCase, true);
+/* This is the smoke test for the autoincrement suite.
+ */
+
+require("./lib.js");
+
+var test = new harness.SmokeTest("SmokeTest");
+
+test.run = function() {
+  var t = this;
+  harness.SQL.create(this.suite, function(error) {
+    if (error) {
+      t.fail('createSQL failed: ' + error);
+    } else {
+      var props = new mynode.ConnectionProperties(global.adapter);
+      global.fail_openSession(t, function(session) {
+        if (session) {
+          t.pass();
+        } else {
+          t.fail();
+        }
+      });
+    }
   });
 };
 
-module.exports.tests = [t1];
-
+module.exports.tests = [test];

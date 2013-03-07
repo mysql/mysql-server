@@ -323,6 +323,8 @@ function InsertOperation(sql, data, callback) {
     } else {
       op.result.value = op.data;
       op.result.success = true;
+      // get autoincrement value
+      op.result.autoincrementValue = status.insertId;
       if (typeof(op.callback) === 'function') {
         // call the UserContext callback
         op.callback(null, op);

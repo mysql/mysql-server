@@ -259,7 +259,13 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     }
   } else {
     err = new Error('User error: parameter must be a domain object, string, or constructor function.');
-    throw err;
+    if (typeof(userContext.user_callback) === 'function') {
+      // call back with error if user callback defined
+      onTableHandler(err, null);
+    } else {
+      // throw error if no user callback
+      throw err;
+    }
   }
 };
 
@@ -447,7 +453,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
  */
 exports.UserContext.prototype.persist = function() {
   var userContext = this;
-  var tableHandler, object;
+  var object;
 
   function persistOnResult(err, dbOperation) {
     udebug.log('persist.persistOnResult');
@@ -459,11 +465,16 @@ exports.UserContext.prototype.persist = function() {
       }
       userContext.applyCallback(error);
     } else {
+      if (dbOperation.result.autoincrementValue) {
+        // put returned autoincrement value into object
+        userContext.dbTableHandler.setAutoincrement(userContext.values, dbOperation.result.autoincrementValue);
+      }
       userContext.applyCallback(null);      
     }
   }
 
   function persistOnTableHandler(err, dbTableHandler) {
+    userContext.dbTableHandler = dbTableHandler;
     udebug.log_detail('UserContext.persist.persistOnTableHandler ' + err);
     var transactionHandler;
     var dbSession = userContext.session.dbSession;
@@ -907,7 +918,7 @@ exports.UserContext.prototype.openSession = function() {
       break;
     }
   }
-  this.session_factory.sessions[i] = {'placeholder':true, 'index':i};
+  this.session_factory.sessions[i] = {'placeholder':true, 'index':i, close: function(callback) {callback();}};
   // remember the session index
   this.session_index = i;
   // get a new DBSession from the DBConnectionPool
