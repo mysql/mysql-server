@@ -185,7 +185,7 @@ handle_new_error:
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
 
-                exit(1);
+		ut_error;
 
 	case DB_CORRUPTION:
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
