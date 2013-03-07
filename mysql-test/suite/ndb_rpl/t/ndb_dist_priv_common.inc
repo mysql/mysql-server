@@ -20,7 +20,7 @@ CREATE TABLE t2 (
 INSERT INTO t2 VALUES (3, "row4"), (4, "row4");
 
 CREATE USER 'testuser1'@'localhost';
---connect(user1,localhost,testuser1,,test,$MASTER_MYPORT1)
+--connect(user1,127.0.0.1,testuser1,,test,$MASTER_MYPORT)
 
 #####################################################
 # SET PASSWORD
