@@ -1600,7 +1600,7 @@ struct dict_col_meta_t {
 };
 
 /* This struct is used for checking whether a given table exists and
-whether it has a predefined schema (number of columns and columns names
+whether it has a predefined schema (number of columns and column names
 and types) */
 struct dict_table_schema_t {
 	const char*		table_name;	/* the name of the table whose

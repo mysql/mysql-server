@@ -1349,8 +1349,7 @@ dict_load_columns(
 					       &name, rec);
 
 		if (err_msg) {
-			fprintf(stderr, "InnoDB: %s\n", err_msg);
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL, "%s", err_msg);
 		}
 
 		/* Note: Currently we have one DOC_ID column that is
@@ -2669,20 +2668,18 @@ dict_load_foreign_cols(
 				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
 				&ref_col_name_len);
 
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unable to load columns names for foreign "
-				"key '%s' because it was not found in "
-				"InnoDB internal table SYS_FOREIGN_COLS. The "
-				"closest entry we found is: "
-				"(ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s', "
-				"REF_COL_NAME='%.*s')",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Unable to load column names for foreign"
+				" key '%s' because it was not found in"
+				" InnoDB internal table SYS_FOREIGN_COLS. The"
+				" closest entry we found is:"
+				" (ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s',"
+				" REF_COL_NAME='%.*s')",
 				foreign->id,
 				(int) len, field,
 				mach_read_from_4(pos),
 				(int) for_col_name_len, for_col_name,
 				(int) ref_col_name_len, ref_col_name);
-
-			ut_error;
 		}
 
 		field = rec_get_nth_field_old(

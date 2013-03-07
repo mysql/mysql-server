@@ -170,13 +170,12 @@ lock_wait_table_reserve_slot(
 
 	ut_print_timestamp(stderr);
 
-	fprintf(stderr,
-		"  InnoDB: There appear to be %lu user"
-		" threads currently waiting\n"
-		"InnoDB: inside InnoDB, which is the"
-		" upper limit. Cannot continue operation.\n"
-		"InnoDB: As a last thing, we print"
-		" a list of waiting threads.\n", (ulong) OS_THREAD_MAX_N);
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"There appear to be %lu user threads currently waiting"
+		" inside InnoDB, which is the upper limit."
+		" Cannot continue operation."
+		" Before aborting, we print a list of waiting threads.",
+		(ulong) OS_THREAD_MAX_N);
 
 	lock_wait_table_print();
 
@@ -263,6 +262,12 @@ lock_wait_suspend_thread(
 
 	os_event_set(lock_sys->timeout_event);
 
+        ulint lock_type = ULINT_UNDEFINED;
+
+        if (trx->lock.wait_lock != 0) {
+          lock_type = lock_get_type_low(trx->lock.wait_lock);
+        }
+
 	lock_wait_mutex_exit();
 	trx_mutex_exit(trx);
 
@@ -301,7 +306,17 @@ lock_wait_suspend_thread(
 		srv_conc_force_exit_innodb(trx);
 	}
 
-	os_event_wait(slot->event);
+        /* Unknown is also treated like a record lock */
+        if ( lock_type == ULINT_UNDEFINED || lock_type == LOCK_REC) {
+          thd_wait_begin(trx->mysql_thd, THD_WAIT_ROW_LOCK);
+        } else {
+          ut_ad(lock_type == LOCK_TABLE);
+          thd_wait_begin(trx->mysql_thd, THD_WAIT_TABLE_LOCK);
+        }
+
+        os_event_wait(slot->event);
+
+        thd_wait_end(trx->mysql_thd);
 
 	/* After resuming, reacquire the data dictionary latch if
 	necessary. */

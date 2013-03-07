@@ -6369,16 +6369,14 @@ ha_innobase::write_row(
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (prebuilt->trx != trx) {
-		sql_print_error("The transaction object for the table handle "
-				"is at %p, but for the current thread it is at "
-				"%p",
-				(const void*) prebuilt->trx, (const void*) trx);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The transaction object for the table handle is"
+			"at %p, but for the current thread it is at %p",
+			(const void*) prebuilt->trx, (const void*) trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*) prebuilt) - 100, 200);
-		fputs("\n"
-			"InnoDB: Dump of 200 bytes around ha_data: ",
-			stderr);
+		fputs("\nInnoDB: Dump of 200 bytes around ha_data: ", stderr);
 		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
@@ -16650,7 +16648,7 @@ ib_logf(
 		sql_print_error("InnoDB: %s", str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
-		sql_print_error("InnoDB: %s", str);
+		sql_print_error("[FATAL] InnoDB: %s", str);
 		break;
 	}
 
