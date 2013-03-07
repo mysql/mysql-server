@@ -123,8 +123,8 @@ dfield_check_typed_no_assert(
 	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		fprintf(stderr,
-			"InnoDB: Error: data field type %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
 		return(FALSE);
@@ -183,12 +183,10 @@ dfield_check_typed(
 	if (dfield_get_type(field)->mtype > DATA_MTYPE_CURRENT_MAX
 	    || dfield_get_type(field)->mtype < DATA_MTYPE_CURRENT_MIN) {
 
-		fprintf(stderr,
-			"InnoDB: Error: data field type %lu, len %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"data field type %lu, len %lu",
 			(ulong) dfield_get_type(field)->mtype,
 			(ulong) dfield_get_len(field));
-
-		ut_error;
 	}
 
 	return(TRUE);
