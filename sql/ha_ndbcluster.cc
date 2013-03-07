@@ -3709,7 +3709,6 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
   return op;
 }
 
-extern void sql_print_information(const char *format, ...);
 
 static
 bool
