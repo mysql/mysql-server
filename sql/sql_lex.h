@@ -27,6 +27,7 @@
 #include "sql_array.h"
 #include "mem_root_array.h"
 #include "sql_alter.h"                // Alter_info
+#include "sql_servers.h"
 
 /* YACC and LEX Definitions */
 
@@ -263,14 +264,6 @@ enum enum_drop_mode
 
 typedef List<Item> List_item;
 typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
-
-/* SERVERS CACHE CHANGES */
-typedef struct st_lex_server_options
-{
-  long port;
-  uint server_name_length;
-  char *server_name, *host, *db, *username, *password, *scheme, *socket, *owner;
-} LEX_SERVER_OPTIONS;
 
 
 /**
@@ -2359,7 +2352,7 @@ struct LEX: public Query_tables_list
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SLAVE_CONNECTION slave_connection;
-  LEX_SERVER_OPTIONS server_options;
+  Server_options server_options;
   USER_RESOURCES mqh;
   LEX_RESET_SLAVE reset_slave_info;
   ulong type;
