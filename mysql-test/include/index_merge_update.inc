@@ -29,7 +29,7 @@ ANALYZE TABLE t2;
 --eval UPDATE t1 SET key6=7 $query
 --eval SELECT COUNT(*), SUM(key6) FROM t1 $query
 
---let $query = WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL)
+--let $query = WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL)
 --replace_column 9 #
 --eval EXPLAIN UPDATE t1 SET key1=18 $query
 --eval SELECT COUNT(*), SUM(key1) FROM t1 $query
