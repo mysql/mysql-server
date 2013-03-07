@@ -212,6 +212,9 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   /* execute() starts here */
+  /* TODO: count the number of autoincrement values needed in dbOperationList
+     and fetch them into the objects before prepareOperationsAndExecute
+  */
   udebug.log("Internal execute ", self.moniker);
   var table = dbOperationList[0].tableHandler.dbTable;
 
@@ -227,7 +230,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       ndbsession.txIsOpen(self);
       ndb.startTransaction(table, 0, 0, onStartTx); 
     }
-    else {          // We cannot get an NdbTransaction right now; queue one
+    else {  // We cannot get an NdbTransaction right now; queue one
       stats.incr("start","queued");
       ndbsession.enqueueTransaction(self, dbOperationList, callback);
     }

@@ -216,6 +216,8 @@ NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
+  /* TODO: Put a marker on the operation if we need an autoincrement value
+  */
   udebug.log("buildInsertOperation " + tableHandler.dbTable.name);
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;

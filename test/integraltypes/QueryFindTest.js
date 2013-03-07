@@ -27,7 +27,7 @@ t1.run = function() {
   // use id to find an instance
   var from = global.integraltypes;
   var key = 1;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by id
     session.createQuery(from, function(err, qint) {
       if (err) {
@@ -49,7 +49,7 @@ t2.run = function() {
   // use tint to find an instance
   var from = global.integraltypes;
   var key = 2;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by unique key tint
     session.createQuery(from, function(err, qint) {
       if (err) {
@@ -71,7 +71,7 @@ t3.run = function() {
   // use id to find an instance
   var from = new global.integraltypes(0);
   var key = 3;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by id
     session.createQuery(from, function(err, qint) {
       if (err) {
@@ -93,7 +93,7 @@ t4.run = function() {
   // use tint to find an instance
   var from = new global.integraltypes(0);
   var key = 4;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by unique key tint
     session.createQuery(from, function(err, qint) {
       if (err) {
@@ -115,7 +115,7 @@ t5.run = function() {
   // use id to find an instance
   var from = 'integraltypes';
   var key = 5;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by id
     session.createQuery(from, function(err, qint) {
       if (err) {
@@ -137,7 +137,7 @@ t6.run = function() {
   // use tint to find an instance
   var from = 'integraltypes';
   var key = 6;
-  fail_integraltypesOpenSession(testCase, function(session) {
+  fail_openSession(testCase, function(session) {
     // query by unique key tint
     session.createQuery(from, function(err, qint) {
       if (err) {

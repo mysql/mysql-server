@@ -185,6 +185,7 @@ function encodeRowBuffer(op) {
     if(value === null) {
       record.setNull(i, op.buffers.row);
     }
+    /* Check here for autoincrement column */
     else if(typeof value !== 'undefined') {
       record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
