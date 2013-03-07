@@ -39,9 +39,10 @@ extern ibool		buf_dblwr_being_created;
 
 /****************************************************************//**
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
-doublewrite buffer is placed on the trx system header page. */
-UNIV_INTERN
-void
+doublewrite buffer is placed on the trx system header page.
+@return true if successful, false if not. */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 buf_dblwr_create(void);
 /*==================*/
 /****************************************************************//**

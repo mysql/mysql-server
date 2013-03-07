@@ -3713,8 +3713,7 @@ row_search_for_mysql(
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 #if 0

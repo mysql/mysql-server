@@ -156,9 +156,10 @@ buf_dblwr_init(
 
 /****************************************************************//**
 Creates the doublewrite buffer to a new InnoDB installation. The header of the
-doublewrite buffer is placed on the trx system header page. */
-UNIV_INTERN
-void
+doublewrite buffer is placed on the trx system header page.
+@return true if successful, false if not. */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 buf_dblwr_create(void)
 /*==================*/
 {
@@ -174,7 +175,7 @@ buf_dblwr_create(void)
 	if (buf_dblwr) {
 		/* Already inited */
 
-		return;
+		return(true);
 	}
 
 start_again:
@@ -192,23 +193,23 @@ start_again:
 
 		mtr_commit(&mtr);
 		buf_dblwr_being_created = FALSE;
-		return;
+		return(true);
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Doublewrite buffer not found: creating new");
-
-	if (buf_pool_get_curr_size()
-	    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
-		+ FSP_EXTENT_SIZE / 2 + 100)
-	       * UNIV_PAGE_SIZE)) {
-
+	ulint min_doublewrite_size = 
+		( ( 2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
+		  + FSP_EXTENT_SIZE / 2
+		  + 100)
+		* UNIV_PAGE_SIZE);
+	if (buf_pool_get_curr_size() <  min_doublewrite_size) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create doublewrite buffer: you must "
 			"increase your buffer pool size. Cannot continue "
 			"operation.");
 
-		exit(EXIT_FAILURE);
+		return(false);
 	}
 
 	block2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
@@ -229,7 +230,7 @@ start_again:
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
 
-		exit(EXIT_FAILURE);
+		return(false);
 	}
 
 	fseg_header = doublewrite + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -245,7 +246,7 @@ start_again:
 				"increase your tablespace size. "
 				"Cannot continue operation.");
 
-			exit(EXIT_FAILURE);
+			return(false);
 		}
 
 		/* We read the allocated pages to the buffer pool;
@@ -506,19 +507,13 @@ buf_dblwr_init_or_restore_pages(
 						page, zip_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 
-					fprintf(stderr,
-						"InnoDB: Also the page in the"
-						" doublewrite buffer"
-						" is corrupt.\n"
-						"InnoDB: Cannot continue"
-						" operation.\n"
-						"InnoDB: You can try to"
-						" recover the database"
-						" with the my.cnf\n"
-						"InnoDB: option:\n"
-						"InnoDB:"
-						" innodb_force_recovery=6\n");
-					ut_error;
+					ib_logf(IB_LOG_LEVEL_FATAL,
+						"The page in the doublewrite"
+						" buffer is corrupt. Cannot"
+						" continue operation. You"
+						" can try to recover the"
+						" database with"
+						" innodb_force_recovery=6");
 				}
 
 				/* Write the good page from the
@@ -646,18 +641,13 @@ buf_dblwr_assert_on_corrupt_block(
 	buf_page_print(block->frame, 0, BUF_PAGE_PRINT_NO_CRASH);
 
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Apparent corruption of an"
-		" index page n:o %lu in space %lu\n"
-		"InnoDB: to be written to data file."
-		" We intentionally crash server\n"
-		"InnoDB: to prevent corrupt data"
-		" from ending up in data\n"
-		"InnoDB: files.\n",
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Apparent corruption of an index page n:o %lu in space"
+		" %lu to be written to data file. We intentionally crash"
+		" the server to prevent corrupt data from ending up in"
+		" data files.",
 		(ulong) buf_block_get_page_no(block),
 		(ulong) buf_block_get_space(block));
-
-	ut_error;
 }
 
 /********************************************************************//**
