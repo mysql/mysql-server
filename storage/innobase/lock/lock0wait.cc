@@ -170,13 +170,12 @@ lock_wait_table_reserve_slot(
 
 	ut_print_timestamp(stderr);
 
-	fprintf(stderr,
-		"  InnoDB: There appear to be %lu user"
-		" threads currently waiting\n"
-		"InnoDB: inside InnoDB, which is the"
-		" upper limit. Cannot continue operation.\n"
-		"InnoDB: As a last thing, we print"
-		" a list of waiting threads.\n", (ulong) OS_THREAD_MAX_N);
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"There appear to be %lu user threads currently waiting"
+		" inside InnoDB, which is the upper limit."
+		" Cannot continue operation."
+		" Before aborting, we print a list of waiting threads.",
+		(ulong) OS_THREAD_MAX_N);
 
 	lock_wait_table_print();
 

@@ -297,10 +297,9 @@ cmp_whole_field(
 	case DATA_GEOMETRY:
 		return(0);
 	default:
-		fprintf(stderr,
-			"InnoDB: unknown type number %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"unknown data type number %lu",
 			(ulong) mtype);
-		ut_error;
 	}
 
 	return(0);
