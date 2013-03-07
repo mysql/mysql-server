@@ -1048,6 +1048,11 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->update_server_status();
       thd->protocol->end_statement();
       query_cache_end_of_result(thd);
+
+      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                          thd->stmt_da->is_error() ? thd->stmt_da->sql_errno()
+                          : 0, command_name[command].str);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
