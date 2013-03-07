@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1586,6 +1586,10 @@ THD::~THD()
     release_resources();
 
   clear_next_event_pos();
+
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
 
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
