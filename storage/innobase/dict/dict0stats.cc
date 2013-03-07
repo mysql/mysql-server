@@ -2348,7 +2348,7 @@ dict_stats_save(
 			ut_snprintf(stat_name, sizeof(stat_name),
 				    "n_diff_pfx%02lu", i + 1);
 
-			/* craft a string that contains the columns names */
+			/* craft a string that contains the column names */
 			ut_snprintf(stat_description,
 				    sizeof(stat_description),
 				    "%s", index->fields[0].name);

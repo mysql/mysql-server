@@ -1445,15 +1445,12 @@ btr_page_get_father_node_ptr_func(
 					  ULINT_UNDEFINED, &heap);
 		page_rec_print(node_ptr, offsets);
 
-		fputs("InnoDB: You should dump + drop + reimport the table"
-		      " to fix the\n"
-		      "InnoDB: corruption. If the crash happens at "
-		      "the database startup, see\n"
-		      "InnoDB: " REFMAN "forcing-innodb-recovery.html about\n"
-		      "InnoDB: forcing recovery. "
-		      "Then dump + drop + reimport.\n", stderr);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"You should dump + drop + reimport the table to"
+			" fix the corruption. If the crash happens at"
+			" database startup, see " REFMAN
+			"forcing-innodb-recovery.html about forcing"
+			" recovery. Then dump + drop + reimport.");
 	}
 
 	return(offsets);

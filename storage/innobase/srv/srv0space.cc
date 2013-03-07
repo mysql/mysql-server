@@ -781,7 +781,7 @@ dberr_t
 Tablespace::file_not_found(
 /*=======================*/
 	file_t&	file,
-	ibool*	create_new_db)
+	bool*	create_new_db)
 {
 	file.m_exists = false;
 
@@ -888,7 +888,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::check_file_spec(
 /*========================*/
-	ibool*	create_new_db,
+	bool*	create_new_db,
 	ulint	min_expected_tablespace_size)
 {
 	srv_normalize_path_for_win(m_tablespace_path);
