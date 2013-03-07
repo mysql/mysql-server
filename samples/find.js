@@ -112,10 +112,7 @@ console.log('Running find with adapter', adapter, user_args);
 var dbProperties = nosql.ConnectionProperties(adapter);
 
 // create a basic mapping
-
-var annotations = new nosql.Annotations();
-
-annotations.mapClass(lib.Tweet, {'table' : 'tweet'});
+var annotations = new nosql.TableMapping('tweet').applyToClass(lib.Tweet);
 
 //check results of find
 var onFind = function(err, object) {
@@ -140,5 +137,6 @@ var onSession = function(err, session) {
 };
 
 // connect to the database
-nosql.openSession(dbProperties, annotations, onSession);
+nosql.openSession(dbProperties, annotations, 
+onSession);
 

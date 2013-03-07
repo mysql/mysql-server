@@ -210,10 +210,7 @@ function main() {
     JSCRUND.implementation = new sqladapter.implementation();
   }
   options.properties = properties; // properties for getSession
-  var a = new JSCRUND.mynode.Annotations();
-  var tm = a.newTableMapping("a");
-  a.mapClass(A, tm);
-  options.annotations = a;
+  options.annotations = new JSCRUND.mynode.TableMapping("a").applyToClass(A);
 
   var generateAllParameters = function(numberOfParameters) {
     var result = [];

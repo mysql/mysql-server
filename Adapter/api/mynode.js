@@ -19,12 +19,15 @@
 */
 
 "use strict";
-/*global unified_debug */
 
-var spi = require("../impl/SPI.js");
-var annotations = require("./Annotations.js");
-var sessionfactory = require("./SessionFactory.js");
-var udebug = unified_debug.getLogger("mynode.js");
+var spi            = require("../impl/SPI"),
+    SessionFactory = require("./SessionFactory").SessionFactory,
+    TableMapping   = require("./TableMapping").TableMapping,
+    unified_debug  = require("./unified_debug"),
+    udebug         = unified_debug.getLogger("mynode.js");
+
+/** make TableMapping public */
+exports.TableMapping = TableMapping;
 
 /** connections is a hash of connectionKey to Connection */
 var connections = {};
@@ -37,15 +40,6 @@ var Connection = function(dbConnectionPool) {
   this.factories = {};
   this.count = 0;
 };
-
-exports.Annotations = function() {
-  return new annotations.Annotations();
-};
-
-function spi_connect_sync(properties) {
-  var db = spi.getDBServiceProvider(properties.implementation);
-  return db.connectSync(properties);  
-}
 
 exports.ConnectionProperties = function(name) {
   var sp = spi.getDBServiceProvider(name);
@@ -72,7 +66,7 @@ exports.connect = function(properties, annotations, user_callback, extra1, extra
   var createFactory = function(dbConnectionPool) {
     var newFactory;
     udebug.log('connect createFactory creating factory for', connectionKey, 'database', database);
-    newFactory = new sessionfactory.SessionFactory(connectionKey, dbConnectionPool, properties, annotations, deleteFactory);
+    newFactory = new SessionFactory(connectionKey, dbConnectionPool, properties, annotations, deleteFactory);
     return newFactory;
   };
   
@@ -114,7 +108,7 @@ exports.openSession = function(properties, annotations, user_callback, extra1, e
     if(! err) {
       var session = factory.openSession(annotations, user_callback, extra1, extra2, extra3, extra4);
     } else {
-      user_callback(err, session, extra1, extra2, extra3, extra4);   // todo: extra parameters
+      user_callback(err, null, extra1, extra2, extra3, extra4);
     }
   });
 };
@@ -140,13 +134,12 @@ deleteFactory = function(key, database) {
   var dbConnectionPool = factory.dbConnectionPool;
   
   delete connection.factories[database];
-  if (--connection.count == 0) {
+  if (--connection.count === 0) {
     // no more factories in this connection
     udebug.log('deleteFactory closing dbConnectionPool for key', key, 'database', database);
-    if (dbConnectionPool != null) {
+    if (dbConnectionPool !== null) {
       dbConnectionPool = null;
       delete connections[key];
     }
-  };
-  
+  }
 };

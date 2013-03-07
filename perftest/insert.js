@@ -183,11 +183,8 @@ function main() {
     "adapter" : "ndb"
   };
   parse_command_line(options);
-  var properties = new mynode.ConnectionProperties(options.adapter);
-  var a = new mynode.Annotations();
-  var tm = a.newTableMapping("a");
+  var tm = new mynode.TableMapping("a").applyToClass(Row);
   var intervalTimer = getIntervalTimer();
-  a.mapClass(Row, a);
   properties.database = "jscrund";
   properties.mysql_user = "root";
 

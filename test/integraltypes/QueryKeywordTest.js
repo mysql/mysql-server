@@ -30,15 +30,13 @@ var IntegraltypesKeywordId = function(id) {
 
 var mapIntegraltypesKeyword = function() {
   // map special domain type
-  var annotations = new mynode.Annotations();
-  annotations.strict(true);
-  var tablemapping = annotations.newTableMapping("test.integraltypes");
+  var tablemapping = new mynode.TableMapping("test.integraltypes");
   tablemapping.mapField('where', 'id');
   tablemapping.mapField('execute', 'ttinyint');
   tablemapping.mapField('count', 'tsmallint');
   tablemapping.mapField('param', 'tmediumint');
   tablemapping.mapField('field', 'tint');
-  annotations.mapClass(IntegraltypesKeywordId, tablemapping);
+  tablemapping.applyToClass(IntegraltypesKeywordId);
 };
 
 /** Verify the instance or append an error message to the test case */

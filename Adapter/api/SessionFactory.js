@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -27,11 +27,11 @@ var session     = require("./Session.js"),
     userContext = require('../impl/common/UserContext.js'),
     util        = require("util");
 
-var SessionFactory = function(key, dbConnectionPool, properties, annotations, delete_callback) {
+var SessionFactory = function(key, dbConnectionPool, properties, mappings, delete_callback) {
   this.key = key;
   this.dbConnectionPool = dbConnectionPool;
   this.properties = properties;
-  this.annotations = annotations;
+  this.mappings = mappings;
   this.delete_callback = delete_callback;
   this.sessions = [];
   this.tableHandlers = {};
@@ -39,7 +39,7 @@ var SessionFactory = function(key, dbConnectionPool, properties, annotations, de
 };
 
 
-//openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
+//openSession(Function(Object error, Session session, ...) callback, ...);
 // Open new session or get one from a pool
 SessionFactory.prototype.openSession = function() {
   var context = new userContext.UserContext(arguments, 2, 2, null, this);

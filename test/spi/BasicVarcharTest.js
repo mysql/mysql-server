@@ -31,12 +31,12 @@ try {
 var spi_lib = require("./lib.js");
 var dbtablehandler = require(path.join(spi_dir, "common", "DBTableHandler.js"));
 var udebug = unified_debug.getLogger("BasicVarcharTest.js");
+var TableMapping = require(path.join(api_dir, "TableMapping")).TableMapping;
 
 var dbSession = null;
 var table = null;
 var dbt = null;
-var annotations = new mynode.Annotations();
-var mapping = annotations.newTableMapping("test.tbl3");
+var mapping = new TableMapping("test.tbl3");
 mapping.mapField("id", "i");
 mapping.mapField("name", "c");
 
