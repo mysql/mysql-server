@@ -123,15 +123,13 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
   var properties = global.test_conn_properties;
-  var annotations = new mynode.Annotations();
-  annotations.strict(true);
-  var tablemapping = annotations.newTableMapping("test.t_basic");
+  var tablemapping = new mynode.TableMapping("test.t_basic");
   tablemapping.mapField("id");
   tablemapping.mapField("age");
   tablemapping.mapField("name");
   tablemapping.mapField("magic");
-  annotations.mapClass(global.t_basic, tablemapping);
-  mynode.openSession(properties, annotations, function(err, session) {
+  tablemapping.applyToClass(global.t_basic);
+  mynode.openSession(properties, tablemapping, function(err, session) {
     if (err) {
       testCase.fail(err);
       return;

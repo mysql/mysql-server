@@ -140,17 +140,15 @@ global.fail_verify_integraltypes = function(err, instance, id, testCase, domainO
 /** Open a session or fail the test case */
 global.fail_integraltypesOpenSession = function(testCase, callback) {
   var properties = global.test_conn_properties;
-  var annotations = new mynode.Annotations();
-  annotations.strict(true);
-  var tablemapping = annotations.newTableMapping("test.integraltypes");
+  var tablemapping = new mynode.TableMapping("test.integraltypes");
   tablemapping.mapField("id");
   tablemapping.mapField("ttinyint", "ttinyint");
   tablemapping.mapField("tsmallint", "tsmallint");
   tablemapping.mapField("tmediumint", "tmediumint");
   tablemapping.mapField("tint", "tint");
   tablemapping.mapField("tbigint", "tbigint");
-  annotations.mapClass(global.integraltypes, tablemapping);
-  mynode.openSession(properties, annotations, function(err, session) {
+  tablemapping.applyToClass(global.integraltypes);
+  mynode.openSession(properties, tablemapping, function(err, session) {
     if (err) {
       testCase.fail(err);
       return;

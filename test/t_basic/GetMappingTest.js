@@ -25,7 +25,6 @@ var udebug      = unified_debug.getLogger("GetMappingTest.js");
 var expectedMappingFor_t_basic = {
     "table" : "t_basic",
     "database" : "test",
-    "autoIncrementBatchSize" : 1,
     "fields" : [{
       "fieldName"    : "id",
       "defaultValue" : undefined,
@@ -38,7 +37,6 @@ var verifyMapping = function(testCase, expected, result) {
   udebug.log('GetMappingTest result: ', util.inspect(result));
   testCase.errorIfNotEqual('Mapping.table mismatch', expected.table, result.table);
   testCase.errorIfNotEqual('Mapping.database mismatch', expected.database, result.database);
-  testCase.errorIfNotEqual('Mapping.autoIncrementBatchSize mismatch', expected.autoIncrementBatchSize, result.autoIncrementBatchSize);
   testCase.errorIfNotEqual('Mapping.fields.fieldName mismatch', expected.fields[0].fieldName, result.fields[0].fieldName);
   testCase.errorIfNotEqual('Mapping.fields.columnName mismatch', expected.fields[0].columnName, result.fields[0].columnName);
   testCase.errorIfNotEqual('Mapping.fields.notPersistent mismatch', expected.fields[0].notPersistent, result.fields[0].notPersistent);

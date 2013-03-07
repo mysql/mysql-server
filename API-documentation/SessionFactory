@@ -1,18 +1,3 @@
-  /** mapClass()
-   * Supply annotations to a prototype object.
-   *
-   * Annotations specify details of how the object is mapped to the database.
-   * For allowable objectAnnotations, see the mapClass description
-   * in Annotations.
-   * 
-   * @param token_object prototype object to annotate
-   * @param annotations field annotations object 
-   * @param callback function to call when mapping is complete and validated
-   * @param additional parameters are returned in the callback function
-   * @return nothing
-   */
-  mapClass(Object token_object, Object objectAnnotations, function(err[, ...]) callback[, ...]);
-
 
   /*
    * 
@@ -22,18 +7,18 @@
    * Each independent user should have its own Session.
    *
    * The resources required for sessions are allocated in advance. 
-   * It may return an error in the callback indicating that those resources are not available.
+   * It may return an error in the callback indicating that those resources are 
+   * not available.
    *
-   * @param annotations the list of annotations to be used in this session
+   * @param mappings Table Mappings to be validated at start of session
    * @param callback the function to call when the session is ready for use
    * @param additional parameters will be returned in the callback
    * @return nothing
-   *
-   * TODO: make a list of all the allowed properties.
+   * @async
    *
    * @return a Session object.
    */
-  openSession(Annotations annotations, Function(Object error, Session session, ...) callback, ...);
+  openSession(Object mappings, Function(Object error, Session session, ...) callback, ...);
  
   /** Get all open sessions that have been created by this factory.
    *

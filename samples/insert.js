@@ -112,10 +112,7 @@ console.log('Running insert with adapter', adapter, user_args);
 var dbProperties = nosql.ConnectionProperties(adapter);
 
 // create a basic mapping
-
-var annotations = new nosql.Annotations();
-
-annotations.mapClass(lib.Tweet, {'table' : 'tweet'});
+var annotations = new nosql.TableMapping('tweet').applyToClass(lib.Tweet);
 
 //check results of insert
 var onInsert = function(err, object) {

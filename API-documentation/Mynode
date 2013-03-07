@@ -1,5 +1,4 @@
 
-
 /***
  * ConnectionProperties()
  * IMMEDIATE
@@ -8,20 +7,11 @@
  * This constructor returns a complete set of default connection
  * properties for "impl"
  *
+ * @return The default set of connection properties for adapter "impl"
  */
- Object ConnectionProperties(String impl);
+ConnectionProperties(String impl);
 
 
-/***
- * Annotations()
- * IMMEDIATE
- * CONSTRUCTOR
- *
- * This constructor returns an Annotations object with default settings.
- *
- */
- Object Annotations();
- 
 /* 
  * connect()
  * ASYNC
@@ -34,18 +24,19 @@
  * The "implementation" member of the properties object determines the 
  * implementation of the SessionFactory.
  *
- * If Annotations is null, the schema for the needed tables are only read
+ * If mappings is null, the schema for the needed tables are only read
  * when actually needed.
  * 
- * If Annotations is not null, the schema for only the tables named
- * are read.
+ * If mappings is not null, the schema for only the tables named
+ * are read, and table mappings are checked for errors.
  *
  *  @param properties  properties object describing the session
- *  @param annotations Annotations object describing the mapping 
+ *  @param mappings    Table Mappings to validated when session is opened
  *  @param callback    function called after connection is complete.
  *  @return void
  */
-connect(Properties, Annotations, Function(err, SessionFactory[, ...]) callback[, ...]);
+connect(properties, mappings, Function(err, SessionFactory[, ...]) callback[, ...]);
+
 
 /* 
  * openSession()
@@ -71,14 +62,15 @@ connect(Properties, Annotations, Function(err, SessionFactory[, ...]) callback[,
  * will return errors.
  *
  *  @param properties  properties object describing the session
- *  @param annotations Annotations object describing the mapping 
+ *  @param mappings    Table Mappings to validated when session is opened
  *  @param callback    function called after connection is complete.
- *  @return void
+ *  @async
  */
-openSession(Properties, Annotations, Function(err, Session[, ...]) callback[, ...]);));
+openSession(Properties, mappings, Function(err, Session[, ...]) callback[, ...]);
+
 
 /** Get all SessionFactories that have been created by this module.
  * All session factories are returned in an array. 
  * @return open session factories
  */
-Array getOpenSessionFactories();
+getOpenSessionFactories();

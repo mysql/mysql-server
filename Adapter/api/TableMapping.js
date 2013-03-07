@@ -1,6 +1,6 @@
 
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -19,154 +19,256 @@
  02110-1301  USA
  */
 
-/*global path, api_doc_dir, unified_debug */
+/*global assert, path, api_doc_dir, unified_debug */
 
 "use strict";
 
+var udebug       = unified_debug.getLogger("TableMapping.js"),
+    doc          = require(path.join(api_doc_dir, "TableMapping"));
 
-var doc          = require(path.join(api_doc_dir, "TableMapping")),
-    fieldmapping = require("./FieldMapping.js"),
-    udebug       = unified_debug.getLogger("___.js");
+
+/* Code to verify the validity of a TableMapping */
+
+function isString(value) { 
+  return (typeof value === 'string' && value !== null);
+}
+
+function isNonEmptyString(value) {
+  return (isString(value) && value.length > 0);
+}
+
+function isBool(value) {
+  return (value === true || value === false);
+}
+
+function isValidConverterObject(converter) {
+  return ((converter === null) || 
+            (typeof converter === 'object'
+             && typeof converter.toDB === 'function' 
+             && typeof converter.fromDB === 'function'));
+}
+
+var fieldMappingProperties = {
+  "fieldName"    : isNonEmptyString,
+  "columnName"   : isString,
+  "persistent"   : isBool,
+  "converter"    : isValidConverterObject,
+  "user"         : function() { return true; }
+};
+
+// These functions return error message, or empty string if valid
+function verifyProperty(property, value, verifiers) {
+  var isValid = '', chk;
+  if(verifiers[property]) {
+    chk = verifiers[property](value);    
+    if(chk !== true && chk.length) {
+      isValid = 'property ' + property + ' invalid: ' + chk;
+    }
+    else if(chk === false) {
+      isValid = 'property ' + property + ' invalid: ' + JSON.stringify(value);
+    }
+  }
+  else if(typeof value !== 'function') {
+    isValid = 'unknown property ' + property +'; ' ;
+  }
+  return isValid;
+}
+
+function isValidMapping(m, verifiers) {
+  var property, isValid = '';
+  for(property in m) {
+    if(m.hasOwnProperty(property)) {
+      isValid += verifyProperty(property, m[property], verifiers);
+    }
+  }
+  return isValid;
+}    
+
+function isValidFieldMapping(fm, number) {
+  var reason = isValidMapping(fm, fieldMappingProperties);
+  number = number || '';
+  if(reason.length) {
+    return "field " + number + " is not a valid FieldMapping: " + reason;
+  }
+  return '';
+}
+
+function isValidFieldMappingArray(fieldMappings) {
+  var i, isValid = '';
+  if(fieldMappings !== null) {
+    for(i = 0; i < fieldMappings.length ; i++) {
+      isValid += isValidFieldMapping(fieldMappings[i], i+1);
+    }
+  }
+  return isValid;
+}
+
+var tableMappingProperties = {
+  "table"         : isNonEmptyString,
+  "database"      : isString, 
+  "mapAllColumns" : isBool,
+  "field"         : isValidFieldMapping,
+  "fields"        : isValidFieldMappingArray,
+  "user"          : function() { return true; }
+};
+
+function isValidTableMapping(tm) {
+  return isValidMapping(tm, tableMappingProperties);
+}
+
+function buildMappingFromObject(mapping, literal, verifier) {
+  var p;
+  for(p in Object.keys(verifier)) {
+    if(typeof literal[p] !== 'undefined') {
+      mapping[p] = literal[p];
+    }
+  }
+}
+
+/* A canoncial TableMapping has a "fields" array,
+   though a literal one may have a "field" or "fields" object or array
+*/
+function makeCanonical(tableMapping) {
+  if(tableMapping.fileds === null) {
+    tableMapping.fields = [];
+  }
+  else if(typeof tableMapping.fields === 'object') {
+    tableMapping.fields = [ tableMapping.fields ];
+  }
+  if(typeof tableMapping.field !== 'undefined') { 
+    tableMapping.fileds.concat(tableMapping.field);
+    delete tableMapping.field;
+  }
+}
 
 
 /* TableMapping constructor
+   Takes tableName or tableMappingLiteral
 */
-function TableMapping(tableName) {
-  if(! tableName) {
-    throw new Error("TableMapping(): tableName required.");
-  }
-  var parts = tableName.split(".");
-  if(parts[0] && parts[1]) {
-    this.database = parts[0];
-    this.table = parts[1];
-  }
-  else {
-    this.table = parts[0];
+function TableMapping(tableNameOrLiteral) {
+  var err;
+  switch(typeof tableNameOrLiteral) {
+    case 'object':
+      buildMappingFromObject(this, tableNameOrLiteral, tableMappingProperties);
+      makeCanonical(this);
+      break;
+
+    case 'string':
+      var parts = tableNameOrLiteral.split(".");
+      if(parts[0] && parts[1]) {
+        this.database = parts[0];
+        this.table = parts[1];
+      }
+      else {
+        this.table = parts[0];
+      }
+      this.fields = [];
+      break;
+    
+    default: 
+      throw new Error("TableMapping(): tableName or tableMapping required.");
   }
   
-  this.fields = [];
+  err = isValidTableMapping(this);
+  if(err.length) {
+    throw new Error(err);
+  }  
 }
+/* Get prototype from documentation
+*/
 TableMapping.prototype = doc.TableMapping;
 
 
-/* verify(property, value, strict) 
-   Returns true on OK 
-   or string error message on error
-*/
-function verify(property, value, strict) {
-  var i;
-  var fieldVerify;
-  
-  function valErr() {
-    return "unlawful value " + value + "for property " + property;
-  }
-
-  if(typeof value === 'undefined' || value === null) { return valErr(); }
- 
-  switch(property) {
-    case "table":
-    case "database":
-      if(typeof value !== 'string')             { return valErr(); }
-      break;
-    case "autoIncrementBatchSize":
-      if(! isFinite(value))                     { return valErr(); }
-      break;
-    case "mapAllColumns": 
-      if(! (value === true || value === false)) { return valErr(); }
-      break;
-    case "fields": 
-    case "field":
-      // must be an array of FieldMappings or a single FieldMapping
-      if(typeof value !== 'object')             { return valErr(); }
-      if (typeof(value.length) === 'undefined') {
-        fieldVerify = fieldmapping.isValidFieldMapping(value, strict);
-        if(fieldVerify !== true) {
-          return "field " + JSON.stringify(value) + " is not a valid FieldMapping because " + fieldVerify;
-        }
-      }
-      for(i = 0 ; i < value.length ; i++) {
-        fieldVerify = fieldmapping.isValidFieldMapping(value[i], strict);
-        if(fieldVerify !== true) {
-          return "field element " + i + " " + JSON.stringify(value[i]) + " is not a valid FieldMapping because " + fieldVerify;
-        }
-      }
-      break;
-    default:
-      return "unknown property " + property;
-  }
-  return true;
+/* FieldMapping constructor
+ * This is exported & used by DBTableHandler, but not by the public.
+ */
+function FieldMapping(fieldName) {
+  this.fieldName  = fieldName;
+  this.columnName = fieldName; 
 }
+FieldMapping.prototype = doc.FieldMapping;
 
 
-/* Check TableMapping for Annotations strict mode.
-   returns true on OK, or string error message
-*/
-function isStrictlyValidTableMapping(m) {
-  var property, validity;
-  for(property in m) {
-    if(m.hasOwnProperty(property)) {
-      validity = verify(property, m[property], true);
-      if(validity !== true) {
-        return validity;
-      }
-    }
-  }
-  return true;
-}
-
-
-/* set(property, value [, property, value, ... ])
-   IMMEDIATE
-
-   Set a property (or several properties) of a TableMapping, 
-   with error checking.
-*/
-TableMapping.prototype.set = function() {
-  var i, property, value, isValid;
-
-  for(i = 0 ; i < arguments.length ; i += 2) {
-    property = arguments[i];
-    value    = arguments[i+1];
-    isValid = verify(property, value); 
-    if(isValid === true) {
-      this[property] = value;
-    }
-    else {
-      throw new Error("TableMapping.set() " + isValid);
-    }
-  }
-};
-
-
-/* addFieldMapping(fieldMapping) 
+/* mapField(fieldName, [columnName], [converter], [persistent])
+   mapField(literalFieldMapping)
    IMMEDIATE
    
-   Add a FieldMapping to the list of mapped fields, with error checking.
-   fieldMapping must be an object originally obtained from 
-   Annotations.newFieldMapping(). 
-   Throws an exception on error.
+   Create or replace FieldMapping for fieldName
 */
-TableMapping.prototype.addFieldMapping = function(m) {
-  if(fieldmapping.isValidFieldMapping(m)) {
-    this.fields.push(m);
+TableMapping.prototype.mapField = function() {
+  var i, args, fieldName, fieldMapping, err;
+  args = arguments;  
+
+  function getFieldMapping(tableMapping, fieldName) {
+    var fm, i;
+    for(i = 0 ; i < tableMapping.fields.length ; i++) {
+      fm = tableMapping.fields[i];
+      if(fm.fieldName === fieldName) {
+        return fm;
+      }
+    }
+    fm = new FieldMapping(fieldName);
+    tableMapping.fields.push(fm);
+    return fm;
+  }
+  
+  /* mapField() starts here */
+  if(typeof args[0] === 'string') {
+    fieldName = args[0];
+    fieldMapping = getFieldMapping(this, fieldName);
+    for(i = 1; i < args.length ; i++) {
+      switch(typeof args[i]) {
+        case 'string':
+          fieldMapping.columnName = args[i];
+          break;
+        case 'boolean':
+          fieldMapping.persistent = args[i];
+          break;
+        case 'object':
+          fieldMapping.converter = args[i];
+          break;
+        default:
+          throw new Error("Invalid argument " + args[i]);
+      }
+    }
+  }
+  else if(typeof args[0] === 'object') {
+    fieldName = args[0].fieldName;
+    fieldMapping = getFieldMapping(this, fieldName);
+    buildMappingFromObject(fieldMapping, args[0], fieldMappingProperties);
   }
   else {
-    throw new Error("TableMapping.addFieldMapping(): invalid FieldMapping.");
+    throw new Error("mapField() expects a literal FieldMapping or valid arguments list");
   }
+
+  /* Validate the candidate mapping */
+  err = isValidFieldMapping(fieldMapping);
+  if(err.length) {
+    throw new Error(err);
+  }
+
+  return this;
 };
 
 
-/* mapField(fieldName, columnName)
+/* applyToClass(constructor) 
    IMMEDIATE
-   
-   Create a new FieldMapping for(fieldName, columnName) and add it to the 
-   list of mapped fields.
 */
-TableMapping.prototype.mapField = function(fieldName, columnName) {
-  this.fields.push(new fieldmapping.FieldMapping(fieldName, columnName));
+TableMapping.prototype.applyToClass = function(ctor) {
+  if (typeof ctor === 'function') {
+    ctor.prototype.mynode = {};
+    ctor.prototype.mynode.mapping = this;
+    ctor.prototype.mynode.constructor = ctor;
+  }
+  else {
+    throw new Error("applyToClass() parameter must be constructor");
+  }
+  
+  return this;
 };
 
 
+/* Public exports of this module: */
 exports.TableMapping = TableMapping;
-exports.isStrictlyValidTableMapping = isStrictlyValidTableMapping;
-
+exports.FieldMapping = FieldMapping;
+exports.isValidConverterObject = isValidConverterObject;

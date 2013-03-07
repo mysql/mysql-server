@@ -72,16 +72,12 @@ fail_verify_Different = function(err, instance, id, testCase, domainObject) {
 };
 
 var mapDifferent = function() {
-  var annotations = new mynode.Annotations();
-  annotations.mapClass(Different, {'table' : 't_basic',
-    'fields': [
-      {'fieldName' : 'fid', 'columnName' : 'id'},
-      {'fieldName' : 'fname', 'columnName' : 'name'},
-      {'fieldName' : 'fage', 'columnName' : 'age'},
-      {'fieldName' : 'fmagic', 'columnName' : 'magic'}
-    ]
-  });
-
+  var mapping = new mynode.TableMapping('t_basic');
+  mapping.mapField('fid', 'id');
+  mapping.mapField('fname', 'name');
+  mapping.mapField('fage', 'age');
+  mapping.mapField('fmagic', 'magic');
+  mapping.applyToClass(Different);
 };
 
 /***** Persist Different Find by number ***/

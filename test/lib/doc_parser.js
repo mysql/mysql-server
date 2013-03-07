@@ -67,8 +67,8 @@ function scan(text) {
     
   Token.prototype.commit = function() {
     udebug.log("found function:", this.str);
+    list.push(this.str);
     if(isUpper(this.str.charAt(0))) {     constructor = this.str;   }
-    else                            {     list.push(this.str);      }
   };
 
   // Start scanning
@@ -137,12 +137,13 @@ ClassTester.prototype.test = function(functionList, testCase) {
   var i;
 
   udebug.log("verifying",functionList.length,"functions");
+
   // Test missing functions 
   for(i = 0 ; i < functionList.length ; i++) { 
     name = functionList[i];
     func = this.class[name];
     documentedFunctions[name] = func;
-    if(typeof func !== 'function') {
+    if(typeof func !== 'function' && functionList._found_constructor !== name) {
       udebug.log("MISSING FUNCTION", this.file, name);
       if(! firstMissing) { firstMissing = name; }
       missing += 1;

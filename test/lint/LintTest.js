@@ -136,10 +136,8 @@ checkSpiDoc("DBOperation");
 checkSource("api/unified_debug.js");
 checkSource("api/SessionFactory.js");
 checkSource("api/Session.js");
-checkSource("api/Annotations.js");
-checkSource("api/FieldMapping.js");
 checkSource("api/TableMapping.js");
-// checkSource("api/mynode.js");
+checkSource("api/mynode.js");
 
 // ****** TEST FILES TO CHECK ********** //
 checkTest("lint/LintTest.js");

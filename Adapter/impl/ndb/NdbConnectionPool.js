@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global path, build_dir, assert, api_dir, unified_debug */
+/*global path, build_dir, assert, api_dir, api_doc_dir, unified_debug */
 
 "use strict";
 
@@ -30,6 +30,8 @@ var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     udebug           = unified_debug.getLogger("NdbConnectionPool.js"),
     stats_module     = require(path.join(api_dir,"stats.js")),
     stats            = stats_module.getWriter("spi","ndb","DBConnectionPool"),
+    ColumnTypes      = require(path.join(api_doc_dir,"TableMetadata")).ColumnTypes,
+    isValidConverterObject = require(path.join(api_dir,"TableMapping")).isValidConverterObject,
     baseConnections  = {},
     initialized      = false;
 
@@ -184,6 +186,7 @@ function DBConnectionPool(props) {
   this.pendingListTables  = {};
   this.pendingGetMetadata = {};
   this.ndbSessionFreeList = [];
+  this.typeConverters     = {};
 }
 
 
@@ -504,6 +507,23 @@ DBConnectionPool.prototype.createDBTableHandler = function(tableMetadata,
   /* TODO: If the mapping is not a default mapping, then the DBTableHandler
      needs to be annotated with some Records */
   return handler;
+};
+
+
+/* registerTypeConverter(typeName, converterObject) 
+   IMMEDIATE
+*/
+DBConnectionPool.prototype.registerTypeConverter = function(typeName, converter) {
+  if(ColumnTypes.indexOf(typeName.toLocaleUpperCase()) === -1) {
+    throw new Error(typeName + " is not a valid column type.");
+  }
+
+  if(! isValidConverterObject(converter)) {
+      throw new Error("Not a valid converter");
+  }
+
+  // FIXME: The *use* of the converter needs to be implemented in DBTableHandler
+  this.typeConverters[typeName] = converter;  
 };
 
 

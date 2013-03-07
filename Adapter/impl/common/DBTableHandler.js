@@ -22,8 +22,8 @@
 
 "use strict";
 
-var TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
-    FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping")),
+var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
+    FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
     stats_module    = require(path.join(api_dir, "stats")),
     stats           = stats_module.getWriter("spi","common","DBTableHandler"),
     udebug          = unified_debug.getLogger("DBTableHander.js");
@@ -31,7 +31,7 @@ var TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
 // forward declaration of DBIndexHandler to avoid lint issue
 var DBIndexHandler;
 
-/* A DBTableHandler (DBT) combines dictionary metadata with user annotations.  
+/* A DBTableHandler (DBT) combines dictionary metadata with user mappings.  
    It manages setting and getting of columns based on the fields of a 
    user's domain object.  It can also choose an index access path by 
    comapring user-supplied key fields of a domain object with a table's indexes.
@@ -53,8 +53,8 @@ var DBIndexHandler;
 /* DBT prototype */
 var proto = {
   dbTable                : {},    // TableMetadata 
-  mapping                : {},    // API TableMapping from mapClass()
-  newObjectConstructor   : null,  // constructorFunction from mapClass()  
+  mapping                : {},    // TableMapping
+  newObjectConstructor   : null,  // constructor for mapped class  
   stubFields             : null,  // FieldMappings constructed by default rules
 
   fieldNameToFieldMap    : {},
@@ -123,10 +123,8 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
   else {                                          // Create a default mapping
     stats.incr("default_mappings");
-    this.mapping = Object.create(TableMappingDoc.TableMapping);
-    this.mapping.name     = this.dbTable.name;
+    this.mapping          = new TableMapping(this.dbTable.name);
     this.mapping.database = this.dbTable.database;
-    this.mapping.fields   = [];
   }
   
   /* New Arrays */
@@ -135,10 +133,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
   this.fieldNameToFieldMap    = {};
-  this.dbIndexHandlers = [];
-  if (typeof(this.mapping.mapAllColumns === 'undefined')) {
-    this.mapping.mapAllColumns = true;
-  }
+  this.dbIndexHandlers        = [];
 
   /* Build the first draft of the columnNumberToFieldMap, using only the
      explicitly mapped fields. */
@@ -163,8 +158,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     for(i = 0 ; i < this.dbTable.columns.length ; i++) {
       if(! this.columnNumberToFieldMap[i]) {
         c = this.dbTable.columns[i];
-        f = Object.create(FieldMappingDoc.FieldMapping); // new FieldMapping
-        f.fieldName = f.columnName = c.name;
+        f = new FieldMapping(c.name);
         this.stubFields.push(f);
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
@@ -180,7 +174,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.resolvedMapping = {};
   this.resolvedMapping.database = this.dbTable.database;
   this.resolvedMapping.table = this.dbTable.name;
-  this.resolvedMapping.autoIncrementBatchSize = this.mapping.autoIncrementBatchSize || 1;
   this.resolvedMapping.fields = [];
 
   /* Build fieldNumberToColumnMap, establishing field order.
@@ -195,7 +188,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       this.fieldNameToFieldMap[f.fieldName] = f;
       this.resolvedMapping.fields[i].columnName = f.columnName;
       this.resolvedMapping.fields[i].fieldName = f.fieldName;
-      this.resolvedMapping.fields[i].notPersistent = false;
+      this.resolvedMapping.fields[i].persistent = true;
     }
   }  
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
