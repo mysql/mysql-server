@@ -1697,15 +1697,11 @@ loop:
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
-
-			fprintf(stderr,
-				"InnoDB: Error: semaphore wait has lasted"
-				" > %lu seconds\n"
-				"InnoDB: We intentionally crash the server,"
-				" because it appears to be hung.\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Semaphore wait has lasted > %lu seconds."
+				" We intentionally crash the server because"
+				" it appears to be hung.",
 				(ulong) srv_fatal_semaphore_wait_threshold);
-
-			ut_error;
 		}
 	} else {
 		fatal_cnt = 0;
