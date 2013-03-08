@@ -280,13 +280,13 @@ trx_get_rw_trx_by_id(
 	/* Search the list from the lower end (tail). */
 	if (trx_id < (first->id + trx->id) >> 1) {
 		for (trx = UT_LIST_GET_PREV(trx_list, trx);
-		     trx_id > trx->id && trx != NULL;
+		     trx != NULL && trx_id > trx->id;
 		     trx = UT_LIST_GET_PREV(trx_list, trx)) {
 			assert_trx_in_rw_list(trx);
 		}
 	} else {
 		for (trx = UT_LIST_GET_NEXT(trx_list, first);
-		     trx_id < trx->id && trx != NULL;
+		     trx != NULL && trx_id < trx->id;
 		     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 			assert_trx_in_rw_list(trx);
 		}
