@@ -161,15 +161,20 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
                 // if a domain object mapping, cache the table handler in the prototype
                 tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                     tableHandlerFactory.ctor);
-                tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
-                udebug.log_detail('UserContext caching the table handler in the prototype for constructor.');
+                if (tableHandler.isValid) {
+                  tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
+                  udebug.log_detail('UserContext caching the table handler in the prototype for constructor.');
+                } else {
+                  tableHandlerFactory.err = tableHandler.err;
+                  udebug.log_detail('UserContext got invalid tableHandler', tableHandler.errorMessages);
+                }
               } else {
                 tableHandler = tableHandlerFactory.ctor.prototype.mynode.tableHandler;
                 udebug.log_detail('UserContext got tableHandler but someone else put it in the prototype first.');
               }
             }
           }
-          tableHandlerFactory.onTableHandler(null, tableHandler);
+          tableHandlerFactory.onTableHandler(tableHandlerFactory.err, tableHandler);
         }
       };
       
@@ -301,13 +306,7 @@ exports.UserContext.prototype.find = function() {
       }
       userContext.applyCallback(err, null);
     } else {
-      if (userContext.domainObject) {
-        values = dbOperation.result.value;
-        result = userContext.dbTableHandler.newResultObject(values);
-      } else {
-        result = dbOperation.result.value;
-      }
-      userContext.applyCallback(null, result);      
+      userContext.applyCallback(null, dbOperation.result.value);      
     }
   }
 
