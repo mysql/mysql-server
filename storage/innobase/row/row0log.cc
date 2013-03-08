@@ -999,7 +999,7 @@ row_log_table_rollback(
 	ut_ad(dict_index_is_clust(index));
 #ifdef UNIV_DEBUG
 	ibool	corrupt	= FALSE;
-	ut_ad(trx_rw_is_active(trx_id, &corrupt));
+	ut_ad(trx_rw_is_active(trx_id, &corrupt, false));
 	ut_ad(!corrupt);
 #endif /* UNIV_DEBUG */
 
