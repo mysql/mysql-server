@@ -413,8 +413,9 @@ sync_array_wait_event(
 
 	if (TRUE == sync_array_detect_deadlock(arr, cell, cell, 0)) {
 
-		fputs("########################################\n", stderr);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"########################################\n"
+			"Deadlock Detected!");
 	}
 
 	rw_lock_debug_mutex_exit();
@@ -570,10 +571,6 @@ sync_array_deadlock_step(
 	new_cell = sync_array_find_thread(arr, thread);
 
 	if (new_cell == start) {
-		/* Stop running of other threads */
-
-		ut_dbg_stop_threads = TRUE;
-
 		/* Deadlock */
 		fputs("########################################\n"
 		      "DEADLOCK of threads detected!\n", stderr);

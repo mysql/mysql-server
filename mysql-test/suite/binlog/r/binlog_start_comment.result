@@ -8,6 +8,7 @@ flush logs;
 select * from t2;
 word
 Ada
+reset master;
 flush logs;
 select * from t2;
 word

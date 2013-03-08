@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Test of options max_binlog_size and max_relay_log_size and
 # how they act (if max_relay_log_size == 0, use max_binlog_size 
 # for relay logs too).

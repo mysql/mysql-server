@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -60,24 +60,42 @@ dict_stats_recalc_pool_del(
 /*=======================*/
 	const dict_table_t*	table);	/*!< in: table to remove */
 
+/** Yield the data dictionary latch when waiting
+for the background thread to stop accessing a table.
+@param trx	transaction holding the data dictionary locks */
+#define DICT_STATS_BG_YIELD(trx)	do {	\
+	row_mysql_unlock_data_dictionary(trx);	\
+	os_thread_sleep(250000);		\
+	row_mysql_lock_data_dictionary(trx);	\
+} while (0)
+
 /*****************************************************************//**
-Wait until background stats thread has stopped using the specified table(s).
+Request the background collection of statistics to stop for a table.
+@retval true when no background process is active
+@retval false when it is not safe to modify the table definition */
+UNIV_INLINE
+bool
+dict_stats_stop_bg(
+/*===============*/
+	dict_table_t*	table)	/*!< in/out: table */
+	__attribute__((warn_unused_result));
+
+/*****************************************************************//**
+Wait until background stats thread has stopped using the specified table.
 The caller must have locked the data dictionary using
 row_mysql_lock_data_dictionary() and this function may unlock it temporarily
 and restore the lock before it exits.
-The background stats thead is guaranteed not to start using the specified
-tables after this function returns and before the caller unlocks the data
+The background stats thread is guaranteed not to start using the specified
+table after this function returns and before the caller unlocks the data
 dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
 under dict_sys->mutex. */
 UNIV_INTERN
 void
-dict_stats_wait_bg_to_stop_using_tables(
-/*====================================*/
-	dict_table_t*	table1,	/*!< in/out: table1 */
-	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
+dict_stats_wait_bg_to_stop_using_table(
+/*===================================*/
+	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx);	/*!< in/out: transaction to use for
 				unlocking/locking the data dict */
-
 /*****************************************************************//**
 Initialize global variables needed for the operation of dict_stats_thread().
 Must be called before dict_stats_thread() is started. */
@@ -105,5 +123,9 @@ DECLARE_THREAD(dict_stats_thread)(
 /*==============================*/
 	void*	arg);	/*!< in: a dummy parameter
 			required by os_thread_create */
+
+# ifndef UNIV_NONINL
+#  include "dict0stats_bg.ic"
+# endif
 
 #endif /* dict0stats_bg_h */

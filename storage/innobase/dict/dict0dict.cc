@@ -73,6 +73,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "my_sys.h"
 #include "mysqld.h" /* system_charset_info */
 #include "strfunc.h" /* strconvert() */
+#include "srv0space.h"
 
 #include <ctype.h>
 
@@ -102,7 +103,7 @@ UNIV_INTERN ulong	zip_pad_max = 50;
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_online_log_key;
-UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -900,7 +901,7 @@ dict_init(void)
 	}
 
 	for (i = 0; i < DICT_TABLE_STATS_LATCHES_SIZE; i++) {
-		rw_lock_create(dict_table_stats_latch_key,
+		rw_lock_create(dict_table_stats_key,
 			       &dict_table_stats_latches[i], SYNC_INDEX_TREE);
 	}
 }
@@ -1413,10 +1414,9 @@ dict_table_rename_in_cache(
 		memcpy(old_name, table->name, strlen(table->name) + 1);
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: too long table name: '%s', "
-			"max length is %d\n", table->name,
-			MAX_FULL_NAME_LEN);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Too long table name: '%s', max length is %d",
+			table->name, MAX_FULL_NAME_LEN);
 	}
 
 	fold = ut_fold_string(new_name);
@@ -1446,7 +1446,7 @@ dict_table_rename_in_cache(
 		ibool		exists;
 		char*		filepath;
 
-		ut_ad(table->space != TRX_SYS_SPACE);
+		ut_ad(!Tablespace::is_system_tablespace(table->space));
 
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 
@@ -1459,13 +1459,13 @@ dict_table_rename_in_cache(
 			filepath = fil_make_ibd_name(table->name, false);
 		}
 
-		fil_delete_tablespace(table->space, BUF_REMOVE_FLUSH_NO_WRITE);
+		fil_delete_tablespace(table->space, BUF_REMOVE_ALL_NO_WRITE);
 
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &type)
 		    && exists
-		    && !os_file_delete_if_exists(innodb_file_temp_key,
-						 filepath)) {
+		    && !os_file_delete_if_exists(innodb_temp_file_key,
+						 filepath, NULL)) {
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Delete of %s failed.", filepath);
@@ -1473,7 +1473,7 @@ dict_table_rename_in_cache(
 
 		mem_free(filepath);
 
-	} else if (table->space != TRX_SYS_SPACE) {
+	} else if (!Tablespace::is_system_tablespace(table->space)) {
 		char*	new_path = NULL;
 
 		if (table->dir_path_of_temp_table != NULL) {
@@ -2430,6 +2430,13 @@ dict_index_remove_from_cache_low(
 	} while (srv_shutdown_state == SRV_SHUTDOWN_NONE || !lru_evict);
 
 	rw_lock_free(&index->lock);
+
+	/* The index is being dropped, remove any compression stats for it. */
+	if (!lru_evict && DICT_TF_GET_ZIP_SSIZE(index->table->flags)) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
+		page_zip_stat_per_index.erase(index->id);
+		mutex_exit(&page_zip_stat_per_index_mutex);
+	}
 
 	/* Remove the index from the list of indexes of the table */
 	UT_LIST_REMOVE(indexes, table->indexes, index);
@@ -4173,7 +4180,10 @@ col_loop1:
 	}
 
 	/* Try to find an index which contains the columns
-	as the first fields and in the right order */
+	as the first fields and in the right order. There is
+	no need to check column type match (on types_idx), since
+	the referenced table can be NULL if foreign_key_checks is
+	set to 0 */
 
 	index = dict_foreign_find_index(
 		table, NULL, column_names, i, NULL, TRUE, FALSE);
@@ -5160,6 +5170,7 @@ dict_print_info_on_foreign_key_in_create_format(
 	dict_foreign_t*	foreign,	/*!< in: foreign key constraint */
 	ibool		add_newline)	/*!< in: whether to add a newline */
 {
+	char		constraint_name[MAX_TABLE_NAME_LEN];
 	const char*	stripped_id;
 	ulint	i;
 
@@ -5181,7 +5192,9 @@ dict_print_info_on_foreign_key_in_create_format(
 	}
 
 	fputs(" CONSTRAINT ", file);
-	ut_print_name(file, trx, FALSE, stripped_id);
+	innobase_convert_from_id(&my_charset_filename, constraint_name,
+				 stripped_id, MAX_TABLE_NAME_LEN);
+	ut_print_name(file, trx, FALSE, constraint_name);
 	fputs(" FOREIGN KEY (", file);
 
 	for (i = 0;;) {

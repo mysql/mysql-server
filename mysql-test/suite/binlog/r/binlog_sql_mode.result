@@ -121,6 +121,7 @@ wxyz\%ef
 wxyz\_ef
 "Dropping table test_table"
 DROP TABLE test_table;
+RESET MASTER;
 #"test_table" content after replaying the binlog
 SELECT * FROM test_table;
 c1

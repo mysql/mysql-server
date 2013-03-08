@@ -263,6 +263,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed
@@ -640,6 +641,10 @@ typedef void* os_thread_ret_t;
 			(const void*) (addr), (unsigned) (size), (long)	\
 			(((const char*) _p) - ((const char*) (addr))));	\
 	} while (0)
+# define UNIV_MEM_TRASH(addr, c, size) do {				\
+	ut_d(memset(addr, c, size));					\
+	UNIV_MEM_INVALID(addr, size);					\
+	} while (0)
 #else
 # define UNIV_MEM_VALID(addr, size) do {} while(0)
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
@@ -651,6 +656,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_RW_ABORT(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
+# define UNIV_MEM_TRASH(addr, c, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\
 	UNIV_MEM_ASSERT_W(addr, size);			\

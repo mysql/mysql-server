@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 -- 
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -20,7 +20,12 @@
 -- When setting up a "cross bootstrap" database (e.g., creating data on a Unix
 -- host which will later be included in a Windows zip file), any lines
 -- containing "@current_hostname" are filtered out by mysql_install_db.
-set @current_hostname= @@hostname;
+
+-- Get the hostname, if the hostname has any wildcard character like "_" or "%" 
+-- add escape character in front of wildcard character to convert "_" or "%" to
+-- a plain character
+SET @get_hostname= @@hostname;
+SELECT REPLACE((SELECT REPLACE(@get_hostname,'_','\_')),'%','\%') INTO @current_hostname;
 
 
 -- Fill "db" table with default grants for anyone to
@@ -32,10 +37,9 @@ INSERT INTO db SELECT * FROM tmp_db WHERE @had_db_table=0;
 DROP TABLE tmp_db;
 
 
--- Fill "users" table with default users allowing root access
--- from local machine if "users" table didn't exist before
+-- Fill "user" table with default users allowing root access
+-- from local machine if "user" table didn't exist before
 CREATE TEMPORARY TABLE tmp_user LIKE user;
-set @current_hostname= @@hostname;
 INSERT INTO tmp_user VALUES ('localhost','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');
 REPLACE INTO tmp_user SELECT @current_hostname,'root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N' FROM dual WHERE LOWER( @current_hostname) != 'localhost';
 REPLACE INTO tmp_user VALUES ('127.0.0.1','root','','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','Y','','','','',0,0,0,0,'','','N');

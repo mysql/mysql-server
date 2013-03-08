@@ -983,9 +983,14 @@ public:
 
     @param string The string to parse.
     @param length The number of bytes.
+    @param actual_length If this is not NULL, it is set to the number
+    of bytes used by the encoding (which may be less than 'length').
+    If this is NULL, an error is generated if the encoding is shorter
+    than the given 'length'.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length);
+  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
+                                       size_t *actual_length= NULL);
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.

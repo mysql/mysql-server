@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1385,6 +1385,18 @@ public:
 
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
+
+  /**
+    Get the upper limit of the MySQL integral and floating-point type.
+
+    @return maximum allowed value for the field
+  */
+  virtual ulonglong get_max_int_value() const
+  {
+    DBUG_ASSERT(false);
+    return 0ULL;
+  }
+
   friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
@@ -1651,10 +1663,11 @@ public:
 
 class Field_longstr :public Field_str
 {
-protected:
+private:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
                                                   bool count_spaces);
+protected:
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
@@ -1862,6 +1875,11 @@ public:
     *to= *from;
     return from + 1;
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFULL : 0x7FULL;
+  }
 };
 
 
@@ -1917,6 +1935,11 @@ public:
   {
     return unpack_int16(to, from, low_byte_first);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFULL : 0x7FFFULL;
+  }
 };
 
 class Field_medium :public Field_num {
@@ -1969,6 +1992,11 @@ public:
                               uint param_data, bool low_byte_first)
   {
     return Field::unpack(to, from, param_data, low_byte_first);
+  }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFULL : 0x7FFFFFULL;
   }
 };
 
@@ -2032,6 +2060,11 @@ public:
                               bool low_byte_first)
   {
     return unpack_int32(to, from, low_byte_first);
+  }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFFFULL : 0x7FFFFFFFULL;
   }
 };
 
@@ -2098,6 +2131,11 @@ public:
   {
     return unpack_int64(to, from, low_byte_first);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    return unsigned_flag ? 0xFFFFFFFFFFFFFFFFULL : 0x7FFFFFFFFFFFFFFFULL;
+  }
 };
 #endif
 
@@ -2145,6 +2183,15 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_FLOAT);
     return new Field_float(*this);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    /*
+      We use the maximum as per IEEE754-2008 standard, 2^24
+    */
+    return 0x1000000ULL;
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -2198,6 +2245,15 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_DOUBLE);
     return new Field_double(*this);
   }
+
+  virtual ulonglong get_max_int_value() const
+  {
+    /*
+      We use the maximum as per IEEE754-2008 standard, 2^53
+    */
+    return 0x20000000000000ULL;
+  }
+
 private:
   int do_save_field_metadata(uchar *first_byte);
 };
@@ -3600,7 +3656,6 @@ private:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
   virtual type_conversion_status store_internal(const char *from, uint length,
                                                 const CHARSET_INFO *cs);
@@ -3650,7 +3705,6 @@ public:
   }
   uint is_equal(Create_field *new_field);
 };
-#endif /*HAVE_SPATIAL*/
 
 
 class Field_enum :public Field_str {
