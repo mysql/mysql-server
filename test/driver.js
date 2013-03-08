@@ -158,6 +158,7 @@ var usageMessage =
   "         -df=<file>: enable debug output from source file <file> \n" +
   "      -t or --trace: print stack trace from failing tests\n" +
   "                 -q: (quiet) do not print individual test results \n" +
+  "           --failed: suppress passed tests, print failures only\n" +
   "    --suite=<suite>: only run the named suite(s)\n" +
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
@@ -210,6 +211,9 @@ for(i = 2; i < process.argv.length ; i++) {
       console.log("Invalid --set option " + process.argv[i]);
       exit = true;
     }
+    break;
+  case '--failed':
+    driver.result.listener = new harness.FailOnlyListener();
     break;
   case '-q':
     driver.result.listener = new harness.QuietListener();
