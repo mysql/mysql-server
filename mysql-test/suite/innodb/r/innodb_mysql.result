@@ -343,7 +343,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index; Using temporary
 explain select distinct f1, f2 from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	range	NULL	PRIMARY	5	NULL	3	Using index for group-by; Using temporary
+1	SIMPLE	t1	index	NULL	PRIMARY	5	NULL	4	Using index
 drop table t1;
 CREATE TABLE t1 (id int(11) NOT NULL PRIMARY KEY, name varchar(20),
 INDEX (name));
@@ -1738,7 +1738,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	5		5	Using filesort
+2	DERIVED	t1	ALL	c3,c2	c3	5		5	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 REAL, c2 REAL, c3 REAL, KEY (c3), KEY (c2, c3))
 ENGINE=InnoDB;
@@ -1752,7 +1752,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	9		5	Using filesort
+2	DERIVED	t1	ALL	c3,c2	c3	9		5	Using where; Using filesort
 DROP TABLE t1;
 CREATE TABLE t1 (c1 DECIMAL(12,2), c2 DECIMAL(12,2), c3 DECIMAL(12,2), 
 KEY (c3), KEY (c2, c3))
@@ -1767,7 +1767,7 @@ SELECT 1 FROM (SELECT COUNT(DISTINCT c1)
 FROM t1 WHERE c2 IN (1, 1) AND c3 = 2 GROUP BY c2) x;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	system	NULL	NULL	NULL	NULL	1	
-2	DERIVED	t1	ALL	c3,c2	c3	7		5	Using filesort
+2	DERIVED	t1	ALL	c3,c2	c3	7		5	Using where; Using filesort
 DROP TABLE t1;
 End of 5.1 tests
 #

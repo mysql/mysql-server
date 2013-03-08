@@ -81,6 +81,31 @@ uint cached_table_definitions(void);
 uint create_table_def_key(THD *thd, char *key,
                           const TABLE_LIST *table_list,
                           bool tmp_table);
+
+/**
+  Create a table cache key for non-temporary table.
+
+  @param key         Buffer for key (must be at least NAME_LEN*2+2 bytes).
+  @param db          Database name.
+  @param table_name  Table name.
+
+  @return Length of key.
+
+  @sa create_table_def_key(thd, char *, table_list, bool)
+*/
+
+inline uint
+create_table_def_key(char *key, const char *db, const char *table_name)
+{
+  /*
+    In theory caller should ensure that both db and table_name are
+    not longer than NAME_LEN bytes. In practice we play safe to avoid
+    buffer overruns.
+  */
+  return (uint)(strmake(strmake(key, db, NAME_LEN) + 1, table_name,
+                        NAME_LEN) - key + 1);
+}
+
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error,
                              my_hash_value_type hash_value);
@@ -166,9 +191,9 @@ thr_lock_type read_lock_type_for_table(THD *thd,
 
 my_bool mysql_rm_tmp_tables(void);
 #ifndef MCP_WL3749
-bool rm_temporary_table(handlerton *base, char *path, bool frm_only);
+bool rm_temporary_table(handlerton *base, const char *path, bool frm_only);
 #else
-bool rm_temporary_table(handlerton *base, char *path);
+bool rm_temporary_table(handlerton *base, const char *path);
 #endif
 void close_tables_for_reopen(THD *thd, TABLE_LIST **tables,
                              const MDL_savepoint &start_of_statement_svp);

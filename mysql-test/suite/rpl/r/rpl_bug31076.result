@@ -35,6 +35,7 @@ KEY `event_id` (`event_id`),
 KEY `visit_id` (`visit_id`),
 KEY `data` (`data`)
 ) ENGINE=MyISAM AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 BINLOG '
@@ -47,6 +48,7 @@ Bk3vRhe0AQAAWgAAABEMyQkQAJlXFwIAAAEABv/AIE4AvvVDAQZN70YAK0Rvd25sb2Fkcy9NeVNR
 TC00LjEvbXlzcWwtNC4xLjEyYS13aW4zMi56aXBPaAIC
 '/*!*/;
 SET INSERT_ID=21231039/*!*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 use track/*!*/;
 SET TIMESTAMP=1190087942/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;

@@ -4484,7 +4484,6 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
    into 'server_version_split':
    X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
    X.Yabc -> {X,Y,0}
-   Xabc -> {X,0,0}
    'server_version_split' is then used for lookups to find if the server which
    created this event has some known bug.
 */
@@ -4495,10 +4494,21 @@ void Format_description_log_event::calc_server_version_split()
   for (uint i= 0; i<=2; i++)
   {
     number= strtoul(p, &r, 10);
-    server_version_split[i]= (uchar)number;
-    DBUG_ASSERT(number < 256); // fit in uchar
+    /*
+      It is an invalid version if any version number greater than 255 or
+      first number is not followed by '.'.
+    */
+    if (number < 256 && (*r == '.' || i != 0))
+      server_version_split[i]= (uchar)number;
+    else
+    {
+      server_version_split[0]= 0;
+      server_version_split[1]= 0;
+      server_version_split[2]= 0;
+      break;
+    }
+
     p= r;
-    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
     if (*r == '.')
       p++; // skip the dot
   }
@@ -6341,7 +6351,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     }
   }
 
-  Item_func_set_user_var *e= new Item_func_set_user_var(user_var_name, it);
+  Item_func_set_user_var *e= 
+    new Item_func_set_user_var(user_var_name, it, false);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)

@@ -32,6 +32,9 @@ connection master;
 
 connection slave;
 --source include/start_slave.inc
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for master to send event
+--source include/wait_for_slave_param.inc
 
 --echo [Slave restarted with the report-port set to some value]
 connection master;
@@ -52,6 +55,9 @@ connection master;
 
 connection slave;
 --source include/start_slave.inc
+--let $slave_param= Slave_IO_State
+--let $slave_param_value= Waiting for master to send event
+--source include/wait_for_slave_param.inc
 
 connection master;
 sync_slave_with_master;

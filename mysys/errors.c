@@ -99,17 +99,29 @@ void init_glob_errs()
 }
 #endif
 
+/*
+ We cannot call my_error/my_printf_error here in this function.
+  Those functions will set status variable in diagnostic area
+  and there is no provision to reset them back.
+  Here we are waiting for free space and will wait forever till
+  space is created. So just giving warning in the error file
+  should be enough.
+*/
 void wait_for_free_space(const char *filename, int errors)
 {
-  if (errors == 0)
-    my_error(EE_DISK_FULL,MYF(ME_BELL | ME_NOREFRESH),
-             filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
   if (!(errors % MY_WAIT_GIVE_USER_A_MESSAGE))
-    my_printf_error(EE_DISK_FULL,
-                    "Retry in %d secs. Message reprinted in %d secs",
-                    MYF(ME_BELL | ME_NOREFRESH),
+  {
+    my_printf_warning(EE(EE_DISK_FULL),
+             filename,my_errno,MY_WAIT_FOR_USER_TO_FIX_PANIC);
+    my_printf_warning("Retry in %d secs. Message reprinted in %d secs",
                     MY_WAIT_FOR_USER_TO_FIX_PANIC,
                     MY_WAIT_GIVE_USER_A_MESSAGE * MY_WAIT_FOR_USER_TO_FIX_PANIC );
+  }
+  DBUG_EXECUTE_IF("simulate_file_write_error_once",
+                 {
+                   (void) sleep(1);
+                   return;
+                 });
   (void) sleep(MY_WAIT_FOR_USER_TO_FIX_PANIC);
 }
 

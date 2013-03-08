@@ -79,6 +79,23 @@ static ulint buf_lru_flush_page_count = 0;
 
 /* @} */
 
+/******************************************************************//**
+Increases flush_list size in bytes with zip_size for compressed page,
+UNIV_PAGE_SIZE for uncompressed page in inline function */
+static inline
+void
+incr_flush_list_size_in_bytes(
+/*==========================*/
+	buf_block_t*	block,		/*!< in: control block */
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	ulint		zip_size;
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
+	zip_size = page_zip_get_size(&block->page.zip);
+	buf_pool->stat.flush_list_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
+	ut_ad(buf_pool->stat.flush_list_bytes <= buf_pool->curr_pool_size);
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
@@ -308,6 +325,7 @@ buf_flush_insert_into_flush_list(
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
 	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
 	{
@@ -412,6 +430,8 @@ buf_flush_insert_sorted_into_flush_list(
 				     prev_b, &block->page);
 	}
 
+	incr_flush_list_size_in_bytes(block, buf_pool);
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -504,6 +524,7 @@ buf_flush_remove(
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ulint		zip_size;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
@@ -541,6 +562,9 @@ buf_flush_remove(
 	/* Must be done after we have removed it from the flush_rbt
 	because we assert on in_flush_list in comparison function. */
 	ut_d(bpage->in_flush_list = FALSE);
+
+	zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.flush_list_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
 
 	bpage->oldest_modification = 0;
 
