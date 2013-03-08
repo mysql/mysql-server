@@ -301,6 +301,7 @@ row_merge_buf_add(
 	for (i = 0; i < n_fields; i++, field++, ifield++) {
 		const dict_col_t*	col;
 		ulint			col_no;
+		ulint			fixed_len;
 		const dfield_t*		row_field;
 		ulint			len;
 
@@ -349,9 +350,30 @@ row_merge_buf_add(
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
-		if (ifield->fixed_len) {
-			ut_ad(len == ifield->fixed_len);
+		fixed_len = ifield->fixed_len;
+		if (fixed_len && !dict_table_is_comp(index->table)
+		    && DATA_MBMINLEN(col->mbminmaxlen)
+		    != DATA_MBMAXLEN(col->mbminmaxlen)) {
+			/* CHAR in ROW_FORMAT=REDUNDANT is always
+			fixed-length, but in the temporary file it is
+			variable-length for variable-length character
+			sets. */
+			fixed_len = 0;
+		}
+
+		if (fixed_len) {
+#ifdef UNIV_DEBUG
+			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
+
+			/* len should be between size calcualted base on
+			mbmaxlen and mbminlen */
+			ut_ad(len <= fixed_len);
+			ut_ad(!mbmaxlen || len >= mbminlen
+			      * (fixed_len / mbmaxlen));
+
 			ut_ad(!dfield_is_ext(field));
+#endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
@@ -372,12 +394,11 @@ row_merge_buf_add(
 		ulint	size;
 		ulint	extra;
 
-		size = rec_get_converted_size_comp(index,
-						   REC_STATUS_ORDINARY,
-						   entry, n_fields, &extra);
+		size = rec_get_converted_size_temp(
+			index, entry, n_fields, &extra);
 
-		ut_ad(data_size + extra_size + REC_N_NEW_EXTRA_BYTES == size);
-		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
+		ut_ad(data_size + extra_size == size);
+		ut_ad(extra_size == extra);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -581,14 +602,9 @@ row_merge_buf_write(
 		ulint		extra_size;
 		const dfield_t*	entry		= buf->tuples[i];
 
-		size = rec_get_converted_size_comp(index,
-						   REC_STATUS_ORDINARY,
-						   entry, n_fields,
-						   &extra_size);
+		size = rec_get_converted_size_temp(
+			index, entry, n_fields, &extra_size);
 		ut_ad(size >= extra_size);
-		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
-		extra_size -= REC_N_NEW_EXTRA_BYTES;
-		size -= REC_N_NEW_EXTRA_BYTES;
 
 		/* Encode extra_size + 1 */
 		if (extra_size + 1 < 0x80) {
@@ -601,9 +617,8 @@ row_merge_buf_write(
 
 		ut_ad(b + size < block[1]);
 
-		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
-					       REC_STATUS_ORDINARY,
-					       entry, n_fields);
+		rec_convert_dtuple_to_temp(b + extra_size, index,
+					   entry, n_fields);
 
 		b += size;
 
@@ -709,6 +724,8 @@ row_merge_read(
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * block_size;
 	ibool		success;
 
+	DBUG_EXECUTE_IF("row_merge_read_failure", return(FALSE););
+
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_read) {
 		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
@@ -755,6 +772,8 @@ row_merge_write(
 			    (ulint) (ofs & 0xFFFFFFFF),
 			    (ulint) (ofs >> 32),
 			    block_size);
+
+	DBUG_EXECUTE_IF("row_merge_write_failure", return(FALSE););
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -872,7 +891,7 @@ err_exit:
 
 		*mrec = *buf + extra_size;
 
-		rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+		rec_init_offsets_temp(*mrec, index, offsets);
 
 		data_size = rec_offs_data_size(offsets);
 
@@ -891,7 +910,7 @@ err_exit:
 
 	*mrec = b + extra_size;
 
-	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+	rec_init_offsets_temp(*mrec, index, offsets);
 
 	data_size = rec_offs_data_size(offsets);
 	ut_ad(extra_size + data_size < block_size);
@@ -2261,7 +2280,7 @@ row_merge_drop_temp_indexes(void)
 /*********************************************************************//**
 Creates temperary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
-@return File descriptor */
+@return file descriptor, or -1 on failure */
 UNIV_INLINE
 int
 row_merge_file_create_low(void)
@@ -2283,12 +2302,19 @@ row_merge_file_create_low(void)
 #ifdef UNIV_PFS_IO
         register_pfs_file_open_end(locker, fd);
 #endif
+	if (fd < 0) {
+		fprintf(stderr,
+			"InnoDB: Error: Cannot create temporary merge file\n");
+		return(-1);
+	}
 	return(fd);
 }
+
 /*********************************************************************//**
-Create a merge file. */
-static
-void
+Create a merge file.
+@return file descriptor, or -1 on failure */
+static __attribute__((nonnull, warn_unused_result))
+int
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
@@ -2296,6 +2322,7 @@ row_merge_file_create(
 	merge_file->fd = row_merge_file_create_low();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
+	return(merge_file->fd);
 }
 
 /*********************************************************************//**
@@ -2541,6 +2568,28 @@ row_merge_rename_tables(
 		goto err_exit;
 	}
 
+	/* Generate the redo logs for file operations */
+	fil_mtr_rename_log(old_table->space, old_name,
+			   new_table->space, new_table->name, tmp_name);
+
+	/* What if the redo logs are flushed to disk here?  This is
+	tested with following crash point */
+	DBUG_EXECUTE_IF("bug14669848_precommit", log_buffer_flush_to_disk();
+			DBUG_SUICIDE(););
+
+	/* File operations cannot be rolled back.  So, before proceeding
+	with file operations, commit the dictionary changes.*/
+	trx_commit_for_mysql(trx);
+
+	/* If server crashes here, the dictionary in InnoDB and MySQL
+	will differ.  The .ibd files and the .frm files must be swapped
+	manually by the administrator. No loss of data. */
+	DBUG_EXECUTE_IF("bug14669848", DBUG_SUICIDE(););
+
+	/* Ensure that the redo logs are flushed to disk.  The config
+	innodb_flush_log_at_trx_commit must not affect this. */
+	log_buffer_flush_to_disk();
+
 	/* The following calls will also rename the .ibd data files if
 	the tables are stored in a single-table tablespace */
 
@@ -2715,7 +2764,7 @@ row_merge_build_indexes(
 	ulint			block_size;
 	ulint			i;
 	ulint			error;
-	int			tmpfd;
+	int			tmpfd = -1;
 	ulint			merge_sort_block_size;
 	void*			block_mem;
 
@@ -2741,12 +2790,30 @@ row_merge_build_indexes(
 			i * merge_sort_block_size);
 	}
 
+	/* Initialize all the merge file descriptors, so that we
+	don't call row_merge_file_destroy() on uninitialized
+	merge file descriptor */
+
+	for (i = 0; i < n_indexes; i++) {
+		merge_files[i].fd = -1;
+	}
+
 	for (i = 0; i < n_indexes; i++) {
 
-		row_merge_file_create(&merge_files[i]);
+		if (row_merge_file_create(&merge_files[i]) < 0)
+		{
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
 	}
 
 	tmpfd = row_merge_file_create_low();
+
+	if (tmpfd < 0)
+	{
+		error = DB_OUT_OF_MEMORY;
+		goto func_exit;
+	}
 
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */

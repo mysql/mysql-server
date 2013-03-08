@@ -317,6 +317,10 @@ extern ulint	srv_fatal_semaphore_wait_threshold;
 extern ulint	srv_dml_needed_delay;
 extern lint	srv_kill_idle_transaction;
 
+#ifdef UNIV_DEBUG
+extern my_bool	srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
 				it from dynamic memory to get it to the
@@ -396,6 +400,9 @@ extern ibool srv_blocking_lru_restore;
 /** When TRUE, fake change transcations take S rather than X row locks.
 When FALSE, row locks are not taken at all. */
 extern my_bool srv_fake_changes_locks;
+
+/** print all user-level transactions deadlocks to mysqld stderr */
+extern my_bool srv_print_all_deadlocks;
 
 /** Status variables to be passed to MySQL */
 typedef struct export_var_struct export_struc;
@@ -791,7 +798,9 @@ struct export_var_struct{
 	ulint innodb_dict_tables;
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
+	ulint innodb_buffer_pool_bytes_data;	/*!< File bytes used */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
+	ulint innodb_buffer_pool_bytes_dirty;	/*!< File bytes modified */
 	ulint innodb_buffer_pool_pages_misc;	/*!< Miscellanous pages */
 	ulint innodb_buffer_pool_pages_free;	/*!< Free pages */
 #ifdef UNIV_DEBUG
@@ -877,6 +886,11 @@ struct export_var_struct{
 	ib_int64_t innodb_x_lock_os_waits;
 	ib_int64_t innodb_x_lock_spin_rounds;
 	ib_int64_t innodb_x_lock_spin_waits;
+#ifdef UNIV_DEBUG
+	ulint innodb_purge_trx_id_age;		/*!< max_trx_id - purged trx_id */
+	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id
+						- purged view's min trx_id */
+#endif /* UNIV_DEBUG */
 };
 
 /** Thread slot in the thread table */

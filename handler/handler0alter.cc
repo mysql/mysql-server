@@ -101,8 +101,6 @@ innobase_col_to_mysql(
 		ut_ad(flen >= len);
 		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
 		      >= DATA_MBMINLEN(col->mbminmaxlen));
-		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
-		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 

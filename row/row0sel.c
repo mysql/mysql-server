@@ -3520,13 +3520,13 @@ row_search_for_mysql(
 	should_release = 0;
 	for (i = 0; i < btr_search_index_num; i++) {
 		/* we should check all latches (fix Bug#791030) */
-		if (rw_lock_get_writer(btr_search_latch_part[i])
-		    != RW_LOCK_NOT_LOCKED) {
+		if (UNIV_UNLIKELY(rw_lock_get_writer(btr_search_latch_part[i])
+				  != RW_LOCK_NOT_LOCKED)) {
 			should_release |= ((ulint)1 << i);
 		}
 	}
 
-	if (should_release) {
+	if (UNIV_UNLIKELY(should_release)) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for

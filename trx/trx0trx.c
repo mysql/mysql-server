@@ -236,7 +236,7 @@ trx_allocate_for_mysql(void)
 
 	mutex_exit(&kernel_mutex);
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		trx->distinct_page_access_hash = mem_alloc(DPAH_SIZE);
 		memset(trx->distinct_page_access_hash, 0, DPAH_SIZE);
 	}
@@ -1269,7 +1269,7 @@ trx_end_lock_wait(
 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
 	}
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		now = (ib_uint64_t)sec * 1000000 + ms;
 		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
@@ -1304,7 +1304,7 @@ trx_lock_wait_to_suspended(
 		thr = UT_LIST_GET_FIRST(trx->wait_thrs);
 	}
 
-	if (innobase_get_slow_log() && trx->take_stats) {
+	if (UNIV_UNLIKELY(trx->take_stats)) {
 		ut_usectime(&sec, &ms);
 		now = (ib_uint64_t)sec * 1000000 + ms;
 		trx->lock_que_wait_timer += (ulint)(now - trx->lock_que_wait_ustarted);
