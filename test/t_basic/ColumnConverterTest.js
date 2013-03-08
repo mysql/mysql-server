@@ -57,7 +57,7 @@ var statusConverter = {
 var tablemapping = new mynode.TableMapping('test.t_basic');
 tablemapping.mapAllColumns = false;
 tablemapping.mapField('id');
-tablemapping.mapField('age', 'status', statusConverter);
+tablemapping.mapField('status', 'age', statusConverter);
 tablemapping.mapField('name');
 tablemapping.mapField('magic');
 tablemapping.applyToClass(global.converter);
