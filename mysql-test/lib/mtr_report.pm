@@ -27,7 +27,7 @@ our @EXPORT= qw(report_option mtr_print_line mtr_print_thick_line
 		mtr_warning mtr_error mtr_debug mtr_verbose
 		mtr_verbose_restart mtr_report_test_passed
 		mtr_report_test_skipped mtr_print
-		mtr_report_test);
+		mtr_report_test isotime);
 
 use mtr_match;
 use My::Platform;
@@ -109,6 +109,8 @@ sub mtr_report_test_passed ($) {
   $tinfo->{'result'}= 'MTR_RES_PASSED';
 
   mtr_report_test($tinfo);
+
+  resfile_global("endtime ", isotime (time));
 }
 
 
@@ -533,5 +535,13 @@ sub mtr_verbose_restart (@) {
   }
 }
 
+
+# Used by --result-file for for formatting times
+
+sub isotime($) {
+  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
+  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
+    $yr+1900, $mon+1, $day, $hr, $min, $sec;
+}
 
 1;

@@ -220,15 +220,15 @@ static uint collect_cmp_types(Item **items, uint nitems, bool skip_nulls= FALSE)
          items[i]->result_type() == ROW_RESULT) &&
         cmp_row_type(items[0], items[i]))
       return 0;
-    found_types|= 1<< (uint)item_cmp_type(left_result,
-                                           items[i]->result_type());
+    found_types|= 1U << (uint)item_cmp_type(left_result,
+                                            items[i]->result_type());
   }
   /*
    Even if all right-hand items are NULLs and we are skipping them all, we need
    at least one type bit in the found_type bitmask.
   */
   if (skip_nulls && !found_types)
-    found_types= 1 << (uint)left_result;
+    found_types= 1U << (uint)left_result;
   return found_types;
 }
 
@@ -2897,12 +2897,12 @@ Item *Item_func_case::find_item(String *str)
       cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
       DBUG_ASSERT(cmp_type != ROW_RESULT);
       DBUG_ASSERT(cmp_items[(uint)cmp_type]);
-      if (!(value_added_map & (1<<(uint)cmp_type)))
+      if (!(value_added_map & (1U << (uint)cmp_type)))
       {
         cmp_items[(uint)cmp_type]->store_value(args[first_expr_num]);
         if ((null_value=args[first_expr_num]->null_value))
           return else_expr_num != -1 ? args[else_expr_num] : 0;
-        value_added_map|= 1<<(uint)cmp_type;
+        value_added_map|= 1U << (uint)cmp_type;
       }
       if (!cmp_items[(uint)cmp_type]->cmp(args[i]) && !args[i]->null_value)
         return args[i + 1];
@@ -3107,7 +3107,7 @@ void Item_func_case::fix_length_and_dec()
     nagg++;
     if (!(found_types= collect_cmp_types(agg, nagg)))
       return;
-    if (found_types & (1 << STRING_RESULT))
+    if (found_types & (1U << STRING_RESULT))
     {
       /*
         If we'll do string comparison, we also need to aggregate
@@ -3147,7 +3147,7 @@ void Item_func_case::fix_length_and_dec()
     }
     for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
     {
-      if (found_types & (1 << i) && !cmp_items[i])
+      if (found_types & (1U << i) && !cmp_items[i])
       {
         DBUG_ASSERT((Item_result)i != ROW_RESULT);
         if (!(cmp_items[i]=
@@ -3956,7 +3956,7 @@ void Item_func_in::fix_length_and_dec()
   }
   for (i= 0; i <= (uint)DECIMAL_RESULT; i++)
   {
-    if (found_types & 1 << i)
+    if (found_types & (1U << i))
     {
       (type_cnt)++;
       cmp_type= (Item_result) i;
@@ -4139,7 +4139,7 @@ void Item_func_in::fix_length_and_dec()
     {
       for (i= 0; i <= (uint) DECIMAL_RESULT; i++)
       {
-        if (found_types & (1 << i) && !cmp_items[i])
+        if (found_types & (1U << i) && !cmp_items[i])
         {
           if ((Item_result)i == STRING_RESULT &&
               agg_arg_charsets_for_comparison(cmp_collation, args, arg_count))
@@ -4229,12 +4229,12 @@ longlong Item_func_in::val_int()
     Item_result cmp_type= item_cmp_type(left_result_type, args[i]->result_type());
     in_item= cmp_items[(uint)cmp_type];
     DBUG_ASSERT(in_item);
-    if (!(value_added_map & (1 << (uint)cmp_type)))
+    if (!(value_added_map & (1U << (uint)cmp_type)))
     {
       in_item->store_value(args[0]);
       if ((null_value= args[0]->null_value))
         return 0;
-      value_added_map|= 1 << (uint)cmp_type;
+      value_added_map|= 1U << (uint)cmp_type;
     }
     if (!in_item->cmp(args[i]) && !args[i]->null_value)
       return (longlong) (!negated);

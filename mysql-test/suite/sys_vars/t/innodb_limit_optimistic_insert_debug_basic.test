@@ -1,0 +1,50 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+SET @start_global_value = @@global.innodb_limit_optimistic_insert_debug;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.innodb_limit_optimistic_insert_debug;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_limit_optimistic_insert_debug;
+show global variables like 'innodb_limit_optimistic_insert_debug';
+show session variables like 'innodb_limit_optimistic_insert_debug';
+select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+
+#
+# show that it's writable
+#
+set global innodb_limit_optimistic_insert_debug=1;
+select @@global.innodb_limit_optimistic_insert_debug;
+select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+set @@global.innodb_limit_optimistic_insert_debug=0;
+select @@global.innodb_limit_optimistic_insert_debug;
+select * from information_schema.global_variables where variable_name='innodb_limit_optimistic_insert_debug';
+select * from information_schema.session_variables where variable_name='innodb_limit_optimistic_insert_debug';
+--error ER_GLOBAL_VARIABLE
+set session innodb_limit_optimistic_insert_debug='some';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_limit_optimistic_insert_debug='some';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_limit_optimistic_insert_debug=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_limit_optimistic_insert_debug='foo';
+set global innodb_limit_optimistic_insert_debug=-2;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_limit_optimistic_insert_debug=1e1;
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_limit_optimistic_insert_debug = @start_global_value;
+SELECT @@global.innodb_limit_optimistic_insert_debug;

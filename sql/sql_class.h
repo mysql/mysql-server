@@ -506,6 +506,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool pseudo_slave_mode;
+
 } SV;
 
 
@@ -3596,7 +3598,6 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
-  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

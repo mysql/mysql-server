@@ -58,6 +58,8 @@ Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
 /* Dummy comment */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "srv0srv.h"
 
 #include "ut0mem.h"
@@ -83,6 +85,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "read0read.h"
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 
@@ -355,6 +358,9 @@ UNIV_INTERN lint	srv_conc_n_threads	= 0;
 /* number of OS threads waiting in the FIFO for a permission to enter
 InnoDB */
 UNIV_INTERN ulint	srv_conc_n_waiting_threads = 0;
+
+/* print all user-level transactions deadlocks to mysqld stderr */
+UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
 
 typedef struct srv_conc_slot_struct	srv_conc_slot_t;
 struct srv_conc_slot_struct{
@@ -1568,6 +1574,10 @@ srv_suspend_mysql_thread(
 
 	trx = thr_get_trx(thr);
 
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("srv_suspend_mysql_thread_enter");
+	}
+
 	os_event_set(srv_lock_timeout_thread_event);
 
 	mutex_enter(&kernel_mutex);
@@ -2006,13 +2016,15 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
-	buf_pool_stat_t	stat;
-	ulint		LRU_len;
-	ulint		free_len;
-	ulint		flush_list_len;
+	buf_pool_stat_t		stat;
+	buf_pools_list_size_t	buf_pools_list_size;
+	ulint			LRU_len;
+	ulint			free_len;
+	ulint			flush_list_len;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -2041,7 +2053,12 @@ srv_export_innodb_status(void)
 	export_vars.innodb_buffer_pool_read_ahead_evicted
 		= stat.n_ra_pages_evicted;
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
+	export_vars.innodb_buffer_pool_bytes_data =
+		buf_pools_list_size.LRU_bytes
+		+ buf_pools_list_size.unzip_LRU_bytes;
 	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+	export_vars.innodb_buffer_pool_bytes_dirty =
+		buf_pools_list_size.flush_list_bytes;
 	export_vars.innodb_buffer_pool_pages_free = free_len;
 #ifdef UNIV_DEBUG
 	export_vars.innodb_buffer_pool_pages_latched
@@ -2086,6 +2103,23 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
+
+#ifdef UNIV_DEBUG
+	if (trx_sys->max_trx_id < purge_sys->done_trx_no) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  trx_sys->max_trx_id - purge_sys->done_trx_no;
+	}
+
+	if (!purge_sys->view
+	    || trx_sys->max_trx_id < purge_sys->view->up_limit_id) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  trx_sys->max_trx_id - purge_sys->view->up_limit_id;
+	}
+#endif /* UNIV_DEBUG */
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2772,6 +2806,26 @@ loop:
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
+
+#ifdef UNIV_DEBUG
+		if (btr_cur_limit_optimistic_insert_debug
+		    && srv_n_purge_threads == 0) {
+			/* If btr_cur_limit_optimistic_insert_debug is enabled
+			and no purge_threads, purge opportunity is increased
+			by x100 (1purge/100msec), to speed up debug scripts
+			which should wait for purged. */
+			next_itr_time -= 900;
+
+			srv_main_thread_op_info = "master purging";
+
+			srv_master_do_purge();
+
+			if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+				goto background_loop;
+			}
+		}
+#endif /* UNIV_DEBUG */
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT

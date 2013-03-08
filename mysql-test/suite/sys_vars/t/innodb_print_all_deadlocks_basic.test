@@ -1,0 +1,48 @@
+#
+# innodb_print_all_deadlocks
+#
+
+-- source include/have_innodb.inc
+
+SELECT @@innodb_print_all_deadlocks;
+
+SET GLOBAL innodb_print_all_deadlocks=1;
+
+CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (123);
+
+CREATE TABLE t2 (c2 INT, PRIMARY KEY (c2)) ENGINE=INNODB;
+INSERT INTO t2 VALUES (456);
+
+-- connect (con1,localhost,root,,)
+-- connect (con2,localhost,root,,)
+
+-- connection con1
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+
+-- connection con2
+BEGIN;
+SELECT * FROM t2 FOR UPDATE;
+
+-- connection con1
+-- send
+SELECT * FROM t2 FOR UPDATE;
+
+-- connection con2
+let $wait_condition=
+SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.PROCESSLIST
+WHERE state = 'Sending data' AND info = 'SELECT * FROM t2 FOR UPDATE';
+-- source include/wait_condition.inc
+-- error ER_LOCK_DEADLOCK
+SELECT * FROM t1 FOR UPDATE;
+
+-- connection default
+
+-- disconnect con1
+-- disconnect con2
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+SET GLOBAL innodb_print_all_deadlocks=default;

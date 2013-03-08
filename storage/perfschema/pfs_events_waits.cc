@@ -93,6 +93,9 @@ static inline void copy_events_waits(PFS_events_waits *dest,
 */
 void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
 {
+  if (unlikely(events_waits_history_per_thread == 0))
+    return;
+
   uint index= thread->m_waits_history_index;
 
   /*
@@ -120,6 +123,9 @@ void insert_events_waits_history(PFS_thread *thread, PFS_events_waits *wait)
 */
 void insert_events_waits_history_long(PFS_events_waits *wait)
 {
+  if (unlikely(events_waits_history_long_size == 0))
+    return;
+
   uint index= PFS_atomic::add_u32(&events_waits_history_long_index, 1);
 
   index= index % events_waits_history_long_size;

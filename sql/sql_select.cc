@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -475,25 +475,25 @@ inline int setup_without_group(THD *thd, Item **ref_pointer_array,
 			       ORDER *group, bool *hidden_group_fields)
 {
   int res;
-  nesting_map save_allow_sum_func=thd->lex->allow_sum_func ;
+  st_select_lex *const select= thd->lex->current_select;
+  nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   /* 
     Need to save the value, so we can turn off only any new non_agg_field_used
     additions coming from the WHERE
   */
-  const bool saved_non_agg_field_used=
-    thd->lex->current_select->non_agg_field_used();
+  const bool saved_non_agg_field_used= select->non_agg_field_used();
   DBUG_ENTER("setup_without_group");
 
-  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
+  thd->lex->allow_sum_func&= ~((nesting_map)1 << select->nest_level);
   res= setup_conds(thd, tables, leaves, conds);
 
   /* it's not wrong to have non-aggregated columns in a WHERE */
-  thd->lex->current_select->set_non_agg_field_used(saved_non_agg_field_used);
+  select->set_non_agg_field_used(saved_non_agg_field_used);
 
-  thd->lex->allow_sum_func|= 1 << thd->lex->current_select->nest_level;
+  thd->lex->allow_sum_func|= (nesting_map)1 << select->nest_level;
   res= res || setup_order(thd, ref_pointer_array, tables, fields, all_fields,
                           order);
-  thd->lex->allow_sum_func&= ~(1 << thd->lex->current_select->nest_level);
+  thd->lex->allow_sum_func&= ~((nesting_map)1 << select->nest_level);
   res= res || setup_group(thd, ref_pointer_array, tables, fields, all_fields,
                           group, hidden_group_fields);
   thd->lex->allow_sum_func= save_allow_sum_func;
@@ -581,7 +581,7 @@ JOIN::prepare(Item ***rref_pointer_array,
   {
     nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
     thd->where="having clause";
-    thd->lex->allow_sum_func|= 1 << select_lex_arg->nest_level;
+    thd->lex->allow_sum_func|= (nesting_map)1 << select_lex_arg->nest_level;
     select_lex->having_fix_field= 1;
     bool having_fix_rc= (!having->fixed &&
 			 (having->fix_fields(thd, &having) ||
@@ -1938,6 +1938,8 @@ JOIN::exec()
 {
   List<Item> *columns_list= &fields_list;
   int      tmp_error;
+  bool     sort_index_created= false;
+
   DBUG_ENTER("JOIN::exec");
 
   thd_proc_info(thd, "executing");
@@ -2235,6 +2237,7 @@ JOIN::exec()
 	{
 	  DBUG_VOID_RETURN;
 	}
+        sort_index_created= true;
         sortorder= curr_join->sortorder;
       }
       
@@ -2466,6 +2469,7 @@ JOIN::exec()
 			     HA_POS_ERROR : unit->select_limit_cnt),
                             curr_join->group_list ? TRUE : FALSE))
 	DBUG_VOID_RETURN;
+      sort_index_created= true;
       sortorder= curr_join->sortorder;
       if (curr_join->const_tables != curr_join->tables &&
           !curr_join->join_tab[curr_join->const_tables].table->sort.io_cache)
@@ -2497,6 +2501,16 @@ JOIN::exec()
   error= do_select(curr_join, curr_fields_list, NULL, procedure);
   thd->limit_found_rows= curr_join->send_records;
 
+  if (sort_index_created && curr_join->tables != curr_join->const_tables )
+  {
+    // Restore the original "select" used by create_sort_index():
+    JOIN_TAB *const tab= curr_join->join_tab + curr_join->const_tables;
+    if (tab->saved_select)
+    {
+      tab->select= tab->saved_select;
+      tab->saved_select= NULL;
+    }
+  }
   /* Accumulate the counts from all join iterations of all join parts. */
   thd->examined_row_count+= curr_join->examined_rows;
   DBUG_PRINT("counts", ("thd->examined_row_count: %lu",
@@ -4668,7 +4682,8 @@ best_access_path(JOIN      *join,
                 in ReuseRangeEstimateForRef-3.
               */
               if (table->quick_keys.is_set(key) &&
-                  (const_part & ((1 << table->quick_key_parts[key])-1)) ==
+                  (const_part &
+                    (((key_part_map)1 << table->quick_key_parts[key])-1)) ==
                   (((key_part_map)1 << table->quick_key_parts[key])-1) &&
                   table->quick_n_ranges[key] == 1 &&
                   records > (double) table->quick_rows[key])
@@ -4835,7 +4850,8 @@ best_access_path(JOIN      *join,
               */
               if (table->quick_keys.is_set(key) &&
                   table->quick_key_parts[key] <= max_key_part &&
-                  const_part & (1 << table->quick_key_parts[key]) &&
+                  const_part &
+                    ((key_part_map)1 << table->quick_key_parts[key]) &&
                   table->quick_n_ranges[key] == 1 + test(ref_or_null_part &
                                                          const_part) &&
                   records > (double) table->quick_rows[key])
@@ -6565,7 +6581,7 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j, KEYUSE *org_keyuse,
       j->ref.items[i]=keyuse->val;		// Save for cond removal
       j->ref.cond_guards[i]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
-        j->ref.null_rejecting |= 1 << i;
+        j->ref.null_rejecting|= (key_part_map)1 << i;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
 #ifndef MCP_BUG58628
@@ -6888,7 +6904,7 @@ static void add_not_null_conds(JOIN *join)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
-        if (tab->ref.null_rejecting & (1 << keypart))
+        if (tab->ref.null_rejecting & ((key_part_map)1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
           Item *notnull;
@@ -11339,11 +11355,11 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       else
       {
-	recinfo->null_bit= 1 << (null_count & 7);
+	recinfo->null_bit= (uint8)1 << (null_count & 7);
 	recinfo->null_pos= null_count/8;
       }
       field->move_field(pos,null_flags+null_count/8,
-			1 << (null_count & 7));
+			(uint8)1 << (null_count & 7));
       null_count++;
     }
     else
@@ -11704,7 +11720,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
       {
         cur_field->move_field(field_pos, (uchar*) null_pos, null_bit);
         null_bit<<= 1;
-        if (null_bit == (1 << 8))
+        if (null_bit == (uint)1 << 8)
         {
           ++null_pos;
           null_bit= 1;
@@ -13192,7 +13208,8 @@ join_read_always_key(JOIN_TAB *tab)
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   for (uint i= 0 ; i < tab->ref.key_parts ; i++)
   {
-    if ((tab->ref.null_rejecting & 1 << i) && tab->ref.items[i]->is_null())
+    if ((tab->ref.null_rejecting & ((key_part_map)1 << i)) &&
+        tab->ref.items[i]->is_null())
         return -1;
   }
 
@@ -14968,7 +14985,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab=    join->join_tab + join->const_tables;
   table=  tab->table;
   select= tab->select;
-
+  tab->saved_select= NULL;
   /* 
     If we have a select->quick object that is created outside of
     create_sort_index() and this is part of a subquery that
@@ -15067,16 +15084,28 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     if (!keep_quick)
     {
       select->cleanup();
-      /*
-        The select object should now be ready for the next use. If it
-        is re-used then there exists a backup copy of this join tab
-        which has the pointer to it. The join tab will be restored in
-        JOIN::reset(). So here we just delete the pointer to it.
-      */
-      tab->select= NULL;
-      // If we deleted the quick select object we need to clear quick_keys
+
+      // If we deleted the quick object we need to clear quick_keys
       table->quick_keys.clear_all();
     }
+    else
+    {
+      // Need to close the index scan in order to re-use the handler
+      tab->select->quick->range_end();
+    }
+
+    /*
+      The select object is now ready for the next use. To avoid that
+      the select object is used when reading the records in sorted
+      order we set the pointer to it to NULL. The select pointer will
+      be restored from the saved_select pointer when this select
+      operation is completed (@see JOIN::exec). This ensures that it
+      will be re-used when filesort is used by subqueries that are
+      executed multiple times.
+    */
+    tab->saved_select= tab->select;
+    tab->select= NULL;
+
     // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }

@@ -343,6 +343,7 @@ start:
     print_arr[idx].length--;    
     DBUG_ASSERT(*fmt == '$' && print_arr[idx].length < MAX_ARGS);
     args_arr[print_arr[idx].length].arg_type= 'd';
+    args_arr[print_arr[idx].length].have_longlong= 0;
     print_arr[idx].flags|= LENGTH_ARG;
     arg_count= max(arg_count, print_arr[idx].length + 1);
     fmt++;
@@ -361,6 +362,7 @@ start:
       print_arr[idx].width--;
       DBUG_ASSERT(*fmt == '$' && print_arr[idx].width < MAX_ARGS);
       args_arr[print_arr[idx].width].arg_type= 'd';
+      args_arr[print_arr[idx].width].have_longlong= 0;
       print_arr[idx].flags|= WIDTH_ARG;
       arg_count= max(arg_count, print_arr[idx].width + 1);
       fmt++;
