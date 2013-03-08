@@ -334,7 +334,6 @@ typedef struct smart_dbt_bf_info {
     int direction;
     THD* thd;
     uchar* buf;
-    DBT* key_to_compare;
 } *SMART_DBT_BF_INFO;
 
 typedef struct index_read_info {
@@ -4766,16 +4765,14 @@ int ha_tokudb::index_next_same(uchar * buf, const uchar * key, uint keylen) {
     DBT found_key;
     bool has_null;
     int cmp;
-    // create the key that will be used to compare with what is found
-    // in order to figure out if we should return an error
-    pack_key(&curr_key, tokudb_active_index, key_buff2, key, keylen, COL_ZERO);
-    int error = get_next(buf, 1, &curr_key);
+    int error = get_next(buf, 1);
     if (error) {
         goto cleanup;
     }
     //
     // now do the comparison
     //
+    pack_key(&curr_key, tokudb_active_index, key_buff2, key, keylen, COL_ZERO);
     create_dbt_key_from_table(&found_key,tokudb_active_index,key_buff3,buf,&has_null);
     cmp = tokudb_prefix_cmp_dbt_key(share->key_file[tokudb_active_index], &curr_key, &found_key);
     if (cmp) {
@@ -5018,7 +5015,7 @@ exit:
 static int
 smart_dbt_bf_callback(DBT const *key, DBT  const *row, void *context) {
     SMART_DBT_BF_INFO info = (SMART_DBT_BF_INFO)context;
-    return info->ha->fill_range_query_buf(info->need_val, key, row, info->direction, info->thd, info->buf, info->key_to_compare);
+    return info->ha->fill_range_query_buf(info->need_val, key, row, info->direction, info->thd, info->buf);
 }
 
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
@@ -5048,8 +5045,7 @@ int ha_tokudb::fill_range_query_buf(
     DBT  const *row, 
     int direction,
     THD* thd,
-    uchar* buf,
-    DBT* key_to_compare
+    uchar* buf
     ) {
     int error;
     //
@@ -5059,19 +5055,6 @@ int ha_tokudb::fill_range_query_buf(
     uint32_t size_needed;
     uint32_t user_defined_size = get_tokudb_read_buf_size(thd);
     uchar* curr_pos = NULL;
-
-    if (key_to_compare) {
-        int cmp = tokudb_prefix_cmp_dbt_key(
-            share->key_file[tokudb_active_index], 
-            key_to_compare, 
-            key
-            );
-        if (cmp) {
-            icp_went_out_of_range = true;
-            error = 0;
-            goto cleanup;
-        }
-    }
 
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
     // if we have an index condition pushed down, we check it
@@ -5282,7 +5265,7 @@ cleanup:
     return error;
 }
 
-int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
+int ha_tokudb::get_next(uchar* buf, int direction) {
     int error = 0; 
     uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
@@ -5315,7 +5298,6 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare) {
             bf_info.thd = ha_thd();
             bf_info.need_val = need_val;
             bf_info.buf = buf;
-            bf_info.key_to_compare = key_to_compare;
             //
             // call c_getf_next with purpose of filling in range_query_buff
             //
@@ -5397,7 +5379,7 @@ cleanup:
 int ha_tokudb::index_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_next");
     ha_statistic_increment(&SSV::ha_read_next_count);
-    int error = get_next(buf, 1, NULL);
+    int error = get_next(buf, 1);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -5419,7 +5401,7 @@ int ha_tokudb::index_read_last(uchar * buf, const uchar * key, uint key_len) {
 int ha_tokudb::index_prev(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::index_prev");
     ha_statistic_increment(&SSV::ha_read_prev_count);
-    int error = get_next(buf, -1, NULL);
+    int error = get_next(buf, -1);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -5567,7 +5549,7 @@ int ha_tokudb::rnd_end() {
 int ha_tokudb::rnd_next(uchar * buf) {
     TOKUDB_DBUG_ENTER("ha_tokudb::ha_tokudb::rnd_next");
     ha_statistic_increment(&SSV::ha_read_rnd_next_count);
-    int error = get_next(buf, 1, NULL);
+    int error = get_next(buf, 1);
     TOKUDB_DBUG_RETURN(error);
 }
 

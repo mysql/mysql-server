@@ -693,8 +693,7 @@ public:
         DBT  const *row, 
         int direction,
         THD* thd,
-        uchar* buf,
-        DBT* key_to_compare
+        uchar* buf
         );
 
 #if MYSQL_VERSION_ID >= 50521
@@ -706,7 +705,7 @@ public:
 private:
     int read_full_row(uchar * buf);
     int __close(int mutex_is_locked);
-    int get_next(uchar* buf, int direction, DBT* key_to_compare);
+    int get_next(uchar* buf, int direction);
     int read_data_from_range_query_buff(uchar* buf, bool need_val);
     // for ICP, only in MariaDB and MySQL 5.6
 #if defined(MARIADB_BASE_VERSION) || (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699)
