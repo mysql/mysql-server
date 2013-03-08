@@ -1588,6 +1588,10 @@ THD::~THD()
 
   clear_next_event_pos();
 
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   DBUG_PRINT("info", ("freeing security context"));
   main_security_ctx.destroy();
   my_free(db);
