@@ -5123,6 +5123,26 @@ INSERT INTO t2 VALUES (3),(4);
 SELECT * FROM t1, t2 WHERE a=3 AND a=b;
 a	b
 drop table t1,t2;
+#
+# Bug mdev-4250: wrong transformation of WHERE condition with OR
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int);
+INSERT INTO t1 VALUES (3,0), (2,0), (4,1), (5,0), (1,0);
+SELECT * FROM t1 WHERE (1=2 OR t1.pk=2) AND t1.a <> 0;
+pk	a
+EXPLAIN EXTENDED 
+SELECT * FROM t1 WHERE (1=2 OR t1.pk=2) AND t1.a <> 0;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+Warnings:
+Note	1003	select 2 AS `pk`,0 AS `a` from `test`.`t1` where ((0 <> 0))
+DROP TABLE t1;
+SELECT * FROM mysql.time_zone 
+WHERE ( NOT (Use_leap_seconds <= Use_leap_seconds AND Time_zone_id != 1) 
+AND Time_zone_id = Time_zone_id 
+OR Time_zone_id <> Time_zone_id ) 
+AND Use_leap_seconds <> 'N';
+Time_zone_id	Use_leap_seconds
 End of 5.3 tests
 set join_cache_level=default;
 show variables like 'join_cache_level';

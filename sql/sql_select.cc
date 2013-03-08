@@ -11383,7 +11383,9 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
                       item_equal->n_field_items());  
       }
 
-      ((Item_cond_and*)cond)->cond_equal= cond_equal;
+      ((Item_cond_and*)cond)->cond_equal.copy(cond_equal);
+      cond_equal.current_level=
+        ((Item_cond_and*)cond)->cond_equal.current_level;
       inherited= &(((Item_cond_and*)cond)->cond_equal);
     }
     /*
@@ -11461,7 +11463,8 @@ static COND *build_equal_items_for_cond(THD *thd, COND *cond,
           set_if_bigger(thd->lex->current_select->max_equal_elems,
                         item_equal->n_field_items());  
         }
-        and_cond->cond_equal= cond_equal;
+        and_cond->cond_equal.copy(cond_equal);
+        cond_equal.current_level= and_cond->cond_equal.current_level;
         args->concat((List<Item> *)&cond_equal.current_level);
         
         return and_cond;
