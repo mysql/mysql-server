@@ -95,31 +95,28 @@ set @@global.secure_auth=0;
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 0 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 0 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 0 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 0 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
-## The below section is being commented out till bug#15977433 is fixed 
-## to avoid the client to send the password in old format
-## to the server by using --secure_auth option.
 
 
 # Trying connecting the client with the mysql_old_password user with out the SSL credentials with secure auth disabled at the server side but enabled at the client side.
@@ -130,21 +127,21 @@ select @@global.secure_auth;
 --echo 0 Expected
 
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
 
 # Dropping the created users
@@ -462,31 +459,28 @@ set @@global.secure_auth=0;
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
 
 --echo **** connecting client using the ssl credentials
---exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --skip-secure-auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 --echo 2 for GLOBAL Expected
 --echo 1 for SESSION Expected
 
-## The below section is being commented out till bug#15977433 is fixed 
-## to avoid the client to send the password in old format
-## to the server by using --secure_auth option.
 
 
 # Trying connecting the client with the mysql_old_password user with out the SSL credentials with secure auth disabled at the server side but enabled at the client side.
@@ -497,21 +491,21 @@ select @@global.secure_auth;
 --echo 0 Expected
 
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_old_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=mysql_native_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
-#--echo **** connecting client using the ssl credentials
-#--error 1
-#--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
+--echo **** connecting client using the ssl credentials
+--error 1
+--exec $MYSQL -uTanjotuser1 -hlocalhost -pabc --secure_auth --default_auth=sha256_password -e "select @@Global.old_passwords;select @@session.old_passwords"
 
 
 # Dropping the created users

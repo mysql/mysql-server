@@ -105,7 +105,7 @@ int gtid_acquire_ownership_single(THD *thd)
   Acquire ownership of all groups in a Gtid_set.  This is used to
   begin a commit-sequence when @@SESSION.GTID_NEXT_LIST != NULL.
 */
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd)
 {
   const Gtid_set *gtid_next_list= thd->get_gtid_next_list_const();
@@ -230,7 +230,8 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
   const Gtid_specification *gtid_next= &thd->variables.gtid_next;
   if (stmt_causes_implicit_commit(thd, CF_IMPLICIT_COMMIT_BEGIN) &&
       (thd->in_active_multi_stmt_transaction() ||
-       !is_update_query(thd->lex->sql_command)) &&
+       (!is_update_query(thd->lex->sql_command) &&
+        !thd->lex->is_set_password_sql)) &&
       gtid_next->type != AUTOMATIC_GROUP)
   {
     my_error(ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET, MYF(0));
@@ -326,7 +327,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd)
   }
   else
   {
-#ifdef HAVE_NDB_BINLOG 
+#ifdef HAVE_GTID_NEXT_LIST
     switch (gtid_next->type)
     {
     case AUTOMATIC_GROUP:

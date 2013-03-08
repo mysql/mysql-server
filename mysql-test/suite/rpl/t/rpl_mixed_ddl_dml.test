@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Mixed DDL-DML (CREATE ... SELECT ...) statements can only be
 # replicated properly in statement-based replication.
 # Currently statement based due to bug 12345

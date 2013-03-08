@@ -365,8 +365,11 @@ fil_space_belongs_in_lru(
 /*=====================*/
 	const fil_space_t*	space)	/*!< in: file space */
 {
+	/* Even if temp-tablespace id > undo-tablespace-open it serve
+	as system-level-tablepsace so indicate it accordingly.*/
 	return(space->purpose == FIL_TABLESPACE
-	       && fil_is_user_tablespace_id(space->id));
+	       && (space->id == srv_tmp_space.space_id()
+		   ? false : fil_is_user_tablespace_id(space->id)));
 }
 
 /********************************************************************//**
@@ -722,7 +725,7 @@ fil_node_open_file(
 		async I/O! */
 
 		node->handle = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, node->name, OS_FILE_OPEN,
+			innodb_data_file_key, node->name, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &success);
 		if (!success) {
 			/* The following call prints an error message */
@@ -783,46 +786,36 @@ fil_node_open_file(
 		os_file_close(node->handle);
 
 		if (UNIV_UNLIKELY(space_id != space->id)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id is %lu"
-				" in the data dictionary\n"
-				"InnoDB: but in file %s it is %lu!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id is %lu in the data"
+				" dictionary but in file %s it is %lu!",
 				space->id, node->name, space_id);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
 				  || space_id == 0)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id %lu"
-				" in file %s is not sensible\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id %lu in file %s"
+				" is not sensible",
 				(ulong) space_id, node->name);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
 				  != page_size)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace file %s"
-				" has page size 0x%lx\n"
-				"InnoDB: but the data dictionary"
-				" expects page size 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: Tablespace file %s has page size"
+				" 0x%lx but the data dictionary expects"
+				" page size 0x%lx!",
 				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
-			fprintf(stderr,
-				"InnoDB: Error: table flags are 0x%lx"
-				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: table flags are 0x%lx in the"
+				" data dictionary but the flags in file"
+				" %s are 0x%lx!",
 				space->flags, node->name, flags);
-
-			ut_error;
 		}
 
 		if (size_bytes >= 1024 * 1024) {
@@ -851,18 +844,18 @@ add_size:
 	os_file_create() to fall back to the normal file I/O mode. */
 
 	if (space->purpose == FIL_LOG) {
-		node->handle = os_file_create(innodb_file_log_key,
+		node->handle = os_file_create(innodb_log_file_key,
 					      node->name, OS_FILE_OPEN,
 					      OS_FILE_AIO, OS_LOG_FILE,
 					      &ret);
 	} else if (node->is_raw_disk) {
-		node->handle = os_file_create(innodb_file_data_key,
+		node->handle = os_file_create(innodb_data_file_key,
 					      node->name,
 					      OS_FILE_OPEN_RAW,
 					      OS_FILE_AIO, OS_DATA_FILE,
 						     &ret);
 	} else {
-		node->handle = os_file_create(innodb_file_data_key,
+		node->handle = os_file_create(innodb_data_file_key,
 					      node->name, OS_FILE_OPEN,
 					      OS_FILE_AIO, OS_DATA_FILE,
 					      &ret);
@@ -1177,42 +1170,6 @@ fil_node_free(
 	mem_free(node->name);
 	mem_free(node);
 }
-
-#ifdef UNIV_LOG_ARCHIVE
-/****************************************************************//**
-Drops files from the start of a file space, so that its size is cut by
-the amount given. */
-UNIV_INTERN
-void
-fil_space_truncate_start(
-/*=====================*/
-	ulint	id,		/*!< in: space id */
-	ulint	trunc_len)	/*!< in: truncate by this much; it is an error
-				if this does not equal to the combined size of
-				some initial files in the space */
-{
-	fil_node_t*	node;
-	fil_space_t*	space;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	ut_a(space);
-
-	while (trunc_len > 0) {
-		node = UT_LIST_GET_FIRST(space->chain);
-
-		ut_a(node->size * UNIV_PAGE_SIZE <= trunc_len);
-
-		trunc_len -= node->size * UNIV_PAGE_SIZE;
-
-		fil_node_free(node, fil_system, space);
-	}
-
-	mutex_exit(&fil_system->mutex);
-}
-#endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
@@ -1835,10 +1792,9 @@ fil_set_max_space_id_if_bigger(
 	ulint	max_id)	/*!< in: maximum known id */
 {
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
-		fprintf(stderr,
-			"InnoDB: Fatal error: max tablespace id"
-			" is too high, %lu\n", (ulong) max_id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Fatal error: max tablespace id"
+			" is too high, %lu", (ulong) max_id);
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -2553,7 +2509,7 @@ fil_close_tablespace(
 
 	char*	cfg_name = fil_make_cfg_name(path);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	mem_free(path);
 	mem_free(cfg_name);
@@ -2636,7 +2592,7 @@ fil_delete_tablespace(
 	when we drop the database the remove directory will fail. */
 	{
 		char*	cfg_name = fil_make_cfg_name(path);
-		os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+		os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 		mem_free(cfg_name);
 	}
 
@@ -2664,8 +2620,9 @@ fil_delete_tablespace(
 
 	if (err != DB_SUCCESS) {
 		rw_lock_x_unlock(&space->latch);
-	} else if (!os_file_delete(innodb_file_data_key, path)
-		   && !os_file_delete_if_exists(innodb_file_data_key, path)) {
+	} else if (!os_file_delete(innodb_data_file_key, path)
+		   && !os_file_delete_if_exists(
+			innodb_data_file_key, path, NULL)) {
 
 		/* Note: This is because we have removed the
 		tablespace instance from the cache. */
@@ -3010,7 +2967,7 @@ retry:
 			goto skip_second_rename; );
 
 		success = os_file_rename(
-			innodb_file_data_key, old_path, new_path);
+			innodb_data_file_key, old_path, new_path);
 
 		DBUG_EXECUTE_IF("fil_rename_tablespace_failure_2",
 skip_second_rename:
@@ -3081,7 +3038,7 @@ fil_create_link_file(
 	link_filepath = fil_make_isl_name(tablename);
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, link_filepath,
+		innodb_data_file_key, link_filepath,
 		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
 
 	if (!success) {
@@ -3134,7 +3091,7 @@ fil_delete_link_file(
 {
 	char* link_filepath = fil_make_isl_name(tablename);
 
-	os_file_delete_if_exists(innodb_file_data_key, link_filepath);
+	os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
 	mem_free(link_filepath);
 }
@@ -3204,7 +3161,7 @@ fil_open_linked_file(
 	/* The filepath provided is different from what was
 	found in the link file. */
 	*remote_file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, *remote_filepath,
+		innodb_data_file_key, *remote_filepath,
 		OS_FILE_OPEN, OS_FILE_READ_ONLY,
 		&success);
 
@@ -3289,7 +3246,7 @@ fil_create_new_single_table_tablespace(
 	}
 
 	file = os_file_create(
-		innodb_file_data_key, path,
+		innodb_data_file_key, path,
 		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
@@ -3445,7 +3402,7 @@ error_exit_1:
 error_exit_2:
 	os_file_close(file);
 	if (err != DB_SUCCESS) {
-		os_file_delete(innodb_file_data_key, path);
+		os_file_delete(innodb_data_file_key, path);
 	}
 error_exit_3:
 	mem_free(path);
@@ -3486,9 +3443,6 @@ struct fsp_open_info {
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
 	ulint		id;		/*!< Space ID */
 	ulint		flags;		/*!< Tablespace flags */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no;	/*!< latest archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
 };
 
 /********************************************************************//**
@@ -3595,7 +3549,7 @@ fil_open_single_table_tablespace(
 	/* Attempt to open the tablespace at other possible filepaths. */
 	if (dict.filepath) {
 		dict.file = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, dict.filepath, OS_FILE_OPEN,
+			innodb_data_file_key, dict.filepath, OS_FILE_OPEN,
 			OS_FILE_READ_ONLY, &dict.success);
 		if (dict.success) {
 			/* possibility of multiple files. */
@@ -3607,7 +3561,7 @@ fil_open_single_table_tablespace(
 	/* Always look for a file at the default location. */
 	ut_a(def.filepath);
 	def.file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, def.filepath, OS_FILE_OPEN,
+		innodb_data_file_key, def.filepath, OS_FILE_OPEN,
 		OS_FILE_READ_ONLY, &def.success);
 	if (def.success) {
 		tablespaces_found++;
@@ -4008,7 +3962,7 @@ fil_load_single_table_tablespace(
 
 	/* Try to open the tablespace in the datadir. */
 	def.file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key, def.filepath, OS_FILE_OPEN,
+		innodb_data_file_key, def.filepath, OS_FILE_OPEN,
 		OS_FILE_READ_ONLY, &def.success);
 
 	/* Read the first page of the remote tablespace */
@@ -4063,10 +4017,7 @@ will_not_choose:
 			return;
 		}
 
-		/* If debug code, cause a core dump and call stack. For
-		release builds just exit and rely on the messages above. */
-		ut_ad(0);
-		exit(1);
+		ut_error;
 	}
 
 	if (def.success && remote.success) {
@@ -4141,7 +4092,7 @@ will_not_choose:
 		new_path = fil_make_ibbackup_old_name(fsp->filepath);
 
 		bool	success = os_file_rename(
-			innodb_file_data_key, fsp->filepath, new_path));
+			innodb_data_file_key, fsp->filepath, new_path));
 
 		ut_a(success);
 
@@ -4180,7 +4131,7 @@ will_not_choose:
 		mutex_exit(&fil_system->mutex);
 
 		bool	success = os_file_rename(
-			innodb_file_data_key, fsp->filepath, new_path);
+			innodb_data_file_key, fsp->filepath, new_path);
 
 		ut_a(success);
 
@@ -5947,7 +5898,7 @@ fil_tablespace_iterate(
 		ibool	success;
 
 		file = os_file_create_simple_no_error_handling(
-			innodb_file_data_key, filepath,
+			innodb_data_file_key, filepath,
 			OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
 
 		DBUG_EXECUTE_IF("fil_tablespace_iterate_failure",
@@ -6085,11 +6036,11 @@ fil_delete_file(
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Deleting %s", ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, ibd_name);
+	os_file_delete_if_exists(innodb_data_file_key, ibd_name, NULL);
 
 	char*	cfg_name = fil_make_cfg_name(ibd_name);
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	mem_free(cfg_name);
 }
@@ -6156,12 +6107,12 @@ fil_mtr_rename_log(
 					swapping */
 	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
-	if (old_space_id != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(old_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, old_space_id,
 				 0, 0, old_name, tmp_name, mtr);
 	}
 
-	if (new_space_id != TRX_SYS_SPACE) {
+	if (!Tablespace::is_system_tablespace(new_space_id)) {
 		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
 				 0, 0, new_name, old_name, mtr);
 	}

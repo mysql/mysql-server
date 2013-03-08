@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6656,8 +6656,8 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
     count_spaces             - Treat traling spaces as important data
 
   RETURN VALUES
-    false  - None was truncated (or we don't count cut fields)
-    true   - Some bytes were truncated
+    TYPE_OK    - None was truncated
+    != TYPE_OK - Some bytes were truncated
 
   NOTE
     Check if we lost any important data (anything in a binary string,
@@ -6670,19 +6670,26 @@ type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
                                         bool count_spaces)
 {
-  if ((pstr < end) && table->in_use->count_cuted_fields)
+  if (pstr < end)       // String is truncated
   {
     if (test_if_important_data(field_charset, pstr, end))
     {
-      if (table->in_use->abort_on_warning)
-        set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
-      else
-        set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      // Warning should only be written when count_cuted_fields is set
+      if (table->in_use->count_cuted_fields)
+      {
+        if (table->in_use->abort_on_warning)
+          set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
+        else
+          set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_WARN_TRUNCATED;
     }
     else if (count_spaces)
     { /* If we lost only spaces then produce a NOTE, not a WARNING */
-      set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      if (table->in_use->count_cuted_fields)
+      {
+        set_warning(Sql_condition::SL_NOTE, WARN_DATA_TRUNCATED, 1);
+      }
       return TYPE_NOTE_TRUNCATED;
     }
   }
@@ -8027,7 +8034,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
   uint32 blob_length= get_length(ptr);
   uchar *blob;
 
-#ifdef HAVE_SPATIAL
   if (type_arg == itMBR)
   {
     const char *dummy;
@@ -8054,7 +8060,6 @@ uint Field_blob::get_key_image(uchar *buff,uint length, imagetype type_arg)
     }
     return image_length;
   }
-#endif /*HAVE_SPATIAL*/
 
   get_ptr(&blob);
   uint local_char_length= length / field_charset->mbmaxlen;
@@ -8289,8 +8294,6 @@ uint Field_blob::is_equal(Create_field *new_field)
 }
 
 
-#ifdef HAVE_SPATIAL
-
 void Field_geom::sql_type(String &res) const
 {
   const CHARSET_INFO *cs= &my_charset_latin1;
@@ -8386,8 +8389,6 @@ uint Field_geom::is_equal(Create_field *new_field)
          new_field->pack_length == pack_length();
 }
 
-
-#endif /*HAVE_SPATIAL*/
 
 /****************************************************************************
 ** enum type.
@@ -10287,12 +10288,10 @@ Field *make_field(TABLE_SHARE *share, uchar *ptr, uint32 field_length,
 				      f_packtype(pack_flag),
 				      field_length);
 
-#ifdef HAVE_SPATIAL
     if (f_is_geom(pack_flag))
       return new Field_geom(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
 			    pack_length, geom_type);
-#endif
     if (f_is_blob(pack_flag))
       return new Field_blob(ptr,null_pos,null_bit,
 			    unireg_check, field_name, share,
@@ -10465,11 +10464,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     /* This is corrected in create_length_to_internal_length */
     length= (length+charset->mbmaxlen-1) / charset->mbmaxlen;
     break;
-#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
-#endif
   case MYSQL_TYPE_YEAR:
     if (length != 4)
     {
@@ -10492,10 +10489,10 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   char_length= length;
 
   /*
-    Copy the default value from the column object orig_field, if supplied. We
-    do this if all these conditions are met:
+    Copy the default (constant/function) from the column object orig_field, if
+    supplied. We do this if all these conditions are met:
 
-    - The column has a constant default value.
+    - The column allows a default.
 
     - The column type is not a BLOB type.
 
@@ -10504,25 +10501,40 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   */
   if (!(flags & (NO_DEFAULT_VALUE_FLAG | BLOB_FLAG)) &&
       old_field->ptr != NULL &&
-      orig_field != NULL &&
-      (!real_type_with_now_as_default(sql_type) ||
-       !old_field->has_insert_default_function()))
+      orig_field != NULL)
   {
-    char buff[MAX_FIELD_WIDTH];
-    String tmp(buff,sizeof(buff), charset);
-
-    /* Get the value from default_values */
-    my_ptrdiff_t diff= orig_field->table->default_values_offset();
-    orig_field->move_field_offset(diff);	// Points now at default_values
-    if (!orig_field->is_real_null())
+    bool default_now= false;
+    if (real_type_with_now_as_default(sql_type))
     {
-      char buff[MAX_FIELD_WIDTH], *pos;
-      String tmp(buff, sizeof(buff), charset), *res;
-      res= orig_field->val_str(&tmp);
-      pos= (char*) sql_strmake(res->ptr(), res->length());
-      def= new Item_string(pos, res->length(), charset);
+      // The SQL type of the new field allows a function default:
+      default_now= orig_field->has_insert_default_function();
+      bool update_now= orig_field->has_update_default_function();
+
+      if (default_now && update_now)
+        unireg_check= Field::TIMESTAMP_DNUN_FIELD;
+      else if (default_now)
+        unireg_check= Field::TIMESTAMP_DN_FIELD;
+      else if (update_now)
+        unireg_check= Field::TIMESTAMP_UN_FIELD;
     }
-    orig_field->move_field_offset(-diff);	// Back to record[0]
+    if (!default_now)                           // Give a constant default
+    {
+      char buff[MAX_FIELD_WIDTH];
+      String tmp(buff,sizeof(buff), charset);
+
+      /* Get the value from default_values */
+      my_ptrdiff_t diff= orig_field->table->default_values_offset();
+      orig_field->move_field_offset(diff);	// Points now at default_values
+      if (!orig_field->is_real_null())
+      {
+        char buff[MAX_FIELD_WIDTH], *pos;
+        String tmp(buff, sizeof(buff), charset), *res;
+        res= orig_field->val_str(&tmp);
+        pos= (char*) sql_strmake(res->ptr(), res->length());
+        def= new Item_string(pos, res->length(), charset);
+      }
+      orig_field->move_field_offset(-diff);	// Back to record[0]
+    }
   }
 }
 

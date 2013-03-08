@@ -142,10 +142,16 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
+	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
+#ifdef UNIV_DEBUG
+	, ibool		has_done_reservation /*!< in: TRUE if the space has
+				already been reserved, in this case we will
+				never return NULL */
+#endif
+)
 	__attribute__((warn_unused_result, nonnull));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1159,23 +1165,27 @@ fsp_fill_free_list(
 			/* Initialize the ibuf bitmap page in a separate
 			mini-transaction because it is low in the latching
 			order, and we must be able to release its latch
-			before returning from the fsp routine */
+			before returning from the fsp routine
+			Insert-Buffering disabled for object residing
+			in temp-tablespace. */
+			if (space != srv_tmp_space.space_id()) {
+				mtr_start(&ibuf_mtr);
 
-			mtr_start(&ibuf_mtr);
+				block = buf_page_create(
+						space,
+						i + FSP_IBUF_BITMAP_OFFSET,
+						zip_size, &ibuf_mtr);
+				buf_page_get(space, zip_size,
+					     i + FSP_IBUF_BITMAP_OFFSET,
+					     RW_X_LATCH, &ibuf_mtr);
+				buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
 
-			block = buf_page_create(space,
-						    i + FSP_IBUF_BITMAP_OFFSET,
-						    zip_size, &ibuf_mtr);
-			buf_page_get(space, zip_size,
-				     i + FSP_IBUF_BITMAP_OFFSET,
-				     RW_X_LATCH, &ibuf_mtr);
-			buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+				fsp_init_file_page(block, &ibuf_mtr);
 
-			fsp_init_file_page(block, &ibuf_mtr);
+				ibuf_bitmap_page_init(block, &ibuf_mtr);
 
-			ibuf_bitmap_page_init(block, &ibuf_mtr);
-
-			mtr_commit(&ibuf_mtr);
+				mtr_commit(&ibuf_mtr);
+			}
 		}
 
 		descr = xdes_get_descriptor_with_space_hdr(header, space, i,
@@ -2109,7 +2119,15 @@ fseg_create_general(
 
 	if (page == 0) {
 		block = fseg_alloc_free_page_low(space, zip_size,
-						 inode, 0, FSP_UP, mtr, mtr);
+						 inode, 0, FSP_UP, mtr, mtr
+#ifdef UNIV_DEBUG
+						 , has_done_reservation
+#endif
+						 );
+
+		/* The allocation cannot fail if we have already reserved a
+		space for the page. */
+		ut_ad(!has_done_reservation || block != NULL);
 
 		if (block == NULL) {
 
@@ -2370,10 +2388,16 @@ fseg_alloc_free_page_low(
 				direction they go alphabetically: FSP_DOWN,
 				FSP_UP, FSP_NO_DIR */
 	mtr_t*		mtr,	/*!< in/out: mini-transaction */
-	mtr_t*		init_mtr)/*!< in/out: mtr or another mini-transaction
+	mtr_t*		init_mtr/*!< in/out: mtr or another mini-transaction
 				in which the page should be initialized.
 				If init_mtr!=mtr, but the page is already
 				latched in mtr, do not initialize the page. */
+#ifdef UNIV_DEBUG
+	, ibool		has_done_reservation /*!< in: TRUE if the space has
+				already been reserved, in this case we will
+				never return NULL */
+#endif
+)
 {
 	fsp_header_t*	space_header;
 	ulint		space_size;
@@ -2466,6 +2490,7 @@ take_hinted_page:
 		if (direction == FSP_DOWN) {
 			ret_page += FSP_EXTENT_SIZE - 1;
 		}
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if ((xdes_get_state(descr, mtr) == XDES_FSEG)
 		   && mach_read_from_8(descr + XDES_ID) == seg_id
@@ -2481,6 +2506,7 @@ take_hinted_page:
 		ret_page = xdes_get_offset(ret_descr)
 			+ xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
 					hint % FSP_EXTENT_SIZE, mtr);
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if (reserved - used > 0) {
 		/* 5. We take any unused page from the segment
@@ -2493,7 +2519,7 @@ take_hinted_page:
 		} else if (flst_get_len(seg_inode + FSEG_FREE, mtr) > 0) {
 			first = flst_get_first(seg_inode + FSEG_FREE, mtr);
 		} else {
-			ut_error;
+			ut_ad(!has_done_reservation);
 			return(NULL);
 		}
 
@@ -2502,12 +2528,15 @@ take_hinted_page:
 		ret_page = xdes_get_offset(ret_descr)
 			+ xdes_find_bit(ret_descr, XDES_FREE_BIT, TRUE,
 					0, mtr);
+		ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		/*-----------------------------------------------------------*/
 	} else if (used < FSEG_FRAG_LIMIT) {
 		/* 6. We allocate an individual page from the space
 		===================================================*/
 		buf_block_t* block = fsp_alloc_free_page(
 			space, zip_size, hint, mtr, init_mtr);
+
+		ut_ad(!has_done_reservation || block != NULL);
 
 		if (block != NULL) {
 			/* Put the page in the fragment page array of the
@@ -2532,14 +2561,17 @@ take_hinted_page:
 
 		if (ret_descr == NULL) {
 			ret_page = FIL_NULL;
+			ut_ad(!has_done_reservation);
 		} else {
 			ret_page = xdes_get_offset(ret_descr);
+			ut_ad(!has_done_reservation || ret_page != FIL_NULL);
 		}
 	}
 
 	if (ret_page == FIL_NULL) {
 		/* Page could not be allocated */
 
+		ut_ad(!has_done_reservation);
 		return(NULL);
 	}
 
@@ -2558,6 +2590,7 @@ take_hinted_page:
 					" the space size %lu. Page no %lu.\n",
 					(ulong) space, (ulong) space_size,
 					(ulong) ret_page);
+				ut_ad(!has_done_reservation);
 				return(NULL);
 			}
 
@@ -2565,6 +2598,7 @@ take_hinted_page:
 				space, ret_page, space_header, mtr);
 			if (!success) {
 				/* No disk space left */
+				ut_ad(!has_done_reservation);
 				return(NULL);
 			}
 		}
@@ -2661,7 +2695,16 @@ fseg_alloc_free_page_general(
 
 	block = fseg_alloc_free_page_low(space, zip_size,
 					 inode, hint, direction,
-					 mtr, init_mtr);
+					 mtr, init_mtr
+#ifdef UNIV_DEBUG
+					 , has_done_reservation
+#endif
+					 );
+
+	/* The allocation cannot fail if we have already reserved a
+	space for the page. */
+	ut_ad(!has_done_reservation || block != NULL);
+
 	if (!has_done_reservation) {
 		fil_space_release_free_extents(space, n_reserved);
 	}
@@ -3077,20 +3120,16 @@ fseg_free_page_low(
 		      stderr);
 		ut_print_buf(stderr, descr, 40);
 
-		fprintf(stderr, "\n"
-			"InnoDB: Serious error! InnoDB is trying to"
-			" free page %lu\n"
-			"InnoDB: though it is already marked as free"
-			" in the tablespace!\n"
-			"InnoDB: The tablespace free space info is corrupt.\n"
-			"InnoDB: You may need to dump your"
-			" InnoDB tables and recreate the whole\n"
-			"InnoDB: database!\n", (ulong) page);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Fatal Error! InnoDB is trying to free page %lu"
+			" though it is already marked as free in the"
+			" tablespace! The tablespace free space info is"
+			" corrupt. You may need to dump your tables and"
+			" recreate the whole database!", (ulong) page);
 crash:
-		fputs("InnoDB: Please refer to\n"
-		      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
-		      "InnoDB: about forcing recovery.\n", stderr);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Please refer to " REFMAN "forcing-innodb-recovery.html"
+			" about forcing recovery.");
 	}
 
 	state = xdes_get_state(descr, mtr);

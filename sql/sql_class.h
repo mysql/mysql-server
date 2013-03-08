@@ -239,40 +239,6 @@ public:
 };
 
 
-class Alter_drop :public Sql_alloc {
-public:
-  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
-  const char *name;
-  enum drop_type type;
-  Alter_drop(enum drop_type par_type,const char *par_name)
-    :name(par_name), type(par_type)
-  {
-    DBUG_ASSERT(par_name != NULL);
-  }
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_drop *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_drop(*this); }
-};
-
-
-class Alter_column :public Sql_alloc {
-public:
-  const char *name;
-  Item *def;
-  Alter_column(const char *par_name,Item *literal)
-    :name(par_name), def(literal) {}
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_column *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_column(*this); }
-};
-
-
 class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
@@ -1233,6 +1199,11 @@ void xid_cache_delete(XID_STATE *xid_state);
 */
 
 class Security_context {
+private:
+
+String host; 
+String ip; 
+String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
   /*
@@ -1242,13 +1213,11 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *ip;
+  char   *user;
   char   priv_user[USERNAME_LENGTH];
   char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
-  /* The external user (if available) */
-  char   *external_user;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
@@ -1264,7 +1233,13 @@ public:
   }
   
   bool set_user(char *user_arg);
-
+  String *get_host();
+  String *get_ip();
+  String *get_external_user();
+  void set_host(const char *p);
+  void set_ip(const char *p);
+  void set_external_user(const char *p);
+  void set_host(const char *str, size_t len);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
@@ -1854,9 +1829,7 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
-#ifdef HAVE_QUERY_CACHE
   Query_cache_tls query_cache_tls;
-#endif
   NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
@@ -3478,7 +3451,7 @@ public:
   {
     if (owned_gtid.sidno == -1)
     {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
       owned_gtid_set.clear();
 #else
       DBUG_ASSERT(0);
@@ -4132,16 +4105,8 @@ public:
 
      @param table_list_par   The table reference for the destination table.
      @param table_par        The destination table. May be NULL.
-     @param target_columns   The columns of the table which is the target for
-                             insertion. May be NULL, but if not, the same
-                             value must be used for target_or_source_columns.
-     @param target_or_source_columns The columns of the source table providing
-                             data, or columns of the target table. If the
-                             target table is known, the columns of that table
-                             should be used. If the target table is not known
-                             (it may not yet exist), the columns of the source
-                             table should be used, and target_columns should
-                             be NULL.
+     @param target_columns   See details.
+     @param target_or_source_columns See details.
      @param update_fields    The columns to be updated in case of duplicate
                              keys. May be NULL.
      @param update_values    The values to be assigned in case of duplicate
@@ -4156,25 +4121,31 @@ public:
      select_insert members initialized here are totally redundant, as they are
      found inside the COPY_INFO.
 
-     Here is the explanation of how we set the manage_defaults parameter of
-     info's constructor below.
-     @li if target_columns==NULL, the statement is
+     The target_columns and target_or_source_columns arguments are set by
+     callers as follows:
+     @li if CREATE SELECT:
+      - target_columns == NULL,
+      - target_or_source_columns == expressions listed after SELECT, as in
+          CREATE ... SELECT expressions
+     @li if INSERT SELECT:
+      target_columns
+      == target_or_source_columns
+      == columns listed between INSERT and SELECT, as in
+          INSERT INTO t (columns) SELECT ...
+
+     We set the manage_defaults argument of info's constructor as follows
+     ([...] denotes something optional):
+     @li If target_columns==NULL, the statement is
 @verbatim
-     CREATE TABLE a_table (possibly some columns1) SELECT columns2
+     CREATE TABLE a_table [(columns1)] SELECT expressions2
 @endverbatim
-     which sets all of a_table's columns2 to values returned by SELECT (no
-     default needs to be set); a_table's columns1 get set from defaults
-     prepared by make_empty_rec() when table is created, not by COPY_INFO. So
-     manage_defaults is "false".
-     @li otherwise, target_columns!=NULL and so it is INSERT SELECT. If there
-     are explicitely listed columns like
+     so 'info' must manage defaults of columns1.
+     @li Otherwise it is:
 @verbatim
-     INSERT INTO a_table (columns1) SELECT ...
+     INSERT INTO a_table [(columns1)] SELECT ...
 @verbatim
-     then non-listed columns (columns of a_table which are not columns1) may
-     need a default set by COPY_INFO so manage_defaults is "true". If no
-     column is explicitely listed, all columns will be set to values returned
-     by SELECT, so "manage_defaults" is false.
+     target_columns is columns1, if not empty then 'info' must manage defaults
+     of other columns than columns1.
   */
   select_insert(TABLE_LIST *table_list_par,
                 TABLE *table_par,
@@ -4191,7 +4162,7 @@ public:
      info(COPY_INFO::INSERT_OPERATION,
           target_columns,
           // manage_defaults
-          target_columns != NULL && target_columns->elements != 0,
+          (target_columns == NULL || target_columns->elements != 0),
           duplic,
           ignore),
      update(COPY_INFO::UPDATE_OPERATION,

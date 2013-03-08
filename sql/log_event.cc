@@ -1298,7 +1298,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
-                              uint8 checksum_alg_arg)
+                              uint8 checksum_alg_arg,
+                              const char *log_file_name_arg,
+                              bool* is_binlog_active)
 {
   ulong data_len;
   int result=0;
@@ -1308,6 +1310,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
   if (log_lock)
     mysql_mutex_lock(log_lock);
+
+  if (log_file_name_arg)
+    *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -4369,7 +4375,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     sql_parse.cc
     */
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+#if !defined(MYSQL_CLIENT)
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
@@ -4429,7 +4435,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     Append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
    */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+#if !defined(MYSQL_CLIENT)
   size_t db_length= (size_t)db_len;
   memcpy(start + data_len + 1, &db_length, sizeof(size_t));
 #endif
@@ -7592,7 +7598,7 @@ bool Xid_log_event::do_commit(THD *thd)
     Increment the global status commit count variable
   */
   if (!error)
-    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
+    thd->status_var.com_stat[SQLCOM_COMMIT]++;
 
   return error;
 }
@@ -11333,9 +11339,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
 
-#ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
-#endif
   }
 
   TABLE* 
@@ -12097,7 +12101,8 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
     if (bytes_read < event_len)
     {
       m_field_metadata_size= net_field_length(&ptr_after_colcnt);
-      DBUG_ASSERT(m_field_metadata_size <= (m_colcnt * 2));
+      if (m_field_metadata_size > (m_colcnt * 2))
+        DBUG_VOID_RETURN;
       uint num_null_bytes= (m_colcnt + 7) / 8;
       m_meta_memory= (uchar *)my_multi_malloc(MYF(MY_WME),
                                      &m_null_bits, num_null_bytes,
@@ -12115,8 +12120,10 @@ Table_map_log_event::Table_map_log_event(const char *buf, uint event_len,
 
 Table_map_log_event::~Table_map_log_event()
 {
-  my_free(m_meta_memory);
-  my_free(m_memory);
+  if (m_meta_memory)
+    my_free(m_meta_memory);
+  if (m_memory)
+    my_free(m_memory);
 }
 
 /*
@@ -12379,8 +12386,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(m_dbnam != NULL);
   DBUG_ASSERT(m_tblnam != NULL);
   /* We use only one byte per length for storage in event: */
-  DBUG_ASSERT(m_dblen < 128);
-  DBUG_ASSERT(m_tbllen < 128);
+  DBUG_ASSERT(m_dblen <= 128);
+  DBUG_ASSERT(m_tbllen <= 128);
 
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
@@ -12487,7 +12494,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     Increment the global status insert count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+    thd->status_var.com_stat[SQLCOM_INSERT]++;
 
   /**
      todo: to introduce a property for the event (handler?) which forces
@@ -12975,7 +12982,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status delete count variable
    */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);  
+    thd->status_var.com_stat[SQLCOM_DELETE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -13084,7 +13091,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status update count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+    thd->status_var.com_stat[SQLCOM_UPDATE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -13723,12 +13730,13 @@ void Previous_gtids_log_event::print(FILE *file,
 int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 {
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
-#ifndef DBUG_OFF
-  char *str= get_str(NULL, &Gtid_set::default_string_format);
-  DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
-  my_free(str);
-#endif
-  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf, buf_size));
+  size_t end_pos= 0;
+  size_t add_size= DBUG_EVALUATE_IF("gtid_has_extra_data", 10, 0);
+  /* Silently ignore additional unknown data at the end of the encoding */
+  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf,
+                                                         buf_size + add_size,
+                                                         &end_pos));
+  DBUG_ASSERT(end_pos <= (size_t) buf_size);
   DBUG_RETURN(0);
 }
 

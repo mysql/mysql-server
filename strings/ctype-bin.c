@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -279,19 +279,27 @@ void my_hash_sort_8bit_bin(const CHARSET_INFO *cs __attribute__((unused)),
                            ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
-  
+  ulong tmp1;
+  ulong tmp2;
+
   /*
      Remove trailing spaces. We have to do this to be able to compare
     'A ' and 'A' as identical
   */
   key= skip_trailing_space(key, len);
 
+  tmp1= *nr1;
+  tmp2= *nr2;
+
   for (; pos < (uchar*) key ; pos++)
   {
-    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
-	     ((uint)*pos)) + (nr1[0] << 8);
-    nr2[0]+=3;
+    tmp1^=(ulong) ((((uint) tmp1 & 63) + tmp2) *
+                   ((uint)*pos)) + (tmp1 << 8);
+    tmp2+=3;
   }
+
+  *nr1= tmp1;
+  *nr2= tmp2;
 }
 
 
@@ -299,15 +307,23 @@ void my_hash_sort_bin(const CHARSET_INFO *cs __attribute__((unused)),
 		      const uchar *key, size_t len,ulong *nr1, ulong *nr2)
 {
   const uchar *pos = key;
-  
+  ulong tmp1;
+  ulong tmp2;
+
   key+= len;
-  
+
+  tmp1= *nr1;
+  tmp2= *nr2;
+
   for (; pos < (uchar*) key ; pos++)
   {
-    nr1[0]^=(ulong) ((((uint) nr1[0] & 63)+nr2[0]) * 
-	     ((uint)*pos)) + (nr1[0] << 8);
-    nr2[0]+=3;
+    tmp1^=(ulong) ((((uint) tmp1 & 63) + tmp2) *
+                   ((uint)*pos)) + (tmp1 << 8);
+    tmp2+=3;
   }
+
+  *nr1= tmp1;
+  *nr2= tmp2;
 }
 
 
