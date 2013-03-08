@@ -31,6 +31,7 @@ class Format_description_log_event;
 class Logical_clock_state
 {
 private:
+  my_atomic_rwlock_t state_LOCK;
   volatile int64 state;
   int64 clock_step;
 protected:
