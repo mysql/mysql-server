@@ -35,14 +35,14 @@ UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
 SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
 COUNT(*)	SUM(key6)
 3	21
-EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	i2,i3,i5,i6	i3,i5,i2	4,5,4	NULL	#	Using union(intersect(i3,i5),i2); Using where
-SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+1	SIMPLE	t1	index_merge	i2,i3,i5,i6	i3,i2	4,4	NULL	#	Using union(i3,i2); Using where
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	80
-UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
-SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	18
 EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;
@@ -199,14 +199,14 @@ UPDATE t1 SET key6=7 WHERE key1=80 OR key4=49;
 SELECT COUNT(*), SUM(key6) FROM t1 WHERE key1=80 OR key4=49;
 COUNT(*)	SUM(key6)
 3	21
-EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+EXPLAIN UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index_merge	i2,i3,i5,i6	i3,i2	4,4	NULL	#	Using sort_union(i3,i2); Using where; Using temporary
-SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	80
-UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
-SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NULL) OR (key2=49 AND key6 IS NULL);
+UPDATE t1 SET key1=18 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
+SELECT COUNT(*), SUM(key1) FROM t1 WHERE (key3=80 AND key5 IS NOT NULL) OR (key2=49 AND key6 IS NULL);
 COUNT(*)	SUM(key1)
 1	18
 EXPLAIN UPDATE t1 SET key3=18 WHERE (key4=42 AND key6 IS NOT NULL) OR (key1>4 AND key5 IS NULL) AND key2<>50;

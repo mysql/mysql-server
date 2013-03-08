@@ -5920,8 +5920,7 @@ fts_drop_orphaned_tables(void)
 	error = fil_get_space_names(space_name_list);
 
 	if (error == DB_OUT_OF_MEMORY) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "Out of memory");
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Out of memory");
 	}
 
 	heap = mem_heap_create(1024);
