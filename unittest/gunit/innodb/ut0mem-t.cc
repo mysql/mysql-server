@@ -24,7 +24,7 @@
 
 #include "ut0mem.h"
 
-namespace innodb_ut0crc32_unittest {
+namespace innodb_ut0mem_unittest {
 
 /* test ut_str_sql_format() */
 TEST(ut0mem, utstrsqlformat)
