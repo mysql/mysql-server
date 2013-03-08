@@ -330,7 +330,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_SYNC_DEBUG */
 	PSI_KEY(buf_dblwr_mutex),
 	PSI_KEY(trx_undo_mutex),
-	PSI_KEY(trx_undo_mutex),
 	PSI_KEY(trx_pool_mutex),
 	PSI_KEY(trx_pools_mutex),
 	PSI_KEY(srv_sys_mutex),
