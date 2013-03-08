@@ -4994,6 +4994,10 @@ end:
 #endif
   set_timespec_nsec(rli->last_clock, 0);
 
+  /* if the slave sql was killed we must return true */
+  if (sql_slave_killed(rli->info_thd, rli))
+    error= true;
+
   DBUG_RETURN(error);
 }
 

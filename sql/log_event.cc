@@ -3049,7 +3049,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     do
     {
       char **ref_cur_db= it.ref();
-      
+
       if (!(ret_worker=
             map_db_to_worker(*ref_cur_db, rli,
                              &mts_assigned_partitions[i],
@@ -3079,19 +3079,19 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         worker_id == MTS_WORKER_UNDEF)
     {
       ptr_group->worker_id= ret_worker->id;
-      
+
       DBUG_ASSERT(ptr_group->group_relay_log_name == NULL);
     }
 
     DBUG_ASSERT(i == num_dbs || num_dbs == OVER_MAX_DBS_IN_EVENT_MTS);
   }
-  else 
+  else
   {
     // a mini-group internal "regular" event
     if (rli->last_assigned_worker)
     {
       ret_worker= rli->last_assigned_worker;
-      
+
       DBUG_ASSERT(rli->curr_group_assigned_parts.elements > 0 ||
                   ret_worker->id == 0);
     }
@@ -3107,7 +3107,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
             get_type_code() == APPEND_BLOCK_EVENT))
       {
         DBUG_ASSERT(!ret_worker);
-        
+
         llstr(rli->get_event_relay_log_pos(), llbuff);
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
@@ -3118,7 +3118,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       }
 
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
-      
+
       DBUG_ASSERT(!ret_worker);
       DBUG_RETURN (ret_worker);
     }
@@ -3138,7 +3138,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_PRINT("info", ("parent_seq= %lld lwm_seq=%lld",
                            ptr_group->parent_seqno,  rli->gaq->lwm.total_seqno));
       while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
-        (void) mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/);
+       {
+         if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
+            return NULL;
+       }
     }
 
 
