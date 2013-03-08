@@ -14,10 +14,6 @@
 #                                                                    #
 ######################################################################
 
-if (`select plugin_auth_version <= "1.1.8-29.3" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.1.8-29.3 or earlier
-}
 
 # Save innodb variables
 let $innodb_file_format_orig=`select @@innodb_file_format`;

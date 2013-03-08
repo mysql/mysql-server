@@ -1,9 +1,5 @@
 --source include/have_innodb.inc
 --source include/have_debug.inc
-if (`select plugin_auth_version <= "1.1.8-29.3" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.1.8-29.3 or earlier
-}
 
 SET @start_global_value = @@global.innodb_limit_optimistic_insert_debug;
 SELECT @start_global_value;

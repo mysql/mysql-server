@@ -5,10 +5,6 @@
 #
 
 --source include/have_innodb.inc
-if (`select plugin_auth_version <= "1.1.8-29.3" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.1.8-29.3 or earlier
-}
 
 --disable_warnings
 drop view if exists v1;
