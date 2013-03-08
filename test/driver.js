@@ -302,6 +302,9 @@ if(timeoutMillis > 0) {
 
 /** Open a session or fail the test case */
 global.fail_openSession = function(testCase, callback) {
+  if (arguments.length !== 2) {
+    throw new Error('Fatal internal exception: fail_openSession must have 2 parameters: testCase, callback');
+  }
   var properties = global.test_conn_properties;
   mynode.openSession(properties, null, function(err, session) {
     if (err) {
