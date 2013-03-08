@@ -421,7 +421,7 @@ function DeleteOperation(sql, keys, callback) {
   };
 }
 
-function ReadOperation(sql, keys, callback) {
+function ReadOperation(dbTableHandler, sql, keys, callback) {
   udebug.log('dbSession.ReadOperation with', sql, keys);
   var op = this;
   this.type = 'read';
@@ -452,6 +452,8 @@ function ReadOperation(sql, keys, callback) {
         udebug.log('dbSession.ReadOperation ONE RESULT callback:', rows[0]);
         op.result.value = rows[0];
         op.result.success = true;
+        // convert the felix result into the user result
+        op.result.value = dbTableHandler.applyMappingToResult(op.result.value);
         if (typeof(op.callback) === 'function') {
           // call the UserContext callback
           op.callback(null, op);
@@ -657,7 +659,7 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
-  return new ReadOperation(selectSQL, keys, callback);
+  return new ReadOperation(dbTableHandler, selectSQL, keys, callback);
 };
 
 

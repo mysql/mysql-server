@@ -60,7 +60,9 @@ var proto = {
   fieldNameToFieldMap    : {},
   columnNumberToFieldMap : {},
   fieldNumberToColumnMap : {},
-  fieldNumberToFieldMap  : {}
+  fieldNumberToFieldMap  : {},
+  errorMessages          : '\n',    // error messages during construction
+  isValid                : true
 };
 
 /* getColumnByName() is a utility function used in the building of maps.
@@ -79,6 +81,13 @@ function getColumnByName(dbTable, colName) {
   return null;
 }
 
+
+/** Append an error message and mark this DBTableHandler as invalid.
+ */
+proto.appendErrorMessage = function(msg) {
+  this.errorMessages += '\n' + msg;
+  this.isValid = false;
+};
 
 /* DBTableHandler() constructor
    IMMEDIATE
@@ -152,6 +161,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         if (c.isAutoincrement) {
           this.autoincrementFieldNumber = i;
         }
+      } else {
+        this.appendErrorMessage(
+            'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
       }
     }
   }
@@ -197,7 +209,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       this.resolvedMapping.fields[i].persistent = true;
     }
   }  
-  assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
+  if (nMappedFields !== this.fieldNumberToColumnMap.length) {
+    this.appendErrorMessage();
+  }
 
   // build dbIndexHandlers; one for each dbIndex, starting with primary key index 0
   for (i = 0; i < this.dbTable.indexes.length; ++i) {
@@ -210,6 +224,9 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     this.dbIndexHandlers.push(new DBIndexHandler(this, index));
   }
 
+  if (!this.isValid) {
+    this.err = new Error(this.errorMessages);
+  }
   udebug.log("new completed");
   udebug.log_detail(this);
 }
@@ -251,16 +268,48 @@ DBTableHandler.prototype.newResultObject = function(values) {
   }
 
   if (typeof(values) === 'object') {
-    var x;
     // copy values into the new domain object
-    for (x in values) {
-      if (values.hasOwnProperty(x)) {
-        newDomainObj[x] = values[x];
-      }
-    }
+    this.setFields(newDomainObj, values);
   }
   udebug.log("newResultObject done", newDomainObj);
   return newDomainObj;
+};
+
+
+/** applyMappingToResult(object)
+ * IMMEDIATE
+ * Apply the table mapping to the result object. The result object
+ * has properties corresponding to field names whose values came
+ * from the database. If a domain object is needed, a new domain
+ * object is created and values are copied from the result object.
+ * If a domain object is not needed, the result object simply
+ * needs to have column converters applied.
+ * The result (either the original result object or a new domain
+ * object) is returned.
+ * @param obj the object to which to apply mapping
+ * @return the object to return to the user
+ */
+DBTableHandler.prototype.applyMappingToResult = function(obj) {
+  var i, f, fieldName, value, convertedValue;
+  if (this.newObjectConstructor) {
+    // create the domain object from the result
+    return this.newResultObject(obj);
+  }
+  // apply user column converters to result columns
+  for (i = 0; i < this.fieldNumberToFieldMap.length; ++i) {
+    f = this.fieldNumberToFieldMap[i];
+    fieldName = f.fieldName;
+    value = obj[fieldName];
+    if (value && f.converter) {
+      // replace the value with the converted value
+      convertedValue = f.converter.fromDB(value);
+      udebug.log_detail('for field', fieldName, 
+          'applying column converter to value', value,
+          'returns', convertedValue);
+      obj[fieldName] = convertedValue;
+    }
+  }
+  return obj;
 };
 
 
@@ -418,6 +467,7 @@ function chooseIndex(self, keys, uniqueOnly) {
 /** Return the property of obj corresponding to fieldNumber.
  * If resolveDefault is true, replace undefined with the default column value.
  * ResolveDefault is used only for persist, not for write or update.
+ * If a column converter is defined, convert the value here.
  */
 DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) { 
   udebug.log_detail("get", fieldNumber);
@@ -433,9 +483,10 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) {
   if ((result === undefined) && resolveDefault) {
     udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
     result = f.defaultValue;
+  } else if (result !== undefined && f.converter) {
+    return f.converter.toDB(result);
   }
   return result;
-  //  return f ? obj[f.fieldName] : null;
 };
 
 
@@ -452,29 +503,34 @@ DBTableHandler.prototype.getFields = function(obj, resolveDefault) {
 /* Set field to value */
 DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
   udebug.log_detail("set", fieldNumber);
+  var v;
   var f = this.fieldNumberToFieldMap[fieldNumber];
-  if(f) {
-    obj[f.fieldName] = value;
+  if (f) {
+    if (f.converter) {
+      v = f.converter.fromDB(value);
+    } else {
+      v = value;
+    }
+    obj[f.fieldName] = v;
     return true; 
   }
   return false;
 };
 
 
-/* Set all member values of object according to an ordered array of fields 
+/* Set all member values of object from a value object, which
+ * has properties corresponding to field names. 
+ * User-defined column conversion is handled in the set method.
 */
 DBTableHandler.prototype.setFields = function(obj, values) {
-//  var i;
-//  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
-//    if(values[i]) {
-//      this.set(obj, i, values[i]);
-//    }
-//  }
-  var x;
-  // copy values into the domain object
-  for (x in values) {
-    if (values.hasOwnProperty(x)) {
-      obj[x] = values[x];
+  var i, f, value, columnName, fieldName;
+  for (i = 0; i < this.fieldNumberToFieldMap.length; ++i) {
+    f = this.fieldNumberToFieldMap[i];
+    columnName = f.columnName;
+    fieldName = f.fieldName;
+    value = values[fieldName];
+    if (value !== undefined) {
+      this.set(obj, i, value);
     }
   }
 };
