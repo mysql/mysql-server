@@ -49,9 +49,10 @@ Created 1/20/1994 Heikki Tuuri
 #define _IB_TO_STR(s)	#s
 #define IB_TO_STR(s)	_IB_TO_STR(s)
 
-#define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	1
-#define INNODB_VERSION_BUGFIX	8
+#include <mysql_version.h>
+
+#define INNODB_VERSION_MAJOR	MYSQL_MAJOR_VERSION
+#define INNODB_VERSION_MINOR	MYSQL_MINOR_VERSION
 
 /* The following is the InnoDB version as shown in
 SELECT plugin_version FROM information_schema.plugins;
@@ -62,10 +63,7 @@ component, i.e. we show M.N.P as M.N */
 #define INNODB_VERSION_SHORT	\
 	(INNODB_VERSION_MAJOR << 8 | INNODB_VERSION_MINOR)
 
-#define INNODB_VERSION_STR			\
-	IB_TO_STR(INNODB_VERSION_MAJOR) "."	\
-	IB_TO_STR(INNODB_VERSION_MINOR) "."	\
-	IB_TO_STR(INNODB_VERSION_BUGFIX)
+#define INNODB_VERSION_STR	MYSQL_SERVER_VERSION
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
 	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\

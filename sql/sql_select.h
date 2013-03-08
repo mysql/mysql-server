@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -160,6 +160,20 @@ typedef struct st_join_table {
   TABLE		*table;
   KEYUSE	*keyuse;			/**< pointer to first used key */
   SQL_SELECT	*select;
+  /**
+    When doing filesort, the select object is used for building the
+    sort index. After the sort index is built, the pointer to the
+    select object is set to NULL to avoid that it is used when reading
+    the result records (@see create_sort_index()). For subqueries that
+    do filesort and that are executed multiple times, the pointer to
+    the select object must be restored before the next execution both
+    to ensure that the select object is used and to be able to cleanup
+    the select object after the final execution of the subquery. In
+    order to be able to restore the pointer to the select object, it
+    is saved in saved_select in create_sort_index() and restored in
+    JOIN::exec() after the main select is done.
+  */
+  SQL_SELECT    *saved_select;
   COND		*select_cond;
   QUICK_SELECT_I *quick;
   Item	       **on_expr_ref;   /**< pointer to the associated on expression   */

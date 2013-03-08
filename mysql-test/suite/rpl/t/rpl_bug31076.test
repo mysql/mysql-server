@@ -40,6 +40,7 @@ CREATE TABLE `visits_events` (
   KEY `data` (`data`)
 ) ENGINE=MyISAM AUTO_INCREMENT=33900731 DEFAULT CHARSET=latin1;
 
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 --delimiter /*!*/;
@@ -119,6 +120,7 @@ SET INSERT_ID=21231039/*!*/;
 #  9c90ded 2d 63 6f 6e 6e 65 63 74  6f 72 2d 6a 61 76 61 2d |.connector.java.|
 #  9c90dfd 33 2e 30 2e 31 37 2d 67  61 2e 7a 69 70  |3.0.17.ga.zip|
 # 	Query	thread_id=28278824	exec_time=0	error_code=0
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 use track/*!*/;
 SET TIMESTAMP=1190087942/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1/*!*/;

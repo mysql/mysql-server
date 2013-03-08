@@ -1,0 +1,22 @@
+SELECT @@innodb_print_all_deadlocks;
+@@innodb_print_all_deadlocks
+0
+SET GLOBAL innodb_print_all_deadlocks=1;
+CREATE TABLE t1 (c1 INT, PRIMARY KEY (c1)) ENGINE=INNODB;
+INSERT INTO t1 VALUES (123);
+CREATE TABLE t2 (c2 INT, PRIMARY KEY (c2)) ENGINE=INNODB;
+INSERT INTO t2 VALUES (456);
+BEGIN;
+SELECT * FROM t1 FOR UPDATE;
+c1
+123
+BEGIN;
+SELECT * FROM t2 FOR UPDATE;
+c2
+456
+SELECT * FROM t2 FOR UPDATE;
+SELECT * FROM t1 FOR UPDATE;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+DROP TABLE t2;
+DROP TABLE t1;
+SET GLOBAL innodb_print_all_deadlocks=default;
