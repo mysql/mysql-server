@@ -509,7 +509,7 @@ http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
                             <i>starting</i> or\
                             <i>shutting down</i>, and <img src=img/redlight.gif></img>&nbsp;:&nbsp;\
                             <i>not connected</i> or\
-                            <i>stopped</i> \
+                            <i>stopped</i>. \
                     </span>\
                 </div>\
                 <div dojoType='dijit.layout.ContentPane' region='center'\
@@ -727,7 +727,7 @@ function helpMenuSetup() {
                     title: "About MySQL Cluster Configuration Tool",
                     content: "\
                             <div><img src='img/content-title.png'></div>\
-                            <p></p>\
+                            <p>Version: mysql-5.6-cluster-7.3</p>\
                             <button id='termsButton' \
                                     data-dojo-type='dijit.form.Button'\
                                     type='button'>\
