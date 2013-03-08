@@ -761,41 +761,32 @@ handle_new_error:
 		break;
 
 	case DB_MUST_GET_MORE_FILE_SPACE:
-		fputs("InnoDB: The database cannot continue"
-		      " operation because of\n"
-		      "InnoDB: lack of space. You must add"
-		      " a new data file to\n"
-		      "InnoDB: my.cnf and restart the database.\n", stderr);
-
-		ut_ad(0);
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"The database cannot continue operation because"
+			" of lack of space. You must add a new data file"
+			" to my.cnf and restart the database.");
 
 	case DB_CORRUPTION:
-		fputs("InnoDB: We detected index corruption"
-		      " in an InnoDB type table.\n"
-		      "InnoDB: You have to dump + drop + reimport"
-		      " the table or, in\n"
-		      "InnoDB: a case of widespread corruption,"
-		      " dump all InnoDB\n"
-		      "InnoDB: tables and recreate the"
-		      " whole InnoDB tablespace.\n"
-		      "InnoDB: If the mysqld server crashes"
-		      " after the startup or when\n"
-		      "InnoDB: you dump the tables, look at\n"
-		      "InnoDB: " REFMAN "forcing-innodb-recovery.html"
-		      " for help.\n", stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"We detected index corruption in an InnoDB type"
+			" table. You have to dump + drop + reimport the"
+			" table or, in a case of widespread corruption,"
+			" dump all InnoDB tables and recreate the whole"
+			" tablespace. If the mysqld server crashes after"
+			" the startup or when you dump the tables, look at"
+			REFMAN "forcing-innodb-recovery.html for help.");
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
-		fprintf(stderr, "InnoDB: Cannot delete/update rows with"
-			" cascading foreign key constraints that exceed max"
-			" depth of %lu\n"
-			"Please drop excessive foreign constraints"
-			" and try again\n", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot delete/update rows with cascading foreign"
+			" key constraints that exceed max depth of %lu."
+			" Please drop excessive foreign constraints and"
+			" try again", (ulong) DICT_FK_MAX_RECURSIVE_LOAD);
 		break;
 	default:
-		fprintf(stderr, "InnoDB: unknown error code %lu: %s\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Unknown error code %lu: %s",
 			(ulong) err, ut_strerr(err));
-		ut_error;
 	}
 
 	if (trx->error_state != DB_SUCCESS) {
@@ -923,18 +914,15 @@ row_prebuilt_free(
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
 	    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED) {
 
-		fprintf(stderr,
-			"InnoDB: Error: trying to free a corrupt\n"
-			"InnoDB: table handle. Magic n %lu,"
-			" magic n2 %lu, table name ",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to free a corrupt table handle."
+			" magic_n %lu, magic_n2 %lu, table name ",
 			(ulong) prebuilt->magic_n,
 			(ulong) prebuilt->magic_n2);
 		ut_print_name(stderr, NULL, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
-
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
@@ -989,11 +977,12 @@ row_prebuilt_free(
 			    || row != prebuilt->fetch_cache[i]
 			    || ROW_PREBUILT_FETCH_MAGIC_N != magic2) {
 
-				fputs("InnoDB: Error: trying to free"
-					" a corrupt fetch buffer.\n", stderr);
-
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Trying to free a corrupt"
+					" fetch buffer.");
 				mem_analyze_corruption(base);
-				ut_error;
+				ib_logf(IB_LOG_LEVEL_FATAL,
+					"Memory Corruption");
 			}
 		}
 
@@ -1017,27 +1006,23 @@ row_update_prebuilt_trx(
 	trx_t*		trx)		/*!< in: transaction handle */
 {
 	if (trx->magic_n != TRX_MAGIC_N) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to use a corrupt\n"
-			"InnoDB: trx handle. Magic n %lu\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to use a corrupt trx handle. Magic n %lu",
 			(ulong) trx->magic_n);
-
 		mem_analyze_corruption(trx);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to use a corrupt\n"
-			"InnoDB: table handle. Magic n %lu, table name ",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to use a corrupt table handle. "
+			"Magic n %lu, table name;",
 			(ulong) prebuilt->magic_n);
 		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	prebuilt->trx = trx;
@@ -1369,24 +1354,23 @@ row_insert_for_mysql(
 		return(DB_TABLESPACE_NOT_FOUND);
 
 	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to free a corrupt\n"
-			"InnoDB: table handle. Magic n %lu, table name ",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to free a corrupt table handle."
+			" Magic n %lu, table name;",
 			(ulong) prebuilt->magic_n);
 		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 
-		ut_error;
 	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that"
-		      " newraw is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"A new raw disk partition was initialized or"
+			" innodb_force_recovery is on: We do not allow"
+			" database modifications by the user. Shut down"
+			" mysqld and edit my.cnf so that newraw is replaced"
+			" with raw, and innodb_force_... is removed.");
 
 		return(DB_ERROR);
 	}
@@ -1736,42 +1720,37 @@ row_update_for_mysql(
 
 	if (prebuilt->table->ibd_file_missing) {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Error:\n"
-			"InnoDB: MySQL is trying to use a table handle"
-			" but the .ibd file for\n"
-			"InnoDB: table %s does not exist.\n"
-			"InnoDB: Have you deleted the .ibd file"
-			" from the database directory under\n"
-			"InnoDB: the MySQL datadir, or have you"
-			" used DISCARD TABLESPACE?\n"
-			"InnoDB: Look from\n"
-			"InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			"InnoDB: how you can resolve the problem.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"MySQL is trying to use a table handle but the .ibd"
+			" file for table %s does not exist. Have you deleted"
+			" the .ibd file from the database directory under"
+			" the MySQL datadir, or have you used DISCARD"
+			" TABLESPACE?  Please refer to " REFMAN
+			"innodb-troubleshooting.html to see how you can"
+			" resolve the problem.",
 			prebuilt->table->name);
 		return(DB_ERROR);
 	}
 
 	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to free a corrupt\n"
-			"InnoDB: table handle. Magic n %lu, table name ",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to free a corrupt table handle."
+			" Magic n %lu, table name;",
 			(ulong) prebuilt->magic_n);
 		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"A new raw disk partition was initialized or"
+			" innodb_force_recovery is on: we do not allow"
+			" database modifications by the user. Shut down"
+			" mysqld and edit my.cnf so that newraw is replaced"
+			" with raw, and innodb_force_... is removed.");
 
 		return(DB_ERROR);
 	}

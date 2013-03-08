@@ -3120,20 +3120,16 @@ fseg_free_page_low(
 		      stderr);
 		ut_print_buf(stderr, descr, 40);
 
-		fprintf(stderr, "\n"
-			"InnoDB: Serious error! InnoDB is trying to"
-			" free page %lu\n"
-			"InnoDB: though it is already marked as free"
-			" in the tablespace!\n"
-			"InnoDB: The tablespace free space info is corrupt.\n"
-			"InnoDB: You may need to dump your"
-			" InnoDB tables and recreate the whole\n"
-			"InnoDB: database!\n", (ulong) page);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Fatal Error! InnoDB is trying to free page %lu"
+			" though it is already marked as free in the"
+			" tablespace! The tablespace free space info is"
+			" corrupt. You may need to dump your tables and"
+			" recreate the whole database!", (ulong) page);
 crash:
-		fputs("InnoDB: Please refer to\n"
-		      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
-		      "InnoDB: about forcing recovery.\n", stderr);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Please refer to " REFMAN "forcing-innodb-recovery.html"
+			" about forcing recovery.");
 	}
 
 	state = xdes_get_state(descr, mtr);

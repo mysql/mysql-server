@@ -2547,23 +2547,17 @@ loop:
 				retries = BUF_PAGE_READ_MAX_RETRIES;
 			);
 		} else {
-			fprintf(stderr, "InnoDB: Error: Unable"
-				" to read tablespace %lu page no"
-				" %lu into the buffer pool after"
-				" %lu attempts\n"
-				"InnoDB: The most probable cause"
-				" of this error may be that the"
-				" table has been corrupted.\n"
-				"InnoDB: You can try to fix this"
-				" problem by using"
-				" innodb_force_recovery.\n"
-				"InnoDB: Please see reference manual"
-				" for more details.\n"
-				"InnoDB: Aborting...\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Unable to read tablespace %lu page no %lu"
+				" into the buffer pool after %lu attempts."
+				" The most probable cause of this error may"
+				" be that the table has been corrupted."
+				" You can try to fix this problem by using"
+				" innodb_force_recovery."
+				" Please see reference manual for more"
+				" details.   Aborting...",
 				space, offset,
 				BUF_PAGE_READ_MAX_RETRIES);
-
-			ut_error;
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -4061,11 +4055,9 @@ corrupt:
 				    && buf_mark_space_corrupt(bpage)) {
 					return(false);
 				} else {
-					fputs("InnoDB: Ending processing"
-					      " because of"
-					      " a corrupt database page.\n",
-					      stderr);
-					ut_error;
+					ib_logf(IB_LOG_LEVEL_FATAL,
+						"Aborting because of a"
+						" corrupt database page.");
 				}
 			}
 		}
@@ -4181,11 +4173,10 @@ buf_all_freed_instance(
 		const buf_block_t* block = buf_chunk_not_freed(chunk);
 
 		if (UNIV_LIKELY_NULL(block)) {
-			fprintf(stderr,
-				"Page %lu %lu still fixed or dirty\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Page %lu %lu still fixed or dirty",
 				(ulong) block->page.space,
 				(ulong) block->page.offset);
-			ut_error;
 		}
 	}
 
@@ -4483,18 +4474,19 @@ assert_s_latched:
 	mutex_exit(&buf_pool->zip_mutex);
 
 	if (n_lru + n_free > buf_pool->curr_size + n_zip) {
-		fprintf(stderr, "n LRU %lu, n free %lu, pool %lu zip %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"n_LRU %lu, n_free %lu, pool %lu zip %lu"
+			" Aborting...",
 			(ulong) n_lru, (ulong) n_free,
 			(ulong) buf_pool->curr_size, (ulong) n_zip);
-		ut_error;
 	}
 
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
-		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Free list len %lu, free blocks %lu  Aborting...",
 			(ulong) UT_LIST_GET_LEN(buf_pool->free),
 			(ulong) n_free);
-		ut_error;
 	}
 
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);

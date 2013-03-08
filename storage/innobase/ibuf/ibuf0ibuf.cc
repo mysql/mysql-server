@@ -231,14 +231,13 @@ ibuf_count_check(
 		return;
 	}
 
-	fprintf(stderr,
-		"InnoDB: UNIV_IBUF_COUNT_DEBUG limits space_id and page_no\n"
-		"InnoDB: and breaks crash recovery.\n"
-		"InnoDB: space_id=%lu, should be 0<=space_id<%lu\n"
-		"InnoDB: page_no=%lu, should be 0<=page_no<%lu\n",
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
+		" and breaks crash recovery."
+		"\nInnoDB: space_id=%lu, should be 0<=space_id<%lu"
+		"\nInnoDB: page_no=%lu, should be 0<=page_no<%lu",
 		(ulint) space_id, (ulint) IBUF_COUNT_N_SPACES,
 		(ulint) page_no, (ulint) IBUF_COUNT_N_PAGES);
-	ut_error;
 }
 #endif
 
@@ -4371,14 +4370,13 @@ ibuf_restore_pos(
 
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
-		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
+		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
 		if (!btr_validate_index(ibuf->index, 0)) {
 			ut_error;
 		}
+		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
 
-		fprintf(stderr, "InnoDB: ibuf tree ok\n");
-		fflush(stderr);
-		ut_ad(0);
+		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
 
 	return(FALSE);
