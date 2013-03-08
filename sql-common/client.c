@@ -2410,6 +2410,24 @@ char *write_length_encoded_string4(char *dest, char *dest_end, char *src,
   return (char*)(to + src_len);
 }
 
+
+/*
+  Write 1 byte of string length header information to dest and
+  copy src_len bytes from src to dest.
+*/
+char *write_string(char *dest, char *dest_end, char *src, char *src_end)
+{
+  size_t src_len= (size_t)(src_end - src);
+  uchar *to= NULL;
+  if (src_len >= 251)
+    return NULL;
+  *dest=(uchar) src_len;
+  to= (uchar*) dest+1;
+  if ((char*)(to + src_len) >= dest_end)
+    return NULL;
+  memcpy(to, src, src_len);
+  return (char*)(to + src_len);
+}
 /**
   sends a COM_CHANGE_USER command with a caller provided payload
 
@@ -2672,9 +2690,22 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   {
     if (mysql->server_capabilities & CLIENT_SECURE_CONNECTION)
     {
-      end= write_length_encoded_string4(end, (char *)(buff + buff_size),
-                                       (char *) data,
-                                       (char *)(data + data_len));
+      /* 
+        Since the older versions of server do not have
+        CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA capability,
+        a check is performed on this before sending auth data.
+        If lenenc support is not available, the data is sent
+        in the format of first byte representing the length of
+        the string followed by the actual string.
+      */
+      if (mysql->server_capabilities & CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA)
+        end= write_length_encoded_string4(end, (char *)(buff + buff_size),
+                                         (char *) data,
+                                         (char *)(data + data_len));
+      else
+        end= write_string(end, (char *)(buff + buff_size),
+                         (char *) data,
+                         (char *)(data + data_len));
       if (end == NULL)
         goto error;
     }
@@ -4747,10 +4778,27 @@ static int old_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   if (mysql->passwd[0])
   {
-    char scrambled[SCRAMBLE_LENGTH_323 + 1];
-    scramble_323(scrambled, (char*)pkt, mysql->passwd);
-    if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+    /*
+       If --secure-auth option is used, throw an error.
+       Note that, we do not need to check for CLIENT_SECURE_CONNECTION
+       capability of server. If server is not capable of handling secure
+       connections, we would have raised error before reaching here.
+
+       TODO: Change following code to access MYSQL structure through
+       client-side plugin service.
+    */
+    if (mysql->options.secure_auth)
+    {
+      set_mysql_error(mysql, CR_SECURE_AUTH, unknown_sqlstate);
       DBUG_RETURN(CR_ERROR);
+    }
+    else
+    {
+      char scrambled[SCRAMBLE_LENGTH_323 + 1];
+      scramble_323(scrambled, (char*)pkt, mysql->passwd);
+      if (vio->write_packet(vio, (uchar*)scrambled, SCRAMBLE_LENGTH_323 + 1))
+        DBUG_RETURN(CR_ERROR);
+    }
   }
   else
     if (vio->write_packet(vio, 0, 0)) /* no password */

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2008, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2008, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -212,7 +212,7 @@ it every INNOBASE_WAKE_INTERVAL'th step. */
 #define INNOBASE_WAKE_INTERVAL	32
 
 /*****************************************************************//**
-Check whether the Innodb persistent cursor is positioned.
+Check whether the InnoDB persistent cursor is positioned.
 @return	IB_TRUE if positioned */
 UNIV_INLINE
 ib_bool_t
@@ -564,7 +564,9 @@ ib_trx_start(
 
 	ut_a(ib_trx_level <= IB_TRX_SERIALIZABLE);
 
-	trx_start_if_not_started(trx);
+	/* FIXME: We are unconditionally setting the RW flag here. This should
+	only be set for transactions that we know are read write for sure. */
+	trx_start_if_not_started(trx, true);
 
 	trx->isolation_level = ib_trx_level;
 
@@ -2395,6 +2397,7 @@ ib_col_set_value(
 		break;
 	}
 	case DATA_BLOB:
+	case DATA_GEOMETRY:
 	case DATA_BINARY:
 	case DATA_MYSQL:
 	case DATA_DECIMAL:

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # WL6402: Non blocking show slave status
 #
 # Add a option to "SHOW SLAVE STATUS" command that when used,
@@ -28,7 +31,7 @@ SET @@GLOBAL.DEBUG = '+d,simulate_hold_run_locks_on_stop_slave';
 --connection slave1
 --let $assert_text= SHOW SLAVE STATUS NONBLOCKING must not wait for locks, if it waits Slave_SQL_Running will be "No"
 --let $assert_cond= "[SHOW SLAVE STATUS NONBLOCKING, Slave_SQL_Running, 1]" = "Yes"
---source include/rpl_assert.inc
+--source include/assert.inc
 
 --echo [connection slave]
 --connection slave

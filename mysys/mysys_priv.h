@@ -48,10 +48,6 @@ extern PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
 
-#ifdef USE_ALARM_THREAD
-extern PSI_thread_key key_thread_alarm;
-#endif /* USE_ALARM_THREAD */
-
 #endif /* HAVE_PSI_INTERFACE */
 
 extern PSI_stage_info stage_waiting_for_table_level_lock;

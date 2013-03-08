@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,8 +79,20 @@ binary strings */
 				DATA_VARMYSQL for all character sets, and the
 				charset-collation for tables created with it
 				can also be latin1_swedish_ci */
+
+/* DATA_GEOMETRY includes all standard geometry datatypes as described
+in OGC standard(point, line_string, polygon, multi_point, multi_polygon,
+multi_line_string, geometry_collection, geometry).
+Currently, geometry data is stored in the standard Well-Known Binary(WKB)
+format (http://www.opengeospatial.org/standards/sfa), and we still use BLOB
+as underlying datatype  */
+#define DATA_GEOMETRY	14	/* geometry datatype. */
+
 #define DATA_MTYPE_MAX	63	/* dtype_store_for_order_and_null_size()
 				requires the values are <= 63 */
+
+#define DATA_MTYPE_CURRENT_MIN	DATA_VARCHAR	/* minimum value of mtype */
+#define DATA_MTYPE_CURRENT_MAX	DATA_GEOMETRY	/* maximum value of mtype */
 /*-------------------------------------------*/
 /* The 'PRECISE TYPE' of a column */
 /*
@@ -193,6 +205,20 @@ because in GCC it returns a long. */
                                                 1))
 /* Get mbmaxlen from mbminmaxlen. */
 #define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
+
+/* For checking if mtype is BLOB or GEOMETRY, since we use BLOB as
+the underling datatype of GEOMETRY data. */
+#define DATA_LARGE_MTYPE(mtype) ((mtype) == DATA_BLOB || (mtype) == DATA_GEOMETRY)
+
+/* For checking if data type is big length data type. */
+#define DATA_BIG_LEN_MTYPE(len, mtype) ((len) > 255 || DATA_LARGE_MTYPE(mtype))
+
+/* For checking if the column is a  big length column. */
+#define DATA_BIG_COL(col) DATA_BIG_LEN_MTYPE((col)->len, (col)->mtype)
+
+/* For checking if data type is large binary data type. */
+#define DATA_LARGE_BINARY(mtype,prtype) ((mtype) == DATA_GEOMETRY || \
+	((mtype) == DATA_BLOB && !((prtype) & DATA_BINARY_TYPE)))
 
 /* We now support 15 bits (up to 32767) collation number */
 #define MAX_CHAR_COLL_NUM	32767

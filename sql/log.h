@@ -111,23 +111,27 @@ public:
 #ifdef HAVE_MMAP
 class TC_LOG_MMAP: public TC_LOG
 {
-  public:                // only to keep Sun Forte on sol9x86 happy
+public:                // only to keep Sun Forte on sol9x86 happy
   typedef enum {
     PS_POOL,                 // page is in pool
     PS_ERROR,                // last sync failed
     PS_DIRTY                 // new xids added since last sync
   } PAGE_STATE;
 
-  private:
+private:
   typedef struct st_page {
-    struct st_page *next; // page a linked in a fifo queue
+    struct st_page *next; // pages are linked in a fifo queue
     my_xid *start, *end;  // usable area of a page
     my_xid *ptr;          // next xid will be written here
     int size, free;       // max and current number of free xid slots on the page
     int waiters;          // number of waiters on condition
     PAGE_STATE state;     // see above
-    mysql_mutex_t lock; // to access page data or control structure
-    mysql_cond_t  cond; // to wait for a sync
+    /**
+      Signalled when syncing of this page is done or when
+      this page is in "active" slot and syncing slot just
+      became free.
+    */
+    mysql_cond_t  cond;
   } PAGE;
 
   char logname[FN_REFLEN];
@@ -135,17 +139,24 @@ class TC_LOG_MMAP: public TC_LOG
   my_off_t file_length;
   uint npages, inited;
   uchar *data;
-  struct st_page *pages, *syncing, *active, *pool, *pool_last;
+  struct st_page *pages, *syncing, *active, *pool, **pool_last_ptr;
   /*
-    note that, e.g. LOCK_active is only used to protect
-    'active' pointer, to protect the content of the active page
-    one has to use active->lock.
-    Same for LOCK_pool and LOCK_sync
+    LOCK_tc is used to protect access both to data members 'syncing',
+    'active', 'pool' and to the content of PAGE objects.
   */
-  mysql_mutex_t LOCK_active, LOCK_pool, LOCK_sync;
-  mysql_cond_t COND_pool, COND_active;
+  mysql_mutex_t LOCK_tc;
+  /**
+    Signalled when active PAGE is moved to syncing state,
+    thus member "active" becomes 0.
+  */
+  mysql_cond_t COND_active;
+  /**
+    Signalled when one more page becomes available in the
+    pool which we might select as active.
+  */
+  mysql_cond_t COND_pool;
 
-  public:
+public:
   TC_LOG_MMAP(): inited(0) {}
   int open(const char *opt_name);
   void close();
@@ -153,13 +164,69 @@ class TC_LOG_MMAP: public TC_LOG
   int rollback(THD *thd, bool all)      { return ha_rollback_low(thd, all); }
   int prepare(THD *thd, bool all)       { return ha_prepare_low(thd, all); }
   int recover();
+  uint size() const;
 
 private:
-  int log_xid(THD *thd, my_xid xid);
-  int unlog(ulong cookie, my_xid xid);
-  void get_active_from_pool();
-  int sync();
-  int overflow();
+  ulong log_xid(my_xid xid);
+  void unlog(ulong cookie, my_xid xid);
+  PAGE* get_active_from_pool();
+  bool sync();
+  void overflow();
+
+  /**
+    Find empty slot in the page and write xid value there.
+
+    @param   xid    value of xid to store in the page
+    @param   p      pointer to the page where to store xid
+    @param   data   pointer to the top of the mapped to memory file
+                    to calculate offset value (cookie)
+
+    @return  offset value from the top of the page where the xid was stored.
+  */
+  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data)
+  {
+    /* searching for an empty slot */
+    while (*p->ptr)
+    {
+      p->ptr++;
+      DBUG_ASSERT(p->ptr < p->end);               // because p->free > 0
+    }
+
+    /* found! store xid there and mark the page dirty */
+    ulong cookie= (ulong)((uchar *)p->ptr - data);      // can never be zero
+    *p->ptr++= xid;
+    p->free--;
+    p->state= PS_DIRTY;
+
+    return cookie;
+  }
+
+  /**
+    Wait for until page data will be written to the disk.
+
+    @param   p   pointer to the PAGE to store to the disk
+
+    @return
+      @retval false   Success
+      @retval true    Failure
+  */
+  bool wait_sync_completion(PAGE *p)
+  {
+    p->waiters++;
+    while (p->state == PS_DIRTY && syncing)
+    {
+      mysql_cond_wait(&p->cond, &LOCK_tc);
+    }
+    p->waiters--;
+
+    return p->state == PS_ERROR;
+  }
+
+  /*
+    the following friend declaration is to grant access from TCLogMMapTest
+    to methods log_xid()/unlog() that are private.
+  */
+  friend class TCLogMMapTest;
 };
 #else
 #define TC_LOG_MMAP TC_LOG_DUMMY

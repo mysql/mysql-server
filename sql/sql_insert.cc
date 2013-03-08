@@ -371,20 +371,21 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   ulong counter = 1;
   ulonglong id;
   /*
-    (1):
-    * if the statement lists columns then non-listed columns need a default.
-    * if it lists no columns:
-    ** if it is of the form "INSERT VALUES (),(),..." then all columns
-       need a default; note that "VALUES (), (column_1, ..., column_n)"
-       is not allowed, so checking emptiness of the first row is enough.
-    ** if it has a "DEFAULT" in VALUES then the column is set by
-       Item_default_value::save_in_field(), not by COPY_INFO.
+    We have three alternative syntax rules for the INSERT statement:
+    1) "INSERT (columns) VALUES ...", so non-listed columns need a default
+    2) "INSERT VALUES (), ..." so all columns need a default;
+    note that "VALUES (),(expr_1, ..., expr_n)" is not allowed, so checking
+    emptiness of the first row is enough
+    3) "INSERT VALUES (expr_1, ...), ..." so no defaults are needed; even if
+    expr_i is "DEFAULT" (in which case the column is set by
+    Item_default_value::save_in_field()).
   */
-
+  const bool manage_defaults=
+    fields.elements != 0 ||                     // 1)
+    values_list.head()->elements == 0;          // 2)
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields,
-                 // manage_defaults (1)
-                 fields.elements != 0 || values_list.head()->elements == 0,
+                 manage_defaults,
                  duplic,
                  ignore);
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_fields, &update_values);
@@ -751,7 +752,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      query_cache_invalidate3(thd, table_list, 1);
+      query_cache.invalidate(thd, table_list, TRUE);
     }
 
     if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
@@ -1967,7 +1968,7 @@ bool select_insert::send_eof()
       We must invalidate the table in the query cache before binlog writing
       and ha_autocommit_or_rollback.
     */
-    query_cache_invalidate3(thd, table, 1);
+    query_cache.invalidate(thd, table, TRUE);
   }
 
   DBUG_ASSERT(trans_table || !changed || 
@@ -2085,7 +2086,7 @@ void select_insert::abort_result_set() {
                                    transactional_table, FALSE, FALSE, errcode);
         }
 	if (changed)
-	  query_cache_invalidate3(thd, table, 1);
+	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
 		thd->transaction.stmt.cannot_safely_rollback());
@@ -2223,14 +2224,6 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
     if (!cr_field)
       DBUG_RETURN(NULL);
 
-    /* Function defaults are removed */
-    if (cr_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
-        cr_field->unireg_check == Field::TIMESTAMP_UN_FIELD ||
-        cr_field->unireg_check == Field::TIMESTAMP_DNUN_FIELD)
-    {
-      cr_field->unireg_check= Field::NONE;
-    }
-
     if (item->maybe_null)
       cr_field->flags &= ~NOT_NULL_FLAG;
     alter_info->create_list.push_back(cr_field);
@@ -2336,7 +2329,9 @@ select_create::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   /* First field to copy */
   field= table->field+table->s->fields - values.elements;
 
-  DBUG_RETURN(0);
+  // Turn off function defaults for columns filled from SELECT list:
+  const bool retval= info.ignore_last_columns(table, values.elements);
+  DBUG_RETURN(retval);
 }
 
 

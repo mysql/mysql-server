@@ -1016,6 +1016,18 @@ public:
   key_map covering_keys;
   key_map quick_keys, merge_keys;
   key_map used_keys;  /* Indexes that cover all fields used by the query */
+  
+  /*
+    possible_quick_keys is a superset of quick_keys to use with EXPLAIN of
+    JOIN-less commands (single-table UPDATE and DELETE).
+    
+    When explaining regular JOINs, we use JOIN_TAB::keys to output the 
+    "possible_keys" column value. However, it is not available for
+    single-table UPDATE and DELETE commands, since they don't use JOIN
+    optimizer at the top level. OTOH they directly use the range optimizer,
+    that collects all keys usable for range access here.
+  */
+  key_map possible_quick_keys;
 
   /*
     A set of keys that can be used in the query that references this
@@ -1520,6 +1532,7 @@ class Item_exists_subselect;
        ;
 */
 
+struct Name_resolution_context;
 struct LEX;
 struct TABLE_LIST
 {
@@ -1561,6 +1574,13 @@ struct TABLE_LIST
   TABLE_LIST *next_global, **prev_global;
   char		*db, *alias, *table_name, *schema_table_name;
   char          *option;                /* Used by cache index  */
+  /**
+     Context which should be used to resolve identifiers contained in the ON
+     condition of the embedding join nest.
+     @todo When name resolution contexts are created after parsing, we should
+     be able to store this in the embedding join nest instead.
+  */
+  Name_resolution_context *context_of_embedding;
 
 private:
   Item		*m_join_cond;           /* Used with outer join */

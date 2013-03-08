@@ -486,7 +486,7 @@ public:
   void reset();
   void exec();
   bool prepare_result(List<Item> **columns_list);
-  void explain();
+  bool explain();
   bool destroy();
   void restore_tmp();
   bool alloc_func_list();

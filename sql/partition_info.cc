@@ -2869,6 +2869,16 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info)
 {
   DBUG_ENTER("partition_info::has_same_partitioning");
 
+  DBUG_ASSERT(part_field_array && part_field_array[0]);
+
+  /*
+    Only consider pre 5.5.3 .frm's to have same partitioning as
+    a new one with KEY ALGORITHM = 1 ().
+  */
+
+  if (part_field_array[0]->table->s->mysql_version >= 50503)
+    DBUG_RETURN(false);
+
   if (!new_part_info ||
       part_type != new_part_info->part_type ||
       num_parts != new_part_info->num_parts ||
@@ -3062,12 +3072,10 @@ bool partition_info::has_same_partitioning(partition_info *new_part_info)
 
   /*
     Only if key_algorithm was not specified before and it is now set,
-    consider this as nothing was changed!
-    But if already set, consider it as a change, and force rebuild!
+    consider this as nothing was changed, and allow change without rebuild!
   */
-  DBUG_ASSERT(new_part_info->key_algorithm !=
-                partition_info::KEY_ALGORITHM_NONE);
-  if (key_algorithm != partition_info::KEY_ALGORITHM_NONE)
+  if (key_algorithm != partition_info::KEY_ALGORITHM_NONE ||
+      new_part_info->key_algorithm == partition_info::KEY_ALGORITHM_NONE)
     DBUG_RETURN(false);
 
   DBUG_RETURN(true);

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,6 +271,7 @@ int mysql_update(THD *thd,
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -950,7 +951,7 @@ int mysql_update(THD *thd,
   */
   if (updated)
   {
-    query_cache_invalidate3(thd, table_list, 1);
+    query_cache.invalidate(thd, table_list, TRUE);
   }
   
   /*
@@ -2164,7 +2165,7 @@ void multi_update::abort_result_set()
 
   /* Something already updated so we have to invalidate cache */
   if (updated)
-    query_cache_invalidate3(thd, update_tables, 1);
+    query_cache.invalidate(thd, update_tables, TRUE);
   /*
     If all tables that has been updated are trans safe then just do rollback.
     If not attempt to do remaining updates.
@@ -2408,7 +2409,7 @@ bool multi_update::send_eof()
 
   if (updated)
   {
-    query_cache_invalidate3(thd, update_tables, 1);
+    query_cache.invalidate(thd, update_tables, TRUE);
   }
   /*
     Write the SQL statement to the binlog if we updated

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # ==== Purpose ====
 #
 # Test that sql_mode can correct restore before generating the binlog event
@@ -153,6 +156,10 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 
 --echo "Dropping table test_table"
 DROP TABLE test_table;
+# We need to reset master (and purge GTID_EXECUTED) to avoid
+# transactions skip when we replay mysqlbinlog_bug12601974.binlog
+# with gtid-mode=ON.
+RESET MASTER;
 
 --exec $MYSQL -e "source $MYSQLTEST_VARDIR/tmp/mysqlbinlog_bug12601974.binlog"
 

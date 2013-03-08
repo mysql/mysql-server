@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 --echo # Bug#47699 rpl.rpl_backup_block fails sporadically
 --echo #
 --echo # START SLAVE released the lock and returned before it cleared the error,

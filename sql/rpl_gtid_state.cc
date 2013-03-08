@@ -46,7 +46,7 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
     goto err2;
   if (thd->get_gtid_next_list() != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     if (thd->owned_gtid_set._add_gtid(gtid) != RETURN_STATUS_OK)
       goto err1;
     thd->owned_gtid.sidno= -1;
@@ -57,14 +57,14 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   else
     thd->owned_gtid= gtid;
   RETURN_OK;
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 err1:
   owned_gtids.remove_gtid(gtid);
 #endif
 err2:
   if (thd->get_gtid_next_list() != NULL)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
     while (g.sidno != 0)
@@ -81,7 +81,7 @@ err2:
   RETURN_REPORTED_ERROR;
 }
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 void Gtid_state::lock_owned_sidnos(const THD *thd)
 {
   if (thd->owned_gtid.sidno == -1)
@@ -96,7 +96,7 @@ void Gtid_state::unlock_owned_sidnos(const THD *thd)
 {
   if (thd->owned_gtid.sidno == -1)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     unlock_sidnos(&thd->owned_gtid_set);
 #else
     DBUG_ASSERT(0);
@@ -113,7 +113,7 @@ void Gtid_state::broadcast_owned_sidnos(const THD *thd)
 {
   if (thd->owned_gtid.sidno == -1)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     broadcast_sidnos(&thd->owned_gtid_set);
 #else
     DBUG_ASSERT(0);
@@ -136,7 +136,7 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
 
   if (thd->owned_gtid.sidno == -1)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     rpl_sidno prev_sidno= 0;
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
@@ -191,7 +191,7 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
 
   if (thd->owned_gtid.sidno == -1)
   {
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
     rpl_sidno prev_sidno= 0;
     Gtid_set::Gtid_iterator git(&thd->owned_gtid_set);
     Gtid g= git.get();
@@ -270,7 +270,7 @@ void Gtid_state::wait_for_gtid(THD *thd, const Gtid &gtid)
 }
 
 
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 void Gtid_state::lock_sidnos(const Gtid_set *gs)
 {
   DBUG_ASSERT(gs);

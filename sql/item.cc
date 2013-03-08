@@ -5390,14 +5390,12 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     /*
       We should resolve this as an outer field reference if
       1. we haven't done it before, and
-      2. the outer context is set, and
-      3. the select_lex of the table that contains this field is
+      2. the select_lex of the table that contains this field is
          different from the select_lex of the current name resolution
          context.
      */
     if (!outer_fixed &&                                                    // 1
-        context->outer_context &&                                          // 2
-        cached_table && cached_table->select_lex && context->select_lex && // 3
+        cached_table && cached_table->select_lex && context->select_lex && // 2
         cached_table->select_lex != context->select_lex)
     {
       int ret;
@@ -6072,11 +6070,9 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     else
       field= new Field_blob(max_length, maybe_null, item_name.ptr(), collation.collation);
     break;					// Blob handled outside of case
-#ifdef HAVE_SPATIAL
   case MYSQL_TYPE_GEOMETRY:
     field= new Field_geom(max_length, maybe_null,
                           item_name.ptr(), table->s, get_geometry_type());
-#endif /* HAVE_SPATIAL */
   }
   if (field)
     field->init(table);
@@ -9141,10 +9137,8 @@ Item_type_holder::Item_type_holder(THD *thd, Item *item)
   if (Field::result_merge_type(fld_type) == INT_RESULT)
     decimals= 0;
   prev_decimal_int_part= item->decimal_int_part();
-#ifdef HAVE_SPATIAL
   if (item->field_type() == MYSQL_TYPE_GEOMETRY)
     geometry_type= item->get_geometry_type();
-#endif /* HAVE_SPATIAL */
 }
 
 

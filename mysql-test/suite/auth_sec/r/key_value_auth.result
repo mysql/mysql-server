@@ -219,10 +219,6 @@ Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
 set @@global.secure_auth=0;
 
-The below section is being commented out till bug#15977433 is fixed
-to avoid the client to send the password in old format
-to the server by using --secure_auth option.
-
 **** Client using --secure-auth option should not be able to send password to server in old format 
 **** Client using --skip-secure-auth option should be able to send password to server in old format
 user()	current_user()
@@ -346,69 +342,6 @@ select @@global.old_passwords;
 @@session.old_passwords
 1
 1 Expected
-**** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser3 with Client default_auth=mysql_old_password 
-@@session.old_passwords
-2
-2 Expected
-**** connecting Tanjotuser3 with Client default_auth=sha256_password 
-@@session.old_passwords
-2
-2 Expected
-DROP USER 'Tanjotuser1'@'localhost';
-DROP USER 'Tanjotuser2'@'localhost';
-DROP USER 'Tanjotuser3'@'localhost';
-
-
-=================================================================================================
-Starting the server with the default authentication mysql_old_password
-=================================================================================================
-
-# Restart server with default-authentication-plugin=mysql_old_password;
-set @@session.old_passwords=1;
-Creating a user with mysql_old_password plugin
-CREATE USER 'Tanjotuser1'@'localhost' IDENTIFIED BY 'abc';
-Warnings:
-Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-Grant all on *.* to 'Tanjotuser1'@'localhost';
-Creating a user with mysql_native_password plugin
-CREATE USER 'Tanjotuser2'@'localhost' IDENTIFIED WITH 'mysql_native_password';
-set @@session.old_passwords=0;
-set password for 'Tanjotuser2'@'localhost' =password('abc');
-Grant all on *.* to 'Tanjotuser2'@'localhost';
-Creating a user with SHA256_password plugin
-CREATE USER 'Tanjotuser3'@'localhost' IDENTIFIED WITH 'sha256_password';
-set @@session.old_passwords=2;
-set password for 'Tanjotuser3'@'localhost' =password('abc');
-Grant all on *.* to 'Tanjotuser3'@'localhost';
-set @@global.secure_auth=0;
-select (select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password';
-(select plugin from mysql.user where User='Tanjotuser1' and Host='localhost')='mysql_old_password'
-1
-1 Expected
-select (select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password';
-(select plugin from mysql.user where User='Tanjotuser2' and Host='localhost')='mysql_native_password'
-1
-1 Expected
-select (select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password';
-(select plugin from mysql.user where User='Tanjotuser3' and Host='localhost')='sha256_password'
-1
-1 Expected
-**** connecting Tanjotuser2 with Client default_auth=mysql_native_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser2 with Client default_auth=mysql_old_password 
-@@session.old_passwords
-0
-0 Expected
-**** connecting Tanjotuser2 with Client default_auth=sha256_password 
-@@session.old_passwords
-0
-0 Expected
 **** connecting Tanjotuser3 with Client default_auth=mysql_native_password 
 @@session.old_passwords
 2

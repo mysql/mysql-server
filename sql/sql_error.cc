@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -390,7 +390,7 @@ void Diagnostics_area::set_ok_status(ulonglong affected_rows,
     with an OK packet.
   */
   if (is_error() || is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 
   m_last_statement_cond_count= current_statement_cond_count();
   m_affected_rows= affected_rows;
@@ -414,7 +414,7 @@ void Diagnostics_area::set_eof_status(THD *thd)
     with an EOF packet.
   */
   if (is_error() || is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 
   /*
     If inside a stored procedure, do not return the total
@@ -462,7 +462,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
     ERROR packet.
   */
   if (is_disabled())
-    return;
+    DBUG_VOID_RETURN;
 #endif
 
   m_mysql_errno= mysql_errno;

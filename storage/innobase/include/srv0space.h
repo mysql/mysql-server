@@ -42,6 +42,17 @@ class Tablespace {
 		SRV_OLD_RAW		/*!< An initialized raw partition */
 	};
 
+	enum file_status_t {
+		FILE_STATUS_VOID = 0,			/* File status
+							not set */
+		FILE_STATUS_RW_PERMISSION_ERROR,	/* rw-permission
+							error */
+		FILE_STATUS_READ_WRITE_ERROR,		/* file is not
+							readable/writable */
+		FILE_STATUS_NOT_REGULAR_FILE_ERROR	/* file is not
+							a regular file */
+	};
+
 	/** Data file control information. */
 	struct file_t {
 
@@ -251,7 +262,7 @@ public:
 		size in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
-		ibool*	create_new_db,
+		bool*	create_new_db,
 		ulint	min_expected_tablespace_size);
 
 	/**
@@ -387,7 +398,7 @@ private:
 	@param file - data file spec
 	@param create_new_db - [out] true if a new instances to be created
 	@return DB_SUCESS or error code */
-	dberr_t file_not_found(file_t& file, ibool* create_new_db);
+	dberr_t file_not_found(file_t& file, bool* create_new_db);
 
 	/**
 	Note that the data file was found.
@@ -427,8 +438,11 @@ private:
 	/**
 	Check if a file can be opened in the correct mode.
 	@param file - file control information
+	@param reason_if_failed	- exact reason if file_status check failed.
 	@return DB_SUCCESS or error code. */
-	static dberr_t check_file_status(const file_t& file);
+	static dberr_t check_file_status(
+		const file_t& 	file,
+		file_status_t& 	reason_if_failed);
 
 	/**
 	Set the size of the file.

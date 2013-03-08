@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5570,6 +5570,8 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   int res;
   const uchar *e=s+slen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  ulong tmp1;
+  ulong tmp2;
 
   /*
     Remove end space. We have to do this to be able to compare
@@ -5578,15 +5580,21 @@ static void my_hash_sort_utf8(const CHARSET_INFO *cs, const uchar *s,
   while (e > s && e[-1] == ' ')
     e--;
 
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((s < e) && (res=my_utf8_uni(cs,&wc, (uchar *)s, (uchar*)e))>0 )
   {
     my_tosort_unicode(uni_plane, &wc, cs->state);
-    n1[0]^= (((n1[0] & 63)+n2[0])*(wc & 0xFF))+ (n1[0] << 8);
-    n2[0]+=3;
-    n1[0]^= (((n1[0] & 63)+n2[0])*(wc >> 8))+ (n1[0] << 8);
-    n2[0]+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc & 0xFF)) + (tmp1 << 8);
+    tmp2+=3;
+    tmp1^= (((tmp1 & 63) + tmp2) * (wc >> 8)) + (tmp1 << 8);
+    tmp2+=3;
     s+=res;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
@@ -8054,6 +8062,9 @@ my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   int res;
   const uchar *e= s + slen;
   MY_UNICASE_INFO *uni_plane= cs->caseinfo;
+  ulong tmp1;
+  ulong tmp2;
+  uint ch;
 
   /*
     Remove end space. We do this to be able to compare
@@ -8062,11 +8073,21 @@ my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   while (e > s && e[-1] == ' ')
     e--;
 
+  tmp1= *n1;
+  tmp2= *n2;
+
   while ((res= my_mb_wc_utf8mb4(cs, &wc, (uchar*) s, (uchar*) e)) > 0)
   {
     my_tosort_unicode(uni_plane, &wc, cs->state);
-    my_hash_add(n1, n2, (uint) (wc & 0xFF));
-    my_hash_add(n1, n2, (uint) (wc >> 8)  & 0xFF);
+
+    ch= (wc & 0xFF);
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
+    ch= (wc >> 8)  & 0xFF;
+    tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+    tmp2+= 3;
+
     if (wc > 0xFFFF)
     {
        /*
@@ -8076,10 +8097,15 @@ my_hash_sort_utf8mb4(const CHARSET_INFO *cs, const uchar *s, size_t slen,
         This is useful to keep order of records in
         test results, e.g. for "SHOW GRANTS".
       */
-      my_hash_add(n1, n2, (uint) (wc >> 16) & 0xFF);
+      ch= (wc >> 16) & 0xFF;
+      tmp1^= (((tmp1 & 63) + tmp2) * ch) + (tmp1 << 8);
+      tmp2+= 3;
     }
     s+= res;
   }
+
+  *n1= tmp1;
+  *n2= tmp2;
 }
 
 
