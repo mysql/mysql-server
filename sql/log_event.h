@@ -317,8 +317,8 @@ struct sql_ex_info
                                                    /* type, db_1, db_2, ... */  \
                                    1U + (MAX_DBS_IN_EVENT_MTS * (1 + NAME_LEN)) + \
                                    3U +            /* type, microseconds */ + \
-                                                   /* type, prepare & commit timestamp */ + \
-                                   1U+ 2 * COMMIT_SEQ_LEN + \
+                                                   /* type, commit timestamp */ + \
+                                   1U+ COMMIT_SEQ_LEN + \
                                    1U + 16 + 1 + 60/* type, user_len, user, host_len, host */)
 #define MAX_LOG_EVENT_HEADER   ( /* in order of Query_log_event::write */ \
   LOG_EVENT_HEADER_LEN + /* write_header */ \
