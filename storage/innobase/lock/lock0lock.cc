@@ -6645,27 +6645,8 @@ lock_trx_release_locks(
 		while (trx->n_ref_count > 0) {
 			trx_mutex_exit(trx);
 
-			os_thread_yield();
-
-			trx_mutex_enter(trx);
-		}
-
-		trx_mutex_exit(trx);
-
-		lock_mutex_enter();
-
-		trx_mutex_enter(trx);
-	}
-
-	ut_a(trx->n_ref_count == 0);
-
-	if (trx->n_ref_count > 0) {
-
-		lock_mutex_exit();
-
-		while (trx->n_ref_count > 0) {
-			trx_mutex_exit(trx);
-
+			/** Doing an implicit to explicit conversion
+			should not be expensive. */
 			os_thread_yield();
 
 			trx_mutex_enter(trx);
