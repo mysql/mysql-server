@@ -21,7 +21,19 @@ int main() {
   struct ucred cred;
   getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
 }" HAVE_PEERCRED)
+ 
+IF (NOT HAVE_PEERCRED)
+  # Hi, OpenBSD!
+  CHECK_CXX_SOURCE_COMPILES(
+  "#include <sys/types.h>
+  #include <sys/socket.h>
+  int main() {
+    struct sockpeercred cred;
+    getsockopt(0, SOL_SOCKET, SO_PEERCRED, &cred, 0);
+    }" HAVE_SOCKPEERCRED)
+  ADD_DEFINITIONS(-Ducred=sockpeercred)
+ENDIF()
 
-IF(HAVE_PEERCRED)
+IF(HAVE_PEERCRED OR HAVE_SOCKPEERCRED)
   MYSQL_ADD_PLUGIN(auth_socket auth_socket.c MODULE_ONLY)
 ENDIF()
