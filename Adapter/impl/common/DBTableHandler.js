@@ -166,11 +166,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.appendErrorMessage(
             'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
       }
-      else {
-        /* TODO: This is an error, "Column f.columnName does not exist".  */
-        /* How to handle? */
-        return null;
-      }
     }
   }
 
