@@ -28,6 +28,9 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     stats_module  = require(path.join(api_dir,"stats.js")),
     stats         = stats_module.getWriter("spi","ndb","DBOperation"),
     index_stats   = stats_module.getWriter("spi","ndb","key_access"),
+    COMMIT        = adapter.ndbapi.Commit,
+    NOCOMMIT      = adapter.ndbapi.NoCommit,
+    ROLLBACK      = adapter.ndbapi.Rollback,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -70,6 +73,7 @@ var DBOperation = function(opcode, tx, tableHandler) {
   stats.incr("created",opcode);
 
   this.opcode       = opcode;
+  this.autoinc      = null;
   this.transaction  = tx;
   this.tableHandler = tableHandler;
   this.buffers      = {};  
@@ -222,7 +226,7 @@ function readResultRow(op) {
 }
 
 
-function buildOperationResult(transactionHandler, op) {
+function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log("buildOperationResult");
   var op_ndb_error, result_code;
 
@@ -237,51 +241,58 @@ function buildOperationResult(transactionHandler, op) {
   op_ndb_error = op.ndbop.getNdbError();
   result_code = op_ndb_error.code;
 
-  /* Error Handling */
-  if(result_code === 0) {
-    if(transactionHandler.error) {
-      /* This operation has no error, but the transaction failed. */
-      udebug.log("Case txErr + opOK", transactionHandler.moniker);
-      op.result.success = false;
-      op.result.error = new IndirectError(transactionHandler.error);      
-    }
-    else {
-      udebug.log("Case txOK + opOK", transactionHandler.moniker);
-      op.result.success = true;
-    }
-  }
-  else {
-    /* This operation has an error. */
-    op.result.success = false;
-    op.result.error = new DBOperationError(op_ndb_error);
-    if(transactionHandler.error) {
-      udebug.log("Case txErr + OpErr", transactionHandler.moniker);
-      if(! transactionHandler.error.cause) {
-        transactionHandler.error.cause = op.result.error;
+  if(execMode !== ROLLBACK) {
+    /* Error Handling */
+    if(result_code === 0) {
+      if(transactionHandler.error) {
+        /* This operation has no error, but the transaction failed. */
+        udebug.log("Case txErr + opOK", transactionHandler.moniker);
+        op.result.success = false;
+        op.result.error = new IndirectError(transactionHandler.error);      
+      }
+      else {
+        udebug.log("Case txOK + opOK", transactionHandler.moniker);
+        op.result.success = true;
       }
     }
     else {
-      udebug.log("Case txOK + OpErr", transactionHandler.moniker);
-      transactionHandler.error = new IndirectError(op.result.error);
+      /* This operation has an error. */
+      op.result.success = false;
+      op.result.error = new DBOperationError(op_ndb_error);
+      if(transactionHandler.error) {
+        udebug.log("Case txErr + OpErr", transactionHandler.moniker);
+        if(! transactionHandler.error.cause) {
+          transactionHandler.error.cause = op.result.error;
+        }
+      }
+      else {
+        if(op.opcode === 'read' || execMode === NOCOMMIT) {      
+          udebug.log("Case txOK + OpErr [READ | NOCOMMIT]", transactionHandler.moniker);
+        }
+        else {
+          udebug.log("Case txOK + OpErr", transactionHandler.moniker);
+          transactionHandler.error = new IndirectError(op.result.error);        
+        }
+      }
     }
+
+    //still to do: insert_id
+    if(op.result.success && op.opcode === "read") {
+      readResultRow(op);
+    } 
   }
   stats.incr("result_code", result_code);
-
-  //still to do: insert_id
-  if(op.result.success && op.opcode === "read") {
-     readResultRow(op);
-   }  
-
   udebug.log_detail("buildOperationResult finished:", op.result);
 }
 
 
-function completeExecutedOps(dbTxHandler) {
-  udebug.log("completeExecutedOps", dbTxHandler.pendingOperations.length);
+function completeExecutedOps(dbTxHandler, execMode) {
+  udebug.log("completeExecutedOps mode:", execMode, 
+             "operations: ", dbTxHandler.pendingOperations.length);
   var op;
   while(op = dbTxHandler.pendingOperations.shift()) {
     assert(op.state === "PREPARED");
-    buildOperationResult(dbTxHandler, op);
+    buildOperationResult(dbTxHandler, op, execMode);
     dbTxHandler.executedOperations.push(op);
     op.state = doc.OperationStates[2];  // COMPLETED
 
@@ -368,4 +379,3 @@ exports.newDeleteOperation  = newDeleteOperation;
 exports.newUpdateOperation  = newUpdateOperation;
 exports.newWriteOperation   = newWriteOperation;
 exports.completeExecutedOps = completeExecutedOps;
-
