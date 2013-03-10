@@ -34,25 +34,18 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
 
 
 /** 
-  Relationships between NdbSession and NdbTransactionHandler
-  ----------------------------------------------------------  
+  An Ndb object is "single-threaded," meaning the NDB API does not expect
+  two uv worker threads to call into it at the same time.  To enforce this,
+  we serialize Ndb operations on the execQueue.
+
   A session has a single transaction visible to the user at any time: 
   NdbSession.tx, which is created in NdbSession.getTransactionHandler() 
   and persists until the user calls commit or rollback (or the transaction
   auto-commits), at which point NdbSession.tx is reset to null.
 
-  It also has some number of transactions that have been sent to Ndb and are in
-  progress. This number is limited by the transaction capacity of an Ndb object.
-  Currently we say this limit is 1, due to the single-threaded nature of an Ndb:
-  with two, the main JS thread and the eio worker thread might modify an Ndb at
-  the same time. The counter of these is NdbSession.openNdbTransactions; the 
-  limit is NdbSession.maxNdbTransactions.  The counter is incremented before 
-  each call to Ndb.getTransaction() and decremented after NdbTransaction.close().
-  
-  Finally, if the list of in-transit NdbTransactions is full and the user tries 
-  to execute an additional one, NdbSession must enqueue the current transaction 
-  rather than executing it. The next transaction to complete will check the 
-  queue.  The queue is NdbSession.txQueue.  
+  It is possible for the user, in one session, to effectively open transactions
+  in a loop.  We serialize calls to start a transaction in txQueue, and don't
+  allow the next one to open until the current one is closed.
 */
 
 
