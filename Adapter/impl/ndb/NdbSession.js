@@ -157,7 +157,6 @@ NdbSession.prototype = {
   impl                : null,
   tx                  : null,
   parentPool          : null,
-  lock                : 0,
   dictQueue           : null,
   openNdbTransactions : 0
 };
