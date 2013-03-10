@@ -28,7 +28,7 @@ var udebug = unified_debug.getLogger("QueuedAsyncCall.js");
    the getAutoIncrementValue calls on a table -- 
    all of these have to run one at a time. 
    
-   A QyeuedAsyncCall is an object that encapsulates a call, its arguments,
+   A QueuedAsyncCall is an object that encapsulates a call, its arguments,
    and its callback. 
    
    This is the parent class of all sorts of QueuedAsyncCall objects.

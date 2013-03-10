@@ -32,6 +32,7 @@ var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     stats            = stats_module.getWriter("spi","ndb","DBConnectionPool"),
     ColumnTypes      = require(path.join(api_doc_dir,"TableMetadata")).ColumnTypes,
     isValidConverterObject = require(path.join(api_dir,"TableMapping")).isValidConverterObject,
+    QueuedAsyncCall  = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     baseConnections  = {},
     initialized      = false;
 
@@ -99,22 +100,6 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
       userCallback();
     }
   }
-}
-
-
-/* Each NdbSession object has a lock protecting dictionary access 
-*/ 
-function getDictionaryLock(ndbSession) {
-  if(ndbSession.lock === 0) {
-    ndbSession.lock = 1;
-    return true;
-  }
-  return false;
-}
-
-function releaseDictionaryLock(ndbSession) {
-  assert(ndbSession.lock === 1);
-  ndbSession.lock = 0;
 }
 
 
@@ -352,8 +337,6 @@ function makeGroupCallback(dbSession, container, key) {
   stats.incr("group_callbacks","created");
   var groupCallback = function(param1, param2) {
     var callbackList, i, nextCall;
-    /* The Dictionay Call is complete */
-    releaseDictionaryLock(dbSession);
 
     /* Run the user callbacks on our list */
     callbackList = container[key];
@@ -364,15 +347,8 @@ function makeGroupCallback(dbSession, container, key) {
 
     /* Then clear the list */
     delete container[key];
-
-    /* If any dictionary calls have been queued up, run the next one. */
-    nextCall = dbSession.dictQueue.shift();
-    if(nextCall) {
-      getDictionaryLock(dbSession);
-      nextCall();
-    }
   };
-
+  
   return groupCallback;
 }
 
@@ -380,10 +356,14 @@ function makeGroupCallback(dbSession, container, key) {
 function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   var container = ndbConnectionPool.pendingListTables;
   var groupCallback = makeGroupCallback(dbSession, container, databaseName);
-  var impl = dbSession.impl;
-  return function() {
-    adapter.ndb.impl.DBDictionary.listTables(impl, databaseName, groupCallback);
+  var apiCall = new QueuedAsyncCall(dbSession.dictQueue, groupCallback);
+  apiCall.impl = dbSession.impl;
+  apiCall.databaseName = databaseName;
+  apiCall.run = function() {
+    adapter.ndb.impl.DBDictionary.listTables(this.impl, this.databaseName, 
+                                             this.callback);
   };
+  return apiCall;
 }
 
 
@@ -391,11 +371,17 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   var container = ndbConnectionPool.pendingGetMetadata;
   var key = dbName + "." + tableName;
   var groupCallback = makeGroupCallback(dbSession, container, key);
-  var impl = dbSession.impl;
-  return function() {
-    adapter.ndb.impl.DBDictionary.getTable(impl, dbName, tableName, groupCallback);
+  var apiCall = new QueuedAsyncCall(dbSession.dictQueue, groupCallback);
+  apiCall.impl = dbSession.impl;
+  apiCall.dbName = dbName;
+  apiCall.tableName = tableName;
+  apiCall.run = function() {
+    adapter.ndb.impl.DBDictionary.getTable(this.impl, this.dbName, 
+                                           this.tableName, this.callback);
   };
+  return apiCall;
 }
+
 
 
 /** List all tables in the schema
@@ -408,7 +394,6 @@ DBConnectionPool.prototype.listTables = function(databaseName, dbSession,
   stats.incr("listTables");
   assert(databaseName && user_callback);
   var dictSession = dbSession || this.dict_sess; 
-  var dictionaryCall;
 
   if(this.pendingListTables[databaseName]) {
     // This request is already running, so add our own callback to its list
@@ -418,16 +403,7 @@ DBConnectionPool.prototype.listTables = function(databaseName, dbSession,
   else {
     this.pendingListTables[databaseName] = [];
     this.pendingListTables[databaseName].push(user_callback);
-    dictionaryCall = makeListTablesCall(dictSession, this, databaseName);
-   
-    if(getDictionaryLock(dictSession)) { // Make the call directly
-      udebug.log("listTables", databaseName, "New group; running now.");
-      dictionaryCall();
-    }
-    else {  // otherwise place it on a queue
-      udebug.log("listTables", databaseName, "New group; on queue.");
-      dictSession.dictQueue.push(dictionaryCall);
-    }
+    makeListTablesCall(dictSession, this, databaseName).enqueue();
   }
 };
 
@@ -439,7 +415,7 @@ DBConnectionPool.prototype.listTables = function(databaseName, dbSession,
   */
 DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname, 
                                                        dbSession, user_callback) {
-  var dictSession, tableKey, dictionaryCall;
+  var dictSession, tableKey;
   stats.incr("getTableMetadata");
   assert(dbname && tabname && user_callback);
   dictSession = dbSession || this.dict_sess; 
@@ -481,16 +457,7 @@ DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname,
   else {
     this.pendingGetMetadata[tableKey] = [];
     this.pendingGetMetadata[tableKey].push(our_callback);
-    dictionaryCall = makeGetTableCall(dictSession, this, dbname, tabname);
-  
-    if(getDictionaryLock(dictSession)) { // Make the call directly
-      udebug.log("getTableMetadata", tableKey, "New group; running now.");
-      dictionaryCall();
-    }
-    else {  // otherwise place it on a queue
-      udebug.log("getTableMetadata", tableKey, "New group; on queue.");
-      dictSession.dictQueue.push(dictionaryCall);
-    }
+    makeGetTableCall(dictSession, this, dbname, tabname).enqueue();
   }
 };
 
