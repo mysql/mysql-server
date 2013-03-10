@@ -356,7 +356,7 @@ function makeGroupCallback(dbSession, container, key) {
 function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   var container = ndbConnectionPool.pendingListTables;
   var groupCallback = makeGroupCallback(dbSession, container, databaseName);
-  var apiCall = new QueuedAsyncCall(dbSession.dictQueue, groupCallback);
+  var apiCall = new QueuedAsyncCall(dbSession.execQueue, groupCallback);
   apiCall.impl = dbSession.impl;
   apiCall.databaseName = databaseName;
   apiCall.run = function() {
@@ -371,7 +371,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   var container = ndbConnectionPool.pendingGetMetadata;
   var key = dbName + "." + tableName;
   var groupCallback = makeGroupCallback(dbSession, container, key);
-  var apiCall = new QueuedAsyncCall(dbSession.dictQueue, groupCallback);
+  var apiCall = new QueuedAsyncCall(dbSession.execQueue, groupCallback);
   apiCall.impl = dbSession.impl;
   apiCall.dbName = dbName;
   apiCall.tableName = tableName;
