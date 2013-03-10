@@ -45,7 +45,6 @@ function DBTransactionHandler(dbsession) {
   this.ndbtx              = null;
   this.pendingOperations  = [];
   this.executedOperations = [];
-  this.pendingApiCalls    = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
   this.serial             = serial++;
@@ -61,11 +60,11 @@ function onAsyncSent(a,b) {
 }
 
 /* NdbTransactionHandler internal run():
-   Create a QueuedAsyncCall on the pendingApiCalls queue.
+   Create a QueuedAsyncCall on the Ndb's execQueue.
 */
 function run(self, execMode, abortFlag, callback) {
   /* run() starts here */
-  var apiCall = new QueuedAsyncCall(self.pendingApiCalls, callback);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
