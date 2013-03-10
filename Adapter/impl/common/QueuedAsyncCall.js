@@ -61,18 +61,22 @@ function QueuedAsyncCall(queue, callback) {
 
 
 /* This is the public method that you call to run an enqueued call.
-   It must have a run() method.
+   You must have given the QueuedAsyncCall a run() method.
+   enqueue() returns 0 if the call runs immediately, 
+   or its position in the queue if deferred.
 */
 QueuedAsyncCall.prototype.enqueue = function() {
   assert(typeof this.run === 'function');
   this.queue.push(this);
-  if(this.queue.length === 1) {
+  var pos = this.queue.length - 1;
+  if(pos === 0) {
     udebug.log("enqueue: run immediate");
     this.run();
   }
   else {
-    udebug.log("enqueue: deferred, position", this.queue.length);
+    udebug.log("enqueue: deferred, position", pos);
   }
+  return pos;
 };
 
 
