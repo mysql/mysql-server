@@ -100,10 +100,15 @@ function attachErrorToTransaction(dbTxHandler, err) {
   if(err) {
     dbTxHandler.success = false;
     dbTxHandler.error = new ndboperation.DBOperationError(err.ndb_error);
+    /* Special handling for duplicate value in unique index: */
+    if(err.ndb_error.code == 893) {
+      dbTxHandler.error.cause = dbTxHandler.error;
+    }
   }
   else {
     dbTxHandler.success = true;
   }
+  udebug.log("success:", dbTxHandler.success, dbTxHandler.moniker);
 }
 
 /* Common callback for execute, commit, and rollback 
@@ -129,7 +134,7 @@ function onExecute(dbTxHandler, execMode, err, userCallback) {
   ndbsession.runQueuedTransaction(dbTxHandler);
 
   /* Attach results to their operations */
-  ndboperation.completeExecutedOps(dbTxHandler);
+  ndboperation.completeExecutedOps(dbTxHandler, execMode);
   udebug.log("Back in execute onExecute", dbTxHandler.moniker) ;
 
   /* Next callback */
