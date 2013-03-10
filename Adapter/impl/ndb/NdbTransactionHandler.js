@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -29,6 +29,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     stats_module    = require(path.join(api_dir,"stats.js")),
     stats           = stats_module.getWriter("spi","ndb","DBTransactionHandler"),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
+    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     proto           = doc.DBTransactionHandler,
     COMMIT          = adapter.ndbapi.Commit,
     NOCOMMIT        = adapter.ndbapi.NoCommit,
@@ -59,66 +60,38 @@ function onAsyncSent(a,b) {
   udebug.log("execute onAsyncSent");
 }
 
-function ApiCall(execMode, abortFlag, callback) {
-  this.execMode   = execMode;
-  this.abortFlag  = abortFlag;
-  this.callback   = callback;
-}
-
-
-/* NDB Execute.
-   "Sync" execute is an async operation for the JavaScript user,
-    but the uv worker thread uses synchronous NDBAPI execute().
-    In "Async" execute, the uv worker thread uses executeAsynch(),
-    and the DBConnectionPool listener thread runs callbacks.
-*/
-ApiCall.prototype.run = function(tx) {
-  var force_send = 1;
-
-  if(tx.canUseNdbAsynch) {
-    stats.incr("run","async");
-    tx.asyncContext.executeAsynch(tx.ndbtx, 
-                                  this.execMode, this.abortFlag,
-                                  force_send, this.callback, 
-                                  onAsyncSent);
-  }
-  else {
-    stats.incr("run","async");
-    tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
-  }
-};
-
 /* NdbTransactionHandler internal run():
-   Send an execute call to NDB, or queue it if there is already one running.
+   Create a QueuedAsyncCall on the pendingApiCalls queue.
 */
 function run(self, execMode, abortFlag, callback) {
-
-  /* Take the user's callback, and wrap it in a function that checks the tail
-     of the pendingApiCalls queue
-  */
-  function makeCallback(f) {
-    function wrappedCallback(a, b) {
-      self.pendingApiCalls.shift();  // Our own ApiCall
-      var next = self.pendingApiCalls.shift();   // The next ApiCall
-      if(next) {
-        udebug.log("Run from queue ", self.moniker);
-        next.run(self);
-      }
-      f(a, b);   // The user's callback function
-    }
-    return wrappedCallback;
-  }
-
   /* run() starts here */
-  var apiCall = new ApiCall(execMode, abortFlag, makeCallback(callback));
-  self.pendingApiCalls.push(apiCall);
-  if(self.pendingApiCalls.length === 1) {
-    udebug.log("Run immediate");
-    self.pendingApiCalls[0].run(self);
-  }
-  else {
-    udebug.log("Run deferred");
-  }
+  var apiCall = new QueuedAsyncCall(self.pendingApiCalls, callback);
+  apiCall.tx = self;
+  apiCall.execMode = execMode;
+  apiCall.abortFlag = abortFlag;
+  apiCall.run = function runExecCall() {
+    /* NDB Execute.
+       "Sync" execute is an async operation for the JavaScript user,
+        but the uv worker thread uses synchronous NDBAPI execute().
+        In "Async" execute, the uv worker thread uses executeAsynch(),
+        and the DBConnectionPool listener thread runs callbacks.
+    */
+    var force_send = 1;
+
+    if(this.tx.canUseNdbAsynch) {
+      stats.incr("run","async");
+      this.tx.asyncContext.executeAsynch(this.tx.ndbtx, 
+                                         this.execMode, this.abortFlag,
+                                         force_send, this.callback, 
+                                         onAsyncSent);
+    }
+    else {
+      stats.incr("run","async");
+      this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
+    }
+  };
+
+  apiCall.enqueue();
 }
 
 /* Error handling after NdbTransaction.execute() 
