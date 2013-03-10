@@ -1791,6 +1791,15 @@ public:
   { 
     upper_levels= 0;
   }
+  void copy(COND_EQUAL &cond_equal)
+  {
+    max_members= cond_equal.max_members;
+    upper_levels= cond_equal.upper_levels;
+    if (cond_equal.current_level.is_empty())
+      current_level.empty();
+    else
+      current_level= cond_equal.current_level;
+  }
 };
 
 
