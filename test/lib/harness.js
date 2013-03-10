@@ -566,7 +566,14 @@ QuietListener.prototype.fail = QuietListener.prototype.pass;
 
 QuietListener.prototype.listRunningTests = Listener.prototype.listRunningTests;
 
+/* FailOnlyListener */
+function FailOnlyListener() {
+  this.fail = Listener.prototype.fail;
+}
 
+FailOnlyListener.prototype = new QuietListener();
+
+  
 /* Result 
 */
 function Result(driver) {
@@ -644,6 +651,7 @@ exports.Test              = Test;
 exports.Suite             = Suite;
 exports.Listener          = Listener;
 exports.QuietListener     = QuietListener;
+exports.FailOnlyListener  = FailOnlyListener;
 exports.Result            = Result;
 exports.SmokeTest         = SmokeTest;
 exports.ConcurrentTest    = ConcurrentTest;

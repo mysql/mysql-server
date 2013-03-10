@@ -151,13 +151,14 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
   for(i = 0 ; i < this.mapping.fields.length ; i++) {
     f = this.mapping.fields[i];
-    if(f && ! f.NotPersistent) {
+    if(f && f.persistent) {
       c = getColumnByName(this.dbTable, f.columnName);
       if(c) {
         n = c.columnNumber;
         this.columnNumberToFieldMap[n] = f;
         f.columnNumber = n;
         f.defaultValue = c.defaultValue;
+        // TODO: This could be a bug because fieldNumber != columnNumber
         if (c.isAutoincrement) {
           this.autoincrementFieldNumber = i;
         }
@@ -178,6 +179,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
+        // TODO: see above
         if (c.isAutoincrement) {
           this.autoincrementFieldNumber = i;
         }
@@ -232,17 +234,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
 }
 
 DBTableHandler.prototype = proto;     // Connect prototype to constructor
-
-
-/* DBTableHandler.setResultConstructor(constructorFunction)
-   IMMEDIATE
-
-   Declare that constructorFunction and its prototype should be used
-   when creating a results object for a row read from the database.
-*/
-DBTableHandler.prototype.setResultConstructor = function(constructorFunction) {
-  this.newObjectConstructor = constructorFunction;
-};
 
 
 /* DBTableHandler.newResultObject
@@ -319,19 +310,6 @@ DBTableHandler.prototype.applyMappingToResult = function(obj) {
  */
 DBTableHandler.prototype.setAutoincrement = function(object, autoincrementValue) {
   this.set(object, this.autoincrementFieldNumber, autoincrementValue);
-};
-
-
-/* registerFieldConverter(String fieldname, Converter converter)
-  IMMEDIATE
-  Register a converter for a field in a domain object 
-*/
-DBTableHandler.prototype.registerFieldConverter = function(fieldName, converter) {
-  stats.incr("field_converters_registered");
-  var f = this.fieldNameToFieldMap[fieldName];
-  if(f) {
-    f.converter = converter;
-  }  
 };
 
 
@@ -479,7 +457,12 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) {
   if (!f) {
     throw new Error('FatalInternalError: field number does not exist: ' + fieldNumber);
   }
-  result = obj[f.fieldName];
+  if(f.converter) {
+    result = f.converter.toDB(obj[f.fieldName]);
+  }
+  else {
+    result = obj[f.fieldName];
+  }
   if ((result === undefined) && resolveDefault) {
     udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
     result = f.defaultValue;
@@ -503,15 +486,14 @@ DBTableHandler.prototype.getFields = function(obj, resolveDefault) {
 /* Set field to value */
 DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
   udebug.log_detail("set", fieldNumber);
-  var v;
   var f = this.fieldNumberToFieldMap[fieldNumber];
-  if (f) {
-    if (f.converter) {
-      v = f.converter.fromDB(value);
-    } else {
-      v = value;
+  if(f) {
+    if(f.converter) {
+      obj[f.fieldName] = f.converter.fromDB(value);
     }
-    obj[f.fieldName] = v;
+    else {
+      obj[f.fieldName] = value;
+    }
     return true; 
   }
   return false;
