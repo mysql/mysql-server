@@ -28,23 +28,8 @@
 
 
 /************************************************
-   Methods for defining DBTableHandler behavior 
+      Methods for working with mapped objects 
  ************************************************/
-
-/* registerFieldConverter(String fieldname, Converter converter)
-  IMMEDIATE
-  Register a converter for a field in a domain object 
-*/
-  function registerFieldConverter(fieldName, converter) {};
-
-
-/* DBTableHandler.setResultConstructor(constructorFunction)
-   IMMEDIATE
-
-   Declare that constructorFunction and its prototype should be used
-   when creating a results object for a row read from the database.
-*/
-  function setResultConstructor(constructorFunction) {};
 
 
 /* DBTableHandler.newResultObject
@@ -54,10 +39,6 @@
 */
   function newResultObject() {};
   
-  
-/************************************************
-      Methods for working with mapped objects 
- ************************************************/
 
 /* getMappedFieldCount()
    IMMEDIATE 
@@ -130,6 +111,7 @@
 */
   getIndexHandler(keys);
   
+
 /** boolean allFieldsIncluded(Object values)
  *  IMMEDIATE
  *  Boolean: returns True if values include all mapped fields
