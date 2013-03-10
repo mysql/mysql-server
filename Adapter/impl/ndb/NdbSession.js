@@ -67,7 +67,7 @@ exports.newDBSession = function(pool, impl) {
   var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
-  dbSess.dictQueue = [];
+  dbSess.execQueue = [];
   dbSess.maxNdbTransactions = 1;  
   dbSess.txQueue = [];
   return dbSess;
@@ -157,7 +157,7 @@ NdbSession.prototype = {
   impl                : null,
   tx                  : null,
   parentPool          : null,
-  dictQueue           : null,
+  execQueue           : null,
   openNdbTransactions : 0
 };
 
