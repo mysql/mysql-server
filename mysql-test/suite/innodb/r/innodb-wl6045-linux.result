@@ -36,12 +36,12 @@ main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
-# Test[1] End 
+# Test[1] End
 # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
 # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=crc32 - > MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'crc32'  lib: #x#a#
+find_type: enter: x: 'crc32'  lib: #x#
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -75,7 +75,7 @@ main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=crc32 for innochecksum tool.
 # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=crc32 MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'crc32'  lib: #x#a#
+find_type: enter: x: 'crc32'  lib: #x#
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
@@ -101,7 +101,7 @@ main: info: Page::# is empty and uncorrupted
 # Command for innochecksum too to read from stdin and rewrite the checksum to "none"
 # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=none - > MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'none'  lib: #x#a#
+find_type: enter: x: 'none'  lib: #x#
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -135,7 +135,7 @@ main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=none for innochecksum tool.
 # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=none MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'none'  lib: #x#a#
+find_type: enter: x: 'none'  lib: #x#
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; none checksum: calculated = #; recorded checksum_field# = # recorded checksum_field# = #
@@ -161,7 +161,7 @@ main: info: Page::# is empty and uncorrupted
 # Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
 # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=innodb - > MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'innodb'  lib: #x#a#
+find_type: enter: x: 'innodb'  lib: #x#
 main: info: Filename = -
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style: calculated = #; recorded = #
@@ -195,7 +195,7 @@ main: info: Page::# is empty and uncorrupted
 # Recheck the a.ibd created file having crc32 checksum with the --strict-check=innodb for innochecksum tool.
 # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLTEST_VARDIR/tmp/a.ibd
 # Print the information for debug option.
-find_type: enter: x: 'innodb'  lib: #x#a#
+find_type: enter: x: 'innodb'  lib: #x#
 main: info: Filename = a.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; old style:calculated = #; recorded checksum = #
@@ -220,7 +220,7 @@ main: info: Page::# is empty and uncorrupted
 # Start the server to validate the t1.ibd having "innodb" checksum.
 # Server Started normally
 # Test[4] End
-#cleanup 
+#cleanup
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_format=default;
 #TEST END

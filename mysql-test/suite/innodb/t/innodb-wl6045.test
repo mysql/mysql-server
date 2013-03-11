@@ -7,6 +7,9 @@
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+CALL mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("InnoDB: Unable to lock");
 
 --disable_warnings
 DROP TABLE IF EXISTS tab1;
@@ -333,9 +336,6 @@ SET GLOBAL innodb_file_format=default;
 --disable_reconnect
 
 --echo # Further test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
-
-CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 
 SET GLOBAL innodb_file_per_table=on;
 --echo # Create and populate the table to be corrupted
@@ -1139,10 +1139,9 @@ DROP TABLE IF EXISTS tab2;
 --remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
 --remove_file $MYSQL_TMP_DIR/page_summary.txt
 
-call mtr.add_suppression("InnoDB: Unable to lock");
 --echo # create a base table,Index & insert a record
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
-CREATE INDEX idx1 ON tab1(c2(10)); 
+CREATE INDEX idx1 ON tab1(c2(10));
 INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -1155,7 +1154,7 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 --echo # Testing done by the usage of DBUG_EXECUTE_IF(), which will pool over the --page-type-dump file
 --echo # passed as argument. Then start the server which will crash as explained before. Delete the
 --echo # --page-type-dump file, to resume the innochecksum tool.
-  
+
 perl;
 use strict;
 use warnings;
@@ -1170,7 +1169,7 @@ if ($pid == 0)
 {
   exec("$innochecksum  --debug='d,innochecksum_cause_mysqld_crash' --page-type-dump=$mysql_tmp_dir/dummy_file $mysqld_datadir/test/tab1.ibd");
 }
-EOF 
+EOF
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
