@@ -121,6 +121,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       perf_ptquery
       perf_ptquery2
       perf_rangequery
+      perf_read_txn
+      perf_read_txn_single_thread
       perf_read_write
       perf_txn_single_thread
       perf_xmalloc_free
@@ -248,6 +250,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_bulk_fetch
       test_compression_methods
       test_cmp_descriptor
+      test_cursor_with_read_txn
       test_db_change_pagesize
       test_db_change_xxx
       test_cursor_delete_2119
@@ -260,8 +263,10 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_logflush
       test_multiple_checkpoints_block_commit
       test_query
+      test_read_txn_invalid_ops
       test_redirect_func
       test_row_size_supported
+      test_simple_read_txn
       test_stress0
       test_stress1
       test_stress2

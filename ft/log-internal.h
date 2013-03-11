@@ -170,6 +170,7 @@ struct tokutxn {
     TXNID oldest_referenced_xid;
 
     bool begin_was_logged;
+    bool declared_read_only; // true if the txn was declared read only when began
     // These are not read until a commit, prepare, or abort starts, and
     // they're "monotonic" (only go false->true) during operation:
     bool do_fsync;

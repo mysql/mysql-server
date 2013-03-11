@@ -1,7 +1,7 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
-#ident "$Id$"
+#ident "$Id: perf_txn_single_thread.cc 51911 2013-01-10 18:21:29Z zardosht $"
 #include "test.h"
 
 #include <stdio.h>
@@ -31,7 +31,7 @@ static int commit_and_create_txn(
     int rand_txn_id = random() % num_txns;
     int r = txns[rand_txn_id]->commit(txns[rand_txn_id], 0);
     CKERR(r);
-    r = arg->env->txn_begin(arg->env, 0, &txns[rand_txn_id], arg->txn_flags); 
+    r = arg->env->txn_begin(arg->env, 0, &txns[rand_txn_id], arg->txn_flags | DB_TXN_READ_ONLY); 
     CKERR(r);
     return 0;
 }

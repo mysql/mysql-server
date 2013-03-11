@@ -28,6 +28,8 @@
 //Retrieve an XIDS representing the root transaction.
 XIDS xids_get_root_xids(void);
 
+bool xids_can_create_child(XIDS xids);
+
 void xids_cpy(XIDS target, XIDS source);
 
 //Creates an XIDS representing this transaction.
