@@ -150,9 +150,9 @@ UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 
 #ifdef UNIV_PFS_IO
 /* Keys to register InnoDB I/O with performance schema */
-UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
-UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_data_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_log_file_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_temp_file_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
@@ -657,14 +657,10 @@ os_file_handle_error_cond_exit(
 		}
 
 		if (should_exit) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Cannot continue "
-				"operation.\n");
-
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot continue operation.");
 			fflush(stderr);
-
-			ut_ad(0);  /* Report call stack, etc only in debug code. */
-			exit(1);
+			exit(3);
 		}
 	}
 
@@ -2742,18 +2738,13 @@ error_handling:
 #endif
 		goto try_again;
 	}
-	fprintf(stderr,
-		"InnoDB: Fatal error: cannot read from file."
-		" OS error number %lu.\n",
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Cannot read from file. OS error number %lu.",
 #ifdef __WIN__
-		(ulong) GetLastError()
+		(ulong) GetLastError());
 #else
-		(ulong) errno
+		(ulong) errno);
 #endif
-		);
-	fflush(stderr);
-
-	ut_error;
 
 	return(FALSE);
 }
@@ -5071,10 +5062,8 @@ retry:
 
 	/* All other errors should cause a trap for now. */
 	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: unexpected ret_code[%d] from io_getevents()!\n",
-		ret);
-	ut_error;
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Unexpected ret_code[%d] from io_getevents()!",	ret);
 }
 
 /**********************************************************************//**
@@ -5204,10 +5193,9 @@ found:
 		if (submit_ret < 0 ) {
 			/* Aborting in case of submit failure */
 			ib_logf(IB_LOG_LEVEL_FATAL,
-				"InnoDB: Error: Native Linux AIO"
-				" interface. io_submit() call failed"
-				" when resubmitting a partial I/O"
-				" request on the file %s.\n",
+				"Native Linux AIO interface. io_submit()"
+				" call failed when resubmitting a partial"
+				" I/O request on the file %s.",
 				slot->name);
 		} else {
 			ret = FALSE;

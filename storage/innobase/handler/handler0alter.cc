@@ -528,6 +528,8 @@ innobase_init_foreign(
 	ulint		referenced_num_field)	/*!< in: number of referenced
 						columns */
 {
+	ut_ad(mutex_own(&dict_sys->mutex));
+
         if (constraint_name) {
                 ulint   db_len;
 
@@ -544,22 +546,21 @@ innobase_init_foreign(
                 ut_memcpy(foreign->id, table->name, db_len);
                 foreign->id[db_len] = '/';
                 strcpy(foreign->id + db_len + 1, constraint_name);
-        }
 
-	ut_ad(mutex_own(&dict_sys->mutex));
+		/* Check if any existing foreign key has the same id,
+		this is needed only if user supplies the constraint name */
 
-	/* Check if any existing foreign key has the same id */
+		for (const dict_foreign_t* existing_foreign
+			= UT_LIST_GET_FIRST(table->foreign_list);
+		     existing_foreign != 0;
+		     existing_foreign = UT_LIST_GET_NEXT(
+			     foreign_list, existing_foreign)) {
 
-	for (const dict_foreign_t* existing_foreign
-		= UT_LIST_GET_FIRST(table->foreign_list);
-	     existing_foreign != 0;
-	     existing_foreign = UT_LIST_GET_NEXT(
-		     foreign_list, existing_foreign)) {
-
-		if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
-			return(false);
+			if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
+				return(false);
+			}
 		}
-	}
+        }
 
         foreign->foreign_table = table;
         foreign->foreign_table_name = mem_heap_strdup(
@@ -2601,7 +2602,7 @@ prepare_inplace_alter_table_dict(
 
 	user_table = ctx->new_table;
 
-	trx_start_if_not_started_xa(ctx->prebuilt->trx);
+	trx_start_if_not_started_xa(ctx->prebuilt->trx, true);
 
 	/* Create a background transaction for the operations on
 	the data dictionary tables. */
@@ -5731,7 +5732,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	}
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, true);
 
 	for (inplace_alter_handler_ctx** pctx = ctx_array; *pctx; pctx++) {
 		ha_innobase_inplace_ctx*	ctx
@@ -6179,7 +6180,7 @@ foreign_fail:
 			/* Rebuild the prebuilt object. */
 			ctx->prebuilt = row_create_prebuilt(
 				ctx->new_table, altered_table->s->reclength);
-			trx_start_if_not_started(user_trx);
+			trx_start_if_not_started(user_trx, true);
 			user_trx->will_lock++;
 			prebuilt->trx = user_trx;
 		}

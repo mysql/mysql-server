@@ -889,11 +889,10 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Is short %lu, info_and_status_bits %lu, offset %lu, "
-			"o_offset %lu\n"
-			"mismatch index %lu, end_seg_len %lu\n"
-			"parsed len %lu\n",
+			"o_offset %lu, mismatch index %lu, end_seg_len %lu"
+			"parsed len %lu",
 			(ulong) is_short, (ulong) info_and_status_bits,
 			(ulong) page_offset(cursor_rec),
 			(ulong) origin_offset,
@@ -1232,9 +1231,15 @@ page_cur_insert_rec_zip(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
+	const bool reorg_before_insert = page_has_garbage(page)
+		&& rec_size > page_get_max_insert_size(page, 1)
+		&& rec_size <= page_get_max_insert_size_after_reorganize(
+			page, 1);
+
 	/* 2. Try to find suitable space from page memory management */
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
-				rec_size, 1)) {
+				rec_size, 1)
+	    || reorg_before_insert) {
 		/* The values can change dynamically. */
 		bool	log_compressed	= page_zip_log_pages;
 		ulint	level		= page_zip_level;
@@ -1271,7 +1276,7 @@ page_cur_insert_rec_zip(
 		} else if (!page_zip->m_nonempty && !page_has_garbage(page)) {
 			/* The page has been freshly compressed, so
 			reorganizing it will not help. */
-		} else if (log_compressed) {
+		} else if (log_compressed && !reorg_before_insert) {
 			/* Insert into uncompressed page only, and
 			try page_zip_reorganize() afterwards. */
 		} else if (btr_page_reorganize_low(

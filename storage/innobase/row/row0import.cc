@@ -3482,14 +3482,14 @@ row_import_for_mysql(
 	ut_ad(prebuilt->trx);
 	ut_a(table->ibd_file_missing);
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	trx = trx_allocate_for_mysql();
 
 	/* So that the table is not DROPped during recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, true);
 
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;
