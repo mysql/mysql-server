@@ -1,9 +1,10 @@
-Session extends Context
+
 
   /** Get mappings for a table or class. 
    * The result is a fully resolved TableMapping
    * The parameter may be a table name, a mapped constructor function, or
    * a domain object. 
+   * @method getMapping
    * @param table the table name or constructor of a mapped class
    * @param callback function to be called when mapping has been resolved, with parameters:
    *   err: the node.js Error object
@@ -32,6 +33,7 @@ Session extends Context
     Array listBatches();
 
     /** Get the current Transaction. 
+     * @method currentTransaction
      * @return the transaction
      */
     Transaction currentTransaction();
@@ -39,12 +41,16 @@ Session extends Context
     /** Close this session. This must be called when the session is
      * no longer needed.
      * 
+     * @method close
+     * @param callback
+     @ async
      */
     void close(Function(Object error) callback);
 
     /** Is this session closed?
      *
-     * @return true if the session is closed
+     * @method isClosed
+     * @return {Boolean} true if the session is closed
      */
     boolean isClosed();
 
@@ -59,6 +65,7 @@ Session extends Context
      * The values of the partition key will be taken from the values
      * in the instance.
      * 
+     * @method setPartitionKey
      * @param instance the object with all partition key properties set
      * @return an Error object or null if no error
      */
