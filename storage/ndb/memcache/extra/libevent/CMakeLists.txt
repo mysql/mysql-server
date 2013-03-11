@@ -32,6 +32,7 @@ SET(LIBEVENT_CORE_SOURCES
                 buffer.c
                 evbuffer.c
                 log.c
+                signal.c
                 evutil.c)
 
 SET(LIBEVENT_EXTRA_SOURCES
@@ -46,10 +47,6 @@ SET(LIBEVENT_EXTRA_SOURCES
                 evrpc-internal.h
                 strlcpy.c
                 strlcpy-internal.h)
-
-IF(HAVE_SIGNAL_H)
-        SET(LIBEVENT_SIGNAL_SOURCES signal.c)
-ENDIF()
 
 IF(HAVE_POLL_H)
         SET(LIBEVENT_POLL_SOURCES poll.c)
@@ -78,7 +75,6 @@ ENDIF()
 ADD_CONVENIENCE_LIBRARY(event 
                          ${LIBEVENT_CORE_SOURCES} 
                          ${LIBEVENT_EXTRA_SOURCES} 
-                         ${LIBEVENT_SIGNAL_SOURCES} 
                          ${LIBEVENT_POLL_SOURCES} 
                          ${LIBEVENT_SELECT_SOURCE} 
                          ${LIBEVENT_EPOLL_SOURCES} 
