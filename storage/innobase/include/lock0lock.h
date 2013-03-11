@@ -939,7 +939,7 @@ extern lock_sys_t*	lock_sys;
 
 /** Acquire the lock_sys->mutex. */
 #define lock_mutex_enter() do {			\
-	lock_sys->mutex.enter();		\
+	mutex_enter(&lock_sys->mutex);		\
 } while (0)
 
 /** Release the lock_sys->mutex. */
@@ -952,7 +952,7 @@ extern lock_sys_t*	lock_sys;
 
 /** Acquire the lock_sys->wait_mutex. */
 #define lock_wait_mutex_enter() do {		\
-	lock_sys->wait_mutex.enter();		\
+	mutex_enter(&lock_sys->wait_mutex);	\
 } while (0)
 
 /** Release the lock_sys->wait_mutex. */

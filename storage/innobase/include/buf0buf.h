@@ -1985,7 +1985,7 @@ Use these instead of accessing buf_pool->mutex directly. */
 
 /** Acquire the block->mutex. */
 #define buf_page_mutex_enter(b) do {			\
-	(b)->mutex.enter();				\
+	mutex_enter(&(b)->mutex);			\
 } while (0)
 
 /** Release the trx->mutex. */
