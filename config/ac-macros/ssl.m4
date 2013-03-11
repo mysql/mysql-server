@@ -42,7 +42,7 @@ AC_DEFUN([MYSQL_USE_BUNDLED_YASSL], [
   yassl_thread_cxxflags=""
   yassl_thread_safe=""
   if test "$with_server" != "no" -o "$THREAD_SAFE_CLIENT" != "no"; then
-    yassl_thread_cxxflags="-DYASSL_THREAD_SAFE"
+    yassl_thread_cxxflags="-DMULTI_THREADED"
     yassl_thread_safe="(thread-safe)"
   fi
   AC_SUBST([yassl_thread_cxxflags])
