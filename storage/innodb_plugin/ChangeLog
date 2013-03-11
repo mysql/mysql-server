@@ -1,3 +1,22 @@
+2012-12-18	The InnoDB Team
+
+	* include/univ.i:
+	Fix Bug#Bug#13463493 INNODB PLUGIN WERE CHANGED, BUT STILL USE THE
+	SAME VERSION NUMBER 1.0.17
+
+2012-12-13	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug#14329288 IS THE CALL TO IBUF_MERGE_OR_DELETE_FOR_PAGE FROM
+	BUF_PAGE_GET_GEN REDUNDANT?
+
+2012-11-15	The InnoDB Team
+
+	* include/data0type.ic, include/rem0rec.h,
+	rem/rem0rec.c, row/row0merge.c:
+	Fix Bug#15874001 CREATE INDEX ON A UTF8 CHAR COLUMN FAILS WITH
+	ROW_FORMAT=REDUNDANT
+
 2012-10-18	The InnoDB Team
 
 	* row/row0sel.c:

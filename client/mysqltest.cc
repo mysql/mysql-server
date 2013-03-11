@@ -1182,7 +1182,7 @@ void close_files()
 void free_used_memory()
 {
   uint i;
-  DBUG_ENTER("free_used_memory");
+  // Do not use DBUG_ENTER("free_used_memory"); here, see below.
 
   if (connections)
     close_connections();
@@ -1220,7 +1220,6 @@ void free_used_memory()
     mysql_server_end();
 
   /* Don't use DBUG after mysql_server_end() */
-  DBUG_VIOLATION_HELPER_LEAVE;
   return;
 }
 

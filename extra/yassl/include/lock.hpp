@@ -26,7 +26,7 @@
   Visual Studio Source Annotations header (sourceannotations.h) fails
   to compile if outside of the global namespace.
 */
-#ifdef YASSL_THREAD_SAFE
+#ifdef MULTI_THREADED
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -35,8 +35,9 @@
 namespace yaSSL {
 
 
-#ifdef YASSL_THREAD_SAFE
+#ifdef MULTI_THREADED
     #ifdef _WIN32
+        #include <windows.h>
 
         class Mutex {
             CRITICAL_SECTION cs_;
@@ -76,7 +77,7 @@ namespace yaSSL {
         };
 
     #endif // _WIN32
-#else  // YASSL_THREAD_SAFE (WE'RE SINGLE)
+#else  // MULTI_THREADED (WE'RE SINGLE)
 
     class Mutex {
     public:
@@ -86,7 +87,7 @@ namespace yaSSL {
         };
     };
 
-#endif // YASSL_THREAD_SAFE
+#endif // MULTI_THREADED
 
 
 
