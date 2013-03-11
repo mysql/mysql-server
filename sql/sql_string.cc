@@ -843,7 +843,7 @@ copy_and_convert(char *to, uint32 to_length, CHARSET_INFO *to_cs,
 
   uint32 length= min(to_length, from_length), length2= length;
 
-#if defined(__i386__)
+#if defined(__i386__) || defined(__x86_64__)
   /*
     Special loop for i386, it allows to refer to a
     non-aligned memory block as UINT32, which makes
