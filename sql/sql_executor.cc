@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -418,24 +418,6 @@ JOIN::optimize_distinct()
       order= NULL;
     }
   }
-}
-
-
-/**
-  There may be a pending 'sorted' request on the specified 
-  'join_tab' which we now has decided we can ignore.
-*/
-
-void
-disable_sorted_access(JOIN_TAB* join_tab)
-{
-  DBUG_ENTER("disable_sorted_access");
-  join_tab->sorted= 0;
-  if (join_tab->select && join_tab->select->quick)
-  {
-    join_tab->select->quick->need_sorted_output(false);
-  }
-  DBUG_VOID_RETURN;
 }
 
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
@@ -1565,7 +1547,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     else if (join_tab->do_loosescan() && join_tab->match_tab->found_match)
     { 
       /* Loosescan algorithm requires 'sorted' retrieval of keys. */
-      DBUG_ASSERT(join_tab->sorted);
+      DBUG_ASSERT(join_tab->use_order());
       /* 
          Previous row combination for duplicate-generating range,
          generated a match.  Compare keys of this row and previous row
@@ -2010,8 +1992,8 @@ join_read_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
   {
-    DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+    DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
+    if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
       (void) report_handler_error(table, error);
       return 1;
@@ -2109,9 +2091,9 @@ join_read_linked_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
-  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
+  DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     DBUG_RETURN(error);
@@ -2187,7 +2169,7 @@ join_read_always_key(JOIN_TAB *tab)
 
   /* Initialize the index first */
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2228,7 +2210,7 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2455,6 +2437,43 @@ join_materialize_semijoin(JOIN_TAB *tab)
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
+
+/**
+  Check if access to this JOIN_TAB has to retrieve rows
+  in sorted order as defined by the ordered index
+  used to access this table.
+*/
+bool
+JOIN_TAB::use_order() const
+{
+  /*
+    No need to require sorted access for single row reads
+    being performed by const- or EQ_REF-accessed tables.
+  */
+  if (type == JT_EQ_REF ||
+      type == JT_CONST  ||
+      type == JT_SYSTEM)
+    return false;
+
+  /*
+    First non-const table requires sorted results 
+    if ORDER or GROUP BY use ordered index. 
+  */
+  if (this == &join->join_tab[join->const_tables] && 
+      join->ordered_index_usage != JOIN::ordered_index_void)
+    return true;
+
+  /*
+    LooseScan strategy for semijoin requires sorted
+    results even if final result is not to be sorted.
+  */
+  if (position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    return true;
+
+  /* Fall through: Results don't have to be sorted */
+  return false;
+}
+
 /*
   Helper function for sorting table with filesort.
 */
@@ -2487,7 +2506,7 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.read_record=join_read_next;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2525,7 +2544,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2553,7 +2572,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
