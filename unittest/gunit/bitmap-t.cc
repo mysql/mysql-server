@@ -42,7 +42,7 @@ protected:
 TEST_F(BitmapTest, IntersectTest)
 {
   bitmap.set_prefix(4);
-  bitmap.intersect(0xBBBB);
+  bitmap.intersect(0xBBBBULL);
   EXPECT_TRUE(bitmap.is_set(0));
   EXPECT_TRUE(bitmap.is_set(1));
   EXPECT_FALSE(bitmap.is_set(2));
@@ -53,19 +53,19 @@ TEST_F(BitmapTest, IntersectTest)
   EXPECT_TRUE(bitmap.is_clear_all());
 }
 
-TEST_F(BitmapTest, UULTest)
+TEST_F(BitmapTest, ULLTest)
 {
   bitmap.set_all();
-  bitmap.intersect(0x0123456789ABCDEF);
-  ulonglong uul= bitmap.to_ulonglong();
-  EXPECT_TRUE(uul == 0x0123456789ABCDEF);
+  bitmap.intersect(0x0123456789ABCDEFULL);
+  ulonglong ull= bitmap.to_ulonglong();
+  EXPECT_TRUE(ull == 0x0123456789ABCDEFULL);
 
   Bitmap<24> bitmap24;
   bitmap24.init();
   bitmap24.set_all();
-  bitmap24.intersect(0x47B);
-  ulonglong uul24= bitmap24.to_ulonglong();
-  EXPECT_TRUE(uul24 == 0x47B);
+  bitmap24.intersect(0x47BULL);
+  ulonglong ull24= bitmap24.to_ulonglong();
+  EXPECT_TRUE(ull24 == 0x47BULL);
 }
 
 }  // namespace
