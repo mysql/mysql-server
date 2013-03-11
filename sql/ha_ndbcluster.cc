@@ -3715,6 +3715,7 @@ ha_ndbcluster::pk_unique_index_read_key(uint idx, const uchar *key, uchar *buf,
     get_hidden_fields_keyop(&options, gets);
     poptions= &options;
   }
+  get_read_set(false, idx);
 
   if (ppartition_id != NULL)
   {
@@ -3776,6 +3777,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     get_hidden_fields_keyop(&options, gets);
     poptions= &options;
   }
+  get_read_set(false, idx);
 
   if (ppartition_id != NULL)
   {
@@ -4023,6 +4025,8 @@ int ha_ndbcluster::ordered_index_scan(const key_range *start_key,
     if (table_share->primary_key == MAX_KEY)
       get_hidden_fields_scan(&options, gets);
 
+    get_read_set(true, active_index);
+
     if (lm == NdbOperation::LM_Read)
       options.scan_flags|= NdbScanOperation::SF_KeyInfo;
     if (sorted)
@@ -4173,6 +4177,8 @@ int ha_ndbcluster::full_table_scan(const KEY* key_info,
   if (table_share->primary_key == MAX_KEY)
     get_hidden_fields_scan(&options, gets);
 
+  get_read_set(true, MAX_KEY);
+
   if (check_if_pushable(NdbQueryOperationDef::TableScan))
   {
     const int error= create_pushed_join();
@@ -4288,6 +4294,98 @@ ha_ndbcluster::set_auto_inc_val(THD *thd, Uint64 value)
   }
   DBUG_RETURN(0);
 }
+
+
+void
+ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
+{
+  const bool is_delete=
+    table->in_use->lex->sql_command == SQLCOM_DELETE ||
+    table->in_use->lex->sql_command == SQLCOM_DELETE_MULTI;
+
+  const bool is_update=
+    table->in_use->lex->sql_command == SQLCOM_UPDATE ||
+    table->in_use->lex->sql_command == SQLCOM_UPDATE_MULTI;
+
+  DBUG_ASSERT(use_cursor ||
+              idx == table_share->primary_key ||
+              table->key_info[idx].flags & HA_NOSAME);
+
+  if (!is_delete && !is_update)
+  {
+    return;
+  }
+
+  /**
+   * It is questionable that we in some cases seems to
+   * do a read even if 'm_read_before_write_removal_used'.
+   * The usage pattern for this seems to be update/delete 
+   * cursors which establish a 'current of' position before
+   * a delete- / updateCurrentTuple().
+   * Anyway, as 'm_read_before_write_removal_used' we don't
+   * have to add more columns to 'read_set'.
+   *
+   * FUTURE: Investigate if we could have completely 
+   * cleared the 'read_set'.
+   *
+   */
+  if (m_read_before_write_removal_used)
+  {
+    return;
+  }
+
+  /**
+   * Determine whether we have to read PK columns in 
+   * addition to those columns already present in read_set.
+   * NOTE: As checked above, It is a precondition that
+   *       a read is required as part of delete/update
+   *       (!m_read_before_write_removal_used)
+   *
+   * PK columns are required when:
+   *  1) This is a primary/unique keyop.
+   *     (i.e. not a positioned update/delete which
+   *      maintain a 'current of' position.)
+   *
+   * In addition, when a 'current of' position is available:
+   *  2) When deleting a row containing BLOBs PK is required
+   *     to delete BLOB stored in seperate fragments.
+   *  3) When updating BLOB columns PK is required to delete 
+   *     old BLOB + insert new BLOB contents
+   *  4) If PK itself is updated it is executed as deleteCurrent +
+   *     insert. Thus full PK is required for the reinsert.
+   */
+  if (!use_cursor ||                             // 1)
+      (is_delete && table_share->blob_fields) || // 2)
+      uses_blob_value(table->write_set)       || // 3)
+      bitmap_is_overlapping(table->write_set, m_pk_bitmap_p)) // 4)
+  {
+    bitmap_union(table->read_set, m_pk_bitmap_p);
+  }
+
+  /**
+   * Update might cause PK or Unique key violation.
+   * Error reporting need values from the offending 
+   * unique columns to have been read:
+   *
+   * NOTE: This is NOT required for the correctness
+   *       of the update operation itself. Maybe we
+   *       should consider other strategies, like
+   *       defering reading of the column values
+   *       until formating the error message.
+   */
+  if (is_update && m_has_unique_index)
+  {
+    for (uint i= 0; i < table_share->keys; i++)
+    {
+      if ((table->key_info[i].flags & HA_NOSAME) &&
+          bitmap_is_overlapping(table->write_set, m_key_fields[i]))
+      {
+        bitmap_union(table->read_set, m_key_fields[i]);
+      }
+    }
+  }
+}
+
 
 Uint32
 ha_ndbcluster::setup_get_hidden_fields(NdbOperation::GetValueSpec gets[2])
@@ -5481,6 +5579,9 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
   {
     /* Use unique key to access table */
     DBUG_PRINT("info", ("Using unique index (%u)", active_index));
+    DBUG_ASSERT((table->key_info[active_index].flags & HA_NOSAME));
+    /* Can't use key if we didn't read it first */
+    DBUG_ASSERT(bitmap_is_subset(m_key_fields[active_index], table->read_set));
     *key_rec= m_index[active_index].ndb_unique_record_row;
     *key_row= record;
   }
@@ -5488,6 +5589,8 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
   {
     /* Use primary key to access table */
     DBUG_PRINT("info", ("Using primary key"));
+    /* Can't use pk if we didn't read it first */
+    DBUG_ASSERT(bitmap_is_subset(m_pk_bitmap_p, table->read_set));
     *key_rec= m_index[table_share->primary_key].ndb_unique_record_row;
     *key_row= record;
   }
@@ -5496,6 +5599,7 @@ ha_ndbcluster::setup_key_ref_for_ndb_record(const NdbRecord **key_rec,
     /* Use hidden primary key previously read into m_ref. */
     DBUG_PRINT("info", ("Using hidden primary key (%llu)", m_ref));
     /* Can't use hidden pk if we didn't read it first */
+    DBUG_ASSERT(bitmap_is_subset(m_pk_bitmap_p, table->read_set));
     DBUG_ASSERT(m_read_before_write_removal_used == false);
     *key_rec= m_ndb_hidden_key_record;
     *key_row= (const uchar *)(&m_ref);
@@ -12480,7 +12584,6 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_CAN_GEOMETRY |
     HA_CAN_BIT_FIELD |
     HA_PRIMARY_KEY_REQUIRED_FOR_POSITION |
-    HA_PRIMARY_KEY_REQUIRED_FOR_DELETE |
     HA_PARTIAL_COLUMN_READ |
     HA_HAS_OWN_BINLOGGING |
     HA_BINLOG_ROW_CAPABLE |
@@ -14330,6 +14433,7 @@ int ha_ndbcluster::multi_range_start_retrievals(uint starting_range)
         NdbOperation::GetValueSpec gets[2];
         if (table_share->primary_key == MAX_KEY)
           get_hidden_fields_scan(&options, gets);
+        get_read_set(true, active_index);
 
         if (m_cond && m_cond->generate_scan_filter(&code, &options))
           ERR_RETURN(code.getNdbError());
