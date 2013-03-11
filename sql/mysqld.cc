@@ -5020,6 +5020,7 @@ static void create_shutdown_thread()
 static void handle_connections_methods()
 {
   pthread_t hThread;
+  int error;
   DBUG_ENTER("handle_connections_methods");
   if (hPipe == INVALID_HANDLE_VALUE &&
       (!have_tcpip || opt_disable_networking) &&
