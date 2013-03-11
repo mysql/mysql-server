@@ -1,0 +1,5 @@
+#
+# index_merge tests for statements using intersect algorithm
+#
+
+--source include/index_merge_intersect_dml.inc

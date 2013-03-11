@@ -1,0 +1,423 @@
+# This is the basic function tests for innodb FTS stopword charset
+
+-- source include/have_innodb.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+let $innodb_ft_server_stopword_table_orig=`SELECT @@innodb_ft_server_stopword_table`;
+let $innodb_ft_enable_stopword_orig=`SELECT @@innodb_ft_enable_stopword`;
+let $innodb_ft_user_stopword_table_orig=`SELECT @@innodb_ft_user_stopword_table`;
+
+SELECT @@innodb_ft_server_stopword_table;
+SELECT @@innodb_ft_enable_stopword;
+SELECT @@innodb_ft_user_stopword_table;
+
+SET NAMES utf8;
+
+-- echo # Test 1 : default latin1_swedish_ci
+# Create FTS table with default charset latin1_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve' and check result with 'love'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 2 : latin1_general_ci
+# Create FTS table with default charset latin1_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET latin1 COLLATE latin1_general_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 3 : latin1_spanish_ci
+# Create FTS table with default charset latin1_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET latin1 COLLATE latin1_spanish_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 4 : utf8_general_ci
+# Create FTS table with default charset utf8_general_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET utf8 COLLATE utf8_general_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 5 : utf8_unicode_ci
+# Create FTS table with default charset utf8_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET utf8 COLLATE utf8_swedish_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 6 : utf8_unicode_ci
+# Create FTS table with default charset utf8_unicode_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET utf8 COLLATE utf8_unicode_ci;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 7 : gb2312_chinese_ci
+# Create FTS table with default charset gb2312_chinese_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('相亲相爱'),('怜香惜爱'),('充满可爱'),('爱恨交织');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find '相亲相爱'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('相亲相爱' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB
+	DEFAULT CHARACTER SET gb2312 COLLATE gb2312_chinese_ci;
+INSERT INTO user_stopword VALUES('相亲相爱');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find '相亲相爱'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('相亲相爱' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('怜香惜爱' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 8 : test shutdown to check if stopword still works
+# Create FTS table with default charset latin1_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve' and check result with 'love'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+--echo # Shutdown and restart mysqld
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+SET NAMES utf8;
+
+# Insert rows to check if it uses user stopword
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+--enable_warnings
+
+# Now we will not find 'lòve' and check result with 'love'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+DROP TABLE user_stopword;
+
+-- echo # Test 9 : drop user stopwrod table,test shutdown to check if it works
+# Create FTS table with default charset latin1_swedish_ci
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200)
+        ) ENGINE=InnoDB;
+
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+
+# Build full text index with default stopword
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+--enable_warnings
+
+# We can find 'lòve'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+# Define a user stopword table and set to it
+CREATE TABLE user_stopword(value varchar(30)) ENGINE = InnoDB;
+INSERT INTO user_stopword VALUES('lòve');
+SET GLOBAL innodb_ft_server_stopword_table = 'test/user_stopword';
+
+# Rebuild the full text index with user stopword
+DROP INDEX ft_idx ON articles;
+CREATE FULLTEXT INDEX ft_idx ON articles(title);
+
+# Now we will not find 'lòve' and check result with 'love'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+# Drop user stopword table
+DROP TABLE user_stopword;
+
+--echo # Shutdown and restart mysqld
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+SET NAMES utf8;
+
+# Insert rows to check if it uses user stopword
+--disable_warnings
+INSERT INTO articles (title) VALUES
+        ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
+	('lṓve'),('LṒVE');
+--enable_warnings
+
+# Now we will not find 'lòve' and check result with 'love'
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('lòve' IN NATURAL LANGUAGE MODE);
+
+SELECT * FROM articles WHERE MATCH (title)
+        AGAINST ('love' IN NATURAL LANGUAGE MODE);
+
+DROP TABLE articles;
+
+# Restore Values
+eval SET SESSION innodb_ft_enable_stopword=$innodb_ft_enable_stopword_orig;
+eval SET GLOBAL innodb_ft_server_stopword_table=default;
+eval SET SESSION innodb_ft_user_stopword_table=default;

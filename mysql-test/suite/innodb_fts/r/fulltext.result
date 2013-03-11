@@ -395,6 +395,7 @@ a
 testword''
 SELECT a FROM t1 WHERE MATCH a AGAINST('testword\'\'' IN BOOLEAN MODE);
 a
+testword''
 INSERT INTO t1 VALUES('test\'s');
 SELECT a FROM t1 WHERE MATCH a AGAINST('test' IN BOOLEAN MODE);
 a
