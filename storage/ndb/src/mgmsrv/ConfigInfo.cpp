@@ -2806,8 +2806,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "71540",
-    "1", 
+    "0",
+    "0", 
     "2G"
   },
 
@@ -2819,8 +2819,8 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     false,
     ConfigInfo::CI_INT,
-    "70080",
-    "1", 
+    "0",
+    "0", 
     "2G" 
   },
   
