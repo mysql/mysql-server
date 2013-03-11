@@ -230,13 +230,12 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   cb_args[0] = Null();
   cb_args[1] = Null();
   
-  /*TableMetadata = {
-      database            : ""  , // Database name
-      name                : ""  , // Table Name
-      columns             : {}  , // ordered array of ColumnMetadata objects
-      indexes             : {}  , // array of IndexMetadata objects 
-      partitionKey        : {}  , // ordered array of column numbers in the partition key
-      autoIncColumnNumber : null, // column number of auto-inc column, if any
+  /* TableMetadata = {
+      database         : ""    ,  // Database name
+      name             : ""    ,  // Table Name
+      columns          : []    ,  // ordered array of DBColumn objects
+      indexes          : []    ,  // array of DBIndex objects 
+      partitionKey     : []    ,  // ordered array of column numbers in the partition key
     };
   */    
   if(ndb_table && ! return_val) {
@@ -250,10 +249,6 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     // name
     table->Set(String::NewSymbol("name"), String::New(ndb_table->getName()));
 
-    // autoIncrementColumn
-    Handle<Value> autoIncField = String::NewSymbol("autoIncColumnNumber");
-    table->Set(autoIncField, Null());
-
     // partitionKey
     int nPartitionKeys = 0;
     Handle<Array> partitionKeys = Array::New();
@@ -265,9 +260,6 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
       const NdbDictionary::Column *ndb_col = ndb_table->getColumn(i);
       Handle<Object> col = buildDBColumn(ndb_col);
       columns->Set(i, col);
-      if(ndb_col->getAutoIncrement()) { /* autoincrement */
-        table->Set(autoIncField, Number::New(i));
-      }
       if(ndb_col->getPartitionKey()) { /* partition key */
         partitionKeys->Set(nPartitionKeys++, String::New(ndb_col->getName()));
       }
@@ -457,7 +449,11 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
              v8::Int32::New(col->getPrecision()),
              ReadOnly);
   }
-  
+
+  obj->Set(String::NewSymbol("isAutoincrement"),
+           Boolean::New(col->getAutoIncrement()),
+           ReadOnly);
+   
   /* Group B: Non-numeric */
   if(is_binary || is_char) {  
     obj->Set(String::NewSymbol("length"),
