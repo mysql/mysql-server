@@ -6091,6 +6091,9 @@ int ha_tokudb::create_txn(THD* thd, tokudb_trx_data* trx) {
         if (txn_begin_flags == 0 && is_autocommit && thd_sql_command(thd) == SQLCOM_SELECT) {
             txn_begin_flags = DB_TXN_SNAPSHOT;
         }
+        if (is_autocommit && thd_sql_command(thd) == SQLCOM_SELECT && !thd->in_sub_stmt && lock.type <= TL_READ_NO_INSERT) {
+            txn_begin_flags |= DB_TXN_READ_ONLY;
+        }
     }
     else {
         txn_begin_flags = DB_INHERIT_ISOLATION;
