@@ -703,6 +703,11 @@ extern ulint	btr_cur_n_sea;
 extern ulint	btr_cur_n_non_sea_old;
 extern ulint	btr_cur_n_sea_old;
 
+#ifdef UNIV_DEBUG
+/* Flag to limit optimistic insert records */
+extern uint	btr_cur_limit_optimistic_insert_debug;
+#endif /* UNIV_DEBUG */
+
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"
 #endif

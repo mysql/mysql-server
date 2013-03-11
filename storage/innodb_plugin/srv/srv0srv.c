@@ -85,6 +85,15 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "read0read.h"
+
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -1474,6 +1483,10 @@ srv_suspend_mysql_thread(
 
 	trx = thr_get_trx(thr);
 
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("srv_suspend_mysql_thread_enter");
+	}
+
 	os_event_set(srv_lock_timeout_thread_event);
 
 	mutex_enter(&kernel_mutex);
@@ -1963,6 +1976,25 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_inserted = srv_n_rows_inserted;
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
+
+#ifdef UNIV_DEBUG
+	if (ut_dulint_cmp(trx_sys->max_trx_id, purge_sys->done_trx_no) < 0) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  ut_dulint_minus(trx_sys->max_trx_id, purge_sys->done_trx_no);
+	}
+
+	if (!purge_sys->view
+	    || ut_dulint_cmp(trx_sys->max_trx_id,
+			     purge_sys->view->up_limit_id) < 0) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  ut_dulint_minus(trx_sys->max_trx_id,
+				  purge_sys->view->up_limit_id);
+	}
+#endif /* UNIV_DEBUG */
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2468,6 +2500,30 @@ loop:
 		srv_main_thread_op_info = "sleeping";
 		srv_main_1_second_loops++;
 
+#ifdef UNIV_DEBUG
+		if (btr_cur_limit_optimistic_insert_debug) {
+			/* If btr_cur_limit_optimistic_insert_debug is enabled
+			and no purge_threads, purge opportunity is increased
+			by x100 (1purge/100msec), to speed up debug scripts
+			which should wait for purged. */
+
+			if (!skip_sleep) {
+				os_thread_sleep(100000);
+				srv_main_sleeps++;
+			}
+
+			do {
+				if (srv_fast_shutdown
+				    && srv_shutdown_state > 0) {
+					goto background_loop;
+				}
+
+				srv_main_thread_op_info = "purging";
+				n_pages_purged = trx_purge();
+
+			} while (n_pages_purged);
+		} else
+#endif /* UNIV_DEBUG */
 		if (!skip_sleep) {
 
 			os_thread_sleep(1000000);
