@@ -1973,6 +1973,7 @@ btr_lift_page_up(
 	ulint		root_page_no;
 	ulint		ancestors;
 	ulint		i;
+	ibool		lift_father_up	= FALSE;
 
 	ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
 	ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
@@ -2007,6 +2008,27 @@ btr_lift_page_up(
 		pages[ancestors++] = iter_page;
 	}
 
+	if (ancestors > 1 && page_level == 0) {
+		/* The father page also should be the only on its level (not
+		root). We should lift up the father page at first.
+		Because the leaf page should be lifted up only for root page.
+		The freeing page is based on page_level (==0 or !=0)
+		to choose segment. If the page_level is changed ==0 from !=0,
+		later freeing of the page doesn't find the page allocation
+		to be freed.*/
+
+		lift_father_up = TRUE;
+		page = father_page;
+		page_level = btr_page_get_level(page, mtr);
+
+		ut_ad(btr_page_get_prev(page, mtr) == FIL_NULL);
+		ut_ad(btr_page_get_next(page, mtr) == FIL_NULL);
+		ut_ad(mtr_memo_contains(mtr, buf_block_align(page),
+					MTR_MEMO_PAGE_X_FIX));
+
+		father_page = pages[1];
+	}
+
 	btr_search_drop_page_hash_index(page);
 
 	/* Make the father empty */
@@ -2018,7 +2040,7 @@ btr_lift_page_up(
 	lock_update_copy_and_discard(father_page, page);
 
 	/* Go upward to root page, decreasing levels by one. */
-	for (i = 0; i < ancestors; i++) {
+	for (i = lift_father_up ? 1 : 0; i < ancestors; i++) {
 		iter_page = pages[i];
 
 		ut_ad(btr_page_get_level(iter_page, mtr) == (page_level + 1));

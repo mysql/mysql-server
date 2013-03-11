@@ -2265,7 +2265,10 @@ row_ins_index_entry(
 	err = row_ins_index_entry_low(BTR_MODIFY_LEAF, index, entry,
 				      n_ext, thr);
 	if (err != DB_FAIL) {
-
+		if (index == dict_table_get_first_index(index->table)
+		    && thr_get_trx(thr)->mysql_thd != 0) {
+			DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
+		}
 		return(err);
 	}
 

@@ -72,7 +72,6 @@ rpl000017 : Result Difference Due to Change in .inc file
 rpl_skip_error : Result Difference Due to Change in .inc file
 rpl_sp : Result Difference Due to Change in .inc file
 
-rpl_row_until : Test Present in rpl suite as well . Test Fails with table t2 not found.
 rpl_loaddata_s : Test Present in rpl suite as well . Test Fails due to bin log truncation.
 rpl_log_pos : Test Present in rpl suite as well . Test Fails due to bin log truncation.
 rpl_row_NOW : Result Difference Due to Change in .inc file
