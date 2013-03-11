@@ -674,7 +674,7 @@ page is updated */
 
 /** Acquire the trx_sys->mutex. */
 #define trx_sys_mutex_enter() do {			\
-	trx_sys->mutex.enter();				\
+	mutex_enter(&trx_sys->mutex);			\
 } while (0)
 
 /** Release the trx_sys->mutex. */

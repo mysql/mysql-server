@@ -34,7 +34,10 @@ Created 2012-08-15 Sunny Bains.
 
 #define mutex_create(N, M)		mutex_init((M), (N), __FILE__, __LINE__)
 
-#define mutex_enter(M)			(M)->enter(__FILE__, __LINE__)
+#define mutex_enter(M)			(M)->enter(			\
+					srv_n_spin_wait_rounds,		\
+					srv_spin_wait_delay,		\
+					__FILE__, __LINE__)
 
 #define mutex_enter_nowait(M)		(M)->trylock(__FILE__, __LINE__)
 
