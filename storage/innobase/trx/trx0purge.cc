@@ -210,7 +210,7 @@ trx_purge_add_update_undo_to_history(
 	trx_rsegf_t*	rseg_header;
 	trx_ulogf_t*	undo_header;
 
-	undo = trx->update_undo;
+	undo = trx->standard.update_undo;
 	rseg = undo->rseg;
 
 	rseg_header = trx_rsegf_get(

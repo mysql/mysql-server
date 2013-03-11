@@ -897,9 +897,9 @@ trx_undo_add_page(
 	ulint		n_reserved;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->rseg->mutex)));
+	ut_ad(mutex_own(&(trx->standard.rseg->mutex)));
 
-	rseg = trx->rseg;
+	rseg = trx->standard.rseg;
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -1077,7 +1077,7 @@ trx_undo_truncate_end_func(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->rseg->mutex)));
+	ut_ad(mutex_own(&(trx->standard.rseg->mutex)));
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1753,11 +1753,11 @@ trx_undo_assign_undo(
 
 	ut_ad(trx);
 
-	if (trx->rseg == NULL) {
+	if (trx->standard.rseg == NULL) {
 		return(DB_READ_ONLY);
 	}
 
-	rseg = trx->rseg;
+	rseg = trx->standard.rseg;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
@@ -1784,12 +1784,12 @@ trx_undo_assign_undo(
 
 	if (type == TRX_UNDO_INSERT) {
 		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_list, undo);
-		ut_ad(trx->insert_undo == NULL);
-		trx->insert_undo = undo;
+		ut_ad(trx->standard.insert_undo == NULL);
+		trx->standard.insert_undo = undo;
 	} else {
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_list, undo);
-		ut_ad(trx->update_undo == NULL);
-		trx->update_undo = undo;
+		ut_ad(trx->standard.update_undo == NULL);
+		trx->standard.update_undo = undo;
 	}
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
@@ -1914,8 +1914,8 @@ trx_undo_update_cleanup(
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 
-	undo = trx->update_undo;
-	rseg = trx->rseg;
+	undo = trx->standard.update_undo;
+	rseg = trx->standard.rseg;
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
@@ -1923,7 +1923,7 @@ trx_undo_update_cleanup(
 
 	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
 
-	trx->update_undo = NULL;
+	trx->standard.update_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
@@ -1950,15 +1950,15 @@ trx_undo_insert_cleanup(
 	trx_undo_t*	undo;
 	trx_rseg_t*	rseg;
 
-	undo = trx->insert_undo;
+	undo = trx->standard.insert_undo;
 	ut_ad(undo);
 
-	rseg = trx->rseg;
+	rseg = trx->standard.rseg;
 
 	mutex_enter(&(rseg->mutex));
 
 	UT_LIST_REMOVE(undo_list, rseg->insert_undo_list, undo);
-	trx->insert_undo = NULL;
+	trx->standard.insert_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 
@@ -1996,17 +1996,17 @@ trx_undo_free_prepared(
 {
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	if (trx->update_undo) {
-		ut_a(trx->update_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->update_undo_list,
-			       trx->update_undo);
-		trx_undo_mem_free(trx->update_undo);
+	if (trx->standard.update_undo) {
+		ut_a(trx->standard.update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->standard.rseg->update_undo_list,
+			       trx->standard.update_undo);
+		trx_undo_mem_free(trx->standard.update_undo);
 	}
-	if (trx->insert_undo) {
-		ut_a(trx->insert_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->rseg->insert_undo_list,
-			       trx->insert_undo);
-		trx_undo_mem_free(trx->insert_undo);
+	if (trx->standard.insert_undo) {
+		ut_a(trx->standard.insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->standard.rseg->insert_undo_list,
+			       trx->standard.insert_undo);
+		trx_undo_mem_free(trx->standard.insert_undo);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
