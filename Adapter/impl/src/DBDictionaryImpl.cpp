@@ -230,12 +230,13 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
   cb_args[0] = Null();
   cb_args[1] = Null();
   
-  /* TableMetadata = {
-      database         : ""    ,  // Database name
-      name             : ""    ,  // Table Name
-      columns          : []    ,  // ordered array of DBColumn objects
-      indexes          : []    ,  // array of DBIndex objects 
-      partitionKey     : []    ,  // ordered array of column numbers in the partition key
+  /*TableMetadata = {
+      database            : ""  , // Database name
+      name                : ""  , // Table Name
+      columns             : {}  , // ordered array of ColumnMetadata objects
+      indexes             : {}  , // array of IndexMetadata objects 
+      partitionKey        : {}  , // ordered array of column numbers in the partition key
+      autoIncColumnNumber : null, // column number of auto-inc column, if any
     };
   */    
   if(ndb_table && ! return_val) {
@@ -248,12 +249,28 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     
     // name
     table->Set(String::NewSymbol("name"), String::New(ndb_table->getName()));
+
+    // autoIncrementColumn
+    Handle<Value> autoIncField = String::NewSymbol("autoIncColumnNumber");
+    table->Set(autoIncField, Null());
+
+    // partitionKey
+    int nPartitionKeys = 0;
+    Handle<Array> partitionKeys = Array::New();
+    table->Set(String::NewSymbol("partitionKey"), partitionKeys);
     
     // columns
     Local<Array> columns = Array::New(ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
-      Handle<Object> col = buildDBColumn(ndb_table->getColumn(i));
+      const NdbDictionary::Column *ndb_col = ndb_table->getColumn(i);
+      Handle<Object> col = buildDBColumn(ndb_col);
       columns->Set(i, col);
+      if(ndb_col->getAutoIncrement()) { /* autoincrement */
+        table->Set(autoIncField, Number::New(i));
+      }
+      if(ndb_col->getPartitionKey()) { /* partition key */
+        partitionKeys->Set(nPartitionKeys++, String::New(ndb_col->getName()));
+      }
     }
     table->Set(String::NewSymbol("columns"), columns);
 
@@ -263,14 +280,9 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     for(unsigned int i = 0 ; i < idx_list.count ; i++) {   // secondary indexes
       const NdbDictionary::Index * idx =
         arg0->dict->getIndex(idx_list.elements[i].name, arg2);
-
-
       js_indexes->Set(i+1, buildDBIndex(idx));
     }    
     table->Set(String::NewSymbol("indexes"), js_indexes, ReadOnly);
-
-    // partitionKey
-    
   
     // Table Record (implementation artifact; not part of spec)
     DEBUG_PRINT("Creating Table Record");
