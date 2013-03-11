@@ -717,7 +717,7 @@ trx_undo_page_report_modify(
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
 
-				trx->update_undo->del_marks = TRUE;
+				trx->standard.update_undo->del_marks = TRUE;
 
 				*type_cmpl_ptr |= TRX_UNDO_UPD_EXTERN;
 			} else {
@@ -753,7 +753,7 @@ trx_undo_page_report_modify(
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		byte*	old_ptr = ptr;
 
-		trx->update_undo->del_marks = TRUE;
+		trx->standard.update_undo->del_marks = TRUE;
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -1241,12 +1241,12 @@ trx_undo_report_row_operation(
 		ut_ad(!srv_read_only_mode);
 		/* MySQL should block writes to non-temporary tables. */
 		ut_a(DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_TEMPORARY));
-		if (trx->rseg == 0) {
+		if (trx->standard.rseg == 0) {
 			trx_assign_rseg(trx);
 		}
 	}
 
-	rseg = trx->rseg;
+	rseg = trx->standard.rseg;
 
 	mtr_start(&mtr);
 	mutex_enter(&trx->undo_mutex);
@@ -1255,12 +1255,12 @@ trx_undo_report_row_operation(
 
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
-		undo = trx->insert_undo;
+		undo = trx->standard.insert_undo;
 
 		if (undo == NULL) {
 
 			err = trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
-			undo = trx->insert_undo;
+			undo = trx->standard.insert_undo;
 
 			if (undo == NULL) {
 				/* Did not succeed */
@@ -1274,11 +1274,11 @@ trx_undo_report_row_operation(
 	default:
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
-		undo = trx->update_undo;
+		undo = trx->standard.update_undo;
 
 		if (undo == NULL) {
 			err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
-			undo = trx->update_undo;
+			undo = trx->standard.update_undo;
 
 			if (undo == NULL) {
 				/* Did not succeed */
