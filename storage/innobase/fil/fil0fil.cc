@@ -2222,6 +2222,38 @@ fil_recreate_tablespace(
 		return;
 	}
 
+	/* Clean header */
+	if (fsp_flags_is_compressed(flags)) {
+		byte*	buf;
+		buf = static_cast<byte*>(ut_malloc(3 * UNIV_PAGE_SIZE));
+		/* Align the memory for file i/o */
+		page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
+		memset(page, '\0', UNIV_PAGE_SIZE);
+		flags = fsp_flags_set_page_size(flags, UNIV_PAGE_SIZE);
+		fsp_header_init_fields(page, space_id, flags);
+		mach_write_to_4(page + FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID,
+				space_id);
+		page_zip_des_t  page_zip;
+		page_zip_set_size(&page_zip, zip_size);
+		page_zip.data = page + UNIV_PAGE_SIZE;
+#ifdef UNIV_DEBUG
+		page_zip.m_start =
+#endif
+		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
+		buf_flush_init_for_writing(page, &page_zip, 0);
+		err = fil_write(TRUE, space_id, zip_size, 0, 0,
+				zip_size, page_zip.data, NULL);
+		if (err != DB_SUCCESS) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"failed to clean header of table '%s' for "
+				"tablespace %lu during recovery.",
+				srv_force_recovery, name, space_id);
+		}
+		ut_free(buf);
+	}
+
 	mtr_start(&mtr);
 	/* Do not log operations when applying MLOG_FILE_TRUNCATE
 	redo record during recovery, since the recovery can safely
