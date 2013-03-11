@@ -58,7 +58,17 @@ public:
     bitmap_init(&map2, (uint32 *) &buf2, sizeof(ulonglong) * 8, 0);
 
     // Store the original bits.
-    buf2= map2buff;
+    if (sizeof(ulonglong) >= 8) {
+      int8store(const_cast<uchar *>(static_cast<uchar *>
+                                    (static_cast<void *>(&buf2))),
+                map2buff);
+    } else {
+      DBUG_ASSERT(sizeof(buffer) >= 4);
+      int4store(const_cast<uchar *>(static_cast<uchar *>
+                                    (static_cast<void *>(&buf2))),
+                map2buff);
+    }
+
     bitmap_intersect(&map, &map2);
   }
   /* Use highest bit for all bits above sizeof(ulonglong)*8. */
@@ -99,9 +109,12 @@ public:
   ulonglong to_ulonglong() const
   {
     if (sizeof(buffer) >= 8)
-      return uint8korr(buffer);
+      return uint8korr(static_cast<const uchar *>
+                       (static_cast<const void *>(buffer)));
     DBUG_ASSERT(sizeof(buffer) >= 4);
-    return (ulonglong) uint4korr(buffer);
+    return (ulonglong)
+      uint4korr(static_cast<const uchar *>
+                (static_cast<const void *>(buffer)));
   }
   uint bits_set() const { return bitmap_bits_set(&map); }
 };
