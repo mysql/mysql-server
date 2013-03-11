@@ -128,8 +128,10 @@ ENDFOREACH()
 # NOTE: While committing a patch please make sure that the file is unmodified
 # and should show the default MAX_INDEXES (i.e. 64U).
 IF (MAX_INDEXES)
-  FILE(WRITE include/max_indexes.inc
-       "# Warning: This is an auto-generated file. Please do not modify it.
+  IF(NOT (${MAX_INDEXES} EQUAL 64U))
+    FILE(WRITE include/max_indexes.inc
+         "# Warning: This is an auto-generated file. Please do not modify it.
 --let $max_indexes = ${MAX_INDEXES}\n")
-  MESSAGE(STATUS "mysql-test/include/max_indexes.inc adjusted")
+    MESSAGE(STATUS "mysql-test/include/max_indexes.inc adjusted")
+  ENDIF()
 ENDIF()
