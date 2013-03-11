@@ -26,7 +26,7 @@ var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
     FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
     stats_module    = require(path.join(api_dir, "stats")),
     stats           = stats_module.getWriter("spi","common","DBTableHandler"),
-    udebug          = unified_debug.getLogger("DBTableHander.js");
+    udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue
 var DBIndexHandler;
@@ -61,8 +61,9 @@ var proto = {
   columnNumberToFieldMap : {},
   fieldNumberToColumnMap : {},
   fieldNumberToFieldMap  : {},
-  errorMessages          : '\n',    // error messages during construction
-  isValid                : true
+  errorMessages          : '\n',  // error messages during construction
+  isValid                : true,
+  autoIncColumnNumber    : null   
 };
 
 /* getColumnByName() is a utility function used in the building of maps.
@@ -158,10 +159,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[n] = f;
         f.columnNumber = n;
         f.defaultValue = c.defaultValue;
-        // TODO: This could be a bug because fieldNumber != columnNumber
-        if (c.isAutoincrement) {
-          this.autoincrementFieldNumber = i;
-        }
       } else {
         this.appendErrorMessage(
             'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
@@ -179,10 +176,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
-        // TODO: see above
-        if (c.isAutoincrement) {
-          this.autoincrementFieldNumber = i;
-        }
       }
     }
   }
@@ -197,12 +190,21 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.resolvedMapping.fields = [];
 
   /* Build fieldNumberToColumnMap, establishing field order.
+     Detect the autoincrement column.
      Also build the remaining fieldNameToFieldMap and fieldNumberToFieldMap. */
   for(i = 0 ; i < this.dbTable.columns.length ; i++) {
     c = this.dbTable.columns[i];
     f = this.columnNumberToFieldMap[i];
+    if(c.isAutoincrement) { 
+      this.autoIncColumnNumber = i;
+      if(! (f || c.isNullable)) {
+        this.appendErrorMessage("Non-nullable auto-increment column " + c.name
+                                + " must be part of mapping.");
+      }
+    }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
+      f.fieldNumber = this.fieldNumberToFieldMap.length;
       this.fieldNumberToColumnMap.push(c);
       this.fieldNumberToFieldMap.push(f);
       this.fieldNameToFieldMap[f.fieldName] = f;
@@ -309,7 +311,11 @@ DBTableHandler.prototype.applyMappingToResult = function(obj) {
  * Store autoincrement values into object
  */
 DBTableHandler.prototype.setAutoincrement = function(object, autoincrementValue) {
-  this.set(object, this.autoincrementFieldNumber, autoincrementValue);
+  var autoIncField;
+  if(this.autoIncColumnNumber) {
+    autoIncField = this.columnNumberToFieldMap[this.autoIncColumnNumber];
+    this.set(object, autoIncField.fieldNumber, autoincrementValue);
+  }
 };
 
 
