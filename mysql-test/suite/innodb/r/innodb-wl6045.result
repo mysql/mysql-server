@@ -1,4 +1,7 @@
 # Set the environmental variables
+CALL mtr.add_suppression("InnoDB: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+call mtr.add_suppression("InnoDB: Unable to lock");
 DROP TABLE IF EXISTS tab1;
 # set the servervariables
 SET GLOBAL innodb_file_per_table=on;
@@ -145,8 +148,6 @@ DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;
 # Shutdown the server
 # Further test is to corrupt the ibd file, & do repair for (innodb|crc32|none) checksum through innochecksum tool
-CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
 SET GLOBAL innodb_file_per_table=on;
 # Create and populate the table to be corrupted
 CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
@@ -886,7 +887,6 @@ select * from tab2;
 #cleanup
 DROP TABLE IF EXISTS tab1;
 DROP TABLE IF EXISTS tab2;
-call mtr.add_suppression("InnoDB: Unable to lock");
 # create a base table,Index & insert a record
 CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
 CREATE INDEX idx1 ON tab1(c2(10));

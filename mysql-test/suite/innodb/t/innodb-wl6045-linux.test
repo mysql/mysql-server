@@ -26,7 +26,7 @@ SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo # create a base table,Index & insert a record
 CREATE TABLE t1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
-CREATE INDEX idx1 ON t1(c2(10)); 
+CREATE INDEX idx1 ON t1(c2(10));
 INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB1');
 
 --echo # Shutdown the Server
@@ -72,7 +72,7 @@ closedir(DIR);
 EOF
 
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---echo # Test[1] End 
+--echo # Test[1] End
 --echo # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
 --echo # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
@@ -173,8 +173,8 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo # Retrieve the original t1.ibd before any rewrite of checksum, so used for further testing.
 --remove_file $t1_IBD
---copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD 
- 
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD
+
 --echo # Command for innochecksum too to read from stdin and rewrite the checksum to "none"
 --echo # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=none - > MYSQLTEST_VARDIR/tmp/a.ibd
 perl;
@@ -269,8 +269,8 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo # Retrieve the original t1.ibd before any rewrite of checksum.
 --remove_file $t1_IBD
---copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD 
- 
+--copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD
+
 --echo # Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
 --echo # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=innodb - > MYSQLTEST_VARDIR/tmp/a.ibd
 perl;
@@ -356,7 +356,7 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --disable_reconnect
 --echo # Test[4] End
 
---echo #cleanup 
+--echo #cleanup
 --remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 DROP TABLE IF EXISTS t1;
 SET GLOBAL innodb_file_format=default;
