@@ -145,7 +145,7 @@ trx_in_trx_list(
 	/* Non-locking autocommits should not hold any locks. */
 	assert_trx_in_list(in_trx);
 
-	trx_list = (in_trx->read_only || in_trx->rseg == 0)
+	trx_list = (in_trx->read_only || in_trx->standard.rseg == 0)
 		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
@@ -158,9 +158,9 @@ trx_in_trx_list(
 
 		assert_trx_in_list(trx);
 
-		ut_ad(!(trx->rseg == 0 || trx->read_only)
+		ut_ad(!(trx->standard.rseg == 0 || trx->read_only)
 		      == (trx_list == &trx_sys->rw_trx_list)
-		      || (trx->rseg != 0 && trx->read_only)
+		      || (trx->standard.rseg != 0 && trx->read_only)
 		      == (trx_list == &trx_sys->ro_trx_list));
 	}
 

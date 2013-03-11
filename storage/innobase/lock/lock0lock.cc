@@ -4022,7 +4022,7 @@ lock_table(
 
 	if ((mode == LOCK_IX || mode == LOCK_X)
 	    && !trx->read_only
-	    && trx->rseg == 0) {
+	    && trx->standard.rseg == 0) {
 
 		trx_set_rw_mode(trx);
 	}
@@ -5504,7 +5504,7 @@ lock_validate_table_locks(
 		const lock_t*	lock;
 
 		assert_trx_in_list(trx);
-		ut_ad((trx->read_only || trx->rseg == 0)
+		ut_ad((trx->read_only || trx->standard.rseg == 0)
 		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);
@@ -6727,7 +6727,7 @@ lock_table_locks_lookup(
 
 		assert_trx_in_list(trx);
 
-		ut_ad((trx->read_only || trx->rseg == 0)
+		ut_ad((trx->read_only || trx->standard.rseg == 0)
 		      == (trx_list == &trx_sys->ro_trx_list));
 
 		for (lock = UT_LIST_GET_FIRST(trx->lock.trx_locks);

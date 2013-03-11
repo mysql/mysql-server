@@ -3607,7 +3607,8 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (trx->insert_undo != 0 || trx->update_undo != 0) {
+	if (trx->standard.insert_undo != 0
+	    || trx->standard.update_undo != 0) {
 		error = trx_rollback_for_mysql(trx);
 	}
 

@@ -527,8 +527,10 @@ Assert that the transaction is either in trx_sys->ro_trx_list or
 trx_sys->rw_trx_list but not both and it cannot be an autocommit
 non-locking select */
 #define assert_trx_in_list(t) do {					\
-	ut_ad((t)->in_ro_trx_list == ((t)->read_only || !(t)->rseg));	\
-	ut_ad((t)->in_rw_trx_list == !((t)->read_only || !(t)->rseg));	\
+	ut_ad((t)->in_ro_trx_list ==					\
+		((t)->read_only || !(t)->standard.rseg));		\
+	ut_ad((t)->in_rw_trx_list ==					\
+		!((t)->read_only || !(t)->standard.rseg));		\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
@@ -700,6 +702,18 @@ holding trx_sys->mutex exclusively.
 lock_rec_convert_impl_to_expl()) will access transactions associated
 to other connections. The locks of transactions are protected by
 lock_sys->mutex and sometimes by trx->mutex. */
+
+
+/* A undo log ptr that is assigned to trx for undo logging. */
+struct trx_undo_ptr_t{
+	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
+					transaction, or NULL if not assigned
+					yet */
+	trx_undo_t*	insert_undo;	/*!< pointer to the insert undo log, or
+					NULL if no inserts performed yet */
+	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
+					NULL if no update performed yet */
+};
 
 struct trx_t{
 	ulint		magic_n;
@@ -976,13 +990,12 @@ struct trx_t{
 					was started: in case of an error, trx
 					is rolled back down to this undo
 					number; see note at undo_mutex! */
-	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
-					transaction, or NULL if not assigned
-					yet */
-	trx_undo_t*	insert_undo;	/*!< pointer to the insert undo log, or
-					NULL if no inserts performed yet */
-	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
-					NULL if no update performed yet */
+	trx_undo_ptr_t	standard;	/*!< undo log ptr bounded to system/undo
+					tablespace used for undo logging of all
+					objects except temp-tables. */
+	trx_undo_ptr_t	temporary;	/*!< undo log ptr bounded to temp
+					tablespace used for undo logging of
+					temp-tables objects only. */
 	undo_no_t	roll_limit;	/*!< least undo number to undo during
 					a rollback */
 	ulint		pages_undone;	/*!< number of undo log pages undone

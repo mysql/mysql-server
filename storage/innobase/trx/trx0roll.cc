@@ -97,8 +97,9 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->insert_undo != 0 || trx->update_undo != 0) {
-		ut_ad(trx->rseg != 0);
+	if (trx->standard.insert_undo != 0
+	    || trx->standard.update_undo != 0) {
+		ut_ad(trx->standard.rseg != 0);
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -993,7 +994,7 @@ trx_roll_try_truncate(
 	const trx_undo_arr_t*	arr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&((trx->rseg)->mutex)));
+	ut_ad(mutex_own(&((trx->standard.rseg)->mutex)));
 
 	trx->pages_undone = 0;
 
@@ -1012,12 +1013,12 @@ trx_roll_try_truncate(
 		}
 	}
 
-	if (trx->insert_undo) {
-		trx_undo_truncate_end(trx, trx->insert_undo, limit);
+	if (trx->standard.insert_undo) {
+		trx_undo_truncate_end(trx, trx->standard.insert_undo, limit);
 	}
 
-	if (trx->update_undo) {
-		trx_undo_truncate_end(trx, trx->update_undo, limit);
+	if (trx->standard.update_undo) {
+		trx_undo_truncate_end(trx, trx->standard.update_undo, limit);
 	}
 }
 
@@ -1099,7 +1100,7 @@ trx_roll_pop_top_rec_of_trx(
 	ulint		progress_pct;
 	mtr_t		mtr;
 
-	rseg = trx->rseg;
+	rseg = trx->standard.rseg;
 try_again:
 	mutex_enter(&(trx->undo_mutex));
 
@@ -1111,8 +1112,8 @@ try_again:
 		mutex_exit(&rseg->mutex);
 	}
 
-	ins_undo = trx->insert_undo;
-	upd_undo = trx->update_undo;
+	ins_undo = trx->standard.insert_undo;
+	upd_undo = trx->standard.update_undo;
 
 	if (!ins_undo || ins_undo->empty) {
 		undo = upd_undo;
