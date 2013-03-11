@@ -26,8 +26,6 @@ Created 2013-03-26 Sunny Bains.
 #ifndef ib0mutex_h
 #define ib0mutex_h
 
-extern ulong	srv_spin_wait_delay;
-extern ulong	srv_n_spin_wait_rounds;
 extern ulong 	srv_force_recovery_crash;
 
 /** OS event mutex. We can't track the locking because this mutex is used
@@ -122,8 +120,16 @@ struct OSBasicMutex {
 #endif /* __WIN__ */
 	}
 
-	/** Acquire the mutex. */
-	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
                 ut_ad(!m_freed);
 #ifdef __WIN__
@@ -230,17 +236,22 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
                 OSBasicMutex<Policy>::exit();
 	}
 
-	/** Acquire the mutex. */
-	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
-		ulint		delay = srv_spin_wait_delay;
-		ulint		n_rounds = srv_n_spin_wait_rounds;
-
 		bool	locked = try_lock();
 
-		for (ulint i = 0; !locked && i < n_rounds; ++i) {
+		for (ulint i = 0; !locked && i < max_spins; ++i) {
 
-			ut_delay(ut_rnd_interval(0, delay));
+			ut_delay(ut_rnd_interval(0, max_delay));
 
 			locked = try_lock();
 		}
@@ -249,7 +260,8 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 			return;
 		}
 
-                OSBasicMutex<Policy>::enter(filename, line);
+                OSBasicMutex<Policy>::enter(
+			max_spins, max_delay, filename, line);
 
 		ut_ad(!m_locked);
 		ut_d(m_locked = true);
@@ -337,10 +349,18 @@ struct TTASFutexMutex {
 		m_policy.destroy();
 	}
 
-	/** Acquire the mutex. */
-	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
-		lock_word_t	lock = ttas();
+		lock_word_t	lock = ttas(max_spins, max_delay);
 
 		/* If there were no waiters when this thread tried
 		to acquire the mutex then set the waiters flag now.
@@ -474,14 +494,12 @@ private:
 	}
 
 	/** Poll waiting for mutex to be unlocked.
+	@param max_spins	max spins
+	@param max_delay	max delay per spin
 	@return value of lock word before locking. */
-	lock_word_t ttas() UNIV_NOTHROW
+	lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
-		ulint	delay = srv_spin_wait_delay;
-		ulint	n_rounds = srv_n_spin_wait_rounds;
-
-		/* The TTAS loop. */
-		for (ulint i = 0; i < n_rounds; ++i) {
+		for (ulint i = 0; i < max_spins; ++i) {
 
 			if (!is_locked()) {
 				lock_word_t	lock = trylock();
@@ -492,7 +510,7 @@ private:
 				}
 			}
 
-			ut_delay(ut_rnd_interval(0, delay));
+			ut_delay(ut_rnd_interval(0, max_delay));
 		}
 
 		return(trylock());
@@ -580,11 +598,19 @@ struct TTASMutex {
 		tas_unlock();
 	}
 
- 	/** Acquire the mutex. */
-	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		if (!try_lock()) {
-			ttas();
+			ttas(max_spins, max_delay);
 		}
 	}
 
@@ -624,24 +650,20 @@ struct TTASMutex {
 	}
 
 private:
-	/**
-	Spin and try to acquire the lock. */
-	void ttas() UNIV_NOTHROW
+	/** Spin and try to acquire the lock.
+	@param max_spins	max spins
+	@param max_delay	max delay per spin */
+	void ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
-		/* The Test, Test again And Set (TTAS) loop. */
-
-		ulint		delay = srv_spin_wait_delay;
-		ulint		n_rounds = srv_n_spin_wait_rounds;
-
 		do {
 			ulint	i;
 
-			for (i = 0; !is_locked() && i < n_rounds; ++i) {
+			for (i = 0; !is_locked() && i < max_spins; ++i) {
 
-				ut_delay(ut_rnd_interval(0, delay));
+				ut_delay(ut_rnd_interval(0, max_delay));
 			}
 
-			if (i == n_rounds) {
+			if (i == max_spins) {
 				os_thread_yield();
 			}
 
@@ -742,15 +764,23 @@ struct TTASEventMutex {
 		}
 	}
 
- 	/** Acquire the mutex. */
-	void enter(const char* filename, ulint line) UNIV_NOTHROW
+	/** Acquire the mutex.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void enter(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		/* Note that we do not peek at the value of m_lock_word
 		before trying the atomic test_and_set; we could peek,
 		and possibly save time. */
 
 		if (!try_lock()) {
-			spin_and_wait(filename, line);
+			spin_and_wait(max_spins, max_delay, filename, line);
 		}
 	}
 
@@ -800,14 +830,13 @@ struct TTASEventMutex {
 private:
 	/**
 	Spin and wait for the mutex to become free.
-	@param i - spin start index
+	@param max_spins	max spins
+	@param max_delay	max delay per spin
+	@param i 		spin start index
 	@return number of spins */
-	ulint ttas(ulint i) const UNIV_NOTHROW
+	ulint ttas(ulint max_spins, ulint max_delay, ulint i) const UNIV_NOTHROW
 	{
-		ulint	delay = srv_spin_wait_delay;
-		ulint	n_rounds = srv_n_spin_wait_rounds;
-
-		ut_ad(i >= 0 && i < n_rounds);
+		ut_ad(i >= 0 && i < max_spins);
 
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
@@ -815,9 +844,9 @@ private:
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		while (is_locked() && i < n_rounds) {
+		while (is_locked() && i < max_spins) {
 
-			ut_delay(ut_rnd_interval(0, delay));
+			ut_delay(ut_rnd_interval(0, max_delay));
 
 			++i;
 		}
@@ -828,21 +857,29 @@ private:
 	/**
 	Wait in the sync array.
 	@return true if the mutex acquisition was successful. */
-	bool wait(const char* file_name, ulint line) UNIV_NOTHROW;
+	bool wait(const char* filename, ulint line) UNIV_NOTHROW;
 
 	/**
 	Reserves a mutex for the current thread. If the mutex is reserved,
 	the function spins a preset time (controlled by srv_n_spin_wait_rounds),
-       	waiting for the mutex before suspending the thread. */
-	void spin_and_wait(const char* file_name, ulint line) UNIV_NOTHROW
+       	waiting for the mutex before suspending the thread.
+	@param max_spins	max number of spins
+	@param max_delay	max delay per spin
+	@param filename		from where called
+	@param line		within filenname */
+	void spin_and_wait(
+		ulint		max_spins,
+		ulint		max_delay,
+		const char*	filename,
+		ulint		line) UNIV_NOTHROW
 	{
 		ulint	n_spins = 0;
 
 		for (;;) {
 
-			n_spins = ttas(n_spins);
+			n_spins = ttas(max_spins, max_delay, n_spins);
 
-			if (n_spins < srv_n_spin_wait_rounds) {
+			if (n_spins < max_spins) {
 
 				if (try_lock()) {
 					return;
@@ -853,7 +890,7 @@ private:
 
 			os_thread_yield();
 
-			if (wait(file_name, line)) {
+			if (wait(filename, line)) {
 				break;
 			}
 
@@ -972,9 +1009,15 @@ struct PolicyMutex
 	}
 
 	/** Acquire the mutex.
-	@name - filename where locked
-	@line - line number where locked */
-	void enter(const char* name = 0, ulint line = 0) UNIV_NOTHROW
+	@param n_spins	max number of spins
+	@param n_delay	max delay per spin
+	@param name	filename where locked
+	@param line	line number where locked */
+	void enter(
+		ulint		n_spins,
+		ulint		n_delay,
+		const char*	name,
+		ulint		line) UNIV_NOTHROW
 	{
 #ifdef UNIV_PFS_MUTEX
 		/* Note: locker is really an alias for state. That's why
@@ -986,7 +1029,7 @@ struct PolicyMutex
 
 		policy().enter(m_impl);
 
-		m_impl.enter(name, line);
+		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().locked(m_impl);
 
