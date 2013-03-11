@@ -267,6 +267,7 @@ function main() {
 
     var operationsDoneCallback;
     var testsDoneCallback;
+    var resultsArray = [];
 
     var parameters = generateAllParameters(numberOfIterations);
     
@@ -286,6 +287,7 @@ function main() {
       } else {
         JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
         timer.stop();
+        resultsArray.push(timer.interval);
         operationsDoneCallback();
       }
     };
@@ -318,6 +320,7 @@ function main() {
         appendError(err);
       }
       timer.stop();
+      resultsArray.push(timer.interval);
       operationsDoneCallback();
     };
 
@@ -365,6 +368,7 @@ function main() {
     var bulkCheckBatchCallback = function(err) {
       JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
       timer.stop();
+      resultsArray.push(timer.interval);
       if (err) {
         appendError(err);
       }
@@ -418,6 +422,10 @@ function main() {
         if (JSCRUND.errors.length !== 0) {
           console.log(JSCRUND.errors);
         }
+        var r, resultsString = "";
+        while(r = resultsArray.shift())
+          resultsString += r + "\t";
+        console.log(resultsString);
         process.exit(0);
       }
     };
