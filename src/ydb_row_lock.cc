@@ -86,8 +86,8 @@ void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const 
     //
     // If we did find the transaction, then it has not yet been removed
     // from the manager and therefore has not yet released its locks.
-    // We must be able to find and replace the range buffer associated
-    // with this locktree. This is impotant, otherwise it can grow out of
+    // We must try to replace the range buffer associated with this locktree,
+    // if it exists. This is impotant, otherwise it can grow out of
     // control (ticket 5961).
 
     if (ttxn != nullptr) {
@@ -103,25 +103,31 @@ void toku_db_txn_escalate_callback(TXNID txnid, const toku::locktree *lt, const 
         // will not need to take the txn mutex, so the deadlock is avoided.
         toku_mutex_lock(&db_txn_struct_i(txn)->txn_mutex);
 
-        // We should be able to find this locktree. It was just escalated, and we had locks.
         uint32_t idx;
         txn_lt_key_ranges ranges;
         toku::omt<txn_lt_key_ranges> *map = &db_txn_struct_i(txn)->lt_map;
         int r = map->find_zero<const toku::locktree *, find_key_ranges_by_lt>(lt, &ranges, &idx);
-        invariant_zero(r);
-
-        // Destroy the old range buffer, create a new one, and insert the new ranges.
-        //
-        // We could theoretically steal the memory from the caller instead of copying
-        // it, but it's simpler to have a callback API that doesn't transfer memory ownership.
-        ranges.buffer->destroy();
-        ranges.buffer->create();
-        toku::range_buffer::iterator iter;
-        toku::range_buffer::iterator::record rec;
-        iter.create(&buffer);
-        while (iter.current(&rec)) {
-            ranges.buffer->append(rec.get_left_key(), rec.get_right_key());
-            iter.next();
+        if (r == 0) {
+            // Destroy the old range buffer, create a new one, and insert the new ranges.
+            //
+            // We could theoretically steal the memory from the caller instead of copying
+            // it, but it's simpler to have a callback API that doesn't transfer memory ownership.
+            ranges.buffer->destroy();
+            ranges.buffer->create();
+            toku::range_buffer::iterator iter;
+            toku::range_buffer::iterator::record rec;
+            iter.create(&buffer);
+            while (iter.current(&rec)) {
+                ranges.buffer->append(rec.get_left_key(), rec.get_right_key());
+                iter.next();
+            }
+        } else {
+            // In rare cases, we may not find the associated locktree, because we are
+            // racing with the transaction trying to add this locktree to the lt map
+            // after acquiring its first lock. The escalated lock set must be the single
+            // lock that this txnid just acquired. Do nothing here and let the txn
+            // take care of adding this locktree and range to its lt map as usual.
+            invariant(buffer.get_num_ranges() == 1);
         }
 
         toku_mutex_unlock(&db_txn_struct_i(txn)->txn_mutex);
