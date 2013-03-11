@@ -36,6 +36,8 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
   if (unlikely(!Count))
     DBUG_RETURN(0);
   
+  DBUG_EXECUTE_IF ("simulate_file_write_error_once",
+                   { DBUG_SET("+d,simulate_file_write_error");});
   for (;;)
   {
     writenbytes= write(Filedes, Buffer, Count);
@@ -69,6 +71,8 @@ size_t my_write(int Filedes, const uchar *Buffer, size_t Count, myf MyFlags)
     {
       wait_for_free_space(my_filename(Filedes), errors);
       errors++;
+      DBUG_EXECUTE_IF("simulate_file_write_error_once",
+                      { DBUG_SET("-d,simulate_file_write_error");});
       continue;
     }
 

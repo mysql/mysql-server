@@ -25,7 +25,7 @@
 namespace yaSSL {
 
 
-#ifdef YASSL_THREAD_SAFE
+#ifdef MULTI_THREADED
     #ifdef _WIN32
         
         Mutex::Mutex()
@@ -78,7 +78,7 @@ namespace yaSSL {
          
 
     #endif // _WIN32
-#endif // YASSL_THREAD_SAFE
+#endif // MULTI_THREADED
 
 
 
