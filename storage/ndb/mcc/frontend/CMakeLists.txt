@@ -13,37 +13,36 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-if(NOT DEFAULT_MYSQL_HOME OR 
-   NOT MCC_BUILDING_MSI)
-  # If not building as part of Cluster we don't have the CREATE_ZIP
-  # macro available, so we just install dojo normally
-  # When not building msi we can install all of dojo
-  message(STATUS "Installing expanded dojo")
-  install(DIRECTORY "."
-    DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
-    COMPONENT ClusterTools)
-  return()
-endif()
+IF(DEFAULT_MYSQL_HOME)
+  # Only include if running cmake for all of cluster
+  INCLUDE("${NDB_SOURCE_DIR}/config/type_mcc_utils.cmake")
+ENDIF()
 
-MESSAGE(STATUS "Installing dojo.zip")
-INCLUDE("${NDB_SOURCE_DIR}/config/type_mcc_utils.cmake")
+IF(WIN32)
+  # Always create the zip on Win, since the modified msi install won't 
+  # trigger a build if the zip does not exist. 
+  SET(DOJO_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip") 
+  MESSAGE(STATUS "Creating ${DOJO_ARCHIVE}")
+  CREATE_ZIP(${DOJO_ARCHIVE} dojo)
+  IF(NOT ZIP_EXECUTABLE)
+    MESSAGE(WARNING "No zip execuatble available")
+  ENDIF()
+ENDIF()
 
-SET(DOJO_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip") 
-CREATE_ZIP(${DOJO_ARCHIVE} dojo)
-
-IF(ZIP_EXECUTABLE)
-  ADD_CUSTOM_TARGET(dojozip ALL DEPENDS "${DOJO_ARCHIVE}")
-  install(DIRECTORY "." 
+IF(DEFAULT_MYSQL_HOME AND ZIP_EXECUTABLE AND MCC_BUILDING_MSI)
+  # Only install the zip when building an msi
+  MESSAGE(STATUS "Will install ${DOJO_ARCHIVE}")
+  INSTALL(DIRECTORY "." 
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
     COMPONENT ClusterTools
-    PATTERN ".hg" EXCLUDE
     PATTERN "dojo" EXCLUDE)
-  install(FILES "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip" 
+  INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip" 
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
     COMPONENT ClusterTools)
 ELSE()
-  MESSAGE(STATUS ">>>>>>>>>>>>> NO ZIP FOUND")
-  install(DIRECTORY "."
+  MESSAGE(STATUS "Will install the dojo directory")
+  INSTALL(DIRECTORY "."
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
-	COMPONENT ClusterTools)
-ENDIF(ZIP_EXECUTABLE)
+    COMPONENT ClusterTools
+    PATTERN "dojo.zip" EXCLUDE)
+ENDIF()
