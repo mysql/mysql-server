@@ -1340,6 +1340,12 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
       thd->update_server_status();
       thd->protocol->end_statement();
       query_cache.end_of_result(thd);
+
+      mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
+                          thd->get_stmt_da()->is_error() ?
+                          thd->get_stmt_da()->mysql_errno() : 0,
+                          command_name[command].str);
+
       ulong length= (ulong)(packet_end - beginning_of_next_stmt);
 
       log_slow_statement(thd);
@@ -4604,50 +4610,6 @@ end_with_restore_list:
 #endif /* EMBEDDED_LIBRARY */
     break;
   }
-  case SQLCOM_CREATE_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    if (create_server(thd, &thd->lex->server_options))
-      goto error;
-
-    my_ok(thd, 1);
-    break;
-  }
-  case SQLCOM_ALTER_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    if (alter_server(thd, &thd->lex->server_options))
-      goto error;
-
-    my_ok(thd, 1);
-    break;
-  }
-  case SQLCOM_DROP_SERVER:
-  {
-    if (check_global_access(thd, SUPER_ACL))
-      goto error;
-
-    LEX *lex= thd->lex;
-    if (drop_server(thd, &lex->server_options, lex->drop_if_exists))
-    {
-      /*
-        drop_server() can fail without reporting an error
-        due to IF EXISTS clause. In this case, call my_ok().
-      */
-      if (thd->is_error() || thd->killed)
-        goto error;
-      DBUG_ASSERT(lex->drop_if_exists);
-      my_ok(thd, 0);
-      break;
-    }
-
-    my_ok(thd, 1);
-    break;
-  }
   case SQLCOM_ANALYZE:
   case SQLCOM_CHECK:
   case SQLCOM_OPTIMIZE:
@@ -4659,6 +4621,9 @@ end_with_restore_list:
   case SQLCOM_HA_CLOSE:
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
     /* fall through */
+  case SQLCOM_CREATE_SERVER:
+  case SQLCOM_ALTER_SERVER:
+  case SQLCOM_DROP_SERVER:
   case SQLCOM_SIGNAL:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
@@ -5056,8 +5021,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
     if (!(sctx->master_access & SELECT_ACL))
     {
       if (db && (!thd->db || db_is_pattern || strcmp(db, thd->db)))
-        db_access= acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
-                           db_is_pattern);
+        db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                           sctx->priv_user, db, db_is_pattern);
       else
       {
         /* get access for current db */
@@ -5105,8 +5070,8 @@ check_access(THD *thd, ulong want_access, const char *db, ulong *save_priv,
   }
 
   if (db && (!thd->db || db_is_pattern || strcmp(db,thd->db)))
-    db_access= acl_get(sctx->host, sctx->ip, sctx->priv_user, db,
-                       db_is_pattern);
+    db_access= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                       sctx->priv_user, db, db_is_pattern);
   else
     db_access= sctx->db_access;
   DBUG_PRINT("info",("db_access: %lu  want_access: %lu",
@@ -5544,7 +5509,7 @@ bool check_stack_overrun(THD *thd, long margin,
 #define MY_YACC_INIT 1000			// Start with big alloc
 #define MY_YACC_MAX  32000			// Because of 'short'
 
-bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
+bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, YYLTYPE **yyls, ulong *yystacksize)
 {
   Yacc_state *state= & current_thd->m_parser_state->m_yacc;
   ulong old_info=0;
@@ -5561,6 +5526,10 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
       !(state->yacc_yyss= (uchar*)
         my_realloc(state->yacc_yyss,
                    *yystacksize*sizeof(**yyss),
+                   MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))) ||
+      !(state->yacc_yyls= (uchar*)
+        my_realloc(state->yacc_yyls,
+                   *yystacksize*sizeof(**yyls),
                    MYF(MY_ALLOW_ZERO_PTR | MY_FREE_ON_ERROR))))
     return 1;
   if (old_info)
@@ -5572,9 +5541,11 @@ bool my_yyoverflow(short **yyss, YYSTYPE **yyvs, ulong *yystacksize)
     */
     memcpy(state->yacc_yyss, *yyss, old_info*sizeof(**yyss));
     memcpy(state->yacc_yyvs, *yyvs, old_info*sizeof(**yyvs));
+    memcpy(state->yacc_yyls, *yyls, old_info*sizeof(**yyls));
   }
   *yyss= (short*) state->yacc_yyss;
   *yyvs= (YYSTYPE*) state->yacc_yyvs;
+  *yyls= (YYLTYPE*) state->yacc_yyls;
   return 0;
 }
 

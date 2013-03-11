@@ -271,6 +271,7 @@ int mysql_update(THD *thd,
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -408,6 +409,9 @@ int mysql_update(THD *thd,
     else
       conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
                            true, &result);
+
+    if (thd->is_error())
+        goto exit_without_my_ok;
 
     if (result == Item::COND_FALSE)
     {

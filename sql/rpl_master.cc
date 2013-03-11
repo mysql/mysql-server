@@ -926,26 +926,26 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
-  if (slave_gtid_executed != NULL)
-  {
-    global_sid_lock->wrlock();
-    if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
-    {
-      global_sid_lock->unlock();
-      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
-      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-      GOTO_ERR;
-    }
-    global_sid_lock->unlock();
-  }
-
-  name=search_file_name;
+  name= search_file_name;
   if (log_ident[0])
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
-    name=0;					// Find first log
+  {
+    if (using_gtid_protocol)
+    {
+      if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
+                                                       slave_gtid_executed,
+                                                       &errmsg))
+      {
+         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+         GOTO_ERR;
+      }
+    }
+    else
+      name= 0;					// Find first log
+  }
 
-  linfo.index_file_offset = 0;
+  linfo.index_file_offset= 0;
 
   if (mysql_bin_log.find_log_pos(&linfo, name, 1))
   {

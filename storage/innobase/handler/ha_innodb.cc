@@ -170,10 +170,6 @@ values */
 
 static ulong	innobase_fast_shutdown			= 1;
 static my_bool	innobase_file_format_check		= TRUE;
-#ifdef UNIV_LOG_ARCHIVE
-static my_bool	innobase_log_archive			= FALSE;
-static char*	innobase_log_arch_dir			= NULL;
-#endif /* UNIV_LOG_ARCHIVE */
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_locks_unsafe_for_binlog	= FALSE;
@@ -260,6 +256,8 @@ const struct _ft_vft_ext ft_vft_ext_result = {innobase_fts_get_version,
 					      innobase_fts_count_matches};
 
 #ifdef HAVE_PSI_INTERFACE
+# define PSI_KEY(n) {&n##_key, #n, 0}
+
 /* Keys to register pthread mutexes/cond in the current file with
 performance schema */
 static mysql_pfs_key_t	innobase_share_mutex_key;
@@ -268,13 +266,13 @@ static mysql_pfs_key_t	commit_cond_mutex_key;
 static mysql_pfs_key_t	commit_cond_key;
 
 static PSI_mutex_info	all_pthread_mutexes[] = {
-	{&commit_threads_m_key, "commit_threads_m", 0},
-	{&commit_cond_mutex_key, "commit_cond_mutex", 0},
-	{&innobase_share_mutex_key, "innobase_share_mutex", 0}
+	PSI_KEY(commit_threads_m),
+	PSI_KEY(commit_cond_mutex),
+	PSI_KEY(innobase_share_mutex)
 };
 
 static PSI_cond_info	all_innodb_conds[] = {
-	{&commit_cond_key, "commit_cond", 0}
+	PSI_KEY(commit_cond)
 };
 
 # ifdef UNIV_PFS_MUTEX
@@ -282,76 +280,75 @@ static PSI_cond_info	all_innodb_conds[] = {
 performance schema instrumented if "UNIV_PFS_MUTEX"
 is defined */
 static PSI_mutex_info all_innodb_mutexes[] = {
-	{&autoinc_mutex_key, "autoinc_mutex", 0},
+	PSI_KEY(autoinc_mutex),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	{&buffer_block_mutex_key, "buffer_block_mutex", 0},
+	PSI_KEY(buffer_block_mutex),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
-	{&buf_pool_mutex_key, "buf_pool_mutex", 0},
-	{&buf_pool_zip_mutex_key, "buf_pool_zip_mutex", 0},
-	{&cache_last_read_mutex_key, "cache_last_read_mutex", 0},
-	{&dict_foreign_err_mutex_key, "dict_foreign_err_mutex", 0},
-	{&dict_sys_mutex_key, "dict_sys_mutex", 0},
-	{&dict_stats_recalc_pool_mutex_key, "dict_stats_recalc_pool_mutex_key", 0},
-	{&file_format_max_mutex_key, "file_format_max_mutex", 0},
-	{&fil_system_mutex_key, "fil_system_mutex", 0},
-	{&flush_list_mutex_key, "flush_list_mutex", 0},
-	{&fts_bg_threads_mutex_key, "fts_bg_threads_mutex", 0},
-	{&fts_delete_mutex_key, "fts_delete_mutex", 0},
-	{&fts_optimize_mutex_key, "fts_optimize_mutex", 0},
-	{&fts_doc_id_mutex_key, "fts_doc_id_mutex", 0},
-	{&log_flush_order_mutex_key, "log_flush_order_mutex", 0},
-	{&hash_table_mutex_key, "hash_table_mutex", 0},
-	{&ibuf_bitmap_mutex_key, "ibuf_bitmap_mutex", 0},
-	{&ibuf_mutex_key, "ibuf_mutex", 0},
-	{&ibuf_pessimistic_insert_mutex_key,
-		 "ibuf_pessimistic_insert_mutex", 0},
+	PSI_KEY(buf_pool_mutex),
+	PSI_KEY(buf_pool_zip_mutex),
+	PSI_KEY(cache_last_read_mutex),
+	PSI_KEY(dict_foreign_err_mutex),
+	PSI_KEY(dict_sys_mutex),
+	PSI_KEY(dict_stats_recalc_pool_mutex),
+	PSI_KEY(file_format_max_mutex),
+	PSI_KEY(fil_system_mutex),
+	PSI_KEY(flush_list_mutex),
+	PSI_KEY(fts_bg_threads_mutex),
+	PSI_KEY(fts_delete_mutex),
+	PSI_KEY(fts_optimize_mutex),
+	PSI_KEY(fts_doc_id_mutex),
+	PSI_KEY(log_flush_order_mutex),
+	PSI_KEY(hash_table_mutex),
+	PSI_KEY(ibuf_bitmap_mutex),
+	PSI_KEY(ibuf_mutex),
+	PSI_KEY(ibuf_pessimistic_insert_mutex),
 #  ifndef HAVE_ATOMIC_BUILTINS
-	{&server_mutex_key, "server_mutex", 0},
+	PSI_KEY(server_mutex),
 #  endif /* !HAVE_ATOMIC_BUILTINS */
-	{&log_sys_mutex_key, "log_sys_mutex", 0},
+	PSI_KEY(log_sys_mutex),
 #  ifdef UNIV_MEM_DEBUG
-	{&mem_hash_mutex_key, "mem_hash_mutex", 0},
+	PSI_KEY(mem_hash_mutex),
 #  endif /* UNIV_MEM_DEBUG */
-	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
-	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
-	{&page_zip_stat_per_index_mutex_key, "page_zip_stat_per_index_mutex", 0},
-	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
-	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
-	{&recv_writer_mutex_key, "recv_writer_mutex", 0},
-	{&rseg_mutex_key, "rseg_mutex", 0},
+	PSI_KEY(mem_pool_mutex),
+	PSI_KEY(mutex_list_mutex),
+	PSI_KEY(page_zip_stat_per_index_mutex),
+	PSI_KEY(purge_sys_bh_mutex),
+	PSI_KEY(recv_sys_mutex),
+	PSI_KEY(recv_writer_mutex),
+	PSI_KEY(rseg_mutex),
 #  ifdef UNIV_SYNC_DEBUG
-	{&rw_lock_debug_mutex_key, "rw_lock_debug_mutex", 0},
+	PSI_KEY(rw_lock_debug_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&rw_lock_list_mutex_key, "rw_lock_list_mutex", 0},
-	{&rw_lock_mutex_key, "rw_lock_mutex", 0},
-	{&srv_dict_tmpfile_mutex_key, "srv_dict_tmpfile_mutex", 0},
-	{&srv_innodb_monitor_mutex_key, "srv_innodb_monitor_mutex", 0},
-	{&srv_misc_tmpfile_mutex_key, "srv_misc_tmpfile_mutex", 0},
-	{&srv_monitor_file_mutex_key, "srv_monitor_file_mutex", 0},
+	PSI_KEY(rw_lock_list_mutex),
+	PSI_KEY(rw_lock_mutex),
+	PSI_KEY(srv_dict_tmpfile_mutex),
+	PSI_KEY(srv_innodb_monitor_mutex),
+	PSI_KEY(srv_misc_tmpfile_mutex),
+	PSI_KEY(srv_monitor_file_mutex),
 #  ifdef UNIV_SYNC_DEBUG
-	{&sync_thread_mutex_key, "sync_thread_mutex", 0},
+	PSI_KEY(sync_thread_mutex),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&buf_dblwr_mutex_key, "buf_dblwr_mutex", 0},
-	{&trx_undo_mutex_key, "trx_undo_mutex", 0},
-	{&srv_sys_mutex_key, "srv_sys_mutex", 0},
-	{&lock_sys_mutex_key, "lock_mutex", 0},
-	{&lock_sys_wait_mutex_key, "lock_wait_mutex", 0},
-	{&trx_mutex_key, "trx_mutex", 0},
-	{&srv_sys_tasks_mutex_key, "srv_threads_mutex", 0},
+	PSI_KEY(buf_dblwr_mutex),
+	PSI_KEY(trx_undo_mutex),
+	PSI_KEY(srv_sys_mutex),
+	PSI_KEY(lock_mutex),
+	PSI_KEY(lock_wait_mutex),
+	PSI_KEY(trx_mutex),
+	PSI_KEY(srv_threads_mutex),
 	/* mutex with os_fast_mutex_ interfaces */
 #  ifndef PFS_SKIP_EVENT_MUTEX
-	{&event_os_mutex_key, "event_os_mutex", 0},
+	PSI_KEY(event_os_mutex),
 #  endif /* PFS_SKIP_EVENT_MUTEX */
-	{&os_mutex_key, "os_mutex", 0},
+	PSI_KEY(os_mutex),
 #ifndef HAVE_ATOMIC_BUILTINS
-	{&srv_conc_mutex_key, "srv_conc_mutex", 0},
+	PSI_KEY(srv_conc_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS */
 #ifndef HAVE_ATOMIC_BUILTINS_64
-	{&monitor_mutex_key, "monitor_mutex", 0},
+	PSI_KEY(monitor_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
-	{&ut_list_mutex_key, "ut_list_mutex", 0},
-	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
-	{&zip_pad_mutex_key, "zip_pad_mutex", 0},
+	PSI_KEY(ut_list_mutex),
+	PSI_KEY(trx_sys_mutex),
+	PSI_KEY(zip_pad_mutex),
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -360,27 +357,24 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 performance schema instrumented if "UNIV_PFS_RWLOCK"
 is defined */
 static PSI_rwlock_info all_innodb_rwlocks[] = {
-#  ifdef UNIV_LOG_ARCHIVE
-	{&archive_lock_key, "archive_lock", 0},
-#  endif /* UNIV_LOG_ARCHIVE */
-	{&btr_search_latch_key, "btr_search_latch", 0},
+	PSI_KEY(btr_search_latch),
 #  ifndef PFS_SKIP_BUFFER_MUTEX_RWLOCK
-	{&buf_block_lock_key, "buf_block_lock", 0},
+	PSI_KEY(buf_block_lock),
 #  endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #  ifdef UNIV_SYNC_DEBUG
-	{&buf_block_debug_latch_key, "buf_block_debug_latch", 0},
+	PSI_KEY(buf_block_debug_latch),
 #  endif /* UNIV_SYNC_DEBUG */
-	{&dict_operation_lock_key, "dict_operation_lock", 0},
-	{&fil_space_latch_key, "fil_space_latch", 0},
-	{&checkpoint_lock_key, "checkpoint_lock", 0},
-	{&fts_cache_rw_lock_key, "fts_cache_rw_lock", 0},
-	{&fts_cache_init_rw_lock_key, "fts_cache_init_rw_lock", 0},
-	{&trx_i_s_cache_lock_key, "trx_i_s_cache_lock", 0},
-	{&trx_purge_latch_key, "trx_purge_latch", 0},
-	{&index_tree_rw_lock_key, "index_tree_rw_lock", 0},
-	{&index_online_log_key, "index_online_log", 0},
-	{&dict_table_stats_latch_key, "dict_table_stats", 0},
-	{&hash_table_rw_lock_key, "hash table locks", 0}
+	PSI_KEY(dict_operation_lock),
+	PSI_KEY(fil_space_latch),
+	PSI_KEY(checkpoint_lock),
+	PSI_KEY(fts_cache_rw_lock),
+	PSI_KEY(fts_cache_init_rw_lock),
+	PSI_KEY(trx_i_s_cache_lock),
+	PSI_KEY(trx_purge_latch),
+	PSI_KEY(index_tree_rw_lock),
+	PSI_KEY(index_online_log),
+	PSI_KEY(dict_table_stats),
+	PSI_KEY(hash_table_locks)
 };
 # endif /* UNIV_PFS_RWLOCK */
 
@@ -389,19 +383,19 @@ static PSI_rwlock_info all_innodb_rwlocks[] = {
 performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
-	{&trx_rollback_clean_thread_key, "trx_rollback_clean_thread", 0},
-	{&io_ibuf_thread_key, "io_ibuf_thread", 0},
-	{&io_log_thread_key, "io_log_thread", 0},
-	{&io_read_thread_key, "io_read_thread", 0},
-	{&io_write_thread_key, "io_write_thread", 0},
-	{&io_handler_thread_key, "io_handler_thread", 0},
-	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
-	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
-	{&srv_monitor_thread_key, "srv_monitor_thread", 0},
-	{&srv_master_thread_key, "srv_master_thread", 0},
-	{&srv_purge_thread_key, "srv_purge_thread", 0},
-	{&buf_page_cleaner_thread_key, "page_cleaner_thread", 0},
-	{&recv_writer_thread_key, "recovery writer thread", 0}
+	PSI_KEY(trx_rollback_clean_thread),
+	PSI_KEY(io_ibuf_thread),
+	PSI_KEY(io_log_thread),
+	PSI_KEY(io_read_thread),
+	PSI_KEY(io_write_thread),
+	PSI_KEY(io_handler_thread),
+	PSI_KEY(srv_lock_timeout_thread),
+	PSI_KEY(srv_error_monitor_thread),
+	PSI_KEY(srv_monitor_thread),
+	PSI_KEY(srv_master_thread),
+	PSI_KEY(srv_purge_thread),
+	PSI_KEY(page_cleaner_thread),
+	PSI_KEY(recv_writer_thread)
 };
 # endif /* UNIV_PFS_THREAD */
 
@@ -409,9 +403,9 @@ static PSI_thread_info	all_innodb_threads[] = {
 /* all_innodb_files array contains the type of files that are
 performance schema instrumented if "UNIV_PFS_IO" is defined */
 static PSI_file_info	all_innodb_files[] = {
-	{&innodb_file_data_key, "innodb_data_file", 0},
-	{&innodb_file_log_key, "innodb_log_file", 0},
-	{&innodb_file_temp_key, "innodb_temp_file", 0}
+	PSI_KEY(innodb_data_file),
+	PSI_KEY(innodb_log_file),
+	PSI_KEY(innodb_temp_file)
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
@@ -1093,7 +1087,7 @@ thd_requested_durability(
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
-ibool
+bool
 thd_trx_is_read_only(
 /*=================*/
 	THD*	thd)	/*!< in: thread handle */
@@ -2076,7 +2070,6 @@ trx_register_for_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 1;
-	ut_ad(trx->owns_prepare_mutex == 0);
 }
 
 /*********************************************************************//**
@@ -2088,7 +2081,6 @@ trx_deregister_from_2pc(
 	trx_t*	trx)	/* in: transaction */
 {
 	trx->is_registered = 0;
-	trx->owns_prepare_mutex = 0;
 }
 
 
@@ -2709,7 +2701,7 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(prebuilt->trx);
+	trx_start_if_not_started_xa(prebuilt->trx, false);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -2935,15 +2927,6 @@ innobase_init(
 		srv_log_group_home_dir = default_path;
 	}
 
-#ifdef UNIV_LOG_ARCHIVE
-	/* Since innodb_log_arch_dir has no relevance under MySQL,
-	starting from 4.0.6 we always set it the same as
-	innodb_log_group_home_dir: */
-
-	innobase_log_arch_dir = innobase_log_group_home_dir;
-
-	srv_arch_dir = innobase_log_arch_dir;
-#endif /* UNIG_LOG_ARCHIVE */
 
 	srv_normalize_path_for_win(srv_log_group_home_dir);
 
@@ -3086,10 +3069,6 @@ innobase_change_buffering_inited_ok:
 	srv_file_flush_method_str = innobase_file_flush_method;
 
 	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
-
-#ifdef UNIV_LOG_ARCHIVE
-	srv_log_archive_on = (ulint) innobase_log_archive;
-#endif /* UNIV_LOG_ARCHIVE */
 
 	/* Check that the value of system variable innodb_page_size was
 	set correctly.  Its value was put into srv_page_size. If valid,
@@ -3404,7 +3383,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* If the transaction is not started yet, start it */
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, false);
 
 	/* Assign a read view if the transaction does not have it yet */
 
@@ -3628,7 +3607,7 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (!trx->read_only) {
+	if (trx->insert_undo != 0 || trx->update_undo != 0) {
 		error = trx_rollback_for_mysql(trx);
 	}
 
@@ -5330,8 +5309,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	cs,		/*!< in: Character set */
-	byte*           start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
+	const byte*	start,		/*!< in: start of text */
+	const byte*	end,		/*!< in: one character past end of
 					text */
 	fts_string_t*	token,		/*!< out: token's text */
 	ulint*		offset)		/*!< out: offset to token,
@@ -5339,7 +5318,7 @@ innobase_mysql_fts_get_token(
 					'start' */
 {
 	int		mbl;
-	uchar*		doc = start;
+	const uchar*	doc = start;
 
 	ut_a(cs);
 
@@ -5355,7 +5334,7 @@ innobase_mysql_fts_get_token(
 			int	ctype;
 
 			mbl = cs->cset->ctype(
-				cs, &ctype, (uchar*) doc, (uchar*) end);
+				cs, &ctype, doc, (const uchar*) end);
 
 			if (true_word_char(ctype, *doc)) {
 				break;
@@ -5367,7 +5346,7 @@ innobase_mysql_fts_get_token(
 		ulint	mwc = 0;
 		ulint	length = 0;
 
-		token->f_str = doc;
+		token->f_str = const_cast<byte*>(doc);
 
 		while (doc < end) {
 
@@ -6392,16 +6371,14 @@ ha_innobase::write_row(
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	} else if (prebuilt->trx != trx) {
-		sql_print_error("The transaction object for the table handle "
-				"is at %p, but for the current thread it is at "
-				"%p",
-				(const void*) prebuilt->trx, (const void*) trx);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The transaction object for the table handle is"
+			"at %p, but for the current thread it is at %p",
+			(const void*) prebuilt->trx, (const void*) trx);
 
 		fputs("InnoDB: Dump of 200 bytes around prebuilt: ", stderr);
 		ut_print_buf(stderr, ((const byte*) prebuilt) - 100, 200);
-		fputs("\n"
-			"InnoDB: Dump of 200 bytes around ha_data: ",
-			stderr);
+		fputs("\nInnoDB: Dump of 200 bytes around ha_data: ", stderr);
 		ut_print_buf(stderr, ((const byte*) trx) - 100, 200);
 		putc('\n', stderr);
 		ut_error;
@@ -9613,6 +9590,16 @@ ha_innobase::create(
 		}
 	}
 
+	/* Cache all the FTS indexes on this table in the FTS specific
+	structure. They are used for FTS indexed column update handling. */
+	if (flags2 & DICT_TF2_FTS) {
+		fts_t*          fts = innobase_table->fts;
+
+		ut_a(fts != NULL);
+
+		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
+	}
+
 	stmt = innobase_get_stmt(thd, &stmt_len);
 
 	if (stmt) {
@@ -9651,15 +9638,6 @@ ha_innobase::create(
 		if (error) {
 			goto cleanup;
 		}
-	}
-	/* Cache all the FTS indexes on this table in the FTS specific
-	structure. They are used for FTS indexed column update handling. */
-	if (flags2 & DICT_TF2_FTS) {
-		fts_t*	fts = innobase_table->fts;
-
-		ut_a(fts != NULL);
-
-		dict_table_get_all_fts_indexes(innobase_table, fts->indexes);
 	}
 
 	innobase_commit_low(trx);
@@ -9793,7 +9771,7 @@ ha_innobase::discard_or_import_tablespace(
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads. */
@@ -9971,7 +9949,6 @@ ha_innobase::delete_table(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
-	trx->ddl = true;
 
 	/* Drop the table in InnoDB */
 	err = row_drop_table_for_mysql(
@@ -10136,8 +10113,10 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
+	trx_start_if_not_started(trx, true);
+
 	/* Serialize data dictionary operations with dictionary mutex:
-	no deadlocks can occur then in these operations */
+	no deadlocks can occur then in these operations. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -10146,8 +10125,7 @@ innobase_rename_table(
 
 	ut_a(trx->will_lock > 0);
 
-	error = row_rename_table_for_mysql(
-		norm_from, norm_to, trx, TRUE);
+	error = row_rename_table_for_mysql(norm_from, norm_to, trx, TRUE);
 
 	if (error != DB_SUCCESS) {
 		if (error == DB_TABLE_NOT_FOUND
@@ -13608,7 +13586,7 @@ innobase_rollback_by_xid(
 
 	trx = trx_get_trx_by_xid(xid);
 
-	if (trx) {
+	if (trx != 0) {
 		int	ret = innobase_rollback_trx(trx);
 		trx_free_for_background(trx);
 		return(ret);
@@ -14507,8 +14485,7 @@ innodb_monitor_set_option(
 		exisitng monitor counter (status variable),
 		make special processing to remember existing
 		counter value. */
-		if (monitor_info->monitor_type
-		    & MONITOR_EXISTING) {
+		if (monitor_info->monitor_type & MONITOR_EXISTING) {
 			srv_mon_process_existing_counter(
 				monitor_id, MONITOR_TURN_ON);
 		}
@@ -14923,6 +14900,45 @@ innodb_srv_buf_dump_filename_validate(
 static char* srv_buffer_pool_evict;
 
 /****************************************************************//**
+Evict all uncompressed pages of compressed tables from the buffer pool.
+Keep the compressed pages in the buffer pool.
+@return whether all uncompressed pages were evicted */
+static __attribute__((warn_unused_result))
+bool
+innodb_buffer_pool_evict_uncompressed(void)
+/*=======================================*/
+{
+	bool	all_evicted = true;
+
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool = &buf_pool_ptr[i];
+
+		buf_pool_mutex_enter(buf_pool);
+
+		for (buf_block_t* block = UT_LIST_GET_LAST(
+			     buf_pool->unzip_LRU);
+		     block != NULL; ) {
+			buf_block_t*	prev_block = UT_LIST_GET_PREV(
+				unzip_LRU, block);
+			ut_ad(buf_block_get_state(block)
+			      == BUF_BLOCK_FILE_PAGE);
+			ut_ad(block->in_unzip_LRU_list);
+			ut_ad(block->page.in_LRU_list);
+
+			if (!buf_LRU_free_page(&block->page, false)) {
+				all_evicted = false;
+			}
+
+			block = prev_block;
+		}
+
+		buf_pool_mutex_exit(buf_pool);
+	}
+
+	return(all_evicted);
+}
+
+/****************************************************************//**
 Called on SET GLOBAL innodb_buffer_pool_evict=...
 Handles some values specially, to evict pages from the buffer pool.
 SET GLOBAL innodb_buffer_pool_evict='uncompressed'
@@ -14939,33 +14955,16 @@ innodb_buffer_pool_evict_update(
 {
 	if (const char* op = *static_cast<const char*const*>(save)) {
 		if (!strcmp(op, "uncompressed")) {
-			/* Evict all uncompressed pages of compressed
-			tables from the buffer pool. Keep the compressed
-			pages in the buffer pool. */
-
-			for (ulint i = 0; i < srv_buf_pool_instances; i++) {
-				buf_pool_t*	buf_pool = &buf_pool_ptr[i];
-
-				buf_pool_mutex_enter(buf_pool);
-
-				for (buf_block_t* block = UT_LIST_GET_LAST(
-					     buf_pool->unzip_LRU);
-				     block != NULL; ) {
-
-					buf_block_t*	prev_block
-						= UT_LIST_GET_PREV(unzip_LRU,
-								   block);
-					ut_ad(buf_block_get_state(block)
-					      == BUF_BLOCK_FILE_PAGE);
-					ut_ad(block->in_unzip_LRU_list);
-					ut_ad(block->page.in_LRU_list);
-
-					buf_LRU_free_page(&block->page, false);
-					block = prev_block;
+			for (uint tries = 0; tries < 10000; tries++) {
+				if (innodb_buffer_pool_evict_uncompressed()) {
+					return;
 				}
 
-				buf_pool_mutex_exit(buf_pool);
+				os_thread_sleep(10000);
 			}
+
+			/* We failed to evict all uncompressed pages. */
+			ut_ad(0);
 		}
 	}
 }
@@ -15597,16 +15596,6 @@ static MYSQL_SYSVAR_BOOL(locks_unsafe_for_binlog, innobase_locks_unsafe_for_binl
   "Please use READ COMMITTED transaction isolation level instead. "
   "Force InnoDB to not use next-key locking, to use only row-level locking.",
   NULL, NULL, FALSE);
-
-#ifdef UNIV_LOG_ARCHIVE
-static MYSQL_SYSVAR_STR(log_arch_dir, innobase_log_arch_dir,
-  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Where full logs should be archived.", NULL, NULL, NULL);
-
-static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
-  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
-  "Set to 1 if you want to have logs archived.", NULL, NULL, FALSE);
-#endif /* UNIV_LOG_ARCHIVE */
 
 static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -16265,10 +16254,6 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(force_load_corrupted),
   MYSQL_SYSVAR(locks_unsafe_for_binlog),
   MYSQL_SYSVAR(lock_wait_timeout),
-#ifdef UNIV_LOG_ARCHIVE
-  MYSQL_SYSVAR(log_arch_dir),
-  MYSQL_SYSVAR(log_archive),
-#endif /* UNIV_LOG_ARCHIVE */
   MYSQL_SYSVAR(page_size),
   MYSQL_SYSVAR(log_buffer_size),
   MYSQL_SYSVAR(log_file_size),
@@ -16391,7 +16376,6 @@ i_s_innodb_buffer_stats,
 i_s_innodb_temp_table_info,
 i_s_innodb_metrics,
 i_s_innodb_ft_default_stopword,
-i_s_innodb_ft_inserted,
 i_s_innodb_ft_deleted,
 i_s_innodb_ft_being_deleted,
 i_s_innodb_ft_config,
@@ -16717,7 +16701,7 @@ ib_logf(
 		sql_print_error("InnoDB: %s", str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
-		sql_print_error("InnoDB: %s", str);
+		sql_print_error("[FATAL] InnoDB: %s", str);
 		break;
 	}
 

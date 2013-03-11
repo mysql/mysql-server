@@ -1259,7 +1259,6 @@ btr_cur_optimistic_insert(
 	page_cur_t*	page_cursor;
 	buf_block_t*	block;
 	page_t*		page;
-	ulint		max_size;
 	rec_t*		dummy;
 	ibool		leaf;
 	ibool		reorg;
@@ -1273,9 +1272,13 @@ btr_cur_optimistic_insert(
 	block = btr_cur_get_block(cursor);
 	page = buf_block_get_frame(block);
 	index = cursor->index;
+
+	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	ut_ad(!dict_index_is_online_ddl(index)
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
+	ut_ad(dtuple_check_typed(entry));
+
 	zip_size = buf_block_get_zip_size(block);
 #ifdef UNIV_DEBUG_VALGRIND
 	if (zip_size) {
@@ -1284,10 +1287,6 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 
-	if (!dtuple_check_typed_no_assert(entry)) {
-		fputs("InnoDB: Error in a tuple to insert into ", stderr);
-		dict_index_name_print(stderr, thr_get_trx(thr), index);
-	}
 #ifdef UNIV_DEBUG
 	if (btr_cur_print_record_ops && thr) {
 		btr_cur_trx_report(thr_get_trx(thr)->id, index, "insert ");
@@ -1295,8 +1294,6 @@ btr_cur_optimistic_insert(
 	}
 #endif /* UNIV_DEBUG */
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
-	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 	leaf = page_is_leaf(page);
 
 	/* Calculate the record size when entry is converted to a record */
@@ -1362,23 +1359,13 @@ too_big:
 	LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
 				      goto fail);
 
-	if (!leaf) {
-	} else if (zip_size
-		   && (page_get_data_size(page) + rec_size
-		       >= dict_index_zip_pad_optimal_page_size(index))) {
+	if (leaf && zip_size
+	    && (page_get_data_size(page) + rec_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
 		/* If compression padding tells us that insertion will
 		result in too packed up page i.e.: which is likely to
 		cause compression failure then don't do an optimistic
 		insertion. */
-		goto fail;
-	} else if (dict_index_is_clust(index) && page_get_n_recs(page) >= 2
-		   && dict_index_get_space_reserve() + rec_size > max_size
-		   && (btr_page_get_split_rec_to_right(cursor, &dummy)
-		       || btr_page_get_split_rec_to_left(cursor, &dummy))) {
-		/* If there have been many consecutive inserts, and we
-		are on the leaf level, check if we have to split the
-		page to reserve enough free space for future updates
-		of records. */
 fail:
 		err = DB_FAIL;
 fail_err:
@@ -1390,11 +1377,30 @@ fail_err:
 		return(err);
 	}
 
-	if (UNIV_UNLIKELY(max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT
-			  || max_size < rec_size)
-	    && UNIV_LIKELY(page_get_n_recs(page) > 1)
-	    && page_get_max_insert_size(page, 1) < rec_size) {
+	ulint	max_size = page_get_max_insert_size_after_reorganize(page, 1);
 
+	if (page_has_garbage(page)) {
+		if ((max_size < rec_size
+		     || max_size < BTR_CUR_PAGE_REORGANIZE_LIMIT)
+		    && page_get_n_recs(page) > 1
+		    && page_get_max_insert_size(page, 1) < rec_size) {
+
+			goto fail;
+		}
+	} else if (max_size < rec_size) {
+		goto fail;
+	}
+
+	/* If there have been many consecutive inserts to the
+	clustered index leaf page of an uncompressed table, check if
+	we have to split the page to reserve enough free space for
+	future updates of records. */
+
+	if (leaf && !zip_size && dict_index_is_clust(index)
+	    && page_get_n_recs(page) >= 2
+	    && dict_index_get_space_reserve() + rec_size > max_size
+	    && (btr_page_get_split_rec_to_right(cursor, &dummy)
+		|| btr_page_get_split_rec_to_left(cursor, &dummy))) {
 		goto fail;
 	}
 
@@ -1470,12 +1476,6 @@ fail_err:
 		lock_update_insert(block, *rec);
 	}
 
-#if 0
-	fprintf(stderr, "Insert into page %lu, max ins size %lu,"
-		" rec %lu ind type %lu\n",
-		buf_block_get_page_no(block), max_size,
-		rec_size + PAGE_DIR_SLOT_SIZE, index->type);
-#endif
 	if (leaf
 	    && !dict_index_is_clust(index)
 	    && !dict_table_is_temporary(index->table)) {
@@ -1957,6 +1957,7 @@ btr_cur_update_in_place(
 	index = cursor->index;
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -2118,6 +2119,7 @@ btr_cur_optimistic_update(
 	page = buf_block_get_frame(block);
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
@@ -2423,6 +2425,7 @@ btr_cur_pessimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(thr_get_trx(thr)->id == trx_id
@@ -4878,12 +4881,11 @@ btr_check_blob_fil_page_type(
 #endif /* !UNIV_DEBUG */
 
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: FIL_PAGE_TYPE=%lu"
-			" on BLOB %s space %lu page %lu flags %lx\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"FIL_PAGE_TYPE=%lu on BLOB %s space %lu"
+			" page %lu flags %lx",
 			(ulong) type, read ? "read" : "purge",
 			(ulong) space_id, (ulong) page_no, (ulong) flags);
-		ut_error;
 	}
 }
 

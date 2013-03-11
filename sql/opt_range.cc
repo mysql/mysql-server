@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1376,12 +1376,9 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
+void QUICK_RANGE_SELECT::need_sorted_output()
 {
-  if (sort)
-    mrr_flags |= HA_MRR_SORTED;
-  else
-    mrr_flags &= ~HA_MRR_SORTED;
+  mrr_flags |= HA_MRR_SORTED;
 }
 
 
@@ -5814,6 +5811,10 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
   switch (cond_func->functype()) {
 
+  case Item_func::XOR_FUNC:
+    DBUG_RETURN(NULL); // Always true (don't use range access on XOR).
+    break;             // See WL#5800
+
   case Item_func::NE_FUNC:
     tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
     break;
@@ -6550,6 +6551,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   switch (err) {
   case TYPE_OK:
   case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
     return false;
   case TYPE_ERR_BAD_VALUE:
     /*
@@ -6675,9 +6677,13 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
       // Equality comparison is always false when time info has been truncated.
       goto impossible_cond;
     }
-    // Fall through
-  default:
     return true;
+  case TYPE_ERR_OOM:
+    return true;
+    /*
+      No default here to avoid adding new conversion status codes that are
+      unhandled in this function.
+    */
   }
 
   DBUG_ASSERT(FALSE); // Should never get here.
@@ -9417,6 +9423,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
       param->table->quick_condition_rows=
         min(param->table->quick_condition_rows, rows);
     }
+    param->table->possible_quick_keys.set_bit(keynr);
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
