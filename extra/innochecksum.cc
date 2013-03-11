@@ -611,7 +611,7 @@ static struct my_option innochecksum_options[] = {
 /* Print out the Innodb version and machine information. */
 static void print_version(void)
 {
-	fprintf(stderr, "%s Ver %s, for %s (%s)\n",
+	printf("%s Ver %s, for %s (%s)\n",
 		my_progname, INNODB_VERSION_STR,
 		SYSTEM_TYPE, MACHINE_TYPE);
 }
@@ -619,9 +619,9 @@ static void print_version(void)
 static void usage(void)
 {
 	print_version();
-	fputs(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), stderr);
-	fprintf(stderr, "InnoDB offline file checksum utility.\n");
-	fprintf(stderr, "Usage: %s [-c] [-s <start page>] [-e <end page>] "
+	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
+	printf("InnoDB offline file checksum utility.\n");
+	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
 		"[-p <page>] [-v] [-d <>] [-a <allow mismatches>] [-n] "
 		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
 		"<filename>\n", my_progname);
@@ -753,10 +753,14 @@ int main(
 	off_t		offset			= 0;
 	int		fd;
 	bool		compressed		= FALSE;
+	/* count the no. of page corrupted. */
 	ulint		mismatch_count		= 0;
+	/* Variable to ack the page is corrupted or not. */
 	bool		is_corrupted		= FALSE;
+
 	bool		partial_page_read	= FALSE;
 	ulong		min_bytes;
+	/* Enabled when read from stdin is done. */
 	bool		read_from_stdin		= FALSE;
 	FILE*		fil_page_type;
 	/* advisory lock. */
@@ -772,9 +776,9 @@ int main(
 	DBUG_PROCESS(argv[0]);
 	DBUG_PRINT("info", ("InnoDB File Checksum Utility."));
 
-
-	if (get_options(&argc,&argv))
+	if (get_options(&argc,&argv)) {
 		DBUG_RETURN(1);
+	}
 
 	if (strict_verify && no_check) {
 		fprintf(stderr, "Error: --strict-check option cannot be used "
@@ -788,11 +792,13 @@ int main(
 		DBUG_RETURN(1);
 	}
 
-	if (page_type_dump)
+	if (page_type_dump) {
 		fil_page_type = fopen(page_dump_filename, "wb");
+	}
 
-	if (verbose)
+	if (verbose) {
 		my_print_variables(innochecksum_options);
+	}
 
 	/* The file name is not optional. */
 	for (int i = 0; i < argc; ++i) {
@@ -898,14 +904,15 @@ int main(
 		} else if (verbose && !read_from_stdin) {
 			DBUG_PRINT("info", ("file %s = %llu bytes (%lu pages)",
 				   filename, size, pages));
-			if (do_one_page)
+			if (do_one_page) {
 				DBUG_PRINT("info", ("InnoChecksum: checking "
 				"page %llu", do_page));
-			else
+			} else {
 				DBUG_PRINT("info", ("InnoChecksum: checking "
 					   "pages in range %llu to %llu",
 					   start_page, use_end_page ?
 					   end_page : (pages - 1)));
+			}
 		}
 
 		/* seek to the necessary position */
@@ -930,8 +937,9 @@ int main(
 				ulong count = 0;
 
 				while (!feof(fil_in)) {
-					if (start_page == count)
+					if (start_page == count) {
 						break;
+					}
 					/* We read a part of page to find the
 					minimum page size. We cannot reset
 					the file pointer to the beginning of
@@ -1059,8 +1067,7 @@ int main(
 							true, buf, 0);
 				} else {
 					is_corrupted = buf_page_is_corrupted(
-							true,
-							buf,
+							true, buf,
 							physical_page_size);
 				}
 
