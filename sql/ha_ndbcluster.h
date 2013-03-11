@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -515,6 +515,8 @@ private:
                                NdbOperation::GetValueSpec gets[2]);
   void get_hidden_fields_scan(NdbScanOperation::ScanOptions *options,
                               NdbOperation::GetValueSpec gets[2]);
+  void get_read_set(bool use_cursor, uint idx);
+
   void eventSetAnyValue(THD *thd,
                         NdbOperation::OperationOptions *options) const;
   bool check_index_fields_in_write_set(uint keyno);
