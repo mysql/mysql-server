@@ -39,7 +39,7 @@ when server Default checksum=InnoDB
 R01 : (negative scenario) check the innochecksum with full form --strict-check=crc32
 when server Default checksum=InnoDB
 # INNOCHECKSUM  --strict-check=crc32 MYSQLD_DATADIR/test/tab1.ibd
-#R01 : (negative scenario) check the innochecksum with full form --strict-check=None
+#R01 : (negative scenario) check the innochecksum with full form --strict-check=none
 #when server Default checksum=InnoDB
 # INNOCHECKSUM  --strict-check=none MYSQLD_DATADIR/test/tab1.ibd
 #R01 : (negative scenario) check the innochecksum with short form -C crc32
@@ -89,7 +89,7 @@ c1	c2
 # INNOCHECKSUM --no-check --write=none MYSQLD_DATADIR/test/tab1.ibd
 #Rewrite done, verify with --strict-check=none
 # INNOCHECKSUM --strict-check=none MYSQLD_DATADIR/test/tab1.ibd
-#After rewriting into new checksum algorithm None,check with DML
+#After rewriting into new checksum algorithm none,check with DML
 #without restarting the server
 #After rewriting into new checksum algorithm crc32,check with DML
 INSERT INTO tab1 VALUES(3, 'Innochecksum None');
@@ -644,9 +644,9 @@ SELECT pk,AsText(linestring_key),AsText(linestring_nokey)
 FROM tab1 ORDER BY pk;
 SELECT * FROM tab2 ORDER BY col_7;
 #stop the server
-#R02: rewrite into new checksum=None for tab1 & tab2
+#R02: rewrite into new checksum=none for tab1 & tab2
 #R06: rewrite the checksum with multiple tablespace files.
-# INNOCHECKSUM --no-check --verbose --write=NONE  MYSQLD_DATADIR/test/*.ibd
+# INNOCHECKSUM --no-check --verbose --write=none  MYSQLD_DATADIR/test/*.ibd
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -663,8 +663,8 @@ allow-mismatches                  0
 write                             none
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
-#R02: rewrite into new checksum=None for ibdata1
-# INNOCHECKSUM --no-check --verbose --write=NONE MYSQLD_DATADIR/ibdata1
+#R02: rewrite into new checksum=none for ibdata1
+# INNOCHECKSUM --no-check --verbose --write=none MYSQLD_DATADIR/ibdata1
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
@@ -700,8 +700,8 @@ allow-mismatches                  0
 write                             none
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
-#R02 : Restart the DB server with innodb_checksum_algorithm=strcit_None
-# The strict_None algorithm is only compatible with None
+#R02 : Restart the DB server with innodb_checksum_algorithm=strict_none
+# The strict_none algorithm is only compatible with none
 #check the server startup option
 SHOW variables like '%innodb_checksum_algorithm%';
 Variable_name	Value
@@ -732,80 +732,96 @@ SELECT * FROM tab2 ORDER BY col_7;
 # INNOCHECKSUM -S  MYSQLD_DATADIR/test/tab1.ibd
 
 File::tab1.ibd
-================PAGE TYPE SUMMARY=====================
-3	FIL_PAGE_INDEX
-0	FIL_PAGE_UNDO_LOG
-1	FIL_PAGE_INODE
-0	FIL_PAGE_IBUF_FREE_LIST
-2	FIL_PAGE_TYPE_ALLOCATED
-1	FIL_PAGE_IBUF_BITMAP
-0	FIL_PAGE_TYPE_SYS
-0	FIL_PAGE_TYPE_TRX_SYS
-1	FIL_PAGE_TYPE_FSP_HDR
-0	FIL_PAGE_TYPE_XDES
-0	FIL_PAGE_TYPE_BLOB
-0	FIL_PAGE_TYPE_ZBLOB
-0	other
-undo type: 0 insert, 0 update, 0 other
-undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+================PAGE TYPE SUMMARY===============
+#PAGE_COUNT	PAGE_TYPE
+================================================
+       3	FIL_PAGE_INDEX
+       0	FIL_PAGE_UNDO_LOG
+       1	FIL_PAGE_INODE
+       0	FIL_PAGE_IBUF_FREE_LIST
+       2	FIL_PAGE_TYPE_ALLOCATED
+       1	FIL_PAGE_IBUF_BITMAP
+       0	FIL_PAGE_TYPE_SYS
+       0	FIL_PAGE_TYPE_TRX_SYS
+       1	FIL_PAGE_TYPE_FSP_HDR
+       0	FIL_PAGE_TYPE_XDES
+       0	FIL_PAGE_TYPE_BLOB
+       0	FIL_PAGE_TYPE_ZBLOB
+       0	other
+================================================
+Additional information:
+Undo page type: 0 insert, 0 update, 0 other
+Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 #R07: Check the page type summary with longform for tab1.ibd
 # INNOCHECKSUM --page-type-summary  MYSQLD_DATADIR/test/tab1.ibd
 
 File::tab1.ibd
-================PAGE TYPE SUMMARY=====================
-3	FIL_PAGE_INDEX
-0	FIL_PAGE_UNDO_LOG
-1	FIL_PAGE_INODE
-0	FIL_PAGE_IBUF_FREE_LIST
-2	FIL_PAGE_TYPE_ALLOCATED
-1	FIL_PAGE_IBUF_BITMAP
-0	FIL_PAGE_TYPE_SYS
-0	FIL_PAGE_TYPE_TRX_SYS
-1	FIL_PAGE_TYPE_FSP_HDR
-0	FIL_PAGE_TYPE_XDES
-0	FIL_PAGE_TYPE_BLOB
-0	FIL_PAGE_TYPE_ZBLOB
-0	other
-undo type: 0 insert, 0 update, 0 other
-undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+================PAGE TYPE SUMMARY===============
+#PAGE_COUNT	PAGE_TYPE
+================================================
+       3	FIL_PAGE_INDEX
+       0	FIL_PAGE_UNDO_LOG
+       1	FIL_PAGE_INODE
+       0	FIL_PAGE_IBUF_FREE_LIST
+       2	FIL_PAGE_TYPE_ALLOCATED
+       1	FIL_PAGE_IBUF_BITMAP
+       0	FIL_PAGE_TYPE_SYS
+       0	FIL_PAGE_TYPE_TRX_SYS
+       1	FIL_PAGE_TYPE_FSP_HDR
+       0	FIL_PAGE_TYPE_XDES
+       0	FIL_PAGE_TYPE_BLOB
+       0	FIL_PAGE_TYPE_ZBLOB
+       0	other
+================================================
+Additional information:
+Undo page type: 0 insert, 0 update, 0 other
+Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 #R07: Check the page type summary with longform for *.ibd
 # INNOCHECKSUM --page-type-summary MYSQLD_DATADIR/test/*.ibd
 
 File::tab1.ibd
-================PAGE TYPE SUMMARY=====================
-3	FIL_PAGE_INDEX
-0	FIL_PAGE_UNDO_LOG
-1	FIL_PAGE_INODE
-0	FIL_PAGE_IBUF_FREE_LIST
-2	FIL_PAGE_TYPE_ALLOCATED
-1	FIL_PAGE_IBUF_BITMAP
-0	FIL_PAGE_TYPE_SYS
-0	FIL_PAGE_TYPE_TRX_SYS
-1	FIL_PAGE_TYPE_FSP_HDR
-0	FIL_PAGE_TYPE_XDES
-0	FIL_PAGE_TYPE_BLOB
-0	FIL_PAGE_TYPE_ZBLOB
-0	other
-undo type: 0 insert, 0 update, 0 other
-undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+================PAGE TYPE SUMMARY===============
+#PAGE_COUNT	PAGE_TYPE
+================================================
+       3	FIL_PAGE_INDEX
+       0	FIL_PAGE_UNDO_LOG
+       1	FIL_PAGE_INODE
+       0	FIL_PAGE_IBUF_FREE_LIST
+       2	FIL_PAGE_TYPE_ALLOCATED
+       1	FIL_PAGE_IBUF_BITMAP
+       0	FIL_PAGE_TYPE_SYS
+       0	FIL_PAGE_TYPE_TRX_SYS
+       1	FIL_PAGE_TYPE_FSP_HDR
+       0	FIL_PAGE_TYPE_XDES
+       0	FIL_PAGE_TYPE_BLOB
+       0	FIL_PAGE_TYPE_ZBLOB
+       0	other
+================================================
+Additional information:
+Undo page type: 0 insert, 0 update, 0 other
+Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 
 File::tab2.ibd
-================PAGE TYPE SUMMARY=====================
-4	FIL_PAGE_INDEX
-0	FIL_PAGE_UNDO_LOG
-1	FIL_PAGE_INODE
-0	FIL_PAGE_IBUF_FREE_LIST
-9	FIL_PAGE_TYPE_ALLOCATED
-1	FIL_PAGE_IBUF_BITMAP
-0	FIL_PAGE_TYPE_SYS
-0	FIL_PAGE_TYPE_TRX_SYS
-1	FIL_PAGE_TYPE_FSP_HDR
-0	FIL_PAGE_TYPE_XDES
-0	FIL_PAGE_TYPE_BLOB
-0	FIL_PAGE_TYPE_ZBLOB
-0	other
-undo type: 0 insert, 0 update, 0 other
-undo state: 0 active, 0 cached, 0 to_free, 0to_purge, 0 prepared, 0 other
+================PAGE TYPE SUMMARY===============
+#PAGE_COUNT	PAGE_TYPE
+================================================
+       4	FIL_PAGE_INDEX
+       0	FIL_PAGE_UNDO_LOG
+       1	FIL_PAGE_INODE
+       0	FIL_PAGE_IBUF_FREE_LIST
+       9	FIL_PAGE_TYPE_ALLOCATED
+       1	FIL_PAGE_IBUF_BITMAP
+       0	FIL_PAGE_TYPE_SYS
+       0	FIL_PAGE_TYPE_TRX_SYS
+       1	FIL_PAGE_TYPE_FSP_HDR
+       0	FIL_PAGE_TYPE_XDES
+       0	FIL_PAGE_TYPE_BLOB
+       0	FIL_PAGE_TYPE_ZBLOB
+       0	other
+================================================
+Additional information:
+Undo page type: 0 insert, 0 update, 0 other
+Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 # Page type dump for tab1.ibd
 # INNOCHECKSUM --page-type-dump MYSQL_TMP_DIR/dump.txt MYSQLD_DATADIR/test/tab1.ibd
 # Print the contents stored in dump.txt
@@ -862,12 +878,31 @@ Filename::tab1.ibd
 #::      13		|		Freshly allocated page		|	-
 #::      14		|		Freshly allocated page		|	-
 #::      15		|		Freshly allocated page		|	-
-#R07 : Restart the DB server with innodb_checksum_algorithm=strict_None
+#R07 : Restart the DB server with innodb_checksum_algorithm=strict_none
 select * from tab2;
-#Test for lock. Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+# Test[a] for lock.
+# Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
 # INNOCHECKSUM MYSQLD_DATADIR/test/tab2.ibd
 #cleanup
 DROP TABLE IF EXISTS tab1;
 DROP TABLE IF EXISTS tab2;
+call mtr.add_suppression("InnoDB: Unable to lock");
+# create a base table,Index & insert a record
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+shutdown over
+# Test[a] end
+# Test[b] Scenario: Innochecksum is running state(had acquire lock on tab1.ibd file)
+# and then start the mysqld server, which must crash when it do any DDL/DML query on tab1.ibd.
+# Testing done by the usage of DBUG_EXECUTE_IF(), which will pool over the --page-type-dump file
+# passed as argument. Then start the server which will crash as explained before. Delete the
+# --page-type-dump file, to resume the innochecksum tool.
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+select * from tab1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the DB server with innodb_checksum_algorithm=InnoDB
+DROP TABLE tab1;
+SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
 #TEST END
