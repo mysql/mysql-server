@@ -1231,8 +1231,11 @@ recv_parse_or_apply_log_rec_body(
 		ut_ad(!page || page_type != FIL_PAGE_TYPE_ALLOCATED);
 		ptr = mlog_parse_string(ptr, end_ptr, page, page_zip);
 		break;
-	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type,
+						 space_id, 0);
+		break;
+	case MLOG_FILE_CREATE:
 	case MLOG_FILE_DELETE:
 	case MLOG_FILE_CREATE2:
 		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, space_id, 0);
