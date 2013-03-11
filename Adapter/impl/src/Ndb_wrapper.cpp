@@ -24,6 +24,7 @@
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "NativeMethodCall.h"
+#include "NativeCFunctionCall.h"
 #include "JsWrapper.h"
 #include "NdbWrapperErrors.h"
 #include "NdbWrappers.h"
@@ -31,12 +32,14 @@
 using namespace v8;
 
 Handle<Value> startTransaction(const Arguments &);
+Handle<Value> getAutoIncValue(const Arguments &);
 
 class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getAutoIncrementValue", getAutoIncValue);
   }
   
   Local<Object> wrap(Ndb *ndb) {
@@ -68,6 +71,30 @@ Handle<Value> startTransaction(const Arguments &args) {
   MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
   mcallptr->wrapReturnValueAs(getNdbTransactionEnvelope());
   mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
+  mcallptr->runAsync();
+  
+  return scope.Close(JS_VOID_RETURN);
+}
+
+
+/* We can't map Ndb::getAutoIncrementValue() directly due to in/out param.
+   The JS Wrapper function will simply return 0 on error.
+*/
+Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table *table, uint32_t batch) {
+  Uint64 autoinc;
+  int r = ndb->getAutoIncrementValue(table, autoinc, batch);
+  if(r == -1) autoinc = 0;
+  return autoinc;
+}
+
+
+Handle<Value> getAutoIncValue(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  REQUIRE_ARGS_LENGTH(3);
+  typedef NativeCFunctionCall_3_<Uint64, Ndb *, const NdbDictionary::Table *,
+                                 uint32_t> MCALL;
+  MCALL * mcallptr = new MCALL(& getAutoInc, args);
   mcallptr->runAsync();
   
   return scope.Close(JS_VOID_RETURN);
