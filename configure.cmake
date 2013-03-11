@@ -695,6 +695,7 @@ ENDIF()
 
 # check whether time_t is unsigned
 CHECK_C_SOURCE_COMPILES("
+#include <time.h>
 int main()
 {
   int array[(((time_t)-1) > 0) ? 1 : -1];
