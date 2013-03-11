@@ -518,38 +518,42 @@ parse_page(
 void
 print_summary()
 {
-	printf("\n================PAGE TYPE SUMMARY=====================\n");
-	printf("%d\tFIL_PAGE_INDEX\n",
+	fprintf(stderr, "\n================PAGE TYPE SUMMARY===============\n");
+	fprintf(stderr, "#PAGE_COUNT\tPAGE_TYPE");
+	fprintf(stderr, "\n================================================\n");
+	fprintf(stderr, "%8d\tFIL_PAGE_INDEX\n",
 		page_type.n_fil_page_index);
-	printf("%d\tFIL_PAGE_UNDO_LOG\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_UNDO_LOG\n",
 		page_type.n_fil_page_undo_log);
-	printf("%d\tFIL_PAGE_INODE\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_INODE\n",
 		page_type.n_fil_page_inode);
-	printf("%d\tFIL_PAGE_IBUF_FREE_LIST\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_IBUF_FREE_LIST\n",
 		page_type.n_fil_page_ibuf_free_list);
-	printf("%d\tFIL_PAGE_TYPE_ALLOCATED\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_ALLOCATED\n",
 		page_type.n_fil_page_type_allocated);
-	printf("%d\tFIL_PAGE_IBUF_BITMAP\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_IBUF_BITMAP\n",
 		page_type.n_fil_page_ibuf_bitmap);
-	printf("%d\tFIL_PAGE_TYPE_SYS\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_SYS\n",
 		page_type.n_fil_page_type_sys);
-	printf("%d\tFIL_PAGE_TYPE_TRX_SYS\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_TRX_SYS\n",
 		page_type.n_fil_page_type_trx_sys);
-	printf("%d\tFIL_PAGE_TYPE_FSP_HDR\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_FSP_HDR\n",
 		page_type.n_fil_page_type_fsp_hdr);
-	printf("%d\tFIL_PAGE_TYPE_XDES\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_XDES\n",
 		page_type.n_fil_page_type_xdes);
-	printf("%d\tFIL_PAGE_TYPE_BLOB\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_BLOB\n",
 		page_type.n_fil_page_type_blob);
-	printf("%d\tFIL_PAGE_TYPE_ZBLOB\n",
+	fprintf(stderr, "%8d\tFIL_PAGE_TYPE_ZBLOB\n",
 		page_type.n_fil_page_type_zblob);
-	printf("%d\tother\n",
+	fprintf(stderr, "%8d\tother",
 		page_type.n_fil_page_type_other);
-	printf("undo type: %d insert, %d update, %d other\n",
+	fprintf(stderr, "\n================================================\n");
+	fprintf(stderr, "Additional information:\n");
+	fprintf(stderr, "Undo page type: %d insert, %d update, %d other\n",
 		page_type.n_undo_insert,
 		page_type.n_undo_update,
 		page_type.n_undo_other);
-	printf("undo state: %d active, %d cached, %d to_free, %d"
+	fprintf(stderr, "Undo page state: %d active, %d cached, %d to_free, %d "
 		"to_purge, %d prepared, %d other\n",
 		page_type.n_undo_state_active,
 		page_type.n_undo_state_cached,
@@ -607,7 +611,7 @@ static struct my_option innochecksum_options[] = {
 /* Print out the Innodb version and machine information. */
 static void print_version(void)
 {
-	printf("%s Ver %s, for %s (%s)\n",
+	fprintf(stderr, "%s Ver %s, for %s (%s)\n",
 		my_progname, INNODB_VERSION_STR,
 		SYSTEM_TYPE, MACHINE_TYPE);
 }
@@ -615,12 +619,12 @@ static void print_version(void)
 static void usage(void)
 {
 	print_version();
-	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
-	printf("InnoDB offline file checksum utility.\n");
-	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] [-p <page>] "
-		"[-v] [-d <>] [-a <allow mismatches>] [-n] [-C <strict-check>] "
-		"[-w <write>] [-S] [-D <page type dump>] <filename>\n",
-		my_progname);
+	fputs(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), stderr);
+	fprintf(stderr, "InnoDB offline file checksum utility.\n");
+	fprintf(stderr, "Usage: %s [-c] [-s <start page>] [-e <end page>] "
+		"[-p <page>] [-v] [-d <>] [-a <allow mismatches>] [-n] "
+		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
+		"<filename>\n", my_progname);
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
 }
@@ -859,6 +863,16 @@ int main(
 				DBUG_RETURN(1);
 			}
 		}
+
+		/* Testing for lock mechanism. The innochecksum
+		acquire lock on given file. So other tools accessing the same
+		file for processsing must fail. */
+		DBUG_EXECUTE_IF("innochecksum_cause_mysqld_crash",
+			struct stat status_buf;
+			while(stat(page_dump_filename, &status_buf) == 0) {
+				sleep(1);
+			}
+			DBUG_RETURN(0); );
 
 		/* Read the minimum page size. */
 		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, fil_in);
@@ -1131,8 +1145,9 @@ int main(
 
 		/* Enabled for page type summary. */
 		if (page_type_summary) {
-			if(!read_from_stdin)
-				printf("\nFile::%s",filename);
+			if(!read_from_stdin) {
+				fprintf(stderr, "\nFile::%s",filename);
+			}
 			print_summary();
 		}
 	}
