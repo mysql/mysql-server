@@ -453,3 +453,27 @@ a	b
 2	10
 3	20
 drop table t2, t1;
+# bug#16286164 - case: drop when referenced by different table
+create table t1 (
+a int not null,
+primary key using hash (a)
+) engine=ndb;
+create table t2 (
+a int not null,
+b int,
+primary key using hash (a),
+key (b),
+foreign key fk1 (b) references t1 (a)
+) engine=ndb;
+drop table t1;
+ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails
+drop table t2, t1;
+# bug#16286164 - case: drop when referenced by same table
+create table t1 (
+a int not null,
+b int,
+primary key using hash (a),
+key (b),
+foreign key fk1 (b) references t1 (a)
+) engine=ndb;
+drop table t1;

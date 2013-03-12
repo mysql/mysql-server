@@ -64,4 +64,4 @@ insert into child values (2,2,1);
 --error 1451
 delete from parent;
 
-drop table parent, child;
+drop table child, parent;

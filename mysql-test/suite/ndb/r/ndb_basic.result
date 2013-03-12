@@ -915,7 +915,7 @@ b VARCHAR(255) NOT NULL,
 c VARCHAR(255) NOT NULL,
 CONSTRAINT pk_b_c_id PRIMARY KEY (b,c),
 CONSTRAINT fk_a FOREIGN KEY(a) REFERENCES t1(a))engine=ndb;
-drop table t1, t2;
+drop table t2, t1;
 create table t1 (a int not null primary key, b int) engine=ndb;
 insert into t1 values(1,1),(2,2),(3,3);
 create table t2 like t1;

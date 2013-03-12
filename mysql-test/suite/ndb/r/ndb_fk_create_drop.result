@@ -69,7 +69,7 @@ Level	Code	Message
 Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 Warning	1296	Got error 21026 'Create foreign key failed in NDB - parent index is not unique index' from NDB
 Error	150	Cannot add foreign key constraint
-drop table parent, child;
+drop table child, parent;
 create table parent (
 a int primary key,
 b int not null,
@@ -106,4 +106,4 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk5` FOREIGN KEY(`b`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION,
  CONSTRAINT `fk6` FOREIGN KEY(`c`) REFERENCES `parent` (`b`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
-drop table parent, child;
+drop table child, parent;
