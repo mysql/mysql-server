@@ -1,3 +1,9 @@
+2013-03-12	The InnoDB Team
+
+	* include/page0zip.ic, page/page0zip.c:
+	Fix Bug#16463505 PESSIMISTIC PAGE_ZIP_AVAILABLE()
+	MAY CAUSE INFINITE PAGE SPLIT
+
 2013-02-27	The InnoDB Team
 
 	* page/page0zip.c:
