@@ -1254,4 +1254,7 @@ SELECT * FROM articles WHERE MATCH (title,body)
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('s*' IN BOOLEAN MODE);
 
+SELECT * FROM articles WHERE MATCH (title,body)
+        AGAINST ('stands\'] | * | show[@database' IN NATURAL LANGUAGE MODE);
+
 DROP TABLE articles;
