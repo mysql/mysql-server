@@ -247,6 +247,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		const char*	filename,
 		ulint		line) UNIV_NOTHROW
 	{
+#ifndef __WIN__
 		bool	locked = try_lock();
 
 		for (ulint i = 0; !locked && i < max_spins; ++i) {
@@ -259,7 +260,7 @@ struct OSTrackMutex : public OSBasicMutex<Policy> {
 		if (locked) {
 			return;
 		}
-
+#endif /* __WIN__ */
                 OSBasicMutex<Policy>::enter(
 			max_spins, max_delay, filename, line);
 
