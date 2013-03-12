@@ -27,6 +27,7 @@ var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     NdbConnection    = require("./NdbConnection.js"),
     dbtablehandler   = require("../common/DBTableHandler.js"),
     ndbencoders      = require("./NdbTypeEncoders.js"),
+    autoincrement    = require("./NdbAutoIncrement.js"),
     udebug           = unified_debug.getLogger("NdbConnectionPool.js"),
     stats_module     = require(path.join(api_dir,"stats.js")),
     stats            = stats_module.getWriter("spi","ndb","DBConnectionPool"),
@@ -172,6 +173,7 @@ function DBConnectionPool(props) {
   this.pendingGetMetadata = {};
   this.ndbSessionFreeList = [];
   this.typeConverters     = {};
+  this.openTables         = [];
 }
 
 
@@ -263,8 +265,14 @@ DBConnectionPool.prototype.isConnected = function() {
    ASYNC.
 */
 DBConnectionPool.prototype.close = function(userCallback) {
-  // TODO: Set a closing flag
-  var i;
+  var i, table;
+  /* Close the NDB on open tables */
+  while(table = this.openTables.pop()) {
+    if(table.autoIncrementCache) { 
+      table.autoIncrementCache.close();
+    }
+  }
+
   adapter.ndb.impl.DBSession.destroy(this.dictionary);
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {
     adapter.ndb.impl.DBSession.destroy(this.ndbSessionFreeList[i].impl);
@@ -359,29 +367,13 @@ function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   var apiCall = new QueuedAsyncCall(dbSession.execQueue, groupCallback);
   apiCall.impl = dbSession.impl;
   apiCall.databaseName = databaseName;
+  apiCall.description = "listTables";
   apiCall.run = function() {
     adapter.ndb.impl.DBDictionary.listTables(this.impl, this.databaseName, 
                                              this.callback);
   };
   return apiCall;
 }
-
-
-function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
-  var container = ndbConnectionPool.pendingGetMetadata;
-  var key = dbName + "." + tableName;
-  var groupCallback = makeGroupCallback(dbSession, container, key);
-  var apiCall = new QueuedAsyncCall(dbSession.execQueue, groupCallback);
-  apiCall.impl = dbSession.impl;
-  apiCall.dbName = dbName;
-  apiCall.tableName = tableName;
-  apiCall.run = function() {
-    adapter.ndb.impl.DBDictionary.getTable(this.impl, this.dbName, 
-                                           this.tableName, this.callback);
-  };
-  return apiCall;
-}
-
 
 
 /** List all tables in the schema
@@ -408,6 +400,52 @@ DBConnectionPool.prototype.listTables = function(databaseName, dbSession,
 };
 
 
+function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
+  var container = ndbConnectionPool.pendingGetMetadata;
+  var key = dbName + "." + tableName;
+  var groupCallback = makeGroupCallback(dbSession, container, key);
+
+  // Walk the table and create defaultValue from ndbRawDefaultValue
+  function drColumn(c) {
+    if(c.ndbRawDefaultValue) {
+      var enc = ndbencoders.defaultForType[c.ndbTypeId];
+      c.defaultValue = enc.read(c, c.ndbRawDefaultValue, 0);
+      delete(c.ndbRawDefaultValue);
+    }       
+    else if(c.isNullable) {
+      c.defaultValue = null;
+    }
+    else {
+      c.defaultValue = undefined;
+    }
+  }
+
+  function masterCallback(err, table) {
+    if(err) {
+      err.notice = "Table " + key + " not found in NDB data dictionary";
+    }
+    if(table) {
+      autoincrement.getCacheForTable(table);  // get AutoIncrementCache
+      table.columns.forEach(drColumn);
+      ndbConnectionPool.openTables.push(table);
+    }
+    /* Finally dispatch the group callbacks */
+    groupCallback(err, table);
+  }
+
+  var apiCall = new QueuedAsyncCall(dbSession.execQueue, masterCallback);
+  apiCall.impl = dbSession.impl;
+  apiCall.dbName = dbName;
+  apiCall.tableName = tableName;
+  apiCall.description = "getTableMetadata";
+  apiCall.run = function() {
+    adapter.ndb.impl.DBDictionary.getTable(this.impl, this.dbName, 
+                                           this.tableName, this.callback);
+  };
+  return apiCall;
+}
+
+
 /** Fetch metadata for a table
   * ASYNC
   * 
@@ -420,43 +458,15 @@ DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname,
   assert(dbname && tabname && user_callback);
   dictSession = dbSession || this.dict_sess; 
   tableKey = dbname + "." + tabname;
-  
-  function drColumn(c) {
-    if(c.ndbRawDefaultValue) {
-      var enc = ndbencoders.defaultForType[c.ndbTypeId];
-      c.defaultValue = enc.read(c, c.ndbRawDefaultValue, 0);
-    }       
-    else if(c.isNullable) {
-      c.defaultValue = null;
-    }
-    else {
-      c.defaultValue = undefined;
-    }
-    // This could be done to clean up the structure:
-    // delete(c.ndbRawDefaultValue);
-  }
-
-  function makeInternalCallback(user_function) {
-    // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
-    return function(err, table) {
-      // Walk the table and create defaultValue from ndbRawDefaultValue
-      if(table) {
-        table.columns.forEach(drColumn);
-      }
-      user_callback(err, table);  
-    };
-  }
-
-  var our_callback = makeInternalCallback(user_callback);
 
   if(this.pendingGetMetadata[tableKey]) {
     // This request is already running, so add our own callback to its list
     udebug.log("getTableMetadata", tableKey, "Adding request to pending group");
-    this.pendingGetMetadata[tableKey].push(our_callback);
+    this.pendingGetMetadata[tableKey].push(user_callback);
   }
   else {
     this.pendingGetMetadata[tableKey] = [];
-    this.pendingGetMetadata[tableKey].push(our_callback);
+    this.pendingGetMetadata[tableKey].push(user_callback);
     makeGetTableCall(dictSession, this, dbname, tabname).enqueue();
   }
 };
@@ -471,8 +481,6 @@ DBConnectionPool.prototype.createDBTableHandler = function(tableMetadata,
   udebug.log("createDBTableHandler", tableMetadata.name);
   var handler;
   handler = new dbtablehandler.DBTableHandler(tableMetadata, apiMapping);
-  /* TODO: If the mapping is not a default mapping, then the DBTableHandler
-     needs to be annotated with some Records */
   return handler;
 };
 
@@ -489,7 +497,6 @@ DBConnectionPool.prototype.registerTypeConverter = function(typeName, converter)
       throw new Error("Not a valid converter");
   }
 
-  // FIXME: The *use* of the converter needs to be implemented in DBTableHandler
   this.typeConverters[typeName] = converter;  
 };
 

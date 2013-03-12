@@ -204,7 +204,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
-      f.fieldNumber = this.fieldNumberToFieldMap.length;
       this.fieldNumberToColumnMap.push(c);
       this.fieldNumberToFieldMap.push(f);
       this.fieldNameToFieldMap[f.fieldName] = f;
@@ -312,9 +311,10 @@ DBTableHandler.prototype.applyMappingToResult = function(obj) {
  */
 DBTableHandler.prototype.setAutoincrement = function(object, autoincrementValue) {
   var autoIncField;
-  if(this.autoIncColumnNumber) {
+  if(typeof this.autoIncColumnNumber === 'number') {
     autoIncField = this.columnNumberToFieldMap[this.autoIncColumnNumber];
-    this.set(object, autoIncField.fieldNumber, autoincrementValue);
+    object[autoIncField.fieldName] = autoincrementValue;
+    udebug.log("setAutoincrement", autoIncField.fieldName, ":=", autoincrementValue);
   }
 };
 

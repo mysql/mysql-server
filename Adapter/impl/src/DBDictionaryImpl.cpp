@@ -160,6 +160,7 @@ class GetTableCall : public NativeCFunctionCall_3_<int, ndb_session *,
 {
 private:
   const NdbDictionary::Table * ndb_table;
+  Ndb * ndb_auto_inc;
   NdbDictionary::Dictionary::List idx_list;
   
   Handle<Object> buildDBIndex_PK();
@@ -170,7 +171,7 @@ public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(NULL, args),
-    ndb_table(0), idx_list()
+    ndb_table(0), ndb_auto_inc(0), idx_list()
   {
   }
   
@@ -193,6 +194,12 @@ void GetTableCall::run() {
   dict = arg0->ndb->getDictionary();
   ndb_table = dict->getTable(arg2);
   if(ndb_table) {
+    /* Get an Ndb object to manage the table's cache of auto-increment values */
+    if(ndb_table->getNoOfAutoIncrementColumns() > 0) {
+      ndb_auto_inc = new Ndb(& arg0->ndb->get_ndb_cluster_connection());
+      ndb_auto_inc->init();
+    }
+    /* List the indexes */
     return_val = dict->listIndexes(idx_list, arg2);
   }
   if(return_val == 0) {
@@ -285,6 +292,11 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     rec->completeTableRecord(ndb_table);
 
     table->Set(String::NewSymbol("record"), Record_Wrapper(rec));    
+
+    // Autoincrement Cache Impl (also not part of spec)
+    if(ndb_auto_inc) {
+      table->Set(String::NewSymbol("ndb_auto_inc"), Ndb_Wrapper(ndb_auto_inc));
+    }
     
     // User Callback
     cb_args[1] = table;
