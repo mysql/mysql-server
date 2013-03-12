@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.hosttree.hostTreeSetPath: Set path to selected tree node
  *      mcc.gui.hosttree.hostTreeSetup: Setup the entire host tree view
  *      mcc.gui.hosttree.getCurrentHostTreeItem: Get current selection
+ *      mcc.gui.hosttree.resetHostTreeItem: Reset the selected item
  *
  *  External data: 
  *      None
@@ -38,7 +39,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *  Internal interface:
  *      getStorageItem: Wrap tree/store item into storage item for convenience
  *      hostTreeCheckItemAcceptance: Validate dnd attempts
- *      resetHostTreeItem: Reset the selected item
  *      hostTreeOnMouseDown: Set selected item when the mouse is pressed
  *      hostTreeGetIconClass: Return the appropriate icon depending on tree node
  *      hostTreeViewSetup: Setup the host tree and model
@@ -87,6 +87,7 @@ dojo.require("mcc.storage");
 
 mcc.gui.hosttree.hostTreeSetPath = hostTreeSetPath;
 mcc.gui.hosttree.getCurrentHostTreeItem = getCurrentHostTreeItem;
+mcc.gui.hosttree.resetHostTreeItem = resetHostTreeItem;
 mcc.gui.hosttree.hostTreeSetup = hostTreeSetup;
 
 /******************************* Internal data ********************************/
@@ -189,7 +190,7 @@ function hostTreeOnMouseDown(event) {
         }
     }
 
-    mcc.gui.updateHostTreeSelectionDetails(hostTreeItem);
+    mcc.gui.updateHostTreeSelectionDetails();
 }
 
 // Set path to node selection

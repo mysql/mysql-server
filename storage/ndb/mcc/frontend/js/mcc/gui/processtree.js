@@ -31,13 +31,13 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.processtree.processTreeSetPath: Set path to selected tree node
  *      mcc.gui.processtree.processTreeSetup: Setup the entire process tree view
  *      mcc.gui.processtree.getCurrentProcessTreeItem: Get current selection
+ *      mcc.gui.processtree.resetProcessTreeItem: Reset the selected item
  *
  *  External data: 
  *      None
  *
  *  Internal interface:
  *      getStorageItem: Wrap tree/store item into storage item for convenience
- *      resetProcessTreeItem: Reset the selected item
  *      processTreeOnMouseDown: Set selected item when the mouse is pressed
  *      processTreeGetIconClass: Return the tree node's corresponding icon
  *      processTreeViewSetup: Setup the process tree and model
@@ -77,6 +77,7 @@ dojo.require("mcc.storage");
 
 mcc.gui.processtree.processTreeSetPath = processTreeSetPath;
 mcc.gui.processtree.getCurrentProcessTreeItem = getCurrentProcessTreeItem;
+mcc.gui.processtree.resetProcessTreeItem = resetProcessTreeItem;
 mcc.gui.processtree.processTreeSetup = processTreeSetup;
 
 /******************************* Internal data ********************************/

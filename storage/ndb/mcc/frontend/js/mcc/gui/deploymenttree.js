@@ -31,16 +31,16 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.gui.deploymenttree.deploymentTreeSetup: Setup the entire tree view
  *      mcc.gui.deploymenttree.startStatusPoll: Start status polling
  *      mcc.gui.deploymenttree.stopStatusPoll: Stop status polling
+ *      mcc.gui.deploymenttree.getCurrentDeploymentTreeItem: Get selection
+ *      mcc.gui.deploymenttree.resetDeploymentTreeItem: Reset the selected item
  *
  *  External data: 
  *      None
  *
  *  Internal interface:
  *      deploymentTreeSetPath: Set path to tree node
- *      getCurrentDeploymentTreeItem: Get selection
  *      updateDeploymentTreeView: Update view based on selection
  *      getStorageItem: Wrap tree/store item into storage item for convenience
- *      resetDeploymentTreeItem: Reset the selected item
  *      deploymentTreeOnMouseDown: Set selected item when the mouse is pressed
  *      deploymentTreeGetIconClass: Return the tree node's corresponding icon
  *      deploymentTreeViewSetup: Setup the process tree and model
@@ -82,6 +82,8 @@ dojo.require("mcc.server");
 mcc.gui.deploymenttree.deploymentTreeSetup = deploymentTreeSetup;
 mcc.gui.deploymenttree.startStatusPoll = startStatusPoll;
 mcc.gui.deploymenttree.stopStatusPoll = stopStatusPoll;
+mcc.gui.deploymenttree.getCurrentDeploymentTreeItem = getCurrentDeploymentTreeItem;
+mcc.gui.deploymenttree.resetDeploymentTreeItem = resetDeploymentTreeItem;
 
 /******************************* Internal data ********************************/
 
