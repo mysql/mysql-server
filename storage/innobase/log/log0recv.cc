@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -3347,7 +3347,7 @@ recv_recovery_from_checkpoint_start_func(
 	log_sys->next_checkpoint_no = checkpoint_no + 1;
 
 #ifdef UNIV_LOG_ARCHIVE
-	if (archived_lsn == IB_ULONGLONG_MAX) {
+	if (archived_lsn == LSN_MAX) {
 
 		log_sys->archiving_state = LOG_ARCH_OFF;
 	}
@@ -3951,8 +3951,8 @@ recv_recovery_from_archive_start(
 
 		err = recv_recovery_from_checkpoint_start(LOG_ARCHIVE,
 							  limit_lsn,
-							  IB_ULONGLONG_MAX,
-							  IB_ULONGLONG_MAX);
+							  LSN_MAX,
+							  LSN_MAX);
 		if (err != DB_SUCCESS) {
 
 			return(err);
@@ -3961,7 +3961,7 @@ recv_recovery_from_archive_start(
 		mutex_enter(&(log_sys->mutex));
 	}
 
-	if (limit_lsn != IB_ULONGLONG_MAX) {
+	if (limit_lsn != LSN_MAX) {
 
 		recv_apply_hashed_log_recs(FALSE);
 
