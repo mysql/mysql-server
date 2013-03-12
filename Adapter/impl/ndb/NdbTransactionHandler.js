@@ -30,6 +30,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     stats           = stats_module.getWriter("spi","ndb","DBTransactionHandler"),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    getAutoIncHandler = require("./NdbAutoIncrement.js").getHandler,
     proto           = doc.DBTransactionHandler,
     COMMIT          = adapter.ndbapi.Commit,
     NOCOMMIT        = adapter.ndbapi.NoCommit,
@@ -68,6 +69,7 @@ function run(self, execMode, abortFlag, callback) {
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
+  apiCall.description = "NdbTransactionHandler execute";
   apiCall.run = function runExecCall() {
     /* NDB Execute.
        "Sync" execute is an async operation for the JavaScript user,
@@ -100,7 +102,7 @@ function attachErrorToTransaction(dbTxHandler, err) {
     dbTxHandler.success = false;
     dbTxHandler.error = new ndboperation.DBOperationError(err.ndb_error);
     /* Special handling for duplicate value in unique index: */
-    if(err.ndb_error.code == 893) {
+    if(err.ndb_error.code === 893) {
       dbTxHandler.error.cause = dbTxHandler.error;
     }
   }
@@ -170,6 +172,17 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     run(self, execMode, abortFlag, onCompleteTx);
   }
 
+  function getAutoIncrementValues() {
+    udebug.log("execute getAutoIncrementValues");
+    var autoIncHandler = getAutoIncHandler(dbOperationList);
+    if(autoIncHandler === null) {
+      prepareOperationsAndExecute();
+    }
+    else {
+      autoIncHandler.getAllValues(prepareOperationsAndExecute);
+    }  
+  }
+
   function onStartTx(err, ndbtx) {
     if(err) {
       ndbsession.txIsClosed(self);
@@ -185,19 +198,16 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     udebug.log("execute onStartTx. ", self.moniker, 
                " TC node:", ndbtx.getConnectedNodeId(),
                "operations:",  dbOperationList.length);
-    prepareOperationsAndExecute();    
+    getAutoIncrementValues();    
   }
 
   /* execute() starts here */
-  /* TODO: count the number of autoincrement values needed in dbOperationList
-     and fetch them into the objects before prepareOperationsAndExecute
-  */
   udebug.log("Internal execute ", self.moniker);
   var table = dbOperationList[0].tableHandler.dbTable;
 
   if(self.executedOperations.length) {  // Transaction has already been started
     assert(self.ndbtx);
-    prepareOperationsAndExecute();
+    getAutoIncrementValues();
   }
   else {
     if(ndbsession.txCanRunImmediately(self)) {

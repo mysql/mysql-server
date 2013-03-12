@@ -33,13 +33,14 @@ using namespace v8;
 
 Handle<Value> startTransaction(const Arguments &);
 Handle<Value> getAutoIncValue(const Arguments &);
+Handle<Value> closeNdb(const Arguments &);
 
 class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "getAutoIncrementValue", getAutoIncValue);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "close", closeNdb);
   }
   
   Local<Object> wrap(Ndb *ndb) {
@@ -80,7 +81,7 @@ Handle<Value> startTransaction(const Arguments &args) {
 /* We can't map Ndb::getAutoIncrementValue() directly due to in/out param.
    The JS Wrapper function will simply return 0 on error.
 */
-Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table *table, uint32_t batch) {
+Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table * table, uint32_t batch) {
   Uint64 autoinc;
   int r = ndb->getAutoIncrementValue(table, autoinc, batch);
   if(r == -1) autoinc = 0;
@@ -91,7 +92,10 @@ Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table *table, uint32_t batch) {
 Handle<Value> getAutoIncValue(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
-  REQUIRE_ARGS_LENGTH(3);
+  REQUIRE_ARGS_LENGTH(4);
+  args[3] = args[3]; args[3] = args[2]; 
+  
+  
   typedef NativeCFunctionCall_3_<Uint64, Ndb *, const NdbDictionary::Table *,
                                  uint32_t> MCALL;
   MCALL * mcallptr = new MCALL(& getAutoInc, args);
@@ -100,3 +104,15 @@ Handle<Value> getAutoIncValue(const Arguments &args) {
   return scope.Close(JS_VOID_RETURN);
 }
 
+
+Handle<Value> closeNdb(const Arguments &args) {
+  HandleScope scope;
+  Ndb *ndb =  unwrapPointer<Ndb *>(args.Holder());
+  delete ndb;
+  return scope.Close(JS_VOID_RETURN);
+}
+
+
+void NdbWrapper_initOnLoad(Handle<Object> target) {
+  DEFINE_JS_FUNCTION(target, "getAutoIncrementValue", getAutoIncValue);
+}

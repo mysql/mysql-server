@@ -84,11 +84,12 @@ var DBOperation = function(opcode, tx, tableHandler) {
 DBOperation.prototype = doc.DBOperation;
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
-  udebug.log("prepare", this.opcode);
+  udebug.log("prepare", this.opcode, this.values);
   stats.incr("prepared");
   var helperSpec = {}, helper;
   switch(this.opcode) {
     case 'insert':
+      encodeRowBuffer(this);
       helperSpec.mask       = this.columnMask;
       helperSpec.row_record = this.tableHandler.dbTable.record;
       helperSpec.row_buffer = this.buffers.row;
@@ -330,7 +331,6 @@ function newInsertOperation(tx, tableHandler, row) {
   udebug.log("newInsertOperation");
   var op = new DBOperation("insert", tx, tableHandler);
   op.values = row;
-  encodeRowBuffer(op);  
   return op;
 }
 
