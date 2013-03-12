@@ -205,7 +205,7 @@ private:
 	LockStrategy		m_lock_strategy;
 };
 
-template <typename Pool, typename LockStrategy> 
+template <typename Pool, typename LockStrategy>
 struct PoolManager {
 
 	typedef Pool PoolType;
@@ -276,7 +276,7 @@ struct PoolManager {
 
 	static void free(value_type* ptr)
 	{
-		PoolType::free(ptr);	
+		PoolType::free(ptr);
 	}
 
 private:
