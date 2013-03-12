@@ -200,6 +200,8 @@ ErrorBundle ErrorCodes[] = {
   /* BuildFKRef + BuildFKImplRef */
   { 21060, DMEC, AE, "Build foreign key failed in NDB - foreign key not found" },
   { 21061, DMEC, SE, "Build foreign key failed in NDB - invalid foreign key version" },
+  /* Referential integrity */
+  { 21080, HA_ERR_ROW_IS_REFERENCED, SE, "Drop table not allowed in NDB - referenced by foreign key on another table" },
   
   /**
    * Node shutdown

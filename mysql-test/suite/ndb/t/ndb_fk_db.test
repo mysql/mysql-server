@@ -61,6 +61,7 @@ alter online table mydb1.child add constraint fk3 foreign key (c)
 use mydb1;
 show create table child;
 
+# bug#16286164: the fix requires correct DROP order
 use test;
-drop database mydb0;
 drop database mydb1;
+drop database mydb0;

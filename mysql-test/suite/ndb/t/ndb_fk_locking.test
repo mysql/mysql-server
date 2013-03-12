@@ -86,7 +86,7 @@ commit;
 connection con2;
 commit;
 
-drop table parent, child;
+drop table child, parent;
 
 #
 # bug#7412

@@ -41,4 +41,4 @@ ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (U
 insert into child values (2,2,1);
 delete from parent;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (Unknown error code)
-drop table parent, child;
+drop table child, parent;
