@@ -472,19 +472,6 @@ DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname,
 };
 
 
-/* createDBTableHandler(tableMetadata, apiMapping)
-   IMMEDIATE
-   Creates and returns a DBTableHandler for table and mapping
-*/
-DBConnectionPool.prototype.createDBTableHandler = function(tableMetadata, 
-                                                           apiMapping) { 
-  udebug.log("createDBTableHandler", tableMetadata.name);
-  var handler;
-  handler = new dbtablehandler.DBTableHandler(tableMetadata, apiMapping);
-  return handler;
-};
-
-
 /* registerTypeConverter(typeName, converterObject) 
    IMMEDIATE
 */
