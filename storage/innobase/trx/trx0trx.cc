@@ -683,10 +683,16 @@ trx_assign_rseg_low(
 
 			if (rseg == NULL) {
 				continue;
-			} else if (rseg->space == 0
+			} else if (rseg->space == srv_sys_space.space_id()
 				   && n_tablespaces > 0
 				   && trx_sys->rseg_array[std_rseg_ptr]
-					!= NULL) {
+					!= NULL
+				   && trx_sys->rseg_array[std_rseg_ptr]->space
+					!= srv_sys_space.space_id()) {
+				/* If undo-tablespace is configured, skip
+				rseg from system-tablespace and try to use
+				undo-tablespace rseg unless it is not possible
+				due to lower limit of undo-logs. */
 				continue;
 			}
 			break;
