@@ -220,9 +220,7 @@ row_vers_impl_x_locked_low(
 			/* prev_version was the first version modified by
 			the trx_id transaction: no implicit x-lock */
 
-			trx_mutex_enter(trx);
-			--trx->n_ref_count;
-			trx_mutex_exit(trx);
+			trx_release_reference(trx);
 			trx = 0;
 			break;
 		}
