@@ -543,6 +543,12 @@ bool thread_cache_size_specified= false;
 bool host_cache_size_specified= false;
 bool table_definition_cache_specified= false;
 
+Error_log_throttle err_log_throttle(Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
+                                    sql_print_error,
+                                    "Error log throttle: %10lu 'Can't create"
+                                    " thread to handle new connection'"
+                                    " error(s) suppressed");
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -2985,7 +2991,7 @@ static void start_signal_handler(void)
                                   &signal_thread, &thr_attr, signal_hand, 0)))
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
-        error,errno);
+                    error,errno);
     exit(1);
   }
   mysql_cond_wait(&COND_thread_count, &LOCK_thread_count);
@@ -3092,10 +3098,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #endif
 #ifdef USE_ONE_SIGNAL_HAND
         pthread_t tmp;
-        if (mysql_thread_create(0, /* Not instrumented */
-                                &tmp, &connection_attrib, kill_server_thread,
-                                (void*) &sig))
-          sql_print_error("Can't create thread to kill server");
+        if ((error= mysql_thread_create(0, /* Not instrumented */
+                                        &tmp, &connection_attrib,
+                                        kill_server_thread, (void*) &sig)))
+          sql_print_error("Can't create thread to kill server (errno= %d)",
+                          error);
 #else
         kill_server((void*) sig); // MIT THREAD has a alarm thread
 #endif
@@ -4994,9 +5001,12 @@ static void create_shutdown_thread()
 #ifdef __WIN__
   hEventShutdown=CreateEvent(0, FALSE, FALSE, shutdown_event_name);
   pthread_t hThread;
-  if (mysql_thread_create(key_thread_handle_shutdown,
-                          &hThread, &connection_attrib, handle_shutdown, 0))
-    sql_print_warning("Can't create thread to handle shutdown requests");
+  int error;
+  if ((error= mysql_thread_create(key_thread_handle_shutdown,
+                                  &hThread, &connection_attrib,
+                                  handle_shutdown, 0)))
+    sql_print_warning("Can't create thread to handle shutdown requests"
+                      " (errno= %d)", error);
 
   // On "Stop Service" we have to do regular shutdown
   Service.SetShutdownEvent(hEventShutdown);
@@ -5010,6 +5020,7 @@ static void create_shutdown_thread()
 static void handle_connections_methods()
 {
   pthread_t hThread;
+  int error;
   DBUG_ENTER("handle_connections_methods");
   if (hPipe == INVALID_HANDLE_VALUE &&
       (!have_tcpip || opt_disable_networking) &&
@@ -5025,22 +5036,24 @@ static void handle_connections_methods()
   if (hPipe != INVALID_HANDLE_VALUE)
   {
     handler_count++;
-    if (mysql_thread_create(key_thread_handle_con_namedpipes,
-                            &hThread, &connection_attrib,
-                            handle_connections_namedpipes, 0))
+    if ((error= mysql_thread_create(key_thread_handle_con_namedpipes,
+                                    &hThread, &connection_attrib,
+                                    handle_connections_namedpipes, 0)))
     {
-      sql_print_warning("Can't create thread to handle named pipes");
+      sql_print_warning("Can't create thread to handle named pipes"
+                        " (errno= %d)", error);
       handler_count--;
     }
   }
   if (have_tcpip && !opt_disable_networking)
   {
     handler_count++;
-    if (mysql_thread_create(key_thread_handle_con_sockets,
-                            &hThread, &connection_attrib,
-                            handle_connections_sockets_thread, 0))
+    if ((error= mysql_thread_create(key_thread_handle_con_sockets,
+                                    &hThread, &connection_attrib,
+                                    handle_connections_sockets_thread, 0)))
     {
-      sql_print_warning("Can't create thread to handle TCP/IP");
+      sql_print_warning("Can't create thread to handle TCP/IP (errno= %d)",
+                        error);
       handler_count--;
     }
   }
@@ -5048,11 +5061,12 @@ static void handle_connections_methods()
   if (opt_enable_shared_memory)
   {
     handler_count++;
-    if (mysql_thread_create(key_thread_handle_con_sharedmem,
-                            &hThread, &connection_attrib,
-                            handle_connections_shared_memory, 0))
+    if ((error= mysql_thread_create(key_thread_handle_con_sharedmem,
+                                    &hThread, &connection_attrib,
+                                    handle_connections_shared_memory, 0)))
     {
-      sql_print_warning("Can't create thread to handle shared memory");
+      sql_print_warning("Can't create thread to handle shared memory"
+                        " (errno= %d)", error);
       handler_count--;
     }
   }
@@ -5881,11 +5895,13 @@ static void bootstrap(MYSQL_FILE *file)
 
   bootstrap_file=file;
 #ifndef EMBEDDED_LIBRARY      // TODO:  Enable this
-  if (mysql_thread_create(key_thread_bootstrap,
-                          &thd->real_id, &connection_attrib, handle_bootstrap,
-                          (void*) thd))
+  int error;
+  if ((error= mysql_thread_create(key_thread_bootstrap,
+                                  &thd->real_id, &connection_attrib,
+                                  handle_bootstrap, (void*) thd)))
   {
-    sql_print_warning("Can't create thread to handle bootstrap");
+    sql_print_warning("Can't create thread to handle bootstrap (errno= %d)",
+                      error);
     bootstrap_error=-1;
     DBUG_VOID_RETURN;
   }
@@ -5991,6 +6007,9 @@ void create_thread_to_handle_connection(THD *thd)
       DBUG_PRINT("error",
                  ("Can't create thread to handle request (error %d)",
                   error));
+      if (!err_log_throttle.log(thd))
+        sql_print_error("Can't create thread to handle request (errno= %d)",
+                        error);
       thd->killed= THD::KILL_CONNECTION;      // Safety
       mysql_mutex_unlock(&LOCK_thread_count);
 
