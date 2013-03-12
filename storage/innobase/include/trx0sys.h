@@ -105,7 +105,9 @@ UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*	mtr,			/*!< in: mtr */
+	bool	include_tmp_slots);	/*!< in: if true, report
+					tmp slots as free slots. */
 /***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
 @return	pointer to rseg object, NULL if slot not in use */
@@ -188,6 +190,16 @@ trx_sys_get_max_trx_id(void);
 /* Flag to control TRX_RSEG_N_SLOTS behavior debugging. */
 extern uint			trx_rseg_n_slots_debug;
 #endif
+
+/*****************************************************************//**
+Check if slot-id is reserved slot-id for temp-tablespace rsegs.
+Note: slot-0 is reserved for system-tablespace rseg and temp-tablespace
+rsegs starts from slot-1 to slot-1 + srv_tmp_undo_logs. */
+UNIV_INLINE
+bool
+trx_sys_is_tmp_rseg_slot(
+/*=====================*/
+	ulint	slot_id);	/*!< in: slot_id to check */
 
 /*****************************************************************//**
 Writes a trx id to an index page. In case that the id size changes in
@@ -362,7 +374,9 @@ ulint
 trx_sys_create_rsegs(
 /*=================*/
 	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs);	/*!< number of rollback segments to create */
+	ulint	n_rsegs,	/*!< number of rollback segments to create */
+	ulint	n_tmp_rsegs);	/*!< number of rollback segments reserved for
+				temp-tables. */
 /*****************************************************************//**
 Get the number of transaction in the system, independent of their state.
 @return count of transactions in trx_sys_t::trx_list */

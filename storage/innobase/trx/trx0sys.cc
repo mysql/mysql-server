@@ -43,6 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
+#include "srv0space.h"
 
 /** The file format tag structure with id and name. */
 struct file_format_t {
@@ -365,7 +366,9 @@ UNIV_INTERN
 ulint
 trx_sysf_rseg_find_free(
 /*====================*/
-	mtr_t*	mtr)	/*!< in: mtr */
+	mtr_t*	mtr,			/*!< in: mtr */
+	bool	include_tmp_slots)	/*!< in: if true, report
+					tmp slots as free slots. */
 {
 	ulint		i;
 	trx_sysf_t*	sys_header;
@@ -377,7 +380,9 @@ trx_sysf_rseg_find_free(
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
-		if (page_no == FIL_NULL) {
+		if (page_no == FIL_NULL
+		    || (include_tmp_slots
+			&& trx_sys_is_tmp_rseg_slot(i))) {
 
 			return(i);
 		}
@@ -452,7 +457,7 @@ trx_sysf_create(
 			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	slot_no = trx_sysf_rseg_find_free(mtr);
+	slot_no = trx_sysf_rseg_find_free(mtr, false);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
 
@@ -878,24 +883,37 @@ ulint
 trx_sys_create_rsegs(
 /*=================*/
 	ulint	n_spaces,	/*!< number of tablespaces for UNDO logs */
-	ulint	n_rsegs)	/*!< number of rollback segments to create */
+	ulint	n_rsegs,	/*!< number of rollback segments to create */
+	ulint	n_tmp_rsegs)	/*!< number of rollback segments reserved for
+				temp-tables. */
 {
 	mtr_t	mtr;
 	ulint	n_used;
 
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
+	ut_a(n_tmp_rsegs < n_rsegs);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 
+	/* Rollback Segments reserved for temp-tablespace starts from slot-1.
+	Note: slot-0 is used by rseg that is system tablespace bounded. */
+	if (!srv_force_recovery && !recv_needed_recovery) {
+		for (ulint i = 0; i < n_tmp_rsegs; i++) {
+			ulint space = srv_tmp_space.space_id();
+			if (trx_rseg_create(space) == NULL) {
+				break;
+			}
+		}
+	}
+	
 	/* This is executed in single-threaded mode therefore it is not
 	necessary to use the same mtr in trx_rseg_create(). n_used cannot
 	change while the function is executing. */
-
 	mtr_start(&mtr);
-	n_used = trx_sysf_rseg_find_free(&mtr);
+	n_used = trx_sysf_rseg_find_free(&mtr, false);
 	mtr_commit(&mtr);
 
 	if (n_used == ULINT_UNDEFINED) {
