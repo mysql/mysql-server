@@ -33,7 +33,7 @@ UPDATE parent SET bogus_column = 'new!' WHERE id = 4;
 UPDATE parent SET bogus_column = 'new!' WHERE id = 5;
 commit;
 commit;
-drop table parent, child;
+drop table child, parent;
 CREATE TABLE t1 (
 id int(11) NOT NULL auto_increment,
 ref_id int(11) default NULL,

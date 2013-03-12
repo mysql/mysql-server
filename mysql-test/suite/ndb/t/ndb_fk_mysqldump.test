@@ -40,10 +40,17 @@ insert into product_order value (1,1,1,1);
 
 let $dump_file = $MYSQLTEST_VARDIR/tmp/ndb_fk_dump.sql;
 --exec $MYSQL_DUMP --databases test > $dump_file
+
+# bug#16286164: the fix exposes DROP order problem
+if (1)
+{
+drop table product_order, customer, product;
+}
+
 --exec $MYSQL test < $dump_file
 
 show create table product;
 show create table customer;
 show create table product_order;
 
-drop table product, customer, product_order;
+drop table product_order, customer, product;

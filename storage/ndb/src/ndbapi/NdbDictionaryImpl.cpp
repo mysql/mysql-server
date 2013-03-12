@@ -3934,6 +3934,39 @@ NdbDictionaryImpl::dropTable(const char * name)
   DBUG_RETURN(ret);
 }
 
+// MySQL has no option to drop constraints on child tables
+static const bool g_drop_table_cascade_constraints = false;
+
+static bool
+dropTableAllowDropChildFK(const NdbTableImpl& impl,
+                          const NdbDictionary::ForeignKey& fk)
+{
+  DBUG_ENTER("dropTableAllowDropChildFK");
+  const char* table = impl.m_internalName.c_str();
+  const char* child = fk.getChildTable();
+  const char* parent = fk.getParentTable();
+  DBUG_PRINT("info", ("table: %s child: %s parent: %s",
+                      table, child, parent));
+  const bool is_child = strcmp(table, child) == 0;
+  const bool is_parent = strcmp(table, parent) == 0;
+  if (g_drop_table_cascade_constraints)
+  {
+    DBUG_RETURN(true);
+  }
+  if (strstr(table, "/#sql") != 0)
+  {
+    DBUG_PRINT("info", ("return true - due to name"));
+    DBUG_RETURN(true);
+  }
+  if (is_parent && !is_child)
+  {
+    DBUG_PRINT("info", ("return false - is_parent && !is_child"));
+    DBUG_RETURN(false);
+  }
+  DBUG_PRINT("info", ("return true"));
+  DBUG_RETURN(true);
+}
+
 int
 NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
 {
@@ -3970,6 +4003,11 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
       NdbDictionary::ForeignKey fk;
       if ((res = getForeignKey(fk, element.name)) != 0)
       {
+        return -1;
+      }
+      if (!dropTableAllowDropChildFK(impl, fk))
+      {
+        m_receiver.m_error.code = 21080;
         return -1;
       }
       if ((res = dropForeignKey(fk)) != 0)
@@ -4039,6 +4077,11 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
       NdbDictionary::ForeignKey fk;
       if ((res = getForeignKey(fk, element.name)) != 0)
       {
+        ERR_RETURN(getNdbError(), -1);
+      }
+      if (!dropTableAllowDropChildFK(impl, fk))
+      {
+        m_receiver.m_error.code = 21080;
         ERR_RETURN(getNdbError(), -1);
       }
       if ((res = dropForeignKey(fk)) != 0)

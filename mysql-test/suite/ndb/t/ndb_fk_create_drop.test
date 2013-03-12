@@ -61,7 +61,7 @@ show warnings;
 alter online table child add constraint fk9 foreign key (a) references parent(c);
 show warnings;
 
-drop table parent, child;
+drop table child, parent;
 
 #
 # Test using SQL
@@ -89,5 +89,5 @@ create table child (
 ) engine=ndbcluster;
 
 show create table child;
-drop table parent, child;
+drop table child, parent;
 

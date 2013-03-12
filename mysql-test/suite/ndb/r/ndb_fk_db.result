@@ -154,5 +154,5 @@ child	CREATE TABLE `child` (
  CONSTRAINT `fk3` FOREIGN KEY(`c`) REFERENCES `mydb0`.`parent` (`a`) ON DELETE NO ACTION ON UPDATE NO ACTION
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 use test;
-drop database mydb0;
 drop database mydb1;
+drop database mydb0;
