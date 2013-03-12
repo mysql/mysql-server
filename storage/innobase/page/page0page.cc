@@ -535,11 +535,10 @@ page_create_empty(
 
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 
-	/* Temp-Tables are not shared across connection and so we avoid
-	locking of temp-tables as there would be no 2 trx trying to
-	operate on same temp-table in parallel.
-	max_trx_id is use to track which all trxs wrote to the page
-	in parallel but in case of temp-table this can is not needed. */
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(page)) {
@@ -700,11 +699,10 @@ page_copy_rec_list_end(
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
 	page in page_zip_compress() or page_zip_reorganize() below.
-	Temp-Tables are not shared across connection and so we avoid
-	locking of temp-tables as there would be no 2 trx trying to
-	operate on same temp-table in parallel.
-	max_trx_id is use to track which all trxs wrote to the page
-	in parallel but in case of temp-table this can is not needed. */
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page)
 	    && !dict_table_is_temporary(index->table)) {
@@ -832,11 +830,10 @@ page_copy_rec_list_start(
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
 	page in page_zip_compress() or page_zip_reorganize() below.
-	Temp-Tables are not shared across connection and so we avoid
-	locking of temp-tables as there would be no 2 trx trying to
-	operate on same temp-table in parallel.
-	max_trx_id is use to track which all trxs wrote to the page
-	in parallel but in case of temp-table this can is not needed. */
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && page_is_leaf(page_align(rec))
 	    && !dict_table_is_temporary(index->table)) {
@@ -2426,11 +2423,10 @@ page_validate(
 		}
 	}
 
-	/* Temp-Tables are not shared across connection and so we avoid
-	locking of temp-tables as there would be no 2 trx trying to
-	operate on same temp-table in parallel.
-	max_trx_id is use to track which all trxs wrote to the page
-	in parallel but in case of temp-table this can is not needed. */
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
 	    && !dict_table_is_temporary(index->table)
 	    && page_is_leaf(page)
