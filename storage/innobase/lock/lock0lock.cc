@@ -5814,10 +5814,9 @@ lock_rec_convert_impl_to_expl_for_trx(
 
 		type_mode = (LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP);
 
-		/* If the delete-marked record was locked
-		already, we should reserve lock waiting for
-		impl_trx as implicit lock. Because cannot
-		lock at this moment.*/
+		/* If the delete-marked record was locked already, we
+		should reserve a lock waiting lock for the trx as an
+		implicit lock. Because we cannot lock at this moment.*/
 
 		if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
 		    && lock_rec_other_has_conflicting(

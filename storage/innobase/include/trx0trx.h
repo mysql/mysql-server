@@ -507,18 +507,6 @@ UNIV_INLINE
 void
 trx_release_reference(
 	trx_t*		trx);
-/**
-Increase the reference count. Caller must own the trx_sys_t::mutex. If the
-transaction is in state TRX_STATE_COMMITTED_IN_MEMORY then the transaction
-is considered committed and the reference count is not incremented.
-@param trx		Transaction that is being referenced
-@param do_ref_count	Increment the reference iff this is true
-@return transaction instance if it is not committed */
-UNIV_INLINE
-trx_t*
-trx_reference(
-	trx_t*		trx,
-	bool		do_ref_count);
 
 /**
 Check if the transaction is being referenced. */
