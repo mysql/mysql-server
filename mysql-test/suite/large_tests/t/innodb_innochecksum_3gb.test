@@ -1,13 +1,13 @@
 #****************************************************************
-# WL6045:Improve Innochecksum
+#           WL6045:Improve Innochecksum 
 # Check Innochecksum with ibd file size 3GB
 # When server --default_storage_engine=InnoDB & tab2.ibd (CRC32)
 # When server --default_storage_engine=CRC32  & tab2.ibd (None)
-# Precondition : This testcase assumes 3GB disk space exist
+# Precondition : This testcase assumes 3GB disk space exist 
 # on the server where, it is kick off.
-# How to run this testcase:
-# ./mtr --big-test --suite-timeout=6360 --testcase-timeout=1200
-# innodb_innochecksum_3gb.test
+# How to run this testcase: 
+# ./mtr --big-test --suite=large_tests --suite-timeout=6360 
+# --testcase-timeout=6000 innodb_innochecksum_3gb.test
 #****************************************************************
 
 -- source include/have_innodb.inc
@@ -17,6 +17,7 @@
 --echo # Set the environmental variables
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
+
 
 --disable_warnings
 
@@ -33,7 +34,7 @@ SELECT @@default_storage_engine;
 CREATE TABLE tab2(col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
 col_4 longtext,col_5 BLOB,
-col_6 LONGBLOB , col_7 bigint )
+col_6 LONGBLOB , col_7 bigint ) 
 engine = innodb ;
 
 --echo # create index on the compress table
@@ -60,6 +61,8 @@ EOF
 
 --echo # load the data into the table
 
+--disable_query_log
+
 let $i = 14000;
 while ($i) {
 
@@ -70,7 +73,9 @@ dec $i;
 
 }
 
---echo # check the record count 10Million ,to ensure ibd file size is 3GB
+--enable_query_log
+
+--echo # check the record count 7014000 ,to ensure ibd file size is 3GB
 SELECT COUNT(*) FROM tab2;
 
 
@@ -105,7 +110,7 @@ eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
 --echo #check with Read operation by record count
-SELECT COUNT(*) FROM tab2;
+SELECT COUNT(*) FROM tab2 where col_7=1000;
 
 --echo #stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -150,14 +155,17 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 
+
 --echo # Print the contents stored in dump.txt
 cat_file $MYSQL_TMP_DIR/dump.txt;
 
---echo #restart the DB server with default innodb_checksum_algorithm=CRC32
+
+--echo #restart the DB server with default innodb_checksum_algorithm=CRC32 
 --exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
+
 
 --echo #check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
@@ -180,11 +188,11 @@ eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
 --echo #check with Read operation that record count
-SELECT COUNT(*) FROM tab2;
+SELECT COUNT(*) FROM tab2 where col_7=2000;
 
 --enable_warnings
 
---echo #cleanup
-#DROP TABLE IF EXISTS tab2;
+--echo #cleanup 
+DROP TABLE IF EXISTS tab2;
 
 --echo #TEST END
