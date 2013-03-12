@@ -53,6 +53,7 @@ dojo.require("mcc.gui.hosttree");
 
 mcc.gui.hostTreeSetPath = mcc.gui.hosttree.hostTreeSetPath;
 mcc.gui.getCurrentHostTreeItem = mcc.gui.hosttree.getCurrentHostTreeItem;
+mcc.gui.resetHostTreeItem = mcc.gui.hosttree.resetHostTreeItem;
 mcc.gui.hostTreeSetup = mcc.gui.hosttree.hostTreeSetup;
 
 /************************ Host tree selection details *************************/
@@ -71,6 +72,7 @@ dojo.require("mcc.gui.processtree");
 mcc.gui.processTreeSetPath = mcc.gui.processtree.processTreeSetPath;
 mcc.gui.getCurrentProcessTreeItem = 
         mcc.gui.processtree.getCurrentProcessTreeItem;
+mcc.gui.resetProcessTreeItem = mcc.gui.processtree.resetProcessTreeItem;
 mcc.gui.processTreeSetup = mcc.gui.processtree.processTreeSetup;
 
 /********************* Process tree selection details *************************/
@@ -87,6 +89,9 @@ dojo.require("mcc.gui.deploymenttree");
 mcc.gui.deploymentTreeSetup = mcc.gui.deploymenttree.deploymentTreeSetup;
 mcc.gui.startStatusPoll = mcc.gui.deploymenttree.startStatusPoll;
 mcc.gui.stopStatusPoll = mcc.gui.deploymenttree.stopStatusPoll;
+mcc.gui.getCurrentDeploymentTreeItem = 
+        mcc.gui.deploymenttree.getCurrentDeploymentTreeItem;
+mcc.gui.resetDeploymentTreeItem = mcc.gui.deploymenttree.resetDeploymentTreeItem;
 
 /******************************** Initialize  *********************************/
 

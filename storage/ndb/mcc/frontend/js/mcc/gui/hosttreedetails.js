@@ -91,6 +91,8 @@ function updateHostTreeSelectionDetails() {
              hostTreeItem.treeItem.isType("host"))) {
             mcc.gui.hostTreeSetPath(["root", "" +
                     hostTreeItem.storageItem.getId()]);
+        } else {
+            mcc.util.dbg("No tree item selected");            
         }
     } else if (hostTreeItem.treeItem.isType("process")) {
         // Focus on the selected tree item
@@ -183,7 +185,6 @@ function processSelectionDetailsSetup() {
     dojo.connect(pd_types, "onChange", function() {
         // Get current selection
         var hostTreeItem = mcc.gui.getCurrentHostTreeItem();
-
         // Just return if no change
         if (hostTreeItem.storageItem.getValue("processtype") ==
                 pd_types.getValue()) {

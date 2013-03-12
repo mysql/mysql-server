@@ -160,7 +160,9 @@ function setProcessValue(process, attr, val) {
         });
         processTreeStorage.getItem(process.getId()).then(function (treeProc) {
             treeProc.setValue("name", process.getValue("name"));
-            treeProc.setValue("status", process.getValue("status"));
+            if (process.getValue("status")) {
+                treeProc.setValue("status", process.getValue("status"));
+            }
             processTreeStorage.save();
         });
     }    
@@ -221,11 +223,28 @@ function deleteProcessItem(item) {
     // Fetch the process entry from the process tree and delete
     processTreeStorage.getItem(processId).then(function (treeItem) {
         treeItem.deleteItem();
+        // If selected in the process or deployment tree, reset
+        if (mcc.gui.getCurrentProcessTreeItem().storageItem &&
+            treeItem.getId() == mcc.gui.getCurrentProcessTreeItem().storageItem.getId()) {
+            mcc.util.dbg("Deleting selected process, reset current process tree item");
+            mcc.gui.resetProcessTreeItem();
+        }
+        if (mcc.gui.getCurrentDeploymentTreeItem().storageItem &&
+            treeItem.getId() == mcc.gui.getCurrentDeploymentTreeItem().storageItem.getId()) {
+            mcc.util.dbg("Deleting selected process, reset current deployment tree item");
+            mcc.gui.resetDeploymentTreeItem();
+        }
     });
 
     // Fetch the process entry from the host tree and delete
     hostTreeStorage.getItem(processId).then(function (treeItem) {
         treeItem.deleteItem();
+        // If selected in the host tree, reset
+        if (mcc.gui.getCurrentHostTreeItem().storageItem &&
+            treeItem.getId() == mcc.gui.getCurrentHostTreeItem().storageItem.getId()) {
+            mcc.util.dbg("Deleting selected process, reset current host tree item");
+            mcc.gui.resetHostTreeItem();
+        }
     });
 }
 
@@ -281,8 +300,7 @@ function setHostValue(host, attr, val) {
             treeHost.setValue(attr, val);
             hostTreeStorage.save();
         });
-    }
-    
+    }    
 }
 
 // Utility function for getting predefined directory names
@@ -483,6 +501,12 @@ function deleteHostItem(item) {
     hostTreeStorage.getItem(hostId).then(function (treeHost) {
         // Delete the host from hostTreeStorage, save
         treeHost.deleteItem();
+        // If selected in the host tree, reset
+        if (mcc.gui.getCurrentHostTreeItem().storageItem &&
+            treeHost.getId() == mcc.gui.getCurrentHostTreeItem().storageItem.getId()) {
+            mcc.util.dbg("Deleting selected host, reset current host tree item");
+            mcc.gui.resetHostTreeItem();
+        }
     });
 
     // Fetch all processes for this host and delete them
