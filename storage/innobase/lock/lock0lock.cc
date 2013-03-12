@@ -5788,8 +5788,10 @@ lock_rec_insert_check_and_lock(
 }
 
 /*********************************************************************//**
-If a transaction has an implicit x-lock on a record, but no explicit x-lock
-set on the record, sets one for it. */
+Creates an explicit record lock for a running transaction that currently only
+has an implicit lock on the record. The transaction instance must have a
+reference count > 0 so that it can't be committed and freed before this
+function has completed. */
 static
 void
 lock_rec_convert_impl_to_expl_for_trx(
@@ -5801,7 +5803,7 @@ lock_rec_convert_impl_to_expl_for_trx(
 	trx_t*			trx,	/*!< in/out: active transaction */
 	ulint			heap_no)/*!< in: rec heap number to lock */
 {
-	ut_a(trx->n_ref_count > 0);
+	ut_ad(trx_is_referenced(trx));
 
 	lock_mutex_enter();
 
@@ -5832,12 +5834,7 @@ lock_rec_convert_impl_to_expl_for_trx(
 
 	lock_mutex_exit();
 
-	trx_mutex_enter(trx);
-
-	ut_a(trx->n_ref_count > 0);
-	--trx->n_ref_count;
-
-	trx_mutex_exit(trx);
+	trx_release_reference(trx);
 }
 
 /*********************************************************************//**
@@ -5869,15 +5866,12 @@ lock_rec_convert_impl_to_expl(
 		ut_ad(!dict_index_is_online_ddl(index));
 
 		trx = lock_sec_rec_some_has_impl(rec, index, offsets);
-		/* The transaction can be committed before the
-		trx_is_active(trx_id, NULL) check below, because we are not
-		holding lock_mutex. */
 	}
 
 	if (trx != 0) {
 		ulint	heap_no = page_rec_get_heap_no(rec);
 
-		ut_a(trx->n_ref_count > 0);
+		ut_ad(trx_is_referenced(trx));
 
 		/* If the transaction is still active and has no
 		explicit x-lock set on the record, set one for it.
@@ -6638,16 +6632,17 @@ lock_trx_release_locks(
 	trx->state = TRX_STATE_COMMITTED_IN_MEMORY;
 	/*--------------------------------------*/
 
-	if (trx->n_ref_count > 0) {
+	if (trx_is_referenced(trx)) {
 
 		lock_mutex_exit();
 
-		while (trx->n_ref_count > 0) {
+		while (trx_is_referenced(trx)) {
+
 			trx_mutex_exit(trx);
 
 			/** Doing an implicit to explicit conversion
 			should not be expensive. */
-			os_thread_yield();
+			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 
 			trx_mutex_enter(trx);
 		}
@@ -6659,7 +6654,7 @@ lock_trx_release_locks(
 		trx_mutex_enter(trx);
 	}
 
-	ut_a(trx->n_ref_count == 0);
+	ut_ad(!trx_is_referenced(trx));
 
 	/* If the background thread trx_rollback_or_clean_recovered()
 	is still active then there is a chance that the rollback
