@@ -397,11 +397,10 @@ mem_hash_remove(
 	}
 
 	if (node == NULL) {
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Memory heap or buffer freed in %s line %lu"
-			" did not exist.\n",
+			" did not exist.",
 			innobase_basename(file_name), (ulong) line);
-		ut_error;
 	}
 
 	/* Remove from lists */
@@ -413,12 +412,11 @@ mem_hash_remove(
 	mem_heap_validate_or_print(node->heap, NULL, FALSE, &error, &size,
 				   NULL, NULL);
 	if (error) {
-		fprintf(stderr,
-			"Inconsistency in memory heap or"
-			" buffer n:o %lu created\n"
-			"in %s line %lu and tried to free in %s line %lu.\n"
-			"Hex dump of 400 bytes around memory heap"
-			" first block start:\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Inconsistency in memory heap or buffer n:o %lu"
+			" created in %s line %lu and tried to free in %s"
+			" line %lu.\nHex dump of 400 bytes around memory"
+			" heap first block start:\n",
 			node->nth_heap,
 			innobase_basename(node->file_name), (ulong) node->line,
 			innobase_basename(file_name), (ulong) line);

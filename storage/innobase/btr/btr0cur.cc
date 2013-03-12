@@ -4889,12 +4889,11 @@ btr_check_blob_fil_page_type(
 #endif /* !UNIV_DEBUG */
 
 		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: FIL_PAGE_TYPE=%lu"
-			" on BLOB %s space %lu page %lu flags %lx\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"FIL_PAGE_TYPE=%lu on BLOB %s space %lu"
+			" page %lu flags %lx",
 			(ulong) type, read ? "read" : "purge",
 			(ulong) space_id, (ulong) page_no, (ulong) flags);
-		ut_error;
 	}
 }
 

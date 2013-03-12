@@ -355,21 +355,14 @@ row_undo_step(
 	if (err != DB_SUCCESS) {
 		/* SQL error detected */
 
-		fprintf(stderr, "InnoDB: Fatal error (%s) in rollback.\n",
-			ut_strerr(err));
-
 		if (err == DB_OUT_OF_FILE_SPACE) {
-			fprintf(stderr,
-				"InnoDB: Out of tablespace.\n"
-				"InnoDB: Consider increasing"
-				" your tablespace.\n");
-
-			exit(1);
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Out of tablespace during rollback."
+				" Consider increasing your tablespace.");
 		}
 
-		ut_error;
-
-		return(NULL);
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Error (%s) in rollback.", ut_strerr(err));
 	}
 
 	return(thr);

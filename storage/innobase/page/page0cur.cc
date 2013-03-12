@@ -902,11 +902,10 @@ page_cur_parse_insert_rec(
 	/* Build the inserted record to buf */
 
         if (UNIV_UNLIKELY(mismatch_index >= UNIV_PAGE_SIZE)) {
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Is short %lu, info_and_status_bits %lu, offset %lu, "
-			"o_offset %lu\n"
-			"mismatch index %lu, end_seg_len %lu\n"
-			"parsed len %lu\n",
+			"o_offset %lu, mismatch index %lu, end_seg_len %lu"
+			"parsed len %lu",
 			(ulong) is_short, (ulong) info_and_status_bits,
 			(ulong) page_offset(cursor_rec),
 			(ulong) origin_offset,
