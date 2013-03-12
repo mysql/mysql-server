@@ -200,6 +200,8 @@ trx_reference(
 		ut_ad(lint(trx->n_ref_count) >= 0);
 		++trx->n_ref_count;
 		trx_mutex_exit(trx);
+	} else {
+		trx_mutex_exit(trx);
 	}
 
 	return(trx);
