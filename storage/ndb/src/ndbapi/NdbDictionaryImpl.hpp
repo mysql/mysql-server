@@ -942,6 +942,7 @@ public:
                                 const char * tableName);
   int alterTableGlobal(NdbTableImpl &orig_impl, NdbTableImpl &impl);
   int dropTableGlobal(NdbTableImpl &);
+  int dropTableGlobal(NdbTableImpl &, int flags);
   int dropIndexGlobal(NdbIndexImpl & impl);
   int releaseTableGlobal(const NdbTableImpl & impl, int invalidate);
   int releaseIndexGlobal(const NdbIndexImpl & impl, int invalidate);
