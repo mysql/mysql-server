@@ -859,6 +859,7 @@ public:
   {
     return ref.has_guarded_conds();
   }
+  Item *unified_condition() const;
   bool prepare_scan();
   bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();
