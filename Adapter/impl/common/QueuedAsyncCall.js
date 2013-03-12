@@ -45,11 +45,12 @@ function QueuedAsyncCall(queue, callback) {
   /* Function Generator */
   function wrapCallback(queue, callback) {
     return function wrappedCallback(err, obj) {
-      queue.shift();  // Our own QueuedAsyncCall
-      var next = queue.shift();   // The next QueuedAsyncCall
-      if(next) {
+      var thisCall, next;
+      thisCall = queue.shift();  // Our own QueuedAsyncCall
+      udebug.log("wrappedCallback", thisCall.description);
+      if(queue.length) {
         udebug.log("Run from queue");
-        next.run();
+        queue[0].run();
       }
       /* Run the user's callback function */
       if(typeof callback === 'function') {  callback(err, obj);  }
@@ -70,11 +71,11 @@ QueuedAsyncCall.prototype.enqueue = function() {
   this.queue.push(this);
   var pos = this.queue.length - 1;
   if(pos === 0) {
-    udebug.log("enqueue: run immediate");
+    udebug.log("enqueue", this.description, "- run immediate");
     this.run();
   }
   else {
-    udebug.log("enqueue: deferred, position", pos);
+    udebug.log("enqueue", this.description, "- deferred, position", pos);
   }
   return pos;
 };
