@@ -410,6 +410,9 @@ int mysql_update(THD *thd,
       conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
                            true, &result);
 
+    if (thd->is_error())
+        goto exit_without_my_ok;
+
     if (result == Item::COND_FALSE)
     {
       limit= 0;                                   // Impossible WHERE

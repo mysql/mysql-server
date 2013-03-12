@@ -343,9 +343,12 @@ fts_ast_term_set_wildcard(
 	fts_ast_node_t*	node)			/*!< in/out: set attribute of
 						a term node */
 {
+	if (!node) {
+		return;
+	}
+
 	/* If it's a node list, the wildcard should be set to the tail node*/
-	if (node->type == FTS_AST_LIST)
-	{
+	if (node->type == FTS_AST_LIST)	{
 		ut_ad(node->list.tail != NULL);
 		node = node->list.tail;
 	}
