@@ -7206,7 +7206,7 @@ static bool do_fill_table(THD *thd,
   tmp_da.reset_condition_info(thd->query_id);
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->condition());
+    thd, table_list, join_table->unified_condition());
 
   thd->pop_diagnostics_area();
 
