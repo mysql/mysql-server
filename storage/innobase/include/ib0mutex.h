@@ -488,7 +488,8 @@ private:
 	/** Wakeup a waiting thread */
 	void signal () UNIV_NOTHROW
 	{
-		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE, 1, 0, 0, 0);
+		syscall(SYS_futex, &m_lock_word, FUTEX_WAKE_PRIVATE,
+			MUTEX_STATE_LOCKED, 0, 0, 0);
 
 		// FIXME: Do we care about the return value?
 	}
