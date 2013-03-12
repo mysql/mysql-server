@@ -4363,6 +4363,22 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
   }
 
   /**
+   * If update/delete use partition pruning, we need
+   * to read the column values which being part of the 
+   * partition spec as they are used by
+   * ::get_parts_for_update() / ::get_parts_for_delete()
+   * Part. columns are always part of PK, so we only
+   * have to do this if pk_bitmap wasnt added yet,
+   */
+  else if (m_use_partition_pruning)
+  {
+    DBUG_ASSERT(bitmap_is_subset(&table->part_info->full_part_field_set,
+                                 m_pk_bitmap_p));
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  }
+      
+
+  /**
    * Update might cause PK or Unique key violation.
    * Error reporting need values from the offending 
    * unique columns to have been read:
@@ -6426,34 +6442,6 @@ print_value:
 }
 
 
-/*
-  Set fields in partition functions in read set for underlying handlers
-
-  SYNOPSIS
-    include_partition_fields_in_used_fields()
-
-  RETURN VALUE
-    NONE
-
-  DESCRIPTION
-    Some handlers only read fields as specified by the bitmap for the
-    read set. For partitioned handlers we always require that the
-    fields of the partition functions are read such that we can
-    calculate the partition id to place updated and deleted records.
-*/
-
-static void
-include_partition_fields_in_used_fields(Field **ptr, MY_BITMAP *read_set)
-{
-  DBUG_ENTER("include_partition_fields_in_used_fields");
-  do
-  {
-    bitmap_set_bit(read_set, (*ptr)->field_index);
-  } while (*(++ptr));
-  DBUG_VOID_RETURN;
-}
-
-
 int ha_ndbcluster::index_init(uint index, bool sorted)
 {
   DBUG_ENTER("ha_ndbcluster::index_init");
@@ -6466,11 +6454,13 @@ int ha_ndbcluster::index_init(uint index, bool sorted)
     and no sub-sequent call to unlock_row()
   */
   m_lock_tuple= FALSE;
+
   if (table_share->primary_key == MAX_KEY &&
       m_use_partition_pruning)
-    include_partition_fields_in_used_fields(
-      m_part_info->full_part_field_array,
-      table->read_set);
+  {
+    bitmap_union(table->read_set, &m_part_info->full_part_field_set);
+  }
+
   DBUG_RETURN(0);
 }
 
