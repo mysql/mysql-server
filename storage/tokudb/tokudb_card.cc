@@ -1,25 +1,25 @@
 int TOKUDB_SHARE::get_status(DB_TXN *txn, HA_METADATA_KEY k, DBT *val) {
-    DBT key = { .data = &k, .size = sizeof k };
+    DBT key = {}; key.data = &k; key.size = sizeof k;
     int error = status_block->get(status_block, txn, &key, val, 0);
     return error;
 }
 
 int TOKUDB_SHARE::get_status(DB_TXN *txn, HA_METADATA_KEY k, void *p, size_t s) {
-    DBT key = { .data = &k, .size = sizeof k };
-    DBT val = { .data = p, .size = (uint32_t) s, }; val.flags = DB_DBT_USERMEM;
+    DBT key = {}; key.data = &k; key.size = sizeof k;
+    DBT val = {}; val.data = p; val.size = (uint32_t) s; val.flags = DB_DBT_USERMEM;
     int error = status_block->get(status_block, txn, &key, &val, 0);
     return error;
 }
 
 int TOKUDB_SHARE::put_status(DB_TXN *txn, HA_METADATA_KEY k, void *p, size_t s) {
-    DBT key = { .data = &k, .size = sizeof k };
-    DBT val = { .data = p, .size = (uint32_t) s };
+    DBT key = {}; key.data = &k; key.size = sizeof k;
+    DBT val = {}; val.data = p; val.size = (uint32_t) s;
     int error = status_block->put(status_block, txn, &key, &val, 0);
     return error;
 }
 
 int TOKUDB_SHARE::delete_status(DB_TXN *txn, HA_METADATA_KEY k) {
-    DBT key = { .data = &k, .size = sizeof k };
+    DBT key = {}; key.data = &k; key.size = sizeof k;
     int error = status_block->del(status_block, txn, &key, DB_DELETE_ANY);
     return error;
 }    
