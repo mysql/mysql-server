@@ -10151,6 +10151,7 @@ innobase_rename_table(
 				normalize_table_name_low(
 					par_case_name, from, FALSE);
 #endif
+				trx_start_if_not_started(trx, true);
 				error = row_rename_table_for_mysql(
 					par_case_name, norm_to, trx, TRUE);
 			}
