@@ -426,7 +426,7 @@ trx_rw_is_active(
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
 	ibool*		corrupt,	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
-	bool		ref_count)	/*!< in: if true then increment the
+	bool		do_ref_count)	/*!< in: if true then increment the
 					trx_t::n_ref_count */
 {
 	trx_t*		trx;
@@ -435,17 +435,8 @@ trx_rw_is_active(
 
 	trx = trx_rw_is_active_low(trx_id, corrupt);
 
-	if (ref_count && trx != 0) {
-
-		trx_mutex_enter(trx);
-
-		if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
-			trx = NULL;
-		} else {
-			++trx->n_ref_count;
-		}
-
-		trx_mutex_exit(trx);
+	if (trx != 0) {
+		trx = trx_reference(trx, do_ref_count);
 	}
 
 	mutex_exit(&trx_sys->mutex);
