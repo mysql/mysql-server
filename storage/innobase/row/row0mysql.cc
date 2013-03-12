@@ -3009,13 +3009,13 @@ row_discard_tablespace_end(
 	}
 
 	DBUG_EXECUTE_IF("ib_discard_before_commit_crash",
-			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			log_make_checkpoint_at(LSN_MAX, TRUE);
 			DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
 
 	DBUG_EXECUTE_IF("ib_discard_after_commit_crash",
-			log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+			log_make_checkpoint_at(LSN_MAX, TRUE);
 			DBUG_SUICIDE(););
 
 	row_mysql_unlock_data_dictionary(trx);
