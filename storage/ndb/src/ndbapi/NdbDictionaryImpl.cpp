@@ -3934,12 +3934,10 @@ NdbDictionaryImpl::dropTable(const char * name)
   DBUG_RETURN(ret);
 }
 
-// MySQL has no option to drop constraints on child tables
-static const bool g_drop_table_cascade_constraints = false;
-
 static bool
 dropTableAllowDropChildFK(const NdbTableImpl& impl,
-                          const NdbDictionary::ForeignKey& fk)
+                          const NdbDictionary::ForeignKey& fk,
+                          bool cascade_constraints)
 {
   DBUG_ENTER("dropTableAllowDropChildFK");
   const char* table = impl.m_internalName.c_str();
@@ -3949,13 +3947,9 @@ dropTableAllowDropChildFK(const NdbTableImpl& impl,
                       table, child, parent));
   const bool is_child = strcmp(table, child) == 0;
   const bool is_parent = strcmp(table, parent) == 0;
-  if (g_drop_table_cascade_constraints)
+  if (cascade_constraints)
   {
-    DBUG_RETURN(true);
-  }
-  if (strstr(table, "/#sql") != 0)
-  {
-    DBUG_PRINT("info", ("return true - due to name"));
+    DBUG_PRINT("info", ("return true - cascade_constraints is on"));
     DBUG_RETURN(true);
   }
   if (is_parent && !is_child)
@@ -4005,7 +3999,8 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
       {
         return -1;
       }
-      if (!dropTableAllowDropChildFK(impl, fk))
+      const bool cascade_constraints = true;
+      if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
       {
         m_receiver.m_error.code = 21080;
         return -1;
@@ -4041,6 +4036,12 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
 
 int
 NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
+{
+  return dropTableGlobal(impl, 0);
+}
+
+int
+NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl, int flags)
 {
   int res;
   DBUG_ENTER("NdbDictionaryImpl::dropTableGlobal");
@@ -4079,7 +4080,8 @@ NdbDictionaryImpl::dropTableGlobal(NdbTableImpl & impl)
       {
         ERR_RETURN(getNdbError(), -1);
       }
-      if (!dropTableAllowDropChildFK(impl, fk))
+      const bool cascade_constraints = (flags & DropTableCascadeConstraints);
+      if (!dropTableAllowDropChildFK(impl, fk, cascade_constraints))
       {
         m_receiver.m_error.code = 21080;
         ERR_RETURN(getNdbError(), -1);
