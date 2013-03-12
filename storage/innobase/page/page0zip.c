@@ -2271,13 +2271,12 @@ zlib_done:
 
 	if (UNIV_UNLIKELY
 	    (page_zip_get_trailer_len(page_zip,
-				      dict_index_is_clust(index), NULL)
+				      dict_index_is_clust(index))
 	     + page_zip->m_end >= page_zip_get_size(page_zip))) {
 		page_zip_fail(("page_zip_decompress_node_ptrs:"
 			       " %lu + %lu >= %lu, %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, dict_index_is_clust(index),
-				       NULL),
+				       page_zip, dict_index_is_clust(index)),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip),
 			       (ulong) dict_index_is_clust(index)));
@@ -2428,12 +2427,12 @@ zlib_done:
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 	}
 
-	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, FALSE, NULL)
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, FALSE)
 			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
 
 		page_zip_fail(("page_zip_decompress_sec: %lu + %lu >= %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, FALSE, NULL),
+				       page_zip, FALSE),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip)));
 		return(FALSE);
@@ -2759,12 +2758,12 @@ zlib_done:
 		page_zip->m_nonempty = mod_log_ptr != d_stream->next_in;
 	}
 
-	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, TRUE, NULL)
+	if (UNIV_UNLIKELY(page_zip_get_trailer_len(page_zip, TRUE)
 			  + page_zip->m_end >= page_zip_get_size(page_zip))) {
 
 		page_zip_fail(("page_zip_decompress_clust: %lu + %lu >= %lu\n",
 			       (ulong) page_zip_get_trailer_len(
-				       page_zip, TRUE, NULL),
+				       page_zip, TRUE),
 			       (ulong) page_zip->m_end,
 			       (ulong) page_zip_get_size(page_zip)));
 		return(FALSE);
@@ -4639,8 +4638,7 @@ page_zip_copy_recs(
 		memcpy(page_zip, src_zip, sizeof *page_zip);
 		page_zip->data = data;
 	}
-	ut_ad(page_zip_get_trailer_len(page_zip,
-				       dict_index_is_clust(index), NULL)
+	ut_ad(page_zip_get_trailer_len(page_zip, dict_index_is_clust(index))
 	      + page_zip->m_end < page_zip_get_size(page_zip));
 
 	if (!page_is_leaf(src)
