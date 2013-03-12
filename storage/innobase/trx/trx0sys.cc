@@ -367,14 +367,17 @@ ulint
 trx_sysf_rseg_find_free(
 /*====================*/
 	mtr_t*	mtr,			/*!< in: mtr */
-	bool	include_tmp_slots)	/*!< in: if true, report
+	bool	include_tmp_slots,	/*!< in: if true, report
 					tmp slots as free slots. */
+	ulint	nth_free_slots)		/*!< in: allocate nth free slot.
+					0 means next free slot. */
 {
 	ulint		i;
 	trx_sysf_t*	sys_header;
 
 	sys_header = trx_sysf_get(mtr);
 
+	ulint	found_free_slots = 0;
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
 
@@ -384,7 +387,9 @@ trx_sysf_rseg_find_free(
 		    || (include_tmp_slots
 			&& trx_sys_is_tmp_rseg_slot(i))) {
 
-			return(i);
+			if (found_free_slots++ >= nth_free_slots) {
+				return(i);
+			}
 		}
 	}
 
@@ -457,7 +462,7 @@ trx_sysf_create(
 			+ page - sys_header, mtr);
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
-	slot_no = trx_sysf_rseg_find_free(mtr, false);
+	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
 	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
 					 mtr);
 
@@ -903,7 +908,7 @@ trx_sys_create_rsegs(
 	if (!srv_force_recovery && !recv_needed_recovery) {
 		for (ulint i = 0; i < n_tmp_rsegs; i++) {
 			ulint space = srv_tmp_space.space_id();
-			if (trx_rseg_create(space) == NULL) {
+			if (trx_rseg_create(space, i) == NULL) {
 				break;
 			}
 		}
@@ -913,7 +918,7 @@ trx_sys_create_rsegs(
 	necessary to use the same mtr in trx_rseg_create(). n_used cannot
 	change while the function is executing. */
 	mtr_start(&mtr);
-	n_used = trx_sysf_rseg_find_free(&mtr, false);
+	n_used = trx_sysf_rseg_find_free(&mtr, false, 0);
 	mtr_commit(&mtr);
 
 	if (n_used == ULINT_UNDEFINED) {
@@ -939,7 +944,7 @@ trx_sys_create_rsegs(
 				space = 0; /* System tablespace */
 			}
 
-			if (trx_rseg_create(space) != NULL) {
+			if (trx_rseg_create(space, 0) != NULL) {
 				++n_used;
 			} else {
 				break;
