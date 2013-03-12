@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -103,11 +103,12 @@ struct TrxFactory {
 
 		trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 
 		trx->support_xa = TRUE;
 
 		trx->check_foreigns = TRUE;
+
 		trx->check_unique_secondary = TRUE;
 
 		trx->dict_operation = TRX_DICT_OP_NONE;
@@ -116,16 +117,16 @@ struct TrxFactory {
 
 		trx->lock.que_state = TRX_QUE_RUNNING;
 
-		trx->lock.lock_heap = mem_heap_create_typed(
-			256, MEM_HEAP_FOR_LOCK_HEAP);
-
 		trx->search_latch_timeout = BTR_SEA_TIMEOUT;
-
-		trx->global_read_view_heap = mem_heap_create(256);
 
 		trx->xid.formatID = -1;
 
 		trx->op_info = "";
+
+		trx->lock.lock_heap = mem_heap_create_typed(
+			256, MEM_HEAP_FOR_LOCK_HEAP);
+
+		trx->global_read_view_heap = mem_heap_create(256);
 
 		mem_heap_t*	heap;
 		ib_alloc_t*	heap_alloc;
@@ -290,6 +291,28 @@ trx_create_low()
 	ut_a(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	ut_a(!trx->read_only);
+
+	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
+
+	trx->no = TRX_ID_MAX;
+
+	trx->support_xa = TRUE;
+
+	trx->check_foreigns = TRUE;
+
+	trx->check_unique_secondary = TRUE;
+
+	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	trx->error_state = DB_SUCCESS;
+
+	trx->lock.que_state = TRX_QUE_RUNNING;
+
+	trx->search_latch_timeout = BTR_SEA_TIMEOUT;
+
+	trx->xid.formatID = -1;
+
+	trx->op_info = "";
 
 	return(trx);
 }
@@ -561,9 +584,9 @@ trx_resurrect_insert(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number
-		field inited to IB_ULONGLONG_MAX */
+		field inited to TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -648,9 +671,9 @@ trx_resurrect_update(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number field inited to
-		IB_ULONGLONG_MAX */
+		TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -846,10 +869,10 @@ trx_start_low(
 		trx->read_only = true;
 	}
 
-	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
+	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */
 
-	trx->no = IB_ULONGLONG_MAX;
+	trx->no = TRX_ID_MAX;
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	ut_a(ib_vector_is_empty(trx->lock.table_locks));
