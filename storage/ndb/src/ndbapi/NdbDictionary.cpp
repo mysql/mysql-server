@@ -2570,12 +2570,18 @@ NdbDictionary::Dictionary::dropTable(Table & t)
 int
 NdbDictionary::Dictionary::dropTableGlobal(const Table & t)
 {
+  return dropTableGlobal(t, 0);
+}
+
+int
+NdbDictionary::Dictionary::dropTableGlobal(const Table & t, int flags)
+{
   int ret;
   if (likely(! is_ndb_blob_table(t.getName())))
   {
     DO_TRANS(
       ret,
-      m_impl.dropTableGlobal(NdbTableImpl::getImpl(t))
+      m_impl.dropTableGlobal(NdbTableImpl::getImpl(t), flags)
     );
   }
   else

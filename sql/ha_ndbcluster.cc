@@ -10515,12 +10515,22 @@ ha_ndbcluster::drop_table_impl(THD *thd, ha_ndbcluster *h, Ndb *ndb,
   }
 
   /* Drop the table from NDB */
+
+  int drop_flags= 0;
+
+  /* Copying alter can leave #sql table which is parent of old FKs */
+  if (thd->lex->sql_command == SQLCOM_ALTER_TABLE &&
+      strncmp(table_name, "#sql", 4) == 0)
+  {
+    DBUG_PRINT("info", ("set DropTableCascadeConstraints"));
+    drop_flags|= NDBDICT::DropTableCascadeConstraints;
+  }
   
   int res= 0;
   if (h && h->m_table)
   {
 retry_temporary_error1:
-    if (dict->dropTableGlobal(*h->m_table) == 0)
+    if (dict->dropTableGlobal(*h->m_table, drop_flags) == 0)
     {
       ndb_table_id= h->m_table->getObjectId();
       ndb_table_version= h->m_table->getObjectVersion();
@@ -10551,7 +10561,7 @@ retry_temporary_error1:
       if (ndbtab_g.get_table())
       {
     retry_temporary_error2:
-        if (dict->dropTableGlobal(*ndbtab_g.get_table()) == 0)
+        if (dict->dropTableGlobal(*ndbtab_g.get_table(), drop_flags) == 0)
         {
           ndb_table_id= ndbtab_g.get_table()->getObjectId();
           ndb_table_version= ndbtab_g.get_table()->getObjectVersion();

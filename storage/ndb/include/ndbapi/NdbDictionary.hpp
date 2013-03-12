@@ -2722,6 +2722,15 @@ public:
     const Table * getTableGlobal(const char * tableName) const;
     int alterTableGlobal(const Table &f, const Table &t);
     int dropTableGlobal(const Table &ndbtab);
+    /* Flags for second variant of dropTableGlobal */
+    enum {
+      /*
+       * Drop any referring foreign keys on child tables.
+       * Named after oracle "drop table .. cascade constraints".
+       */
+      DropTableCascadeConstraints = 0x1
+    };
+    int dropTableGlobal(const Table &ndbtab, int flags);
     int dropIndexGlobal(const Index &index);
     int removeIndexGlobal(const Index &ndbidx, int invalidate) const;
     int removeTableGlobal(const Table &ndbtab, int invalidate) const;
