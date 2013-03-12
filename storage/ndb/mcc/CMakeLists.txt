@@ -124,7 +124,7 @@ if(WIN32 AND MCC_PYTHON_TO_BUNDLE)
   else()
     # Include the whole Python installation when building the zip as 
     # it is used to run the unit tests.
-    message("Bundling full Python")
+    #message("Bundling full Python")
     install(DIRECTORY "${MCC_PYTHON_TO_BUNDLE}/"
       DESTINATION "${MCC_INSTALL_SUBDIR}/Python")
   endif()
