@@ -46,6 +46,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "srv0mon.h"
 #include "ut0vec.h"
+#include "srv0space.h"
 
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
@@ -629,44 +630,85 @@ trx_rseg_t*
 trx_assign_rseg_low(
 /*================*/
 	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
-	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
+	ulint	n_tablespaces,	/*!< in: number of rollback tablespaces */
+	bool	assign_std)	/*!< in: if true, assign rseg from standard
+				rseg pool else assign it from temp-tablespace
+				reserved pool. */
 {
-	ulint		i;
 	trx_rseg_t*	rseg;
-	static ulint	latest_rseg = 0;
+	static ulint	std_rseg_ptr = 0;
+	static ulint	tmp_rseg_ptr = 1;
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
 
+	// FIXME: We are updating static variables. Shouldn't this logic
+	// mutex protected given that this function might be called by
+	// multiple caller unless caller is protecting it.
+
 	/* This breaks true round robin but that should be OK. */
-
 	ut_a(max_undo_logs > 0 && max_undo_logs <= TRX_SYS_N_RSEGS);
-
-	i = latest_rseg++;
-	i %= max_undo_logs;
 
 	/* Note: The assumption here is that there can't be any gaps in
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
 
 	ut_a(trx_sys->rseg_array[0] != NULL);
+	ut_a(assign_std || trx_sys->rseg_array[1] != NULL);
+
+	/* Slot-0 is always assigned to system-tablespace rseg. */
+	ut_a(trx_sys->rseg_array[0]->space == srv_sys_space.space_id());
+
+	/* Slot-1 is always assigned to temp-tablespace rseg. */
+	ut_a(assign_std
+	     || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
 
 	/* Skip the system tablespace if we have more than one tablespace
 	defined for rollback segments. We want all UNDO records to be in
 	the non-system tablespaces. */
 
-	do {
-		rseg = trx_sys->rseg_array[i];
-		ut_a(rseg == NULL || i == rseg->id);
+	if (assign_std) {
+		while (true) {
+			rseg = trx_sys->rseg_array[std_rseg_ptr];
 
-		i = (rseg == NULL) ? 0 : i + 1;
+			std_rseg_ptr = (std_rseg_ptr + 1) % max_undo_logs;
 
-	} while (rseg == NULL
-		 || (rseg->space == 0
-		     && n_tablespaces > 0
-		     && trx_sys->rseg_array[1] != NULL));
+			/* Skip slots allocated to temp-tablespace rsegs */
+			while (trx_sys_is_tmp_rseg_slot(std_rseg_ptr)) {
+				std_rseg_ptr =
+					(std_rseg_ptr + 1) % max_undo_logs;
+			}
+
+			if (rseg == NULL) {
+				continue;
+			} else if (rseg->space == 0
+				   && n_tablespaces > 0
+				   && trx_sys->rseg_array[std_rseg_ptr]
+					!= NULL) {
+				continue;
+			}
+			break;
+		}
+	} else {
+		while (true) {
+			rseg = trx_sys->rseg_array[tmp_rseg_ptr];
+
+			tmp_rseg_ptr = (tmp_rseg_ptr + 1) % max_undo_logs;
+
+			while (!trx_sys_is_tmp_rseg_slot(tmp_rseg_ptr)) {
+				tmp_rseg_ptr =
+					(tmp_rseg_ptr + 1) % max_undo_logs;
+			}
+
+			if (rseg == NULL) {
+				continue;
+			}
+
+			break;
+		}
+	}
 
 	return(rseg);
 }
@@ -687,7 +729,7 @@ trx_assign_rseg(
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
 	trx->standard.rseg =
-		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
+		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, true);
 
 	if (trx->id == 0) {
 		mutex_enter(&trx_sys->mutex);
@@ -761,7 +803,7 @@ trx_start_low(
 	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
 
 		trx->standard.rseg = trx_assign_rseg_low(
-			srv_undo_logs, srv_undo_tablespaces);
+			srv_undo_logs, srv_undo_tablespaces, true);
 
 		mutex_enter(&trx_sys->mutex);
 
@@ -2262,7 +2304,8 @@ trx_set_rw_mode(
 	it here for the non-debug case. It can always be moved
 	out and the code #ifdefed to handle both variations. */
 
-	trx->standard.rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
+	trx->standard.rseg =
+		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, true);
 	ut_a(trx->standard.rseg != 0);
 
 	ut_a(trx->id == 0);

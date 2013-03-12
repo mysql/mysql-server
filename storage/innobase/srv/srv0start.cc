@@ -2150,7 +2150,7 @@ files_checked:
 	be set using the dynamic global variable srv_undo_logs. */
 
 	srv_available_undo_logs = trx_sys_create_rsegs(
-		srv_undo_tablespaces, srv_undo_logs);
+		srv_undo_tablespaces, srv_undo_logs, srv_tmp_undo_logs);
 
 	if (srv_available_undo_logs == ULINT_UNDEFINED) {
 		/* Can only happen if force recovery is set. */
