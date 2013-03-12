@@ -1909,11 +1909,13 @@ longlong Item_func_neg::int_op()
     return raise_integer_overflow();
 
   if (value == LONGLONG_MIN)
+  {
     if (args[0]->unsigned_flag != unsigned_flag)
       /* negation of LONGLONG_MIN is LONGLONG_MIN. */
       return LONGLONG_MIN; 
     else
       return raise_integer_overflow();
+  }
 
   return check_integer_overflow(-value, !args[0]->unsigned_flag && value < 0);
 }
