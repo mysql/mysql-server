@@ -141,6 +141,7 @@ class RemoteClusterHost(ABClusterHost):
         except IOError as ioerr:
             if ioerr.errno == errno.ENOENT:
                 return None
+            _logger.debug('stat failure on '+path)
             raise
     
     def list_dir(self, path):

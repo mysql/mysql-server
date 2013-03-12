@@ -35,8 +35,6 @@ import os.path
 tst_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 mcc_dir = os.path.dirname(tst_dir)
 
-print 'tst_dir: '+tst_dir
-
 # Paramiko from Bazaar 
 sys.path += [tst_dir, mcc_dir, '/usr/local/lib/bzr-2.1.0-2010.03/lib/python2.6/site-packages', '/usr/local/lib/bzr-2.1.0/lib/python/site-packages', '/opt/csw/lib/python/site-packages' ]
 
@@ -56,11 +54,9 @@ import urlparse
 import time
 import socket
 import stat
-
 import tempfile
-
 import platform
-
+import time
 
 import request_handler
 import config_parser
@@ -76,8 +72,9 @@ from paramiko import SSHClient, WarningPolicy
 _ndb_config = os.path.join('..', '..', '..', 'bin', 'ndb_config')
 
 def tst_tempify(*fs):
-    return os.path.join(util.get_val(os.environ, 'MYSQL_TMP_DIR', 
-                        tempfile.gettempdir()), *fs)
+	td = util.get_val(os.environ, 'MYSQL_TMP_DIR', tempfile.gettempdir())
+	#td = tempfile.mkdtemp()
+	return os.path.join(td, *fs)
 
 def defdatadir():
     return os.path.join(os.path.expanduser('~'), 'MySQL_Cluster', 'data')
@@ -96,6 +93,11 @@ def_datadir = os.path.join(os.path.expanduser('~'), 'MySQL_Cluster', 'data')
 def mock_ABClusterHost(hle):
     return produce_ABClusterHost(hostname=hle['hostInfoRep']['host']['name'], user=util.get_val(hle, 'username'), pwd=util.get_val(hle, 'password'))
 
+def local_ipv4_ssh_addr():
+	for (family, socktype, proto, canonname, sockaddr) in socket.getaddrinfo(socket.gethostname(), 22):
+		if family == socket.AF_INET:
+			return sockaddr[0]
+		
 def host_is_unreachable(hostname, port=22):
     rd = util._retdict('ECONNREFUSED', True)
     rd[socket.EAI_NONAME] = True
@@ -107,7 +109,7 @@ def is_local_sshd_available():
     c.set_missing_host_key_policy(WarningPolicy())
     #c.load_system_host_keys()
     try:
-        c.connect('localhost', password=util.get_val(os.environ, 'SSH_PWD'))
+        c.connect(local_ipv4_ssh_addr(), password=util.get_val(os.environ, 'SSH_PWD'))
     except:
         logging.exception('No usable sshd on this machine: ')
         return False
@@ -139,7 +141,7 @@ class Test00Utils(utmod.TestCase):
 
     @utmod.skipIf(not is_local_sshd_available(), 'FIXME: Sshd is not running by default on Windows - test some other port?')
     def test_host_is_unreachable(self):
-        self.assertFalse(host_is_unreachable('localhost'))
+        self.assertFalse(host_is_unreachable(local_ipv4_ssh_addr()))
 
     def test_to_json(self):
         obj = [ "sleep" "300" ]
@@ -181,52 +183,60 @@ class Test0ConfigIni(utmod.TestCase):
 @utmod.skipIf(not is_local_sshd_available(), 'FIXME: Sshd is not running by default on Windows - test some other port?')
 class Test3Ports(utmod.TestCase):
     def testPortNotAvailable(self):
-        self.assertFalse(util.is_port_available('localhost', 22))
+        self.assertFalse(util.is_port_available(local_ipv4_ssh_addr(), 22))
 
     def testPortAvailable(self):
-        self.assertTrue(util.is_port_available('localhost', 23))
+        self.assertTrue(util.is_port_available(local_ipv4_ssh_addr(), 23))
 
     def testFindPort(self):
-        self.assertEqual(util.first_available_port('localhost', 22, 23), 23)
+        self.assertEqual(util.first_available_port(local_ipv4_ssh_addr(), 22, 23), 23)
 
     def testNotFindPort(self):
         self.assertRaises(util.NoPortAvailableException, 
-                          util.first_available_port, 'localhost', 22, 22)
+                          util.first_available_port, local_ipv4_ssh_addr(), 22, 22)
        
 class _TestABClusterHost:
     def setUp(self):
-        pass
+        self.rtd = time.strftime("%Y-%m-%dT%H-%M-%S",time.localtime())+str(self.__class__.__name__)
+        logging.debug('rtd: '+self.rtd)
+        self.ch.mkdir_p(self.rtd)
 
     def tearDown(self):
+        if sys.exc_info() == (None, None, None):
+            logging.debug('tearDown: success')
+            self.ch.rm_r(self.rtd)
+        else:
+            logging.debug('tearDown: failure')
+            logging.exception('try this...')
         self.ch.drop()
+        
     @utmod.skip('FIXME: Need the path to a program that will always be available')
     def test_fg_exec(self):
         self.assertTrue('This program will retrieve config options for a ndb cluster' in self.ch.exec_blocking([_ndb_config, '--help']))
             
     def test_fileops(self):
-        d = tst_tempify('foo', 'bar', '')
+        d = self.ch.path_module.join(self.rtd, 'foo', 'bar', '')
         logging.debug('d='+d)
         self.ch.mkdir_p(d)
-        f = None
+        bazname = self.ch.path_module.join(d, 'baz')
+        f = self.ch.open(bazname, 'w+')
         try:
-            f = self.ch.open(tst_tempify('foo', 'bar', 'baz'), 'w+')
             f.write('Some text here...\n')
-            f.seek(0)
+            f.close()
+            f = self.ch.open(bazname)
             self.assertEqual(f.read(), 'Some text here...\n')
         finally:
-            if f is not None:
-                f.close()
-            self.ch.rm_r(tst_tempify('foo'))
+            f.close()
 
     def test_stat_dir_2(self):
         if not hasattr(self.ch, 'sftp'):
             return
-        self.assertTrue(stat.S_ISDIR(self.ch.sftp.stat(tst_tempify('')).st_mode))
+        self.assertTrue(stat.S_ISDIR(self.ch.sftp.stat(self.rtd).st_mode))
 
     @utmod.skip('Cannot create files with attributes')    
     def test_list_dir_no_x(self):
-        nox_name = tst_tempify('nox')
-        notmine_name = tst_tempify('not_mine')
+        nox_name = self.ch.path_module.join(self.rtd, 'nox')
+        notmine_name = self.ch.path_module.join(self.rtd, 'not_mine')
         nox_mode = self.self.ch.sftp.stat(nox_name).st_mode
         notmine_mode = self.self.ch.sftp.stat(notmine_name).st_mode
 
@@ -236,14 +246,13 @@ class _TestABClusterHost:
         self.assertTrue(stat.S_ISDIR(notmine_mode))
         self.assertTrue(is_set(stat.S_IMODE(notmine_mode), stat.S_IXOTH))
 
-        print "listdir(nox)="+str(self.self.ch.list_dir(nox_name))
-        print "listdir(notmine)="+str(self.self.ch.list_dir(notmine_name))        
-
+        logging.debug('listdir(nox)='+str(self.self.ch.list_dir(nox_name)))
+        logging.debug('listdir(notmine)='+str(self.self.ch.list_dir(notmine_name)))
+        
     def test_mkdir_p(self):
-        somedir_name = tst_tempify('some_dir')
+        somedir_name = self.ch.path_module.join(self.rtd, 'some_dir')
         logging.debug('somedir_name'+somedir_name)
         self.ch.mkdir_p(somedir_name)
-        self.ch.rm_r(somedir_name)
 
     def test_hostInfo(self):
         hir = json_normalize(self.ch.hostInfo.rep)
@@ -253,8 +262,8 @@ class _TestABClusterHost:
 
 class Test4LocalClusterHost(utmod.TestCase, _TestABClusterHost):
     def setUp(self):
-        _TestABClusterHost.setUp(self)
         self.ch = LocalClusterHost('localhost')
+        _TestABClusterHost.setUp(self)
 
     def tearDown(self):
         _TestABClusterHost.tearDown(self)
@@ -262,47 +271,61 @@ class Test4LocalClusterHost(utmod.TestCase, _TestABClusterHost):
 @utmod.skipIf(not is_local_sshd_available(), 'No suitable local sshd')
 class Test5RemoteClusterHost(utmod.TestCase, _TestABClusterHost):
     def setUp(self):
+        self.ch = RemoteClusterHost(local_ipv4_ssh_addr(), password=util.get_val(os.environ, 'SSH_PWD'))
         _TestABClusterHost.setUp(self)
-        self.ch = RemoteClusterHost(socket.gethostname(), password=util.get_val(os.environ, 'SSH_PWD'))
-
+        
     def tearDown(self):
         _TestABClusterHost.tearDown(self)
 
     def test_copy_file(self):
-        with tempfile.NamedTemporaryFile() as ex:
-            ex.write("Some text here\nSome more text on another line\n")
-            
-            if not hasattr(self.ch, 'sftp'):
-                return
-            ex.seek(0)
-            tmpex_name = tst_tempify('example.txt')
-            self.ch.sftp.put(ex.name, tmpex_name)
-            try:
-                self.ch.sftp.get(tmpex_name, 'remote_example.txt')
-                with open('remote_example.txt') as rex:
-                    self.assertEqual(ex.read(), rex.read())
-            finally:
-                self.ch.sftp.remove(tmpex_name)
+        if not hasattr(self.ch, 'sftp'):
+            return
 
-    def test_mkdir(self):
-        with tempfile.NamedTemporaryFile() as ex:
-            ex.write("Some text here\nSome more text on another line\n")
-            ex.seek(0)
-            if not hasattr(self.ch, 'sftp'):
-                return
-            some_new_dir_name = tst_tempify('some_new_dir')
-            self.ch.sftp.mkdir(some_new_dir_name)
-            tmpex_name = os.path.join(some_new_dir_name, 'example.txt')
+        content = 'Some text here\nSome more text on another line\n'
+        (lh, lname) = tempfile.mkstemp()
+        logging.debug('lname: '+lname)
+        try:
+            os.write(lh, content)
+			
+            # Note! Might not work with a genuine remote host, as rex.name
+            # might not be creatable there
+            (rh, rname) = tempfile.mkstemp()
+            os.close(rh)
+            # Fixme! Assumes SFTP home is C: (More commonly HOMEPATH or USERPROFILE? 
+            rname = os.path.basename(rname)
+            self.ch.sftp.put(lname, rname)
             try:
-                self.ch.sftp.put(ex.name, tmpex_name)
-                self.ch.sftp.remove(tmpex_name)
+                (llh, llname) = tempfile.mkstemp()
+                os.close(llh)
+                self.ch.sftp.get(rname, llname)
+                try:
+                    with open(llname) as llh:
+                        self.assertEqual(content, llh.read())
+                finally:
+                    os.remove(llname)
             finally:
-                self.ch.sftp.rmdir(some_new_dir_name)
+                self.ch.sftp.remove(rname)
+        finally:
+            os.close(lh)
+            os.remove(lname)
+            
+    def test_mkdir(self):
+        if not hasattr(self.ch, 'sftp'):
+            return
+        (h, n) = tempfile.mkstemp()
+        os.write(h, "Some text here\nSome more text on another line\n")
+        os.close(h)
+
+        some_new_dir_name = self.ch.path_module.join(self.rtd, 'some_new_dir')
+        self.ch.sftp.mkdir(some_new_dir_name)
+        tmpex_name = self.ch.path_module.join(some_new_dir_name, 'example.txt')
+        self.ch.sftp.put(n, tmpex_name)
+        os.remove(n)
 
     def test_stat_dir(self):
         if not hasattr(self.ch, 'sftp'):
             return
-        self.assertEqual(stat.S_IFMT(self.ch.sftp.stat(tst_tempify('')).st_mode), stat.S_IFDIR)
+        self.assertEqual(stat.S_IFMT(self.ch.sftp.stat(self.rtd).st_mode), stat.S_IFDIR)
 
 
 class Test6RequestHandler(utmod.TestCase):
@@ -408,4 +431,5 @@ if __name__ == '__main__':
         assert(False) 
         utmod.main(argv=sys.argv)
     else:
-        utmod.main(argv=sys.argv, testRunner=xmlrunner2.XMLTestRunner)
+        #utmod.main(argv=sys.argv, testRunner=xmlrunner2.XMLTestRunner)
+        utmod.main(argv=sys.argv)
