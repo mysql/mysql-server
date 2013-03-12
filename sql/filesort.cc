@@ -724,8 +724,11 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
 
   if (quick_select)
   {
-    if (select->quick->reset())
+    if ((error= select->quick->reset()))
+    {
+      file->print_error(error, MYF(0));
       DBUG_RETURN(HA_POS_ERROR);
+    }
   }
 
   /* Remember original bitmaps */
