@@ -212,6 +212,19 @@ trx_write_trx_id(
 	mach_write_to_6(ptr, id);
 }
 
+/*****************************************************************//**
+Check if slot-id is reserved slot-id for temp-tablespace rsegs.
+Note: slot-0 is reserved for system-tablespace rseg and temp-tablespace
+rsegs starts from slot-1 to slot-1 + srv_tmp_undo_logs. */
+UNIV_INLINE
+bool
+trx_sys_is_tmp_rseg_slot(
+/*=====================*/
+	ulint	slot_id)	/*!< in: slot_id to check */
+{
+	return (slot_id > 0 && slot_id < (srv_tmp_undo_logs + 1));
+}
+
 #ifndef UNIV_HOTBACKUP
 /*****************************************************************//**
 Reads a trx id from an index page. In case that the id size changes in

@@ -35,6 +35,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0purge.h"
 #include "ut0bh.h"
 #include "srv0mon.h"
+#include "srv0space.h"
 
 #include <algorithm>
 
@@ -272,6 +273,13 @@ trx_rseg_create_instance(
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
 
+		/* Slot-1 to Slot-n are reserved for temp-tablespace rsegs
+		and given that temp-tablespace rsegs are re-created on
+		start-up skip their creation at this stage. */
+		if (trx_sys_is_tmp_rseg_slot(i)) {
+			continue;
+		}
+
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
 		if (page_no != FIL_NULL) {
@@ -283,7 +291,8 @@ trx_rseg_create_instance(
 
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
-			zip_size = space ? fil_space_get_zip_size(space) : 0;
+			zip_size = !Tablespace::is_system_tablespace(space)
+				? fil_space_get_zip_size(space) : 0;
 
 			rseg = trx_rseg_mem_create(
 				i, space, zip_size, page_no, ib_bh, mtr);
@@ -314,7 +323,8 @@ trx_rseg_create(
 	x-latch before the trx_sys->mutex. */
 	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
-	slot_no = trx_sysf_rseg_find_free(&mtr);
+	slot_no = trx_sysf_rseg_find_free(
+		&mtr, (space == srv_tmp_space.space_id()));
 
 	if (slot_no != ULINT_UNDEFINED) {
 		ulint		id;
@@ -332,7 +342,8 @@ trx_rseg_create(
 		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
 		ut_a(id == space);
 
-		zip_size = space ? fil_space_get_zip_size(space) : 0;
+		zip_size = !Tablespace::is_system_tablespace(space)
+			   ? fil_space_get_zip_size(space) : 0;
 
 		rseg = trx_rseg_mem_create(
 			slot_no, space, zip_size, page_no,
@@ -386,6 +397,12 @@ trx_rseg_get_n_undo_tablespaces(
 		ulint	page_no;
 		ulint	space;
 
+		/* Skip temp-tablespace slot as while looking out for
+		undo-tablespace. */
+		if (trx_sys_is_tmp_rseg_slot(i)) {
+			continue;
+		}
+
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
 		if (page_no == FIL_NULL) {
@@ -394,6 +411,9 @@ trx_rseg_get_n_undo_tablespaces(
 
 		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
+		/* Skip slots alloted to system-tablespace and temp-tablespace.
+		Temp-tablespace alloted slots are reserved starting from slot-1
+		and so if slotid is < temp-tablespace reserved limit skip it. */
 		if (space != 0) {
 			ulint	j;
 			ibool	found = FALSE;

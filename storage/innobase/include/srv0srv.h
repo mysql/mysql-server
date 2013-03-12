@@ -229,6 +229,9 @@ extern ulint	srv_undo_tablespaces_open;
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
+/* Temp-Tablespace bounded rollback segments for use by temp-tables */
+extern ulong	srv_tmp_undo_logs;
+
 extern char*	srv_log_group_home_dir;
 
 #ifndef UNIV_HOTBACKUP
