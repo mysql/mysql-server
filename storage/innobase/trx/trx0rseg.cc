@@ -311,7 +311,9 @@ UNIV_INTERN
 trx_rseg_t*
 trx_rseg_create(
 /*============*/
-	ulint		space)		/*!< in: id of UNDO tablespace */
+	ulint	space,		/*!< in: id of UNDO tablespace */
+	ulint	nth_free_slot)	/*!< in: allocate rseg at nth free slot
+				0 means next free slots. */	
 {
 	mtr_t		mtr;
 	ulint		slot_no;
@@ -324,7 +326,7 @@ trx_rseg_create(
 	mtr_x_lock(fil_space_get_latch(space, NULL), &mtr);
 
 	slot_no = trx_sysf_rseg_find_free(
-		&mtr, (space == srv_tmp_space.space_id()));
+		&mtr, (space == srv_tmp_space.space_id()), nth_free_slot);
 
 	if (slot_no != ULINT_UNDEFINED) {
 		ulint		id;
