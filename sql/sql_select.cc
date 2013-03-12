@@ -3070,6 +3070,18 @@ bool JOIN_TAB::and_with_condition(Item *add_cond, uint line)
 
 
 /**
+  Check if JOIN_TAB condition was moved to Filesort condition.
+  If yes then return condition belonging to Filesort, otherwise
+  return condition belonging to JOIN_TAB.
+*/
+
+Item *JOIN_TAB::unified_condition() const
+{
+  return filesort && filesort->select ? filesort->select->cond : condition();
+}
+
+
+/**
   Partially cleanup JOIN after it has executed: close index or rnd read
   (table cursors), free quick selects.
 

@@ -7164,7 +7164,7 @@ static bool do_fill_table(THD *thd,
   da->push_warning_info(&wi_tmp);
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->condition());
+    thd, table_list, join_table->unified_condition());
 
   da->pop_warning_info();
 
