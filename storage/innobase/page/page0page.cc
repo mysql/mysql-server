@@ -122,10 +122,9 @@ page_dir_find_owner_slot(
 	while (UNIV_LIKELY(*(uint16*) slot != rec_offs_bytes)) {
 
 		if (UNIV_UNLIKELY(slot == first_slot)) {
-			fprintf(stderr,
-				"InnoDB: Probable data corruption on"
-				" page %lu\n"
-				"InnoDB: Original record ",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Probable data corruption on page %lu "
+				"Original record on that page;",
 				(ulong) page_get_page_no(page));
 
 			if (page_is_comp(page)) {
@@ -134,18 +133,15 @@ page_dir_find_owner_slot(
 				rec_print_old(stderr, rec);
 			}
 
-			fputs("\n"
-			      "InnoDB: on that page.\n"
-			      "InnoDB: Cannot find the dir slot for record ",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot find the dir slot for this record "
+				"on that page;");
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
 			} else {
 				rec_print_old(stderr, page
 					      + mach_decode_2(rec_offs_bytes));
 			}
-			fputs("\n"
-			      "InnoDB: on that page!\n", stderr);
 
 			buf_page_print(page, 0, 0);
 
@@ -624,13 +620,12 @@ page_copy_rec_list_end_no_locks(
 				       BUF_PAGE_PRINT_NO_CRASH);
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"InnoDB: rec offset %lu, cur1 offset %lu,"
-				" cur2 offset %lu\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"rec offset %lu, cur1 offset %lu,"
+				" cur2 offset %lu",
 				(ulong) page_offset(rec),
 				(ulong) page_offset(page_cur_get_rec(&cur1)),
 				(ulong) page_offset(cur2));
-			ut_error;
 		}
 
 		page_cur_move_to_next(&cur1);

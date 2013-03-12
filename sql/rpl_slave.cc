@@ -989,6 +989,7 @@ int start_slave_thread(
 {
   pthread_t th;
   ulong start_id;
+  int error;
   DBUG_ENTER("start_slave_thread");
 
   if (start_lock)
@@ -1013,9 +1014,10 @@ int start_slave_thread(
   }
   start_id= *slave_run_id;
   DBUG_PRINT("info",("Creating new slave thread"));
-  if (mysql_thread_create(thread_key,
-                          &th, &connection_attrib, h_func, (void*)mi))
+  if ((error= mysql_thread_create(thread_key,
+                                  &th, &connection_attrib, h_func, (void*)mi)))
   {
+    sql_print_error("Can't create slave thread (errno= %d).", error);
     if (start_lock)
       mysql_mutex_unlock(start_lock);
     DBUG_RETURN(ER_SLAVE_THREAD);
@@ -5032,10 +5034,11 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
   set_dynamic(&rli->workers, (uchar*) &w, i);
 
   if (DBUG_EVALUATE_IF("mts_worker_thread_fails", i == 1, 0) ||
-      mysql_thread_create(key_thread_slave_worker, &th, &connection_attrib,
-                          handle_slave_worker, (void*) w))
+      (error= pthread_create(&th, &connection_attrib, handle_slave_worker,
+                     (void*) w)))
   {
-    sql_print_error("Failed during slave worker thread create");
+    sql_print_error("Failed during slave worker thread create (errno= %d)",
+                    error);
     error= 1;
     goto err;
   }

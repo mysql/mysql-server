@@ -3035,11 +3035,10 @@ lock_move_reorganize_page(
 
 			/* Check that all locks were moved. */
 			if (UNIV_UNLIKELY(i != ULINT_UNDEFINED)) {
-				fprintf(stderr,
+				ib_logf(IB_LOG_LEVEL_FATAL,
 					"lock_move_reorganize_page():"
-					" %lu not moved in %p\n",
+					" %lu not moved in %p",
 					(ulong) i, (void*) lock);
-				ut_error;
 			}
 		}
 #endif /* UNIV_DEBUG */
@@ -3234,11 +3233,10 @@ lock_move_rec_list_start(
 				if (UNIV_UNLIKELY
 				    (lock_rec_get_nth_bit(lock, i))) {
 
-					fprintf(stderr,
+					ib_logf(IB_LOG_LEVEL_FATAL,
 						"lock_move_rec_list_start():"
-						" %lu not moved in %p\n",
+						" %lu not moved in %p",
 						(ulong) i, (void*) lock);
-					ut_error;
 				}
 			}
 		}
