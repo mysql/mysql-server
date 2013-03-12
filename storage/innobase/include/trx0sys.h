@@ -106,8 +106,10 @@ ulint
 trx_sysf_rseg_find_free(
 /*====================*/
 	mtr_t*	mtr,			/*!< in: mtr */
-	bool	include_tmp_slots);	/*!< in: if true, report
+	bool	include_tmp_slots,	/*!< in: if true, report
 					tmp slots as free slots. */
+	ulint	nth_free_slots);	/*!< in: allocate nth free slot.
+					0 means next free slot. */
 /***************************************************************//**
 Gets the pointer in the nth slot of the rseg array.
 @return	pointer to rseg object, NULL if slot not in use */
