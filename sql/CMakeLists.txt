@@ -185,9 +185,12 @@ INSTALL_DEBUG_TARGET(mysqld
   PDB_DESTINATION ${INSTALL_SBINDIR}/debug
   RENAME mysqld-debug)
 
+INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
+
 # Handle out-of-source build from source package with possibly broken 
 # bison. Copy bison output to from source to build directory, if not already 
 # there
+IF (NOT BISON_USABLE)
 IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
   IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.cc)
     IF(NOT EXISTS ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc)
@@ -198,9 +201,8 @@ IF (NOT ${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${CMAKE_CURRENT_BINARY_DIR})
     ENDIF()
   ENDIF()
 ENDIF()
+ENDIF()
 
-
-INCLUDE(${CMAKE_SOURCE_DIR}/cmake/bison.cmake)
 RUN_BISON(
   ${CMAKE_CURRENT_SOURCE_DIR}/sql_yacc.yy 
   ${CMAKE_CURRENT_BINARY_DIR}/sql_yacc.cc
