@@ -194,13 +194,13 @@ trx_reference(
 	trx_mutex_enter(trx);
 
 	if (trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
+		trx_mutex_exit(trx);
 		trx = NULL;
 	} else if (do_ref_count) {
 		ut_ad(lint(trx->n_ref_count) >= 0);
 		++trx->n_ref_count;
+		trx_mutex_exit(trx);
 	}
-
-	trx_mutex_exit(trx);
 
 	return(trx);
 }
