@@ -487,6 +487,43 @@ trx_set_rw_mode(
 /*============*/
 	trx_t*		trx);		/*!< in/out: transaction that is RW */
 
+/**
+Increase the reference count. If the transaction is in state
+TRX_STATE_COMMITTED_IN_MEMORY then the transaction is considered
+committed and the reference count is not incremented.
+@param trx		Transaction that is being referenced
+@param do_ref_count	Increment the reference iff this is true
+@return transaction instance if it is not committed */
+UNIV_INLINE
+trx_t*
+trx_reference(
+	trx_t*		trx,
+	bool		do_ref_count);
+
+/**
+Release the transaction. Decrease the reference count.
+@param trx	Transaction that is being released */
+UNIV_INLINE
+void
+trx_release_reference(
+	trx_t*		trx);
+/**
+Increase the reference count. Caller must own the trx_sys_t::mutex. If the
+transaction is in state TRX_STATE_COMMITTED_IN_MEMORY then the transaction
+is considered committed and the reference count is not incremented.
+@param trx		Transaction that is being referenced
+@param do_ref_count	Increment the reference iff this is true
+@return transaction instance if it is not committed */
+UNIV_INLINE
+trx_t*
+trx_reference(
+	trx_t*		trx,
+	bool		do_ref_count);
+
+/**
+Check if the transaction is being referenced. */
+#define trx_is_referenced(t)	((t)->n_ref_count > 0)
+
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
 the trx_t::mysql_thd field. For such transactions we set the lock
@@ -494,9 +531,9 @@ wait timeout to 0 instead of the user configured value that comes
 from innodb_lock_wait_timeout via trx_t::mysql_thd.
 @param trx	transaction
 @return		lock wait timeout in seconds */
-#define trx_lock_wait_timeout_get(trx)					\
-	((trx)->mysql_thd != NULL					\
-	 ? thd_lock_wait_timeout((trx)->mysql_thd)			\
+#define trx_lock_wait_timeout_get(t)					\
+	((t)->mysql_thd != NULL						\
+	 ? thd_lock_wait_timeout((t)->mysql_thd)			\
 	 : 0)
 
 /*******************************************************************//**

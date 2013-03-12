@@ -258,7 +258,7 @@ trx_rw_is_active(
 	trx_id_t	trx_id,		/*!< in: trx id of the transaction */
 	ibool*		corrupt,	/*!< in: NULL or pointer to a flag
 					that will be set if corrupt */
-	bool		ref_count);	/*!< in: if true then increment the
+	bool		do_ref_count);	/*!< in: if true then increment the
 					trx_t::n_ref_count */
 #ifdef UNIV_DEBUG
 /****************************************************************//**
