@@ -12,7 +12,6 @@
      destroy()
      getDBSession()
      getDataDictionary()
-     createDBTableHandler()
 */
 
 
@@ -61,20 +60,6 @@ DBConnectionPool(Properties connectionProperties);
    Returns an array of table names.
 */
   listTables(dbSession, databaseName, callback);
-
-    
-/* getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-   ASYNC
-   Fetch metadata for a table, using dbSession (which may be null)
-*/
-  getTableMetadata(dbSession, databaseName, tableName, callback);
-
-
-/* createDBTableHandler(tableMetadata, apiMapping)
-   IMMEDIATE
-   Creates and returns a DBTableHandler for table and mapping
-*/
-  createDBTableHandler(tableMetadata, apiMapping);
 
 
 /* registerTypeConverter 

@@ -30,9 +30,7 @@ Concepts
    
    DBConnectionPool is also responsible for some data dictionary operations.
    It implements the two fundamental data dictionary lookups, listTables() 
-   and getTableMetadata().  It also implements the higher level dictionary 
-   operation createDBTableHandler(), though we expect this to be delegated 
-   to the common DBTableHandler constructor.  And, finally, it implements 
+   and getTableMetadata().  And, finally, it implements 
    registerTypeConverter(), which can establish a default conversion between
    a SQL type anywhere in the database (such as BIGINT) and some JavaScript
    class (such as a BigInteger utility class).
