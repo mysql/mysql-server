@@ -605,8 +605,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
     DBUG_RETURN(false);
   }
 
-  for (uint i = tab_no - 1; i >= root_no && i < ~uint(0); 
-       i--)
+  for (uint i = tab_no; i > root_no; i--)
   {
     if (m_plan.get_table_access(i)->uses_join_cache())
     {
@@ -614,7 +613,7 @@ ndb_pushed_builder_ctx::is_pushable_as_child(
                       "would prevent using join buffer for table '%s'.",
                       table->get_table()->alias,
                       m_join_root->get_table()->alias,
-                      m_plan.get_table_access(i+1)->get_table()->alias);
+                      m_plan.get_table_access(i)->get_table()->alias);
       DBUG_RETURN(false);
     }
   }
@@ -1071,8 +1070,6 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
       uint access_no = tab_no;
       do
       {
-        DBUG_ASSERT(access_no > 0);
-        access_no--;
         if (m_plan.get_table_access(access_no)->uses_join_cache())
         {
           EXPLAIN_NO_PUSH("Cannot push table '%s' as child of '%s', since "
@@ -1084,6 +1081,8 @@ bool ndb_pushed_builder_ctx::is_field_item_pushable(
                           get_referred_field_name(key_item_field));
           DBUG_RETURN(false);
         }
+        DBUG_ASSERT(access_no > 0);
+        access_no--;
       } while (m_plan.get_table_access(access_no)->get_table() 
                != referred_tab);
 

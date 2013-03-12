@@ -13,34 +13,26 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-IF(DEFAULT_MYSQL_HOME)
+IF(WIN32 AND DEFAULT_MYSQL_HOME)
   # Only include if running cmake for all of cluster
   INCLUDE("${NDB_SOURCE_DIR}/config/type_mcc_utils.cmake")
-ENDIF()
-
-IF(WIN32)
-  # Always create the zip on Win, since the modified msi install won't 
-  # trigger a build if the zip does not exist. 
+  MESSAGE(STATUS "Will build/install ${DOJO_ARCHIVE}")
   SET(DOJO_ARCHIVE "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip") 
-  MESSAGE(STATUS "Creating ${DOJO_ARCHIVE}")
-  CREATE_ZIP(${DOJO_ARCHIVE} dojo)
-  IF(NOT ZIP_EXECUTABLE)
-    MESSAGE(WARNING "No zip execuatble available")
-  ENDIF()
+  ADD_ZIP_COMMAND(${DOJO_ARCHIVE} dojo)
+  ADD_CUSTOM_TARGET(dojozip ALL DEPENDS ${DOJO_ARCHIVE})    
 ENDIF()
 
-IF(DEFAULT_MYSQL_HOME AND ZIP_EXECUTABLE AND MCC_BUILDING_MSI)
-  # Only install the zip when building an msi
-  MESSAGE(STATUS "Will install ${DOJO_ARCHIVE}")
+IF(DEFAULT_MYSQL_HOME AND MCC_BUILDING_MSI)
+  # Install the zip when building an msi
   INSTALL(DIRECTORY "." 
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
     COMPONENT ClusterTools
     PATTERN "dojo" EXCLUDE)
-  INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/dojo.zip" 
+  INSTALL(FILES ${DOJO_ARCHIVE} 
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
     COMPONENT ClusterTools)
 ELSE()
-  MESSAGE(STATUS "Will install the dojo directory")
+  #MESSAGE(STATUS "Will install the dojo directory")
   INSTALL(DIRECTORY "."
     DESTINATION "${MCC_INSTALL_SUBDIR}/frontend" 
     COMPONENT ClusterTools
