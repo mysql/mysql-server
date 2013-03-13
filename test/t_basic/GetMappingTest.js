@@ -49,14 +49,14 @@ t1.run = function() {
 };
 
 t1.testGetMapping = function(session, testCase) {
-  session.getMapping(global.t_basic, function(err, result, testCase2) {
+  session.getMapping(global.t_basic, function(err, result) {
     if (err) {
-      testCase2.fail(err);
+      testCase.fail(err);
       return;
     }
-    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
-    testCase2.failOnError();
-    }, testCase);
+    verifyMapping(testCase, expectedMappingFor_t_basic, result);
+    testCase.failOnError();
+    });
 };
 
 var t2 = new harness.SerialTest("getMappingForTableName");
@@ -65,14 +65,14 @@ t2.run = function() {
 };
 
 t2.testGetMapping = function(session, testCase) {
-  session.getMapping('t_basic', function(err, result, testCase2) {
+  session.getMapping('t_basic', function(err, result) {
     if (err) {
-      testCase2.fail(err);
+      testCase.fail(err);
       return;
     }
-    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
-    testCase2.failOnError();
-  }, testCase);
+    verifyMapping(testCase, expectedMappingFor_t_basic, result);
+    testCase.failOnError();
+  });
 };
 
 var t3 = new harness.SerialTest("getMappingForUnknownTableName");
@@ -81,13 +81,13 @@ t3.run = function() {
 };
 
 t3.testGetMapping = function(session, testCase) {
-  session.getMapping('non_existent_table', function(err, result, testCase2) {
+  session.getMapping('non_existent_table', function(err, result) {
     if (err) {
-      testCase2.pass();
+      testCase.pass();
       return;
     }
-    testCase2.fail('getMapping for unknown table should fail');
-  }, testCase);
+    testCase.fail('t3 getMapping for unknown table should fail');
+  });
 };
 
 var t4 = new harness.SerialTest("getMappingForUnMappedConstructor");
@@ -98,13 +98,13 @@ t4.run = function() {
 t4.testGetMapping = function(session, testCase) {
   var unmappedDomainClass = function() {
   };
-  session.getMapping(unmappedDomainClass, function(err, result, testCase2) {
+  session.getMapping(unmappedDomainClass, function(err, result) {
     if (err) {
-      testCase2.pass();
+      testCase.pass();
       return;
     }
-    testCase2.fail('getMapping for unmapped domain object should fail');
-  }, testCase);
+    testCase.fail('t4 getMapping for unmapped domain object should fail');
+  });
 };
 
 var t5 = new harness.SerialTest("getMappingForNumber");
@@ -116,9 +116,13 @@ t5.testGetMapping = function(session, testCase) {
   var unmappedDomainClass = function() {
   };
   try {
-    session.getMapping(1, function(err, result, testCase2) {
-      testCase2.fail('getMapping for 1 should fail');
-    }, testCase);
+    session.getMapping(1, function(err, result) {
+      if (!err) {
+        testCase2.fail('t5 getMapping for 1 should fail');
+      } else {
+        testCase.pass();
+      }
+    });
   } catch (err) {
     testCase.pass();
   }
@@ -133,9 +137,13 @@ t6.testGetMapping = function(session, testCase) {
   var unmappedDomainClass = function() {
   };
   try {
-    session.getMapping(true, function(err, result, testCase2) {
-      testCase2.fail('getMapping for true should fail');
-    }, testCase);
+    session.getMapping(true, function(err, result) {
+      if (!err) {
+        testCase.fail('t6 getMapping for true should fail');
+      } else {
+        testCase.pass();
+      }
+    });
   } catch (err) {
     testCase.pass();
   }
@@ -147,14 +155,14 @@ t7.run = function() {
 };
 
 t7.testGetMapping = function(session, testCase) {
-  session.getMapping(new global.t_basic(), function(err, result, testCase2) {
+  session.getMapping(new global.t_basic(), function(err, result) {
     if (err) {
-      testCase2.fail(err);
-      return;
+      testCase.fail(err);
+    } else {
+      verifyMapping(testCase, expectedMappingFor_t_basic, result);
+      testCase.failOnError();
     }
-    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
-    testCase2.failOnError();
-    }, testCase);
+  });
 };
 
 module.exports.tests = [t1, t2, t3, t4, t5, t6, t7];
