@@ -469,14 +469,13 @@ trx_get_que_state_str(
 	const trx_t*	trx);	/*!< in: transaction */
 
 /****************************************************************//**
-Assign a read-only transaction a rollback-segment, if it is attempting
-to write to a TEMPORARY table. */
+Assign a transaction temp-tablespace bounded rollback-segment. */
 UNIV_INTERN
 void
 trx_assign_rseg(
 /*============*/
-	trx_t*		trx);		/*!< A read-only transaction that
-					needs to be assigned a RBS. */
+	trx_t*		trx);		/*!< transaction that involves write
+					to temp-table. */
 
 /*************************************************************//**
 Set the transaction as a read-write transaction if it is not already

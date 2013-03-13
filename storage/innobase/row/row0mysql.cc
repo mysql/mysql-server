@@ -3681,7 +3681,8 @@ row_truncate_table_for_mysql(
 
 		mutex_enter(&trx->undo_mutex);
 
-		err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
+		err = trx_undo_assign_undo(
+			trx, &trx->standard, TRX_UNDO_UPDATE);
 
 		mutex_exit(&trx->undo_mutex);
 

@@ -208,11 +208,14 @@ UNIV_INTERN
 buf_block_t*
 trx_undo_add_page(
 /*==============*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory object */
-	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
-				undo log page; the caller must have reserved
-				the rollback segment mutex */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_t*	undo,		/*!< in: undo log memory object */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */ 
+	mtr_t*		mtr)		/*!< in: mtr which does not have
+					a latch to any undo log page;
+					the caller must have reserved
+					the rollback segment mutex */
 	__attribute__((nonnull, warn_unused_result));
 /********************************************************************//**
 Frees the last undo log page.
@@ -297,8 +300,11 @@ UNIV_INTERN
 dberr_t
 trx_undo_assign_undo(
 /*=================*/
-	trx_t*		trx,	/*!< in: transaction */
-	ulint		type)	/*!< in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */ 
+	ulint		type)		/*!< in: TRX_UNDO_INSERT or
+					TRX_UNDO_UPDATE */
 	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Sets the state of the undo log segment at a transaction finish.
@@ -340,7 +346,7 @@ UNIV_INTERN
 void
 trx_undo_insert_cleanup(
 /*====================*/
-	trx_t*	trx);	/*!< in: transaction handle */
+	trx_undo_ptr_t*	undo_ptr);	/*!< in: undo log to cleanup. */
 
 /********************************************************************//**
 At shutdown, frees the undo logs of a PREPARED transaction. */
