@@ -69,6 +69,7 @@ int pthread_create(pthread_t *thread_id, const pthread_attr_t *attr,
   uintptr_t handle;
   struct thread_start_parameter *par;
   unsigned int  stack_size;
+  int error_no;
   DBUG_ENTER("pthread_create");
 
   par= (struct thread_start_parameter *)malloc(sizeof(*par));
@@ -89,9 +90,10 @@ int pthread_create(pthread_t *thread_id, const pthread_attr_t *attr,
   DBUG_RETURN(0);
 
 error_return:
+  error_no= errno;
   DBUG_PRINT("error",
-         ("Can't create thread to handle request (error %d)",errno));
-  DBUG_RETURN(-1);
+         ("Can't create thread to handle request (error %d)",error_no));
+  DBUG_RETURN(error_no);
 }
 
 

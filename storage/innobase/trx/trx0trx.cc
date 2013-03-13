@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -109,7 +109,7 @@ trx_create(void)
 
 	trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
-	trx->no = IB_ULONGLONG_MAX;
+	trx->no = TRX_ID_MAX;
 
 	trx->support_xa = TRUE;
 
@@ -451,9 +451,9 @@ trx_resurrect_insert(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number
-		field inited to IB_ULONGLONG_MAX */
+		field inited to TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -538,9 +538,9 @@ trx_resurrect_update(
 		trx->state = TRX_STATE_ACTIVE;
 
 		/* A running transaction always has the number field inited to
-		IB_ULONGLONG_MAX */
+		TRX_ID_MAX */
 
-		trx->no = IB_ULONGLONG_MAX;
+		trx->no = TRX_ID_MAX;
 	}
 
 	if (undo->dict_operation) {
@@ -736,10 +736,10 @@ trx_start_low(
 		trx->read_only = true;
 	}
 
-	/* The initial value for trx->no: IB_ULONGLONG_MAX is used in
+	/* The initial value for trx->no: TRX_ID_MAX is used in
 	read_view_open_now: */
 
-	trx->no = IB_ULONGLONG_MAX;
+	trx->no = TRX_ID_MAX;
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
 	ut_a(ib_vector_is_empty(trx->lock.table_locks));

@@ -786,46 +786,36 @@ fil_node_open_file(
 		os_file_close(node->handle);
 
 		if (UNIV_UNLIKELY(space_id != space->id)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id is %lu"
-				" in the data dictionary\n"
-				"InnoDB: but in file %s it is %lu!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id is %lu in the data"
+				" dictionary but in file %s it is %lu!",
 				space->id, node->name, space_id);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space_id == ULINT_UNDEFINED
 				  || space_id == 0)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace id %lu"
-				" in file %s is not sensible\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Tablespace id %lu in file %s"
+				" is not sensible",
 				(ulong) space_id, node->name);
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(fsp_flags_get_page_size(space->flags)
 				  != page_size)) {
-			fprintf(stderr,
-				"InnoDB: Error: tablespace file %s"
-				" has page size 0x%lx\n"
-				"InnoDB: but the data dictionary"
-				" expects page size 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: Tablespace file %s has page size"
+				" 0x%lx but the data dictionary expects"
+				" page size 0x%lx!",
 				node->name, flags,
 				fsp_flags_get_page_size(space->flags));
-
-			ut_error;
 		}
 
 		if (UNIV_UNLIKELY(space->flags != flags)) {
-			fprintf(stderr,
-				"InnoDB: Error: table flags are 0x%lx"
-				" in the data dictionary\n"
-				"InnoDB: but the flags in file %s are 0x%lx!\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Error: table flags are 0x%lx in the"
+				" data dictionary but the flags in file"
+				" %s are 0x%lx!",
 				space->flags, node->name, flags);
-
-			ut_error;
 		}
 
 		if (size_bytes >= 1024 * 1024) {
@@ -1180,42 +1170,6 @@ fil_node_free(
 	mem_free(node->name);
 	mem_free(node);
 }
-
-#ifdef UNIV_LOG_ARCHIVE
-/****************************************************************//**
-Drops files from the start of a file space, so that its size is cut by
-the amount given. */
-UNIV_INTERN
-void
-fil_space_truncate_start(
-/*=====================*/
-	ulint	id,		/*!< in: space id */
-	ulint	trunc_len)	/*!< in: truncate by this much; it is an error
-				if this does not equal to the combined size of
-				some initial files in the space */
-{
-	fil_node_t*	node;
-	fil_space_t*	space;
-
-	mutex_enter(&fil_system->mutex);
-
-	space = fil_space_get_by_id(id);
-
-	ut_a(space);
-
-	while (trunc_len > 0) {
-		node = UT_LIST_GET_FIRST(space->chain);
-
-		ut_a(node->size * UNIV_PAGE_SIZE <= trunc_len);
-
-		trunc_len -= node->size * UNIV_PAGE_SIZE;
-
-		fil_node_free(node, fil_system, space);
-	}
-
-	mutex_exit(&fil_system->mutex);
-}
-#endif /* UNIV_LOG_ARCHIVE */
 
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
@@ -1838,10 +1792,9 @@ fil_set_max_space_id_if_bigger(
 	ulint	max_id)	/*!< in: maximum known id */
 {
 	if (max_id >= SRV_LOG_SPACE_FIRST_ID) {
-		fprintf(stderr,
-			"InnoDB: Fatal error: max tablespace id"
-			" is too high, %lu\n", (ulong) max_id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Fatal error: max tablespace id"
+			" is too high, %lu", (ulong) max_id);
 	}
 
 	mutex_enter(&fil_system->mutex);
@@ -3490,9 +3443,6 @@ struct fsp_open_info {
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
 	ulint		id;		/*!< Space ID */
 	ulint		flags;		/*!< Tablespace flags */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint		arch_log_no;	/*!< latest archived log file number */
-#endif /* UNIV_LOG_ARCHIVE */
 };
 
 /********************************************************************//**
@@ -4067,10 +4017,7 @@ will_not_choose:
 			return;
 		}
 
-		/* If debug code, cause a core dump and call stack. For
-		release builds just exit and rely on the messages above. */
-		ut_ad(0);
-		exit(1);
+		ut_error;
 	}
 
 	if (def.success && remote.success) {
