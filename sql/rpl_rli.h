@@ -263,7 +263,7 @@ public:
    */
   void reset_mts_bgc()
   {
-    mts_last_known_commit_parent= PC_UNINIT;
+    mts_last_known_commit_parent= SEQ_UNINIT;
   }
 
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)

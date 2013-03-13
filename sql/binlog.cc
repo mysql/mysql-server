@@ -316,6 +316,8 @@ public:
       variable after truncating the cache.
     */
     cache_log.disk_writes= 0;
+    cache_log.commit_seq_no= SEQ_UNINIT;
+    cache_log.commit_seq_offset= 0;
     group_cache.clear();
     DBUG_ASSERT(is_binlog_empty());
   }
@@ -1195,19 +1197,41 @@ binlog_trx_cache_data::truncate(THD *thd, bool all)
   DBUG_RETURN(error);
 }
 
+/*
+SYNOPSIS:
+  Auxiliary function to fetch the relevent io cache from the thread.
+@params:
+  THD thd  The thread instance
+  bool all bool to check id we need trx cache or stmt cache.
+@return:
+  IO_CACHE *: pointer to the relevant IO cache.
+ */
+IO_CACHE* get_thd_cache(THD *thd, bool all)
+{
+  DBUG_ENTER("get_thd_cache");
+  binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
+  DBUG_RETURN(cache_mngr->get_binlog_cache_log(all));
+}
+
 static int binlog_prepare(handlerton *hton, THD *thd, bool all)
 {
   /*
     just pretend we can do 2pc, so that MySQL won't
     switch to 1pc. Real work will be done in MYSQL_BIN_LOG::commit()
   */
-  if (all && thd->commit_seq_no == PC_UNINIT)
+  IO_CACHE* cache;
+  DBUG_ENTER("binlog_prepare");
+  if (all)
   {
-    thd->commit_seq_no=
-      mysql_bin_log.commit_clock.get_timestamp();
+    cache= get_thd_cache(thd, all);
+    if (cache->commit_seq_no == SEQ_UNINIT)
+    {
+      cache->commit_seq_no=
+        mysql_bin_log.commit_clock.get_timestamp();
 
+    }
   }
-  return 0;
+  DBUG_RETURN(0);
 }
 
 /**
@@ -1436,7 +1460,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 {
   int error= 0;
   bool stuff_logged= false;
-
+  IO_CACHE* cache;
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ENTER("MYSQL_BIN_LOG::rollback(THD *thd, bool all)");
   DBUG_PRINT("enter", ("all: %s, cache_mngr: 0x%llx, thd->is_error: %s",
@@ -1564,9 +1588,10 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
      already written in function ha_commit_trans and will not step the prepare
      clock or overwrite the commit parent timestamp.
      */
-    if (thd->commit_seq_no == PC_UNINIT)
+    cache= cache_mngr->get_binlog_cache_log(all);
+    if (cache->commit_seq_no == SEQ_UNINIT)
     {
-      thd->commit_seq_no=
+      cache->commit_seq_no=
         mysql_bin_log.commit_clock.get_timestamp();
     }
     error= ordered_commit(thd, all, /* skip_commit */ true);
@@ -5447,22 +5472,23 @@ uint MYSQL_BIN_LOG::next_file_id()
 }
 /*
  */
-void fix_prepare_commit_seq_no(THD* thd, uchar* buff)
+void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
 {
-  DBUG_ENTER("fix_prepare_commit_seq_no");
+  DBUG_ENTER("fix_commit_seq_no");
   uchar* pc_ptr= buff;
-  DBUG_ASSERT(thd->commit_seq_no != PC_UNINIT);
+  DBUG_PRINT("info", ("MTS:: offset:=%d",
+                       cache->commit_seq_offset));
   DBUG_PRINT("info", ("MTS:: CTS:=%lld",
-                       thd->commit_seq_no));
+                       cache->commit_seq_no));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
-
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
+  DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
   pc_ptr++;
 
   //fix commit ts
-  int8store(pc_ptr, thd->commit_seq_no);
-  thd->commit_seq_no= PC_UNINIT;
-  thd->commit_ts_offset= 0;
+  int8store(pc_ptr, cache->commit_seq_no);
+  cache->commit_seq_no= SEQ_UNINIT;
+  cache->commit_seq_offset= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -5485,7 +5511,7 @@ void fix_prepare_commit_seq_no(THD* thd, uchar* buff)
 
 int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
 {
-  DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
+  DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache");
 
   DBUG_EXECUTE_IF("simulate_do_write_cache_failure",
                   {
@@ -5503,8 +5529,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   ulong remains= 0; // part of unprocessed yet netto length of the event
   long val;
   ulong end_log_pos_inc= 0; // each event processed adds BINLOG_CHECKSUM_LEN 2 t
-  uint pc_offset= LOG_EVENT_HEADER_LEN + thd->commit_ts_offset;
-  DBUG_PRINT("info",("pc_offset=%d", thd->commit_ts_offset));
+  uint pc_offset= LOG_EVENT_HEADER_LEN + cache->commit_seq_offset;
   uchar header[LOG_EVENT_HEADER_LEN];
   ha_checksum crc= 0, crc_0= 0; // assignments to keep compiler happy
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
@@ -5664,7 +5689,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
           if (!pc_fixed)
           {
             uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
-            fix_prepare_commit_seq_no(thd, pc_ptr);
+            fix_commit_seq_no(cache, pc_ptr);
             pc_fixed= true;
           }
 
@@ -5680,7 +5705,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
             int4store(ev + EVENT_LEN_OFFSET, event_len + BINLOG_CHECKSUM_LEN);
             remains= fix_log_event_crc(cache->read_pos, hdr_offs, event_len,
                                        length, &crc);
-            if (my_b_write(&log_file, ev, 
+            if (my_b_write(&log_file, ev,
                            remains == 0 ? event_len : length - hdr_offs))
               DBUG_RETURN(ER_ERROR_ON_WRITE);
             if (remains == 0)
@@ -6292,7 +6317,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
-
+  IO_CACHE* cache;
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
                        (ulonglong) cache_mngr));
@@ -6430,10 +6455,15 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       already written in function ha_commit_trans and will not step the prepare
       clock or overwrite the commit parent timestamp.
      */
-    if (thd->commit_seq_no == PC_UNINIT)
+    cache= cache_mngr->get_binlog_cache_log(all);
+    DBUG_PRINT("info",("commit_seq_ddl_n_trans_outside=%lld",
+                         cache->commit_seq_no));
+    if (cache->commit_seq_no == SEQ_UNINIT)
     {
-      thd->commit_seq_no=
+      cache->commit_seq_no=
         mysql_bin_log.commit_clock.get_timestamp();
+      DBUG_PRINT("info",("commit_seq_ddl_n_trans_inside=%lld",
+                         cache->commit_seq_no));
     }
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
@@ -6940,8 +6970,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     either in ordered fashion(by the leader of this stage) or by the tread
     themselves.
    */
-  thd->commit_seq_no=
-    mysql_bin_log.commit_clock.step();
+  mysql_bin_log.commit_clock.step();
   if (opt_binlog_order_commits)
   {
     if (change_stage(thd, Stage_manager::COMMIT_STAGE,

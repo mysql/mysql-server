@@ -1043,9 +1043,6 @@ THD::THD(bool enable_plugins)
 #ifndef DBUG_OFF
   gis_debug= 0;
 #endif
-#ifndef MYSQL_CLIENT
-  commit_seq_no= -1;
-#endif
 }
 
 

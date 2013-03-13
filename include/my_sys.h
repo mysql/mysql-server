@@ -507,6 +507,8 @@ typedef struct st_io_cache		/* Used when cacheing files */
   my_off_t aio_read_pos;
   my_aio_result aio_result;
 #endif
+  int64 commit_seq_no;
+  int commit_seq_offset;
 } IO_CACHE;
 
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
