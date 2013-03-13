@@ -12598,6 +12598,14 @@ ulonglong ha_ndbcluster::table_flags(void) const
   if (thd->variables.binlog_format == BINLOG_FORMAT_STMT)
     f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
 
+   /*
+     Allow MySQL Server to decide that STATEMENT logging should be used
+     for the distributed privilege tables. NOTE! This is a workaround
+     for generic problem with forcing STATEMENT logging see BUG16482501.
+   */
+  if (Ndb_dist_priv_util::is_distributed_priv_table(m_dbname,m_tabname))
+    f= (f | HA_BINLOG_STMT_CAPABLE) & ~HA_HAS_OWN_BINLOGGING;
+
   /**
    * To maximize join pushability we want const-table 
    * optimization blocked if 'ndb_join_pushdown= on'
