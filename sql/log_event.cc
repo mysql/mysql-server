@@ -2831,7 +2831,7 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
 
     DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
     if ((commit_seq_no != rli->mts_last_known_commit_parent ||
-         rli->mts_last_known_commit_parent == PC_UNINIT))
+         rli->mts_last_known_commit_parent == SEQ_UNINIT))
     {
       rli->mts_last_known_commit_parent= commit_seq_no;
       rli->mts_last_known_parent_group_id=
@@ -3703,10 +3703,10 @@ bool Query_log_event::write(IO_CACHE* file)
     commit timestamps. The logical timestamp will be updated in the
     do_write_cache.
   */
-  if (thd && !thd->commit_ts_offset)
+  if (!file->commit_seq_offset)
   {
-    thd->commit_ts_offset= QUERY_HEADER_LEN +
-                           (int)(start-start_of_status);
+    file->commit_seq_offset= QUERY_HEADER_LEN +
+                             (int)(start-start_of_status);
     *start++= Q_COMMIT_TS;
     int8store(start, 0);
     start+= COMMIT_SEQ_LEN;
@@ -4137,6 +4137,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
   memset(&user, 0, sizeof(user));
   memset(&host, 0, sizeof(host));
+  commit_seq_no= SEQ_UNINIT;
   common_header_len= description_event->common_header_len;
   post_header_len= description_event->post_header_len[event_type-1];
   DBUG_PRINT("info",("event_len: %u  common_header_len: %d  post_header_len: %d",
@@ -13598,7 +13599,7 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
 
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
-  thd->commit_ts_offset= ptr_buffer- buffer;
+  file->commit_seq_offset= ptr_buffer- buffer;
   *ptr_buffer++= G_PREPARE_TS;
   int8store(ptr_buffer, 0);
   ptr_buffer+= COMMIT_SEQ_LEN;
