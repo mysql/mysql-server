@@ -554,6 +554,7 @@ trx_undo_page_report_modify(
 	byte*		type_cmpl_ptr;
 	ulint		i;
 	trx_id_t	trx_id;
+	trx_undo_ptr_t*	undo_ptr;
 	ibool		ignore_prefix = FALSE;
 	byte		ext_buf[REC_VERSION_56_MAX_INDEX_COL_LEN
 				+ BTR_EXTERN_FIELD_REF_SIZE];
@@ -563,6 +564,8 @@ trx_undo_page_report_modify(
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
+	undo_ptr = dict_table_is_temporary(index->table)
+		   ? &trx->temporary : &trx->standard;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				      + TRX_UNDO_PAGE_FREE);
@@ -717,7 +720,7 @@ trx_undo_page_report_modify(
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
 
-				trx->standard.update_undo->del_marks = TRUE;
+				undo_ptr->update_undo->del_marks = TRUE;
 
 				*type_cmpl_ptr |= TRX_UNDO_UPD_EXTERN;
 			} else {
@@ -753,7 +756,7 @@ trx_undo_page_report_modify(
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		byte*	old_ptr = ptr;
 
-		trx->standard.update_undo->del_marks = TRUE;
+		undo_ptr->update_undo->del_marks = TRUE;
 
 		if (trx_undo_left(undo_page, ptr) < 5) {
 
@@ -1211,7 +1214,7 @@ trx_undo_report_row_operation(
 	trx_undo_t*	undo;
 	ulint		page_no;
 	buf_block_t*	undo_block;
-	trx_rseg_t*	rseg;
+	trx_undo_ptr_t*	undo_ptr;
 	mtr_t		mtr;
 	dberr_t		err		= DB_SUCCESS;
 #ifdef UNIV_DEBUG
@@ -1235,32 +1238,42 @@ trx_undo_report_row_operation(
 
 	trx = thr_get_trx(thr);
 
-	/* This table is visible only to the session that created it. */
-	if (trx->read_only) {
-		ut_ad(trx->in_ro_trx_list);
-		ut_ad(!srv_read_only_mode);
+	/* If trx is read-only then only temp-tables can be written.
+	If trx is read-write and involves temp-table only then we
+	assign temporary rseg. */ 
+	if (trx->read_only || dict_table_is_temporary(index->table)) {
+
+		ut_ad(trx->in_ro_trx_list
+		      || dict_table_is_temporary(index->table));
+
+		ut_ad(!srv_read_only_mode
+		      || dict_table_is_temporary(index->table));
+
 		/* MySQL should block writes to non-temporary tables. */
-		ut_a(DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_TEMPORARY));
-		if (trx->standard.rseg == 0) {
+		ut_a(dict_table_is_temporary(index->table));
+
+		if (trx->temporary.rseg == 0) {
 			trx_assign_rseg(trx);
 		}
 	}
 
-	rseg = trx->standard.rseg;
+	/* If the undo log is not assigned yet, assign one */
 
 	mtr_start(&mtr);
 	mutex_enter(&trx->undo_mutex);
 
-	/* If the undo log is not assigned yet, assign one */
-
+	undo_ptr = dict_table_is_temporary(index->table)
+		   ? &trx->temporary : &trx->standard;
+	
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
-		undo = trx->standard.insert_undo;
+		undo = undo_ptr->insert_undo;
 
 		if (undo == NULL) {
 
-			err = trx_undo_assign_undo(trx, TRX_UNDO_INSERT);
-			undo = trx->standard.insert_undo;
+			err = trx_undo_assign_undo(
+				trx, undo_ptr, TRX_UNDO_INSERT);
+			undo = undo_ptr->insert_undo;
 
 			if (undo == NULL) {
 				/* Did not succeed */
@@ -1274,11 +1287,12 @@ trx_undo_report_row_operation(
 	default:
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
-		undo = trx->standard.update_undo;
+		undo = undo_ptr->update_undo;
 
 		if (undo == NULL) {
-			err = trx_undo_assign_undo(trx, TRX_UNDO_UPDATE);
-			undo = trx->standard.update_undo;
+			err = trx_undo_assign_undo(
+				trx, undo_ptr, TRX_UNDO_UPDATE);
+			undo = undo_ptr->update_undo;
 
 			if (undo == NULL) {
 				/* Did not succeed */
@@ -1339,9 +1353,9 @@ trx_undo_report_row_operation(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 
-				mutex_enter(&rseg->mutex);
+				mutex_enter(&undo_ptr->rseg->mutex);
 				trx_undo_free_last_page(trx, undo, &mtr);
-				mutex_exit(&rseg->mutex);
+				mutex_exit(&undo_ptr->rseg->mutex);
 
 				err = DB_UNDO_RECORD_TOO_BIG;
 				goto err_exit;
@@ -1365,7 +1379,7 @@ trx_undo_report_row_operation(
 
 			*roll_ptr = trx_undo_build_roll_ptr(
 				op_type == TRX_UNDO_INSERT_OP,
-				rseg->id, page_no, offset);
+				undo_ptr->rseg->id, page_no, offset);
 			return(DB_SUCCESS);
 		}
 
@@ -1380,9 +1394,9 @@ trx_undo_report_row_operation(
 		a pessimistic insert in a B-tree, and we must reserve the
 		counterpart of the tree latch, which is the rseg mutex. */
 
-		mutex_enter(&rseg->mutex);
-		undo_block = trx_undo_add_page(trx, undo, &mtr);
-		mutex_exit(&rseg->mutex);
+		mutex_enter(&undo_ptr->rseg->mutex);
+		undo_block = trx_undo_add_page(trx, undo, undo_ptr, &mtr);
+		mutex_exit(&undo_ptr->rseg->mutex);
 
 		page_no = undo->last_page_no;
 	} while (undo_block != NULL);

@@ -279,6 +279,8 @@ trx_free_for_background(
 	ut_a(trx->state == TRX_STATE_NOT_STARTED);
 	ut_a(trx->standard.insert_undo == NULL);
 	ut_a(trx->standard.update_undo == NULL);
+	ut_a(trx->temporary.insert_undo == NULL);
+	ut_a(trx->temporary.update_undo == NULL);
 	ut_a(trx->read_view == NULL);
 
 	trx_free(trx);
@@ -720,22 +722,20 @@ trx_assign_rseg_low(
 }
 
 /****************************************************************//**
-Assign a read-only transaction a rollback-segment, if it is attempting
-to write to a TEMPORARY table. */
+Assign a transaction temp-tablespace bounded rollback-segment. */
 UNIV_INTERN
 void
 trx_assign_rseg(
 /*============*/
-	trx_t*		trx)		/*!< A read-only transaction that
-					needs to be assigned a RBS. */
+	trx_t*		trx)		/*!< transaction that involves write
+					to temp-table. */
 {
-	ut_a(trx->standard.rseg == 0);
-	ut_a(trx->read_only);
-	ut_a(!srv_read_only_mode);
+	ut_a(trx->temporary.rseg == 0);
 	ut_a(!trx_is_autocommit_non_locking(trx));
+	// FIXME: Krunal
 
-	trx->standard.rseg =
-		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, true);
+	trx->temporary.rseg =
+		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, false);
 
 	if (trx->id == 0) {
 		mutex_enter(&trx_sys->mutex);
@@ -756,6 +756,7 @@ trx_start_low(
 	bool	read_write)	/*!< in: true if read-write transaction */
 {
 	ut_ad(trx->standard.rseg == NULL);
+	ut_ad(trx->temporary.rseg == NULL);
 
 	ut_ad(trx->start_file != 0);
 	ut_ad(trx->start_line != 0);
@@ -1152,7 +1153,8 @@ trx_commit_in_memory(
 
 		assert_trx_in_list(trx);
 
-		if (trx->read_only || trx->standard.rseg == 0) {
+		if (trx->read_only ||
+		    (trx->standard.rseg == 0 && trx->temporary.rseg == 0)) {
 			ut_ad(!trx->in_rw_trx_list);
 			UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = false);
@@ -1190,9 +1192,11 @@ trx_commit_in_memory(
 	trx->read_view = NULL;
 
 	if (lsn) {
-		if (trx->standard.insert_undo != NULL) {
+		if (trx->standard.insert_undo != NULL
+		    || trx->temporary.insert_undo != NULL) {
 
-			trx_undo_insert_cleanup(trx);
+			trx_undo_insert_cleanup(&trx->standard);
+			trx_undo_insert_cleanup(&trx->temporary);
 		}
 
 		/* NOTE that we could possibly make a group commit more
@@ -1293,8 +1297,10 @@ trx_commit_low(
 	assert_trx_nonlocking_or_in_list(trx);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 	ut_ad(!mtr || mtr->state == MTR_ACTIVE);
-	ut_ad(!mtr ==
-		!(trx->standard.insert_undo || trx->standard.update_undo));
+	ut_ad(!mtr == !(trx->standard.insert_undo
+			|| trx->standard.update_undo
+		  	|| trx->temporary.insert_undo
+		  	|| trx->temporary.update_undo));
 
 	/* undo_no is non-zero if we're doing the final commit. */
 	if (trx->fts_trx && trx->undo_no != 0) {
@@ -1360,7 +1366,9 @@ trx_commit(
 	mtr_t*	mtr;
 
 	if (trx->standard.insert_undo
-	    || trx->standard.update_undo) {
+	    || trx->standard.update_undo
+	    || trx->temporary.insert_undo
+	    || trx->temporary.update_undo) {
 		mtr = &local_mtr;
 		mtr_start(mtr);
 	} else {
@@ -1382,9 +1390,12 @@ trx_cleanup_at_db_startup(
 {
 	ut_ad(trx->is_recovered);
 
+	/* At db start-up there shouldn't be any active trx on temp-table
+	that needs insert_cleanup as temp-table are not visible on
+	restart and temporary rseg is re-created. */
 	if (trx->standard.insert_undo != NULL) {
 
-		trx_undo_insert_cleanup(trx);
+		trx_undo_insert_cleanup(&trx->standard);
 	}
 
 	trx->standard.rseg = NULL;
