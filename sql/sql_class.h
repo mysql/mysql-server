@@ -2159,12 +2159,6 @@ public:
   /* MTS: method inserts a new unique name into binlog_updated_dbs */
   void add_to_binlog_accessed_dbs(const char *db);
 
-  /* MTS: Trans commit timestamp */
-  int64 commit_seq_no;
-
-  /* MTS: offset to the prepare & commit seq. no. in the status vars */
-  int commit_ts_offset;
-
 #endif /* MYSQL_CLIENT */
 
 public:
