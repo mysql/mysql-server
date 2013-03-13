@@ -6,6 +6,7 @@ import os.path
 def main(cfgdir):
     frontend = os.path.join(cfgdir, 'frontend')
     if not os.path.exists(os.path.join(frontend, 'dojo')):
+	    print 'Running post-install script. This may take a few minutes...'
         dojoz = zipfile.ZipFile(os.path.join(frontend, 'dojo.zip'), 'r')
         dojoz.extractall(path=frontend)
         dojoz.close()
