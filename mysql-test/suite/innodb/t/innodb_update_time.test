@@ -1,7 +1,7 @@
-#
-# Test that INFORMATION_SCHEMA.TABLES.UPDATE_TIME is filled
-# correctly for InnoDB tables.
-#
+-- echo #
+-- echo # Test that INFORMATION_SCHEMA.TABLES.UPDATE_TIME is filled
+-- echo # correctly for InnoDB tables.
+-- echo #
 
 -- source include/have_innodb.inc
 
@@ -14,10 +14,10 @@ INSERT INTO t VALUES (1);
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 
-# We cant deterministically check that the saved value is correct, but
-# at least we check that it is a timestamp not older than 2 minutes.
-# Usually update_time and NOW() are equal below, but on heavily loaded
-# machines NOW() could be younger.
+-- echo # We cant deterministically check that the saved value is correct, but
+-- echo # at least we check that it is a timestamp not older than 2 minutes.
+-- echo # Usually update_time and NOW() are equal below, but on heavily loaded
+-- echo # machines NOW() could be younger.
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
 
@@ -26,6 +26,7 @@ CREATE TABLE big (a TEXT) ENGINE=INNODB;
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 
+-- echo # INSERT lots of data in table 'big': begin
 -- disable_query_log
 -- let $i = 8192
 while ($i)
@@ -34,17 +35,20 @@ while ($i)
 	dec $i;
 }
 -- enable_query_log
+-- echo # INSERT lots of data in table 'big': end
 
 # confirm that table 't' has been evicted
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 
+# The result from this query will change once update_time becomes persistent
+# (WL#6917).
 SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
 AND update_time IS NOT NULL;
 
 DROP TABLE big;
 
-# Test the behavior after restart with a prepared XA transaction
+-- echo # Test the behavior after restart with a prepared XA transaction
 
 XA START 'xatrx';
 INSERT INTO t VALUES (5);
@@ -56,12 +60,12 @@ CONNECTION con1;
 
 call mtr.add_suppression("Found 1 prepared XA transactions");
 
-# kill mysqld
+-- echo # forcefully shutdown mysqld immediately (kill)
 -- exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- shutdown_server 0
 -- source include/wait_until_disconnected.inc
 
-# restart mysqld
+-- echo # restart mysqld
 -- exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 -- enable_reconnect
 -- source include/wait_until_connected_again.inc
@@ -70,6 +74,8 @@ SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 XA COMMIT 'xatrx';
 
+# The result from this query may change once update_time becomes persistent
+# (WL#6917).
 SELECT update_time FROM information_schema.tables WHERE table_name = 't';
 
 DROP TABLE t;
