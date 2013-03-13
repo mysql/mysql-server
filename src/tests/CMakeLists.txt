@@ -259,6 +259,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       test_db_txn_locks_read_uncommitted
       test_get_max_row_size
       test_large_update_broadcast_small_cachetable
+      test_locking_with_read_txn
       test_locktree_close
       test_logflush
       test_multiple_checkpoints_block_commit
