@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -374,6 +374,10 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
+  # Visual Studio 11 needs this extra flag in order to compile gmock.
+  IF(WIN32)
+    ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
+  ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 
