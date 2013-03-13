@@ -7336,13 +7336,13 @@ double ha_tokudb::index_only_read_time(uint keynr, double records) {
 //
 ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range* end_key) {
     TOKUDB_DBUG_ENTER("ha_tokudb::records_in_range");
-    DBT key;
+    DBT *pleft_key = NULL, *pright_key = NULL;
+    DBT left_key, right_key;
     ha_rows ret_val = HA_TOKUDB_RANGE_COUNT;
     DB *kfile = share->key_file[keynr];
-    uint64_t less, equal, greater;
-    uint64_t total_rows_estimate = HA_TOKUDB_RANGE_COUNT;
-    uint64_t start_rows, end_rows, rows;
-    int is_exact;
+    uint64_t less, equal1, middle, equal2, greater;
+    uint64_t rows;
+    bool is_exact;
     int error;
     uchar inf_byte;
 
@@ -7354,80 +7354,57 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range* start_key, key_range*
     // So, we call key_range64 on the key, and the key that is after it.
     //
     if (!start_key && !end_key) {
-        error = estimate_num_rows(kfile, &end_rows, transaction);
+        error = estimate_num_rows(kfile, &rows, transaction);
         if (error) {
             ret_val = HA_TOKUDB_RANGE_COUNT;
             goto cleanup;
         }
-        ret_val = (end_rows <= 1) ? 1 : end_rows;
+        ret_val = (rows <= 1) ? 1 : rows;
         goto cleanup;
     }
     if (start_key) {
-        inf_byte = (start_key->flag == HA_READ_KEY_EXACT) ? 
+        inf_byte = (start_key->flag == HA_READ_KEY_EXACT) ?
             COL_NEG_INF : COL_POS_INF;
         pack_key(
-            &key, 
-            keynr, 
-            key_buff, 
-            start_key->key, 
-            start_key->length, 
+            &left_key,
+            keynr,
+            key_buff,
+            start_key->key,
+            start_key->length,
             inf_byte
-            ); 
-        error = kfile->key_range64(
-            kfile, 
-            transaction, 
-            &key,
-            &less,
-            &equal,
-            &greater,
-            &is_exact
             );
-        if (error) {
-            ret_val = HA_TOKUDB_RANGE_COUNT;
-            goto cleanup;
-        }
-        start_rows= less;
-        total_rows_estimate = less + equal + greater;
+        pleft_key = &left_key;
     }
-    else {
-        start_rows= 0;
-    }
-
     if (end_key) {
         inf_byte = (end_key->flag == HA_READ_BEFORE_KEY) ?
             COL_NEG_INF : COL_POS_INF;
         pack_key(
-            &key, 
+            &right_key, 
             keynr, 
-            key_buff, 
+            key_buff2, 
             end_key->key, 
             end_key->length, 
             inf_byte
             );
-        error = kfile->key_range64(
-            kfile, 
-            transaction, 
-            &key,
-            &less,
-            &equal,
-            &greater,
-            &is_exact
-            );
-        if (error) {
-            ret_val = HA_TOKUDB_RANGE_COUNT;
-            goto cleanup;
-        }
-        end_rows= less;
+        pright_key = &right_key;
     }
-    else {
-        //
-        // first if-clause ensures that start_key is non-NULL
-        //
-        assert(start_key);
-        end_rows = total_rows_estimate;
+    error = kfile->keys_range64(
+        kfile, 
+        transaction, 
+        pleft_key,
+        pright_key,
+        &less,
+        &equal1,
+        &middle,
+        &equal2,
+        &greater,
+        &is_exact
+        );
+    if (error) {
+        ret_val = HA_TOKUDB_RANGE_COUNT;
+        goto cleanup;
     }
-
-    rows = (end_rows > start_rows) ? end_rows - start_rows : 1;
+    rows = middle;
 
     //
     // MySQL thinks a return value of 0 means there are exactly 0 rows
