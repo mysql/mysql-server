@@ -596,20 +596,15 @@ next_dict_id(void) {
 bool
 toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum)
 {
-    if (bfe->type == ftnode_fetch_all ||
-        (bfe->type == ftnode_fetch_subset && bfe->child_to_read == childnum))
-    {
-        return true;
-    }
-    else {
-        return false;
-    }
+    return bfe->type == ftnode_fetch_all ||
+        (bfe->child_to_read == childnum &&
+         (bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_keymatch));
 }
 
 int
 toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
 {
-    paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch);
+    paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch || bfe->type == ftnode_fetch_keymatch);
     if (bfe->left_is_neg_infty) {
         return 0;
     } else if (bfe->range_lock_left_key.data == nullptr) {
@@ -622,7 +617,7 @@ toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
 int
 toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
 {
-    paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch);
+    paranoid_invariant(bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_prefetch || bfe->type == ftnode_fetch_keymatch);
     if (bfe->right_is_pos_infty) {
         return node->n_children - 1;
     } else if (bfe->range_lock_right_key.data == nullptr) {
@@ -875,7 +870,7 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_WRITE, 1);
         STATUS_INC(FT_BYTES_PIVOTS_FETCHED_WRITE, bfe->bytes_read);
         STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_WRITE, bfe->io_time);
-    } else if (bfe->type == ftnode_fetch_subset) {
+    } else if (bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_keymatch) {
         STATUS_INC(FT_NUM_PIVOTS_FETCHED_QUERY, 1);
         STATUS_INC(FT_BYTES_PIVOTS_FETCHED_QUERY, bfe->bytes_read);
         STATUS_INC(FT_TOKUTIME_PIVOTS_FETCHED_QUERY, bfe->io_time);
@@ -1146,8 +1141,24 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
                 retval = true;
             }
         }
-    }
-    else {
+    } else if (bfe->type == ftnode_fetch_keymatch) {
+        // we do not take into account prefetching yet
+        // as of now, if we need a subset, the only thing
+        // we can possibly require is a single basement node
+        // we find out what basement node the query cares about
+        // and check if it is available
+        paranoid_invariant(bfe->h->compare_fun);
+        if (node->height == 0) {
+            int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
+            int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
+            if (left_child == right_child) {
+                bfe->child_to_read = left_child;
+                unsafe_touch_clock(node,bfe->child_to_read);
+                // child we want to read is not available, must set retval to true
+                retval = (BP_STATE(node, bfe->child_to_read) != PT_AVAIL);
+            }
+        }
+    } else {
         // we have a bug. The type should be known
         abort();
     }
@@ -1264,7 +1275,7 @@ int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraar
     struct ftnode_fetch_extra *bfe = (struct ftnode_fetch_extra *) read_extraargs;
     // there must be a reason this is being called. If we get a garbage type or the type is ftnode_fetch_none,
     // then something went wrong
-    assert((bfe->type == ftnode_fetch_subset) || (bfe->type == ftnode_fetch_all) || (bfe->type == ftnode_fetch_prefetch));
+    assert((bfe->type == ftnode_fetch_subset) || (bfe->type == ftnode_fetch_all) || (bfe->type == ftnode_fetch_prefetch) || (bfe->type == ftnode_fetch_keymatch));
     // determine the range to prefetch
     int lc, rc;
     if (!bfe->disable_prefetching &&
@@ -5583,63 +5594,99 @@ keyrange_compare (OMTVALUE lev, void *extra) {
 }
 
 static void
-keyrange_in_leaf_partition (FT_HANDLE brt, FTNODE node, DBT *key, int child_number, uint64_t estimated_num_rows,
-                            uint64_t *less, uint64_t *equal, uint64_t *greater)
+keysrange_in_leaf_partition (FT_HANDLE brt, FTNODE node,
+                             DBT* key_left, DBT* key_right,
+                             int left_child_number, int right_child_number, uint64_t estimated_num_rows,
+                             uint64_t *less, uint64_t* equal_left, uint64_t* middle,
+                             uint64_t* equal_right, uint64_t* greater, bool* single_basement_node)
 // If the partition is in main memory then estimate the number
-// If KEY==NULL then use an arbitrary key (leftmost or zero)
+// Treat key_left == NULL as negative infinity
+// Treat key_right == NULL as positive infinity
 {
     paranoid_invariant(node->height == 0); // we are in a leaf
-    if (BP_STATE(node, child_number) == PT_AVAIL) {
-        // If the partition is in main memory then get an exact count.
-        struct keyrange_compare_s s = {brt,key};
-        BASEMENTNODE bn = BLB(node, child_number);
+    paranoid_invariant(!(key_left == NULL && key_right != NULL));
+    paranoid_invariant(left_child_number <= right_child_number);
+    bool single_basement = left_child_number == right_child_number;
+    paranoid_invariant(!single_basement || (BP_STATE(node, left_child_number) == PT_AVAIL));
+    if (BP_STATE(node, left_child_number) == PT_AVAIL) {
+        int r;
+        // The partition is in main memory then get an exact count.
+        struct keyrange_compare_s s_left = {brt, key_left};
+        BASEMENTNODE bn = BLB(node, left_child_number);
         OMTVALUE datav;
-        uint32_t idx = 0;
-        // if key is NULL then set r==-1 and idx==0.
-        int r = key ? toku_omt_find_zero(bn->buffer, keyrange_compare, &s, &datav, &idx) : -1;
-        if (r==0) {
-            *less    = idx;
-            *equal   = 1;
-            *greater = toku_omt_size(bn->buffer)-idx-1;
-        } else {
-            // If not found, then the idx says where it's between.
-            *less    = idx;
-            *equal   = 0;
-            *greater = toku_omt_size(bn->buffer)-idx;
+        uint32_t idx_left = 0;
+        // if key_left is NULL then set r==-1 and idx==0.
+        r = key_left ? toku_omt_find_zero(bn->buffer, keyrange_compare, &s_left, &datav, &idx_left) : -1;
+        *less = idx_left;
+        *equal_left = (r==0) ? 1 : 0;
+
+        uint32_t size = toku_omt_size(bn->buffer);
+        printf("Estimated vs Actual: %" PRIu64 " vs %" PRIu32 "\n", estimated_num_rows, size);
+        uint32_t idx_right = size;
+        r = -1;
+        if (single_basement && key_right) {
+            struct keyrange_compare_s s_right = {brt, key_right};
+            r = toku_omt_find_zero(bn->buffer, keyrange_compare, &s_right, &datav, &idx_right);
         }
+        *middle = idx_right - idx_left - *equal_left;
+        *equal_right = (r==0) ? 1 : 0;
+        *greater = size - idx_right - *equal_right;
     } else {
-        *less    = estimated_num_rows / 2;
-        *equal   = 0;
-        *greater = *less;
+        paranoid_invariant(!single_basement);
+        uint32_t idx_left = estimated_num_rows / 2;
+        if (!key_left) {
+            //Both nullptr, assume key_left belongs before leftmost entry, key_right belongs after rightmost entry
+            idx_left = 0;
+            paranoid_invariant(!key_right);
+        }
+        // Assume idx_left and idx_right point to where key_left and key_right belong, (but are not there).
+        *less = idx_left;
+        *equal_left = 0;
+        *middle = estimated_num_rows - idx_left;
+        *equal_right = 0;
+        *greater = 0;
     }
+    *single_basement_node = single_basement;
 }
 
 static int
-toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
-                            DBT *key, uint64_t *less, uint64_t *equal, uint64_t *greater,
+toku_ft_keysrange_internal (FT_HANDLE brt, FTNODE node,
+                            DBT* key_left, DBT* key_right, bool may_find_right,
+                            uint64_t* less, uint64_t* equal_left, uint64_t* middle,
+                            uint64_t* equal_right, uint64_t* greater, bool* single_basement_node,
                             uint64_t estimated_num_rows,
-                            struct ftnode_fetch_extra *bfe, // set up to read a minimal read.
+                            struct ftnode_fetch_extra *min_bfe, // set up to read a minimal read.
+                            struct ftnode_fetch_extra *match_bfe, // set up to read a basement node iff both keys in it
                             struct unlockers *unlockers, ANCESTORS ancestors, struct pivot_bounds const * const bounds)
 // Implementation note: Assign values to less, equal, and greater, and then on the way out (returning up the stack) we add more values in.
 {
     int r = 0;
     // if KEY is NULL then use the leftmost key.
-    int child_number = key ? toku_ftnode_which_child (node, key, &brt->ft->cmp_descriptor, brt->ft->compare_fun) : 0;
+    int left_child_number = key_left ? toku_ftnode_which_child (node, key_left, &brt->ft->cmp_descriptor, brt->ft->compare_fun) : 0;
+    int right_child_number = node->n_children;  // Sentinel that does not equal left_child_number.
+    if (may_find_right) {
+        right_child_number = key_right ? toku_ftnode_which_child (node, key_right, &brt->ft->cmp_descriptor, brt->ft->compare_fun) : node->n_children - 1;
+    }
+
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
     if (node->height == 0) {
+        keysrange_in_leaf_partition(brt, node, key_left, key_right, left_child_number, right_child_number,
+                                    rows_per_child, less, equal_left, middle, equal_right, greater, single_basement_node);
 
-        keyrange_in_leaf_partition(brt, node, key, child_number, rows_per_child, less, equal, greater);
-
-        *less    += rows_per_child * child_number;
-        *greater += rows_per_child * (node->n_children - child_number - 1);
-
+        *less    += rows_per_child * left_child_number;
+        if (*single_basement_node) {
+            *greater += rows_per_child * (node->n_children - left_child_number - 1);
+        } else {
+            *middle += rows_per_child * (node->n_children - left_child_number - 1);
+        }
     } else {
         // do the child.
-        struct ancestors next_ancestors = {node, child_number, ancestors};
-        BLOCKNUM childblocknum = BP_BLOCKNUM(node, child_number);
-        uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, child_number);
+        struct ancestors next_ancestors = {node, left_child_number, ancestors};
+        BLOCKNUM childblocknum = BP_BLOCKNUM(node, left_child_number);
+        uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, left_child_number);
         FTNODE childnode;
         bool msgs_applied = false;
+        bool child_may_find_right = may_find_right && left_child_number == right_child_number;
         r = toku_pin_ftnode_batched(
             brt,
             childblocknum,
@@ -5647,7 +5694,7 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
             unlockers,
             &next_ancestors,
             bounds,
-            bfe,
+            child_may_find_right ? match_bfe : min_bfe,
             PL_READ, // may_modify_node is false, because node guaranteed to not change
             false,
             &childnode,
@@ -5659,15 +5706,20 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
 
             struct unlock_ftnode_extra unlock_extra   = {brt,childnode,false};
             struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, unlockers};
-            const struct pivot_bounds next_bounds = next_pivot_keys(node, child_number, bounds);
+            const struct pivot_bounds next_bounds = next_pivot_keys(node, left_child_number, bounds);
 
-            r = toku_ft_keyrange_internal(brt, childnode, key, less, equal, greater, rows_per_child,
-                                           bfe, &next_unlockers, &next_ancestors, &next_bounds);
+            r = toku_ft_keysrange_internal(brt, childnode, key_left, key_right, child_may_find_right,
+                                           less, equal_left, middle, equal_right, greater, single_basement_node,
+                                           rows_per_child, min_bfe, match_bfe, &next_unlockers, &next_ancestors, &next_bounds);
             if (r != TOKUDB_TRY_AGAIN) {
                 assert_zero(r);
 
-                *less    += rows_per_child * child_number;
-                *greater += rows_per_child * (node->n_children - child_number - 1);
+                *less    += rows_per_child * left_child_number;
+                if (*single_basement_node) {
+                    *greater += rows_per_child * (node->n_children - left_child_number - 1);
+                } else {
+                    *middle += rows_per_child * (node->n_children - left_child_number - 1);
+                }
 
                 assert(unlockers->locked);
                 toku_unpin_ftnode_read_only(brt->ft, childnode);
@@ -5677,20 +5729,39 @@ toku_ft_keyrange_internal (FT_HANDLE brt, FTNODE node,
     return r;
 }
 
-void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less_p, uint64_t *equal_p, uint64_t *greater_p)
-// Effect: Return an estimate  of the number of keys to the left, the number equal, and the number to the right of the key.
+void toku_ft_keysrange(FT_HANDLE brt, DBT* key_left, DBT* key_right, uint64_t *less_p, uint64_t* equal_left_p, uint64_t* middle_p, uint64_t* equal_right_p, uint64_t* greater_p, bool* middle_3_exact_p)
+// Effect: Return an estimate  of the number of keys to the left, the number equal (to left key), number between keys, number equal to right key, and the number to the right of both keys.
 //   The values are an estimate.
-//   If you perform a keyrange on two keys that are in the same in-memory and uncompressed basement,
-//   you can use the keys_right numbers (or the keys_left) numbers to get an exact number keys in the range,
-//   if the basement does not change between the keyrange queries.
-//   TODO 4184: What to do with a NULL key?
+//   If you perform a keyrange on two keys that are in the same basement, equal_less, middle, and equal_right will be exact.
+//   4184: What to do with a NULL key?
+//   key_left==NULL is treated as -infinity
+//   key_right==NULL is treated as +infinity
 //   If KEY is NULL then the system picks an arbitrary key and returns it.
+//   key_right can be non-null only if key_left is non-null;
 {
-    struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, brt->ft);  // read pivot keys but not message buffers
+    if (!key_left && key_right) {
+        // Simplify internals by only supporting key_right != null when key_left != null
+        // If key_right != null and key_left == null, then swap them and fix up numbers.
+        uint64_t less = 0, equal_left = 0, middle = 0, equal_right = 0, greater = 0;
+        toku_ft_keysrange(brt, key_right, nullptr, &less, &equal_left, &middle, &equal_right, &greater, middle_3_exact_p);
+        *less_p = 0;
+        *equal_left_p = 0;
+        *middle_p = less;
+        *equal_right_p = equal_left;
+        *greater_p = middle;
+        invariant_zero(equal_right);
+        invariant_zero(greater);
+        return;
+    }
+    paranoid_invariant(!(!key_left && key_right));
+    struct ftnode_fetch_extra min_bfe;
+    struct ftnode_fetch_extra match_bfe;
+    fill_bfe_for_min_read(&min_bfe, brt->ft);  // read pivot keys but not message buffers
+    fill_bfe_for_keymatch(&match_bfe, brt->ft, key_left, key_right, false, false);  // read basement node only if both keys in it.
 try_again:
     {
-        uint64_t less = 0, equal = 0, greater = 0;
+        uint64_t less = 0, equal_left = 0, middle = 0, equal_right = 0, greater = 0;
+        bool single_basement_node = false;
         FTNODE node = NULL;
         {
             uint32_t fullhash;
@@ -5700,7 +5771,7 @@ try_again:
                 brt->ft,
                 root_key,
                 fullhash,
-                &bfe,
+                &match_bfe,
                 PL_READ, // may_modify_node, cannot change root during keyrange
                 0,
                 NULL,
@@ -5712,25 +5783,81 @@ try_again:
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
         {
+            int r;
             int64_t numrows = brt->ft->in_memory_stats.numrows;
             if (numrows < 0)
                 numrows = 0;  // prevent appearance of a negative number
-            int r = toku_ft_keyrange_internal (brt, node, key,
-                                                &less, &equal, &greater,
-                                                numrows,
-                                                &bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
+            r = toku_ft_keysrange_internal (brt, node, key_left, key_right, true,
+                                            &less, &equal_left, &middle, &equal_right, &greater,
+                                            &single_basement_node, numrows,
+                                            &min_bfe, &match_bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
             assert(r == 0 || r == TOKUDB_TRY_AGAIN);
             if (r == TOKUDB_TRY_AGAIN) {
                 assert(!unlockers.locked);
                 goto try_again;
             }
+            // May need to do a second query.
+            if (!single_basement_node && key_right != nullptr) {
+                // "greater" is stored in "middle"
+                invariant_zero(equal_right);
+                invariant_zero(greater);
+                uint64_t less2 = 0, equal_left2 = 0, middle2 = 0, equal_right2 = 0, greater2 = 0;
+                bool ignore;
+                r = toku_ft_keysrange_internal (brt, node, key_right, nullptr, false,
+                                                &less2, &equal_left2, &middle2, &equal_right2, &greater2,
+                                                &ignore, numrows,
+                                                &min_bfe, &match_bfe, &unlockers, (ANCESTORS)nullptr, &infinite_bounds);
+                assert(r == 0 || r == TOKUDB_TRY_AGAIN);
+                if (r == TOKUDB_TRY_AGAIN) {
+                    assert(!unlockers.locked);
+                    goto try_again;
+                }
+                invariant_zero(equal_right2);
+                invariant_zero(greater2);
+                // Update numbers.
+                // less is already correct.
+                // equal_left is already correct.
+
+                // "middle" currently holds everything greater than left_key in first query
+                // 'middle2' currently holds everything greater than right_key in second query
+                // 'equal_left2' is how many match right_key
+
+                // Prevent underflow.
+                if (middle >= equal_left2 + middle2) {
+                    middle -= equal_left2 + middle2;
+                } else {
+                    middle = 0;
+                }
+                equal_right = equal_left2;
+                greater = middle2;
+            }
         }
         assert(unlockers.locked);
         toku_unpin_ftnode_read_only(brt->ft, node);
-        *less_p    = less;
-        *equal_p   = equal;
-        *greater_p = greater;
+        if (!key_right) {
+            paranoid_invariant_zero(equal_right);
+            paranoid_invariant_zero(greater);
+        }
+        if (!key_left) {
+            paranoid_invariant_zero(less);
+            paranoid_invariant_zero(equal_left);
+        }
+        *less_p        = less;
+        *equal_left_p  = equal_left;
+        *middle_p      = middle;
+        *equal_right_p = equal_right;
+        *greater_p     = greater;
+        *middle_3_exact_p = single_basement_node;
     }
+}
+
+//Test-only wrapper for the old one-key range function
+void toku_ft_keyrange(FT_HANDLE brt, DBT *key, uint64_t *less,  uint64_t *equal,  uint64_t *greater) {
+    uint64_t zero_equal_right, zero_greater;
+    bool ignore;
+    toku_ft_keysrange(brt, key, nullptr, less, equal, greater, &zero_equal_right, &zero_greater, &ignore);
+    invariant_zero(zero_equal_right);
+    invariant_zero(zero_greater);
 }
 
 void toku_ft_handle_stat64 (FT_HANDLE brt, TOKUTXN UU(txn), struct ftstat64_s *s) {

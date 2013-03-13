@@ -60,7 +60,7 @@ run_test(void) {
 
     size_t key_size = 9;
     size_t val_size = 9;
-    size_t est_row_size_with_overhead = 8 + key_size + 4 + val_size + 4; // xid + key + key_len + val + val)len
+    size_t est_row_size_with_overhead = 8 + key_size + 4 + val_size + 4 + 5; // xid + key + key_len + val + val_len + mvcc overhead
     size_t rows_per_basement = db_basement_size / est_row_size_with_overhead;
 
     int r;
@@ -72,7 +72,8 @@ run_test(void) {
     r = env->open(env, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     r = db_create(&db, env, 0); CKERR(r);
-    r = db->set_pagesize(db, db_page_size);
+    r = db->set_pagesize(db, db_page_size); CKERR(r);
+    r = db->set_readpagesize(db, db_basement_size); CKERR(r);
     r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
     r = db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = txn->commit(txn, 0);    CKERR(r);
@@ -145,7 +146,11 @@ run_test(void) {
 
     if (0) goto skipit; // debug: just write the tree
 
+    bool last_basement;
+    last_basement = false;
     // verify key_range for keys that exist in the tree
+    uint64_t random_fudge;
+    random_fudge = random_keys ? rows_per_basement + nrows / 10 : 0;
     for (uint64_t i=0; i<nrows; i++) {
 	char key[100];
 	snprintf(key, 100, "%08llu", (unsigned long long)2*i+1);
@@ -160,15 +165,31 @@ run_test(void) {
         assert(0 < less + equal + greater);
         if (use_loader) {
             assert(less + equal + greater <= nrows);
-            assert(get_all ? equal == 1 : equal == 0);
+            if (get_all || last_basement) {
+                assert(equal == 1);
+            } else if (i < nrows - rows_per_basement * 2) {
+                assert(equal == 0);
+            } else if (i == nrows - 1) {
+                assert(equal == 1);
+            } else if (equal == 1) {
+                last_basement = true;
+            }
             assert(less <= max64(i, i + rows_per_basement/2));
             assert(greater <= nrows - less);
         } else {
             assert(less + equal + greater <= nrows + nrows / 8);
-            assert(get_all ? equal == 1 : equal == 0);
-            uint64_t est_i = max64(i, i + rows_per_basement/2);
-            assert(less <= est_i + est_i / 1);
-            assert(greater <= nrows - i + rows_per_basement/2);
+            if (get_all || last_basement) {
+                assert(equal == 1);
+            } else if (i < nrows - rows_per_basement * 2) {
+                assert(equal == 0);
+            } else if (i == nrows - 1) {
+                assert(equal == 1);
+            } else if (equal == 1) {
+                last_basement = true;
+            }
+            uint64_t est_i = i * 2 + rows_per_basement;
+            assert(less <= est_i + random_fudge);
+            assert(greater <= nrows - i + rows_per_basement + random_fudge);
 	}
     }
 
@@ -193,9 +214,9 @@ run_test(void) {
         } else {
             assert(less + equal + greater <= nrows + nrows / 8);
             assert(equal == 0);
-            uint64_t est_i = max64(i, i + rows_per_basement/2);
-            assert(less <= est_i + est_i / 1);
-            assert(greater <= nrows - i + rows_per_basement/2);
+            uint64_t est_i = i * 2 + rows_per_basement;
+            assert(less <= est_i + random_fudge);
+            assert(greater <= nrows - i + rows_per_basement + random_fudge);
         }
     }
 

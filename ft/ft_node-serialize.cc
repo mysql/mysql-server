@@ -1372,6 +1372,20 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
             node,
             bfe->search
             );
+    } else if (bfe->type == ftnode_fetch_keymatch) {
+        // we do not take into account prefetching yet
+        // as of now, if we need a subset, the only thing
+        // we can possibly require is a single basement node
+        // we find out what basement node the query cares about
+        // and check if it is available
+        paranoid_invariant(bfe->h->compare_fun);
+        if (node->height == 0) {
+            int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
+            int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
+            if (left_child == right_child) {
+                bfe->child_to_read = left_child;
+            }
+        }
     }
 }
 
@@ -1688,7 +1702,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     // rbuf, so we might be able to store the compressed data for some
     // objects.
     // We can proceed to deserialize the individual subblocks.
-    paranoid_invariant(bfe->type == ftnode_fetch_none || bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_all || bfe->type == ftnode_fetch_prefetch);
+    paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
     // for partitions being decompressed, create either FIFO or basement node
@@ -2323,7 +2337,7 @@ deserialize_ftnode_from_rbuf(
 
     // now that the node info has been deserialized, we can proceed to deserialize
     // the individual sub blocks
-    paranoid_invariant(bfe->type == ftnode_fetch_none || bfe->type == ftnode_fetch_subset || bfe->type == ftnode_fetch_all || bfe->type == ftnode_fetch_prefetch);
+    paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
     // for partitions being decompressed, create either FIFO or basement node
