@@ -491,6 +491,7 @@ public:
   enum Item_result result_type () const { return STRING_RESULT; }
   CHARSET_INFO *charset_for_protocol(void) const { return &my_charset_bin; }
   enum_field_types field_type() const { return MYSQL_TYPE_DATETIME; }
+  Item_result cmp_type() const { return TIME_RESULT; }
   String *val_str(String *str);
   longlong val_int();
   double val_real();

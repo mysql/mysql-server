@@ -906,7 +906,8 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
   }
   if ((*is_null= item->null_value))
     return ~(ulonglong) 0;
-  if (cache_arg && item->const_item() && item->type() != Item::CACHE_ITEM)
+  if (cache_arg && item->const_item() &&
+      !(item->type() == Item::CACHE_ITEM && item->cmp_type() == TIME_RESULT))
   {
     Query_arena backup;
     Query_arena *save_arena= thd->switch_to_arena_for_cached_items(&backup);

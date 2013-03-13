@@ -1,0 +1,11 @@
+create table t1 (a date);
+insert t1 values ('2000-01-02'), ('2001-02-03'), ('2002-03-04');
+set debug_dbug='d,str_to_datetime_warn';
+select * from t1 where a > date_add('2000-01-01', interval 5 day);
+a
+2001-02-03
+2002-03-04
+Warnings:
+Note	1003	2000-01-01
+Note	1003	2000-01-06
+drop table t1;

@@ -302,6 +302,9 @@ str_to_datetime_with_warn(CHARSET_INFO *cs,
     make_truncated_value_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
                                  str, length, flags & TIME_TIME_ONLY ?
                                  MYSQL_TIMESTAMP_TIME : ts_type, NullS);
+  DBUG_EXECUTE_IF("str_to_datetime_warn",
+                  push_warning(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                               ER_YES, str););
   return ts_type;
 }
 
