@@ -2830,8 +2830,9 @@ inline void mts_assign_parent_group_id(Log_event *ev, Relay_log_info *rli)
     }
 
     DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
-    if ((commit_seq_no != rli->mts_last_known_commit_parent ||
-         rli->mts_last_known_commit_parent == SEQ_UNINIT))
+    if ((commit_seq_no != SEQ_UNINIT &&
+        commit_seq_no != rli->mts_last_known_commit_parent) ||
+         rli->mts_last_known_commit_parent == SEQ_UNINIT)
     {
       rli->mts_last_known_commit_parent= commit_seq_no;
       rli->mts_last_known_parent_group_id=

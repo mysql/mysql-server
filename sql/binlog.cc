@@ -1588,7 +1588,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
      already written in function ha_commit_trans and will not step the prepare
      clock or overwrite the commit parent timestamp.
      */
-    cache= cache_mngr->get_binlog_cache_log(all);
+    cache= cache_mngr->get_binlog_cache_log(false);
     if (cache->commit_seq_no == SEQ_UNINIT)
     {
       cache->commit_seq_no=
@@ -5481,6 +5481,8 @@ void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
   DBUG_PRINT("info", ("MTS:: CTS:=%lld",
                        cache->commit_seq_no));
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
+  DBUG_PRINT("info", ("MTS:: cache_ptr:=%p",
+                       cache));
   DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
   pc_ptr++;
@@ -6317,6 +6319,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
+  bool real_trans= false;
   IO_CACHE* cache;
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
@@ -6396,7 +6399,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   if (!error && !cache_mngr->trx_cache.is_binlog_empty() &&
       ending_trans(thd, all))
   {
-    const bool real_trans= (all || thd->transaction.all.ha_list == 0);
+    real_trans= (all || thd->transaction.all.ha_list == 0);
     /*
       We are committing an XA transaction if it is a "real" transaction
       and have an XID assigned (because some handlerton registered). A
@@ -6455,9 +6458,9 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       already written in function ha_commit_trans and will not step the prepare
       clock or overwrite the commit parent timestamp.
      */
-    cache= cache_mngr->get_binlog_cache_log(all);
-    DBUG_PRINT("info",("commit_seq_ddl_n_trans_outside=%lld",
-                         cache->commit_seq_no));
+    cache= cache_mngr->get_binlog_cache_log(real_trans);
+    DBUG_PRINT("info",("commit_seq_ddl_n_trans_outside=%lld and cache pointer =%p",
+                         cache->commit_seq_no, (void*)cache));
     if (cache->commit_seq_no == SEQ_UNINIT)
     {
       cache->commit_seq_no=
