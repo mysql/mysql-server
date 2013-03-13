@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
@@ -26,7 +27,8 @@ while ($1)
     send ALTER TABLE t1 CHANGE x1 x2 INT;
   connection con2;
     CREATE TABLE t2 LIKE t1;
-    replace_result x1 xx x2 xx;
+    replace_result x1 xx x2 xx $DEFAULT_ENGINE ENGINE;
+
     SHOW CREATE TABLE t2;
     DROP TABLE t2;
   connection con1;
@@ -34,7 +36,8 @@ while ($1)
     send ALTER TABLE t1 CHANGE x2 x1 INT;
   connection con2;
     CREATE TABLE t2 LIKE t1;
-    replace_result x1 xx x2 xx;
+    replace_result x1 xx x2 xx $DEFAULT_ENGINE ENGINE;
+
     SHOW CREATE TABLE t2;
     DROP TABLE t2;
   connection con1;
