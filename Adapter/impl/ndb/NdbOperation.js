@@ -31,6 +31,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     COMMIT        = adapter.ndbapi.Commit,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
+    constants     = adapter.impl,
     opcodes       = doc.OperationCodes,
     OP_READ       = doc.OperationCodes.OP_READ,
     OP_INSERT     = doc.OperationCodes.OP_INSERT,
@@ -91,29 +92,29 @@ DBOperation.prototype = doc.DBOperation;
 DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", opcodes[this.opcode], this.values);
   stats.incr("prepared");
-  var helperSpec = {}, helper;
+  var helperSpec = new Array(constants.HELPER_ARRAY_SIZE), helper;
   switch(this.opcode) {
     case OP_INSERT:
       encodeRowBuffer(this);
-      helperSpec.mask       = this.columnMask;
-      helperSpec.row_record = this.tableHandler.dbTable.record;
-      helperSpec.row_buffer = this.buffers.row;
+      helperSpec[constants.HELPER_COLUMN_MASK] = this.columnMask;
+      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
+      helperSpec[constants.HELPER_ROW_BUFFER]  = this.buffers.row;
       break;
     case OP_DELETE: 
-      helperSpec.key_record = this.index.record;
-      helperSpec.key_buffer = this.buffers.key;
-      helperSpec.row_record = this.tableHandler.dbTable.record;
+      helperSpec[constants.HELPER_KEY_RECORD]  = this.index.record;
+      helperSpec[constants.HELPER_KEY_BUFFER]  = this.buffers.key;
+      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
       break;
     case OP_READ:
-        helperSpec.lock_mode  = this.lockMode;
-        /* fall through */
+      helperSpec[constants.HELPER_LOCK_MODE]   = constants.LockModes[this.lockMode];
+      /* fall through */
     case OP_UPDATE:
     case OP_WRITE:
-      helperSpec.mask       = this.columnMask;
-      helperSpec.key_record = this.index.record;
-      helperSpec.key_buffer = this.buffers.key;
-      helperSpec.row_record = this.tableHandler.dbTable.record;
-      helperSpec.row_buffer = this.buffers.row;
+      helperSpec[constants.HELPER_COLUMN_MASK] = this.columnMask;
+      helperSpec[constants.HELPER_KEY_RECORD]  = this.index.record;
+      helperSpec[constants.HELPER_KEY_BUFFER]  = this.buffers.key;
+      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
+      helperSpec[constants.HELPER_ROW_BUFFER]  = this.buffers.row;
       break; 
   }
 
