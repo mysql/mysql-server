@@ -7,7 +7,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 explain select * from t1 where c > 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	c	NULL	NULL	NULL	NULL;	Using where
+1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where
 explain select * from t1 where a > 4;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	PRIMARY	PRIMARY	4	NULL	NULL;	Using where
@@ -19,8 +19,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where
 explain select a from t1 where b > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	b	b	5	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	range	b	b	5	NULL	NULL;	Using where; Using index
 explain select a from t1 where c > 0;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	c	c	5	NULL	NULL;	Using where; Using index
+1	SIMPLE	t1	range	c	c	5	NULL	NULL;	Using where; Using index
 drop table t1;
