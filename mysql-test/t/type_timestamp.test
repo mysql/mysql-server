@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Test timestamp
@@ -92,6 +93,9 @@ select ix+0 from t1;
 drop table t1;
 
 # Let us test TIMESTAMP auto-update behaviour
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 # Also we will test behaviour of TIMESTAMP field in SHOW CREATE TABLE and
 # behaviour of DEFAULT literal for such fields
 create table t1 (t1 timestamp not null default '2003-01-01 00:00:00', t2 datetime, t3 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00');
@@ -102,6 +106,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000002;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 drop table t1;
@@ -114,6 +121,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000003;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 drop table t1;
@@ -127,6 +137,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000005;
 insert into t1 (t1) values (default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 drop table t1;
@@ -140,6 +153,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000007;
 insert into t1 (t1) values (default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 drop table t1;
@@ -153,6 +169,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000008;
 insert into t1 (t1,t3) values (default, default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 drop table t1;
@@ -169,6 +188,9 @@ update t1 set t2=now();
 SET TIMESTAMP=1000000011;
 insert into t1 (t1) values (default);
 select * from t1;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 show columns from t1;
 truncate table t1;
@@ -226,6 +248,9 @@ drop table t1;
 # Unlike for default TIMESTAMP fields we don't interpret first field
 # in this table as TIMESTAMP with DEFAULT NOW() ON UPDATE NOW() properties.
 create table t1 (a timestamp null, b timestamp null);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000017;
@@ -235,6 +260,9 @@ drop table t1;
 
 # But explicit auto-set properties still should be OK.
 create table t1 (a timestamp null default current_timestamp on update current_timestamp, b timestamp null);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000018;
@@ -247,6 +275,9 @@ drop table t1;
 # should return default value for column.
 
 create table t1 (a timestamp null default null, b timestamp null default '2003-01-01 00:00:00');
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 insert into t1 values (NULL, NULL);
 insert into t1 values (DEFAULT, DEFAULT);
@@ -281,6 +312,9 @@ drop table t1;
 #
 set sql_mode='maxdb';
 create table t1 (a timestamp, b timestamp);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 # restore default mode
 set sql_mode='';

@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 --disable_warnings
 drop table if exists t1,t2,v1,v2;
@@ -15,21 +16,39 @@ CREATE TABLE `t1` (
 ) ENGINE=HEAP CHARSET=latin1 ROW_FORMAT DYNAMIC;
 set @@sql_mode="";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="ansi_quotes";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_table_options";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_key_options";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="no_field_options,mysql323,mysql40";
 show variables like 'sql_mode';
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set sql_mode="postgresql,oracle,mssql,db2,maxdb";
 select @@sql_mode;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -57,10 +76,19 @@ CREATE TABLE t1 (
  c binary(10)
 ) character set latin1;
 set @@sql_mode="";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="mysql323";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set @@sql_mode="mysql40";
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -71,16 +99,25 @@ drop table t1;
 set session sql_mode = '';
 # statement for comparison, value starts with '.'
 create table t1 ( min_num   dec(6,6)     default .000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 #
 set session sql_mode = 'IGNORE_SPACE';
 # statement for comparison, value starts with '0'
 create table t1 ( min_num   dec(6,6)     default 0.000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 # This statement fails, value starts with '.'
 create table t1 ( min_num   dec(6,6)     default .000001);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1 ;
 
@@ -91,14 +128,23 @@ drop table t1 ;
 set @@SQL_MODE=NULL;
 
 #
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 # Bug #797: in sql_mode=ANSI, show create table ignores auto_increment
 #
 set session sql_mode=ansi;
 create table t1
 (f1 integer auto_increment primary key,
  f2 timestamp not null default current_timestamp on update current_timestamp);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 set session sql_mode=no_field_options;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -216,12 +262,18 @@ SELECT "a\\b", "a\\\'b", "a""\\b", "a""\\\'b";
 #--error 1289
 #create table t1 (a int) engine=isam;
 #--error 1146
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #drop table if exists t1;
 #
 ## for comparison, lets see the warnings...
 #set session sql_mode = '';
 #create table t1 (a int) engine=isam;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 #show create table t1;
 #drop table t1;
 
