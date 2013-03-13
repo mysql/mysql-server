@@ -262,7 +262,7 @@ public:
 		size in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
-		ibool*	create_new_db,
+		bool*	create_new_db,
 		ulint	min_expected_tablespace_size);
 
 	/**
@@ -398,7 +398,7 @@ private:
 	@param file - data file spec
 	@param create_new_db - [out] true if a new instances to be created
 	@return DB_SUCESS or error code */
-	dberr_t file_not_found(file_t& file, ibool* create_new_db);
+	dberr_t file_not_found(file_t& file, bool* create_new_db);
 
 	/**
 	Note that the data file was found.

@@ -231,14 +231,13 @@ ibuf_count_check(
 		return;
 	}
 
-	fprintf(stderr,
-		"InnoDB: UNIV_IBUF_COUNT_DEBUG limits space_id and page_no\n"
-		"InnoDB: and breaks crash recovery.\n"
-		"InnoDB: space_id=%lu, should be 0<=space_id<%lu\n"
-		"InnoDB: page_no=%lu, should be 0<=page_no<%lu\n",
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"UNIV_IBUF_COUNT_DEBUG limits space_id and page_no"
+		" and breaks crash recovery."
+		"\nInnoDB: space_id=%lu, should be 0<=space_id<%lu"
+		"\nInnoDB: page_no=%lu, should be 0<=page_no<%lu",
 		(ulint) space_id, (ulint) IBUF_COUNT_N_SPACES,
 		(ulint) page_no, (ulint) IBUF_COUNT_N_PAGES);
-	ut_error;
 }
 #endif
 
@@ -4371,14 +4370,13 @@ ibuf_restore_pos(
 
 		ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
-		fputs("InnoDB: Validating insert buffer tree:\n", stderr);
+		ib_logf(IB_LOG_LEVEL_INFO, "Validating insert buffer tree:");
 		if (!btr_validate_index(ibuf->index, 0)) {
 			ut_error;
 		}
+		ib_logf(IB_LOG_LEVEL_INFO, "ibuf tree is OK.");
 
-		fprintf(stderr, "InnoDB: ibuf tree ok\n");
-		fflush(stderr);
-		ut_ad(0);
+		ib_logf(IB_LOG_LEVEL_FATAL, "Failed to restore ibuf position.");
 	}
 
 	return(FALSE);
@@ -4389,7 +4387,7 @@ Deletes from ibuf the record on which pcur is positioned. If we have to
 resort to a pessimistic delete, this function commits mtr and closes
 the cursor.
 @return	TRUE if mtr was committed and pcur closed in this operation */
-static
+static __attribute__((warn_unused_result))
 ibool
 ibuf_delete_rec(
 /*============*/
@@ -4422,7 +4420,7 @@ ibuf_delete_rec(
 		btr_cur_set_deleted_flag_for_ibuf(
 			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
 		ibuf_mtr_commit(mtr);
-		log_write_up_to(IB_ULONGLONG_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+		log_write_up_to(LSN_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
 		DBUG_SUICIDE();
 	}
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -4691,6 +4689,12 @@ ibuf_merge_or_delete_for_page(
 loop:
 	ibuf_mtr_start(&mtr);
 
+	/* Position pcur in the insert buffer at the first entry for this
+	index page */
+	btr_pcur_open_on_user_rec(
+		ibuf->index, search_tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF,
+		&pcur, &mtr);
+
 	if (block) {
 		ibool success;
 
@@ -4708,12 +4712,6 @@ loop:
 		latch an io-fixed block. */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
 	}
-
-	/* Position pcur in the insert buffer at the first entry for this
-	index page */
-	btr_pcur_open_on_user_rec(
-		ibuf->index, search_tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF,
-		&pcur, &mtr);
 
 	if (!btr_pcur_is_on_user_rec(&pcur)) {
 		ut_ad(btr_pcur_is_after_last_in_tree(&pcur, &mtr));
@@ -4857,6 +4855,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
+			ut_ad(mtr.state == MTR_COMMITTED);
 			goto loop;
 		} else if (btr_pcur_is_after_last_on_page(&pcur)) {
 			ibuf_mtr_commit(&mtr);
@@ -4987,6 +4986,7 @@ loop:
 			/* Deletion was pessimistic and mtr was committed:
 			we start from the beginning again */
 
+			ut_ad(mtr.state == MTR_COMMITTED);
 			goto loop;
 		}
 

@@ -479,7 +479,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Required for reentrant parser */
 #define YY_DECL int fts_blexer(YYSTYPE* val, yyscan_t yyscanner)
-
+#define exit(A)   ut_error
 #define YY_NO_INPUT 1
 #line 484 "fts0blex.cc"
 

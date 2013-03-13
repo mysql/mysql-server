@@ -15,7 +15,6 @@
 
 #include <my_global.h>
 #include <mysql.h>
-#include <mysql/plugin_auth.h>
 #include <mysql/client_plugin.h>
 
 #include "common.h"
