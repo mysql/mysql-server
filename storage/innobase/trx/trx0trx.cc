@@ -1078,6 +1078,14 @@ trx_update_mod_tables_timestamp(
 
 		dict_table_t*	table = *iter;
 
+		/* This could be executed by multiple threads concurrently
+		on the same table object. This is fine because time_t is
+		word size or less. And _purely_ _theoretically_, even if
+		time_t write is not atomic, likely the value of 'now' is
+		the same in all threads and even if it is not, getting a
+		"garbage" in table->update_time is justified because
+		protecting it with a latch here would be too performance
+		intrusive. */
 		table->update_time = now;
 	}
 
