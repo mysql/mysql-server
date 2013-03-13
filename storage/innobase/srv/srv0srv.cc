@@ -110,10 +110,6 @@ UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
 /* The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
 
-#ifdef UNIV_LOG_ARCHIVE
-UNIV_INTERN char*	srv_arch_dir	= NULL;
-#endif /* UNIV_LOG_ARCHIVE */
-
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
@@ -225,12 +221,6 @@ UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 UNIV_INTERN ulong	srv_read_ahead_threshold	= 56;
-
-#ifdef UNIV_LOG_ARCHIVE
-UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
-UNIV_INTERN ibool		srv_archive_recovery	= 0;
-UNIV_INTERN ib_uint64_t	srv_archive_recovery_limit_lsn;
-#endif /* UNIV_LOG_ARCHIVE */
 
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
@@ -1706,15 +1696,11 @@ loop:
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
-
-			fprintf(stderr,
-				"InnoDB: Error: semaphore wait has lasted"
-				" > %lu seconds\n"
-				"InnoDB: We intentionally crash the server,"
-				" because it appears to be hung.\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Semaphore wait has lasted > %lu seconds."
+				" We intentionally crash the server because"
+				" it appears to be hung.",
 				(ulong) srv_fatal_semaphore_wait_threshold);
-
-			ut_error;
 		}
 	} else {
 		fatal_cnt = 0;

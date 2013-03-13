@@ -334,8 +334,7 @@ mem_pool_fill_free_list(
 
 	if (UNIV_UNLIKELY(UT_LIST_GET_LEN(pool->free_list[i + 1]) == 0)) {
 		mem_analyze_corruption(area);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	UT_LIST_REMOVE(free_list, pool->free_list[i + 1], area);
@@ -408,10 +407,9 @@ mem_area_alloc(
 	}
 
 	if (!mem_area_get_free(area)) {
-		fprintf(stderr,
-			"InnoDB: Error: Removing element from mem pool"
-			" free list %lu though the\n"
-			"InnoDB: element is not marked free!\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Removing element from mem pool free list %lu"
+			" though the element is not marked free!",
 			(ulong) n);
 
 		mem_analyze_corruption(area);
@@ -421,23 +419,21 @@ mem_area_alloc(
 		hex dump above */
 
 		if (mem_area_get_free(area)) {
-			fprintf(stderr,
-				"InnoDB: Probably a race condition"
-				" because now the area is marked free!\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Probably a race condition"
+				" because now the area is marked free!");
 		}
 
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_ERROR, "Aborting...");
 	}
 
 	if (UT_LIST_GET_LEN(pool->free_list[n]) == 0) {
-		fprintf(stderr,
-			"InnoDB: Error: Removing element from mem pool"
-			" free list %lu\n"
-			"InnoDB: though the list length is 0!\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Removing element from mem pool free list %lu"
+			" though the list length is 0!",
 			(ulong) n);
 		mem_analyze_corruption(area);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 	ut_ad(mem_area_get_size(area) == ut_2_exp(n));
@@ -533,10 +529,9 @@ mem_area_free(
 	area = (mem_area_t*) (((byte*) ptr) - MEM_AREA_EXTRA_SIZE);
 
 	if (mem_area_get_free(area)) {
-		fprintf(stderr,
-			"InnoDB: Error: Freeing element to mem pool"
-			" free list though the\n"
-			"InnoDB: element is marked free!\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Freeing element to mem pool free list though"
+			" the element is marked free!");
 
 		mem_analyze_corruption(area);
 		ut_error;
@@ -546,13 +541,12 @@ mem_area_free(
 	UNIV_MEM_FREE(ptr, size - MEM_AREA_EXTRA_SIZE);
 
 	if (size == 0) {
-		fprintf(stderr,
-			"InnoDB: Error: Mem area size is 0. Possibly a"
-			" memory overrun of the\n"
-			"InnoDB: previous allocated area!\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Mem area size is 0. Possibly a memory overrun"
+			" of the previous allocated area!");
 
 		mem_analyze_corruption(area);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 #ifdef UNIV_LIGHT_MEM_DEBUG
@@ -563,15 +557,13 @@ mem_area_free(
 		next_size = mem_area_get_size(
 			(mem_area_t*)(((byte*) area) + size));
 		if (UNIV_UNLIKELY(!next_size || !ut_is_2pow(next_size))) {
-			fprintf(stderr,
-				"InnoDB: Error: Memory area size %lu,"
-				" next area size %lu not a power of 2!\n"
-				"InnoDB: Possibly a memory overrun of"
-				" the buffer being freed here.\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Memory area size %lu, next area size %lu"
+				" not a power of 2!  Possibly a memory"
+				" overrun of the buffer being freed here.",
 				(ulong) size, (ulong) next_size);
 			mem_analyze_corruption(area);
-
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 		}
 	}
 #endif
