@@ -5905,7 +5905,9 @@ ha_innobase::commit_inplace_alter_table(
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
 		ut_ad(trx->standard.insert_undo
-		      || trx->standard.update_undo);
+		      || trx->standard.update_undo
+		      || trx->temporary.insert_undo
+		      || trx->temporary.update_undo);
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary

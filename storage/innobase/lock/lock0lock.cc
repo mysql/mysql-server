@@ -4001,6 +4001,11 @@ lock_table(
 		return(DB_SUCCESS);
 	}
 
+	// FIXME: Krunal
+	/* Locking is disabled for temp-tables as they can't be updated
+	simultaneously by parallel active trx. */
+	// ut_ad(!dict_table_is_temporary(table));
+
 	ut_a(flags == 0);
 
 	trx = thr_get_trx(thr);

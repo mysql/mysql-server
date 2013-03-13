@@ -884,11 +884,14 @@ UNIV_INTERN
 buf_block_t*
 trx_undo_add_page(
 /*==============*/
-	trx_t*		trx,	/*!< in: transaction */
-	trx_undo_t*	undo,	/*!< in: undo log memory object */
-	mtr_t*		mtr)	/*!< in: mtr which does not have a latch to any
-				undo log page; the caller must have reserved
-				the rollback segment mutex */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_t*	undo,		/*!< in: undo log memory object */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */ 
+	mtr_t*		mtr)		/*!< in: mtr which does not have
+					a latch to any undo log page;
+					the caller must have reserved
+					the rollback segment mutex */
 {
 	page_t*		header_page;
 	buf_block_t*	new_block;
@@ -897,9 +900,9 @@ trx_undo_add_page(
 	ulint		n_reserved;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->standard.rseg->mutex)));
+	ut_ad(mutex_own(&(undo_ptr->rseg->mutex)));
 
-	rseg = trx->standard.rseg;
+	rseg = undo_ptr->rseg;
 
 	if (rseg->curr_size == rseg->max_size) {
 
@@ -1743,8 +1746,11 @@ UNIV_INTERN
 dberr_t
 trx_undo_assign_undo(
 /*=================*/
-	trx_t*		trx,	/*!< in: transaction */
-	ulint		type)	/*!< in: TRX_UNDO_INSERT or TRX_UNDO_UPDATE */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: assign undo log from
+					referred rollback segment. */ 
+	ulint		type)		/*!< in: TRX_UNDO_INSERT or
+					TRX_UNDO_UPDATE */
 {
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
@@ -1753,11 +1759,14 @@ trx_undo_assign_undo(
 
 	ut_ad(trx);
 
+	// FIXME: Krunal
+#if 0
 	if (trx->standard.rseg == NULL) {
 		return(DB_READ_ONLY);
 	}
+#endif
 
-	rseg = trx->standard.rseg;
+	rseg = undo_ptr->rseg;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
@@ -1784,12 +1793,12 @@ trx_undo_assign_undo(
 
 	if (type == TRX_UNDO_INSERT) {
 		UT_LIST_ADD_FIRST(undo_list, rseg->insert_undo_list, undo);
-		ut_ad(trx->standard.insert_undo == NULL);
-		trx->standard.insert_undo = undo;
+		ut_ad(undo_ptr->insert_undo == NULL);
+		undo_ptr->insert_undo = undo;
 	} else {
 		UT_LIST_ADD_FIRST(undo_list, rseg->update_undo_list, undo);
-		ut_ad(trx->standard.update_undo == NULL);
-		trx->standard.update_undo = undo;
+		ut_ad(undo_ptr->update_undo == NULL);
+		undo_ptr->update_undo = undo;
 	}
 
 	if (trx_get_dict_operation(trx) != TRX_DICT_OP_NONE) {
@@ -1945,20 +1954,22 @@ UNIV_INTERN
 void
 trx_undo_insert_cleanup(
 /*====================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	trx_undo_ptr_t* undo_ptr)       /*!< in: undo log to cleanup. */
 {
 	trx_undo_t*	undo;
 	trx_rseg_t*	rseg;
 
-	undo = trx->standard.insert_undo;
-	ut_ad(undo);
+	undo = undo_ptr->insert_undo;
+	if (!undo) {
+		return;
+	}
 
-	rseg = trx->standard.rseg;
+	rseg = undo_ptr->rseg;
 
 	mutex_enter(&(rseg->mutex));
 
 	UT_LIST_REMOVE(undo_list, rseg->insert_undo_list, undo);
-	trx->standard.insert_undo = NULL;
+	undo_ptr->insert_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 

@@ -98,7 +98,9 @@ trx_rollback_to_savepoint_low(
 	trx->error_state = DB_SUCCESS;
 
 	if (trx->standard.insert_undo != 0
-	    || trx->standard.update_undo != 0) {
+	    || trx->standard.update_undo != 0
+	    || trx->temporary.insert_undo != 0
+	    || trx->temporary.update_undo != 0) {
 		ut_ad(trx->standard.rseg != 0);
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
