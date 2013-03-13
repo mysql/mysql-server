@@ -39,6 +39,11 @@ Created 2012-08-15 Sunny Bains.
 					srv_spin_wait_delay,		\
 					__FILE__, __LINE__)
 
+#define mutex_enter_nospin(M)		(M)->enter(			\
+					0,				\
+					0,				\
+					__FILE__, __LINE__)
+
 #define mutex_enter_nowait(M)		(M)->trylock(__FILE__, __LINE__)
 
 #define mutex_exit(M)			(M)->exit()
