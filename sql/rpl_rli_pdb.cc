@@ -1653,6 +1653,19 @@ bool append_item_to_jobs(slave_job_item *job_item,
 
   DBUG_ASSERT(thd == current_thd);
 
+  if (ev_size > rli->mts_pending_jobs_size_max)
+  {
+    char llbuff[22];
+    llstr(rli->get_event_relay_log_pos(), llbuff);
+    my_error(ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX, MYF(0),
+             ((Log_event*) (job_item->data))->get_type_str(),
+             rli->get_event_relay_log_name(), llbuff, ev_size,
+             rli->mts_pending_jobs_size_max);
+    /* Waiting in slave_stop_workers() avoidance */
+    rli->mts_group_status= Relay_log_info::MTS_KILLED_GROUP;
+    return ret;
+  }
+
   mysql_mutex_lock(&rli->pending_jobs_lock);
   new_pend_size= rli->mts_pending_jobs_size + ev_size;
   // C waits basing on *data* sizes in the queues
