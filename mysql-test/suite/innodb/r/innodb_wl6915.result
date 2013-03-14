@@ -1,0 +1,153 @@
+set global innodb_file_per_table = off;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+begin;
+call populate_t1();
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+delete from t1 where a < 500;
+select count(*) from t1;
+count(*)
+1501
+update t1 set b = 'innodb' where b = 'a';
+update t1 set c = 'mysql' where c = 'b' and a < 1000;
+begin;
+update t1 set c = 'sqldb' where c = 'mysql' and a < 1000;
+select count(*) from t1 where c = 'sqldb';
+count(*)
+500
+rollback;
+drop procedure populate_t1;
+drop table t1;
+create table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+begin;
+call populate_t1();
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+commit;
+select count(*) from t1;
+count(*)
+2000
+delete from t1 where a < 500;
+select count(*) from t1;
+count(*)
+1501
+update t1 set b = 'innodb' where b = 'a';
+update t1 set c = 'mysql' where c = 'b' and a < 1000;
+begin;
+update t1 set c = 'sqldb' where c = 'mysql' and a < 1000;
+select count(*) from t1 where c = 'sqldb';
+count(*)
+500
+rollback;
+drop procedure populate_t1;
+drop table t1;
+use test;
+create temporary table t1
+(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+(a int, b char(100), c char(100)) engine = innodb;
+create procedure populate_t1_t2()
+begin
+declare i int default 1;
+while (i <= 2000) DO
+insert into t1 values (i, 'a', 'b');
+insert into t2 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+begin;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+count(*)
+2000
+select count(*) from t2;
+count(*)
+2000
+select * from t2 limit 10;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+set session debug="+d,ib_crash_during_commit_with_standard_undo_committed";
+begin;
+call populate_t1_t2();
+commit;
+ERROR HY000: Lost connection to MySQL server during query
+select count(*) from t2;
+count(*)
+2000
+select * from t2 limit 10;
+a	b	c
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+drop procedure populate_t1_t2;
+drop table t2;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;

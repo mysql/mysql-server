@@ -983,6 +983,8 @@ trx_write_serialisation_history(
 
 	mtr_commit(mtr);
 
+	DBUG_EXECUTE_IF("ib_crash_during_commit_with_standard_undo_committed",
+			DBUG_SUICIDE(););
 
 	mtr_start(mtr);
 	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
