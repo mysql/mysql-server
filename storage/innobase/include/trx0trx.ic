@@ -197,8 +197,8 @@ trx_reference(
 		trx_mutex_exit(trx);
 		trx = NULL;
 	} else if (do_ref_count) {
-		ut_ad(lint(trx->n_ref_count) >= 0);
-		++trx->n_ref_count;
+		ut_ad(trx->n_ref >= 0);
+		++trx->n_ref;
 		trx_mutex_exit(trx);
 	} else {
 		trx_mutex_exit(trx);
@@ -217,8 +217,8 @@ trx_release_reference(
 {
 	trx_mutex_enter(trx);
 
-	ut_ad(trx->n_ref_count > 0 && lint(trx->n_ref_count) > 0);
-	--trx->n_ref_count;
+	ut_ad(trx->n_ref > 0);
+	--trx->n_ref;
 
 	trx_mutex_exit(trx);
 }

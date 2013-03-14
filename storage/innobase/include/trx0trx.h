@@ -510,7 +510,7 @@ trx_release_reference(
 
 /**
 Check if the transaction is being referenced. */
-#define trx_is_referenced(t)	((t)->n_ref_count > 0)
+#define trx_is_referenced(t)	((t)->n_ref > 0)
 
 /*******************************************************************//**
 Transactions that aren't started by the MySQL server don't set
@@ -1062,7 +1062,7 @@ struct trx_t{
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
 
-	ulint		n_ref_count;	/*!< Count of references, protected
+	lint		n_ref;		/*!< Count of references, protected
 					by trx_t::mutex. We can't release the
 					locks nor commit the transaction until
 					this reference is 0.  We can change
