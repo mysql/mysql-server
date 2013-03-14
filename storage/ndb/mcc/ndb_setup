@@ -7,7 +7,7 @@ import os.path
 
 def num_pyver(vn):
     if isinstance(vn, str): 
-        return int(filter(str.isdigit, vn))
+        return int(''.join(filter(str.isdigit, vn)))
     return vn
 
 def num_py_major_minor_tuple():
