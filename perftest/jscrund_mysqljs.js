@@ -42,7 +42,7 @@ implementation.prototype.initialize = function(options, callback) {
     impl.session = session;
     impl.context = session;
 //    JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize after impl.session', impl);
-    callback(err); // report error
+    session.getMapping(options.annotations, function(a,b) { callback(a,b); });
   });
 };
 
