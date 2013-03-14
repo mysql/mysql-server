@@ -27,7 +27,9 @@ struct txn_manager {
     toku_mutex_t txn_manager_lock;  // a lock protecting this object
     txn_omt_t live_root_txns; // a sorted tree.
     xid_omt_t live_root_ids;    //contains TXNID x | x is snapshot txn
-    xid_omt_t snapshot_txnids;    //contains TXNID x | x is snapshot txn
+    TOKUTXN snapshot_head;
+    TOKUTXN snapshot_tail;
+    uint32_t num_snapshots;
     // Contains 3-tuples: (TXNID begin_id, TXNID end_id, uint64_t num_live_list_references)
     //                    for committed root transaction ids that are still referenced by a live list.
     rx_omt_t referenced_xids;
