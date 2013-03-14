@@ -932,34 +932,39 @@ trx_write_serialisation_history(
 	to be put to the history list in the (serialisation) order of the
 	UNDO trx number. This is required for the purge in-memory data
 	structures too. */
-	mutex_enter(&trx->standard.rseg->mutex);
 
-	if (trx->standard.insert_undo != NULL) {
-		trx_undo_set_state_at_finish(trx->standard.insert_undo, mtr);
+	/* standard rseg is not assigned in case of read-only trx. */
+	if (trx->standard.rseg) {
+		mutex_enter(&trx->standard.rseg->mutex);
+
+		if (trx->standard.insert_undo != NULL) {
+			trx_undo_set_state_at_finish(
+				trx->standard.insert_undo, mtr);
+		}
+
+		if (trx->standard.update_undo != NULL) {
+			page_t*		undo_hdr_page;
+			trx_undo_t*	undo = trx->standard.update_undo;
+
+			/* Assign the transaction serialisation number and also
+			update the purge min binary heap if this is the first
+			UNDO log being written to the assigned rollback
+			segment. */
+
+			trx_serialisation_number_get(trx, &trx->standard);
+
+			/* It is not necessary to obtain trx->undo_mutex here
+			because only a single OS thread is allowed to do the
+			transaction commit for this transaction. */
+
+			undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
+
+			trx_undo_update_cleanup(
+				trx, &trx->standard, undo_hdr_page, mtr);
+		}
+
+		mutex_exit(&trx->standard.rseg->mutex);
 	}
-
-	if (trx->standard.update_undo != NULL) {
-		page_t*		undo_hdr_page;
-		trx_undo_t*	undo = trx->standard.update_undo;
-
-		/* Assign the transaction serialisation number and also
-		update the purge min binary heap if this is the first
-		UNDO log being written to the assigned rollback segment. */
-
-		trx_serialisation_number_get(trx, &trx->standard);
-
-		/* It is not necessary to obtain trx->undo_mutex here
-		because only a single OS thread is allowed to do the
-		transaction commit for this transaction. */
-
-		undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
-
-		trx_undo_update_cleanup(
-			trx, &trx->standard, undo_hdr_page, mtr);
-	}
-
-	mutex_exit(&trx->standard.rseg->mutex);
-
 	
 	if (trx->temporary.rseg) {
 		mutex_enter(&trx->temporary.rseg->mutex);

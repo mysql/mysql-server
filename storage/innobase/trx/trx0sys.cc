@@ -905,12 +905,10 @@ trx_sys_create_rsegs(
 
 	/* Rollback Segments reserved for temp-tablespace starts from slot-1.
 	Note: slot-0 is used by rseg that is system tablespace bounded. */
-	if (!srv_force_recovery && !recv_needed_recovery) {
-		for (ulint i = 0; i < n_tmp_rsegs; i++) {
-			ulint space = srv_tmp_space.space_id();
-			if (trx_rseg_create(space, i) == NULL) {
-				break;
-			}
+	for (ulint i = 0; i < n_tmp_rsegs; i++) {
+		ulint space = srv_tmp_space.space_id();
+		if (trx_rseg_create(space, i) == NULL) {
+			break;
 		}
 	}
 	

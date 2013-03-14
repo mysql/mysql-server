@@ -78,10 +78,26 @@ UNIV_INTERN
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx(
 /*========================*/
-	trx_t*		trx,	/*!< in: transaction */
-	undo_no_t	limit,	/*!< in: least undo number we need */
-	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap);	/*!< in: memory heap where copied */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
+					for next undo log record. */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+
+/********************************************************************//**
+Get next undo log record from standard and temporary rollback segments.
+@return undo log record copied to heap, NULL if none left, or if the
+undo number of the top record would be less than the limit */
+UNIV_INTERN
+trx_undo_rec_t*
+trx_roll_pop_top_rec_of_trx_step(
+/*=============================*/
+	trx_t*		trx,		/*!< in: transaction */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+
 /********************************************************************//**
 Reserves an undo log record for a query thread to undo. This should be
 called if the query thread gets the undo log record not using the pop

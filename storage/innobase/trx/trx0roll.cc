@@ -101,7 +101,9 @@ trx_rollback_to_savepoint_low(
 	    || trx->standard.update_undo != 0
 	    || trx->temporary.insert_undo != 0
 	    || trx->temporary.update_undo != 0) {
+
 		ut_ad(trx->standard.rseg != 0 || trx->temporary.rseg != 0);
+
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -996,8 +998,11 @@ trx_roll_try_truncate(
 	const trx_undo_arr_t*	arr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&((trx->standard.rseg)->mutex))
-	      || mutex_own(&(trx->temporary.rseg->mutex)));
+
+	ut_ad((trx->standard.rseg != 0
+	       && mutex_own(&((trx->standard.rseg)->mutex)))
+	      || (trx->temporary.rseg != 0
+		  && mutex_own(&(trx->temporary.rseg->mutex))));
 
 	trx->pages_undone = 0;
 
@@ -1083,6 +1088,7 @@ trx_roll_pop_top_rec(
 	return(undo_page + offset);
 }
 
+
 /********************************************************************//**
 Pops the topmost record when the two undo logs of a transaction are seen
 as a single stack of records ordered by their undo numbers. Inserts the
@@ -1094,11 +1100,13 @@ undo number of the top record would be less than the limit */
 UNIV_INTERN
 trx_undo_rec_t*
 trx_roll_pop_top_rec_of_trx(
-/*========================*/
-	trx_t*		trx,	/*!< in: transaction */
-	undo_no_t	limit,	/*!< in: least undo number we need */
-	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
-	mem_heap_t*	heap)	/*!< in: memory heap where copied */
+/*=========================*/
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: rollback segment to look
+					for next undo log record. */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
 {
 	trx_undo_t*	undo;
 	trx_undo_t*	ins_undo;
@@ -1111,7 +1119,7 @@ trx_roll_pop_top_rec_of_trx(
 	ulint		progress_pct;
 	mtr_t		mtr;
 
-	rseg = trx->standard.rseg;
+	rseg = undo_ptr->rseg;
 try_again:
 	mutex_enter(&(trx->undo_mutex));
 
@@ -1123,8 +1131,8 @@ try_again:
 		mutex_exit(&rseg->mutex);
 	}
 
-	ins_undo = trx->standard.insert_undo;
-	upd_undo = trx->standard.update_undo;
+	ins_undo = undo_ptr->insert_undo;
+	upd_undo = undo_ptr->update_undo;
 
 	if (!ins_undo || ins_undo->empty) {
 		undo = upd_undo;
@@ -1206,6 +1214,37 @@ try_again:
 	mtr_commit(&mtr);
 
 	return(undo_rec_copy);
+}
+
+/********************************************************************//**
+Get next undo log record from standard and temporary rollback segments.
+@return undo log record copied to heap, NULL if none left, or if the
+undo number of the top record would be less than the limit */
+UNIV_INTERN
+trx_undo_rec_t*
+trx_roll_pop_top_rec_of_trx_step(
+/*=============================*/
+	trx_t*		trx,		/*!< in: transaction */
+	undo_no_t	limit,		/*!< in: least undo number we need */
+	roll_ptr_t*	roll_ptr,	/*!< out: roll pointer to undo record */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+{
+	trx_undo_rec_t* undo_rec = 0;
+
+	if (trx->standard.insert_undo !=0
+	    || trx->standard.update_undo != 0) {
+		undo_rec = trx_roll_pop_top_rec_of_trx(
+			trx, &trx->standard, limit, roll_ptr, heap);
+	}
+
+	if (undo_rec == 0
+	    && (trx->temporary.insert_undo != 0
+		|| trx->temporary.update_undo != 0)) {
+		undo_rec = trx_roll_pop_top_rec_of_trx(
+			trx, &trx->temporary, limit, roll_ptr, heap);
+	}
+
+	return(undo_rec);
 }
 
 /********************************************************************//**
