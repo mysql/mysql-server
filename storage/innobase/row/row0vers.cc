@@ -283,7 +283,7 @@ row_vers_impl_x_locked(
 		trx = row_vers_impl_x_locked_low(
 			clust_rec, clust_index, rec, index, offsets, &mtr);
 
-		ut_ad(trx == 0 || trx->n_ref_count > 0);
+		ut_ad(trx == 0 || trx_is_referenced(trx));
 	}
 
 	mtr_commit(&mtr);
