@@ -3041,7 +3041,14 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
   tmp= (ORDER *)(order + arg_count_order);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
-    memcpy(tmp, item->order[i], sizeof(ORDER));
+    /*
+      Compiler generated copy constructor is used to
+      to copy all the members of ORDER struct.
+      It's also necessary to update ORDER::next pointer
+      so that it points to new ORDER element.
+    */
+    new (tmp) st_order(*(item->order[i])); 
+    tmp->next= (i + 1 == arg_count_order) ? NULL : (tmp + 1);
     order[i]= tmp;
   }
 }
