@@ -183,7 +183,7 @@ private:
 
     @return  offset value from the top of the page where the xid was stored.
   */
-  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data)
+  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data_arg)
   {
     /* searching for an empty slot */
     while (*p->ptr)
@@ -193,7 +193,7 @@ private:
     }
 
     /* found! store xid there and mark the page dirty */
-    ulong cookie= (ulong)((uchar *)p->ptr - data);      // can never be zero
+    ulong cookie= (ulong)((uchar *)p->ptr - data_arg);      // can never be zero
     *p->ptr++= xid;
     p->free--;
     p->state= PS_DIRTY;
