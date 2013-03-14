@@ -74,10 +74,11 @@ UNIV_INTERN
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
-	trx_t*	trx,		/*!< in: transaction */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr);		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	mtr_t*		mtr);		/*!< in: mtr */
 /*******************************************************************//**
 This function runs a purge batch.
 @return	number of undo log pages handled in the batch */

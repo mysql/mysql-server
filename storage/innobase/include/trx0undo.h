@@ -334,10 +334,13 @@ UNIV_INTERN
 void
 trx_undo_update_cleanup(
 /*====================*/
-	trx_t*	trx,		/*!< in: trx owning the update undo log */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr);		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: trx owning the update
+					undo log */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	mtr_t*		mtr);		/*!< in: mtr */
+
 /******************************************************************//**
 Frees or caches an insert undo log after a transaction commit or rollback.
 Knowledge of inserts is not needed after a commit or rollback, therefore
