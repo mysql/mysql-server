@@ -45,6 +45,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "os0thread.h"
 #include "srv0mon.h"
 #include "mtr0log.h"
+#include "srv0space.h"
 
 /** Maximum allowable purge history length.  <=0 means 'infinite'. */
 UNIV_INTERN ulong		srv_max_purge_lag = 0;
@@ -200,17 +201,18 @@ UNIV_INTERN
 void
 trx_purge_add_update_undo_to_history(
 /*=================================*/
-	trx_t*	trx,		/*!< in: transaction */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr)		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_undo_t*	undo;
 	trx_rseg_t*	rseg;
 	trx_rsegf_t*	rseg_header;
 	trx_ulogf_t*	undo_header;
 
-	undo = trx->standard.update_undo;
+	undo = undo_ptr->update_undo;
 	rseg = undo->rseg;
 
 	rseg_header = trx_rsegf_get(
@@ -689,8 +691,10 @@ trx_purge_get_rseg_with_min_trx_id(
 	ut_a(purge_sys->rseg->last_page_no != FIL_NULL);
 
 	/* We assume in purge of externally stored fields that space id is
-	in the range of UNDO tablespace space ids */
-	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces_open);
+	in the range of UNDO tablespace space ids unless space is system
+	tablespace */
+	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces_open
+	     || Tablespace::is_system_tablespace(purge_sys->rseg->space));
 
 	zip_size = purge_sys->rseg->zip_size;
 
