@@ -859,25 +859,37 @@ public:
   {
     if (args[0]->result_type() == STRING_RESULT)
       return Item_str_func::val_int();
-    return args[0]->val_int();
+    longlong res= args[0]->val_int();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    return res;
   }
   double val_real()
   {
     if (args[0]->result_type() == STRING_RESULT)
       return Item_str_func::val_real();
-    return args[0]->val_real();
+    double res= args[0]->val_real();
+    if ((null_value= args[0]->null_value))
+      return 0;
+    return res;
   }
   my_decimal *val_decimal(my_decimal *d)
   {
     if (args[0]->result_type() == STRING_RESULT)
       return Item_str_func::val_decimal(d);
-    return args[0]->val_decimal(d);
+    my_decimal *res= args[0]->val_decimal(d);
+    if ((null_value= args[0]->null_value))
+      return NULL;
+    return res;
   }
   bool get_date(MYSQL_TIME *ltime, ulonglong fuzzydate)
   {
     if (args[0]->result_type() == STRING_RESULT)
       return Item_str_func::get_date(ltime, fuzzydate);
-    return args[0]->get_date(ltime, fuzzydate);
+    bool res= args[0]->get_date(ltime, fuzzydate);
+    if ((null_value= args[0]->null_value))
+      return 1;
+    return res;
   }
   void fix_length_and_dec();
   const char *func_name() const { return "convert"; }

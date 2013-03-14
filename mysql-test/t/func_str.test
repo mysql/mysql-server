@@ -1502,11 +1502,6 @@ round(
 --connection default
 SET @@global.max_allowed_packet:= @tmp_max;
 --disconnect newconn
-
---echo #
---echo # End of 5.5 tests
---echo #
-
 #
 # Bug#11765562 58545:
 # EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
@@ -1516,4 +1511,17 @@ SET @@global.max_allowed_packet=1024*1024*1024;
 SELECT @@global.max_allowed_packet;
 SELECT CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000)));
 SET @@global.max_allowed_packet:= @tmp_max;
+
+--echo #
+--echo # MDEV-4272: DIV operator crashes in Item_func_int_div::val_int
+--echo # (incorrect NULL value handling by convert)
+--echo #
+create table t1(a int) select null;
+select 1 div convert(a using utf8) from t1;
+drop table t1;
+
+
+--echo #
+--echo # End of 5.5 tests
+--echo #
 

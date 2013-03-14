@@ -2864,9 +2864,6 @@ sha1('P'),
 Warnings:
 Warning	1292	Truncated incorrect DECIMAL value: '[.DC2.]'
 SET @@global.max_allowed_packet:= @tmp_max;
-#
-# End of 5.5 tests
-#
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
 1048576
@@ -2880,3 +2877,15 @@ NULL
 Warnings:
 Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
 SET @@global.max_allowed_packet:= @tmp_max;
+#
+# MDEV-4272: DIV operator crashes in Item_func_int_div::val_int
+# (incorrect NULL value handling by convert)
+#
+create table t1(a int) select null;
+select 1 div convert(a using utf8) from t1;
+1 div convert(a using utf8)
+NULL
+drop table t1;
+#
+# End of 5.5 tests
+#
