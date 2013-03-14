@@ -1,6 +1,5 @@
 /*
-   Copyright (c) 2003-2008 MySQL AB, 2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -124,6 +123,7 @@ public:
     StartPeriodicTcTimer = 2511,
     TcStartDumpIndexOpCount = 2512,
     TcDumpIndexOpCount = 2513,
+    TcDumpApiConnectRecSummary = 2514,
     TcDumpPoolLevels = 2555,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
