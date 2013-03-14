@@ -965,6 +965,27 @@ trx_write_serialisation_history(
 
 		mutex_exit(&trx->standard.rseg->mutex);
 	}
+
+	/* Update the latest MySQL binlog name and offset info
+	in trx sys header if MySQL binlogging is on or the database
+	server is a MySQL replication slave */
+
+	if (trx->mysql_log_file_name
+	    && trx->mysql_log_file_name[0] != '\0') {
+
+		trx_sys_update_mysql_binlog_offset(
+			trx->mysql_log_file_name,
+			trx->mysql_log_offset,
+			TRX_SYS_MYSQL_LOG_INFO, mtr);
+
+		trx->mysql_log_file_name = NULL;
+	}
+
+	mtr_commit(mtr);
+
+
+	mtr_start(mtr);
+	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	
 	if (trx->temporary.rseg) {
 		mutex_enter(&trx->temporary.rseg->mutex);
@@ -999,21 +1020,7 @@ trx_write_serialisation_history(
 	}
 
 	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
-
-	/* Update the latest MySQL binlog name and offset info
-	in trx sys header if MySQL binlogging is on or the database
-	server is a MySQL replication slave */
-
-	if (trx->mysql_log_file_name
-	    && trx->mysql_log_file_name[0] != '\0') {
-
-		trx_sys_update_mysql_binlog_offset(
-			trx->mysql_log_file_name,
-			trx->mysql_log_offset,
-			TRX_SYS_MYSQL_LOG_INFO, mtr);
-
-		trx->mysql_log_file_name = NULL;
-	}
+	mtr_commit(mtr);
 }
 
 /********************************************************************
@@ -1357,7 +1364,6 @@ trx_commit_low(
 	}
 
 	if (mtr) {
-		trx_write_serialisation_history(trx, mtr);
 		/* The following call commits the mini-transaction, making the
 		whole transaction committed in the file-based world, at this
 		log sequence number. The transaction becomes 'durable' when
@@ -1374,10 +1380,7 @@ trx_commit_low(
 		a transaction T2 is able to see modifications made by
 		a transaction T1, T2 will always get a bigger transaction
 		number and a bigger commit lsn than T1. */
-
-		/*--------------*/
-		mtr_commit(mtr);
-		/*--------------*/
+		trx_write_serialisation_history(trx, mtr);
 		lsn = mtr->end_lsn;
 	} else {
 		lsn = 0;

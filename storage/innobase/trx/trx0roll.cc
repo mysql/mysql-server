@@ -1172,7 +1172,14 @@ try_again:
 
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	ut_ad(undo_no + 1 == trx->undo_no);
+	/* Undo logging is now done to 2 different tablespaces:
+	system tablespace/undo-tablespace: for non-temp-tables.
+	temp-tablespace: for temp-tables.
+	On crash undo-rec for temp-tables are not restored
+	as we don't restore temp-tables and so there could be
+	a gap between trx->undo_no and record undo no instead
+	of sequential as before.
+	ut_ad(undo_no + 1 == trx->undo_no); */
 
 	/* We print rollback progress info if we are in a crash recovery
 	and the transaction has at least 1000 row operations to undo. */
