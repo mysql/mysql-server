@@ -382,6 +382,10 @@ IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest/examples)
   ADD_SUBDIRECTORY(unittest/mytap)
   ADD_SUBDIRECTORY(unittest/mytap/t)
+  # Visual Studio 11 needs this extra flag in order to compile gmock.
+  IF(WIN32)
+    ADD_DEFINITIONS( /D _VARIADIC_MAX=10 )
+  ENDIF()
   ADD_SUBDIRECTORY(unittest/gunit)
 ENDIF()
 

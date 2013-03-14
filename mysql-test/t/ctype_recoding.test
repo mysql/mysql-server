@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 SET CHARACTER SET koi8r;
 
@@ -10,6 +11,9 @@ DROP TABLE IF EXISTS ‘¡¬Ã…√¡, t1, t2;
 SET CHARACTER SET koi8r;
 CREATE TABLE t1 (a CHAR(10) CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
 CREATE TABLE t2 (a CHAR(10) CHARACTER SET utf8);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SELECT a FROM t1;
 SELECT HEX(a) FROM t1;
@@ -29,6 +33,9 @@ DROP TABLE t1;
 # same with TEXT
 CREATE TABLE t1 (a TEXT CHARACTER SET cp1251) SELECT _koi8r'–“œ¬¡' AS a;
 CREATE TABLE t2 (a TEXT CHARACTER SET utf8);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SELECT HEX(a) FROM t1;
 INSERT t2 SELECT * FROM t1;
@@ -41,17 +48,26 @@ CREATE TABLE `‘¡¬Ã…√¡`
 ) COMMENT "ÀœÕÕ≈Œ‘¡“…  ‘¡¬Ã…√Ÿ";
 
 SHOW TABLES;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE ‘¡¬Ã…√¡;
 SHOW FIELDS FROM ‘¡¬Ã…√¡;
 
 SET CHARACTER SET cp1251;
 SHOW TABLES;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE Ú‡·ÎËˆ‡;
 SHOW FIELDS FROM Ú‡·ÎËˆ‡;
 
 
 SET CHARACTER SET utf8;
 SHOW TABLES;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE —Ç–∞–±–ª–∏—Ü–∞;
 SHOW FIELDS FROM —Ç–∞–±–ª–∏—Ü–∞;
 
@@ -90,8 +106,14 @@ USE test;
 
 SET NAMES binary;
 CREATE TABLE `—Ç–µ—Å—Ç` (`—Ç–µ—Å—Ç` int);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 SET NAMES utf8;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE `—Ç–µ—Å—Ç`;
 DROP TABLE `—Ç–µ—Å—Ç`;
 SET NAMES binary;
@@ -102,14 +124,23 @@ SET character_set_connection=binary;
 SELECT '—Ç–µ—Å—Ç' as s;
 
 # Bug#4417, another aspect:
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 # Check that both "SHOW CREATE TABLE" and "SHOW COLUMNS"
 # return column names and default values in UTF8 after "SET NAMES BINARY"
 
 SET NAMES latin1;
 CREATE TABLE t1 (`‰` CHAR(128) DEFAULT '‰', `‰1` ENUM('‰1','‰2') DEFAULT '‰2');
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SHOW COLUMNS FROM t1;
 SET NAMES binary;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 SHOW COLUMNS FROM t1;
 DROP TABLE t1;
@@ -207,6 +238,9 @@ drop table t1;
 
 set names koi8r;
 create table t1(a char character set cp1251 default _koi8r 0xFF);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 --error 1067

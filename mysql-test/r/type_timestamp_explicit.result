@@ -162,7 +162,7 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00',
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	
@@ -186,7 +186,7 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	
@@ -212,7 +212,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT '2003-01-01 00:00:00' ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		2003-01-01 00:00:00	on update CURRENT_TIMESTAMP
@@ -237,7 +237,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
@@ -263,7 +263,7 @@ t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL,
   `t3` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
@@ -289,7 +289,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `t1` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `t2` datetime DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 show columns from t1;
 Field	Type	Null	Key	Default	Extra
 t1	timestamp	NO		CURRENT_TIMESTAMP	on update CURRENT_TIMESTAMP
@@ -344,7 +344,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT NULL,
   `b` timestamp NULL DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000017;
 insert into t1 values ();
@@ -359,7 +359,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `b` timestamp NULL DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 SET TIMESTAMP=1000000018;
 insert into t1 values ();
@@ -374,7 +374,7 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` timestamp NULL DEFAULT NULL,
   `b` timestamp NULL DEFAULT '2003-01-01 00:00:00'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 insert into t1 values (NULL, NULL);
 insert into t1 values (DEFAULT, DEFAULT);
 select * from t1;
@@ -738,7 +738,7 @@ t1	CREATE TABLE `t1` (
   `f4` timestamp NULL DEFAULT NULL,
   `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 # The new behavior affects CREATE SELECT with column definitions
 # before SELECT keyword. The columns f1,f2 in t2 do not get promoted
 # with the new behavior.
@@ -752,7 +752,7 @@ t2	CREATE TABLE `t2` (
   `f4` timestamp NULL DEFAULT NULL,
   `f5` timestamp NULL DEFAULT '0000-00-00 00:00:00',
   `f6` timestamp NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 DROP TABLE t2;
 # With --explicit_defaults_for_timestamp,
@@ -768,7 +768,7 @@ t1	CREATE TABLE `t1` (
   `c1` timestamp NOT NULL,
   `c2` timestamp NOT NULL DEFAULT '2001-01-01 01:01:01',
   `c3` int(11) NOT NULL DEFAULT '42'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 INSERT INTO t1 VALUES (NULL, DEFAULT, DEFAULT);
 ERROR 23000: Column 'c1' cannot be null
 INSERT INTO t1 VALUES ('2005-05-05 06:06:06', NULL, DEFAULT);
