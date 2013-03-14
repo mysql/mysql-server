@@ -65,6 +65,7 @@ exports.loadRequiredModules = function() {
 };
 
 exports.getDefaultConnectionProperties = function() {
+  // Is this a bug?  Use the docs as the constructor, not as the object
   return NdbDefaultConnectionProperties;
 };
 

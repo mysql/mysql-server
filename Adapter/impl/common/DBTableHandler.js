@@ -472,8 +472,6 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault) {
   if ((result === undefined) && resolveDefault) {
     udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
     result = f.defaultValue;
-  } else if (result !== undefined && f.converter) {
-    return f.converter.toDB(result);
   }
   return result;
 };
