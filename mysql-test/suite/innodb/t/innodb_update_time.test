@@ -1,3 +1,4 @@
+###################################################################
 -- echo #
 -- echo # Test that INFORMATION_SCHEMA.TABLES.UPDATE_TIME is filled
 -- echo # correctly for InnoDB tables.
@@ -26,14 +27,17 @@ CREATE TABLE big (a TEXT) ENGINE=INNODB;
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page
 WHERE table_name = '`test`.`t`';
 
+# evict table 't' by inserting as much data as the BP size itself
 -- echo # INSERT lots of data in table 'big': begin
 -- disable_query_log
--- let $i = 8192
+BEGIN;
+-- let $i = 5120
 while ($i)
 {
 	INSERT INTO big VALUES (REPEAT('a', 1024));
 	dec $i;
 }
+COMMIT;
 -- enable_query_log
 -- echo # INSERT lots of data in table 'big': end
 
