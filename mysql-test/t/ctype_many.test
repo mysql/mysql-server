@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 -- source include/have_ucs2.inc
 -- source include/have_utf8mb4.inc
@@ -17,15 +18,30 @@ CREATE TABLE t1 (
   koi8_ru_f CHAR(32) CHARACTER SET koi8r NOT NULL default ''
 ) CHARSET=latin5;
 
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 CHANGE comment comment CHAR(32) CHARACTER SET latin2 NOT NULL;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 ADD latin5_f CHAR(32) NOT NULL;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 DEFAULT CHARSET=latin2;
 ALTER TABLE t1 ADD latin2_f CHAR(32) NOT NULL;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 DROP latin2_f, DROP latin5_f;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 
 INSERT INTO t1 (koi8_ru_f,comment) VALUES ('a','LAT SMALL A');
