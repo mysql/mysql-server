@@ -19,5 +19,3 @@ rpl.rpl_gtid_logs_without_rotate_or_stop_event @windows    # Bug#16207800 2013-0
 
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
-thread_pool.thread_pool_func4 @windows # mleich: test is sometimes unstable on Windows
-
