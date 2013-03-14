@@ -225,29 +225,34 @@ struct PoolManager {
 		ut_a(m_pools.empty());
 	}
 
-	/** Add a new pool */
-	void add_pool()
+	/** Add a new pool
+	@return true on success */
+	bool add_pool()
 	{
 		PoolType*	pool = new (std::nothrow) PoolType(m_size);
 
-		// FIXME: Add proper OOM handling
-		ut_a(pool != 0);
+		if (pool != 0) {
+			m_lock_strategy.enter();
 
-		m_lock_strategy.enter();
+			m_pools.push_back(pool);
 
-		m_pools.push_back(pool);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Number of pools: %lu", m_pools.size());
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Number of pools: %lu", m_pools.size());
+			m_lock_strategy.exit();
 
-		m_lock_strategy.exit();
+			return(true);
+		}
+
+		return(false);
 	}
 
 	/** Get an element from one of the pools.
 	@return instance or NULL if pool is empty. */
 	value_type* get()
 	{
-		size_t	index = 0;
+		size_t		index = 0;
+		size_t		delay = 1;
 		value_type*	ptr = NULL;
 
 		do {
@@ -264,7 +269,26 @@ struct PoolManager {
 			ptr = pool->get();
 
 			if (ptr == 0 && (index / n_pools) > 2) {
-				add_pool();
+
+				if (!add_pool()) {
+
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Failed to allocate memory for "
+						"a transaction pool of size "
+						"%lu bytes. Will wait for  "
+						"%lu seconds for a transaction "
+						"to commit", m_size, delay);
+
+					/* There is nothing much we can do "
+					except crash and burn, however lets
+					be a little optimistic and wait for
+					a trx to be freed. */
+					os_thread_sleep(delay * 1000000);
+
+					delay <<= 1;
+				} else {
+					delay = 1;
+				}
 			}
 
 			++index;
