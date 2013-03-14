@@ -366,7 +366,13 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
     Ndb_table_guard parent_tab(dict, parent_name);
     if (parent_tab.get_table() == 0)
     {
-      ERR_RETURN(dict->getNdbError());
+      const NdbError &error= dict->getNdbError();
+      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_CANNOT_ADD_FOREIGN,
+                          "Parent table %s not found in NDB: %d: %s",
+                          parent_name,
+                          error.code, error.message);
+      DBUG_RETURN(err_default);
     }
 
     const NDBCOL * parentcols[NDB_MAX_ATTRIBUTES_IN_INDEX + 1];

@@ -16620,7 +16620,16 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
     int res= create_fks(thd, ndb, 0);
     if (res != 0)
     {
-      /* dict error has been mapped already by create_fks */
+      /*
+        Unlike CREATE, ALTER for some reason does not translate
+        the HA_ code.  So fix it to be Innodb compatible.
+      */
+      if (res == HA_ERR_CANNOT_ADD_FOREIGN)
+      {
+        DBUG_PRINT("info", ("change error %d to %d",
+                            HA_ERR_CANNOT_ADD_FOREIGN, ER_CANNOT_ADD_FOREIGN));
+        res= ER_CANNOT_ADD_FOREIGN;
+      }
       my_errno= error= res;
       my_error(error, MYF(0), 0);
       goto abort;
