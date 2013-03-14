@@ -136,9 +136,14 @@ checkSource("impl/mysql/MySQLDictionary.js",
 
 checkSource("impl/ndb/ndb_service_provider.js");
 checkSource("impl/ndb/NdbConnection.js");
-checkSource("impl/ndb/NdbConnectionPool.js");
+checkSource("impl/ndb/NdbConnectionPool.js",
+   270 // Line 270[15]: Expected a conditional expression and instead saw an assignment.
+);
 checkSource("impl/ndb/NdbSession.js");
-checkSource("impl/ndb/NdbOperation.js");
+checkSource("impl/ndb/NdbOperation.js",
+  92, //Line 92[7]: 'encodeRowBuffer' was used before it was defined.
+  294 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
+);
 checkSource("impl/ndb/NdbTransactionHandler.js");
 checkSource("impl/ndb/NdbTypeEncoders.js");
 
@@ -147,7 +152,9 @@ checkSpiDoc("DBOperation");
 checkSource("api/unified_debug.js");
 checkSource("api/SessionFactory.js");
 checkSource("api/Session.js");
-checkSource("api/TableMapping.js");
+checkSource("api/TableMapping.js",
+ 121 // Line 121[3]: The body of a for in should be wrapped in an ...
+);
 checkSource("api/mynode.js");
 
 // ****** TEST FILES TO CHECK ********** //

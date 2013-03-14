@@ -28,14 +28,13 @@ DBOperation = {
   result          : null ,  // DBResult object containing the result of the operation
 };
 
-
-OperationCodes = [
-  "read",
-  "insert",
-  "update",
-  "write",
-  "delete"
-];
+OperationCodes = {
+  'OP_READ'   :  9,         9 : 'read',
+  'OP_INSERT' : 17,        17 : 'insert',
+  'OP_UPDATE' : 18,        18 : 'update',
+  'OP_WRITE'  : 19,        19 : 'write',
+  'OP_DELETE' : 20,        20 : 'delete'
+};
 
 
 OperationStates = [ 

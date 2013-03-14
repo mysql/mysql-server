@@ -255,6 +255,7 @@ TableMapping.prototype.mapField = function() {
    IMMEDIATE
 */
 TableMapping.prototype.applyToClass = function(ctor) {
+  udebug.log("applyToClass", this);
   if (typeof ctor === 'function') {
     ctor.prototype.mynode = {};
     ctor.prototype.mynode.mapping = this;
