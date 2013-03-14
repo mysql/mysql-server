@@ -162,3 +162,14 @@ call p2();
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
 DROP TABLE t1;
+
+#
+# OPTION is not anymore a keyword
+#
+
+create table option (option int not null);
+drop table option;
+--error 1064
+set option=1;
+--error 1193
+set option option=1;

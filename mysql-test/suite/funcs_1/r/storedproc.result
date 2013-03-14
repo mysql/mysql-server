@@ -2490,8 +2490,7 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT * from t1 where f2=f1' at line 1
 CREATE PROCEDURE option()
 SELECT * from t1 where f2=f1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'option()
-SELECT * from t1 where f2=f1' at line 1
+DROP PROCEDURE option;
 CREATE PROCEDURE optionally()
 SELECT * from t1 where f2=f1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'optionally()
@@ -8548,8 +8547,6 @@ CREATE PROCEDURE sp1()
 BEGIN
 declare option char;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'option char;
-END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1()
 BEGIN
@@ -10773,11 +10770,7 @@ BEGIN
 declare option condition for sqlstate '02000';
 declare exit handler for option set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'option condition for sqlstate '02000';
-declare exit handler for option set @var2' at line 3
 DROP PROCEDURE IF EXISTS sp1;
-Warnings:
-Note	1305	PROCEDURE db_storedproc.sp1 does not exist
 CREATE PROCEDURE sp1( )
 BEGIN
 declare optionally condition for sqlstate '02000';
@@ -12957,7 +12950,7 @@ CREATE PROCEDURE sp1( )
 BEGIN
 declare option handler for sqlstate '02000' set @var2 = 1;
 END//
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'option handler for sqlstate '02000' set @var2 = 1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MariaDB server version for the right syntax to use near 'handler for sqlstate '02000' set @var2 = 1;
 END' at line 3
 DROP PROCEDURE IF EXISTS sp1;
 Warnings:
