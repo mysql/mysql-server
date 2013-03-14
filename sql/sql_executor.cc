@@ -3330,7 +3330,7 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
     }
     else
     {
-      DBUG_ASSERT(tab->type == JT_REF);
+      DBUG_ASSERT(tab->type == JT_REF || tab->type == JT_EQ_REF);
       // Update ref value
       if ((cp_buffer_from_ref(thd, table, &tab->ref) && thd->is_fatal_error))
         goto err;                                   // out of memory
