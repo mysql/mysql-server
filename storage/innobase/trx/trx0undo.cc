@@ -1080,7 +1080,8 @@ trx_undo_truncate_end_func(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
-	ut_ad(mutex_own(&(trx->standard.rseg->mutex)));
+	ut_ad(mutex_own(&(trx->standard.rseg->mutex))
+	      || mutex_own(&(trx->temporary.rseg->mutex)));
 
 	for (;;) {
 		mtr_start(&mtr);
@@ -1915,24 +1916,26 @@ UNIV_INTERN
 void
 trx_undo_update_cleanup(
 /*====================*/
-	trx_t*	trx,		/*!< in: trx owning the update undo log */
-	page_t*	undo_page,	/*!< in: update undo log header page,
-				x-latched */
-	mtr_t*	mtr)		/*!< in: mtr */
+	trx_t*		trx,		/*!< in: trx owning the update
+					undo log */
+	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
+	page_t*		undo_page,	/*!< in: update undo log header page,
+					x-latched */
+	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_rseg_t*	rseg;
 	trx_undo_t*	undo;
 
-	undo = trx->standard.update_undo;
-	rseg = trx->standard.rseg;
+	undo = undo_ptr->update_undo;
+	rseg = undo_ptr->rseg;
 
 	ut_ad(mutex_own(&(rseg->mutex)));
 
-	trx_purge_add_update_undo_to_history(trx, undo_page, mtr);
+	trx_purge_add_update_undo_to_history(trx, undo_ptr, undo_page, mtr);
 
 	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
 
-	trx->standard.update_undo = NULL;
+	undo_ptr->update_undo = NULL;
 
 	if (undo->state == TRX_UNDO_CACHED) {
 

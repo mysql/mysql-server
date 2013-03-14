@@ -866,28 +866,26 @@ trx_start_low(
 }
 
 /****************************************************************//**
-Set the transaction serialisation number. */
+Set the transaction serialisation number. 
+Note: transaction serialisation number is pre-generated and set in trx->no. */
 static
 void
 trx_serialisation_number_get(
 /*=========================*/
-	trx_t*		trx)	/*!< in: transaction */
+	trx_t*		trx,		/*!< in: transaction */
+	trx_undo_ptr_t*	undo_ptr)	/* Set trx serialisation number
+					in referred undo rseg. */
 {
 	trx_rseg_t*	rseg;
 
-	rseg = trx->standard.rseg;
+	ut_ad(mutex_own(&undo_ptr->rseg->mutex));
 
-	ut_ad(mutex_own(&rseg->mutex));
-
-	mutex_enter(&trx_sys->mutex);
-
-	trx->no = trx_sys_get_new_trx_id();
+	rseg = undo_ptr->rseg;
 
 	/* If the rollack segment is not empty then the
 	new trx_t::no can't be less than any trx_t::no
 	already in the rollback segment. User threads only
 	produce events when a rollback segment is empty. */
-
 	if (rseg->last_page_no == FIL_NULL) {
 		void*		ptr;
 		rseg_queue_t	rseg_queue;
@@ -897,19 +895,10 @@ trx_serialisation_number_get(
 
 		mutex_enter(&purge_sys->bh_mutex);
 
-		/* This is to reduce the pressure on the trx_sys_t::mutex
-		though in reality it should make very little (read no)
-		difference because this code path is only taken when the
-		rbs is empty. */
-
-		mutex_exit(&trx_sys->mutex);
-
 		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
 		ut_a(ptr);
 
 		mutex_exit(&purge_sys->bh_mutex);
-	} else {
-		mutex_exit(&trx_sys->mutex);
 	}
 }
 
@@ -923,32 +912,41 @@ trx_write_serialisation_history(
 	trx_t*		trx,	/*!< in/out: transaction */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 {
-	trx_rseg_t*	rseg;
+	/* Change the undo log segment states from TRX_UNDO_ACTIVE to some
+	other state: these modifications to the file data structure define
+	the transaction as committed in the file based domain, at the
+	serialization point of the log sequence number lsn obtained below. */
 
-	rseg = trx->standard.rseg;
+	/* Generate transaction serialization number. */
+	if (trx->standard.update_undo != NULL
+	    || trx->temporary.update_undo != NULL) {
 
-	/* Change the undo log segment states from TRX_UNDO_ACTIVE
-	to some other state: these modifications to the file data
-	structure define the transaction as committed in the file
-	based domain, at the serialization point of the log sequence
-	number lsn obtained below. */
+		mutex_enter(&trx_sys->mutex);
+
+		trx->no = trx_sys_get_new_trx_id();
+
+		mutex_exit(&trx_sys->mutex);
+	}
+
+	/* We have to hold the rseg mutex because update log headers have
+	to be put to the history list in the (serialisation) order of the
+	UNDO trx number. This is required for the purge in-memory data
+	structures too. */
+	mutex_enter(&trx->standard.rseg->mutex);
+
+	if (trx->standard.insert_undo != NULL) {
+		trx_undo_set_state_at_finish(trx->standard.insert_undo, mtr);
+	}
 
 	if (trx->standard.update_undo != NULL) {
 		page_t*		undo_hdr_page;
 		trx_undo_t*	undo = trx->standard.update_undo;
 
-		/* We have to hold the rseg mutex because update
-		log headers have to be put to the history list in the
-		(serialisation) order of the UNDO trx number. This is
-		required for the purge in-memory data structures too. */
-
-		mutex_enter(&rseg->mutex);
-
 		/* Assign the transaction serialisation number and also
 		update the purge min binary heap if this is the first
 		UNDO log being written to the assigned rollback segment. */
 
-		trx_serialisation_number_get(trx);
+		trx_serialisation_number_get(trx, &trx->standard);
 
 		/* It is not necessary to obtain trx->undo_mutex here
 		because only a single OS thread is allowed to do the
@@ -956,16 +954,44 @@ trx_write_serialisation_history(
 
 		undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
 
-		trx_undo_update_cleanup(trx, undo_hdr_page, mtr);
-	} else {
-		mutex_enter(&rseg->mutex);
+		trx_undo_update_cleanup(
+			trx, &trx->standard, undo_hdr_page, mtr);
 	}
 
-	if (trx->standard.insert_undo != NULL) {
-		trx_undo_set_state_at_finish(trx->standard.insert_undo, mtr);
-	}
+	mutex_exit(&trx->standard.rseg->mutex);
 
-	mutex_exit(&rseg->mutex);
+	
+	if (trx->temporary.rseg) {
+		mutex_enter(&trx->temporary.rseg->mutex);
+
+		if (trx->temporary.insert_undo != NULL) {
+			trx_undo_set_state_at_finish(
+				trx->temporary.insert_undo, mtr);
+		}
+
+		if (trx->temporary.update_undo != NULL) {
+			page_t*		undo_hdr_page;
+			trx_undo_t*	undo = trx->temporary.update_undo;
+
+			/* Assign the transaction serialisation number and also
+			update the purge min binary heap if this is the first
+			UNDO log being written to the assigned rollback
+			segment. */
+
+			trx_serialisation_number_get(trx, &trx->temporary);
+
+			/* It is not necessary to obtain trx->undo_mutex here
+			because only a single OS thread is allowed to do the
+			transaction commit for this transaction. */
+
+			undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
+
+			trx_undo_update_cleanup(
+				trx, &trx->temporary, undo_hdr_page, mtr);
+		}
+
+		mutex_exit(&trx->temporary.rseg->mutex);
+	}
 
 	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
 
@@ -1248,6 +1274,7 @@ trx_commit_in_memory(
 	trx_roll_savepoints_free(trx, savep);
 
 	trx->standard.rseg = NULL;
+	trx->temporary.rseg = NULL;
 	trx->undo_no = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
