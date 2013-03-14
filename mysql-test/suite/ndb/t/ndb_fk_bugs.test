@@ -45,7 +45,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
--- error 150
+-- error ER_CANNOT_ADD_FOREIGN
 alter table t2
   add constraint fk1 foreign key (b) references t1 (a)
   on delete cascade on update cascade;
@@ -137,7 +137,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -146,7 +146,7 @@ drop table t2, t1;
 
 --echo # test: parent table not exist
 
---error ER_NO_SUCH_TABLE
+--error ER_CANNOT_ADD_FOREIGN
 create table t2 (
   a int not null,
   b int not null,
@@ -163,7 +163,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 155
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -194,7 +194,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -226,7 +226,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -259,7 +259,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;
@@ -356,7 +356,7 @@ create table t2 (
   key (b)
 ) engine ndb;
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table t2
   add constraint fk1 foreign key (b) references t1 (b);
 show warnings;

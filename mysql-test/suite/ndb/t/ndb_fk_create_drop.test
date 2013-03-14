@@ -51,13 +51,13 @@ alter offline table child add constraint fk9 foreign key (a) references parent(c
 
 --enable_result_log
 
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table child add constraint fk7 foreign key (a) references parent(c);
 show warnings;
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table child add constraint fk8 foreign key (a) references parent(c);
 show warnings;
---error 150
+--error ER_CANNOT_ADD_FOREIGN
 alter online table child add constraint fk9 foreign key (a) references parent(c);
 show warnings;
 
