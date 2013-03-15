@@ -3599,8 +3599,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
     }
   }
 
-  DBUG_RETURN(exec_res ? SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR
-                       : SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
+  DBUG_RETURN(exec_res ? SLAVE_APPLY_EVENT_AND_UPDATE_POS_APPLY_ERROR :
+                         SLAVE_APPLY_EVENT_AND_UPDATE_POS_OK);
 }
 
 
