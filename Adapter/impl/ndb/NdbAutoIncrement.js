@@ -23,7 +23,7 @@
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     stats_module    = require(path.join(api_dir,"stats.js")),
     QueuedAsyncCall = require(path.join(spi_dir,"common","QueuedAsyncCall.js")).QueuedAsyncCall,
-    stats           = stats_module.getWriter("spi","ndb","autoincrement"),
+    stats           = stats_module.getWriter(["spi","ndb","autoincrement"]),
     OP_INSERT       = require(path.join(spi_doc_dir,"DBOperation")).OperationCodes.OP_INSERT,
     udebug          = unified_debug.getLogger("NdbAutoIncrement.js");
 

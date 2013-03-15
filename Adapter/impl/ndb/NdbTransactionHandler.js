@@ -27,7 +27,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
     stats_module    = require(path.join(api_dir,"stats.js")),
-    stats           = stats_module.getWriter("spi","ndb","DBTransactionHandler"),
+    stats           = stats_module.getWriter(["spi","ndb","DBTransactionHandler"]),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     getAutoIncHandler = require("./NdbAutoIncrement.js").getHandler,
@@ -51,7 +51,7 @@ function DBTransactionHandler(dbsession) {
   this.serial             = serial++;
   this.moniker            = "(" + this.serial + ")";
   udebug.log("NEW ", this.moniker);
-  stats.incr("created");  
+  stats.incr("created");
 }
 DBTransactionHandler.prototype = proto;
 
@@ -80,14 +80,14 @@ function run(self, execMode, abortFlag, callback) {
     var force_send = 1;
 
     if(this.tx.canUseNdbAsynch) {
-      stats.incr("run","async");
+      stats.incr(["run","async"]);
       this.tx.asyncContext.executeAsynch(this.tx.ndbtx, 
                                          this.execMode, this.abortFlag,
                                          force_send, this.callback, 
                                          onAsyncSent);
     }
     else {
-      stats.incr("run","async");
+      stats.incr(["run","async"]);
       this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
     }
   };
@@ -212,13 +212,13 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   else {
     if(ndbsession.txCanRunImmediately(self)) {
       // TODO: partitionKey
-      stats.incr("start","immediate");
+      stats.incr(["start","immediate"]);
       var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
       ndbsession.txIsOpen(self);
       ndb.startTransaction(table, 0, 0, onStartTx); 
     }
     else {  // We cannot get an NdbTransaction right now; queue one
-      stats.incr("start","queued");
+      stats.incr(["start","queued"]);
       ndbsession.enqueueTransaction(self, dbOperationList, callback);
     }
   }
@@ -242,13 +242,13 @@ proto.execute = function(dbOperationList, userCallback) {
   
   if(this.autocommit) {
     udebug.log("Execute -- AutoCommit");
-    stats.incr("execute","commit");
+    stats.incr(["execute","commit"]);
     ndbsession.closeActiveTransaction(this);
     execute(this, COMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
   else {
     udebug.log("Execute -- NoCommit");
-    stats.incr("execute","no_commit");
+    stats.incr(["execute","no_commit"]);
     execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
 };

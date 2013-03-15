@@ -27,7 +27,7 @@ var commonDBTableHandler = require("./DBTableHandler.js"),
     query      = require("../../api/Query.js"),
     udebug     = unified_debug.getLogger("UserContext.js"),
     stats_module = require(path.join(api_dir, "stats.js")),
-    stats      = stats_module.getWriter("api", "UserContext"),
+    stats      = stats_module.getWriter(["api", "UserContext"]),
     util       = require("util");
 
 
@@ -162,7 +162,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             if (tableHandlerFactory.ctor) {
               if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
                 // if a domain object mapping, cache the table handler in the prototype
-                stats.incr("TableHandler","success");
+                stats.incr( [ "TableHandler","success" ] );
                 tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                     tableHandlerFactory.ctor);
                 if (tableHandler.isValid) {
@@ -174,7 +174,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
                 }
               } else {
                 tableHandler = tableHandlerFactory.ctor.prototype.mynode.tableHandler;
-                stats.incr("TableHandler","idempotent");
+                stats.incr( [ "TableHandler","idempotent" ] );
                 udebug.log_detail('UserContext got tableHandler but someone else put it in the prototype first.');
               }
             }
@@ -239,7 +239,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             mynode.mapping, domainObjectTableNameOrConstructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
-        stats.incr("TableHandler","cache_hit");
+        stats.incr( [ "TableHandler","cache_hit" ] );
         udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
         // prototype has been annotated; return the table handler
         onTableHandler(null, tableHandler);
