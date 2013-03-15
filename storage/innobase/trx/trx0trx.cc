@@ -646,10 +646,6 @@ trx_assign_rseg_low(
 		return(NULL);
 	}
 
-	// FIXME: We are updating static variables. Shouldn't this logic
-	// mutex protected given that this function might be called by
-	// multiple caller unless caller is protecting it.
-
 	/* This breaks true round robin but that should be OK. */
 	ut_a(max_undo_logs > 0 && max_undo_logs <= TRX_SYS_N_RSEGS);
 
@@ -1195,8 +1191,7 @@ trx_commit_in_memory(
 
 		assert_trx_in_list(trx);
 
-		if (trx->read_only ||
-		    (trx->standard.rseg == 0 && trx->temporary.rseg == 0)) {
+		if (trx->read_only || trx->standard.rseg == 0) {
 			ut_ad(!trx->in_rw_trx_list);
 			UT_LIST_REMOVE(trx_list, trx_sys->ro_trx_list, trx);
 			ut_d(trx->in_ro_trx_list = false);
