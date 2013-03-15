@@ -17,6 +17,7 @@
 # Will test following scenarios:
 # 1. Try loading table with commit and rollback action.
 # 2. In same trx try loading temp + non-temp table.
+# 3. In xa trx try loading temp + non-temp table.
 #
 ################################################################################
 
@@ -91,6 +92,50 @@ select * from t2 limit 10;
 drop procedure populate_t1_t2;
 drop table t2;
 
+#-----------------------------------------------------------------------------
+#
+# 3. In xa trx try loading temp + non-temp table.
+#
+create temporary table t1 (i int) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1);
+insert into t2 values (101);
+select * from t1;
+select * from t2;
+#
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+select * from t2;
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+select * from t2;
+#
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+select * from t2;
+xa end 'tx1';
+xa prepare 'tx1';
+xa rollback 'tx1';
+select * from t1;
+select * from t2;
+#
+#
+xa start 'tx1';
+insert into t1 values (2), (3);
+select * from t1;
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+#
+drop table t1;
+drop table t2;
 
 #-----------------------------------------------------------------------------
 #
