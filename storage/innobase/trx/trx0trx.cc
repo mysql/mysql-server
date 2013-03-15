@@ -811,6 +811,8 @@ trx_start_low(
 
 		trx->standard.rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces, true);
+		/* temporary rseg is assigned only on need basis if trx involves
+		temp-tables. */
 
 		mutex_enter(&trx_sys->mutex);
 

@@ -215,7 +215,7 @@ trx_write_trx_id(
 /*****************************************************************//**
 Check if slot-id is reserved slot-id for temp-tablespace rsegs.
 Note: slot-0 is reserved for system-tablespace rseg and temp-tablespace
-rsegs starts from slot-1 to slot-1 + srv_tmp_undo_logs. */
+rsegs starts from slot-1 to slot-N. */
 UNIV_INLINE
 bool
 trx_sys_is_tmp_rseg_slot(
