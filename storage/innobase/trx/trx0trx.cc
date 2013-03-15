@@ -734,8 +734,8 @@ trx_assign_rseg(
 	ut_a(!trx_is_autocommit_non_locking(trx));
 	// FIXME: Krunal
 
-	trx->temporary.rseg =
-		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, false);
+	trx->temporary.rseg = trx_assign_rseg_low(
+		srv_undo_logs, srv_undo_tablespaces, false);
 
 	if (trx->id == 0) {
 		mutex_enter(&trx_sys->mutex);
@@ -2360,8 +2360,8 @@ trx_set_rw_mode(
 	it here for the non-debug case. It can always be moved
 	out and the code #ifdefed to handle both variations. */
 
-	trx->standard.rseg =
-		trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces, true);
+	trx->standard.rseg = trx_assign_rseg_low(
+		srv_undo_logs, srv_undo_tablespaces, true);
 	ut_a(trx->standard.rseg != 0);
 
 	ut_a(trx->id == 0);
