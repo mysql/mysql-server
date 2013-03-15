@@ -188,7 +188,9 @@ function A() {
  * Properties are set up based on options.
  */
 function main() {
-  var options = {  /* Default options: */
+
+  /* Default options: */
+  var options = {
     'adapter' : 'ndb',
     'database': 'jscrund',
     'mysql_user': 'root',
@@ -197,14 +199,29 @@ function main() {
     'iterations': 4000,
     'stats': false
   };
+
+  /* Options from command line */
   parse_command_line(options);
+
   if (options.exit) {
     usage();
     process.exit(0);
   }
+
   var properties;
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
+    /* Connection properties from jscrund.config */
+    try {
+      var config_file = require("./jscrund.config");
+      for(var i in config_file) {
+        if(config_file.hasOwnProperty(i)) {
+          properties[i]  = config_file[i];
+        }
+      }
+    }
+    catch(e) {};
+    /* properties from command-line options */
     properties.database = options.database;
     properties.mysql_user = options.mysql_user;
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
