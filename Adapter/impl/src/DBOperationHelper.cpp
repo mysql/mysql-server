@@ -29,13 +29,6 @@
 #include "js_wrapper_macros.h"
 #include "NdbWrappers.h"
 
-
-/* DBOperationHelper() takes one argument, a fixed-length array.
-   A new Operation is created.
-   Keys in the array are used to set fields of the Operation.
-   The Operation is returned.
-*/
-
 enum {
   HELPER_ROW_BUFFER = 0,
   HELPER_KEY_BUFFER,
@@ -43,56 +36,70 @@ enum {
   HELPER_KEY_RECORD,
   HELPER_LOCK_MODE,
   HELPER_COLUMN_MASK,
-  // TODO: Options
-  HELPER_ARRAY_SIZE    /* the last element */
 };
 
-
+/* DBOperationHelper() is the C++ companion to DBOperation.prepare
+   in NdbOperation.js
+   It takes a HelperSpec object, and returns a fully-prepared Operation
+*/
+   
 Handle<Value> DBOperationHelper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
 
   Operation *op = new Operation;
 
-  const Local<Object> obj = args[0]->ToObject();
-  Local<Object> v;
-  
-  if(obj->Has(HELPER_ROW_BUFFER)) {
-    DEBUG_PRINT("Setting operation row_buffer");
-    v = obj->Get(HELPER_ROW_BUFFER)->ToObject();
-    op->row_buffer = V8BINDER_UNWRAP_BUFFER(v);
-  }
-  
-  if(obj->Has(HELPER_KEY_BUFFER)) {
-    DEBUG_PRINT("Setting operation key_buffer");
-    v = obj->Get(HELPER_KEY_BUFFER)->ToObject();
-    op->key_buffer = V8BINDER_UNWRAP_BUFFER(v);
-  }
-  
-  if(obj->Has(HELPER_ROW_RECORD)) {
-    DEBUG_PRINT("Setting operation row_record");
-    v = obj->Get(HELPER_ROW_RECORD)->ToObject();
-    op->row_record = unwrapPointer<Record *>(v);
-  }
-  
-  if(obj->Has(HELPER_KEY_RECORD)) {
-    DEBUG_PRINT("Setting operation key_record");
-    v = obj->Get(HELPER_KEY_RECORD)->ToObject();
-    op->key_record = unwrapPointer<Record *>(v);
-  }
-  
-  if(obj->Has(HELPER_LOCK_MODE)) {
-    DEBUG_PRINT("Setting operation lock_mode");
-    op->lmode = static_cast<NdbOperation::LockMode> 
-      (obj->Get(HELPER_LOCK_MODE)->Int32Value());
-  }
-  if(obj->Has(HELPER_COLUMN_MASK)) {
-    DEBUG_PRINT("Setting operation column mask");
-    Array *maskArray = Array::Cast( * (obj->Get(HELPER_COLUMN_MASK)));
-    for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
-      Local<Value> colId = maskArray->Get(m);
-      op->useColumn(colId->Int32Value());
-    }
+  for(int i = 0 ; i < args.Length() ; i++) {
+    if(args[i]->IsObject()) {
+      const Local<Object> obj = args[i]->ToObject();
+      Local<Value> v;
+      Local<Object> o;
+      
+      v = obj->Get(HELPER_ROW_BUFFER);
+      if(! v->IsNull()) {
+        o = v->ToObject();
+        DEBUG_PRINT("Setting operation row_buffer");
+        op->row_buffer = V8BINDER_UNWRAP_BUFFER(o);
+      }
+      
+      v = obj->Get(HELPER_KEY_BUFFER);
+      if(! v->IsNull()) {
+        o = v->ToObject();
+        DEBUG_PRINT("Setting operation key_buffer");
+        op->key_buffer = V8BINDER_UNWRAP_BUFFER(o);
+      }
+      
+      v = obj->Get(HELPER_ROW_RECORD);
+      if(! v->IsNull()) {
+        o = v->ToObject();
+        DEBUG_PRINT("Setting operation row_record");
+        op->row_record = unwrapPointer<Record *>(o);
+      }
+      
+      v = obj->Get(HELPER_KEY_RECORD);
+      if(! v->IsNull()) {
+        o = v->ToObject();
+        DEBUG_PRINT("Setting operation key_record");
+        op->key_record = unwrapPointer<Record *>(o);
+      }
+
+      v = obj->Get(HELPER_LOCK_MODE);
+      if(! v->IsNull()) {
+        int intLockMode = v->Int32Value();
+        DEBUG_PRINT("Setting operation lock_mode");
+        op->lmode = static_cast<NdbOperation::LockMode>(intLockMode);
+      }
+
+      v = obj->Get(HELPER_COLUMN_MASK);
+      if(! v->IsNull()) {
+        Array *maskArray = Array::Cast(*v);
+        DEBUG_PRINT("Setting operation column mask");
+        for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
+          Local<Value> colId = maskArray->Get(m);
+          op->useColumn(colId->Int32Value());
+        }
+      }
+    }    
   }
   
   return scope.Close(Operation_Wrapper(op));
@@ -100,16 +107,18 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
 
 
 void DBOperationHelper_initOnLoad(Handle<Object> target) {
-  HandleScope scope;
   DEBUG_MARKER(UDEB_DETAIL);
   DEFINE_JS_FUNCTION(target, "DBOperationHelper", DBOperationHelper);
-  DEFINE_JS_CONSTANT(target, HELPER_ROW_BUFFER);
-  DEFINE_JS_CONSTANT(target, HELPER_KEY_BUFFER);
-  DEFINE_JS_CONSTANT(target, HELPER_ROW_RECORD);
-  DEFINE_JS_CONSTANT(target, HELPER_KEY_RECORD);
-  DEFINE_JS_CONSTANT(target, HELPER_LOCK_MODE);
-  DEFINE_JS_CONSTANT(target, HELPER_COLUMN_MASK);
-  DEFINE_JS_CONSTANT(target, HELPER_ARRAY_SIZE);
+
+  Persistent<Object> OpHelper = Persistent<Object>(Object::New());
+  target->Set(Persistent<String>(String::NewSymbol("OpHelper")), OpHelper);
+  DEFINE_JS_INT(OpHelper, "row_buffer",  HELPER_ROW_BUFFER);
+  DEFINE_JS_INT(OpHelper, "key_buffer",  HELPER_KEY_BUFFER);
+  DEFINE_JS_INT(OpHelper, "row_record",  HELPER_ROW_RECORD);
+  DEFINE_JS_INT(OpHelper, "key_record",  HELPER_KEY_RECORD);
+  DEFINE_JS_INT(OpHelper, "lock_mode",   HELPER_LOCK_MODE);
+  DEFINE_JS_INT(OpHelper, "column_mask", HELPER_COLUMN_MASK);
+
   Persistent<Object> LockModes = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("LockModes")), LockModes);
   DEFINE_JS_INT(LockModes, "EXCLUSIVE", NdbOperation::LM_Exclusive);
