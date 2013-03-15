@@ -367,8 +367,8 @@ ulint
 trx_sysf_rseg_find_free(
 /*====================*/
 	mtr_t*	mtr,			/*!< in: mtr */
-	bool	include_tmp_slots,	/*!< in: if true, report
-					tmp slots as free slots. */
+	bool	include_tmp_slots,	/*!< in: if true, report slots reserved
+					for temp-tablespace as free slots. */
 	ulint	nth_free_slots)		/*!< in: allocate nth free slot.
 					0 means next free slot. */
 {

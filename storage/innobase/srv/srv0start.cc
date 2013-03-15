@@ -2373,7 +2373,7 @@ files_checked:
 		os_thread_create(buf_dump_thread, NULL, NULL);
 
 		/* Create the dict stats gathering thread */
-		// os_thread_create(dict_stats_thread, NULL, NULL);
+		os_thread_create(dict_stats_thread, NULL, NULL);
 
 		/* Create the thread that will optimize the FTS sub-system. */
 		fts_optimize_init();

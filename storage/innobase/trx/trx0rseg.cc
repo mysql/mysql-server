@@ -292,7 +292,7 @@ trx_rseg_create_instance(
 			space = trx_sysf_rseg_get_space(sys_header, i, mtr);
 
 			zip_size = !Tablespace::is_system_tablespace(space)
-				? fil_space_get_zip_size(space) : 0;
+				   ? fil_space_get_zip_size(space) : 0;
 
 			rseg = trx_rseg_mem_create(
 				i, space, zip_size, page_no, ib_bh, mtr);
@@ -312,7 +312,7 @@ trx_rseg_t*
 trx_rseg_create(
 /*============*/
 	ulint	space,		/*!< in: id of UNDO tablespace */
-	ulint	nth_free_slot)	/*!< in: allocate rseg at nth free slot
+	ulint	nth_free_slot)	/*!< in: allocate nth free slot.
 				0 means next free slots. */	
 {
 	mtr_t		mtr;
