@@ -79,4 +79,4 @@ exports.OperationCodes = OperationCodes;
 exports.OperationStates = OperationStates;
 exports.LockModes = LockModes;
 exports.DBOperationError = DBOperationError;
-
+exports.DBResult = DBResult;

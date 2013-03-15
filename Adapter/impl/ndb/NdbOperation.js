@@ -53,9 +53,10 @@ var errorClassificationMap = {
 
 function DBOperationError(ndb_error) {
   var mappedCode = errorClassificationMap[ndb_error.classification];
-  this.ndb_error = ndb_error;
   this.message = ndb_error.message + " [" + ndb_error.code + "]";
   this.sqlstate = mappedCode || "NDB00";
+  this.ndb_error = ndb_error;
+  this.cause = null;
 }
 
 DBOperationError.prototype = doc.DBOperationError;
@@ -64,6 +65,7 @@ exports.DBOperationError = DBOperationError;
 function IndirectError(dbOperationErr) {
   this.message = "Error";
   this.sqlstate = dbOperationErr.sqlstate;
+  this.ndb_error = null;
   this.cause = dbOperationErr;
 }
 IndirectError.prototype = doc.DBOperationError;
@@ -258,12 +260,10 @@ function readResultRow(op) {
 function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log("buildOperationResult");
   var op_ndb_error, result_code;
-
-  op.result = new DBResult();
   
   if(! op.ndbop) {
     op.result.success = false;
-    op.error = new IndirectError(transactionHandler.error);
+    op.result.error = new IndirectError(transactionHandler.error);
     return;
   }
   
@@ -305,7 +305,6 @@ function buildOperationResult(transactionHandler, op, execMode) {
       }
     }
 
-    //still to do: insert_id
     if(op.result.success && op.opcode === opcodes.OP_READ) {
       readResultRow(op);
     } 
@@ -326,7 +325,7 @@ function completeExecutedOps(dbTxHandler, execMode) {
     op.state = doc.OperationStates[2];  // COMPLETED
 
     if(typeof op.userCallback === 'function') {
-      op.userCallback(op.error, op);
+      op.userCallback(op.result.error, op);
     }
   }
   udebug.log("completeExecutedOps done");
