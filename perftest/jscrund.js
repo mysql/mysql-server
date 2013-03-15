@@ -85,6 +85,9 @@ function parse_command_line(options) {
         options.exit = true;
       }
       break;
+    case '--stats':
+      options.stats = true;
+      break;
     case '--debug':
     case '-d':
       JSCRUND.unified_debug.on();
@@ -185,22 +188,40 @@ function A() {
  * Properties are set up based on options.
  */
 function main() {
-  var options = {  /* Default options: */
+
+  /* Default options: */
+  var options = {
     'adapter' : 'ndb',
     'database': 'jscrund',
     'mysql_user': 'root',
     'modes': 'indy,each,bulk',
     'tests': 'persist,find,remove',
-    'iterations': 4000
+    'iterations': 4000,
+    'stats': false
   };
+
+  /* Options from command line */
   parse_command_line(options);
+
   if (options.exit) {
     usage();
     process.exit(0);
   }
+
   var properties;
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
+    /* Connection properties from jscrund.config */
+    try {
+      var config_file = require("./jscrund.config");
+      for(var i in config_file) {
+        if(config_file.hasOwnProperty(i)) {
+          properties[i]  = config_file[i];
+        }
+      }
+    }
+    catch(e) {};
+    /* properties from command-line options */
     properties.database = options.database;
     properties.mysql_user = options.mysql_user;
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
@@ -210,7 +231,8 @@ function main() {
     JSCRUND.implementation = new sqladapter.implementation();
   }
   options.properties = properties; // properties for getSession
-  options.annotations = new JSCRUND.mynode.TableMapping("a").applyToClass(A);
+  new JSCRUND.mynode.TableMapping("a").applyToClass(A);
+  options.annotations = A;
 
   var generateAllParameters = function(numberOfParameters) {
     var result = [];
@@ -267,6 +289,7 @@ function main() {
 
     var operationsDoneCallback;
     var testsDoneCallback;
+    var resultsArray = [];
 
     var parameters = generateAllParameters(numberOfIterations);
     
@@ -286,6 +309,7 @@ function main() {
       } else {
         JSCRUND.udebug.log_detail('jscrund.indyOperationsLoop iteration:', iteration, 'complete.');
         timer.stop();
+        resultsArray.push(timer.interval);
         operationsDoneCallback();
       }
     };
@@ -318,6 +342,7 @@ function main() {
         appendError(err);
       }
       timer.stop();
+      resultsArray.push(timer.interval);
       operationsDoneCallback();
     };
 
@@ -365,6 +390,7 @@ function main() {
     var bulkCheckBatchCallback = function(err) {
       JSCRUND.udebug.log_detail('jscrund.bulkCheckBatchCallback', err);
       timer.stop();
+      resultsArray.push(timer.interval);
       if (err) {
         appendError(err);
       }
@@ -417,6 +443,13 @@ function main() {
         console.log('jscrund.modeLoop', modeNumber, 'of', modes.length, 'complete.');
         if (JSCRUND.errors.length !== 0) {
           console.log(JSCRUND.errors);
+        }
+        var r, resultsString = "";
+        while(r = resultsArray.shift())
+          resultsString += r + "\t";
+        console.log(resultsString);
+        if(options.stats) {
+          JSCRUND.stats.peek();
         }
         process.exit(0);
       }
