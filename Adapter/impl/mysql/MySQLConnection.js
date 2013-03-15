@@ -27,9 +27,9 @@
 var mysql  = require("mysql"),
     udebug = unified_debug.getLogger("MySQLConnection.js"),
     stats_module  = require(path.join(api_dir, "stats.js")),
-    session_stats  = stats_module.getWriter("spi","mysql","DBSession"),
-    transaction_stats = stats_module.getWriter("spi","mysql","DBTransactionHandler"),
-    op_stats = stats_module.getWriter("spi","mysql","DBOperation"),
+    session_stats  = stats_module.getWriter(["spi","mysql","DBSession"]),
+    transaction_stats = stats_module.getWriter(["spi","mysql","DBTransactionHandler"]),
+    op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
 
@@ -158,12 +158,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
-      transaction_stats.incr("execute","no_commit");
+      transaction_stats.incr( [ "execute","no_commit" ] );
       transactionHandler.operationsList = operationsList;
       transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
       this.dbSession.pooledConnection.query('begin', executeOnBegin);
     } else {
-      transaction_stats.incr("execute","commit");
+      transaction_stats.incr( [ "execute","commit" ] );
       if (transactionHandler.numberOfOperations > 0) {
         // there are pending batches, so just put this request on the list
         transactionHandler.pendingBatches.push(
@@ -181,7 +181,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   
   this.close = function() {
-    transaction_stats.incr("closed");
+    transaction_stats.incr( [ "closed" ] );
   };
 
   this.batchComplete = function() {
@@ -256,14 +256,14 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
-    transaction_stats.incr("commit");
+    transaction_stats.incr( [ "commit" ]);
     this.dbSession.pooledConnection.query('commit', callback);
     this.dbSession.transactionHandler = null;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
-    transaction_stats.incr("rollback");
+    transaction_stats.incr( [ "rollback" ]);
     this.dbSession.pooledConnection.query('rollback', callback);
     this.dbSession.transactionHandler = null;
   };
@@ -309,7 +309,7 @@ function InsertOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr("created","insert");
+  op_stats.incr( [ "created","insert" ]);
 
   function onInsert(err, status) {
     if (err) {
@@ -348,7 +348,7 @@ function WriteOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr("created","write");
+  op_stats.incr( [ "created","write" ]);
 
   function onWrite(err, status) {
     if (err) {
@@ -385,7 +385,7 @@ function DeleteOperation(sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr("created","delete");
+  op_stats.incr( [ "created","delete" ]);
 
   function onDelete(err, status) {
     if (err) {
@@ -429,7 +429,7 @@ function ReadOperation(dbTableHandler, sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr("created","read");
+  op_stats.incr( [ "created","read" ]);
 
   function onRead(err, rows) {
     if (err) {
@@ -490,7 +490,7 @@ function UpdateOperation(sql, keys, values, callback) {
   this.values = values;
   this.callback = callback;
   this.result = {};
-  op_stats.incr("created","update");
+  op_stats.incr( [ "created","update" ]);
 
   function onUpdate(err, status) {
     if (err) {

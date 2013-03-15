@@ -25,7 +25,7 @@
 var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
     FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
     stats_module    = require(path.join(api_dir, "stats")),
-    stats           = stats_module.getWriter("spi","common","DBTableHandler"),
+    stats           = stats_module.getWriter(["spi","DBTableHandler"]),
     udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue
@@ -119,7 +119,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     return null;
   }
 
-  stats.incr("created", dbtable.database, dbtable.name);
+  stats.incr( [ "created", dbtable.database, dbtable.name ] );
   
   this.dbTable = dbtable;
 
@@ -525,7 +525,7 @@ DBTableHandler.prototype.setFields = function(obj, values) {
 /* DBIndexHandler constructor and prototype */
 function DBIndexHandler(parent, dbIndex) {
   udebug.log("DBIndexHandler constructor");
-  stats.incr("DBIndexHandler","created");
+  stats.incr( [ "DBIndexHandler","created" ] );
   var i, colNo;
 
   this.tableHandler = parent;

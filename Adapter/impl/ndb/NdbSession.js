@@ -29,7 +29,7 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     util           = require("util"),
     assert         = require("assert"),
     udebug         = unified_debug.getLogger("NdbSession.js"),
-    stats          = require(path.join(api_dir,"stats.js")).getWriter("spi","ndb","DBSession"),
+    stats          = require(path.join(api_dir,"stats.js")).getWriter(["spi","ndb","DBSession"]),
     NdbSession;
 
 

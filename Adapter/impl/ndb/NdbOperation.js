@@ -26,8 +26,8 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-    stats         = stats_module.getWriter("spi","ndb","DBOperation"),
-    index_stats   = stats_module.getWriter("spi","ndb","key_access"),
+    stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
+    index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
@@ -73,7 +73,7 @@ var DBOperation = function(opcode, tx, tableHandler) {
   assert(tx);
   assert(tableHandler);
 
-  stats.incr("created",opcode);
+  stats.incr(["created",opcode]);
  
   /* Properties from Prototype: */
   this.opcode       = opcode;
@@ -176,9 +176,10 @@ function encodeKeyBuffer(indexHandler, op, keys) {
     udebug.log("encodeKeyBuffer NO_INDEX");
     return;
   }
-  index_stats.incr(indexHandler.tableHandler.dbTable.database,
-                   indexHandler.tableHandler.dbTable.name,
-                   op.index.isPrimaryKey ? "PrimaryKey" : op.index.name);
+  index_stats.incr([ indexHandler.tableHandler.dbTable.database,
+                     indexHandler.tableHandler.dbTable.name,
+                    (op.index.isPrimaryKey ? "PrimaryKey" : op.index.name)
+                   ]);
 
   record = op.index.record;
   op.buffers.key = new Buffer(record.getBufferSize());
@@ -309,7 +310,7 @@ function buildOperationResult(transactionHandler, op, execMode) {
       readResultRow(op);
     } 
   }
-  stats.incr("result_code", result_code);
+  stats.incr( [ "result_code", result_code ] );
   udebug.log_detail("buildOperationResult finished:", op.result);
 }
 

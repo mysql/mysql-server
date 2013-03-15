@@ -25,7 +25,7 @@
 var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     udebug           = unified_debug.getLogger("NdbConnection.js"),
     stats_module     = require(path.join(api_dir,"stats.js")),
-    stats            = stats_module.getWriter("spi","ndb","NdbConnection"),
+    stats            = stats_module.getWriter(["spi","ndb","NdbConnection"]),
     logReadyNodes;
 
 
@@ -52,7 +52,7 @@ function NdbConnection(connectString) {
 function logReadyNodes(ndb_cluster_connection, nnodes) {
   var node_id;
   if(nnodes < 0) {
-    stats.incr("wait_until_ready","timeouts");
+    stats.incr( [ "wait_until_ready","timeouts" ] );
   }
   else {
     node_id = ndb_cluster_connection.node_id();
@@ -60,7 +60,7 @@ function logReadyNodes(ndb_cluster_connection, nnodes) {
       udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
     }
     udebug.log_notice("Connected to cluster as node id:", node_id);
-    stats.push("node_ids", node_id);
+    stats.push( [ "node_ids" ] , node_id);
   }
   return nnodes;
 }
@@ -90,30 +90,30 @@ NdbConnection.prototype.connect = function(properties, callback) {
   function onConnected(cb_err, rval) {
     udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
-      stats.incr("connections","successful");
+      stats.incr( [ "connections","successful" ]);
       self.ndb_cluster_connection.wait_until_ready(1, 1, onReady);
     }
     else {
-      stats.incr("connections","failed");
+      stats.incr( [ "connections","failed" ]);
       runCallbacks('NDB Connect failed ' + rval, self);
     }
   }
   
   /* connect() starts here */
   if(this.isConnected) {
-    stats.incr("connect", "join");
+    stats.incr( [ "connect", "join" ] );
     callback(null, this);
   }
   else {
     this.pendingConnections.push(callback);
     if(this.pendingConnections.length === 1) {
-      stats.incr("connect", "async");
+      stats.incr( [ "connect", "async" ] );
       this.ndb_cluster_connection.connect(
         properties.ndb_connect_retries, properties.ndb_connect_delay,
         properties.ndb_connect_verbose, onConnected);
     }
     else {
-      stats.incr("connect","queued");
+      stats.incr( [ "connect","queued" ] );
     }
   }
 };
@@ -121,17 +121,17 @@ NdbConnection.prototype.connect = function(properties, callback) {
 
 NdbConnection.prototype.connectSync = function(properties) {
   if(this.isConnected) {
-    stats.incr("connect", "join");
+    stats.incr( [ "connect", "join" ] );
     return true;
   }
 
-  stats.incr("connect", "sync");
+  stats.incr( [ "connect", "sync" ] );
   var r, nnodes;
   r = this.ndb_cluster_connection.connect(properties.ndb_connect_retries,
                                           properties.ndb_connect_delay,
                                           properties.ndb_connect_verbose);
   if(r === 0) {
-    stats.incr("connections","successful");
+    stats.incr( [ "connections","successful" ]);
     nnodes = this.ndb_cluster_connection.wait_until_ready(1, 1);
     logReadyNodes(this.ndb_cluster_connection, nnodes);
     if(nnodes >= 0) {

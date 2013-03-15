@@ -32,13 +32,13 @@
 /** Return an object containing a statistics tree.
  *  IMMEDIATE
  *
- *  Each argument specifies a further sub-branch; e.g.
- *  query();               // return global statistics
- *  query("spi");          // return all SPI-level statistics
- *  query("spi","ndb");    // return only statistics under spi.ndb
+ *  The domain is specified as an array literal
+ *  query([]);               // return global statistics
+ *  query(["spi"]);          // return all SPI-level statistics
+ *  query(["spi","ndb"]);    // return only statistics under spi.ndb
  *
  */
- stats_module.query(domain, ...);
+ stats_module.query(domain);
  
  
  /** Start a web server to service statistics queries over HTTP.
@@ -74,41 +74,48 @@
 /** Get a stats writer for a domain.
  *  IMMEDIATE
  *
- *  The domain is specified with multiple arguments, as in query()
+ *  The domain is specified as an array literal
  *  EXAMPLES:
- *    var stats = stats_module.get_writer("app");
- *    var stats = stats_module.get_writer("app","user_connections");
+ *    var stats = stats_module.get_writer(["app"]);
+ *    var stats = stats_module.get_writer(["app","user_connections"]);
  *
- *    stats.incr("created");
- *    stats.set("login","enabled");
- *    stats.push("users", current_user);
+ *    stats.incr(["created"]);
+ *    stats.incr(["get","cached"]);
+ *    stats.set(["login"],"enabled");
+ *    stats.push(["users"], current_user);
  */
-  getWriter(domain, ...);
+  getWriter([ domain ]);
 
 
 /*** StatWriter methods ***/
   
-/** Coerce the value at "domain" to a Number, then set it to 1 (if new) 
+/** Coerce the value at domain to a Number, then set it to 1 (if new) 
  *  or increment it (if existing).
+ *  The domain is specified as an array literal.
+ *  A single-part domain can alternately be given as a string
  *  IMMEDIATE
  * 
  */
- statWriter.incr(domain, ...);
+ statWriter.incr(domain);
  
  
 /** Set the current value at "domain" to "value".
  *  IMMEDIATE
+ *  The domain is specified as an array literal.
+ *  A single-part domain can alternately be given as a string
  *
  */
- statWriter.set(domain, ..., value);
+ statWriter.set(domain, value);
 
 
 /** Coerce the value at "domain" to an Array, then push value to it.
  *  IMMEDIATE
+ *  The domain is specified as an array literal.
+ *  A single-part domain can alternately be given as a string
  *
  *  Note that pop(), etc. are missing; to access the array directly, use query() 
  *  to fetch it.
  *
  */
- statWriter.push(domain, ..., value);
+ statWriter.push(domain, value);
 

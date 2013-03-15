@@ -30,7 +30,7 @@ var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
 var util = require('util');
 var stats_module = require(path.join(api_dir, "stats.js"));
-var stats = stats_module.getWriter("spi","mysql","DBConnectionPool");
+var stats = stats_module.getWriter(["spi","mysql","DBConnectionPool"]);
 
 
 /* Translate our properties to the driver's */
@@ -68,13 +68,13 @@ exports.DBConnectionPool = function(props) {
   // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
   this.is_connected = false;
-  stats.incr("created");
+  stats.incr( [ "created" ]);
 };
 
 
 exports.DBConnectionPool.prototype.connectSync = function() {
   var pooledConnection;
-  stats.incr("connect","sync");
+  stats.incr( [ "connect","sync" ]);
 
   if (this.is_connected) {
     return;
@@ -95,7 +95,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
   var pooledConnection;
-  stats.incr("connect","async");
+  stats.incr( [ "connect","async" ]);
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');
@@ -104,10 +104,10 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(function(err) {
     if (err) {
-      stats.incr("connections","failed");
+      stats.incr( [ "connections","failed" ] );
       callback(err);
     } else {
-      stats.incr("connections","succesful");
+      stats.incr( [ "connections","succesful" ]);
       connectionPool.pooledConnections[0] = pooledConnection;
       connectionPool.is_connected = true;
       callback(null, connectionPool);
@@ -313,7 +313,7 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
   // listTables starts here
   // listTables = function(databaseName, dbSession, user_callback)
   var pooledConnection, dictionary;
-  stats.incr("listTables");
+  stats.incr( [ "listTables" ]);
   
   if (dbSession) {
     // dbSession exists; call the dictionary directly

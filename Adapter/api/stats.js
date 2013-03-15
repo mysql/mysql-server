@@ -56,50 +56,83 @@ function dot(argsList, length) {
   return r;
 }
 
-exports.getWriter = function() {
+function dotted_name(base, keyPath) { 
+  return base + "." + dot(keyPath, keyPath.length);
+}
+
+function stats_incr(baseDomain, basePrefix, keyPath) {
+  var len = keyPath.length - 1;
+  var domain = getStatsDomain(baseDomain, keyPath, len);
+  var key = keyPath[len];
+
+  if(domain[key]) {
+    domain[key] += 1;
+  }
+  else { 
+    domain[key] = 1;
+  }
+
+  udebug.log(dotted_name(basePrefix, keyPath), "INCR", "(" + domain[key] + ")");
+}
+
+function stats_set(baseDomain, basePrefix, keyPath, value) {
+  var len = keyPath.length - 1;
+  var domain = getStatsDomain(baseDomain, keyPath, len);
+  var key = keyPath[(len)];
+   
+  domain[key] = value;
+  udebug.log(dotted_name(basePrefix, keyPath), "SET", value);
+}
+
+function stats_push(baseDomain, basePrefix, keyPath, value) {
+  var len = keyPath.length - 1;
+  var domain = getStatsDomain(baseDomain, keyPath, len);
+  var key = keyPath[(len)];
+
+  if(! Array.isArray(domain[key])) {
+    domain[key] = [];
+  }  
+  domain[key].push(value);
+
+  udebug.log(dotted_name(basePrefix, keyPath), "PUSH", value);
+}
+
+function testPathIsArray(keyOrPath) {
+  var r = true;
+  if(typeof keyOrPath === 'string') {
+    r = false;
+  }
+  else if(! Array.isArray(keyOrPath)) {
+    throw new Error("stats.incr() takes string key or array key path");
+  }    
+  return r;
+}
+
+
+exports.getWriter = function(domainPath) {
   var statWriter = {};
-  var thisDomain = getStatsDomain(global_stats, arguments, arguments.length);
-  var prefix = dot(arguments, arguments.length);
+  var thisDomain = getStatsDomain(global_stats, domainPath, domainPath.length);
+  var prefix = dot(domainPath, domainPath.length);
   
-  statWriter.incr = function() {
-    var len = arguments.length - 1;
-    var domain = getStatsDomain(thisDomain, arguments, len);
-    var dottedName = prefix + "." + dot(arguments, arguments.length);
-    var key = arguments[(len)];
-
-    if(domain[key]) {
-      domain[key] += 1;
-    }
-    else { 
-      domain[key] = 1;
-    }
-    udebug.log(dottedName, "INCR", "(" + domain[key] + ")");
+  statWriter.incr = function(keyOrPath) {
+    return( testPathIsArray(keyOrPath) ? 
+      stats_incr(thisDomain, prefix, keyOrPath) :
+      stats_incr(thisDomain, prefix, [ keyOrPath ] )
+    );
   };
 
-  statWriter.set = function() {
-    var len = arguments.length - 2;
-    var domain = getStatsDomain(thisDomain, arguments, len);
-    var dottedName = prefix + "." + dot(arguments, len+1);
-    var key = arguments[len];
-    var value = arguments[len + 1];
-    
-    domain[key] = value;
-    udebug.log(dottedName, "SET", value);
+  statWriter.set = function(keyOrPath, value) {
+    return( testPathIsArray(keyOrPath) ? 
+      stats_set(thisDomain, prefix, keyOrPath,      value) :
+      stats_set(thisDomain, prefix, [ keyOrPath ] , value )
+    );
   };
   
-  statWriter.push = function() {
-    var len = arguments.length - 2;
-    var domain = getStatsDomain(thisDomain, arguments, len);
-    var dottedName = prefix + "." + dot(arguments, len+1);
-    var key = arguments[len];
-    var value = arguments[len + 1];
-    
-    if(! Array.isArray(domain[key])) {
-      domain[key] = [];
-    }
-    
-    domain[key].push(value);
-    udebug.log(dottedName, "PUSH", value);
+  statWriter.push = function(keyOrPath, value) {
+    return( testPathIsArray(keyOrPath) ? 
+      stats_push(thisDomain, prefix, keyOrPath,      value) :
+      stats_push(thisDomain, prefix, [ keyOrPath ] , value )
+    );      
   };
   
   return statWriter;
@@ -111,8 +144,8 @@ exports.peek = function() {
 };
 
 
-exports.query = function() {
-  return getStatsDomain(global_stats, arguments, arguments.length);
+exports.query = function(path) {
+  return getStatsDomain(global_stats, path, path.length);
 };
 
 
