@@ -3004,64 +3004,22 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
 {
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
-  const NdbOperation *op;
   DBUG_ENTER("ndb_pk_update_row");
   DBUG_ASSERT(trans);
 
-  NdbOperation::OperationOptions *poptions = NULL;
-  NdbOperation::OperationOptions options;
-  options.optionsPresent=0;
-
   DBUG_PRINT("info", ("primary key update or partition change, "
-                      "doing read+delete+insert"));
-  // Get all old fields, since we optimize away fields not in query
+                      "doing delete+insert"));
 
-  const NdbRecord *key_rec;
-  const uchar *key_row;
-
-  if (m_user_defined_partitioning)
-  {
-    options.optionsPresent |= NdbOperation::OperationOptions::OO_PARTITION_ID;
-    options.partitionId=old_part_id;
-    poptions=&options;
-  }
-
-  setup_key_ref_for_ndb_record(&key_rec, &key_row, old_data, FALSE);
-
-  if (!bitmap_is_set_all(table->read_set))
-  {
-    /*
-      Need to read rest of columns for later re-insert.
-
-      Use mask only with columns that are not in write_set, not in
-      read_set, and not part of the primary key.
-    */
-
-    bitmap_copy(&m_bitmap, table->read_set);
-    bitmap_union(&m_bitmap, table->write_set);
-    bitmap_invert(&m_bitmap);
-    if (!(op= trans->readTuple(key_rec, (const char *)key_row,
-                               m_ndb_record, (char *)new_data,
-                               get_ndb_lock_mode(m_lock.type),
-                               (const unsigned char *)(m_bitmap.bitmap),
-                               poptions,
-                               sizeof(NdbOperation::OperationOptions))))
-      ERR_RETURN(trans->getNdbError());
-
-    if (table_share->blob_fields > 0)
-    {
-      my_bitmap_map *old_map= dbug_tmp_use_all_columns(table, table->read_set);
-      error= get_blob_values(op, new_data, &m_bitmap);
-      dbug_tmp_restore_column_map(table->read_set, old_map);
-      if (error != 0)
-        ERR_RETURN(op->getNdbError());
-    }
-    if (execute_no_commit(m_thd_ndb, trans, m_ignore_no_key) != 0)
-    {
-      table->status= STATUS_NOT_FOUND;
-      DBUG_RETURN(ndb_err(trans));
-    }
-  }
+#ifndef DBUG_OFF
+  /*
+   * Assert: All columns not getting a new value (write_set),
+   * should already have been read such that we have a 
+   * complete row for the reinsert.
+   */
+  bitmap_copy(&m_bitmap, table->read_set);
+  bitmap_union(&m_bitmap, table->write_set);
+  DBUG_ASSERT(bitmap_is_set_all(&m_bitmap));
+#endif
 
   // Delete old row
   error= ndb_delete_row(old_data, TRUE);
@@ -4335,6 +4293,21 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
   }
 
   /**
+   * If (part of) a primary key is updated, it is executed
+   * as a delete+reinsert. In order to avoid extra read-round trips
+   * to fetch missing columns required by reinsert: 
+   * Ensure all columns not being modified (in write_set)
+   * are read prior to ::ndb_pk_update_row().
+   */
+  if (bitmap_is_overlapping(table->write_set, m_pk_bitmap_p))
+  {
+    DBUG_ASSERT(table_share->primary_key != MAX_KEY);
+    bitmap_set_all(&m_bitmap);
+    bitmap_subtract(&m_bitmap, table->write_set);
+    bitmap_union(table->read_set, &m_bitmap);
+  }
+
+  /**
    * Determine whether we have to read PK columns in 
    * addition to those columns already present in read_set.
    * NOTE: As checked above, It is a precondition that
@@ -4351,13 +4324,11 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
    *     to delete BLOB stored in seperate fragments.
    *  3) When updating BLOB columns PK is required to delete 
    *     old BLOB + insert new BLOB contents
-   *  4) If PK itself is updated it is executed as deleteCurrent +
-   *     insert. Thus full PK is required for the reinsert.
    */
+  else
   if (!use_cursor ||                             // 1)
       (is_delete && table_share->blob_fields) || // 2)
-      uses_blob_value(table->write_set)       || // 3)
-      bitmap_is_overlapping(table->write_set, m_pk_bitmap_p)) // 4)
+      uses_blob_value(table->write_set))         // 3)
   {
     bitmap_union(table->read_set, m_pk_bitmap_p);
   }
@@ -4370,9 +4341,9 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
    * Part. columns are always part of PK, so we only
    * have to do this if pk_bitmap wasnt added yet,
    */
-  else if (m_use_partition_pruning)
+  else if (m_use_partition_pruning)  // && m_user_defined_partitioning)
   {
-    DBUG_ASSERT(bitmap_is_subset(&table->part_info->full_part_field_set,
+    DBUG_ASSERT(bitmap_is_subset(&m_part_info->full_part_field_set,
                                  m_pk_bitmap_p));
     bitmap_union(table->read_set, &m_part_info->full_part_field_set);
   }

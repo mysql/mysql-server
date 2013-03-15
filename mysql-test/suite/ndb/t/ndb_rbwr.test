@@ -159,8 +159,8 @@ INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
   ("t1", "update t1 set c = 97 where a = 10 or a >= 10", 3),
   ("t1", "update t1 set c = 97 where a in (8,10)", 1),
   ("t1", "update t1 set c = 97 where a in (7,8) or a >= 10", 4),
-  ("t1", "update t1 set a = 99, b = 98 where a = 3", 5),
-  ("t1", "update t1 set a = 99, b = 98 where b = 7", 5),
+  ("t1", "update t1 set a = 99, b = 98 where a = 3", 4),
+  ("t1", "update t1 set a = 99, b = 98 where b = 7", 4),
   ("t1", "update t1 set c = 97, b = 98 where a = 5 and b = 6", 2),
   ("t1", "delete from t1 where b = 8 and c = 2", 2);
 
@@ -195,21 +195,21 @@ INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
 # Update (part of) primary key (may require read+delete+insert+commit)
 INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
   # All columns in PK updated
-  ("t1", "update t1 set a = 97 where a = 1", 5), #PK
-  ("t1", "update t1 set a = 98 where b = 1", 5), #Unique key
+  ("t1", "update t1 set a = 97 where a = 1", 4), #PK
+  ("t1", "update t1 set a = 98 where b = 1", 4), #Unique key
 
   # Update PK as keyop
   ("t2", "update t2 set pk_a = 37 where pk_a = 1 and pk_b = 2 and pk_c = 3", 2), #No match
-  ("t2", "update t2 set pk_a = 38 where pk_a = 9 and pk_b = 2 and pk_c = 2", 5),
-  ("t2", "update t2 set pk_b = 39 where pk_a = 9 and pk_b = 2 and pk_c = 2", 5),
+  ("t2", "update t2 set pk_a = 38 where pk_a = 9 and pk_b = 2 and pk_c = 2", 4),
+  ("t2", "update t2 set pk_b = 39 where pk_a = 9 and pk_b = 2 and pk_c = 2", 4),
 
   # Update PK as index-rangeop
   ("t2", "update t2 set pk_a = 47 where pk_a = 1 and pk_b = 2", 2), #No match
-  ("t2", "update t2 set pk_a = 48 where pk_a = 9 and pk_b = 2", 7),
+  ("t2", "update t2 set pk_a = 48 where pk_a = 9 and pk_b = 2", 6),
 
   # Update PK on table having BLOB
-  ("t5", "update t5 set a = 57 where a = 1", 5), #PK
-  ("t5", "update t5 set a = 58 where b = 1", 5), #Unique key
+  ("t5", "update t5 set a = 57 where a = 1", 4), #PK
+  ("t5", "update t5 set a = 58 where b = 1", 4), #Unique key
 
   # Update PK on table having BLOB, non existing rows 
   ("t5", "update t5 set a = 57 where a = 99", 2), #PK
