@@ -2777,10 +2777,6 @@ innobase_init(
 	char		*default_path;
 	uint		format_id;
 	ulong		num_pll_degree;
-	int i = 0;
-	while (i == 0)
-		sleep(1);
-	i = 1;
 
 	DBUG_ENTER("innobase_init");
 	handlerton* innobase_hton= (handlerton*) p;
