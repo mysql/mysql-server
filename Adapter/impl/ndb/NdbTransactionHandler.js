@@ -30,7 +30,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     stats           = stats_module.getWriter(["spi","ndb","DBTransactionHandler"]),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
-    getAutoIncHandler = require("./NdbAutoIncrement.js").getHandler,
+    AutoIncHandler  = require("./NdbAutoIncrement.js").AutoIncHandler,
     proto           = doc.DBTransactionHandler,
     COMMIT          = adapter.ndbapi.Commit,
     NOCOMMIT        = adapter.ndbapi.NoCommit,
@@ -174,12 +174,12 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
   function getAutoIncrementValues() {
     udebug.log("execute getAutoIncrementValues");
-    var autoIncHandler = getAutoIncHandler(dbOperationList);
-    if(autoIncHandler === null) {
-      prepareOperationsAndExecute();
+    var autoIncHandler = new AutoIncHandler(dbOperationList);
+    if(autoIncHandler.values_needed > 0) {
+      autoIncHandler.getAllValues(prepareOperationsAndExecute);
     }
     else {
-      autoIncHandler.getAllValues(prepareOperationsAndExecute);
+      prepareOperationsAndExecute();
     }  
   }
 
