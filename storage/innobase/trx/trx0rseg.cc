@@ -345,7 +345,7 @@ trx_rseg_create(
 		ut_a(id == space);
 
 		zip_size = !Tablespace::is_system_tablespace(space)
-			   ? fil_space_get_zip_size(space) : 0;
+			? fil_space_get_zip_size(space) : 0;
 
 		rseg = trx_rseg_mem_create(
 			slot_no, space, zip_size, page_no,
