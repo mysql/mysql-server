@@ -2025,5 +2025,17 @@ trx_undo_free_prepared(
 			       trx->standard.insert_undo);
 		trx_undo_mem_free(trx->standard.insert_undo);
 	}
+	if (trx->temporary.update_undo) {
+		ut_a(trx->temporary.update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->temporary.rseg->update_undo_list,
+			       trx->temporary.update_undo);
+		trx_undo_mem_free(trx->temporary.update_undo);
+	}
+	if (trx->temporary.insert_undo) {
+		ut_a(trx->temporary.insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list, trx->temporary.rseg->insert_undo_list,
+			       trx->temporary.insert_undo);
+		trx_undo_mem_free(trx->temporary.insert_undo);
+	}
 }
 #endif /* !UNIV_HOTBACKUP */

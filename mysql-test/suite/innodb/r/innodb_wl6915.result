@@ -149,5 +149,92 @@ a	b	c
 10	a	b
 drop procedure populate_t1_t2;
 drop table t2;
+create temporary table t1 (i int) engine=innodb;
+create table t2 (i int) engine=innodb;
+insert into t1 values (1);
+insert into t2 values (101);
+select * from t1;
+i
+1
+select * from t2;
+i
+101
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa start 'tx1';
+insert into t1 values (2), (3);
+insert into t2 values (202), (303);
+select * from t1;
+i
+1
+2
+3
+2
+3
+select * from t2;
+i
+101
+202
+303
+202
+303
+xa end 'tx1';
+xa prepare 'tx1';
+xa rollback 'tx1';
+select * from t1;
+i
+1
+2
+3
+select * from t2;
+i
+101
+202
+303
+xa start 'tx1';
+insert into t1 values (2), (3);
+select * from t1;
+i
+1
+2
+3
+2
+3
+xa end 'tx1';
+xa prepare 'tx1';
+xa commit 'tx1';
+select * from t1;
+i
+1
+2
+3
+2
+3
+drop table t1;
+drop table t2;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
