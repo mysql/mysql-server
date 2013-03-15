@@ -1952,52 +1952,98 @@ trx_prepare(
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	trx_rseg_t*	rseg;
-	lsn_t		lsn;
+	lsn_t		lsn = 0;
 	mtr_t		mtr;
 
-	rseg = trx->standard.rseg;
 	/* Only fresh user transactions can be prepared.
 	Recovered transactions cannot. */
 	ut_a(!trx->is_recovered);
 
-	if (trx->standard.insert_undo != NULL
-	    || trx->standard.update_undo != NULL) {
+	if (trx->standard.rseg) {
 
-		mtr_start(&mtr);
+		rseg = trx->standard.rseg;
 
-		/* Change the undo log segment states from TRX_UNDO_ACTIVE
-		to TRX_UNDO_PREPARED: these modifications to the file data
-		structure define the transaction as prepared in the
-		file-based world, at the serialization point of lsn. */
+		if (trx->standard.insert_undo != NULL
+		    || trx->standard.update_undo != NULL) {
 
-		mutex_enter(&rseg->mutex);
+			mtr_start(&mtr);
 
-		if (trx->standard.insert_undo != NULL) {
+			/* Change the undo log segment states from TRX_UNDO_ACTIVE
+			to TRX_UNDO_PREPARED: these modifications to the file data
+			structure define the transaction as prepared in the
+			file-based world, at the serialization point of lsn. */
 
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction prepare for this transaction. */
+			mutex_enter(&rseg->mutex);
 
-			trx_undo_set_state_at_prepare(
-				trx, trx->standard.insert_undo, &mtr);
+			if (trx->standard.insert_undo != NULL) {
+
+				/* It is not necessary to obtain trx->undo_mutex here
+				because only a single OS thread is allowed to do the
+				transaction prepare for this transaction. */
+
+				trx_undo_set_state_at_prepare(
+					trx, trx->standard.insert_undo, &mtr);
+			}
+
+			if (trx->standard.update_undo) {
+				trx_undo_set_state_at_prepare(
+					trx, trx->standard.update_undo, &mtr);
+			}
+
+			mutex_exit(&rseg->mutex);
+
+			/*--------------*/
+			mtr_commit(&mtr);	/* This mtr commit makes the
+						transaction prepared in the file-based
+						world */
+			/*--------------*/
+			lsn = mtr.end_lsn;
+			ut_ad(lsn);
+		}	
+	}
+
+	if (trx->temporary.rseg) {
+
+		rseg = trx->temporary.rseg;
+
+		if (trx->temporary.insert_undo != NULL
+		    || trx->temporary.update_undo != NULL) {
+
+			mtr_start(&mtr);
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+
+			/* Change the undo log segment states from TRX_UNDO_ACTIVE
+			to TRX_UNDO_PREPARED: these modifications to the file data
+			structure define the transaction as prepared in the
+			file-based world, at the serialization point of lsn. */
+
+			mutex_enter(&rseg->mutex);
+
+			if (trx->temporary.insert_undo != NULL) {
+
+				/* It is not necessary to obtain trx->undo_mutex here
+				because only a single OS thread is allowed to do the
+				transaction prepare for this transaction. */
+
+				trx_undo_set_state_at_prepare(
+					trx, trx->temporary.insert_undo, &mtr);
+			}
+
+			if (trx->temporary.update_undo) {
+				trx_undo_set_state_at_prepare(
+					trx, trx->temporary.update_undo, &mtr);
+			}
+
+			mutex_exit(&rseg->mutex);
+
+			/*--------------*/
+			mtr_commit(&mtr);	/* This mtr commit makes the
+						transaction prepared in the file-based
+						world */
+			/*--------------*/
+			lsn = mtr.end_lsn;
+			ut_ad(lsn);
 		}
-
-		if (trx->standard.update_undo) {
-			trx_undo_set_state_at_prepare(
-				trx, trx->standard.update_undo, &mtr);
-		}
-
-		mutex_exit(&rseg->mutex);
-
-		/*--------------*/
-		mtr_commit(&mtr);	/* This mtr commit makes the
-					transaction prepared in the file-based
-					world */
-		/*--------------*/
-		lsn = mtr.end_lsn;
-		ut_ad(lsn);
-	} else {
-		lsn = 0;
 	}
 
 	/*--------------------------------------*/
