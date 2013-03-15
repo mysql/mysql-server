@@ -526,10 +526,10 @@ Assert that the transaction is either in trx_sys->ro_trx_list or
 trx_sys->rw_trx_list but not both and it cannot be an autocommit
 non-locking select */
 #define assert_trx_in_list(t) do {					\
-	ut_ad((t)->in_ro_trx_list ==					\
-		((t)->read_only || !(t)->standard.rseg));		\
-	ut_ad((t)->in_rw_trx_list ==					\
-		!((t)->read_only || !(t)->standard.rseg));		\
+	ut_ad((t)->in_ro_trx_list					\
+	      == ((t)->read_only || !(t)->standard.rseg));		\
+	ut_ad((t)->in_rw_trx_list					\
+	      == !((t)->read_only || !(t)->standard.rseg));		\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
