@@ -414,8 +414,7 @@ struct sql_ex_info
 #define Q_COMMIT_TS 14
 
 /* GTID log event post header */
-#define G_PREPARE_TS 1
-#define G_COMMIT_TS  2
+#define G_COMMIT_TS  1
 
 /* Intvar event post-header */
 
@@ -5038,9 +5037,8 @@ public:
     ENCODED_FLAG_LENGTH      +  /* flags */
     ENCODED_SID_LENGTH       +  /* SID length */
     ENCODED_GNO_LENGTH       +  /* GNO length */
-    1                        +  /* TYPECODE for G_PREPARE_TS */
     1                        +  /* TYPECODE for G_COMMIT_TS  */
-    2 * COMMIT_SEQ_LEN; /* PREPARE COMMIT sequence length */
+    COMMIT_SEQ_LEN;             /* COMMIT sequence length */
 
 private:
   /**
