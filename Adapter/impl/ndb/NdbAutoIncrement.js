@@ -144,15 +144,6 @@ NdbAutoIncrementHandler.prototype.getAllValues = function(callback) {
 };
   
 
-function getAutoIncrementHandler(operationList) {
-  var handler = new NdbAutoIncrementHandler(operationList);
-  if(handler.values_needed === 0) {
-    handler = null;
-  }
-  return handler;
-}
-
-
 exports.getCacheForTable = getAutoIncCacheForTable;
-exports.getHandler = getAutoIncrementHandler;
+exports.AutoIncHandler = NdbAutoIncrementHandler;
 
