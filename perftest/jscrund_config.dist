@@ -1,0 +1,10 @@
+
+// Default connection properties for jscrund
+
+module.exports = {
+  "ndb_connectstring"   : "localhost:1186",
+  "database"            : "test",
+  "use_ndb_async_api"   : false,   
+};
+
+
