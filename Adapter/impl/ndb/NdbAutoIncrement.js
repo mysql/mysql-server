@@ -115,6 +115,7 @@ function makeOperationCallback(handler, op) {
                op.tableHandler.dbTable.autoIncrementCache.execQueue.length);
     handler.values_needed--;
     if(value > 0) {
+      op.result.insert_id = value;
       op.tableHandler.setAutoincrement(op.values, value);
     }
     else {
