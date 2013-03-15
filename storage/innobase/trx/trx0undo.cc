@@ -1763,12 +1763,13 @@ trx_undo_assign_undo(
 
 	ut_ad(trx);
 
-	// FIXME: Krunal
-#if 0
-	if (trx->standard.rseg == NULL) {
-		return(DB_READ_ONLY);
-	}
-#endif
+	/* In case of read-only scenario trx->standard.rseg can be NULL but
+	still request for assigning undo logs is valid as temporary tables
+	can be updated in read-only mode.
+	If there is no rollback segment assigned to trx and still there is
+	object being updated there is something wrong and so this condition
+	check. */
+	ut_ad(!(trx->standard.rseg == NULL && trx->temporary.rseg == NULL));
 
 	rseg = undo_ptr->rseg;
 

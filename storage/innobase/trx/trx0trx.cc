@@ -728,7 +728,6 @@ trx_assign_rseg(
 {
 	ut_a(trx->temporary.rseg == 0);
 	ut_a(!trx_is_autocommit_non_locking(trx));
-	// FIXME: Krunal
 
 	trx->temporary.rseg = trx_assign_rseg_low(
 		srv_undo_logs, srv_undo_tablespaces, false);
