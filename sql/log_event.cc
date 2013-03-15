@@ -4788,7 +4788,7 @@ void Query_log_event::detach_temp_tables_worker(THD *thd,
   int i, parts;
   DBUG_ENTER("Query_log_event::detach_temp_tables_worker");
   if (!is_mts_worker(thd))
-    return;
+    DBUG_VOID_RETURN;
   Relay_log_info* c_rli= static_cast<const Slave_worker *>(rli)->c_rli;
   switch (c_rli->mts_parallel_type)
   {
@@ -4796,13 +4796,13 @@ void Query_log_event::detach_temp_tables_worker(THD *thd,
     parts= ((mts_accessed_dbs == OVER_MAX_DBS_IN_EVENT_MTS) ?
                 1 : mts_accessed_dbs);
     /*
-      todo: optimize for a case of 
+      todo: optimize for a case of
 
       a. one db
          Only detaching temporary_tables from thd to entry would require
          instead of the double-loop below.
 
-      b. unchanged thd->temporary_tables. 
+      b. unchanged thd->temporary_tables.
          In such case the involved entries would continue to hold the
          unmodified lists provided that the attach_ method does not
          destroy references to them.
@@ -13601,10 +13601,6 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   int8store(ptr_buffer, spec.gtid.gno);
   ptr_buffer+= ENCODED_GNO_LENGTH;
   file->commit_seq_offset= ptr_buffer- buffer;
-  *ptr_buffer++= G_PREPARE_TS;
-  int8store(ptr_buffer, 0);
-  ptr_buffer+= COMMIT_SEQ_LEN;
-
   *ptr_buffer++= G_COMMIT_TS;
   int8store(ptr_buffer, 0);
   ptr_buffer+= COMMIT_SEQ_LEN;
