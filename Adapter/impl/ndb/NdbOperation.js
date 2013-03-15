@@ -32,12 +32,9 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
     constants     = adapter.impl,
+    OpHelper      = constants.OpHelper,
     opcodes       = doc.OperationCodes,
-    OP_READ       = doc.OperationCodes.OP_READ,
-    OP_INSERT     = doc.OperationCodes.OP_INSERT,
-    OP_UPDATE     = doc.OperationCodes.OP_UPDATE,
-    OP_WRITE      = doc.OperationCodes.OP_WRITE,
-    OP_DELETE     = doc.OperationCodes.OP_DELETE,
+    helperSpec    = new Array(constants.HELPER_ARRAY_SIZE),
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -77,72 +74,97 @@ var DBOperation = function(opcode, tx, tableHandler) {
   assert(tableHandler);
 
   stats.incr("created",opcode);
-
+ 
+  /* Properties from Prototype: */
   this.opcode       = opcode;
-  this.autoinc      = null;
+  this.userCallback = null;
   this.transaction  = tx;
+  this.values       = {};
   this.tableHandler = tableHandler;
-  this.buffers      = {};  
+  this.lockMode     = "";
+  this.index        = {};
   this.state        = doc.OperationStates[0];  // DEFINED
   this.result       = new DBResult();
+
+  /* NDB Impl-specific properties */
+  this.ndbop        = null;
+  this.autoinc      = null;
+  this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
 };
-DBOperation.prototype = doc.DBOperation;
+
+
+function HelperSpec() {
+  this.clear();
+};
+
+HelperSpec.prototype.clear = function() {
+  this[OpHelper.row_buffer]  = null;
+  this[OpHelper.key_buffer]  = null;
+  this[OpHelper.row_record]  = null;
+  this[OpHelper.key_record]  = null;
+  this[OpHelper.lock_mode]   = null;
+  this[OpHelper.column_mask] = null;
+}
+
+var helperSpec = new HelperSpec();
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", opcodes[this.opcode], this.values);
   stats.incr("prepared");
-  var helperSpec = new Array(constants.HELPER_ARRAY_SIZE), helper;
-  switch(this.opcode) {
-    case OP_INSERT:
-      encodeRowBuffer(this);
-      helperSpec[constants.HELPER_COLUMN_MASK] = this.columnMask;
-      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
-      helperSpec[constants.HELPER_ROW_BUFFER]  = this.buffers.row;
-      break;
-    case OP_DELETE: 
-      helperSpec[constants.HELPER_KEY_RECORD]  = this.index.record;
-      helperSpec[constants.HELPER_KEY_BUFFER]  = this.buffers.key;
-      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
-      break;
-    case OP_READ:
-      helperSpec[constants.HELPER_LOCK_MODE]   = constants.LockModes[this.lockMode];
-      /* fall through */
-    case OP_UPDATE:
-    case OP_WRITE:
-      helperSpec[constants.HELPER_COLUMN_MASK] = this.columnMask;
-      helperSpec[constants.HELPER_KEY_RECORD]  = this.index.record;
-      helperSpec[constants.HELPER_KEY_BUFFER]  = this.buffers.key;
-      helperSpec[constants.HELPER_ROW_RECORD]  = this.tableHandler.dbTable.record;
-      helperSpec[constants.HELPER_ROW_BUFFER]  = this.buffers.row;
-      break; 
+  var code = this.opcode;
+  var helper;
+
+  /* There is one global helperSpec */
+  helperSpec.clear();
+  
+  /* All operations get a row record */
+  helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
+  
+  /* All but insert have a key.  
+     Insert gets late encoding of row buffer, due to auto-increment.
+  */
+  if(code === 2) {
+    encodeRowBuffer(this);
+  }
+  else {
+    helperSpec[OpHelper.key_record]  = this.index.record;
+    helperSpec[OpHelper.key_buffer]  = this.buffers.key;
+  }
+
+  /* All but delete get a row buffer and column mask */
+  if(code !== 16) {
+    helperSpec[OpHelper.row_buffer]  = this.buffers.row;
+    helperSpec[OpHelper.column_mask] = this.columnMask;
+  }
+  
+  /* Read gets a lock mode */
+  if(code === 1) {
+    helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
   }
 
   helper = adapter.impl.DBOperationHelper(helperSpec);
-  udebug.log("prepare: got helper");
   
   switch(this.opcode) {
-    case OP_INSERT:
-      this.ndbop = helper.insertTuple(ndbTransaction);
-      break;
-    case OP_DELETE:
-      this.ndbop = helper.deleteTuple(ndbTransaction);
-      break;
-    case OP_READ:
+    case 1:   // OP_READ:
       this.ndbop = helper.readTuple(ndbTransaction);
       break;
-    case OP_UPDATE:
+    case 2:  // OP_INSERT:
+      this.ndbop = helper.insertTuple(ndbTransaction);
+      break;
+    case 4:  // OP_UPDATE:
       this.ndbop = helper.updateTuple(ndbTransaction);
       break;
-    case OP_WRITE:
+    case 8:  // OP_WRITE:
       this.ndbop = helper.writeTuple(ndbTransaction);
+      break;
+    case 16:  // OP_DELETE:
+      this.ndbop = helper.deleteTuple(ndbTransaction);
       break;
   }
   this.state = doc.OperationStates[1];  // PREPARED
 };
 
-// TODO: Improve handing of NULL and UNDEFINED in both
-// encodeKeyBuffer and encodeRowBuffer
 
 function encodeKeyBuffer(indexHandler, op, keys) {
   udebug.log("encodeKeyBuffer with keys", keys);
@@ -178,6 +200,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
   }
 }
 
+
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
   var i, offset, encoder, value;
@@ -195,7 +218,6 @@ function encodeRowBuffer(op) {
     if(value === null) {
       record.setNull(i, op.buffers.row);
     }
-    /* Check here for autoincrement column */
     else if(typeof value !== 'undefined') {
       record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
@@ -272,7 +294,7 @@ function buildOperationResult(transactionHandler, op, execMode) {
         }
       }
       else {
-        if(op.opcode === OP_READ || execMode === NOCOMMIT) {      
+        if(op.opcode === opcodes.OP_READ || execMode === NOCOMMIT) {
           udebug.log("Case txOK + OpErr [READ | NOCOMMIT]", transactionHandler.moniker);
         }
         else {
@@ -283,7 +305,7 @@ function buildOperationResult(transactionHandler, op, execMode) {
     }
 
     //still to do: insert_id
-    if(op.result.success && op.opcode === OP_READ) {
+    if(op.result.success && op.opcode === opcodes.OP_READ) {
       readResultRow(op);
     } 
   }
@@ -316,7 +338,7 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   if(! dbIndexHandler.tableHandler) { 
     throw ("Invalid dbIndexHandler");
   }
-  var op = new DBOperation(OP_READ, tx, dbIndexHandler.tableHandler);
+  var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler.tableHandler);
   var record = op.tableHandler.dbTable.record;
   if(dbIndexHandler.dbIndex.isPrimaryKey || lockMode === "EXCLUSIVE") {
     op.lockMode = lockMode;
@@ -334,7 +356,7 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
 
 function newInsertOperation(tx, tableHandler, row) {
   udebug.log("newInsertOperation");
-  var op = new DBOperation(OP_INSERT, tx, tableHandler);
+  var op = new DBOperation(opcodes.OP_INSERT, tx, tableHandler);
   op.values = row;
   return op;
 }
@@ -345,7 +367,7 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
   if(! dbIndexHandler.tableHandler) {
     throw ("Invalid dbIndexHandler");
   }
-  var op = new DBOperation(OP_DELETE, tx, dbIndexHandler.tableHandler);
+  var op = new DBOperation(opcodes.OP_DELETE, tx, dbIndexHandler.tableHandler);
   encodeKeyBuffer(dbIndexHandler, op, keys);
   return op;
 }
@@ -356,7 +378,7 @@ function newWriteOperation(tx, dbIndexHandler, row) {
   if(! dbIndexHandler.tableHandler) {
     throw ("Invalid dbIndexHandler");
   }
-  var op = new DBOperation(OP_WRITE, tx, dbIndexHandler.tableHandler);
+  var op = new DBOperation(opcodes.OP_WRITE, tx, dbIndexHandler.tableHandler);
   op.values = row;
   encodeRowBuffer(op);
   encodeKeyBuffer(dbIndexHandler, op, dbIndexHandler.getFields(row));
@@ -369,7 +391,7 @@ function newUpdateOperation(tx, dbIndexHandler, keys, row) {
   if(! dbIndexHandler.tableHandler) {
     throw ("Invalid dbIndexHandler");
   }
-  var op = new DBOperation(OP_UPDATE, tx, dbIndexHandler.tableHandler);
+  var op = new DBOperation(opcodes.OP_UPDATE, tx, dbIndexHandler.tableHandler);
   op.values = row;
   encodeKeyBuffer(dbIndexHandler, op, keys);
   encodeRowBuffer(op);
