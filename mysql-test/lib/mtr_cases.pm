@@ -1,5 +1,5 @@
 # -*- cperl -*-
-# Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -1169,7 +1169,7 @@ my @tags=
 
  ["include/have_log_bin.inc", "need_binlog", 1],
 # an empty file to use test that needs myisam engine.
- ["include/have_myisam.inc", "myisam_test", 1],
+ ["include/force_myisam_default.inc", "myisam_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],
