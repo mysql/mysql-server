@@ -19,6 +19,7 @@
  */
 
 #include "uv.h"
+#include "legacy_uv_compat.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +27,14 @@ extern "C" {
 
   void work_thd_run(uv_work_t *);
   void main_thd_complete(uv_work_t *);
+  void main_thd_complete_newapi(uv_work_t *, int);
 
 #ifdef __cplusplus
 }
+#endif
+
+#ifdef OLDER_UV_AFTER_WORK_CB
+#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete
+#else
+#define ASYNC_COMMON_MAIN_THD_CALLBACK main_thd_complete_newapi
 #endif
