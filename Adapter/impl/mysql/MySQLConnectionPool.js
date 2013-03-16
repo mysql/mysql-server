@@ -255,6 +255,8 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
     // dbSession exists; call the dictionary directly
     pooledConnection = dbSession.pooledConnection;
     dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
+    udebug.log_detail('MySQLConnectionPool.getTableMetadata calling dictionary.getTableMetadata for',
+        databaseName, tableName);
     dictionary.getTableMetadata(databaseName, tableName, user_callback);
   } else {
     // dbSession does not exist; create a closure to handle it
