@@ -49,7 +49,7 @@ DBConnectionPool(Properties connectionProperties);
    ASYNC.
    Creates and opens a new DBSession.
 */
-   getDBSession(function(error, DBSession) callback);
+   getDBSession(session_index, function(error, DBSession) callback);
 
 
 /* listTables(databaseName, callback(error, array))
