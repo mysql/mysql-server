@@ -117,6 +117,10 @@ Driver.prototype.reportResultsAndExit = function() {
 
   // exit after closing all session factories
   var onSessionFactoryClose = function() {
+    if (driver.result.listener.printStackTraces) {
+      console.log('Closed', numberOfSessionFactoriesClosed + 1,
+          'of', numberOfSessionFactoriesToClose, 'session factories.');
+    }
     if (++numberOfSessionFactoriesClosed === numberOfSessionFactoriesToClose) {
       // we have closed them all
       unified_debug.close();
@@ -127,7 +131,9 @@ Driver.prototype.reportResultsAndExit = function() {
   // close all open session factories and exit
   sessionFactories = mynode.getOpenSessionFactories();
   numberOfSessionFactoriesToClose = sessionFactories.length;
-  udebug.log('Closing', numberOfSessionFactoriesToClose, 'session factories.');
+  if (driver.result.listener.printStackTraces) {
+    console.log('Closing', numberOfSessionFactoriesToClose, 'session factories.');
+  }
   if (numberOfSessionFactoriesToClose > 0) {
     for (i = 0; i < sessionFactories.length; ++i) {
       sessionFactories[i].close(onSessionFactoryClose);
@@ -310,7 +316,8 @@ global.fail_openSession = function(testCase, callback) {
     throw new Error('Fatal internal exception: fail_openSession must have 2 parameters: testCase, callback');
   }
   var properties = global.test_conn_properties;
-  mynode.openSession(properties, null, function(err, session) {
+  var mappings = testCase.mappings;
+  mynode.openSession(properties, mappings, function(err, session) {
     if (err) {
       testCase.fail(err);
       return;
