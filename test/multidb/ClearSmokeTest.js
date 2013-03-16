@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,28 +18,17 @@
  02110-1301  USA
  */
 
-/** This is the smoke test for the integraltypes suite.
+/** This is the clear smoke test for the t_basic suite.
  */
-
-require("./lib.js");
-
-var test = new harness.SmokeTest("SmokeTest");
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
 test.run = function() {
   var t = this;
-  harness.SQL.create(this.suite, function(error) {
+  harness.SQL.drop(this.suite, function(error) {
     if (error) {
-      t.fail('createSQL failed: ' + error);
+      t.fail('dropSQL failed: ' + error);
     } else {
-      var props = new mynode.ConnectionProperties(global.adapter);
-      t.mappings = global.integraltypes;
-      global.fail_openSession(t, function(session) {
-        if (session) {
-          t.pass();
-        } else {
-          t.fail();
-        }
-      });
+      t.pass();
     }
   });
 };
