@@ -89,6 +89,10 @@ Handle<Value> writeFloat(const Arguments &args) {
 }
 
 
+/* readTimestamp2(col, buffer, offset)
+*/
+
+
 void Native_encoders_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   DEFINE_JS_FUNCTION(target, "readDouble",  readDouble);

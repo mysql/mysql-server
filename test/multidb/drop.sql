@@ -7,3 +7,11 @@ drop table if exists test6.tbl6;
 drop table if exists test7.tbl7;
 drop table if exists test8.tbl8;
 
+drop database test1;
+drop database test2;
+drop database test3;
+drop database test4;
+drop database test5;
+drop database test6;
+drop database test7;
+drop database test8;
