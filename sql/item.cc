@@ -8643,7 +8643,7 @@ int stored_field_cmp_to_item(THD *thd, Field *field, Item *item)
 
 Item_cache* Item_cache::get_cache(const Item *item)
 {
-  return get_cache(item, item->result_type());
+  return get_cache(item, item->cmp_type());
 }
 
 
