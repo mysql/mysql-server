@@ -268,37 +268,37 @@ cast(010203101112.121314 as datetime)
 0001-02-03 10:11:12
 select cast(120010203101112.121314 as datetime);
 cast(120010203101112.121314 as datetime)
-NULL
+0000-00-00 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '120010203101112.121314'
 select cast(cast(1.1 as decimal) as datetime);
 cast(cast(1.1 as decimal) as datetime)
-NULL
+0000-00-00 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '1'
 select cast(cast(-1.1 as decimal) as datetime);
 cast(cast(-1.1 as decimal) as datetime)
-NULL
+0000-00-00 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '-1'
 select cast('0' as date);
 cast('0' as date)
-NULL
+0000-00-00
 Warnings:
 Warning	1292	Incorrect datetime value: '0'
 select cast('' as date);
 cast('' as date)
-NULL
+0000-00-00
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 select cast('0' as datetime);
 cast('0' as datetime)
-NULL
+0000-00-00 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: '0'
 select cast('' as datetime);
 cast('' as datetime)
-NULL
+0000-00-00 00:00:00
 Warnings:
 Warning	1292	Incorrect datetime value: ''
 select cast('0' as time);
@@ -306,7 +306,7 @@ cast('0' as time)
 00:00:00
 select cast('' as time);
 cast('' as time)
-NULL
+00:00:00
 Warnings:
 Warning	1292	Truncated incorrect time value: ''
 select cast(NULL as DATE);
@@ -323,13 +323,13 @@ cast(NULL as BINARY)
 NULL
 select cast(cast(120010203101112.121314 as double) as datetime);
 cast(cast(120010203101112.121314 as double) as datetime)
-NULL
+0000-00-00 00:00:00
 select cast(cast(1.1 as double) as datetime);
 cast(cast(1.1 as double) as datetime)
 0000-00-00 00:00:01
 select cast(cast(-1.1 as double) as datetime);
 cast(cast(-1.1 as double) as datetime)
-NULL
+0000-00-00 00:00:00
 explain extended select cast(10 as double(5,2));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
