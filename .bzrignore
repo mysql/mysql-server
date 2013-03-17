@@ -4,3 +4,4 @@ Adapter/impl/build
 mysql_pref.sh
 Adapter/impl/dev-checklist.plist
 test/test_connection.js
+perftest/jscrund.config

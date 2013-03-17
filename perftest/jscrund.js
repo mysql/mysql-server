@@ -188,17 +188,29 @@ function A() {
  * Properties are set up based on options.
  */
 function main() {
+  var config_file_exists = false;
 
   /* Default options: */
   var options = {
     'adapter' : 'ndb',
     'database': 'jscrund',
-    'mysql_user': 'root',
     'modes': 'indy,each,bulk',
     'tests': 'persist,find,remove',
     'iterations': 4000,
     'stats': false
   };
+
+  /* Options from config file */
+  try {
+    var config_file = require("./jscrund.config");
+    config_file_exists = true;
+    for(var i in config_file.options) {
+      if(config_file.options.hasOwnProperty(i)) {
+        options[i]  = config_file[i];
+      }
+    }
+  }
+  catch(e) {}
 
   /* Options from command line */
   parse_command_line(options);
@@ -212,15 +224,13 @@ function main() {
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
     /* Connection properties from jscrund.config */
-    try {
-      var config_file = require("./jscrund.config");
-      for(var i in config_file) {
-        if(config_file.hasOwnProperty(i)) {
-          properties[i]  = config_file[i];
+    if(config_file_exists) {
+      for(var i in config_file.connection_properties) {
+        if(config_file.connection_properties.hasOwnProperty(i)) {
+          properties[i]  = config_file.connection_properties[i];
         }
       }
     }
-    catch(e) {};
     /* properties from command-line options */
     properties.database = options.database;
     properties.mysql_user = options.mysql_user;
@@ -480,7 +490,7 @@ function main() {
   };
 
   // create database
-  JSCRUND.lib.SQL.create('./', options, function(err) {
+  JSCRUND.lib.SQL.create('./', properties, function(err) {
     if (err) {
       console.log('Error creating tables.', err);
       process.exit(1);
