@@ -539,12 +539,17 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "TIMESTAMP",      // 27
     "",               // 28 OLDDECIMAL UNSIGNED
     "DECIMAL",        // 29 DECIMAL
-    "DECIMAL"         // 30 DECIMAL UNSIGNED 
+    "DECIMAL"         // 30 DECIMAL UNSIGNED
+#if NDB_TYPE_MAX > 31
+    "TIME2",          // 31 TIME2
+    "DATETIME2",      // 32 DATETIME2
+    "TIMESTAMP2",     // 33 TIMESTAMP2
+#endif
   };
 
   const char * name = typenames[col->getType()];
 
-  if(*name == 0) {   /* One of the undefined types */
+  if(name == 0 || *name == 0) {   /* One of the undefined types */
     return scope.Close(Undefined());
   }
 

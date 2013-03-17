@@ -72,6 +72,23 @@ function makeIntEncoder(type,size) {
   return enc;
 }
 
+/* Medium encoder 
+*/
+var mediumEncoder = new NdbEncoder();
+mediumEncoder.write = function(col, value, buffer, offset) {
+  buffer[offset]   = (value & 0xFF);
+  buffer[offset+1] = (value & 0xFF00) >> 8;
+  buffer[offset+2] = (value & 0xFF0000) >> 16;
+};
+
+mediumEncoder.read = function(col, buffer, offset) {
+  var value = buffer[offset];
+  value |= (buffer[offset+1] << 8);
+  value |= (buffer[offset+2] << 16);
+  return value;
+};
+
+
 /* BIGINT.  NOT COMPLETE YET. */
 var bigIntEncoder = new NdbEncoder();
 bigIntEncoder.write = function write(col, value, buffer, offset) {
@@ -83,7 +100,6 @@ bigIntEncoder.read = function(col, buffer, offset) {
    var value = buffer.readInt32LE(offset);
    return value.toString();
 };
-
 
 /* FLOAT */
 var floatEncoder = new NdbEncoder();
@@ -225,21 +241,58 @@ timeStampEncoder.write = function(col, value, buffer, offset) {
   this.intEncoder.write(col, intValue, buffer, offset);
 };
 
-/* Medium encoder 
+
+/* Time2 (MySQL 5.6)
+   Time2 is a 3-byte time plus a 0-to-3 byte fraction
+   TODO: Support the fractional part
 */
-var mediumEncoder = new NdbEncoder();
-mediumEncoder.write = function(col, value, buffer, offset) {
+var time2Encoder = new NdbEncoder();
+time2Encoder.auxEncoder = mediumEncoder;
+
+time2Encoder.read = function(col, buffer, offset) { 
+  return this.auxEncoder.read(col, buffer, offset);
+}
+
+time2Encoder.write = function(col, value, buffer, offset) {
+  return this.auxEncoder.write(col, value, buffer, offset);
+}
+
+/* Datetime2  (MySQL 5.6)
+   big-endian date(5 bytes).fraction(0-3 bytes)
+   TODO: Support the fractional part
+   TODO: This is probably a *bad* implementation since the 40-bit number
+    is too big for a 31-bit V8 small int.   
+*/
+var datetime2Encoder = new NdbEncoder();
+datetime2Encoder.write = function(col, value, buffer, offset) {
   buffer[offset]   = (value & 0xFF);
   buffer[offset+1] = (value & 0xFF00) >> 8;
   buffer[offset+2] = (value & 0xFF0000) >> 16;
+  buffer[offset+3] = (value & 0xFF000000) >> 24;
+  buffer[offset+4] = (value & 0xFF00000000) >> 32;
 };
 
-mediumEncoder.read = function(col, buffer, offset) {
+datetime2Encoder.read = function(col, buffer, offset) {
   var value = buffer[offset];
   value |= (buffer[offset+1] << 8);
   value |= (buffer[offset+2] << 16);
+  value |= (buffer[offset+3] << 24);
+  value |= (buffer[offset+4] << 32);
   return value;
 };
+
+/* Timestamp2 (MySQL 5.6)
+   Timestamp2 is a 64-bit unix time in ??? units
+   TODO: fix & verify
+*/
+var timestamp2Encoder = new  NdbEncoder();
+timestamp2Encoder.write = function(col, value, buffer, offset) {  
+  bigIntEncoder.write(col, value.getTime(), buffer, offset);
+}
+
+timestamp2Encoder.read = function(col, buffer, offset) {
+  return new Date(bigIntEncoder.read(col, buffer, offset));
+}  
 
 
 var defaultTypeEncoders = [
@@ -274,6 +327,9 @@ var defaultTypeEncoders = [
   null,                                   // 28 OLDDECIMAL UNSIGNED
   null,                                   // 29 DECIMAL
   null,                                   // 30 DECIMAL UNSIGNED
+  time2Encoder,                           // 31 TIME2
+  datetime2Encoder,                       // 32 DATETIME2
+  timestamp2Encoder,                      // 33 TIMESTAMP2
 ];
 
 exports.defaultForType = defaultTypeEncoders;

@@ -23,7 +23,7 @@
 "use strict";
 
 try {
-  var ndbconnection = require("./NdbConnectionPool.js");
+  var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
 }
 catch(e) {
   /* Let unmet module dependencies be caught by loadRequiredModules() */
@@ -72,7 +72,7 @@ exports.getDefaultConnectionProperties = function() {
 
 exports.connectSync = function(properties) {
   udebug.log("connectSync");
-  var dbconn = new ndbconnection.DBConnectionPool(properties);
+  var dbconn = new DBConnectionPool(properties);
   dbconn.connectSync();
   return dbconn;
 };
@@ -80,7 +80,7 @@ exports.connectSync = function(properties) {
 
 exports.connect = function(properties, user_callback) {
   udebug.log("connect");
-  var dbconn = new ndbconnection.DBConnectionPool(properties);
+  var dbconn = new DBConnectionPool(properties);
   dbconn.connect(user_callback);
 };
 
