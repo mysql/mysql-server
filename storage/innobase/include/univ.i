@@ -332,7 +332,7 @@ typedef enum innodb_file_formats_enum innodb_file_formats_t;
 #define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
 /** The universal page size of the database */
-#define UNIV_PAGE_SIZE		srv_page_size
+#define UNIV_PAGE_SIZE		((ulint) srv_page_size)
 
 /** log2 of smallest compressed page size (1<<10 == 1024 bytes)
 Note: This must never change! */
