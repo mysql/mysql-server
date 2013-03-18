@@ -33,15 +33,17 @@ var implementation = function() {
 
 };
 
+implementation.prototype.close = function(callback) {
+  this.session.close(callback);
+};
+
 implementation.prototype.initialize = function(options, callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize', this);
   var impl = this;
   // set up the session
   mynode.openSession(options.properties, options.annotations, function(err, session) {
-//    JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize.openSession callback session:', session);
     impl.session = session;
     impl.context = session;
-//    JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize after impl.session', impl);
     session.getMapping(options.annotations, function(a,b) { callback(a,b); });
   });
 };

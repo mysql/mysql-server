@@ -443,6 +443,20 @@ function main() {
       }
     };
 
+    /** Finish up after modeLoop
+    */
+    var onLoopComplete = function() {
+      if(options.stats) {
+        JSCRUND.stats.peek();
+      }
+      if(options.forever) {
+        runTests(options);
+      }
+      else {
+        process.exit(0);
+      }    
+    };
+
     /** Run all modes specified in --modes: default is indy, each, bulk.
      * 
      */
@@ -463,15 +477,7 @@ function main() {
         while(r = resultsArray.shift())
           resultsString += r + "\t";
         console.log(resultsString);
-        if(options.stats) {
-          JSCRUND.stats.peek();
-        }
-        if(options.forever) {
-          runTests(options);
-        }
-        else {
-          process.exit(0);
-        }
+        JSCRUND.implementation.close(onLoopComplete);
       }
     };
 
