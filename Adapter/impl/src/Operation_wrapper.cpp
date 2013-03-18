@@ -34,11 +34,12 @@
 using namespace v8;
 
 Handle<Value> readTuple(const Arguments &);
-Handle<Value> readCurrentTuple(const Arguments &);
 Handle<Value> writeTuple(const Arguments &);
 Handle<Value> insertTuple(const Arguments &);
 Handle<Value> updateTuple(const Arguments &);
 Handle<Value> deleteTuple(const Arguments &);
+Handle<Value> closeOperation(const Arguments &);
+Handle<Value> readCurrentTuple(const Arguments &);
 Handle<Value> scanTable(const Arguments &);
 Handle<Value> scanIndex(const Arguments &);
 
@@ -46,13 +47,13 @@ Handle<Value> scanIndex(const Arguments &);
 class OperationEnvelopeClass : public Envelope {
 public:
   OperationEnvelopeClass() : Envelope("Operation") {
-//   DEFINE_JS_FUNCTION(Envelope::stencil, "useColumn", useColumn);
    DEFINE_JS_FUNCTION(Envelope::stencil, "readTuple", readTuple);
-//   DEFINE_JS_FUNCTION(Envelope::stencil, "readCurrentTuple", readCurrentTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "writeTuple", writeTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "insertTuple", insertTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "deleteTuple", deleteTuple);
    DEFINE_JS_FUNCTION(Envelope::stencil, "updateTuple", updateTuple);
+   DEFINE_JS_FUNCTION(Envelope::stencil, "close", closeOperation);
+//   DEFINE_JS_FUNCTION(Envelope::stencil, "readCurrentTuple", readCurrentTuple);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanTable", scanTable);
 //   DEFINE_JS_FUNCTION(Envelope::stencil, "scanIndex", scanIndex);   
   }
@@ -66,6 +67,13 @@ Handle<Value> Operation_Wrapper(Operation *op) {
   Local<Object> jsobj = OperationEnvelope.newWrapper();
   wrapPointerInObject(op, OperationEnvelope, jsobj);
   return scope.Close(jsobj);
+}
+
+
+Handle<Value> closeOperation(const Arguments &args) {
+  Operation * op = unwrapPointer<Operation *>(args.Holder());
+  delete op;
+  return Null();
 }
 
 
