@@ -55,7 +55,8 @@ function usage() {
   "   --tests :\n" +
   "   --test  :  Specify tests to run (default persist,find,remove)\n" +
   "   --table':\n" +
-  "   -t      :  Use table name for operations\n" + 
+  "   -t      :  Use table name for operations\n" +
+  "  --forever:  Repeat tests until interrupted\n" +
   "   --set other=value: set property other to value"
   ;
   console.log(msg);
@@ -87,6 +88,9 @@ function parse_command_line(options) {
       break;
     case '--stats':
       options.stats = true;
+      break;
+    case '--forever':
+      options.forever = true;
       break;
     case '--debug':
     case '-d':
@@ -197,7 +201,8 @@ function main() {
     'modes': 'indy,each,bulk',
     'tests': 'persist,find,remove',
     'iterations': 4000,
-    'stats': false
+    'stats': false,
+    'forever': false
   };
 
   /* Options from config file */
@@ -461,7 +466,12 @@ function main() {
         if(options.stats) {
           JSCRUND.stats.peek();
         }
-        process.exit(0);
+        if(options.forever) {
+          runTests(options);
+        }
+        else {
+          process.exit(0);
+        }
       }
     };
 
