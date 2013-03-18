@@ -1,5 +1,7 @@
 
 
+"use strict";
+
 var reuseLists = [];
 
 function getPooledBuffer(size) {
@@ -11,14 +13,21 @@ function getPooledBuffer(size) {
     b = new Buffer(size);
   }
   return b;
-};
+}
 
 
-function releasePooledBuffer(b) {
-  
-  if(typeof reuseLists[b.length] === 'undefined') {
-    reuseLists[b.length] = [];
+/* By putting a buffer on a reuseList, 
+   we prevent it from ever being garbage collected.
+*/
+function releasePooledBuffer(b) {  
+  if(b && b.length) {
+    if(typeof reuseLists[b.length] === 'undefined') {
+      reuseLists[b.length] = [];
+    }
+    reuseLists[b.length].push(b);
   }
-  reuseLists[b.length].push(b);
-};
+}
 
+
+exports.get = getPooledBuffer;
+exports.release = releasePooledBuffer;
