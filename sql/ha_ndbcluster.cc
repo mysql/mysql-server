@@ -3012,9 +3012,13 @@ int ha_ndbcluster::ndb_pk_update_row(THD *thd,
 
 #ifndef DBUG_OFF
   /*
-   * Assert: All columns not getting a new value (write_set),
-   * should already have been read such that we have a 
-   * complete row for the reinsert.
+   * 'old_data' contain colums as specified in 'read_set'.
+   * All PK columns must be included for ::ndb_delete_row()
+   */
+  DBUG_ASSERT(bitmap_is_subset(m_pk_bitmap_p, table->read_set));
+  /*
+   * As a complete 'new_data' row is reinserted after the delete,
+   * all columns must be contained in the read+write union.
    */
   bitmap_copy(&m_bitmap, table->read_set);
   bitmap_union(&m_bitmap, table->write_set);
@@ -4298,6 +4302,7 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
    * to fetch missing columns required by reinsert: 
    * Ensure all columns not being modified (in write_set)
    * are read prior to ::ndb_pk_update_row().
+   * All PK columns are also required by ::ndb_delete_row()
    */
   if (bitmap_is_overlapping(table->write_set, m_pk_bitmap_p))
   {
@@ -4305,6 +4310,7 @@ ha_ndbcluster::get_read_set(bool use_cursor, uint idx)
     bitmap_set_all(&m_bitmap);
     bitmap_subtract(&m_bitmap, table->write_set);
     bitmap_union(table->read_set, &m_bitmap);
+    bitmap_union(table->read_set, m_pk_bitmap_p);
   }
 
   /**
