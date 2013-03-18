@@ -18,7 +18,7 @@
 #  server-system-variables.html                                               #
 #                                                                             #
 ###############################################################################
---source include/have_myisam.inc
+--source include/force_myisam_default.inc
 --echo '#--------------------FN_DYNVARS_033_01-------------------------#'
 ###################################################################
 # Check if setting ft_boolean_syntax is changed in new connection # 
