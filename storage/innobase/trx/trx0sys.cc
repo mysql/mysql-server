@@ -897,14 +897,16 @@ trx_sys_create_rsegs(
 
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
-	ut_a(n_tmp_rsegs < n_rsegs);
+	ut_a(n_tmp_rsegs > 0 && n_tmp_rsegs < TRX_SYS_N_RSEGS);
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 
-	/* Rollback Segments reserved for temp-tablespace starts from slot-1.
-	Note: slot-0 is used by rseg that is system tablespace bounded. */
+	/* Create rollback segments for temp-tables bounded in temp-tablespace.
+	Slot-0: reserved for system-tablespace.
+	Slot-1....Slot-N: reserved for temp-tablespace.
+	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
 	for (ulint i = 0; i < n_tmp_rsegs; i++) {
 		ulint space = srv_tmp_space.space_id();
 		if (trx_rseg_create(space, i) == NULL) {
