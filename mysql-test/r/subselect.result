@@ -4769,9 +4769,9 @@ a	1
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')) ON 1' at line 1
 SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')  ON 1' at line 1
 SELECT * FROM t1 JOIN ((t1 t1a UNION SELECT 1)) ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') ON 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')) ON 1' at line 1
 SELECT * FROM t1 JOIN  (t1 t1a)  t1a ON 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 't1a ON 1' at line 1
 SELECT * FROM t1 JOIN ((t1 t1a)) t1a ON 1;
