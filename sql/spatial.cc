@@ -394,18 +394,19 @@ const char *Geometry::append_points(String *txt, uint32 n_points,
 const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
 					 uint offset) const
 {
-  uint32 points;
+  uint32 n_points;
   /* read number of points */
   if (no_data(data, 4))
     return 0;
-  points= uint4korr(data);
+  n_points= uint4korr(data);
   data+= 4;
 
-  if (no_data(data, (SIZEOF_STORED_DOUBLE * 2 + offset) * points))
+  if (n_points > max_n_points ||
+      no_data(data, (POINT_DATA_SIZE + offset) * n_points))
     return 0;
 
   /* Calculate MBR for points */
-  while (points--)
+  while (n_points--)
   {
     data+= offset;
     mbr->add_xy(data, data + SIZEOF_STORED_DOUBLE);
@@ -484,9 +485,12 @@ const Geometry::Class_info *Gis_point::get_class_info() const
 
 uint32 Gis_line_string::get_data_size() const 
 {
-  if (no_data(m_data, 4))
+  uint32 n_points, size;
+  if (no_data(m_data, 4) ||
+      (n_points= uint4korr(m_data)) > max_n_points ||
+      no_data(m_data, (size= 4 + n_points * POINT_DATA_SIZE)))
     return GET_SIZE_ERROR;
-  return 4 + uint4korr(m_data) * POINT_DATA_SIZE;
+  return size;
 }
 
 
@@ -665,6 +669,9 @@ int Gis_line_string::end_point(String *result) const
   if (no_data(m_data, 4))
     return 1;
   n_points= uint4korr(m_data);
+  if (n_points == 0 || n_points > max_n_points ||
+      no_data(m_data, POINT_DATA_SIZE * n_points))
+    return 1;
   return create_point(result, m_data + 4 + (n_points - 1) * POINT_DATA_SIZE);
 }
 
@@ -674,11 +681,14 @@ int Gis_line_string::point_n(uint32 num, String *result) const
   uint32 n_points;
   if (no_data(m_data, 4))
     return 1;
+  num--;
   n_points= uint4korr(m_data);
-  if ((uint32) (num - 1) >= n_points) // means (num > n_points || num < 1)
+  if (num >= n_points ||
+      num > max_n_points || // means (num > n_points || num < 1)
+      no_data(m_data, num * POINT_DATA_SIZE))
     return 1;
 
-  return create_point(result, m_data + 4 + (num - 1) * POINT_DATA_SIZE);
+  return create_point(result, m_data + 4 + num*POINT_DATA_SIZE);
 }
 
 const Geometry::Class_info *Gis_line_string::get_class_info() const
@@ -692,6 +702,7 @@ const Geometry::Class_info *Gis_line_string::get_class_info() const
 uint32 Gis_polygon::get_data_size() const 
 {
   uint32 n_linear_rings;
+  uint32 n_points;
   const char *data= m_data;
 
   if (no_data(data, 4))
@@ -701,10 +712,13 @@ uint32 Gis_polygon::get_data_size() const
 
   while (n_linear_rings--)
   {
-    if (no_data(data, 4))
+    if (no_data(data, 4) ||
+        (n_points= uint4korr(data)) > max_n_points)
       return GET_SIZE_ERROR;
-    data+= 4 + uint4korr(data)*POINT_DATA_SIZE;
+    data+= 4 + n_points*POINT_DATA_SIZE;
   }
+  if (no_data(data, 0))
+    return GET_SIZE_ERROR;
   return (uint32) (data - m_data);
 }
 
@@ -1037,9 +1051,14 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
 
 uint32 Gis_multi_point::get_data_size() const 
 {
-  if (no_data(m_data, 4))
-    return GET_SIZE_ERROR;
-  return 4 + uint4korr(m_data)*(POINT_DATA_SIZE + WKB_HEADER_SIZE);
+  uint32 n_points;
+  uint32 size;
+
+  if (no_data(m_data, 4) ||
+      (n_points= uint4korr(m_data)) > max_n_points ||
+      no_data(m_data, (size= 4 + n_points*(POINT_DATA_SIZE + WKB_HEADER_SIZE))))
+     return GET_SIZE_ERROR;
+  return size;
 }
 
 
@@ -1107,7 +1126,8 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, const char **end) const
     return 1;
 
   n_points= uint4korr(m_data);
-  if (no_data(m_data+4,
+  if (n_points > max_n_points ||
+      no_data(m_data+4,
 	      n_points * (SIZEOF_STORED_DOUBLE * 2 + WKB_HEADER_SIZE)) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return 1;
@@ -1160,6 +1180,7 @@ const Geometry::Class_info *Gis_multi_point::get_class_info() const
 uint32 Gis_multi_line_string::get_data_size() const 
 {
   uint32 n_line_strings;
+  uint32 n_points;
   const char *data= m_data;
 
   if (no_data(data, 4))
@@ -1169,11 +1190,13 @@ uint32 Gis_multi_line_string::get_data_size() const
 
   while (n_line_strings--)
   {
-    if (no_data(data, WKB_HEADER_SIZE + 4))
+    if (no_data(data, WKB_HEADER_SIZE + 4) ||
+        (n_points= uint4korr(data + WKB_HEADER_SIZE)) > max_n_points)
       return GET_SIZE_ERROR;
-    data+= (WKB_HEADER_SIZE + 4 + uint4korr(data + WKB_HEADER_SIZE) *
-	    POINT_DATA_SIZE);
+    data+= (WKB_HEADER_SIZE + 4 + n_points*POINT_DATA_SIZE);
   }
+  if (no_data(data, 0))
+    return GET_SIZE_ERROR;
   return (uint32) (data - m_data);
 }
 
@@ -1327,7 +1350,7 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
       return 1;
     n_points= uint4korr(data + WKB_HEADER_SIZE);
     length= WKB_HEADER_SIZE + 4+ POINT_DATA_SIZE * n_points;
-    if (no_data(data, length))
+    if (n_points > max_n_points || no_data(data, length))
       return 1;
     if (!--num)
       break;
@@ -1407,6 +1430,7 @@ const Geometry::Class_info *Gis_multi_line_string::get_class_info() const
 uint32 Gis_multi_polygon::get_data_size() const 
 {
   uint32 n_polygons;
+  uint32 n_points;
   const char *data= m_data;
 
   if (no_data(data, 4))
@@ -1425,11 +1449,14 @@ uint32 Gis_multi_polygon::get_data_size() const
 
     while (n_linear_rings--)
     {
-      if (no_data(data, 4))
+      if (no_data(data, 4) ||
+          (n_points= uint4korr(data)) > max_n_points)
 	return GET_SIZE_ERROR;
-      data+= 4 + uint4korr(data) * POINT_DATA_SIZE;
+      data+= 4 + n_points * POINT_DATA_SIZE;
     }
   }
+  if (no_data(data, 0))
+    return GET_SIZE_ERROR;
   return (uint32) (data - m_data);
 }
 
