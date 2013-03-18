@@ -770,8 +770,10 @@ dict_table_get(
 		/* If table->ibd_file_missing == TRUE, this will
 		print an error message and return without doing
 		anything. */
-		dict_update_statistics(table, TRUE /* only update stats
-				       if they have not been initialized */);
+		dict_update_statistics(
+			table,
+			TRUE, /* only update stats if not initialized */
+			FALSE /* update even if not changed too much */);
 	}
 
 	return(table);
@@ -4340,10 +4342,14 @@ void
 dict_update_statistics(
 /*===================*/
 	dict_table_t*	table,		/*!< in/out: table */
-	ibool		only_calc_if_missing_stats)/*!< in: only
+	ibool		only_calc_if_missing_stats,/*!< in: only
 					update/recalc the stats if they have
 					not been initialized yet, otherwise
 					do nothing */
+	ibool		only_calc_if_changed_too_much)/*!< in: only
+					update/recalc the stats if the table
+					has been changed too much since the
+					last stats update/recalc */
 {
 	dict_index_t*	index;
 	ulint		sum_of_index_sizes	= 0;
@@ -4373,7 +4379,10 @@ dict_update_statistics(
 
 	dict_table_stats_lock(table, RW_X_LATCH);
 
-	if (only_calc_if_missing_stats && table->stat_initialized) {
+	if ((only_calc_if_missing_stats && table->stat_initialized)
+	    || (only_calc_if_changed_too_much
+		&& !DICT_TABLE_CHANGED_TOO_MUCH(table))) {
+
 		dict_table_stats_unlock(table, RW_X_LATCH);
 		return;
 	}
@@ -4532,7 +4541,10 @@ dict_table_print_low(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	dict_update_statistics(table, FALSE /* update even if initialized */);
+	dict_update_statistics(
+		table,
+		FALSE, /* update even if initialized */
+		FALSE /* update even if not changed too much */);
 
 	dict_table_stats_lock(table, RW_S_LATCH);
 

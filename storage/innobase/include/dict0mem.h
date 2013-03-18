@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -607,7 +607,13 @@ struct dict_table_struct{
 				/*!< flag: TRUE if the maximum length of
 				a single row exceeds BIG_ROW_SIZE;
 				initialized in dict_table_add_to_cache() */
-				/** Statistics for query optimization */
+				/** Statistics for query optimization.
+				The following stat_* members are usually
+				protected by dict_table_stats_lock(). In
+				some exceptional cases (performance critical
+				code paths) we access or modify stat_n_rows
+				and stat_modified_counter without any
+				protection. */
 				/* @{ */
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
