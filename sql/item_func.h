@@ -348,6 +348,13 @@ public:
   void fix_num_length_and_dec();
   virtual void find_num_type()= 0; /* To be called from fix_length_and_dec */
 
+  inline void fix_decimals()
+  {
+    DBUG_ASSERT(result_type() == DECIMAL_RESULT);
+    if (decimals == NOT_FIXED_DEC)
+      set_if_smaller(decimals, max_length - 1);
+  }
+
   double val_real();
   longlong val_int();
   my_decimal *val_decimal(my_decimal *);
