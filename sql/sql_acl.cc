@@ -7052,7 +7052,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     elements= acl_proxy_users.elements;
     break;
   default:
-    return -1;
+    DBUG_RETURN(-1);
   }
 
 #ifdef EXTRA_DEBUG
