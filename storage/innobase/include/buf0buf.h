@@ -895,7 +895,7 @@ buf_page_get_mutex(
 Get the flush type of a page.
 @return	flush type */
 UNIV_INLINE
-enum buf_flush
+buf_flush_t
 buf_page_get_flush_type(
 /*====================*/
 	const buf_page_t*	bpage)	/*!< in: buffer page */
@@ -907,7 +907,7 @@ void
 buf_page_set_flush_type(
 /*====================*/
 	buf_page_t*	bpage,		/*!< in: buffer page */
-	enum buf_flush	flush_type);	/*!< in: flush type */
+	buf_flush_t	flush_type);	/*!< in: flush type */
 /*********************************************************************//**
 Map a block to a file page. */
 UNIV_INLINE
@@ -1449,7 +1449,7 @@ struct buf_page_t{
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
 					flush_type.
-					@see enum buf_flush */
+					@see buf_flush_t */
 	unsigned	io_fix:2;	/*!< type of pending I/O operation;
 					also protected by buf_pool->mutex
 					@see enum buf_io_fix */
