@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -196,6 +196,68 @@ mem_heap_get_top(
 /*=============*/
 	mem_heap_t*	heap,	/*!< in: memory heap */
 	ulint		n);	/*!< in: size of the topmost element */
+/*****************************************************************//**
+Checks if a given chunk of memory is the topmost element stored in the
+heap. If this is the case, then calling mem_heap_free_top() would free
+that element from the heap.
+@return	true if topmost */
+UNIV_INLINE
+bool
+mem_heap_is_top(
+/*============*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const void*	buf,	/*!< in: presumed topmost element */
+	ulint		buf_sz)	/*!< in: size of buf in bytes */
+	__attribute__((warn_unused_result));
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element. If the memory chunk specified with (top, top_sz)
+is the topmost element, then it will be discarded, otherwise it will
+be left untouched and this function will be equivallent to
+mem_heap_alloc().
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+void*
+mem_heap_replace(
+/*=============*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	ulint		new_sz);/*!< in: desired size of the new chunk */
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element and then copy the specified data to it. If the memory
+chunk specified with (top, top_sz) is the topmost element, then it will be
+discarded, otherwise it will be left untouched and this function will be
+equivallent to mem_heap_dup().
+@return allocated storage, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+void*
+mem_heap_dup_replace(
+/*=================*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	const void*	data,	/*!< in: new data to duplicate */
+	ulint		data_sz);/*!< in: size of data in bytes */
+/*****************************************************************//**
+Allocate a new chunk of memory from a memory heap, possibly discarding
+the topmost element and then copy the specified string to it. If the memory
+chunk specified with (top, top_sz) is the topmost element, then it will be
+discarded, otherwise it will be left untouched and this function will be
+equivallent to mem_heap_strdup().
+@return allocated string, NULL if did not succeed (only possible for
+MEM_HEAP_BTR_SEARCH type heaps) */
+UNIV_INLINE
+char*
+mem_heap_strdup_replace(
+/*====================*/
+	mem_heap_t*	heap,	/*!< in/out: memory heap */
+	const void*	top,	/*!< in: chunk to discard if possible */
+	ulint		top_sz,	/*!< in: size of top in bytes */
+	const char*	str);	/*!< in: new data to duplicate */
 /*****************************************************************//**
 Frees the topmost element in a memory heap.
 The size of the element must be given. */
