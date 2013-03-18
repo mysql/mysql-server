@@ -451,8 +451,7 @@ private:
   int set_list_data(const partition_info* part_info,
                     NdbDictionary::Table&) const;
   int ndb_pk_update_row(THD *thd, 
-                        const uchar *old_data, uchar *new_data,
-                        uint32 old_part_id);
+                        const uchar *old_data, uchar *new_data);
   int pk_read(const uchar *key, uint key_len, uchar *buf, uint32 *part_id);
   int ordered_index_scan(const key_range *start_key,
                          const key_range *end_key,
