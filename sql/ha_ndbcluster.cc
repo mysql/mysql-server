@@ -2999,8 +2999,7 @@ int ha_ndbcluster::pk_read(const uchar *key, uint key_len, uchar *buf,
 */
 
 int ha_ndbcluster::ndb_pk_update_row(THD *thd,
-                                     const uchar *old_data, uchar *new_data,
-                                     uint32 old_part_id)
+                                     const uchar *old_data, uchar *new_data)
 {
   NdbTransaction *trans= m_thd_ndb->trans;
   int error;
@@ -5691,7 +5690,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
    */  
   if (pk_update || old_part_id != new_part_id)
   {
-    DBUG_RETURN(ndb_pk_update_row(thd, old_data, new_data, old_part_id));
+    DBUG_RETURN(ndb_pk_update_row(thd, old_data, new_data));
   }
   /*
     If we are updating a unique key with auto_increment
