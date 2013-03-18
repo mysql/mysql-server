@@ -8122,9 +8122,10 @@ ha_innobase::info_low(
 
 			prebuilt->trx->op_info = "updating table statistics";
 
-			dict_update_statistics(ib_table,
-					       FALSE /* update even if stats
-						     are initialized */);
+			dict_update_statistics(
+				ib_table,
+				FALSE, /* update even if initialized */
+				FALSE /* update even if not changed too much */);
 
 			prebuilt->trx->op_info = "returning various info to MySQL";
 		}

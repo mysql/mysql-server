@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -962,17 +962,12 @@ row_update_statistics_if_needed(
 
 	table->stat_modified_counter = counter + 1;
 
-	/* Calculate new statistics if 1 / 16 of table has been modified
-	since the last time a statistics batch was run, or if
-	stat_modified_counter > 2 000 000 000 (to avoid wrap-around).
-	We calculate statistics at most every 16th round, since we may have
-	a counter table which is very small and updated very often. */
+	if (DICT_TABLE_CHANGED_TOO_MUCH(table)) {
 
-	if (counter > 2000000000
-	    || ((ib_int64_t)counter > 16 + table->stat_n_rows / 16)) {
-
-		dict_update_statistics(table, FALSE /* update even if stats
-						    are initialized */);
+		dict_update_statistics(
+			table,
+			FALSE, /* update even if stats are initialized */
+			TRUE /* only update if stats changed too much */);
 	}
 }
 
@@ -3050,8 +3045,10 @@ next_rec:
 	dict_table_autoinc_lock(table);
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
-	dict_update_statistics(table, FALSE /* update even if stats are
-					    initialized */);
+	dict_update_statistics(
+		table,
+		FALSE, /* update even if stats are initialized */
+		FALSE /* update even if not changed too much */);
 
 	trx_commit_for_mysql(trx);
 
