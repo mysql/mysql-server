@@ -97,8 +97,7 @@ var configWizardPages = {
                     gutters='false'>\
                 <div dojoType='dijit.layout.ContentPane' region='top'\
                         class='content-tab-top-panel'>\
-                    <span class='content-tab-title'>Cluster Type \
-                            and SSH Credentials<br></span>\
+                    <h2>Cluster Type and SSH Credentials</h2>\
                     <span class='content-tab-sub-title'>MySQL Cluster is able \
                             to operate in various configurations. Please \
                             specify the settings below to define the right \
@@ -115,22 +114,22 @@ var configWizardPages = {
                     </div>\
                     <div id='clusterDetails'>\
                         <table border='0' width='100%'>\
-                        <tr><td style='width:30%;'>Cluster name \
+                        <tr><td style='width:30%;'><label for='cd_name'>Cluster name</label> \
                             <span class='helpIcon' id='cd_name_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='cd_name'></div>\
                             </td></tr>\
-                        <tr><td style='width:30%;'>Host list \
+                        <tr><td style='width:30%;'><label for='cd_hosts'>Host list</label> \
                             <span class='helpIcon' id='cd_hosts_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='cd_hosts'></div>\
                             </td></tr>\
-                        <tr><td style='width:30%;'>Application area \
+                        <tr><td style='width:30%;'><label for='cd_apparea'>Application area</label> \
                             <span class='helpIcon' id='cd_apparea_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='cd_apparea'></div>\
                             </td></tr>\
-                        <tr><td style='width:30%;'>Write load \
+                        <tr><td style='width:30%;'><label for='cd_writeload'>Write load</label> \
                             <span class='helpIcon' id='cd_writeload_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='cd_writeload'></div>\
@@ -141,17 +140,17 @@ var configWizardPages = {
                     </div>\
                     <div id='sshDetails'>\
                         <table border='0' width='100%'>\
-                        <tr><td style='width:30%;'>Key based SSH\
+                        <tr><td style='width:30%;'><label for='sd_keybased'>Key based SSH</label>\
                             <span class='helpIcon' id='sd_keybased_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='sd_keybased'></div>\
                             </td></tr>\
-                        <tr><td style='width:30%;'>User name\
+                        <tr><td style='width:30%;'><label for='sd_user'>User name</label>\
                             <span class='helpIcon' id='sd_user_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='sd_user'></div>\
                             </td></tr>\
-                        <tr><td style='width:30%;'>Password\
+                        <tr><td style='width:30%;'><label for='sd_pwd'>Password</label>\
                             <span class='helpIcon' id='sd_pwd_qm'>[?]\
                             </span></td>\
                             <td width='70%'><div id='sd_pwd'></div>\
@@ -199,8 +198,7 @@ var configWizardPages = {
                     gutters='false'>\
                 <div dojoType='dijit.layout.ContentPane' region='top'\
                         class='content-main-top-panel'>\
-                    <span class='content-tab-title'>Select and Edit Hosts<br>\
-                    </span>\
+                    <h2>Select and Edit Hosts</h2>\
                     <span class='content-tab-sub-title'>MySQL Cluster can \
                             be deployed on several hosts. Please select the \
                             desired hosts by pressing the <i>Add host</i> \
@@ -248,8 +246,7 @@ var configWizardPages = {
         content: "\
             <div dojoType='dijit.layout.BorderContainer' gutters='false'>\
                 <div dojoType='dijit.layout.ContentPane' region='top'>\
-                    <span class='content-tab-title'>Define Processes \
-                            and Cluster Topology<br></span>\
+                    <h2>Define Processes and Cluster Topology</h2>\
                     <span class='content-tab-sub-title'>Various processes may \
                             be part of a MySQL Cluster configuration. Please \
                             refer to the <a href='\
@@ -359,8 +356,7 @@ http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
         content: "\
             <div dojoType='dijit.layout.BorderContainer' gutters='false'>\
                 <div dojoType='dijit.layout.ContentPane' region='top'>\
-                    <span class='content-tab-title'>Define Processes \
-                            Parameters<br></span>\
+                    <h2>Define Processes Parameters</h2>\
                     <span class='content-tab-sub-title'>The processes in your \
                             MySQL Cluster configuration can be tuned by setting\
                             a number of configuration parameters. Please refer \
@@ -410,7 +406,7 @@ http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
                                         region='bottom' style='height: 28px;'>\
                                     <span>\
                                         <div id='advancedModeBox'></div>\
-                                        Show advanced configuration options\
+                                        <label for='advancedModeBox'>Show advanced configuration options</label>\
                                     </span>\
                                 </div>\
                             </div>\
@@ -482,8 +478,7 @@ http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
         content: "\
             <div dojoType='dijit.layout.BorderContainer' gutters='false'>\
                 <div dojoType='dijit.layout.ContentPane' region='top'>\
-                    <span class='content-tab-title'>Deploy Configuration \
-                            and start MySQL Cluster<br></span>\
+                    <h2>Deploy Configuration and start MySQL Cluster</h2>\
                     <span class='content-tab-sub-title'>Your \
                             MySQL Cluster configuration can be reviewed \
                             below. To the left are the processes you have \

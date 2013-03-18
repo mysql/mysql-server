@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 -->
-<html dir="ltr">
+<html dir="ltr" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
         <title>MySQL Cluster</title>
@@ -28,9 +28,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
         <link rel="stylesheet" type="text/css" 
                 href="dojo/dojox/grid/resources/claroGrid.css"/>
 
-        <script src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+        <script  type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
 
-        <script>
+        <script  type="text/javascript">
             // Path to top level mcc module
             dojo.registerModulePath("mcc", "../../js/mcc");
 
@@ -55,58 +55,28 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
         </script>
     </head>
     <body class="claro">
-        <!-- Sidepanels -->
+        <!-- Side panels -->
         <div id="panel-main-bottom"></div>
         <div id="panel-main-left">
-            <span><img src="img/content-panel-main-left-top.png" width="11"
+            <span><img alt="Left top" src="img/content-panel-main-left-top.png" width="11"
                 height="108" />
             </span>
-            <img src="img/content-panel-main-left-bottom.png" 
+            <img  alt="Left bottom" src="img/content-panel-main-left-bottom.png" 
                 width="11" height="12" id="panel-main-img-bottom" />
         </div>
         <div id="panel-main-right">
-            <span><img src="img/content-panel-main-right-top.png" width="11"
+            <span><img alt="Right top" src="img/content-panel-main-right-top.png" width="11"
                 height="108" />
             </span>
-            <img src="img/content-panel-main-right-bottom.png" width="11" 
+            <img alt="Right bottom" src="img/content-panel-main-right-bottom.png" width="11" 
                 height="12" id="panel-main-img-bottom" />
         </div>
 
         <!-- Title left and right -->
         <div id="title" class="title">
-            <img src="img/content-title.png" width="262" height="14" />
+            <img alt="Oracle logo" src="img/content-title.png" width="262" height="14" />
             <span></span>
         </div>
-        <!-- <div id="title-right" class="title">
-            <span>Exit&nbsp;</span>
-            <img src="img/content-title-o-logo.png" width="23" height="23" />
-        </div>-->
-
-        <!-- Main Menu bar -->
-        <!-- <div id="menu">
-            <div id="menu-enterprise" class="menu"><a href="#menu-enterprise">
-                <img src="img/content-header-enterprise.png" 
-                    width="17" height="16" />
-                <span>Enterprise</span>
-                <img src="img/content-header-dropdown-btn.png" 
-                    width="12" height="12" /></a>
-            </div>
-            <div id="menu-history" class="menu"><a href="#menu-history">
-                <img src="img/content-header-history.png" 
-                    width="16" height="16" />
-                <span>History</span>
-                <img src="img/content-header-dropdown-btn.png" 
-                    width="12" height="12" /></a>
-            </div>
-        </div>
-        <div id="menu-right" class="menu">
-            <span>Search Documentation</span>
-            <span><input id="doc-search"></span>
-                <a href="#do-search">
-                    <img src="img/content-header-search-btn.png" 
-                        width="18" height="17" />
-                </a>
-        </div>-->
 
         <!-- Main container -->
         <div id="content-main">
@@ -163,7 +133,6 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                 onClick="mcc.gui.lastPage">Finish
             </span>
         </div>
-
     </body>
 </html>
 
