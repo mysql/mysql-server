@@ -26,6 +26,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
+    PooledBuffer  = require("./PooledBuffer.js"),
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -34,7 +35,6 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     constants     = adapter.impl,
     OpHelper      = constants.OpHelper,
     opcodes       = doc.OperationCodes,
-    helperSpec    = new Array(constants.HELPER_ARRAY_SIZE),
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -98,7 +98,7 @@ var DBOperation = function(opcode, tx, tableHandler) {
 
 function HelperSpec() {
   this.clear();
-};
+}
 
 HelperSpec.prototype.clear = function() {
   this[OpHelper.row_buffer]  = null;
@@ -107,7 +107,7 @@ HelperSpec.prototype.clear = function() {
   this[OpHelper.key_record]  = null;
   this[OpHelper.lock_mode]   = null;
   this[OpHelper.column_mask] = null;
-}
+};
 
 var helperSpec = new HelperSpec();
 
@@ -184,7 +184,8 @@ function encodeKeyBuffer(indexHandler, op, keys) {
                    ]);
 
   record = op.index.record;
-  op.buffers.key = new Buffer(record.getBufferSize());
+  //op.buffers.key = new Buffer(record.getBufferSize());
+  op.buffers.key = PooledBuffer.get(record.getBufferSize());
 
   nfields = indexHandler.getMappedFieldCount();
   col = indexHandler.getColumnMetadata();
@@ -214,7 +215,8 @@ function encodeRowBuffer(op) {
   var col = op.tableHandler.getColumnMetadata();
   
   // do this earlier? 
-  op.buffers.row = new Buffer(row_buffer_size);
+  // op.buffers.row = new Buffer(row_buffer_size);
+  op.buffers.row = PooledBuffer.get(row_buffer_size);
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
@@ -308,6 +310,10 @@ function buildOperationResult(transactionHandler, op, execMode) {
     if(op.result.success && op.opcode === opcodes.OP_READ) {
       readResultRow(op);
     } 
+    
+    /* Buffers can be released */
+    PooledBuffer.release(op.buffers.row);
+    PooledBuffer.release(op.buffers.key);
   }
   stats.incr( [ "result_code", result_code ] );
   udebug.log_detail("buildOperationResult finished:", op.result);
@@ -349,7 +355,8 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   encodeKeyBuffer(dbIndexHandler, op, keys);  
 
   /* The row buffer for a read must be allocated here, before execution */
-  op.buffers.row = new Buffer(record.getBufferSize());
+  //op.buffers.row = new Buffer(record.getBufferSize());
+  op.buffers.row = PooledBuffer.get(record.getBufferSize());
   return op;
 }
 
