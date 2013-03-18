@@ -226,8 +226,15 @@ h1 {
   font-weight: bold;
 }
 
+h2 {
+  color: #074260;
+  font-size: 14px;
+  font-weight: bold;
+  padding: 0;
+  margin: 0;
+}
+
 .content-tab-sub-title {
-  color: #838383;
   font-size: 11px;
 }
 
@@ -388,7 +395,7 @@ h1 {
 /************************** Tooltip question mark *****************************/
 
 .helpIcon {
-    color: orange;
+    color: #074260;
 }
 
 /****************************** Various icons *********************************/

@@ -1,5 +1,5 @@
 /*
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -104,7 +104,9 @@ function tableRow(prefix, label, url, attribute, tooltip) {
     return "<tr style=\"" + (backgroundColor?"background-color: #f4f6f8" : "") +
            "; \"><td width=\"28%\">" + 
            (url ? 
-               "<a href=\"" + url + "\" target=\"_blank\">" + label + "</a>" : 
+               "<a href=\"" + url + "\" target=\"_blank\">" + 
+               "<label for='" + prefix + attribute + "'>" + label + "</label>" +
+               "</a>" : 
                label) + "\
                 <span class='helpIcon' id=\"" + prefix + attribute + "_qm\">\
                     " + (tooltip ? "[?]" : "") + "\

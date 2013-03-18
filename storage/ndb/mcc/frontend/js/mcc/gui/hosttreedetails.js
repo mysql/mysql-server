@@ -138,7 +138,7 @@ function processSelectionDetailsSetup() {
     dijit.byId("processDetails").setContent("\
         <div style=\"height: 20px;\">\
             <span style=\"width: 38%; \">\
-                Process name\
+                <label for='pd_name'>Process name</label>\
                 <span class='helpIcon' id='pd_name_qm'>\
                     [?]\
                 </span>\
@@ -149,7 +149,7 @@ function processSelectionDetailsSetup() {
         </div>\
         <div style=\"height: 20px;\">\
             <span style=\"width: 38%; \">\
-                Process type\
+                <label for='pd_types'>Process type</label>\
                 <span class='helpIcon' id='pd_types_qm'>\
                     [?]\
                 </span>\
