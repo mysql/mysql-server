@@ -2315,7 +2315,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   TABLE *table;
   /* Buffer should be extended when password length is extended. */
   char buff[512];
-  ulong query_length;
+  ulong query_length= 0;
   bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
