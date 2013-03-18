@@ -7,7 +7,7 @@
 # transaction is not supported by gtid-mode=ON.
 --source include/not_gtid_enabled.inc
 
-#--source include/have_myisam.inc
+#--source include/force_myisam_default.inc
 --let $engine_type_nontrans= MyISAM
 --source include/have_innodb.inc
 --let $engine_type= InnoDB

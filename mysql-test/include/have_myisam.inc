@@ -1,2 +1,2 @@
-#This file is intentionally left empty as myisam is always available.
-#The inclusion of this file is to support tests that run with MyISAM engine.
+# This file is intentionally left empty 
+# but may be filled with a test for myisam
