@@ -7900,10 +7900,12 @@ void THD::binlog_prepare_row_images(TABLE *table)
 
   /** 
     if there is a primary key in the table (ie, user declared PK or a
-    non-null unique index) and we dont want to ship the entire image.
+    non-null unique index) and we dont want to ship the entire image,
+    and the handler involved supports this.
    */
   if (table->s->primary_key < MAX_KEY &&
-      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL))
+      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL) &&
+      !ha_check_storage_engine_flag(table->s->db_type(), HTON_NO_BINLOG_ROW_OPT))
   {
     /**
       Just to be sure that tmp_set is currently not in use as
