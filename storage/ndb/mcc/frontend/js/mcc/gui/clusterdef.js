@@ -257,7 +257,7 @@ function clusterDefinitionSetup() {
         {
             name: 'Value',
             width: '70%'
-        }],
+        }]
     }, "clusterDetailsHeader");
     clusterDetailsHeader.startup();
 
@@ -271,7 +271,7 @@ function clusterDefinitionSetup() {
         {
             name: 'Value',
             width: '70%'
-        }],
+        }]
     }, "sshDetailsHeader");
     sshDetailsHeader.startup();
 

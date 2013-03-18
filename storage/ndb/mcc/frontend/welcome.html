@@ -1,6 +1,6 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
 <!--
-Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 -->
-<html dir="ltr">
+<html dir="ltr" lang="en">
     <head>
         <meta http-equiv="Content-Type" content="text/html;charset=iso-8859-1"/>
         <title>MySQL Cluster</title>
@@ -24,9 +24,9 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                 href="dojo/dijit/themes/claro/claro.css"/>
         <link rel="stylesheet" type="text/css" href="css/welcome.css"/>
 
-        <script src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+        <script type="text/javascript" src="dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
 
-        <script>
+        <script type="text/javascript">
             // Path to top level mcc module
             dojo.registerModulePath("mcc", "../../js/mcc");
 
@@ -39,16 +39,17 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
     </head>
     <body class="claro">
         <!-- Welcome title image -->
-        <div id="title"><img src="img/welcome-title.png"></div>
+        <div id="title"><img alt="Oracle logo" src="img/welcome-title.png"></div>
 
         <!-- Big MySQL Logo image in the background -->
-        <div id="mysql-logo"><img src="img/welcome-mysql-logo.png"></div>
+        <div id="mysql-logo"><img alt="MySQL logo" src="img/welcome-mysql-logo.png"></div>
         
         <!-- Configuration box: Start from scratch or continue -->
-        <div id="configure-box-wrapper"><div id="configure-box"><table>
-            <tr><td colspan="2" class="configure-item">
+        <div id="configure-box-wrapper"><div id="configure-box">
+          <table summary="Options for starting configuration tool">
+            <tr><th colspan="2" scope="col" class="configure-item">
                 <h2>Welcome to MySQL Cluster</h2>
-            </td></tr>
+            </th></tr>
             <tr><td colspan="2" class="configure-item-subtext">
                 This tool will aid cluster configuration. Please select an 
                 option below by clicking the appropriate icon.
@@ -62,7 +63,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                     id="createNewCluster"
                     data-dojo-type="dijit.form.Button" 
                     data-dojo-props="baseClass: 'iconButton', iconClass: 
-                        'newClusterIcon', showLabel: false" 
+                        'newClusterIcon', showLabel: false, 
+                        label: 'Create New MySQL Cluster'" 
                     type="button" 
                     onCLick="mcc.util.resetCookies(); 
                         window.open('content.html', '_self')">
@@ -82,7 +84,8 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                     id="continueExistingCluster"
                     data-dojo-type="dijit.form.Button" 
                     data-dojo-props="baseClass: 'iconButton', iconClass: 
-                        'continueClusterIcon', showLabel: false" 
+                        'continueClusterIcon', showLabel: false,
+                        label: 'Continue Previous Cluster Configuration'" 
                     type="button" onCLick="window.open('content.html', '_self')">
                     Continue Previous Cluster Configuration</button>
                 </td>
@@ -92,53 +95,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
                 </td>
             </tr>
             <tr><td colspan="2" class="configure-item-sep"></td></tr>
-        </table></div>
-
-        <!-- Content links -->
-        <div id="content-links"><table>
-            <!-- <tr class="content-links-header">
-                <td colspan="2">About MySQL</td>
-                <td colspan="2">MySQL Cluster</td>
-                <td>Resources</td>
-            </tr>
-            <tr>
-                <td>
-                    <p>MySQL Enterprise Edition Product Guide</p>
-                    <p>White Papers and Case Studies</p>
-                    <p>Get Started with MySQL</p>
-                    <p>MySQL for Telecom and Communications</p>
-                    <p>MySQL for Developers</p>
-                </td>
-                <td class="content-links-sep">
-                    <img src="img/vertical-separator.png">
-                </td>
-                <td>
-                    <p>MySQL Enterprise Edition Product Guide</p>
-                    <p>White Papers and Case Studies</p>
-                    <p>Get Started with MySQL</p>
-                    <p>MySQL for Telecom and Communications</p>
-                    <p>MySQL for Developers</p>
-                </td>
-                <td class="content-links-sep">
-                    <img src="img/vertical-separator.png">
-                </td>
-                <td>
-                    <p>MySQL Enterprise Edition Product Guide</p>
-                    <p>White Papers and Case Studies</p>
-                    <p>Get Started with MySQL</p>
-                    <p>MySQL for Telecom and Communications</p>
-                    <p>MySQL for Developers</p>
-                </td>
-            </tr>
-            <tr>
-                <td id="content-links-footer" colspan="5"><br><br>
-                    Copyright &copy; 2012, Oracle and/or its affiliates. All 
-                    rights reserved. Oracle is a registered trademark of Oracle 
-                    Corporation and/or its affiliates.. Other names may be 
-                    trademarks of their respective owners.
-                </td>
-            </tr>-->
-        </table></div>
+        </table></div></div>
     </body>
 </html>
 
