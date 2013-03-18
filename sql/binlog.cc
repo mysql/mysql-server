@@ -5021,6 +5021,8 @@ void MYSQL_BIN_LOG::purge()
   {
     DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    DBUG_EXECUTE_IF("expire_logs_always",
+                    { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
       purge_logs_before_date(purge_time);
