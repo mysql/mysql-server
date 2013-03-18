@@ -243,7 +243,7 @@ CREATE TABLE t1(a enum('a','b','c','d'));
 INSERT INTO t1 VALUES (4),(1),(0),(3);
 
 SELECT a FROM t1;
-
+--replace_result 5 4 3 4
 EXPLAIN SELECT a FROM t1 WHERE a=0;
 SELECT a FROM t1 WHERE a=0;
 

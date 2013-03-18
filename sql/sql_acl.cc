@@ -2315,7 +2315,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   TABLE *table;
   /* Buffer should be extended when password length is extended. */
   char buff[512];
-  ulong query_length;
+  ulong query_length= 0;
   bool save_binlog_row_based;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
@@ -7052,7 +7052,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     elements= acl_proxy_users.elements;
     break;
   default:
-    return -1;
+    DBUG_RETURN(-1);
   }
 
 #ifdef EXTRA_DEBUG

@@ -472,34 +472,35 @@ buf_flush_ready_for_replace(
 }
 
 /********************************************************************//**
-Returns TRUE if the block is modified and ready for flushing.
-@return	TRUE if can flush immediately */
-UNIV_INLINE
-ibool
+Returns true if the block is modified and ready for flushing.
+@return	true if can flush immediately */
+UNIV_INTERN
+bool
 buf_flush_ready_for_flush(
 /*======================*/
 	buf_page_t*	bpage,	/*!< in: buffer control block, must be
 				buf_page_in_file(bpage) */
-	enum buf_flush	flush_type)/*!< in: type of flush */
+	buf_flush_t	flush_type)/*!< in: type of flush */
 {
 #ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-#endif
+#endif /* UNIV_DEBUG */
+
 	ut_a(buf_page_in_file(bpage));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 	ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 
 	if (bpage->oldest_modification == 0
 	    || buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-		return(FALSE);
+		return(false);
 	}
 
 	ut_ad(bpage->in_flush_list);
 
 	switch (flush_type) {
 	case BUF_FLUSH_LIST:
-		return(TRUE);
+		return(true);
 
 	case BUF_FLUSH_LRU:
 	case BUF_FLUSH_SINGLE_PAGE:
@@ -515,7 +516,7 @@ buf_flush_ready_for_flush(
 	}
 
 	ut_error;
-	return(FALSE);
+	return(false);
 }
 
 /********************************************************************//**
@@ -658,7 +659,7 @@ buf_flush_write_complete(
 /*=====================*/
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
-	enum buf_flush	flush_type;
+	buf_flush_t	flush_type;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(bpage);
@@ -853,7 +854,7 @@ void
 buf_flush_write_block_low(
 /*======================*/
 	buf_page_t*	bpage,		/*!< in: buffer block to write */
-	enum buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush_t	flush_type)	/*!< in: type of flush */
 {
 	ulint	zip_size	= buf_page_get_zip_size(bpage);
 	page_t*	frame		= NULL;
@@ -954,7 +955,7 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush_t	flush_type)	/*!< in: type of flush */
 {
 	ib_mutex_t*	block_mutex;
 	ibool		is_uncompressed;
@@ -1098,7 +1099,7 @@ buf_flush_check_neighbor(
 /*=====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU or
+	buf_flush_t	flush_type)	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
 {
 	buf_page_t*	bpage;
@@ -1148,7 +1149,7 @@ buf_flush_try_neighbors(
 /*====================*/
 	ulint		space,		/*!< in: space id */
 	ulint		offset,		/*!< in: page offset */
-	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
+	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST */
 	ulint		n_flushed,	/*!< in: number of pages
 					flushed so far in this batch */
@@ -1306,7 +1307,7 @@ buf_flush_page_and_try_neighbors(
 	buf_page_t*	bpage,		/*!< in: buffer control block,
 					must be
 					buf_page_in_file(bpage) */
-	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 	ulint		n_to_flush,	/*!< in: number of pages to
 					flush */
@@ -1655,7 +1656,7 @@ ulint
 buf_flush_batch(
 /*============*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	enum buf_flush	flush_type,	/*!< in: BUF_FLUSH_LRU or
+	buf_flush_t	flush_type,	/*!< in: BUF_FLUSH_LRU or
 					BUF_FLUSH_LIST; if BUF_FLUSH_LIST,
 					then the caller must not own any
 					latches on pages */
@@ -1711,7 +1712,7 @@ static
 void
 buf_flush_common(
 /*=============*/
-	enum buf_flush	flush_type,	/*!< in: type of flush */
+	buf_flush_t	flush_type,	/*!< in: type of flush */
 	ulint		page_count)	/*!< in: number of pages flushed */
 {
 	buf_dblwr_flush_buffered_writes();
@@ -1737,7 +1738,7 @@ ibool
 buf_flush_start(
 /*============*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	flush_type)	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 {
 	buf_pool_mutex_enter(buf_pool);
@@ -1766,7 +1767,7 @@ void
 buf_flush_end(
 /*==========*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	enum buf_flush	flush_type)	/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	flush_type)	/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 {
 	buf_pool_mutex_enter(buf_pool);
@@ -1792,7 +1793,7 @@ void
 buf_flush_wait_batch_end(
 /*=====================*/
 	buf_pool_t*	buf_pool,	/*!< buffer pool instance */
-	enum buf_flush	type)		/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	type)		/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 {
 	ut_ad(type == BUF_FLUSH_LRU || type == BUF_FLUSH_LIST);
