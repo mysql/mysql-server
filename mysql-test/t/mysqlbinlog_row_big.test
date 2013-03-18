@@ -1,7 +1,7 @@
 # The include statement below is a temp one for tests that are yet to
 #be ported to run with InnoDB,
 #but needs to be kept for tests that would need MyISAM in future.
---source include/have_myisam.inc
+--source include/force_myisam_default.inc
 
 # mysqlbinlog_big.test
 #
@@ -14,7 +14,7 @@
 #
 --let $mysqlbinlog_output= tmp/mysqlbinlog_big_1.out
 
-#--source include/have_myisam.inc
+#--source include/force_myisam_default.inc
 --let $engine_type= MyISAM
 
 #
