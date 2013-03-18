@@ -4653,7 +4653,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
               quote_for_like(old_table_name, show_name_buff));
 
   if (mysql_query_with_error_report(mysql, 0, query))
-    return NullS;
+    DBUG_RETURN(NullS);
 
   if ((table_res= mysql_store_result(mysql)))
   {

@@ -5429,7 +5429,6 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
-#ifdef HAVE_NDB_BINLOG
 
 int ha_reset_logs(THD *thd)
 {
@@ -5505,7 +5504,6 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
   else
     binlog_log_query_handlerton2(thd, hton, &b);
 }
-#endif
 
 int ha_binlog_end(THD* thd)
 {

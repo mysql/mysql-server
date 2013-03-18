@@ -2603,7 +2603,7 @@ void var_set_convert_error(struct st_command *command,VAR *var)
   char *first=command->query;
   const char *err_name;
     
-  DBUG_ENTER("var_set_query_get_value");
+  DBUG_ENTER("var_set_convert_error");
 
   DBUG_PRINT("info", ("query: %s", command->query));
 
@@ -4440,7 +4440,6 @@ int do_save_master_pos()
   const char *query;
   DBUG_ENTER("do_save_master_pos");
 
-#ifdef HAVE_NDB_BINLOG
   /*
     Wait for ndb binlog to be up-to-date with all changes
     done on the local mysql server
@@ -4537,7 +4536,7 @@ int do_save_master_pos()
       }
     }
   }
-#endif
+
   if (mysql_query(mysql, query= "show master status"))
     die("failed in 'show master status': %d %s",
 	mysql_errno(mysql), mysql_error(mysql));
