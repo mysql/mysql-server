@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -560,7 +560,7 @@ static uchar *read_buffpek_from_file(IO_CACHE *buffpek_pointers, uint count,
   uchar *tmp= buf;
   DBUG_ENTER("read_buffpek_from_file");
   if (count > UINT_MAX/sizeof(BUFFPEK))
-    return 0; /* sizeof(BUFFPEK)*count will overflow */
+    DBUG_RETURN(0); /* sizeof(BUFFPEK)*count will overflow */
   if (!tmp)
     tmp= (uchar *)my_malloc(length, MYF(MY_WME));
   if (tmp)
