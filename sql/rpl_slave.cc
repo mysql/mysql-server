@@ -5622,6 +5622,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   if (rli->recovery_groups_inited)
   {
     bitmap_free(&rli->recovery_groups);
+    rli->mts_recovery_group_cnt= 0;
     rli->recovery_groups_inited= false;
   }
 
