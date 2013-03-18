@@ -3017,7 +3017,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
     memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, 4);
+    int8store(ptr_buffer, 4LL);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
     int4store(ptr_buffer, encoded_data_size);
@@ -5634,6 +5634,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   if (rli->recovery_groups_inited)
   {
     bitmap_free(&rli->recovery_groups);
+    rli->mts_recovery_group_cnt= 0;
     rli->recovery_groups_inited= false;
   }
 
