@@ -164,6 +164,8 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       this.ndbop = helper.deleteTuple(ndbTransaction);
       break;
   }
+
+  helper.close();
   this.state = doc.OperationStates[1];  // PREPARED
 };
 
@@ -184,8 +186,8 @@ function encodeKeyBuffer(indexHandler, op, keys) {
                    ]);
 
   record = op.index.record;
-  //op.buffers.key = new Buffer(record.getBufferSize());
-  op.buffers.key = PooledBuffer.get(record.getBufferSize());
+  op.buffers.key = new Buffer(record.getBufferSize());
+  //op.buffers.key = PooledBuffer.get(record.getBufferSize());
 
   nfields = indexHandler.getMappedFieldCount();
   col = indexHandler.getColumnMetadata();
@@ -215,8 +217,8 @@ function encodeRowBuffer(op) {
   var col = op.tableHandler.getColumnMetadata();
   
   // do this earlier? 
-  // op.buffers.row = new Buffer(row_buffer_size);
-  op.buffers.row = PooledBuffer.get(row_buffer_size);
+  op.buffers.row = new Buffer(row_buffer_size);
+  //op.buffers.row = PooledBuffer.get(row_buffer_size);
   
   for(i = 0 ; i < nfields ; i++) {  
     value = op.tableHandler.get(op.values, i);
@@ -312,8 +314,8 @@ function buildOperationResult(transactionHandler, op, execMode) {
     } 
     
     /* Buffers can be released */
-    PooledBuffer.release(op.buffers.row);
-    PooledBuffer.release(op.buffers.key);
+    //PooledBuffer.release(op.buffers.row);
+    //PooledBuffer.release(op.buffers.key);
   }
   stats.incr( [ "result_code", result_code ] );
   udebug.log_detail("buildOperationResult finished:", op.result);
