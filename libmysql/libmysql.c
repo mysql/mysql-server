@@ -4321,7 +4321,27 @@ int cli_read_binary_rows(MYSQL_STMT *stmt)
       /* end of data */
       *prev_ptr= 0;
       mysql->warning_count= uint2korr(cp+1);
-      mysql->server_status= uint2korr(cp+3);
+      /*
+        OUT parameters result sets has SERVER_PS_OUT_PARAMS and
+        SERVER_MORE_RESULTS_EXISTS flags in first EOF_Packet only.
+        Last EOF_Packet of OUT parameters result sets have no
+        SERVER_MORE_RESULTS_EXISTS flag as described here:
+        http://dev.mysql.com/doc/internals/en/stored-procedures.html#out-parameter-set
+        Following code reads last EOF_Packet of result set and can clear
+        those flags in server_status if we don't preserve them.
+        Without SERVER_MORE_RESULTS_EXISTS flag mysql_stmt_next_result fails
+        to read OK_Packet after OUT parameters result set.
+        So we need to preserve SERVER_MORE_RESULTS_EXISTS flag for OUT
+        parameters result set.
+      */
+      if (mysql->server_status & SERVER_PS_OUT_PARAMS)
+      {
+        mysql->server_status= uint2korr(cp+3)
+          | SERVER_PS_OUT_PARAMS
+          | (mysql->server_status & SERVER_MORE_RESULTS_EXISTS);
+      }
+      else
+        mysql->server_status= uint2korr(cp+3);
       DBUG_PRINT("info",("status: %u  warning_count: %u",
                          mysql->server_status, mysql->warning_count));
       DBUG_RETURN(0);
