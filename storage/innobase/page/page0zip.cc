@@ -24,6 +24,9 @@ Compressed page interface
 Created June 2005 by Marko Makela
 *******************************************************/
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+
 #include <map>
 #include <algorithm>
 
