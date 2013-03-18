@@ -260,11 +260,11 @@ exports.getLogger = function(filename) {
   var theLogger = new Logger();
   theLogger.file_level = presetPerFileLevel[filename] || UDEB_URGENT;
 
-  theLogger.log_urgent     = makeLogFunction(UDEB_URGENT);
-  theLogger.log_notice     = makeLogFunction(UDEB_NOTICE);
-  theLogger.log_info       = makeLogFunction(UDEB_INFO);
-  theLogger.log_debug      = makeLogFunction(UDEB_DEBUG);
-  theLogger.log_detail     = makeLogFunction(UDEB_DETAIL);
+  theLogger.log_urgent     = makeLogFunction(1);
+  theLogger.log_notice     = makeLogFunction(2);
+  theLogger.log_info       = makeLogFunction(3);
+  theLogger.log_debug      = makeLogFunction(4);
+  theLogger.log_detail     = makeLogFunction(5);
   theLogger.log            = theLogger.log_debug;
   
   fileLoggers[filename] = theLogger;
