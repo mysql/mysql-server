@@ -2233,37 +2233,14 @@ String *Item_func_elt::val_str(String *str)
 }
 
 
-void Item_func_make_set::split_sum_func(THD *thd, Item **ref_pointer_array,
-					List<Item> &fields)
-{
-  item->split_sum_func2(thd, ref_pointer_array, fields, &item, TRUE);
-  Item_str_func::split_sum_func(thd, ref_pointer_array, fields);
-}
-
-
 void Item_func_make_set::fix_length_and_dec()
 {
-  max_length=arg_count-1;
-
-  if (agg_arg_charsets(collation, args, arg_count, MY_COLL_ALLOW_CONV, 1))
+  if (agg_arg_charsets(collation, args+1, arg_count-1, MY_COLL_ALLOW_CONV, 1))
     return;
   
-  for (uint i=0 ; i < arg_count ; i++)
+  max_length=arg_count-2;
+  for (uint i=1 ; i < arg_count ; i++)
     max_length+=args[i]->max_length;
-
-  used_tables_cache|=	  item->used_tables();
-  not_null_tables_cache&= item->not_null_tables();
-  const_item_cache&=	  item->const_item();
-  with_sum_func= with_sum_func || item->with_sum_func;
-}
-
-
-void Item_func_make_set::update_used_tables()
-{
-  Item_func::update_used_tables();
-  item->update_used_tables();
-  used_tables_cache|=item->used_tables();
-  const_item_cache&=item->const_item();
 }
 
 
@@ -2272,15 +2249,15 @@ String *Item_func_make_set::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   ulonglong bits;
   bool first_found=0;
-  Item **ptr=args;
+  Item **ptr=args+1;
   String *result=&my_empty_string;
 
-  bits=item->val_int();
-  if ((null_value=item->null_value))
+  bits=args[0]->val_int();
+  if ((null_value=args[0]->null_value))
     return NULL;
 
-  if (arg_count < 64)
-    bits &= ((ulonglong) 1 << arg_count)-1;
+  if (arg_count < 65)
+    bits &= ((ulonglong) 1 << (arg_count-1))-1;
 
   for (; bits; bits >>= 1, ptr++)
   {
@@ -2317,39 +2294,6 @@ String *Item_func_make_set::val_str(String *str)
     }
   }
   return result;
-}
-
-
-Item *Item_func_make_set::transform(Item_transformer transformer, uchar *arg)
-{
-  DBUG_ASSERT(!current_thd->is_stmt_prepare());
-
-  Item *new_item= item->transform(transformer, arg);
-  if (!new_item)
-    return 0;
-
-  /*
-    THD::change_item_tree() should be called only if the tree was
-    really transformed, i.e. when a new item has been created.
-    Otherwise we'll be allocating a lot of unnecessary memory for
-    change records at each execution.
-  */
-  if (item != new_item)
-    current_thd->change_item_tree(&item, new_item);
-  return Item_str_func::transform(transformer, arg);
-}
-
-
-void Item_func_make_set::print(String *str, enum_query_type query_type)
-{
-  str->append(STRING_WITH_LEN("make_set("));
-  item->print(str, query_type);
-  if (arg_count)
-  {
-    str->append(',');
-    print_args(str, 0, query_type);
-  }
-  str->append(')');
 }
 
 

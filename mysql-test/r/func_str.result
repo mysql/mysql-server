@@ -2646,4 +2646,11 @@ NULL
 SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
 LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?')
 NULL
+create table t1 (i int);
+insert into t1 values (null),(8);
+select group_concat( i ), make_set( i, 'a', 'b' ) field from t1 group by field;
+group_concat( i )	field
+NULL	NULL
+8	
+drop table t1;
 End of 5.1 tests
