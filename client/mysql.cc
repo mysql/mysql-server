@@ -2038,7 +2038,7 @@ static int read_and_execute(bool interactive)
   String buffer;
 #endif
 
-  char	*line;
+  char	*line= NULL;
   char	in_string=0;
   ulong line_number=0;
   bool ml_comment= 0;  
@@ -2124,6 +2124,11 @@ static int read_and_execute(bool interactive)
 #else
       if (opt_outfile)
 	fputs(prompt, OUTFILE);
+      /*
+        free the previous entered line.
+      */
+      if (line)
+        my_free(line);
       line= readline(prompt);
 #endif /* defined(__WIN__) */
 
@@ -2183,6 +2188,12 @@ static int read_and_execute(bool interactive)
 #if defined(__WIN__)
   buffer.free();
   tmpbuf.free();
+#else
+  if (interactive)
+    /*
+      free the last entered line.
+    */
+    my_free(line);
 #endif
 
   /*
