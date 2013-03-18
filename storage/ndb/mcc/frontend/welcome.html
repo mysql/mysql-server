@@ -35,6 +35,25 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
             // Dojo widgets immediately required
             dojo.require("dijit.form.Button");
+            
+            // Check browser type
+            dojo.ready(function() {
+                var supportedUa = navigator.userAgent.match(/firefox|chrome|msie/gi);
+
+                mcc.util.dbg("Browser application name is " + navigator.appName);
+                mcc.util.dbg("Browser application version is " + navigator.appVersion);
+                mcc.util.dbg("User agent string is: " + navigator.userAgent);
+                mcc.util.dbg("User agent " + supportedUa + " is supported"); 
+                
+                if (!supportedUa) {
+                    alert("You seem to be using a " + navigator.appName + 
+                        " browser, which is currently not supported by the " +
+                        "MySQL Cluster configuration tool. You may choose to " +
+                        "continue anyway, but beware that the tool may not " +
+                        "work as intended.");
+                }
+            });
+
         </script>
     </head>
     <body class="claro">
