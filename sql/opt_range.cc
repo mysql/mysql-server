@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -671,6 +671,15 @@ public:
 
   /* Number of SEL_ARG objects allocated by SEL_ARG::clone_tree operations */
   uint alloced_sel_args; 
+
+  bool statement_should_be_aborted() const
+  {
+    return
+      thd->is_fatal_error ||
+      thd->is_error() ||
+      alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
+  }
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -5541,34 +5550,35 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
-      tree=0;
+      tree= NULL;
       Item *item;
       while ((item=li++))
       {
-	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error || 
-            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
-	  DBUG_RETURN(0);	// out of memory
-	tree=tree_and(param,tree,new_tree);
-	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
-	  break;
+        SEL_TREE *new_tree= get_mm_tree(param,item);
+        if (param->statement_should_be_aborted())
+          DBUG_RETURN(NULL);
+        tree= tree_and(param,tree,new_tree);
+        if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
+          break;
       }
     }
     else
-    {						// COND OR
-      tree=get_mm_tree(param,li++);
+    {                                           // COND OR
+      tree= get_mm_tree(param,li++);
+      if (param->statement_should_be_aborted())
+        DBUG_RETURN(NULL);
       if (tree)
       {
-	Item *item;
-	while ((item=li++))
-	{
-	  SEL_TREE *new_tree=get_mm_tree(param,item);
-	  if (!new_tree)
-	    DBUG_RETURN(0);	// out of memory
-	  tree=tree_or(param,tree,new_tree);
-	  if (!tree || tree->type == SEL_TREE::ALWAYS)
-	    break;
-	}
+        Item *item;
+        while ((item=li++))
+        {
+          SEL_TREE *new_tree=get_mm_tree(param,item);
+          if (new_tree == NULL || param->statement_should_be_aborted())
+            DBUG_RETURN(NULL);
+          tree= tree_or(param,tree,new_tree);
+          if (tree == NULL || tree->type == SEL_TREE::ALWAYS)
+            break;
+        }
       }
     }
     DBUG_RETURN(tree);
