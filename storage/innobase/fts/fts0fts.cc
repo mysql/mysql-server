@@ -2538,11 +2538,13 @@ fts_get_next_doc_id(
 
 		/* Otherwise, simply increment the value in cache */
 		mutex_enter(&cache->doc_id_lock);
-		++cache->next_doc_id;
+		*doc_id = ++cache->next_doc_id;
+		mutex_exit(&cache->doc_id_lock);
+	} else {
+		mutex_enter(&cache->doc_id_lock);
+		*doc_id = cache->next_doc_id;
 		mutex_exit(&cache->doc_id_lock);
 	}
-
-	*doc_id = cache->next_doc_id;
 
 	return(DB_SUCCESS);
 }

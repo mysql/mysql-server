@@ -1531,6 +1531,9 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
     
+    DBUG_EXECUTE_IF("test_sql_no_cache",
+                    DBUG_ASSERT(has_no_cache_directive(sql, i+6,
+                                                       query_length)););
     if (has_no_cache_directive(sql, i+6, query_length))
     {
       /*
@@ -1708,7 +1711,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->s->table_name.str));
         unlock();
         /*
           We should not store result of this query because it contain
