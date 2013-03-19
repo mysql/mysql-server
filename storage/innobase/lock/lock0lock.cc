@@ -699,7 +699,7 @@ lock_clust_rec_cons_read_sees(
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	/* Temp-tables are not shared accross connection and so multiple
+	/* Temp-tables are not shared across connections and multiple
 	transactions from different connections cannot simultaneously
 	operate on same temp-table and so read of temp-table is
 	always consistent read. */
@@ -748,7 +748,7 @@ lock_sec_rec_cons_read_sees(
 		return(false);
 	}
 
-	/* Temp-tables are not shared accross connection and so multiple
+	/* Temp-tables are not shared across connections and multiple
 	transactions from different connections cannot simultaneously
 	operate on same temp-table and so read of temp-table is
 	always consistent read. */
