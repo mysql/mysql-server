@@ -179,7 +179,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   function getAutoIncrementValues() {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
     if(autoIncHandler.values_needed > 0) {
-      udebug.log("execute getAutoIncrementValues");
+      udebug.log("execute getAutoIncrementValues", autoIncHandler.values_needed);
       autoIncHandler.getAllValues(prepareOperationsAndExecute);
     }
     else {
@@ -206,7 +206,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   }
 
   /* execute() starts here */
-  var table = dbOperationList[0].tableHandler.dbTable;
+  var table = null; 
 
   if(self.executedOperations.length) {  // Transaction has already been started
     assert(self.ndbtx);
@@ -214,6 +214,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   }
   else {
     if(ndbsession.txCanRunImmediately(self)) {
+      table = dbOperationList[0].tableHandler.dbTable;
       // TODO: partitionKey
       stats.incr(["start","immediate"]);
       var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
