@@ -972,12 +972,10 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
   const char *data= m_data;
   bool first_loop= 1;
 
-  if (no_data(data, 4))
+  if (no_data(data, 4) ||
+      (n_linear_rings= uint4korr(data)) == 0)
     return 1;
-  n_linear_rings= uint4korr(data);
   data+= 4;
-
-  DBUG_ASSERT(n_linear_rings > 0);
 
   while (n_linear_rings--)
   {

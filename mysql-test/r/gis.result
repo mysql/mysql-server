@@ -1102,4 +1102,10 @@ NULL
 select geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
 geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1)
 NULL
+#
+# MDEV-4296 Assertion `n_linear_rings > 0' fails in Gis_polygon::centroid_xy
+#
+SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
+Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )))
+NULL
 End of 5.1 tests
