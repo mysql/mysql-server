@@ -4,7 +4,9 @@ CHECKS = $(patsubst %,%.check,$(TARGETS))
 CPPFLAGS = -I..
 CXXFLAGS = -g -fno-implicit-templates
 
-FRACTALTREE_DIR = ../../../../tokudb/release
+FRACTALTREE_BASE_DIR = ../../../../tokudb
+FRACTALTREE_DIR = $(FRACTALTREE_BASE_DIR)/release
+VALGRIND = valgrind -q --leak-check=full --show-reachable=yes --suppressions=$(FRACTALTREE_BASE_DIR)/build.debug/valgrind.suppressions
 
 ifeq ($(GCOV),1)
 CXXFLAGS += -fprofile-arcs -ftest-coverage
@@ -18,11 +20,14 @@ clean:
 check: $(CHECKS)
 	true
 
-%.check: %
-	valgrind -q ./$<
+%.check: % 
+	LD_LIBRARY_PATH=$(FRACTALTREE_DIR)/lib $(VALGRIND) ./$<
 
 max_test.check: max_test
-	valgrind -q ./$< 1 2
+	$(VALGRIND) ./$< 1 2
+
+db_libtest: db_libtest.cc
+	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_test: card_test.cc
 	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
