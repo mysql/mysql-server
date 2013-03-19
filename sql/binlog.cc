@@ -5349,6 +5349,8 @@ void MYSQL_BIN_LOG::purge()
   {
     DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    DBUG_EXECUTE_IF("expire_logs_always",
+                    { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
       purge_logs_before_date(purge_time);
@@ -6919,9 +6921,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     */
 
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
+    DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge= false;
     mysql_mutex_lock(&LOCK_log);
-    int error= rotate(true, &check_purge);
+    int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
     if (!error && check_purge)
@@ -8387,10 +8390,12 @@ void THD::binlog_prepare_row_images(TABLE *table)
 
   /** 
     if there is a primary key in the table (ie, user declared PK or a
-    non-null unique index) and we dont want to ship the entire image.
+    non-null unique index) and we dont want to ship the entire image,
+    and the handler involved supports this.
    */
   if (table->s->primary_key < MAX_KEY &&
-      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL))
+      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL) &&
+      !ha_check_storage_engine_flag(table->s->db_type(), HTON_NO_BINLOG_ROW_OPT))
   {
     /**
       Just to be sure that tmp_set is currently not in use as

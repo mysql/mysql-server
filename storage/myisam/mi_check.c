@@ -2650,6 +2650,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   ulonglong UNINIT_VAR(key_map);
   pthread_attr_t thr_attr;
   ulong max_pack_reclength;
+  int error;
   DBUG_ENTER("mi_repair_parallel");
 
   start_records=info->state->records;
@@ -2944,12 +2945,13 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
 #else
       param->sort_buffer_length*sort_param[i].key_length/total_key_length;
 #endif
-    if (mysql_thread_create(mi_key_thread_find_all_keys,
-                            &sort_param[i].thr, &thr_attr,
-                            thr_find_all_keys,
-                            (void *) (sort_param+i)))
+    if ((error= mysql_thread_create(mi_key_thread_find_all_keys,
+                                    &sort_param[i].thr, &thr_attr,
+                                    thr_find_all_keys,
+                                    (void *) (sort_param+i))))
     {
-      mi_check_print_error(param,"Cannot start a repair thread");
+      mi_check_print_error(param,"Cannot start a repair thread (errno= %d)",
+                           error);
       /* Cleanup: Detach from the share. Avoid others to be blocked. */
       if (io_share.total_threads)
         remove_io_thread(&sort_param[i].read_cache);
@@ -4189,7 +4191,7 @@ static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
 					   MYF(0))))
   {
     mi_check_print_error(param,"Not enough memory for sort-key-blocks");
-    return(0);
+    DBUG_RETURN(0);
   }
   for (i=0 ; i < blocks ; i++)
   {

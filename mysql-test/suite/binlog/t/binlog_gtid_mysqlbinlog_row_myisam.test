@@ -9,7 +9,7 @@
 # See there for more informaton.
 #
 
-#--source include/have_myisam.inc
+#--source include/force_myisam_default.inc
 --source include/have_gtid.inc
 let $engine_type=MyISAM;
 
