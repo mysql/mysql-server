@@ -3065,7 +3065,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         my_error(ER_MTS_CANT_PARALLEL, MYF(0),
                  get_type_str(), rli->get_event_relay_log_name(), llbuff,
                  "could not distribute the event to a Worker");
-        return ret_worker;
+        DBUG_RETURN(ret_worker);
       }
       // all temporary tables are transferred from Coordinator in over-max case
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
@@ -3141,7 +3141,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       while (ptr_group->parent_seqno > rli->gaq->lwm.total_seqno)
        {
          if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-            return NULL;
+            DBUG_RETURN(NULL);
        }
     }
 

@@ -7845,10 +7845,15 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                      ER(ER_UNTIL_COND_IGNORED));
 
       if (!slave_errno)
+      {
         slave_errno = start_slave_threads(false/*need_lock_slave=false*/,
                                           true/*wait_for_start=true*/,
                                           mi,
                                           thread_mask);
+        if (!slave_errno)
+          mi->rli->mts_parallel_type=
+                     (enum_mts_parallel_type)mts_parallel_option;
+      }
     }
     else
       slave_errno = ER_BAD_SLAVE;
