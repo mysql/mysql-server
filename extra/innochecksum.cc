@@ -91,6 +91,11 @@ char*				page_dump_filename = 0;
 const char	*default_dbug_option = IF_WIN("d:O,\\innochecksum.trace",
 					      "d:o,/tmp/innochecksum.trace");
 
+#ifndef __WIN__
+/* advisory lock for non-window system. */
+struct flock			lk;
+#endif
+
 /* Strict check algorithm name. */
 static srv_checksum_algorithm_t	strict_check;
 /* Rewrite checksum algorithm name. */
@@ -178,6 +183,104 @@ get_page_size(
 
 }
 
+#ifdef __WIN__
+/***********************************************//*
+ @param		[in] error	error no. from the getLastError().
+
+ @retval error message corresponding to error no.
+*/
+static
+char*
+error_message(
+	int	error)
+{
+	static char err_msg[1024] = {'\0'};
+	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
+		NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+		(LPTSTR)buf, sizeof(err_msg), NULL );
+
+	return (err_msg);
+}
+#endif
+
+/***********************************************//*
+ @param>>_______[in] name>_____name of file.
+ @retval file pointer; file pointer is NULL when error occured.
+*/
+
+FILE*
+open_file(
+	const char*	name)
+{
+	int	fd;		/* file descriptor. */
+	FILE*	fil_in;
+#ifdef __WIN__
+	HANDLE		hFile;		/* handle to open file. */
+	DWORD		access;		/* define access control */
+	DWORD		share;		/* define share mode */
+	int		flags = 0;	/* define the mode for file
+					descriptor */
+
+	if (do_write) {
+		access =  GENERIC_READ | GENERIC_WRITE;
+		flags =  _O_RDWR | _O_BINARY;
+		share = 0L;
+	} else {
+		access = GENERIC_READ;
+		flags = _O_RDONLY | _O_BINARY;
+		share = FILE_SHARE_READ;
+	}
+	/* CreateFile() also provide advisory lock with the usage of
+	access and share mode of the file.*/
+	hFile = CreateFile(
+			(LPCTSTR) name, access, share, NULL,
+			OPEN_EXISTING, NULL, NULL);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		/* print the error message. */
+		fprintf(stderr, "Filename::%s %s\n",
+			error_message(GetLastError()));
+
+			return (NULL);
+		}
+
+	/* get the file descriptor. */
+	fd= _open_osfhandle((intptr_t)hFile, flags);
+#else /* __WIN__ */
+
+	int	create_flag;
+	/* define the advisory lock and open file mode. */
+	if (do_write) {
+		create_flag = O_RDWR;
+		lk.l_type = F_WRLCK;
+	}
+	else {
+		create_flag = O_RDONLY;
+		lk.l_type = F_RDLCK;
+	}
+
+	fd = open(name, create_flag);
+
+	lk.l_whence = SEEK_SET;
+	lk.l_start = lk.l_len = 0;
+
+	if (fcntl(fd, F_SETLK, &lk) == -1) {
+		fprintf(stderr, "Error: Unable to lock file::"
+			" %s\n", name);
+		perror("fcntl");
+		return (NULL);
+	}
+#endif /* __WIN__ */
+
+	if (do_write) {
+		fil_in = fdopen(fd, "rb+");
+	} else {
+		fil_in = fdopen(fd, "rb");
+	}
+
+	return (fil_in);
+}
+
 /*******************************************************//*
 Check if page is empty or not.
  @param		[in] page		page to checked for empty.
@@ -217,8 +320,8 @@ update_checksum(
 	bool	iscompressed)
 {
 	ib_uint32_t	checksum = 0;
-	byte		stored1[4];
-	byte		stored2[4];
+	byte		stored1[4];	/* get FIL_PAGE_SPACE_OR_CHKSUM field checksum */
+	byte		stored2[4];	/* get FIL_PAGE_END_LSN_OLD_CHKSUM field checksum */
 
 	ut_ad(page);
 
@@ -358,14 +461,14 @@ parse_page(
 		if (undo_page_type == TRX_UNDO_INSERT) {
 			page_type.n_undo_insert++;
 			if (page_type_dump) {
-				fprintf(file, " %-65s\n",
+				fprintf(file, "\t%s",
 					"Insert Undo log page");
 			}
 
 		} else if (undo_page_type == TRX_UNDO_UPDATE) {
 			page_type.n_undo_update++;
 			if (page_type_dump) {
-				fprintf(file, " %-65s\n",
+				fprintf(file, "\t%s",
 					"Update undo log page");
 			}
 		}
@@ -376,7 +479,7 @@ parse_page(
 			case TRX_UNDO_ACTIVE:
 				page_type.n_undo_state_active++;
 				if (page_type_dump) {
-					fprintf(file, " %-65s\n", "Undo log of "
+					fprintf(file, ", %s", "Undo log of "
 						"an active transaction");
 				}
 				break;
@@ -384,7 +487,7 @@ parse_page(
 			case TRX_UNDO_CACHED:
 				page_type.n_undo_state_cached++;
 				if (page_type_dump) {
-					fprintf(file, " %-65s\n", "Page is "
+					fprintf(file, ", %s", "Page is "
 						"cached for quick reuse");
 				}
 				break;
@@ -392,7 +495,7 @@ parse_page(
 			case TRX_UNDO_TO_FREE:
 				page_type.n_undo_state_to_free++;
 				if (page_type_dump) {
-					fprintf(file, " %-65s\n", "Insert undo "
+					fprintf(file, ", %s", "Insert undo "
 						"segment that can be freed");
 				}
 				break;
@@ -400,7 +503,7 @@ parse_page(
 			case TRX_UNDO_TO_PURGE:
 				page_type.n_undo_state_to_purge++;
 				if (page_type_dump) {
-					fprintf(file, " %-65s\n", "Will be "
+					fprintf(file, ", %s", "Will be "
 						"freed in purge when all undo"
 					"data in it is removed");
 				}
@@ -409,7 +512,7 @@ parse_page(
 			case TRX_UNDO_PREPARED:
 				page_type.n_undo_state_prepared++;
 				if (page_type_dump) {
-					fprintf(file, " %-65s\n", "Undo log of "
+					fprintf(file, ", %s", "Undo log of "
 						"an prepared transaction");
 				}
 				break;
@@ -418,6 +521,7 @@ parse_page(
 				page_type.n_undo_state_other++;
 				break;
 		}
+		putc('\n', file);
 		break;
 
 	case FIL_PAGE_INODE:
@@ -455,7 +559,7 @@ parse_page(
 	case FIL_PAGE_TYPE_SYS:
 		page_type.n_fil_page_type_sys++;
 		if (page_type_dump) {
-			fprintf(file, "#::%llu\t\t|\t\tSystem page\t\t\t|\t-\n",
+			fprintf(file, "#::%8llu\t\t|\t\tSystem page\t\t\t|\t-\n",
 				cur_page_num);
 		}
 		break;
@@ -563,8 +667,7 @@ print_summary()
 		page_type.n_undo_state_other);
 }
 
-/* command line argument to do page checks (that's it) */
-/* another argument to specify page ranges... seek to right spot and go from there */
+/* command line argument for innochecksum tool. */
 static struct my_option innochecksum_options[] = {
   {"help", '?', "Displays this help and exits.",
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -598,8 +701,8 @@ static struct my_option innochecksum_options[] = {
   {"write", 'w', "Rewrite the checksum algorithm by the user.",
     &write_check, &write_check, &innochecksum_algorithms_typelib,
     GET_ENUM, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"page-type-summary", 'S', "Display the all different page type sum count "
-   "of a tablespace.", &page_type_summary, &page_type_summary, 0,
+  {"page-type-summary", 'S', "Display a count of each page type "
+   "in a tablespace.", &page_type_summary, &page_type_summary, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"page-type-dump", 'D', "Dump the all different page type of a tablespace.",
    &page_dump_filename, &page_dump_filename, 0,
@@ -751,7 +854,7 @@ int main(
 	ulint		pages;
 
 	off_t		offset			= 0;
-	int		fd;
+	/* enable if tablespace is compressed. */
 	bool		compressed		= FALSE;
 	/* count the no. of page corrupted. */
 	ulint		mismatch_count		= 0;
@@ -763,8 +866,6 @@ int main(
 	/* Enabled when read from stdin is done. */
 	bool		read_from_stdin		= FALSE;
 	FILE*		fil_page_type;
-	/* advisory lock. */
-	struct flock	lk;
 	fpos_t		pos;
 	ulint		logseq;
 	ulint		logseqfield;
@@ -830,44 +931,13 @@ int main(
 
 		if (!read_from_stdin) {
 			size = st.st_size;
-			if (do_write) {
-				fil_in = fopen(filename, "rb+");
-			} else {
-				fil_in = fopen(filename, "rb");
-			}
-			if (fil_in == NULL) {
-				fprintf(stderr, "Error: %s cannot be opened "
-					":%s\n", filename, strerror(errno));
-
+			fil_in = open_file(filename);
+			/*If fil_in is NULL, terminate as some error encountered */
+			if(fil_in == NULL) {
 				DBUG_RETURN(1);
 			}
 			/* Save the current file pointer in pos variable.*/
 			fgetpos(fil_in, &pos);
-		}
-
-		if (!read_from_stdin) {
-			fd = fileno(fil_in);
-			if (!fd) {
-				perror("Error: Unable to obtain file "
-					"descriptor number");
-
-				DBUG_RETURN(1);
-			}
-
-			if (do_write) {
-				lk.l_type = F_WRLCK;
-			} else {
-				lk.l_type = F_RDLCK;
-			}
-			lk.l_whence = SEEK_SET;
-			lk.l_start = lk.l_len = 0;
-			if (fcntl(fd, F_SETLK, &lk) == -1) {
-				fprintf(stderr, "Error: Unable to lock file::"
-					" %s\n", filename);
-				perror("fcntl");
-
-				DBUG_RETURN(1);
-			}
 		}
 
 		/* Testing for lock mechanism. The innochecksum
@@ -923,7 +993,11 @@ int main(
 				partial_page_read = 0;
 
 				offset = (off_t)start_page * (off_t)physical_page_size;
+#ifdef __WIN__
+				if (_fseeki64(fil_in, offset, SEEK_SET)) {
+#else
 				if (fseeko(fil_in, offset, SEEK_SET)) {
+#endif
 					perror("Error: Unable to seek to "
 						"necessary offset");
 
@@ -1064,11 +1138,15 @@ int main(
 							cur_page_num));
 					}
 					is_corrupted = buf_page_is_corrupted(
-							true, buf, 0);
+							true, buf, 0, debug,
+							cur_page_num,
+							strict_verify);
 				} else {
 					is_corrupted = buf_page_is_corrupted(
 							true, buf,
-							physical_page_size);
+							physical_page_size,
+							debug, cur_page_num,
+							strict_verify);
 				}
 
 				if (is_corrupted) {
@@ -1141,12 +1219,8 @@ int main(
 		}
 
 		if (!read_from_stdin) {
-			/* Remove the lock. */
-			lk.l_type = F_UNLCK;
-			if (fcntl(fd, F_SETLK, &lk) == -1) {
-				perror("fcntl");
-				DBUG_RETURN(1);
-			}
+			/* flcose() will flush the data and release the lock if
+			any acquired. */
 			fclose(fil_in);
 		}
 

@@ -481,22 +481,23 @@ buf_page_is_corrupted(
 	bool		check_lsn,	/*!< in: true if we need to check
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: size of compressed page;
+	ulint		zip_size	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,bool		verbose,	/*!< in: true if debug option
+					is enable */
+	ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif
+)
 {
 	ulint		checksum_field1;
 	ulint		checksum_field2;
 	ibool		crc32_inited = FALSE;
 	ib_uint32_t	crc32 = ULINT32_UNDEFINED;
-	bool		verbose = FALSE;
-	ullint		page_no = 0;
-
-	#ifdef UNIV_INNOCHECKSUM
-	extern my_bool	debug;
-	extern ulint	cur_page_num;
-	verbose = debug;
-	page_no = cur_page_num;
-	#endif /* !UNIV_INNOCHECKSUM */
 
 	if (!zip_size
 	    && memcmp(read_buf + FIL_PAGE_LSN + 4,
@@ -550,7 +551,13 @@ buf_page_is_corrupted(
 	}
 
 	if (zip_size) {
+#ifdef UNIV_INNOCHECKSUM
+		return(!page_zip_verify_checksum(read_buf, zip_size,
+						verbose, page_no,
+						strict_check));
+#else
 		return(!page_zip_verify_checksum(read_buf, zip_size));
+#endif
 	}
 
 	checksum_field1 = mach_read_from_4(
@@ -592,16 +599,20 @@ buf_page_is_corrupted(
 	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 
 		crc32 = buf_calc_page_crc32(read_buf);
-		if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+		if (verbose) {
 			DBUG_PRINT(
 				"info", ("page::%llu; crc32 calculated = %u;"
 				"recorded checksum field1 = %lu recorded "
 				"checksum field2 =%lu",page_no, crc32,
 				checksum_field1, checksum_field2));
+		}
+#endif /* UNIV_INNOCHECKSUM */
 
 		return(checksum_field1 != crc32 || checksum_field2 != crc32);
 
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+#ifdef UNIV_INNOCHECKSUM
 		if (verbose) {
 			DBUG_PRINT(
 				"info", ("page::%llu; old style:calculated = "
@@ -615,6 +626,7 @@ buf_page_is_corrupted(
 			page_no, buf_calc_page_new_checksum(read_buf),
 			checksum_field1));
 		}
+#endif /* UNIV_INNOCHECKSUM */
 
 		return(checksum_field1
 		       != buf_calc_page_new_checksum(read_buf)
@@ -622,13 +634,16 @@ buf_page_is_corrupted(
 		       != buf_calc_page_old_checksum(read_buf));
 
 	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-		if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+		if (verbose) {
 			DBUG_PRINT(
 				"info", ("page::%llu; none checksum: calculated"
 				" = %lu; recorded checksum_field1 = %lu "
 				"recorded checksum_field2 = %lu",
 				page_no, BUF_NO_CHECKSUM_MAGIC,
 				checksum_field1, checksum_field2));
+		}
+#endif /* UNIV_INNOCHECKSUM */
 
 		return(checksum_field1 != BUF_NO_CHECKSUM_MAGIC
 		       || checksum_field2 != BUF_NO_CHECKSUM_MAGIC);
@@ -674,8 +689,8 @@ buf_page_is_corrupted(
 			} else {
 				ut_ad(srv_checksum_algorithm
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
-
-				if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+				if (verbose) {
 					DBUG_PRINT(
 						"info", ("page::%llu; old style"
 						": calculated = %lu; recorded ="
@@ -683,7 +698,8 @@ buf_page_is_corrupted(
 						buf_calc_page_old_checksum(
 							read_buf),
 						checksum_field2));
-
+				}
+#endif /* UNIV_INNOCHECKSUM */
 				if (checksum_field2
 				    != buf_calc_page_old_checksum(read_buf)) {
 
@@ -691,8 +707,8 @@ buf_page_is_corrupted(
 					crc32_inited = TRUE;
 
 					if (checksum_field2 != crc32) {
-
-						if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+						if (verbose) {
 							DBUG_PRINT(
 								"info", ("Fail;"
 								"page %llu "
@@ -700,7 +716,8 @@ buf_page_is_corrupted(
 								" old style "
 								"checksum)",
 								page_no));
-
+						}
+#endif /* UNIV_INNOCHECKSUM */
 						return(TRUE);
 					}
 				}
@@ -737,8 +754,8 @@ buf_page_is_corrupted(
 			} else {
 				ut_ad(srv_checksum_algorithm
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
-
-				if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+				if (verbose) {
 					DBUG_PRINT(
 						"info", ("page::%llu; new style"
 						": calculated = %lu; crc32 = %u"
@@ -747,7 +764,8 @@ buf_page_is_corrupted(
 							read_buf),
 						buf_calc_page_crc32(read_buf),
 						checksum_field1));
-
+				}
+#endif /* UNIV_INNOCHECKSUM */
 				if (checksum_field1
 				    != buf_calc_page_new_checksum(read_buf)) {
 
@@ -758,8 +776,8 @@ buf_page_is_corrupted(
 					}
 
 					if (checksum_field1 != crc32) {
-
-						if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+						if (verbose) {
 							DBUG_PRINT(
 								"info", ("Fail;"
 								" page %llu "
@@ -768,6 +786,8 @@ buf_page_is_corrupted(
 								"crc32 "
 								"checksum)",
 								page_no));
+						}
+#endif /* UNIV_INNOCHECKSUM */
 
 						return(TRUE);
 					}
@@ -805,10 +825,12 @@ buf_page_is_corrupted(
 			 && checksum_field2 != crc32)
 			|| (checksum_field1 != crc32
 			    && checksum_field2 == crc32))) {
-
-			if (verbose)
+#ifdef UNIV_INNOCHECKSUM
+			if (verbose) {
 				DBUG_PRINT("info", ("Fail; page %llu invalid "
 					   "(fails crc32 checksum)\n",page_no));
+			}
+#endif /* UNIV_INNOCHECKSUM */
 
 			return(TRUE);
 		}
