@@ -216,12 +216,19 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   /* execute() starts here */
   var table = null; 
 
-  if(self.executedOperations.length) {  // Transaction has already been started
-    assert(self.ndbtx);
+  /* The initial execute() call must start the NDB transaction. 
+     Up until startTransaction() returns, additional execute() calls are queued 
+     up behind it by NdbSession, and will be resent after openTransaction() 
+     returns.
+  */
+  if(self.ndbtx) {  /* startTransaction has returned */
     getAutoIncrementValues();
   }
   else {
-    if(ndbsession.txCanRunImmediately(self)) {
+    /* We are allowed to run.  Call ndb.startTransaction().
+       TODO: The logic and naming here are confusing and can be improved.
+    */
+   if(ndbsession.txCanRunImmediately(self)) {
       table = dbOperationList[0].tableHandler.dbTable;
       // TODO: partitionKey
       stats.incr(["start","immediate"]);
@@ -229,7 +236,10 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       ndbsession.txIsOpen(self);
       ndb.startTransaction(table, 0, 0, onStartTx); 
     }
-    else {  // We cannot get an NdbTransaction right now; queue one
+    else {
+      /* Queued up behind something.  NdbSession will resend the call
+         when we are able to run.
+      */
       stats.incr(["start","queued"]);
       ndbsession.enqueueTransaction(self, dbOperationList, callback);
     }
