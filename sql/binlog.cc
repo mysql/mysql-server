@@ -6921,9 +6921,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     */
 
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
+    DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge= false;
     mysql_mutex_lock(&LOCK_log);
-    int error= rotate(true, &check_purge);
+    int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
     if (!error && check_purge)
