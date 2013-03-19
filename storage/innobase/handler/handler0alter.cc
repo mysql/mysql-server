@@ -3415,12 +3415,11 @@ rename_index_in_cache(
 		1. ALTER TABLE t RENAME INDEX a TO aa;
 		2. ALTER TABLE t RENAME INDEX aa TO a;
 		3. go to 1. */
-		if (mem_heap_get_top(index->heap, old_name_len + 1)
-		    == index->name) {
-			mem_heap_free_top(index->heap, old_name_len + 1);
-		}
-		/* allocate a new chunk of memory */
-		index->name = mem_heap_strdup(index->heap, new_name);
+		index->name = mem_heap_strdup_replace(
+			index->heap,
+			/* Presumed topmost element of the heap: */
+			index->name, old_name_len + 1,
+			new_name);
 	}
 
 	DBUG_VOID_RETURN;
