@@ -4608,14 +4608,27 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  m_ndb_record,
                                  old_data,
                                  new_data,
-                                 table->write_set,
+                                 table->read_set,  // Before image
+                                 table->write_set, // After image
                                  code);
 
-    if (!res)
+    if (res == 0)
     {
-      /* Attach conflict detecting filter program to operation */
-      options->optionsPresent|=NdbOperation::OperationOptions::OO_INTERPRETED;
-      options->interpretedCode= code;
+      if (code->getWordsUsed() > 0)
+      {
+        /* Attach conflict detecting filter program to operation */
+        options->optionsPresent|=
+          NdbOperation::OperationOptions::OO_INTERPRETED;
+        options->interpretedCode= code;
+      }
+    }
+    else
+    {
+      sql_print_warning("NDB Slave : Binlog event on table %s missing "
+                        "info necessary for conflict detection.  "
+                        "Check binlog format options on upstream cluster.",
+                        m_share->key);
+      DBUG_RETURN( ER_SLAVE_CORRUPT_EVENT);
     }
   } // if (op_type != WRITE_ROW)
 
