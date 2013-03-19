@@ -29,10 +29,10 @@ void
 txn_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(TXN_BEGIN,            nullptr, PARCOUNT,   "begin", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_READ_BEGIN,       nullptr, PARCOUNT,   "begin read only", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_COMMIT,           nullptr, PARCOUNT,   "successful commits", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_ABORT,            nullptr, PARCOUNT,   "aborts", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_BEGIN,            TOKUDB_TXN_BEGIN, PARCOUNT,   "begin", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(TXN_READ_BEGIN,       TOKUDB_TXN_BEGIN_READ_ONLY, PARCOUNT,   "begin read only", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(TXN_COMMIT,           TOKUDB_TXN_COMMITS, PARCOUNT,   "successful commits", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(TXN_ABORT,            TOKUDB_TXN_ABORTS, PARCOUNT,   "aborts", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     txn_status.initialized = true;
 }
 
