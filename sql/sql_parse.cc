@@ -1630,7 +1630,7 @@ int prepare_schema_table(THD *thd, LEX *lex, Table_ident *table_ident,
     break;
   case SCH_USER_STATS:
   case SCH_CLIENT_STATS:
-    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL))
+    if (check_global_access(thd, SUPER_ACL | PROCESS_ACL, true))
       DBUG_RETURN(1);
   case SCH_TABLE_STATS:
   case SCH_INDEX_STATS:
@@ -1805,7 +1805,7 @@ bool sp_process_definer(THD *thd)
     if ((strcmp(lex->definer->user.str, thd->security_ctx->priv_user) ||
          my_strcasecmp(system_charset_info, lex->definer->host.str,
                        thd->security_ctx->priv_host)) &&
-        check_global_access(thd, SUPER_ACL))
+        check_global_access(thd, SUPER_ACL, true))
     {
       my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       DBUG_RETURN(TRUE);
@@ -5316,14 +5316,17 @@ bool check_some_access(THD *thd, ulong want_access, TABLE_LIST *table)
     1	Access denied.  In this case an error is sent to the client
 */
 
-bool check_global_access(THD *thd, ulong want_access)
+bool check_global_access(THD *thd, ulong want_access, bool no_errors)
 {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   char command[128];
   if ((thd->security_ctx->master_access & want_access))
     return 0;
-  get_privilege_desc(command, sizeof(command), want_access);
-  my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
+  if (!no_errors)
+  {
+    get_privilege_desc(command, sizeof(command), want_access);
+    my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), command);
+  }
   status_var_increment(thd->status_var.access_denied_errors);
   return 1;
 #else

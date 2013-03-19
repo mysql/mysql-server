@@ -701,10 +701,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                      thd->security_ctx->priv_host)))
   {
     if (check_global_access(thd, SUPER_ACL))
-    {
-      my_error(ER_SPECIFIC_ACCESS_DENIED_ERROR, MYF(0), "SUPER");
       return TRUE;
-    }
   }
 
   /*

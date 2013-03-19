@@ -196,7 +196,7 @@ check_table_access(THD *thd, ulong requirements,TABLE_LIST *tables,
 
 /* These were under the INNODB_COMPATIBILITY_HOOKS */
 
-bool check_global_access(THD *thd, ulong want_access);
+bool check_global_access(THD *thd, ulong want_access, bool no_errors= false);
 
 inline bool is_supported_parser_charset(CHARSET_INFO *cs)
 {
