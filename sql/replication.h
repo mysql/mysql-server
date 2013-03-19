@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,6 +130,8 @@ typedef struct Binlog_storage_observer {
      @retval 1 Failure
   */
   int (*after_flush)(Binlog_storage_param *param,
+                     const char *log_file, my_off_t log_pos);
+  int (*after_sync)(Binlog_storage_param *param,
                      const char *log_file, my_off_t log_pos);
 } Binlog_storage_observer;
 
