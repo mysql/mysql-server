@@ -2642,11 +2642,12 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
 
 static bool update_rli_mts_type(sys_var *self, THD *thd, enum_var_type val)
 {
-  if (!active_mi || !active_mi->rli)
-    //todo: print error since we have not configured this as a slave
+  if (active_mi && active_mi->slave_running)
+  {
+    my_error(ER_SLAVE_MUST_STOP, MYF(0));
     return true;
-  active_mi->rli->mts_parallel_type= (enum_mts_parallel_type)val;
-  return true;
+  }
+  return false;
 }
 
 static const char *slave_rows_search_algorithms_names[]= {"TABLE_SCAN", "INDEX_SCAN", "HASH_SCAN", 0};
