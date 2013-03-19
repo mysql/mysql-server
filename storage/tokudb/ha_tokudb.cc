@@ -116,13 +116,15 @@ exit:
     Simple lock controls. The "share" it creates is a structure we will
     pass to each tokudb handler. Do you have to have one of these? Well, you have
     pieces that are used for locking, and they are needed to function.
+
+   MUST have tokudb_mutex locked on input
+    
 */
 static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share) {
     TOKUDB_SHARE *share = NULL;
     int error = 0;
     uint length;
 
-    pthread_mutex_lock(&tokudb_mutex);
     length = (uint) strlen(table_name);
 
     if (!(share = (TOKUDB_SHARE *) my_hash_search(&tokudb_open_tables, (uchar *) table_name, length))) {
@@ -132,14 +134,13 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         // create share and fill it with all zeroes
         // hence, all pointers are initialized to NULL
         //
-        if (!(share = (TOKUDB_SHARE *) 
-            my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
-                            &share, sizeof(*share),
-                            &tmp_name, length + 1, 
-                            NullS))) {
-            pthread_mutex_unlock(&tokudb_mutex);
-            return NULL;
-        }
+        share = (TOKUDB_SHARE *) my_multi_malloc(MYF(MY_WME | MY_ZEROFILL), 
+            &share, sizeof(*share),
+            &tmp_name, length + 1, 
+            NullS
+            );
+        assert(share);
+
         share->use_count = 0;
         share->table_name_length = length;
         share->table_name = tmp_name;
@@ -167,7 +168,6 @@ exit:
         my_free((uchar *) share, MYF(0));
         share = NULL;
     }
-    pthread_mutex_unlock(&tokudb_mutex);
     return share;
 }
 
@@ -187,13 +187,16 @@ static void free_key_and_col_info (KEY_AND_COL_INFO* kc_info) {
     my_free(kc_info->blob_fields, MYF(MY_ALLOW_ZERO_PTR));
 }
 
+//
+// MUST have tokudb_mutex locked on input
+// bool mutex_is_locked specifies if share->mutex is locked
+//
 static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
     int error, result = 0;
 
-    pthread_mutex_lock(&tokudb_mutex);
-
-    if (mutex_is_locked)
+    if (mutex_is_locked) {
         pthread_mutex_unlock(&share->mutex);
+    }
     if (!--share->use_count) {
         DBUG_PRINT("info", ("share->use_count %u", share->use_count));
 
@@ -228,7 +231,6 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
 
         my_free((uchar *) share, MYF(0));
     }
-    pthread_mutex_unlock(&tokudb_mutex);
 
     return result;
 }
@@ -1836,32 +1838,36 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     }
 
     /* Init shared structure */
+    pthread_mutex_lock(&tokudb_mutex);
     share = get_share(name, table_share);
-    if (share == NULL) {
-        ret_val = 1;
-        goto exit;
-    }
+    assert(share);
 
     thr_lock_data_init(&share->lock, &lock, NULL);
 
     /* Fill in shared structure, if needed */
     pthread_mutex_lock(&share->mutex);
-    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
-        TOKUDB_TRACE("tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", 
-                     this, share, share->file, table, table->s, share->use_count);
-    }
     if (!share->use_count++) {
         ret_val = initialize_share(
             name,
             mode
             );
         if (ret_val) {
-            free_share(share, 1);
+            free_share(share, true);
+            pthread_mutex_unlock(&tokudb_mutex);
             goto exit;
         }
     }
-    ref_length = share->ref_length;     // If second open
     pthread_mutex_unlock(&share->mutex);
+    pthread_mutex_unlock(&tokudb_mutex);
+
+    ref_length = share->ref_length;     // If second open
+    
+    if (tokudb_debug & TOKUDB_DEBUG_OPEN) {
+        pthread_mutex_lock(&share->mutex);
+        TOKUDB_TRACE("tokudbopen:%p:share=%p:file=%p:table=%p:table->s=%p:%d\n", 
+                     this, share, share->file, table, table->s, share->use_count);
+        pthread_mutex_unlock(&share->mutex);
+    }
 
     key_read = false;
     stats.block_size = 1<<20;    // QQQ Tokudb DB block size
@@ -2149,10 +2155,10 @@ int ha_tokudb::write_auto_inc_create(DB* db, ulonglong val, DB_TXN* txn){
 //
 int ha_tokudb::close(void) {
     TOKUDB_DBUG_ENTER("ha_tokudb::close %p", this);
-    TOKUDB_DBUG_RETURN(__close(0));
+    TOKUDB_DBUG_RETURN(__close());
 }
 
-int ha_tokudb::__close(int mutex_is_locked) {
+int ha_tokudb::__close() {
     TOKUDB_DBUG_ENTER("ha_tokudb::__close %p", this);
     if (tokudb_debug & TOKUDB_DEBUG_OPEN) 
         TOKUDB_TRACE("close:%p\n", this);
@@ -2177,7 +2183,10 @@ int ha_tokudb::__close(int mutex_is_locked) {
     rec_update_buff = NULL;
     alloc_ptr = NULL;
     ha_tokudb::reset();
-    TOKUDB_DBUG_RETURN(free_share(share, mutex_is_locked));
+    pthread_mutex_lock(&tokudb_mutex);
+    int retval = free_share(share, false);
+    pthread_mutex_unlock(&tokudb_mutex);
+    TOKUDB_DBUG_RETURN(retval);
 }
 
 //
