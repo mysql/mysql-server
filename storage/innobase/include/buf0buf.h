@@ -636,8 +636,18 @@ buf_page_is_corrupted(
 	bool		check_lsn,	/*!< in: true if we need to check the
 					and complain about the LSN */
 	const byte*	read_buf,	/*!< in: a database page */
-	ulint		zip_size)	/*!< in: size of compressed page;
+	ulint		zip_size	/*!< in: size of compressed page;
 					0 for uncompressed pages */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,bool		verbose,	/*!< in: true if debug option
+                                        is enable */
+	ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif
+)
 	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_INNOCHECKSUM
 #ifndef UNIV_HOTBACKUP

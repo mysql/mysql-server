@@ -485,7 +485,17 @@ ibool
 page_zip_verify_checksum(
 /*=====================*/
 	const void*	data,	/*!< in: compressed page */
-	ulint		size);	/*!< in: size of compressed page */
+	ulint		size	/*!< in: size of compressed page */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,bool		verbose,	/*!< in: true if debug option
+					is enable */
+	ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif
+);
 
 #ifndef UNIV_INNOCHECKSUM
 /**********************************************************************//**
