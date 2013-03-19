@@ -2603,7 +2603,7 @@ void var_set_convert_error(struct st_command *command,VAR *var)
   char *first=command->query;
   const char *err_name;
     
-  DBUG_ENTER("var_set_query_get_value");
+  DBUG_ENTER("var_set_convert_error");
 
   DBUG_PRINT("info", ("query: %s", command->query));
 
