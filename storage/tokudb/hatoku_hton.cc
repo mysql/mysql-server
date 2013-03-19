@@ -1583,6 +1583,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
     const int panic_string_len = 1024;
     char panic_string[panic_string_len] = {'\0'};
     uint64_t num_rows;
+    uint64_t max_rows;
     fs_redzone_state redzone_state;
     const int bufsiz = 1024;
     char buf[bufsiz];
@@ -1594,9 +1595,9 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
         STATPRINT("Version", buf);
     }
 #endif
-    error = db_env->get_engine_status_num_rows (db_env, &num_rows);
-    TOKU_ENGINE_STATUS_ROW_S mystat[num_rows];
-    error = db_env->get_engine_status (db_env, mystat, num_rows, &redzone_state, &panic, panic_string, panic_string_len);
+    error = db_env->get_engine_status_num_rows (db_env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
+    error = db_env->get_engine_status (db_env, mystat, max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_ENGINE_STATUS);
 
     if (strlen(panic_string)) {
         STATPRINT("Environment panic string", panic_string);
@@ -2152,6 +2153,155 @@ static struct st_mysql_information_schema tokudb_user_data_exact_information_sch
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 #define TOKUDB_PLUGIN_VERSION_STR "1024"
 
+static SHOW_VAR *toku_global_status_variables = NULL;
+
+// Retrieves variables for information_schema.global_status.
+// Names (keyname) are automatically converted to upper case, and prefixed with "TOKUDB_"
+static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
+    TOKUDB_DBUG_ENTER("show_tokudb_vars");
+
+    int error;
+    uint64_t panic;
+    const int panic_string_len = 1024;
+    char panic_string[panic_string_len] = {'\0'};
+    uint64_t max_rows;
+    fs_redzone_state redzone_state;
+    const int bufsiz = 1024;
+    char buf[bufsiz];
+
+    static uint64_t num_variables = 0;
+    //TODO: See if we can use handlerton memory for this isntead of allocating as needed.  Maybe store directly in handlerton?
+    static void** extras = NULL;
+    static TOKU_ENGINE_STATUS_ROW_S* mystat;
+
+    const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
+    if (extras != NULL) {
+        assert(num_variables > 0);
+        // Free any additional memory.
+        // TODO: This doesn't leak memory but might cause issues with valgrind?
+        for (uint64_t row = 0; row < num_variables; row++) {
+            if (extras[row] != NULL) {
+                my_free(extras[row], mem_flags);
+                extras[row] = NULL;
+            }
+        }
+    }
+    error = db_env->get_engine_status_num_rows (db_env, &max_rows);
+    if (!toku_global_status_variables || num_variables <= max_rows) {
+        num_variables = max_rows + 1;
+        toku_global_status_variables = (SHOW_VAR*)my_realloc(toku_global_status_variables, sizeof(*toku_global_status_variables)*num_variables, mem_flags);
+        mystat = (TOKU_ENGINE_STATUS_ROW_S*)my_realloc(mystat, sizeof(*mystat)*num_variables, mem_flags);
+        extras = (void**)my_realloc(extras, sizeof(*extras)*num_variables, mem_flags);
+    }
+
+    uint64_t num_rows;
+    error = db_env->get_engine_status (db_env, mystat, max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_GLOBAL_STATUS);
+    //TODO: Maybe do something with the panic output?
+#if 0
+    if (strlen(panic_string)) {
+        STATPRINT("Environment panic string", panic_string);
+    }
+#endif
+    if (error == 0) {
+        //TODO: Maybe enable some of the items here: (copied from engine status
+#if 0
+        if (panic) {
+            snprintf(buf, bufsiz, "%" PRIu64, panic);
+            STATPRINT("Environment panic", buf);
+        }
+
+        if(redzone_state == FS_BLOCKED) {
+            STATPRINT("*** URGENT WARNING ***", "FILE SYSTEM IS COMPLETELY FULL");
+            snprintf(buf, bufsiz, "FILE SYSTEM IS COMPLETELY FULL");
+        }
+        else if (redzone_state == FS_GREEN) {
+            snprintf(buf, bufsiz, "more than %d percent of total file system space", 2*tokudb_fs_reserve_percent);
+        }
+        else if (redzone_state == FS_YELLOW) {
+            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING FULL (less than %d percent free)", 2*tokudb_fs_reserve_percent);
+        }
+        else if (redzone_state == FS_RED){
+            snprintf(buf, bufsiz, "*** WARNING *** FILE SYSTEM IS GETTING VERY FULL (less than %d percent free): INSERTS ARE PROHIBITED", tokudb_fs_reserve_percent);
+        }
+        else {
+            snprintf(buf, bufsiz, "information unavailable, unknown redzone state %d", redzone_state);
+        }
+        STATPRINT ("disk free space", buf);
+#endif
+
+
+        //TODO: (optionally) add redzone state, panic, panic string, etc. Right now it's being ignored.
+
+        for (uint64_t row = 0; row < num_rows; row++) {
+            SHOW_VAR &status = toku_global_status_variables[row];
+            status.name = mystat[row].keyname;
+            switch (mystat[row].type) {
+            case FS_STATE:
+            case UINT64:
+                status.type = SHOW_LONGLONG;
+                status.value = (char*)&mystat[row].value.num;
+                break;
+            case CHARSTR:
+                status.type = SHOW_CHAR;
+                status.value = (char*)mystat[row].value.str;
+                break;
+            case UNIXTIME:
+                {
+                    status.type = SHOW_CHAR;
+                    time_t t = mystat[row].value.num;
+                    char tbuf[26];
+                    snprintf(buf, bufsiz, "%.24s", ctime_r(&t, tbuf));
+                    //Need some persistent memory, so copy it.
+                    extras[row] = my_strdup(buf, mem_flags);
+                    status.value = (char*)extras[row];
+                }
+                break;
+            case TOKUTIME:
+                {
+                    status.type = SHOW_DOUBLE;
+                    double t = tokutime_to_seconds(mystat[row].value.num);
+                    // Reuse the memory in mystat[row]. (It belongs to us).
+                    mystat[row].value.dnum = t;
+                    status.value = (char*)&mystat[row].value.dnum;
+                }
+                break;
+            case PARCOUNT:
+                {
+                    status.type = SHOW_LONGLONG;
+                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                    // Reuse the memory in mystat[row]. (It belongs to us).
+                    mystat[row].value.num = v;
+                    status.value = (char*)&mystat[row].value.num;
+                }
+                break;
+            default:
+                {
+                    status.type = SHOW_CHAR;
+                    snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d", mystat[row].type);
+                    //Need some persistent memory, so copy it.
+                    extras[row] = my_strdup(buf, mem_flags);
+                    status.value = (char*)extras[row];
+                }
+                break;
+            }
+        }
+        // Sentinel value at end.
+        toku_global_status_variables[num_rows].type = SHOW_LONG;
+        toku_global_status_variables[num_rows].value = (char*)NullS;
+        toku_global_status_variables[num_rows].name = (char*)NullS;
+
+        var->type= SHOW_ARRAY;
+        var->value= (char *) toku_global_status_variables;
+    }
+    if (error) { my_errno = error; }
+    TOKUDB_DBUG_RETURN(error);
+}
+
+static SHOW_VAR toku_global_status_variables_export[]= {
+    {"Tokudb", (char*)&show_tokudb_vars, SHOW_FUNC},
+    {NullS, NullS, SHOW_LONG}
+};
+
 mysql_declare_plugin(tokudb) 
 {
     MYSQL_STORAGE_ENGINE_PLUGIN, 
@@ -2163,7 +2313,7 @@ mysql_declare_plugin(tokudb)
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
+    toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
     NULL,                      /* config options */
 #if MYSQL_VERSION_ID >= 50521
