@@ -992,17 +992,16 @@ static
 void
 trx_roll_try_truncate(
 /*==================*/
-	trx_t*	trx)	/*!< in/out: transaction */
+	trx_t*		trx,		/*!< in/out: transaction */
+	trx_undo_ptr_t*	undo_ptr)	/*!< in: rollback segment to look
+					for next undo log record. */
 {
 	undo_no_t		limit;
 	const trx_undo_arr_t*	arr;
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
-	ut_ad((trx->standard.rseg != 0
-	       && mutex_own(&((trx->standard.rseg)->mutex)))
-	      || (trx->temporary.rseg != 0
-		  && mutex_own(&(trx->temporary.rseg->mutex))));
+	ut_ad(mutex_own(&(undo_ptr->rseg->mutex)));
 
 	trx->pages_undone = 0;
 
@@ -1021,20 +1020,12 @@ trx_roll_try_truncate(
 		}
 	}
 
-	if (trx->standard.insert_undo) {
-		trx_undo_truncate_end(trx, trx->standard.insert_undo, limit);
+	if (undo_ptr->insert_undo) {
+		trx_undo_truncate_end(trx, undo_ptr->insert_undo, limit);
 	}
 
-	if (trx->standard.update_undo) {
-		trx_undo_truncate_end(trx, trx->standard.update_undo, limit);
-	}
-
-	if (trx->temporary.insert_undo) {
-		trx_undo_truncate_end(trx, trx->temporary.insert_undo, limit);
-	}
-
-	if (trx->temporary.update_undo) {
-		trx_undo_truncate_end(trx, trx->temporary.update_undo, limit);
+	if (undo_ptr->update_undo) {
+		trx_undo_truncate_end(trx, undo_ptr->update_undo, limit);
 	}
 }
 
@@ -1126,7 +1117,7 @@ try_again:
 	if (trx->pages_undone >= TRX_ROLL_TRUNC_THRESHOLD) {
 		mutex_enter(&rseg->mutex);
 
-		trx_roll_try_truncate(trx);
+		trx_roll_try_truncate(trx, undo_ptr);
 
 		mutex_exit(&rseg->mutex);
 	}
@@ -1151,7 +1142,7 @@ try_again:
 
 			mutex_enter(&(rseg->mutex));
 
-			trx_roll_try_truncate(trx);
+			trx_roll_try_truncate(trx, undo_ptr);
 
 			mutex_exit(&(rseg->mutex));
 		}
