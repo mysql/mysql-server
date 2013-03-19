@@ -4832,27 +4832,23 @@ UNIV_INTERN
 ibool
 page_zip_verify_checksum(
 /*=====================*/
-	const void*	data,	/*!< in: compressed page */
-	ulint		size)	/*!< in: size of compressed page */
+	const void*	data,		/*!< in: compressed page */
+	ulint		size		/*!< in: size of compressed page */
+#ifdef UNIV_INNOCHECKSUM
+	/* these variables are used only for innochecksum tool. */
+	,bool		verbose,	/*!< in: true if debug option
+					is enable */
+	ullint		page_no,	/*!< in: page number of
+					given read_buf */
+	bool		strict_check	/*!< in: true if strict-check
+					option is enable */
+#endif
+)
 {
 	ib_uint32_t	stored;
 	ib_uint32_t	calc;
 	ib_uint32_t	crc32 = 0 /* silence bogus warning */;
 	ib_uint32_t	innodb = 0 /* silence bogus warning */;
-
-	bool		verbose = FALSE;
-	ullint		page_no = 0;
-/* enable for strict_check for innochecksum tool. */
-	bool		strict_check = FALSE;
-
-#ifdef UNIV_INNOCHECKSUM
-	extern my_bool	debug;
-	extern ulint	cur_page_num;
-	extern my_bool	strict_verify;
-	verbose = debug;
-	page_no = cur_page_num;
-	strict_check = strict_verify;
-#endif
 
 	stored = mach_read_from_4(
 		(const unsigned char*) data + FIL_PAGE_SPACE_OR_CHKSUM);
@@ -4867,9 +4863,10 @@ page_zip_verify_checksum(
 				break;
 		}
 		if (i >= size) {
-			if (verbose)
+			if (verbose) {
 				DBUG_PRINT("info", ("Page::%llu is empty and "
 					   "uncorrupted",page_no));
+			}
 			return(TRUE);
 		}
 #else
@@ -4884,6 +4881,7 @@ page_zip_verify_checksum(
 		data, size, static_cast<srv_checksum_algorithm_t>(
 			srv_checksum_algorithm));
 
+#ifdef UNIV_INNOCHECKSUM
 	if (verbose) {
 		DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
 			   "recorded = %u",page_no,
@@ -4905,7 +4903,7 @@ page_zip_verify_checksum(
 		}
 
 	}
-
+#endif /* UNIV_INNOCHECKSUM */
 	if (stored == calc) {
 		return(TRUE);
 	}
