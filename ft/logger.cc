@@ -13,6 +13,7 @@
 #include "log-internal.h"
 #include "txn_manager.h"
 #include "rollback_log_node_cache.h"
+#include "huge_page_detection.h"
 #include <util/partitioned_counter.h>
 
 static const int log_format_version=TOKU_LOG_VERSION;
@@ -78,6 +79,11 @@ static bool is_a_logfile (const char *name, long long *number_result) {
 
 // TODO: can't fail
 int toku_logger_create (TOKULOGGER *resultp) {
+    if (complain_and_return_true_if_huge_pages_are_enabled()) {
+        *resultp = NULL;
+        errno = TOKUDB_HUGE_PAGES_ENABLED;
+        return TOKUDB_HUGE_PAGES_ENABLED;
+    }
     TOKULOGGER CALLOC(result);
     if (result==0) return get_error_errno();
     result->is_open=false;
