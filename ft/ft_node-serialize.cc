@@ -15,14 +15,14 @@
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, t, "brt upgrade: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, c, t, "brt upgrade: " l, inc)
 
 static void
 status_init(void)
 {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(FT_UPGRADE_FOOTPRINT,             UINT64, "footprint", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_UPGRADE_FOOTPRINT,             nullptr, UINT64, "footprint", TOKU_ENGINE_STATUS);
     ft_upgrade_status.initialized = true;
 }
 #undef STATUS_INIT

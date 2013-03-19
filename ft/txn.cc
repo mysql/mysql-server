@@ -23,16 +23,16 @@
 
 static TXN_STATUS_S txn_status;
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(txn_status, k, t, "txn: " l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(txn_status, k, c, t, "txn: " l, inc)
 
 void
 txn_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(TXN_BEGIN,            PARCOUNT,   "begin", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_READ_BEGIN,       PARCOUNT,   "begin read only", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_COMMIT,           PARCOUNT,   "successful commits", TOKU_ENGINE_STATUS);
-    STATUS_INIT(TXN_ABORT,            PARCOUNT,   "aborts", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_BEGIN,            nullptr, PARCOUNT,   "begin", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_READ_BEGIN,       nullptr, PARCOUNT,   "begin read only", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_COMMIT,           nullptr, PARCOUNT,   "successful commits", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_ABORT,            nullptr, PARCOUNT,   "aborts", TOKU_ENGINE_STATUS);
     txn_status.initialized = true;
 }
 

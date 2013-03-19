@@ -21,26 +21,26 @@ static YDB_WRITE_LAYER_STATUS_S ydb_write_layer_status;
 #endif
 #define STATUS_VALUE(x) ydb_write_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ydb_write_layer_status, k, t, l, inc)
+#define STATUS_INIT(k,c,t,l,inc) TOKUDB_STATUS_INIT(ydb_write_layer_status, k, c, t, l, inc)
 
 static void
 ydb_write_layer_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(YDB_LAYER_NUM_INSERTS,                UINT64,   "dictionary inserts", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_INSERTS_FAIL,           UINT64,   "dictionary inserts fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DELETES,                UINT64,   "dictionary deletes", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_DELETES_FAIL,           UINT64,   "dictionary deletes fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_UPDATES,                UINT64,   "dictionary updates", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_UPDATES_FAIL,           UINT64,   "dictionary updates fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST,      UINT64,   "dictionary broadcast updates", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL, UINT64,   "dictionary broadcast updates fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS,          UINT64,   "dictionary multi inserts", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS_FAIL,     UINT64,   "dictionary multi inserts fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES,          UINT64,   "dictionary multi deletes", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES_FAIL,     UINT64,   "dictionary multi deletes fail", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES,          UINT64,   "dictionary updates multi", TOKU_ENGINE_STATUS);
-    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES_FAIL,     UINT64,   "dictionary updates multi fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_INSERTS,                nullptr, UINT64,   "dictionary inserts", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_INSERTS_FAIL,           nullptr, UINT64,   "dictionary inserts fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DELETES,                nullptr, UINT64,   "dictionary deletes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DELETES_FAIL,           nullptr, UINT64,   "dictionary deletes fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES,                nullptr, UINT64,   "dictionary updates", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_FAIL,           nullptr, UINT64,   "dictionary updates fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST,      nullptr, UINT64,   "dictionary broadcast updates", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_UPDATES_BROADCAST_FAIL, nullptr, UINT64,   "dictionary broadcast updates fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS,          nullptr, UINT64,   "dictionary multi inserts", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_INSERTS_FAIL,     nullptr, UINT64,   "dictionary multi inserts fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES,          nullptr, UINT64,   "dictionary multi deletes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_DELETES_FAIL,     nullptr, UINT64,   "dictionary multi deletes fail", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES,          nullptr, UINT64,   "dictionary updates multi", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_MULTI_UPDATES_FAIL,     nullptr, UINT64,   "dictionary updates multi fail", TOKU_ENGINE_STATUS);
     ydb_write_layer_status.initialized = true;
 }
 #undef STATUS_INIT
