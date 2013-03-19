@@ -4300,13 +4300,14 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
   As an independent feature, phase 2 also saves the
   conflicts into the table's exceptions table.
 */
-int
+static int
 row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
                     enum_conflicting_op_type op_type,
                     const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
-                    const MY_BITMAP* write_set,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP* ai_cols,
                     NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_old");
@@ -4319,10 +4320,12 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
-  if (unlikely(!bitmap_is_set(write_set, resolve_column)))
+  if (unlikely(!bitmap_is_set(bi_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s",
-                          cfn_share->m_conflict_fn->name);
+    sql_print_information("NDB Slave: missing data for %s "
+                          "timestamp column %u.",
+                          cfn_share->m_conflict_fn->name,
+                          resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -4380,13 +4383,14 @@ row_conflict_fn_old(NDB_CONFLICT_FN_SHARE* cfn_share,
   DBUG_RETURN(r);
 }
 
-int
+static int
 row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
                                 enum_conflicting_op_type op_type,
                                 const NdbRecord* data_record,
                                 const uchar* old_data,
                                 const uchar* new_data,
-                                const MY_BITMAP* write_set,
+                                const MY_BITMAP* bi_cols,
+                                const MY_BITMAP* ai_cols,
                                 NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_max_update_only");
@@ -4399,10 +4403,12 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   assert((resolve_size == 4) || (resolve_size == 8));
 
-  if (unlikely(!bitmap_is_set(write_set, resolve_column)))
+  if (unlikely(!bitmap_is_set(ai_cols, resolve_column)))
   {
-    sql_print_information("NDB Slave: missing data for %s",
-                          cfn_share->m_conflict_fn->name);
+    sql_print_information("NDB Slave: missing data for %s "
+                          "timestamp column %u.",
+                          cfn_share->m_conflict_fn->name,
+                          resolve_column);
     DBUG_RETURN(1);
   }
 
@@ -4471,13 +4477,14 @@ row_conflict_fn_max_update_only(NDB_CONFLICT_FN_SHARE* cfn_share,
 
   Note that for delete, this algorithm reverts to the OLD algorithm.
 */
-int
+static int
 row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                     enum_conflicting_op_type op_type,
                     const NdbRecord* data_record,
                     const uchar* old_data,
                     const uchar* new_data,
-                    const MY_BITMAP* write_set,
+                    const MY_BITMAP* bi_cols,
+                    const MY_BITMAP* ai_cols,
                     NdbInterpretedCode* code)
 {
   switch(op_type)
@@ -4491,7 +4498,8 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                                            data_record,
                                            old_data,
                                            new_data,
-                                           write_set,
+                                           bi_cols,
+                                           ai_cols,
                                            code);
   case DELETE_ROW:
     /* Can't use max of new image, as there's no new image
@@ -4503,7 +4511,8 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
                                data_record,
                                old_data,
                                new_data,
-                               write_set,
+                               bi_cols,
+                               ai_cols,
                                code);
   default:
     abort();
@@ -4526,13 +4535,14 @@ row_conflict_fn_max(NDB_CONFLICT_FN_SHARE* cfn_share,
   to them.
 */
 
-int
+static int
 row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
                             enum_conflicting_op_type op_type,
                             const NdbRecord* data_record,
                             const uchar* old_data,
                             const uchar* new_data,
-                            const MY_BITMAP* write_set,
+                            const MY_BITMAP* bi_cols,
+                            const MY_BITMAP* ai_cols,
                             NdbInterpretedCode* code)
 {
   switch(op_type)
@@ -4546,18 +4556,19 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
                                            data_record,
                                            old_data,
                                            new_data,
-                                           write_set,
+                                           bi_cols,
+                                           ai_cols,
                                            code);
   case DELETE_ROW:
     /* This variant always lets a received DELETE_ROW
      * succeed.
      */
-    return 1;
+    return 0;
   default:
     abort();
     return 1;
   }
-};
+}
 
 
 /**
@@ -4565,13 +4576,14 @@ row_conflict_fn_max_del_win(NDB_CONFLICT_FN_SHARE* cfn_share,
 
 */
 
-int
+static int
 row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
                       enum_conflicting_op_type op_type,
                       const NdbRecord* data_record,
                       const uchar* old_data,
                       const uchar* new_data,
-                      const MY_BITMAP* write_set,
+                      const MY_BITMAP* bi_cols,
+                      const MY_BITMAP* ai_cols,
                       NdbInterpretedCode* code)
 {
   DBUG_ENTER("row_conflict_fn_epoch");
@@ -4625,7 +4637,7 @@ row_conflict_fn_epoch(NDB_CONFLICT_FN_SHARE* cfn_share,
     abort();
     DBUG_RETURN(1);
   }
-};
+}
 
 static const st_conflict_fn_arg_def resolve_col_args[]=
 {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,7 +88,10 @@ typedef int (* prepare_detect_func) (struct st_ndbcluster_conflict_fn_share* cfn
                                      const NdbRecord* data_record,
                                      const uchar* old_data,
                                      const uchar* new_data,
-                                     const MY_BITMAP* write_set,
+                                     /* Before image columns bitmap */
+                                     const MY_BITMAP* bi_cols,
+                                     /* After image columns bitmap */
+                                     const MY_BITMAP* ai_cols,
                                      class NdbInterpretedCode* code);
 
 enum enum_conflict_fn_flags
