@@ -1761,6 +1761,7 @@ void st_select_lex::init_query()
   ref_pointer_array_size= 0;
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_sum_items= 0;
   n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
