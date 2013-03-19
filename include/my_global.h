@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,12 +87,6 @@
 #else
 #define IF_PURIFY(A,B) B
 #endif
-
-#ifndef EMBEDDED_LIBRARY
-#ifdef WITH_NDB_BINLOG
-#define HAVE_NDB_BINLOG 1
-#endif
-#endif /* !EMBEDDED_LIBRARY */
 
 #ifndef EMBEDDED_LIBRARY
 #define HAVE_REPLICATION

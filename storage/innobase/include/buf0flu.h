@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -136,7 +136,7 @@ void
 buf_flush_wait_batch_end(
 /*=====================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	type);		/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 /******************************************************************//**
 Waits until a flush batch of the given type ends. This is called by
@@ -147,7 +147,7 @@ void
 buf_flush_wait_batch_end_wait_only(
 /*===============================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
-	enum buf_flush	type);		/*!< in: BUF_FLUSH_LRU
+	buf_flush_t	type);		/*!< in: BUF_FLUSH_LRU
 					or BUF_FLUSH_LIST */
 /********************************************************************//**
 This function should be called at a mini-transaction commit, if a page was
@@ -248,8 +248,19 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	buf_flush	flush_type)	/*!< in: type of flush */
+	buf_flush_t	flush_type)	/*!< in: type of flush */
 	__attribute__((nonnull));
+/********************************************************************//**
+Returns true if the block is modified and ready for flushing.
+@return	true if can flush immediately */
+UNIV_INTERN
+bool
+buf_flush_ready_for_flush(
+/*======================*/
+	buf_page_t*	bpage,	/*!< in: buffer control block, must be
+				buf_page_in_file(bpage) */
+	buf_flush_t	flush_type)/*!< in: type of flush */
+	__attribute__((warn_unused_result));
 
 #ifdef UNIV_DEBUG
 /******************************************************************//**
