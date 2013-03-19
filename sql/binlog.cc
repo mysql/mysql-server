@@ -6715,6 +6715,31 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
   return thd->commit_error;
 }
 
+/**
+   Auxiliary function used in ordered_commit.
+*/
+static inline int call_after_sync_hook(THD *queue_head)
+{
+  const char *log_file= NULL;
+  my_off_t pos= 0;
+  THD *tail= NULL;
+
+  DBUG_ASSERT(queue_head != NULL);
+  while (queue_head)
+  {
+    tail= queue_head;
+    queue_head= queue_head->next_to_commit;
+  }
+
+  tail->get_trans_pos(&log_file, &pos);
+  if (DBUG_EVALUATE_IF("simulate_after_sync_hook_error", 1, 0) ||
+      RUN_HOOK(binlog_storage, after_sync, (tail, log_file, pos)))
+  {
+    sql_print_error("Failed to run 'after_sync' hooks");
+    return ER_ERROR_ON_WRITE;
+  }
+  return 0;
+}
 
 /**
   Flush and commit the transaction.
@@ -6840,7 +6865,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   {
     const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
     DBUG_ASSERT(flush_end_pos != 0);
-    if (RUN_HOOK(binlog_storage, after_flush,
+    if (DBUG_EVALUATE_IF("simulate_after_flush_hook_error", 1, 0) ||
+        RUN_HOOK(binlog_storage, after_flush,
                  (thd, file_name_ptr, flush_end_pos)))
     {
       sql_print_error("Failed to run 'after_flush' hooks");
@@ -6886,12 +6912,20 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
       DBUG_RETURN(finish_commit(thd));
     }
     THD *commit_queue= stage_manager.fetch_queue_for(Stage_manager::COMMIT_STAGE);
+
+    if (flush_error == 0)
+      flush_error= call_after_sync_hook(commit_queue);
+
     process_commit_stage_queue(thd, commit_queue, flush_error);
     mysql_mutex_unlock(&LOCK_commit);
     final_queue= commit_queue;
   }
   else
+  {
     mysql_mutex_unlock(&LOCK_sync);
+    if (flush_error == 0)
+      call_after_sync_hook(final_queue);
+  }
 
   /* Commit done so signal all waiting threads */
   stage_manager.signal_done(final_queue);
