@@ -23,23 +23,16 @@
 
 static TXN_STATUS_S txn_status;
 
-#define STATUS_INIT(k,t,l) do {                                         \
-        txn_status.status[k].keyname = #k;                               \
-        txn_status.status[k].type    = t;                                \
-        txn_status.status[k].legend  = "txn: " l;                        \
-        if (t == PARCOUNT) {                                            \
-            txn_status.status[k].value.parcount = create_partitioned_counter(); \
-        }                                                               \
-    } while (0)
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(txn_status, k, t, "txn: " l, inc)
 
 void
 txn_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(TXN_BEGIN,            PARCOUNT,   "begin");
-    STATUS_INIT(TXN_READ_BEGIN,       PARCOUNT,   "begin read only");
-    STATUS_INIT(TXN_COMMIT,           PARCOUNT,   "successful commits");
-    STATUS_INIT(TXN_ABORT,            PARCOUNT,   "aborts");
+    STATUS_INIT(TXN_BEGIN,            PARCOUNT,   "begin", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_READ_BEGIN,       PARCOUNT,   "begin read only", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_COMMIT,           PARCOUNT,   "successful commits", TOKU_ENGINE_STATUS);
+    STATUS_INIT(TXN_ABORT,            PARCOUNT,   "aborts", TOKU_ENGINE_STATUS);
     txn_status.initialized = true;
 }
 

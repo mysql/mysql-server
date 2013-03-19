@@ -109,13 +109,14 @@ static __attribute__((__unused__)) uint64_t
 get_engine_status_val(DB_ENV * UU(env), const char * keyname) {
     uint64_t rval = 0;
     uint64_t nrows;
-    env->get_engine_status_num_rows(env, &nrows);
-    TOKU_ENGINE_STATUS_ROW_S mystat[nrows];
+    uint64_t max_rows;
+    env->get_engine_status_num_rows(env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
     fs_redzone_state redzone_state;
     uint64_t panic;
     uint32_t panic_string_len = 1024;
     char panic_string[panic_string_len];
-    int r = env->get_engine_status (env, mystat, nrows, &redzone_state, &panic, panic_string, panic_string_len);
+    int r = env->get_engine_status (env, mystat, max_rows, &nrows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_ENGINE_STATUS);
     CKERR(r);
     int found = 0;
     for (uint64_t i = 0; i < nrows && !found; i++) {

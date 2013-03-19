@@ -111,24 +111,21 @@ typedef struct {
 static YDB_LAYER_STATUS_S ydb_layer_status;
 #define STATUS_VALUE(x) ydb_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,t,l) { \
-        ydb_layer_status.status[k].keyname = #k; \
-        ydb_layer_status.status[k].type    = t;  \
-        ydb_layer_status.status[k].legend  = l; \
-    }
+#define STATUS_INIT(k,t,l,inc) TOKUDB_STATUS_INIT(ydb_layer_status, k, t, l, inc)
+
 static void
 ydb_layer_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(YDB_LAYER_TIME_CREATION,              UNIXTIME, "time of environment creation");
-    STATUS_INIT(YDB_LAYER_TIME_STARTUP,               UNIXTIME, "time of engine startup");
-    STATUS_INIT(YDB_LAYER_TIME_NOW,                   UNIXTIME, "time now");
-    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                UINT64,   "db opens");
-    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               UINT64,   "db closes");
-    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               UINT64,   "num open dbs now");
-    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               UINT64,   "max open dbs");
-    STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           UINT64,   "period, in ms, that recovery log is automatically fsynced");
+    STATUS_INIT(YDB_LAYER_TIME_CREATION,              UNIXTIME, "time of environment creation", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_TIME_STARTUP,               UNIXTIME, "time of engine startup", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_TIME_NOW,                   UNIXTIME, "time now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_OPEN,                UINT64,   "db opens", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_DB_CLOSE,               UINT64,   "db closes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_NUM_OPEN_DBS,               UINT64,   "num open dbs now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_MAX_OPEN_DBS,               UINT64,   "max open dbs", TOKU_ENGINE_STATUS);
+    STATUS_INIT(YDB_LAYER_FSYNC_LOG_PERIOD,           UINT64,   "period, in ms, that recovery log is automatically fsynced", TOKU_ENGINE_STATUS);
 
     STATUS_VALUE(YDB_LAYER_TIME_STARTUP) = time(NULL);
     ydb_layer_status.initialized = true;
@@ -503,22 +500,18 @@ typedef struct {
 
 static PERSISTENT_UPGRADE_STATUS_S persistent_upgrade_status;
 
-#define PERSISTENT_UPGRADE_STATUS_INIT(k,t,l) { \
-        persistent_upgrade_status.status[k].keyname = #k; \
-        persistent_upgrade_status.status[k].type    = t;  \
-        persistent_upgrade_status.status[k].legend  = "upgrade: " l; \
-    }
+#define PERSISTENT_UPGRADE_STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(persistent_upgrade_status, k, t, "upgrade: " l, inc)
 
 static void
 persistent_upgrade_status_init (void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION,           UINT64,   "original version (at time of environment creation)");
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,  UINT64,   "version at time of startup");
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_LAST_LSN_OF_V13,                UINT64,   "last LSN of version 13");
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_TIME,                       UNIXTIME, "time of upgrade to version 14");
-    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_FOOTPRINT,                  UINT64,   "footprint from version 13 to 14");
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_ORIGINAL_ENV_VERSION,           UINT64,   "original version (at time of environment creation)", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_STORED_ENV_VERSION_AT_STARTUP,  UINT64,   "version at time of startup", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_LAST_LSN_OF_V13,                UINT64,   "last LSN of version 13", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_TIME,                       UNIXTIME, "time of upgrade to version 14", TOKU_ENGINE_STATUS);
+    PERSISTENT_UPGRADE_STATUS_INIT(PERSISTENT_UPGRADE_V14_FOOTPRINT,                  UINT64,   "footprint from version 13 to 14", TOKU_ENGINE_STATUS);
     persistent_upgrade_status.initialized = true;
 }
 
@@ -1703,21 +1696,17 @@ typedef struct {
 
 static FS_STATUS_S fsstat;
 
-#define FS_STATUS_INIT(k,t,l) {           \
-        fsstat.status[k].keyname = #k; \
-        fsstat.status[k].type    = t;  \
-        fsstat.status[k].legend  = "filesystem: " l; \
-    }
+#define FS_STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(fsstat, k, t, "filesystem: " l, inc)
 
 static void
 fs_status_init(void) {
-    FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   FS_STATE, "ENOSPC redzone state");
-    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, UINT64,   "threads currently blocked by full disk");
-    FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     UINT64,   "number of operations rejected by enospc prevention (red zone)");
-    FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     UNIXTIME, "most recent disk full");
-    FS_STATUS_INIT(FS_ENOSPC_COUNT,           UINT64,   "number of write operations that returned ENOSPC");
-    FS_STATUS_INIT(FS_FSYNC_TIME,             UINT64,   "fsync time");
-    FS_STATUS_INIT(FS_FSYNC_COUNT,            UINT64,   "fsync count");
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_STATE,   FS_STATE, "ENOSPC redzone state", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_THREADS_BLOCKED, UINT64,   "threads currently blocked by full disk", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_REDZONE_CTR,     UINT64,   "number of operations rejected by enospc prevention (red zone)", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_MOST_RECENT,     UNIXTIME, "most recent disk full", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_ENOSPC_COUNT,           UINT64,   "number of write operations that returned ENOSPC", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_TIME,             UINT64,   "fsync time", TOKU_ENGINE_STATUS);
+    FS_STATUS_INIT(FS_FSYNC_COUNT,            UINT64,   "fsync count", TOKU_ENGINE_STATUS);
     fsstat.initialized = true;
 }
 #undef FS_STATUS_INIT
@@ -1772,27 +1761,23 @@ typedef struct {
 
 static MEMORY_STATUS_S memory_status;
 
-#define STATUS_INIT(k,t,l) { \
-        memory_status.status[k].keyname = #k; \
-        memory_status.status[k].type    = t;  \
-        memory_status.status[k].legend  = "memory: " l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(memory_status, k, t, "memory: " l, inc)
 
 static void
 memory_status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(MEMORY_MALLOC_COUNT,       UINT64,  "number of malloc operations");
-    STATUS_INIT(MEMORY_FREE_COUNT,         UINT64,  "number of free operations");
-    STATUS_INIT(MEMORY_REALLOC_COUNT,      UINT64,  "number of realloc operations");
-    STATUS_INIT(MEMORY_MALLOC_FAIL,        UINT64,  "number of malloc operations that failed");
-    STATUS_INIT(MEMORY_REALLOC_FAIL,       UINT64,  "number of realloc operations that failed" );
-    STATUS_INIT(MEMORY_REQUESTED,          UINT64,  "number of bytes requested");
-    STATUS_INIT(MEMORY_USED,               UINT64,  "number of bytes used (requested + overhead)");
-    STATUS_INIT(MEMORY_FREED,              UINT64,  "number of bytes freed");
-    STATUS_INIT(MEMORY_MAX_IN_USE,         UINT64,  "estimated maximum memory footprint");
-    STATUS_INIT(MEMORY_MALLOCATOR_VERSION, CHARSTR, "mallocator version");
-    STATUS_INIT(MEMORY_MMAP_THRESHOLD,     UINT64,  "mmap threshold");
+    STATUS_INIT(MEMORY_MALLOC_COUNT,       UINT64,  "number of malloc operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_FREE_COUNT,         UINT64,  "number of free operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REALLOC_COUNT,      UINT64,  "number of realloc operations", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MALLOC_FAIL,        UINT64,  "number of malloc operations that failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REALLOC_FAIL,       UINT64,  "number of realloc operations that failed" , TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_REQUESTED,          UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_USED,               UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_FREED,              UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MAX_IN_USE,         UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MALLOCATOR_VERSION, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MMAP_THRESHOLD,     UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
     memory_status.initialized = true;  
 }
 #undef STATUS_INIT
@@ -1855,7 +1840,7 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
 // because of a race condition.  
 // Note, engine status is still collected even if the environment or logger is panicked
 static int
-env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t maxrows,  fs_redzone_state* redzone_state, uint64_t * env_panicp, char * env_panic_string_buf, int env_panic_string_length) {
+env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t maxrows,  uint64_t *num_rows, fs_redzone_state* redzone_state, uint64_t * env_panicp, char * env_panic_string_buf, int env_panic_string_length, toku_engine_status_include_type include_flags) {
     int r;
 
     if (env_panic_string_buf) {
@@ -1867,9 +1852,11 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             *env_panic_string_buf = '\0';
     }
 
-    if ( !(env)     || 
-         !(env->i)  || 
-         !(env_opened(env)) )
+    if ( !(env)     ||
+         !(env->i)  ||
+         !(env_opened(env)) ||
+         !num_rows ||
+         !include_flags)
         r = EINVAL;
     else {
         r = 0;
@@ -1880,84 +1867,108 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             YDB_LAYER_STATUS_S ydb_stat;
             ydb_layer_get_status(env, &ydb_stat);
             for (int i = 0; i < YDB_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ydb_stat.status[i];
+                if (ydb_stat.status[i].include & include_flags) {
+                    engstat[row++] = ydb_stat.status[i];
+                }
             }
         }
         {
             YDB_C_LAYER_STATUS_S ydb_c_stat;
             ydb_c_layer_get_status(&ydb_c_stat);
             for (int i = 0; i < YDB_C_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ydb_c_stat.status[i];
+                if (ydb_c_stat.status[i].include & include_flags) {
+                    engstat[row++] = ydb_c_stat.status[i];
+                }
             }
         }
         {
             YDB_WRITE_LAYER_STATUS_S ydb_write_stat;
             ydb_write_layer_get_status(&ydb_write_stat);
             for (int i = 0; i < YDB_WRITE_LAYER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ydb_write_stat.status[i];
+                if (ydb_write_stat.status[i].include & include_flags) {
+                    engstat[row++] = ydb_write_stat.status[i];
+                }
             }
         }
         {
             LE_STATUS_S lestat;                    // Rice's vampire
             toku_le_get_status(&lestat);
             for (int i = 0; i < LE_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = lestat.status[i];
+                if (lestat.status[i].include & include_flags) {
+                    engstat[row++] = lestat.status[i];
+                }
             }
         }
         {
             CHECKPOINT_STATUS_S cpstat;
             toku_checkpoint_get_status(env->i->cachetable, &cpstat);
             for (int i = 0; i < CP_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = cpstat.status[i];
+                if (cpstat.status[i].include & include_flags) {
+                    engstat[row++] = cpstat.status[i];
+                }
             }
         }
         {
             CACHETABLE_STATUS_S ctstat;
             toku_cachetable_get_status(env->i->cachetable, &ctstat);
             for (int i = 0; i < CT_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ctstat.status[i];
+                if (ctstat.status[i].include & include_flags) {
+                    engstat[row++] = ctstat.status[i];
+                }
             }
         }
         {
             LTM_STATUS_S ltmstat;
             env->i->ltm.get_status(&ltmstat);
             for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ltmstat.status[i];
+                if (ltmstat.status[i].include & include_flags) {
+                    engstat[row++] = ltmstat.status[i];
+                }
             }
         }
         {
             FT_STATUS_S ftstat;
             toku_ft_get_status(&ftstat);
             for (int i = 0; i < FT_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ftstat.status[i];
+                if (ftstat.status[i].include & include_flags) {
+                    engstat[row++] = ftstat.status[i];
+                }
             }
         }
         {
             FT_FLUSHER_STATUS_S flusherstat;
             toku_ft_flusher_get_status(&flusherstat);
             for (int i = 0; i < FT_FLUSHER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = flusherstat.status[i];
+                if (flusherstat.status[i].include & include_flags) {
+                    engstat[row++] = flusherstat.status[i];
+                }
             }
         }
         {
             FT_HOT_STATUS_S hotstat;
             toku_ft_hot_get_status(&hotstat);
             for (int i = 0; i < FT_HOT_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = hotstat.status[i];
+                if (hotstat.status[i].include & include_flags) {
+                    engstat[row++] = hotstat.status[i];
+                }
             }
         }
         {
             TXN_STATUS_S txnstat;
             toku_txn_get_status(&txnstat);
             for (int i = 0; i < TXN_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = txnstat.status[i];
+                if (txnstat.status[i].include & include_flags) {
+                    engstat[row++] = txnstat.status[i];
+                }
             }
         }
         {
             LOGGER_STATUS_S loggerstat;
             toku_logger_get_status(env->i->logger, &loggerstat);
             for (int i = 0; i < LOGGER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = loggerstat.status[i];
+                if (loggerstat.status[i].include & include_flags) {
+                    engstat[row++] = loggerstat.status[i];
+                }
             }
         }
 
@@ -1965,14 +1976,18 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             INDEXER_STATUS_S indexerstat;
             toku_indexer_get_status(&indexerstat);
             for (int i = 0; i < INDEXER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = indexerstat.status[i];
+                if (indexerstat.status[i].include & include_flags) {
+                    engstat[row++] = indexerstat.status[i];
+                }
             }
         }
         {
             LOADER_STATUS_S loaderstat;
             toku_loader_get_status(&loaderstat);
             for (int i = 0; i < LOADER_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = loaderstat.status[i];
+                if (loaderstat.status[i].include & include_flags) {
+                    engstat[row++] = loaderstat.status[i];
+                }
             }
         }
 
@@ -1980,7 +1995,9 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             // memory_status is local to this file
             memory_get_status();
             for (int i = 0; i < MEMORY_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = memory_status.status[i];
+                if (memory_status.status[i].include & include_flags) {
+                    engstat[row++] = memory_status.status[i];
+                }
             }
         }
         {
@@ -1988,23 +2005,32 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             // are used to concentrate file system information collected from various places.
             fs_get_status(env, redzone_state);
             for (int i = 0; i < FS_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = fsstat.status[i];
+                if (fsstat.status[i].include & include_flags) {
+                    engstat[row++] = fsstat.status[i];
+                }
             }
         }
 #if 0
         // enable when upgrade is supported
         {
             for (int i = 0; i < PERSISTENT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = persistent_upgrade_status.status[i];
+                if (persistent_upgrade_status.status[i].include & include_flags) {
+                    engstat[row++] = persistent_upgrade_status.status[i];
+                }
             }
             FT_UPGRADE_STATUS_S ft_upgradestat;
             toku_ft_upgrade_get_status(&ft_upgradestat);
             for (int i = 0; i < FT_UPGRADE_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ft_upgradestat.status[i];
+                if (ft_upgradestat.status[i].include & include_flags) {
+                    engstat[row++] = ft_upgradestat.status[i];
+                }
             }
 
         }
 #endif
+        if (r==0) {
+            *num_rows = row;
+        }
     }
     return r;
 }
@@ -2019,14 +2045,15 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     char panicstring[stringsize];
     int n = 0;  // number of characters printed so far
     uint64_t num_rows;
+    uint64_t max_rows;
     fs_redzone_state redzone_state;
 
     n = snprintf(buff, bufsiz - n, "BUILD_ID = %d\n", BUILD_ID);
 
-    (void) env_get_engine_status_num_rows (env, &num_rows);
-    TOKU_ENGINE_STATUS_ROW_S mystat[num_rows];
-    int r = env->get_engine_status (env, mystat, num_rows, &redzone_state, &panic, panicstring, stringsize);
-    
+    (void) env_get_engine_status_num_rows (env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
+    int r = env->get_engine_status (env, mystat, max_rows, &num_rows, &redzone_state, &panic, panicstring, stringsize, TOKU_ENGINE_STATUS);
+
     if (r) {
         n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
         if (!env) {

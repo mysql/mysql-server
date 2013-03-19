@@ -19,11 +19,7 @@ static YDB_C_LAYER_STATUS_S ydb_c_layer_status;
 #endif
 #define STATUS_VALUE(x) ydb_c_layer_status.status[x].value.num
 
-#define STATUS_INIT(k,t,l) { \
-        ydb_c_layer_status.status[k].keyname = #k; \
-        ydb_c_layer_status.status[k].type    = t;  \
-        ydb_c_layer_status.status[k].legend  = l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ydb_c_layer_status, k, t, l, inc)
 
 static void
 ydb_c_layer_status_init (void) {

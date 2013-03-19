@@ -146,14 +146,7 @@ static const uint32_t this_version = FT_LAYOUT_VERSION;
  */
 static FT_STATUS_S ft_status;
 
-#define STATUS_INIT(k,t,l) do {                                         \
-        ft_status.status[k].keyname = #k;                               \
-        ft_status.status[k].type    = t;                                \
-        ft_status.status[k].legend  = "brt: " l;                        \
-        if (t == PARCOUNT) {                                            \
-            ft_status.status[k].value.parcount = create_partitioned_counter(); \
-        }                                                               \
-    } while (0)
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ft_status, k, t, "brt: " l, inc)
 
 static toku_mutex_t ft_open_close_lock;
 
@@ -162,126 +155,126 @@ status_init(void)
 {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(FT_UPDATES,                                PARCOUNT, "dictionary updates");
-    STATUS_INIT(FT_UPDATES_BROADCAST,                      PARCOUNT, "dictionary broadcast updates");
-    STATUS_INIT(FT_DESCRIPTOR_SET,                         PARCOUNT, "descriptor set");
-    STATUS_INIT(FT_MSN_DISCARDS,                           PARCOUNT, "messages ignored by leaf due to msn");
-    STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN");
-    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree");
-    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            PARCOUNT, "searches requiring more tries than the height of the tree plus three");
-    STATUS_INIT(FT_CREATE_LEAF,                            PARCOUNT, "leaf nodes created");
-    STATUS_INIT(FT_CREATE_NONLEAF,                         PARCOUNT, "nonleaf nodes created");
-    STATUS_INIT(FT_DESTROY_LEAF,                           PARCOUNT, "leaf nodes destroyed");
-    STATUS_INIT(FT_DESTROY_NONLEAF,                        PARCOUNT, "nonleaf nodes destroyed");
-    STATUS_INIT(FT_MSG_BYTES_IN,                           PARCOUNT, "bytes of messages injected at root (all trees)");
-    STATUS_INIT(FT_MSG_BYTES_OUT,                          PARCOUNT, "bytes of messages flushed from h1 nodes to leaves");
-    STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)");
-    STATUS_INIT(FT_MSG_NUM,                                PARCOUNT, "messages injected at root");
-    STATUS_INIT(FT_MSG_NUM_BROADCAST,                      PARCOUNT, "broadcast messages injected at root");
+    STATUS_INIT(FT_UPDATES,                                PARCOUNT, "dictionary updates", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_UPDATES_BROADCAST,                      PARCOUNT, "dictionary broadcast updates", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DESCRIPTOR_SET,                         PARCOUNT, "descriptor set", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSN_DISCARDS,                           PARCOUNT, "messages ignored by leaf due to msn", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            PARCOUNT, "searches requiring more tries than the height of the tree plus three", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_CREATE_LEAF,                            PARCOUNT, "leaf nodes created", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_CREATE_NONLEAF,                         PARCOUNT, "nonleaf nodes created", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DESTROY_LEAF,                           PARCOUNT, "leaf nodes destroyed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DESTROY_NONLEAF,                        PARCOUNT, "nonleaf nodes destroyed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSG_BYTES_IN,                           PARCOUNT, "bytes of messages injected at root (all trees)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSG_BYTES_OUT,                          PARCOUNT, "bytes of messages flushed from h1 nodes to leaves", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSG_NUM,                                PARCOUNT, "messages injected at root", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_MSG_NUM_BROADCAST,                      PARCOUNT, "broadcast messages injected at root", TOKU_ENGINE_STATUS);
 
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      PARCOUNT, "basements decompressed as a target of a query");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  PARCOUNT, "basements decompressed for prelocked range");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    PARCOUNT, "basements decompressed for prefetch");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE,       PARCOUNT, "basements decompressed for write");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     PARCOUNT, "buffers decompressed as a target of a query");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, PARCOUNT, "buffers decompressed for prelocked range");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   PARCOUNT, "buffers decompressed for prefetch");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      PARCOUNT, "buffers decompressed for write");
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      PARCOUNT, "basements decompressed as a target of a query", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  PARCOUNT, "basements decompressed for prelocked range", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    PARCOUNT, "basements decompressed for prefetch", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE,       PARCOUNT, "basements decompressed for write", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     PARCOUNT, "buffers decompressed as a target of a query", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, PARCOUNT, "buffers decompressed for prelocked range", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   PARCOUNT, "buffers decompressed for prefetch", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      PARCOUNT, "buffers decompressed for write", TOKU_ENGINE_STATUS);
 
     // Eviction statistics:
-    STATUS_INIT(FT_FULL_EVICTIONS_LEAF,                    PARCOUNT, "leaf node full evictions");
-    STATUS_INIT(FT_FULL_EVICTIONS_LEAF_BYTES,              PARCOUNT, "leaf node full evictions (bytes)");
-    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF,                 PARCOUNT, "nonleaf node full evictions");
-    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF_BYTES,           PARCOUNT, "nonleaf node full evictions (bytes)");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF_BYTES,           PARCOUNT, "leaf node partial evictions (bytes)");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES,        PARCOUNT, "nonleaf node partial evictions (bytes)");
+    STATUS_INIT(FT_FULL_EVICTIONS_LEAF,                    PARCOUNT, "leaf node full evictions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FULL_EVICTIONS_LEAF_BYTES,              PARCOUNT, "leaf node full evictions (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF,                 PARCOUNT, "nonleaf node full evictions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FULL_EVICTIONS_NONLEAF_BYTES,           PARCOUNT, "nonleaf node full evictions (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF_BYTES,           PARCOUNT, "leaf node partial evictions (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF_BYTES,        PARCOUNT, "nonleaf node partial evictions (bytes)", TOKU_ENGINE_STATUS);
 
     // Disk read statistics: 
     //
     // Pivots: For queries, prefetching, or writing.
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               PARCOUNT, "pivots fetched for query");
-    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_QUERY,             PARCOUNT, "pivots fetched for query (bytes)");
-    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_QUERY,          TOKUTIME, "pivots fetched for query (seconds)");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            PARCOUNT, "pivots fetched for prefetch");
-    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_PREFETCH,          PARCOUNT, "pivots fetched for prefetch (bytes)");
-    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_PREFETCH,       TOKUTIME, "pivots fetched for prefetch (seconds)");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               PARCOUNT, "pivots fetched for write");
-    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_WRITE,             PARCOUNT, "pivots fetched for write (bytes)");
-    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_WRITE,          TOKUTIME, "pivots fetched for write (seconds)");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               PARCOUNT, "pivots fetched for query", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_QUERY,             PARCOUNT, "pivots fetched for query (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_QUERY,          TOKUTIME, "pivots fetched for query (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            PARCOUNT, "pivots fetched for prefetch", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_PREFETCH,          PARCOUNT, "pivots fetched for prefetch (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_PREFETCH,       TOKUTIME, "pivots fetched for prefetch (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               PARCOUNT, "pivots fetched for write", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_PIVOTS_FETCHED_WRITE,             PARCOUNT, "pivots fetched for write (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_PIVOTS_FETCHED_WRITE,          TOKUTIME, "pivots fetched for write (seconds)", TOKU_ENGINE_STATUS);
     // Basements: For queries, aggressive fetching in prelocked range, prefetching, or writing.
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           PARCOUNT, "basements fetched as a target of a query");
-    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_NORMAL,         PARCOUNT, "basements fetched as a target of a query (bytes)");
-    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_NORMAL,      TOKUTIME, "basements fetched as a target of a query (seconds)");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       PARCOUNT, "basements fetched for prelocked range");
-    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE,     PARCOUNT, "basements fetched for prelocked range (bytes)");
-    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_AGGRESSIVE,  TOKUTIME, "basements fetched for prelocked range (seconds)");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         PARCOUNT, "basements fetched for prefetch");
-    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_PREFETCH,       PARCOUNT, "basements fetched for prefetch (bytes)");
-    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH,    TOKUTIME, "basements fetched for prefetch (seconds)");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write");
-    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_WRITE,          PARCOUNT, "basements fetched for write (bytes)");
-    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_WRITE,       TOKUTIME, "basements fetched for write (seconds)");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           PARCOUNT, "basements fetched as a target of a query", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_NORMAL,         PARCOUNT, "basements fetched as a target of a query (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_NORMAL,      TOKUTIME, "basements fetched as a target of a query (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       PARCOUNT, "basements fetched for prelocked range", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_AGGRESSIVE,     PARCOUNT, "basements fetched for prelocked range (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_AGGRESSIVE,  TOKUTIME, "basements fetched for prelocked range (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         PARCOUNT, "basements fetched for prefetch", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_PREFETCH,       PARCOUNT, "basements fetched for prefetch (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH,    TOKUTIME, "basements fetched for prefetch (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_WRITE,          PARCOUNT, "basements fetched for write (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_WRITE,       TOKUTIME, "basements fetched for write (seconds)", TOKU_ENGINE_STATUS);
     // Buffers: For queries, aggressive fetching in prelocked range, prefetching, or writing.
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query");
-    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_NORMAL,        PARCOUNT, "buffers fetched as a target of a query (bytes)");
-    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_NORMAL,     TOKUTIME, "buffers fetched as a target of a query (seconds)");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      PARCOUNT, "buffers fetched for prelocked range");
-    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE,    PARCOUNT, "buffers fetched for prelocked range (bytes)");
-    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, TOKUTIME, "buffers fetched for prelocked range (seconds)");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        PARCOUNT, "buffers fetched for prefetch");
-    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH,      PARCOUNT, "buffers fetched for prefetch (bytes)");
-    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH,   TOKUTIME, "buffers fetched for prefetch (seconds)");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write");
-    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_WRITE,         PARCOUNT, "buffers fetched for write (bytes)");
-    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,      TOKUTIME, "buffers fetched for write (seconds)");
-    
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_NORMAL,        PARCOUNT, "buffers fetched as a target of a query (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_NORMAL,     TOKUTIME, "buffers fetched as a target of a query (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      PARCOUNT, "buffers fetched for prelocked range", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_AGGRESSIVE,    PARCOUNT, "buffers fetched for prelocked range (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_AGGRESSIVE, TOKUTIME, "buffers fetched for prelocked range (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        PARCOUNT, "buffers fetched for prefetch", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_PREFETCH,      PARCOUNT, "buffers fetched for prefetch (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_PREFETCH,   TOKUTIME, "buffers fetched for prefetch (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_BYTES_MSG_BUFFER_FETCHED_WRITE,         PARCOUNT, "buffers fetched for write (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_TOKUTIME_MSG_BUFFER_FETCHED_WRITE,      TOKUTIME, "buffers fetched for write (seconds)", TOKU_ENGINE_STATUS);
+
     // Disk write statistics.
     //
     // Leaf/Nonleaf: Not for checkpoint
-    STATUS_INIT(FT_DISK_FLUSH_LEAF,                                         PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_BYTES,                                   PARCOUNT, "leaf nodes flushed to disk (not for checkpoint) (bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES,                      PARCOUNT, "leaf nodes flushed to disk (not for checkpoint) (uncompressed bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_TOKUTIME,                                TOKUTIME, "leaf nodes flushed to disk (not for checkpoint) (seconds)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                                      PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES,                                PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint) (bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES,                   PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint) (uncompressed bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME,                             TOKUTIME, "nonleaf nodes flushed to disk (not for checkpoint) (seconds)");
+    STATUS_INIT(FT_DISK_FLUSH_LEAF,                                         PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_BYTES,                                   PARCOUNT, "leaf nodes flushed to disk (not for checkpoint) (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES,                      PARCOUNT, "leaf nodes flushed to disk (not for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_TOKUTIME,                                TOKUTIME, "leaf nodes flushed to disk (not for checkpoint) (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                                      PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES,                                PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint) (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES,                   PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME,                             TOKUTIME, "nonleaf nodes flushed to disk (not for checkpoint) (seconds)", TOKU_ENGINE_STATUS);
     // Leaf/Nonleaf: For checkpoint
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,                          PARCOUNT, "leaf nodes flushed to disk (for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_BYTES_FOR_CHECKPOINT,                    PARCOUNT, "leaf nodes flushed to disk (for checkpoint) (bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,       PARCOUNT, "leaf nodes flushed to disk (for checkpoint) (uncompressed bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_TOKUTIME_FOR_CHECKPOINT,                 TOKUTIME, "leaf nodes flushed to disk (for checkpoint) (seconds)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,                       PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,                 PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,    PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (uncompressed bytes)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)");
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,                          PARCOUNT, "leaf nodes flushed to disk (for checkpoint)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_BYTES_FOR_CHECKPOINT,                    PARCOUNT, "leaf nodes flushed to disk (for checkpoint) (bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,       PARCOUNT, "leaf nodes flushed to disk (for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_TOKUTIME_FOR_CHECKPOINT,                 TOKUTIME, "leaf nodes flushed to disk (for checkpoint) (seconds)", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,                       PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_BYTES_FOR_CHECKPOINT,                 PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_UNCOMPRESSED_BYTES_FOR_CHECKPOINT,    PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint) (uncompressed bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_TOKUTIME_FOR_CHECKPOINT,              TOKUTIME, "nonleaf nodes flushed to disk (for checkpoint) (seconds)", TOKU_ENGINE_STATUS);
 
     // CPU time statistics for [de]serialization and [de]compression.
-    STATUS_INIT(FT_LEAF_COMPRESS_TOKUTIME,                                  TOKUTIME, "leaf compression to memory (seconds)");
-    STATUS_INIT(FT_LEAF_SERIALIZE_TOKUTIME,                                 TOKUTIME, "leaf serialization to memory (seconds)");
-    STATUS_INIT(FT_LEAF_DECOMPRESS_TOKUTIME,                                TOKUTIME, "leaf decompression to memory (seconds)");
-    STATUS_INIT(FT_LEAF_DESERIALIZE_TOKUTIME,                               TOKUTIME, "leaf deserialization to memory (seconds)");
-    STATUS_INIT(FT_NONLEAF_COMPRESS_TOKUTIME,                               TOKUTIME, "nonleaf compression to memory (seconds)");
-    STATUS_INIT(FT_NONLEAF_SERIALIZE_TOKUTIME,                              TOKUTIME, "nonleaf serialization to memory (seconds)");
-    STATUS_INIT(FT_NONLEAF_DECOMPRESS_TOKUTIME,                             TOKUTIME, "nonleaf decompression to memory (seconds)");
-    STATUS_INIT(FT_NONLEAF_DESERIALIZE_TOKUTIME,                            TOKUTIME, "nonleaf deserialization to memory (seconds)");
+    STATUS_INIT(FT_LEAF_COMPRESS_TOKUTIME,                                  TOKUTIME, "leaf compression to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_LEAF_SERIALIZE_TOKUTIME,                                 TOKUTIME, "leaf serialization to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_LEAF_DECOMPRESS_TOKUTIME,                                TOKUTIME, "leaf decompression to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_LEAF_DESERIALIZE_TOKUTIME,                               TOKUTIME, "leaf deserialization to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NONLEAF_COMPRESS_TOKUTIME,                               TOKUTIME, "nonleaf compression to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NONLEAF_SERIALIZE_TOKUTIME,                              TOKUTIME, "nonleaf serialization to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NONLEAF_DECOMPRESS_TOKUTIME,                             TOKUTIME, "nonleaf decompression to memory (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_NONLEAF_DESERIALIZE_TOKUTIME,                            TOKUTIME, "nonleaf deserialization to memory (seconds)", TOKU_ENGINE_STATUS);
 
     // Promotion statistics.
-    STATUS_INIT(FT_PRO_NUM_ROOT_SPLIT,                     PARCOUNT, "promotion: roots split");
-    STATUS_INIT(FT_PRO_NUM_ROOT_H0_INJECT,                 PARCOUNT, "promotion: leaf roots injected into");
-    STATUS_INIT(FT_PRO_NUM_ROOT_H1_INJECT,                 PARCOUNT, "promotion: h1 roots injected into");
-    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_0,                 PARCOUNT, "promotion: injections at depth 0");
-    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_1,                 PARCOUNT, "promotion: injections at depth 1");
-    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_2,                 PARCOUNT, "promotion: injections at depth 2");
-    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_3,                 PARCOUNT, "promotion: injections at depth 3");
-    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_GT3,               PARCOUNT, "promotion: injections lower than depth 3");
-    STATUS_INIT(FT_PRO_NUM_STOP_NONEMPTY_BUF,              PARCOUNT, "promotion: stopped because of a nonempty buffer");
-    STATUS_INIT(FT_PRO_NUM_STOP_H1,                        PARCOUNT, "promotion: stopped at height 1");
-    STATUS_INIT(FT_PRO_NUM_STOP_LOCK_CHILD,                PARCOUNT, "promotion: stopped because the child was locked or not at all in memory");
-    STATUS_INIT(FT_PRO_NUM_STOP_CHILD_INMEM,               PARCOUNT, "promotion: stopped because the child was not fully in memory");
-    STATUS_INIT(FT_PRO_NUM_DIDNT_WANT_PROMOTE,             PARCOUNT, "promotion: stopped anyway, after locking the child");
+    STATUS_INIT(FT_PRO_NUM_ROOT_SPLIT,                     PARCOUNT, "promotion: roots split", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_ROOT_H0_INJECT,                 PARCOUNT, "promotion: leaf roots injected into", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_ROOT_H1_INJECT,                 PARCOUNT, "promotion: h1 roots injected into", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_0,                 PARCOUNT, "promotion: injections at depth 0", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_1,                 PARCOUNT, "promotion: injections at depth 1", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_2,                 PARCOUNT, "promotion: injections at depth 2", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_3,                 PARCOUNT, "promotion: injections at depth 3", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_INJECT_DEPTH_GT3,               PARCOUNT, "promotion: injections lower than depth 3", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_STOP_NONEMPTY_BUF,              PARCOUNT, "promotion: stopped because of a nonempty buffer", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_STOP_H1,                        PARCOUNT, "promotion: stopped at height 1", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_STOP_LOCK_CHILD,                PARCOUNT, "promotion: stopped because the child was locked or not at all in memory", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_STOP_CHILD_INMEM,               PARCOUNT, "promotion: stopped because the child was not fully in memory", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_PRO_NUM_DIDNT_WANT_PROMOTE,             PARCOUNT, "promotion: stopped anyway, after locking the child", TOKU_ENGINE_STATUS);
 
     ft_status.initialized = true;
 }

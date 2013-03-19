@@ -11,24 +11,21 @@
 #include <util/sort.h>
 #include <util/threadpool.h>
 #include "ft.h"
+#include <util/partitioned_counter.h>
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
-#define UPGRADE_STATUS_INIT(k,t,l) {                            \
-        ft_upgrade_status.status[k].keyname = #k;              \
-        ft_upgrade_status.status[k].type    = t;               \
-        ft_upgrade_status.status[k].legend  = "brt upgrade: " l;       \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ft_upgrade_status, k, t, "brt upgrade: " l, inc)
 
 static void
 status_init(void)
 {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    UPGRADE_STATUS_INIT(FT_UPGRADE_FOOTPRINT,             UINT64, "footprint");
+    STATUS_INIT(FT_UPGRADE_FOOTPRINT,             UINT64, "footprint", TOKU_ENGINE_STATUS);
     ft_upgrade_status.initialized = true;
 }
-#undef UPGRADE_STATUS_INIT
+#undef STATUS_INIT
 
 #define UPGRADE_STATUS_VALUE(x) ft_upgrade_status.status[x].value.num
 

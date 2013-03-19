@@ -74,6 +74,7 @@ status_format_time(const time_t *timer, char *buf) {
 int
 test_main (int argc, char * const argv[]) {
     uint64_t nrows;
+    uint64_t max_rows;
     fs_redzone_state redzone_state;
     uint64_t panic;
     const int panic_string_len = 1024;
@@ -84,13 +85,12 @@ test_main (int argc, char * const argv[]) {
     setup(FLAGS_LOG);
     env->txn_checkpoint(env, 0, 0, 0);
 
-    env->get_engine_status_num_rows(env, &nrows);
-    TOKU_ENGINE_STATUS_ROW_S mystat[nrows];
-    int r = env->get_engine_status (env, mystat, nrows, &redzone_state, &panic, panic_string, panic_string_len);
+    env->get_engine_status_num_rows(env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
+    int r = env->get_engine_status (env, mystat, max_rows, &nrows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_ENGINE_STATUS);
     assert(r==0);
 
     if (verbose) {
-    
         printf("First all the raw fields:\n");
         for (uint64_t i = 0; i < nrows; i++) {
             printf("%s        ", mystat[i].keyname);

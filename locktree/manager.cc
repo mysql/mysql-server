@@ -9,6 +9,7 @@
 #include <portability/toku_pthread.h>
 
 #include "locktree.h"
+#include <util/partitioned_counter.h>
 
 namespace toku {
 
@@ -29,6 +30,8 @@ void locktree::manager::create(lt_create_cb create_cb, lt_destroy_cb destroy_cb,
 
     ZERO_STRUCT(m_mutex);
     toku_mutex_init(&m_mutex, nullptr);
+
+    ZERO_STRUCT(status);
 }
 
 void locktree::manager::destroy(void) {
@@ -269,18 +272,35 @@ bool locktree::manager::memory_tracker::out_of_locks(void) const {
     return m_mgr->m_current_lock_memory >= m_mgr->m_max_lock_memory;
 }
 
-#define STATUS_SET(s, k, t, n, l) \
-        s->status[k].keyname = #k; \
-        s->status[k].type    = t;  \
-        s->status[k].value.num = n; \
-        s->status[k].legend  = "locktree: " l;
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(status, k, t, "locktree: " l, inc)
 
-void locktree::manager::get_status(LTM_STATUS status) {
-    STATUS_SET(status, LTM_SIZE_CURRENT, UINT64, m_current_lock_memory,                     "memory size");
-    STATUS_SET(status, LTM_SIZE_LIMIT, UINT64, m_max_lock_memory,                           "memory size limit");
-    STATUS_SET(status, LTM_ESCALATION_COUNT, UINT64, m_escalation_count,                    "number of times lock escalation ran");
-    STATUS_SET(status, LTM_ESCALATION_TIME, TOKUTIME, m_escalation_time,                    "time spent running escalation (seconds)");
-    STATUS_SET(status, LTM_ESCALATION_LATEST_RESULT, UINT64, m_escalation_latest_result,    "latest post-escalation memory size");
+void locktree::manager::status_init(void) {
+    STATUS_INIT(LTM_SIZE_CURRENT,             UINT64,   "memory size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_SIZE_LIMIT,               UINT64,   "memory size limit", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_COUNT, UINT64, "number of times lock escalation ran", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_TIME,          TOKUTIME, "time spent running escalation (seconds)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_ESCALATION_LATEST_RESULT, UINT64,   "latest post-escalation memory size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_NUM_LOCKTREES,            UINT64,   "number of locktrees open now", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_LOCK_REQUESTS_PENDING,    UINT64,   "number of pending lock requests", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_NUM_ELIGIBLE,         UINT64,   "number of locktrees eligible for the STO", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_END_EARLY_COUNT,      UINT64,   "number of times a locktree ended the STO early", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LTM_STO_END_EARLY_TIME,       TOKUTIME, "time spent ending the STO early (seconds)", TOKU_ENGINE_STATUS);
+    status.initialized = true;
+}
+
+#undef STATUS_INIT
+
+#define STATUS_VALUE(x) status.status[x].value.num
+void locktree::manager::get_status(LTM_STATUS statp) {
+    if (!status.initialized) {
+        status_init();
+    }
+
+    STATUS_VALUE(LTM_SIZE_CURRENT) = m_current_lock_memory;
+    STATUS_VALUE(LTM_SIZE_LIMIT) = m_max_lock_memory;
+    STATUS_VALUE(LTM_ESCALATION_COUNT) = m_escalation_count;
+    STATUS_VALUE(LTM_ESCALATION_TIME) = m_escalation_time;
+    STATUS_VALUE(LTM_ESCALATION_LATEST_RESULT) = m_escalation_latest_result;
 
     mutex_lock();
 
@@ -306,13 +326,14 @@ void locktree::manager::get_status(LTM_STATUS status) {
 
     mutex_unlock();
 
-    STATUS_SET(status, LTM_NUM_LOCKTREES, UINT64, num_locktrees,                            "number of locktrees open now");
-    STATUS_SET(status, LTM_LOCK_REQUESTS_PENDING, UINT64, lock_requests_pending,            "number of pending lock requests");
-    STATUS_SET(status, LTM_STO_NUM_ELIGIBLE, UINT64, sto_num_eligible,                      "number of locktrees eligible for the STO");
-    STATUS_SET(status, LTM_STO_END_EARLY_COUNT, UINT64, sto_end_early_count,                "number of times a locktree ended the STO early");
-    STATUS_SET(status, LTM_STO_END_EARLY_TIME, TOKUTIME, sto_end_early_time,                "time spent ending the STO early (seconds)");
+    STATUS_VALUE(LTM_NUM_LOCKTREES) = num_locktrees;
+    STATUS_VALUE(LTM_LOCK_REQUESTS_PENDING) = lock_requests_pending;
+    STATUS_VALUE(LTM_STO_NUM_ELIGIBLE) = sto_num_eligible;
+    STATUS_VALUE(LTM_STO_END_EARLY_COUNT) = sto_end_early_count;
+    STATUS_VALUE(LTM_STO_END_EARLY_TIME) = sto_end_early_time;
+    *statp = status;
 }
+#undef STATUS_VALUE
 
-#undef STATUS_SET
 
 } /* namespace toku */

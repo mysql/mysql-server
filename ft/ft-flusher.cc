@@ -11,52 +11,49 @@
 #include <ft.h>
 #include <toku_assert.h>
 #include <portability/toku_atomic.h>
+#include <util/partitioned_counter.h>
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
  */
 static FT_FLUSHER_STATUS_S ft_flusher_status;
 
-#define STATUS_INIT(k,                                                           t,                                      l) {                                            \
-        ft_flusher_status.status[k].keyname = #k;                      \
-        ft_flusher_status.status[k].type    = t;                       \
-        ft_flusher_status.status[k].legend  = "brt flusher: " l;       \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ft_flusher_status, k, t, "brt flusher: " l, inc)
 
 #define STATUS_VALUE(x) ft_flusher_status.status[x].value.num
 void toku_ft_flusher_status_init(void) {
     // Note,                                                                     this function initializes the keyname,  type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_NODES,                UINT64, "total nodes potentially flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_H1_NODES,                   UINT64, "height-one nodes flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_HGT1_NODES,                 UINT64, "height-greater-than-one nodes flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_EMPTY_NODES,                UINT64, "nodes cleaned which had empty buffers");
-    STATUS_INIT(FT_FLUSHER_CLEANER_NODES_DIRTIED,              UINT64, "nodes dirtied by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_MAX_BUFFER_SIZE,            UINT64, "max bytes in a buffer flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_MIN_BUFFER_SIZE,            UINT64, "min bytes in a buffer flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_BUFFER_SIZE,          UINT64, "total bytes in buffers flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE,        UINT64, "max workdone in a buffer flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE,        UINT64, "min workdone in a buffer flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE,      UINT64, "total workdone in buffers flushed by cleaner thread");
-    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED,    UINT64, "times cleaner thread tries to merge a leaf");
-    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING,    UINT64, "cleaner thread leaf merges in progress");
-    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED,  UINT64, "cleaner thread leaf merges successful");
-    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_DIRTIED_FOR_LEAF_MERGE, UINT64, "nodes dirtied by cleaner thread leaf merges");
-    STATUS_INIT(FT_FLUSHER_FLUSH_TOTAL,                        UINT64, "total number of flushes done by flusher threads or cleaner threads");
-    STATUS_INIT(FT_FLUSHER_FLUSH_IN_MEMORY,                    UINT64, "number of in memory flushes");
-    STATUS_INIT(FT_FLUSHER_FLUSH_NEEDED_IO,                    UINT64, "number of flushes that read something off disk");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES,                     UINT64, "number of flushes that triggered another flush in child");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_1,                   UINT64, "number of flushes that triggered 1 cascading flush");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_2,                   UINT64, "number of flushes that triggered 2 cascading flushes");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_3,                   UINT64, "number of flushes that triggered 3 cascading flushes");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_4,                   UINT64, "number of flushes that triggered 4 cascading flushes");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_5,                   UINT64, "number of flushes that triggered 5 cascading flushes");
-    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_GT_5,                UINT64, "number of flushes that triggered over 5 cascading flushes");
-    STATUS_INIT(FT_FLUSHER_SPLIT_LEAF,                         UINT64, "leaf node splits");
-    STATUS_INIT(FT_FLUSHER_SPLIT_NONLEAF,                      UINT64, "nonleaf node splits");
-    STATUS_INIT(FT_FLUSHER_MERGE_LEAF,                         UINT64, "leaf node merges");
-    STATUS_INIT(FT_FLUSHER_MERGE_NONLEAF,                      UINT64, "nonleaf node merges");
-    STATUS_INIT(FT_FLUSHER_BALANCE_LEAF,                       UINT64, "leaf node balances");
+    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_NODES,                UINT64, "total nodes potentially flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_H1_NODES,                   UINT64, "height-one nodes flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_HGT1_NODES,                 UINT64, "height-greater-than-one nodes flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_EMPTY_NODES,                UINT64, "nodes cleaned which had empty buffers", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_NODES_DIRTIED,              UINT64, "nodes dirtied by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_MAX_BUFFER_SIZE,            UINT64, "max bytes in a buffer flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_MIN_BUFFER_SIZE,            UINT64, "min bytes in a buffer flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_BUFFER_SIZE,          UINT64, "total bytes in buffers flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_MAX_BUFFER_WORKDONE,        UINT64, "max workdone in a buffer flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE,        UINT64, "min workdone in a buffer flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_TOTAL_BUFFER_WORKDONE,      UINT64, "total workdone in buffers flushed by cleaner thread", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED,    UINT64, "times cleaner thread tries to merge a leaf", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING,    UINT64, "cleaner thread leaf merges in progress", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED,  UINT64, "cleaner thread leaf merges successful", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_CLEANER_NUM_DIRTIED_FOR_LEAF_MERGE, UINT64, "nodes dirtied by cleaner thread leaf merges", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_TOTAL,                        UINT64, "total number of flushes done by flusher threads or cleaner threads", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_IN_MEMORY,                    UINT64, "number of in memory flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_NEEDED_IO,                    UINT64, "number of flushes that read something off disk", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES,                     UINT64, "number of flushes that triggered another flush in child", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_1,                   UINT64, "number of flushes that triggered 1 cascading flush", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_2,                   UINT64, "number of flushes that triggered 2 cascading flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_3,                   UINT64, "number of flushes that triggered 3 cascading flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_4,                   UINT64, "number of flushes that triggered 4 cascading flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_5,                   UINT64, "number of flushes that triggered 5 cascading flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_FLUSH_CASCADES_GT_5,                UINT64, "number of flushes that triggered over 5 cascading flushes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_SPLIT_LEAF,                         UINT64, "leaf node splits", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_SPLIT_NONLEAF,                      UINT64, "nonleaf node splits", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_MERGE_LEAF,                         UINT64, "leaf node merges", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_MERGE_NONLEAF,                      UINT64, "nonleaf node merges", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_FLUSHER_BALANCE_LEAF,                       UINT64, "leaf node balances", TOKU_ENGINE_STATUS);
 
     STATUS_VALUE(FT_FLUSHER_CLEANER_MIN_BUFFER_SIZE) = UINT64_MAX;
     STATUS_VALUE(FT_FLUSHER_CLEANER_MIN_BUFFER_WORKDONE) = UINT64_MAX;
