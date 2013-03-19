@@ -135,7 +135,6 @@ NdbAutoIncrementHandler.prototype.dispatchFinalCallback = function() {
 
 NdbAutoIncrementHandler.prototype.getAllValues = function(callback) {
   var i, op, cache;
-  udebug.log("getAllValues");
   this.final_callback = callback;
   for(i = 0 ; i < this.autoinc_op_list.length ; i++) {
     op = this.autoinc_op_list[i];

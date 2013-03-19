@@ -3,6 +3,7 @@
 "use strict";
 
 var reuseLists = [];
+reuseLists[0] = [];  // just so v8 knows the element type
 
 function getPooledBuffer(size) {
   var b;
@@ -20,7 +21,7 @@ function getPooledBuffer(size) {
    we prevent it from ever being garbage collected.
 */
 function releasePooledBuffer(b) {  
-  if(b && b.length) {
+  if(b && b.length > 0 && b.length < 4096) {
     if(typeof reuseLists[b.length] === 'undefined') {
       reuseLists[b.length] = [];
     }
