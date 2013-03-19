@@ -868,7 +868,7 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
     if (no_data(data, 4))
       return 1;
     n_points= uint4korr(data);
-    if (n_points > max_n_points ||
+    if (n_points == 0 || n_points > max_n_points ||
         no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
       return 1;
     get_point(&prev_x, &prev_y, data+4);
@@ -989,7 +989,7 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
       return 1;
     org_n_points= n_points= uint4korr(data);
     data+= 4;
-    if (n_points > max_n_points ||
+    if (n_points == 0 || n_points > max_n_points ||
         no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
       return 1;
     get_point(&prev_x, &prev_y, data);

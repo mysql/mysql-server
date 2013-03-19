@@ -839,4 +839,9 @@ select geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f,
 --echo #
 
 SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
+
+--echo #
+--echo # MDEV-4295 Server crashes in get_point on a query with Area, AsBinary, MultiPoint
+--echo #
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
 --echo End of 5.1 tests

@@ -1108,4 +1108,10 @@ NULL
 SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
 Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )))
 NULL
+#
+# MDEV-4295 Server crashes in get_point on a query with Area, AsBinary, MultiPoint
+#
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
+Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))))
+NULL
 End of 5.1 tests
