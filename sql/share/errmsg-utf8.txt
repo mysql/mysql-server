@@ -7045,6 +7045,9 @@ ER_ROW_IN_WRONG_PARTITION
 ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
   eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of slave_pending_jobs_size_max."
 
+ER_BINLOG_LOGICAL_CORRUPTION
+  eng "The binary log file '%s' is logically corrupted: %s"
+
 #
 #  End of 5.6 error messages.
 #
