@@ -3010,7 +3010,7 @@ my_bool check_histignore(const char *string)
   for (i= 0; i < histignore_patterns.elements; i++)
   {
     tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
-    if ((rc= charset_info->coll->wildcmp(&my_charset_latin1,
+    if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
                                          wild_prefix, wild_one,
