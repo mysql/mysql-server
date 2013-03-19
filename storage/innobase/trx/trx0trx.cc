@@ -879,6 +879,9 @@ trx_serialisation_number_get(
 
 	rseg = undo_ptr->rseg;
 
+	mutex_enter(&trx_sys->mutex);
+	trx->no = trx_sys_get_new_trx_id();
+
 	/* If the rollack segment is not empty then the
 	new trx_t::no can't be less than any trx_t::no
 	already in the rollback segment. User threads only
@@ -892,10 +895,18 @@ trx_serialisation_number_get(
 
 		mutex_enter(&purge_sys->bh_mutex);
 
+		/* This is to reduce the pressure on the trx_sys_t::mutex
+		though in reality it should make very little (read no)
+		difference because this code path is only taken when the
+		rbs is empty. */
+		mutex_exit(&trx_sys->mutex);
+
 		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
 		ut_a(ptr);
 
 		mutex_exit(&purge_sys->bh_mutex);
+	} else {
+		mutex_exit(&trx_sys->mutex);
 	}
 }
 
@@ -913,17 +924,6 @@ trx_write_serialisation_history(
 	other state: these modifications to the file data structure define
 	the transaction as committed in the file based domain, at the
 	serialization point of the log sequence number lsn obtained below. */
-
-	/* Generate transaction serialization number. */
-	if (trx->standard.update_undo != NULL
-	    || trx->temporary.update_undo != NULL) {
-
-		mutex_enter(&trx_sys->mutex);
-
-		trx->no = trx_sys_get_new_trx_id();
-
-		mutex_exit(&trx_sys->mutex);
-	}
 
 	/* We have to hold the rseg mutex because update log headers have
 	to be put to the history list in the (serialisation) order of the

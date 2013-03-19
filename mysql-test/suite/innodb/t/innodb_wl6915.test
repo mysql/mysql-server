@@ -15,9 +15,13 @@
 ################################################################################
 #
 # Will test following scenarios:
-# 1. Try loading table with commit and rollback action.
+# 1. Try loading table with commit and rollback action
+#    (this will ensure proper rseg is being used).
 # 2. In same trx try loading temp + non-temp table.
+#    (Both standard and temporary rseg active at same time)
 # 3. In xa trx try loading temp + non-temp table.
+#    (Same as case-2 but from xa perspective)
+# 4. Load temp and non-temp table with purge activity. 
 #
 ################################################################################
 
@@ -38,6 +42,7 @@ let crash = $args --innodb-force-recovery-crash;
 #-----------------------------------------------------------------------------
 #
 # 1. Try loading table with commit and rollback action.
+#    (this will ensure proper rseg is being used).
 #
 use test;
 create temporary table t1
@@ -53,6 +58,7 @@ drop table t1;
 #-----------------------------------------------------------------------------
 #
 # 2. In same trx try loading temp + non-temp table.
+#    (Both standard and temporary rseg active at same time)
 #
 use test;
 create temporary table t1
@@ -89,12 +95,14 @@ commit;
 #
 select count(*) from t2;
 select * from t2 limit 10;
+#
 drop procedure populate_t1_t2;
 drop table t2;
 
 #-----------------------------------------------------------------------------
 #
 # 3. In xa trx try loading temp + non-temp table.
+#    (Same as case-2 but from xa perspective)
 #
 create temporary table t1 (i int) engine=innodb;
 create table t2 (i int) engine=innodb;
@@ -136,6 +144,67 @@ select * from t1;
 #
 drop table t1;
 drop table t2;
+
+#-----------------------------------------------------------------------------
+#
+# 4. Load temp and non-temp table with purge activity. 
+#
+use test;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+create table t2
+	(a int, b char(100), c char(100)) engine = innodb;
+delimiter |;
+create procedure populate_t1_t2()
+begin
+	declare i int default 1;
+	while (i <= 20000) DO
+		insert into t1 values (i, 'a', 'b');
+		insert into t2 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+create procedure populate_t1_t2_small()
+begin
+	declare i int default 1;
+	while (i <= 2000) DO
+		insert into t1 values (i, 'a', 'b');
+		insert into t2 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+begin;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+select count(*) from t2;
+#
+delete from t1 where a <= 1000;
+delete from t2 where a > 19000;
+select count(*) from t1;
+select count(*) from t2;
+#
+update t1 set b = 'innodb' where b = 'a' and a <= 10000;
+update t2 set b = 'myisam' where c = 'b' and a > 10000;
+#
+delete from t1 where b = 'a';
+delete from t2 where c = 'myisam';
+select count(*) from t1;
+select count(*) from t2;
+#
+insert into t1 values (1000000, 'mysql', 'db');
+begin;
+call populate_t1_t2_small();
+select count(*) from t1;
+select count(*) from t2;
+rollback;
+select count(*) from t1;
+select count(*) from t2;
+#
+drop table t2;
+drop procedure populate_t1_t2;
+drop procedure populate_t1_t2_small;
 
 #-----------------------------------------------------------------------------
 #
