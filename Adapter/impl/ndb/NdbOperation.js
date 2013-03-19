@@ -322,11 +322,11 @@ function buildOperationResult(transactionHandler, op, execMode) {
 }
 
 
-function completeExecutedOps(dbTxHandler, execMode) {
+function completeExecutedOps(dbTxHandler, execMode, operationsList) {
   udebug.log("completeExecutedOps mode:", execMode, 
-             "operations: ", dbTxHandler.pendingOperations.length);
+             "operations: ", operationsList.length);
   var op;
-  while(op = dbTxHandler.pendingOperations.shift()) {
+  while(op = operationsList.shift()) {
     assert(op.state === "PREPARED");
     buildOperationResult(dbTxHandler, op, execMode);
     dbTxHandler.executedOperations.push(op);

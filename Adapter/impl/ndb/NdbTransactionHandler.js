@@ -44,7 +44,8 @@ function DBTransactionHandler(dbsession) {
   this.dbSession          = dbsession;
   this.autocommit         = true;
   this.ndbtx              = null;
-  this.pendingOperations  = [];
+  this.execCount          = 0;   // number of execute calls 
+  this.pendingOpsLists    = [];
   this.executedOperations = [];
   this.asyncContext       = dbsession.parentPool.asyncNdbContext;
   this.canUseNdbAsynch    = dbsession.parentPool.properties.use_ndb_async_api;
@@ -55,7 +56,6 @@ function DBTransactionHandler(dbsession) {
 }
 DBTransactionHandler.prototype = proto;
 
-
 function onAsyncSent(a,b) {
   // udebug.log("execute onAsyncSent");
 }
@@ -63,9 +63,12 @@ function onAsyncSent(a,b) {
 /* NdbTransactionHandler internal run():
    Create a QueuedAsyncCall on the Ndb's execQueue.
 */
-function run(self, execMode, abortFlag, callback) {
+function run(self, execId, execMode, abortFlag, callback) {
   var qpos;
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
+  var idCallback = function(err) {
+    callback(err, execId);
+  }
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, idCallback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
@@ -119,7 +122,7 @@ modeNames[ROLLBACK] = 'rollback';
 
 /* Common callback for execute, commit, and rollback 
 */
-function onExecute(dbTxHandler, execMode, err, userCallback) {
+function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
   udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
@@ -140,7 +143,8 @@ function onExecute(dbTxHandler, execMode, err, userCallback) {
   ndbsession.runQueuedTransaction(dbTxHandler);
 
   /* Attach results to their operations */
-  ndboperation.completeExecutedOps(dbTxHandler, execMode);
+  ndboperation.completeExecutedOps(dbTxHandler, execMode, 
+                                   dbTxHandler.pendingOpsLists[execId]);
 
   /* Next callback */
   if(typeof userCallback === 'function') {
@@ -149,31 +153,35 @@ function onExecute(dbTxHandler, execMode, err, userCallback) {
 }
 
 
+function getExecIdForOperationList(self, operationList) {
+  var execId = self.execCount++;
+  self.pendingOpsLists[execId] = operationList;
+  return execId;
+}
+
 /* Internal execute()
 */ 
 function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
-  function onCompleteTx(err, result) {
-    onExecute(self, execMode, err, callback);
+  function onCompleteExec(err, execId) {
+    onExecute(self, execMode, err, execId, callback);
   }
 
   function prepareOperationsAndExecute() {
     udebug.log("execute prepareOperationsAndExecute", self.moniker);
-    var i, op, fatalError;
+    var i, op, execId, fatalError;
+    execId = getExecIdForOperationList(self, dbOperationList);
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
-      if(op.ndbop) {
-        self.pendingOperations.push(dbOperationList[i]);
-      }
-      else {
+      if(! op.ndbop) {
         fatalError = self.ndbtx.getNdbError();
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;
       }
     }
 
-    run(self, execMode, abortFlag, onCompleteTx);
+    run(self, execId, execMode, abortFlag, onCompleteExec);
   }
 
   function getAutoIncrementValues() {
@@ -267,16 +275,17 @@ proto.commit = function commit(userCallback) {
   assert(this.autocommit === false);
   stats.incr("commit");
   var self = this;
+  var execId = getExecIdForOperationList(self, []);
 
-  function onNdbCommit(err, result) {
-    onExecute(self, COMMIT, err, userCallback);
+  function onNdbCommit(err, execId) {
+    onExecute(self, COMMIT, err, execId, userCallback);
   }
 
   /* commit begins here */
   udebug.log("commit");
   ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
-    run(self, COMMIT, AO_IGNORE, onNdbCommit);
+    run(self, execId, COMMIT, AO_IGNORE, onNdbCommit);
   }
   else {
     udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
@@ -294,18 +303,19 @@ proto.rollback = function rollback(callback) {
   assert(this.autocommit === false);
   stats.incr("rollback");
   var self = this;
+  var execId = getExecIdForOperationList(self, []);
 
   ndbsession.closeActiveTransaction(this);
 
-  function onNdbRollback(err, result) {
-    onExecute(self, ROLLBACK, err, callback);
+  function onNdbRollback(err, execId) {
+    onExecute(self, ROLLBACK, err, execId, callback);
   }
 
   /* rollback begins here */
   udebug.log("rollback");
 
   if(self.ndbtx) {
-    run(self, ROLLBACK, AO_DEFAULT, onNdbRollback);
+    run(self, execId, ROLLBACK, AO_DEFAULT, onNdbRollback);
   }
   else {
     udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");
