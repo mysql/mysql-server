@@ -870,14 +870,23 @@ void
 trx_serialisation_number_get(
 /*=========================*/
 	trx_t*		trx,		/*!< in: transaction */
-	trx_undo_ptr_t*	undo_ptr)	/* Set trx serialisation number
+	trx_undo_ptr_t*	std_undo_ptr,	/* Set trx serialisation number
 					in referred undo rseg. */
+	trx_undo_ptr_t*	tmp_undo_ptr)	/* Set trx serialisation number
+					in referred undo rseg. */
+
 {
-	trx_rseg_t*	rseg;
+	trx_rseg_t*	std_rseg = 0;
+	trx_rseg_t*	tmp_rseg = 0;
 
-	ut_ad(mutex_own(&undo_ptr->rseg->mutex));
-
-	rseg = undo_ptr->rseg;
+	if (std_undo_ptr) {
+		ut_ad(mutex_own(&(std_undo_ptr->rseg->mutex)));
+		std_rseg = std_undo_ptr->rseg;
+	}
+	if (tmp_undo_ptr) {
+		ut_ad(mutex_own(&(tmp_undo_ptr->rseg->mutex)));
+		tmp_rseg = tmp_undo_ptr->rseg;
+	}
 
 	mutex_enter(&trx_sys->mutex);
 	trx->no = trx_sys_get_new_trx_id();
@@ -886,12 +895,20 @@ trx_serialisation_number_get(
 	new trx_t::no can't be less than any trx_t::no
 	already in the rollback segment. User threads only
 	produce events when a rollback segment is empty. */
-	if (rseg->last_page_no == FIL_NULL) {
-		void*		ptr;
-		rseg_queue_t	rseg_queue;
+	if ((std_rseg && std_rseg->last_page_no == FIL_NULL)
+	    || (tmp_rseg && tmp_rseg->last_page_no == FIL_NULL)) {
 
-		rseg_queue.rseg = rseg;
-		rseg_queue.trx_no = trx->no;
+		void*		std_ptr;
+		rseg_queue_t	std_rseg_queue;
+
+		void*		tmp_ptr;
+		rseg_queue_t	tmp_rseg_queue;
+
+		std_rseg_queue.rseg = std_rseg;
+		std_rseg_queue.trx_no = trx->no;
+
+		tmp_rseg_queue.rseg = tmp_rseg;
+		tmp_rseg_queue.trx_no = trx->no;
 
 		mutex_enter(&purge_sys->bh_mutex);
 
@@ -901,8 +918,15 @@ trx_serialisation_number_get(
 		rbs is empty. */
 		mutex_exit(&trx_sys->mutex);
 
-		ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
-		ut_a(ptr);
+		if (std_rseg && std_rseg->last_page_no == FIL_NULL) { 
+			std_ptr = ib_bh_push(purge_sys->ib_bh, &std_rseg_queue);
+			ut_a(std_ptr);
+		}
+
+		if (tmp_rseg && tmp_rseg->last_page_no == FIL_NULL) {
+			tmp_ptr = ib_bh_push(purge_sys->ib_bh, &tmp_rseg_queue);
+			ut_a(tmp_ptr);
+		}
 
 		mutex_exit(&purge_sys->bh_mutex);
 	} else {
@@ -930,37 +954,66 @@ trx_write_serialisation_history(
 	UNDO trx number. This is required for the purge in-memory data
 	structures too. */
 
-	/* standard rseg is not assigned in case of read-only trx. */
-	if (trx->standard.rseg) {
+	bool	own_standard_rseg = false;
+	bool	own_temporary_rseg = false;
+
+	if (trx->standard.rseg
+	    && (trx->standard.insert_undo != NULL
+		|| trx->standard.update_undo != NULL)) {
 		mutex_enter(&trx->standard.rseg->mutex);
+		own_standard_rseg = true;
+	}
 
-		if (trx->standard.insert_undo != NULL) {
-			trx_undo_set_state_at_finish(
-				trx->standard.insert_undo, mtr);
-		}
+	if (trx->temporary.rseg
+	    && (trx->temporary.insert_undo != NULL
+		|| trx->temporary.update_undo != NULL)) {
+		mutex_enter(&trx->temporary.rseg->mutex);
+		own_temporary_rseg = true;
+	}
 
+	if (trx->standard.insert_undo != NULL) {
+		trx_undo_set_state_at_finish(trx->standard.insert_undo, mtr);
+	}
+
+	if (trx->temporary.insert_undo != NULL) {
+		trx_undo_set_state_at_finish(trx->temporary.insert_undo, mtr);
+	}
+
+	if (trx->standard.update_undo != NULL
+	    || trx->temporary.update_undo != NULL) {
+		/* Assign the transaction serialisation number and also
+		update the purge min binary heap if this is the first
+		UNDO log being written to the assigned rollback
+		segment. */
+
+		trx_undo_ptr_t* std_undo_ptr = trx->standard.update_undo != NULL
+			? &trx->standard : NULL;
+
+		trx_undo_ptr_t* tmp_undo_ptr = trx->temporary.update_undo != NULL
+			? &trx->temporary : NULL;
+
+		trx_serialisation_number_get(trx, std_undo_ptr, tmp_undo_ptr);
+
+		/* It is not necessary to obtain trx->undo_mutex here
+		because only a single OS thread is allowed to do the
+		transaction commit for this transaction. */
 		if (trx->standard.update_undo != NULL) {
 			page_t*		undo_hdr_page;
-			trx_undo_t*	undo = trx->standard.update_undo;
-
-			/* Assign the transaction serialisation number and also
-			update the purge min binary heap if this is the first
-			UNDO log being written to the assigned rollback
-			segment. */
-
-			trx_serialisation_number_get(trx, &trx->standard);
-
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction commit for this transaction. */
-
-			undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
+			undo_hdr_page = trx_undo_set_state_at_finish(
+				trx->standard.update_undo, mtr);
 
 			trx_undo_update_cleanup(
 				trx, &trx->standard, undo_hdr_page, mtr);
 		}
 
-		mutex_exit(&trx->standard.rseg->mutex);
+		if (trx->temporary.update_undo != NULL) {
+			page_t*		undo_hdr_page;
+			undo_hdr_page = trx_undo_set_state_at_finish(
+				trx->temporary.update_undo, mtr);
+
+			trx_undo_update_cleanup(
+				trx, &trx->temporary, undo_hdr_page, mtr);
+		}
 	}
 
 	/* Update the latest MySQL binlog name and offset info
@@ -978,48 +1031,17 @@ trx_write_serialisation_history(
 		trx->mysql_log_file_name = NULL;
 	}
 
-	mtr_commit(mtr);
+	if (own_standard_rseg) {
+		mutex_exit(&trx->standard.rseg->mutex);
+		own_standard_rseg = false;
+	}
 
-	DBUG_EXECUTE_IF("ib_crash_during_commit_with_standard_undo_committed",
-			DBUG_SUICIDE(););
-
-	mtr_start(mtr);
-	mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
-	
-	if (trx->temporary.rseg) {
-		mutex_enter(&trx->temporary.rseg->mutex);
-
-		if (trx->temporary.insert_undo != NULL) {
-			trx_undo_set_state_at_finish(
-				trx->temporary.insert_undo, mtr);
-		}
-
-		if (trx->temporary.update_undo != NULL) {
-			page_t*		undo_hdr_page;
-			trx_undo_t*	undo = trx->temporary.update_undo;
-
-			/* Assign the transaction serialisation number and also
-			update the purge min binary heap if this is the first
-			UNDO log being written to the assigned rollback
-			segment. */
-
-			trx_serialisation_number_get(trx, &trx->temporary);
-
-			/* It is not necessary to obtain trx->undo_mutex here
-			because only a single OS thread is allowed to do the
-			transaction commit for this transaction. */
-
-			undo_hdr_page = trx_undo_set_state_at_finish(undo, mtr);
-
-			trx_undo_update_cleanup(
-				trx, &trx->temporary, undo_hdr_page, mtr);
-		}
-
+	if (own_temporary_rseg) {
 		mutex_exit(&trx->temporary.rseg->mutex);
+		own_temporary_rseg = false;
 	}
 
 	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
-	mtr_commit(mtr);
 }
 
 /********************************************************************
@@ -1362,6 +1384,7 @@ trx_commit_low(
 	}
 
 	if (mtr) {
+		trx_write_serialisation_history(trx, mtr);
 		/* The following call commits the mini-transaction, making the
 		whole transaction committed in the file-based world, at this
 		log sequence number. The transaction becomes 'durable' when
@@ -1378,7 +1401,10 @@ trx_commit_low(
 		a transaction T2 is able to see modifications made by
 		a transaction T1, T2 will always get a bigger transaction
 		number and a bigger commit lsn than T1. */
-		trx_write_serialisation_history(trx, mtr);
+
+		/*--------------*/
+		mtr_commit(mtr);
+		/*--------------*/
 		lsn = mtr->end_lsn;
 	} else {
 		lsn = 0;
