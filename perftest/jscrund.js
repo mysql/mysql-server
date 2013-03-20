@@ -391,8 +391,9 @@ function main() {
         JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
-        JSCRUND.implementation.begin();
-        eachOperationsLoop(null);
+        JSCRUND.implementation.begin(function(err) {
+          eachOperationsLoop(null);
+        });
       } else {
         // done with all each tests
         // stop timer and report
@@ -432,11 +433,12 @@ function main() {
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
-        JSCRUND.implementation.createBatch();
-        for (iteration = 0; iteration < numberOfIterations; ++iteration) {
-          operation.apply(JSCRUND.implementation, [parameters[iteration], bulkCheckOperationCallback]);
-        }
-        JSCRUND.implementation.executeBatch(bulkCheckBatchCallback);
+        JSCRUND.implementation.createBatch(function(err) {
+          for (iteration = 0; iteration < numberOfIterations; ++iteration) {
+            operation.apply(JSCRUND.implementation, [parameters[iteration], bulkCheckOperationCallback]);
+          }
+          JSCRUND.implementation.executeBatch(bulkCheckBatchCallback);
+        });
       } else {
         // done with all bulk tests
         testsDoneCallback();
