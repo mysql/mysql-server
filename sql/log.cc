@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4706,6 +4706,10 @@ int MYSQL_BIN_LOG::rotate_and_purge(uint flags)
   if (!error && check_purge && expire_logs_days)
   {
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+#ifndef MCP_BUG15854719
+    DBUG_EXECUTE_IF("expire_logs_always",
+                    { purge_time= my_time(0);});
+#endif
     if (purge_time >= 0)
       purge_logs_before_date(purge_time);
   }
