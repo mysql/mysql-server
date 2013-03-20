@@ -212,7 +212,7 @@ page_update_max_trx_id(
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
-#endif /* !UNIV_INNOCHECKSUM */ 
+#endif /* !UNIV_INNOCHECKSUM */
 /*************************************************************//**
 Reads the given header field. */
 UNIV_INLINE
