@@ -31,7 +31,6 @@
          "Adapter/impl/src/Record.cpp",
          "Adapter/impl/src/Operation.cpp",
          "Adapter/impl/src/DBOperationHelper.cpp",
-         "Adapter/impl/src/DBSessionImpl.cpp",
          "Adapter/impl/src/DBDictionaryImpl.cpp",
          "Adapter/impl/src/Record_wrapper.cpp",
          "Adapter/impl/src/Operation_wrapper.cpp",

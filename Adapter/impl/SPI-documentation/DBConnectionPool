@@ -55,8 +55,6 @@ DBConnectionPool(Properties connectionProperties);
 /* listTables(databaseName, callback(error, array))
    ASYNC
    List all tables in the schema.
-   If dbSession is non-null, it will be used as the session for the metadata 
-   calls.  If null, DBConnectionPool will use some pooled session.
    Returns an array of table names.
 */
   listTables(dbSession, databaseName, callback);

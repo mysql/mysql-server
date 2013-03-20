@@ -24,7 +24,6 @@ def build(ctx):
   "src/Record.cpp " +\
   "src/Operation.cpp " +\
   "src/DBOperationHelper.cpp " +\
-  "src/DBSessionImpl.cpp " + \
   "src/DBDictionaryImpl.cpp " +\
   "src/Record_wrapper.cpp " +\
   "src/Operation_wrapper.cpp " +\

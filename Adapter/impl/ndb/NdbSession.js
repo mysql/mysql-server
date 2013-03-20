@@ -67,14 +67,6 @@ exports.newDBSession = function(pool, impl) {
 };
 
 
-/* getNdb(DBSession) 
-*/
-exports.getNdb = function(dbsession) {
-  udebug.log("getNdb(DBSession)");
-  return dbsession.impl.getNdb();
-};
-
-
 /* txIsOpen(NdbTransactionHandler) 
    txisClosed(NdbTransactionHandler) 
 */
