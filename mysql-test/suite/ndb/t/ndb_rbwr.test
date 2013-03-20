@@ -231,8 +231,8 @@ INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
 
   ("t5", "update t5 set d = @b1  where c = 3", 3), #Scan 1 row
   ("t5", "update t5 set d = NULL where c = 3", 3), #Scan, update 1 row
-  ("t5", "update t5 set d = @b1  where c > 1", 7), #Scan, update 5 rows
-  ("t5", "update t5 set d = @b1", 12),             #Scan, update 10 rows
+  #("t5", "update t5 set d = @b1  where c > 1", 7), #Scan, update 5 rows
+  #("t5", "update t5 set d = @b1", 12),             #Scan, update 10 rows
 
   # Update BLOB in non existing rows
   ("t5", "update t5 set d = @b1  where a = 99", 2), #PK
@@ -248,17 +248,17 @@ INSERT INTO rbwr_tests (table_name, query, execute_count) VALUES
   ("t5", "update t5 set d = concat(d,@b1) where a = 1", 3), #PK
   ("t5", "update t5 set d = concat(d,@b1) where b = 1", 3), #UQ index
   ("t5", "update t5 set d = concat(d,@b1) where c = 3", 3), #Scan 1 row
-  ("t5", "update t5 set d = concat(d,@b1) where c > 1", 7), #Scan 5 rows
-  ("t5", "update t5 set d = concat(d,@b1)", 11),            #Scan 10 rows
+  #("t5", "update t5 set d = concat(d,@b1) where c > 1", 7), #Scan 5 rows
+  #("t5", "update t5 set d = concat(d,@b1)", 11),            #Scan 10 rows
 
   # Delete rows with BLOB
   ("t5", "delete from t5 where a = 1", 2), #PK
   ("t5", "delete from t5 where b = 1", 2), #UQ index
   ("t5", "delete from t5 where c = 3", 3), #Scan, single match
-  ("t5", "delete from t5 where c > 1", 4), #Scan, match 5  rows
-  ("t5", "delete from t5 where c > 0", 4), #Scan, match 10 rows
-  ("t5", "delete from t5 where c > 9", 2), #Scan, no match
-  ("t5", "delete from t5", 4)
+  #("t5", "delete from t5 where c > 1", 4), #Scan, match 5  rows
+  #("t5", "delete from t5 where c > 0", 4), #Scan, match 10 rows
+  ("t5", "delete from t5 where c > 9", 2)  #Scan, no match
+  #("t5", "delete from t5", 4)
 ;
 
 
