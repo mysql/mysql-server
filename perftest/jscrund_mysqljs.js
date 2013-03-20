@@ -72,10 +72,11 @@ implementation.prototype.remove = function(parameters, callback) {
   });
 };
 
-implementation.prototype.createBatch = function() {
+implementation.prototype.createBatch = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.createBatch');
   this.batch = this.session.createBatch();
   this.context = this.batch;
+  callback(null);
 };
 
 implementation.prototype.executeBatch = function(callback) {
@@ -84,9 +85,10 @@ implementation.prototype.executeBatch = function(callback) {
   this.context = this.session;
 };
 
-implementation.prototype.begin = function() {
+implementation.prototype.begin = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
   this.session.currentTransaction().begin();
+  callback(null);
 };
 
 implementation.prototype.commit = function(callback) {
