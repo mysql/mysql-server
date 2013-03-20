@@ -7045,6 +7045,9 @@ ER_ROW_IN_WRONG_PARTITION
 ER_MTS_EVENT_BIGGER_PENDING_JOBS_SIZE_MAX
   eng "Cannot schedule event %s, relay-log name %s, position %s to Worker thread because its size %lu exceeds %lu of slave_pending_jobs_size_max."
 
+ER_INNODB_NO_FT_USES_PARSER
+  eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
+
 #
 #  End of 5.6 error messages.
 #
