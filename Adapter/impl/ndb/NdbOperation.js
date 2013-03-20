@@ -145,27 +145,9 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
     helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
   }
 
-  helper = adapter.impl.DBOperationHelper(helperSpec);
-  
-  switch(this.opcode) {
-    case 1:   // OP_READ:
-      this.ndbop = helper.readTuple(ndbTransaction);
-      break;
-    case 2:  // OP_INSERT:
-      this.ndbop = helper.insertTuple(ndbTransaction);
-      break;
-    case 4:  // OP_UPDATE:
-      this.ndbop = helper.updateTuple(ndbTransaction);
-      break;
-    case 8:  // OP_WRITE:
-      this.ndbop = helper.writeTuple(ndbTransaction);
-      break;
-    case 16:  // OP_DELETE:
-      this.ndbop = helper.deleteTuple(ndbTransaction);
-      break;
-  }
+  /* Use the HelperSpec and opcode to build the NdbOperation */
+  this.ndbop = adapter.impl.DBOperationHelper(helperSpec, this.opcode, ndbTransaction);
 
-  helper.close();
   this.state = doc.OperationStates[1];  // PREPARED
 };
 

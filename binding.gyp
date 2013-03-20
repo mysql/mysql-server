@@ -33,7 +33,6 @@
          "Adapter/impl/src/DBOperationHelper.cpp",
          "Adapter/impl/src/DBDictionaryImpl.cpp",
          "Adapter/impl/src/Record_wrapper.cpp",
-         "Adapter/impl/src/Operation_wrapper.cpp",
          "Adapter/impl/src/Native_encoders.cpp",
          "Adapter/impl/src/Ndb_init_wrapper.cpp",
          "Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp",

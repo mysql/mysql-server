@@ -30,7 +30,6 @@
 using namespace v8;
 
 Handle<Value> Record_Wrapper(Record *);
-Handle<Value> Operation_Wrapper(Operation *);
 Handle<Value> Ndb_Wrapper(Ndb *);
 Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *);
