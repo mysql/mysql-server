@@ -527,9 +527,9 @@ trx_sys->rw_trx_list but not both and it cannot be an autocommit
 non-locking select */
 #define assert_trx_in_list(t) do {					\
 	ut_ad((t)->in_ro_trx_list					\
-	      == ((t)->read_only || !(t)->standard.rseg));		\
+	      == ((t)->read_only || !(t)->rsegs.m_redo.rseg));		\
 	ut_ad((t)->in_rw_trx_list					\
-	      == !((t)->read_only || !(t)->standard.rseg));		\
+	      == !((t)->read_only || !(t)->rsegs.m_redo.rseg));		\
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
@@ -712,6 +712,18 @@ struct trx_undo_ptr_t{
 					NULL if no inserts performed yet */
 	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
 					NULL if no update performed yet */
+};
+
+struct trx_rsegs_t {
+	/** undo log ptr bounded to system/undo tablespace used for undo logging
+	of all objects those needs to be recovered on crash. */
+	trx_undo_ptr_t	m_redo;
+
+	/** undo log ptr bounded to temp tablespace used for undo logging of
+	objects only that don't need to be recovered on crash.
+	Can be NULL if transaction doesn't modify any such table that doesn't
+	need to be recovered. */
+	trx_undo_ptr_t	m_noredo;
 };
 
 struct trx_t{
@@ -989,12 +1001,7 @@ struct trx_t{
 					was started: in case of an error, trx
 					is rolled back down to this undo
 					number; see note at undo_mutex! */
-	trx_undo_ptr_t	standard;	/*!< undo log ptr bounded to system/undo
-					tablespace used for undo logging of all
-					objects except temp-tables. */
-	trx_undo_ptr_t	temporary;	/*!< undo log ptr bounded to temp
-					tablespace used for undo logging of
-					temp-tables objects only. */
+	trx_rsegs_t	rsegs;		/* rollback segments for undo logging */
 	undo_no_t	roll_limit;	/*!< least undo number to undo during
 					a rollback */
 	ulint		pages_undone;	/*!< number of undo log pages undone

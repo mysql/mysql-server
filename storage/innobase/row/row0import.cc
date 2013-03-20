@@ -3506,7 +3506,7 @@ row_import_for_mysql(
 
 	/* IMPORT tablespace is blocked for temp-tables and so we don't
 	need to assign temporary rollback segment for this trx. */
-	err = trx_undo_assign_undo(trx, &trx->standard, TRX_UNDO_UPDATE);
+	err = trx_undo_assign_undo(trx, &trx->rsegs.m_redo, TRX_UNDO_UPDATE);
 
 	mutex_exit(&trx->undo_mutex);
 
@@ -3517,7 +3517,7 @@ row_import_for_mysql(
 
 		return(row_import_cleanup(prebuilt, trx, err));
 
-	} else if (trx->standard.update_undo == 0) {
+	} else if (trx->rsegs.m_redo.update_undo == 0) {
 
 		err = DB_TOO_MANY_CONCURRENT_TRXS;
 		return(row_import_cleanup(prebuilt, trx, err));

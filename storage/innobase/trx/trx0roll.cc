@@ -97,12 +97,13 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->standard.insert_undo != 0
-	    || trx->standard.update_undo != 0
-	    || trx->temporary.insert_undo != 0
-	    || trx->temporary.update_undo != 0) {
+	if (trx->rsegs.m_redo.insert_undo != 0
+	    || trx->rsegs.m_redo.update_undo != 0
+	    || trx->rsegs.m_noredo.insert_undo != 0
+	    || trx->rsegs.m_noredo.update_undo != 0) {
 
-		ut_ad(trx->standard.rseg != 0 || trx->temporary.rseg != 0);
+		ut_ad(trx->rsegs.m_redo.rseg != 0
+		      || trx->rsegs.m_noredo.rseg != 0);
 
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
@@ -1229,17 +1230,17 @@ trx_roll_pop_top_rec_of_trx_step(
 {
 	trx_undo_rec_t* undo_rec = 0;
 
-	if (trx->standard.insert_undo !=0
-	    || trx->standard.update_undo != 0) {
+	if (trx->rsegs.m_redo.insert_undo !=0
+	    || trx->rsegs.m_redo.update_undo != 0) {
 		undo_rec = trx_roll_pop_top_rec_of_trx(
-			trx, &trx->standard, limit, roll_ptr, heap);
+			trx, &trx->rsegs.m_redo, limit, roll_ptr, heap);
 	}
 
 	if (undo_rec == 0
-	    && (trx->temporary.insert_undo != 0
-		|| trx->temporary.update_undo != 0)) {
+	    && (trx->rsegs.m_noredo.insert_undo != 0
+		|| trx->rsegs.m_noredo.update_undo != 0)) {
 		undo_rec = trx_roll_pop_top_rec_of_trx(
-			trx, &trx->temporary, limit, roll_ptr, heap);
+			trx, &trx->rsegs.m_noredo, limit, roll_ptr, heap);
 	}
 
 	return(undo_rec);
