@@ -481,10 +481,6 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         r = EINVAL;
         goto cleanup;
     }
-    if (txn && txn->parent != NULL) {
-        r = EINVAL; // cannot have a parent if you are a resetting op
-        goto cleanup;
-    }
     // For a hot index, this is an initial descriptor.
     // We do not support (yet) hcad with hot index concurrently on a single table, which
     // would require changing a descriptor for a hot index.

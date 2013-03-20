@@ -166,7 +166,6 @@ static void run_test(void) {
             { int chk_r = db->change_descriptor(db, txn_create, &change_descriptor, 0); CKERR(chk_r); }
             // test some error cases
             IN_TXN_COMMIT(env, txn_create, txn_create2, 0, {
-                    { int chk_r = db->change_descriptor(db, txn_create2, &change_descriptor, 0); CKERR2(chk_r, EINVAL); }
                     { int chk_r = db->change_descriptor(db, txn_create, &change_descriptor, 0); CKERR2(chk_r, EINVAL); }
                 });
             assert_desc_four(db);
