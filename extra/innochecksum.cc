@@ -197,7 +197,7 @@ error_message(
 	static char err_msg[1024] = {'\0'};
 	FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
 		NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)buf, sizeof(err_msg), NULL );
+		(LPTSTR)err_msg, sizeof(err_msg), NULL );
 
 	return (err_msg);
 }
@@ -894,7 +894,29 @@ int main(
 	}
 
 	if (page_type_dump) {
+#ifndef __WIN__
 		fil_page_type = fopen(page_dump_filename, "wb");
+#else
+	HANDLE		hFile;		/* handle to open file. */
+	int fd = 0;
+	hFile = CreateFile((LPCTSTR) page_dump_filename,
+			  GENERIC_READ | GENERIC_WRITE,
+			  FILE_SHARE_READ | FILE_SHARE_DELETE,
+			  NULL, CREATE_NEW, NULL, NULL);
+
+	if (hFile == INVALID_HANDLE_VALUE) {
+		/* print the error message. */
+		fprintf(stderr, "Filename::%s %s\n",
+			page_dump_filename,
+			error_message(GetLastError()));
+
+			DBUG_RETURN (1);
+		}
+
+	/* get the file descriptor. */
+	fd= _open_osfhandle((intptr_t)hFile, _O_RDWR | _O_BINARY);
+	fil_page_type = fdopen(fd, "wb");
+#endif
 	}
 
 	if (verbose) {
@@ -943,12 +965,22 @@ int main(
 		/* Testing for lock mechanism. The innochecksum
 		acquire lock on given file. So other tools accessing the same
 		file for processsing must fail. */
+#ifdef __WIN__
 		DBUG_EXECUTE_IF("innochecksum_cause_mysqld_crash",
+			ut_ad(page_dump_filename);
+			while((_access( page_dump_filename, 0)) == 0) {
+				sleep(1);
+			}
+			DBUG_RETURN(0); );
+#else
+		DBUG_EXECUTE_IF("innochecksum_cause_mysqld_crash",
+			ut_ad(page_dump_filename);
 			struct stat status_buf;
 			while(stat(page_dump_filename, &status_buf) == 0) {
 				sleep(1);
 			}
 			DBUG_RETURN(0); );
+#endif
 
 		/* Read the minimum page size. */
 		min_bytes = fread(min_page, 1, UNIV_PAGE_SIZE_MIN, fil_in);
