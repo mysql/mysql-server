@@ -77,7 +77,7 @@ function prepare(testCase, runTestMethod, testObj) {
     dbSession = sess; // set global
     if(err) {   testCase.fail(err);   }
     else    {   
-      dbSession.getConnectionPool().getTableMetadata("test", "tbl4", null, onTable); 
+      dbSession.getConnectionPool().getTableMetadata("test", "tbl4", dbSession, onTable); 
     }
   }
 

@@ -55,7 +55,7 @@ t1.prepare = function prepare(testObj) {
     udebug.log("prepare onSession");
     dbSession = sess; // set global
     if(err) {   test.fail(err);   }
-    else    {   dbSession.getConnectionPool().getTableMetadata("test", "tbl1", null, onTable); }
+    else    {   dbSession.getConnectionPool().getTableMetadata("test", "tbl1", dbSession, onTable); }
   }
 
   function onConnect(err, conn) {

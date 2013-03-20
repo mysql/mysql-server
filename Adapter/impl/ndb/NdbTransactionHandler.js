@@ -232,9 +232,8 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
       table = dbOperationList[0].tableHandler.dbTable;
       // TODO: partitionKey
       stats.incr(["start","immediate"]);
-      var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
       ndbsession.txIsOpen(self);
-      ndb.startTransaction(table, 0, 0, onStartTx); 
+      self.dbSession.impl.startTransaction(table, 0, 0, onStartTx); 
     }
     else {
       /* Queued up behind something.  NdbSession will resend the call

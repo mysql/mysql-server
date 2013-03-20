@@ -57,9 +57,33 @@ public:
 
 NdbEnvelopeClass NdbEnvelope;
 
-
 Handle<Value> Ndb_Wrapper(Ndb *ndb) {
   return NdbEnvelope.wrap(ndb);
+}
+
+
+/* Ndb constructor.
+   create_ndb(Ndb_cluster_connection, databaseName, callback)
+   The constructor is wrapped in a call that also calls ndb->init().
+*/
+Ndb * async_create_ndb(Ndb_cluster_connection *conn, const char *db) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  Ndb *ndb = new Ndb(conn, db);
+  if(ndb) ndb->init();
+  return ndb;
+}
+
+Handle<Value> create_ndb(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(3);  
+
+  typedef NativeCFunctionCall_2_<Ndb *, Ndb_cluster_connection *, const char *> MCALL;
+  MCALL * mcallptr = new MCALL(& async_create_ndb, args);
+  mcallptr->wrapReturnValueAs(& NdbEnvelope);
+  mcallptr->runAsync();
+  return scope.Close(JS_VOID_RETURN);  
 }
 
 
@@ -82,7 +106,8 @@ Handle<Value> startTransaction(const Arguments &args) {
 }
 
 
-/* We can't map Ndb::getAutoIncrementValue() directly due to in/out param.
+/* getAutoIncrementValue(ndb, table, batch_size, callback);
+   We can't map Ndb::getAutoIncrementValue() directly due to in/out param.
    The JS Wrapper function will simply return 0 on error.
 */
 Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table * table, uint32_t batch) {
@@ -92,13 +117,10 @@ Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table * table, uint32_t batch) 
   return autoinc;
 }
 
-
 Handle<Value> getAutoIncValue(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
-  REQUIRE_ARGS_LENGTH(4);
-  args[3] = args[3]; args[3] = args[2]; 
-  
+  REQUIRE_ARGS_LENGTH(4);  
   
   typedef NativeCFunctionCall_3_<Uint64, Ndb *, const NdbDictionary::Table *,
                                  uint32_t> MCALL;
@@ -150,4 +172,5 @@ Handle<Value> closeNdb(const Arguments &args) {
 
 void NdbWrapper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "getAutoIncrementValue", getAutoIncValue);
+  DEFINE_JS_FUNCTION(target, "create_ndb", create_ndb);
 }

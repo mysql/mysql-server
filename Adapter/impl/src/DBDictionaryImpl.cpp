@@ -21,12 +21,11 @@
 #include <string.h>
 
 #include <node.h>
+#include <NdbApi.hpp>
 
 #include "adapter_global.h"
-#include "NdbApi.hpp"
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
-#include "DBSessionImpl.h"
 #include "Record.h"
 #include "NdbWrappers.h"
 
@@ -40,9 +39,7 @@ using namespace v8;
  *
  * Looking at NdbDictionaryImpl.cpp, any method that calls into 
  * NdbDictInterface (m_receiver) might block.  Any method that blocks 
- * will cause the ndb's WaitMetaRequestCount to increment. If a method 
- * is marked const in NdbDictionaryImpl.hpp (*NOT* NdbDictionary.hpp)
- * perhaps we can assume it will not block.
+ * will cause the ndb's WaitMetaRequestCount to increment.
  *
  * We assume that once a table has been fetched, all NdbDictionary::getColumn() 
  * calls are immediately served from the local dictionary cache.
@@ -73,22 +70,23 @@ Handle<Value> getDefaultValue(const NdbDictionary::Column *);
 /*** DBDictionary.listTables()
   **
    **/
-class ListTablesCall : public NativeCFunctionCall_2_<int, ndb_session *, const char *> 
+class ListTablesCall : public NativeCFunctionCall_2_<int, Ndb *, const char *> 
 {
 private:
+  NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List list;
 
 public:
   /* Constructor */
   ListTablesCall(const Arguments &args) :
-    NativeCFunctionCall_2_<int, ndb_session *, const char *>(NULL, args),
+    NativeCFunctionCall_2_<int, Ndb *, const char *>(NULL, args),
     list() 
   {
   }
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
-    NdbDictionary::Dictionary * dict = arg0->dict;
+    dict = arg0->getDictionary();
     return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
 
@@ -100,10 +98,11 @@ public:
 void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
   DEBUG_MARKER(UDEB_DETAIL);
   Handle<Value> cb_args[2];
+  const char * & dbName = arg1;
   
   DEBUG_PRINT("RETURN VAL: %d", return_val);
   if(return_val == -1) {
-    cb_args[0] = String::New(arg0->dict->getNdbError().message);
+    cb_args[0] = String::New(dict->getNdbError().message);
     cb_args[1] = Null();
   }
   else {
@@ -113,7 +112,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
     int * stack = new int[list.count];
     unsigned int nmatch = 0;
     for(unsigned i = 0; i < list.count ; i++) {
-      if(strcmp(arg1, list.elements[i].database) == 0) {
+      if(strcmp(dbName, list.elements[i].database) == 0) {
         stack[nmatch++] = i;
       }
     }
@@ -132,7 +131,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
 
 /* listTables() Method call
    ASYNC
-   arg0: DBDictionaryImpl
+   arg0: Ndb *
    arg1: database name
    arg2: user_callback
 */
@@ -140,7 +139,6 @@ Handle<Value> listTables(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
-  // FIXME: This throws an assertion that never gets caught ...
   REQUIRE_ARGS_LENGTH(3);
   
   ListTablesCall * ncallptr = new ListTablesCall(args);
@@ -155,12 +153,13 @@ Handle<Value> listTables(const Arguments &args) {
 /*** DBDictionary.getTable()
   **
    **/
-class GetTableCall : public NativeCFunctionCall_3_<int, ndb_session *, 
+class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *, 
                                                    const char *, const char *> 
 {
 private:
   const NdbDictionary::Table * ndb_table;
   Ndb * ndb_auto_inc;
+  NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
   
   Handle<Object> buildDBIndex_PK();
@@ -170,7 +169,7 @@ private:
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
-    NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(NULL, args),
+    NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
     ndb_table(0), ndb_auto_inc(0), idx_list()
   {
   }
@@ -185,22 +184,25 @@ public:
 
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
-  NdbDictionary::Dictionary * dict;
   return_val = -1;
+  /* Aliases: */
+  Ndb * & ndb = arg0;
+  const char * & dbName = arg1;
+  const char * & tableName = arg2;
   
-  if(strlen(arg1)) {
-    arg0->ndb->setDatabaseName(arg1);
+  if(strlen(dbName)) {
+    arg0->setDatabaseName(dbName);
   }
-  dict = arg0->ndb->getDictionary();
-  ndb_table = dict->getTable(arg2);
+  dict = ndb->getDictionary();
+  ndb_table = dict->getTable(tableName);
   if(ndb_table) {
     /* Get an Ndb object to manage the table's cache of auto-increment values */
     if(ndb_table->getNoOfAutoIncrementColumns() > 0) {
-      ndb_auto_inc = new Ndb(& arg0->ndb->get_ndb_cluster_connection());
+      ndb_auto_inc = new Ndb(& ndb->get_ndb_cluster_connection());
       ndb_auto_inc->init();
     }
     /* List the indexes */
-    return_val = dict->listIndexes(idx_list, arg2);
+    return_val = dict->listIndexes(idx_list, tableName);
   }
   if(return_val == 0) {
     /* Fetch the indexes now.  These calls may perform network IO, populating 
@@ -209,15 +211,16 @@ void GetTableCall::run() {
        that the caches are populated.
     */
     for(unsigned int i = 0 ; i < idx_list.count ; i++) { 
-      const NdbDictionary::Index * idx = dict->getIndex(idx_list.elements[i].name, arg2);
+      const NdbDictionary::Index * idx = dict->getIndex(idx_list.elements[i].name, tableName);
       /* It is possible to get an index for a recently dropped table rather 
          than the desired table.  This is a known bug likely to be fixed later.
       */
-      if(ndb_table->getObjectVersion() != 
-         dict->getTable(idx->getTable())->getObjectVersion()) 
+      const char * idx_table_name = idx->getTable();
+      const NdbDictionary::Table * idx_table = dict->getTable(idx_table_name);
+      if(idx_table == 0 || idx_table->getObjectVersion() != ndb_table->getObjectVersion()) 
       {
         dict->invalidateIndex(idx);
-        idx = dict->getIndex(idx_list.elements[i].name, arg2);
+        idx = dict->getIndex(idx_list.elements[i].name, tableName);
       }
     }
   }
@@ -278,14 +281,14 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     js_indexes->Set(0, buildDBIndex_PK());                   // primary key
     for(unsigned int i = 0 ; i < idx_list.count ; i++) {   // secondary indexes
       const NdbDictionary::Index * idx =
-        arg0->dict->getIndex(idx_list.elements[i].name, arg2);
+        dict->getIndex(idx_list.elements[i].name, arg2);
       js_indexes->Set(i+1, buildDBIndex(idx));
     }    
     table->Set(String::NewSymbol("indexes"), js_indexes, ReadOnly);
   
     // Table Record (implementation artifact; not part of spec)
     DEBUG_PRINT("Creating Table Record");
-    Record * rec = new Record(arg0->dict, ndb_table->getNoOfColumns());
+    Record * rec = new Record(dict, ndb_table->getNoOfColumns());
     for(int i = 0 ; i < ndb_table->getNoOfColumns() ; i++) {
       rec->addColumn(ndb_table->getColumn(i));
     }
@@ -302,7 +305,7 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     cb_args[1] = table;
   }
   else {
-    cb_args[0] = String::New(arg0->dict->getNdbError().message);
+    cb_args[0] = String::New(dict->getNdbError().message);
   }
   
   callback->Call(ctx, 2, cb_args);
@@ -332,7 +335,7 @@ Handle<Object> GetTableCall::buildDBIndex_PK() {
   */  
   int ncol = ndb_table->getNoOfPrimaryKeys();
   DEBUG_PRINT("Creating Primary Key Record");
-  Record * pk_record = new Record(arg0->dict, ncol);
+  Record * pk_record = new Record(dict, ncol);
   Local<Array> idx_columns = Array::New(ncol);
   for(int i = 0 ; i < ncol ; i++) {
     const char * col_name = ndb_table->getPrimaryKey(i);
@@ -369,7 +372,7 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   int ncol = idx->getNoOfColumns();
   Local<Array> idx_columns = Array::New(ncol);
   DEBUG_PRINT("Creating Index Record (%s)", idx->getName());
-  Record * idx_record = new Record(arg0->dict, ncol);
+  Record * idx_record = new Record(dict, ncol);
   for(int i = 0 ; i < ncol ; i++) {
     const char *colName = idx->getColumn(i)->getName();
     const NdbDictionary::Column *col = ndb_table->getColumn(colName);
@@ -490,7 +493,7 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
 
 /* getTable() method call
    ASYNC
-   arg0: DBDictionaryImpl
+   arg0: Ndb *
    arg1: database name
    arg2: table name
    arg3: user_callback
