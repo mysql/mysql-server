@@ -733,34 +733,37 @@ setup_thd(char * stackptr)
 */
 
 static int
-ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
+ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
 {
-  THD * save_thd= thd;
+  int stack_base = 0;
   DBUG_ENTER("ndbcluster_binlog_index_purge_file");
   DBUG_PRINT("enter", ("file: %s", file));
 
-  if (!ndb_binlog_running || (thd && thd->slave_thread))
+  if (!ndb_binlog_running || (passed_thd && passed_thd->slave_thread))
     DBUG_RETURN(0);
 
   /**
-   * This function really really needs a THD object,
-   *   new/delete one if not available...yuck!
+   * This function cannot safely reuse the passed thd object
+   * due to the variety of places from which it is called.
+   *   new/delete one...yuck!
    */
-  if (thd == 0)
+  THD* my_thd;
+  if ((my_thd = setup_thd((char*)&stack_base) /* stack ptr */) == 0)
   {
-    if ((thd = setup_thd((char*)&save_thd)) == 0)
-    {
-      /**
-       * TODO return proper error code here,
-       * BUT! return code is not (currently) checked in
-       *      log.cc : purge_index_entry() so we settle for warning printout
-       */
-      sql_print_warning("NDB: Unable to purge "
-                        NDB_REP_DB "." NDB_REP_TABLE
-                        " File=%s (failed to setup thd)", file);
-      DBUG_RETURN(0);
-    }
+    /**
+     * TODO return proper error code here,
+     * BUT! return code is not (currently) checked in
+     *      log.cc : purge_index_entry() so we settle for warning printout
+     * Will sql_print_warning fail with no thd?
+     */
+    sql_print_warning("NDB: Unable to purge "
+                      NDB_REP_DB "." NDB_REP_TABLE
+                      " File=%s (failed to setup thd)", file);
+    DBUG_RETURN(0);
   }
+
+  /* Following avoids problems with binlogging of the delete... */
+  my_thd->set_current_stmt_binlog_row_based();
 
   char buf[1024];
   char *end= strmov(strmov(strmov(buf,
@@ -768,21 +771,26 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
                                   NDB_REP_DB "." NDB_REP_TABLE
                                   " WHERE File='"), file), "'");
 
-  run_query(thd, buf, end, NULL, TRUE, FALSE);
-  if (thd_stmt_da(thd)->is_error() &&
-      thd_stmt_da(thd)->sql_errno() == ER_NO_SUCH_TABLE)
+  run_query(my_thd, buf, end, NULL, TRUE, FALSE);
+  if (thd_stmt_da(my_thd)->is_error() &&
+      thd_stmt_da(my_thd)->sql_errno() == ER_NO_SUCH_TABLE)
   {
     /*
       If table does not exist ignore the error as it
       is a consistant behavior
     */
-    thd_stmt_da(thd)->reset_diagnostics_area();
+    thd_stmt_da(my_thd)->reset_diagnostics_area();
   }
 
-  if (save_thd == 0)
+  /* Cleanup links between thread and my_thd, then delete it */ 
+  my_thd->restore_globals();
+  my_thd->cleanup();
+  delete my_thd;
+  
+  if (passed_thd)
   {
-    thd->cleanup();
-    delete thd;
+    /* Relink passed THD with this thread */
+    passed_thd->store_globals();
   }
 
   DBUG_RETURN(0);
