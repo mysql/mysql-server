@@ -50,9 +50,15 @@ static bool check_huge_pages_config_file(const char *fname)
 static bool check_huge_pages_in_practice(void)
 // Effect: Return true if huge pages appear to be defined in practice.
 {
+#ifdef HAVE_MINCORE    
+#ifdef HAVE_MAP_ANONYMOUS    
+    const int map_anonymous = MAP_ANONYMOUS;
+#else
+    const int map_anonymous = MAP_ANON;
+#endif
     const size_t TWO_MB = 2UL*1024UL*1024UL;
 
-    void *first = mmap(NULL, 2*TWO_MB, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    void *first = mmap(NULL, 2*TWO_MB, PROT_READ|PROT_WRITE, MAP_PRIVATE|map_anonymous, -1, 0);
     if ((long)first==-1) perror("mmap failed");
     {
         int r = munmap(first, 2*TWO_MB);
@@ -60,7 +66,7 @@ static bool check_huge_pages_in_practice(void)
     }
 
     void *second_addr = (void*)(((unsigned long)first + TWO_MB) & ~(TWO_MB -1));
-    void *second = mmap(second_addr, TWO_MB, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
+    void *second = mmap(second_addr, TWO_MB, PROT_READ|PROT_WRITE, MAP_FIXED|MAP_PRIVATE|map_anonymous, -1, 0);
     if ((long)second==-1) perror("mmap failed");
     assert((long)second%TWO_MB == 0);
 
@@ -96,6 +102,10 @@ static bool check_huge_pages_in_practice(void)
     } else {
         return false;
     }
+#else
+    // No mincore, so no way to check this in practice
+    return false;
+#endif
 }
 
 bool complain_and_return_true_if_huge_pages_are_enabled(void)
