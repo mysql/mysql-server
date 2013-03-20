@@ -50,6 +50,7 @@ static bool check_huge_pages_config_file(const char *fname)
 static bool check_huge_pages_in_practice(void)
 // Effect: Return true if huge pages appear to be defined in practice.
 {
+    return false;
     const size_t TWO_MB = 2UL*1024UL*1024UL;
 
     void *first = mmap(NULL, 2*TWO_MB, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
