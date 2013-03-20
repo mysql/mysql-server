@@ -1760,13 +1760,14 @@ trx_undo_assign_undo(
 
 	ut_ad(trx);
 
-	/* In case of read-only scenario trx->standard.rseg can be NULL but
+	/* In case of read-only scenario trx->rsegs.m_redo.rseg can be NULL but
 	still request for assigning undo logs is valid as temporary tables
 	can be updated in read-only mode.
 	If there is no rollback segment assigned to trx and still there is
 	object being updated there is something wrong and so this condition
 	check. */
-	ut_ad(!(trx->standard.rseg == NULL && trx->temporary.rseg == NULL));
+	ut_ad(!(trx->rsegs.m_redo.rseg == NULL
+		&& trx->rsegs.m_noredo.rseg == NULL));
 
 	rseg = undo_ptr->rseg;
 
@@ -2011,29 +2012,41 @@ trx_undo_free_prepared(
 {
 	ut_ad(srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS);
 
-	if (trx->standard.update_undo) {
-		ut_a(trx->standard.update_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->standard.rseg->update_undo_list,
-			       trx->standard.update_undo);
-		trx_undo_mem_free(trx->standard.update_undo);
+	if (trx->rsegs.m_redo.update_undo) {
+		ut_a(trx->rsegs.m_redo.update_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list,
+			       trx->rsegs.m_redo.rseg->update_undo_list,
+			       trx->rsegs.m_redo.update_undo);
+		trx_undo_mem_free(trx->rsegs.m_redo.update_undo);
 	}
-	if (trx->standard.insert_undo) {
-		ut_a(trx->standard.insert_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->standard.rseg->insert_undo_list,
-			       trx->standard.insert_undo);
-		trx_undo_mem_free(trx->standard.insert_undo);
+
+	if (trx->rsegs.m_redo.insert_undo) {
+		ut_a(trx->rsegs.m_redo.insert_undo->state == TRX_UNDO_PREPARED);
+		UT_LIST_REMOVE(undo_list,
+			       trx->rsegs.m_redo.rseg->insert_undo_list,
+			       trx->rsegs.m_redo.insert_undo);
+		trx_undo_mem_free(trx->rsegs.m_redo.insert_undo);
 	}
-	if (trx->temporary.update_undo) {
-		ut_a(trx->temporary.update_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->temporary.rseg->update_undo_list,
-			       trx->temporary.update_undo);
-		trx_undo_mem_free(trx->temporary.update_undo);
+
+	if (trx->rsegs.m_noredo.update_undo) {
+
+		ut_a(trx->rsegs.m_noredo.update_undo->state
+			== TRX_UNDO_PREPARED);
+
+		UT_LIST_REMOVE(undo_list,
+			       trx->rsegs.m_noredo.rseg->update_undo_list,
+			       trx->rsegs.m_noredo.update_undo);
+		trx_undo_mem_free(trx->rsegs.m_noredo.update_undo);
 	}
-	if (trx->temporary.insert_undo) {
-		ut_a(trx->temporary.insert_undo->state == TRX_UNDO_PREPARED);
-		UT_LIST_REMOVE(undo_list, trx->temporary.rseg->insert_undo_list,
-			       trx->temporary.insert_undo);
-		trx_undo_mem_free(trx->temporary.insert_undo);
+	if (trx->rsegs.m_noredo.insert_undo) {
+
+		ut_a(trx->rsegs.m_noredo.insert_undo->state
+			== TRX_UNDO_PREPARED);
+
+		UT_LIST_REMOVE(undo_list,
+			       trx->rsegs.m_noredo.rseg->insert_undo_list,
+			       trx->rsegs.m_noredo.insert_undo);
+		trx_undo_mem_free(trx->rsegs.m_noredo.insert_undo);
 	}
 }
 #endif /* !UNIV_HOTBACKUP */

@@ -565,7 +565,7 @@ trx_undo_page_report_modify(
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
 	undo_ptr = dict_table_is_temporary(index->table)
-		   ? &trx->temporary : &trx->standard;
+		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 
 	first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 				      + TRX_UNDO_PAGE_FREE);
@@ -1252,7 +1252,7 @@ trx_undo_report_row_operation(
 		/* MySQL should block writes to non-temporary tables. */
 		ut_a(dict_table_is_temporary(index->table));
 
-		if (trx->temporary.rseg == 0) {
+		if (trx->rsegs.m_noredo.rseg == 0) {
 			trx_assign_rseg(trx);
 		}
 	}
@@ -1266,7 +1266,7 @@ trx_undo_report_row_operation(
 
 	/* If the undo log is not assigned yet, assign one */
 	undo_ptr = dict_table_is_temporary(index->table)
-		   ? &trx->temporary : &trx->standard;
+		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 	
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
