@@ -13,7 +13,7 @@
 #include "ydb_write.h"
 #include "ydb_db.h"
 #include <portability/toku_atomic.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 static YDB_WRITE_LAYER_STATUS_S ydb_write_layer_status;
 #ifdef STATUS_VALUE

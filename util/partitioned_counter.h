@@ -58,52 +58,6 @@ void partitioned_counters_init(void);
 void partitioned_counters_destroy(void);
 // Effect: Destroy any partitioned counters data structures.
 
-/*
-*/
-
-#if defined(__clang__)
-// clang does not yet support constexprs, so cannot use strcmp, strncmp, etc in static_asserts
-#define TOKUDB_STATUS_INIT_CONSTEXPR_ASSERTS(c, inc) do { } while (0)
-#else
-
-constexpr char UU() static_tolower(const char a) {
-    return a >= 'A' && a <= 'Z' ? a - 'A' + 'a' : a;
-}
-
-constexpr int UU() static_strncasecmp(const char *a, const char *b, size_t len) {
-    return len == 0 ? 0 : (
-         static_tolower(*a) != static_tolower(*b)  || *a == '\0' ?
-         static_tolower(*a) - static_tolower(*b) :
-         static_strncasecmp(a+1, b+1, len-1)
-        );
-}
-
-#define TOKUDB_STATUS_INIT_CONSTEXPR_ASSERTS(c, inc) do { \
-    static_assert(strcmp(#c, "NULL") && strcmp(#c, "0"),                     \
-            "Use nullptr for no column name instead of NULL, 0, etc...");    \
-    static_assert((inc) == TOKU_ENGINE_STATUS || strcmp(#c, "nullptr"),      \
-            "Missing column name.");                                         \
-    static_assert(static_strncasecmp(#c, "TOKU", strlen("TOKU")),            \
-                  "Do not start column names with toku/tokudb.  Names get TOKUDB_ prefix automatically."); \
-    static_assert((inc) == TOKU_ENGINE_STATUS ||                             \
-            (strcmp(#c, "nullptr") && strcmp(#c, "NULL") && strcmp(#c, "0")) \
-            , "Missing column name.");                                       \
-    } while (0)
-#endif
-
-#define TOKUDB_STATUS_INIT(array,k,c,t,l,inc) do { \
-    array.status[k].keyname = #k;                    \
-    array.status[k].columnname = #c;                 \
-    array.status[k].type    = t;                     \
-    array.status[k].legend  = l;                     \
-    static_assert((inc) != 0, "Var must be included in at least one place"); \
-    TOKUDB_STATUS_INIT_CONSTEXPR_ASSERTS(c, inc);    \
-    array.status[k].include = static_cast<toku_engine_status_include_type>(inc);  \
-    if (t == PARCOUNT) {                                               \
-        array.status[k].value.parcount = create_partitioned_counter(); \
-    }                                                                  \
-} while (0)
-
 #if 0
 #include <pthread.h>
 #include "fttypes.h"

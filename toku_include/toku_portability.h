@@ -10,6 +10,12 @@
 
 // Tokutek portability layer
 
+#if defined(__clang__)
+#  define constexpr_static_assert(a, b)
+#else
+#  define constexpr_static_assert(a, b) static_assert(a, b)
+#endif
+
 #if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(__ICL))
 
 #define TOKU_WINDOWS 1

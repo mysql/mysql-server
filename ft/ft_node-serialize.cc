@@ -11,7 +11,7 @@
 #include <util/sort.h>
 #include <util/threadpool.h>
 #include "ft.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 

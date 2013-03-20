@@ -13,7 +13,7 @@
 #include "rollback-apply.h"
 #include "txn_manager.h"
 #include "txn_child_manager.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

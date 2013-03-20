@@ -11,7 +11,7 @@
 #include <ft.h>
 #include <toku_assert.h>
 #include <portability/toku_atomic.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.

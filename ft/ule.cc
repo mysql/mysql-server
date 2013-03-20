@@ -29,7 +29,7 @@
 #include "ule.h"
 #include "txn_manager.h"
 #include "ule-internal.h"
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 
 #define ULE_DEBUG 0

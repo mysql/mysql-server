@@ -21,7 +21,7 @@
 #include "ydb_load.h"
 #include "indexer.h"
 #include <portability/toku_atomic.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #ifdef STATUS_VALUE

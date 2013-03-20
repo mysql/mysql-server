@@ -50,7 +50,7 @@
 #include "logger.h"
 #include "checkpoint.h"
 #include <portability/toku_atomic.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

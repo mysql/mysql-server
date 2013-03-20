@@ -10,7 +10,7 @@
 #include <ft-internal.h>
 #include <ft.h>
 #include <portability/toku_atomic.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 

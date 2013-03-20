@@ -133,7 +133,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include <portability/toku_atomic.h>
 
 #include <util/mempool.h>
-#include <util/partitioned_counter.h>
+#include <util/status.h>
 #include <util/rwlock.h>
 #include <util/sort.h>
 
