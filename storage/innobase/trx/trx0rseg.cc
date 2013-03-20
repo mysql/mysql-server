@@ -197,9 +197,9 @@ trx_rseg_mem_create(
 	rseg->page_no = page_no;
 
 	if (space == srv_tmp_space.space_id()) {
-		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_TMP_RSEG);
+		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_NOREDO_RSEG);
 	} else {
-		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_RSEG);
+		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_REDO_RSEG);
 	}
 
 	/* const_cast<trx_rseg_t*>() because this function is
