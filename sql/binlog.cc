@@ -2529,11 +2529,30 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     }
     case GTID_LOG_EVENT:
     {
+      DBUG_EXECUTE_IF("inject_fault_bug16502579", {
+                      DBUG_PRINT("debug", ("GTID_LOG_EVENT found. Injected ret=NO_GTIDS."));
+                      ret=NO_GTIDS;
+                      });
       if (ret != GOT_GTIDS)
       {
         if (ret != GOT_PREVIOUS_GTIDS)
-          // should not happen
-          my_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, MYF(0));
+        {
+          /*
+            Since this routine is run on startup, there may not be a
+            THD instance. Therefore, ER(X) cannot be used.
+           */
+          const char* msg_fmt= (current_thd != NULL) ?
+                               ER(ER_BINLOG_LOGICAL_CORRUPTION) :
+                               ER_DEFAULT(ER_BINLOG_LOGICAL_CORRUPTION);
+          my_printf_error(ER_BINLOG_LOGICAL_CORRUPTION,
+                          msg_fmt, MYF(0),
+                          filename,
+                          "The first global transaction identifier was read, but "
+                          "no other information regarding identifiers existing "
+                          "on the previous log files was found.");
+          ret= ERROR, done= true;
+          break;
+        }
         else
           ret= GOT_GTIDS;
       }
@@ -3972,28 +3991,41 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   if (gtid_mode > 0 && !is_relay_log)
   {
     global_sid_lock->wrlock();
-    if (init_gtid_sets(NULL,
+    error= init_gtid_sets(NULL,
                        const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
                        opt_master_verify_checksum,
-                       false/*false=don't need lock*/))
-      goto err;
+                       false/*false=don't need lock*/);
     global_sid_lock->unlock();
+    if (error)
+      goto err;
   }
 
   DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_SUICIDE(););
 
 err:
+
+  int error_index= 0, close_error_index= 0;
   /* Read each entry from purge_index_file and delete the file. */
   if (is_inited_purge_index_file() &&
-      (error= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
+      (error_index= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
                     " that would be purged.");
-  close_purge_index_file();
+
+  close_error_index= close_purge_index_file();
 
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_SUICIDE(););
 
   if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
+
+  /*
+    Error codes from purge logs take precedence.
+    Then error codes from purging the index entry.
+    Finally, error codes from closing the purge index file.
+  */
+  error= error ? error : (error_index ? error_index :
+                          close_error_index);
+
   DBUG_RETURN(error);
 }
 
