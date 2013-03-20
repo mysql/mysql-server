@@ -50,7 +50,6 @@ static bool check_huge_pages_config_file(const char *fname)
 static bool check_huge_pages_in_practice(void)
 // Effect: Return true if huge pages appear to be defined in practice.
 {
-    return false;
     const size_t TWO_MB = 2UL*1024UL*1024UL;
 
     void *first = mmap(NULL, 2*TWO_MB, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0);
@@ -70,6 +69,11 @@ static bool check_huge_pages_in_practice(void)
     unsigned char vec[n_pages];
     {
         int r = mincore(second, TWO_MB, vec);
+        if (r!=0 && errno==ENOMEM) {
+            // On some kernels (e.g., Centos 5.8), mincore doesn't work.  It seems unlikely that huge pages are here.
+            munmap(second, TWO_MB);
+            return false;
+        }
         assert(r==0);
     }
     for (long i=0; i<n_pages; i++) {
@@ -78,6 +82,7 @@ static bool check_huge_pages_in_practice(void)
     ((char*)second)[0] = 1;
     {
         int r = mincore(second, TWO_MB, vec);
+        // If the mincore worked the first time, it probably works here too.x
         assert(r==0);
     }
     assert(vec[0]);
