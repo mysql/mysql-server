@@ -180,13 +180,17 @@ commit;
 select count(*) from t1;
 select count(*) from t2;
 #
+begin;
 delete from t1 where a <= 1000;
 delete from t2 where a > 19000;
 select count(*) from t1;
 select count(*) from t2;
+commit;
 #
+begin;
 update t1 set b = 'innodb' where b = 'a' and a <= 10000;
 update t2 set b = 'myisam' where c = 'b' and a > 10000;
+commit;
 #
 delete from t1 where b = 'a';
 delete from t2 where c = 'myisam';
