@@ -141,12 +141,12 @@ struct Query_cache_block
   inline bool is_free(void) { return type == FREE; }
   void init(ulong length);
   void destroy();
-  inline uint headers_len();
-  inline uchar* data(void);
-  inline Query_cache_query *query();
-  inline Query_cache_table *table();
-  inline Query_cache_result *result();
-  inline Query_cache_block_table *table(TABLE_COUNTER_TYPE n);
+  uint headers_len();
+  uchar* data(void);
+  Query_cache_query *query();
+  Query_cache_table *table();
+  Query_cache_result *result();
+  Query_cache_block_table *table(TABLE_COUNTER_TYPE n);
 };
 
 struct Query_cache_query

@@ -1,0 +1,2 @@
+--loose-query_cache_info
+--plugin-load=$QUERY_CACHE_INFO_SO

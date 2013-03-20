@@ -1,0 +1,15 @@
+--source include/not_embedded.inc
+--source qc_info_init.inc
+
+# try an unprivileged user
+create user mysqltest;
+connect (conn1,localhost,mysqltest,,);
+connection conn1;
+select a from t1;
+select count(*) from information_schema.query_cache_info;
+connection default;
+drop user mysqltest;
+drop table t1;
+
+set global query_cache_size= default;
+

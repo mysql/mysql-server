@@ -828,18 +828,18 @@ void Query_cache_block::destroy()
   DBUG_VOID_RETURN;
 }
 
-inline uint Query_cache_block::headers_len()
+uint Query_cache_block::headers_len()
 {
   return (ALIGN_SIZE(sizeof(Query_cache_block_table)*n_tables) +
 	  ALIGN_SIZE(sizeof(Query_cache_block)));
 }
 
-inline uchar* Query_cache_block::data(void)
+uchar* Query_cache_block::data(void)
 {
   return (uchar*)( ((uchar*)this) + headers_len() );
 }
 
-inline Query_cache_query * Query_cache_block::query()
+Query_cache_query * Query_cache_block::query()
 {
 #ifndef DBUG_OFF
   if (type != QUERY)
@@ -848,7 +848,7 @@ inline Query_cache_query * Query_cache_block::query()
   return (Query_cache_query *) data();
 }
 
-inline Query_cache_table * Query_cache_block::table()
+Query_cache_table * Query_cache_block::table()
 {
 #ifndef DBUG_OFF
   if (type != TABLE)
@@ -857,7 +857,7 @@ inline Query_cache_table * Query_cache_block::table()
   return (Query_cache_table *) data();
 }
 
-inline Query_cache_result * Query_cache_block::result()
+Query_cache_result * Query_cache_block::result()
 {
 #ifndef DBUG_OFF
   if (type != RESULT && type != RES_CONT && type != RES_BEG &&
@@ -867,7 +867,7 @@ inline Query_cache_result * Query_cache_block::result()
   return (Query_cache_result *) data();
 }
 
-inline Query_cache_block_table * Query_cache_block::table(TABLE_COUNTER_TYPE n)
+Query_cache_block_table * Query_cache_block::table(TABLE_COUNTER_TYPE n)
 {
   return ((Query_cache_block_table *)
 	  (((uchar*)this)+ALIGN_SIZE(sizeof(Query_cache_block)) +

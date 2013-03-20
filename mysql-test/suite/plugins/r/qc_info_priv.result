@@ -1,0 +1,23 @@
+set global query_cache_size=1355776;
+create table t1 (a int not null);
+insert into t1 values (1),(2),(3);
+select * from t1;
+a
+1
+2
+3
+select statement_schema, statement_text, result_blocks_count, result_blocks_size from information_schema.query_cache_info;
+statement_schema	statement_text	result_blocks_count	result_blocks_size
+test	select * from t1	1	512
+create user mysqltest;
+select a from t1;
+a
+1
+2
+3
+select count(*) from information_schema.query_cache_info;
+count(*)
+0
+drop user mysqltest;
+drop table t1;
+set global query_cache_size= default;
