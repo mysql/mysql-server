@@ -243,16 +243,40 @@ typedef struct st_join_table {
   nested_join_map embedding_map;
 
   void cleanup();
+  /*
+    In cases where filesort reads rows from a table using Loose Index
+    Scan, the fact that LIS was used is lost because
+    create_sort_index() deletes join_tab->select->quick. MySQL needs
+    this information during JOIN::exec().
+
+    This variable is a hack for MySQL 5.5 only. A value of true means
+    that filesort used LIS to read from the table. In MySQL 5.6 and
+    later, join_tab->filesort is a separate structure with it's own
+    select that can be inquired to get the same information. There is
+    no need for this variable in MySQL 5.6 and later.
+  */
+  bool		filesort_used_loose_index_scan;
+  /*
+    Similar hack as for filesort_used_loose_index_scan. Not needed for
+    MySQL 5.6 and later.
+  */
+  bool		filesort_used_loose_index_scan_agg_distinct;
   inline bool is_using_loose_index_scan()
   {
-    return (select && select->quick &&
-            (select->quick->get_type() ==
-             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+    return (filesort_used_loose_index_scan || 
+            (select && select->quick &&
+             (select->quick->get_type() ==
+              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX))
+            );
   }
   bool is_using_agg_loose_index_scan ()
   {
-    return (is_using_loose_index_scan() &&
-            ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
+    return (filesort_used_loose_index_scan_agg_distinct ||
+            (select && select->quick &&
+             (select->quick->get_type() ==
+              QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
+             ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct())
+            );
   }
 } JOIN_TAB;
 
