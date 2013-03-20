@@ -19,18 +19,18 @@ static void append_az(tokudb::buffer &b) {
 }
 
 static void assert_az(tokudb::buffer &b) {
-    char *bp = NULL;
-    for (int i = 0; i < b.size(); i++) {
-        bp = (char *) b.data() + i;
+    unsigned char *bp = NULL;
+    for (size_t i = 0; i < b.size(); i++) {
+        bp = (unsigned char *) b.data() + i;
         assert(*bp == 'a'+i);    
     }
     assert(*bp == 'z');
 }
 
 static void assert_AZ(tokudb::buffer &b) {
-    char *bp = NULL;
-    for (int i = 0; i < b.size(); i++) {
-        bp = (char *) b.data() + i;
+    unsigned char *bp = NULL;
+    for (size_t i = 0; i < b.size(); i++) {
+        bp = (unsigned char *) b.data() + i;
         assert(*bp == 'A'+i);    
     }
     assert(*bp == 'Z');
@@ -47,7 +47,7 @@ static void test_append() {
     assert_az(a);
 
     tokudb::buffer b(a.data(), 0, a.size());
-    for (int i = 0; i < b.limit(); i++) {
+    for (size_t i = 0; i < b.limit(); i++) {
         assert(i <= a.size());
         char *ap = (char *) a.data() + i;
         assert(i <= b.limit());
@@ -60,8 +60,8 @@ static void test_consume() {
     tokudb::buffer a;
     append_az(a);
     tokudb::buffer b(a.data(), 0, a.size());
-    for (int i = 0; i < b.limit(); i++) {
-        char c;
+    for (size_t i = 0; i < b.limit(); i++) {
+        unsigned char c;
         b.consume(&c, 1);
         assert(c == 'a'+i);
     }
@@ -72,9 +72,9 @@ static void test_consume_ptr() {
     tokudb::buffer a;
     append_az(a);
     tokudb::buffer b(a.data(), 0, a.size());
-    for (int i = 0; i < b.limit(); i++) {
+    for (size_t i = 0; i < b.limit(); i++) {
         void *p = b.consume_ptr(1);
-        char c = *(char *)p;
+        unsigned char c = *(unsigned char *)p;
         assert(c == 'a'+i);
     }
     assert(b.size() == b.limit());
@@ -85,8 +85,8 @@ static void test_replace() {
     tokudb::buffer a;
     append_az(a);
     assert_az(a);
-    for (int i = 0; i < a.size(); i++) {
-        char newc[1] = { 'A' + i };
+    for (size_t i = 0; i < a.size(); i++) {
+        unsigned char newc[1] = { (unsigned char)('A' + i) };
         a.replace(i, 1, newc, 1);
     }
     assert_AZ(a);
@@ -98,15 +98,15 @@ static void test_replace_grow() {
     assert_az(a);
 
     // grow field
-    int s = a.size();
-    for (int i = 0; i < s; i++) {
-        char newc[2] = { 'a'+i, 'a'+i };
-        size_t s = a.size();
+    size_t orig_s = a.size();
+    for (size_t i = 0; i < orig_s; i++) {
+        unsigned char newc[2] = { (unsigned char)('a'+i), (unsigned char)('a'+i) };
+        size_t old_s = a.size();
         a.replace(2*i, 1, newc, 2);
-        assert(a.size() == s+1);
+        assert(a.size() == old_s+1);
     }
-    for (int i = 0; i < a.size()/2; i++) {
-        char *cp = (char *) a.data() + 2*i;
+    for (size_t i = 0; i < a.size()/2; i++) {
+        unsigned char *cp = (unsigned char *) a.data() + 2*i;
         assert(cp[0] == 'a'+i && cp[1] == 'a'+i);
     }
 }
@@ -119,8 +119,8 @@ static void test_replace_shrink() {
     }
 
     // shrink field
-    for (int i = 0; i < a.size(); i++) {
-        char newc[1] = { 'a'+i };
+    for (size_t i = 0; i < a.size(); i++) {
+        unsigned char newc[1] = { (unsigned char)('a'+i) };
         size_t s = a.size();
         a.replace(i, 2, newc, 1);
         assert(a.size() == s-1);
@@ -134,9 +134,9 @@ static void test_replace_null() {
     assert_az(a);
 
     // insert between all
-    int n = a.size();
-    for (int i = 0; i < n; i++) {
-        char newc[1] = { 'a'+i };
+    size_t n = a.size();
+    for (size_t i = 0; i < n; i++) {
+        unsigned char newc[1] = { (unsigned char)('a'+i) };
         a.replace(2*i, 0, newc, 1);
     }
 

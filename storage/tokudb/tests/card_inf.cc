@@ -34,6 +34,7 @@ public:
     KEY_INFO *key_info;
 };
 uint get_key_parts(KEY_INFO *key_info) {
+    assert(key_info);
     return 0;
 }
 #include "tokudb_card.h"
@@ -85,14 +86,14 @@ static void load_db(DB_ENV *env, DB *db, uint32_t nrows) {
 }
 
 // only compare the first level of the key
-static int analyze_key_compare(DB *db, const DBT *a, const DBT *b, uint level) {
+static int analyze_key_compare(DB *db __attribute__((unused)), const DBT *a, const DBT *b, uint level) {
     assert(level == 1);
     assert(a->size == b->size);
     assert(a->size == sizeof (struct key));
     return memcmp(a->data, b->data, sizeof (uint32_t));
 }
 
-static void test_card(DB_ENV *env, DB *db, uint64_t nrows, uint64_t expect_card) {
+static void test_card(DB_ENV *env, DB *db, uint64_t expect_card) {
     int r;
     
     DB_TXN *txn = NULL;
@@ -145,7 +146,7 @@ int main(int argc, char * const argv[]) {
     load_db(env, db, nrows);
 
     // test cardinality
-    test_card(env, db, nrows, nrows);
+    test_card(env, db, nrows);
 
     r = db->close(db, 0);
     assert(r == 0);

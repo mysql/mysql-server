@@ -1,8 +1,8 @@
 SRCS = $(wildcard *.cc)
 TARGETS = $(patsubst %.cc,%,$(SRCS))
 CHECKS = $(patsubst %,%.check,$(TARGETS))
-CPPFLAGS = -I..
-CXXFLAGS = -g -fno-implicit-templates
+CPPFLAGS = -I.. -D__STDC_FORMAT_MACROS
+CXXFLAGS = -g -Wall -Wextra -Wno-missing-field-initializers -Wshadow
 
 FRACTALTREE_BASE_DIR = ../../../../tokudb
 FRACTALTREE_DIR = $(FRACTALTREE_BASE_DIR)/release
@@ -26,20 +26,23 @@ check: $(CHECKS)
 max_test.check: max_test
 	$(VALGRIND) ./$< 1 2
 
+%: %.cc
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $<
+
 db_libtest: db_libtest.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_test: card_test.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_1: card_1.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_inf: card_inf.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_inf_1: card_inf_1.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
 
 card_random_1: card_random_1.cc
-	$(CXX) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability
+	$(CXX) $(CPPFLAGS) $(CXXFLAGS) -g -o $@ $< -I.. -I$(FRACTALTREE_DIR)/include -L$(FRACTALTREE_DIR)/lib -ltokudb -ltokuportability

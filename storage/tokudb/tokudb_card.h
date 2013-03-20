@@ -70,8 +70,8 @@ namespace tokudb {
     // For each key part, put records per key part in *rec_per_key_part[key_part_index].
     // Returns 0 if success, otherwise an error number.
     // TODO statistical dives into the FT
-    int analyze_card(DB *db, DB_TXN *txn, bool is_unique, uint64_t num_key_parts, uint64_t *rec_per_key_part,
-                             int (*key_compare)(DB *, const DBT *, const DBT *, uint),
+    int analyze_card(DB *db, DB_TXN *txn, bool is_unique __attribute__((unused)), uint64_t num_key_parts, uint64_t *rec_per_key_part,
+                     int (*key_compare)(DB *, const DBT *, const DBT *, uint),
                      int (*analyze_progress)(void *extra, uint64_t rows), void *progress_extra) {
         int error = 0;
         DBC *cursor = NULL;
