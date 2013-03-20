@@ -7020,6 +7020,9 @@ ER_CANNOT_DISCARD_TEMPORARY_TABLE
 ER_INNODB_NO_FT_USES_PARSER
   eng "Cannot CREATE FULLTEXT INDEX WITH PARSER on InnoDB table"
 
+ER_BINLOG_LOGICAL_CORRUPTION
+  eng "The binary log file '%s' is logically corrupted: %s"
+
 #
 #  End of 5.7 error messages.
 #
