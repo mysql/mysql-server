@@ -26,13 +26,13 @@ var tbl3 = function(i, j) {
   this.i = i;
   this.j = j;
 };
-new mynode.TableMapping('test3.tbl3').applyToClass(tbl3);
+new mynode.TableMapping('mysqljs_multidb_test3.tbl3').applyToClass(tbl3);
 
 var tbl4 = function(i, j) {
   this.i = i;
   this.j = j;
 };
-new mynode.TableMapping('test4.tbl4').applyToClass(tbl4);
+new mynode.TableMapping('mysqljs_multidb_test4.tbl4').applyToClass(tbl4);
 
 var tbl7 = function(i, j) {
   this.i = i;
@@ -58,7 +58,7 @@ var badtesttbl8 = function(i, j) {
   this.i = i;
   this.j = j;
 };
-new mynode.TableMapping('test.tbl8').applyToClass(badtesttbl8);
+new mynode.TableMapping('mysqljs_multidb_test.tbl8').applyToClass(badtesttbl8);
 
 // badtbl9 is not mapped
 var badtbl9 = function(i, j) {
@@ -76,7 +76,7 @@ for (var p = mindb; p < mindb + numberOfDBs; ++p) {
     if (properties.hasOwnProperty(x)) {
       props[x] = properties[x];
     }
-    props.database = 'test' + p;
+    props.database = 'mysqljs_multidb_test' + p;
     propertiesList[p] = props;
   }
 };
@@ -128,11 +128,11 @@ var verifyConstructorMetadataCached = function(testCase, sessionFactory, qualifi
 var t1 = new harness.ConcurrentTest('testOpenSessionExplicitTable');
 t1.run = function() {
   var testCase = this;
-  mynode.openSession(propertiesList[1], 'test1.tbl1', function(err, session) {
+  mynode.openSession(propertiesList[1], 'mysqljs_multidb_test1.tbl1', function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t1 error on openSession with test1.tbl1');
+      testCase.appendErrorMessage('t1 error on openSession with mysqljs_multidb_test1.tbl1');
     } else {
-      verifyTableMetadataCached(testCase, session.sessionFactory, 'test1.tbl1');
+      verifyTableMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test1.tbl1');
     }
     testCase.failOnError();
   });
@@ -141,11 +141,11 @@ t1.run = function() {
 var t2 = new harness.ConcurrentTest('testConnectExplicitTable');
 t2.run = function() {
   var testCase = this;
-  mynode.connect(propertiesList[2], 'test2.tbl2', function(err, sessionFactory) {
+  mynode.connect(propertiesList[2], 'mysqljs_multidb_test2.tbl2', function(err, sessionFactory) {
     if (err) {
-      testCase.appendErrorMessage('t2 error on connect with test2.tbl2');
+      testCase.appendErrorMessage('t2 error on connect with mysqljs_multidb_test2.tbl2');
     } else {
-      verifyTableMetadataCached(testCase, sessionFactory, 'test2.tbl2');
+      verifyTableMetadataCached(testCase, sessionFactory, 'mysqljs_multidb_test2.tbl2');
     }
     testCase.failOnError();
   });
@@ -156,9 +156,9 @@ t3.run = function() {
   var testCase = this;
   mynode.openSession(propertiesList[3], tbl3, function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t3 error on openSession with test3.tbl3');
+      testCase.appendErrorMessage('t3 error on openSession with mysqljs_multidb_test3.tbl3');
     } else {
-      verifyConstructorMetadataCached(testCase, session.sessionFactory, 'test3.tbl3', tbl3);
+      verifyConstructorMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test3.tbl3', tbl3);
     }
     testCase.failOnError();
   });
@@ -169,9 +169,9 @@ t4.run = function() {
   var testCase = this;
   mynode.connect(propertiesList[4], tbl4, function(err, sessionFactory) {
     if (err) {
-      testCase.appendErrorMessage('t4 error on connect with test4.tbl4');
+      testCase.appendErrorMessage('t4 error on connect with mysqljs_multidb_test4.tbl4 ' + err);
     } else {
-      verifyConstructorMetadataCached(testCase, sessionFactory, 'test4.tbl4', tbl4);
+      verifyConstructorMetadataCached(testCase, sessionFactory, 'mysqljs_multidb_test4.tbl4', tbl4);
     }
     testCase.failOnError();
   });
@@ -182,9 +182,9 @@ t5.run = function() {
   var testCase = this;
   mynode.openSession(propertiesList[5], 'tbl5', function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t5 error on openSession with tbl5');
+      testCase.appendErrorMessage('t5 error on openSession with tbl5 ' + err);
     } else {
-      verifyTableMetadataCached(testCase, session.sessionFactory, 'test5.tbl5');
+      verifyTableMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test5.tbl5');
     }
     testCase.failOnError();
   });
@@ -195,9 +195,9 @@ t6.run = function() {
   var testCase = this;
   mynode.connect(propertiesList[6], 'tbl6', function(err, sessionFactory) {
     if (err) {
-      testCase.appendErrorMessage('t6 error on connect with tbl6');
+      testCase.appendErrorMessage('t6 error on connect with tbl6 ' + err);
     } else {
-      verifyTableMetadataCached(testCase, sessionFactory, 'test6.tbl6');
+      verifyTableMetadataCached(testCase, sessionFactory, 'mysqljs_multidb_test6.tbl6');
     }
     testCase.failOnError();
   });
@@ -208,9 +208,9 @@ t7.run = function() {
   var testCase = this;
   mynode.openSession(propertiesList[7], tbl7, function(err, session) {
     if (err) {
-      testCase.appendErrorMessage('t7 error on openSession with tbl7');
+      testCase.appendErrorMessage('t7 error on openSession with tbl7 ' + err);
     } else {
-      verifyConstructorMetadataCached(testCase, session.sessionFactory, 'test7.tbl7', tbl7);
+      verifyConstructorMetadataCached(testCase, session.sessionFactory, 'mysqljs_multidb_test7.tbl7', tbl7);
     }
     testCase.failOnError();
   });
@@ -221,9 +221,9 @@ t8.run = function() {
   var testCase = this;
   mynode.connect(propertiesList[8], tbl8, function(err, sessionFactory) {
     if (err) {
-      testCase.appendErrorMessage('t8 error on connect with tbl8');
+      testCase.appendErrorMessage('t8 error on connect with tbl8 ' + err);
     } else {
-      verifyConstructorMetadataCached(testCase, sessionFactory, 'test8.tbl8', tbl8);
+      verifyConstructorMetadataCached(testCase, sessionFactory, 'mysqljs_multidb_test8.tbl8', tbl8);
     }
     testCase.failOnError();
   });
@@ -247,9 +247,9 @@ t9.run = function() {
     reportResults(testCase);
   });
   ++testCase.expectedResultCount;
-  mynode.connect(properties, 'test.tbl8', function(err) {
+  mynode.connect(properties, 'mysqljs_multidb_test.tbl8', function(err) {
     if (!err) {
-      testCase.appendErrorMessage('t9 failed to return error on test.tbl8');
+      testCase.appendErrorMessage('t9 failed to return error on mysqljs_multidb_test.tbl8');
     }
     reportResults(testCase);
   });
