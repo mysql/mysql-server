@@ -706,3 +706,11 @@ CALL mysql.warn_host_table_nonempty();
 -- Get warnings (if any)
 SHOW WARNINGS;
 DROP PROCEDURE mysql.warn_host_table_nonempty;
+
+--
+-- Upgrade help tables
+--
+
+ALTER TABLE help_category MODIFY url TEXT NOT NULL;
+ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
+
