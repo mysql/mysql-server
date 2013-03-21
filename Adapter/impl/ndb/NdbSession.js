@@ -200,8 +200,6 @@ NdbSession.prototype.buildReadOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
                                                     tx, callback) {
-  /* TODO: Put a marker on the operation if we need an autoincrement value
-  */
   udebug.log("buildInsertOperation " + tableHandler.dbTable.name);
   var op = ndboperation.newInsertOperation(tx, tableHandler, row);
   op.userCallback = callback;
@@ -258,8 +256,7 @@ NdbSession.prototype.buildUpdateOperation = function(dbIndexHandler,
 */  
 NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
                                                      tx, callback) {
-  udebug.log("buildDeleteOperation");
-  
+  udebug.log("buildDeleteOperation");  
   var op = ndboperation.newDeleteOperation(tx, dbIndexHandler, keys);
   op.userCallback = callback;
   return op;
@@ -274,7 +271,7 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
 NdbSession.prototype.getTransactionHandler = function() {
   udebug.log("getTransactionHandler");
   if(this.tx) {
-   udebug.log("getTransactionHandler -- return existing");
+    udebug.log("getTransactionHandler -- return existing");
   }
   else {
     udebug.log("getTransactionHandler -- return new");
