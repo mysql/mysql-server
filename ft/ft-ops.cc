@@ -315,7 +315,7 @@ toku_assert_entire_node_in_memory(FTNODE UU() node) {
     paranoid_invariant(is_entire_node_in_memory(node));
 }
 
-static uint32_t
+uint32_t
 get_leaf_num_entries(FTNODE node) {
     uint32_t result = 0;
     int i;
