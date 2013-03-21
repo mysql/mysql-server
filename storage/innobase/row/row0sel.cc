@@ -5194,10 +5194,15 @@ row_search_check_if_query_cache_permitted(
 	cache before this transaction started then this transaction cannot
 	read/write from/to the cache.
 
-	FIXME: Time is too coarse a check, need to find a better mechanism. */
+	If a read view has not been created for the transaction then it doesn't
+	really matter what this transactin sees. If a read view was created
+	then the view low_limit_id is the max trx id that this transaction
+	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && trx->start_time >= table->query_cache_inv_time) {
+	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+		|| trx->read_view == NULL
+		|| trx->read_view->low_limit_id >= table->query_cache_inv_id)) {
 
 		ret = TRUE;
 
@@ -5205,7 +5210,7 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view
+		    && trx->read_view == NULL
 		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
