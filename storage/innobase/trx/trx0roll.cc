@@ -1167,10 +1167,12 @@ try_again:
 	/* Undo logging is now done to 2 different tablespaces:
 	system tablespace/undo-tablespace: for non-temp-tables.
 	temp-tablespace: for temp-tables.
-	On crash undo-rec for temp-tables are not restored
-	as we don't restore temp-tables and so there could be
-	a gap between trx->undo_no and record undo no instead
-	of sequential as before.
+	Rollback action will consume all the undo-rec from
+	one rseg before moving to next. This means we can't
+	expect sequential ordering of undo-number while
+	processing. Also, when next rseg is picked undo-rec
+	can be greater than trx->no.
+	In short we can't expect an ordering of undo_no.
 	ut_ad(undo_no + 1 == trx->undo_no); */
 
 	/* We print rollback progress info if we are in a crash recovery
