@@ -1014,6 +1014,8 @@ trx_write_serialisation_history(
 				trx, &trx->rsegs.m_redo, undo_hdr_page, mtr);
 		}
 
+		DBUG_EXECUTE_IF("ib_trx_crash_during_commit", DBUG_SUICIDE(););
+
 		if (trx->rsegs.m_noredo.update_undo != NULL) {
 
 			page_t*		undo_hdr_page;
