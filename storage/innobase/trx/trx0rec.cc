@@ -1378,6 +1378,7 @@ trx_undo_report_row_operation(
 			undo->guess_block = undo_block;
 
 			trx->undo_no++;
+			trx->undo_rseg_space = undo_ptr->rseg->space;
 
 			mutex_exit(&trx->undo_mutex);
 
