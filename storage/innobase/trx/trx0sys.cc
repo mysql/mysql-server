@@ -385,7 +385,7 @@ trx_sysf_rseg_find_free(
 
 		if (page_no == FIL_NULL
 		    || (include_tmp_slots
-			&& trx_sys_is_tmp_rseg_slot(i))) {
+			&& trx_sys_is_noredo_rseg_slot(i))) {
 
 			if (found_free_slots++ >= nth_free_slots) {
 				return(i);
@@ -879,6 +879,11 @@ trx_sys_create_rsegs(
 	}
 
 	/* Create rollback segments for temp-tables bounded in temp-tablespace.
+	Will use noredo slots. Note: no-redo slots are open slots that can
+	be used by any tablespace provided rseg allocated in these no-redo
+	slots don't perform redo logging to track changes to undo logging.
+	temp-tables don't need to be restored on crash and so can use
+	no-redo slots.
 	Slot-0: reserved for system-tablespace.
 	Slot-1....Slot-N: reserved for temp-tablespace.
 	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */

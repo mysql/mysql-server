@@ -1965,7 +1965,7 @@ trx_undo_insert_cleanup(
 	trx_rseg_t*	rseg;
 
 	undo = undo_ptr->insert_undo;
-	if (!undo) {
+	if (undo == 0) {
 		return;
 	}
 
