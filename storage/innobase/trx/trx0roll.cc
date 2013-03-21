@@ -1164,16 +1164,26 @@ try_again:
 
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	/* Undo logging is now done to 2 different tablespaces:
-	system tablespace/undo-tablespace: for non-temp-tables.
-	temp-tablespace: for temp-tables.
-	Rollback action will consume all the undo-rec from
-	one rseg before moving to next. This means we can't
-	expect sequential ordering of undo-number while
-	processing. Also, when next rseg is picked undo-rec
-	can be greater than trx->no.
-	In short we can't expect an ordering of undo_no.
-	ut_ad(undo_no + 1 == trx->undo_no); */
+	/* Each transaction now has multiple rollback segments. If transaction
+	involves temp + non-temp tables both the rollback segments will be
+	active. In this case undo records will be distrubuted across rollback
+	segments.
+	CASE-1: UNDO action will apply all undo records from one rollback
+	segment before moving to next. Which make sense as next rollback
+	segment might not be present (in-case of crash no-redo rollback
+	segments are not restored). During this course of action undo record
+	numbers can't be sequential and can have gap but ordering is still
+	enforced as next undo record number should be < processed undo record
+	number. 
+	CASE-2: Assuming it is normal rollback (not initiated by crash)
+	all rollback segments will be active (including no-redo).
+	Based on transaction operation pattern undo record number of first
+	undo record from this new rollback segment can be > last undo number
+	from previous rollback segment and so we ignore this check if
+	rollback segments are switching. Once switched new rollback segment
+	should re-follow undo record number pattern (as mentioned in CASE-1). */
+	ut_ad((undo->rseg->space != trx->undo_rseg_space)
+	      || (undo_no + 1 <= trx->undo_no));
 
 	/* We print rollback progress info if we are in a crash recovery
 	and the transaction has at least 1000 row operations to undo. */
@@ -1197,6 +1207,7 @@ try_again:
 	}
 
 	trx->undo_no = undo_no;
+	trx->undo_rseg_space = undo->rseg->space;
 
 	if (!trx_undo_arr_store_info(trx, undo_no)) {
 		/* A query thread is already processing this undo log record */
