@@ -222,7 +222,7 @@ trx_rseg_mem_create(
 	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
 
 	if (len > 0) {
-		rseg_queue_t	rseg_queue;
+		PurgeElem	purge_elem;
 
 		trx_sys->rseg_history_len += len;
 
@@ -242,8 +242,8 @@ trx_rseg_mem_create(
 		rseg->last_del_marks = mtr_read_ulint(
 			undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 
-		rseg_queue.rseg = rseg;
-		rseg_queue.trx_no = rseg->last_trx_no;
+		purge_elem.add(rseg);
+		purge_elem.set_trx_no(rseg->last_trx_no);
 
 		if (rseg->last_page_no != FIL_NULL) {
 			const void*	ptr;
@@ -251,7 +251,7 @@ trx_rseg_mem_create(
 			/* There is no need to cover this operation by the purge
 			mutex because we are still bootstrapping. */
 
-			ptr = ib_bh_push(ib_bh, &rseg_queue);
+			ptr = ib_bh_push(ib_bh, &purge_elem);
 			ut_a(ptr != NULL);
 		}
 	} else {

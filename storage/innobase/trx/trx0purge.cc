@@ -547,7 +547,7 @@ trx_purge_rseg_get_next_history_log(
 	trx_id_t	trx_no;
 	ibool		del_marks;
 	mtr_t		mtr;
-	rseg_queue_t	rseg_queue;
+	PurgeElem	purge_elem;
 
 	mutex_enter(&(rseg->mutex));
 
@@ -631,8 +631,8 @@ trx_purge_rseg_get_next_history_log(
 	rseg->last_trx_no = trx_no;
 	rseg->last_del_marks = del_marks;
 
-	rseg_queue.rseg = rseg;
-	rseg_queue.trx_no = rseg->last_trx_no;
+	purge_elem.add(rseg);
+	purge_elem.set_trx_no(rseg->last_trx_no);
 
 	/* Purge can also produce events, however these are already ordered
 	in the rollback segment and any user generated event will be greater
@@ -641,7 +641,7 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_enter(&purge_sys->bh_mutex);
 
-	ptr = ib_bh_push(purge_sys->ib_bh, &rseg_queue);
+	ptr = ib_bh_push(purge_sys->ib_bh, &purge_elem);
 	ut_a(ptr != NULL);
 
 	mutex_exit(&purge_sys->bh_mutex);
@@ -667,15 +667,33 @@ trx_purge_get_rseg_with_min_trx_id(
 	/* Only purge consumes events from the binary heap, user
 	threads only produce the events. */
 
-	if (!ib_bh_is_empty(purge_sys->ib_bh)) {
-		trx_rseg_t*	rseg;
+	if (purge_sys->rseg_idx < TRX_MAX_ASSIGNED_RSEGS 
+	    && purge_sys->elem.get_rseg(purge_sys->rseg_idx) != NULL) {
 
-		rseg = ((rseg_queue_t*) ib_bh_first(purge_sys->ib_bh))->rseg;
+		purge_sys->rseg =
+			purge_sys->elem.get_rseg(purge_sys->rseg_idx++);
+
+		/* We are still processing rollback segment from same
+		transaction and so expected transaction number shouldn't
+		increase. This action will undo increase in iter.trx_no
+		which is set on-completion of current rseg assuming there
+		are no more rseg with same trx_no. */
+		purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
+		
+		mutex_exit(&purge_sys->bh_mutex);
+
+	} else if (!ib_bh_is_empty(purge_sys->ib_bh)) {
+
+		purge_sys->elem = *((PurgeElem*) ib_bh_first(purge_sys->ib_bh));
 		ib_bh_pop(purge_sys->ib_bh);
+
+		purge_sys->rseg_idx = 0;
+
+		purge_sys->rseg =
+			purge_sys->elem.get_rseg(purge_sys->rseg_idx++);
 
 		mutex_exit(&purge_sys->bh_mutex);
 
-		purge_sys->rseg = rseg;
 	} else {
 		mutex_exit(&purge_sys->bh_mutex);
 

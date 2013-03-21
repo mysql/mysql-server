@@ -193,12 +193,6 @@ struct trx_rseg_t{
 					needs purging */
 };
 
-/** For prioritising the rollback segments for purge. */
-struct rseg_queue_t {
-        trx_id_t	trx_no;         /*!< trx_rseg_t::last_trx_no */
-        trx_rseg_t*     rseg;           /*!< Rollback segment */
-};
-
 /* Undo log segment slot in a rollback segment header */
 /*-------------------------------------------------------------*/
 #define	TRX_RSEG_SLOT_PAGE_NO	0	/* Page number of the header page of

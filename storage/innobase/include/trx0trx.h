@@ -726,6 +726,8 @@ struct trx_rsegs_t {
 	trx_undo_ptr_t	m_noredo;
 };
 
+#define	TRX_MAX_ASSIGNED_RSEGS	2
+
 struct trx_t{
 	ulint		magic_n;
 
