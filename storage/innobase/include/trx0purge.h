@@ -131,6 +131,102 @@ struct purge_iter_t {
 					whose undo number is less than this */
 };
 
+/** Purge Element is used by query processing thread for submitting purge-request. */
+class PurgeElem {
+
+public:
+	PurgeElem()
+		:
+		m_trx_no(0)
+	{
+		for (ulint i = 0; i < TRX_MAX_ASSIGNED_RSEGS; i++) {
+			m_rsegs[i] = 0;
+		}
+	}
+
+	/**
+	Add rollback segment to central array.
+	@param rseg - rollback segment to add
+	@return bool - true if added else false. */
+	bool add(trx_rseg_t* rseg)
+	{
+		ulint free_slot = 0;
+		while (free_slot < TRX_MAX_ASSIGNED_RSEGS 
+		       && m_rsegs[free_slot] != 0) {
+			free_slot++;
+		}
+
+		if (free_slot == TRX_MAX_ASSIGNED_RSEGS) {
+			return(false);
+		}
+		
+		m_rsegs[free_slot] = rseg;
+
+		return(true);
+	}
+
+	/**
+	Set transaction number
+	@param trx_no - transaction number to set. */
+	void set_trx_no(trx_id_t trx_no)
+	{
+		m_trx_no = trx_no;
+	}
+
+	/**
+	Get transaction number
+	@return trx_id_t - get transaction number. */
+	trx_id_t get_trx_no() const
+	{
+		return(m_trx_no);
+	}
+
+	/**
+	Get rollback segment at given index position.
+	@param pos - position index in central array.
+	@return trx_rseg_t - if pos valid: rollback segment, else NULL */
+	trx_rseg_t* get_rseg(int pos)
+	{
+		if (pos >= TRX_MAX_ASSIGNED_RSEGS) {
+			return(NULL);
+		}
+
+		return(m_rsegs[pos]);
+	}
+
+	/**
+	Compare two PurgeElem based on trx_no.
+	@param - elem1 - first element to compare
+	@param - elem2 - second element to compare
+	@return int - 0: equal, 1: elem1 > elem2, -1: elem1 < elem2 */
+	static int compare_purge_elem_func(
+		const void*	elem1,
+		const void*	elem2)
+	{
+		ib_int64_t	cmp;
+
+		const PurgeElem* purge_elem1 = (const PurgeElem*) elem1;
+		const PurgeElem* purge_elem2 = (const PurgeElem*) elem2;
+
+		cmp = purge_elem1->get_trx_no() - purge_elem2->get_trx_no();
+
+		if (cmp < 0) {
+			return(-1);
+		} else if (cmp > 0) {
+			return(1);
+		}
+
+		return(0);
+	}
+
+private:
+	trx_id_t	m_trx_no;	/*!< trx_rseg_t::last_trx_no */
+
+	trx_rseg_t*     m_rsegs[TRX_MAX_ASSIGNED_RSEGS];
+					/*!< Rollback segments assigned to
+					a transaction */
+};
+
 /** The control structure used in the purge operation */
 struct trx_purge_t{
 	sess_t*		sess;		/*!< System session running the purge
@@ -196,12 +292,17 @@ struct trx_purge_t{
 					the next record to purge belongs */
 	ulint		hdr_offset;	/*!< Header byte offset on the page */
 	/*-----------------------------*/
+	PurgeElem	elem;		/*!< Current active element to purge.
+					Contains array of rollback segments from
+					a transaction that needs to be purged */
+	ulint		rseg_idx;	/*!< Pick next rseg from this pos. */
+	/*-----------------------------*/
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
 	/*-----------------------------*/
 	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
-					rseg_queue_t::trx_no. It is protected
+					PurgeElem::trx_no. It is protected
 					by the bh_mutex */
 	ib_mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
 };

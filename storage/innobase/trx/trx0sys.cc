@@ -471,31 +471,6 @@ trx_sysf_create(
 }
 
 /*****************************************************************//**
-Compare two trx_rseg_t instances on last_trx_no. */
-static
-int
-trx_rseg_compare_last_trx_no(
-/*=========================*/
-	const void*	p1,		/*!< in: elem to compare */
-	const void*	p2)		/*!< in: elem to compare */
-{
-	ib_int64_t	cmp;
-
-	const rseg_queue_t*	rseg_q1 = (const rseg_queue_t*) p1;
-	const rseg_queue_t*	rseg_q2 = (const rseg_queue_t*) p2;
-
-	cmp = rseg_q1->trx_no - rseg_q2->trx_no;
-
-	if (cmp < 0) {
-		return(-1);
-	} else if (cmp > 0) {
-		return(1);
-	}
-
-	return(0);
-}
-
-/*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
@@ -515,8 +490,8 @@ trx_sys_init_at_db_start(void)
 	for freeing the binary heap. */
 
 	ib_bh = ib_bh_create(
-		trx_rseg_compare_last_trx_no,
-		sizeof(rseg_queue_t), TRX_SYS_N_RSEGS);
+		PurgeElem::compare_purge_elem_func,
+		sizeof(PurgeElem), TRX_SYS_N_RSEGS);
 
 	mtr_start(&mtr);
 
