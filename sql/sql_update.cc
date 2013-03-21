@@ -1315,6 +1315,8 @@ int mysql_multi_update_prepare(THD *thd)
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
 
+  Prepare_error_tracker tracker(thd);
+
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
 
