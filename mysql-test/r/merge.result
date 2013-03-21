@@ -2369,3 +2369,133 @@ ERROR HY000: Can't reopen table: 'm1'
 UNLOCK TABLES;
 DROP TABLE t1, t2, t3, m1;
 End of 5.1 tests
+# 
+# MDEV-4277: Crash inside mi_killed_in_mariadb() with myisammrg
+# 
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+create table t2 ( i int ) engine=myisam;
+insert into t2 values (1),(2);
+create table t3 (a int, b int, filler char(100), key(a), key(b)) engine=myisam;
+create table t4 like t3;
+insert into t3 
+select A.a+10*B.a+100*C.a, 
+A.a+10*B.a+100*C.a,
+'filler-data-FILLER-DATA-qqq' 
+from t1 A, t1 B, t1 C where C.a < 5;
+insert into t4
+select A.a+10*B.a+100*C.a, 
+A.a+10*B.a+100*C.a,
+'filler-data-FILLER-DATA-qqq' 
+from t1 A, t1 B, t1 C where C.a >= 5;
+create table t5 like t3;
+alter table t5 engine=merge;
+alter table t5 union(t3, t4);
+update t5 set b=999, a=999 where b>950;
+explain 
+select * from t2, t5 where t5.a=999 and t5.b=999;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t5	index_merge	a,b	a,b	5,5	NULL	6	Using intersect(a,b); Using where; Using join buffer (flat, BNL join)
+select * from t2, t5 where t5.a=999 and t5.b=999;
+i	a	b	filler
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+1	999	999	filler-data-FILLER-DATA-qqq
+2	999	999	filler-data-FILLER-DATA-qqq
+drop table t5;
+drop table t1,t2,t3,t4;
