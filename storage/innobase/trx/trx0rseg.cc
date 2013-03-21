@@ -280,7 +280,7 @@ trx_rseg_create_instance(
 		/* Slot-1 to Slot-n are reserved for temp-tablespace rsegs
 		and given that temp-tablespace rsegs are re-created on
 		start-up skip their creation at this stage. */
-		if (trx_sys_is_tmp_rseg_slot(i)) {
+		if (trx_sys_is_noredo_rseg_slot(i)) {
 			continue;
 		}
 
@@ -405,7 +405,7 @@ trx_rseg_get_n_undo_tablespaces(
 
 		/* Skip temp-tablespace slot as while looking out for
 		undo-tablespace. */
-		if (trx_sys_is_tmp_rseg_slot(i)) {
+		if (trx_sys_is_noredo_rseg_slot(i)) {
 			continue;
 		}
 

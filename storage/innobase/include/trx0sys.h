@@ -194,13 +194,11 @@ extern uint			trx_rseg_n_slots_debug;
 #endif
 
 /*****************************************************************//**
-Check if slot-id is reserved slot-id for temp-tablespace rsegs.
-Note: slot-0 is reserved for system-tablespace rseg and temp-tablespace
-rsegs starts from slot-1 to slot-N. */
+Check if slot-id is reserved slot-id for noredo rsegs. */
 UNIV_INLINE
 bool
-trx_sys_is_tmp_rseg_slot(
-/*=====================*/
+trx_sys_is_noredo_rseg_slot(
+/*========================*/
 	ulint	slot_id);	/*!< in: slot_id to check */
 
 /*****************************************************************//**
