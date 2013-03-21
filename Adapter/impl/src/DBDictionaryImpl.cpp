@@ -136,9 +136,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
    arg2: user_callback
 */
 Handle<Value> listTables(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DETAIL);  
   REQUIRE_ARGS_LENGTH(3);
   
   ListTablesCall * ncallptr = new ListTablesCall(args);
@@ -146,7 +144,7 @@ Handle<Value> listTables(const Arguments &args) {
   DEBUG_PRINT("listTables in database: %s", ncallptr->arg1);
   ncallptr->runAsync();
 
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 
@@ -503,7 +501,7 @@ Handle<Value> getTable(const Arguments &args) {
   REQUIRE_ARGS_LENGTH(4);
   GetTableCall * ncallptr = new GetTableCall(args);
   ncallptr->runAsync();
-  return JS_VOID_RETURN;
+  return Undefined();
 }
 
 

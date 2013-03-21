@@ -74,25 +74,21 @@ Ndb * async_create_ndb(Ndb_cluster_connection *conn, const char *db) {
 }
 
 Handle<Value> create_ndb(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DETAIL);  
   REQUIRE_ARGS_LENGTH(3);  
 
   typedef NativeCFunctionCall_2_<Ndb *, Ndb_cluster_connection *, const char *> MCALL;
   MCALL * mcallptr = new MCALL(& async_create_ndb, args);
   mcallptr->wrapReturnValueAs(& NdbEnvelope);
   mcallptr->runAsync();
-  return scope.Close(JS_VOID_RETURN);  
+  return Undefined();
 }
 
 
 Handle<Value> startTransaction(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
   
-  REQUIRE_ARGS_LENGTH(4);
-  
+  REQUIRE_ARGS_LENGTH(4);  
   typedef NativeMethodCall_3_<NdbTransaction *, Ndb, 
                               const NdbDictionary::Table *, 
                               const char *, uint32_t> MCALL;
@@ -102,7 +98,7 @@ Handle<Value> startTransaction(const Arguments &args) {
   mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
   mcallptr->runAsync();
   
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 
@@ -119,7 +115,6 @@ Uint64 getAutoInc(Ndb *ndb, const NdbDictionary::Table * table, uint32_t batch) 
 
 Handle<Value> getAutoIncValue(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
   REQUIRE_ARGS_LENGTH(4);  
   
   typedef NativeCFunctionCall_3_<Uint64, Ndb *, const NdbDictionary::Table *,
@@ -127,7 +122,7 @@ Handle<Value> getAutoIncValue(const Arguments &args) {
   MCALL * mcallptr = new MCALL(& getAutoInc, args);
   mcallptr->runAsync();
   
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 
@@ -163,10 +158,9 @@ Handle<Value> getConnectionStatistics(const Arguments &args) {
 }
 
 Handle<Value> closeNdb(const Arguments &args) {
-  HandleScope scope;
   Ndb *ndb =  unwrapPointer<Ndb *>(args.Holder());
   delete ndb;
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 
