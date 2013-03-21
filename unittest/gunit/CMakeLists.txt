@@ -271,6 +271,7 @@ SET(SERVER_TESTS
   sql_table
   table_cache
   tc_log_mmap
+  explain_filename
 )
 
 ## Merging tests into fewer executables saves *a lot* of

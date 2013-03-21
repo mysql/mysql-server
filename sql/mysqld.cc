@@ -1755,7 +1755,8 @@ void clean_up(bool print_message)
     make sure that handlers finish up
     what they have that is dependent on the binlog
   */
-  sql_print_information("Binlog end");
+  if ((opt_help == 0) || (opt_verbose > 0))
+    sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 
   injector::free_instance();
