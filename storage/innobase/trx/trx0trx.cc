@@ -459,6 +459,7 @@ trx_resurrect_insert(
 
 	if (!undo->empty) {
 		trx->undo_no = undo->top_undo_no + 1;
+		trx->undo_rseg_space = undo->rseg->space;
 	}
 
 	return(trx);
@@ -547,6 +548,7 @@ trx_resurrect_update(
 	if (!undo->empty && undo->top_undo_no >= trx->undo_no) {
 
 		trx->undo_no = undo->top_undo_no + 1;
+		trx->undo_rseg_space = undo->rseg->space;
 	}
 }
 
@@ -1322,6 +1324,7 @@ trx_commit_in_memory(
 	trx->rsegs.m_redo.rseg = NULL;
 	trx->rsegs.m_noredo.rseg = NULL;
 	trx->undo_no = 0;
+	trx->undo_rseg_space = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
 	trx->ddl = false;
@@ -1473,6 +1476,7 @@ trx_cleanup_at_db_startup(
 
 	trx->rsegs.m_redo.rseg = NULL;
 	trx->undo_no = 0;
+	trx->undo_rseg_space = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;
 
 	mutex_enter(&trx_sys->mutex);
@@ -1719,6 +1723,7 @@ trx_mark_sql_stat_end(
 		break;
 	case TRX_STATE_NOT_STARTED:
 		trx->undo_no = 0;
+		trx->undo_rseg_space = 0;
 		/* fall through */
 	case TRX_STATE_ACTIVE:
 		trx->last_sql_stat_start.least_undo_no = trx->undo_no;
