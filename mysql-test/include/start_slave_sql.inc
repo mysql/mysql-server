@@ -32,7 +32,7 @@ if (!$rpl_debug)
 
 
 START SLAVE SQL_THREAD;
---source include/wait_for_slave_io_to_start.inc
+--source include/wait_for_slave_sql_to_start.inc
 
 
 --let $include_filename= start_slave_sql.inc
