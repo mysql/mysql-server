@@ -167,6 +167,26 @@ flush privileges;
 truncate mysql.proxies_priv;
 flush privileges;
 
+--echo === test mysql_upgrade ===
+#
+# BUG#16226274 MYSQL_UPGRADE FAILED WHEN USING DISTRIBUTED GRANTS
+#
+
+let $log_file = $MYSQLTEST_VARDIR/tmp/ndb_dist_priv_upgrade.log;
+--echo mysql_upgrade first mysqld...
+--exec $MYSQL_UPGRADE --skip-verbose --force > $log_file 2>&1
+--echo mysql_upgrade second mysqld...
+--exec $MYSQL_UPGRADE --defaults-group-suffix=.2.1 --skip-verbose --force >> $log_file 2>&1
+--echo show that tables still are in NDB
+--disable_query_log ONCE
+SELECT table_name FROM information_schema.tables
+  WHERE table_schema = 'mysql' AND
+        table_type = 'BASE TABLE' AND
+        engine = 'NDBCLUSTER' AND
+        table_name IN ('user', 'db', 'tables_priv', 'columns_priv',
+                       'procs_priv', 'proxies_priv', 'host')
+  ORDER BY table_name;
+
 # Restore local privileges
 connection server1;
 call mysql.mysql_cluster_backup_privileges();
