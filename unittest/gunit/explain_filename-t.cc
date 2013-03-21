@@ -33,23 +33,43 @@ char from[BUFLEN];
 
 const char *error_messages[1000];
 
-int setup()
+class PartitionTest : public ::testing::Test
 {
-  system_charset_info    = &my_charset_utf8_bin;
-  my_default_lc_messages = &my_locale_en_US;
+protected:
+  virtual void SetUp()
+  {
+    // Save global settings.
+    m_charset= system_charset_info;
+    m_locale= my_default_lc_messages;
+    m_errmsgs= my_default_lc_messages->errmsgs->errmsgs;
 
-  /* Populate the necessary error messages */
-  error_messages[ER_DATABASE_NAME - ER_ERROR_FIRST]     = "Database";
-  error_messages[ER_TABLE_NAME - ER_ERROR_FIRST]        = "Table";
-  error_messages[ER_PARTITION_NAME - ER_ERROR_FIRST]    = "Partition";
-  error_messages[ER_SUBPARTITION_NAME - ER_ERROR_FIRST] = "Subpartition";
-  error_messages[ER_TEMPORARY_NAME - ER_ERROR_FIRST]    = "Temporary";
-  error_messages[ER_RENAMED_NAME - ER_ERROR_FIRST]      = "Renamed";
+    system_charset_info    = &my_charset_utf8_bin;
+    my_default_lc_messages = &my_locale_en_US;
 
-  my_default_lc_messages->errmsgs->errmsgs = error_messages;
+    /* Populate the necessary error messages */
+    error_messages[ER_DATABASE_NAME - ER_ERROR_FIRST]     = "Database";
+    error_messages[ER_TABLE_NAME - ER_ERROR_FIRST]        = "Table";
+    error_messages[ER_PARTITION_NAME - ER_ERROR_FIRST]    = "Partition";
+    error_messages[ER_SUBPARTITION_NAME - ER_ERROR_FIRST] = "Subpartition";
+    error_messages[ER_TEMPORARY_NAME - ER_ERROR_FIRST]    = "Temporary";
+    error_messages[ER_RENAMED_NAME - ER_ERROR_FIRST]      = "Renamed";
 
-  return 0;
-}
+    my_default_lc_messages->errmsgs->errmsgs = error_messages;
+  }
+
+  virtual void TearDown()
+  {
+    // Restore global settings.
+    system_charset_info= m_charset;
+    my_default_lc_messages= m_locale;
+    my_default_lc_messages->errmsgs->errmsgs= m_errmsgs;
+  }
+
+private:
+  CHARSET_INFO *m_charset;
+  MY_LOCALE    *m_locale;
+  const char  **m_errmsgs;
+};
 
 void test_1(const char *in, const char *exp, enum_explain_filename_mode mode)
 {
@@ -75,10 +95,9 @@ void test_1(const char *in, const char *exp, enum_explain_filename_mode mode)
   }
 }
 
-TEST(partition, explain_filename)
-{
-  setup();
 
+TEST_F(PartitionTest, ExplainFilename)
+{
   test_1("test/t1.ibd",
          "Database \"test\", Table \"t1.ibd\"",
          EXPLAIN_ALL_VERBOSE);
