@@ -826,10 +826,9 @@ exports.DBSession.prototype.close = function(callback) {
   if (dbSession.pooledConnection) {
     dbSession.pooledConnection.end(function(err) {
       udebug.log('close dbSession', dbSession);
-      dbSession.pooledConnection = null;
-      dbSession.connectionPool.openConnections[dbSession.index] = null;
     });
   }
+  dbSession.connectionPool.openConnections[dbSession.index] = null;
   // always make the callback
   if (typeof(callback) === 'function') {
     callback(null);

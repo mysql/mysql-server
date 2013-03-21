@@ -24,6 +24,7 @@ var spi        = require(spi_module),
     udebug     = unified_debug.getLogger("spi/lib.js");
     
 var spi_test_connection = null;
+var sessionSlot = 0;
 
 exports.getConnectionPool = function(userCallback) {
 
@@ -50,4 +51,7 @@ exports.closeConnectionPool = function(callback) {
   }
 };
 
+exports.allocateSessionSlot = function() {
+  return sessionSlot++;
+};
 
