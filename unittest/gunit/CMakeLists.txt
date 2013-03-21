@@ -262,6 +262,7 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
+  explain_filename
 )
 
 ## Merging tests into fewer executables saves *a lot* of
