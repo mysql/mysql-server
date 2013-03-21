@@ -248,6 +248,7 @@ SET(SERVER_TESTS
   copy_info
   create_field
   delayable_insert_operation
+  explain_filename
   field
   get_diagnostics
   handler
@@ -262,7 +263,6 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
-  explain_filename
 )
 
 ## Merging tests into fewer executables saves *a lot* of
