@@ -1792,6 +1792,7 @@ void st_select_lex::init_query()
   ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_sum_items= 0;
   n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
@@ -2171,11 +2172,6 @@ ulong st_select_lex::get_table_join_options()
 
 bool st_select_lex::setup_ref_array(THD *thd, uint order_group_num)
 {
-#ifdef DBUG_OFF
-  if (!ref_pointer_array.is_null())
-    return false;
-#endif
-
   // find_order_in_list() may need some extra space, so multiply by two.
   order_group_num*= 2;
 
