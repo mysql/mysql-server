@@ -631,15 +631,17 @@ static
 trx_rseg_t*
 trx_assign_rseg_low(
 /*================*/
-	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
-	ulint	n_tablespaces,	/*!< in: number of rollback tablespaces */
-	bool	assign_std)	/*!< in: if true, assign rseg from standard
-				rseg pool else assign it from temp-tablespace
-				reserved pool. */
+	ulong	max_undo_logs,		/*!< in: maximum number of UNDO logs
+					to use */
+	ulint	n_tablespaces,		/*!< in: number of rollback
+					tablespaces */
+	bool	assign_redo_rseg)	/*!< in: if true, assign rseg from
+					redo rseg pool else from nonredo
+					rseg pool. */	
 {
 	trx_rseg_t*	rseg;
-	static ulint	std_rseg_ptr = 0;
-	static ulint	tmp_rseg_ptr = 1;
+	static ulint	redo_rseg_slot = 0;
+	static ulint	noredo_rseg_slot = 1;
 
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
@@ -654,38 +656,38 @@ trx_assign_rseg_low(
 	management this may not hold. The assertion checks for that case. */
 
 	ut_a(trx_sys->rseg_array[0] != NULL);
-	ut_a(assign_std || trx_sys->rseg_array[1] != NULL);
+	ut_a(assign_redo_rseg || trx_sys->rseg_array[1] != NULL);
 
 	/* Slot-0 is always assigned to system-tablespace rseg. */
 	ut_a(trx_sys->rseg_array[0]->space == srv_sys_space.space_id());
 
 	/* Slot-1 is always assigned to temp-tablespace rseg. */
-	ut_a(assign_std
+	ut_a(assign_redo_rseg
 	     || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
 
 	/* Skip the system tablespace if we have more than one tablespace
 	defined for rollback segments. We want all UNDO records to be in
 	the non-system tablespaces. */
 
-	if (assign_std) {
+	if (assign_redo_rseg) {
 		while (true) {
-			rseg = trx_sys->rseg_array[std_rseg_ptr];
+			rseg = trx_sys->rseg_array[redo_rseg_slot];
 
-			std_rseg_ptr = (std_rseg_ptr + 1) % max_undo_logs;
+			redo_rseg_slot = (redo_rseg_slot + 1) % max_undo_logs;
 
-			/* Skip slots allocated to temp-tablespace rsegs */
-			while (trx_sys_is_tmp_rseg_slot(std_rseg_ptr)) {
-				std_rseg_ptr =
-					(std_rseg_ptr + 1) % max_undo_logs;
+			/* Skip slots allocated for noredo rsegs */
+			while (trx_sys_is_noredo_rseg_slot(redo_rseg_slot)) {
+				redo_rseg_slot =
+					(redo_rseg_slot + 1) % max_undo_logs;
 			}
 
 			if (rseg == NULL) {
 				continue;
 			} else if (rseg->space == srv_sys_space.space_id()
 				   && n_tablespaces > 0
-				   && trx_sys->rseg_array[std_rseg_ptr]
+				   && trx_sys->rseg_array[redo_rseg_slot]
 					!= NULL
-				   && trx_sys->rseg_array[std_rseg_ptr]->space
+				   && trx_sys->rseg_array[redo_rseg_slot]->space
 					!= srv_sys_space.space_id()) {
 				/* If undo-tablespace is configured, skip
 				rseg from system-tablespace and try to use
@@ -697,13 +699,13 @@ trx_assign_rseg_low(
 		}
 	} else {
 		while (true) {
-			rseg = trx_sys->rseg_array[tmp_rseg_ptr];
+			rseg = trx_sys->rseg_array[noredo_rseg_slot];
 
-			tmp_rseg_ptr = (tmp_rseg_ptr + 1) % max_undo_logs;
+			noredo_rseg_slot = (noredo_rseg_slot + 1) % max_undo_logs;
 
-			while (!trx_sys_is_tmp_rseg_slot(tmp_rseg_ptr)) {
-				tmp_rseg_ptr =
-					(tmp_rseg_ptr + 1) % max_undo_logs;
+			while (!trx_sys_is_noredo_rseg_slot(noredo_rseg_slot)) {
+				noredo_rseg_slot =
+					(noredo_rseg_slot + 1) % max_undo_logs;
 			}
 
 			if (rseg == NULL) {
@@ -1038,6 +1040,8 @@ trx_write_serialisation_history(
 		own_noredo_rseg = false;
 	}
 
+	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
+
 	/* Update the latest MySQL binlog name and offset info
 	in trx sys header if MySQL binlogging is on or the database
 	server is a MySQL replication slave */
@@ -1052,8 +1056,6 @@ trx_write_serialisation_history(
 
 		trx->mysql_log_file_name = NULL;
 	}
-
-	MONITOR_INC(MONITOR_TRX_COMMIT_UNDO);
 }
 
 /********************************************************************
