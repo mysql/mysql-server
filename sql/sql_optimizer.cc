@@ -6428,18 +6428,6 @@ static int subq_sj_candidate_cmp(Item_exists_subselect* const *el1,
 }
 
 
-static TABLE_LIST *alloc_join_nest(THD *thd)
-{
-  TABLE_LIST *tbl;
-  if (!(tbl= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    return NULL;
-  tbl->nested_join= (NESTED_JOIN*) ((uchar*)tbl + 
-                                    ALIGN_SIZE(sizeof(TABLE_LIST)));
-  return tbl;
-}
-
-
 static void fix_list_after_tbl_changes(st_select_lex *parent_select,
                                        st_select_lex *removed_select,
                                        List<TABLE_LIST> *tlist)
@@ -6553,7 +6541,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     else if (!subq_pred->embedding_join_nest->nested_join)
     {
       TABLE_LIST *outer_tbl= subq_pred->embedding_join_nest;      
-      TABLE_LIST *wrap_nest;
       /*
         We're dealing with
 
@@ -6573,15 +6560,13 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
         A3: changes in the TABLE_LIST::outer_join will make everything work
             automatically.
       */
-      if (!(wrap_nest= alloc_join_nest(thd)))
-      {
-        DBUG_RETURN(TRUE);
-      }
-      wrap_nest->embedding= outer_tbl->embedding;
-      wrap_nest->join_list= outer_tbl->join_list;
-      wrap_nest->alias= (char*) "(sj-wrap)";
+      TABLE_LIST *const wrap_nest=
+        TABLE_LIST::new_nested_join(thd->mem_root, "(sj-wrap)",
+                                    outer_tbl->embedding, outer_tbl->join_list,
+                                    parent_lex);
+      if (wrap_nest == NULL)
+        DBUG_RETURN(true);
 
-      wrap_nest->nested_join->join_list.empty();
       wrap_nest->nested_join->join_list.push_back(outer_tbl);
 
       outer_tbl->embedding= wrap_nest;
@@ -6589,7 +6574,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
       /*
         wrap_nest will take place of outer_tbl, so move the outer join flag
-        and on_expr
+        and join condition.
       */
       wrap_nest->outer_join= outer_tbl->outer_join;
       outer_tbl->outer_join= 0;
@@ -6616,17 +6601,14 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     }
   }
 
-  TABLE_LIST *sj_nest;
-  NESTED_JOIN *nested_join;
-  if (!(sj_nest= alloc_join_nest(thd)))
-  {
-    DBUG_RETURN(TRUE);
-  }
-  nested_join= sj_nest->nested_join;
+  TABLE_LIST *const sj_nest=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(sj-nest)",
+                                emb_tbl_nest, emb_join_list, parent_lex);
+  if (sj_nest == NULL)
+    DBUG_RETURN(true);
 
-  sj_nest->join_list= emb_join_list;
-  sj_nest->embedding= emb_tbl_nest;
-  sj_nest->alias= (char*) "(sj-nest)";
+  NESTED_JOIN *const nested_join= sj_nest->nested_join;
+
   /* Nests do not participate in those 'chains', so: */
   /* sj_nest->next_leaf= sj_nest->next_local= sj_nest->next_global == NULL*/
   emb_join_list->push_back(sj_nest);
