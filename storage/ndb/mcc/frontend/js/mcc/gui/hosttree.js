@@ -376,7 +376,8 @@ function addProcess(event) {
                             name: dijit.byId("processname").get("value"),
                             processtype: +processType,
                             host: hostTreeItem.treeItem.getId(),
-                            NodeId: nodeId
+                            NodeId: nodeId,
+                            seqno: dijit.byId("seqno").get("value")
                         })
                         dijit.byId("addProcessDlg").hide();
                     }
@@ -391,20 +392,17 @@ function addProcess(event) {
 
 // Setup a dialog for adding new proesses
 function addProcessDlgSetup() {
-    var addProcessDlg; 
     var subtypes; 
-    var pnamebox;
-    var addButton;
-    var cancelButton; 
 
     if (!dijit.byId("addProcessDlg")) {
-        addProcessDlg= new dijit.Dialog({
+        new dijit.Dialog({
             id: "addProcessDlg",
             title: "Add new process",
             content: "\
             <form id='addProcessForm' data-dojo-type='dijit.form.Form'>\
                 <p>Select process type: <span id=\"processtype\"></span></p>\
                 <p>Enter process name:  <span id=\"processname\"></span></p>\
+                <span id=\"seqno\"></span>\
                 <div id=cancelProcDlgButton data-dojo-type='dijit.form.Button'\
                         data-dojo-props=\"onClick:\
                             function() {\
@@ -438,13 +436,17 @@ function addProcessDlgSetup() {
                         var pseq = pfam[0].getValue("currSeq");
                         dijit.byId("processname").set("value", pname + 
                                 " " + pseq);
-                                        });
+                        dijit.byId("seqno").set("value", pseq);
+                    });
                 });
             }
         }, "processtype");
 
-        pnamebox= new dijit.form.TextBox(
-                {style: "width: 150px"}, "processname");
+        new dijit.form.TextBox(
+            {style: "width: 150px"}, "processname");
+
+        new dijit.form.TextBox(
+            {style: "width: 150px", type: "hidden"}, "seqno");
 
         mcc.storage.processTypeStorage().getItems({}).then(function (items) {
             dijit.byId("processtype").set("value",
@@ -477,6 +479,7 @@ function showAddProcessDialog() {
             var pname = ptype.getValue("nodeLabel");
             var pseq = pfam[0].getValue("currSeq");
             dijit.byId("processname").set("value", pname + " " + pseq);                    
+            dijit.byId("seqno").set("value", pseq);                    
         });
     });
     dijit.byId("addProcessDlg").show();
