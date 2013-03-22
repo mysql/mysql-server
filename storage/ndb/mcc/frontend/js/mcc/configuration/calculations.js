@@ -111,8 +111,8 @@ function autoConfigure() {
             
             var typeIds = [];
             var names = [];
-            var familyHead = [];
-            var typeHead = [];
+            var familyHead = [];    // Ptype hashed on family name
+            var typeHead = [];      // Ptype hashed on type name
             var dataNodeId = 1; 
             var otherNodeId = 49; 
 
@@ -135,7 +135,8 @@ function autoConfigure() {
                         host: host.getId(),
                         processtype: typeIds[pname],
                         NodeId: (pname == "ndbd" || pname == "ndbmtd") ? 
-                                dataNodeId++ : otherNodeId++
+                                dataNodeId++ : otherNodeId++,
+                        seqno: typeHead[pname].getValue("currSeq")
                     });
                 }
 

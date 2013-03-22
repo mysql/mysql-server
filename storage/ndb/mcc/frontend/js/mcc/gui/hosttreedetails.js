@@ -195,28 +195,17 @@ function processSelectionDetailsSetup() {
         mcc.storage.processTypeStorage().getItem
                 (pd_types.getValue()).then(
             function (ptype) {
+                var pname = ptype.getValue("nodeLabel");
+                var pseq = hostTreeItem.storageItem.getValue("seqno");
 
-                // Get the prototypical type to get seq no
-                mcc.storage.processTypeStorage().getItems(
-                        {family: ptype.getValue("family")}).then(
-                        function (pfam) {
+                // Reset process name widget
+                dijit.byId("pd_name").set("value", pname + 
+                        " " + pseq);
 
-                    var pname = ptype.getValue("nodeLabel");
-                    var pseq = pfam[0].getValue("currSeq");
-
-                    // Reset process name widget
-                    dijit.byId("pd_name").set("value", pname + 
-                            " " + pseq);
-
-                    // Take care to store the type as integer
-                    hostTreeItem.storageItem.setValue("processtype",
-                            +ptype.getId());
-                    mcc.storage.processStorage().save();
-
-                    // Increment currSeq since we have used it
-                    pfam[0].setValue("currSeq", pseq + 1);
-                    mcc.storage.processTypeStorage().save();
-                });
+                // Take care to store the type as integer
+                hostTreeItem.storageItem.setValue("processtype",
+                        +ptype.getId());
+                mcc.storage.processStorage().save();
             }
         );
     });
