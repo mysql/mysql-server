@@ -86,7 +86,7 @@ var processParameterDefaults= {
             },
             NodeId: {
                 label: "NodeId",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-mgm-definition.html#ndbparam-mgmd-nodeid",
                 tooltip: "Number identifying the management server node " +
                         "(ndb_mgmd(MGM))",
@@ -104,7 +104,7 @@ var processParameterDefaults= {
             },
             HostName: {
                 label: "HostName",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-mgm-definition.html#ndbparam-mgmd-hostname",
                 tooltip: "Name of computer for this node",
                 attribute: "HostName",
@@ -120,7 +120,7 @@ var processParameterDefaults= {
             },
             DataDir: {
                 label: "DataDir",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-mgm-definition.html#ndbparam-mgmd-datadir",
                 tooltip: "Data directory for this node",
                 attribute: "DataDir",
@@ -162,7 +162,7 @@ var processParameterDefaults= {
             },
             Portnumber: {
                 label: "Portnumber",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-mgm-definition.html#ndbparam-mgmd-portnumber",
                 tooltip: "Port number to give commands to/fetch " + 
                         "configurations from management server",
@@ -192,7 +192,7 @@ var processParameterDefaults= {
             },
             NodeId: {
                 label: "NodeId",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbd-nodeid", 
                 tooltip: "Number identifying the database node (ndbd(DB))",
                 constraints: {min: 0, max: 48, places: 0, pattern: "#"},
@@ -209,7 +209,7 @@ var processParameterDefaults= {
             },
             HostName: {
                 label: "HostName",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbd-hostname", 
                 tooltip: "Name of computer for this node",
                 attribute: "HostName",
@@ -225,7 +225,7 @@ var processParameterDefaults= {
             },
             DataDir: {
                 label: "DataDir",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbd-datadir", 
                 tooltip: "Data directory for this node",
                 attribute: "DataDir",
@@ -249,7 +249,7 @@ var processParameterDefaults= {
             },
             BackupMaxWriteSize: {
                 label: "BackupMaxWriteSize (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-backupmaxwritesize", 
                 tooltip: "Max size of filesystem writes made by backup",
                 constraints: {min: 1, max: 4096, places: 0, pattern: "#"},
@@ -268,7 +268,7 @@ var processParameterDefaults= {
             },
             BackupDataBufferSize: {
                 label: "BackupDataBufferSz (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-backupdatabuffersize", 
                 tooltip: "Default size of databuffer for a backup",
                 constraints: {min: 16, max: 4096, places: 0, pattern: "#"},
@@ -287,7 +287,7 @@ var processParameterDefaults= {
             },
             BackupLogBufferSize: {
                 label: "BackupLogBufferSz (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-backuplogbuffersize", 
                 tooltip: "Default size of logbuffer for a backup",
                 constraints: {min: 0, max: 4096, places: 0, pattern: "#"},
@@ -306,7 +306,7 @@ var processParameterDefaults= {
             },
             BackupMemory: {
                 label: "BackupMemory (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-backupmemory", 
                 tooltip: "Total memory allocated for backups per node",
                 constraints: {min: 0, max: 4096, places: 0, pattern: "#"},
@@ -325,7 +325,7 @@ var processParameterDefaults= {
             },
             BackupReportFrequency: {
                 label: "BackupReportFrequency",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-backupreportfrequency", 
                 tooltip: "Frequency of backup status reports during backup " + 
                         "in seconds",
@@ -352,7 +352,7 @@ var processParameterDefaults= {
             },
             MemReportFrequency: {
                 label: "MemReportFrequency",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-memreportfrequency", 
                 tooltip: "Frequency of mem reports in seconds, 0 = only when " +
                         "passing %-limits",
@@ -371,7 +371,7 @@ var processParameterDefaults= {
             },
             LogLevelStartup: {
                 label: "LogLevelStartup",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-loglevelstartup", 
                 tooltip: "Node startup info printed on stdout",
                 constraints: {min: 0, max: 15, places: 0, pattern: "#"},
@@ -389,7 +389,7 @@ var processParameterDefaults= {
             },
             LogLevelShutdown: {
                 label: "LogLevelShutdown",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-loglevelshutdown", 
                 tooltip: "Node shutdown info printed on stdout",
                 constraints: {min: 0, max: 15, places: 0, pattern: "#"},
@@ -407,7 +407,7 @@ var processParameterDefaults= {
             },
             LogLevelCheckpoint: {
                 label: "LogLevelCheckpoint",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-loglevelcheckpoint", 
                 tooltip: "Local and Global checkpoint info printed on stdout",
                 constraints: {min: 0, max: 15, places: 0, pattern: "#"},
@@ -425,7 +425,7 @@ var processParameterDefaults= {
             },
             LogLevelNodeRestart: {
                 label: "LogLevelNodeRestart",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-loglevelnoderestart", 
                 tooltip: "Node restart, node failure info printed on stdout",
                 constraints: {min: 0, max: 15, places: 0, pattern: "#"},
@@ -451,7 +451,7 @@ var processParameterDefaults= {
             },
             DataMemory: {
                 label: "DataMemory (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-datamemory", 
                 tooltip: "Number of Mbytes on each ndbd(DB) node allocated " +
                         "for storing data",
@@ -471,7 +471,7 @@ var processParameterDefaults= {
             },
             IndexMemory: {
                 label: "IndexMemory (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-indexmemory", 
                 tooltip: "Number of Mbytes on each ndbd(DB) node allocated " +
                         "for storing indexes",
@@ -499,7 +499,7 @@ var processParameterDefaults= {
             },
             MaxNoOfTables: {
                 label: "MaxNoOfTables",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-maxnooftables", 
                 tooltip: "Total number of tables stored in the database",
                 constraints: {min: 8, max: 20320, places: 0, pattern: "#"},
@@ -517,7 +517,7 @@ var processParameterDefaults= {
             },
             MaxNoOfTriggers: {
                 label: "MaxNoOfTriggers",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-maxnooftriggers", 
                 tooltip: "Total number of triggers that can be defined in " +
                         "the system",
@@ -536,7 +536,7 @@ var processParameterDefaults= {
             },
             NoOfReplicas: {
                 label: "NoOfReplicas",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-noofreplicas", 
                 tooltip: "Number of copies of all data in the database (1-4)",
                 constraints: {min: 1, max: 2, places: 0, pattern: "#"},
@@ -554,7 +554,7 @@ var processParameterDefaults= {
             },
             StringMemory: {
                 label: "StringMemory",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-stringmemory", 
                 tooltip: "Default size of string memory (1-100 -> %of max, " +
                         ">100 -> actual bytes)",
@@ -581,7 +581,7 @@ var processParameterDefaults= {
             },
             DiskPageBufferMemory: {
                 label: "DiskPageBufferMem (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-diskpagebuffermemory", 
                 tooltip: "Number of Mbytes on each ndbd(DB) node allocated " +
                         "for disk page buffer cache",
@@ -601,7 +601,7 @@ var processParameterDefaults= {
             },
             SharedGlobalMemory: {
                 label: "SharedGlobalMemory (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-sharedglobalmemory", 
                 tooltip: "Total number of Mbytes on each ndbd(DB) node " +
                         "allocated for any use",
@@ -629,7 +629,7 @@ var processParameterDefaults= {
             },
             SendBufferMemory: {
                 label: "SendBufferMemory (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-sendbuffermemory", 
                 tooltip: "MBytes of buffer for signals sent from this node",
                 constraints: {min: 1, max: 4096, places: 0, pattern: "#"},
@@ -648,7 +648,7 @@ var processParameterDefaults= {
             },
             ReceiveBufferMemory: {
                 label: "ReceiveBufferMem (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-receivebuffermemory", 
                 tooltip: "MBytes of buffer for signals received by this node",
                 constraints: {min: 1, max: 4096, places: 0, pattern: "#"},
@@ -667,7 +667,7 @@ var processParameterDefaults= {
             },
             LongMessageBuffer: {
                 label: "LongMessageBuffer (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-longmessagebuffer", 
                 tooltip: "Number of Mbytes on each ndbd(DB) node allocated " +
                         "for internal long messages",
@@ -695,7 +695,7 @@ var processParameterDefaults= {
             },
             MaxNoOfConcurrentTransactions: {
                 label: "MaxNoOfConcTransactions",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#" +
                     "ndbparam-ndbd-maxnoofconcurrenttransactions", 
                 tooltip: "Max number of transaction executing concurrently " +
@@ -715,7 +715,7 @@ var processParameterDefaults= {
             },
             BatchSizePerLocalScan: {
                 label: "BatchSizePerLocalScan",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-batchsizeperlocalscan", 
                 tooltip: "Used to calculate the number of lock records for " +
                         "scan with hold lock",
@@ -742,7 +742,7 @@ var processParameterDefaults= {
             },
             FragmentLogFileSize: {
                 label: "FragmentLogFileSz (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-fragmentlogfilesize", 
                 tooltip: "Size of each Redo log file",
                 constraints: {min: 4, max: 1024, places: 0, pattern: "#"},
@@ -761,7 +761,7 @@ var processParameterDefaults= {
             },
             NoOfFragmentLogFiles: {
                 label: "NoOfFragmentLogFiles",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-nooffragmentlogfiles", 
                 tooltip: "No of Redo log files in each of the file group " +
                         "belonging to ndbd(DB) node",
@@ -780,7 +780,7 @@ var processParameterDefaults= {
             },
             RedoBuffer: {
                 label: "RedoBuffer (MB)",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-redobuffer", 
                 tooltip: "Number of Mbytes on each ndbd(DB) node allocated " +
                         "for writing REDO logs",
@@ -808,7 +808,7 @@ var processParameterDefaults= {
             },
             MaxNoOfExecutionThreads: {
                 label: "MaxNoOfExecutionThreads",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbmtd-" +
                         "maxnoofexecutionthreads", 
                 tooltip: "For ndbmtd, specify max no of execution threads",
@@ -827,7 +827,7 @@ var processParameterDefaults= {
             },
             ThreadConfig: {
                 label: "ThreadConfig",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbmtd-" +
                         "threadconfig", 
                 tooltip: "Thread configuration",
@@ -846,7 +846,7 @@ var processParameterDefaults= {
             },
             StopOnError: {
                 label: "StopOnError",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                         "-ndbd-definition.html#ndbparam-ndbd-stoponerror", 
                 tooltip: "If set to N, ndbd(DB) automatically " +
                         "restarts/recovers in case of node failure",
@@ -864,7 +864,7 @@ var processParameterDefaults= {
             },
             LockPagesInMainMemory: {
                 label: "LockPagesInMainMemory",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-lockpagesinmainmemory", 
                 tooltip: "If set to yes, then NDB Cluster data will not be " +
                         "swapped out to disk",
@@ -883,7 +883,7 @@ var processParameterDefaults= {
             },
             TimeBetweenEpochsTimeout: {
                 label: "TimeBtweenEpochsTimeout",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#" +
                     "ndbparam-ndbd-timebetweenepochstimeout", 
                 tooltip: "Timeout for time between epochs. " +
@@ -903,7 +903,7 @@ var processParameterDefaults= {
             },
             TimeBetweenWatchdogCheckInitial: {
                 label: "TimeBtwWatchdCheckIntl",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#" +
                     "ndbparam-ndbd-timebetweenwatchdogcheckinitial", 
                 tooltip: "Time between execution checks inside a database " +
@@ -924,7 +924,7 @@ var processParameterDefaults= {
             },
             TransactionInactiveTimeout: {
                 label: "TransactInactiveTimeout",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#" +
                     "ndbparam-ndbd-transactioninactivetimeout", 
                 tooltip: "Time application can wait before executing another " +
@@ -949,7 +949,7 @@ var processParameterDefaults= {
             },
             HeartbeatIntervalDbDb: {
                 label: "HeartbeatIntervalDbDb",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#ndbparam-ndbd-heartbeatintervaldbdb", 
                 tooltip: "Time between ndbd(DB)-ndbd(DB) heartbeats. " +
                         "ndbd(DB) considered dead after 3 missed HBs",
@@ -968,7 +968,7 @@ var processParameterDefaults= {
             },
             HeartbeatIntervalDbApi: {
                 label: "HeartbeatIntervalDbApi",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-ndbd-definition.html#" +
                     "ndbparam-ndbd-heartbeatintervaldbapi", 
                 tooltip: "Time between mysqld(API)-ndbd(DB) heartbeats. " +
@@ -1000,7 +1000,7 @@ var processParameterDefaults= {
             },
             NodeId: {
                 label: "NodeId",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-api-definition.html#ndbparam-api-nodeid", 
                 tooltip: "Number identifying application node (mysqld(API))",
                 constraints: {min: 1, max: 255, places: 0, pattern: "#"},
@@ -1017,7 +1017,7 @@ var processParameterDefaults= {
             },
             HostName: {
                 label: "HostName",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-api-definition.html#ndbparam-api-hostname", 
                 tooltip: "Name of computer for this node",
                 attribute: "HostName",
@@ -1033,7 +1033,7 @@ var processParameterDefaults= {
             },
             DataDir: {
                 label: "DataDir",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/" +
+                docurl: mcc.util.getDocUrlRoot() + "" +
                     "server-options.html#option_mysqld_datadir",
                 tooltip: "Data directory for this node",
                 attribute: "DataDir",
@@ -1075,7 +1075,7 @@ var processParameterDefaults= {
             },
             Port: {
                 label: "Port",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/" +
+                docurl: mcc.util.getDocUrlRoot() + "" +
                     "server-options.html#option_mysqld_port",
                 tooltip: "The port number to use when listening for TCP/IP " +
                         "connections",
@@ -1093,7 +1093,7 @@ var processParameterDefaults= {
             },
             Socket: {
                 label: "Socket",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/" +
+                docurl: mcc.util.getDocUrlRoot() + "" +
                     "server-options.html#option_mysqld_socket",
                 tooltip: "On Unix, this option specifies the Unix socket " +
                         "file to use when listening for local connections. " +
@@ -1126,7 +1126,7 @@ var processParameterDefaults= {
             NodeId: {
                 label: "NodeId",
                 attribute: "NodeId",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-api-definition.html#ndbparam-api-nodeid", 
                 tooltip: "Number identifying application node (mysqld(API))",
                 constraints: {min: 1, max: 255, places: 0, pattern: "#"},
@@ -1142,7 +1142,7 @@ var processParameterDefaults= {
             },
             HostName: {
                 label: "HostName",
-                docurl: "http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster" +
+                docurl: mcc.util.getDocUrlRoot() + "mysql-cluster" +
                     "-api-definition.html#ndbparam-api-hostname", 
                 tooltip: "Name of computer for this node",
                 attribute: "HostName",
