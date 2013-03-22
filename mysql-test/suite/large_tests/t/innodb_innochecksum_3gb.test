@@ -1,43 +1,36 @@
 #****************************************************************
-#           WL6045:Improve Innochecksum 
+# WL6045: Improve Innochecksum
 # Check Innochecksum with ibd file size 3GB
 # When server --default_storage_engine=InnoDB & tab2.ibd (CRC32)
 # When server --default_storage_engine=CRC32  & tab2.ibd (None)
-# Precondition : This testcase assumes 3GB disk space exist 
+# Precondition : This testcase assumes 3GB disk space exist
 # on the server where, it is kick off.
-# How to run this testcase: 
-# ./mtr --big-test --suite=large_tests --suite-timeout=6360 
+# How to run this testcase:
+# ./mtr --big-test --suite=large_tests --suite-timeout=6360
 # --testcase-timeout=6000 innodb_innochecksum_3gb.test
 #****************************************************************
 
--- source include/have_innodb.inc
+--source include/have_innodb.inc
 --source include/not_embedded.inc
 --source include/have_innodb_16k.inc
 
---echo # Set the environmental variables
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 
-
 --disable_warnings
-
---echo #drop the table
 DROP TABLE IF EXISTS tab2;
 
---echo #check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
-
---echo #check the default engine is always InnoDB after restart
+#check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
 
---echo # create a table
 CREATE TABLE tab2(col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
 col_4 longtext,col_5 BLOB,
-col_6 LONGBLOB , col_7 bigint ) 
+col_6 LONGBLOB , col_7 bigint)
 engine = innodb ;
 
---echo # create index on the compress table
+#create index on the compress table
 CREATE INDEX idx1 ON tab2(col_3(10));
 CREATE INDEX idx2 ON tab2(col_4(10));
 CREATE INDEX idx3 ON tab2(col_5(10));
@@ -65,25 +58,21 @@ EOF
 
 let $i = 14000;
 while ($i) {
-
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/input.dat' IGNORE INTO TABLE tab2;
 COMMIT;
 dec $i;
-
 }
 
 --enable_query_log
 
---echo # check the record count 7014000 ,to ensure ibd file size is 3GB
+# check the record count 7014000 ,to ensure ibd file size is 3GB
 SELECT COUNT(*) FROM tab2;
-
 
 --echo #stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
-
 
 --echo #R07: rewrite the tab2.ibd file into new checksum=CRC32
 --exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
@@ -94,7 +83,6 @@ SELECT COUNT(*) FROM tab2;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
-
 
 --echo #load the with repeat function
 SET @col_1 = repeat('A', 5);
@@ -117,7 +105,6 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
 
-
 --echo #R07: rewrite the tab2.ibd file into new checksum=None
 --exec $INNOCHECKSUM --no-check -w None $MYSQLD_DATADIR/test/tab2.ibd
 
@@ -133,19 +120,18 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 --file_exists $MYSQL_TMP_DIR/dump.txt
 
 
---echo #restart the DB server with default innodb_checksum_algorithm=CRC32 
+--echo #restart the DB server with default innodb_checksum_algorithm=CRC32
 --exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
 
---echo #check the server startup option of the checksum
+#check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo #check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
-
 
 --echo #load the with repeat function
 SET @col_1 = repeat('G', 5);
@@ -165,7 +151,7 @@ SELECT COUNT(*) FROM tab2 where col_7=2000;
 
 --enable_warnings
 
---echo #cleanup 
+--echo #cleanup
 DROP TABLE IF EXISTS tab2;
 
 --echo #TEST END
