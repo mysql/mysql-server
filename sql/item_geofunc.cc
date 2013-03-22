@@ -685,11 +685,10 @@ longlong Item_func_spatial_rel::val_int()
   if ((null_value=
        (args[0]->null_value || args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+        g1->get_mbr(&mbr1, &c_end) ||
+        g2->get_mbr(&mbr2, &c_end))))
     goto exit;
-
-  g1->get_mbr(&mbr1, &c_end);
-  g2->get_mbr(&mbr2, &c_end);
 
   umbr= mbr1;
   umbr.add_mbr(&mbr2);
@@ -824,14 +823,14 @@ String *Item_func_spatial_operation::val_str(String *str_value)
   if ((null_value=
        (args[0]->null_value || args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+        g1->get_mbr(&mbr1, &c_end) ||
+        g2->get_mbr(&mbr2, &c_end))))
   {
     str_value= 0;
     goto exit;
   }
 
-  g1->get_mbr(&mbr1, &c_end);
-  g2->get_mbr(&mbr2, &c_end);
   mbr1.add_mbr(&mbr2);
   collector.set_extent(mbr1.xmin, mbr1.xmax, mbr1.ymin, mbr1.ymax);
   
@@ -1356,11 +1355,11 @@ longlong Item_func_issimple::val_int()
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
   
-  if ((null_value= args[0]->null_value) ||
-      !(g= Geometry::construct(&buffer, swkb->ptr(), swkb->length())))
+  if ((null_value= (args[0]->null_value ||
+          !(g= Geometry::construct(&buffer, swkb->ptr(), swkb->length())) ||
+          g->get_mbr(&mbr, &c_end))))
     DBUG_RETURN(0);
 
-  g->get_mbr(&mbr, &c_end);
   collector.set_extent(mbr.xmin, mbr.xmax, mbr.ymin, mbr.ymax);
 
   if (g->get_class_info()->m_type_id == Geometry::wkb_point)
@@ -1596,11 +1595,11 @@ double Item_func_distance::val_real()
 
   if ((null_value= (args[0]->null_value || args[1]->null_value ||
           !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())))))
+          !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+          g1->get_mbr(&mbr1, &c_end) ||
+          g2->get_mbr(&mbr2, &c_end))))
     goto mem_error;
 
-  g1->get_mbr(&mbr1, &c_end);
-  g2->get_mbr(&mbr2, &c_end);
   mbr1.add_mbr(&mbr2);
   collector.set_extent(mbr1.xmin, mbr1.xmax, mbr1.ymin, mbr1.ymax);
 
