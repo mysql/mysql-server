@@ -129,10 +129,10 @@ static struct my_option my_long_options[]=
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"version-check", 'k', "Run this program only if its \'server version\' "
-   "matches with the version of the server its connecting to, (enabled by "
+   "matches the version of the server to which it's connecting, (enabled by "
    "default); use --skip-version-check to avoid this check. Note: the \'server "
    "version\' of the program is the version of the MySQL server with which it "
-   "was build/distributed.", &opt_version_check, &opt_version_check, 0,
+   "was built/distributed.", &opt_version_check, &opt_version_check, 0,
    GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"socket", 'S', "The socket file to use for connection.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -545,6 +545,8 @@ static int run_query(const char *query, DYNAMIC_STRING *ds_res,
 static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
 {
   char *value_start, *value_end;
+  size_t len;
+
   /*
     The query returns "datadir\t<datadir>\n", skip past
     the tab
@@ -557,7 +559,9 @@ static int extract_variable_from_show(DYNAMIC_STRING* ds, char* value)
   if ((value_end= strchr(value_start, '\n')) == NULL)
     return 1; /* Unexpected result */
 
-  strncpy(value, value_start, min(FN_REFLEN, value_end-value_start));
+  len= (size_t) min(FN_REFLEN, value_end-value_start);
+  strncpy(value, value_start, len);
+  value[len]= '\0';
   return 0;
 }
 
@@ -870,7 +874,7 @@ static int check_version_match(void)
   if (calc_server_version((char *) version_str) != MYSQL_VERSION_ID)
   {
     fprintf(stderr, "Error: Server version (%s) does not match with the "
-            "version of\nthe server (%s) with which this program was build/"
+            "version of\nthe server (%s) with which this program was built/"
             "distributed. You can\nuse --skip-version-check to skip this "
             "check.\n", version_str, MYSQL_SERVER_VERSION);
     return 1;
