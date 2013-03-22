@@ -732,8 +732,13 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
 		if (savept) {
-			/* Roll back the latest, possibly incomplete
-			insertion or update */
+			if (lock_tables_are_being_altered(trx)) {
+				err = DB_DEADLOCK;
+				goto fake_deadlock;
+			}
+
+			/* Roll back the latest, possibly incomplete insertion
+			or update */
 
 			trx_rollback_to_savepoint(trx, savept);
 		}
@@ -752,6 +757,7 @@ handle_new_error:
 
 		return(true);
 
+	fake_deadlock:
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
 		/* Roll back the whole transaction; this resolution was added
