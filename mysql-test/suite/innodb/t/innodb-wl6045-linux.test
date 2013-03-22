@@ -4,12 +4,13 @@
 # Test Case [2] Check the innochecksum tool when read from stdin and rewrite to "crc32" checksum.
 # Test Case [3] Check the innochecksum tool when read from stdin and rewrite to "none" checksum.
 # Test Case [4] Check the innochecksum tool when read from stdin and rewrite to "innodb" checksum.
+# Test Case [5] Check the innochecksum tool when read from stdin for page-type-summary
 #************************************************************
 
 --source include/not_windows.inc
 --source include/have_innodb.inc
+call mtr.add_suppression("InnoDB: Unable to lock");
 
---echo # Set the environmental variables
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
 let MYSQLD_DATADIR= `SELECT @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
@@ -17,25 +18,21 @@ let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 
---echo # set the servervariables
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 
---echo #check the server startup option
 SHOW variables like '%innodb_checksum_algorithm%';
-
---echo # create a base table,Index & insert a record
 CREATE TABLE t1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
-CREATE INDEX idx1 ON t1(c2(10));
-INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB1');
+INSERT INTO t1 VALUES(1, 'Innochecksum InnoDB');
+INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 
 --echo # Shutdown the Server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 30
+--shutdown_server
 --source include/wait_until_disconnected.inc
---echo # Test cases for read from standard input for innochecksum tool
---echo # Test[1] for read from standard input for innochecksum tool without rewrite of checksum.
---echo # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' -
+
+# Test cases for read from standard input for innochecksum tool
+--echo # Test[1] for read from standard input for innochecksum tool without rewrite of checksum with debug option.
 perl;
 use strict;
 use warnings;
@@ -44,7 +41,6 @@ my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
 exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum --debug='d:o,$mysqltest_vardir/tmp/mtrchecksum.trace' -");
 EOF
---echo # Print the information for debug option.
 
 perl;
 use strict;
@@ -71,14 +67,15 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 
+# Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+
 --echo # Test[1] End
 --echo # Test [2] for read from standard input for innochecksum tool with rewrite of crc32 checksum.
 let t1_IBD = $MYSQLD_DATADIR/test/t1.ibd;
 --echo # Backup the t1.ibd before any rewrite of checksum, so used for further testing.
 --copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup
 
---echo # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=crc32 - > MYSQLTEST_VARDIR/tmp/a.ibd
 perl;
 use strict;
 use warnings;
@@ -115,9 +112,7 @@ EOF
 --echo # Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
-
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=crc32 for innochecksum tool.
---echo # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=crc32 MYSQLTEST_VARDIR/tmp/a.ibd
 --exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=crc32 $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
@@ -145,8 +140,7 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 
-
---echo # Print the information for debug option.
+# Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo #Replace the t.ibd with the newly created a.ibd having crc32 checksum.
@@ -163,10 +157,8 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
-
-
 
 --echo # Test[2] End
 --echo # Test[3] for read from standard input for innochecksum tool with rewrite of "none" checksum.
@@ -213,9 +205,7 @@ EOF
 --echo # Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
-
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=none for innochecksum tool.
---echo # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=none MYSQLTEST_VARDIR/tmp/a.ibd
 --exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=none $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
@@ -243,11 +233,10 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 
-
---echo # Print the information for debug option.
+# Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
---echo #Replace the t.ibd with the newly created a.ibd having "none" checksum.
+#Replace the t.ibd with the newly created a.ibd having "none" checksum.
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --copy_file $MYSQLTEST_VARDIR/tmp/a.ibd $MYSQLD_DATADIR/test/t1.ibd
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
@@ -261,18 +250,16 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 10
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --echo # Test[3] End
 
 --echo # Test[4] for read from standard input for innochecksum tool with rewrite of "innodb" checksum.
-
---echo # Retrieve the original t1.ibd before any rewrite of checksum.
+# Retrieve the original t1.ibd before any rewrite of checksum.
 --remove_file $t1_IBD
 --copy_file $MYSQLD_DATADIR/test/t1.ibd.backup $t1_IBD
 
 --echo # Command for innochecksum too to read from stdin and rewrite the checksum to "innodb"
---echo # cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=innodb - > MYSQLTEST_VARDIR/tmp/a.ibd
 perl;
 use strict;
 use warnings;
@@ -309,9 +296,7 @@ EOF
 --echo # Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
-
 --echo # Recheck the a.ibd created file having crc32 checksum with the --strict-check=innodb for innochecksum tool.
---echo # innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --strict-check=innodb MYSQLTEST_VARDIR/tmp/a.ibd
 --exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLTEST_VARDIR/tmp/a.ibd
 
 perl;
@@ -339,8 +324,7 @@ move ("$dir/tmp", "$dir/$file");
 closedir(DIR);
 EOF
 
-
---echo # Print the information for debug option.
+# Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 
 --echo # Replace the t.ibd with the newly created a.ibd having "innodb" checksum.
@@ -356,9 +340,76 @@ cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --disable_reconnect
 --echo # Test[4] End
 
---echo #cleanup
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
-DROP TABLE IF EXISTS t1;
+--echo # Test[5] for lock.
+--echo # Test Scenario: As mysqld is running, & then start the innochecksum which must fail.
+
+select * from t1;
+
+--echo # INNOCHECKSUM MYSQLD_DATADIR/test/t1.ibd
+--error 1
+--exec $INNOCHECKSUM $MYSQLD_DATADIR/test/t1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN=Error: Unable to lock file:: $MYSQLD_DATADIR/test/t1.ibd;
+--source include/search_pattern_in_file.inc
+
+let SEARCH_PATTERN=fcntl: Resource temporarily unavailable;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo # create a base table,Index & insert a record
+CREATE TABLE tab1(c1 INT PRIMARY KEY,c2 VARCHAR(20)) ENGINE=InnoDB;
+CREATE INDEX idx1 ON tab1(c2(10));
+INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+--echo shutdown over
+--echo # Test[a] end
+--echo # Test[b] Scenario: Innochecksum is running state(had acquire lock on tab1.ibd file)
+--echo # and then start the mysqld server, which must crash when it do any DDL/DML query on tab1.ibd.
+--echo # Testing done by the usage of DBUG_EXECUTE_IF(), which will pool over the --page-type-dump file
+--echo # passed as argument. Then start the server which will crash as explained before. Delete the
+--echo # --page-type-dump file, to resume the innochecksum tool.
+
+perl;
+use strict;
+use warnings;
+my $innochecksum = $ENV{'INNOCHECKSUM'};
+my $mysql_tmp_dir = $ENV{'MYSQL_TMP_DIR'};
+my $mysqld_datadir = $ENV{'MYSQLD_DATADIR'};
+my $pid = fork();
+open(STDOUT, ">", "out.txt") or die "Err: $!";
+open(STDERR, ">&STDOUT");
+die "fork failed" unless defined $pid;
+if ($pid == 0)
+{
+  exec("$innochecksum  --debug='d,innochecksum_cause_mysqld_crash' --page-type-dump=$mysql_tmp_dir/dummy_file $mysqld_datadir/test/tab1.ibd");
+}
+EOF
+
+--echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+--error 2013
+select * from tab1;
+
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/tmp/dummy_file
+
+--echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+#cleanup
+--remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+
+DROP TABLE t1;
+DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;
 
 --echo #TEST END

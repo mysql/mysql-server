@@ -4837,7 +4837,7 @@ page_zip_verify_checksum(
 	ulint		size		/*!< in: size of compressed page */
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
-	,bool		verbose,	/*!< in: true if debug option
+	,bool		debug,		/*!< in: true if debug option
 					is enable */
 	ullint		page_no,	/*!< in: page number of
 					given read_buf */
@@ -4864,7 +4864,7 @@ page_zip_verify_checksum(
 				break;
 		}
 		if (i >= size) {
-			if (verbose) {
+			if (debug) {
 				DBUG_PRINT("info", ("Page::%llu is empty and "
 					   "uncorrupted",page_no));
 			}
@@ -4883,7 +4883,7 @@ page_zip_verify_checksum(
 			srv_checksum_algorithm));
 
 #ifdef UNIV_INNOCHECKSUM
-	if (verbose) {
+	if (debug) {
 		DBUG_PRINT("info", ("page::%llu; %s checksum: calculated = %u; "
 			   "recorded = %u",page_no,
 			   buf_checksum_algorithm_name(
