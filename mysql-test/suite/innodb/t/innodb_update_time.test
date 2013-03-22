@@ -5,6 +5,8 @@
 -- echo #
 
 -- source include/have_innodb.inc
+# restart does not work with embedded
+-- source include/not_embedded.inc
 
 CREATE TABLE t (a INT) ENGINE=INNODB;
 
