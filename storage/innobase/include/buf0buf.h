@@ -640,7 +640,7 @@ buf_page_is_corrupted(
 					0 for uncompressed pages */
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
-	,bool		verbose,	/*!< in: true if debug option
+	,bool		debug,		/*!< in: true if debug option
                                         is enable */
 	ullint		page_no,	/*!< in: page number of
 					given read_buf */

@@ -485,7 +485,7 @@ buf_page_is_corrupted(
 					0 for uncompressed pages */
 #ifdef UNIV_INNOCHECKSUM
 	/* these variables are used only for innochecksum tool. */
-	,bool		verbose,	/*!< in: true if debug option
+	,bool		debug,		/*!< in: true if debug option
 					is enable */
 	ullint		page_no,	/*!< in: page number of
 					given read_buf */
@@ -553,7 +553,7 @@ buf_page_is_corrupted(
 	if (zip_size) {
 #ifdef UNIV_INNOCHECKSUM
 		return(!page_zip_verify_checksum(read_buf, zip_size,
-						verbose, page_no,
+						debug, page_no,
 						strict_check));
 #else
 		return(!page_zip_verify_checksum(read_buf, zip_size));
@@ -579,7 +579,7 @@ buf_page_is_corrupted(
 				break;
 		}
 		if (i >= UNIV_PAGE_SIZE) {
-			if (verbose)
+			if (debug)
 				DBUG_PRINT(
 					"info",("Page::%llu is empty and "
 					"uncorrupted",page_no));
@@ -600,7 +600,7 @@ buf_page_is_corrupted(
 
 		crc32 = buf_calc_page_crc32(read_buf);
 #ifdef UNIV_INNOCHECKSUM
-		if (verbose) {
+		if (debug) {
 			DBUG_PRINT(
 				"info", ("page::%llu; crc32 calculated = %u;"
 				"recorded checksum field1 = %lu recorded "
@@ -613,7 +613,7 @@ buf_page_is_corrupted(
 
 	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
 #ifdef UNIV_INNOCHECKSUM
-		if (verbose) {
+		if (debug) {
 			DBUG_PRINT(
 				"info", ("page::%llu; old style:calculated = "
 				"%lu; recorded checksum = %lu",
@@ -635,7 +635,7 @@ buf_page_is_corrupted(
 
 	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
 #ifdef UNIV_INNOCHECKSUM
-		if (verbose) {
+		if (debug) {
 			DBUG_PRINT(
 				"info", ("page::%llu; none checksum: calculated"
 				" = %lu; recorded checksum_field1 = %lu "
@@ -690,7 +690,7 @@ buf_page_is_corrupted(
 				ut_ad(srv_checksum_algorithm
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
-				if (verbose) {
+				if (debug) {
 					DBUG_PRINT(
 						"info", ("page::%llu; old style"
 						": calculated = %lu; recorded ="
@@ -708,7 +708,7 @@ buf_page_is_corrupted(
 
 					if (checksum_field2 != crc32) {
 #ifdef UNIV_INNOCHECKSUM
-						if (verbose) {
+						if (debug) {
 							DBUG_PRINT(
 								"info", ("Fail;"
 								"page %llu "
@@ -755,7 +755,7 @@ buf_page_is_corrupted(
 				ut_ad(srv_checksum_algorithm
 				     == SRV_CHECKSUM_ALGORITHM_INNODB);
 #ifdef UNIV_INNOCHECKSUM
-				if (verbose) {
+				if (debug) {
 					DBUG_PRINT(
 						"info", ("page::%llu; new style"
 						": calculated = %lu; crc32 = %u"
@@ -777,7 +777,7 @@ buf_page_is_corrupted(
 
 					if (checksum_field1 != crc32) {
 #ifdef UNIV_INNOCHECKSUM
-						if (verbose) {
+						if (debug) {
 							DBUG_PRINT(
 								"info", ("Fail;"
 								" page %llu "
@@ -799,7 +799,7 @@ buf_page_is_corrupted(
 		if(checksum_field1 == BUF_NO_CHECKSUM_MAGIC ||
 			checksum_field2 == BUF_NO_CHECKSUM_MAGIC) {
 
-			if (verbose) {
+			if (debug) {
 				DBUG_PRINT(
 					"info", ("page::%llu; old style:"
 					" calculated = %lu; recorded = "
@@ -826,7 +826,7 @@ buf_page_is_corrupted(
 			|| (checksum_field1 != crc32
 			    && checksum_field2 == crc32))) {
 #ifdef UNIV_INNOCHECKSUM
-			if (verbose) {
+			if (debug) {
 				DBUG_PRINT("info", ("Fail; page %llu invalid "
 					   "(fails crc32 checksum)\n",page_no));
 			}
