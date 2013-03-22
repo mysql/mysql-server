@@ -618,6 +618,8 @@ handle_new_error:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
 		if (savept) {
+			/** Do a full rollback if online index is active, this
+			is a temporary work around for bug#16503490 */
 			if (lock_tables_are_being_altered(trx)) {
 				err = DB_DEADLOCK;
 				goto fake_deadlock;
