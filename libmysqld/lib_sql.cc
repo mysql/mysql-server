@@ -511,6 +511,9 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char ***argvp= NULL;
   int fake_argc= 1;
   char *fake_argv[2];
+#ifndef MCP_BUG16497125
+  char **foo= &fake_argv[0];
+#endif
   char fake_server[]= "server";
   char fake_embedded[]= "embedded";
   char *fake_groups[]= { fake_server, fake_embedded, NULL };
@@ -530,7 +533,9 @@ int init_embedded_server(int argc, char **argv, char **groups)
     fake_argv[0]= fake_name;
     fake_argv[1]= NULL;
 
-    char **foo= &fake_argv[0];
+#ifdef MCP_BUG16497125
+  char **foo= &fake_argv[0];
+#endif
     argcp= &fake_argc;
     argvp= &foo;
   }
