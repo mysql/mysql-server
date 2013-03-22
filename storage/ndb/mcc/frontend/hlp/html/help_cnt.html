@@ -22,10 +22,24 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
         <title>MySQL Cluster Configuration User Guide</title>
         <link href="img/favicon.ico" rel="icon" type="image/x-icon">
         <link rel="stylesheet" type="text/css" href="../css/help.css">
+
+        <script  type="text/javascript" src="../../dojo/dojo/dojo.js" djConfig="parseOnLoad: true"></script>
+
+        <script type="text/javascript">
+            // Path to top level mcc module
+            dojo.registerModulePath("mcc", "../../../../js/mcc");
+
+            // Get the util module for retrieving doc root
+            dojo.require("mcc.util");
+            dojo.ready(function() {
+                dojo.byId("docUrlRoot").innerHTML = 
+                    "<a href=\"" + mcc.util.getDocUrlRoot() + 
+                    "mysql-cluster-installation.html\">MySQL Cluster documentation</a>";
+            });
+        </script>
     </head>
 
 <!--Note: The browser has size 1043 x 755 in the images -->
-
 
 <!--
 ********************************************************************************
@@ -74,8 +88,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
 <h2><a name="installingAndStarting">Installing and Starting</a></h2>
 <p>The configuration tool is installed together with the MySQL Cluster software. 
-    Please refer to the <a href="http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster-installation.html">
-        MySQL Cluster documentation</a> 
+    Please refer to the <span id="docUrlRoot"></span> 
     regarding installation. This section describes the requirements to the 
     environment of the tool, important information about security, and explains 
     how to start the wizard. </p>

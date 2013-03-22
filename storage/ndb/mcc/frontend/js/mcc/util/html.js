@@ -33,6 +33,7 @@ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
  *      mcc.util.html.endTable: Return string for an html table closing tag
  *      mcc.util.html.setupWidgets: Setup widgets for a table row
  *      mcc.util.html.updateWidgets: Update widgets for a table row
+ *      mcc.util.html.getDocUrlRoot: Return the root url for documentation links
  *
  *  External data: 
  *      None
@@ -73,6 +74,7 @@ mcc.util.html.tableRow = tableRow;
 mcc.util.html.endTable = endTable;
 mcc.util.html.setupWidgets = setupWidgets;
 mcc.util.html.updateWidgets = updateWidgets; 
+mcc.util.html.getDocUrlRoot = getDocUrlRoot;
 
 /******************************* Internal data ********************************/
 
@@ -80,6 +82,11 @@ var propertyDefault = [];
 var backgroundColor = false;
 
 /****************************** Implementation  *******************************/
+
+// Get root url to documentation
+function getDocUrlRoot() {
+    return "https://dev.mysql.com/doc/refman/5.6/en/"; 
+}
 
 // Set property default
 function setPropertyDefault(key, value) {
@@ -104,10 +111,9 @@ function tableRow(prefix, label, url, attribute, tooltip) {
     return "<tr style=\"" + (backgroundColor?"background-color: #f4f6f8" : "") +
            "; \"><td width=\"28%\">" + 
            (url ? 
-               "<a href=\"" + url + "\" target=\"_blank\">" + 
-               "<label for='" + prefix + attribute + "'>" + label + "</label>" +
-               "</a>" : 
-               label) + "\
+               "<label for='" + prefix + attribute + "'><a href=\"" + 
+               url + "\" target=\"_blank\">" + 
+               label + "</a></label>" : label) + "\
                 <span class='helpIcon' id=\"" + prefix + attribute + "_qm\">\
                     " + (tooltip ? "[?]" : "") + "\
                 </span>\
