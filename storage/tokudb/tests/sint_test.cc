@@ -3,6 +3,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <sys/types.h>
 
 #include <tokudb_math.h>
 using namespace tokudb;
