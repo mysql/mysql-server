@@ -50,6 +50,7 @@ mcc.util.tableRow = mcc.util.html.tableRow;
 mcc.util.endTable = mcc.util.html.endTable;
 mcc.util.setupWidgets = mcc.util.html.setupWidgets;
 mcc.util.updateWidgets = mcc.util.html.updateWidgets;
+mcc.util.getDocUrlRoot = mcc.util.html.getDocUrlRoot;
 
 /***************************** Cluster utilities  *****************************/
 

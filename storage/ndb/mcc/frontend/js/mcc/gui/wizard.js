@@ -249,8 +249,8 @@ var configWizardPages = {
                     <h2>Define Processes and Cluster Topology</h2>\
                     <span class='content-tab-sub-title'>Various processes may \
                             be part of a MySQL Cluster configuration. Please \
-                            refer to the <a href='\
-http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
+                            refer to the <a href='" + mcc.util.getDocUrlRoot() + 
+                            "mysql-cluster.html'>MySQL Cluster \
                             Documentation</a> for a description of the \
                             different process types. If you have added hosts \
                             previously, a default configuration will be \
@@ -360,8 +360,8 @@ http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
                     <span class='content-tab-sub-title'>The processes in your \
                             MySQL Cluster configuration can be tuned by setting\
                             a number of configuration parameters. Please refer \
-                            to the <a href='\
-http://dev.mysql.com/doc/refman/5.5/en/mysql-cluster.html'>MySQL Cluster \
+                            to the <a href='" + mcc.util.getDocUrlRoot() + 
+                            "mysql-cluster.html'>MySQL Cluster \
                             Documentation</a> for a description of the \
                             different process parameters. This page allows you \
                             to define a subset of the configuration parameters.\
