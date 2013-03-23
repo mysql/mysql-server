@@ -1073,18 +1073,21 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
   mysql_cond_t* cond_io=0, *cond_sql=0;
   int error=0;
   DBUG_ENTER("start_slave_threads");
+  DBUG_EXECUTE_IF("uninitialized_master-info_structure",
+                   mi->inited= FALSE;);
 
   if (!mi->inited || !mi->rli->inited)
   {
-    if (!mi->inited)
-      mi->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                 ER(ER_SLAVE_FATAL_ERROR),
-                 "Failed to initialize the master info structure");
-    else
-      mi->rli->report(ERROR_LEVEL, ER_SLAVE_FATAL_ERROR,
-                      ER(ER_SLAVE_FATAL_ERROR),
-                      "Failed to initialize the master info structure");
-    DBUG_RETURN(ER_SLAVE_FATAL_ERROR);
+    error= ER_SLAVE_FATAL_ERROR;
+    Rpl_info *info= (!mi->inited ?  mi : static_cast<Rpl_info *>(mi->rli));
+    const char* prefix= current_thd ? ER(error) : ER_DEFAULT(error);
+    const char* message= !mi->inited ?
+                         "Failed to initialize the master-info structure":
+                         "Failed to initialize the relay-log-info structure";
+
+    info->report(ERROR_LEVEL, error, prefix, message);
+
+    DBUG_RETURN(error);
   }
 
   if (need_lock_slave)
