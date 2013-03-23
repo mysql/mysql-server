@@ -7,12 +7,14 @@
 #ident "Copyright (c) 2013 Tokutek Inc.  All rights reserved."
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <memory.h>
 #include <assert.h>
 #include <errno.h>
 #include <db.h>
+#if __linux__
 #include <endian.h>
-#include <byteswap.h>
+#endif
 #include <sys/stat.h>
 typedef unsigned long long ulonglong;
 #include "tokudb_status.h"
@@ -38,11 +40,14 @@ uint get_key_parts(KEY_INFO *key_info) {
     assert(key_info);
     return 0;
 }
+#if __APPLE__
+typedef unsigned long ulong;
+#endif
 #include "tokudb_card.h"
 
 static uint32_t hton32(uint32_t n) {
 #if BYTE_ORDER == LITTLE_ENDIAN
-    return bswap_32(n);
+    return __builtin_bswap32(n);
 #else
     return n;
 #endif
