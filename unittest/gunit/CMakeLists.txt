@@ -254,6 +254,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  explain_filename
   field
   get_diagnostics
   handler
