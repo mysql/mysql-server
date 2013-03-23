@@ -802,12 +802,13 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	time_t		query_cache_inv_time;
-				/*!< transactions whose start time is greater
-				than this number are not allowed to store to the
-				MySQL query cache or retrieve from it; when
-				a trx with undo logs commits, it sets this
-				to the value of the current time. */
+	trx_id_t	query_cache_inv_id;
+				/*!< transactions whose view low limit is
+				greater than this number are not allowed
+				to store to the MySQL query cache or
+				retrieve from it; when a trx with undo
+				logs commits, it sets this to the value
+				of the current time. */
 	trx_id_t	def_trx_id;
 				/*!< transaction id that last touched
 				the table definition, either when
