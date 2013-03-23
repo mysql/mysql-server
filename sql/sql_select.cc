@@ -12580,9 +12580,6 @@ simplify_joins(JOIN *join, List<TABLE_LIST> *join_list, COND *conds, bool top,
         table->prep_on_expr= table->on_expr= 0;
       }
     }
-    
-    if (!top)
-      continue;
 
     /* 
       Only inner tables of non-convertible outer joins
