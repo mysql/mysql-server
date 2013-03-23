@@ -197,10 +197,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     f = this.columnNumberToFieldMap[i];
     if(c.isAutoincrement) { 
       this.autoIncColumnNumber = i;
-      if(! (f || c.isNullable)) {
-        this.appendErrorMessage("Non-nullable auto-increment column " + c.name
-                                + " must be part of mapping.");
-      }
     }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
