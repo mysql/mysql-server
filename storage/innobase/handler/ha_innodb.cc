@@ -9167,6 +9167,11 @@ innobase_table_flags(
 				DBUG_RETURN(false);
 			}
 
+			if (key->flags & HA_USES_PARSER) {
+				my_error(ER_INNODB_NO_FT_USES_PARSER, MYF(0));
+                                DBUG_RETURN(false);
+			}
+
 			if (fts_doc_id_index_bad) {
 				goto index_bad;
 			}
