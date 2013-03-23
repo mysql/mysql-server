@@ -586,6 +586,8 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
 
+  Prepare_error_tracker tracker(thd);
+
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
     time.
