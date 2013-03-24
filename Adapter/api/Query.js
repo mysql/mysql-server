@@ -74,6 +74,42 @@ QueryField.prototype.eq = function(queryParameter) {
   return new QueryEq(this, queryParameter);
 };
 
+QueryField.prototype.le = function(queryParameter) {
+  return new QueryLe(this, queryParameter);
+};
+
+QueryField.prototype.ge = function(queryParameter) {
+  return new QueryGe(this, queryParameter);
+};
+
+QueryField.prototype.lt = function(queryParameter) {
+  return new QueryLt(this, queryParameter);
+};
+
+QueryField.prototype.gt = function(queryParameter) {
+  return new QueryGt(this, queryParameter);
+};
+
+QueryField.prototype.ne = function(queryParameter) {
+  return new QueryNe(this, queryParameter);
+};
+
+QueryField.prototype.between = function(queryParameter1, queryParameter2) {
+  return new QueryBetween(this, queryParameter1, queryParameter2);
+};
+
+QueryField.prototype.in = function(queryParameter) {
+  return new QueryIn(this, queryParameter);
+};
+
+QueryField.prototype.isNull = function() {
+  return new QueryIsNull(this);
+};
+
+QueryField.prototype.isNotNull = function() {
+  return new QueryIsNotNull(this);
+};
+
 QueryField.prototype.toString = function() {
   udebug.log_detail('QueryField.toString: ', this.field.fieldName);
   return this.field.fieldName;
@@ -126,6 +162,9 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
   });
 };
 
+QueryDomainType.prototype.not = function(queryPredicate) {
+  return new QueryNot(queryPredicate);
+}
 /**
  * QueryParameter represents a named parameter for a query. The QueryParameter marker is used
  * as the comparand for QueryField.
@@ -143,8 +182,59 @@ QueryParameter.prototype.toString = function() {
   return '?' + this.name;
 };
 
-/** AbstractQueryPredicate is the top level Predicate */
+/******************************************************************************
+ *                 SQL VISITOR
+ *****************************************************************************/
+var SQLVisitor = function(rootPredicateNode) {
+  this.rootPredicateNode = rootPredicateNode;
+  rootPredicateNode.sql = {};
+  rootPredicateNode.sql.formalParameters = [];
+  rootPredicateNode.sql.sqlText = 'initialized';
+  this.parameterIndex = 0;
+};
+
+SQLVisitor.prototype.visitQueryComparator = function(node) {
+  // set up the sql text in the node
+  var columnName = node.queryField.field.fieldName;
+  node.sql.sqlText = columnName + node.comparator + '?';
+  // assign ordered list of parameters to the top node
+  this.rootPredicateNode.sql.formalParameters[this.parameterIndex++] = node.parameter;
+};
+
+SQLVisitor.prototype.visitQueryNaryPredicate = function(node) {
+  var i;
+  // all n-ary predicates have at least two
+  node.predicates[0].visit(this); // sets up the sql.sqlText in the node
+  node.sql.sqlText = '(' + node.predicates[0].sql.sqlText + ')';
+  for (i = 1; i < node.predicates.length; ++i) {
+    node.sql.sqlText += node.operator;
+    node.predicates[i].visit(this);
+    node.sql.sqlText += '(' + node.predicates[i].sql.sqlText + ')';
+  }
+};
+
+SQLVisitor.prototype.visitQueryUnaryPredicate = function(node) {
+  node.predicates[0].visit(this); // sets up the sql.sqlText in the node
+  node.sql.sqlText = node.operator + '(' + node.predicates[0].sql.sqlText + ')';
+};
+
+SQLVisitor.prototype.visitQueryUnaryOperator = function(node) {
+  var columnName = node.queryField.field.fieldName;
+  node.sql.sqlText = columnName + node.operator;
+};
+
+SQLVisitor.prototype.visitQueryBetweenOperator = function(node) {
+  var columnName = node.queryField.field.fieldName;
+  node.sql.sqlText = columnName + ' BETWEEN ? AND ?';
+  this.rootPredicateNode.sql.formalParameters[this.parameterIndex++] = node.formalParameters[0];
+  this.rootPredicateNode.sql.formalParameters[this.parameterIndex++] = node.formalParameters[1];
+};
+
+/******************************************************************************
+ *                 TOP LEVEL ABSTRACT QUERY PREDICATE
+ *****************************************************************************/
 var AbstractQueryPredicate = function() {
+  this.sql = {};
 };
 
 AbstractQueryPredicate.prototype.markCandidateIndex = function(candidateIndex) {
@@ -155,7 +245,6 @@ AbstractQueryPredicate.prototype.markCandidateIndex = function(candidateIndex) {
 };
 
 AbstractQueryPredicate.prototype.mark = function(candidateIndex) {
-  throw new Error('FatalInternalException: abstract method mark(candidateIndex)');
 };
 
 AbstractQueryPredicate.prototype.and = function(predicate) {
@@ -163,10 +252,61 @@ AbstractQueryPredicate.prototype.and = function(predicate) {
   return new QueryAnd(this, predicate);
 };
 
+AbstractQueryPredicate.prototype.or = function(predicate) {
+  // TODO validate parameter
+  return new QueryOr(this, predicate);
+};
+
+AbstractQueryPredicate.prototype.not = function(predicate) {
+  // TODO validate parameter
+  return new QueryNot(this, predicate);
+};
+
 AbstractQueryPredicate.prototype.getTopLevelPredicates = function() {
   return [this];
 };
 
+AbstractQueryPredicate.prototype.getSQL = function() {
+  var visitor = new SQLVisitor(this);
+  this.visit(visitor);
+  return this.sql;
+};
+
+/******************************************************************************
+ *                 ABSTRACT QUERY N-ARY PREDICATE
+ *****************************************************************************/
+var AbstractQueryNaryPredicate = function() {
+};
+
+AbstractQueryNaryPredicate.prototype = new AbstractQueryPredicate();
+
+AbstractQueryNaryPredicate.prototype.getTopLevelPredicates = function() {
+  return this.predicates;
+};
+
+AbstractQueryNaryPredicate.prototype.visit = function(visitor) {
+  if (typeof(visitor.visitQueryNaryPredicate) === 'function') {
+    visitor.visitQueryNaryPredicate(this);
+  }
+};
+
+/******************************************************************************
+ *                 ABSTRACT QUERY UNARY PREDICATE
+ *****************************************************************************/
+var AbstractQueryUnaryPredicate = function() {
+};
+
+AbstractQueryUnaryPredicate.prototype = new AbstractQueryPredicate();
+
+AbstractQueryUnaryPredicate.prototype.visit = function(visitor) {
+  if (typeof(visitor.visitQueryUnaryPredicate) === 'function') {
+    visitor.visitQueryUnaryPredicate(this);
+  }
+};
+
+/******************************************************************************
+ *                 ABSTRACT QUERY COMPARATOR
+ *****************************************************************************/
 var AbstractQueryComparator = function() {
 };
 
@@ -174,16 +314,24 @@ var AbstractQueryComparator = function() {
 AbstractQueryComparator.prototype = new AbstractQueryPredicate();
 
 AbstractQueryComparator.prototype.toString = function() {
-  return this.queryField.toString() + ' ' + this.comparator + ' ' + this.parameter.toString();
+  return this.queryField.toString() + this.comparator + this.parameter.toString();
 };
 
+AbstractQueryComparator.prototype.visit = function(visitor) {
+  if (typeof(visitor.visitQueryComparator) === 'function') {
+    visitor.visitQueryComparator(this);
+  }
+};
+
+/******************************************************************************
+ *                 QUERY EQUAL
+ *****************************************************************************/
 var QueryEq = function(queryField, parameter) {
-  this.comparator = '=';
+  this.comparator = ' = ';
   this.queryField = queryField;
   this.parameter = parameter;
 };
 
-/** QueryEq inherits AbstractQueryComparator */
 QueryEq.prototype = new AbstractQueryComparator();
 
 QueryEq.prototype.mark = function(candidateIndex) {
@@ -193,35 +341,220 @@ QueryEq.prototype.mark = function(candidateIndex) {
   candidateIndex.markEq(columnNumber, parameterName);
 };
 
-var QueryAnd = function(left, right) {
-  udebug.log_detail('QueryAnd<ctor>');
-  this.operator = 'and';
-  this.predicates = [left, right];
+/******************************************************************************
+ *                 QUERY LESS THAN OR EQUAL
+ *****************************************************************************/
+var QueryLe = function(queryField, parameter) {
+  this.comparator = ' <= ';
+  this.queryField = queryField;
+  this.parameter = parameter;
 };
 
-/** QueryAnd inherits AbstractQueryPredicate */
-QueryAnd.prototype = new AbstractQueryPredicate();
+QueryLe.prototype = new AbstractQueryComparator();
 
-/** Override the "and" function to collect all predicates in one variable.
- * 
- * @param predicate
- * @return
- */
+QueryLe.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  var parameterName = this.parameter.name;
+  udebug.log_detail('QueryLe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
+  candidateIndex.markLe(columnNumber, parameterName);
+};
+
+/******************************************************************************
+ *                 QUERY GREATER THAN OR EQUAL
+ *****************************************************************************/
+var QueryGe = function(queryField, parameter) {
+  this.comparator = ' >= ';
+  this.queryField = queryField;
+  this.parameter = parameter;
+};
+
+QueryGe.prototype = new AbstractQueryComparator();
+
+QueryGe.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  var parameterName = this.parameter.name;
+  udebug.log_detail('QueryGe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
+  candidateIndex.markGe(columnNumber, parameterName);
+};
+
+/******************************************************************************
+ *                 QUERY LESS THAN
+ *****************************************************************************/
+var QueryLt = function(queryField, parameter) {
+  this.comparator = ' < ';
+  this.queryField = queryField;
+  this.parameter = parameter;
+};
+
+QueryLt.prototype = new AbstractQueryComparator();
+
+QueryLt.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  var parameterName = this.parameter.name;
+  udebug.log_detail('QueryGe.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
+  candidateIndex.markLt(columnNumber, parameterName);
+};
+
+/******************************************************************************
+ *                 QUERY GREATER THAN
+ *****************************************************************************/
+var QueryGt = function(queryField, parameter) {
+  this.comparator = ' > ';
+  this.queryField = queryField;
+  this.parameter = parameter;
+};
+
+QueryGt.prototype = new AbstractQueryComparator();
+
+QueryGt.prototype.mark = function(candidateIndex) {
+  var columnNumber = this.queryField.field.columnNumber;
+  var parameterName = this.parameter.name;
+  udebug.log_detail('QueryGt.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
+  candidateIndex.markGt(columnNumber, parameterName);
+};
+
+/******************************************************************************
+ *                 QUERY BETWEEN
+ *****************************************************************************/
+var QueryBetween = function(queryField, parameter1, parameter2) {
+  this.comparator = ' BETWEEN ';
+  this.queryField = queryField;
+  this.formalParameters = [];
+  this.formalParameters[0] = parameter1;
+  this.formalParameters[1] = parameter2;
+};
+
+QueryBetween.prototype = new AbstractQueryComparator();
+
+QueryBetween.prototype.mark = function(candidateIndex) {
+  // TODO this needs work to keep two parameters and one column
+  var columnNumber = this.queryField.field.columnNumber;
+  var parameterName = this.parameter.name;
+  udebug.log_detail('QueryBetween.mark with columnNumber:', columnNumber, 'parameterName:', parameterName);
+  candidateIndex.markGt(columnNumber, parameterName);
+};
+
+QueryBetween.prototype.visit = function(visitor) {
+  if (typeof(visitor.visitQueryBetweenOperator) === 'function') {
+    visitor.visitQueryBetweenOperator(this);
+  }
+};
+
+/******************************************************************************
+ *                 QUERY NOT EQUAL
+ *****************************************************************************/
+var QueryNe = function(queryField, parameter) {
+  this.comparator = ' != ';
+  this.queryField = queryField;
+  this.parameter = parameter;
+};
+
+QueryNe.prototype = new AbstractQueryComparator();
+
+/******************************************************************************
+ *                 QUERY IN
+ *****************************************************************************/
+var QueryIn = function(queryField, parameter) {
+  this.comparator = ' IN ';
+  this.queryField = queryField;
+  this.parameter = parameter;
+};
+
+QueryIn.prototype = new AbstractQueryComparator();
+
+/******************************************************************************
+ *                 ABSTRACT QUERY UNARY OPERATOR
+ *****************************************************************************/
+var AbstractQueryUnaryOperator = function() {
+};
+
+AbstractQueryUnaryOperator.prototype = new AbstractQueryPredicate();
+
+AbstractQueryUnaryOperator.prototype.toString = function() {
+  return this.queryField.toString() + this.comparator + this.parameter.toString();
+};
+
+AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
+  if (typeof(visitor.visitQueryUnaryOperator) === 'function') {
+    visitor.visitQueryUnaryOperator(this);
+  }
+};
+
+/******************************************************************************
+ *                 QUERY IS NULL
+ *****************************************************************************/
+var QueryIsNull = function(queryField) {
+  this.operator = ' IS NULL';
+  this.queryField = queryField;
+};
+
+QueryIsNull.prototype = new AbstractQueryUnaryOperator();
+
+/******************************************************************************
+ *                 QUERY IS NOT NULL
+ *****************************************************************************/
+var QueryIsNotNull = function(queryField) {
+  this.operator = ' IS NOT NULL';
+  this.queryField = queryField;
+};
+
+QueryIsNotNull.prototype = new AbstractQueryUnaryOperator();
+
+/******************************************************************************
+ *                 QUERY AND
+ *****************************************************************************/
+var QueryAnd = function(left, right) {
+  this.operator = ' AND ';
+  this.predicates = [left, right];
+  udebug.log_detail('QueryAnd<ctor>', this);
+};
+
+QueryAnd.prototype = new AbstractQueryNaryPredicate();
+
+/** Override the "and" function to collect all predicates in one variable. */
 QueryAnd.prototype.and = function(predicate) {
   this.predicates.push(predicate);
+  return this;
 };
 
-QueryAnd.prototype.getTopLevelPredicates = function() {
-  return predicates;
+/******************************************************************************
+ *                 QUERY OR
+ *****************************************************************************/
+var QueryOr = function(left, right) {
+  this.operator = ' OR ';
+  this.predicates = [left, right];
+  udebug.log_detail('QueryOr<ctor>', this);
 };
 
+QueryOr.prototype = new AbstractQueryNaryPredicate();
+
+/** Override the "or" function to collect all predicates in one variable. */
+QueryOr.prototype.or = function(predicate) {
+  this.predicates.push(predicate);
+  return this;
+};
+
+/******************************************************************************
+ *                 QUERY NOT
+ *****************************************************************************/
+var QueryNot = function(left) {
+  this.operator = ' NOT ';
+  this.predicates = [left];
+  udebug.log_detail('QueryNot<ctor>', this);
+};
+
+QueryNot.prototype = new AbstractQueryUnaryPredicate();
+
+/******************************************************************************
+ *                 CANDIDATE INDEX
+ *****************************************************************************/
 var CandidateIndex = function(dbTableHandler, indexNumber) {
   this.dbTableHandler = dbTableHandler;
   this.dbIndexHandler = dbTableHandler.dbIndexHandlers[indexNumber];
   if(! this.dbIndexHandler) {
     console.log("indexNumber", typeof(indexNumber));
     console.trace("not an index handler");
-    process.exit();
+    throw new Error('Query.CandidateIndex<ctor> indexNumber is not found');
   }
   
   this.numberOfColumns = this.dbIndexHandler.dbIndex.columnNumbers.length;
@@ -233,6 +566,23 @@ var CandidateIndex = function(dbTableHandler, indexNumber) {
 CandidateIndex.prototype.markEq = function(columnNumber, parameterName) {
   this.parameterNames[columnNumber] = parameterName;
 };
+
+/** Not currently implemented; this comparison will be ignored when determining indexes */
+CandidateIndex.prototype.markGe = function(columnNumber, parameterName) {
+};
+
+/** Not currently implemented; this comparison will be ignored when determining indexes */
+CandidateIndex.prototype.markLe = function(columnNumber, parameterName) {
+};
+
+/** Not currently implemented; this comparison will be ignored when determining indexes */
+CandidateIndex.prototype.markGt = function(columnNumber, parameterName) {
+};
+
+/** Not currently implemented; this comparison will be ignored when determining indexes */
+CandidateIndex.prototype.markLt = function(columnNumber, parameterName) {
+};
+
 
 CandidateIndex.prototype.isUsable = function() {
   udebug.log_detail('CandidateIndex.isUsable for', this.dbIndexHandler.dbIndex.name, 'with', this.parameterNames);
@@ -249,17 +599,25 @@ CandidateIndex.prototype.isUsable = function() {
   return numberOfMarkedColumns === this.numberOfColumns;
 };
 
-CandidateIndex.prototype.getKeys = function(parameters) {
+CandidateIndex.prototype.getKeys = function(parameterValues) {
   var result = [];
   var candidateIndex = this;
-  udebug.log_detail('CandidateIndex.getKeys parameters:',parameters, 'candidateIndex.parameterNames', candidateIndex.parameterNames);
+  udebug.log_detail('CandidateIndex.getKeys parameters:',parameterValues, 'candidateIndex.parameterNames', candidateIndex.parameterNames);
   // for each column in the index, get the parameter value from parameters
   this.dbIndexHandler.dbIndex.columnNumbers.forEach(function(columnNumber) {
-    result.push(parameters[candidateIndex.parameterNames[columnNumber]]);
+    result.push(parameterValues[candidateIndex.parameterNames[columnNumber]]);
   });
   return result;
 };
 
+/** Placeholder for evaluating candidate indexes */
+CandidateIndex.prototype.score = function() {
+  return 0;
+};
+
+/******************************************************************************
+ *                 QUERY HANDLER
+ *****************************************************************************/
 /* QueryHandler constructor
  * IMMEDIATE
  * 
@@ -331,8 +689,8 @@ var QueryHandler = function(dbTableHandler, predicate) {
 };
 
 /** Get key values from candidate indexes and parameters */
-QueryHandler.prototype.getKeys = function(parameters) {
-  return this.candidateIndex.getKeys(parameters);
+QueryHandler.prototype.getKeys = function(parameterValues) {
+  return this.candidateIndex.getKeys(parameterValues);
 };
 
 exports.QueryDomainType = QueryDomainType;
