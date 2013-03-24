@@ -174,7 +174,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
       
       var onTableMetadata = function(err, tableMetadata) {
         var tableHandler;
-        var tableKey = tableHandlerFactory.tableSpecification.qualifiedTableName
+        var tableKey = tableHandlerFactory.tableSpecification.qualifiedTableName;
         udebug.log_detail('TableHandlerFactory.onTableMetadata for ',
             tableHandlerFactory.tableSpecification.qualifiedTableName + ' with err: ' + err);
         if (err) {
@@ -646,7 +646,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   var dbSession, transactionHandler, queryType;
   userContext.queryDomainType = queryDomainType;
 
-  // transform find result into query result
+  // transform query result
   function executeQueryKeyOnResult(err, dbOperation) {
     udebug.log('executeQuery.executeQueryPKOnResult');
     var result, values, resultList;
@@ -666,6 +666,19 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
         resultList = [];
       }
       userContext.applyCallback(null, resultList);      
+    }
+  }
+
+  // transform query result
+  function executeQueryScanOnResult(err, dbOperation) {
+    udebug.log_detail('executeQuery.executeQueryScanOnResult');
+    var result, values, resultList;
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error, null);
+    } else {
+      udebug.log_detail('executeQuery.executeQueryScanOnResult', dbOperation.result.value);
+      userContext.applyCallback(null, dbOperation.result.value);      
     }
   }
 
@@ -697,10 +710,32 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
 //      userContext.operationDefinedCallback(1);
 //    }
     break;
+
   case 2: // index scan
+    dbSession = userContext.session.dbSession;
+    transactionHandler = dbSession.getTransactionHandler();
+    var dbIndexHandler = queryDomainType.mynode_query_domain_type.queryHandler.candidateIndex.dbIndexHandler;
+    var keys = queryDomainType.mynode_query_domain_type.queryHandler.getKeys(userContext.user_arguments[0]);
+    userContext.operation = dbSession.buildIndexScanOperation(dbIndexHandler, keys, transactionHandler,
+        executeQueryScanOnResult);
+    transactionHandler.execute([userContext.operation], function() {
+      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+    });
+    break;
+
   case 3: // table scan
+    dbSession = userContext.session.dbSession;
+    transactionHandler = dbSession.getTransactionHandler();
+    var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
+    userContext.operation = dbSession.buildTableScanOperation(
+        queryDomainType, userContext.user_arguments[0], transactionHandler,
+        executeQueryScanOnResult);
+    transactionHandler.execute([userContext.operation], function() {
+      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+    });
+    break;
   default: 
-    throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported(yet)');
+    throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported');
   }
 };
 
@@ -1123,7 +1158,7 @@ exports.UserContext.prototype.commit = function() {
 
   // commit begins here
   if (userContext.session.tx.isActive()) {
-    udebug.log('UserContext.commit tx is active.')
+    udebug.log('UserContext.commit tx is active.');
     userContext.session.dbSession.commit(commitOnCommit);
   } else {
     userContext.applyCallback(
@@ -1139,14 +1174,14 @@ exports.UserContext.prototype.rollback = function() {
   var userContext = this;
 
   var rollbackOnRollback = function(err) {
-    udebug.log('UserContext.rollbackOnRollback.')
+    udebug.log('UserContext.rollbackOnRollback.');
     userContext.session.tx.setState(userContext.session.tx.idle);
     userContext.applyCallback(err);
   };
 
   // rollback begins here
   if (userContext.session.tx.isActive()) {
-    udebug.log('UserContext.rollback tx is active.')
+    udebug.log('UserContext.rollback tx is active.');
     var transactionHandler = userContext.session.dbSession.getTransactionHandler();
     transactionHandler.rollback(rollbackOnRollback);
   } else {
