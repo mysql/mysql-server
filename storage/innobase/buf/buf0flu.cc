@@ -685,7 +685,18 @@ buf_flush_write_complete(
 		os_event_set(buf_pool->no_flush[flush_type]);
 	}
 
-	buf_dblwr_update(bpage, flush_type);
+	switch (flush_type) {
+	case BUF_FLUSH_LIST:
+	case BUF_FLUSH_LRU:
+		buf_dblwr_update();
+		break;
+	case BUF_FLUSH_SINGLE_PAGE:
+		/* Single page flushes are synchronous. No need
+		to update doublewrite */
+		break;
+	case BUF_FLUSH_N_TYPES:
+		ut_error;
+	}
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -817,6 +828,28 @@ buf_flush_init_for_writing(
 
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written by the OS. */
+UNIV_INTERN
+void
+buf_flush_sync_datafiles(void)
+/*==========================*/
+{
+	/* Wake possible simulated aio thread to actually post the
+	writes to the operating system */
+	os_aio_simulated_wake_handler_threads();
+
+	/* Wait that all async writes to tablespaces have been posted to
+	the OS */
+	os_aio_wait_until_no_pending_writes();
+
+	/* Now we flush the data to disk (for example, with fsync) */
+	fil_flush_file_spaces(FIL_TABLESPACE);
+
+	return;
+}
+
+/********************************************************************//**
 Does an asynchronous write of a buffer page. NOTE: in simulated aio and
 also when the doublewrite buffer is used, we must call
 buf_dblwr_flush_buffered_writes after we have posted a batch of
@@ -826,8 +859,7 @@ void
 buf_flush_write_block_low(
 /*======================*/
 	buf_page_t*	bpage,		/*!< in: buffer block to write */
-	buf_flush_t	flush_type,	/*!< in: type of flush */
-	bool		sync)		/*!< in: true if sync IO request */
+	buf_flush_t	flush_type)	/*!< in: type of flush */
 {
 	ulint	zip_size	= buf_page_get_zip_size(bpage);
 	page_t*	frame		= NULL;
@@ -904,29 +936,15 @@ buf_flush_write_block_low(
 
 	if (!srv_use_doublewrite_buf || !buf_dblwr) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       sync, buf_page_get_space(bpage), zip_size,
+		       FALSE, buf_page_get_space(bpage), zip_size,
 		       buf_page_get_page_no(bpage), 0,
 		       zip_size ? zip_size : UNIV_PAGE_SIZE,
 		       frame, bpage);
 	} else if (flush_type == BUF_FLUSH_SINGLE_PAGE) {
-		buf_dblwr_write_single_page(bpage, sync);
+		buf_dblwr_write_single_page(bpage);
 	} else {
-		ut_ad(!sync);
 		buf_dblwr_add_to_batch(bpage);
 	}
-
-	/* When doing single page flushing the IO is done synchronously
-	and we flush the changes to disk only for the tablespace we
-	are working on. */
-	if (sync) {
-		ut_ad(flush_type == BUF_FLUSH_SINGLE_PAGE);
-		fil_flush(buf_page_get_space(bpage));
-		buf_page_io_complete(bpage);
-	}
-
-	/* Increment the counter of I/O operations used
-	for selecting LRU policy. */
-	buf_LRU_stat_inc_io();
 }
 
 /********************************************************************//**
@@ -942,8 +960,7 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	buf_flush_t	flush_type,	/*!< in: type of flush */
-	bool		sync)		/*!< in: true if sync IO request */
+	buf_flush_t	flush_type)	/*!< in: type of flush */
 {
 	ib_mutex_t*	block_mutex;
 	ibool		is_uncompressed;
@@ -951,7 +968,6 @@ buf_flush_page(
 	ut_ad(flush_type < BUF_FLUSH_N_TYPES);
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_page_in_file(bpage));
-	ut_ad(!sync || flush_type == BUF_FLUSH_SINGLE_PAGE);
 
 	block_mutex = buf_page_get_mutex(bpage);
 	ut_ad(mutex_own(block_mutex));
@@ -1047,7 +1063,7 @@ buf_flush_page(
 			flush_type, bpage->space, bpage->offset);
 	}
 #endif /* UNIV_DEBUG */
-	buf_flush_write_block_low(bpage, flush_type, sync);
+	buf_flush_write_block_low(bpage, flush_type);
 }
 
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -1074,7 +1090,8 @@ buf_flush_page_try(
 
 	/* The following call will release the buffer pool and
 	block mutex. */
-	buf_flush_page(buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE, true);
+	buf_flush_page(buf_pool, &block->page, BUF_FLUSH_SINGLE_PAGE);
+	buf_flush_sync_datafiles();
 	return(TRUE);
 }
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -1258,7 +1275,7 @@ buf_flush_try_neighbors(
 				doublewrite buffer before we start
 				waiting. */
 
-				buf_flush_page(buf_pool, bpage, flush_type, false);
+				buf_flush_page(buf_pool, bpage, flush_type);
 				ut_ad(!mutex_own(block_mutex));
 				ut_ad(!buf_pool_mutex_own(buf_pool));
 				count++;
@@ -1984,7 +2001,9 @@ buf_flush_single_page_from_LRU(
 
 	/* The following call will release the buffer pool and
 	block mutex. */
-	buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, true);
+	buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+
+	buf_flush_sync_datafiles();
 
 	/* At this point the page has been written to the disk.
 	As we are not holding buffer pool or block mutex therefore
@@ -2042,21 +2061,12 @@ buf_flush_LRU_tail(void)
 	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
-		ulint		scan_depth;
-
-		/* srv_LRU_scan_depth can be arbitrarily large value.
-		We cap it with current LRU size. */
-		buf_pool_mutex_enter(buf_pool);
-		scan_depth = UT_LIST_GET_LEN(buf_pool->LRU);
-		buf_pool_mutex_exit(buf_pool);
-
-		scan_depth = ut_min(srv_LRU_scan_depth, scan_depth);
 
 		/* We divide LRU flush into smaller chunks because
 		there may be user threads waiting for the flush to
 		end in buf_LRU_get_free_block(). */
 		for (ulint j = 0;
-		     j < scan_depth;
+		     j < srv_LRU_scan_depth;
 		     j += PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE) {
 
 			ulint	n_flushed = 0;
@@ -2065,22 +2075,11 @@ buf_flush_LRU_tail(void)
 			that can trigger an LRU flush. It is possible
 			that a batch triggered during last iteration is
 			still running, */
-			if (buf_flush_LRU(buf_pool,
-					  PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE,
-					  &n_flushed)) {
+			buf_flush_LRU(buf_pool,
+				      PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE,
+				      &n_flushed);
 
-				/* Allowed only one batch per
-				buffer pool instance. */
-				buf_flush_wait_batch_end(
-					buf_pool, BUF_FLUSH_LRU);
-			}
-
-			if (n_flushed) {
-				total_flushed += n_flushed;
-			} else {
-				/* Nothing to flush */
-				break;
-			}
+			total_flushed += n_flushed;
 		}
 	}
 
