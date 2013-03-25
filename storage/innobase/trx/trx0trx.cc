@@ -633,15 +633,15 @@ static
 trx_rseg_t*
 trx_assign_rseg_low(
 /*================*/
-	ulong	max_undo_logs,		/*!< in: maximum number of UNDO logs
+	ulong		max_undo_logs,	/*!< in: maximum number of UNDO logs
 					to use */
-	ulint	n_tablespaces,		/*!< in: number of rollback
+	ulint		n_tablespaces,	/*!< in: number of rollback
 					tablespaces */
-	bool	assign_redo_rseg)	/*!< in: if true, assign rseg from
+	trx_rseg_type_t	rseg_type)	/*!< in: if true, assign rseg from
 					redo rseg pool else from nonredo
 					rseg pool. */	
 {
-	trx_rseg_t*	rseg;
+	trx_rseg_t*	rseg = 0;
 	static ulint	redo_rseg_slot = 0;
 	static ulint	noredo_rseg_slot = 1;
 
@@ -649,6 +649,9 @@ trx_assign_rseg_low(
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
+
+	ut_ad(rseg_type > TRX_RSEG_TYPE_NONE
+	      && rseg_type <= TRX_RSEG_TYPE_NOREDO);
 
 	/* This breaks true round robin but that should be OK. */
 	ut_a(max_undo_logs > 0 && max_undo_logs <= TRX_SYS_N_RSEGS);
@@ -658,20 +661,20 @@ trx_assign_rseg_low(
 	management this may not hold. The assertion checks for that case. */
 
 	ut_a(trx_sys->rseg_array[0] != NULL);
-	ut_a(assign_redo_rseg || trx_sys->rseg_array[1] != NULL);
+	ut_a(rseg_type == TRX_RSEG_TYPE_REDO || trx_sys->rseg_array[1] != NULL);
 
 	/* Slot-0 is always assigned to system-tablespace rseg. */
 	ut_a(trx_sys->rseg_array[0]->space == srv_sys_space.space_id());
 
 	/* Slot-1 is always assigned to temp-tablespace rseg. */
-	ut_a(assign_redo_rseg
+	ut_a(rseg_type == TRX_RSEG_TYPE_REDO
 	     || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
 
 	/* Skip the system tablespace if we have more than one tablespace
 	defined for rollback segments. We want all UNDO records to be in
 	the non-system tablespaces. */
 
-	if (assign_redo_rseg) {
+	if (rseg_type == TRX_RSEG_TYPE_REDO) {
 		while (true) {
 			rseg = trx_sys->rseg_array[redo_rseg_slot];
 
@@ -699,7 +702,7 @@ trx_assign_rseg_low(
 			}
 			break;
 		}
-	} else {
+	} else if (rseg_type == TRX_RSEG_TYPE_NOREDO) {
 		while (true) {
 			rseg = trx_sys->rseg_array[noredo_rseg_slot];
 
@@ -734,7 +737,7 @@ trx_assign_rseg(
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
 	trx->rsegs.m_noredo.rseg = trx_assign_rseg_low(
-		srv_undo_logs, srv_undo_tablespaces, false);
+		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_NOREDO);
 
 	if (trx->id == 0) {
 		mutex_enter(&trx_sys->mutex);
@@ -809,7 +812,8 @@ trx_start_low(
 	    && (trx->mysql_thd == 0 || read_write || trx->ddl)) {
 
 		trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
-			srv_undo_logs, srv_undo_tablespaces, true);
+			srv_undo_logs, srv_undo_tablespaces,
+			TRX_RSEG_TYPE_REDO);
 		/* temporary rseg is assigned only on need basis if trx involves
 		temp-tables. */
 
@@ -2424,7 +2428,7 @@ trx_set_rw_mode(
 	out and the code #ifdefed to handle both variations. */
 
 	trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
-		srv_undo_logs, srv_undo_tablespaces, true);
+		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_REDO);
 	ut_a(trx->rsegs.m_redo.rseg != 0);
 
 	ut_a(trx->id == 0);

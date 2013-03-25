@@ -726,7 +726,13 @@ struct trx_rsegs_t {
 	trx_undo_ptr_t	m_noredo;
 };
 
-#define	TRX_MAX_ASSIGNED_RSEGS	2
+enum trx_rseg_type_t {
+	TRX_RSEG_TYPE_NONE = 0,		/*!< void rollback segment type. */
+	TRX_RSEG_TYPE_REDO,		/*!< redo rollback segment. */
+	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
+};
+
+#define	TRX_MAX_ASSIGNED_RSEGS	(TRX_RSEG_TYPE_NOREDO)
 
 struct trx_t{
 	ulint		magic_n;
