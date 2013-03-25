@@ -1,4 +1,4 @@
--- Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -241,7 +241,9 @@ INSERT INTO global_suppressions VALUES
   */
  ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
  
- ("Changed limits: max_open_files: *  max_connections: *  table_cache: *"),
+ ("Changed limits: max_open_files: *"),
+ ("Changed limits: max_connections: *"),
+ ("Changed limits: table_cache: *"),
  ("Could not increase number of max_open_files to more than *"),
 
  ("THE_LAST_SUPPRESSION")||

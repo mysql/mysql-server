@@ -6750,20 +6750,22 @@ void adjust_open_files_limit()
 
   if (effective_open_files < request_open_files)
   {
+    char msg[1024];
+
     if (open_files_limit == 0)
     {
-      DBUG_PRINT("warning", ("Changed limits: max_open_files: %lu (requested %lu)",
-                             effective_open_files, request_open_files));
-
-      if (log_warnings)
-        sql_print_warning("Changed limits: max_open_files: %lu (requested %lu)",
-                          effective_open_files, request_open_files);
+      snprintf(msg, sizeof(msg),
+               "Changed limits: max_open_files: %lu (requested %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
     }
     else
     {
-      if (log_warnings)
-        sql_print_warning("Could not increase number of max_open_files to "
-                          "more than %lu (request: %lu)", effective_open_files, request_open_files);
+      snprintf(msg, sizeof(msg),
+               "Could not increase number of max_open_files to "
+               "more than %lu (request: %lu)",
+               effective_open_files, request_open_files);
+      buffered_logs.buffer(WARNING_LEVEL, msg);
     }
   }
 
@@ -6778,12 +6780,12 @@ void adjust_max_connections()
 
   if (limit < max_connections)
   {
-    DBUG_PRINT("warning", ("Changed limits: max_connections: %lu (requested %lu)",
-                            limit, max_connections));
+    char msg[1024];
 
-    if (log_warnings)
-      sql_print_warning("Changed limits: max_connections: %lu (requested %lu)",
-                        limit, max_connections);
+    snprintf(msg, sizeof(msg),
+             "Changed limits: max_connections: %lu (requested %lu)",
+             limit, max_connections);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
 
     max_connections= limit;
   }
@@ -6798,12 +6800,12 @@ void adjust_table_cache_size()
 
   if (limit < table_cache_size)
   {
-    DBUG_PRINT("warning", ("Changed limits: table_cache: %lu (requested %lu)",
-                            limit, table_cache_size));
+    char msg[1024];
 
-    if (log_warnings)
-      sql_print_warning("Changed limits: table_cache: %lu (requested %lu)",
-                        limit, table_cache_size);
+    snprintf(msg, sizeof(msg),
+             "Changed limits: table_cache: %lu (requested %lu)",
+             limit, table_cache_size);
+    buffered_logs.buffer(WARNING_LEVEL, msg);
 
     table_cache_size= limit;
   }
