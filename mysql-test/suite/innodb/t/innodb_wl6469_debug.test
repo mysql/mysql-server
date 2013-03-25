@@ -36,6 +36,12 @@ set global innodb_file_per_table = 1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
+
+# In the test scenario, there can be orphaned .frm files.
+# These are expected.  So suppressing the associated warnings.
+call mtr.add_suppression("InnoDB: Error: table .* does not exist "
+                         "in the InnoDB internal");
+
 #
 --exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 set session debug="+d,ib_ddl_crash_during_tablespace_alloc";
