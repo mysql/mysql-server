@@ -152,6 +152,7 @@ checkSpiDoc("DBOperation");
 
 checkSource("api/unified_debug.js");
 checkSource("api/SessionFactory.js");
+checkSource("api/Query.js");
 checkSource("api/Session.js");
 checkSource("api/TableMapping.js",
  121 // Line 121[3]: The body of a for in should be wrapped in an ...
