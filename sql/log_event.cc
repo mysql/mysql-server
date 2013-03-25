@@ -1804,6 +1804,7 @@ void Log_event::print_header(IO_CACHE* file,
 /**
   Prints a quoted string to io cache.
   Control characters are displayed as hex sequence, e.g. \x00
+  Single-quote and backslash characters are escaped with a \
   
   @param[in] file              IO cache
   @param[in] prt               Pointer to string
@@ -1819,6 +1820,10 @@ my_b_write_quoted(IO_CACHE *file, const uchar *ptr, uint length)
   {
     if (*s > 0x1F)
       my_b_write(file, s, 1);
+    else if (*s == '\'')
+      my_b_write(file, "\\'", 2);
+    else if (*s == '\\')
+      my_b_write(file, "\\\\", 2);
     else
     {
       uchar hex[10];
