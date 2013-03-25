@@ -706,7 +706,7 @@ fil_io(
 				because i/os are not actually handled until
 				all have been posted: use with great
 				caution! */
-	bool	sync,		/*!< in: true if synchronous aio is desired */
+	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
