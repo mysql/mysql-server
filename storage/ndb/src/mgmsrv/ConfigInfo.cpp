@@ -1107,8 +1107,20 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     0,
     ConfigInfo::CI_INT,
     "100",
-    "0",
+    "1",
     "100000" },
+
+  {
+    CFG_DB_MAX_BUFFERED_EPOCH_BYTES,
+    "MaxBufferedEpochBytes",
+    DB_TOKEN,
+    "Total number of bytes allocated for buffering epochs.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_INT,
+    "26214400",
+    "26214400",
+    STR_VALUE(MAX_INT_RNIL) },
 
   {
     CFG_DB_NO_REDOLOG_PARTS,
