@@ -226,6 +226,8 @@
 
 #define CFG_MGM_PORT                  300
 
+#define CFG_DB_MAX_BUFFERED_EPOCH_BYTES 350
+
 #define CFG_CONNECTION_NODE_1         400
 #define CFG_CONNECTION_NODE_2         401
 #define CFG_CONNECTION_SEND_SIGNAL_ID 402
