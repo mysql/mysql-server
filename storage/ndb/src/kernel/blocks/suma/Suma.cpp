@@ -182,6 +182,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_dataBufferPool.setSize(noAttrs + noOfBoundWords);
 
   c_maxBufferedEpochs = maxBufferedEpochs;
+  infoEvent("Buffering maximum epochs %u", c_maxBufferedEpochs);
 
   // Calculate needed gcp pool as 10 records + the ones needed
   // during a possible api timeout
@@ -197,10 +198,19 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   {
     gcpInterval = microGcpInterval;
   }
-  c_gcp_pool.setSize(10 + (4*dbApiHbInterval+gcpInterval-1)/gcpInterval);
-  
-  c_page_chunk_pool.setSize(50);
+  Uint32 poolSize= MAX(c_maxBufferedEpochs,
+		       10 + (4*dbApiHbInterval+gcpInterval-1)/gcpInterval);
+  c_gcp_pool.setSize(poolSize);
 
+  Uint32 maxBufferedEpochBytes, numPages, numPageChunks;
+  ndb_mgm_get_int_parameter(p, CFG_DB_MAX_BUFFERED_EPOCH_BYTES,
+			    &maxBufferedEpochBytes);
+  numPages = (maxBufferedEpochBytes + Page_chunk::CHUNK_PAGE_SIZE - 1)
+             / Page_chunk::CHUNK_PAGE_SIZE;
+  numPageChunks = (numPages + Page_chunk::PAGES_PER_CHUNK - 1)
+                  / Page_chunk::PAGES_PER_CHUNK;
+  c_page_chunk_pool.setSize(numPageChunks);
+  
   {
     SLList<SyncRecord> tmp(c_syncPool);
     Ptr<SyncRecord> ptr;
@@ -1770,6 +1780,30 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     signal->theData[1] = it.bucket;
     sendSignalWithDelay(reference(), GSN_DUMP_STATE_ORD, signal, 100, 2);
     return;
+  }
+
+  if (tCase == 8013)
+  {
+    jam();
+    Ptr<Gcp_record> gcp;
+    infoEvent("-- Starting dump of pending subscribers --");
+    infoEvent("Highest epoch %llu, oldest epoch %llu", m_max_seen_gci, m_last_complete_gci); 
+    if (!c_gcp_list.isEmpty())
+    {
+      jam();
+      c_gcp_list.first(gcp);
+      infoEvent("Waiting for acknowledge of epoch %llu, buffering %u epochs", gcp.p->m_gci, c_gcp_list.count());
+      NodeBitmask subs = gcp.p->m_subscribers;
+      for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
+      {
+	if (subs.get(nodeId))
+        {
+	  jam();
+	  infoEvent("Waiting for subscribing node %u", nodeId);
+	}
+      }
+    }
+    infoEvent("-- End dump of pending subscribers --");
   }
 
   if (tCase == 7019 && signal->getLength() == 2)
@@ -4580,8 +4614,13 @@ Suma::checkMaxBufferedEpochs(Signal *signal)
   }
   NodeBitmask subs = gcp.p->m_subscribers;
   jam();
+  if (!subs.isclear())
+  {
+   char buf[100];
+   subs.getText(buf);
+   infoEvent("Disconnecting lagging nodes '%s', epoch %llu", buf, gcp.p->m_gci);
+  }
   // Disconnect lagging subscribers waiting for oldest epoch
-  ndbout_c("Found lagging epoch %llu", gcp.p->m_gci);
   for(Uint32 nodeId = 0; nodeId < MAX_NODES; nodeId++)
   {
     if (subs.get(nodeId))
@@ -6132,13 +6171,27 @@ loop:
 void
 Suma::out_of_buffer(Signal* signal)
 {
+  Ptr<Gcp_record> gcp;
   if(m_out_of_buffer_gci)
   {
     return;
   }
   
   m_out_of_buffer_gci = m_last_complete_gci - 1;
-  infoEvent("Out of event buffer: nodefailure will cause event failures");
+  infoEvent("Out of event buffer: nodefailure will cause event failures, consider increasing MaxBufferedEpochBytes");
+  if (!c_gcp_list.isEmpty())
+  {
+    jam();
+    c_gcp_list.first(gcp);
+    infoEvent("Highest epoch %llu, oldest epoch %llu", m_max_seen_gci, m_last_complete_gci);
+    NodeBitmask subs = gcp.p->m_subscribers;
+    if (!subs.isclear())
+    {
+      char buf[100];
+      subs.getText(buf);
+      infoEvent("Pending nodes '%s', epoch %llu", buf, gcp.p->m_gci);
+    }
+  }
   m_missing_data = false;
   out_of_buffer_release(signal, 0);
 }
@@ -6214,7 +6267,7 @@ loop:
   if(!c_page_chunk_pool.seize(ptr))
     return RNIL;
 
-  Uint32 count = 16;
+  Uint32 count = Page_chunk::PAGES_PER_CHUNK;
   m_ctx.m_mm.alloc_pages(RT_DBTUP_PAGE, &ref, &count, 1);
   if (count == 0)
     return RNIL;
