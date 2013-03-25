@@ -628,8 +628,7 @@ private:
 
   Uint64 get_current_gci(Signal*);
 
-  void checkMaxBufferedEpochs
-(Signal *signal);
+  void checkMaxBufferedEpochs(Signal *signal);
 
   Uint64 m_max_seen_gci;      // FIRE_TRIG_ORD
   Uint64 m_max_sent_gci;      // FIRE_TRIG_ORD -> send
@@ -653,6 +652,9 @@ private:
 
   struct Page_chunk
   {
+    STATIC_CONST( CHUNK_PAGE_SIZE = 32768 );
+    STATIC_CONST( PAGES_PER_CHUNK = 16 );
+
     Uint32 m_page_id;
     Uint32 m_size;
     Uint32 m_free;
