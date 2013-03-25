@@ -682,6 +682,48 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
     }
   }
 
+  // executeScanQuery is used by both index scan and table scan
+  var executeScanQuery = function() {
+    dbSession = userContext.session.dbSession;
+    transactionHandler = dbSession.getTransactionHandler();
+    userContext.operation = dbSession.buildTableScanOperation(
+        queryDomainType, userContext.user_arguments[0], transactionHandler,
+        executeQueryScanOnResult);
+    // TODO: this currently does not support batching
+    transactionHandler.execute([userContext.operation], function() {
+      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+    });
+//  if (userContext.execute) {
+//  transactionHandler.execute([userContext.operation], function() {
+//    udebug.log_detail('find transactionHandler.execute callback.');
+//  });
+//} else if (typeof(userContext.operationDefinedCallback) === 'function') {
+//  userContext.operationDefinedCallback(1);
+//}    
+  };    
+
+  // executeKeyQuery is used by both primary key and unique key
+  var executeKeyQuery = function() {
+    // create the find operation and execute it
+    dbSession = userContext.session.dbSession;
+    transactionHandler = dbSession.getTransactionHandler();
+    var dbIndexHandler = queryDomainType.mynode_query_domain_type.queryHandler.candidateIndex.dbIndexHandler;
+    var keys = queryDomainType.mynode_query_domain_type.queryHandler.getKeys(userContext.user_arguments[0]);
+    userContext.operation = dbSession.buildReadOperation(dbIndexHandler, keys, transactionHandler,
+        executeQueryKeyOnResult);
+    // TODO: this currently does not support batching
+    transactionHandler.execute([userContext.operation], function() {
+      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+    });
+//    if (userContext.execute) {
+//      transactionHandler.execute([userContext.operation], function() {
+//        udebug.log_detail('find transactionHandler.execute callback.');
+//      });
+//    } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+//      userContext.operationDefinedCallback(1);
+//    }    
+  };
+  
   // executeQuery starts here
   // query.execute(parameters, callback)
   udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate.toString(), 
@@ -690,50 +732,21 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   queryType = queryDomainType.mynode_query_domain_type.queryType;
   switch(queryType) {
   case 0: // primary key
+    executeKeyQuery();
+    break;
+
   case 1: // unique key
-    // create the find operation and execute it
-    dbSession = userContext.session.dbSession;
-    transactionHandler = dbSession.getTransactionHandler();
-    var dbIndexHandler = queryDomainType.mynode_query_domain_type.queryHandler.candidateIndex.dbIndexHandler;
-    var keys = queryDomainType.mynode_query_domain_type.queryHandler.getKeys(userContext.user_arguments[0]);
-    userContext.operation = dbSession.buildReadOperation(dbIndexHandler, keys, transactionHandler,
-        executeQueryKeyOnResult);
-    transactionHandler.execute([userContext.operation], function() {
-      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
-    });
-// TODO: this code is a placeholder for batching
-//    if (userContext.execute) {
-//      transactionHandler.execute([userContext.operation], function() {
-//        udebug.log_detail('find transactionHandler.execute callback.');
-//      });
-//    } else if (typeof(userContext.operationDefinedCallback) === 'function') {
-//      userContext.operationDefinedCallback(1);
-//    }
+    executeKeyQuery();
     break;
 
   case 2: // index scan
-    dbSession = userContext.session.dbSession;
-    transactionHandler = dbSession.getTransactionHandler();
-    var dbIndexHandler = queryDomainType.mynode_query_domain_type.queryHandler.candidateIndex.dbIndexHandler;
-    var keys = queryDomainType.mynode_query_domain_type.queryHandler.getKeys(userContext.user_arguments[0]);
-    userContext.operation = dbSession.buildIndexScanOperation(dbIndexHandler, keys, transactionHandler,
-        executeQueryScanOnResult);
-    transactionHandler.execute([userContext.operation], function() {
-      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
-    });
+    executeScanQuery();
     break;
 
   case 3: // table scan
-    dbSession = userContext.session.dbSession;
-    transactionHandler = dbSession.getTransactionHandler();
-    var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
-    userContext.operation = dbSession.buildTableScanOperation(
-        queryDomainType, userContext.user_arguments[0], transactionHandler,
-        executeQueryScanOnResult);
-    transactionHandler.execute([userContext.operation], function() {
-      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
-    });
+    executeScanQuery();
     break;
+
   default: 
     throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported');
   }

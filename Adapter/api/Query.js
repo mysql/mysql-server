@@ -193,6 +193,7 @@ var SQLVisitor = function(rootPredicateNode) {
   this.parameterIndex = 0;
 };
 
+/** Handle nodes QueryEq, QueryNe, QueryLt, QueryLe, QueryGt, QueryGe */
 SQLVisitor.prototype.visitQueryComparator = function(node) {
   // set up the sql text in the node
   var columnName = node.queryField.field.fieldName;
@@ -201,6 +202,7 @@ SQLVisitor.prototype.visitQueryComparator = function(node) {
   this.rootPredicateNode.sql.formalParameters[this.parameterIndex++] = node.parameter;
 };
 
+/** Handle nodes QueryAnd, QueryOr */
 SQLVisitor.prototype.visitQueryNaryPredicate = function(node) {
   var i;
   // all n-ary predicates have at least two
@@ -213,16 +215,19 @@ SQLVisitor.prototype.visitQueryNaryPredicate = function(node) {
   }
 };
 
+/** Handle nodes QueryNot */
 SQLVisitor.prototype.visitQueryUnaryPredicate = function(node) {
   node.predicates[0].visit(this); // sets up the sql.sqlText in the node
   node.sql.sqlText = node.operator + '(' + node.predicates[0].sql.sqlText + ')';
 };
 
+/** Handle nodes QueryIsNull, QueryIsNotNull */
 SQLVisitor.prototype.visitQueryUnaryOperator = function(node) {
   var columnName = node.queryField.field.fieldName;
   node.sql.sqlText = columnName + node.operator;
 };
 
+/** Handle node QueryBetween */
 SQLVisitor.prototype.visitQueryBetweenOperator = function(node) {
   var columnName = node.queryField.field.fieldName;
   node.sql.sqlText = columnName + ' BETWEEN ? AND ?';
@@ -274,6 +279,7 @@ AbstractQueryPredicate.prototype.getSQL = function() {
 
 /******************************************************************************
  *                 ABSTRACT QUERY N-ARY PREDICATE
+ *                          AND and OR
  *****************************************************************************/
 var AbstractQueryNaryPredicate = function() {
 };
@@ -292,6 +298,7 @@ AbstractQueryNaryPredicate.prototype.visit = function(visitor) {
 
 /******************************************************************************
  *                 ABSTRACT QUERY UNARY PREDICATE
+ *                           NOT
  *****************************************************************************/
 var AbstractQueryUnaryPredicate = function() {
 };
@@ -306,6 +313,7 @@ AbstractQueryUnaryPredicate.prototype.visit = function(visitor) {
 
 /******************************************************************************
  *                 ABSTRACT QUERY COMPARATOR
+ *                  eq, ne, gt, lt, ge, le
  *****************************************************************************/
 var AbstractQueryComparator = function() {
 };
