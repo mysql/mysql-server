@@ -2060,7 +2060,7 @@ recv_apply_log_recs_for_backup(void)
 			fil0fil.cc routines */
 
 			if (zip_size) {
-				error = fil_io(OS_FILE_READ, TRUE,
+				error = fil_io(OS_FILE_READ, true,
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0, zip_size,
 					       block->page.zip.data, NULL);
@@ -2069,7 +2069,7 @@ recv_apply_log_recs_for_backup(void)
 					exit(1);
 				}
 			} else {
-				error = fil_io(OS_FILE_READ, TRUE,
+				error = fil_io(OS_FILE_READ, true,
 					       recv_addr->space, 0,
 					       recv_addr->page_no, 0,
 					       UNIV_PAGE_SIZE,
@@ -2098,13 +2098,13 @@ recv_apply_log_recs_for_backup(void)
 				mach_read_from_8(block->frame + FIL_PAGE_LSN));
 
 			if (zip_size) {
-				error = fil_io(OS_FILE_WRITE, TRUE,
+				error = fil_io(OS_FILE_WRITE, true,
 					       recv_addr->space, zip_size,
 					       recv_addr->page_no, 0,
 					       zip_size,
 					       block->page.zip.data, NULL);
 			} else {
-				error = fil_io(OS_FILE_WRITE, TRUE,
+				error = fil_io(OS_FILE_WRITE, true,
 					       recv_addr->space, 0,
 					       recv_addr->page_no, 0,
 					       UNIV_PAGE_SIZE,
@@ -3072,7 +3072,7 @@ recv_recovery_from_checkpoint_start_func(
 	/* Read the first log file header to print a note if this is
 	a recovery from a restored InnoDB Hot Backup */
 
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, max_cp_group->space_id, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, max_cp_group->space_id, 0,
 	       0, 0, LOG_FILE_HDR_SIZE,
 	       log_hdr_buf, max_cp_group);
 
@@ -3102,7 +3102,7 @@ recv_recovery_from_checkpoint_start_func(
 		memset(log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP,
 		       ' ', 4);
 		/* Write to the log file to wipe over the label */
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, TRUE,
+		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
 		       max_cp_group->space_id, 0,
 		       0, 0, OS_FILE_LOG_BLOCK_SIZE,
 		       log_hdr_buf, max_cp_group);
@@ -3753,7 +3753,7 @@ ask_again:
 #endif
 
 	/* Read the archive file header */
-	fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE, group->archive_space_id, 0, 0,
+	fil_io(OS_FILE_READ | OS_FILE_LOG, true, group->archive_space_id, 0, 0,
 	       LOG_FILE_HDR_SIZE, buf, NULL);
 
 	/* Check if the archive file header is consistent */
@@ -3825,7 +3825,7 @@ ask_again:
 		}
 #endif /* UNIV_DEBUG */
 
-		fil_io(OS_FILE_READ | OS_FILE_LOG, TRUE,
+		fil_io(OS_FILE_READ | OS_FILE_LOG, true,
 		       group->archive_space_id, read_offset / UNIV_PAGE_SIZE,
 		       read_offset % UNIV_PAGE_SIZE, len, buf, NULL);
 
