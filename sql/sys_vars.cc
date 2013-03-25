@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -406,7 +406,13 @@ static Sys_var_enum Sys_binlog_format(
        "MIXED, the format switches to row-based and back implicitly per each "
        "query accessing an NDBCLUSTER table",
        SESSION_VAR(binlog_format), CMD_LINE(REQUIRED_ARG, OPT_BINLOG_FORMAT),
+#ifndef MCP_BUG16417224
+       // Could theoretically be done by ndbcluster_init, but may be too late
+       // at that time.
+       binlog_format_names, DEFAULT(BINLOG_FORMAT_MIXED),
+#else
        binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
+#endif
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
 
