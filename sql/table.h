@@ -1536,6 +1536,13 @@ struct TABLE_LIST
     callback_func= 0;
   }
 
+  /// Create a TABLE_LIST object representing a nested join
+  static TABLE_LIST *new_nested_join(MEM_ROOT *allocator,
+                                     const char *alias,
+                                     TABLE_LIST *embedding,
+                                     List<TABLE_LIST> *belongs_to,
+                                     class st_select_lex *select);
+
   /*
     List of tables local to a subquery or the top-level SELECT (used by
     SQL_I_List). Considers views as leaves (unlike 'next_leaf' below).
@@ -2036,6 +2043,7 @@ private:
   /** See comments for TABLE_SHARE::get_table_ref_version() */
   ulonglong m_table_ref_version;
 };
+
 
 struct st_position;
   

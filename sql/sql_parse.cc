@@ -6612,24 +6612,19 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 
 bool st_select_lex::init_nested_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
   DBUG_ENTER("init_nested_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(1);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nested_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(true);
 
   join_list->push_front(ptr);
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nested_join)";
   embedding= ptr;
-  join_list= &nested_join->join_list;
-  join_list->empty();
-  DBUG_RETURN(0);
+  join_list= &ptr->nested_join->join_list;
+
+  DBUG_RETURN(false);
 }
 
 
@@ -6691,22 +6686,15 @@ TABLE_LIST *st_select_lex::end_nested_join(THD *thd)
 
 TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
 {
-  TABLE_LIST *ptr;
-  NESTED_JOIN *nested_join;
-  List<TABLE_LIST> *embedded_list;
   DBUG_ENTER("nest_last_join");
 
-  if (!(ptr= (TABLE_LIST*) thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST))+
-                                       sizeof(NESTED_JOIN))))
-    DBUG_RETURN(0);
-  nested_join= ptr->nested_join=
-    ((NESTED_JOIN*) ((uchar*) ptr + ALIGN_SIZE(sizeof(TABLE_LIST))));
+  TABLE_LIST *const ptr=
+    TABLE_LIST::new_nested_join(thd->mem_root, "(nest_last_join)",
+                                embedding, join_list, this);
+  if (ptr == NULL)
+    DBUG_RETURN(NULL);
 
-  ptr->embedding= embedding;
-  ptr->join_list= join_list;
-  ptr->alias= (char*) "(nest_last_join)";
-  embedded_list= &nested_join->join_list;
-  embedded_list->empty();
+  List<TABLE_LIST> *const embedded_list= &ptr->nested_join->join_list;
 
   for (uint i=0; i < 2; i++)
   {
@@ -6726,7 +6714,7 @@ TABLE_LIST *st_select_lex::nest_last_join(THD *thd)
     }
   }
   join_list->push_front(ptr);
-  nested_join->used_tables= nested_join->not_null_tables= (table_map) 0;
+
   DBUG_RETURN(ptr);
 }
 
