@@ -1,28 +1,21 @@
-# Set the environmental variables
-#drop the table
 DROP TABLE IF EXISTS tab2;
-#check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
 Variable_name	Value
 innodb_checksum_algorithm	innodb
-#check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
 @@default_storage_engine
 InnoDB
-# create a table
 CREATE TABLE tab2(col_1 CHAR (255) ,
 col_2 VARCHAR (255), col_3 longtext,
 col_4 longtext,col_5 BLOB,
-col_6 LONGBLOB , col_7 bigint ) 
+col_6 LONGBLOB , col_7 bigint)
 engine = innodb ;
-# create index on the compress table
 CREATE INDEX idx1 ON tab2(col_3(10));
 CREATE INDEX idx2 ON tab2(col_4(10));
 CREATE INDEX idx3 ON tab2(col_5(10));
 #generate a input text file for loading the table
 # check whether file exist
 # load the data into the table
-# check the record count 7014000 ,to ensure ibd file size is 3GB
 SELECT COUNT(*) FROM tab2;
 COUNT(*)
 7014000
@@ -47,10 +40,31 @@ COUNT(*)
 #stop the server
 #R07: rewrite the tab2.ibd file into new checksum=None
 #R07: Check the page type summary with longform for *.ibd
+
+File::MYSQLD_DATADIR/test/tab2.ibd
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+  184815	FIL_PAGE_INDEX
+       0	FIL_PAGE_UNDO_LOG
+       1	FIL_PAGE_INODE
+       0	FIL_PAGE_IBUF_FREE_LIST
+    3064	FIL_PAGE_TYPE_ALLOCATED
+      12	FIL_PAGE_IBUF_BITMAP
+       0	FIL_PAGE_TYPE_SYS
+       0	FIL_PAGE_TYPE_TRX_SYS
+       1	FIL_PAGE_TYPE_FSP_HDR
+      11	FIL_PAGE_TYPE_XDES
+       0	FIL_PAGE_TYPE_BLOB
+       0	FIL_PAGE_TYPE_ZBLOB
+       0	other
+===============================================
+Additional information:
+Undo page type: 0 insert, 0 update, 0 other
+Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
 # Page type dump for tab2.ibd
 # check whether dump.txt file exist
-#restart the DB server with default innodb_checksum_algorithm=CRC32 
-#check the server startup option of the checksum
+#restart the DB server with default innodb_checksum_algorithm=CRC32
 SHOW variables like '%innodb_checksum_algorithm%';
 Variable_name	Value
 innodb_checksum_algorithm	crc32
@@ -72,6 +86,6 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,2000);
 SELECT COUNT(*) FROM tab2 where col_7=2000;
 COUNT(*)
 1
-#cleanup 
+#cleanup
 DROP TABLE IF EXISTS tab2;
 #TEST END
