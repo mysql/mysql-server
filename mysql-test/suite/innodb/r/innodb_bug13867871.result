@@ -25,13 +25,14 @@ SET DEBUG_SYNC = 'now SIGNAL drop_done';
 # connection con1: test ON UPDATE CASCADE
 BEGIN;
 SET DEBUG_SYNC = 'foreign_constraint_update_cascade WAIT_FOR create_index';
+SET DEBUG_SYNC = 'now SIGNAL start_test';
 /* con1 send */ DELETE FROM parent WHERE a = 1;
 # connection default: con1 already IX-locked table child
 /* default send */ CREATE INDEX idx ON child(b, c);
+SET DEBUG_SYNC = 'now WAIT_FOR start_test';
 # connection con2: unblock connection default
 SET DEBUG_SYNC = 'now SIGNAL create_index';
 /* default reap */ CREATE INDEX idx ON child(b, c);
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 /* con1 reap */ DELETE FROM parent WHERE a = 1;
 # connection default: con1 is holding IX-lock on table child
 CREATE INDEX idx ON child(b, c);
@@ -67,14 +68,15 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 ROLLBACK;
 BEGIN;
 SET DEBUG_SYNC = 'foreign_constraint_check_for_update WAIT_FOR altered';
+SET DEBUG_SYNC = 'now SIGNAL start_test';
 /* con1 send */ UPDATE parent SET a = 3;
 # connection default: con1 is not yet holding locks on table child
 /* default send */ ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx;
+SET DEBUG_SYNC = 'now WAIT_FOR start_test';
 # connection con2: unblock connection con1
 SET DEBUG_SYNC = 'now SIGNAL altered';
 /* con1 reap */ UPDATE parent SET a = 3;
 /* default reap */ ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx;
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SELECT * FROM child;
 a	d	b	c
 1	5	khD	khD
