@@ -403,8 +403,8 @@ trx_rseg_get_n_undo_tablespaces(
 		ulint	page_no;
 		ulint	space;
 
-		/* Skip temp-tablespace slot as while looking out for
-		undo-tablespace. */
+		/* Skip temp-tablespace slot as while looking out for validation
+		of undo-tablespace. */
 		if (trx_sys_is_noredo_rseg_slot(i)) {
 			continue;
 		}
@@ -417,9 +417,6 @@ trx_rseg_get_n_undo_tablespaces(
 
 		space = trx_sysf_rseg_get_space(sys_header, i, &mtr);
 
-		/* Skip slots alloted to system-tablespace and temp-tablespace.
-		Temp-tablespace alloted slots are reserved starting from slot-1
-		and so if slotid is < temp-tablespace reserved limit skip it. */
 		if (space != 0) {
 			ulint	j;
 			ibool	found = FALSE;
