@@ -3860,3 +3860,16 @@ ib_cfg_get_cfg()
 
 	return(cfg_status);
 }
+
+/*****************************************************************//**
+Wrapper of ut_strerr() which converts an InnoDB error number to a
+human readable text message.
+@return string, describing the error */
+UNIV_INTERN
+const char*
+ib_ut_strerr(
+/*=========*/
+	ib_err_t	num)	/*!< in: error number */
+{
+	return(ut_strerr(num));
+}
