@@ -1312,7 +1312,7 @@ static
 que_t*
 trx_roll_graph_build(
 /*=================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -1352,7 +1352,11 @@ trx_rollback_start(
 
 	/* Initialize the rollback field in the transaction */
 
+	ut_ad(!trx->roll_limit);
+	ut_ad(!trx->in_rollback);
+
 	trx->roll_limit = roll_limit;
+	ut_d(trx->in_rollback = true);
 
 	ut_a(trx->roll_limit <= trx->undo_no);
 
@@ -1430,7 +1434,7 @@ trx_rollback_step(
 
 	if (node->state == ROLL_NODE_SEND) {
 		trx_t*		trx;
-		ib_id_t		roll_limit = 0;
+		ib_id_t		roll_limit;
 
 		trx = thr_get_trx(thr);
 

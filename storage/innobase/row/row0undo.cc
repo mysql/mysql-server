@@ -260,6 +260,7 @@ row_undo(
 	ut_ad(node && thr);
 
 	trx = node->trx;
+	ut_ad(trx->in_rollback);
 
 	if (node->state == UNDO_NODE_FETCH_NEXT) {
 
@@ -270,6 +271,14 @@ row_undo(
 			/* Rollback completed for this query thread */
 
 			thr->run_node = que_node_get_parent(node);
+
+			/* Mark any partial rollback completed, so
+			that if the transaction object is committed
+			and reused later, the roll_limit will remain
+			at 0. trx->roll_limit will be nonzero during a
+			partial rollback only. */
+			trx->roll_limit = 0;
+			ut_d(trx->in_rollback = false);
 
 			return(DB_SUCCESS);
 		}
