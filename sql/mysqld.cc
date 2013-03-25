@@ -6763,7 +6763,7 @@ void adjust_open_files_limit()
     {
       if (log_warnings)
         sql_print_warning("Could not increase number of max_open_files to "
-                          "more than %u (request: %u)", effective_open_files, request_open_files);
+                          "more than %lu (request: %lu)", effective_open_files, request_open_files);
     }
   }
 
