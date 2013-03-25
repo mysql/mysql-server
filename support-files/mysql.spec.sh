@@ -247,7 +247,7 @@ Distribution:   %{distro_description}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{license_type} license as shown in the Description field.
 Source:         http://www.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
-Packager:       MySQL Release Engineering <mysql-re_ww_grp@oracle.com> 
+Packager:       MySQL Release Engineering <mysql-build@oss.oracle.com> 
 Vendor:         %{mysql_vendor}
 Provides:       msqlormysql MySQL-server
 BuildRequires:  %{distro_buildreq}
