@@ -239,6 +239,7 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_rdtsc
   mysys_my_vsnprintf
+  mysys_my_write
   sql_list
   sql_plist
   sql_string
@@ -254,6 +255,7 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  explain_filename
   field
   get_diagnostics
   handler
