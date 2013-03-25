@@ -54,7 +54,7 @@ function lintTest(basePath, sourceFile, ignoreLines) {
   t.run = function runLintTest() {
     if(skipTests) { return this.skip("jslint not avaliable"); }
 
-    var e, i, n=0;
+    var e, i, n=0, line;
     var data = fs.readFileSync(this.sourceFile, "utf8");  
     var result = linter(data, lintOptions);
     var ok, errors, msg = "";
@@ -73,10 +73,11 @@ function lintTest(basePath, sourceFile, ignoreLines) {
     if(! ok) {
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
-        ignore = -1 !== ignoreLines.indexOf(e.line);
+        line = e ? e.line : 0;
+        ignore = -1 !== ignoreLines.indexOf(line);
         if(e && !ignore) {
           n += 1;
-          msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
+          msg += util.format('\n * Line %d[%d]: %s', line, e.character, e.reason);
         }
       }
       msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
