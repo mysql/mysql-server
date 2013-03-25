@@ -5423,18 +5423,28 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con)
   MYSQL_RES  *gtid_mode_res;
   MYSQL_ROW  gtid_mode_row;
   char       *gtid_mode_val= 0;
+  char buf[32], query[64];
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
+  /*
+    Check if the server has the knowledge of GTIDs(pre mysql-5.6)
+    or if the gtid_mode is ON or OFF.
+  */
+  my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
+              quote_for_like("gtid_mode", buf));
 
-  /* check if gtid_mode is ON or OFF */
-  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res,
-                                    "SELECT @@GTID_MODE"))
+  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
     return TRUE;
 
   gtid_mode_row = mysql_fetch_row(gtid_mode_res);
-  gtid_mode_val = (char*)gtid_mode_row[0];
+
+  /*
+     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+     get the gtid_mode value from the second column.
+  */
+  gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
 
   if (gtid_mode_val && strcmp(gtid_mode_val, "OFF"))
   {
