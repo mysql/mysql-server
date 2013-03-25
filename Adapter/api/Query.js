@@ -27,6 +27,11 @@ var userContext    = require('../impl/common/UserContext.js');
 
 var keywords = ['param', 'where', 'field', 'execute'];
 
+var QueryParameter;
+var QueryHandler;
+var QueryEq, QueryNe, QueryLe, QueryLt, QueryGe, QueryGt, QueryBetween, QueryIn, QueryIsNull, QueryIsNotNull;
+var QueryNot, QueryAnd, QueryOr;
+
 /** QueryDomainType function param */
 var param = function(name) {
   return new QueryParameter(this, name);
@@ -164,7 +169,8 @@ var QueryDomainType = function(session, dbTableHandler, domainObject) {
 
 QueryDomainType.prototype.not = function(queryPredicate) {
   return new QueryNot(queryPredicate);
-}
+};
+
 /**
  * QueryParameter represents a named parameter for a query. The QueryParameter marker is used
  * as the comparand for QueryField.
@@ -172,7 +178,7 @@ QueryDomainType.prototype.not = function(queryPredicate) {
  * @param name
  * @return
  */
-var QueryParameter = function(queryDomainType, name) {
+QueryParameter = function(queryDomainType, name) {
   udebug.log_detail('QueryParameter<ctor>', name);
   this.queryDomainType = queryDomainType;
   this.name = name;
@@ -334,7 +340,7 @@ AbstractQueryComparator.prototype.visit = function(visitor) {
 /******************************************************************************
  *                 QUERY EQUAL
  *****************************************************************************/
-var QueryEq = function(queryField, parameter) {
+QueryEq = function(queryField, parameter) {
   this.comparator = ' = ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -352,7 +358,7 @@ QueryEq.prototype.mark = function(candidateIndex) {
 /******************************************************************************
  *                 QUERY LESS THAN OR EQUAL
  *****************************************************************************/
-var QueryLe = function(queryField, parameter) {
+QueryLe = function(queryField, parameter) {
   this.comparator = ' <= ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -370,7 +376,7 @@ QueryLe.prototype.mark = function(candidateIndex) {
 /******************************************************************************
  *                 QUERY GREATER THAN OR EQUAL
  *****************************************************************************/
-var QueryGe = function(queryField, parameter) {
+QueryGe = function(queryField, parameter) {
   this.comparator = ' >= ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -388,7 +394,7 @@ QueryGe.prototype.mark = function(candidateIndex) {
 /******************************************************************************
  *                 QUERY LESS THAN
  *****************************************************************************/
-var QueryLt = function(queryField, parameter) {
+QueryLt = function(queryField, parameter) {
   this.comparator = ' < ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -406,7 +412,7 @@ QueryLt.prototype.mark = function(candidateIndex) {
 /******************************************************************************
  *                 QUERY GREATER THAN
  *****************************************************************************/
-var QueryGt = function(queryField, parameter) {
+QueryGt = function(queryField, parameter) {
   this.comparator = ' > ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -424,7 +430,7 @@ QueryGt.prototype.mark = function(candidateIndex) {
 /******************************************************************************
  *                 QUERY BETWEEN
  *****************************************************************************/
-var QueryBetween = function(queryField, parameter1, parameter2) {
+QueryBetween = function(queryField, parameter1, parameter2) {
   this.comparator = ' BETWEEN ';
   this.queryField = queryField;
   this.formalParameters = [];
@@ -451,7 +457,7 @@ QueryBetween.prototype.visit = function(visitor) {
 /******************************************************************************
  *                 QUERY NOT EQUAL
  *****************************************************************************/
-var QueryNe = function(queryField, parameter) {
+QueryNe = function(queryField, parameter) {
   this.comparator = ' != ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -462,7 +468,7 @@ QueryNe.prototype = new AbstractQueryComparator();
 /******************************************************************************
  *                 QUERY IN
  *****************************************************************************/
-var QueryIn = function(queryField, parameter) {
+QueryIn = function(queryField, parameter) {
   this.comparator = ' IN ';
   this.queryField = queryField;
   this.parameter = parameter;
@@ -491,7 +497,7 @@ AbstractQueryUnaryOperator.prototype.visit = function(visitor) {
 /******************************************************************************
  *                 QUERY IS NULL
  *****************************************************************************/
-var QueryIsNull = function(queryField) {
+QueryIsNull = function(queryField) {
   this.operator = ' IS NULL';
   this.queryField = queryField;
 };
@@ -501,7 +507,7 @@ QueryIsNull.prototype = new AbstractQueryUnaryOperator();
 /******************************************************************************
  *                 QUERY IS NOT NULL
  *****************************************************************************/
-var QueryIsNotNull = function(queryField) {
+QueryIsNotNull = function(queryField) {
   this.operator = ' IS NOT NULL';
   this.queryField = queryField;
 };
@@ -511,7 +517,7 @@ QueryIsNotNull.prototype = new AbstractQueryUnaryOperator();
 /******************************************************************************
  *                 QUERY AND
  *****************************************************************************/
-var QueryAnd = function(left, right) {
+QueryAnd = function(left, right) {
   this.operator = ' AND ';
   this.predicates = [left, right];
   udebug.log_detail('QueryAnd<ctor>', this);
@@ -528,7 +534,7 @@ QueryAnd.prototype.and = function(predicate) {
 /******************************************************************************
  *                 QUERY OR
  *****************************************************************************/
-var QueryOr = function(left, right) {
+QueryOr = function(left, right) {
   this.operator = ' OR ';
   this.predicates = [left, right];
   udebug.log_detail('QueryOr<ctor>', this);
@@ -545,7 +551,7 @@ QueryOr.prototype.or = function(predicate) {
 /******************************************************************************
  *                 QUERY NOT
  *****************************************************************************/
-var QueryNot = function(left) {
+QueryNot = function(left) {
   this.operator = ' NOT ';
   this.predicates = [left];
   udebug.log_detail('QueryNot<ctor>', this);
@@ -688,8 +694,8 @@ var QueryHandler = function(dbTableHandler, predicate) {
     }
   });
   if (topScore > 0) {
-    this.candidateIndex = bestCandidateInstance;
-    this.dbIndexHandler = candidateIndex.dbIndexHandler;
+    this.candidateIndex = bestCandidateIndex;
+    this.dbIndexHandler = bestCandidateIndex.dbIndexHandler;
     this.queryType = 2; // index scan
   } else {
     this.queryType = 3; // table scan
