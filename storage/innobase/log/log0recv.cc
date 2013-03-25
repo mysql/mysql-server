@@ -2980,6 +2980,11 @@ recv_init_crash_recovery(void)
 			"from the doublewrite buffer...");
 
 		buf_dblwr_init_or_restore_pages(TRUE);
+
+		/* Spawn the background thread to flush dirty pages
+		from the buffer pools. */
+		recv_writer_thread_handle = os_thread_create(
+			recv_writer_thread, 0, 0);
 	}
 }
 
@@ -3266,19 +3271,9 @@ recv_recovery_from_checkpoint_start_func(
 			}
 		}
 
-		if (!srv_read_only_mode) {
-			if (recv_needed_recovery) {
-				/* Spawn the background thread to
-				flush dirty pages from the buffer
-				pools. */
-				recv_writer_thread_handle =
-					os_thread_create(
-					recv_writer_thread, 0, 0);
-			} else {
-				/* Init the doublewrite buffer memory
-				 structure */
-				buf_dblwr_init_or_restore_pages(FALSE);
-			}
+		if (!recv_needed_recovery && !srv_read_only_mode) {
+			/* Init the doublewrite buffer memory structure */
+			buf_dblwr_init_or_restore_pages(FALSE);
 		}
 	}
 
