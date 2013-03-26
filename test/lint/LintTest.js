@@ -145,7 +145,6 @@ checkSource("impl/ndb/NdbOperation.js",
   294 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
 );
 checkSource("impl/ndb/NdbTransactionHandler.js");
-checkSource("impl/ndb/NdbTypeEncoders.js");
 
 checkSpiDoc("DBOperation");
 

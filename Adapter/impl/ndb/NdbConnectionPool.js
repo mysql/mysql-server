@@ -26,7 +26,6 @@ var adapter          = require(path.join(build_dir, "ndb_adapter.node")),
     ndbsession       = require("./NdbSession.js"),
     NdbConnection    = require("./NdbConnection.js"),
     dbtablehandler   = require("../common/DBTableHandler.js"),
-    ndbencoders      = require("./NdbTypeEncoders.js"),
     autoincrement    = require("./NdbAutoIncrement.js"),
     udebug           = unified_debug.getLogger("NdbConnectionPool.js"),
     stats_module     = require(path.join(api_dir,"stats.js")),
@@ -386,8 +385,8 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   // Walk the table and create defaultValue from ndbRawDefaultValue
   function drColumn(c) {
     if(c.ndbRawDefaultValue) {
-      var enc = ndbencoders.defaultForType[c.ndbTypeId];
-      c.defaultValue = enc.read(c, c.ndbRawDefaultValue, 0);
+      c.defaultValue = 
+        adapter.ndb.impl.encoderRead(c, c.ndbRawDefaultValue, 0);
       delete(c.ndbRawDefaultValue);
     }       
     else if(c.isNullable) {
