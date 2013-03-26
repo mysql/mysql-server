@@ -117,6 +117,8 @@ private:
 
 		ut_ad((void*) elem >= m_ptr && elem < m_end);
 
+		ut_ad(Factory::debug(&elem->m_type));
+
 		m_pqueue.push(elem);
 
 		m_lock_strategy.exit();
@@ -225,28 +227,6 @@ struct PoolManager {
 		ut_a(m_pools.empty());
 	}
 
-	/** Add a new pool
-	@return true on success */
-	bool add_pool()
-	{
-		PoolType*	pool = new (std::nothrow) PoolType(m_size);
-
-		if (pool != 0) {
-			m_lock_strategy.enter();
-
-			m_pools.push_back(pool);
-
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Number of pools: %lu", m_pools.size());
-
-			m_lock_strategy.exit();
-
-			return(true);
-		}
-
-		return(false);
-	}
-
 	/** Get an element from one of the pools.
 	@return instance or NULL if pool is empty. */
 	value_type* get()
@@ -268,9 +248,10 @@ struct PoolManager {
 
 			ptr = pool->get();
 
-			if (ptr == 0 && (index / n_pools) > 2) {
+			if (ptr == 0
+			    && (n_pools == 0 || (index / n_pools) > 2)) {
 
-				if (!add_pool()) {
+				if (!add_pool(n_pools)) {
 
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Failed to allocate memory for "
@@ -285,7 +266,10 @@ struct PoolManager {
 					a trx to be freed. */
 					os_thread_sleep(delay * 1000000);
 
-					delay <<= 1;
+					if (delay < 32) {
+						delay <<= 1;
+					}
+
 				} else {
 					delay = 1;
 				}
@@ -304,11 +288,53 @@ struct PoolManager {
 	}
 
 private:
+	/** Add a new pool
+	@param n_pools	Number of pools that existed when the add pool was
+			called.
+	@return true on success */
+	bool add_pool(size_t n_pools)
+	{
+		bool	added = false;
+
+		m_lock_strategy.enter();
+
+		if (n_pools < m_pools.size()) {
+			/* Some other thread already added a pool. */
+			added = true;
+		} else {
+			PoolType*	pool;
+
+			ut_ad(n_pools == m_pools.size());
+
+			pool = new (std::nothrow) PoolType(m_size);
+
+			if (pool != 0) {
+
+				ut_ad(n_pools <= m_pools.size());
+
+				m_pools.push_back(pool);
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Number of pools: %lu", m_pools.size());
+
+				added = true;
+			}
+		}
+
+		ut_ad(n_pools < m_pools.size() || !added);
+
+		m_lock_strategy.exit();
+
+		return(added);
+	}
+
 	/** Create the pool manager. */
 	void create()
 	{
 		ut_a(m_size > sizeof(value_type));
 		m_lock_strategy.create();
+
+		add_pool(0);
 	}
 
 	/** Release the resources. */
