@@ -317,7 +317,7 @@ static fil_system_t*	fil_system	= NULL;
 /** Determine if (i) is a user tablespace id or not. */
 # define fil_is_user_tablespace_id(i) 		\
 	(((i) > srv_undo_tablespaces_open)	\
-	 && (i != srv_tmp_space.space_id()))
+	 && ((i) != srv_tmp_space.space_id()))
 
 /** Determine if user has explicitly disabled fsync(). */
 #ifndef __WIN__

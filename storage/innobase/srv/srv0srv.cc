@@ -107,11 +107,11 @@ UNIV_INTERN ulong	srv_undo_tablespaces = 8;
 /** The number of UNDO tablespaces that are open and ready to use. */
 UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
 
-/* The number of rollback segments to use */
+/** The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
 
-/* Temp-Tablespace bounded rollback segments for use by temp-tables */
-UNIV_INTERN ulong	srv_tmp_undo_logs = 32;
+/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
+const ulong	srv_tmp_undo_logs = 32;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't

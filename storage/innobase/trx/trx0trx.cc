@@ -962,17 +962,13 @@ trx_write_serialisation_history(
 	bool	own_noredo_rseg = false;
 
 	/* Get rollback segment mutex. */
-	if (trx->rsegs.m_redo.rseg
-	    && (trx->rsegs.m_redo.insert_undo != NULL
-		|| trx->rsegs.m_redo.update_undo != NULL)) {
+	if (trx->rsegs.m_redo.rseg && trx_is_redo_rseg_updated(trx)) {
 
 		mutex_enter(&trx->rsegs.m_redo.rseg->mutex);
 		own_redo_rseg = true;
 	}
 
-	if (trx->rsegs.m_noredo.rseg
-	    && (trx->rsegs.m_noredo.insert_undo != NULL
-		|| trx->rsegs.m_noredo.update_undo != NULL)) {
+	if (trx->rsegs.m_noredo.rseg && trx_is_noredo_rseg_updated(trx)) {
 
 		mutex_enter(&trx->rsegs.m_noredo.rseg->mutex);
 		own_noredo_rseg = true;
@@ -1379,10 +1375,7 @@ trx_commit_low(
 	assert_trx_nonlocking_or_in_list(trx);
 	ut_ad(!trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 	ut_ad(!mtr || mtr->state == MTR_ACTIVE);
-	ut_ad(!mtr == !(trx->rsegs.m_redo.insert_undo
-			|| trx->rsegs.m_redo.update_undo
-			|| trx->rsegs.m_noredo.insert_undo
-			|| trx->rsegs.m_noredo.update_undo));
+	ut_ad(!mtr == !(trx_is_rseg_updated(trx)));
 
 	/* undo_no is non-zero if we're doing the final commit. */
 	if (trx->fts_trx && trx->undo_no != 0) {
@@ -1447,10 +1440,7 @@ trx_commit(
 	mtr_t	local_mtr;
 	mtr_t*	mtr;
 
-	if (trx->rsegs.m_redo.insert_undo
-	    || trx->rsegs.m_redo.update_undo
-	    || trx->rsegs.m_noredo.insert_undo
-	    || trx->rsegs.m_noredo.update_undo) {
+	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start(mtr);
 	} else {
