@@ -2524,6 +2524,7 @@ public:
   bool is_null;
 #ifndef MYSQL_CLIENT
   bool deferred;
+  query_id_t query_id;
   User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg)
@@ -2548,7 +2549,11 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= true; }
+  /*
+    In case of the deffered applying the variable instance is flagged
+    and the parsing time query id is stored to be used at applying time.
+  */
+  void set_deferred(query_id_t qid) { deferred= true; query_id= qid; }
 #endif
   bool is_valid() const { return name != 0; }
 
