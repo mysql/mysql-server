@@ -546,3 +546,60 @@ select hex(COLUMN_CREATE(0, COLUMN_GET(@a, 9 AS DECIMAL(19,0))));
 
 select hex(COLUMN_CREATE(0, COLUMN_GET(COLUMN_CREATE(0, 0.0 as decimal), 0 as decimal)));
 select hex(COLUMN_CREATE(0, 0.0 as decimal));
+
+--echo #
+--echo # MDEV-4292: parse error when selecting on views using dynamic column
+--echo #
+create table t1 (i int, d blob);
+
+create view v1 as select i, column_get(d, 1 as binary) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as int) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as unsigned int) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as date) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as time) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as datetime) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as decimal) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as double) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+create view v1 as select i, column_get(d, 1 as char) as a from t1;
+select * from v1;
+show create view v1;
+drop view v1;
+
+drop table t1;
+
+--echo #
+--echo # end of 5.3 tests
+--echo #
+

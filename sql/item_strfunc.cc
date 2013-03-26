@@ -4246,11 +4246,16 @@ null:
 
 void Item_dyncol_get::print(String *str, enum_query_type query_type)
 {
+  /* see create_func_dyncol_get */
+  DBUG_ASSERT(str->length() >= 5);
+  DBUG_ASSERT(strncmp(str->ptr() + str->length() - 5, "cast(", 5) == 0);
+
+  str->length(str->length() - 5);    // removing "cast("
   str->append(STRING_WITH_LEN("column_get("));
   args[0]->print(str, query_type);
   str->append(',');
   args[1]->print(str, query_type);
-  str->append(')');
+  /* let the parent cast item add " as <type>)" */
 }
 
 
