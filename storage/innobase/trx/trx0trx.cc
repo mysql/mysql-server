@@ -878,10 +878,12 @@ void
 trx_serialisation_number_get(
 /*=========================*/
 	trx_t*		trx,			/*!< in/out: transaction */
-	trx_undo_ptr_t*	redo_rseg_undo_ptr,	/*!< in/out: Set trx serialisation
-						number in referred undo rseg. */
-	trx_undo_ptr_t*	noredo_rseg_undo_ptr)	/*!< in/out: Set trx serialisation
-						number in referred undo rseg. */
+	trx_undo_ptr_t*	redo_rseg_undo_ptr,	/*!< in/out: Set trx
+						serialisation number in
+						referred undo rseg. */
+	trx_undo_ptr_t*	noredo_rseg_undo_ptr)	/*!< in/out: Set trx
+						serialisation number in
+						referred undo rseg. */
 {
 	trx_rseg_t*	redo_rseg = 0;
 	trx_rseg_t*	noredo_rseg = 0;
