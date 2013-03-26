@@ -1087,4 +1087,31 @@ NULL
 #
 SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
 ERROR 22007: Illegal non geometric '' value found during parsing
+#
+# MDEV-4252 geometry query crashes server
+#
+select astext(0x0100000000030000000100000000000010);
+astext(0x0100000000030000000100000000000010)
+NULL
+select envelope(0x0100000000030000000100000000000010);
+envelope(0x0100000000030000000100000000000010)
+NULL
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffff0000, 1);
+geometryn(0x0100000000070000000100000001030000000200000000000000ffff0000, 1)
+NULL
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
+geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1)
+NULL
+#
+# MDEV-4296 Assertion `n_linear_rings > 0' fails in Gis_polygon::centroid_xy
+#
+SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
+Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )))
+NULL
+#
+# MDEV-4295 Server crashes in get_point on a query with Area, AsBinary, MultiPoint
+#
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
+Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))))
+NULL
 End of 5.1 tests
