@@ -68,7 +68,7 @@ struct Pool {
 	}
 
 	/** Get an object from the pool.
-	@retrun a free transaction or NULL if exhausted. */
+	@retrun a free instance or NULL if exhausted. */
 	Type*	get()
 	{
 		Element*	elem = NULL;
@@ -248,22 +248,21 @@ struct PoolManager {
 
 			ptr = pool->get();
 
-			if (ptr == 0
-			    && (n_pools == 0 || (index / n_pools) > 2)) {
+			if (ptr == 0 && (index / n_pools) > 2) {
 
 				if (!add_pool(n_pools)) {
 
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"Failed to allocate memory for "
-						"a transaction pool of size "
-						"%lu bytes. Will wait for  "
-						"%lu seconds for a transaction "
-						"to commit", m_size, delay);
+						"a pool of size %lu bytes. "
+						"Will wait for  %lu seconds "
+						"for a thread to free a "
+						"resource", m_size, delay);
 
 					/* There is nothing much we can do "
 					except crash and burn, however lets
 					be a little optimistic and wait for
-					a trx to be freed. */
+					a resource to be freed. */
 					os_thread_sleep(delay * 1000000);
 
 					if (delay < 32) {
