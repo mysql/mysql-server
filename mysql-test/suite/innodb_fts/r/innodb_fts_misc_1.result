@@ -485,7 +485,7 @@ select * from t1 where MATCH(a,b) AGAINST("+tutorial +VÐƷWİ" IN BOOLEAN MODE)
 id	a	b
 1	MySQL Tutorial	DBMS stands for DataBase VÐƷWİ...
 select * from t1 where MATCH(a,b) AGAINST("+-VÐƷWİ" IN BOOLEAN MODE);
-id	a	b
+ERROR 42000: syntax error, unexpected '-', expecting FTS_TEXT or FTS_TERM or FTS_NUMB or '('
 select * from t1 where MATCH(a,b) AGAINST("+Mysql +(tricks never)" IN BOOLEAN MODE);
 id	a	b
 4	1001 MySQL Tricks	1. Never run mysqld as root. 2. ...
