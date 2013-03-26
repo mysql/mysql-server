@@ -460,22 +460,23 @@ AC_DEFUN([MYSQL_STACK_DIRECTION],
 #if defined(__HP_cc) || defined (__HP_aCC) || defined (__hpux)
 #pragma noinline
 #endif
- int find_stack_direction ()
- {
-   static char *addr = 0;
-   auto char dummy;
-   if (addr == 0)
-     {
-       addr = &dummy;
-       return find_stack_direction ();
-     }
-   else
-     return (&dummy > addr) ? 1 : -1;
- }
- int main ()
- {
-   exit (find_stack_direction() < 0);
- }], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
+  /* Check stack direction (-1 down, 1 up) */
+  int f(int *a)
+  {
+    int b;
+    return(&b > a)?1:-1;
+  }
+  /*
+   Prevent compiler optimizations by calling function 
+   through pointer.
+  */
+  volatile int (*ptr_f)(int *) = f;
+  int main()
+  {
+    int a;
+    exit(ptr_f(&a) < 0);
+  }
+  ], ac_cv_c_stack_direction=1, ac_cv_c_stack_direction=-1,
    ac_cv_c_stack_direction=)])
  AC_DEFINE_UNQUOTED(STACK_DIRECTION, $ac_cv_c_stack_direction)
 ])dnl
