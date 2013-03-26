@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -226,6 +226,7 @@ row_undo_mod_clust(
 
 	ut_ad(thr_get_trx(thr) == node->trx);
 	ut_ad(node->trx->dict_operation_lock_mode);
+	ut_ad(node->trx->in_rollback);
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED)
 	      || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
@@ -1077,6 +1078,7 @@ row_undo_mod(
 
 	ut_ad(node && thr);
 	ut_ad(node->state == UNDO_NODE_MODIFY);
+	ut_ad(node->trx->in_rollback);
 
 	dict_locked = thr_get_trx(thr)->dict_operation_lock_mode == RW_X_LATCH;
 
