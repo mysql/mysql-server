@@ -27,7 +27,7 @@
 
 #include <mysql/plugin.h>
 
-#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0100
+#define MYSQL_AUTHENTICATION_INTERFACE_VERSION 0x0200
 
 #include <mysql/plugin_auth_common.h>
 
@@ -78,7 +78,7 @@ typedef struct st_mysql_server_auth_info
     Not used by the server.
     Available through the @@EXTERNAL_USER variable.
   */  
-  char external_user[512];
+  char external_user[MYSQL_USERNAME_LENGTH+1];
 
   /**
     This only affects the "Authentication failed. Password used: %s"

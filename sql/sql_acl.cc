@@ -52,6 +52,8 @@
 #include "sql_db.h"
 #include "sql_array.h"
 
+#include "sql_plugin_compat.h"
+
 bool mysql_user_table_is_in_short_password_format= false;
 
 static const
@@ -9027,7 +9029,20 @@ static int do_auth_once(THD *thd, const LEX_STRING *auth_plugin_name,
   if (plugin)
   {
     st_mysql_auth *auth= (st_mysql_auth *) plugin_decl(plugin)->info;
-    res= auth->authenticate_user(mpvio, &mpvio->auth_info);
+    switch (auth->interface_version) {
+    case 0x0200:
+      res= auth->authenticate_user(mpvio, &mpvio->auth_info);
+      break;
+    case 0x0100:
+      {
+        MYSQL_SERVER_AUTH_INFO_0x0100 compat;
+        compat.downgrade(&mpvio->auth_info);
+        res= auth->authenticate_user(mpvio, (MYSQL_SERVER_AUTH_INFO *)&compat);
+        compat.upgrade(&mpvio->auth_info);
+      }
+      break;
+    default: DBUG_ASSERT(0);
+    }
 
     if (unlock_plugin)
       plugin_unlock(thd, plugin);
@@ -9077,8 +9092,6 @@ bool acl_authenticate(THD *thd, uint connect_errors,
   enum  enum_server_command command= com_change_user_pkt_len ? COM_CHANGE_USER
                                                              : COM_CONNECT;
   DBUG_ENTER("acl_authenticate");
-
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
 
   bzero(&mpvio, sizeof(mpvio));
   mpvio.read_packet= server_mpvio_read_packet;

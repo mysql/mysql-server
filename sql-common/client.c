@@ -2572,8 +2572,6 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 		     mysql->server_version, mysql->server_capabilities,
 		     mysql->server_status, mysql->client_flag));
 
-  compile_time_assert(MYSQL_USERNAME_LENGTH == USERNAME_LENGTH);
-
   /* This needs to be changed as it's not useful with big packets */
   if (mysql->user[0])
     strmake(end, mysql->user, USERNAME_LENGTH);

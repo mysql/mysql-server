@@ -35,6 +35,8 @@
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 #include <mysql/plugin_auth.h>
+#include "sql_plugin_compat.h"
+
 #define REPORT_TO_LOG  1
 #define REPORT_TO_USER 2
 
@@ -135,7 +137,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION
+  MIN_AUTHENTICATION_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {

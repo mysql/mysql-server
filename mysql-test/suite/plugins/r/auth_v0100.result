@@ -1,0 +1,18 @@
+install soname 'auth_0x0100';
+select plugin_name, plugin_type_version from information_schema.plugins where plugin_type='authentication' order by plugin_name;
+plugin_name	plugin_type_version
+auth_0x0100	1.0
+mysql_native_password	2.0
+mysql_old_password	2.0
+create user tt identified via auth_0x0100;
+grant select on test.* to zzzzzzzzzzzzzzzz;
+connect(localhost,tt,,test,MASTER_MYPORT,MASTER_MYSOCK);
+ERROR 28000: Access denied for user 'tt'@'localhost' (using password: YES)
+grant proxy on zzzzzzzzzzzzzzzz to tt;
+select user(), current_user(), @@external_user;
+user()	tt@localhost
+current_user()	zzzzzzzzzzzzzzzz@%
+@@external_user	oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo.
+drop user tt;
+drop user zzzzzzzzzzzzzzzz;
+uninstall plugin auth_0x0100;
