@@ -38,10 +38,9 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
-#include "ut0bh.h"
+#include "trx0purgeq.h"
 #include "read0types.h"
 #include "page0types.h"
-#include "ut0bh.h"
 
 typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
 
@@ -83,11 +82,11 @@ Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
-ib_bh_t*
+purge_queue_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh and mutex. */
+Creates the trx_sys instance and initializes purge_queue and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void);
