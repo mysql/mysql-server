@@ -32,6 +32,7 @@ SELECT @@session.max_seeks_for_key = 10;
 SET @@global.max_seeks_for_key = 20;
 SELECT @@global.max_seeks_for_key;
 INSERT INTO t1(b) VALUES("AREc");
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 
 # Setting session value of variable and inserting data in table
@@ -39,6 +40,7 @@ SET @@session.max_seeks_for_key = 2;
 SELECT @@session.max_seeks_for_key;
 INSERT INTO t1(b) VALUES("BREc");
 INSERT INTO t1(b) VALUES("CRec");
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 
 
@@ -60,6 +62,7 @@ SELECT @@session.max_seeks_for_key = 10;
 SET @@global.max_seeks_for_key = 20;
 SELECT @@global.max_seeks_for_key;
 INSERT INTO t1(b) VALUES("AREc");
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 
 # Setting session value of variable and inserting data in table
@@ -67,6 +70,7 @@ SET @@session.max_seeks_for_key = 2;
 SELECT @@session.max_seeks_for_key;
 INSERT INTO t1(b) VALUES("BREc");
 INSERT INTO t1(b) VALUES("CRec");
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 
 ######################################################
@@ -77,6 +81,7 @@ INSERT INTO t1 VALUES(null,"test");
 INSERT INTO t1 VALUES (null,"a"),(null,"a"),(null,"a"),
                      (null,"a"),(null,"a"),(null,"a"),(null,"a"),
                      (null,"a"),(null,"a"),(null,"a");
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 ANALYZE TABLE t1;
 
@@ -86,7 +91,7 @@ ANALYZE TABLE t1;
 
 SET MAX_SEEKS_FOR_KEY=1;
 
-
+--replace_column 9 #
 EXPLAIN SELECT STRAIGHT_JOIN * FROM t1,t1 AS t2 WHERE t1.b = t2.b;
 SET MAX_SEEKS_FOR_KEY=DEFAULT;
 
