@@ -471,7 +471,8 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_clear_trx,
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
-	(ib_cb_t) ib_cfg_bk_commit_interval
+	(ib_cb_t) ib_cfg_bk_commit_interval,
+	(ib_cb_t) ib_ut_strerr
 };
 
 /*************************************************************//**
@@ -3645,6 +3646,11 @@ innobase_rollback_to_savepoint(
 	trx_search_latch_release_if_reserved(trx);
 
 	innobase_srv_conc_force_exit_innodb(trx);
+
+	/* Temporary work around for bug#16503490 */
+	if (lock_tables_are_being_altered(trx)) {
+		DBUG_RETURN(HA_ERR_NO_SAVEPOINT);
+	}
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 

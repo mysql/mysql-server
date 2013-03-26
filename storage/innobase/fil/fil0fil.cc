@@ -420,7 +420,7 @@ UNIV_INLINE
 dberr_t
 fil_read(
 /*=====*/
-	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,		/*!< in: true if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
@@ -449,7 +449,7 @@ UNIV_INLINE
 dberr_t
 fil_write(
 /*======*/
-	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,		/*!< in: true if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
@@ -5086,7 +5086,7 @@ fil_io(
 				because i/os are not actually handled until
 				all have been posted: use with great
 				caution! */
-	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,		/*!< in: true if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */
