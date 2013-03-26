@@ -637,9 +637,7 @@ trx_assign_rseg_low(
 					to use */
 	ulint		n_tablespaces,	/*!< in: number of rollback
 					tablespaces */
-	trx_rseg_type_t	rseg_type)	/*!< in: if true, assign rseg from
-					redo rseg pool else from nonredo
-					rseg pool. */
+	trx_rseg_type_t	rseg_type)	/*!< in: type of rseg to assign. */
 {
 	trx_rseg_t*	rseg = 0;
 	static ulint	redo_rseg_slot = 0;
@@ -879,11 +877,11 @@ static
 void
 trx_serialisation_number_get(
 /*=========================*/
-	trx_t*		trx,			/*!< in: transaction */
-	trx_undo_ptr_t*	redo_rseg_undo_ptr,	/* Set trx serialisation number
-						in referred undo rseg. */
-	trx_undo_ptr_t*	noredo_rseg_undo_ptr)	/* Set trx serialisation number
-						in referred undo rseg. */
+	trx_t*		trx,			/*!< in/out: transaction */
+	trx_undo_ptr_t*	redo_rseg_undo_ptr,	/*!< in/out: Set trx serialisation
+						number in referred undo rseg. */
+	trx_undo_ptr_t*	noredo_rseg_undo_ptr)	/*!< in/out: Set trx serialisation
+						number in referred undo rseg. */
 {
 	trx_rseg_t*	redo_rseg = 0;
 	trx_rseg_t*	noredo_rseg = 0;
