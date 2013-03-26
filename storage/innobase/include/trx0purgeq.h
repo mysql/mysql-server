@@ -23,7 +23,7 @@ Purge Queue implementation.
 Created 2013-03-26 by Krunal Bauskar.
 *******************************************************/
 
-#ifndef trx0purgeq_h 
+#ifndef trx0purgeq_h
 #define trx0purgeq_h
 
 #include "trx0trx.h"

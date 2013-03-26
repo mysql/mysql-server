@@ -733,8 +733,6 @@ enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
 };
 
-#define	TRX_MAX_ASSIGNED_RSEGS	(TRX_RSEG_TYPE_NOREDO)
-
 struct trx_t{
 	ulint		magic_n;
 
