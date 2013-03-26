@@ -639,7 +639,7 @@ trx_assign_rseg_low(
 					tablespaces */
 	trx_rseg_type_t	rseg_type)	/*!< in: if true, assign rseg from
 					redo rseg pool else from nonredo
-					rseg pool. */	
+					rseg pool. */
 {
 	trx_rseg_t*	rseg = 0;
 	static ulint	redo_rseg_slot = 0;
@@ -873,7 +873,7 @@ trx_start_low(
 }
 
 /****************************************************************//**
-Set the transaction serialisation number. 
+Set the transaction serialisation number.
 Note: transaction serialisation number is pre-generated and set in trx->no. */
 static
 void
@@ -1381,8 +1381,8 @@ trx_commit_low(
 	ut_ad(!mtr || mtr->state == MTR_ACTIVE);
 	ut_ad(!mtr == !(trx->rsegs.m_redo.insert_undo
 			|| trx->rsegs.m_redo.update_undo
-		  	|| trx->rsegs.m_noredo.insert_undo
-		  	|| trx->rsegs.m_noredo.update_undo));
+			|| trx->rsegs.m_noredo.insert_undo
+			|| trx->rsegs.m_noredo.update_undo));
 
 	/* undo_no is non-zero if we're doing the final commit. */
 	if (trx->fts_trx && trx->undo_no != 0) {
@@ -2048,7 +2048,6 @@ trx_prepare(
 
 	return(lsn);
 }
-	
 
 /****************************************************************//**
 Prepares a transaction. */

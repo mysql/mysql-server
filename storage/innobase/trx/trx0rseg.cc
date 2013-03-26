@@ -317,7 +317,7 @@ trx_rseg_create(
 /*============*/
 	ulint	space,		/*!< in: id of UNDO tablespace */
 	ulint	nth_free_slot)	/*!< in: allocate nth free slot.
-				0 means next free slots. */	
+				0 means next free slots. */
 {
 	mtr_t		mtr;
 	ulint		slot_no;

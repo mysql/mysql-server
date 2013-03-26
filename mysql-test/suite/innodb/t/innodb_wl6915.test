@@ -9,7 +9,7 @@
 # Will test following scenarios:
 # 1. Try loading table with commit and rollback action
 #    (this will ensure proper rseg is being used).
-# 2. Load temp and non-temp table with purge activity. 
+# 2. Load temp and non-temp table with purge activity.
 # 3. In xa trx try loading temp + non-temp table.
 #    (Same as case-2 but from xa perspective)
 #
@@ -47,7 +47,7 @@ drop table t1;
 
 #-----------------------------------------------------------------------------
 #
-# 2. Load temp and non-temp table with purge activity. 
+# 2. Load temp and non-temp table with purge activity.
 #
 use test;
 create temporary table t1
