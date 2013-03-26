@@ -559,8 +559,8 @@ longlong Item_func_spatial_mbr_rel::val_int()
 	args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
 	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-	g1->get_mbr(&mbr1, &dummy) ||
-	g2->get_mbr(&mbr2, &dummy))))
+	g1->get_mbr(&mbr1, &dummy) || !mbr1.valid() ||
+	g2->get_mbr(&mbr2, &dummy) || !mbr2.valid())))
    return 0;
 
   switch (spatial_rel) {
@@ -686,8 +686,8 @@ longlong Item_func_spatial_rel::val_int()
        (args[0]->null_value || args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
 	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-        g1->get_mbr(&mbr1, &c_end) ||
-        g2->get_mbr(&mbr2, &c_end))))
+        g1->get_mbr(&mbr1, &c_end) || !mbr1.valid() ||
+        g2->get_mbr(&mbr2, &c_end) || !mbr2.valid())))
     goto exit;
 
   umbr= mbr1;
@@ -824,8 +824,8 @@ String *Item_func_spatial_operation::val_str(String *str_value)
        (args[0]->null_value || args[1]->null_value ||
 	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
 	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-        g1->get_mbr(&mbr1, &c_end) ||
-        g2->get_mbr(&mbr2, &c_end))))
+        g1->get_mbr(&mbr1, &c_end) || !mbr1.valid() ||
+        g2->get_mbr(&mbr2, &c_end) || !mbr2.valid())))
   {
     str_value= 0;
     goto exit;

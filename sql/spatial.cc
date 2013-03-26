@@ -308,6 +308,9 @@ bool Geometry::envelope(String *result) const
   const char *end;
 
   if (get_mbr(&mbr, &end))
+    return 1;
+
+  if (!mbr.valid())
   {
     /* Empty geometry */
     if (result->reserve(1 + 4*2))
@@ -2322,7 +2325,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, const char **end) const
   n_objects= uint4korr(data);
   data+= 4;
   if (n_objects == 0)
-    return 1;
+    goto exit;
 
   while (n_objects--)
   {
@@ -2339,6 +2342,7 @@ bool Gis_geometry_collection::get_mbr(MBR *mbr, const char **end) const
     if (geom->get_mbr(mbr, &data))
       return 1;
   }
+exit:
   *end= data;
   return 0;
 }
@@ -2356,10 +2360,11 @@ int Gis_geometry_collection::area(double *ar,  const char **end) const
     return 1;
   n_objects= uint4korr(data);
   data+= 4;
-  if (n_objects == 0)
-    return 1;
 
   result= 0.0;
+  if (n_objects == 0)
+    goto exit;
+
   while (n_objects--)
   {
     uint32 wkb_type;
@@ -2376,6 +2381,7 @@ int Gis_geometry_collection::area(double *ar,  const char **end) const
       return 1;
     result+= *ar;
   }
+exit:
   *end= data;
   *ar= result;
   return 0;
@@ -2394,10 +2400,11 @@ int Gis_geometry_collection::geom_length(double *len, const char **end) const
     return 1;
   n_objects= uint4korr(data);
   data+= 4;
-  if (n_objects == 0)
-    return 1;
-
   result= 0.0;
+
+  if (n_objects == 0)
+    goto exit;
+
   while (n_objects--)
   {
     uint32 wkb_type;
@@ -2414,6 +2421,8 @@ int Gis_geometry_collection::geom_length(double *len, const char **end) const
       return 1;
     result+= *len;
   }
+
+exit:
   *end= data;
   *len= result;
   return 0;

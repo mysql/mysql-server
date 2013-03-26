@@ -199,6 +199,9 @@ struct MBR
 
     return (d == intersection.dimension());
   }
+
+  int valid() const
+  { return xmin <= xmax && ymin <= ymax; }
 };
 
 
