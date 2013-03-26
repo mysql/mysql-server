@@ -173,6 +173,14 @@ private:
   bool sync();
   void overflow();
 
+protected:
+  // We want to mock away syncing to disk in unit tests.
+  virtual int do_msync_and_fsync(int fd, void *addr, size_t len, int flags)
+  {
+    return my_msync(fd, addr, len, flags);
+  }
+
+private:
   /**
     Find empty slot in the page and write xid value there.
 

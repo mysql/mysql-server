@@ -64,12 +64,13 @@ void
 buf_dblwr_free(void);
 /*================*/
 /********************************************************************//**
-Updates the doublewrite buffer when an IO request that is part of an
-LRU or flush batch is completed. */
+Updates the doublewrite buffer when an IO request is completed. */
 UNIV_INTERN
 void
-buf_dblwr_update(void);
-/*==================*/
+buf_dblwr_update(
+/*=============*/
+	const buf_page_t*	bpage,	/*!< in: buffer block descriptor */
+	buf_flush_t		flush_type);/*!< in: flush type */
 /****************************************************************//**
 Determines if a page number is located inside the doublewrite buffer.
 @return TRUE if the location is inside the two blocks of the
@@ -110,36 +111,41 @@ UNIV_INTERN
 void
 buf_dblwr_write_single_page(
 /*========================*/
-	buf_page_t*	bpage);	/*!< in: buffer block to write */
+	buf_page_t*	bpage,	/*!< in: buffer block to write */
+	bool		sync);	/*!< in: true if sync IO requested */
 
 /** Doublewrite control struct */
 struct buf_dblwr_t{
-	ib_mutex_t	mutex;	/*!< mutex protecting the first_free field and
-				write_buf */
-	ulint	block1;		/*!< the page number of the first
+	ib_mutex_t	mutex;	/*!< mutex protecting the first_free
+				field and write_buf */
+	ulint		block1;	/*!< the page number of the first
 				doublewrite block (64 pages) */
-	ulint	block2;		/*!< page number of the second block */
-	ulint	first_free;	/*!< first free position in write_buf measured
-				in units of UNIV_PAGE_SIZE */
-	ulint	s_reserved;	/*!< number of slots currently reserved
-				for single page flushes. */
-	ulint	b_reserved;	/*!< number of slots currently reserved
+	ulint		block2;	/*!< page number of the second block */
+	ulint		first_free;/*!< first free position in write_buf
+				measured in units of UNIV_PAGE_SIZE */
+	ulint		b_reserved;/*!< number of slots currently reserved
 				for batch flush. */
-	ibool*	in_use;		/*!< flag used to indicate if a slot is
+	os_event_t	b_event;/*!< event where threads wait for a
+				batch flush to end. */
+	ulint		s_reserved;/*!< number of slots currently
+				reserved for single page flushes. */
+	os_event_t	s_event;/*!< event where threads wait for a
+				single page flush slot. */
+	bool*		in_use;	/*!< flag used to indicate if a slot is
 				in use. Only used for single page
 				flushes. */
-	ibool	batch_running;	/*!< set to TRUE if currently a batch
+	bool		batch_running;/*!< set to TRUE if currently a batch
 				is being written from the doublewrite
 				buffer. */
-	byte*	write_buf;	/*!< write buffer used in writing to the
+	byte*		write_buf;/*!< write buffer used in writing to the
 				doublewrite buffer, aligned to an
 				address divisible by UNIV_PAGE_SIZE
 				(which is required by Windows aio) */
-	byte*	write_buf_unaligned;
-				/*!< pointer to write_buf, but unaligned */
-	buf_page_t**
-		buf_block_arr;	/*!< array to store pointers to the buffer
-				blocks which have been cached to write_buf */
+	byte*		write_buf_unaligned;/*!< pointer to write_buf,
+				but unaligned */
+	buf_page_t**	buf_block_arr;/*!< array to store pointers to
+				the buffer blocks which have been
+				cached to write_buf */
 };
 
 
