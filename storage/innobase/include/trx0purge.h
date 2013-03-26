@@ -200,7 +200,6 @@ struct trx_purge_t{
 	PurgeElem	elem;		/*!< Current active element to purge.
 					Contains array of rollback segments from
 					a transaction that needs to be purged */
-	ulint		rseg_idx;	/*!< Pick next rseg from this pos. */
 	/*-----------------------------*/
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge

@@ -668,11 +668,7 @@ trx_purge_get_rseg_with_min_trx_id(
 	/* Only purge consumes events from the binary heap, user
 	threads only produce the events. */
 
-	if (purge_sys->rseg_idx < TRX_MAX_ASSIGNED_RSEGS
-	    && purge_sys->elem.get_rseg(purge_sys->rseg_idx) != NULL) {
-
-		purge_sys->rseg =
-			purge_sys->elem.get_rseg(purge_sys->rseg_idx++);
+	if ((purge_sys->rseg = purge_sys->elem.get_next_rseg()) != NULL) {
 
 		/* We are still processing rollback segment from same
 		transaction and so expected transaction number shouldn't
@@ -689,14 +685,16 @@ trx_purge_get_rseg_with_min_trx_id(
 
 		purge_sys->purge_queue->pop();
 
-		purge_sys->rseg_idx = 0;
+		purge_sys->elem.reset();
 
-		purge_sys->rseg =
-			purge_sys->elem.get_rseg(purge_sys->rseg_idx++);
+		purge_sys->rseg = purge_sys->elem.get_next_rseg();
 
 		mutex_exit(&purge_sys->pq_mutex);
 
 	} else {
+
+		purge_sys->elem.clear();
+
 		mutex_exit(&purge_sys->pq_mutex);
 
 		purge_sys->rseg = NULL;
