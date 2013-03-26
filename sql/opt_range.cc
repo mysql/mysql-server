@@ -9837,7 +9837,12 @@ FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key)
     return fts;
 }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+
+/*
+  Check if any columns in the key value specified
+  by 'key_info' has a NULL-value.
+*/
+
 static bool
 key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
 {
@@ -9855,7 +9860,6 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   }
   return FALSE;
 }
-#endif
 
 /*
   Create quick select from ref/ref_or_null scan.
@@ -9958,11 +9962,9 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
     quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-#endif
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, records,
