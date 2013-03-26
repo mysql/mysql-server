@@ -43,16 +43,6 @@ extern trx_purge_t*	purge_sys;
 which needs no purge */
 extern trx_undo_rec_t	trx_purge_dummy_rec;
 
-/** This is the purge pointer/iterator. We need both the undo no and the
-transaction no up to which purge has parsed and applied the records. */
-struct purge_iter_t {
-	trx_id_t	trx_no;		/*!< Purge has advanced past all
-					transactions whose number is less
-					than this */
-	undo_no_t	undo_no;	/*!< Purge has advanced past all records
-					whose undo number is less than this */
-};
-
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
 address of its history list node.
@@ -132,6 +122,16 @@ purge_state_t
 trx_purge_state(void);
 /*=================*/
 
+/** This is the purge pointer/iterator. We need both the undo no and the
+transaction no up to which purge has parsed and applied the records. */
+struct purge_iter_t {
+	trx_id_t	trx_no;		/*!< Purge has advanced past all
+					transactions whose number is less
+					than this */
+	undo_no_t	undo_no;	/*!< Purge has advanced past all records
+					whose undo number is less than this */
+};
+
 /** The control structure used in the purge operation */
 struct trx_purge_t{
 	sess_t*		sess;		/*!< System session running the purge
@@ -207,7 +207,7 @@ struct trx_purge_t{
 	/*-----------------------------*/
 	purge_queue_t*	purge_queue;	/*!< Binary min-heap, ordered on
 					PurgeElem::trx_no. It is protected
-					by the bh_mutex */
+					by the pq_mutex */
 	ib_mutex_t	pq_mutex;	/*!< Mutex protecting purge_queue */
 };
 
