@@ -2121,7 +2121,8 @@ bool TC_LOG_MMAP::sync()
     note - no locks are held at this point
   */
 
-  int err= my_msync(fd, syncing->start, syncing->size*sizeof(my_xid), MS_SYNC);
+  int err= do_msync_and_fsync(fd, syncing->start,
+                              syncing->size*sizeof(my_xid), MS_SYNC);
 
   mysql_mutex_lock(&LOCK_tc);
   /* Page is synced. Let's move it to the pool. */
