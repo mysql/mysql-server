@@ -908,7 +908,6 @@ trx_serialisation_number_get(
 	if ((redo_rseg != NULL && redo_rseg->last_page_no == FIL_NULL)
 	    || (noredo_rseg != NULL && noredo_rseg->last_page_no == FIL_NULL)) {
 
-		void*		ptr;
 		PurgeElem	purge_elem;
 
 		if (redo_rseg != NULL) {
@@ -921,7 +920,7 @@ trx_serialisation_number_get(
 
 		purge_elem.set_trx_no(trx->no);
 
-		mutex_enter(&purge_sys->bh_mutex);
+		mutex_enter(&purge_sys->pq_mutex);
 
 		/* This is to reduce the pressure on the trx_sys_t::mutex
 		though in reality it should make very little (read no)
@@ -929,10 +928,9 @@ trx_serialisation_number_get(
 		rbs is empty. */
 		mutex_exit(&trx_sys->mutex);
 
-		ptr = ib_bh_push(purge_sys->ib_bh, &purge_elem);
-		ut_a(ptr);
+		purge_sys->purge_queue->push(purge_elem);
 
-		mutex_exit(&purge_sys->bh_mutex);
+		mutex_exit(&purge_sys->pq_mutex);
 	} else {
 		mutex_exit(&trx_sys->mutex);
 	}

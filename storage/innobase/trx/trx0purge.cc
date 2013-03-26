@@ -66,8 +66,8 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
-/* Key to register purge_sys_bh_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
+/* Key to register purge_sys_pq_mutex with performance schema */
+UNIV_INTERN mysql_pfs_key_t	purge_sys_pq_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 #ifdef UNIV_DEBUG
@@ -114,7 +114,7 @@ trx_purge_sys_create(
 /*=================*/
 	ulint		n_purge_threads,	/*!< in: number of purge
 						threads */
-	ib_bh_t*	ib_bh)			/*!< in, own: UNDO log min
+	purge_queue_t*	purge_queue)		/*!< in, own: UNDO log min
 						binary heap */
 {
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
@@ -122,14 +122,14 @@ trx_purge_sys_create(
 	purge_sys->state = PURGE_STATE_INIT;
 	purge_sys->event = os_event_create();
 
-	/* Take ownership of ib_bh, we are responsible for freeing it. */
-	purge_sys->ib_bh = ib_bh;
+	/* Take ownership of purge_queue, we are responsible for freeing it. */
+	purge_sys->purge_queue = purge_queue;
 
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
 
 	mutex_create(
-		purge_sys_bh_mutex_key, &purge_sys->bh_mutex,
+		purge_sys_pq_mutex_key, &purge_sys->pq_mutex,
 		SYNC_PURGE_QUEUE);
 
 	purge_sys->heap = mem_heap_create(256);
@@ -177,11 +177,14 @@ trx_purge_sys_close(void)
 	purge_sys->view = NULL;
 
 	rw_lock_free(&purge_sys->latch);
-	mutex_free(&purge_sys->bh_mutex);
+	mutex_free(&purge_sys->pq_mutex);
 
 	mem_heap_free(purge_sys->heap);
 
-	ib_bh_free(purge_sys->ib_bh);
+	if (purge_sys->purge_queue) {
+		delete(purge_sys->purge_queue);
+		purge_sys->purge_queue = 0;
+	}
 
 	os_event_free(purge_sys->event);
 
@@ -540,7 +543,6 @@ trx_purge_rseg_get_next_history_log(
 	ulint*		n_pages_handled)/*!< in/out: number of UNDO pages
 					handled */
 {
-	const void*	ptr;
 	page_t*		undo_page;
 	trx_ulogf_t*	log_hdr;
 	fil_addr_t	prev_log_addr;
@@ -639,12 +641,11 @@ trx_purge_rseg_get_next_history_log(
 	than the events that Purge produces. ie. Purge can never produce
 	events from an empty rollback segment. */
 
-	mutex_enter(&purge_sys->bh_mutex);
+	mutex_enter(&purge_sys->pq_mutex);
 
-	ptr = ib_bh_push(purge_sys->ib_bh, &purge_elem);
-	ut_a(ptr != NULL);
+	purge_sys->purge_queue->push(purge_elem);
 
-	mutex_exit(&purge_sys->bh_mutex);
+	mutex_exit(&purge_sys->pq_mutex);
 
 	mutex_exit(&rseg->mutex);
 }
@@ -662,7 +663,7 @@ trx_purge_get_rseg_with_min_trx_id(
 {
 	ulint		zip_size = 0;
 
-	mutex_enter(&purge_sys->bh_mutex);
+	mutex_enter(&purge_sys->pq_mutex);
 
 	/* Only purge consumes events from the binary heap, user
 	threads only produce the events. */
@@ -680,24 +681,23 @@ trx_purge_get_rseg_with_min_trx_id(
 		are no more rseg with same trx_no. */
 		purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
 
-		mutex_exit(&purge_sys->bh_mutex);
+		mutex_exit(&purge_sys->pq_mutex);
 
-	} else if (!ib_bh_is_empty(purge_sys->ib_bh)) {
+	} else if (!purge_sys->purge_queue->empty()) {
 
-		purge_sys->elem = *(static_cast<PurgeElem*>(
-			ib_bh_first(purge_sys->ib_bh)));
+		purge_sys->elem = purge_sys->purge_queue->top();
 
-		ib_bh_pop(purge_sys->ib_bh);
+		purge_sys->purge_queue->pop();
 
 		purge_sys->rseg_idx = 0;
 
 		purge_sys->rseg =
 			purge_sys->elem.get_rseg(purge_sys->rseg_idx++);
 
-		mutex_exit(&purge_sys->bh_mutex);
+		mutex_exit(&purge_sys->pq_mutex);
 
 	} else {
-		mutex_exit(&purge_sys->bh_mutex);
+		mutex_exit(&purge_sys->pq_mutex);
 
 		purge_sys->rseg = NULL;
 
@@ -1145,13 +1145,13 @@ trx_purge_wait_for_workers_to_complete(
 	while (!os_compare_and_swap_ulint(
 			&purge_sys->n_completed, n_submitted, n_submitted)) {
 #else
-	mutex_enter(&purge_sys->bh_mutex);
+	mutex_enter(&purge_sys->pq_mutex);
 
 	while (purge_sys->n_completed < n_submitted) {
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 #ifndef HAVE_ATOMIC_BUILTINS
-		mutex_exit(&purge_sys->bh_mutex);
+		mutex_exit(&purge_sys->pq_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 		if (srv_get_task_queue_length() > 0) {
@@ -1161,12 +1161,12 @@ trx_purge_wait_for_workers_to_complete(
 		os_thread_yield();
 
 #ifndef HAVE_ATOMIC_BUILTINS
-		mutex_enter(&purge_sys->bh_mutex);
+		mutex_enter(&purge_sys->pq_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 	}
 
 #ifndef HAVE_ATOMIC_BUILTINS
-	mutex_exit(&purge_sys->bh_mutex);
+	mutex_exit(&purge_sys->pq_mutex);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* None of the worker threads should be doing any work. */
@@ -1268,7 +1268,7 @@ run_synchronously:
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
-			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
+			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
 
 		if (n_purge_threads > 1) {
 			trx_purge_wait_for_workers_to_complete(purge_sys);
