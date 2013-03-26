@@ -155,7 +155,7 @@ public:
 		for (free_slot = 0;
 		     (free_slot < TRX_MAX_ASSIGNED_RSEGS
 		      && m_rsegs[free_slot] != 0);
-		     free_slot++); 
+		     free_slot++);
 
 		if (free_slot == TRX_MAX_ASSIGNED_RSEGS) {
 			return(false);
