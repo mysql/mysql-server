@@ -1660,6 +1660,7 @@ lock_rec_has_expl(
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (lock->trx == trx
+		    && !lock_rec_get_insert_intention(lock)
 		    && !lock_is_wait_not_by_other(lock->type_mode)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
@@ -1670,8 +1671,7 @@ lock_rec_has_expl(
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
 		    && (!lock_rec_get_gap(lock)
 			|| (precise_mode & LOCK_GAP)
-			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
-		    && (!lock_rec_get_insert_intention(lock))) {
+			|| heap_no == PAGE_HEAP_NO_SUPREMUM)) {
 
 			return(lock);
 		}
@@ -6890,6 +6890,28 @@ lock_trx_has_sys_table_locks(
 	lock_mutex_exit();
 
 	return(strongest_lock);
+}
+
+/*******************************************************************//**
+Check if the transaction holds an exclusive lock on a record.
+@return	whether the locks are held */
+UNIV_INTERN
+bool
+lock_trx_has_rec_x_lock(
+/*====================*/
+	const trx_t*		trx,	/*!< in: transaction to check */
+	const dict_table_t*	table,	/*!< in: table to check */
+	const buf_block_t*	block,	/*!< in: buffer block of the record */
+	ulint			heap_no)/*!< in: record heap number */
+{
+	ut_ad(heap_no > PAGE_HEAP_NO_SUPREMUM);
+
+	lock_mutex_enter();
+	ut_a(lock_table_has(trx, table, LOCK_IX));
+	ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+			       block, heap_no, trx));
+	lock_mutex_exit();
+	return(true);
 }
 #endif /* UNIV_DEBUG */
 
