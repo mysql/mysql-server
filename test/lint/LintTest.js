@@ -73,18 +73,29 @@ function lintTest(basePath, sourceFile, ignoreLines) {
     if(! ok) {
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
-        line = e ? e.line : 0;
-        ignore = -1 !== ignoreLines.indexOf(line);
-        if(e && !ignore) {
-          n += 1;
-          msg += util.format('\n * Line %d[%d]: %s', line, e.character, e.reason);
+        if (e) {
+          var ignoreLine = ignoreLines.indexOf(e.line);
+          if (ignoreLine === -1) {
+            n += 1;
+            msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
+            ignoreLines.indexOf(e.line);        
+          } else {
+            var ignored = ignoreLines.splice(ignoreLine, 1);
+          }
         }
       }
-      msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
-      if (n > 0) {
-        this.appendErrorMessage(msg);
+        if (n > 0) {
+          msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
+          this.appendErrorMessage(msg);
+        }
       }
-    }
+      // if any errors left, that is also an error
+      if (ignoreLines.length !== 0) {
+        for (i = 0; i < ignoreLines.length; ++i) {
+          msg = "Ignored error line " + ignoreLines[i] + " did not contain an error";
+          this.appendErrorMessage(msg);
+        }
+      }
     return true;
   };
   
