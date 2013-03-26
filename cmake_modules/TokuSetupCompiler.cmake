@@ -25,9 +25,7 @@ endif ()
 ## add TOKU_PTHREAD_DEBUG for debug builds
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG=1)
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO TOKU_PTHREAD_DEBUG=1)
-## fortify doesn't work with -O0, so we are deprecating it for now.  Sometime we should turn on 
-## fortify for -O1 builds, but we don't want it on the release builds.
-## #set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO _FORTIFY_SOURCE=2)
+set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELWITHDEBINFO _FORTIFY_SOURCE=2)
 
 ## coverage
 option(USE_GCOV "Use gcov for test coverage." OFF)
