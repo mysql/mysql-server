@@ -151,7 +151,7 @@ public:
 	bool add(trx_rseg_t* rseg)
 	{
 		ulint free_slot = 0;
-		while (free_slot < TRX_MAX_ASSIGNED_RSEGS 
+		while (free_slot < TRX_MAX_ASSIGNED_RSEGS
 		       && m_rsegs[free_slot] != 0) {
 			free_slot++;
 		}
@@ -159,7 +159,7 @@ public:
 		if (free_slot == TRX_MAX_ASSIGNED_RSEGS) {
 			return(false);
 		}
-		
+
 		m_rsegs[free_slot] = rseg;
 
 		return(true);
