@@ -210,7 +210,11 @@ ClusterMgr::doStop( ){
   {
     theArbitMgr->doStop(NULL);
   }
-  this->close(); // disconnect from TransporterFacade
+  {
+    /* Need protection for poll calls in close */
+    Guard g(clusterMgrThreadMutex);
+    this->close(); // disconnect from TransporterFacade
+  }
 
   DBUG_VOID_RETURN;
 }
