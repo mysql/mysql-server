@@ -239,6 +239,7 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_rdtsc
   mysys_my_vsnprintf
+  mysys_my_write
   sql_list
   sql_plist
   sql_string

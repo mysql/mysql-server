@@ -1121,6 +1121,7 @@ err:
    Go through a list of tables and join nests, recursively, and if they have
    the name_resolution_context which points to removed_select, repoint it to
    parent_select.
+   The select_lex pointer of the join nest is also repointed.
 
    @param  join_list  List of tables and join nests
    @param  removed_select  select_lex which is removed (merged into
@@ -1135,6 +1136,8 @@ static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
   TABLE_LIST *tbl;
   while ((tbl= ti++))
   {
+    DBUG_ASSERT(tbl->select_lex == removed_select);
+    tbl->select_lex= parent_select;
     if (tbl->context_of_embedding &&
         tbl->context_of_embedding->select_lex == removed_select)
       tbl->context_of_embedding->select_lex= parent_select;

@@ -509,7 +509,7 @@ buf_flush_or_remove_page(
 
 		/* The following call will release the buffer pool
 		and block mutex. */
-		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
+		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
 		ut_ad(!mutex_own(block_mutex));
 
 		/* Wake possible simulated aio thread to actually

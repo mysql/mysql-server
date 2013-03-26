@@ -2563,7 +2563,7 @@ ulint
 ibuf_merge_pages(
 /*=============*/
 	ulint*	n_pages,	/*!< out: number of pages to which merged */
-	bool	sync)		/*!< in: TRUE if the caller wants to wait for
+	bool	sync)		/*!< in: true if the caller wants to wait for
 				the issued read with the highest tablespace
 				address to complete */
 {
@@ -2708,7 +2708,7 @@ ibuf_merge_space(
 #endif /* UNIV_DEBUG */
 
 		buf_read_ibuf_merge_pages(
-			TRUE, spaces, versions, pages, *n_pages);
+			true, spaces, versions, pages, *n_pages);
 	}
 
 	return(sum_sizes);
@@ -3764,7 +3764,7 @@ func_exit:
 #ifdef UNIV_IBUF_DEBUG
 		ut_a(n_stored <= IBUF_MAX_N_PAGES_MERGED);
 #endif
-		buf_read_ibuf_merge_pages(FALSE, space_ids, space_versions,
+		buf_read_ibuf_merge_pages(false, space_ids, space_versions,
 					  page_nos, n_stored);
 	}
 
