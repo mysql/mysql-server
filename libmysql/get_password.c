@@ -67,8 +67,8 @@ void get_tty_password_buff(const char *opt_message, char *to, size_t length)
   char *pos=to,*end=to+length-1;
   int i=0;
 
-  consoleinput= GetStdHandle(STD_INPUT_HANDLE);
-  if (!consoleinput) 
+  consoleinput= CreateFile("CONIN$", GENERIC_WRITE | GENERIC_READ, 0 , NULL, 0, 0, NULL); 
+  if (consoleinput == NULL || consoleinput == INVALID_HANDLE_VALUE) 
   {
      /* This is a GUI application or service  without console input, bail out. */
      *to= 0;
@@ -108,6 +108,7 @@ void get_tty_password_buff(const char *opt_message, char *to, size_t length)
   }
   /* Reset console mode after password input. */ 
   SetConsoleMode(consoleinput, oldstate);
+  CloseHandle(consoleinput);
   *pos=0;
   _cputs("\n");
 }
