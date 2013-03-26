@@ -33,7 +33,6 @@
          "Adapter/impl/src/DBOperationHelper.cpp",
          "Adapter/impl/src/DBDictionaryImpl.cpp",
          "Adapter/impl/src/Record_wrapper.cpp",
-         "Adapter/impl/src/Native_encoders.cpp",
          "Adapter/impl/src/Ndb_init_wrapper.cpp",
          "Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp",
          "Adapter/impl/src/NdbTransaction_wrapper.cpp",
@@ -42,6 +41,8 @@
          "Adapter/impl/src/NdbOperation_wrapper.cpp",
          "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/AsyncNdbContext_wrapper.cpp",
+         "Adapter/impl/src/NdbTypeEncoders.cpp",
+         "Adapter/impl/src/NdbRecordObject.cpp"
       ],
 
       'conditions': 
