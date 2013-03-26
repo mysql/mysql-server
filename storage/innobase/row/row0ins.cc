@@ -2322,6 +2322,7 @@ row_ins_clust_index_entry_low(
 	ut_ad(!dict_index_is_unique(index)
 	      || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
+	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
 
