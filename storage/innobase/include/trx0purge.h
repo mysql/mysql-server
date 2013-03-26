@@ -137,7 +137,7 @@ class PurgeElem {
 public:
 	PurgeElem()
 		:
-		m_trx_no(0)
+		m_trx_no()
 	{
 		for (ulint i = 0; i < TRX_MAX_ASSIGNED_RSEGS; i++) {
 			m_rsegs[i] = 0;
@@ -150,11 +150,12 @@ public:
 	@return bool - true if added else false. */
 	bool add(trx_rseg_t* rseg)
 	{
-		ulint free_slot = 0;
-		while (free_slot < TRX_MAX_ASSIGNED_RSEGS
-		       && m_rsegs[free_slot] != 0) {
-			free_slot++;
-		}
+		ulint free_slot;
+
+		for (free_slot = 0;
+		     (free_slot < TRX_MAX_ASSIGNED_RSEGS
+		      && m_rsegs[free_slot] != 0);
+		     free_slot++); 
 
 		if (free_slot == TRX_MAX_ASSIGNED_RSEGS) {
 			return(false);
@@ -187,9 +188,7 @@ public:
 	@return trx_rseg_t - if pos valid: rollback segment, else NULL */
 	trx_rseg_t* get_rseg(int pos)
 	{
-		if (pos >= TRX_MAX_ASSIGNED_RSEGS) {
-			return(NULL);
-		}
+		ut_a(pos >= 0 && pos < TRX_MAX_ASSIGNED_RSEGS);
 
 		return(m_rsegs[pos]);
 	}
@@ -199,14 +198,16 @@ public:
 	@param - elem1 - first element to compare
 	@param - elem2 - second element to compare
 	@return int - 0: equal, 1: elem1 > elem2, -1: elem1 < elem2 */
-	static int compare_purge_elem_func(
+	static int compare(
 		const void*	elem1,
 		const void*	elem2)
 	{
 		ib_int64_t	cmp;
 
-		const PurgeElem* purge_elem1 = (const PurgeElem*) elem1;
-		const PurgeElem* purge_elem2 = (const PurgeElem*) elem2;
+		const PurgeElem* purge_elem1 =
+			static_cast<const PurgeElem*>(elem1);
+		const PurgeElem* purge_elem2 =
+			static_cast<const PurgeElem*>(elem2);
 
 		cmp = purge_elem1->get_trx_no() - purge_elem2->get_trx_no();
 
@@ -220,11 +221,12 @@ public:
 	}
 
 private:
+	/** Transaction number of a transaction of which rollback segments
+	are part off. */
 	trx_id_t	m_trx_no;	/*!< trx_rseg_t::last_trx_no */
 
+	/** Rollback segments of a transaction, scheduled for purge. */
 	trx_rseg_t*     m_rsegs[TRX_MAX_ASSIGNED_RSEGS];
-					/*!< Rollback segments assigned to
-					a transaction */
 };
 
 /** The control structure used in the purge operation */

@@ -490,8 +490,7 @@ trx_sys_init_at_db_start(void)
 	for freeing the binary heap. */
 
 	ib_bh = ib_bh_create(
-		PurgeElem::compare_purge_elem_func,
-		sizeof(PurgeElem), TRX_SYS_N_RSEGS);
+		PurgeElem::compare, sizeof(PurgeElem), TRX_SYS_N_RSEGS);
 
 	mtr_start(&mtr);
 

@@ -86,7 +86,7 @@ trx_roll_pop_top_rec_of_trx(
 	mem_heap_t*	heap);		/*!< in: memory heap where copied */
 
 /********************************************************************//**
-Get next undo log record from standard and temporary rollback segments.
+Get next undo log record from redo and noredo rollback segments.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
 UNIV_INTERN
