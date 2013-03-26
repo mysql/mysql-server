@@ -1,6 +1,7 @@
 --source include/have_simple_parser.inc
 
 # Install fts parser plugin
+--replace_regex /\.dll/.so/
 eval INSTALL PLUGIN simple_parser SONAME '$SIMPLE_PARSER';
 
 # Create a myisam table and alter it to innodb table

@@ -873,12 +873,15 @@ row_log_table_get_pk(
 			ulint			col_no;
 			ulint			i;
 			ulint			len;
+			ulint			prtype;
+			ulint			mbminmaxlen;
 			const byte*		field;
 
 			ifield = dict_index_get_nth_field(new_index, new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
 			new_col = dict_field_get_col(ifield);
 			col_no = new_col->ind;
+			col = dict_table_get_nth_col(index->table, col_no);
 
 			for (ulint old_i = 0; old_i < index->table->n_cols;
 			     old_i++) {
@@ -892,14 +895,16 @@ row_log_table_get_pk(
 			table, so this must be an added column.
 			Copy the default value. */
 			ut_ad(log->add_cols);
+
 			dfield_copy(dfield,
 				    dtuple_get_nth_field(
 					    log->add_cols, col_no));
-			continue;
+			len = dfield_get_len(dfield);
+			mbminmaxlen = dfield_get_type(dfield)->mbminmaxlen;
+			prtype = dfield_get_type(dfield)->prtype;
+			goto copied_col;
 
 copy_col:
-			col = dict_table_get_nth_col(index->table, col_no);
-
 			i = dict_col_get_clust_pos(col, index);
 
 			if (i == ULINT_UNDEFINED) {
@@ -946,14 +951,26 @@ copy_col:
 
 				dfield_set_data(dfield, blob_field, len);
 			} else {
-				if (ifield->prefix_len
-				    && ifield->prefix_len < len) {
-					len = ifield->prefix_len;
-				}
-
 				dfield_set_data(
 					dfield,
 					mem_heap_dup(*heap, field, len), len);
+			}
+
+			mbminmaxlen = col->mbminmaxlen;
+			prtype = col->prtype;
+copied_col:
+			ut_ad(!dfield_is_ext(dfield));
+			ut_ad(len != UNIV_SQL_NULL);
+
+			if (ifield->prefix_len) {
+				len = dtype_get_at_most_n_mbchars(
+					prtype, mbminmaxlen,
+					ifield->prefix_len, len,
+					static_cast<const char*>(
+						dfield_get_data(dfield)));
+
+				ut_ad(len <= dfield_get_len(dfield));
+				dfield_set_len(dfield, len);
 			}
 		}
 
