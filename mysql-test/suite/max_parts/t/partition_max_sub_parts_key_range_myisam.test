@@ -1,4 +1,5 @@
 ################################################################################
+#                                                                              #
 # Purpose:                                                                     #
 #  Tests around number of partitions                                           #
 #------------------------------------------------------------------------------#
@@ -20,4 +21,4 @@
 ##### Storage engine to be tested
 let $engine= 'MyISAM';
 
---source suite/parts/inc/partition_max_parts_hash.inc
+--source suite/max_parts/inc/partition_max_sub_parts_key_range.inc
