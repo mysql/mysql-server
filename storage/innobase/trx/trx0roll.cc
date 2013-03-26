@@ -842,7 +842,7 @@ trx_undo_arr_create(
 
 	arr->n_cells = n_cells;
 
-	arr->infos = (trx_undo_inf_t*) (arr + 1);
+	arr->infos = reinterpret_cast<trx_undo_inf_t*>(arr + 1);
 
 	arr->heap = heap;
 

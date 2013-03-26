@@ -128,25 +128,6 @@ struct TrxFactory {
 
 		trx->global_read_view_heap = mem_heap_create(256);
 
-		mem_heap_t*	heap;
-		ib_alloc_t*	heap_alloc;
-
-		heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
-		heap_alloc = ib_heap_allocator_create(heap);
-
-		/* Remember to free the vector explicitly in trx_free(). */
-		trx->autoinc_locks = ib_vector_create(
-			heap_alloc, sizeof(void**), 4);
-
-		/* Remember to free the vector explicitly in trx_free(). */
-		heap = mem_heap_create(
-			sizeof(ib_vector_t) + sizeof(void*) * 128);
-
-		heap_alloc = ib_heap_allocator_create(heap);
-
-		trx->lock.table_locks = ib_vector_create(
-			heap_alloc, sizeof(void**), 32);
-
 		mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
 
 		mutex_create(
@@ -175,27 +156,52 @@ struct TrxFactory {
 
 		ut_a(trx->dict_operation_lock_mode == 0);
 
-		if (trx->lock.lock_heap) {
+		if (trx->lock.lock_heap != NULL) {
 			mem_heap_free(trx->lock.lock_heap);
+			trx->lock.lock_heap = NULL;
 		}
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 
-		if (trx->global_read_view_heap) {
+		if (trx->global_read_view_heap != NULL) {
 			mem_heap_free(trx->global_read_view_heap);
-		}
-
-		ut_a(ib_vector_is_empty(trx->autoinc_locks));
-		/* We allocated a dedicated heap for the vector. */
-		ib_vector_free(trx->autoinc_locks);
-
-		if (trx->lock.table_locks != NULL) {
-			/* We allocated a dedicated heap for the vector. */
-			ib_vector_free(trx->lock.table_locks);
+			trx->global_read_view_heap = NULL;
 		}
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
+	}
+
+	static bool debug(const trx_t* trx)
+	{
+		ut_a(trx->magic_n == TRX_MAGIC_N);
+
+		ut_ad(!trx->read_only);
+
+		ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+		ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+
+		ut_ad(trx->mysql_thd == 0);
+
+		ut_ad(!trx->in_ro_trx_list);
+		ut_ad(!trx->in_rw_trx_list);
+		ut_ad(!trx->in_mysql_trx_list);
+
+		ut_a(trx->lock.wait_thr == NULL);
+		ut_a(trx->lock.wait_lock == NULL);
+
+		ut_a(!trx->has_search_latch);
+
+		ut_a(trx->dict_operation_lock_mode == 0);
+
+		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
+
+		ut_ad(trx->autoinc_locks == NULL);
+
+		ut_ad(trx->lock.table_locks == NULL);
+
+		return(true);
 	}
 };
 
@@ -206,9 +212,7 @@ struct TrxPoolLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(
-			trx_pool_mutex_key, &m_mutex,
-			SYNC_NO_ORDER_CHECK);
+		mutex_create(trx_pool_mutex_key, &m_mutex, SYNC_POOL);
 	}
 
 	/** Acquire the mutex */
@@ -231,9 +235,7 @@ struct TrxPoolManagerLock {
 	/** Create the mutex */
 	void create()
 	{
-		mutex_create(
-			trx_pools_mutex_key, &m_mutex,
-			SYNC_NO_ORDER_CHECK);
+		mutex_create(trx_pools_mutex_key, &m_mutex, SYNC_POOL_MANAGER);
 	}
 
 	/** Acquire the mutex */
@@ -264,9 +266,9 @@ UNIV_INTERN
 void
 trx_pool_init()
 {
-	trx_pools = new trx_pools_t(MAX_TRX_BLOCK_SIZE);
+	trx_pools = new (std::nothrow) trx_pools_t(MAX_TRX_BLOCK_SIZE);
 
-	trx_pools->add_pool();
+	ut_a(trx_pools != 0);
 }
 
 /** Destroy the trx_t pool */
@@ -314,6 +316,23 @@ trx_create_low()
 
 	trx->op_info = "";
 
+	mem_heap_t*	heap;
+	ib_alloc_t*	heap_alloc;
+
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 8);
+	heap_alloc = ib_heap_allocator_create(heap);
+
+	/* Remember to free the vector explicitly in trx_free(). */
+	trx->autoinc_locks = ib_vector_create(heap_alloc, sizeof(void**), 4);
+
+	/* Remember to free the vector explicitly in trx_free(). */
+	heap = mem_heap_create(sizeof(ib_vector_t) + sizeof(void*) * 32);
+
+	heap_alloc = ib_heap_allocator_create(heap);
+
+	trx->lock.table_locks = ib_vector_create(
+		heap_alloc, sizeof(void**), 32);
+
 	return(trx);
 }
 
@@ -331,6 +350,21 @@ trx_free(trx_t*& trx)
 	ut_a(!trx->read_only);
 
 	trx->mysql_thd = 0;
+
+	// FIXME: We need to avoid this heap free/alloc for each commit.
+	if (trx->autoinc_locks != NULL) {
+		ut_ad(ib_vector_is_empty(trx->autoinc_locks));
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->autoinc_locks);
+		trx->autoinc_locks = NULL;
+	}
+
+	if (trx->lock.table_locks != NULL) {
+		ut_ad(ib_vector_is_empty(trx->lock.table_locks));
+		/* We allocated a dedicated heap for the vector. */
+		ib_vector_free(trx->lock.table_locks);
+		trx->lock.table_locks = NULL;
+	}
 
 	trx_pools->free(trx);
 }
