@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -825,6 +825,17 @@ lock_trx_has_sys_table_locks(
 	const trx_t*	trx)	/*!< in: transaction to check */
 	__attribute__((warn_unused_result));
 #endif /* UNIV_DEBUG */
+
+/*******************************************************************//**
+Check if any of the tables locked by this transaction are being altered
+by online DDL, this is a temporary work around for bug#16503490.
+@return true if they are being altered */
+UNIV_INTERN
+bool
+lock_tables_are_being_altered(
+/*==========================*/
+	const trx_t*	trx)	/*!< in: transaction */
+	__attribute__((warn_unused_result));
 
 /** Lock modes and types */
 /* @{ */

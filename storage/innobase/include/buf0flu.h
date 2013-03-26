@@ -87,13 +87,6 @@ buf_flush_page_try(
 	buf_block_t*	block)		/*!< in/out: buffer control block */
 	__attribute__((nonnull, warn_unused_result));
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
-/********************************************************************//**
-Flush a batch of writes to the datafiles that have already been
-written by the OS. */
-UNIV_INTERN
-void
-buf_flush_sync_datafiles(void);
-/*==========================*/
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
 all buffer pool instances.
@@ -248,7 +241,8 @@ buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
-	buf_flush_t	flush_type)	/*!< in: type of flush */
+	buf_flush_t	flush_type,	/*!< in: type of flush */
+	bool		sync)		/*!< in: true if sync IO request */
 	__attribute__((nonnull));
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
