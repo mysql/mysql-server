@@ -2388,7 +2388,7 @@ srv_task_execute(void)
 		que_run_threads(thr);
 
 		os_atomic_inc_ulint(
-			&purge_sys->bh_mutex, &purge_sys->n_completed, 1);
+			&purge_sys->pq_mutex, &purge_sys->n_completed, 1);
 	}
 
 	return(thr != NULL);
