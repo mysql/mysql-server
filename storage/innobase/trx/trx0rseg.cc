@@ -33,7 +33,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "fut0lst.h"
 #include "srv0srv.h"
 #include "trx0purge.h"
-#include "ut0bh.h"
 #include "srv0mon.h"
 #include "srv0space.h"
 
@@ -179,7 +178,7 @@ trx_rseg_mem_create(
 					or 0 for uncompressed pages */
 	ulint		page_no,	/*!< in: page number of the segment
 					header */
-	ib_bh_t*	ib_bh,		/*!< in/out: rseg queue */
+	purge_queue_t*	purge_queue,	/*!< in/out: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		len;
@@ -246,13 +245,11 @@ trx_rseg_mem_create(
 		purge_elem.set_trx_no(rseg->last_trx_no);
 
 		if (rseg->last_page_no != FIL_NULL) {
-			const void*	ptr;
 
 			/* There is no need to cover this operation by the purge
 			mutex because we are still bootstrapping. */
 
-			ptr = ib_bh_push(ib_bh, &purge_elem);
-			ut_a(ptr != NULL);
+			purge_queue->push(purge_elem);
 		}
 	} else {
 		rseg->last_page_no = FIL_NULL;
@@ -269,7 +266,7 @@ void
 trx_rseg_create_instance(
 /*=====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	ib_bh_t*	ib_bh,		/*!< in/out: rseg queue */
+	purge_queue_t*	purge_queue,	/*!< in/out: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		i;
@@ -299,7 +296,7 @@ trx_rseg_create_instance(
 				   ? fil_space_get_zip_size(space) : 0;
 
 			rseg = trx_rseg_mem_create(
-				i, space, zip_size, page_no, ib_bh, mtr);
+				i, space, zip_size, page_no, purge_queue, mtr);
 
 			ut_a(rseg->id == i);
 		} else {
@@ -353,7 +350,7 @@ trx_rseg_create(
 
 		rseg = trx_rseg_mem_create(
 			slot_no, space, zip_size, page_no,
-			purge_sys->ib_bh, &mtr);
+			purge_sys->purge_queue, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -369,12 +366,12 @@ void
 trx_rseg_array_init(
 /*================*/
 	trx_sysf_t*	sys_header,	/* in/out: trx system header */
-	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
+	purge_queue_t*	purge_queue,	/*!< in: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_sys->rseg_history_len = 0;
 
-	trx_rseg_create_instance(sys_header, ib_bh, mtr);
+	trx_rseg_create_instance(sys_header, purge_queue, mtr);
 }
 
 /********************************************************************

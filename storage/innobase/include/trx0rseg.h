@@ -29,7 +29,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 #include "trx0types.h"
 #include "trx0sys.h"
-#include "ut0bh.h"
 
 /******************************************************************//**
 Gets a rollback segment header.
@@ -114,7 +113,7 @@ void
 trx_rseg_array_init(
 /*================*/
 	trx_sysf_t*	sys_header,	/*!< in/out: trx system header */
-	ib_bh_t*	ib_bh,		/*!< in: rseg queue */
+	purge_queue_t*	purge_queue,	/*!< in: rseg queue */
 	mtr_t*		mtr);		/*!< in/out: mtr */
 /***************************************************************************
 Free's an instance of the rollback segment in memory. */

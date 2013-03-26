@@ -1135,7 +1135,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
-	ib_bh_t*	ib_bh;
+	purge_queue_t*	purge_queue;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
@@ -1886,12 +1886,12 @@ files_checked:
 		after the double write buffer has been created. */
 		trx_sys_create_sys_pages();
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		err = dict_create();
 
@@ -1966,12 +1966,12 @@ files_checked:
 			return(srv_init_abort(err));
 		}
 
-		ib_bh = trx_sys_init_at_db_start();
+		purge_queue = trx_sys_init_at_db_start();
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
 
-		trx_purge_sys_create(srv_n_purge_threads, ib_bh);
+		trx_purge_sys_create(srv_n_purge_threads, purge_queue);
 
 		/* recv_recovery_from_checkpoint_finish needs trx lists which
 		are initialized in trx_sys_init_at_db_start(). */

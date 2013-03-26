@@ -34,6 +34,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "page0page.h"
 #include "usr0sess.h"
 #include "fil0fil.h"
+#include "trx0purgeq.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -41,6 +42,16 @@ extern trx_purge_t*	purge_sys;
 /** A dummy undo record used as a return value when we have a whole undo log
 which needs no purge */
 extern trx_undo_rec_t	trx_purge_dummy_rec;
+
+/** This is the purge pointer/iterator. We need both the undo no and the
+transaction no up to which purge has parsed and applied the records. */
+struct purge_iter_t {
+	trx_id_t	trx_no;		/*!< Purge has advanced past all
+					transactions whose number is less
+					than this */
+	undo_no_t	undo_no;	/*!< Purge has advanced past all records
+					whose undo number is less than this */
+};
 
 /********************************************************************//**
 Calculates the file address of an undo log header when we have the file
@@ -60,7 +71,7 @@ void
 trx_purge_sys_create(
 /*=================*/
 	ulint		n_purge_threads,/*!< in: number of purge threads */
-	ib_bh_t*	ib_bh);		/*!< in/own: UNDO log min binary heap*/
+	purge_queue_t*	purge_queue);	/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
 UNIV_INTERN
@@ -120,114 +131,6 @@ UNIV_INTERN
 purge_state_t
 trx_purge_state(void);
 /*=================*/
-
-/** This is the purge pointer/iterator. We need both the undo no and the
-transaction no up to which purge has parsed and applied the records. */
-struct purge_iter_t {
-	trx_id_t	trx_no;		/*!< Purge has advanced past all
-					transactions whose number is less
-					than this */
-	undo_no_t	undo_no;	/*!< Purge has advanced past all records
-					whose undo number is less than this */
-};
-
-/** Purge Element is used by query processing thread for submitting purge-request. */
-class PurgeElem {
-
-public:
-	PurgeElem()
-		:
-		m_trx_no()
-	{
-		for (ulint i = 0; i < TRX_MAX_ASSIGNED_RSEGS; i++) {
-			m_rsegs[i] = 0;
-		}
-	}
-
-	/**
-	Add rollback segment to central array.
-	@param rseg - rollback segment to add
-	@return bool - true if added else false. */
-	bool add(trx_rseg_t* rseg)
-	{
-		ulint free_slot;
-
-		for (free_slot = 0;
-		     (free_slot < TRX_MAX_ASSIGNED_RSEGS
-		      && m_rsegs[free_slot] != 0);
-		     free_slot++);
-
-		if (free_slot == TRX_MAX_ASSIGNED_RSEGS) {
-			return(false);
-		}
-
-		m_rsegs[free_slot] = rseg;
-
-		return(true);
-	}
-
-	/**
-	Set transaction number
-	@param trx_no - transaction number to set. */
-	void set_trx_no(trx_id_t trx_no)
-	{
-		m_trx_no = trx_no;
-	}
-
-	/**
-	Get transaction number
-	@return trx_id_t - get transaction number. */
-	trx_id_t get_trx_no() const
-	{
-		return(m_trx_no);
-	}
-
-	/**
-	Get rollback segment at given index position.
-	@param pos - position index in central array.
-	@return trx_rseg_t - if pos valid: rollback segment, else NULL */
-	trx_rseg_t* get_rseg(int pos)
-	{
-		ut_a(pos >= 0 && pos < TRX_MAX_ASSIGNED_RSEGS);
-
-		return(m_rsegs[pos]);
-	}
-
-	/**
-	Compare two PurgeElem based on trx_no.
-	@param - elem1 - first element to compare
-	@param - elem2 - second element to compare
-	@return int - 0: equal, 1: elem1 > elem2, -1: elem1 < elem2 */
-	static int compare(
-		const void*	elem1,
-		const void*	elem2)
-	{
-		ib_int64_t	cmp;
-
-		const PurgeElem* purge_elem1 =
-			static_cast<const PurgeElem*>(elem1);
-		const PurgeElem* purge_elem2 =
-			static_cast<const PurgeElem*>(elem2);
-
-		cmp = purge_elem1->get_trx_no() - purge_elem2->get_trx_no();
-
-		if (cmp < 0) {
-			return(-1);
-		} else if (cmp > 0) {
-			return(1);
-		}
-
-		return(0);
-	}
-
-private:
-	/** Transaction number of a transaction of which rollback segments
-	are part off. */
-	trx_id_t	m_trx_no;	/*!< trx_rseg_t::last_trx_no */
-
-	/** Rollback segments of a transaction, scheduled for purge. */
-	trx_rseg_t*     m_rsegs[TRX_MAX_ASSIGNED_RSEGS];
-};
 
 /** The control structure used in the purge operation */
 struct trx_purge_t{
@@ -303,10 +206,10 @@ struct trx_purge_t{
 					purge: can be emptied after purge
 					completes */
 	/*-----------------------------*/
-	ib_bh_t*	ib_bh;		/*!< Binary min-heap, ordered on
+	purge_queue_t*	purge_queue;	/*!< Binary min-heap, ordered on
 					PurgeElem::trx_no. It is protected
 					by the bh_mutex */
-	ib_mutex_t		bh_mutex;	/*!< Mutex protecting ib_bh */
+	ib_mutex_t	pq_mutex;	/*!< Mutex protecting purge_queue */
 };
 
 /** Info required to purge a record */

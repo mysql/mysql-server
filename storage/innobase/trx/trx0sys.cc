@@ -475,12 +475,12 @@ Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
-ib_bh_t*
+purge_queue_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	mtr_t		mtr;
-	ib_bh_t*	ib_bh;
+	purge_queue_t*	purge_queue;
 	trx_sysf_t*	sys_header;
 	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
@@ -488,16 +488,14 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-
-	ib_bh = ib_bh_create(
-		PurgeElem::compare, sizeof(PurgeElem), TRX_SYS_N_RSEGS);
+	purge_queue = new purge_queue_t();
 
 	mtr_start(&mtr);
 
 	sys_header = trx_sysf_get(&mtr);
 
 	if (srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-		trx_rseg_array_init(sys_header, ib_bh, &mtr);
+		trx_rseg_array_init(sys_header, purge_queue, &mtr);
 	}
 
 	/* VERY important: after the database is started, max_trx_id value is
@@ -565,11 +563,11 @@ trx_sys_init_at_db_start(void)
 
 	mtr_commit(&mtr);
 
-	return(ib_bh);
+	return(purge_queue);
 }
 
 /*****************************************************************//**
-Creates the trx_sys instance and initializes ib_bh and mutex. */
+Creates the trx_sys instance and initializes purge_queue and mutex. */
 UNIV_INTERN
 void
 trx_sys_create(void)
