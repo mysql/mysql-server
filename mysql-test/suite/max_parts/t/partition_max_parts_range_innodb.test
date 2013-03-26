@@ -16,8 +16,9 @@
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
+--source include/have_innodb.inc
 
 ##### Storage engine to be tested
-let $engine= 'MyISAM';
+let $engine= 'InnoDB';
 
---source suite/parts/inc/partition_max_parts_list.inc
+--source suite/max_parts/inc/partition_max_parts_range.inc
