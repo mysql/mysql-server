@@ -2155,6 +2155,7 @@ row_upd_clust_rec(
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	pcur = node->pcur;
 	btr_cur = btr_pcur_get_btr_cur(pcur);
@@ -2561,6 +2562,7 @@ row_upd(
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node && thr);
+	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	if (UNIV_LIKELY(node->in_mysql_interface)) {
 

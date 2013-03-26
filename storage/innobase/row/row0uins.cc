@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -76,16 +76,16 @@ row_undo_ins_remove_clust_rec(
 	bool		online;
 
 	ut_ad(dict_index_is_clust(index));
+	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	/* This is similar to row_undo_mod_clust(). Even though we
-	call row_log_table_rollback() elsewhere, the DDL thread may
-	already have copied this row to the sort buffers or to the new
-	table. We must log the removal, so that the row will be
-	correctly purged. However, we can log the removal out of sync
-	with the B-tree modification. */
+	/* This is similar to row_undo_mod_clust(). The DDL thread may
+	already have copied this row from the log to the new table.
+	We must log the removal, so that the row will be correctly
+	purged. However, we can log the removal out of sync with the
+	B-tree modification. */
 
 	online = dict_index_is_online_ddl(index);
 	if (online) {
@@ -428,6 +428,7 @@ row_undo_ins(
 	ibool	dict_locked;
 
 	ut_ad(node->state == UNDO_NODE_INSERT);
+	ut_ad(node->trx->in_rollback);
 
 	dict_locked = node->trx->dict_operation_lock_mode == RW_X_LATCH;
 
