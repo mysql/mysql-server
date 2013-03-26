@@ -1240,7 +1240,7 @@ trx_undo_report_row_operation(
 
 	/* If trx is read-only then only temp-tables can be written.
 	If trx is read-write and involves temp-table only then we
-	assign temporary rseg. */ 
+	assign temporary rseg. */
 	if (trx->read_only || dict_table_is_temporary(index->table)) {
 
 		ut_ad(trx->in_ro_trx_list
@@ -1267,7 +1267,7 @@ trx_undo_report_row_operation(
 	/* If the undo log is not assigned yet, assign one */
 	undo_ptr = dict_table_is_temporary(index->table)
 		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
-	
+
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
 		undo = undo_ptr->insert_undo;

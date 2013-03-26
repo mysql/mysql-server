@@ -893,7 +893,7 @@ trx_sys_create_rsegs(
 			break;
 		}
 	}
-	
+
 	/* This is executed in single-threaded mode therefore it is not
 	necessary to use the same mtr in trx_rseg_create(). n_used cannot
 	change while the function is executing. */

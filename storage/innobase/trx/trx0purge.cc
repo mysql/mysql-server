@@ -667,7 +667,7 @@ trx_purge_get_rseg_with_min_trx_id(
 	/* Only purge consumes events from the binary heap, user
 	threads only produce the events. */
 
-	if (purge_sys->rseg_idx < TRX_MAX_ASSIGNED_RSEGS 
+	if (purge_sys->rseg_idx < TRX_MAX_ASSIGNED_RSEGS
 	    && purge_sys->elem.get_rseg(purge_sys->rseg_idx) != NULL) {
 
 		purge_sys->rseg =
@@ -679,7 +679,7 @@ trx_purge_get_rseg_with_min_trx_id(
 		which is set on-completion of current rseg assuming there
 		are no more rseg with same trx_no. */
 		purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
-		
+
 		mutex_exit(&purge_sys->bh_mutex);
 
 	} else if (!ib_bh_is_empty(purge_sys->ib_bh)) {

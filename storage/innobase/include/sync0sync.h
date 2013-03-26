@@ -679,7 +679,7 @@ or row lock! */
 #define SYNC_TREE_NODE		890
 #define	SYNC_PURGE_LATCH	800
 #define	SYNC_TRX_UNDO		700
-#define SYNC_REDO_RSEG		600	
+#define SYNC_REDO_RSEG		600
 #define SYNC_NOREDO_RSEG	599
 #define SYNC_RSEG_HEADER_NEW	591
 #define SYNC_RSEG_HEADER	590

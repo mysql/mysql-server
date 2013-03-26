@@ -1174,7 +1174,7 @@ try_again:
 	segments are not restored). During this course of action undo record
 	numbers can't be sequential and can have gap but ordering is still
 	enforced as next undo record number should be < processed undo record
-	number. 
+	number.
 	CASE-2: Assuming it is normal rollback (not initiated by crash)
 	all rollback segments will be active (including no-redo).
 	Based on transaction operation pattern undo record number of first
