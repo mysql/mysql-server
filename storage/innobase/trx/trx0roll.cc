@@ -97,10 +97,7 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->rsegs.m_redo.insert_undo != 0
-	    || trx->rsegs.m_redo.update_undo != 0
-	    || trx->rsegs.m_noredo.insert_undo != 0
-	    || trx->rsegs.m_noredo.update_undo != 0) {
+	if (trx_is_rseg_updated(trx)) {
 
 		ut_ad(trx->rsegs.m_redo.rseg != 0
 		      || trx->rsegs.m_noredo.rseg != 0);
@@ -1229,7 +1226,7 @@ try_again:
 }
 
 /********************************************************************//**
-Get next undo log record from standard and temporary rollback segments.
+Get next undo log record from redo and noredo rollback segments.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
 UNIV_INTERN

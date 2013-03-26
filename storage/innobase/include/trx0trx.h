@@ -703,7 +703,7 @@ to other connections. The locks of transactions are protected by
 lock_sys->mutex and sometimes by trx->mutex. */
 
 
-/* A undo log ptr that is assigned to trx for undo logging. */
+/** Represents an instance of rollback segment along with its state variables.*/
 struct trx_undo_ptr_t{
 	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
 					transaction, or NULL if not assigned
@@ -714,6 +714,7 @@ struct trx_undo_ptr_t{
 					NULL if no update performed yet */
 };
 
+/** Rollback segments assigned to a transaction for undo logging. */
 struct trx_rsegs_t {
 	/** undo log ptr bounded to system/undo tablespace used for undo logging
 	of all objects those needs to be recovered on crash. */

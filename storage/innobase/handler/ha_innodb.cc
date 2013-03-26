@@ -3608,10 +3608,7 @@ innobase_rollback_trx(
 
 	lock_unlock_table_autoinc(trx);
 
-	if (trx->rsegs.m_redo.insert_undo != 0
-	    || trx->rsegs.m_redo.update_undo != 0
-	    || trx->rsegs.m_noredo.insert_undo != 0
-	    || trx->rsegs.m_noredo.update_undo != 0) {
+	if (trx_is_rseg_updated(trx)) {
 		error = trx_rollback_for_mysql(trx);
 	}
 
