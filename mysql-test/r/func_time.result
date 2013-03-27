@@ -1781,7 +1781,7 @@ Warnings:
 Warning	1441	Datetime function: time field overflow
 select cast('131415.123e0' as time);
 cast('131415.123e0' as time)
-NULL
+00:00:00
 Warnings:
 Warning	1292	Truncated incorrect time value: '131415.123e0'
 select cast('2010-01-02 03:04:05' as datetime) between null and '2010-01-02 03:04:04';
@@ -1801,12 +1801,12 @@ unix_timestamp(null)
 NULL
 select truncate(date('2010-40-10'), 6);
 truncate(date('2010-40-10'), 6)
-NULL
+0.000000
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-40-10'
 select extract(month from '2010-40-50');
 extract(month from '2010-40-50')
-NULL
+0
 Warnings:
 Warning	1292	Incorrect datetime value: '2010-40-50'
 select subtime('0000-00-10 10:10:10', '30 10:00:00');
@@ -1924,3 +1924,15 @@ microsecond('12:00:00.123456')	microsecond('2009-12-31 23:59:59.000010')
 123456	10
 select now(258);
 ERROR 42000: Too big precision 258 specified for 'now'. Maximum is 6.
+SELECT 1 FROM DUAL WHERE YEAR(TIMEDIFF(NULL, '12:12:12'));
+1
+SELECT 1 FROM DUAL WHERE MONTH(TIMEDIFF(NULL, '12:12:12'));
+1
+SELECT 1 FROM DUAL WHERE DAYOFMONTH(TIMEDIFF(NULL, '12:12:12'));
+1
+SELECT 1 FROM DUAL WHERE HOUR(TIMEDIFF(NULL, '12:12:12'));
+1
+SELECT 1 FROM DUAL WHERE MINUTE(TIMEDIFF(NULL, '12:12:12'));
+1
+SELECT 1 FROM DUAL WHERE SECOND(TIMEDIFF(NULL, '12:12:12'));
+1

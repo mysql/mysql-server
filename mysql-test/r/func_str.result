@@ -2634,6 +2634,31 @@ SELECT * FROM t1;
 a
 aaaaaaaaaaaaaa
 DROP TABLE t1;
+SELECT SUBSTRING('1', DAY(FROM_UNIXTIME(-1)));
+SUBSTRING('1', DAY(FROM_UNIXTIME(-1)))
+NULL
+SELECT LEFT('1', DAY(FROM_UNIXTIME(-1)));
+LEFT('1', DAY(FROM_UNIXTIME(-1)))
+NULL
+SELECT RIGHT('1', DAY(FROM_UNIXTIME(-1)));
+RIGHT('1', DAY(FROM_UNIXTIME(-1)))
+NULL
+SELECT REPEAT('1', DAY(FROM_UNIXTIME(-1)));
+REPEAT('1', DAY(FROM_UNIXTIME(-1)))
+NULL
+SELECT RPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
+RPAD('hi', DAY(FROM_UNIXTIME(-1)),'?')
+NULL
+SELECT LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?');
+LPAD('hi', DAY(FROM_UNIXTIME(-1)),'?')
+NULL
+create table t1 (i int);
+insert into t1 values (null),(8);
+select group_concat( i ), make_set( i, 'a', 'b' ) field from t1 group by field;
+group_concat( i )	field
+NULL	NULL
+8	
+drop table t1;
 End of 5.1 tests
 Start of 5.4 tests
 SELECT format(12345678901234567890.123, 3);

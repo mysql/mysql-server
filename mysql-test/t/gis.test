@@ -759,6 +759,87 @@ create spatial index i on t1 (a);
 drop table t1;
 
 
+#
+# Bug#11767480 - SPATIAL INDEXES ON NON-SPATIAL COLUMNS CAUSE CRASHES.
+#
+CREATE TABLE t0 (a BINARY(32) NOT NULL);
+--error ER_WRONG_ARGUMENTS
+CREATE SPATIAL INDEX i on t0 (a);
+INSERT INTO t0 VALUES (1);
+
+--error ER_WRONG_ARGUMENTS
+CREATE TABLE t1(
+  col0 BINARY NOT NULL,
+  col2 TIMESTAMP,
+  SPATIAL INDEX i1 (col0)
+) ENGINE=MyISAM;
+
+# Test other ways to add indices
+CREATE TABLE t1 (
+  col0 BINARY NOT NULL,
+  col2 TIMESTAMP
+) ENGINE=MyISAM;
+
+--error ER_WRONG_ARGUMENTS
+CREATE SPATIAL INDEX idx0 ON t1(col0);
+
+--error ER_WRONG_ARGUMENTS
+ALTER TABLE t1 ADD SPATIAL INDEX i1 (col0);
+
+CREATE TABLE t2 (
+  col0 INTEGER NOT NULL,
+  col1 POINT,
+  col2 POINT
+);
+
+--error ER_WRONG_ARGUMENTS
+CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
+
+--error ER_WRONG_ARGUMENTS
+CREATE TABLE t3 (
+  col0 INTEGER NOT NULL,
+  col1 POINT,
+  col2 LINESTRING,
+  SPATIAL INDEX i1 (col1, col2)
+);
+
+# cleanup
+DROP TABLE t0, t1, t2;
+
+
+--echo #
+--echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+--echo #
+SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+
+--echo #
+--echo # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
+--echo # GEOMETRY FUNCTION ARGUMENTS
+--echo #
+--replace_regex /non geometric .* value/non geometric '' value/
+--error ER_ILLEGAL_VALUE_FOR_TYPE
+SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
+
+--echo #
+--echo # MDEV-4252 geometry query crashes server
+--echo #
+select astext(0x0100000000030000000100000000000010);
+select astext(st_centroid(0x0100000000030000000100000000000010));
+select astext(st_exteriorring(0x0100000000030000000100000000000010));
+select envelope(0x0100000000030000000100000000000010);
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffff0000, 1);
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
+
+--echo #
+--echo # MDEV-4296 Assertion `n_linear_rings > 0' fails in Gis_polygon::centroid_xy
+--echo #
+
+SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
+
+--echo #
+--echo # MDEV-4295 Server crashes in get_point on a query with Area, AsBinary, MultiPoint
+--echo #
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
 --echo End of 5.1 tests
 
 #bug 850775 ST_AREA does not work on GEOMETRYCOLLECTIONs in maria-5.3-gis
@@ -1293,6 +1374,7 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 #WHERE lakes.name = 'Blue Lake'; 
 
 DROP DATABASE gis_ogs;
+USE test;
 
 --echo #
 --echo # BUG #1043845 st_distance() results are incorrect depending on variable order
@@ -1308,25 +1390,18 @@ select st_distance(geomfromtext('point(-95.96269500000000000000 36.1418183333333
                            -95.9673057475387 36.1344478941074,
                            -95.9673063519371 36.134484524621,
                            -95.9673049102515 36.1343976584193) ')) ;
-USE test;
-
 
 --echo #
---echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+--echo # MDEV-4310 geometry function equals hangs forever.
 --echo #
-SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+create table t1(a geometry not null)engine=myisam;
+insert into t1 values(geomfromtext("POINT(0 0)"));
+insert into t1 values(geomfromtext("POINT(0 9.2233720368548e18)"));
+insert into t1 values(geomfromtext("POINT(0 9.2233720368548e18)"));
+select equals(`a`,convert(`a` using utf8)) from `t1`;
+drop table t1;
 
---echo #
---echo # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
---echo # GEOMETRY FUNCTION ARGUMENTS
---echo #
---replace_regex /non geometric .* value/non geometric '' value/
---error ER_ILLEGAL_VALUE_FOR_TYPE
-SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
-
-
---echo End of 5.1 tests
-
+--echo End of 5.3 tests
 
 --echo #
 --echo # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
@@ -1367,11 +1442,4 @@ create table t1 (pt point);
 insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
 drop table t1;
 
---echo #
---echo # TODO-424 geometry query crashes server
---echo #
-select astext(0x0100000000030000000100000000000010);
-select st_area(0x0100000000030000000100000000000010);
-select astext(st_exteriorring(0x0100000000030000000100000000000010));
-select astext(st_centroid(0x0100000000030000000100000000000010));
 --echo End of 5.5 tests

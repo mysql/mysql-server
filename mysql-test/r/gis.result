@@ -406,20 +406,20 @@ FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second
 first	second	w	c	o	e	d	t	i	r
 120	120	1	1	0	1	0	1	1	0
 120	121	0	0	1	0	0	0	1	0
-120	122	0	1	NULL	0	NULL	0	NULL	0
-120	123	0	1	NULL	0	NULL	0	NULL	0
+120	122	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+120	123	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 121	120	0	0	1	0	0	0	1	0
 121	121	1	1	0	1	0	1	1	0
-121	122	0	1	NULL	0	NULL	0	NULL	0
-121	123	0	1	NULL	0	NULL	0	NULL	0
-122	120	1	0	NULL	0	NULL	0	NULL	0
-122	121	1	0	NULL	0	NULL	0	NULL	0
-122	122	1	1	NULL	1	NULL	0	NULL	0
-122	123	1	1	NULL	1	NULL	0	NULL	0
-123	120	1	0	NULL	0	NULL	0	NULL	0
-123	121	1	0	NULL	0	NULL	0	NULL	0
-123	122	1	1	NULL	1	NULL	0	NULL	0
-123	123	1	1	NULL	1	NULL	0	NULL	0
+121	122	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+121	123	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+122	120	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+122	121	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+122	122	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+122	123	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+123	120	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+123	121	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+123	122	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+123	123	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
@@ -1063,6 +1063,84 @@ create table t1(a char(32) not null) engine=myisam;
 create spatial index i on t1 (a);
 ERROR HY000: Incorrect arguments to SPATIAL INDEX
 drop table t1;
+CREATE TABLE t0 (a BINARY(32) NOT NULL);
+CREATE SPATIAL INDEX i on t0 (a);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+INSERT INTO t0 VALUES (1);
+CREATE TABLE t1(
+col0 BINARY NOT NULL,
+col2 TIMESTAMP,
+SPATIAL INDEX i1 (col0)
+) ENGINE=MyISAM;
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+CREATE TABLE t1 (
+col0 BINARY NOT NULL,
+col2 TIMESTAMP
+) ENGINE=MyISAM;
+CREATE SPATIAL INDEX idx0 ON t1(col0);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+ALTER TABLE t1 ADD SPATIAL INDEX i1 (col0);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+CREATE TABLE t2 (
+col0 INTEGER NOT NULL,
+col1 POINT,
+col2 POINT
+);
+CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+CREATE TABLE t3 (
+col0 INTEGER NOT NULL,
+col1 POINT,
+col2 LINESTRING,
+SPATIAL INDEX i1 (col1, col2)
+);
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
+DROP TABLE t0, t1, t2;
+#
+# BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+#
+SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
+ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)))
+NULL
+#
+# BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
+# GEOMETRY FUNCTION ARGUMENTS
+#
+SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
+ERROR 22007: Illegal non geometric '' value found during parsing
+#
+# MDEV-4252 geometry query crashes server
+#
+select astext(0x0100000000030000000100000000000010);
+astext(0x0100000000030000000100000000000010)
+NULL
+select astext(st_centroid(0x0100000000030000000100000000000010));
+astext(st_centroid(0x0100000000030000000100000000000010))
+NULL
+select astext(st_exteriorring(0x0100000000030000000100000000000010));
+astext(st_exteriorring(0x0100000000030000000100000000000010))
+NULL
+select envelope(0x0100000000030000000100000000000010);
+envelope(0x0100000000030000000100000000000010)
+NULL
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffff0000, 1);
+geometryn(0x0100000000070000000100000001030000000200000000000000ffff0000, 1)
+NULL
+select geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
+geometryn(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1)
+NULL
+#
+# MDEV-4296 Assertion `n_linear_rings > 0' fails in Gis_polygon::centroid_xy
+#
+SELECT Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )));
+Centroid( AsBinary( LineString(Point(0,0), Point(0,0), Point(0,0) )))
+NULL
+#
+# MDEV-4295 Server crashes in get_point on a query with Area, AsBinary, MultiPoint
+#
+SELECT Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))));
+Area(AsBinary(MultiPoint(Point(0,9), Point(0,1), Point(2,2))))
+NULL
 End of 5.1 tests
 select ST_AREA(ST_GEOMCOLLFROMTEXT(' GEOMETRYCOLLECTION(LINESTRING(100 100, 31 10, 77 80), POLYGON((0 0,4 7,1 1,0 0)), POINT(20 20))'));
 ST_AREA(ST_GEOMCOLLFROMTEXT(' GEOMETRYCOLLECTION(LINESTRING(100 100, 31 10, 77 80), POLYGON((0 0,4 7,1 1,0 0)), POINT(20 20))'))
@@ -1428,6 +1506,7 @@ WHERE ST_Contains(ST_Buffer(bridges.position, 15.0), buildings.footprint) = 1;
 count(*)
 1
 DROP DATABASE gis_ogs;
+USE test;
 #
 # BUG #1043845 st_distance() results are incorrect depending on variable order
 #
@@ -1451,20 +1530,23 @@ geomfromtext('LINESTRING(-95.9673005697771 36.13509598461,
                            -95.9673057475387 36.1344478941074,
                            -95.9673063519371 36.
 0.008148695928146028
-USE test;
 #
-# BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
+# MDEV-4310 geometry function equals hangs forever.
 #
-SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
-ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)))
+create table t1(a geometry not null)engine=myisam;
+insert into t1 values(geomfromtext("POINT(0 0)"));
+insert into t1 values(geomfromtext("POINT(0 9.2233720368548e18)"));
+insert into t1 values(geomfromtext("POINT(0 9.2233720368548e18)"));
+select equals(`a`,convert(`a` using utf8)) from `t1`;
+equals(`a`,convert(`a` using utf8))
+1
 NULL
-#
-# BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN 
-# GEOMETRY FUNCTION ARGUMENTS
-#
-SELECT GEOMETRYCOLLECTION((SELECT @@OLD));
-ERROR 22007: Illegal non geometric '' value found during parsing
-End of 5.1 tests
+NULL
+Warnings:
+Warning	1300	Invalid utf8 character string: 'E043'
+Warning	1300	Invalid utf8 character string: 'E043'
+drop table t1;
+End of 5.3 tests
 #
 # Bug#11908153: CRASH AND/OR VALGRIND ERRORS IN FIELD_BLOB::GET_KEY_IMAGE
 #
@@ -1498,19 +1580,4 @@ create table t1 (pt point);
 insert into t1 values(Geomfromtext('POLYGON((1 1, 2 2, 2 1, 1 1))'));
 ERROR 22007: Incorrect POINT value: 'POLYGON' for column 'pt' at row 1
 drop table t1;
-#
-# TODO-424 geometry query crashes server
-#
-select astext(0x0100000000030000000100000000000010);
-astext(0x0100000000030000000100000000000010)
-NULL
-select st_area(0x0100000000030000000100000000000010);
-st_area(0x0100000000030000000100000000000010)
-NULL
-select astext(st_exteriorring(0x0100000000030000000100000000000010));
-astext(st_exteriorring(0x0100000000030000000100000000000010))
-NULL
-select astext(st_centroid(0x0100000000030000000100000000000010));
-astext(st_centroid(0x0100000000030000000100000000000010))
-NULL
 End of 5.5 tests

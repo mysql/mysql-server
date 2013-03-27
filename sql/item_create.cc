@@ -4373,8 +4373,7 @@ Create_func_make_set::create_native(THD *thd, LEX_STRING name,
     return NULL;
   }
 
-  Item *param_1= item_list->pop();
-  return new (thd->mem_root) Item_func_make_set(param_1, *item_list);
+  return new (thd->mem_root) Item_func_make_set(*item_list);
 }
 
 

@@ -200,6 +200,9 @@ struct MBR
 
     return (d == intersection.dimension());
   }
+
+  int valid() const
+  { return xmin <= xmax && ymin <= ymax; }
 };
 
 
@@ -212,7 +215,7 @@ class Geometry
 public:
   // Maximum number of points in feature that can fit into String
   static const uint32 max_n_points=
-    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+    (uint32) (INT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
     POINT_DATA_SIZE;
 
   Geometry() {}                               /* Remove gcc warning */

@@ -331,6 +331,19 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
 CPP_UNNAMED_NS_END
 
 
+/*
+  Set external_ref for the child MyISAM tables. They need this to be set in
+  order to check for killed status.
+*/
+static void myrg_set_external_ref(MYRG_INFO *m_info, void *ext_ref_arg)
+{
+  int i;
+  for (i= 0; i < (int)m_info->tables; i++)
+  {
+    m_info->open_tables[i].table->external_ref= ext_ref_arg;
+  }
+}
+
 /**
   Open a MERGE parent table, but not its children.
 
@@ -394,6 +407,7 @@ int ha_myisammrg::open(const char *name, int mode __attribute__((unused)),
     }
 
     file->children_attached= TRUE;
+    myrg_set_external_ref(file, (void*)table);
 
     info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
   }

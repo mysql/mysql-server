@@ -1272,11 +1272,15 @@ bool Item::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
     DBUG_ASSERT(0);
   }
 
-  return 0;
+  return null_value= 0;
 
 err:
+  /*
+    if the item was not null and convertion failed, we return a zero date
+    if allowed, otherwise - null.
+  */
   bzero((char*) ltime,sizeof(*ltime));
-  return 1;
+  return null_value|= (fuzzydate & (TIME_NO_ZERO_DATE|TIME_NO_ZERO_IN_DATE));
 }
 
 bool Item::get_seconds(ulonglong *sec, ulong *sec_part)

@@ -1372,7 +1372,16 @@ set @@optimizer_switch=@save_optimizer_switch;
 --echo #
 DROP TABLE IF EXISTS t1,t2,t3,empty1;
 
-###
+#
+# MDEV-4286 Server crashes in Protocol_text::store, stack smashing detected
+#
+create table t1 (i int, d date);
+insert into t1 values (1, '2008-10-02'), (2, '2010-12-12');
+select avg(export_set( 3, 'y', sha(i))), group_concat(d) from t1 group by d order by i;
+drop table t1;
+
+#### End of 5.3 tests
+
 --echo #
 --echo # Bug#52123 Assertion failed: aggregator == aggr->Aggrtype(),
 --echo #           file .\item_sum.cc, line 587

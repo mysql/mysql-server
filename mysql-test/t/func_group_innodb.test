@@ -159,7 +159,20 @@ SELECT member_id_to, COUNT(*) FROM t1 WHERE r_date =
 
 DROP TABLE t1;
 
---echo # End of test  BUG#12713907
+--echo #
+--echo # MDEV-4269: crash when grouping by values()
+--echo #
+
+SELECT @@storage_engine INTO @old_engine;
+set storage_engine=innodb;
+
+create table y select 1 b;
+select 1 from y group by b;
+select 1 from y group by values(b);
+drop table y;
+SET storage_engine=@old_engine;
+
+### End of 5.1 tests
 
 --echo #
 --echo # Bug#13723054 CRASH WITH MIN/MAX AFTER QUICK_GROUP_MIN_MAX_SELECT::NEXT_MIN

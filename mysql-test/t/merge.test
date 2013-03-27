@@ -226,19 +226,19 @@ drop table t3,t1,t2;
 #
 # temporary merge tables
 #
-CREATE TABLE t1 (c1 INT NOT NULL);
-CREATE TABLE t2 (c1 INT NOT NULL);
-INSERT INTO t1 VALUES (1);
-INSERT INTO t2 VALUES (2);
-CREATE TEMPORARY TABLE t3 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t1,t2);
-SELECT * FROM t3;
-CREATE TEMPORARY TABLE t4 (c1 INT NOT NULL);
-CREATE TEMPORARY TABLE t5 (c1 INT NOT NULL);
-INSERT INTO t4 VALUES (4);
-INSERT INTO t5 VALUES (5);
-CREATE TEMPORARY TABLE t6 (c1 INT NOT NULL) ENGINE=MRG_MYISAM UNION=(t4,t5);
-SELECT * FROM t6;
-DROP TABLE t6, t3, t1, t2, t4, t5;
+create table t1 (a int not null);
+create table t2 (a int not null);
+insert into t1 values (1);
+insert into t2 values (2);
+create temporary table t3 (a int not null) ENGINE=MERGE UNION=(t1,t2);
+select * from t3;
+create temporary table t4 (a int not null);
+create temporary table t5 (a int not null);
+insert into t4 values (1);
+insert into t5 values (2);
+create temporary table t6 (a int not null) ENGINE=MERGE UNION=(t4,t5);
+select * from t6;
+drop table t6, t3, t1, t2, t4, t5;
 #
 # Bug#19627 - temporary merge table locking
 # MERGE table and its children must match in temporary type.
@@ -620,14 +620,6 @@ ALTER TABLE m1 UNION=(t1);
 ALTER TABLE m1 UNION=();
 SHOW CREATE TABLE m1;
 DROP TABLE t1, m1;
-
-#
-# BUG#35274 - merge table doesn't need any base tables, gives error 124 when
-#             key accessed
-#
-CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
-SELECT MAX(a) FROM t1;
-DROP TABLE t1;
 
 #
 # BUG#32047 - 'Spurious' errors while opening MERGE tables
@@ -1306,9 +1298,9 @@ DROP TABLE t1, t2, t3;
 # Truncate failed with error message when table was in use by MERGE.
 #
 # Show that truncate of child table after use of parent table works.
-CREATE TABLE t1 (c1 INT) ENGINE=MyISAM; 
-CREATE TABLE t2 (c1 INT) ENGINE=MyISAM; 
-CREATE TABLE t3 (c1 INT) ENGINE=MRG_MYISAM UNION=(t1,t2); 
+CREATE TABLE t1 (c1 INT) ENGINE= MyISAM; 
+CREATE TABLE t2 (c1 INT) ENGINE= MyISAM; 
+CREATE TABLE t3 (c1 INT) ENGINE= MRG_MYISAM UNION= (t1, t2); 
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (2);
 SELECT * FROM t3;
@@ -1839,6 +1831,51 @@ REPAIR TABLE m1;
 DROP TABLE m1, t1;
 
 --echo End of 5.1 tests
+
+--echo # 
+--echo # MDEV-4277: Crash inside mi_killed_in_mariadb() with myisammrg
+--echo # 
+create table t1 (a int);
+insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t2 ( i int ) engine=myisam;
+insert into t2 values (1),(2);
+
+create table t3 (a int, b int, filler char(100), key(a), key(b)) engine=myisam;
+create table t4 like t3;
+insert into t3 
+  select A.a+10*B.a+100*C.a, 
+         A.a+10*B.a+100*C.a,
+         'filler-data-FILLER-DATA-qqq' 
+  from t1 A, t1 B, t1 C where C.a < 5;
+insert into t4
+  select A.a+10*B.a+100*C.a, 
+         A.a+10*B.a+100*C.a,
+         'filler-data-FILLER-DATA-qqq' 
+  from t1 A, t1 B, t1 C where C.a >= 5;
+
+create table t5 like t3; 
+alter table t5 engine=merge;
+alter table t5 union(t3, t4);
+
+update t5 set b=999, a=999 where b>950;
+
+explain 
+select * from t2, t5 where t5.a=999 and t5.b=999;
+select * from t2, t5 where t5.a=999 and t5.b=999;
+
+drop table t5;
+drop table t1,t2,t3,t4;
+
+--echo End of 5.3 tests
+
+#
+# BUG#35274 - merge table doesn't need any base tables, gives error 124 when
+#             key accessed
+#
+CREATE TABLE t1(a INT, KEY(a)) ENGINE=merge;
+SELECT MAX(a) FROM t1;
+DROP TABLE t1;
 
 --echo #
 --echo # An additional test case for Bug#27430 Crash in subquery code
@@ -2845,3 +2882,4 @@ eval set global storage_engine=$default;
 # Check that all connections opened by test cases in this file are really
 # gone so execution of other tests won't be affected by their presence.
 --source include/wait_until_count_sessions.inc
+

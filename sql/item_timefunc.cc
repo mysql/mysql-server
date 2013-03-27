@@ -923,16 +923,14 @@ longlong Item_func_dayofmonth::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
-  return (longlong) ltime.day;
+  return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong) ltime.day;
 }
 
 longlong Item_func_month::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
-  return (longlong) ltime.month;
+  return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong) ltime.month;
 }
 
 
@@ -983,16 +981,14 @@ longlong Item_func_hour::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_time(&ltime);
-  return ltime.hour;
+  return get_arg0_time(&ltime) ? 0 : ltime.hour;
 }
 
 longlong Item_func_minute::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_time(&ltime);
-  return ltime.minute;
+  return get_arg0_time(&ltime) ? 0 : ltime.minute;
 }
 
 /**
@@ -1002,8 +998,7 @@ longlong Item_func_second::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_time(&ltime);
-  return ltime.second;
+  return get_arg0_time(&ltime) ? 0 : ltime.second;
 }
 
 
@@ -1120,8 +1115,7 @@ longlong Item_func_year::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   MYSQL_TIME ltime;
-  (void) get_arg0_date(&ltime, TIME_FUZZY_DATE);
-  return (longlong) ltime.year;
+  return get_arg0_date(&ltime, TIME_FUZZY_DATE) ? 0 : (longlong) ltime.year;
 }
 
 

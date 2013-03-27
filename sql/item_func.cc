@@ -769,13 +769,14 @@ void Item_num_op::find_num_type(void)
   {
     hybrid_type= DECIMAL_RESULT;
     result_precision();
+    fix_decimals();
   }
   else
   {
     DBUG_ASSERT(r0 == INT_RESULT && r1 == INT_RESULT);
-    decimals= 0;
     hybrid_type=INT_RESULT;
     result_precision();
+    decimals= 0;
   }
   DBUG_PRINT("info", ("Type: %s",
              (hybrid_type == REAL_RESULT ? "REAL_RESULT" :
@@ -1708,6 +1709,7 @@ void Item_func_div::fix_length_and_dec()
     break;
   case DECIMAL_RESULT:
     result_precision();
+    fix_decimals();
     break;
   case STRING_RESULT:
   case ROW_RESULT:
