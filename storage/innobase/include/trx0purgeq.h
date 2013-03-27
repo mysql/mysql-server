@@ -116,7 +116,7 @@ private:
 	trx_rseg_array_t	m_rsegs;
 
 	/** Return next rseg from this position. */
-	trx_rseg_array_itr_t	m_next_rseg_pos;	
+	trx_rseg_array_itr_t	m_next_rseg_pos;
 };
 
 typedef std::priority_queue<
