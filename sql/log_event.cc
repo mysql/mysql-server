@@ -5967,7 +5967,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
-  query_id_t sav_query_id; /* memorize orig id when deferred applying */
+  query_id_t sav_query_id= 0; /* memorize orig id when deferred applying */
 
   if (rli->deferred_events_collecting)
   {
