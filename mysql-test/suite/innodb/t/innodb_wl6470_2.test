@@ -15,6 +15,7 @@
 # - Check basic delete and upadte [ignore]                         #
 # - Check constraints like duplicate key,default value             #
 # - Alter add column , add primary key                             #
+# - with prepare and execute statement                             #
 ####################################################################
 
 # run for page size >= 8k
@@ -415,6 +416,51 @@ disconnect con2;
 
 connection default;
 drop procedure populate_tables;
+
+
+# case 2 - with prepare and execute
+let $prep_loop= 5;
+create temporary table prep_1(c1 int not null,
+   c2 int not null,
+   c3 char(255) not null,
+   c4 text(6000) not null,
+   c5 blob(6000) not null,
+   c6 varchar(2000) not null,
+   c7 varchar(2000) not null,
+   c8 datetime,
+   c9 decimal(6,3),
+   index (c3,c4(50),c5(50)),
+   index (c2))
+engine=innodb;
+PREPARE stm FROM "insert into prep_1 values(?,?,repeat(concat(' tc3_',?),30),repeat(concat(' tc4_',?),800),repeat(concat(' tc_',?),800),repeat(concat(' tc6_',?),245),repeat(concat(' tc7_',?),245),now(),(100.55+?))";
+set @var = 5;
+set @var_static = 5;
+while ($prep_loop>0)
+{
+   eval EXECUTE stm USING @var,@var,@var,@var,@var,@var,@var,@var;
+   eval EXECUTE stm USING @var_static,@var_static,@var_static,@var_static,@var_static,@var_static,@var_static,@var_static;
+   dec $prep_loop;
+   set @var = @var - 1;
+}
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+PREPARE stm_1 FROM "UPDATE prep_1 SET c1 = c1 + 1";
+EXECUTE stm_1;
+EXECUTE stm_1;
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+PREPARE stm_2 FROM "DELETE FROM prep_1 ORDER BY c1 LIMIT 1";
+EXECUTE stm_2;
+EXECUTE stm_2;
+select c1,left(c3,15) from prep_1 order by c1 ;
+select count(*) from prep_1;
+
+drop prepare stm;
+drop prepare stm_1;
+drop prepare stm_2;
+drop table prep_1;
 
 --remove_file $MYSQLTEST_VARDIR/tmp/t1.outfile
 
