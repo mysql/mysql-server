@@ -564,6 +564,10 @@ trx_undo_page_report_modify(
 	ut_ad(mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR
 			       + TRX_UNDO_PAGE_TYPE) == TRX_UNDO_UPDATE);
 	table = index->table;
+
+	/* If object is temp-table then select noredo rseg as changes
+	to undo logs don't need REDO logging given that they are not
+	restored on restart as corresponding object doesn't exist on restart.*/
 	undo_ptr = dict_table_is_temporary(index->table)
 		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 
@@ -1264,7 +1268,9 @@ trx_undo_report_row_operation(
 	dict_disable_redo_if_temporary(index->table, &mtr);
 	mutex_enter(&trx->undo_mutex);
 
-	/* If the undo log is not assigned yet, assign one */
+	/* If object is temp-table then select noredo rseg as changes
+	to undo logs don't need REDO logging given that they are not
+	restored on restart as corresponding object doesn't exist on restart.*/
 	undo_ptr = dict_table_is_temporary(index->table)
 		   ? &trx->rsegs.m_noredo : &trx->rsegs.m_redo;
 

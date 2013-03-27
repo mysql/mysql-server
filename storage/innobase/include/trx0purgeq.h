@@ -30,8 +30,8 @@ Created 2013-03-26 by Krunal Bauskar.
 #include <queue>
 #include <vector>
 
-/** Transaction UNDO rollback segments is used by query processing thread for
-submitting purge-request. */
+/** Rollback segements from a given transaction with trx-no
+scheduled for purge. */
 class TrxUndoRsegs {
 
 public:
