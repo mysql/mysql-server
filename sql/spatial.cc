@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -395,13 +395,19 @@ const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
 					 uint offset) const
 {
   uint32 points;
+  size_t points_available;
   /* read number of points */
   if (no_data(data, 4))
     return 0;
   points= uint4korr(data);
   data+= 4;
 
-  if (no_data(data, (SIZEOF_STORED_DOUBLE * 2 + offset) * points))
+  /* can't use any of the helper functions due to the offset */
+  points_available=
+    data <= m_data_end ? 
+    (m_data_end - data) / (POINT_DATA_SIZE + offset) : 0;
+
+  if (points_available < points)
     return 0;
 
   /* Calculate MBR for points */
@@ -557,7 +563,7 @@ bool Gis_line_string::get_data_as_wkt(String *txt, const char **end) const
   data += 4;
 
   if (n_points < 1 ||
-      no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points) ||
+      not_enough_points(data, n_points) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1)*2 + 1) * n_points))
     return 1;
 
@@ -594,7 +600,7 @@ int Gis_line_string::geom_length(double *len) const
     return 1;
   n_points= uint4korr(data);
   data+= 4;
-  if (n_points < 1 || no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (n_points < 1 || not_enough_points(data, n_points))
     return 1;
 
   get_point(&prev_x, &prev_y, data);
@@ -628,8 +634,7 @@ int Gis_line_string::is_closed(int *closed) const
     return 0;
   }
   data+= 4;
-  if (n_points == 0 ||
-      no_data(data, SIZEOF_STORED_DOUBLE * 2 * n_points))
+  if (n_points == 0 || not_enough_points(data, n_points))
     return 1;
 
   /* Get first point */
@@ -798,7 +803,8 @@ bool Gis_polygon::get_data_as_wkt(String *txt, const char **end) const
       return 1;
     n_points= uint4korr(data);
     data+= 4;
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points) ||
+
+    if (not_enough_points(data, n_points) ||
 	txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
@@ -852,7 +858,7 @@ int Gis_polygon::area(double *ar, const char **end_of_data) const
     if (no_data(data, 4))
       return 1;
     n_points= uint4korr(data);
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
+    if (not_enough_points(data, n_points))
       return 1;
     get_point(&prev_x, &prev_y, data+4);
     data+= (4+SIZEOF_STORED_DOUBLE*2);
@@ -888,7 +894,7 @@ int Gis_polygon::exterior_ring(String *result) const
   n_points= uint4korr(data);
   data+= 4;
   length= n_points * POINT_DATA_SIZE;
-  if (no_data(data, length) || result->reserve(1+4+4+ length))
+  if (not_enough_points(data, n_points) || result->reserve(1+4+4+ length))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -934,7 +940,7 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
   n_points= uint4korr(data);
   points_size= n_points * POINT_DATA_SIZE;
   data+= 4;
-  if (no_data(data, points_size) || result->reserve(1+4+4+ points_size))
+  if (not_enough_points(data, n_points) || result->reserve(1+4+4+ points_size))
     return 1;
 
   result->q_append((char) wkb_ndr);
@@ -973,7 +979,7 @@ int Gis_polygon::centroid_xy(double *x, double *y) const
       return 1;
     org_n_points= n_points= uint4korr(data);
     data+= 4;
-    if (no_data(data, (SIZEOF_STORED_DOUBLE*2) * n_points))
+    if (not_enough_points(data, n_points))
       return 1;
     get_point(&prev_x, &prev_y, data);
     data+= (SIZEOF_STORED_DOUBLE*2);
@@ -1098,15 +1104,22 @@ uint Gis_multi_point::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
 bool Gis_multi_point::get_data_as_wkt(String *txt, const char **end) const
 {
   uint32 n_points;
-  if (no_data(m_data, 4))
+  size_t points_available;
+  const char *data= m_data;
+
+  if (no_data(data, 4))
     return 1;
 
-  n_points= uint4korr(m_data);
-  if (no_data(m_data+4,
-	      n_points * (SIZEOF_STORED_DOUBLE * 2 + WKB_HEADER_SIZE)) ||
+  n_points= uint4korr(data);
+  data+= 4;
+  points_available= data <= m_data_end ?
+    (m_data_end - data) / (POINT_DATA_SIZE + WKB_HEADER_SIZE) : 0;
+
+  /* can't use any of the helper functions due to WKB_HEADER_SIZE */
+  if (n_points > points_available ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return 1;
-  *end= append_points(txt, n_points, m_data+4, WKB_HEADER_SIZE);
+  *end= append_points(txt, n_points, data, WKB_HEADER_SIZE);
   txt->length(txt->length()-1);			// Remove end ','
   return 0;
 }
@@ -1260,7 +1273,7 @@ bool Gis_multi_line_string::get_data_as_wkt(String *txt,
       return 1;
     n_points= uint4korr(data + WKB_HEADER_SIZE);
     data+= WKB_HEADER_SIZE + 4;
-    if (no_data(data, n_points * (SIZEOF_STORED_DOUBLE*2)) ||
+    if (not_enough_points(data, n_points) ||
 	txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
       return 1;
     txt->qs_append('(');
@@ -1320,8 +1333,8 @@ int Gis_multi_line_string::geometry_n(uint32 num, String *result) const
     if (no_data(data, WKB_HEADER_SIZE + 4))
       return 1;
     n_points= uint4korr(data + WKB_HEADER_SIZE);
-    length= WKB_HEADER_SIZE + 4+ POINT_DATA_SIZE * n_points;
-    if (no_data(data, length))
+    length= WKB_HEADER_SIZE + 4 + POINT_DATA_SIZE * n_points;
+    if (not_enough_points(data + WKB_HEADER_SIZE + 4, n_points))
       return 1;
     if (!--num)
       break;
@@ -1521,7 +1534,7 @@ bool Gis_multi_polygon::get_data_as_wkt(String *txt, const char **end) const
         return 1;
       uint32 n_points= uint4korr(data);
       data+= 4;
-      if (no_data(data, (SIZEOF_STORED_DOUBLE * 2) * n_points) ||
+      if (not_enough_points(data, n_points) ||
 	  txt->reserve(2 + ((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points,
 		       512))
 	return 1;
