@@ -737,7 +737,7 @@ static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 void TransporterFacade::threadMainReceive(void)
 {
   bool poll_owner = false;
-  bool check_cluster_mgr = false;
+  bool check_cluster_mgr;
   NDB_TICKS currTime = NdbTick_CurrentMillisecond();
   NDB_TICKS lastTime = currTime;
   theTransporterRegistry->startReceiving();
@@ -1194,7 +1194,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
       m_threads.close(clnt->m_blockNo);
       return 0;
     }
-    bool not_finished = true;
+    bool not_finished;
     do
     {
       clnt->start_poll();
