@@ -246,7 +246,7 @@ private:
   friend class Ndb_cluster_connection;
   friend class Ndb_cluster_connection_impl;
 
-  void checkClusterMgr(NDB_TICKS currTime, NDB_TICKS & lastTime);
+  void checkClusterMgr(NDB_TICKS & lastTime);
   bool try_become_poll_owner(trp_client* clnt, Uint32 wait_time);
   bool become_poll_owner(trp_client* clnt, NDB_TICKS currtime);
   static void finish_poll(trp_client* clnt,
