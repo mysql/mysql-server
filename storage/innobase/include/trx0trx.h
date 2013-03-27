@@ -39,6 +39,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ut0vec.h"
 #include "fts0fts.h"
+#include <vector>
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
@@ -726,6 +727,9 @@ struct trx_rsegs_t {
 	need to be recovered. */
 	trx_undo_ptr_t	m_noredo;
 };
+
+typedef std::vector<trx_rseg_t*>		trx_rseg_array_t;
+typedef std::vector<trx_rseg_t*>::iterator	trx_rseg_array_itr_t;
 
 enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NONE = 0,		/*!< void rollback segment type. */

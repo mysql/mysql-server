@@ -36,18 +36,16 @@ class PurgeElem {
 public:
 	PurgeElem()
 		:
-		m_trx_no(),
-		m_next_rseg_pos()
+		m_trx_no()
 	{
-		 /* No op */
+		m_next_rseg_pos = m_rsegs.end();
 	}
 
-	/**
-	Set transaction number
-	@param trx_no - transaction number to set. */
-	void set_trx_no(trx_id_t trx_no)
+	PurgeElem(trx_id_t trx_no)
+		:
+		m_trx_no(trx_no)
 	{
-		m_trx_no = trx_no;
+		m_next_rseg_pos = m_rsegs.end();
 	}
 
 	/**
@@ -61,24 +59,27 @@ public:
 	/**
 	Add rollback segment to central array.
 	@param rseg - rollback segment to add. */
-	void add(trx_rseg_t* rseg)
+	void push_back(trx_rseg_t* rseg)
 	{
 		m_rsegs.push_back(rseg);
+
+		/** Rewind is must before get next rseg. */
+		m_next_rseg_pos = m_rsegs.end();
 	}
 
 	/**
 	Reset next rseg position back to 0. */
-	void reset()
+	void rewind()
 	{
-		m_next_rseg_pos = 0;
+		m_next_rseg_pos = m_rsegs.begin();
 	}
 
 	/**
-	Clear existing central array. */
+	Remove all registered rsegs. */
 	void clear()
 	{
 		m_rsegs.clear();
-		reset();
+		rewind();
 	}
 
 	/**
@@ -86,11 +87,14 @@ public:
 	@return trx_rseg_t - if next pos rseg valid return else return NULL. */
 	trx_rseg_t* get_next_rseg()
 	{
-		if (m_next_rseg_pos >= m_rsegs.size()) {
+		if (m_next_rseg_pos == m_rsegs.end()) {
 			return(NULL);
 		}
 
-		return(m_rsegs[m_next_rseg_pos++]);
+		trx_rseg_t* rseg = *m_next_rseg_pos;
+		m_next_rseg_pos++;
+
+		return(rseg);
 	}
 
 	/**
@@ -108,13 +112,13 @@ public:
 private:
 	/** Transaction number of a transaction of which rollback segments
 	are part off. */
-	trx_id_t			m_trx_no;
+	trx_id_t		m_trx_no;
 
 	/** Rollback segments of a transaction, scheduled for purge. */
-	std::vector<trx_rseg_t*>	m_rsegs;
+	trx_rseg_array_t	m_rsegs;
 
 	/** Return next rseg from this position. */
-	ulint				m_next_rseg_pos;
+	trx_rseg_array_itr_t	m_next_rseg_pos;	
 };
 
 typedef	std::priority_queue<PurgeElem, std::vector<PurgeElem>, PurgeElem>

@@ -1081,7 +1081,7 @@ trx_undo_truncate_end_func(
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
-	ut_ad(mutex_own(&(undo->rseg->mutex)));
+	ut_ad(mutex_own(&undo->rseg->mutex));
 
 	for (;;) {
 		mtr_start(&mtr);

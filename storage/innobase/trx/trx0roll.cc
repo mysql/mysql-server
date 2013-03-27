@@ -999,7 +999,7 @@ trx_roll_try_truncate(
 
 	ut_ad(mutex_own(&(trx->undo_mutex)));
 
-	ut_ad(mutex_own(&(undo_ptr->rseg->mutex)));
+	ut_ad(mutex_own(&undo_ptr->rseg->mutex));
 
 	trx->pages_undone = 0;
 
@@ -1161,25 +1161,22 @@ try_again:
 
 	undo_no = trx_undo_rec_get_undo_no(undo_rec);
 
-	/* Each transaction now has multiple rollback segments. If transaction
-	involves temp + non-temp tables both the rollback segments will be
-	active. In this case undo records will be distrubuted across rollback
-	segments.
+	/* Each transaction now has multiple rollback segments. If a transaction
+	involves temp + non-temp tables, both the rollback segments will be
+	active. In this case undo records will be distrubuted across the
+	two rollback segments.
 	CASE-1: UNDO action will apply all undo records from one rollback
-	segment before moving to next. Which make sense as next rollback
-	segment might not be present (in-case of crash no-redo rollback
-	segments are not restored). During this course of action undo record
-	numbers can't be sequential and can have gap but ordering is still
-	enforced as next undo record number should be < processed undo record
-	number.
-	CASE-2: Assuming it is normal rollback (not initiated by crash)
-	all rollback segments will be active (including no-redo).
+	segment before moving to next. This means undo record numbers can't be
+	sequential but ordering is still enforced as next undo record number
+	should be < processed undo record number.
+	CASE-2: For normal rollback (not initiated by crash) all rollback
+	segments will be active (including non-redo).
 	Based on transaction operation pattern undo record number of first
 	undo record from this new rollback segment can be > last undo number
 	from previous rollback segment and so we ignore this check if
 	rollback segments are switching. Once switched new rollback segment
 	should re-follow undo record number pattern (as mentioned in CASE-1). */
-	ut_ad((undo->rseg->space != trx->undo_rseg_space)
+	ut_ad(undo->rseg->space != trx->undo_rseg_space
 	      || (undo_no + 1 <= trx->undo_no));
 
 	/* We print rollback progress info if we are in a crash recovery
