@@ -2861,11 +2861,30 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     }
     case GTID_LOG_EVENT:
     {
+      DBUG_EXECUTE_IF("inject_fault_bug16502579", {
+                      DBUG_PRINT("debug", ("GTID_LOG_EVENT found. Injected ret=NO_GTIDS."));
+                      ret=NO_GTIDS;
+                      });
       if (ret != GOT_GTIDS)
       {
         if (ret != GOT_PREVIOUS_GTIDS)
-          // should not happen
-          my_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, MYF(0));
+        {
+          /*
+            Since this routine is run on startup, there may not be a
+            THD instance. Therefore, ER(X) cannot be used.
+           */
+          const char* msg_fmt= (current_thd != NULL) ?
+                               ER(ER_BINLOG_LOGICAL_CORRUPTION) :
+                               ER_DEFAULT(ER_BINLOG_LOGICAL_CORRUPTION);
+          my_printf_error(ER_BINLOG_LOGICAL_CORRUPTION,
+                          msg_fmt, MYF(0),
+                          filename,
+                          "The first global transaction identifier was read, but "
+                          "no other information regarding identifiers existing "
+                          "on the previous log files was found.");
+          ret= ERROR, done= true;
+          break;
+        }
         else
           ret= GOT_GTIDS;
       }
@@ -4300,28 +4319,41 @@ int MYSQL_BIN_LOG::purge_logs(const char *to_log,
   if (gtid_mode > 0 && !is_relay_log)
   {
     global_sid_lock->wrlock();
-    if (init_gtid_sets(NULL,
+    error= init_gtid_sets(NULL,
                        const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
                        opt_master_verify_checksum,
-                       false/*false=don't need lock*/))
-      goto err;
+                       false/*false=don't need lock*/);
     global_sid_lock->unlock();
+    if (error)
+      goto err;
   }
 
   DBUG_EXECUTE_IF("crash_purge_critical_after_update_index", DBUG_SUICIDE(););
 
 err:
+
+  int error_index= 0, close_error_index= 0;
   /* Read each entry from purge_index_file and delete the file. */
   if (is_inited_purge_index_file() &&
-      (error= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
+      (error_index= purge_index_entry(thd, decrease_log_space, false/*need_lock_index=false*/)))
     sql_print_error("MYSQL_BIN_LOG::purge_logs failed to process registered files"
                     " that would be purged.");
-  close_purge_index_file();
+
+  close_error_index= close_purge_index_file();
 
   DBUG_EXECUTE_IF("crash_purge_non_critical_after_update_index", DBUG_SUICIDE(););
 
   if (need_lock_index)
     mysql_mutex_unlock(&LOCK_index);
+
+  /*
+    Error codes from purge logs take precedence.
+    Then error codes from purging the index entry.
+    Finally, error codes from closing the purge index file.
+  */
+  error= error ? error : (error_index ? error_index :
+                          close_error_index);
+
   DBUG_RETURN(error);
 }
 
@@ -5349,6 +5381,8 @@ void MYSQL_BIN_LOG::purge()
   {
     DEBUG_SYNC(current_thd, "at_purge_logs_before_date");
     time_t purge_time= my_time(0) - expire_logs_days*24*60*60;
+    DBUG_EXECUTE_IF("expire_logs_always",
+                    { purge_time= my_time(0);});
     if (purge_time >= 0)
     {
       purge_logs_before_date(purge_time);
@@ -6919,9 +6953,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     */
 
     DBUG_EXECUTE_IF("crash_commit_before_unlog", DBUG_SUICIDE(););
+    DEBUG_SYNC(thd, "ready_to_do_rotation");
     bool check_purge= false;
     mysql_mutex_lock(&LOCK_log);
-    int error= rotate(true, &check_purge);
+    int error= rotate(false, &check_purge);
     mysql_mutex_unlock(&LOCK_log);
 
     if (!error && check_purge)
@@ -8387,10 +8422,12 @@ void THD::binlog_prepare_row_images(TABLE *table)
 
   /** 
     if there is a primary key in the table (ie, user declared PK or a
-    non-null unique index) and we dont want to ship the entire image.
+    non-null unique index) and we dont want to ship the entire image,
+    and the handler involved supports this.
    */
   if (table->s->primary_key < MAX_KEY &&
-      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL))
+      (thd->variables.binlog_row_image < BINLOG_ROW_IMAGE_FULL) &&
+      !ha_check_storage_engine_flag(table->s->db_type(), HTON_NO_BINLOG_ROW_OPT))
   {
     /**
       Just to be sure that tmp_set is currently not in use as

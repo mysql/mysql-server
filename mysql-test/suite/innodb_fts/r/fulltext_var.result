@@ -30,7 +30,7 @@ aaaaaa bbbbbb cccccc
 bbbbbb cccccc
 aaaaaa cccccc
 select * from t1 where match b against ('+aaaaaa @bbbbbb' in boolean mode);
-b
+ERROR 42000: syntax error, unexpected '@', expecting $end
 set global ft_boolean_syntax='@ -><()~*:""@|';
 ERROR 42000: Variable 'ft_boolean_syntax' can't be set to the value of '@ -><()~*:""@|'
 set global ft_boolean_syntax='+ -><()~*:""@!|';

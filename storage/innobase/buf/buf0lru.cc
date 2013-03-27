@@ -460,13 +460,8 @@ buf_flush_or_remove_page(
 					don't remove else remove without
 					flushing to disk */
 {
-	ib_mutex_t*	block_mutex;
-	bool		processed = false;
-
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
-
-	block_mutex = buf_page_get_mutex(bpage);
 
 	/* bpage->space and bpage->io_fix are protected by
 	buf_pool->mutex and block_mutex. It is safe to check
@@ -477,63 +472,60 @@ buf_flush_or_remove_page(
 		/* We cannot remove this page during this scan
 		yet; maybe the system is currently reading it
 		in, or flushing the modifications to the file */
+		return(false);
 
-	} else {
-
-		/* We have to release the flush_list_mutex to obey the
-		latching order. We are however guaranteed that the page
-		will stay in the flush_list because buf_flush_remove()
-		needs buf_pool->mutex as well (for the non-flush case). */
-
-		buf_flush_list_mutex_exit(buf_pool);
-
-		mutex_enter(block_mutex);
-
-		ut_ad(bpage->oldest_modification != 0);
-
-		if (bpage->buf_fix_count > 0) {
-
-			mutex_exit(block_mutex);
-
-			/* We cannot remove this page yet;
-			maybe the system is currently reading
-			it in, or flushing the modifications
-			to the file */
-
-		} else if (!flush) {
-
-			buf_flush_remove(bpage);
-
-			mutex_exit(block_mutex);
-
-			processed = true;
-
-		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-
-			/* Check the status again after releasing the flush
-			list mutex and acquiring the block mutex. The background
-			flush thread may be in the process of flushing this
-			page when we released the flush list mutex. */
-
-			/* The following call will release the buffer pool
-			and block mutex. */
-			buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
-
-			/* Wake possible simulated aio thread to actually
-			post the writes to the operating system */
-			os_aio_simulated_wake_handler_threads();
-
-			buf_pool_mutex_enter(buf_pool);
-
-			processed = true;
-		} else {
-			mutex_exit(block_mutex);
-		}
-
-		buf_flush_list_mutex_enter(buf_pool);
 	}
 
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	bool		processed = false;
+
+	/* We have to release the flush_list_mutex to obey the
+	latching order. We are however guaranteed that the page
+	will stay in the flush_list and won't be relocated because
+	buf_flush_remove() and buf_flush_relocate_on_flush_list()
+	need buf_pool->mutex as well. */
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	mutex_enter(block_mutex);
+
+	ut_ad(bpage->oldest_modification != 0);
+
+	if (!flush) {
+
+		buf_flush_remove(bpage);
+
+		mutex_exit(block_mutex);
+
+		processed = true;
+
+	} else if (buf_flush_ready_for_flush(bpage,
+					     BUF_FLUSH_SINGLE_PAGE)) {
+
+		/* The following call will release the buffer pool
+		and block mutex. */
+		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
+		ut_ad(!mutex_own(block_mutex));
+
+		/* Wake possible simulated aio thread to actually
+		post the writes to the operating system */
+		os_aio_simulated_wake_handler_threads();
+
+		buf_pool_mutex_enter(buf_pool);
+
+		processed = true;
+	} else {
+		/* Not ready for flush. It can't be IO fixed because we
+		checked for that at the start of the function. It must
+		be buffer fixed. */
+		ut_ad(bpage->buf_fix_count > 0);
+		mutex_exit(block_mutex);
+	}
+
+	buf_flush_list_mutex_enter(buf_pool);
+
 	ut_ad(!mutex_own(block_mutex));
+	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	return(processed);
 }
@@ -562,9 +554,11 @@ buf_flush_or_remove_pages(
 	buf_page_t*	prev;
 	buf_page_t*	bpage;
 	ulint		processed = 0;
-	bool		all_freed = true;
 
 	buf_flush_list_mutex_enter(buf_pool);
+
+rescan:
+	bool	all_freed = true;
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 	     bpage != NULL;
@@ -585,9 +579,33 @@ buf_flush_or_remove_pages(
 		} else if (!buf_flush_or_remove_page(buf_pool, bpage, flush)) {
 
 			/* Remove was unsuccessful, we have to try again
-			by scanning the entire list from the end. */
+			by scanning the entire list from the end.
+			This also means that we never released the
+			buf_pool mutex. Therefore we can trust the prev
+			pointer.
+			buf_flush_or_remove_page() released the
+			flush list mutex but not the buf_pool mutex.
+			Therefore it is possible that a new page was
+			added to the flush list. For example, in case
+			where we are at the head of the flush list and
+			prev == NULL. That is OK because we have the
+			tablespace quiesced and no new pages for this
+			space-id should enter flush_list. This is
+			because the only callers of this function are
+			DROP TABLE and FLUSH TABLE FOR EXPORT.
+			We know that we'll have to do at least one more
+			scan but we don't break out of loop here and
+			try to do as much work as we can in this
+			iteration. */
 
 			all_freed = false;
+		} else if (flush) {
+
+			/* The processing was successful. And during the
+			processing we have released the buf_pool mutex
+			when calling buf_page_flush(). We cannot trust
+			prev pointer. */
+			goto rescan;
 		}
 
 		++processed;
@@ -649,7 +667,7 @@ buf_flush_dirty_pages(
 		ut_ad(buf_flush_validate(buf_pool));
 
 		if (err == DB_FAIL) {
-			os_thread_sleep(20000);
+			os_thread_sleep(2000);
 		}
 
 		/* DB_FAIL is a soft error, it means that the task wasn't
@@ -658,6 +676,9 @@ buf_flush_dirty_pages(
 		ut_ad(buf_flush_validate(buf_pool));
 
 	} while (err == DB_FAIL);
+
+	ut_ad(err == DB_INTERRUPTED
+	      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 }
 
 /******************************************************************//**
@@ -829,15 +850,11 @@ buf_LRU_remove_pages(
 	case BUF_REMOVE_FLUSH_NO_WRITE:
 		ut_a(trx == 0);
 		buf_flush_dirty_pages(buf_pool, id, false, NULL);
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
 		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		/* Ensure that all asynchronous IO is completed. */
 		os_aio_wait_until_no_pending_writes();
 		fil_flush(id);
@@ -886,13 +903,6 @@ buf_LRU_flush_or_remove_pages(
 
 		buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
 	}
-
-#ifdef UNIV_DEBUG
-	if (trx != 0 && id != 0) {
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages_count(id) == 0);
-	}
-#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
