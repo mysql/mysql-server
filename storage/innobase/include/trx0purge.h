@@ -239,16 +239,16 @@ private:
 	TrxUndoRsegsIterator& operator=(const TrxUndoRsegsIterator&);
 
 	/** The purge system pointer */
-	trx_purge_t*				m_purge_sys;
+	trx_purge_t*			m_purge_sys;
 
 	/** The current element to process */
-	TrxUndoRsegs				m_trx_undo_rsegs;
+	TrxUndoRsegs			m_trx_undo_rsegs;
 
 	/** Track the current element in m_trx_undo_rseg */
-	typename TrxUndoRsegs::iterator_t	m_iter;
+	TrxUndoRsegs::iterator_t	m_iter;
 
 	/** Sentinel value */
-	static const TrxUndoRsegs		NullElement;
+	static const TrxUndoRsegs	NullElement;
 };
 
 #ifndef UNIV_NONINL
