@@ -1361,7 +1361,8 @@ trx_undo_report_row_operation(
 
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
-				dict_disable_redo_if_temporary(index->table, &mtr);
+				dict_disable_redo_if_temporary(
+					index->table, &mtr);
 
 				mutex_enter(&undo_ptr->rseg->mutex);
 				trx_undo_free_last_page(trx, undo, &mtr);
