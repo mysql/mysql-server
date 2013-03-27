@@ -879,7 +879,7 @@ trx_sys_create_rsegs(
 	Will use noredo slots. Note: no-redo slots are open slots that can
 	be used by any tablespace provided rseg allocated in these no-redo
 	slots don't perform redo logging to track changes to undo logging.
-	temp-tables don't need to be restored on crash and so can use
+	temp-tables don't need to be restored after a crash and so can use
 	no-redo slots.
 	Slot-0: reserved for system-tablespace.
 	Slot-1....Slot-N: reserved for temp-tablespace.

@@ -29,6 +29,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "univ.i"
 #include "trx0types.h"
 #include "trx0sys.h"
+#include <vector>
 
 /******************************************************************//**
 Gets a rollback segment header.
