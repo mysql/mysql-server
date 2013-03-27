@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2013 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -173,6 +173,14 @@ private:
   bool sync();
   void overflow();
 
+protected:
+  // We want to mock away syncing to disk in unit tests.
+  virtual int do_msync_and_fsync(int fd_arg, void *addr, size_t len, int flags)
+  {
+    return my_msync(fd_arg, addr, len, flags);
+  }
+
+private:
   /**
     Find empty slot in the page and write xid value there.
 
@@ -183,7 +191,7 @@ private:
 
     @return  offset value from the top of the page where the xid was stored.
   */
-  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data)
+  ulong store_xid_in_empty_slot(my_xid xid, PAGE *p, uchar *data_arg)
   {
     /* searching for an empty slot */
     while (*p->ptr)
@@ -193,7 +201,7 @@ private:
     }
 
     /* found! store xid there and mark the page dirty */
-    ulong cookie= (ulong)((uchar *)p->ptr - data);      // can never be zero
+    ulong cookie= (ulong)((uchar *)p->ptr - data_arg);      // can never be zero
     *p->ptr++= xid;
     p->free--;
     p->state= PS_DIRTY;

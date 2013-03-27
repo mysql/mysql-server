@@ -992,7 +992,11 @@ struct trx_t{
 	trx_undo_t*	update_undo;	/*!< pointer to the update undo log, or
 					NULL if no update performed yet */
 	undo_no_t	roll_limit;	/*!< least undo number to undo during
-					a rollback */
+					a partial rollback; 0 otherwise */
+#ifdef UNIV_DEBUG
+	bool		in_rollback;	/*!< true when the transaction is
+					executing a partial or full rollback */
+#endif /* UNIV_DEBUG */
 	ulint		pages_undone;	/*!< number of undo log pages undone
 					since the last undo log truncation */
 	trx_undo_arr_t*	undo_no_arr;	/*!< array of undo numbers of undo log

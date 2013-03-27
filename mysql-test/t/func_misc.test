@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 #
 # Testing of misc functions
@@ -102,6 +103,9 @@ select export_set(3, _latin1'foo', _utf8'bar', ',', 4);
 --disable_warnings
 create table t1 as select uuid(), length(uuid());
 --enable_warnings
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 
@@ -298,6 +302,9 @@ SET @@global.query_cache_size = default;
 #
 
 create table t1 select INET_ATON('255.255.0.1') as `a`;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 

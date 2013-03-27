@@ -22,4 +22,4 @@
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
 
---source suite/parts/inc/partition_max_parts_key.inc
+--source suite/max_parts/inc/partition_max_parts_key.inc

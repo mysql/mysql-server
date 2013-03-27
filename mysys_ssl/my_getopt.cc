@@ -642,26 +642,31 @@ static void print_cmdline_password_warning()
 }
 
 
-/*
-  function: check_struct_option
+/**
+  @brief Check for struct options
 
-  Arguments: Current argument under processing from argv and a variable
-  where to store the possible key name.
+  @param[in]   cur_arg     Current argument under processing from argv
+  @param[in]   key_name    variable where to store the possible key name 
 
-  Return value: In case option is a struct option, returns a pointer to
-  the current argument at the position where the struct option (key_name)
-  ends, the next character after the dot. In case argument is not a struct
-  option, returns a pointer to the argument.
-
+  @details
+  In case option is a struct option, returns a pointer to the current
+  argument at the position where the struct option (key_name) ends, the
+  next character after the dot. In case argument is not a struct option,
+  returns a pointer to the argument.
   key_name will hold the name of the key, or 0 if not found.
+
+  @return char*
+  If struct option     Pointer to next character after dot.
+  If no struct option  Pointer to the argument
 */
 
 static char *check_struct_option(char *cur_arg, char *key_name)
 {
-  char *ptr, *end;
-
-  ptr= strcend(cur_arg + 1, '.'); /* Skip the first character */
-  end= strcend(cur_arg, '=');
+  char *dot_pos, *equal_pos, *space_pos;
+ 
+  dot_pos= strcend(cur_arg + 1, '.'); /* Skip the first character */
+  equal_pos= strcend(cur_arg, '=');
+  space_pos= strcend(cur_arg, ' ');
 
   /* 
      If the first dot is after an equal sign, then it is part
@@ -670,12 +675,12 @@ static char *check_struct_option(char *cur_arg, char *key_name)
      NULL, or the character right before equal sign is the first
      dot found, the option is not a struct option.
   */
-  if (end - ptr > 1)
+  if ((equal_pos > dot_pos) && (space_pos > dot_pos))
   {
-    uint len= (uint) (ptr - cur_arg);
+    size_t len= (uint) (dot_pos - cur_arg);
     set_if_smaller(len, FN_REFLEN-1);
     strmake(key_name, cur_arg, len);
-    return ++ptr;
+    return ++dot_pos;
   }
   else
   {

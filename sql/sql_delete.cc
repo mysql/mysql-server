@@ -317,8 +317,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   }
 
   /* If quick select is used, initialize it before retrieving rows. */
-  if (select && select->quick && select->quick->reset())
-    goto exit_without_my_ok;
+  if (select && select->quick && (error= select->quick->reset()))
+  {
+     table->file->print_error(error, MYF(0));
+     goto exit_without_my_ok;
+  }
+
   if (usable_index==MAX_KEY || (select && select->quick))
     error= init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
@@ -581,6 +585,8 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
   TABLE_LIST *aux_tables= lex->auxiliary_table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
+
+  Prepare_error_tracker tracker(thd);
 
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second

@@ -1,5 +1,6 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 
 # bug in decimal() with negative numbers by kaido@tradenet.ee
 
@@ -310,9 +311,15 @@ insert into t1 values (1);
 select * from t1;
 drop table t1;
 create table t1 (d decimal(5));
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 create table t1 (d decimal);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 --error 1426
@@ -487,6 +494,9 @@ SELECT ROUND( a, 100 ) AS c FROM t4 ORDER BY c;
 
 delete from t1;
 INSERT INTO t1 VALUES (1234567890, 20), (999.99, 5);
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 
 select round(a,b) as c from t1 order by c;
