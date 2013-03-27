@@ -35,13 +35,6 @@ submitting purge-request. */
 class TrxUndoRsegs {
 
 public:
-	TrxUndoRsegs()
-		:
-		m_trx_no()
-	{
-		m_next_rseg_pos = m_rsegs.end();
-	}
-
 	TrxUndoRsegs(trx_id_t trx_no)
 		:
 		m_trx_no(trx_no)
@@ -109,6 +102,10 @@ public:
 	{
 		return(elem1.m_trx_no > elem2.m_trx_no);
 	}
+
+	/** Compiler defined copy-constructor/assignment operator
+	should be fine given that there is no reference to memory object
+	outside scope of class object.*/
 
 private:
 	/** Transaction number of a transaction of which rollback segments
