@@ -664,9 +664,8 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	mutex_enter(&purge_sys->pq_mutex);
 
-	/* Only purge consumes events from the binary heap, user
-	threads only produce the events. */
-
+	/* Only purge consumes events from the binary heap, user threads only
+	produce the events. */
 	if ((purge_sys->rseg = purge_sys->elem.get_next_rseg()) != NULL) {
 
 		/* We are still processing rollback segment from the same
