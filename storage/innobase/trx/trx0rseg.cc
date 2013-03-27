@@ -179,7 +179,7 @@ trx_rseg_mem_create(
 					or 0 for uncompressed pages */
 	ulint		page_no,	/*!< in: page number of the segment
 					header */
-	purge_queue_t*	purge_queue,	/*!< in/out: rseg queue */
+	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		len;
@@ -241,15 +241,15 @@ trx_rseg_mem_create(
 		rseg->last_del_marks = mtr_read_ulint(
 			undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 
-		PurgeElem purge_elem(rseg->last_trx_no);
-		purge_elem.push_back(rseg);
+		TrxUndoRsegs elem(rseg->last_trx_no);
+		elem.push_back(rseg);
 
 		if (rseg->last_page_no != FIL_NULL) {
 
 			/* There is no need to cover this operation by the purge
 			mutex because we are still bootstrapping. */
 
-			purge_queue->push(purge_elem);
+			purge_queue->push(elem);
 		}
 	} else {
 		rseg->last_page_no = FIL_NULL;
@@ -266,7 +266,7 @@ void
 trx_rseg_create_instance(
 /*=====================*/
 	trx_sysf_t*	sys_header,	/*!< in: trx system header */
-	purge_queue_t*	purge_queue,	/*!< in/out: rseg queue */
+	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		i;
@@ -366,7 +366,7 @@ void
 trx_rseg_array_init(
 /*================*/
 	trx_sysf_t*	sys_header,	/* in/out: trx system header */
-	purge_queue_t*	purge_queue,	/*!< in: rseg queue */
+	purge_pq_t*	purge_queue,	/*!< in: rseg queue */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_sys->rseg_history_len = 0;

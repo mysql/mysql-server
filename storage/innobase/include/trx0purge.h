@@ -61,7 +61,7 @@ void
 trx_purge_sys_create(
 /*=================*/
 	ulint		n_purge_threads,/*!< in: number of purge threads */
-	purge_queue_t*	purge_queue);	/*!< in/own: UNDO log min binary heap*/
+	purge_pq_t*	purge_queue);	/*!< in/own: UNDO log min binary heap*/
 /********************************************************************//**
 Frees the global purge system control structure. */
 UNIV_INTERN
@@ -197,7 +197,7 @@ struct trx_purge_t{
 					the next record to purge belongs */
 	ulint		hdr_offset;	/*!< Header byte offset on the page */
 	/*-----------------------------*/
-	PurgeElem	elem;		/*!< Current active element to purge.
+	TrxUndoRsegs	elem;		/*!< Current active element to purge.
 					Contains array of rollback segments from
 					a transaction that needs to be purged */
 	/*-----------------------------*/
@@ -205,8 +205,8 @@ struct trx_purge_t{
 					purge: can be emptied after purge
 					completes */
 	/*-----------------------------*/
-	purge_queue_t*	purge_queue;	/*!< Binary min-heap, ordered on
-					PurgeElem::trx_no. It is protected
+	purge_pq_t*	purge_queue;	/*!< Binary min-heap, ordered on
+					TrxUndoRsegs::trx_no. It is protected
 					by the pq_mutex */
 	ib_mutex_t	pq_mutex;	/*!< Mutex protecting purge_queue */
 };

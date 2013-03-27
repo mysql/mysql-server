@@ -82,7 +82,7 @@ Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
-purge_queue_t*
+purge_pq_t*
 trx_sys_init_at_db_start(void);
 /*==========================*/
 /*****************************************************************//**
