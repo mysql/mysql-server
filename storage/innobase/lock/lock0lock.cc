@@ -1661,6 +1661,7 @@ lock_rec_has_expl(
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (lock->trx == trx
+		    && !lock_rec_get_insert_intention(lock)
 		    && !lock_is_wait_not_by_other(lock->type_mode)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
@@ -1671,8 +1672,7 @@ lock_rec_has_expl(
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
 		    && (!lock_rec_get_gap(lock)
 			|| (precise_mode & LOCK_GAP)
-			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
-		    && (!lock_rec_get_insert_intention(lock))) {
+			|| heap_no == PAGE_HEAP_NO_SUPREMUM)) {
 
 			return(lock);
 		}
@@ -4258,6 +4258,7 @@ lock_release(
 {
 	lock_t*		lock;
 	ulint		count = 0;
+	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
@@ -4283,7 +4284,7 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				table->query_cache_inv_time = ut_time();
+				table->query_cache_inv_id = max_trx_id;
 			}
 
 			lock_table_dequeue(lock);
@@ -6852,6 +6853,28 @@ lock_trx_has_sys_table_locks(
 
 	return(strongest_lock);
 }
+
+/*******************************************************************//**
+Check if the transaction holds an exclusive lock on a record.
+@return	whether the locks are held */
+UNIV_INTERN
+bool
+lock_trx_has_rec_x_lock(
+/*====================*/
+	const trx_t*		trx,	/*!< in: transaction to check */
+	const dict_table_t*	table,	/*!< in: table to check */
+	const buf_block_t*	block,	/*!< in: buffer block of the record */
+	ulint			heap_no)/*!< in: record heap number */
+{
+	ut_ad(heap_no > PAGE_HEAP_NO_SUPREMUM);
+
+	lock_mutex_enter();
+	ut_a(lock_table_has(trx, table, LOCK_IX));
+	ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
+			       block, heap_no, trx));
+	lock_mutex_exit();
+	return(true);
+}
 #endif /* UNIV_DEBUG */
 
 /**
@@ -7304,3 +7327,41 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 	return(victim_trx);
 }
 
+/*******************************************************************//**
+Check if any of the tables locked by this transaction are being altered
+by online DDL, this is a temporary work around for bug#16503490.
+@return true if they are being altered */
+UNIV_INTERN
+bool
+lock_tables_are_being_altered(
+/*==========================*/
+	const trx_t*	trx)	/*!< in: transaction */
+{
+	if (ib_vector_is_empty(trx->lock.table_locks)) {
+		return(false);
+	}
+
+	for (lint i = ib_vector_size(trx->lock.table_locks) - 1;
+	     i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = *reinterpret_cast<lock_t**>(
+			ib_vector_get(trx->lock.table_locks, i));
+
+		if (lock == NULL) {
+			continue;
+		}
+
+		ut_ad(trx == lock->trx);
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_ad(lock->un_member.tab_lock.table != NULL);
+
+		if (dict_index_is_online_ddl(
+			    dict_table_get_first_index(
+				    lock->un_member.tab_lock.table))) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
