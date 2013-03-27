@@ -624,6 +624,80 @@ trx_lists_init_at_db_start(void)
 }
 
 /******************************************************************//**
+Get next redo rollback segment. (Segment are assigned in round-robin fashion).
+@return	assigned rollback segment instance */
+static
+trx_rseg_t*
+get_next_redo_rseg(
+/*===============*/
+	ulong	max_undo_logs,	/*!< in: maximum number of UNDO logs to use */
+	ulint	n_tablespaces)	/*!< in: number of rollback tablespaces */
+{
+	trx_rseg_t*	rseg;
+	static ulint	redo_rseg_slot = 0;
+
+	for(;;) {
+		rseg = trx_sys->rseg_array[redo_rseg_slot];
+
+		redo_rseg_slot = (redo_rseg_slot + 1) % max_undo_logs;
+
+		/* Skip slots allocated for noredo rsegs */
+		while (trx_sys_is_noredo_rseg_slot(redo_rseg_slot)) {
+			redo_rseg_slot =
+				(redo_rseg_slot + 1) % max_undo_logs;
+		}
+
+		if (rseg == NULL) {
+			continue;
+		} else if (rseg->space == srv_sys_space.space_id()
+			   && n_tablespaces > 0
+			   && trx_sys->rseg_array[redo_rseg_slot]
+			   != NULL
+			   && trx_sys->rseg_array[redo_rseg_slot]->space
+			   != srv_sys_space.space_id()) {
+			/* If undo-tablespace is configured, skip
+			rseg from system-tablespace and try to use
+			undo-tablespace rseg unless it is not possible
+			due to lower limit of undo-logs. */
+			continue;
+		}
+		break;
+	}
+
+	return(rseg);
+}
+
+/******************************************************************//**
+Get next noredo rollback segment.
+@return	assigned rollback segment instance */
+static
+trx_rseg_t*
+get_next_noredo_rseg(
+/*=================*/
+	ulong	max_undo_logs)	/*!< in: maximum number of UNDO logs to use */
+{
+	trx_rseg_t*	rseg;
+	static ulint	noredo_rseg_slot = 1;
+
+	for(;;) {
+		rseg = trx_sys->rseg_array[noredo_rseg_slot];
+
+		noredo_rseg_slot = (noredo_rseg_slot + 1) % max_undo_logs;
+
+		while (!trx_sys_is_noredo_rseg_slot(noredo_rseg_slot)) {
+			noredo_rseg_slot =
+				(noredo_rseg_slot + 1) % max_undo_logs;
+		}
+
+		if (rseg != NULL) {
+			break;
+		}
+	}
+
+	return(rseg);
+}
+
+/******************************************************************//**
 Assigns a rollback segment to a transaction in a round-robin fashion.
 @return	assigned rollback segment instance */
 static
@@ -636,9 +710,6 @@ trx_assign_rseg_low(
 					tablespaces */
 	trx_rseg_type_t	rseg_type)	/*!< in: type of rseg to assign. */
 {
-	static ulint	redo_rseg_slot = 0;
-	static ulint	noredo_rseg_slot = 1;
-
 	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
@@ -653,7 +724,6 @@ trx_assign_rseg_low(
 	/* Note: The assumption here is that there can't be any gaps in
 	the array. Once we implement more flexible rollback segment
 	management this may not hold. The assertion checks for that case. */
-
 	ut_ad(trx_sys->rseg_array[0] != NULL);
 	ut_ad(rseg_type == TRX_RSEG_TYPE_REDO
 	      || trx_sys->rseg_array[1] != NULL);
@@ -665,53 +735,11 @@ trx_assign_rseg_low(
 	ut_ad(rseg_type == TRX_RSEG_TYPE_REDO
 	      || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
 
-	/* Skip the system tablespace if we have more than one tablespace
-	defined for rollback segments. We want all UNDO records to be in
-	the non-system tablespaces. */
 	trx_rseg_t* rseg = 0;
 	if (rseg_type == TRX_RSEG_TYPE_REDO) {
-		for(;;) {
-			rseg = trx_sys->rseg_array[redo_rseg_slot];
-
-			redo_rseg_slot = (redo_rseg_slot + 1) % max_undo_logs;
-
-			/* Skip slots allocated for noredo rsegs */
-			while (trx_sys_is_noredo_rseg_slot(redo_rseg_slot)) {
-				redo_rseg_slot =
-					(redo_rseg_slot + 1) % max_undo_logs;
-			}
-
-			if (rseg == NULL) {
-				continue;
-			} else if (rseg->space == srv_sys_space.space_id()
-				   && n_tablespaces > 0
-				   && trx_sys->rseg_array[redo_rseg_slot]
-					!= NULL
-				   && trx_sys->rseg_array[redo_rseg_slot]->space
-					!= srv_sys_space.space_id()) {
-				/* If undo-tablespace is configured, skip
-				rseg from system-tablespace and try to use
-				undo-tablespace rseg unless it is not possible
-				due to lower limit of undo-logs. */
-				continue;
-			}
-			break;
-		}
+		rseg = get_next_redo_rseg(max_undo_logs, n_tablespaces);
 	} else if (rseg_type == TRX_RSEG_TYPE_NOREDO) {
-		for(;;) {
-			rseg = trx_sys->rseg_array[noredo_rseg_slot];
-
-			noredo_rseg_slot = (noredo_rseg_slot + 1) % max_undo_logs;
-
-			while (!trx_sys_is_noredo_rseg_slot(noredo_rseg_slot)) {
-				noredo_rseg_slot =
-					(noredo_rseg_slot + 1) % max_undo_logs;
-			}
-
-			if (rseg != NULL) {
-				break;
-			}
-		}
+		rseg = get_next_noredo_rseg(max_undo_logs);
 	}
 
 	return(rseg);
