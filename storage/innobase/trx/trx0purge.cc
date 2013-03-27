@@ -182,7 +182,7 @@ trx_purge_sys_close(void)
 	mem_heap_free(purge_sys->heap);
 
 	if (purge_sys->purge_queue) {
-		delete(purge_sys->purge_queue);
+		delete purge_sys->purge_queue;
 		purge_sys->purge_queue = 0;
 	}
 
@@ -549,7 +549,6 @@ trx_purge_rseg_get_next_history_log(
 	trx_id_t	trx_no;
 	ibool		del_marks;
 	mtr_t		mtr;
-	PurgeElem	purge_elem;
 
 	mutex_enter(&(rseg->mutex));
 
@@ -633,8 +632,8 @@ trx_purge_rseg_get_next_history_log(
 	rseg->last_trx_no = trx_no;
 	rseg->last_del_marks = del_marks;
 
-	purge_elem.add(rseg);
-	purge_elem.set_trx_no(rseg->last_trx_no);
+	PurgeElem purge_elem(rseg->last_trx_no);
+	purge_elem.push_back(rseg);
 
 	/* Purge can also produce events, however these are already ordered
 	in the rollback segment and any user generated event will be greater
@@ -670,11 +669,10 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	if ((purge_sys->rseg = purge_sys->elem.get_next_rseg()) != NULL) {
 
-		/* We are still processing rollback segment from same
+		/* We are still processing rollback segment from the same
 		transaction and so expected transaction number shouldn't
-		increase. This action will undo increase in iter.trx_no
-		which is set on-completion of current rseg assuming there
-		are no more rseg with same trx_no. */
+		increase. Undo increment of expected trx_no done by caller
+		assuming rollback segments from given transaction are done. */
 		purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
 
 		mutex_exit(&purge_sys->pq_mutex);
@@ -685,7 +683,7 @@ trx_purge_get_rseg_with_min_trx_id(
 
 		purge_sys->purge_queue->pop();
 
-		purge_sys->elem.reset();
+		purge_sys->elem.rewind();
 
 		purge_sys->rseg = purge_sys->elem.get_next_rseg();
 

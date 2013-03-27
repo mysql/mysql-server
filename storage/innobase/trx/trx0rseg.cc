@@ -40,7 +40,8 @@ Created 3/26/1996 Heikki Tuuri
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register rseg_mutex_key with performance schema */
-UNIV_INTERN mysql_pfs_key_t	rseg_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	redo_rseg_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	noredo_rseg_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /****************************************************************//**
@@ -196,9 +197,10 @@ trx_rseg_mem_create(
 	rseg->page_no = page_no;
 
 	if (space == srv_tmp_space.space_id()) {
-		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_NOREDO_RSEG);
+		mutex_create(
+			noredo_rseg_mutex_key, &rseg->mutex, SYNC_NOREDO_RSEG);
 	} else {
-		mutex_create(rseg_mutex_key, &rseg->mutex, SYNC_REDO_RSEG);
+		mutex_create(redo_rseg_mutex_key, &rseg->mutex, SYNC_REDO_RSEG);
 	}
 
 	/* const_cast<trx_rseg_t*>() because this function is
@@ -221,8 +223,6 @@ trx_rseg_mem_create(
 	len = flst_get_len(rseg_header + TRX_RSEG_HISTORY, mtr);
 
 	if (len > 0) {
-		PurgeElem	purge_elem;
-
 		trx_sys->rseg_history_len += len;
 
 		node_addr = trx_purge_get_log_from_hist(
@@ -241,8 +241,8 @@ trx_rseg_mem_create(
 		rseg->last_del_marks = mtr_read_ulint(
 			undo_log_hdr + TRX_UNDO_DEL_MARKS, MLOG_2BYTES, mtr);
 
-		purge_elem.add(rseg);
-		purge_elem.set_trx_no(rseg->last_trx_no);
+		PurgeElem purge_elem(rseg->last_trx_no);
+		purge_elem.push_back(rseg);
 
 		if (rseg->last_page_no != FIL_NULL) {
 

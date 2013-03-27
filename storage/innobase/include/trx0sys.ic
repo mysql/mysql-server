@@ -220,9 +220,7 @@ trx_sys_is_noredo_rseg_slot(
 /*========================*/
 	ulint	slot_id)	/*!< in: slot_id to check */
 {
-	/* Slots allocated from temp-tablespace are no-redo slots.
-	Eventually there could be other tablespaces that might contribute
-	to no-redo slots. */
+	/* Slots allocated from temp-tablespace are no-redo slots. */
 	return (slot_id > 0 && slot_id < (srv_tmp_undo_logs + 1));
 }
 

@@ -5903,10 +5903,7 @@ ha_innobase::commit_inplace_alter_table(
 				DBUG_SUICIDE(););
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx->rsegs.m_redo.insert_undo
-		      || trx->rsegs.m_redo.update_undo
-		      || trx->rsegs.m_noredo.insert_undo
-		      || trx->rsegs.m_noredo.update_undo);
+		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
