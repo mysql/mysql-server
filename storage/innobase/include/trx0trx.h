@@ -728,9 +728,6 @@ struct trx_rsegs_t {
 	trx_undo_ptr_t	m_noredo;
 };
 
-typedef std::vector<trx_rseg_t*>		trx_rseg_array_t;
-typedef std::vector<trx_rseg_t*>::iterator	trx_rseg_array_itr_t;
-
 enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NONE = 0,		/*!< void rollback segment type. */
 	TRX_RSEG_TYPE_REDO,		/*!< redo rollback segment. */

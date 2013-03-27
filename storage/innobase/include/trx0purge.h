@@ -34,7 +34,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "page0page.h"
 #include "usr0sess.h"
 #include "fil0fil.h"
-#include "trx0purgeq.h"
 
 /** The global data structure coordinating a purge */
 extern trx_purge_t*	purge_sys;
@@ -122,6 +121,9 @@ purge_state_t
 trx_purge_state(void);
 /*=================*/
 
+// Forward declaration
+struct TrxUndoRsegsIterator;
+
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 struct purge_iter_t {
@@ -196,11 +198,12 @@ struct trx_purge_t{
 	ulint		hdr_page_no;	/*!< Header page of the undo log where
 					the next record to purge belongs */
 	ulint		hdr_offset;	/*!< Header byte offset on the page */
-	/*-----------------------------*/
-	TrxUndoRsegs	elem;		/*!< Current active element to purge.
-					Contains array of rollback segments from
-					a transaction that needs to be purged */
-	/*-----------------------------*/
+
+
+	TrxUndoRsegsIterator*
+			rseg_iter;	/*!< Iterator to get the next rseg
+					to process */
+
 	mem_heap_t*	heap;		/*!< Temporary storage used during a
 					purge: can be emptied after purge
 					completes */
@@ -217,8 +220,39 @@ struct trx_purge_rec_t {
 	roll_ptr_t	roll_ptr;	/*!< File pointr to UNDO record */
 };
 
+/**
+Chooses the rollback segment with the smallest trx_no. */
+struct TrxUndoRsegsIterator {
+
+	/** Constructor */
+	TrxUndoRsegsIterator(trx_purge_t* purge_sys);
+
+	/**
+	Sets the next rseg to purge in m_purge_sys.
+	@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
+	no rollback segments to purge, 0 for non compressed tables. */
+	ulint operator++(int);
+
+private:
+	// Disable copying
+	TrxUndoRsegsIterator(const TrxUndoRsegsIterator&);
+	TrxUndoRsegsIterator& operator=(const TrxUndoRsegsIterator&);
+
+	/** The purge system pointer */
+	trx_purge_t*				m_purge_sys;
+
+	/** The current element to process */
+	TrxUndoRsegs				m_trx_undo_rsegs;
+
+	/** Track the current element in m_trx_undo_rseg */
+	typename TrxUndoRsegs::iterator_t	m_iter;
+
+	/** Sentinel value */
+	static const TrxUndoRsegs		NullElement;
+};
+
 #ifndef UNIV_NONINL
 #include "trx0purge.ic"
-#endif
+#endif /* UNIV_NOINL */
 
-#endif
+#endif /* trx0purge_h */
