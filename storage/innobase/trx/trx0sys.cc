@@ -488,7 +488,7 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new purge_pq_t();
+	purge_queue = new purge_pq_t(0);
 
 	mtr_start(&mtr);
 
