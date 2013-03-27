@@ -1,4 +1,5 @@
 ################################################################################
+#                                                                              #
 # Purpose:                                                                     #
 #  Tests around number of partitions                                           #
 #------------------------------------------------------------------------------#
@@ -13,12 +14,17 @@
 
 # The server must support partitioning.
 --source include/have_partition.inc
---source include/have_innodb.inc
 
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
+--source include/have_innodb.inc
 
 ##### Storage engine to be tested
 let $engine= 'InnoDB';
 
---source suite/parts/inc/partition_max_parts_inv.inc
+#SET @save_innodb_file_per_table= @@global.innodb_file_per_table;
+#SET @@global.innodb_file_per_table= OFF;
+
+--source suite/max_parts/inc/partition_max_sub_parts_list.inc
+
+#SET @@global.innodb_file_per_table= @save_innodb_file_per_table;
