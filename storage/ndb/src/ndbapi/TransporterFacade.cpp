@@ -634,10 +634,13 @@ TransporterFacade::checkClusterMgr(NDB_TICKS currTime,
   if (currTime <= (lastTime + ((NDB_TICKS)100)))
     return; /* 100 milliseconds haven't passed yet */
   lastTime = NdbTick_CurrentMillisecond();
-  theClusterMgr->lock();
-  theTransporterRegistry->update_connections();
-  theClusterMgr->flush_send_buffers();
-  theClusterMgr->unlock();
+  if (!theClusterMgr->is_stopped())
+  {
+    theClusterMgr->lock();
+    theTransporterRegistry->update_connections();
+    theClusterMgr->flush_send_buffers();
+    theClusterMgr->unlock();
+  }
 }
 
 bool
@@ -1185,6 +1188,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
       m_threads.close(clnt->m_blockNo);
       return 0;
     }
+    bool not_finished = true;
     do
     {
       clnt->start_poll();
@@ -1195,8 +1199,9 @@ TransporterFacade::close_clnt(trp_client* clnt)
         first = false;
       }
       clnt->do_poll(0);
+      not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
-    } while (m_threads.get(clnt->m_blockNo) == clnt);
+    } while (not_finished);
   }
   return 0;
 }

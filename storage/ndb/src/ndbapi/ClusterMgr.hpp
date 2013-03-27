@@ -69,6 +69,7 @@ private:
   class ArbitMgr * theArbitMgr;
 
 public:
+  int is_stopped() { return theStop; }
   enum Cluster_state {
     CS_waiting_for_clean_cache = 0,
     CS_waiting_for_first_connect,
