@@ -38,7 +38,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "mem0mem.h"
 #include "sync0sync.h"
 #include "ut0lst.h"
-#include "trx0purgeq.h"
 #include "read0types.h"
 #include "page0types.h"
 

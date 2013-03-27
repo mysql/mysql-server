@@ -74,6 +74,96 @@ UNIV_INTERN mysql_pfs_key_t	purge_sys_pq_mutex_key;
 UNIV_INTERN my_bool		srv_purge_view_update_only_debug;
 #endif /* UNIV_DEBUG */
 
+/** Sentinel value */
+const TrxUndoRsegs TrxUndoRsegsIterator::NullElement(UINT64_UNDEFINED);
+
+/** Constructor */
+TrxUndoRsegsIterator::TrxUndoRsegsIterator(trx_purge_t* purge_sys)
+	:
+	m_purge_sys(purge_sys),
+	m_trx_undo_rsegs(NullElement),
+	m_iter(m_trx_undo_rsegs.end())
+{
+}
+
+/**
+Sets the next rseg to purge in m_purge_sys.
+@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
+no rollback segments to purge, 0 for non compressed tables. */
+ulint
+TrxUndoRsegsIterator::operator++(int)
+{
+	mutex_enter(&m_purge_sys->pq_mutex);
+
+	/* Only purge consumes events from the priority queue, user
+	threads only produce the events. */
+
+	/* Check if there are more rsegs to process in the
+	current element. */
+	if (m_iter != m_trx_undo_rsegs.end()) {
+
+		m_purge_sys->rseg = *m_iter++;
+
+		/* We are still processing rollback segment from
+		the same transaction and so expected transaction
+		number shouldn't increase. Undo increment of
+		expected trx_no done by caller assuming rollback
+		segments from given transaction are done. */
+		m_purge_sys->iter.trx_no = m_purge_sys->rseg->last_trx_no;
+
+		mutex_exit(&m_purge_sys->pq_mutex);
+
+	} else if (!m_purge_sys->purge_queue->empty()) {
+
+		/* Read the next element from the queue. */
+		
+		m_trx_undo_rsegs = purge_sys->purge_queue->top();
+		m_iter = m_trx_undo_rsegs.begin();
+
+		m_purge_sys->purge_queue->pop();
+
+		m_purge_sys->rseg = *m_iter++;
+
+		mutex_exit(&m_purge_sys->pq_mutex);
+
+	} else {
+		/* Queue is empty, reset iterator. */
+		m_trx_undo_rsegs = NullElement;
+		m_iter = m_trx_undo_rsegs.end();
+
+		mutex_exit(&m_purge_sys->pq_mutex);
+
+		m_purge_sys->rseg = NULL;
+
+		return(ULINT_UNDEFINED);
+	}
+
+	ut_a(m_purge_sys->rseg != NULL);
+
+	mutex_enter(&m_purge_sys->rseg->mutex);
+
+	ut_a(m_purge_sys->rseg->last_page_no != FIL_NULL);
+
+	/* We assume in purge of externally stored fields that
+	space id is in the range of UNDO tablespace space ids
+	unless space is system tablespace */
+	ut_a(m_purge_sys->rseg->space <= srv_undo_tablespaces_open
+		|| Tablespace::is_system_tablespace(
+			m_purge_sys->rseg->space));
+
+	ulint	zip_size = m_purge_sys->rseg->zip_size;
+
+	ut_a(purge_sys->iter.trx_no <= purge_sys->rseg->last_trx_no);
+
+	m_purge_sys->iter.trx_no = m_purge_sys->rseg->last_trx_no;
+	m_purge_sys->hdr_offset = m_purge_sys->rseg->last_offset;
+	m_purge_sys->hdr_page_no = m_purge_sys->rseg->last_page_no;
+
+	mutex_exit(&m_purge_sys->rseg->mutex);
+
+	return(zip_size);
+}
+
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
@@ -154,6 +244,8 @@ trx_purge_sys_create(
 		purge_sys->trx, n_purge_threads);
 
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
+
+	purge_sys->rseg_iter = new TrxUndoRsegsIterator(purge_sys);
 }
 
 /************************************************************************
@@ -189,6 +281,8 @@ trx_purge_sys_close(void)
 	os_event_free(purge_sys->event);
 
 	purge_sys->event = NULL;
+
+	delete purge_sys->rseg_iter;
 
 	mem_free(purge_sys);
 
@@ -650,81 +744,6 @@ trx_purge_rseg_get_next_history_log(
 }
 
 /***********************************************************************//**
-Chooses the rollback segment with the smallest trx_id.
-@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
-	no rollback segments to purge, 0 for non compressed tables. */
-static
-ulint
-trx_purge_get_rseg_with_min_trx_id(
-/*===============================*/
-	trx_purge_t*	purge_sys)		/*!< in/out: purge instance */
-
-{
-	ulint		zip_size = 0;
-
-	mutex_enter(&purge_sys->pq_mutex);
-
-	/* Only purge consumes events from the binary heap, user threads only
-	produce the events. */
-	if ((purge_sys->rseg = purge_sys->elem.get_next_rseg()) != NULL) {
-
-		/* We are still processing rollback segment from the same
-		transaction and so expected transaction number shouldn't
-		increase. Undo increment of expected trx_no done by caller
-		assuming rollback segments from given transaction are done. */
-		purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
-
-		mutex_exit(&purge_sys->pq_mutex);
-
-	} else if (!purge_sys->purge_queue->empty()) {
-
-		purge_sys->elem = purge_sys->purge_queue->top();
-
-		purge_sys->purge_queue->pop();
-
-		purge_sys->elem.rewind();
-
-		purge_sys->rseg = purge_sys->elem.get_next_rseg();
-
-		mutex_exit(&purge_sys->pq_mutex);
-
-	} else {
-
-		purge_sys->elem.clear();
-
-		mutex_exit(&purge_sys->pq_mutex);
-
-		purge_sys->rseg = NULL;
-
-		return(ULINT_UNDEFINED);
-	}
-
-	ut_a(purge_sys->rseg != NULL);
-
-	mutex_enter(&purge_sys->rseg->mutex);
-
-	ut_a(purge_sys->rseg->last_page_no != FIL_NULL);
-
-	/* We assume in purge of externally stored fields that space id is
-	in the range of UNDO tablespace space ids unless space is system
-	tablespace */
-	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces_open
-	     || Tablespace::is_system_tablespace(purge_sys->rseg->space));
-
-	zip_size = purge_sys->rseg->zip_size;
-
-	ut_a(purge_sys->iter.trx_no <= purge_sys->rseg->last_trx_no);
-
-	purge_sys->iter.trx_no = purge_sys->rseg->last_trx_no;
-	purge_sys->hdr_offset = purge_sys->rseg->last_offset;
-	purge_sys->hdr_page_no = purge_sys->rseg->last_page_no;
-
-	mutex_exit(&purge_sys->rseg->mutex);
-
-	return(zip_size);
-}
-
-/***********************************************************************//**
 Position the purge sys "iterator" on the undo record to use for purging. */
 static
 void
@@ -784,11 +803,9 @@ void
 trx_purge_choose_next_log(void)
 /*===========================*/
 {
-	ulint		zip_size;
-
 	ut_ad(purge_sys->next_stored == FALSE);
 
-	zip_size = trx_purge_get_rseg_with_min_trx_id(purge_sys);
+	ulint	zip_size = (*purge_sys->rseg_iter)++;
 
 	if (purge_sys->rseg != NULL) {
 		trx_purge_read_undo_rec(purge_sys, zip_size);
