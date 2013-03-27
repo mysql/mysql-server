@@ -30,18 +30,19 @@ Created 2013-03-26 by Krunal Bauskar.
 #include <queue>
 #include <vector>
 
-/** Purge Element is used by query processing thread for submitting purge-request. */
-class PurgeElem {
+/** Transaction UNDO rollback segments is used by query processing thread for
+submitting purge-request. */
+class TrxUndoRsegs {
 
 public:
-	PurgeElem()
+	TrxUndoRsegs()
 		:
 		m_trx_no()
 	{
 		m_next_rseg_pos = m_rsegs.end();
 	}
 
-	PurgeElem(trx_id_t trx_no)
+	TrxUndoRsegs(trx_id_t trx_no)
 		:
 		m_trx_no(trx_no)
 	{
@@ -98,13 +99,13 @@ public:
 	}
 
 	/**
-	Compare two PurgeElem based on trx_no.
+	Compare two TrxUndoRsegs based on trx_no.
 	@param - elem1 - first element to compare
 	@param - elem2 - second element to compare
 	@return true if elem1 > elem2 else false.*/
 	bool operator()(
-		const PurgeElem& elem1,
-		const PurgeElem& elem2)
+		const TrxUndoRsegs& elem1,
+		const TrxUndoRsegs& elem2)
 	{
 		return(elem1.m_trx_no > elem2.m_trx_no);
 	}
@@ -121,8 +122,8 @@ private:
 	trx_rseg_array_itr_t	m_next_rseg_pos;	
 };
 
-typedef	std::priority_queue<PurgeElem, std::vector<PurgeElem>, PurgeElem>
-		purge_queue_t;
-
+typedef std::priority_queue<
+	TrxUndoRsegs, std::vector<TrxUndoRsegs>, TrxUndoRsegs> purge_pq_t;
 
 #endif /* trx0purgeq_h */
+

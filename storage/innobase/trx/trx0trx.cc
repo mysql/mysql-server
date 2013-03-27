@@ -931,14 +931,14 @@ trx_serialisation_number_get(
 	if ((redo_rseg != NULL && redo_rseg->last_page_no == FIL_NULL)
 	    || (noredo_rseg != NULL && noredo_rseg->last_page_no == FIL_NULL)) {
 
-		PurgeElem purge_elem(trx->no);
+		TrxUndoRsegs elem(trx->no);
 
 		if (redo_rseg != NULL) {
-			purge_elem.push_back(redo_rseg);
+			elem.push_back(redo_rseg);
 		}
 
 		if (noredo_rseg != NULL) {
-			purge_elem.push_back(noredo_rseg);
+			elem.push_back(noredo_rseg);
 		}
 
 		mutex_enter(&purge_sys->pq_mutex);
@@ -949,7 +949,7 @@ trx_serialisation_number_get(
 		rbs is empty. */
 		mutex_exit(&trx_sys->mutex);
 
-		purge_sys->purge_queue->push(purge_elem);
+		purge_sys->purge_queue->push(elem);
 
 		mutex_exit(&purge_sys->pq_mutex);
 	} else {

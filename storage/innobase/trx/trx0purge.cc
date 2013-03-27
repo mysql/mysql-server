@@ -114,7 +114,7 @@ trx_purge_sys_create(
 /*=================*/
 	ulint		n_purge_threads,	/*!< in: number of purge
 						threads */
-	purge_queue_t*	purge_queue)		/*!< in, own: UNDO log min
+	purge_pq_t*	purge_queue)		/*!< in, own: UNDO log min
 						binary heap */
 {
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
@@ -632,8 +632,8 @@ trx_purge_rseg_get_next_history_log(
 	rseg->last_trx_no = trx_no;
 	rseg->last_del_marks = del_marks;
 
-	PurgeElem purge_elem(rseg->last_trx_no);
-	purge_elem.push_back(rseg);
+	TrxUndoRsegs elem(rseg->last_trx_no);
+	elem.push_back(rseg);
 
 	/* Purge can also produce events, however these are already ordered
 	in the rollback segment and any user generated event will be greater
@@ -642,7 +642,7 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_enter(&purge_sys->pq_mutex);
 
-	purge_sys->purge_queue->push(purge_elem);
+	purge_sys->purge_queue->push(elem);
 
 	mutex_exit(&purge_sys->pq_mutex);
 

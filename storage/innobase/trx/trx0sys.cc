@@ -475,12 +475,12 @@ Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
 @return min binary heap of rsegs to purge */
 UNIV_INTERN
-purge_queue_t*
+purge_pq_t*
 trx_sys_init_at_db_start(void)
 /*==========================*/
 {
 	mtr_t		mtr;
-	purge_queue_t*	purge_queue;
+	purge_pq_t*	purge_queue;
 	trx_sysf_t*	sys_header;
 	ib_uint64_t	rows_to_undo	= 0;
 	const char*	unit		= "";
@@ -488,7 +488,7 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new purge_queue_t();
+	purge_queue = new purge_pq_t();
 
 	mtr_start(&mtr);
 

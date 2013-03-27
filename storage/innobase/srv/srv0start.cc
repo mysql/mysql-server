@@ -1135,7 +1135,7 @@ innobase_start_or_create_for_mysql(void)
 	ulint		srv_n_log_files_found = srv_n_log_files;
 	ulint		io_limit;
 	mtr_t		mtr;
-	purge_queue_t*	purge_queue;
+	purge_pq_t*	purge_queue;
 	char		logfilename[10000];
 	char*		logfile0	= NULL;
 	size_t		dirnamelen;
