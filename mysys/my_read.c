@@ -1,4 +1,4 @@
-/* Copyright (c) 2000-2002, 2004, 2006, 2007 MySQL AB
+/* Copyright (c) 2000-2002, 2004, 2006, 2007, 2013 MySQL AB
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -44,8 +44,18 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
   for (;;)
   {
     errno= 0;					/* Linux doesn't reset this */
-    if ((readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
+    if (DBUG_EVALUATE_IF("simulate_file_read_error", 1, 0) ||
+        (readbytes= read(Filedes, Buffer, (uint) Count)) != Count)
     {
+      DBUG_EXECUTE_IF ("simulate_file_read_error",
+                       {
+                         errno= ENOSPC;
+                         readbytes= (size_t) -1;
+                         DBUG_SET("-d,simulate_file_read_error");
+                         DBUG_SET("-d,simulate_my_b_fill_error");
+                       });
+
+
       my_errno= errno ? errno : -1;
       DBUG_PRINT("warning",("Read only %d bytes off %lu from %d, errno: %d",
                             (int) readbytes, (ulong) Count, Filedes,
