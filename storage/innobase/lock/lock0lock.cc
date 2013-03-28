@@ -6893,9 +6893,11 @@ lock_trx_has_rec_x_lock(
 	ut_ad(heap_no > PAGE_HEAP_NO_SUPREMUM);
 
 	lock_mutex_enter();
-	ut_a(lock_table_has(trx, table, LOCK_IX));
+	ut_a(lock_table_has(trx, table, LOCK_IX)
+	     || dict_table_is_temporary(table));
 	ut_a(lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP,
-			       block, heap_no, trx));
+			       block, heap_no, trx)
+	     || dict_table_is_temporary(table));
 	lock_mutex_exit();
 	return(true);
 }
