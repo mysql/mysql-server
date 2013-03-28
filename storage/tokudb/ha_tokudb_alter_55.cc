@@ -1,5 +1,7 @@
 #if TOKU_INCLUDE_ALTER_55
 
+#include "ha_tokudb_alter_common.cc"
+
 bool ha_tokudb::try_hot_alter_table() {
     TOKUDB_DBUG_ENTER("try_hot_alter_table");
     THD *thd = ha_thd();
