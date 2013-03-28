@@ -205,17 +205,23 @@ function main() {
     'forever': false
   };
 
-  /* Options from config file */
+  /* Options from config file; connection_properties are handled below */
   try {
     var config_file = require("./jscrund.config");
     config_file_exists = true;
     for(var i in config_file.options) {
       if(config_file.options.hasOwnProperty(i)) {
-        options[i]  = config_file[i];
+        options[i]  = config_file.options[i];
       }
     }
   }
-  catch(e) {}
+  catch(e) {
+    console.log(e);
+    if (e.message.indexOf('Cannot find module') === -1) {
+      console.log(e.name, 'reading jscrund.config:', e.message, '\nPlease correct this error and try again.\n');
+      process.exit(0);
+    }
+  }
 
   /* Options from command line */
   parse_command_line(options);
@@ -225,26 +231,24 @@ function main() {
     process.exit(0);
   }
 
-  var properties;
+  var properties = {};
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
-    /* Connection properties from jscrund.config */
-    if(config_file_exists) {
-      for(var i in config_file.connection_properties) {
-        if(config_file.connection_properties.hasOwnProperty(i)) {
-          properties[i]  = config_file.connection_properties[i];
-        }
-      }
-    }
-    /* properties from command-line options */
-    properties.database = options.database;
-    properties.mysql_user = options.mysql_user;
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   } else if (options.adapter === 'sql') {
-    // TODO: not  implemented
     var sqladapter = require('./jscrund_sql');
     JSCRUND.implementation = new sqladapter.implementation();
   }
+  /* Connection properties from jscrund.config */
+  if(config_file_exists) {
+    for(var i in config_file.connection_properties) {
+      if(config_file.connection_properties.hasOwnProperty(i)) {
+        properties[i]  = config_file.connection_properties[i];
+      }
+    }
+  }
+  
+  properties.database = options.database;
   options.properties = properties; // properties for getSession
   new JSCRUND.mynode.TableMapping("a").applyToClass(A);
   options.annotations = A;
