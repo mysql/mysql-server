@@ -47,6 +47,9 @@ OperationStates = [
 /* All LockModes may not be implemented by all adapters.
    The LockMode in the DBOperation reflects the actual supported LockMode in use 
    for the operation.
+
+  TODO: Remove SHARED_RELEASE 
+        But use SimpleRead as a special case with SHARED & NDB Primary Key
 */   
 LockModes = [ 
   "EXCLUSIVE",         // Read with an exclusive lock
