@@ -719,6 +719,14 @@ static int simple_raw_key_cmp(void* arg, const void* key1, const void* key2)
 }
 
 
+static int item_sum_distinct_walk_for_count(void *element, 
+                                            element_count num_of_dups,
+                                            void *item)
+{
+  return ((Aggregator_distinct*) (item))->unique_walk_function_for_count(element);
+}
+ 
+
 static int item_sum_distinct_walk(void *element, element_count num_of_dups,
                                   void *item)
 {
@@ -1089,7 +1097,12 @@ void Aggregator_distinct::endup()
   {
     /* go over the tree of distinct keys and calculate the aggregate value */
     use_distinct_values= TRUE;
-    tree->walk(table, item_sum_distinct_walk, (void*) this);
+    tree_walk_action func;
+    if (item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
+      func= item_sum_distinct_walk_for_count;
+    else
+      func= item_sum_distinct_walk;
+    tree->walk(table, func, (void*) this);
     use_distinct_values= FALSE;
   }
   /* prevent consecutive recalculations */
@@ -1462,6 +1475,22 @@ bool Aggregator_distinct::unique_walk_function(void *element)
 {
   memcpy(table->field[0]->ptr, element, tree_key_length);
   item_sum->add();
+  return 0;
+}
+
+
+/*
+  A variant of unique_walk_function() that is to be used with Item_sum_count.
+
+  COUNT is a special aggregate function: it doesn't need the values, it only
+  needs to count them. COUNT needs to know the values are not NULLs, but NULL
+  values are not put into the Unique, so we don't need to check for NULLs here.
+*/
+
+bool Aggregator_distinct::unique_walk_function_for_count(void *element)
+{
+  Item_sum_count *sum= (Item_sum_count *)item_sum;
+  sum->count++;
   return 0;
 }
 

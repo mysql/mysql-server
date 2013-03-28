@@ -642,6 +642,7 @@ public:
   virtual bool arg_is_null();
 
   bool unique_walk_function(void *element);
+  bool unique_walk_function_for_count(void *element);
   static int composite_key_cmp(void* arg, uchar* key1, uchar* key2);
 };
 
