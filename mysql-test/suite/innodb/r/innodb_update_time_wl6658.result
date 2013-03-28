@@ -16,23 +16,12 @@ END |
 #restart the server
 check the update_time Before DML, whether it is NULL
 SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab1';
+FROM information_schema.tables 
+WHERE table_name IN ('tab1','tab3','tab4','tab5');
 table_name	update_time
 tab1	NULL
-check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab3';
-table_name	update_time
 tab3	NULL
-check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab4';
-table_name	update_time
 tab4	NULL
-check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab5';
-table_name	update_time
 tab5	NULL
 SET AUTOCOMMIT=OFF;
 #case1:
@@ -57,29 +46,15 @@ c1	c2
 SELECT * FROM tab4;
 c1	c2
 1	Updated from Trigger
-#check no record is exist
+#check no record exists
 SELECT * FROM tab5;
 c1	c2
 check the update_time After Commit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab1';
+FROM information_schema.tables 
+WHERE table_name IN ('tab1','tab3','tab4','tab5');
 table_name	COUNT(update_time)
-tab1	1
-check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab3';
-table_name	COUNT(update_time)
-tab3	1
-check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab4';
-table_name	COUNT(update_time)
-tab4	1
-check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab5';
-table_name	COUNT(update_time)
-tab5	1
+tab1	4
 #restart the server
 Testcase with UPDATE stmt and transaction
 #check the record is existing
@@ -258,12 +233,12 @@ c1
 SELECT * FROM tab8;
 c1	c2
 1	1
-check the update_time After Commit, whether it is not NULL
+check the update_time After Autocommit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables WHERE table_name='tab7';
 table_name	COUNT(update_time)
 tab7	1
-check the update_time After Commit, whether it is not NULL
+check the update_time After Autocommit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables WHERE table_name='tab8';
 table_name	COUNT(update_time)
