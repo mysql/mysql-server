@@ -69,7 +69,7 @@ t3.run = function() {
       runSPIDocTest(connection, t4);
     }
     
-    connection.getDBSession(0, onSession);
+    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
 
   spi_lib.getConnectionPool(onConnect);

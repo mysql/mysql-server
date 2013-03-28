@@ -54,7 +54,7 @@ function lintTest(basePath, sourceFile, ignoreLines) {
   t.run = function runLintTest() {
     if(skipTests) { return this.skip("jslint not avaliable"); }
 
-    var e, i, n=0;
+    var e, i, n=0, line;
     var data = fs.readFileSync(this.sourceFile, "utf8");  
     var result = linter(data, lintOptions);
     var ok, errors, msg = "";
@@ -73,17 +73,29 @@ function lintTest(basePath, sourceFile, ignoreLines) {
     if(! ok) {
       for (i = 0; i < errors.length; i += 1) {
         e = errors[i];
-        ignore = -1 !== ignoreLines.indexOf(e.line);
-        if(e && !ignore) {
-          n += 1;
-          msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
+        if (e) {
+          var ignoreLine = ignoreLines.indexOf(e.line);
+          if (ignoreLine === -1) {
+            n += 1;
+            msg += util.format('\n * Line %d[%d]: %s', e.line, e.character, e.reason);
+            ignoreLines.indexOf(e.line);        
+          } else {
+            var ignored = ignoreLines.splice(ignoreLine, 1);
+          }
         }
       }
-      msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
-      if (n > 0) {
-        this.appendErrorMessage(msg);
+        if (n > 0) {
+          msg = util.format("%d %s error%s", n, lintName, n===1 ? '':'s') + msg;
+          this.appendErrorMessage(msg);
+        }
       }
-    }
+      // if any errors left, that is also an error
+      if (ignoreLines.length !== 0) {
+        for (i = 0; i < ignoreLines.length; ++i) {
+          msg = "Ignored error line " + ignoreLines[i] + " did not contain an error";
+          this.appendErrorMessage(msg);
+        }
+      }
     return true;
   };
   
@@ -145,12 +157,12 @@ checkSource("impl/ndb/NdbOperation.js",
   294 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
 );
 checkSource("impl/ndb/NdbTransactionHandler.js");
-checkSource("impl/ndb/NdbTypeEncoders.js");
 
 checkSpiDoc("DBOperation");
 
 checkSource("api/unified_debug.js");
 checkSource("api/SessionFactory.js");
+checkSource("api/Query.js");
 checkSource("api/Session.js");
 checkSource("api/TableMapping.js",
  121 // Line 121[3]: The body of a for in should be wrapped in an ...

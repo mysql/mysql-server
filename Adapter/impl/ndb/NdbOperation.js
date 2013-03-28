@@ -23,7 +23,6 @@
 "use strict";
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
     PooledBuffer  = require("./PooledBuffer.js"),
@@ -154,7 +153,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 
 function encodeKeyBuffer(indexHandler, op, keys) {
   udebug.log("encodeKeyBuffer with keys", keys);
-  var i, offset, value, encoder, record, nfields, col;
+  var i, offset, value, record, nfields, col;
   if(indexHandler) {
     op.index = indexHandler.dbIndex;
   }
@@ -178,8 +177,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
     if(value !== null) {
       record.setNotNull(i, op.buffers.key);
       offset = record.getColumnOffset(i);
-      encoder = encoders[col[i].ndbTypeId];
-      encoder.write(col[i], value, op.buffers.key, offset);
+      adapter.impl.encoderWrite(col[i], value, op.buffers.key, offset);
     }
     else {
       udebug.log("encodeKeyBuffer ", i, "NULL.");
@@ -191,7 +189,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, encoder, value;
+  var i, offset, value;
   var record = op.tableHandler.dbTable.record;
   var row_buffer_size = record.getBufferSize();
   var nfields = op.tableHandler.getMappedFieldCount();
@@ -211,8 +209,7 @@ function encodeRowBuffer(op) {
       record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
       offset = record.getColumnOffset(i);
-      encoder = encoders[col[i].ndbTypeId];
-      encoder.write(col[i], value, op.buffers.row, offset);
+      adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
     }
   }
 }
@@ -220,7 +217,7 @@ function encodeRowBuffer(op) {
 
 function readResultRow(op) {
   udebug.log("readResultRow");
-  var i, offset, encoder, value;
+  var i, offset, value;
   var dbt             = op.tableHandler;
   var record          = dbt.dbTable.record;
   var nfields         = dbt.getMappedFieldCount();
@@ -229,13 +226,11 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     offset  = record.getColumnOffset(i);
-    encoder = encoders[col[i].ndbTypeId];
-    assert(encoder);
     if(record.isNull(i, op.buffers.row)) {
       value = null;
     }
     else {
-      value = encoder.read(col[i], op.buffers.row, offset);
+      value = adapter.impl.encoderRead(col[i], op.buffers.row, offset);
     }
     dbt.set(resultRow, i, value);
   }
