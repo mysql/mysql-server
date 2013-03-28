@@ -38,19 +38,8 @@ delimiter ;|
 
 --echo check the update_time Before DML, whether it is NULL
 SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab1';
-
---echo check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab3';
-
---echo check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab4';
-
---echo check the update_time Before DML, whether it is NULL
-SELECT table_name,update_time
-FROM information_schema.tables WHERE table_name='tab5';
+FROM information_schema.tables 
+WHERE table_name IN ('tab1','tab3','tab4','tab5');
 
 SET AUTOCOMMIT=OFF;
 
@@ -76,24 +65,13 @@ SELECT * FROM tab3;
 --echo #check the record is updated
 SELECT * FROM tab4;
 
---echo #check no record is exist
+--echo #check no record exists
 SELECT * FROM tab5;
 
 --echo check the update_time After Commit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab1';
-
---echo check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab3';
-
---echo check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab4';
-
---echo check the update_time After Commit, whether it is not NULL
-SELECT table_name,COUNT(update_time)
-FROM information_schema.tables WHERE table_name='tab5';
+FROM information_schema.tables 
+WHERE table_name IN ('tab1','tab3','tab4','tab5');
 
 --echo #restart the server
 --source include/restart_mysqld.inc
@@ -290,11 +268,11 @@ SELECT * FROM tab7;
 --echo #check the record is inserted
 SELECT * FROM tab8;
 
---echo check the update_time After Commit, whether it is not NULL
+--echo check the update_time After Autocommit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables WHERE table_name='tab7';
 
---echo check the update_time After Commit, whether it is not NULL
+--echo check the update_time After Autocommit, whether it is not NULL
 SELECT table_name,COUNT(update_time)
 FROM information_schema.tables WHERE table_name='tab8';
 
