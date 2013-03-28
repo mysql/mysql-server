@@ -339,14 +339,17 @@ protected:
      Need to perform the calculation in logical units, since multiplication
      can overflow the size data type.
 
-     @arg data             pointer to the begining of the points array
-     @arg expected_points  number of points expected
+     @arg data              pointer to the begining of the points array
+     @arg expected_points   number of points expected
+     @arg extra_point_space extra space for each point element in the array
      @return               true if there are not enough points
   */
-  inline bool not_enough_points(const char *data, uint32 expected_points) const
+  inline bool not_enough_points(const char *data, uint32 expected_points,
+                                uint32 extra_point_space = 0) const
   {
     return (m_data_end < data ||
-            (expected_points > ((m_data_end - data) / POINT_DATA_SIZE)));
+            (expected_points > ((m_data_end - data) /
+                                (POINT_DATA_SIZE + extra_point_space))));
   }
   const char *m_data;
   const char *m_data_end;

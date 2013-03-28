@@ -377,19 +377,13 @@ const char *Geometry::get_mbr_for_points(MBR *mbr, const char *data,
 					 uint offset) const
 {
   uint32 points;
-  size_t points_available;
   /* read number of points */
   if (no_data(data, 4))
     return 0;
   points= uint4korr(data);
   data+= 4;
 
-  /* can't use any of the helper functions due to the offset */
-  points_available=
-    data <= m_data_end ? 
-    (m_data_end - data) / (POINT_DATA_SIZE + offset) : 0;
-
-  if (points_available < points)
+  if (not_enough_points(data, points, offset))
     return 0;
 
   /* Calculate MBR for points */
@@ -472,9 +466,16 @@ const Geometry::Class_info *Gis_point::get_class_info() const
 
 uint32 Gis_line_string::get_data_size() const 
 {
+  size_t n_points;
   if (no_data(m_data, 4))
     return GET_SIZE_ERROR;
-  return 4 + uint4korr(m_data) * POINT_DATA_SIZE;
+
+  n_points= uint4korr(m_data);
+
+  if (not_enough_points(m_data + 4, n_points))
+    return GET_SIZE_ERROR;
+
+  return 4 + n_points * POINT_DATA_SIZE;
 }
 
 
@@ -687,10 +688,18 @@ uint32 Gis_polygon::get_data_size() const
 
   while (n_linear_rings--)
   {
+    size_t n_points;
     if (no_data(data, 4))
       return GET_SIZE_ERROR;
-    data+= 4 + uint4korr(data)*POINT_DATA_SIZE;
+    n_points= uint4korr(data);
+    data+= 4;
+
+    if (not_enough_points(data, n_points))
+      return GET_SIZE_ERROR;
+
+    data+= n_points * POINT_DATA_SIZE;
   }
+
   return (uint32) (data - m_data);
 }
 
@@ -1020,9 +1029,17 @@ const Geometry::Class_info *Gis_polygon::get_class_info() const
 
 uint32 Gis_multi_point::get_data_size() const 
 {
+  size_t n_points;
+
   if (no_data(m_data, 4))
     return GET_SIZE_ERROR;
-  return 4 + uint4korr(m_data)*(POINT_DATA_SIZE + WKB_HEADER_SIZE);
+
+  n_points= uint4korr(m_data);
+
+  if (not_enough_points(m_data + 4, n_points, WKB_HEADER_SIZE))
+    return GET_SIZE_ERROR;
+
+  return 4 + n_points * (POINT_DATA_SIZE + WKB_HEADER_SIZE);
 }
 
 
@@ -1086,7 +1103,6 @@ uint Gis_multi_point::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
 bool Gis_multi_point::get_data_as_wkt(String *txt, const char **end) const
 {
   uint32 n_points;
-  size_t points_available;
   const char *data= m_data;
 
   if (no_data(data, 4))
@@ -1094,13 +1110,11 @@ bool Gis_multi_point::get_data_as_wkt(String *txt, const char **end) const
 
   n_points= uint4korr(data);
   data+= 4;
-  points_available= data <= m_data_end ?
-    (m_data_end - data) / (POINT_DATA_SIZE + WKB_HEADER_SIZE) : 0;
 
-  /* can't use any of the helper functions due to WKB_HEADER_SIZE */
-  if (n_points > points_available ||
+  if (not_enough_points(data, n_points, WKB_HEADER_SIZE) ||
       txt->reserve(((MAX_DIGITS_IN_DOUBLE + 1) * 2 + 1) * n_points))
     return 1;
+
   *end= append_points(txt, n_points, data, WKB_HEADER_SIZE);
   txt->length(txt->length()-1);			// Remove end ','
   return 0;
@@ -1159,10 +1173,18 @@ uint32 Gis_multi_line_string::get_data_size() const
 
   while (n_line_strings--)
   {
+    size_t n_points;
+
     if (no_data(data, WKB_HEADER_SIZE + 4))
       return GET_SIZE_ERROR;
-    data+= (WKB_HEADER_SIZE + 4 + uint4korr(data + WKB_HEADER_SIZE) *
-	    POINT_DATA_SIZE);
+
+    n_points= uint4korr(data + WKB_HEADER_SIZE);
+    data+= WKB_HEADER_SIZE + 4;
+
+    if (not_enough_points(data, n_points))
+      return GET_SIZE_ERROR;
+
+    data+= n_points * POINT_DATA_SIZE;
   }
   return (uint32) (data - m_data);
 }
@@ -1414,9 +1436,16 @@ uint32 Gis_multi_polygon::get_data_size() const
 
     while (n_linear_rings--)
     {
+      size_t n_points;
       if (no_data(data, 4))
-	return GET_SIZE_ERROR;
-      data+= 4 + uint4korr(data) * POINT_DATA_SIZE;
+        return GET_SIZE_ERROR;
+      n_points= uint4korr(data);
+      data+= 4;
+
+      if (not_enough_points(data, n_points))
+        return GET_SIZE_ERROR;
+
+      data+= n_points * POINT_DATA_SIZE;
     }
   }
   return (uint32) (data - m_data);
