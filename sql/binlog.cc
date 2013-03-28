@@ -3203,8 +3203,6 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
                                 bool need_sid_lock,
                                 Format_description_log_event *extra_description_event)
 {
-  File file= -1;
-
   // lock_index must be acquired *before* sid_lock.
   DBUG_ASSERT(need_sid_lock || !need_lock_index);
   DBUG_ENTER("MYSQL_BIN_LOG::open_binlog(const char *, ...)");
@@ -3406,8 +3404,6 @@ err:
 Turning logging off for the whole duration of the MySQL server process. \
 To turn it on again: fix the cause, \
 shutdown the MySQL server and restart it.", name, errno);
-  if (file >= 0)
-    mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   my_free(name);
