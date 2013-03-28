@@ -430,7 +430,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   */
 DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname, 
                                                        dictSession, user_callback) {
-  var dictSession, tableKey;
+  var tableKey;
   stats.incr("getTableMetadata");
   assert(dbname && tabname && user_callback);
   tableKey = dbname + "." + tabname;
