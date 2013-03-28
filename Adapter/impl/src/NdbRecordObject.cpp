@@ -72,11 +72,11 @@ MappedNdbRecord::~MappedNdbRecord() {
 }
 
 
-Handle<Value> MappedNdbRecord::getField(Local<String> key,
-                                        const AccessorInfo & info) {
-  /* The column number is stored in info.Data() */
-
-}                                        
+//Handle<Value> MappedNdbRecord::getField(Local<String> key,
+//                                        const AccessorInfo & info) {
+//  /* The column number is stored in info.Data() */
+//
+//}                                        
 
 /* arg0: Ndb 
    arg1: NdbDictionary::Table

@@ -149,12 +149,12 @@ checkSource("impl/mysql/MySQLDictionary.js",
 checkSource("impl/ndb/ndb_service_provider.js");
 checkSource("impl/ndb/NdbConnection.js");
 checkSource("impl/ndb/NdbConnectionPool.js",
-   270 // Line 270[15]: Expected a conditional expression and instead saw an assignment.
+   249 // Line 294[15]: Expected a conditional expression and instead saw an assignment.
 );
 checkSource("impl/ndb/NdbSession.js");
 checkSource("impl/ndb/NdbOperation.js",
-  92, //Line 92[7]: 'encodeRowBuffer' was used before it was defined.
-  294 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
+  129, //Line 92[7]: 'encodeRowBuffer' was used before it was defined.
+  306 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
 );
 checkSource("impl/ndb/NdbTransactionHandler.js");
 

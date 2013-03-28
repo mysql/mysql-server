@@ -67,7 +67,7 @@ function run(self, execId, execMode, abortFlag, callback) {
   var qpos;
   var idCallback = function(err) {
     callback(err, execId);
-  }
+  };
   var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, idCallback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
