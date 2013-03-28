@@ -24,9 +24,11 @@
 #include "rpl_utility.h"
 #include "binlog.h"                      /* MYSQL_BIN_LOG */
 #include "sql_class.h"                   /* THD */
+#include "rpl_mts_submode.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
+class Mts_submode;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -258,14 +260,6 @@ private:
   bool rli_fake;
 
 public:
-  /*
-    Reset the mts_bgc slave applier.
-   */
-  void reset_mts_bgc()
-  {
-    mts_last_known_commit_parent= SEQ_UNINIT;
-  }
-
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
@@ -565,7 +559,6 @@ public:
   MY_BITMAP recovery_groups;  // bitmap used during recovery
   bool recovery_groups_inited;
   ulong mts_recovery_group_cnt; // number of groups to execute at recovery
-  int64 mts_last_known_commit_parent;
   ulong mts_recovery_index;     // running index of recoverable groups
   bool mts_recovery_group_seen_begin;
 
@@ -626,8 +619,8 @@ public:
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 
-  /* MTS type  */
-  enum_mts_parallel_type mts_parallel_type;
+  /* MTS submode  */
+  Mts_submode* current_mts_submode;
   /*
     Slave side local seq_no identifying a parent group that being
     the scheduled transaction is considered to be dependent

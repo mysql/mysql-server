@@ -2673,7 +2673,7 @@ static Sys_var_enum Mts_parallel_type(
        "(Default: DB_NAME_BASED).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_BGC),  NO_MUTEX_GUARD,
+       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty),
        ON_UPDATE(update_rli_mts_type));
 
