@@ -2043,6 +2043,8 @@ bool show_binlogs(THD* thd)
       goto err;
     }
   }
+  if(index_file->error == -1)
+    goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
   DBUG_RETURN(FALSE);
