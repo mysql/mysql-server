@@ -814,7 +814,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
       continue;
 
     /* Configuration File Directives */
-    if ((*ptr == '!'))
+    if (*ptr == '!')
     {
       if (recursion_level >= max_recursion_level)
       {

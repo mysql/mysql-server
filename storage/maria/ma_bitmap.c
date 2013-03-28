@@ -135,8 +135,7 @@ const char *bits_to_txt[]=
   "tail 00-40 % full", "tail 40-80 % full", "tail/blob full"
 };
 
-/*#define WRONG_BITMAP_FLUSH 1*/ /*define only for provoking bugs*/
-#undef WRONG_BITMAP_FLUSH
+#define WRONG_BITMAP_FLUSH 0 /*define to 1 only for provoking bugs*/
 
 static my_bool _ma_read_bitmap_page(MARIA_HA *info,
                                     MARIA_FILE_BITMAP *bitmap,
@@ -164,11 +163,7 @@ static inline my_bool write_changed_bitmap(MARIA_SHARE *share,
   */
   bitmap->changed_not_flushed= 1;
 
-  if ((bitmap->non_flushable == 0)
-#ifdef WRONG_BITMAP_FLUSH
-      || 1
-#endif
-      )
+  if ((bitmap->non_flushable == 0) || WRONG_BITMAP_FLUSH)
   {
     res= pagecache_write(share->pagecache,
                                  &bitmap->file, bitmap->page, 0,
@@ -495,7 +490,7 @@ my_bool _ma_bitmap_flush_all(MARIA_SHARE *share)
   {
     bitmap->flush_all_requested++;
     bitmap->waiting_for_non_flushable++;
-#ifndef WRONG_BITMAP_FLUSH
+#if !WRONG_BITMAP_FLUSH
     while (bitmap->non_flushable > 0)
     {
       DBUG_PRINT("info", ("waiting for bitmap to be flushable"));

@@ -440,7 +440,7 @@ static MYSQL_RES * emb_store_result(MYSQL *mysql)
 int emb_read_change_user_result(MYSQL *mysql)
 {
   mysql->net.read_pos= (uchar*)""; // fake an OK packet
-  return mysql_errno(mysql) ? packet_error : 1 /* length of the OK packet */;
+  return mysql_errno(mysql) ? (int)packet_error : 1 /* length of the OK packet */;
 }
 
 MYSQL_METHODS embedded_methods= 

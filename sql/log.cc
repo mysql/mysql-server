@@ -2253,7 +2253,7 @@ static int find_uniq_filename(char *name)
   my_dirend(dir_info);
 
   /* check if reached the maximum possible extension number */
-  if ((max_found == MAX_LOG_UNIQUE_FN_EXT))
+  if (max_found == MAX_LOG_UNIQUE_FN_EXT)
   {
     sql_print_error("Log filename extension number exhausted: %06lu. \
 Please fix this by archiving old logs and \
