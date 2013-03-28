@@ -102,16 +102,12 @@ TrxUndoRsegsIterator::operator++(int)
 	current element. */
 	if (m_iter != m_trx_undo_rsegs.end()) {
 
-		m_purge_sys->rseg = *m_iter++;
-
 		/* We are still processing rollback segment from
 		the same transaction and so expected transaction
 		number shouldn't increase. Undo increment of
 		expected trx_no done by caller assuming rollback
 		segments from given transaction are done. */
-		m_purge_sys->iter.trx_no = m_purge_sys->rseg->last_trx_no;
-
-		mutex_exit(&m_purge_sys->pq_mutex);
+		m_purge_sys->iter.trx_no = (*m_iter)->last_trx_no;
 
 	} else if (!m_purge_sys->purge_queue->empty()) {
 
@@ -121,10 +117,6 @@ TrxUndoRsegsIterator::operator++(int)
 		m_iter = m_trx_undo_rsegs.begin();
 
 		m_purge_sys->purge_queue->pop();
-
-		m_purge_sys->rseg = *m_iter++;
-
-		mutex_exit(&m_purge_sys->pq_mutex);
 
 	} else {
 		/* Queue is empty, reset iterator. */
@@ -137,6 +129,10 @@ TrxUndoRsegsIterator::operator++(int)
 
 		return(ULINT_UNDEFINED);
 	}
+
+	m_purge_sys->rseg = *m_iter++;
+
+	mutex_exit(&m_purge_sys->pq_mutex);
 
 	ut_a(m_purge_sys->rseg != NULL);
 
