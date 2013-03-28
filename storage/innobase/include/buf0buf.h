@@ -1856,7 +1856,12 @@ struct buf_pool_t{
 					and bpage::list pointers when
 					the bpage is on flush_list. It
 					also protects writes to
-					bpage::oldest_modification */
+					bpage::oldest_modification and
+					flush_list_hp */
+	const buf_page_t*	flush_list_hp;/*!< "hazard pointer"
+					used during scan of flush_list
+					while doing flush list batch.
+					Protected by flush_list_mutex */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
