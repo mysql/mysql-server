@@ -5,9 +5,10 @@
 #include "rpl_slave.h"
 #include "sql_string.h"
 #include <hash.h>
+#include "rpl_mts_submode.h"
 
-ulong w_rr= 0;
 #ifndef DBUG_OFF
+  ulong w_rr= 0;
   uint mts_debug_concurrent_access= 0;
 #endif
 
@@ -174,6 +175,12 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   underrun_level= (ulong) ((rli->mts_worker_underrun_level * jobs.size) / 100.0);
   // overrun level is symmetric to underrun (as underrun to the full queue)
   overrun_level= jobs.size - underrun_level;
+
+  /* create mts submode for each of the the workers. */
+  current_mts_submode=
+   (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
+       (Mts_submode*) new Mts_submode_database():
+       (Mts_submode*) new Mts_submode_master();
 
   DBUG_RETURN(0);
 }
@@ -615,7 +622,7 @@ TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables)
   DBUG_ENTER ("mts_move_temp_tables_to_thd");
   TABLE *table= temporary_tables;
   if (!table)
-    return NULL;
+    DBUG_RETURN(NULL);
 
   // accept only if this is the start of the list.
   DBUG_ASSERT(!table->prev);
@@ -734,7 +741,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 
   DBUG_ASSERT(!rli->last_assigned_worker ||
               rli->last_assigned_worker == last_worker);
-  DBUG_ASSERT(rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC);
+  DBUG_ASSERT(rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC);
 
   if (!inited_hash_workers)
     DBUG_RETURN(NULL);
@@ -807,7 +814,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     mysql_mutex_lock(&slave_worker_hash_lock);
 
     entry->worker= (!last_worker) ?
-      get_least_occupied_worker(rli, workers) : last_worker;
+      get_least_occupied_worker(rli, workers, NULL) : last_worker;
     entry->worker->usage_partition++;
     if (mapping_db_to_worker.records > mts_partition_hash_soft_max)
     {
@@ -863,7 +870,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     if (entry->usage == 0)
     {
       entry->worker= (!last_worker) ?
-        get_least_occupied_worker(rli, workers) : last_worker;
+        get_least_occupied_worker(rli, workers, NULL) : last_worker;
       entry->worker->usage_partition++;
       entry->usage++;
     }
@@ -953,50 +960,16 @@ err:
 }
 
 /**
-   least_occupied in partition number sense.
-   This might be too coarse and computing based on assigned task (todo)
-   is a possibility.
-
-   Testing purpose round-roubin-like algorithm can be activated
-   in debug built by tests that need it.
+   Get the least occupied worker.
 
    @param ws  dynarray of pointers to Slave_worker
-
    @return a pointer to chosen Slave_worker instance
 
 */
-Slave_worker *get_least_occupied_worker(Relay_log_info *rli, DYNAMIC_ARRAY *ws)
+Slave_worker *get_least_occupied_worker(Relay_log_info *rli, DYNAMIC_ARRAY *ws,
+                                        Log_event* ev)
 {
-  long usage= LONG_MAX;
-  Slave_worker **ptr_current_worker= NULL, *worker= NULL;
-  ulong i= 0;
-
-  DBUG_ENTER("get_least_occupied_worker");
-
-  if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0) ||
-      rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC)
-  {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 w_rr % ws->elements));
-    sql_print_information("Chosing worker id %lu, the following is"
-                          " going to be %lu", worker->id, w_rr % ws->elements);
-    DBUG_ASSERT(worker != NULL);
-    DBUG_RETURN(worker);
-  }
-
-  for (i= 0; i< ws->elements; i++)
-  {
-    ptr_current_worker= (Slave_worker **) dynamic_array_ptr(ws, i);
-    if ((*ptr_current_worker)->usage_partition <= usage)
-    {
-      worker= *ptr_current_worker;
-      usage= (*ptr_current_worker)->usage_partition;
-    }
-  }
-
-  DBUG_ASSERT(worker != NULL);
-
-  DBUG_RETURN(worker);
+  return rli->current_mts_submode->get_least_occupied_worker(rli, ws, ev);
 }
 
 /**
@@ -1845,7 +1818,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   }
   else if (!is_gtid_event(ev) &&
           // no need to address partioning in BGC mode
-          (rli->mts_parallel_type != MTS_PARALLEL_TYPE_BGC))
+          (rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC))
   {
     if ((part_event=
          ev->contains_partition_info(worker->end_group_sets_max_dbs)))
@@ -1887,8 +1860,8 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   if (ev->ends_group() || (!worker->curr_group_seen_begin &&
   /* p-events of B/T-less {p,g} group (see legends of
      Log_event::get_slave_worker) obviously can't commit. */
-  (rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC || part_event) &&
-   !is_gtid_event(ev)))
+  (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC ||
+   part_event) && !is_gtid_event(ev)))
   {
     DBUG_PRINT("slave_worker_exec_job:",
                (" commits GAQ index %lu, last committed  %lu",

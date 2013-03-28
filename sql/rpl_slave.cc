@@ -59,6 +59,7 @@
 
 #include "rpl_tblmap.h"
 #include "debug_sync.h"
+#include "rpl_mts_submode.h"
 
 using std::min;
 using std::max;
@@ -861,7 +862,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
-
     mysql_mutex_unlock(log_lock);
   }
   DBUG_RETURN(0);
@@ -5338,8 +5338,15 @@ pthread_handler_t handle_slave_sql(void *arg)
   thd->thread_stack = (char*)&thd; // remember where our stack is
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
+
+  /* create mts submode */
+  rli->current_mts_submode=
+   (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
+       (Mts_submode*) new Mts_submode_database():
+       (Mts_submode*) new Mts_submode_master();
+
   mysql_mutex_unlock(&rli->info_thd_lock);
-  
+
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
   rli->slave_running = 1;
@@ -7061,7 +7068,8 @@ static Log_event* next_event(Relay_log_info* rli)
           the checkpoint routine must be periodically invoked.
         */
         (void) mts_checkpoint_routine(rli, period, force, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
-        DBUG_ASSERT(!force || rli->mts_parallel_type == MTS_PARALLEL_TYPE_BGC ||
+        DBUG_ASSERT(!force ||
+                    rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC ||
                     (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
                     sql_slave_killed(thd, rli));
         mysql_mutex_lock(&rli->data_lock);
@@ -7850,9 +7858,6 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                                           true/*wait_for_start=true*/,
                                           mi,
                                           thread_mask);
-        if (!slave_errno)
-          mi->rli->mts_parallel_type=
-                     (enum_mts_parallel_type)mts_parallel_option;
       }
     }
     else
@@ -7941,6 +7946,8 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
     push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
+  /* free memory current_mts_submode */
+  //delete(mi->rli->current_mts_submode);
   unlock_slave_threads(mi);
 
   if (slave_errno)

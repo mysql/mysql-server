@@ -10,7 +10,9 @@
 #include <my_bitmap.h>
 #include "rpl_slave.h"
 
+#ifndef DBUG_OFF
 extern ulong w_rr;
+#endif
 /**
   Legends running throughout the module:
 
@@ -55,7 +57,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
                                db_worker_hash_entry **ptr_entry,
                                bool need_temp_tables, Slave_worker *w);
 Slave_worker *get_least_occupied_worker(Relay_log_info *rli,
-                                        DYNAMIC_ARRAY *workers);
+                                        DYNAMIC_ARRAY *workers, Log_event* ev);
 int wait_for_workers_to_finish(Relay_log_info const *rli,
                                Slave_worker *ignore= NULL);
 
