@@ -5,7 +5,6 @@ eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/osfileslimit.txt' INTO TABLE t_o_f_l;
 let $f_l=`SELECT c1 FROM t_o_f_l`;
 --remove_file $MYSQLTEST_VARDIR/osfileslimit.txt
 DROP TABLE t_o_f_l;
---echo var: $f_l
 if ($f_l < 8500)
 {
   skip Need open_files_limit >= 8500 (see ulimit -n);
