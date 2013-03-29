@@ -8097,7 +8097,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   }
   if (!(def_field= (Field*) sql_alloc(field_arg->field->size_of())))
     goto error;
-  memcpy(def_field, field_arg->field, field_arg->field->size_of());
+  memcpy((void *)def_field, (void *)field_arg->field, field_arg->field->size_of());
   def_field->move_field_offset((my_ptrdiff_t)
                                (def_field->table->s->default_values -
                                 def_field->table->record[0]));
@@ -8233,7 +8233,7 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
     Field *def_field= (Field*) sql_alloc(field_arg->field->size_of());
     if (!def_field)
       return TRUE;
-    memcpy(def_field, field_arg->field, field_arg->field->size_of());
+    memcpy((void *)def_field, (void *)field_arg->field, field_arg->field->size_of());
     def_field->move_field_offset((my_ptrdiff_t)
                                  (def_field->table->insert_values -
                                   def_field->table->record[0]));

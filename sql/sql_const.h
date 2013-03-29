@@ -92,7 +92,7 @@
 #define FIELD_NR_MASK	16383			/* To get fieldnumber */
 #define FERR		-1			/* Error from my_functions */
 #define CREATE_MODE	0			/* Default mode on new files */
-#define NAMES_SEP_CHAR	'\377'			/* Char to sep. names */
+#define NAMES_SEP_CHAR	255			/* Char to sep. names */
 
 #define READ_RECORD_BUFFER	(uint) (IO_SIZE*8) /* Pointer_buffer_size */
 #define DISK_BUFFER_SIZE	(uint) (IO_SIZE*16) /* Size of diskbuffer */
