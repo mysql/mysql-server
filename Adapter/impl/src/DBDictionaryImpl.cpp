@@ -542,9 +542,9 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "DECIMAL",        // 29 DECIMAL
     "DECIMAL"         // 30 DECIMAL UNSIGNED
 #if NDB_TYPE_MAX > 31
-    "TIME2",          // 31 TIME2
-    "DATETIME2",      // 32 DATETIME2
-    "TIMESTAMP2",     // 33 TIMESTAMP2
+    "TIME",          // 31 TIME2
+    "DATETIME",      // 32 DATETIME2
+    "TIMESTAMP",     // 33 TIMESTAMP2
 #endif
   };
 

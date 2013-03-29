@@ -382,12 +382,19 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   var key = dbName + "." + tableName;
   var groupCallback = makeGroupCallback(dbSession, container, key);
 
-  // Walk the table and create defaultValue from ndbRawDefaultValue
+  /* Customize Column read from dictionary */
   function drColumn(c) {
+    /* Set TypeConverter for column */
+    c.typeConverter = ndbConnectionPool.typeConverters[c.columnType];
+
+    /* Set defaultValue for column */
     if(c.ndbRawDefaultValue) {
       c.defaultValue = 
         adapter.ndb.impl.encoderRead(c, c.ndbRawDefaultValue, 0);
       delete(c.ndbRawDefaultValue);
+      if(c.typeConverter) {
+        c.defaultValue = c.typeConverter.fromDB(c.defaultValue);
+      }
     }       
     else if(c.isNullable) {
       c.defaultValue = null;
@@ -452,7 +459,8 @@ DBConnectionPool.prototype.getTableMetadata = function(dbname, tabname,
    IMMEDIATE
 */
 DBConnectionPool.prototype.registerTypeConverter = function(typeName, converter) {
-  if(ColumnTypes.indexOf(typeName.toLocaleUpperCase()) === -1) {
+  typeName = typeName.toLocaleUpperCase(); 
+  if(ColumnTypes.indexOf(typeName) === -1) {
     throw new Error(typeName + " is not a valid column type.");
   }
 

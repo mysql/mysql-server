@@ -18,9 +18,11 @@
  02110-1301  USA
 */
 
-/*global fs, spi_doc_dir, path, build_dir, unified_debug */
+/*global fs, spi_doc_dir, path, build_dir, converters_dir, unified_debug */
 
 "use strict";
+
+var NdbDatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));
 
 try {
   var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
@@ -70,9 +72,15 @@ exports.getDefaultConnectionProperties = function() {
 };
 
 
+function registerDefaultTypeConverters(dbConnectionPool) { 
+  dbConnectionPool.registerTypeConverter("DATETIME", NdbDatetimeConverter);
+}
+
+
 exports.connectSync = function(properties) {
   udebug.log("connectSync");
   var dbconn = new DBConnectionPool(properties);
+  registerDefaultTypeConverters(dbconn);
   dbconn.connectSync();
   return dbconn;
 };
@@ -81,6 +89,7 @@ exports.connectSync = function(properties) {
 exports.connect = function(properties, user_callback) {
   udebug.log("connect");
   var dbconn = new DBConnectionPool(properties);
+  registerDefaultTypeConverters(dbconn);
   dbconn.connect(user_callback);
 };
 
