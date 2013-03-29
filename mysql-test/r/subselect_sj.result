@@ -2772,4 +2772,14 @@ execute stmt;
 a	b
 deallocate prepare stmt;
 drop table t1,t2;
+#
+# MDEV-4335: Unexpected results when selecting on information_schema
+#
+CREATE TABLE t1 (db VARCHAR(64) DEFAULT NULL);
+INSERT INTO t1 VALUES ('mysql'),('information_schema');
+SELECT * FROM t1 WHERE db IN (SELECT `SCHEMA_NAME` FROM information_schema.SCHEMATA);
+db
+mysql
+information_schema
+DROP TABLE t1;
 set optimizer_switch=@subselect_sj_tmp;

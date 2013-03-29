@@ -1493,6 +1493,9 @@ static bool convert_subq_to_sj(JOIN *parent_join, Item_in_subselect *subq_pred)
   */
   parent_lex->leaf_tables.concat(&subq_lex->leaf_tables);
 
+  if (subq_lex->options & OPTION_SCHEMA_TABLE)
+    parent_lex->options |= OPTION_SCHEMA_TABLE;
+
   /*
     Same as above for next_local chain
     (a theory: a next_local chain always starts with ::leaf_tables
@@ -1708,6 +1711,9 @@ static bool convert_subq_to_jtbm(JOIN *parent_join,
     make_join_statistics() and co. can find it.
   */
   parent_lex->leaf_tables.push_back(jtbm);
+
+  if (subq_pred->unit->first_select()->options & OPTION_SCHEMA_TABLE)
+    parent_lex->options |= OPTION_SCHEMA_TABLE;
 
   /*
     Same as above for TABLE_LIST::next_local chain
