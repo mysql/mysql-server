@@ -331,7 +331,7 @@ SELECT SUM( c )
 FROM t2
 WHERE (SELECT DISTINCT b FROM t3) > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	Using where; Using index
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using temporary
 SELECT *

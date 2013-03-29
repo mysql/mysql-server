@@ -1865,5 +1865,18 @@ ORDER BY alias1.b;
 
 drop table t1, t2, t3;
 
+--echo #
+--echo # MDEV-4144 simple subquery causes full scan instead of range scan
+--echo #
+
+CREATE TABLE t1 (id int not null auto_increment, x int not null, primary key(id));
+INSERT INTO t1 (x) VALUES (0),(0),(0);
+
+EXPLAIN
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+
+drop table t1;
+
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;

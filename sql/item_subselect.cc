@@ -547,8 +547,19 @@ bool Item_subselect::is_expensive()
     if (!cur_join)
       continue;
 
-    /* If a subquery is not optimized we cannot estimate its cost. */
-    if (!cur_join->join_tab)
+    /*
+      Subqueries whose result is known after optimization are not expensive.
+      Such subqueries have all tables optimized away, thus have no join plan.
+    */
+    if (cur_join->optimized &&
+        (cur_join->zero_result_cause || !cur_join->tables_list))
+      return false;
+
+    /*
+      If a subquery is not optimized we cannot estimate its cost. A subquery is
+      considered optimized if it has a join plan.
+    */
+    if (!(cur_join->optimized && cur_join->join_tab))
       return true;
 
     if (sl->first_inner_unit())

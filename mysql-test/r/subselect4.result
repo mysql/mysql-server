@@ -869,7 +869,7 @@ NULL
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 f1	f2
@@ -960,7 +960,7 @@ NULL
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2);
 f1	f2
@@ -1055,7 +1055,7 @@ NULL
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
@@ -1146,7 +1146,7 @@ NULL
 EXPLAIN
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No matching min/max row
 SELECT * FROM t1 WHERE (2, 0) NOT IN (SELECT min(f3)+f3, min(f4)+f3+max(f4) FROM t2 WHERE f3 > 10);
 f1	f2
@@ -2012,7 +2012,7 @@ FROM t2 JOIN t3 ON t3.f4 = t2.f4
 WHERE t3.f1 = 8
 GROUP BY 1, 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	Using filesort
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
 3	MATERIALIZED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
@@ -2325,5 +2325,19 @@ ORDER BY alias1.b;
 pk	b	pk	b
 1	1	1	1
 drop table t1, t2, t3;
+#
+# MDEV-4144 simple subquery causes full scan instead of range scan
+#
+CREATE TABLE t1 (id int not null auto_increment, x int not null, primary key(id));
+INSERT INTO t1 (x) VALUES (0),(0),(0);
+EXPLAIN
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	range	PRIMARY	PRIMARY	4	NULL	3	Using where; Using filesort
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
+SELECT x FROM t1 WHERE id > (SELECT MAX(id) - 1000 FROM t1) ORDER BY x LIMIT 1;
+x
+0
+drop table t1;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;
