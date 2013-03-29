@@ -31,6 +31,8 @@
 
 using namespace v8;
 
+Handle<String> K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second;
+
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
 #define DECLARE_ENCODER(TYPE) \
@@ -68,6 +70,13 @@ DECLARE_ENCODER_TEMPLATES(varchar);
 ENCODER(VarcharEncoder, varcharReader<uint8_t>, varcharWriter<uint8_t>);
 ENCODER(LongVarcharEncoder, varcharReader<uint16_t>, varcharWriter<uint16_t>);
 
+DECLARE_ENCODER(Year);
+DECLARE_ENCODER(Timestamp);
+DECLARE_ENCODER(Datetime);
+DECLARE_ENCODER(Timestamp2);
+DECLARE_ENCODER(Datetime2);
+DECLARE_ENCODER(Time);
+DECLARE_ENCODER(Time2);
 
 const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 0
@@ -88,24 +97,24 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & VarcharEncoder,                       // 15 VARCHAR
   & UnsupportedTypeEncoder,               // 16 BINARY
   & UnsupportedTypeEncoder,               // 17 VARBINARY
-  & UnsupportedTypeEncoder,               // 18 DATETIME
+  & DatetimeEncoder,                      // 18 DATETIME
   & UnsupportedTypeEncoder,               // 19 DATE
   & UnsupportedTypeEncoder,               // 20 BLOB
   & UnsupportedTypeEncoder,               // 21 TEXT
   & UnsupportedTypeEncoder,               // 22 BIT
   & LongVarcharEncoder,                   // 23 LONGVARCHAR
   & UnsupportedTypeEncoder,               // 24 LONGVARBINARY
-  & UnsupportedTypeEncoder,               // 25 TIME
-  & UnsupportedTypeEncoder,               // 26 YEAR
-  & UnsupportedTypeEncoder,               // 27 TIMESTAMP
+  & TimeEncoder,                          // 25 TIME
+  & YearEncoder,                          // 26 YEAR
+  & TimestampEncoder,                     // 27 TIMESTAMP
   & UnsupportedTypeEncoder,               // 28 OLDDECIMAL UNSIGNED
   & UnsupportedTypeEncoder,               // 29 DECIMAL
   & UnsupportedTypeEncoder                // 30 DECIMAL UNSIGNED
 #if NDB_TYPE_MAX > 31
   ,
-  & UnsupportedTypeEncoder,               // 31 TIME2
-  & UnsupportedTypeEncoder,               // 32 DATETIME2
-  & UnsupportedTypeEncoder,               // 33 TIMESTAMP2
+  & Time2Encoder,                         // 31 TIME2
+  & Datetime2Encoder,                     // 32 DATETIME2
+  & Timestamp2Encoder,                    // 33 TIMESTAMP2
 #endif
 };
 
@@ -152,6 +161,13 @@ Handle<Value> encoderWrite(const Arguments & args) {
 void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   DEFINE_JS_FUNCTION(target, "encoderRead", encoderRead);
   DEFINE_JS_FUNCTION(target, "encoderWrite", encoderWrite);
+  K_sign = Persistent<String>(String::NewSymbol("sign"));
+  K_year = Persistent<String>(String::NewSymbol("year"));
+  K_month = Persistent<String>(String::NewSymbol("month"));
+  K_day = Persistent<String>(String::NewSymbol("day"));
+  K_hour = Persistent<String>(String::NewSymbol("hour"));
+  K_minute = Persistent<String>(String::NewSymbol("minute"));
+  K_second = Persistent<String>(String::NewSymbol("second"));
 }
 
 
@@ -232,6 +248,18 @@ inline bool checkUnsignedMedium(int r) {
   return (r >= 0 && r < 16277216);
 }
 
+inline void writeSignedMedium(int8_t * cbuf, int mval) {
+  cbuf[0] = (int8_t) (mval);
+  cbuf[1] = (int8_t) (mval >> 8);
+  cbuf[2] = (int8_t) (mval >> 16);
+}
+
+inline void writeUnsignedMedium(uint8_t * cbuf, uint32_t mval) {
+  cbuf[0] = (uint8_t) (mval);
+  cbuf[1] = (uint8_t) (mval >> 8);
+  cbuf[2] = (uint8_t) (mval >> 16);
+}
+
 Handle<Value> outOfRange(const char * column) { 
   HandleScope scope;
   Local<String> message = 
@@ -239,6 +267,35 @@ Handle<Value> outOfRange(const char * column) {
                    String::New(column));
   Local<Value> error = Exception::RangeError(message);
   return scope.Close(error);
+}
+
+/* bigendian utilities, used with the wl#946 temporal types.
+   Derived from ndb/src/util/NdbSqlUtil.cpp
+*/
+static uint64_t unpack_bigendian(const char * buf, unsigned int len) {
+  uint64_t val = 0;
+  unsigned int i = len;
+  int shift = 0;
+  while (i != 0) {
+    i--;
+    uint64_t v = buf[i];
+    val += (v << shift);
+    shift += 8;
+  }
+  return val;
+}
+
+void pack_bigendian(uint64_t val, char * buf, unsigned int len) {
+  uint8_t b[8];
+  unsigned int i = 0, j = 0;
+  while (i  < len) {
+    b[i] = (uint8_t)(val & 255);
+    val >>= 8;
+    i++;
+  }
+  while (i != 0) {
+    buf[--i] = b[j++];
+  }
 }
 
 /* File-scope global return from succesful write encoders: 
@@ -348,11 +405,7 @@ Handle<Value> MediumWriter(const NdbDictionary::Column * col,
   if(valid) {
     int chkv = value->Int32Value();
     valid = checkMedium(chkv);
-    if(valid) {
-      cbuf[0] = (int8_t) (chkv);
-      cbuf[1] = (int8_t) (chkv >> 8);
-      cbuf[2] = (int8_t) (chkv >> 16);        
-    }
+    if(valid) writeSignedMedium(cbuf, chkv);
   }
   return valid ? writerOK : outOfRange(col->getName());
 }                        
@@ -373,11 +426,7 @@ Handle<Value> MediumUnsignedWriter(const NdbDictionary::Column * col,
   if(valid) {
     int chkv = value->Int32Value();
     valid = checkUnsignedMedium(chkv);
-    if(valid) {
-      cbuf[0] = (uint8_t) (chkv);
-      cbuf[1] = (uint8_t) (chkv >> 8);
-      cbuf[2] = (uint8_t) (chkv >> 16);        
-    }
+    if(valid) writeUnsignedMedium(cbuf, chkv);
   }
   return valid ? writerOK : outOfRange(col->getName());
 }                        
@@ -552,34 +601,110 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 
 
 /******  Temporal types ********/
-typedef struct {
-  unsigned int year, month, day, hour, minute, second, msec;
-  bool is_negative;
-} time_helper;
 
-inline void factor_HHMMSS(time_helper *tm, int32_t int_time) {
-  if(int_time < 0) {
-    tm->is_negative = true; int_time = - int_time;
-  }
-  tm->hour   = int_time/10000;
-  tm->minute = int_time/100 % 100;
-  tm->second = int_time % 100;  
+/* TimeHelper defines a C structure for managing parts of a MySQL temporal type
+   and is able to read and write a JavaScript object that handles that date
+   with no loss of precision.
+*/
+class TimeHelper { 
+public:
+  TimeHelper() : 
+    sign(+1), valid(true), 
+    year(0), month(0), day(0), hour(0), minute(0), second(0)
+    {};
+  TimeHelper(Handle<Value>);
+
+  /* methods */
+  Handle<Value> toJs();
+  void factor_HHMMSS(int int_time) {
+    if(int_time < 0) { sign = -1; int_time = - int_time; }
+    hour   = int_time/10000;
+    minute = int_time/100 % 100;
+    second = int_time % 100;
+  };
+  void factor_YYYYMMDD(int int_date) {
+    year  = int_date/10000 % 10000;
+    month = int_date/100 % 100;
+    day   = int_date % 100;  
+  };
+  
+  /* data */
+  int sign;
+  bool valid;
+  unsigned int year, month, day, hour, minute, second, microsec;
+};
+ 
+Handle<Value> TimeHelper::toJs() {
+  HandleScope scope;  
+  double sec = second + ( (double) microsec / 1000000);
+  Local<Object> obj = Object::New();
+  obj->Set(K_sign,   Integer::New(sign));
+  obj->Set(K_year,   Integer::New(year));
+  obj->Set(K_month,  Integer::New(month));
+  obj->Set(K_day,    Integer::New(day));
+  obj->Set(K_hour,   Integer::New(hour));
+  obj->Set(K_minute, Integer::New(minute));
+  obj->Set(K_second, Number::New(sec));
+  return scope.Close(obj);
 }
 
-inline void factor_YYYYMMDD(time_helper *tm, int32_t int_date) {
-  tm->year  = int_date/10000 % 10000;
-  tm->month = int_date/100 % 100;
-  tm->day   = int_date % 100;  
+TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
+  sign(+1), valid(false), 
+  year(0), month(0), day(0), hour(0), minute(0), second(0)  
+{
+  HandleScope scope;
+  int nkeys = 0;
+
+  if(mysqlTime->IsObject()) {
+    Local<Object> obj = mysqlTime->ToObject();
+    if(obj->Has(K_sign))  { sign  = obj->Get(K_sign)->Int32Value(); nkeys++; }
+    if(obj->Has(K_year))  { year  = obj->Get(K_year)->Int32Value(); nkeys++; }
+    if(obj->Has(K_month)) { month = obj->Get(K_month)->Int32Value(); nkeys++; }
+    if(obj->Has(K_day))   { day   = obj->Get(K_day)->Int32Value(); nkeys++; }
+    if(obj->Has(K_hour))  { hour  = obj->Get(K_hour)->Int32Value(); nkeys++; }
+    if(obj->Has(K_minute)){ minute= obj->Get(K_minute)->Int32Value(); nkeys++; }
+    if(obj->Has(K_second)) {
+      nkeys++;
+      double jsSeconds = obj->Get(K_second)->NumberValue();
+      second = static_cast<int>(jsSeconds);
+      int jsMsec = 1000 * jsSeconds;
+      microsec = (jsMsec % 1000) * 1000;
+    }
+  }
+  valid = (nkeys > 0);
+}
+
+
+/* readFraction() returns value in microseconds
+*/
+int readFraction(const NdbDictionary::Column *col, char *buf) {
+  int prec  = col->getPrecision();
+  int usec = 0;
+  if(prec > 0) {  
+    register int bufsz = (1 + prec) / 2;
+    usec = unpack_bigendian(buf, bufsz);
+    while(prec < 5) usec *= 100, prec += 2;
+  }
+  return usec;
+}
+
+void writeFraction(const NdbDictionary::Column *col, int usec, char *buf) {  
+  int prec  = col->getPrecision();
+  if(prec > 0) {
+    register int bufsz = (1 + prec) / 2;
+    while(prec < 5) usec /= 100, prec += 2;
+    pack_bigendian(usec, buf, bufsz);
+  }
 }
 
 
 // Timstamp
 Handle<Value> TimestampReader(const NdbDictionary::Column *col, 
-                        char *buffer, size_t offset) {
+                              char *buffer, size_t offset) {
   HandleScope scope;
   LOAD_ALIGNED_DATA(uint32_t, timestamp, buffer+offset);
   double jsdate = timestamp * 1000;  // unix seconds-> js milliseconds
-  return scope.Close(Date::New(jsdate));                        
+  return scope.Close(Date::New(jsdate));
 }                        
 
 Handle<Value> TimestampWriter(const NdbDictionary::Column * col,
@@ -592,4 +717,192 @@ Handle<Value> TimestampWriter(const NdbDictionary::Column * col,
   }
   return valid ? writerOK : outOfRange(col->getName());
 }
+
+
+// Timestamp2
+/* Timestamp2 is implemented to directly read and write Javascript Date.
+   If col->getPrecision() > 3, some precision is lost.
+*/
+Handle<Value> Timestamp2Reader(const NdbDictionary::Column *col, 
+                               char *buffer, size_t offset) {
+  HandleScope scope;
+  uint32_t timeSeconds = unpack_bigendian(buffer+offset, 4);
+  int timeMilliseconds = readFraction(col, buffer+offset+4) / 1000;
+  double jsdate = (timeSeconds * 1000) + timeMilliseconds;
+  return scope.Close(Date::New(jsdate));
+}
+ 
+Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
+                               Handle<Value> value, 
+                               char *buffer, size_t offset) {
+  bool valid = value->IsDate();
+  if(valid) {
+    double jsdate = Date::Cast(*value)->NumberValue();
+    uint32_t timeSeconds = jsdate / 1000;
+    jsdate -= (timeSeconds * 1000);
+    int timeMilliseconds = jsdate;
+    pack_bigendian(timeSeconds, buffer+offset, 4);
+    writeFraction(col, timeMilliseconds * 1000, buffer+offset+4);
+  }
+  return valid ? writerOK : outOfRange(col->getName());
+}
+
+
+/* Datetime2
+   Interfaces to JavaScript with a TimeHelper
+
+  The packed datetime2 integer part is:
+   
+  1 bit  sign (1= non-negative, 0= negative)     [ALWAYS POSITIVE IN MYSQL 5.6]
+ 17 bits year*13+month  (year 0-9999, month 0-12)
+  5 bits day            (0-31)
+  5 bits hour           (0-23)
+  6 bits minute         (0-59)
+  6 bits second         (0-59)
+  ---------------------------
+  40 bits = 5 bytes
+*/
+Handle<Value> Datetime2Reader(const NdbDictionary::Column *col, 
+                              char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm;
+  uint64_t packedValue = unpack_bigendian(buffer+offset, 5);
+  tm.microsec = readFraction(col, buffer+offset+5);
+
+  tm.second = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.minute = (packedValue & 0x3F);       packedValue >>= 6;
+  tm.hour   = (packedValue & 0x1F);       packedValue >>= 5;
+  tm.day    = (packedValue & 0x1F);       packedValue >>= 5;
+  int yrMo  = (packedValue & 0x03FFFF);   /* packedValue >>= 17; */
+  tm.year = yrMo / 13;
+  tm.month = yrMo % 13;
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
+                              Handle<Value> value, 
+                              char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  uint64_t packedValue;
+  if(tm.valid) {
+    packedValue = 1;                            packedValue <<= 17;
+    packedValue |= (tm.year * 13 + tm.month);   packedValue <<= 5;
+    packedValue |= tm.day;                      packedValue <<= 5;
+    packedValue |= tm.hour;                     packedValue <<= 5;
+    packedValue |= tm.minute;                   packedValue <<= 6;
+    packedValue |= tm.second;                   /* packedValue <<= 6; */
+    pack_bigendian(packedValue, buffer+offset, 5);
+    writeFraction(col, tm.microsec, buffer+offset+5);
+  }
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}
+
+
+/* Datetime 
+   Also interfaces to JavaScript via TimeHelper
+*/
+Handle<Value> DatetimeReader(const NdbDictionary::Column *col, 
+                             char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm;
+  LOAD_ALIGNED_DATA(uint64_t, int_datetime, buffer+offset);
+  int int_date = int_datetime / 1000000;
+  tm.factor_YYYYMMDD(int_date);
+  tm.factor_HHMMSS(int_datetime - (uint64_t) int_date * 1000000);
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
+                              Handle<Value> value, 
+                              char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  uint64_t dtval = 0;
+  if(tm.valid) {
+    dtval += tm.year;      dtval *= 100;
+    dtval += tm.month;     dtval *= 100;
+    dtval += tm.day;       dtval *= 100;
+    dtval += tm.hour;      dtval *= 100;
+    dtval += tm.minute;    dtval *= 100;
+    dtval += tm.second;
+    STORE_ALIGNED_DATA(uint64_t, dtval, buffer+offset);
+  }
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}    
+
+
+// Year
+Handle<Value> YearReader(const NdbDictionary::Column *col, 
+                         char *buffer, size_t offset) {
+  HandleScope scope;
+  LOAD_ALIGNED_DATA(uint8_t, year, buffer+offset);
+  year += 1900;
+  return scope.Close(Number::New(year));
+}
+
+Handle<Value> YearWriter(const NdbDictionary::Column * col,
+                         Handle<Value> value, char *buffer, size_t offset) {
+  bool valid = value->IsInt32();
+  if(valid) {
+    int chkv = value->Int32Value() - 1900;
+    valid = checkValue<uint8_t>(chkv);
+    if(valid) STORE_ALIGNED_DATA(uint8_t, chkv, buffer+offset);
+  }
+  return valid ? writerOK : outOfRange(col->getName());
+}
+
+
+// Time.  Uses TimeHelper.
+Handle<Value> TimeReader(const NdbDictionary::Column *col, 
+                         char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm; 
+  char * cbuf = buffer+offset;
+  int sqlTime = sint3korr(cbuf);
+  tm.factor_HHMMSS(sqlTime);
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> TimeWriter(const NdbDictionary::Column * col,
+                         Handle<Value> value, char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  int dtval = 0;
+  if(tm.valid) {
+    dtval += tm.hour;      dtval *= 100;
+    dtval += tm.minute;    dtval *= 100;
+    dtval += tm.second;  
+    dtval *= tm.sign;
+    writeSignedMedium((int8_t *) buffer+offset, dtval);
+  }  
+  
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}
+
+
+// Time2.  Uses TimeHelper.
+Handle<Value> Time2Reader(const NdbDictionary::Column *col, 
+                          char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm; 
+  int sqlTime = (int) unpack_bigendian(buffer+offset, 3);
+  tm.microsec = readFraction(col, buffer+offset+3);
+  tm.factor_HHMMSS(sqlTime);
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> Time2Writer(const NdbDictionary::Column * col,
+                          Handle<Value> value, char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  int dtval = 0;
+  if(tm.valid) {
+    dtval += tm.hour;      dtval *= 100;
+    dtval += tm.minute;    dtval *= 100;
+    dtval += tm.second;  
+    dtval *= tm.sign;
+    pack_bigendian(dtval, buffer+offset, 3);
+    writeFraction(col, tm.microsec, buffer+offset+3);
+  }  
+  
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}
+
 
