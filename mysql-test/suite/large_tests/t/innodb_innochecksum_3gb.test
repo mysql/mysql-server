@@ -1,4 +1,6 @@
 #****************************************************************
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+#
 # WL6045: Improve Innochecksum
 # Check Innochecksum with ibd file size 3GB
 # When server --default_storage_engine=InnoDB & tab2.ibd (CRC32)
@@ -109,7 +111,7 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 --exec $INNOCHECKSUM --no-check -w None $MYSQLD_DATADIR/test/tab2.ibd
 
 --echo #R07: Check the page type summary with longform for *.ibd
---replace_result $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_regex /File.*.ibd/File::tab2.ibd/ /[0-9]+/#/
 --exec $INNOCHECKSUM --page-type-summary $MYSQLD_DATADIR/test/tab2.ibd
 
 --echo # Page type dump for tab2.ibd
@@ -119,13 +121,11 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 --echo # check whether dump.txt file exist
 --file_exists $MYSQL_TMP_DIR/dump.txt
 
-
 --echo #restart the DB server with default innodb_checksum_algorithm=CRC32
 --exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
-
 
 #check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';

@@ -79,8 +79,46 @@ main: info: Page::# is empty and uncorrupted
 # Test[2] End
 # Test[3] for read from standard input for innochecksum tool with rewrite of "none" checksum.
 # Retrieve the original t1.ibd before any rewrite of checksum, so used for further testing.
-# Command for innochecksum too to read from stdin and rewrite the checksum to "none"
-# cat MYSQLD_DATADIR/test/t1.ibd | innochecksum --debug='d:o,MYSQLTEST_VARDIR/tmp/mtrchecksum.trace' --write=none - > MYSQLTEST_VARDIR/tmp/a.ibd
+# Check for innochecksum tool to read from stdin and rewrite the checksum to "none"
+# along with check for --verbose & --page-type-summary
+# Print the content for --verbose and --page-type-summary
+
+Variables (--variable-name=value)
+and boolean options {FALSE|TRUE}  Value (after reading options)
+--------------------------------- ----------------------------------------
+verbose                           TRUE
+debug                             d:o,mtrchecksum.trace
+count                             FALSE
+start-page                        #
+end-page                          #
+page                              #
+strict-check                      crc32
+no-check                          FALSE
+allow-mismatches                  #
+write                             none
+page-type-summary                 TRUE
+page-type-dump                    (No default value)
+
+================PAGE TYPE SUMMARY==============
+#PAGE_COUNT	PAGE_TYPE
+===============================================
+       #	INDEX PAGE
+       #	UNDO LOG PAGE
+       #	INODE PAGE
+       #	INSERT BUFFER FREE LIST PAGE
+       #	FRESHLY ALLOCATED PAGE
+       #	INSERT BUFFER BITMAP
+       #	SYSTEM PAGE
+       #	TRANSACTION SYSTEM PAGE
+       #	FILE SPACE HEADER
+       #	EXTENT DESCRIPTOR
+       #	BLOB PAGE
+       #	COMPRESSED BLOB PAGE
+       #	OTHER TYPE OF PAGE
+===============================================
+Additional information:
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
 # Print the information for debug option.
 find_type: enter: x: 'none'  lib: #x#a#
 main: info: Filename = -
