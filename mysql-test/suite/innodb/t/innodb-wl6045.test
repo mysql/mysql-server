@@ -1,4 +1,6 @@
 #************************************************************
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+#
 # WL6045:Improve Innochecksum
 #************************************************************
 --source include/have_innodb.inc
@@ -291,7 +293,7 @@ shutdown_server 30;
 --source include/wait_until_disconnected.inc
 
 --echo # Backup the t1.ibd before corrupting
---copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup
+#--copy_file $t1_IBD $MYSQLD_DATADIR/test/t1.ibd.backup
 
 --echo # Corrupt the t1 table
 
@@ -348,6 +350,10 @@ SELECT * FROM t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+--disable_query_log
+select * from t1;
+--enable_query_log
+
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -369,6 +375,10 @@ SELECT * FROM t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+--disable_query_log
+select * from t1;
+--enable_query_log
+
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
@@ -389,6 +399,10 @@ SELECT * FROM t1;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
+--disable_query_log
+select * from t1;
+--enable_query_log
+
 DROP TABLE t1;
 --echo [19]: Test Completed
 
@@ -401,6 +415,7 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
+--remove_file $MYSQLD_DATADIR/test/t1.ibd.backup1
 --echo [20]: Test for verbose short option, output from innochecksum
 --exec $INNOCHECKSUM -v $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQL_TMP_DIR/ver_output
 
@@ -815,11 +830,11 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo [27]: Check the page type summary with shortform for tab1.ibd
---replace_regex /File.*.ibd/File::tab1.ibd/
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
 --exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQL_TMP_DIR/page_summary.txt
 
 --echo [28]: Check the page type summary with longform for tab1.ibd
---replace_regex /File.*.ibd/File::tab1.ibd/
+--replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
 --exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd
 
 --echo [29]: Page type dump for  with longform for tab1.ibd
@@ -837,7 +852,9 @@ open IN_FILE,"<", "$dir/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp" or die $!;
 while(<IN_FILE>)
 {
+ #Replace the intergers to # and complete file patht to file name only.
  $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ $_=~ s/\d+/#/g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -866,7 +883,9 @@ open IN_FILE,"<", "$dir/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp" or die $!;
 while(<IN_FILE>)
 {
+ #Replace teh intergers to # and complete file patht to file name only.
  $_=~ s/Filename.+/Filename::tab1.ibd/g;
+ $_=~ s/\d+/#/g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -934,7 +953,7 @@ let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
 let SEARCH_PATTERN= Error: Unable to seek to necessary offset: Invalid argument;
 --source include/search_pattern_in_file.inc
 
---echo [34]: # check the invalid upper bound values for options, allow-mismatches and end-page.
+--echo [34]: # check the invalid upper bound values for options, allow-mismatches, end-page, start-page and page.
 --echo #innochecksum will fail with error code: 1
 --error 1
 --exec $INNOCHECKSUM --allow-mismatches=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
@@ -955,16 +974,57 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --exec $INNOCHECKSUM -e 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
 let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -p 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM --start-page=18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
+
+--error 1
+--exec $INNOCHECKSUM -s 18446744073709551616 $MYSQLD_DATADIR/test/tab1.ibd 2> $SEARCH_FILE
+let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
+--source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
 --echo [35]:# check the both short and long options for "help"
---exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output.txt
---file_exists $MYSQL_TMP_DIR/help_output.txt
---remove_file $MYSQL_TMP_DIR/help_output.txt
+--exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output_long.txt
+--exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output_short.txt
 
---exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output.txt
---file_exists $MYSQL_TMP_DIR/help_output.txt
---remove_file $MYSQL_TMP_DIR/help_output.txt
+--diff_files $MYSQL_TMP_DIR/help_output_long.txt $MYSQL_TMP_DIR/help_output_short.txt
+perl;
+use strict;
+use warnings;
+use File::Copy;
+my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $file= 'help_output_long.txt';
+# open file in write mode
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+while(<IN_FILE>) {
+  $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g; 
+  $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
+  $_=~ s/d:.*trace/d:o,mtrchecksum.trace/g;
+  print OUT_FILE $_;
+}
+close(IN_FILE);
+close(OUT_FILE);
+#move the new content from tmp file to the orginal file.
+move ("$dir/tmpfile", "$dir/$file");
+EOF
+
+--cat_file $MYSQL_TMP_DIR/help_output_long.txt
+--remove_file $MYSQL_TMP_DIR/help_output_long.txt
+--remove_file $MYSQL_TMP_DIR/help_output_short.txt
 
 --echo [36]:# check the both short and long options for "count"
 --replace_regex /[0-9]+/#/
