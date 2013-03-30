@@ -130,5 +130,14 @@ t7.run = function() {
   fail_openSession(this, InsertFunction(data));
 }
 
+// cDate
+var t8 = new harness.ConcurrentTest("Date");
+t8.run = function() {
+  var data = new TestData(8);
+  var now = new Date(Date.UTC(1989, 10, 9));
+  data.cDate = now;
+  this.verifier = new ValueVerifier(this, "cDate", now);
+  fail_openSession(this, InsertFunction(data));
+}
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7];
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
