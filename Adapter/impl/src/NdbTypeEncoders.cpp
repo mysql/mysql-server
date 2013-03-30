@@ -31,7 +31,8 @@
 
 using namespace v8;
 
-Handle<String> K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second;
+Handle<String> 
+  K_sign, K_year, K_month, K_day, K_hour, K_minute, K_second, K_microsec;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
 
@@ -150,8 +151,6 @@ Handle<Value> encoderWrite(const Arguments & args) {
 
   Handle<Value> error = encoder->write(col, args[1], buffer, offset);
 
-  if(! error->IsUndefined()) ThrowException(error);
-
   return scope.Close(error);
 }
 
@@ -159,15 +158,17 @@ Handle<Value> encoderWrite(const Arguments & args) {
 /* Exports to JavaScript 
 */
 void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
+  HandleScope scope;
   DEFINE_JS_FUNCTION(target, "encoderRead", encoderRead);
   DEFINE_JS_FUNCTION(target, "encoderWrite", encoderWrite);
-  K_sign = Persistent<String>(String::NewSymbol("sign"));
-  K_year = Persistent<String>(String::NewSymbol("year"));
-  K_month = Persistent<String>(String::NewSymbol("month"));
-  K_day = Persistent<String>(String::NewSymbol("day"));
-  K_hour = Persistent<String>(String::NewSymbol("hour"));
-  K_minute = Persistent<String>(String::NewSymbol("minute"));
-  K_second = Persistent<String>(String::NewSymbol("second"));
+  K_sign = Persistent<String>::New(String::NewSymbol("sign"));
+  K_year = Persistent<String>::New(String::NewSymbol("year"));
+  K_month = Persistent<String>::New(String::NewSymbol("month"));
+  K_day = Persistent<String>::New(String::NewSymbol("day"));
+  K_hour = Persistent<String>::New(String::NewSymbol("hour"));
+  K_minute = Persistent<String>::New(String::NewSymbol("minute"));
+  K_second = Persistent<String>::New(String::NewSymbol("second"));
+  K_microsec = Persistent<String>::New(String::NewSymbol("microsec"));
 }
 
 
@@ -263,9 +264,9 @@ inline void writeUnsignedMedium(uint8_t * cbuf, uint32_t mval) {
 Handle<Value> outOfRange(const char * column) { 
   HandleScope scope;
   Local<String> message = 
-    String::Concat(String::New("Invalid value for column"),
+    String::Concat(String::New("Invalid value for column "),
                    String::New(column));
-  Local<Value> error = Exception::RangeError(message);
+  Local<Value> error = message;
   return scope.Close(error);
 }
 
@@ -610,7 +611,7 @@ class TimeHelper {
 public:
   TimeHelper() : 
     sign(+1), valid(true), 
-    year(0), month(0), day(0), hour(0), minute(0), second(0)
+    year(0), month(0), day(0), hour(0), minute(0), second(0), microsec(0)
     {};
   TimeHelper(Handle<Value>);
 
@@ -636,15 +637,15 @@ public:
  
 Handle<Value> TimeHelper::toJs() {
   HandleScope scope;  
-  double sec = second + ( (double) microsec / 1000000);
   Local<Object> obj = Object::New();
-  obj->Set(K_sign,   Integer::New(sign));
-  obj->Set(K_year,   Integer::New(year));
-  obj->Set(K_month,  Integer::New(month));
-  obj->Set(K_day,    Integer::New(day));
-  obj->Set(K_hour,   Integer::New(hour));
-  obj->Set(K_minute, Integer::New(minute));
-  obj->Set(K_second, Number::New(sec));
+  obj->Set(K_sign,     Integer::New(sign));
+  obj->Set(K_year,     Integer::New(year));
+  obj->Set(K_month,    Integer::New(month));
+  obj->Set(K_day,      Integer::New(day));
+  obj->Set(K_hour,     Integer::New(hour));
+  obj->Set(K_minute,   Integer::New(minute));
+  obj->Set(K_second,   Integer::New(second));
+  obj->Set(K_microsec, Integer::New(microsec));
   return scope.Close(obj);
 }
 
@@ -663,14 +664,9 @@ TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
     if(obj->Has(K_day))   { day   = obj->Get(K_day)->Int32Value(); nkeys++; }
     if(obj->Has(K_hour))  { hour  = obj->Get(K_hour)->Int32Value(); nkeys++; }
     if(obj->Has(K_minute)){ minute= obj->Get(K_minute)->Int32Value(); nkeys++; }
-    if(obj->Has(K_second)) {
-      nkeys++;
-      double jsSeconds = obj->Get(K_second)->NumberValue();
-      second = static_cast<int>(jsSeconds);
-      int jsMsec = 1000 * jsSeconds;
-      microsec = (jsMsec % 1000) * 1000;
-    }
-  }
+    if(obj->Has(K_second)){ second= obj->Get(K_second)->Int32Value(); nkeys++; }
+    if(obj->Has(K_microsec)){ microsec = obj->Get(K_microsec)->Int32Value(); nkeys++; }
+   }
   valid = (nkeys > 0);
 }
 
@@ -834,8 +830,8 @@ Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
 Handle<Value> YearReader(const NdbDictionary::Column *col, 
                          char *buffer, size_t offset) {
   HandleScope scope;
-  LOAD_ALIGNED_DATA(uint8_t, year, buffer+offset);
-  year += 1900;
+  LOAD_ALIGNED_DATA(uint8_t, myr, buffer+offset);
+  int year = 1900 + myr;
   return scope.Close(Number::New(year));
 }
 

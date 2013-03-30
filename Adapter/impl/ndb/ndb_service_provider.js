@@ -22,7 +22,8 @@
 
 "use strict";
 
-var NdbDatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));
+var DatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));
+var TimeConverter = require(path.join(converters_dir, "NdbTimeConverter"));
 
 try {
   var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
@@ -73,7 +74,8 @@ exports.getDefaultConnectionProperties = function() {
 
 
 function registerDefaultTypeConverters(dbConnectionPool) { 
-  dbConnectionPool.registerTypeConverter("DATETIME", NdbDatetimeConverter);
+  dbConnectionPool.registerTypeConverter("DATETIME", DatetimeConverter);
+  dbConnectionPool.registerTypeConverter("TIME", TimeConverter);
 }
 
 

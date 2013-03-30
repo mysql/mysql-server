@@ -392,9 +392,6 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
       c.defaultValue = 
         adapter.ndb.impl.encoderRead(c, c.ndbRawDefaultValue, 0);
       delete(c.ndbRawDefaultValue);
-      if(c.typeConverter) {
-        c.defaultValue = c.typeConverter.fromDB(c.defaultValue);
-      }
     }       
     else if(c.isNullable) {
       c.defaultValue = null;
@@ -402,6 +399,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
     else {
       c.defaultValue = undefined;
     }
+    udebug.log_detail("drColumn:", c);
   }
 
   function masterCallback(err, table) {
