@@ -78,6 +78,7 @@ DECLARE_ENCODER(Timestamp2);
 DECLARE_ENCODER(Datetime2);
 DECLARE_ENCODER(Time);
 DECLARE_ENCODER(Time2);
+DECLARE_ENCODER(Date);
 
 const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 0
@@ -99,7 +100,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & UnsupportedTypeEncoder,               // 16 BINARY
   & UnsupportedTypeEncoder,               // 17 VARBINARY
   & DatetimeEncoder,                      // 18 DATETIME
-  & UnsupportedTypeEncoder,               // 19 DATE
+  & DateEncoder,                          // 19 DATE
   & UnsupportedTypeEncoder,               // 20 BLOB
   & UnsupportedTypeEncoder,               // 21 TEXT
   & UnsupportedTypeEncoder,               // 22 BIT
@@ -603,6 +604,15 @@ Handle<Value> varcharWriter(const NdbDictionary::Column * col,
 
 /******  Temporal types ********/
 
+
+/* TODO:
+   All temporal types should be liberal in what they accept:
+    number, string, TimeHelper, JS Date
+   This will allow us to set TypeConverter.toDB := null
+   and (in the case of NdbRecordObject) to avoid the trip out to JS and back
+   on every setter call.
+*/
+
 /* TimeHelper defines a C structure for managing parts of a MySQL temporal type
    and is able to read and write a JavaScript object that handles that date
    with no loss of precision.
@@ -743,9 +753,40 @@ Handle<Value> Timestamp2Writer(const NdbDictionary::Column * col,
   return valid ? writerOK : outOfRange(col->getName());
 }
 
+/* Datetime 
+   Interfaces with JavaScript via TimeHelper
+*/
+Handle<Value> DatetimeReader(const NdbDictionary::Column *col, 
+                             char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm;
+  LOAD_ALIGNED_DATA(uint64_t, int_datetime, buffer+offset);
+  int int_date = int_datetime / 1000000;
+  tm.factor_YYYYMMDD(int_date);
+  tm.factor_HHMMSS(int_datetime - (uint64_t) int_date * 1000000);
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
+                              Handle<Value> value, 
+                              char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  uint64_t dtval = 0;
+  if(tm.valid) {
+    dtval += tm.year;      dtval *= 100;
+    dtval += tm.month;     dtval *= 100;
+    dtval += tm.day;       dtval *= 100;
+    dtval += tm.hour;      dtval *= 100;
+    dtval += tm.minute;    dtval *= 100;
+    dtval += tm.second;
+    STORE_ALIGNED_DATA(uint64_t, dtval, buffer+offset);
+  }
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}    
+
 
 /* Datetime2
-   Interfaces to JavaScript with a TimeHelper
+   Interfaces with JavaScript via TimeHelper
 
   The packed datetime2 integer part is:
    
@@ -792,38 +833,6 @@ Handle<Value> Datetime2Writer(const NdbDictionary::Column * col,
   }
   return tm.valid ? writerOK : outOfRange(col->getName());  
 }
-
-
-/* Datetime 
-   Also interfaces to JavaScript via TimeHelper
-*/
-Handle<Value> DatetimeReader(const NdbDictionary::Column *col, 
-                             char *buffer, size_t offset) {
-  HandleScope scope;
-  TimeHelper tm;
-  LOAD_ALIGNED_DATA(uint64_t, int_datetime, buffer+offset);
-  int int_date = int_datetime / 1000000;
-  tm.factor_YYYYMMDD(int_date);
-  tm.factor_HHMMSS(int_datetime - (uint64_t) int_date * 1000000);
-  return scope.Close(tm.toJs());
-}
-
-Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
-                              Handle<Value> value, 
-                              char *buffer, size_t offset) {
-  TimeHelper tm(value);
-  uint64_t dtval = 0;
-  if(tm.valid) {
-    dtval += tm.year;      dtval *= 100;
-    dtval += tm.month;     dtval *= 100;
-    dtval += tm.day;       dtval *= 100;
-    dtval += tm.hour;      dtval *= 100;
-    dtval += tm.minute;    dtval *= 100;
-    dtval += tm.second;
-    STORE_ALIGNED_DATA(uint64_t, dtval, buffer+offset);
-  }
-  return tm.valid ? writerOK : outOfRange(col->getName());  
-}    
 
 
 // Year
@@ -901,4 +910,29 @@ Handle<Value> Time2Writer(const NdbDictionary::Column * col,
   return tm.valid ? writerOK : outOfRange(col->getName());  
 }
 
+
+// Date
+Handle<Value> DateReader(const NdbDictionary::Column *col, 
+                         char *buffer, size_t offset) {
+  HandleScope scope;
+  TimeHelper tm; 
+  char * cbuf = buffer+offset;
+  int encodedDate = uint3korr(cbuf);
+  tm.day   = (encodedDate & 31);  // five bits
+  tm.month = (encodedDate >> 5 & 15); // four bits
+  tm.year  = (encodedDate >> 9);
+  return scope.Close(tm.toJs());
+}
+
+Handle<Value> DateWriter(const NdbDictionary::Column * col,
+                         Handle<Value> value, char *buffer, size_t offset) {
+  TimeHelper tm(value);
+  int encodedDate = 0;
+  if(tm.valid) {
+    encodedDate = (tm.year << 9) | (tm.month << 5) | tm.day;
+    writeUnsignedMedium((uint8_t *) buffer+offset, encodedDate);
+  }  
+  
+  return tm.valid ? writerOK : outOfRange(col->getName());  
+}
 

@@ -76,6 +76,7 @@ exports.getDefaultConnectionProperties = function() {
 function registerDefaultTypeConverters(dbConnectionPool) { 
   dbConnectionPool.registerTypeConverter("DATETIME", DatetimeConverter);
   dbConnectionPool.registerTypeConverter("TIME", TimeConverter);
+  dbConnectionPool.registerTypeConverter("DATE", DatetimeConverter);
 }
 
 

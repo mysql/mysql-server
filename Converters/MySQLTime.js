@@ -50,6 +50,18 @@ MySQLTime.prototype.initializeFromJsDate = function(jsdate) {
   return this;
 };
 
+MySQLTime.prototype.toJsDate = function() {
+  var utcdate = Date.UTC(this.year, this.month - 1, this.day,
+                         this.hour, this.minute, this.second,
+                         this.microsec / 1000);
+  return new Date(utcdate);
+};
+
+MySQLTime.initializeFromNdb = function(dbTime) {
+  dbTime.toJsDate = MySQLTime.prototype.toJsDate;
+  return dbTime;
+}
+
 module.exports = MySQLTime;
 
 

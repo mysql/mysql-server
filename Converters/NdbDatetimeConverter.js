@@ -47,16 +47,10 @@ var MySQLTime = require("./MySQLTime.js"),
 
 
 exports.toDB = function(jsdate) {
-  var mysqlTime = new MySQLTime().initializeFromJsDate(jsdate);
-  return mysqlTime;
+  return new MySQLTime().initializeFromJsDate(jsdate);
 };
 
-exports.fromDB = function(mysqlTime) {
-  // Date() constructor uses local time, but mysqlTime is UTC
-  var utcdate = Date.UTC(mysqlTime.year, mysqlTime.month - 1, mysqlTime.day,
-                        mysqlTime.hour, mysqlTime.minute, mysqlTime.second,
-                        mysqlTime.microsec / 1000);
-  var jsdate = new Date(utcdate);
-  return jsdate;
+exports.fromDB = function(dbTime) {
+  return MySQLTime.initializeFromNdb(dbTime).toJsDate();
 };
 
