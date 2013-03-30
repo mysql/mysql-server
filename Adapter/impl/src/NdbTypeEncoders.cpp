@@ -651,7 +651,7 @@ Handle<Value> TimeHelper::toJs() {
 
 TimeHelper::TimeHelper(Handle<Value> mysqlTime) :
   sign(+1), valid(false), 
-  year(0), month(0), day(0), hour(0), minute(0), second(0)  
+  year(0), month(0), day(0), hour(0), minute(0), second(0), microsec(0)
 {
   HandleScope scope;
   int nkeys = 0;
