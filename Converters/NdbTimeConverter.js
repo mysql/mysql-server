@@ -29,9 +29,10 @@
   In MySQL 5.6, MySQL TIME can also support up to microsecond precision. 
 
   An application can override this converter and use MySQLTime directly:
-    TODO FILL ME IN
+    sessionFactory.registerTypeConverter("TIME", null);
   
   Or replace this converter with a custom one:
+    sessionFactory.registerTypeConverter("TIME", myConverterClass);
       
 ************************/
 
