@@ -153,7 +153,7 @@ checkSource("impl/ndb/NdbConnectionPool.js",
 );
 checkSource("impl/ndb/NdbSession.js");
 checkSource("impl/ndb/NdbOperation.js",
-  325 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
+  327 //Line 294[12]: Expected a conditional expression and instead saw an assignment.
 );
 checkSource("impl/ndb/NdbTransactionHandler.js");
 

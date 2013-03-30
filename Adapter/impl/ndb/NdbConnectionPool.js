@@ -462,11 +462,15 @@ DBConnectionPool.prototype.registerTypeConverter = function(typeName, converter)
     throw new Error(typeName + " is not a valid column type.");
   }
 
-  if(! isValidConverterObject(converter)) {
-      throw new Error("Not a valid converter");
+  if(converter === null) {
+    delete this.typeConverters[typeName];
   }
-
-  this.typeConverters[typeName] = converter;  
+  else if(isValidConverterObject(converter)) {
+    this.typeConverters[typeName] = converter;  
+  }
+  else { 
+    throw new Error("Not a valid converter");
+  }
 };
 
 
