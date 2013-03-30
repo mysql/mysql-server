@@ -172,6 +172,7 @@ function encodeRowBuffer(op) {
         value = col[i].typeConverter.toDB(value);
       }
       err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
+      if(err) { udebug.log("encoderWrite: ", err); }
       // FIXME: What to do with this error?
     }
   }

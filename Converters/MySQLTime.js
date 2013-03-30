@@ -40,13 +40,13 @@ MySQLTime.prototype = {
 };
 
 MySQLTime.prototype.initializeFromJsDate = function(jsdate) {
-  this.year     = jsdate.getFullYear();
-  this.month    = jsdate.getMonth() + 1;
-  this.day      = jsdate.getDate();
-  this.hour     = jsdate.getHours();
-  this.minute   = jsdate.getMinutes();
-  this.second   = jsdate.getSeconds();
-  this.microsec = jsdate.getMilliseconds() * 1000;
+  this.year     = jsdate.getUTCFullYear();
+  this.month    = jsdate.getUTCMonth() + 1;
+  this.day      = jsdate.getUTCDate();
+  this.hour     = jsdate.getUTCHours();
+  this.minute   = jsdate.getUTCMinutes();
+  this.second   = jsdate.getUTCSeconds();
+  this.microsec = jsdate.getUTCMilliseconds() * 1000;
   return this;
 };
 
