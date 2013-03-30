@@ -26,13 +26,16 @@ function TestData(id) {
   this.cTimestamp = new Date();
 }
 
-function VerifyFunction(testCase) {
-  return function onRead(err, rowRead) {
+function ValueVerifier(testCase, field, value) {
+  this.run = function onRead(err, rowRead) {
     testCase.errorIfError(err);
     testCase.errorIfNull(rowRead);
-    testCase.errorIfNotEqual(testCase.fieldToVerify,
-                             testCase.valueToVerify.valueOf(),
-                             rowRead[testCase.fieldToVerify].valueOf());
+    /* Date objects can only be compared using Date.valueOf(), 
+       so compare using x.valueOf(), but report using just x
+    */
+    if(value.valueOf() !== rowRead[field].valueOf()) {
+      testCase.errorIfNotEqual(field, value, rowRead[field]);
+    }
     testCase.failOnError();
   };
 }
@@ -40,15 +43,13 @@ function VerifyFunction(testCase) {
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {
     testCase.errorIfError(err);
-    session.find(TestData, testCase.data.id, VerifyFunction(testCase));
-  };
+    session.find(TestData, testCase.data.id, testCase.verifier.run);
+  }
 }
 
-function InsertFunction(data, fieldToVerify, valueToVerify) {
+function InsertFunction(data) {
   return function onSession(session, testCase) {
     testCase.data = data;
-    testCase.fieldToVerify = fieldToVerify;
-    testCase.valueToVerify = valueToVerify;
     session.persist(data, ReadFunction(testCase, session));
   };
 }
@@ -62,7 +63,8 @@ var t1 = new harness.ConcurrentTest("VerifyYear");
 t1.run = function() {
   var data = new TestData(1);
   data.cYear = 1989;
-  fail_openSession(this, InsertFunction(data, "cYear", 1989));
+  this.verifier = new ValueVerifier(this, "cYear", 1989);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cDatetimeDefault
@@ -70,7 +72,8 @@ var t2 = new harness.ConcurrentTest("VerifyDatetimeDefault");
 t2.run = function() {
   var data = new TestData(2);
   var expect = new Date("November 9 1989 17:00:00 UTC"); // the column default
-  fail_openSession(this, InsertFunction(data, "cDatetimeDefault", expect));
+  this.verifier = new ValueVerifier(this, "cDatetimeDefault", expect);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cDatetime
@@ -80,7 +83,8 @@ t3.run = function() {
   var now = new Date();
   now.setMilliseconds(0);
   data.cDatetime = now;
-  fail_openSession(this, InsertFunction(data, "cDatetime", now));
+  this.verifier = new ValueVerifier(this, "cDatetime", now);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cTime
@@ -91,7 +95,8 @@ t4.run = function() {
   var plusTenMinutes = now + (10 * 60000);
   var diff = now - plusTenMinutes;   // A negative number 
   data.cTime = diff;
-  fail_openSession(this, InsertFunction(data, "cTime", diff));
+  this.verifier = new ValueVerifier(this, "cTime", diff);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cNullableTimestamp Thu, 01 Jan 1970 00:00:00 GMT
@@ -100,16 +105,19 @@ t5.run = function() {
   var data = new TestData(5);
   var dateZero = new Date(0);
   data.cNullableTimestamp = dateZero;
-  fail_openSession(this, InsertFunction(data, "cNullableTimestamp", dateZero));
+  this.verifier = new ValueVerifier(this, "cNullableTimestamp", dateZero);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cNullableTimestamp 1969.
+// Does MySQL support this?
 var t6 = new harness.ConcurrentTest("Timestamp1969");
 t6.run = function() {
   var data = new TestData(6);
-  var date1969 = new Date(-100);
+  var date1969 = new Date(-10000);
   data.cNullableTimestamp = date1969;
-  fail_openSession(this, InsertFunction(data, "cNullableTimestamp", date1969));
+  this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1969);
+  fail_openSession(this, InsertFunction(data));
 }
 
 // cNullableTimestamp 1970
@@ -118,7 +126,8 @@ t7.run = function() {
   var data = new TestData(7);
   var date1970 = new Date(Date.UTC(1970, 0, 1, 3, 34, 30)); // 25 or 6 to 4
   data.cNullableTimestamp = date1970;
-  fail_openSession(this, InsertFunction(data, "cNullableTimestamp", date1970));
+  this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1970);
+  fail_openSession(this, InsertFunction(data));
 }
 
 
