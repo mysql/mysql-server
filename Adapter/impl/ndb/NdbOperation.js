@@ -153,7 +153,7 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  var i, offset, value;
+  var i, offset, value, err;
   var record = op.tableHandler.dbTable.record;
   var nfields = op.tableHandler.getMappedFieldCount();
   udebug.log("encodeRowBuffer nfields", nfields);
@@ -168,10 +168,11 @@ function encodeRowBuffer(op) {
       record.setNotNull(i, op.buffers.row);
       op.columnMask.push(col[i].columnNumber);
       offset = record.getColumnOffset(i);
-      if(col.typeConverter) {
-        value = col.typeConverter.toDB(value);
+      if(col[i].typeConverter) {
+        value = col[i].typeConverter.toDB(value);
       }
-      adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
+      err = adapter.impl.encoderWrite(col[i], value, op.buffers.row, offset);
+      // FIXME: What to do with this error?
     }
   }
 }
@@ -246,16 +247,16 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     offset  = record.getColumnOffset(i);
-    if(record.isNull(i, op.buffers.row)) {
-      value = null;
+  if(record.isNull(i, op.buffers.row)) {
+      value = col[i].defaultValue;
     }
     else {
       value = adapter.impl.encoderRead(col[i], op.buffers.row, offset);
+      if(col[i].typeConverter) {
+        value = col[i].typeConverter.fromDB(value);
+      }
     }
 
-    if(col[i].typeConverter) {
-      value = col[i].typeConverter.fromDB(value);
-    }
     dbt.set(resultRow, i, value);
   }
   op.result.value = resultRow;

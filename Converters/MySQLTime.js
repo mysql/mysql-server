@@ -50,14 +50,6 @@ MySQLTime.prototype.initializeFromJsDate = function(jsdate) {
   return this;
 };
 
-MySQLTime.prototype.toJsDate = function() {
-  var jsdate = new Date(this.year, this.month - 1, this.day, 
-                        this.hour, this.minute, this.second,
-                        this.microsec / 1000 
-                       );
-  return jsdate;
-};
-
 module.exports = MySQLTime;
 
 

@@ -39,13 +39,25 @@
       
 ************************/
 
-var MySQLTime = require("./MySQLTime.js");
+
+var MySQLTime = require("./MySQLTime.js"),
+    unified_debug = require(path.join(api_dir, "unified_debug")),
+    udebug = unified_debug.getLogger("NdbDatetimeConverter.js");
+
 
 exports.toDB = function(jsdate) {
-  return new MySQLTime().initializeFromJsDate(jsdate);
+udebug.log("toDB", jsdate);
+  var mysqlTime = new MySQLTime().initializeFromJsDate(jsdate);
+  return mysqlTime;
 };
 
 exports.fromDB = function(mysqlTime) {
-  return mysqlTime.toJsDate();
+  // Date() constructor uses local time, but mysqlTime is UTC
+  var jsdate = new Date(mysqlTime.year, mysqlTime.month - 1, mysqlTime.day);
+  jsdate.setUTCHours(mysqlTime.hour);
+  jsdate.setUTCMinutes(mysqlTime.minute);
+  jsdate.setUTCSeconds(mysqlTime.second);
+  jsdate.setUTCMilliseconds(mysqlTime.microsec / 1000);
+  return jsdate;
 };
 
