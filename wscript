@@ -29,7 +29,7 @@ def configure(conf):
   if os.path.isdir(my_lib + "/mysql"):
     my_lib = my_lib + "/mysql"
  
-  if os.path.isfile(my_inc + "mysql/mysql.h"):
+  if os.path.isdir(my_inc + "mysql/storage"):
     my_inc = my_inc + "mysql/"
   
   ndb_inc = my_inc + "/storage/ndb"

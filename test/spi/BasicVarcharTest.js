@@ -78,14 +78,14 @@ function prepare(testCase, testObj) {
     dbSession = sess; // set global
     if(err) {   testCase.fail(err);   }
     else    {   
-      dbSession.getConnectionPool().getTableMetadata("test", "tbl3", null, onTable); 
+      dbSession.getConnectionPool().getTableMetadata("test", "tbl3", dbSession, onTable); 
     }
   }
 
   function onConnect(err, conn) {
     udebug.log("prepare onConnect");
     connection = conn;
-    connection.getDBSession(0, onSession);
+    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

@@ -32,6 +32,7 @@ test.run = function() {
       t.fail('createSQL failed: ' + error);
     } else {
       var props = new mynode.ConnectionProperties(global.adapter);
+      t.mappings = global.integraltypes;
       global.fail_openSession(t, function(session) {
         if (session) {
           t.pass();

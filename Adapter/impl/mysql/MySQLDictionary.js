@@ -336,6 +336,6 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
     }
   };
 
-  this.connection.query('show create table ' + tableName, showCreateTable_callback);
+  this.connection.query('show create table ' + databaseName + '.' + tableName, showCreateTable_callback);
 };
 

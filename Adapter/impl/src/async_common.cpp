@@ -54,3 +54,10 @@ void main_thd_complete(uv_work_t *req) {
     try_catch.ReThrow();
   }
 }
+
+
+void main_thd_complete_newapi(uv_work_t *req, int) {
+  main_thd_complete(req);
+}
+
+

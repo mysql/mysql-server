@@ -55,7 +55,8 @@ function usage() {
   "   --tests :\n" +
   "   --test  :  Specify tests to run (default persist,find,remove)\n" +
   "   --table':\n" +
-  "   -t      :  Use table name for operations\n" + 
+  "   -t      :  Use table name for operations\n" +
+  "  --forever:  Repeat tests until interrupted\n" +
   "   --set other=value: set property other to value"
   ;
   console.log(msg);
@@ -84,6 +85,12 @@ function parse_command_line(options) {
         console.log('iterations value is not allowed:', process.argv[i]);
         options.exit = true;
       }
+      break;
+    case '--stats':
+      options.stats = true;
+      break;
+    case '--forever':
+      options.forever = true;
       break;
     case '--debug':
     case '-d':
@@ -185,32 +192,66 @@ function A() {
  * Properties are set up based on options.
  */
 function main() {
-  var options = {  /* Default options: */
+  var config_file_exists = false;
+
+  /* Default options: */
+  var options = {
     'adapter' : 'ndb',
     'database': 'jscrund',
-    'mysql_user': 'root',
     'modes': 'indy,each,bulk',
     'tests': 'persist,find,remove',
-    'iterations': 4000
+    'iterations': 4000,
+    'stats': false,
+    'forever': false
   };
+
+  /* Options from config file; connection_properties are handled below */
+  try {
+    var config_file = require("./jscrund.config");
+    config_file_exists = true;
+    for(var i in config_file.options) {
+      if(config_file.options.hasOwnProperty(i)) {
+        options[i]  = config_file.options[i];
+      }
+    }
+  }
+  catch(e) {
+    console.log(e);
+    if (e.message.indexOf('Cannot find module') === -1) {
+      console.log(e.name, 'reading jscrund.config:', e.message, '\nPlease correct this error and try again.\n');
+      process.exit(0);
+    }
+  }
+
+  /* Options from command line */
   parse_command_line(options);
+
   if (options.exit) {
     usage();
     process.exit(0);
   }
-  var properties;
+
+  var properties = {};
   if (options.adapter === 'ndb' || options.adapter === 'mysql') {
     properties = new JSCRUND.mynode.ConnectionProperties(options.adapter);
-    properties.database = options.database;
-    properties.mysql_user = options.mysql_user;
     JSCRUND.implementation = new JSCRUND.mysqljs.implementation();
   } else if (options.adapter === 'sql') {
-    // TODO: not  implemented
     var sqladapter = require('./jscrund_sql');
     JSCRUND.implementation = new sqladapter.implementation();
   }
+  /* Connection properties from jscrund.config */
+  if(config_file_exists) {
+    for(var i in config_file.connection_properties) {
+      if(config_file.connection_properties.hasOwnProperty(i)) {
+        properties[i]  = config_file.connection_properties[i];
+      }
+    }
+  }
+  
+  properties.database = options.database;
   options.properties = properties; // properties for getSession
-  options.annotations = new JSCRUND.mynode.TableMapping("a").applyToClass(A);
+  new JSCRUND.mynode.TableMapping("a").applyToClass(A);
+  options.annotations = A;
 
   var generateAllParameters = function(numberOfParameters) {
     var result = [];
@@ -354,8 +395,9 @@ function main() {
         JSCRUND.udebug.log_detail('jscrund.eachTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         iteration = 0;
         timer.start(modeName, testName, numberOfIterations);
-        JSCRUND.implementation.begin();
-        eachOperationsLoop(null);
+        JSCRUND.implementation.begin(function(err) {
+          eachOperationsLoop(null);
+        });
       } else {
         // done with all each tests
         // stop timer and report
@@ -395,15 +437,30 @@ function main() {
         testNumber++;
         JSCRUND.udebug.log_detail('jscrund.bulkTestsLoop', testNumber, 'of', testNames.length, ':', testName);
         timer.start(modeName, testName, numberOfIterations);
-        JSCRUND.implementation.createBatch();
-        for (iteration = 0; iteration < numberOfIterations; ++iteration) {
-          operation.apply(JSCRUND.implementation, [parameters[iteration], bulkCheckOperationCallback]);
-        }
-        JSCRUND.implementation.executeBatch(bulkCheckBatchCallback);
+        JSCRUND.implementation.createBatch(function(err) {
+          for (iteration = 0; iteration < numberOfIterations; ++iteration) {
+            operation.apply(JSCRUND.implementation, [parameters[iteration], bulkCheckOperationCallback]);
+          }
+          JSCRUND.implementation.executeBatch(bulkCheckBatchCallback);
+        });
       } else {
         // done with all bulk tests
         testsDoneCallback();
       }
+    };
+
+    /** Finish up after modeLoop
+    */
+    var onLoopComplete = function() {
+      if(options.stats) {
+        JSCRUND.stats.peek();
+      }
+      if(options.forever) {
+        runTests(options);
+      }
+      else {
+        process.exit(0);
+      }    
     };
 
     /** Run all modes specified in --modes: default is indy, each, bulk.
@@ -426,7 +483,7 @@ function main() {
         while(r = resultsArray.shift())
           resultsString += r + "\t";
         console.log(resultsString);
-        process.exit(0);
+        JSCRUND.implementation.close(onLoopComplete);
       }
     };
 
@@ -455,7 +512,7 @@ function main() {
   };
 
   // create database
-  JSCRUND.lib.SQL.create('./', options, function(err) {
+  JSCRUND.lib.SQL.create('./', properties, function(err) {
     if (err) {
       console.log('Error creating tables.', err);
       process.exit(1);

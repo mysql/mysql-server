@@ -23,9 +23,13 @@ t1.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     try {
-      session.persist(1, null, function(err, testCase2) {
-        testCase2.fail('Persist with illegal argument must fail.');
-      }, testCase);
+      session.persist(1, null, function(err) {
+        if (err) {
+          testCase.pass();
+        } else {
+          testCase.fail('t1 persist with illegal argument must fail.');
+        }
+      });
     } catch(err) {
       testCase.pass();
     }
@@ -37,9 +41,13 @@ t2.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     try {
-      session.remove(1, null, function(err, testCase2) {
-        testCase2.fail('Remove with illegal argument must fail.');
-      }, testCase);
+      session.remove(1, null, function(err) {
+        if (err) {
+          testCase.pass();
+        } else {
+          testCase.fail('t2 remove with illegal argument must fail.');
+        }
+      });
     } catch(err) {
       testCase.pass();
     }
@@ -51,9 +59,13 @@ t3.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     try {
-      session.save(1, null, function(err, testCase2) {
-        testCase2.fail('Save with illegal argument must fail.');
-      }, testCase);
+      session.save(1, null, function(err) {
+        if (err) {
+          testCase.pass();
+        } else {
+          testCase.fail('t3 save with illegal argument must fail.');
+        }
+      });
     } catch(err) {
       testCase.pass();
     }
@@ -65,9 +77,13 @@ t4.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     try {
-      session.update(1, null, null, function(err, testCase2) {
-        testCase2.fail('Update with illegal argument must fail.');
-      }, testCase);
+      session.update(1, null, null, function(err) {
+        if (err) {
+          testCase.pass();
+        } else {
+          testCase.fail('t4 update with illegal argument must fail.');
+        }
+      });
     } catch(err) {
       testCase.pass();
     }
@@ -79,9 +95,13 @@ t5.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
     try {
-      session.find(1, null, function(err, testCase2) {
-        testCase2.fail('Find with illegal argument must fail.');
-      }, testCase);
+      session.find(1, null, function(err) {
+        if (err) {
+          testCase.pass();
+        } else {
+          testCase.fail('t5 find with illegal argument must fail.');
+        }
+      });
     } catch(err) {
       testCase.pass();
     }
@@ -94,7 +114,7 @@ t11.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.persist();
-      testCase.fail('Persist with no argument must fail.');
+      testCase.fail('t11 persist with no arguments must fail.');
     } catch(err) {
       testCase.pass();
     }
@@ -107,7 +127,7 @@ t12.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.remove();
-      testCase.fail('Remove with no argument must fail.');
+      testCase.fail('t12 remove with no arguments must fail.');
     } catch(err) {
       testCase.pass();
     }
@@ -120,7 +140,7 @@ t13.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.save();
-      testCase.fail('Save with no argument must fail.');
+      testCase.fail('t13 save with no argument must fail.');
     } catch(err) {
       testCase.pass();
     }
@@ -133,7 +153,7 @@ t14.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.update();
-      testCase.fail('Update with no argument must fail.');
+      testCase.fail('t14 update with no arguments must fail.');
     } catch(err) {
       testCase.pass();
     }
@@ -146,7 +166,7 @@ t15.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.find();
-      testCase.fail('Find with no argument must fail.');
+      testCase.fail('t15 find with no arguments must fail.');
     } catch(err) {
       testCase.pass();
     }
@@ -159,7 +179,7 @@ t16.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.find(global.t_basic);
-      testCase.fail('Find with undefined second argument must fail.');
+      testCase.fail('t16 find with undefined second argument must fail.');
     } catch(err) {
       testCase.pass();
     }

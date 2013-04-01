@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -16,12 +16,21 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
-*/
+ */
 
-/* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
+/** This is the clear smoke test for the t_basic suite.
+ */
+var test = new harness.ClearSmokeTest("ClearSmokeTest");
 
-exports.Table = function(pooledConnection) {
-  this.pooledConnection = pooledConnection;
+test.run = function() {
+  var t = this;
+  harness.SQL.drop(this.suite, function(error) {
+    if (error) {
+      t.fail('dropSQL failed: ' + error);
+    } else {
+      t.pass();
+    }
+  });
 };
 
-
+module.exports.tests = [test];

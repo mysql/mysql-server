@@ -18,14 +18,13 @@
  02110-1301  USA
  */
 
-/* Compatibility for older libuv 
-   
-  THIS FILE SHOULD BE REMOVED BY 2014, OR WHEN NODE 1.0 IS RELEASED.
-  It allows compatibility with Node 0.6 on unix platforms.
+/* Compatibility wrappers for changing APIs in libuv 
 */
 
 #if (UV_VERSION_MAJOR == 0  && UV_VERSION_MINOR < 8) 
-
+/*
+  Work around the lack of uv_mutex_ and uv_pthread_ in Node.JS 0.6
+*/
 #ifdef _WIN32
 #error "Building mysql-js with old libuv is not supported on Windows."
 #endif
@@ -46,3 +45,13 @@
 #define uv_thread_join(A) pthread_join(* A, NULL)
 
 #endif
+
+
+#if(UV_VERSION_MAJOR == 0 && UV_VERSION_MINOR < 9)
+/* 
+  uv_queue_work changed in Node.JS 0.9
+*/
+#define OLDER_UV_AFTER_WORK_CB
+
+#endif
+

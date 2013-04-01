@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-#define JS_VOID_RETURN toJS<int>(0)
-
 #define THROW_ERROR(MESSAGE) \
   ThrowException(Exception::Error(String::New(MESSAGE)))
   

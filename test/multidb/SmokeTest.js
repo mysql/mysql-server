@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,14 +18,29 @@
  02110-1301  USA
  */
 
-#include "NdbApi.hpp"
+/** This is the smoke test for the multidb suite.
+ */
 
-typedef struct ndb_session_t {
-  Ndb                          * ndb;
-  const char                   * dbname;
-  NdbDictionary::Dictionary    * dict;
-  NdbError                     * err;
-} ndb_session;
+/*global assert, spi_module, harness */
+
+"use strict";
+
+try {
+  require("./suite_config.js");
+} catch (e) {}
+
+var test = new harness.SmokeTest("SmokeTest");
+
+test.run = function() {
+  var testCase = this;
+  harness.SQL.create(this.suite, function(error) {
+    if (error) {
+      testCase.fail('createSQL failed: ' + error);
+    } else {
+      testCase.pass();
+    }
+  });
+};
 
 
-
+exports.tests = [test];

@@ -39,7 +39,7 @@ var path = require("path"),
     nativeCodeClients = [],
     logListeners      = [],
     fileLoggers       = {},
-    perFileLevel      = {},
+    presetPerFileLevel= {},
     myOwnLogger       = null;
 
 
@@ -50,8 +50,8 @@ var path = require("path"),
  *
  * It allows a JavaScript user to control debugging output both from 
  * JavaScript code and from compiled C code. The user can direct the debugging
- * output to a particular file, and can enable or disable debugging output
- * from indiviual source code files.
+ * output to a particular file, and can enable output from indiviual source code 
+ * files.
  * 
  * SUMMARY:
  * 
@@ -120,11 +120,18 @@ exports.register_receiver = function(rFunc) {
 */
 exports.set_file_level = function(filename, level) {
   var i;
-  perFileLevel[filename] = level;
-  
-  for(i = 0 ; i < nativeCodeClients.length ; i++) {
-    var client = nativeCodeClients[i];
-    client.setFileLevel(filename,level);
+  if(fileLoggers[filename]) {
+    fileLoggers[filename].set_file_level(level);
+  }
+  else {
+    /* Maybe a JavaScript file not yet registered */
+    presetPerFileLevel[filename] = level;
+
+    /* Or maybe a C++ file */
+    for(i = 0 ; i < nativeCodeClients.length ; i++) {
+      var client = nativeCodeClients[i];
+      client.setFileLevel(filename,level);
+    }
   }
 };
 
@@ -206,61 +213,59 @@ exports.register_client = function(client) {
   assert(typeof client.setLogger === 'function');
   assert(typeof client.setLevel  === 'function');
   
-  client.setLogger(write_log_message);
+  client.setLogger(handle_log_event);
   client.setLevel(udeb_level);
   
   nativeCodeClients.push(client);  
 };
 
 
+function dispatch_log_message(level, filename, msg_array) {
+  var message = util.format.apply(null, msg_array);
+  if(level > UDEB_NOTICE) {            
+    message = filename + " " + message;
+  }
+  handle_log_event(level, filename, message);  
+}
+
+
+function Logger() {}
+Logger.prototype = {
+  URGENT         : UDEB_URGENT,
+  NOTICE         : UDEB_NOTICE,
+  INFO           : UDEB_INFO,
+  DEBUG          : UDEB_DEBUG,
+  DETAIL         : UDEB_DETAIL,
+  file_level     : 0,
+  set_file_level : function(x) { this.file_level = x; }
+};
+
 /***********************************************************
  * get a custom logger class for a source file
  *
  ***********************************************************/
-exports.getLogger = function(filename) {
-  /* The same filename cannot be registered twice */
-  assert(! fileLoggers[filename]);
+exports.getLogger = function(filename) {  
+  assert(! fileLoggers[filename]);  // A filename cannot be registered twice 
+  
     
   function makeLogFunction(level) {
-    var message;
-    var f = function() {
-      
-      var activeLevel = perFileLevel[filename] > udeb_level ?
-        perFileLevel[filename] : udeb_level;
-            
-      if(activeLevel >= level) {
-        message = util.format.apply(null, arguments);
-        if(level > UDEB_NOTICE) {
-          message = filename + " " + message;
-        }
-        handle_log_event(level, filename, message);
+    return function() {      
+      if((udeb_level >= level) || (this.file_level >= level)) 
+      {
+        dispatch_log_message(level, filename, arguments);
       }
     };
-    return f;
   }
-
-  function Logger() {}
-  Logger.prototype = {
-    URGENT : UDEB_URGENT,
-    NOTICE : UDEB_NOTICE,
-    INFO   : UDEB_INFO,
-    DEBUG  : UDEB_DEBUG,
-    DETAIL : UDEB_DETAIL,
-    set_file_level : function(x) { perFileLevel[filename] = x; }
-  };
 
   var theLogger = new Logger();
+  theLogger.file_level = presetPerFileLevel[filename] || UDEB_URGENT;
 
-  theLogger.log_urgent     = makeLogFunction(UDEB_URGENT);
-  theLogger.log_notice     = makeLogFunction(UDEB_NOTICE);
-  theLogger.log_info       = makeLogFunction(UDEB_INFO);
-  theLogger.log_debug      = makeLogFunction(UDEB_DEBUG);
-  theLogger.log_detail     = makeLogFunction(UDEB_DETAIL);
+  theLogger.log_urgent     = makeLogFunction(1);
+  theLogger.log_notice     = makeLogFunction(2);
+  theLogger.log_info       = makeLogFunction(3);
+  theLogger.log_debug      = makeLogFunction(4);
+  theLogger.log_detail     = makeLogFunction(5);
   theLogger.log            = theLogger.log_debug;
-
-  if(typeof perFileLevel[filename] === 'undefined') {
-    perFileLevel[filename] = UDEB_URGENT;
-  }
   
   fileLoggers[filename] = theLogger;
   

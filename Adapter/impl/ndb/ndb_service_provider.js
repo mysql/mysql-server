@@ -18,12 +18,15 @@
  02110-1301  USA
 */
 
-/*global fs, spi_doc_dir, path, build_dir, unified_debug */
+/*global fs, spi_doc_dir, path, build_dir, converters_dir, unified_debug */
 
 "use strict";
 
+var DatetimeConverter = require(path.join(converters_dir, "NdbDatetimeConverter"));
+var TimeConverter = require(path.join(converters_dir, "NdbTimeConverter"));
+
 try {
-  var ndbconnection = require("./NdbConnectionPool.js");
+  var DBConnectionPool = require("./NdbConnectionPool.js").DBConnectionPool;
 }
 catch(e) {
   /* Let unmet module dependencies be caught by loadRequiredModules() */
@@ -65,13 +68,22 @@ exports.loadRequiredModules = function() {
 };
 
 exports.getDefaultConnectionProperties = function() {
+  // Is this a bug?  Use the docs as the constructor, not as the object
   return NdbDefaultConnectionProperties;
 };
 
 
+function registerDefaultTypeConverters(dbConnectionPool) { 
+  dbConnectionPool.registerTypeConverter("DATETIME", DatetimeConverter);
+  dbConnectionPool.registerTypeConverter("TIME", TimeConverter);
+  dbConnectionPool.registerTypeConverter("DATE", DatetimeConverter);
+}
+
+
 exports.connectSync = function(properties) {
   udebug.log("connectSync");
-  var dbconn = new ndbconnection.DBConnectionPool(properties);
+  var dbconn = new DBConnectionPool(properties);
+  registerDefaultTypeConverters(dbconn);
   dbconn.connectSync();
   return dbconn;
 };
@@ -79,7 +91,8 @@ exports.connectSync = function(properties) {
 
 exports.connect = function(properties, user_callback) {
   udebug.log("connect");
-  var dbconn = new ndbconnection.DBConnectionPool(properties);
+  var dbconn = new DBConnectionPool(properties);
+  registerDefaultTypeConverters(dbconn);
   dbconn.connect(user_callback);
 };
 
