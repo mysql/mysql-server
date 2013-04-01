@@ -64,7 +64,6 @@ void initModule(Handle<Object> target) {
   // Persistent<Object> util_obj   = Persistent<Object>(Object::New());  
   Persistent<Object> debug_obj   = Persistent<Object>(Object::New());
   // Persistent<Object> mysql_obj   = Persistent<Object>(Object::New());
-  Persistent<Object> encoders_obj   = Persistent<Object>(Object::New());
   
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);

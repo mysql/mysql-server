@@ -49,8 +49,8 @@ private:
   int ncol;
   node::Buffer * buffer;
   Handle<Object> jsBuffer;
-  NdbTypeEncoder * encoders[];        // TypeEncoders for each column
-  Handle<Value> cachedConversions[];  // cached of converted values
+//  NdbTypeEncoder * encoders[];        // TypeEncoders for each column
+//  Handle<Value> cachedConversions[];  // cached of converted values
 };  
 
 MappedNdbRecord::MappedNdbRecord(Record *rec) : 
