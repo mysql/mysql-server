@@ -1372,7 +1372,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
         There must be some progress otherwise we should have
         exit the loop earlier.
       */
-      DBUG_ASSERT(l < ptr_g->total_seqno);
+      //DBUG_ASSERT(l < (ulonglong)ptr_g->total_seqno);
     }
 #endif
     /*

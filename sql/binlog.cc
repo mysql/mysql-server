@@ -54,7 +54,9 @@ using std::list;
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
 //number of limit unsafe warnings after which the suppression will be activated
 #define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
-
+#ifndef DBUG_OFF
+static int no_flushes= 0;
+#endif
 static ulonglong limit_unsafe_suppression_start_time= 0;
 static bool unsafe_warning_suppression_is_activated= false;
 static int limit_unsafe_warning_count= 0;
@@ -6567,6 +6569,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
       flush_error= result.first;
     if (first_seen == NULL)
       first_seen= current.second;
+#ifndef DBUG_OFF
+    no_flushes++;
+#endif
   }
 
   /*
@@ -6583,6 +6588,9 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
       total_bytes+= result.second;
       if (flush_error == 0)
         flush_error= result.first;
+#ifndef DBUG_OFF
+      no_flushes++;
+#endif
     }
     if (first_seen == NULL)
       first_seen= queue;
@@ -6592,6 +6600,10 @@ MYSQL_BIN_LOG::process_flush_stage_queue(my_off_t *total_bytes_var,
   *total_bytes_var= total_bytes;
   if (total_bytes > 0 && my_b_tell(&log_file) >= (my_off_t) max_size)
     *rotate_var= true;
+#ifndef DBUG_OFF
+  DBUG_PRINT("info",("no_flushes:= %d", no_flushes));
+  no_flushes= 0;
+#endif
   return flush_error;
 }
 

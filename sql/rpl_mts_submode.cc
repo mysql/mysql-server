@@ -148,6 +148,8 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
 
   DBUG_ENTER("Mts_submode_database::get_least_occupied_worker");
 
+#ifndef DBUG_OFF
+
   if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
   {
     worker= *((Slave_worker **)dynamic_array_ptr(ws,
@@ -157,6 +159,7 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
     DBUG_ASSERT(worker != NULL);
     DBUG_RETURN(worker);
   }
+#endif
 
   for (i= 0; i< ws->elements; i++)
   {
@@ -207,9 +210,7 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli)
     if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       DBUG_RETURN(true);
   }
-    DBUG_PRINT("info", ("parent_seq= %lld lwm_seq=%lld",
-                         ptr_group->parent_seqno,  rli->gaq->lwm.total_seqno));
-   DBUG_RETURN(false);
+  DBUG_RETURN(false);
 }
 
 void
@@ -294,21 +295,40 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
   Slave_worker *worker= NULL;
   Slave_job_group* ptr_group;
   DBUG_ENTER("Mts_submode_master::get_least_occupied_worker");
+  ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
+  /*
+    The scheduling works as follows, in this sequence
+      -If this is an internal event of a transaction  use the last assigned
+        worker
+      -If the i-th transaction is being scheduled in this group where "i" <=
+       number of available workers then schedule the events to the consecutive
+       workers
+      -If the i-th transaction is being scheduled in this group where "i" >
+       number of available workers then schedule this to the least loaded worker.
+   */
   if (rli->last_assigned_worker)
     worker= rli->last_assigned_worker;
-  if (!worker)
+  else
   {
-    worker= *((Slave_worker **)dynamic_array_ptr(ws,
-                                                 worker_seq % ws->elements));
-    worker_seq++;
+    if (worker_seq < ws->elements)
+    {
+      worker= *((Slave_worker **)dynamic_array_ptr(ws, worker_seq));
+      worker_seq++;
+    }
+    else
+    {
+      /* get least occupied  worker */
+      worker= *(Slave_worker **)
+              dynamic_array_ptr(&rli->least_occupied_workers, 0);
+    }
   }
+
+  DBUG_ASSERT(ptr_group);
   // assert that we have a worker thread for this event
   DBUG_ASSERT(worker != NULL);
 
-  // fetch the current job group.
-  ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
-  DBUG_ASSERT(ptr_group);
   ptr_group->worker_id= worker->id;
+  /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;
   DBUG_RETURN(worker);
@@ -323,6 +343,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
   /*
     A group id updater must satisfy the following:
       - A query log event ("BEGIN" ) or a GTID EVENT
+      - A DDL or an implicit DML commit.
    */
   switch (ev->get_type_code())
   {
@@ -336,7 +357,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
 
   default:
     // these can never be a group changer
-    commit_seq_no= 0;
+    commit_seq_no= SEQ_UNINIT;
     break;
   }
   if (first_event && commit_seq_no == SEQ_UNINIT)
@@ -347,9 +368,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     return true;
   }
 
-
-  DBUG_PRINT("info", ("MTS::slave c=%lld", commit_seq_no));
-  if ((commit_seq_no != SEQ_UNINIT &&
+  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
       /* not same as last seq number */
       commit_seq_no != mts_last_known_commit_parent) ||
       /* first event after a submode switch */
@@ -359,11 +378,15 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     mts_last_known_parent_group_id=
       gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       rli->mts_groups_assigned - 1;
-    if (first_event) first_event= false;
-    return false;
+    worker_seq= 0;
   }
-  gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-    mts_last_known_parent_group_id;
+  else
+  {
+    gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
+      mts_last_known_parent_group_id;
+  }
+  DBUG_PRINT("info", ("MTS::slave c=%lld, pid= %lld", commit_seq_no,
+                      mts_last_known_parent_group_id));
   if (first_event) first_event= false;
   return false;
 }

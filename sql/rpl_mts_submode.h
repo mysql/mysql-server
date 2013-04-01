@@ -66,7 +66,7 @@ public:
 class Mts_submode_master: public Mts_submode
 {
 private:
-  int worker_seq;
+  uint worker_seq;
   bool first_event;
   int64 mts_last_known_commit_parent;
   int64 mts_last_known_parent_group_id;
