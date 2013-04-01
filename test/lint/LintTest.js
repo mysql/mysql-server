@@ -164,9 +164,11 @@ checkSource("api/SessionFactory.js");
 checkSource("api/Query.js");
 checkSource("api/Session.js");
 checkSource("api/TableMapping.js",
- 121 // Line 121[3]: The body of a for in should be wrapped in an ...
+ 121 // Line 121[3]: The body of a for in should be wrapped ...
 );
-checkSource("api/mynode.js");
+checkSource("api/mynode.js",
+ 57 // Line 57[5]: The body of a for in should be wrapped ...
+);
 
 // ****** TEST FILES TO CHECK ********** //
 checkTest("lint/LintTest.js");
