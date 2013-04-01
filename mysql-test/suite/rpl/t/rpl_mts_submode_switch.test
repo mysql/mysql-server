@@ -1,0 +1,151 @@
+#
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+#
+
+# The motive of this test case is to test the 
+# mts submode switch between master parallel to dbname and vice-versa  
+--source include/master-slave.inc
+--connection slave
+
+# must error out since the slave is running
+--error ER_SLAVE_MUST_STOP
+SET GLOBAL slave_parallel_type=MASTER_PARALLEL;
+
+--source include/stop_slave.inc
+
+#setup 4 connections to master
+--connect(m1, localhost,root,,,$MASTER_MYPORT)
+--connect(m2, localhost,root,,,$MASTER_MYPORT)
+--connect(m3, localhost,root,,,$MASTER_MYPORT)
+--connect(m4, localhost,root,,,$MASTER_MYPORT)
+
+--echo #setup the databases and tables
+--connection m1
+send CREATE DATABASE db1;
+reap;
+send CREATE TABLE db1.t (a int) engine=innodb;
+
+--connection m2
+send CREATE DATABASE db2;
+reap;
+send CREATE TABLE db2.t (a int) engine=myisam;
+
+--connection m3
+send CREATE DATABASE db3;
+reap;
+send CREATE TABLE db3.t (a int) engine=innodb;
+
+--connection m4
+send CREATE DATABASE db4;
+reap;
+send CREATE TABLE db4.t (a int) engine=myisam;
+
+# NON TRANSACTIONAL
+--connection m4
+reap;
+send INSERT INTO db2.t values (1),(2),(3);
+--connection m2
+reap;
+send INSERT INTO db4.t values (1),(2),(3);
+
+#TRANSACTIONAL 
+--connection m1
+reap;
+send BEGIN;
+reap;
+send INSERT INTO db1.t values (1),(2),(3);
+reap;
+send INSERT INTO db3.t values (1),(2),(3);
+reap;
+send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+reap;
+send COMMIT;
+
+--connection m3
+reap;
+send BEGIN;
+reap;
+send INSERT INTO db1.t values (1),(2),(3);
+reap;
+send INSERT INTO db3.t values (1),(2),(3);
+reap;
+send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+reap;
+send COMMIT;
+
+#BOTH TRANSACTIONAL AND NON TRANSACTIONAL 
+--connection m2
+reap;
+send BEGIN;
+reap;
+send INSERT INTO db2.t values (1),(2),(3);
+reap;
+send INSERT INTO db3.t values (1),(2),(3);
+reap;
+send UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
+reap;
+send COMMIT;
+--connection m4
+reap;
+send BEGIN;
+reap;
+send INSERT INTO db1.t values (1),(2),(3);
+reap;
+send INSERT INTO db4.t values (1),(2),(3);
+reap;
+send UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+reap;
+send COMMIT;
+
+--disconnect m1
+--disconnect m2
+--disconnect m3
+--disconnect m4
+
+
+--connection slave
+
+# NULL  ========> DATABASE
+SET GLOBAL slave_parallel_type='DATABASE';
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+# DATABASE ==========> MASTER_PARALLEL
+SET GLOBAL slave_parallel_type='MASTER_PARALLEL';
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+--source include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+
+# MASTER_PARALLEL ==========> DATABASE
+SET GLOBAL slave_parallel_type='DATABASE';
+--source include/start_slave.inc
+--connection master
+--source include/sync_slave_sql_with_master.inc
+
+--source include/stop_slave.inc
+SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+--source include/start_slave.inc
+
+#clean up
+--connection master
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+--sync_slave_with_master
+
+--source include/rpl_end.inc
+

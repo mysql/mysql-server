@@ -2640,7 +2640,7 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool update_rli_mts_type(sys_var *self, THD *thd, enum_var_type val)
+static bool update_mts_type(sys_var *self, THD *thd, enum_var_type val)
 {
   if (active_mi && active_mi->slave_running)
   {
@@ -2665,17 +2665,17 @@ static Sys_var_set Slave_rows_search_algorithms(
        DEFAULT(SLAVE_ROWS_INDEX_SCAN | SLAVE_ROWS_TABLE_SCAN),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty), ON_UPDATE(NULL));
 
-static const char *mts_parallel_type_names[]= {"DB_NAME_BASED", "BGC_BASED", 0};
+static const char *mts_parallel_type_names[]= {"DATABASE", "MASTER_PARALLEL", 0};
 static Sys_var_enum Mts_parallel_type(
-       "mts_parallel_type",
-       "Option to set the slave parallel type to either database name(DB_NAME) "
-       "based or binlog group commit(BGC) based."
-       "(Default: DB_NAME_BASED).",
+       "slave_parallel_type",
+       "Specifies if the slave will use database partioning "
+       "or information from master to parallelize transactions."
+       "(Default: DATABASE).",
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
-       DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
+       DEFAULT(MTS_PARALLEL_TYPE_BGC),  NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_not_null_not_empty),
-       ON_UPDATE(update_rli_mts_type));
+       ON_UPDATE(update_mts_type));
 
 #endif
 

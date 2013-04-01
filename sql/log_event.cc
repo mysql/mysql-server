@@ -2796,6 +2796,22 @@ bool Log_event::contains_partition_info(bool end_group_sets_max_dbs)
   return res;
 }
 
+bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
+{
+  char llbuff[22];
+  if (rli->current_mts_submode->assign_group_parent_id(rli, ev))
+  {
+    llstr(rli->get_event_relay_log_pos(), llbuff);
+     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+      ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
+      "The master does not support the selected parallelization mode. "
+      "It may be too old, or replication was started from an event internal "
+      "to a transaaction.");
+  }
+  return false;
+}
+
+
 /**
    The method maps the event to a Worker and return a pointer to it.
    The rest of sending the event to the Worker is done by the caller.
@@ -2884,9 +2900,8 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     if (!rli->curr_group_seen_gtid && !rli->curr_group_seen_begin)
     {
       ulong gaq_idx;
-      rli->mts_groups_assigned++;
-
       rli->curr_group_isolated= FALSE;
+      rli->mts_groups_assigned++;
       group.reset(log_pos, rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
@@ -2916,13 +2931,13 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
         if (is_gtid_event(this))
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
-        if (rli->current_mts_submode->assign_group_parent_id(rli, this))
-        {
-           my_error(ER_MTS_CANT_PARALLEL, MYF(0),
-              get_type_str(), rli->get_event_relay_log_name(), llbuff,
-              "the master does not support the selected parallelization mode. "
-              "It may be too old, please check documentation for details ");
-        }
+        if (mts_assign_parent_group_id(this, rli))
+          DBUG_RETURN(NULL);
+        // Check if we can schedule this event
+        if (rli->current_mts_submode->schedule_next_event(rli))
+          /* The previous group of events encountered an error and the slave
+             cannot continue. */
+          DBUG_RETURN(NULL);
         DBUG_RETURN (ret_worker);
       }
     }
@@ -2937,28 +2952,29 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
+      mts_assign_parent_group_id(this, rli);
+      if (mts_assign_parent_group_id(this, rli))
+        DBUG_RETURN(NULL);
+
+      // Check if we can schedule this event
+      if (rli->current_mts_submode->schedule_next_event(rli))
+        /* The previous group of events encountered an error and the slave
+           cannot continue. */
+        DBUG_RETURN(NULL);
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
-      if (rli->current_mts_submode->assign_group_parent_id(rli, this))
-      {
-        my_error(ER_MTS_CANT_PARALLEL, MYF(0),
-           get_type_str(), rli->get_event_relay_log_name(), llbuff,
-           "the master does not support the selected parallelization mode. "
-          "It may be too old, please check documentation for details ");
-      }
       DBUG_RETURN (ret_worker);
     }
-    if (rli->current_mts_submode->assign_group_parent_id(rli, this))
-    {
-      my_error(ER_MTS_CANT_PARALLEL, MYF(0),
-        get_type_str(), rli->get_event_relay_log_name(), llbuff,
-        "the master does not support the selected parallelization mode. "
-        "It may be too old, please check documentation for details ");
-    }
+    if (mts_assign_parent_group_id(this, rli))
+      DBUG_RETURN(NULL);
+
+    // Check if we can schedule this event
+    if (rli->current_mts_submode->schedule_next_event(rli))
+      /* The previous group of events encountered an error and the slave
+         cannot continue. */
+      DBUG_RETURN(NULL);
   }
-
-  /* get parent id */
-
+  ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
   if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC)
   {
     /* Get least occupied worker */
@@ -3037,7 +3053,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
 
       i++;
     } while (it++);
-
     if ((ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index))->
         worker_id == MTS_WORKER_UNDEF)
     {
@@ -3090,13 +3105,6 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   // T-event: Commit, Xid, a DDL query or dml query of B-less group.4
   if (ends_group() || !rli->curr_group_seen_begin)
   {
-    if (rli->current_mts_submode->schedule_next_event(rli))
-    {
-      /* The previous group of events encountered an error and the slave
-         cannot continue. */
-      DBUG_RETURN(NULL);
-    }
-
     // index of GAQ that this terminal event belongs to
     mts_group_idx= gaq->assigned_group_index;
     rli->mts_group_status= Relay_log_info::MTS_END_GROUP;
