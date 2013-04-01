@@ -686,7 +686,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
   var executeScanQuery = function() {
     dbSession = userContext.session.dbSession;
     transactionHandler = dbSession.getTransactionHandler();
-    userContext.operation = dbSession.buildTableScanOperation(
+    userContext.operation = dbSession.buildScanOperation(
         queryDomainType, userContext.user_arguments[0], transactionHandler,
         executeQueryScanOnResult);
     // TODO: this currently does not support batching
