@@ -42,7 +42,8 @@
          "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/AsyncNdbContext_wrapper.cpp",
          "Adapter/impl/src/NdbTypeEncoders.cpp",
-         "Adapter/impl/src/NdbRecordObject.cpp"
+         "Adapter/impl/src/NdbRecordObject.cpp",
+         "Adapter/impl/src/ColumnProxy.cpp"
       ],
 
       'conditions': 
