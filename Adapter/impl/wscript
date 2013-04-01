@@ -36,6 +36,7 @@ def build(ctx):
   "src/AsyncNdbContext_wrapper.cpp " +\
   "src/NdbTypeEncoders.cpp " +\
   "src/NdbRecordObject.cpp " +\
+  "src/ColumnProxy.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""
