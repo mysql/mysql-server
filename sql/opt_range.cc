@@ -1970,7 +1970,7 @@ int QUICK_ROR_INTERSECT_SELECT::init()
     1  error
 */
 
-int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
+int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler, MEM_ROOT *alloc)
 {
   handler *save_file= file, *org_file;
   my_bool org_key_read;
@@ -1997,7 +1997,7 @@ int QUICK_RANGE_SELECT::init_ror_merged_scan(bool reuse_handler)
   }
 
   thd= head->in_use;
-  if (!(file= head->file->clone(head->s->normalized_path.str, thd->mem_root)))
+  if (!(file= head->file->clone(head->s->normalized_path.str, alloc)))
   {
     /* 
       Manually set the error flag. Note: there seems to be quite a few
@@ -2084,7 +2084,8 @@ failure:
     0     OK
     other error code
 */
-int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
+int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler, 
+                                                     MEM_ROOT *alloc)
 {
   List_iterator_fast<QUICK_SELECT_WITH_RECORD> quick_it(quick_selects);
   QUICK_SELECT_WITH_RECORD *cur;
@@ -2101,14 +2102,14 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if (quick->init_ror_merged_scan(TRUE))
+    if (quick->init_ror_merged_scan(TRUE, alloc))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
   while ((cur= quick_it++))
   {
     quick= cur->quick;
-    if (quick->init_ror_merged_scan(FALSE))
+    if (quick->init_ror_merged_scan(FALSE, alloc))
       DBUG_RETURN(1);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
     /* All merged scans share the same record buffer in intersection. */
@@ -2136,7 +2137,7 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
 int QUICK_ROR_INTERSECT_SELECT::reset()
 {
   DBUG_ENTER("QUICK_ROR_INTERSECT_SELECT::reset");
-  if (!scans_inited && init_ror_merged_scan(TRUE))
+  if (!scans_inited && init_ror_merged_scan(TRUE, &alloc))
     DBUG_RETURN(1);
   scans_inited= TRUE;
   List_iterator_fast<QUICK_SELECT_WITH_RECORD> it(quick_selects);
@@ -2268,7 +2269,7 @@ int QUICK_ROR_UNION_SELECT::reset()
     List_iterator_fast<QUICK_SELECT_I> it(quick_selects);
     while ((quick= it++))
     {
-      if (quick->init_ror_merged_scan(FALSE))
+      if (quick->init_ror_merged_scan(FALSE, &alloc))
         DBUG_RETURN(1);
     }
     scans_inited= TRUE;
