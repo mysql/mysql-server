@@ -51,6 +51,10 @@ unsigned char bit_index[UDEB_SOURCE_FILE_BITMASK_BYTES];
 
 /////  Internal Utility Functions
 
+/* libc's basename(3) is not thread-safe, so we implement a version here.
+   This one is essentially a strlen() function that also remembers the final
+   path separator
+*/
 inline const char * udeb_basename(const char *path) {
   const char * last_sep = 0;
   if(path) {  
@@ -118,14 +122,15 @@ void udeb_enter(int level, const char *src_path, const char *fn, int ln) {
 void udeb_print(const char *src_path, int level, const char *fmt, ...) {
   int sz = 0;
   char message[UDEB_MSG_BUF];
-  va_list args;
-  va_start(args, fmt);
   
   const char * src_file = udeb_basename(src_path);
 
   /* Construct the message */
+  va_list args;
+  va_start(args, fmt);
   sz += snprintf(message, UDEB_MSG_BUF, "%s ", src_file);
   sz += vsnprintf(message + sz, UDEB_MSG_BUF - sz, fmt, args);
+  va_end(args);
 
   if(udeb_initialized && log_level(src_file) >= level) {
 #if SEND_MESSAGES_TO_JAVASCRIPT
@@ -138,12 +143,10 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
 #else
     sprintf(message + sz, "\n");
     fputs(message, stderr);
-    va_end(args);
-    return;
 #endif
   }
+  return;
 
-  va_end(args);
 }
 
 
@@ -151,24 +154,18 @@ void udeb_print(const char *src_path, int level, const char *fmt, ...) {
  * setLevel():   JS tells C the global state and level.
  * setLogger():  JS introduces itself to C and provides a logging function
  ***************/
-/* libc's basename(3) is not thread-safe, so we implement a version here.
-   This one is essentially a strlen() function that also remembers the final
-   path separator
-*/
 
 Handle<Value> udeb_setLogger(const Arguments &args) {
   HandleScope scope;
-  
-  Local<Function> f = Function::Cast(* (args[0]));
-  JSLoggerFunction = Persistent<Function>::New(f);
-  udeb_initialized = 1;
 
-  Handle<Value> argv[3];
-  argv[0] = Number::New(UDEB_INFO);
-  argv[1] = String::New("unified_debug.cpp");
-  argv[2] = String::New("unified_debug.cpp C++ unified_debug enabled");
+  if(! udeb_initialized) {
+    Local<Function> f = Function::Cast(* (args[0]));
+    JSLoggerFunction = Persistent<Function>::New(f);
+    udeb_initialized = 1;
 
-  JSLoggerFunction->Call(Context::GetCurrent()->Global(), 3, argv);
+    udeb_print("unified_debug.cpp", UDEB_DEBUG, 
+               "unified_debug.cpp C++ unified_debug enabled");
+  }
   return scope.Close(True());
 }
 

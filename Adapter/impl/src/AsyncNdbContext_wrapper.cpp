@@ -67,9 +67,7 @@ Handle<Value> createAsyncNdbContext(const Arguments &args) {
    The sending of the transaction to Ndb will happen in a UV worker thread.
 */
 Handle<Value> executeAsynch(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DEBUG);  
   REQUIRE_ARGS_LENGTH(6);
 
   /* TODO: The JsValueConverter constructor for arg4 creates a 
@@ -80,35 +78,31 @@ Handle<Value> executeAsynch(const Arguments &args) {
                               int, int, int, Persistent<Function> > NCALL;
   NCALL * ncallptr = new NCALL(& AsyncNdbContext::executeAsynch, args);
   ncallptr->runAsync();
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 /* shutdown() 
    IMMEDIATE
 */
 Handle<Value> shutdown(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DEBUG);  
   REQUIRE_ARGS_LENGTH(0);
   
   typedef NativeVoidMethodCall_0_<AsyncNdbContext> NCALL;
   NCALL ncall(& AsyncNdbContext::shutdown, args);
   ncall.run();
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 /* Call destructor 
 */
 Handle<Value> destroy(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DEBUG);  
   REQUIRE_ARGS_LENGTH(0);
 
   AsyncNdbContext *c = unwrapPointer<AsyncNdbContext *>(args.Holder());
   delete c;
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 

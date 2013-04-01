@@ -4,12 +4,17 @@
  * IMMEDIATE
  * CONSTRUCTOR
  *
- * This constructor returns a complete set of default connection
- * properties for "impl"
- *
- * @return The default set of connection properties for adapter "impl"
+ * If implName_or_connectionProperties is the name of a backend adapter,
+ * (i.e. either "mysql" or "ndb"), this constructor returns the default
+ * ConnectionProperties for that adapter.
+ * 
+ * If implName_or_connectionProperties is a ConnectionProperties object, 
+ * then this works as a copy constructor, copying it to and returning a new 
+ * ConnectionProperties object.
+ * 
+ * Otherwise, returns undefined.
  */
-ConnectionProperties(String impl);
+ConnectionProperties(implName_or_connectionProperties);
 
 
 /***
@@ -35,14 +40,18 @@ TableMapping(tableName_or_tableMapping);
  * The "implementation" member of the properties object determines the 
  * implementation of the SessionFactory.
  *
- * If mappings is null, the schema for the needed tables are only read
- * when actually needed.
- * 
- * If mappings is not null, the schema for only the tables named
- * are read, and table mappings are checked for errors.
+ * If mappings is undefined, null, or an empty array, no mappings are loaded
+ * or validated. When needed during the execution of a method, any required
+ * mappings will be loaded and validated.
  *
+ * If mappings contains a string or a constructor function, the metadata for the
+ * table (or mapped table) is loaded from the database and validated against the
+ * requirements of the mapping.
+ *
+ * Multiple tables and constructors may be passed as elements in an array.
+ * 
  *  @param properties  properties object describing the session
- *  @param mappings    Table Mappings to validated when session is opened
+ *  @param mappings    Table Mappings to validated when connection is made
  *  @param callback    function called after connection is complete.
  *  @return void
  */
@@ -62,16 +71,18 @@ connect(properties, mappings, Function(err, SessionFactory[, ...]) callback[, ..
  * SessionFactory that is returned in the callback function.
  *
  * The "implementation" member of the properties object determines the 
- * implementation of the Session
+ * implementation of the Session.
  *
- * If Annotations is null, the entire schema for the database is read
- * and stored internally for later use. This allows unlimited access
- * to all tables in the database.
+ * If mappings is undefined, null, or an empty array, no mappings are loaded
+ * or validated. When needed during the execution of a method, any required
+ * mappings will be loaded and validated.
+ *
+ * If mappings contains a string or a constructor function, the metadata for the
+ * table (or mapped table) is loaded from the database and validated against the
+ * requirements of the mapping.
+ *
+ * Multiple tables and constructors may be passed as elements in an array.
  * 
- * If Annotations is not null, the schema for only the tables named
- * is read. Subsequent references to tables not described in Annotations
- * will return errors.
- *
  *  @param properties  properties object describing the session
  *  @param mappings    Table Mappings to validated when session is opened
  *  @param callback    function called after connection is complete.
@@ -85,3 +96,13 @@ openSession(Properties, mappings, Function(err, Session[, ...]) callback[, ...])
  * @return open session factories
  */
 getOpenSessionFactories();
+
+
+// The following functions are part of the public API but are not intended for application use.
+// They form part of the contract between mynode and SessionFactory.
+
+Connection();
+getConnectionKey();
+getConnection();
+newConnection();
+deleteFactory();

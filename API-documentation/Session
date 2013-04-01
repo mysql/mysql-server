@@ -14,13 +14,12 @@
    */
   getMapping(Object domainObjectTableNameOrConstructor, Function(Object err, Object mapping [,...]) callback[,...]);
 
-    /** getQueryBuilder(): not part of this version.
-     *
+    /** Create a query object that can be used to query the database.
+     * The first parameter is an object of a type whose constructor has been annotated;
+     * a constructor that has been annotated; or the name of a table.
+     * The returned query object implements the behavior of Query. 
      */
-    
-    /** createQuery(): not part of this version. 
-     *
-     */
+    createQuery(Object domainObjectConstructorOrTableName, Function(Object error, Object query) callback);
 
     /** Create an empty batch.
      *
@@ -56,7 +55,7 @@
 
     /** Set the partition key for the next transaction.
      *
-     * Normally, this is not needed. Clusterj will automatically set
+     * Normally, this is not needed. Mysql-js will automatically set
      * the partition key based on the first operation in the transaction.
      * If the user needs explicit control over the partition key,
      * this is the way to do it.
@@ -73,14 +72,14 @@
 
     /** Set the partition key for the next transaction.
      *
-     * Normally, this is not needed. Clusterj will automatically set
+     * Normally, this is not needed. Mysql-js will automatically set
      * the partition key based on the first operation in the transaction.
      * If the user needs explicit control over the partition key,
      * this is the way to do it.
      * 
      * The mapping is an object obtained from a class after the
      * class has been annotated. 
-     * The parameter "keys" may be of any type. Keys must uniquely identify
+     * The parameter "keys" may be of a type that can uniquely identify
      * a single row in the database. If keys is a simple type
      * (number or string), then the parameter type must be the 
      * same type as or compatible with the primary key type of the mapped object.

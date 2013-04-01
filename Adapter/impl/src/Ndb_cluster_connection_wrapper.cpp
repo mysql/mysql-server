@@ -57,14 +57,13 @@ Handle<Value> Ndb_cluster_connection_new_wrapper(const Arguments &args) {
 */
 Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
   typedef NativeVoidMethodCall_1_<Ndb_cluster_connection, const char *> MCALL;
   MCALL mcall(& Ndb_cluster_connection::set_name, args);
   mcall.run();
   
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 /* int connect(int no_retries=30, int retry_delay_in_seconds=1, int verbose=0);
@@ -73,7 +72,7 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
 Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
-  Local<Value> ret;
+  Local<Value> ret = Local<Value>(*Undefined());
   
   REQUIRE_MIN_ARGS(3);
   REQUIRE_MAX_ARGS(4);
@@ -84,7 +83,6 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   if(args.Length() == 4) {
     DEBUG_PRINT_DETAIL("async");
     mcallptr->runAsync();
-    ret = JS_VOID_RETURN;
   }
   else {
     DEBUG_PRINT_DETAIL("sync");
@@ -105,7 +103,7 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
 Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
-  Local<Value> ret;
+  Local<Value> ret = Local<Value>(*Undefined());
   
   REQUIRE_MIN_ARGS(2);
   REQUIRE_MAX_ARGS(3);
@@ -115,7 +113,6 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
 
   if(args.Length() == 3) {
     mcallptr->runAsync();
-    ret = JS_VOID_RETURN;
   }
   else {
     mcallptr->run();
@@ -146,13 +143,12 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
 
 Handle<Value> Ndb_cluster_connection_delete_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(0);  
   Ndb_cluster_connection *c = unwrapPointer<Ndb_cluster_connection *>(args.Holder());
 
   delete c;
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 

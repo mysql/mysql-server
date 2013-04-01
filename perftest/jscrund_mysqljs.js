@@ -33,16 +33,18 @@ var implementation = function() {
 
 };
 
+implementation.prototype.close = function(callback) {
+  this.session.close(callback);
+};
+
 implementation.prototype.initialize = function(options, callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize', this);
   var impl = this;
   // set up the session
   mynode.openSession(options.properties, options.annotations, function(err, session) {
-//    JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize.openSession callback session:', session);
     impl.session = session;
     impl.context = session;
-//    JSCRUND.udebug.log_detail('jscrund_mysqljs.initialize after impl.session', impl);
-    callback(err); // report error
+    session.getMapping(options.annotations, function(a,b) { callback(a,b); });
   });
 };
 
@@ -70,10 +72,11 @@ implementation.prototype.remove = function(parameters, callback) {
   });
 };
 
-implementation.prototype.createBatch = function() {
+implementation.prototype.createBatch = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.createBatch');
   this.batch = this.session.createBatch();
   this.context = this.batch;
+  callback(null);
 };
 
 implementation.prototype.executeBatch = function(callback) {
@@ -82,9 +85,10 @@ implementation.prototype.executeBatch = function(callback) {
   this.context = this.session;
 };
 
-implementation.prototype.begin = function() {
+implementation.prototype.begin = function(callback) {
   JSCRUND.udebug.log_detail('jscrund_mysqljs implementation.begin');
   this.session.currentTransaction().begin();
+  callback(null);
 };
 
 implementation.prototype.commit = function(callback) {

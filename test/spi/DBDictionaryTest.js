@@ -76,19 +76,19 @@ t2.run = function() {
     t1.errorIfNotEqual("Bad table count", count, 2);
     t1.failOnError();
 
-    dbSession.getConnectionPool().getTableMetadata("test", "tbl2", null, onTable);
+    dbSession.getConnectionPool().getTableMetadata("test", "tbl2", dbSession, onTable);
   }
 
   function onSession(err, sess) {
     udebug.log("onSession");
     dbSession = sess;
-    dbSession.getConnectionPool().listTables("test", null, onList);
+    dbSession.getConnectionPool().listTables("test", dbSession, onList);
   }
     
   function onConnect(err, connection) {
     udebug.log("onConnect");
     conn = connection;
-    conn.getDBSession(0, onSession);
+    conn.getDBSession(spi_lib.allocateSessionSlot(), onSession);
   }
   
   spi_lib.getConnectionPool(onConnect);

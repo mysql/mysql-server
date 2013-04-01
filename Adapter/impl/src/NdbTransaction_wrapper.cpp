@@ -109,9 +109,7 @@ Handle<Value> close(const Arguments &args) {
 //////////// ASYNC METHOD WRAPPERS
 
 Handle<Value> execute(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
+  DEBUG_MARKER(UDEB_DEBUG);  
   REQUIRE_ARGS_LENGTH(4);
 
   typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
@@ -120,7 +118,7 @@ Handle<Value> execute(const Arguments &args) {
   ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
   ncallptr->runAsync();
 
-  return scope.Close(JS_VOID_RETURN);
+  return Undefined();
 }
 
 
