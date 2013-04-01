@@ -1,0 +1,78 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+[connection master]
+SET GLOBAL slave_parallel_type=MASTER_PARALLEL;
+ERROR HY000: This operation cannot be performed with a running slave; run STOP SLAVE first
+include/stop_slave.inc
+#setup the databases and tables
+CREATE DATABASE db1;
+CREATE TABLE db1.t (a int) engine=innodb;
+CREATE DATABASE db2;
+CREATE TABLE db2.t (a int) engine=myisam;
+CREATE DATABASE db3;
+CREATE TABLE db3.t (a int) engine=innodb;
+CREATE DATABASE db4;
+CREATE TABLE db4.t (a int) engine=myisam;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+BEGIN;
+INSERT INTO db2.t values (1),(2),(3);
+INSERT INTO db3.t values (1),(2),(3);
+UPDATE db2.t SET db2.t.a= 2 WHERE db2.t.a > 2;
+COMMIT;
+BEGIN;
+INSERT INTO db1.t values (1),(2),(3);
+INSERT INTO db4.t values (1),(2),(3);
+UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
+COMMIT;
+SET GLOBAL slave_parallel_type='DATABASE';
+include/start_slave.inc
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+SET GLOBAL slave_parallel_type='MASTER_PARALLEL';
+include/start_slave.inc
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+RESET SLAVE;
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+SET GLOBAL slave_parallel_type='DATABASE';
+include/start_slave.inc
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+SET GLOBAL SLAVE_PARALLEL_TYPE=DEFAULT;
+include/start_slave.inc
+Warnings:
+Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+DROP DATABASE db1;
+DROP DATABASE db2;
+DROP DATABASE db3;
+DROP DATABASE db4;
+include/rpl_end.inc

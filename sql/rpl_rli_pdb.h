@@ -169,13 +169,13 @@ typedef struct st_slave_job_group
   /**
     BGC-based parallelization
   */
-  ulonglong parent_seqno; // parent group id
-  ulonglong total_seqno;  // current group id
+  longlong parent_seqno; // parent group id
+  longlong total_seqno;  // current group id
   /*
     Coordinator fills the struct with defaults and options at starting of 
     a group distribution.
   */
-  void reset (my_off_t master_pos, ulonglong seqno)
+  void reset (my_off_t master_pos, longlong seqno)
   {
     master_log_pos= master_pos;
     group_master_log_pos= group_relay_log_pos= 0;
@@ -189,7 +189,7 @@ typedef struct st_slave_job_group
     checkpoint_relay_log_pos= 0;
     checkpoint_seqno= (uint) -1;
     done= 0;
-    parent_seqno= 0;
+    parent_seqno= SEQ_UNINIT;
   }
 } Slave_job_group;
 

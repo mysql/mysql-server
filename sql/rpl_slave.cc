@@ -7055,11 +7055,14 @@ static Log_event* next_event(Relay_log_info* rli)
       if (hot_log)
         mysql_mutex_unlock(log_lock);
 
-      /* 
-         MTS checkpoint in the successful read branch 
+      /*
+         MTS checkpoint in the successful read branch
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
-      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force))
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force)/* &&
+          We don't ned this in MTS+master parallel slave since this will
+             foil the scheduling logic of coordinator
+          rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC*/)
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
@@ -7069,7 +7072,6 @@ static Log_event* next_event(Relay_log_info* rli)
         */
         (void) mts_checkpoint_routine(rli, period, force, true/*need_data_lock=true*/); // TODO: ALFRANIO ERROR
         DBUG_ASSERT(!force ||
-                    rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC ||
                     (force && (rli->checkpoint_seqno <= (rli->checkpoint_group - 1))) ||
                     sql_slave_killed(thd, rli));
         mysql_mutex_lock(&rli->data_lock);
@@ -7238,7 +7240,8 @@ static Log_event* next_event(Relay_log_info* rli)
         // Note that wait_for_update_relay_log unlocks lock_log !
 
         if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 ||
-            DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0)))
+            DBUG_EVALUATE_IF("check_slave_debug_group", 1, 0))/* &&
+            rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC*/)
         {
           int ret= 0;
           struct timespec waittime;
