@@ -29,10 +29,10 @@
    especially with regard to local time vs. UTC.
 */
 
-var propsNdb = global.test_conn_properties;
-var propsMysql = global.test_conn_properties;
-propsNdb.adapter = "ndb";
-propsMysql.adapter = "mysql";
+var propsNdb = new mynode.ConnectionProperties(global.test_conn_properties);
+var propsMysql = new mynode.ConnectionProperties(global.test_conn_properties);
+propsNdb.implementation = "ndb";
+propsMysql.implementation = "mysql";
 
 function openSessions(testCase, callback) {
   function onOpen2(err, session) {
@@ -76,40 +76,38 @@ function ValueVerifier(testCase, field, value) {
 function ReadNdbFunction(testCase) { 
   return function onMysqlPersist(err) {
     testCase.errorIfError(err);
-    testCase.ndbSession.find(TestData, testCase.data.id, testCase.verifier.run);
+    testCase.ndbSession.find(testCase.tableName, testCase.data.id, testCase.verifier.run);
   }
 }
 
 function ReadMysqlFunction(testCase) {
   return function onNdbPersist(err) {
     testCase.errorIfError(err);
-    testCase.mysqlSession.find(TestData, testCase.data.id, testCase.verifier.run);
+    testCase.mysqlSession.find(testCase.tableName, testCase.data.id, testCase.verifier.run);
   }
 }
 
-function InsertMysqlFunction(data) {
+function InsertMysqlFunction(tableName, data) {
   return function onSessions(testCase) {
+    testCase.tableName = tableName;
     testCase.data = data;
-    testCase.mysqlSession.persist(data, ReadNdbFunction(testCase));
+    testCase.mysqlSession.persist(tableName, data, ReadNdbFunction(testCase));
   };
 }
 
-function InsertNdbFunction(data) {
+function InsertNdbFunction(tableName, data) {
   return function onSessions(testCase) {
+    testCase.tableName = tableName;
     testCase.data = data;
-    testCase.ndbSession.persist(data, ReadMysqlFunction(testCase));
+    testCase.ndbSession.persist(tableName, data, ReadMysqlFunction(testCase));
   }
 }
-    
+
 // Domain Object Constructor
 function TestData(id) {
   if(id) this.id = id;
   this.cTimestamp = new Date();
 }
-var mapping = new mynode.TableMapping("test.temporaltypes");
-mapping.mapAllColumns = true;
-mapping.applyToClass(TestData);
-
 
 // Timestamp NDB->MySQL
 var t1 = new harness.ConcurrentTest("Timestamp-NDB-MySQL");
@@ -118,7 +116,7 @@ t1.run = function() {
   var date1970 = new Date(Date.UTC(1970, 0, 1, 3, 34, 30));
   data.cNullableTimestamp = date1970;
   this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1970);
-  openSessions(this, InsertNdbFunction(data));
+  openSessions(this, InsertNdbFunction("temporaltypes", data));
 }
 
 // Timestamp MySQL->NDB
@@ -128,7 +126,7 @@ t2.run = function() {
   var date1970 = new Date(Date.UTC(1970, 1, 2, 4, 34, 30));
   data.cNullableTimestamp = date1970;
   this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1970);
-  openSessions(this, InsertMysqlFunction(data));
+  openSessions(this, InsertMysqlFunction("temporaltypes", data));
 }
 
 // Datetime NDB->MySQL
@@ -138,7 +136,7 @@ t3.run = function() {
   var date1970 = new Date(Date.UTC(1970, 2, 3, 4, 34, 30));
   data.cDatetime = date1970;
   this.verifier = new ValueVerifier(this, "cDatetime", date1970);
-  openSessions(this, InsertNdbFunction(data));
+  openSessions(this, InsertNdbFunction("temporaltypes", data));
 }
 
 // Datetime MySQL->NDB
@@ -148,7 +146,7 @@ t4.run = function() {
   var date1970 = new Date(Date.UTC(1970, 3, 4, 4, 34, 30));
   data.cDatetime = date1970;
   this.verifier = new ValueVerifier(this, "cDatetime", date1970);
-  openSessions(this, InsertMysqlFunction(data));
+  openSessions(this, InsertMysqlFunction("temporaltypes", data));
 }
 
 
