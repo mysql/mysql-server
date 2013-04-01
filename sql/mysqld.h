@@ -308,6 +308,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_index;
 extern PSI_mutex_key key_BINLOG_LOCK_log;
 extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_BINLOG_LOCK_xids;
 extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
   key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
@@ -338,6 +339,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_index;
 extern PSI_mutex_key key_RELAYLOG_LOCK_log;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
+extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_LOCK_thread_created;
