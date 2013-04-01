@@ -9864,16 +9864,16 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
 
   /**
     Compare full record only if:
-    - there are no blob fields (otherwise we would also need 
+    - there are no blob fields (otherwise we would also need
       to compare blobs contents as well);
     - there are no varchar fields (otherwise we would also need
       to compare varchar contents as well);
-    - there are no null fields, otherwise NULLed fields 
-      contents (i.e., the don't care bytes) may show arbitrary 
+    - there are no null fields, otherwise NULLed fields
+      contents (i.e., the don't care bytes) may show arbitrary
       values, depending on how each engine handles internally.
     - if all the bitmap is set (both are full rows)
     */
-  if ((table->s->blob_fields + 
+  if ((table->s->blob_fields +
        table->s->varchar_fields +
        table->s->null_fields) == 0 &&
       bitmap_is_set_all(cols))
@@ -9881,16 +9881,16 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
     result= cmp_record(table,record[1]);
   }
 
-  /* 
+  /*
     Fallback to field-by-field comparison:
     1. start by checking if the field is signaled:
     2. if it is, first compare the null bit if the field is nullable
-    3. then compare the contents of the field, if it is not 
+    3. then compare the contents of the field, if it is not
        set to null
    */
   else
   {
-    for (Field **ptr=table->field ; 
+    for (Field **ptr=table->field ;
          *ptr && ((*ptr)->field_index < cols->n_bits) && !result;
          ptr++)
     {
