@@ -1,0 +1,3 @@
+# check that we have the appropriate engine-specific values in information_schema.global_status
+
+select variable_name from information_schema.global_status where variable_name like 'tokudb%' order by variable_name asc;
