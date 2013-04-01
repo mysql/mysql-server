@@ -1138,7 +1138,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
        file */
     if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg))
       GOTO_ERR;
-
+    DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
     bool is_active_binlog= false;
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
                                               current_checksum_alg,
