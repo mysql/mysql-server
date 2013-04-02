@@ -168,6 +168,7 @@ static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
 static int connect_flag=CLIENT_INTERACTIVE;
 static my_bool opt_binary_mode= FALSE;
+static my_bool opt_connect_expired_password= FALSE;
 static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *current_prompt=0, *delimiter_str= 0,
             *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME,
@@ -1825,6 +1826,11 @@ static struct my_option my_long_options[] =
    &opt_server_public_key, &opt_server_public_key, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #endif
+  {"connect-expired-password", 0,
+   "Notify the server that this client is prepared to handle expired "
+   "password sandbox mode.",
+   &opt_connect_expired_password, &opt_connect_expired_password, 0, GET_BOOL,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -4906,7 +4912,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
-  my_bool interactive= status.batch ? FALSE : TRUE;
+  my_bool handle_expired= (opt_connect_expired_password || !status.batch) ?
+    TRUE : FALSE;
 
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
@@ -4978,7 +4985,7 @@ init_connection_options(MYSQL *mysql)
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
 
-  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &handle_expired);
 }
 
 

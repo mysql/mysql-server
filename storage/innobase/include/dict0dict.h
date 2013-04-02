@@ -1756,8 +1756,8 @@ UNIV_INLINE
 void
 dict_disable_redo_if_temporary(
 /*===========================*/
-	const dict_table_t*	table,  /*!< in: table to check */
-	mtr_t*			mtr)    /*!< out: mini-transaction */
+	const dict_table_t*	table,	/*!< in: table to check */
+	mtr_t*			mtr)	/*!< out: mini-transaction */
 	__attribute__((nonnull));
 
 #ifndef UNIV_HOTBACKUP
