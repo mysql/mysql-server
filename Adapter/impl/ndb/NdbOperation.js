@@ -25,7 +25,6 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-    PooledBuffer  = require("./PooledBuffer.js"),
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
