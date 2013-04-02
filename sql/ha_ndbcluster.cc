@@ -11986,6 +11986,16 @@ static int ndbcluster_init(void *p)
   /* Check const alignment */
   assert(DependencyTracker::InvalidTransactionId ==
          Ndb_binlog_extra_row_info::InvalidTransactionId);
+
+  if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT)
+  {
+    /* Set global to mixed - note that this is not the default,
+     * but the current global value
+     */
+    global_system_variables.binlog_format = BINLOG_FORMAT_MIXED;
+    sql_print_information("NDB: Changed global value of binlog_format from STATEMENT to MIXED");
+
+  }
 #endif
   ndb_util_thread.init();
   ndb_index_stat_thread.init();
