@@ -161,6 +161,13 @@ public:
 	}
 
 	/**
+	Reset trx_no and clear cached rollback segments. */
+	void reset() {
+		m_trx_no = 0;
+		m_rsegs.clear();
+	}
+
+	/**
 	Get transaction number
 	@return trx_id_t - get transaction number. */
 	trx_id_t get_trx_no() const
@@ -188,6 +195,16 @@ public:
 	iterator_t end()
 	{
 		return(m_rsegs.end());
+	}
+
+	/**
+	Append rollback segments from referred instance to current instance. */
+	void append(const TrxUndoRsegs& append_from)
+	{
+		ut_ad(get_trx_no() == append_from.get_trx_no());
+		m_rsegs.insert(m_rsegs.end(),
+			       append_from.m_rsegs.begin(),
+			       append_from.m_rsegs.end());
 	}
 
 	/**

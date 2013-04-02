@@ -111,12 +111,31 @@ TrxUndoRsegsIterator::operator++(int)
 
 	} else if (!m_purge_sys->purge_queue->empty()) {
 
-		/* Read the next element from the queue. */
-		
-		m_trx_undo_rsegs = purge_sys->purge_queue->top();
-		m_iter = m_trx_undo_rsegs.begin();
+		/* Read the next element from the queue.
+		Combine elements if they have same transaction number.
+		This can happen if a transaction shares redo rollback segment
+		with another transaction that has already added it to purge
+		queue and former transaction also needs to schedule non-redo
+		rollback segment for purge. */
+		m_trx_undo_rsegs = NullElement;
 
-		m_purge_sys->purge_queue->pop();
+		while (!m_purge_sys->purge_queue->empty()) {
+
+			if (m_trx_undo_rsegs.get_trx_no() == UINT64_UNDEFINED) {
+				m_trx_undo_rsegs =
+					purge_sys->purge_queue->top();
+			} else if (purge_sys->purge_queue->top().get_trx_no() ==
+					m_trx_undo_rsegs.get_trx_no()) {
+				m_trx_undo_rsegs.append(
+					purge_sys->purge_queue->top());
+			} else {
+				break;
+			}
+
+			m_purge_sys->purge_queue->pop();
+		}
+
+		m_iter = m_trx_undo_rsegs.begin();
 
 	} else {
 		/* Queue is empty, reset iterator. */
@@ -139,6 +158,7 @@ TrxUndoRsegsIterator::operator++(int)
 	mutex_enter(&m_purge_sys->rseg->mutex);
 
 	ut_a(m_purge_sys->rseg->last_page_no != FIL_NULL);
+	ut_ad(m_purge_sys->rseg->last_trx_no == m_trx_undo_rsegs.get_trx_no());
 
 	/* We assume in purge of externally stored fields that
 	space id is in the range of UNDO tablespace space ids

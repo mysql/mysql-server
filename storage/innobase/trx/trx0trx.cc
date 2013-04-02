@@ -933,11 +933,12 @@ trx_serialisation_number_get(
 
 		TrxUndoRsegs elem(trx->no);
 
-		if (redo_rseg != NULL) {
+		if (redo_rseg != NULL && redo_rseg->last_page_no == FIL_NULL) {
 			elem.push_back(redo_rseg);
 		}
 
-		if (noredo_rseg != NULL) {
+		if (noredo_rseg != NULL &&
+		    noredo_rseg->last_page_no == FIL_NULL) {
 			elem.push_back(noredo_rseg);
 		}
 
