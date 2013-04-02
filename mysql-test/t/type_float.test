@@ -1,3 +1,6 @@
+# Not supported in embedded.row count in explain varing much. Innodb default
+# not tried with embedded mode
+--source include/not_embedded.inc
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
@@ -202,7 +205,7 @@ insert into t1 values
 (5, 5.00), (5, -2104.80), (5, 2033.80), (5, 0.07), (5, 65.93),
 (3, -4986.24), (3, 5.00), (3, 4857.34), (3, 123.74), (3,  0.16),
 (6, -1695.31), (6, 1003.77), (6, 499.72), (6, 191.82);
---replace_result 27 26
+--replace_result 27 26 25 26
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;
@@ -210,7 +213,7 @@ select sum(b) s from t1 group by a having s <> 0 order by s;
 select sum(b) s from t1 group by a having s <=> 0;
 select sum(b) s from t1 group by a having s <=> 0 order by s;
 alter table t1 add key (a, b);
---replace_result 27 26
+--replace_result 27 26 25 26
 explain select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a;
 select sum(b) s from t1 group by a having s <> 0;
