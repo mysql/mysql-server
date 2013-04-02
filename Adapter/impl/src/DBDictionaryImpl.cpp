@@ -156,7 +156,7 @@ class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *,
 {
 private:
   const NdbDictionary::Table * ndb_table;
-  Ndb * ndb_auto_inc;
+  Ndb * per_table_ndb;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
   
@@ -168,7 +168,7 @@ public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
-    ndb_table(0), ndb_auto_inc(0), idx_list()
+    ndb_table(0), per_table_ndb(0), idx_list()
   {
   }
   
@@ -194,11 +194,10 @@ void GetTableCall::run() {
   dict = ndb->getDictionary();
   ndb_table = dict->getTable(tableName);
   if(ndb_table) {
-    /* Get an Ndb object to manage the table's cache of auto-increment values */
-    if(ndb_table->getNoOfAutoIncrementColumns() > 0) {
-      ndb_auto_inc = new Ndb(& ndb->get_ndb_cluster_connection());
-      ndb_auto_inc->init();
-    }
+    /* Ndb object used to create NdbRecords and to cache auto-increment values */
+    per_table_ndb = new Ndb(& ndb->get_ndb_cluster_connection());
+    per_table_ndb->init();
+
     /* List the indexes */
     return_val = dict->listIndexes(idx_list, tableName);
   }
@@ -295,8 +294,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     table->Set(String::NewSymbol("record"), Record_Wrapper(rec));    
 
     // Autoincrement Cache Impl (also not part of spec)
-    if(ndb_auto_inc) {
-      table->Set(String::NewSymbol("ndb_auto_inc"), Ndb_Wrapper(ndb_auto_inc));
+    if(per_table_ndb) {
+      table->Set(String::NewSymbol("per_table_ndb"), Ndb_Wrapper(per_table_ndb));
     }
     
     // User Callback
@@ -591,6 +590,10 @@ Handle<Value> createJsBuffer(node::Buffer *b, int len) {
   return scope.Close(jsBuffer);
 }
 
+
+/* TODO: Probably we don't need the default value itself in JavaScript;
+   merely a flag indicating that the column has a non-null default value
+*/
 
 Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
   HandleScope scope;
