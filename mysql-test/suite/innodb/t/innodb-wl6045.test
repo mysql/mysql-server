@@ -1008,7 +1008,7 @@ my $file= 'help_output_long.txt';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
-  $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g; 
+  $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g;
   $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
   $_=~ s/d:.*trace/d:o,mtrchecksum.trace/g;
   print OUT_FILE $_;
