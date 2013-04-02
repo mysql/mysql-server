@@ -37,7 +37,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 function NdbAutoIncrementCache(table) {
   udebug.log("New cache for table", table.name);
   this.table = table;
-  this.impl = table.ndb_auto_inc;
+  this.impl = table.per_table_ndb;
   this.execQueue = [];
 }
 
@@ -47,10 +47,6 @@ NdbAutoIncrementCache.prototype = {
   execQueue     : null,
   batch_size    : 1
 }
-
-NdbAutoIncrementCache.prototype.close = function() {
-  this.impl.close();
-};
 
 NdbAutoIncrementCache.prototype.prefetch = function(n) {
   this.batch_size += n;
@@ -72,10 +68,12 @@ NdbAutoIncrementCache.prototype.getValue = function(callback) {
 };
 
 
+/* TODO: This now creates an autoIncrementCache even for tables with no
+   auto-inc columns; maybe don't do that.
+*/
 function getAutoIncCacheForTable(table) {
-  if(table.ndb_auto_inc) {
+  if(table.per_table_ndb) {
     table.autoIncrementCache = new NdbAutoIncrementCache(table);
-    delete table.ndb_auto_inc;
   }
 }
 
