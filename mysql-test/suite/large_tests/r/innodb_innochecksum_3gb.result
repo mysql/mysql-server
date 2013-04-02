@@ -41,27 +41,27 @@ COUNT(*)
 #R07: rewrite the tab2.ibd file into new checksum=None
 #R07: Check the page type summary with longform for *.ibd
 
-File::MYSQLD_DATADIR/test/tab2.ibd
+File::tab#.ibd
 ================PAGE TYPE SUMMARY==============
 #PAGE_COUNT	PAGE_TYPE
 ===============================================
-  184815	FIL_PAGE_INDEX
-       0	FIL_PAGE_UNDO_LOG
-       1	FIL_PAGE_INODE
-       0	FIL_PAGE_IBUF_FREE_LIST
-    3064	FIL_PAGE_TYPE_ALLOCATED
-      12	FIL_PAGE_IBUF_BITMAP
-       0	FIL_PAGE_TYPE_SYS
-       0	FIL_PAGE_TYPE_TRX_SYS
-       1	FIL_PAGE_TYPE_FSP_HDR
-      11	FIL_PAGE_TYPE_XDES
-       0	FIL_PAGE_TYPE_BLOB
-       0	FIL_PAGE_TYPE_ZBLOB
-       0	other
+  #	INDEX PAGE
+       #	UNDO LOG PAGE
+       #	INODE PAGE
+       #	INSERT BUFFER FREE LIST PAGE
+    #	FRESHLY ALLOCATED PAGE
+      #	INSERT BUFFER BITMAP
+       #	SYSTEM PAGE
+       #	TRANSACTION SYSTEM PAGE
+       #	FILE SPACE HEADER
+      #	EXTENT DESCRIPTOR
+       #	BLOB PAGE
+       #	COMPRESSED BLOB PAGE
+       #	OTHER TYPE OF PAGE
 ===============================================
 Additional information:
-Undo page type: 0 insert, 0 update, 0 other
-Undo page state: 0 active, 0 cached, 0 to_free, 0 to_purge, 0 prepared, 0 other
+Undo page type: # insert, # update, # other
+Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
 # Page type dump for tab2.ibd
 # check whether dump.txt file exist
 #restart the DB server with default innodb_checksum_algorithm=CRC32
