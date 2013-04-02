@@ -1228,7 +1228,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             next_field++;
         }
 
-        if (table->s->fields >= 43)
+        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
         {
           char *tmpstr= get_field(&global_acl_memory,
                                   table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]);
@@ -2700,6 +2700,15 @@ update_user_table(THD *thd, TABLE *table,
   DBUG_ENTER("update_user_table");
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
+  /* ALTER USER PASSWORD EXPIRE makes no sense on old system tables */
+  if (table->s->fields <= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+      password_expired)
+  {
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
+    DBUG_RETURN(1);
+  }
+
+
   table->use_all_columns();
   DBUG_ASSERT(host != '\0');
   table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
@@ -2734,10 +2743,13 @@ update_user_table(THD *thd, TABLE *table,
     }
   }
 
-  /* password_expired */
-  table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ? 
-                                                         "Y" : "N", 1,
-                                                         system_charset_info);
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+  {
+    /* update password_expired if present */
+    table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ?
+                                                           "Y" : "N", 1,
+                                                           system_charset_info);
+  }
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
        error != HA_ERR_RECORD_IS_THE_SAME)
@@ -3185,7 +3197,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
 
     /* if we have a password supplied we update the expiration field */
-    if (table->s->fields >= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
         password_len > 0)
       table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
                                                              system_charset_info);
