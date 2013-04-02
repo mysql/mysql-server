@@ -144,8 +144,8 @@ buf_dblwr_init(
 
 	mutex_create("buf_dblwr", &buf_dblwr->mutex);
 
-	buf_dblwr->b_event = os_event_create();
-	buf_dblwr->s_event = os_event_create();
+	buf_dblwr->b_event = os_event_create("dblwr_batch_event");
+	buf_dblwr->s_event = os_event_create("dblwr_single_event");
 	buf_dblwr->first_free = 0;
 	buf_dblwr->s_reserved = 0;
 	buf_dblwr->b_reserved = 0;
@@ -567,8 +567,8 @@ buf_dblwr_free(void)
 	ut_ad(buf_dblwr->s_reserved == 0);
 	ut_ad(buf_dblwr->b_reserved == 0);
 
-	os_event_free(buf_dblwr->b_event);
-	os_event_free(buf_dblwr->s_event);
+	os_event_destroy(buf_dblwr->b_event);
+	os_event_destroy(buf_dblwr->s_event);
 	ut_free(buf_dblwr->write_buf_unaligned);
 	buf_dblwr->write_buf_unaligned = NULL;
 
