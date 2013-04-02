@@ -39,6 +39,7 @@ extern LOADER_FUNCTION udebug_initOnLoad;
 extern LOADER_FUNCTION AsyncNdbContext_initOnLoad;
 extern LOADER_FUNCTION NdbWrapper_initOnLoad;
 extern LOADER_FUNCTION NdbTypeEncoders_initOnLoad;
+extern LOADER_FUNCTION ColumnProxy_initOnLoad;
 
 
 void init_ndbapi(Handle<Object> target) {
@@ -53,6 +54,7 @@ void init_impl(Handle<Object> target) {
   DBOperationHelper_initOnLoad(target);
   AsyncNdbContext_initOnLoad(target);
   NdbWrapper_initOnLoad(target);
+  ColumnProxy_initOnLoad(target);
 }
 
 
@@ -64,7 +66,6 @@ void initModule(Handle<Object> target) {
   // Persistent<Object> util_obj   = Persistent<Object>(Object::New());  
   Persistent<Object> debug_obj   = Persistent<Object>(Object::New());
   // Persistent<Object> mysql_obj   = Persistent<Object>(Object::New());
-  Persistent<Object> encoders_obj   = Persistent<Object>(Object::New());
   
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);

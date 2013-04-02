@@ -1,4 +1,4 @@
-/*
+/* @class Context
  * Context is the "supertype" of Session and Batch.
  * It contains functions that are executed immediately
  * if called from a Session; or are executed when the Batch
@@ -25,25 +25,29 @@
    * The returned object will be loaded based on the mapping and the current
    * values in the database.
    * For multi-column primary or unique keys, all key fields must be set.
-   * 
+   *
+   * @method find
    * @param constructor the constructor function of a mapped domain object
    * @param keys the instance to find in the database
    * @param callback function to be called when operation has completed, with parameters:
    *   err: the node.js Error object
    *   instance: the domain model object or null if not found
    * @return undefined
+   * @async
    */
   find(Function constructor, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
 
   /** Find a specific instance based on primary or unique key value.
    * See other variant for semantics.
    * 
+   * @method find
    * @param tableName the table name
    * @param keys the instance to find in the database
    * @param callback function to be called when operation has completed, with parameters:
    *   err: the node.js Error object
    *   instance: the domain model object or null if not found
    * @return undefined
+   * @async
    */
   find(String tableName, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
 
@@ -60,10 +64,12 @@
    * will be used. If no complete primary or unique key properties
    * are found, an error is reported.
    * 
+   * @method find
    * @param instance the instance to load from the database
    * @param callback function to be called when operation has completed, with parameters:
    * err: the node.js Error object)
    * @return undefined
+   * @async
    */
   load(Object instance, Function(Object error [, ...]) callback[, ...]);
 
