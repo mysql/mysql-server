@@ -1,0 +1,54 @@
+################################################################################
+# WL#6969    Additional concurrency tests for BGC
+#
+# Concurrency test verifies that there is not deadlock on group commit
+# when semi-sync is enabled
+#
+# ################################################################################
+# Want to skip this test from daily Valgrind execution
+--source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+--source include/master-slave.inc
+--source include/install_semisync.inc
+--source include/have_debug.inc
+SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;
+SET @@GLOBAL.MAX_BINLOG_SIZE= 4096;
+SET GLOBAL rpl_semi_sync_master_timeout= 600000;
+
+--let $connections= 11
+--let $loops= 300
+
+--echo # disable diff_table test
+--let $enable_diff_table= 0
+--echo # simulate flush error and session attach error at the same time
+--let $flush_error_session_start= 1
+--let $flush_error_session_end= 6
+--let $attach_error_session_start= 6
+--let $attach_error_session_end= $connections
+--echo # Test tables with InnoDB engine when disabling diff_table and
+--echo # simulating flush error and session attach error
+--let $engine = InnoDB
+--source extra/rpl_tests/rpl_stress_test.inc
+
+--echo # Test tables with MyISAM engine when disabling diff_table and
+--echo # simulating flush error and session attach error
+--let $engine = MyISAM
+--source extra/rpl_tests/rpl_stress_test.inc
+
+--echo # enable diff_table test
+--let $enable_diff_table= 1
+--echo # simulate flush error only
+--let $flush_error_session_start= 1
+--let $flush_error_session_end= $connections
+--let $attach_error_session_start= $connections
+--let $attach_error_session_end= $connections
+--echo # Test tables with InnoDB engine when enableing diff_table
+--echo # and simulating flush error
+--let $engine = InnoDB
+--source extra/rpl_tests/rpl_stress_test.inc
+
+--connection master
+SET @@GLOBAL.MAX_BINLOG_SIZE= @max_binlog_size_save;
+--source include/uninstall_semisync.inc
+--source include/rpl_end.inc

@@ -1,8 +1,7 @@
 --source include/have_max_indexes_64.inc
 
-# Temporarily disabled for embedded server, to be re-enabled after Bug#16029012
-# is fixed.
---source include/not_embedded.inc
+# This test should skip with QC until Bug#16451494 is fixed.
+--source include/have_query_cache_disabled.inc
 
 ###################### ps_general.test #######################
 #                                                            #
