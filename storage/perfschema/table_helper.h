@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -222,7 +222,7 @@ struct PFS_stat_row
   {
     m_count= stat->m_count;
 
-    if (m_count)
+    if ((m_count != 0) && stat->has_timed_stats())
     {
       m_sum= normalizer->wait_to_pico(stat->m_sum);
       m_min= normalizer->wait_to_pico(stat->m_min);
