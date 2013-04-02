@@ -49,11 +49,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $! ;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $! ;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -65,7 +64,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
 # Print the information for debug option.
@@ -92,11 +91,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -108,7 +106,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
@@ -122,11 +120,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -138,7 +135,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
 # Print the information for debug option.
@@ -175,10 +172,9 @@ perl;
 use strict;
 use warnings;
 my $innochecksum = $ENV{'INNOCHECKSUM'};
-my $mysqltest_vardir= $ENV{'MYSQLTEST_VARDIR'};
+my $vardir= $ENV{'MYSQLTEST_VARDIR'};
 my $mysqld_datadir= $ENV{'MYSQLD_DATADIR'};
-my $temp_dir= $mysqltest_vardir . '/tmp';
-exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum -v -S --debug='d:o,$temp_dir/mtrchecksum.trace' --write=none - > $temp_dir/a.ibd 2>$temp_dir/veroutput");
+exec("cat $mysqld_datadir/test/t1.ibd | $innochecksum -v -S --debug='d:o,$vardir/tmp/mtrchecksum.trace' --write=none - > $vardir/tmp/a.ibd 2>$vardir/tmp/veroutput");
 EOF
 
 perl;
@@ -186,11 +182,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -202,12 +197,12 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 
 $file= 'veroutput';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -218,7 +213,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the content for --verbose and --page-type-summary
 cat_file $MYSQLTEST_VARDIR/tmp/veroutput;
@@ -236,11 +231,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -252,7 +246,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
 # Print the information for debug option.
@@ -297,11 +291,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -313,7 +306,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the information for debug option.
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
@@ -327,11 +320,10 @@ use strict;
 use warnings;
 use File::Copy;
 my $dir = $ENV{'MYSQLTEST_VARDIR'};
-$dir = $dir . '/tmp';
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
  #Replace all intergers to #
  $_=~ s/\d+/#/g;
@@ -343,7 +335,7 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
 # Print the information for debug option.
