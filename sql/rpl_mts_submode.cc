@@ -272,6 +272,8 @@ Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
                                         Query_log_event * ev)
 {
   DBUG_ENTER("Mts_submode_master::detach_temp_tables");
+  if (!is_mts_worker(thd))
+    DBUG_VOID_RETURN;
   /*
     Here in detach section we will move the tables from the worker to the
     coordinaor thread. Since coordinator is shared we need to make sure that

@@ -3661,7 +3661,7 @@ bool Query_log_event::write(IO_CACHE* file)
   }
 
   /*
-    We store 0 in the following status var since we don't have the
+    We store -1 in the following status var since we don't have the
     commit timestamps. The logical timestamp will be updated in the
     do_write_cache.
   */
@@ -3670,7 +3670,7 @@ bool Query_log_event::write(IO_CACHE* file)
     file->commit_seq_offset= QUERY_HEADER_LEN +
                              (int)(start-start_of_status);
     *start++= Q_COMMIT_TS;
-    int8store(start, 0);
+    int8store(start, SEQ_UNINIT);
     start+= COMMIT_SEQ_LEN;
   }
   /*
@@ -13246,10 +13246,15 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   DBUG_PRINT("info",("event_len: %u; common_header_len: %d; post_header_len: %d",
                      event_len, common_header_len, post_header_len));
 #endif
-
+/*
+  The layout of the buffer is as follows
+   +-------------+-------------+------------+------------+--------------+
+   | commit flag | ENCODED SID | ENCODED GNO| G_COMMIT_TS| commit_seq_no|
+   +-------------+-------------+------------+------------+--------------+
+*/
   char const *ptr_buffer= buffer + common_header_len;
 
-  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ? 
+  spec.type= buffer[EVENT_TYPE_OFFSET] == ANONYMOUS_GTID_LOG_EVENT ?
     ANONYMOUS_GROUP : GTID_GROUP;
 
   commit_flag= *ptr_buffer != 0;
@@ -13265,10 +13270,21 @@ Gtid_log_event::Gtid_log_event(const char *buffer, uint event_len,
   ptr_buffer+= ENCODED_GNO_LENGTH;
 
   /* fetch the commit timestamp */
-  DBUG_ASSERT(*ptr_buffer == G_COMMIT_TS);
-  ptr_buffer++;
-  commit_seq_no= (int64)uint8korr(ptr_buffer);
-  ptr_buffer+= COMMIT_SEQ_LEN;
+  if (
+      /*Old masters will not have this part, so we should prevent segfaulting */
+      (ptr_buffer-buffer) < event_len &&
+      *ptr_buffer == G_COMMIT_TS)
+  {
+    ptr_buffer++;
+    commit_seq_no= (int64)uint8korr(ptr_buffer);
+    ptr_buffer+= COMMIT_SEQ_LEN;
+  }
+  else
+    /* We let coordinator complain when it sees that we have first
+       event and the master has not sent us the commit sequence number
+       Also, we can be rest assured that this is an old master, because new
+       master would have compained of the missing commit seq no while flushing.*/
+    commit_seq_no= SEQ_UNINIT;
 
   DBUG_VOID_RETURN;
 }
@@ -13363,7 +13379,7 @@ bool Gtid_log_event::write_data_header(IO_CACHE *file)
   ptr_buffer+= ENCODED_GNO_LENGTH;
   file->commit_seq_offset= ptr_buffer- buffer;
   *ptr_buffer++= G_COMMIT_TS;
-  int8store(ptr_buffer, 0);
+  int8store(ptr_buffer, SEQ_UNINIT);
   ptr_buffer+= COMMIT_SEQ_LEN;
 
   DBUG_ASSERT(ptr_buffer == (buffer + sizeof(buffer)));
