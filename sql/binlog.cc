@@ -1065,6 +1065,16 @@ binlog_cache_data::finalize(THD *thd, Log_event *end_event)
       DBUG_RETURN(error);
     if (int error= write_event(thd, end_event))
       DBUG_RETURN(error);
+    /*
+       This is only possible if we have not entered the prepare phase. We
+       still need to have some commit parent to avoid the slave from become
+       inconsistent.
+    */
+    if (cache_log.commit_seq_no == SEQ_UNINIT)
+    {
+      cache_log.commit_seq_no=
+        mysql_bin_log.commit_clock.get_timestamp();
+    }
     flags.finalized= true;
     DBUG_PRINT("debug", ("flags.finalized: %s", YESNO(flags.finalized)));
   }
@@ -1226,12 +1236,10 @@ static int binlog_prepare(handlerton *hton, THD *thd, bool all)
   if (all)
   {
     cache= get_thd_cache(thd, all);
-    if (cache->commit_seq_no == SEQ_UNINIT)
-    {
-      cache->commit_seq_no=
-        mysql_bin_log.commit_clock.get_timestamp();
+    DBUG_ASSERT(cache->commit_seq_no == SEQ_UNINIT);
+    cache->commit_seq_no=
+      mysql_bin_log.commit_clock.get_timestamp();
 
-    }
   }
   DBUG_RETURN(0);
 }
@@ -1462,7 +1470,6 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 {
   int error= 0;
   bool stuff_logged= false;
-  IO_CACHE* cache;
   binlog_cache_mngr *const cache_mngr= thd_get_cache_mngr(thd);
   DBUG_ENTER("MYSQL_BIN_LOG::rollback(THD *thd, bool all)");
   DBUG_PRINT("enter", ("all: %s, cache_mngr: 0x%llx, thd->is_error: %s",
@@ -1581,23 +1588,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
-  {
-    /*
-     Implicit commits like ddl do not have binlog prepare stage
-     so we must fetch the prepare and commit timestamps for these
-     here. We will assume this is where the transaction entered the prepare
-     phase. Other transactions entering here will have thd->prepare_seq_no
-     already written in function ha_commit_trans and will not step the prepare
-     clock or overwrite the commit parent timestamp.
-     */
-    cache= cache_mngr->get_binlog_cache_log(false);
-    if (cache->commit_seq_no == SEQ_UNINIT)
-    {
-      cache->commit_seq_no=
-        mysql_bin_log.commit_clock.get_timestamp();
-    }
     error= ordered_commit(thd, all, /* skip_commit */ true);
-  }
 
   if (check_write_error(thd))
   {
@@ -5456,7 +5447,7 @@ uint MYSQL_BIN_LOG::next_file_id()
 
   Event size in incremented by @c BINLOG_CHECKSUM_LEN.
 
-  @return 0 or number of unprocessed yet bytes of the event excluding 
+  @return 0 or number of unprocessed yet bytes of the event excluding
             the checksum part.
 */
   static ulong fix_log_event_crc(uchar *buf, uint off, uint event_len,
@@ -5469,7 +5460,7 @@ uint MYSQL_BIN_LOG::next_file_id()
   DBUG_ASSERT(length >= off + LOG_EVENT_HEADER_LEN); //at least common header in
   int2store(event_begin + FLAGS_OFFSET, flags);
   ret= length >= off + event_len ? 0 : off + event_len - length;
-  *crc= my_checksum(*crc, event_begin, event_len - ret); 
+  *crc= my_checksum(*crc, event_begin, event_len - ret);
   return ret;
 }
 /*
@@ -5485,8 +5476,8 @@ void fix_commit_seq_no(IO_CACHE* cache, uchar* buff)
   DBUG_DUMP("info", pc_ptr, (COMMIT_SEQ_LEN+1));
   DBUG_PRINT("info", ("MTS:: cache_ptr:=%p",
                        cache));
-  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   DBUG_ASSERT(cache->commit_seq_no != SEQ_UNINIT);
+  DBUG_ASSERT((*pc_ptr == Q_COMMIT_TS || *pc_ptr == G_COMMIT_TS));
   pc_ptr++;
 
   //fix commit ts
@@ -6322,7 +6313,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   int error= RESULT_SUCCESS;
   bool stuff_logged= false;
   bool real_trans= false;
-  IO_CACHE* cache;
   DBUG_PRINT("enter", ("thd: 0x%llx, all: %s, xid: %llu, cache_mngr: 0x%llx",
                        (ulonglong) thd, YESNO(all), (ulonglong) xid,
                        (ulonglong) cache_mngr));
@@ -6452,24 +6442,6 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
   */
   if (stuff_logged)
   {
-    /*
-      Implicit commits like ddl do not have binlog prepare stage
-      so we must fetch the prepare and commit timestamps for these
-      here. We will assume this is where the transaction entered the prepare
-      phase. Other transactions entering here will have thd->prepare_seq_no
-      already written in function ha_commit_trans and will not step the prepare
-      clock or overwrite the commit parent timestamp.
-     */
-    cache= cache_mngr->get_binlog_cache_log(real_trans);
-    DBUG_PRINT("info",("commit_seq_ddl_n_trans_outside=%lld and cache pointer =%p",
-                         cache->commit_seq_no, (void*)cache));
-    if (cache->commit_seq_no == SEQ_UNINIT)
-    {
-      cache->commit_seq_no=
-        mysql_bin_log.commit_clock.get_timestamp();
-      DBUG_PRINT("info",("commit_seq_ddl_n_trans_inside=%lld",
-                         cache->commit_seq_no));
-    }
     if (ordered_commit(thd, all))
       DBUG_RETURN(RESULT_INCONSISTENT);
   }
