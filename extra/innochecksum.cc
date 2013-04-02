@@ -861,7 +861,7 @@ static void usage(void)
 	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
 		"[-p <page>] [-v] [-d <>] [-a <allow mismatches>] [-n] "
 		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
-		"<filename>\n", my_progname);
+		"<filename or [-]>\n", my_progname);
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
 }

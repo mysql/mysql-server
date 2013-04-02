@@ -337,7 +337,6 @@ EOF
 --error 2013
 SELECT * FROM t1;
 
-
 --echo [19(a)] Repair the ibd file with innochecksum with --write=innodb
 --exec $INNOCHECKSUM --no-check --write=innodb  $MYSQLD_DATADIR/test/t1.ibd
 #Verify the t1.ibd for --strict-check=innodb
@@ -350,9 +349,8 @@ SELECT * FROM t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---disable_query_log
-select * from t1;
---enable_query_log
+--disable_result_log
+select count(*) from t1;
 
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -375,16 +373,15 @@ select * from t1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---disable_query_log
-select * from t1;
---enable_query_log
+--disable_result_log
+select count(*) from t1;
 
 --echo # Shutdown the server
 --exec echo "wait:" >$MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
---echo #Move the corrupted ib file to t1.ibd
+--echo # Move the corrupted ib file to t1.ibd
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --copy_file $MYSQLD_DATADIR/test/t1.ibd.backup1 $MYSQLD_DATADIR/test/t1.ibd
 
@@ -399,9 +396,8 @@ select * from t1;
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 
---disable_query_log
+--disable_result_log
 select * from t1;
---enable_query_log
 
 DROP TABLE t1;
 --echo [19]: Test Completed
@@ -417,18 +413,18 @@ INSERT INTO tab1 VALUES(1, 'Innochecksum InnoDB1');
 
 --remove_file $MYSQLD_DATADIR/test/t1.ibd.backup1
 --echo [20]: Test for verbose short option, output from innochecksum
---exec $INNOCHECKSUM -v $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQL_TMP_DIR/ver_output
+--exec $INNOCHECKSUM -v $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'ver_output';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace complete file path to filename
@@ -438,25 +434,25 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 --echo # Print the verbose output
-cat_file $MYSQL_TMP_DIR/ver_output;
---remove_file $MYSQL_TMP_DIR/ver_output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
 
 --echo [21]: Test for --debug option , generate the output in mtrchecksum.trace file
---exec $INNOCHECKSUM --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace all intergers to # and complete file path to file name.
@@ -469,27 +465,27 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
---remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo [22] : test for --debug option with --strict-check=innodb for innochecksum
 --echo : With verbose long option.
---exec $INNOCHECKSUM --verbose --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQL_TMP_DIR/ver_output
+--exec $INNOCHECKSUM --verbose --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace all intergers to # and complete file path to file name.
@@ -502,12 +498,12 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 
 $file= 'ver_output';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace complete file path to filename
@@ -517,20 +513,20 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the verbose output
-cat_file $MYSQL_TMP_DIR/ver_output;
---remove_file $MYSQL_TMP_DIR/ver_output
+cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
+--remove_file $MYSQLTEST_VARDIR/tmp/ver_output
 
 --echo # Print the contents of trace file
-cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
---remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo [23]: Test for --allow-mismatches =99
---exec $INNOCHECKSUM --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --allow-mismatches=99 --strict-check=crc32 $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/log/my_restart.err
 
 --echo # Expect the fails for checksum mismatches. Print the error message.
 cat_file $SEARCH_FILE;
@@ -539,12 +535,12 @@ perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace all intergers to #
@@ -557,27 +553,27 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
---remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo [24]: Test checksum check for page: 2 to page:5
---exec $INNOCHECKSUM --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -s 2 -e 5 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace all intergers to # and file path to file name.
@@ -590,28 +586,27 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
---remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo [25]: Test for checksum check for only pageno.= 2
---echo # innochecksum --debug='d:o,MYSQL_TMP_DIR/mtrchecksum.trace' -p 2 MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --debug="d:o,$MYSQL_TMP_DIR/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" -p 2 $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace all intergers to #
@@ -624,13 +619,13 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQL_TMP_DIR/mtrchecksum.trace;
---remove_file $MYSQL_TMP_DIR/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
 --echo # Restart the DB server with innodb_checksum_algorithm=InnoDB
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -684,7 +679,7 @@ while ($i) {
  dec $i;
 }
 
--- disable_result_log
+--disable_result_log
 SELECT * FROM tab2 ORDER BY col_7;
 
 --echo #stop the server
@@ -693,8 +688,8 @@ SELECT * FROM tab2 ORDER BY col_7;
 --source include/wait_until_disconnected.inc
 
 --echo [26(a)]: Rewrite into new checksum=InnoDB for all *.ibd file and ibdata1
---exec $INNOCHECKSUM --no-check --write=InnoDB  $MYSQLD_DATADIR/test/tab1.ibd
---exec $INNOCHECKSUM --no-check --write=InnoDB  $MYSQLD_DATADIR/test/tab2.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/test/tab2.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/ibdata1
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_index_stats.ibd
 --exec $INNOCHECKSUM --no-check --write=InnoDB $MYSQLD_DATADIR/mysql/innodb_table_stats.ibd
@@ -824,32 +819,34 @@ FROM tab1 ORDER BY pk;
 -- disable_result_log
 SELECT * FROM tab2 ORDER BY col_7;
 
---echo #stop the server
+--echo # stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server
 --source include/wait_until_disconnected.inc
 
 --echo [27]: Check the page type summary with shortform for tab1.ibd
 --replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
---exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQL_TMP_DIR/page_summary.txt
+--exec $INNOCHECKSUM -S $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_short.txt
 
 --echo [28]: Check the page type summary with longform for tab1.ibd
 --replace_regex /File.*.ibd/File::tab1.ibd/ /[0-9]+/#/
---exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --page-type-summary  $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/page_summary_long.txt
 
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_short.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/page_summary_long.txt
 --echo [29]: Page type dump for  with longform for tab1.ibd
---exec $INNOCHECKSUM --page-type-dump $MYSQL_TMP_DIR/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --page-type-dump $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace the intergers to # and complete file patht to file name only.
@@ -860,27 +857,27 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents stored in dump.txt
-cat_file $MYSQL_TMP_DIR/dump.txt;
---remove_file $MYSQL_TMP_DIR/dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
 
 --echo [30]: Page type dump for with shortform for tab1.ibd
---exec $INNOCHECKSUM -D $MYSQL_TMP_DIR/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM -D $MYSQLTEST_VARDIR/tmp/dump.txt $MYSQLD_DATADIR/test/tab1.ibd
 
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'dump.txt';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  #Replace teh intergers to # and complete file patht to file name only.
@@ -891,13 +888,13 @@ while(<IN_FILE>)
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmp", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 closedir(DIR);
 EOF
 
 # Print the contents stored in dump.txt
-cat_file $MYSQL_TMP_DIR/dump.txt;
---remove_file $MYSQL_TMP_DIR/dump.txt
+cat_file $MYSQLTEST_VARDIR/tmp/dump.txt;
+--remove_file $MYSQLTEST_VARDIR/tmp/dump.txt
 
 --echo [30]:# check the valid lower bound values for option
 --echo # allow-mismatches,page,start-page,end-page
@@ -997,19 +994,19 @@ let SEARCH_PATTERN= Incorrect unsigned integer value: '18446744073709551616';
 --remove_file $SEARCH_FILE
 
 --echo [35]:# check the both short and long options for "help"
---exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output_long.txt
---exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQL_TMP_DIR/help_output_short.txt
+--exec $INNOCHECKSUM --help $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--exec $INNOCHECKSUM -I $MYSQLD_DATADIR/test/tab1.ibd > $MYSQLTEST_VARDIR/tmp/help_output_short.txt
 
---diff_files $MYSQL_TMP_DIR/help_output_long.txt $MYSQL_TMP_DIR/help_output_short.txt
+--diff_files $MYSQLTEST_VARDIR/tmp/help_output_long.txt $MYSQLTEST_VARDIR/tmp/help_output_short.txt
 perl;
 use strict;
 use warnings;
 use File::Copy;
-my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $dir = $ENV{'MYSQLTEST_VARDIR'};
 my $file= 'help_output_long.txt';
 # open file in write mode
-open IN_FILE,"<", "$dir/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/tmp/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
   $_=~ s/^\S*innochecksum.+Ver.+[0-9]*\.[0-9]*\.[0-9]*.+$/innochecksum Ver #.#.#/g; 
   $_=~ s/Usage:.*\[-c/Usage: innochecksum [-c/g;
@@ -1019,14 +1016,14 @@ while(<IN_FILE>) {
 close(IN_FILE);
 close(OUT_FILE);
 #move the new content from tmp file to the orginal file.
-move ("$dir/tmpfile", "$dir/$file");
+move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
---cat_file $MYSQL_TMP_DIR/help_output_long.txt
---remove_file $MYSQL_TMP_DIR/help_output_long.txt
---remove_file $MYSQL_TMP_DIR/help_output_short.txt
+--cat_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/help_output_long.txt
+--remove_file $MYSQLTEST_VARDIR/tmp/help_output_short.txt
 
---echo [36]:# check the both short and long options for "count"
+--echo [36]: check the both short and long options for "count"
 --replace_regex /[0-9]+/#/
 --exec $INNOCHECKSUM --count $MYSQLD_DATADIR/test/tab1.ibd
 --replace_regex /[0-9]+/#/
