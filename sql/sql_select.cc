@@ -9717,7 +9717,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
   if (new_field)
     new_field->init(table);
     
-  if (copy_func && item->is_result_field())
+  if (copy_func && item->real_item()->is_result_field())
     *((*copy_func)++) = item;			// Save for copy_funcs
   if (modify_item)
     item->set_result_field(new_field);
