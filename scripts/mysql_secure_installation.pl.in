@@ -145,7 +145,8 @@ sub make_config {
              "# mysql_secure_installation config file",
              "[mysql]",
              "user=root",
-             "password='$esc_pass'");
+             "password='$esc_pass'",
+             "connect-expired-password");
 }
 
 sub get_root_password {
