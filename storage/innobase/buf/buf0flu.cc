@@ -130,6 +130,60 @@ buf_flush_validate_skip(
 }
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+/*******************************************************************//**
+Sets hazard pointer during flush_list iteration. */
+UNIV_INLINE
+void
+buf_flush_set_hp(
+/*=============*/
+	buf_pool_t*		buf_pool,/*!< in/out: buffer pool instance */
+	const buf_page_t*	bpage)	/*!< in: buffer control block */
+{
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
+	ut_ad(buf_pool->flush_list_hp == NULL || bpage == NULL);
+	ut_ad(!bpage || buf_page_in_file(bpage));
+	ut_ad(!bpage || bpage->in_flush_list);
+	ut_ad(!bpage || buf_pool_from_bpage(bpage) == buf_pool);
+
+	buf_pool->flush_list_hp = bpage;
+}
+
+/*******************************************************************//**
+Checks if the given block is a hazard pointer
+@return true if bpage is hazard pointer */
+UNIV_INLINE
+bool
+buf_flush_is_hp(
+/*============*/
+	buf_pool_t*		buf_pool,/*!< in: buffer pool instance */
+	const buf_page_t*	bpage)	/*!< in: buffer control block */
+{
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+	return(buf_pool->flush_list_hp == bpage);
+}
+
+/*******************************************************************//**
+Whenever we move a block in flush_list (either to remove it or to
+relocate it) we check the hazard pointer set by some other thread
+doing the flush list scan. If the hazard pointer is the same as the
+one we are about going to move then we set it to NULL to force a rescan
+in the thread doing the batch. */
+UNIV_INLINE
+void
+buf_flush_update_hp(
+/*================*/
+	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
+	buf_page_t*	bpage)		/*!< in: buffer control block */
+{
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
+
+	if (buf_flush_is_hp(buf_pool, bpage)) {
+		buf_flush_set_hp(buf_pool, NULL);
+		MONITOR_INC(MONITOR_FLUSH_HP_RESCAN);
+	}
+}
+
 /******************************************************************//**
 Insert a block in the flush_rbt and returns a pointer to its
 predecessor or NULL if no predecessor. The ordering is maintained
@@ -576,6 +630,7 @@ buf_flush_remove(
 	ut_a(buf_flush_validate_skip(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+	buf_flush_update_hp(buf_pool, bpage);
 	buf_flush_list_mutex_exit(buf_pool);
 }
 
@@ -648,6 +703,7 @@ buf_flush_relocate_on_flush_list(
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
+	buf_flush_update_hp(buf_pool, bpage);
 	buf_flush_list_mutex_exit(buf_pool);
 }
 
@@ -1540,82 +1596,60 @@ buf_do_flush_list_batch(
 					their number does not exceed
 					min_n) */
 {
-	ulint		len;
-	buf_page_t*	bpage;
 	ulint		count = 0;
 	ulint		scanned = 0;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 
-	/* If we have flushed enough, leave the loop */
-	do {
-		/* Start from the end of the list looking for a suitable
-		block to be flushed. */
+	/* Start from the end of the list looking for a suitable
+	block to be flushed. */
+	buf_flush_list_mutex_enter(buf_pool);
+	ulint len = UT_LIST_GET_LEN(buf_pool->flush_list);
 
-		buf_flush_list_mutex_enter(buf_pool);
+	/* In order not to degenerate this scan to O(n*n) we attempt
+	to preserve pointer of previous block in the flush list. To do
+	so we declare it a hazard pointer. Any thread working on the
+	flush list must check the hazard pointer and if it is removing
+	the same block then it must reset it. */
+	for (buf_page_t* bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+	     count < min_n && bpage != NULL && len > 0
+	     && bpage->oldest_modification < lsn_limit;
+	     ++scanned) {
 
-		/* We use len here because theoretically insertions can
-		happen in the flush_list below while we are traversing
-		it for a suitable candidate for flushing. We'd like to
-		set a limit on how farther we are willing to traverse
-		the list. */
-		len = UT_LIST_GET_LEN(buf_pool->flush_list);
-		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-
-		if (bpage) {
-			ut_a(bpage->oldest_modification > 0);
-		}
-
-		if (!bpage || bpage->oldest_modification >= lsn_limit) {
-
-			/* We have flushed enough */
-			buf_flush_list_mutex_exit(buf_pool);
-			break;
-		}
+		bool		flushed;
+		buf_page_t*	prev;
 
 		ut_a(bpage->oldest_modification > 0);
-
 		ut_ad(bpage->in_flush_list);
+
+		prev = UT_LIST_GET_PREV(list, bpage);
+		buf_flush_set_hp(buf_pool, prev);
 
 		buf_flush_list_mutex_exit(buf_pool);
 
-		/* The list may change during the flushing and we cannot
-		safely preserve within this function a pointer to a
-		block in the list! */
-		while (bpage != NULL
-		       && len > 0
-		       && !buf_flush_page_and_try_neighbors(
-				bpage, BUF_FLUSH_LIST, min_n, &count)) {
+		flushed = buf_flush_page_and_try_neighbors(
+			bpage, BUF_FLUSH_LIST, min_n, &count);
 
-			++scanned;
-			buf_flush_list_mutex_enter(buf_pool);
+		buf_flush_list_mutex_enter(buf_pool);
 
-			/* If we are here that means that buf_pool->mutex
-			 was not released in buf_flush_page_and_try_neighbors()
-			above and this guarantees that bpage didn't get
-			relocated since we released the flush_list
-			mutex above. There is a chance, however, that
-			the bpage got removed from flush_list (not
-			currently possible because flush_list_remove()
-			also obtains buf_pool mutex but that may change
-			in future). To avoid this scenario we check
-			the oldest_modification and if it is zero
-			we start all over again. */
-			if (bpage->oldest_modification == 0) {
-				buf_flush_list_mutex_exit(buf_pool);
-				break;
-			}
+		ut_ad(flushed || buf_flush_is_hp(buf_pool, prev));
 
-			bpage = UT_LIST_GET_PREV(list, bpage);
-
-			ut_ad(!bpage || bpage->in_flush_list);
-
-			buf_flush_list_mutex_exit(buf_pool);
-
+		if (!buf_flush_is_hp(buf_pool, prev)) {
+			/* The hazard pointer was reset by some other
+			thread. Restart the scan. */
+			ut_ad(buf_flush_is_hp(buf_pool, NULL));
+			bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+			len = UT_LIST_GET_LEN(buf_pool->flush_list);
+		} else {
+			bpage = prev;
 			--len;
+			buf_flush_set_hp(buf_pool, NULL);
 		}
 
-	} while (count < min_n && bpage != NULL && len > 0);
+		ut_ad(!bpage || bpage->in_flush_list);
+	}
+
+	buf_flush_list_mutex_exit(buf_pool);
 
 	MONITOR_INC_VALUE_CUMULATIVE(MONITOR_FLUSH_BATCH_SCANNED,
 				     MONITOR_FLUSH_BATCH_SCANNED_NUM_CALL,
