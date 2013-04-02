@@ -646,7 +646,7 @@ sub run_test_server ($$$) {
 			   mtr_report(" - found '$core_name'",
 				      "($num_saved_cores/$opt_max_save_core)");
 
-			   My::CoreDump->show($core_file, $exe_mysqld);
+			   My::CoreDump->show($core_file, $exe_mysqld, $opt_parallel);
 
 			   if ($num_saved_cores >= $opt_max_save_core) {
 			     mtr_report(" - deleting it, already saved",
@@ -5693,6 +5693,11 @@ sub start_servers($) {
 
       # Save this test case information, so next can examine it
       $mysqld->{'started_tinfo'}= $tinfo;
+
+      # Wait until server's uuid is generated. This avoids that master and
+      # slave generate the same UUID sporadically.
+      sleep_until_file_created("$datadir/auto.cnf", $opt_start_timeout,
+                               $mysqld->{'proc'});
 
     }
 

@@ -225,7 +225,7 @@ int Trans_delegate::after_commit(THD *thd, bool all)
   if (is_real_trans)
     param.flags = true;
 
-  thd->get_trans_pos(&param.log_file, &param.log_pos);
+  thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
 
   DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu", param.log_file, param.log_pos));
 
@@ -241,7 +241,7 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
 
   if (is_real_trans)
     param.flags|= TRANS_IS_REAL_TRANS;
-  thd->get_trans_pos(&param.log_file, &param.log_pos);
+  thd->get_trans_fixed_pos(&param.log_file, &param.log_pos);
   int ret= 0;
   FOREACH_OBSERVER(ret, after_rollback, thd, (&param));
   return ret;
