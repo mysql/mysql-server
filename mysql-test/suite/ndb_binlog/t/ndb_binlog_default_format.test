@@ -1,0 +1,15 @@
+--source include/have_ndb.inc
+--source include/not_embedded.inc
+
+show variables like 'log_bin';
+show variables like 'binlog_format';
+
+use test;
+create table test.t1 (a int primary key) engine=ndb;
+
+insert into test.t1 values (1);
+
+drop table test.t1;
+
+--source include/show_binlog_events.inc
+
