@@ -655,7 +655,7 @@ fil_node_create(
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
 
-	node->sync_event = os_event_create();
+	node->sync_event = os_event_create("fsync_event");
 	node->is_raw_disk = is_raw;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
@@ -1171,7 +1171,7 @@ fil_node_free(
 
 	UT_LIST_REMOVE(chain, space->chain, node);
 
-	os_event_free(node->sync_event);
+	os_event_destroy(node->sync_event);
 	mem_free(node->name);
 	mem_free(node);
 }
