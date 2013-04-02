@@ -45,8 +45,9 @@ public:
   bool completeIndexRecord(const NdbDictionary::Index *); 
   
   const NdbRecord * getNdbRecord() const;
-  uint32_t getNoOfColumns() const ;
+  uint32_t getNoOfColumns() const;
   size_t getColumnOffset(int idx) const;
+  const NdbDictionary::Column * getColumn(int idx) const;
   size_t getBufferSize() const;
 
   void setNull(int idx, char *data) const;
@@ -65,6 +66,10 @@ inline uint32_t Record::getNoOfColumns() const {
 
 inline size_t Record::getColumnOffset(int idx) const {
   return specs[idx].offset;
+}
+
+inline const NdbDictionary::Column * Record::getColumn(int idx) const {
+  return specs[idx].column;
 }
 
 inline size_t Record::getBufferSize() const {
