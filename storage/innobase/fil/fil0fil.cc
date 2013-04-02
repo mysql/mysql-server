@@ -148,6 +148,8 @@ struct fil_node_t {
 	char*		name;	/*!< path to the file */
 	ibool		open;	/*!< TRUE if file open */
 	os_file_t	handle;	/*!< OS handle to the file, if file open */
+	os_event_t	sync_event;/*!< Condition event to group and
+				serialize calls to fsync */
 	ibool		is_raw_disk;/*!< TRUE if the 'file' is actually a raw
 				device or a raw disk partition */
 	ulint		size;	/*!< size of the file in database pages, 0 if
@@ -653,6 +655,7 @@ fil_node_create(
 
 	ut_a(!is_raw || srv_start_raw_disk_in_use);
 
+	node->sync_event = os_event_create();
 	node->is_raw_disk = is_raw;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
@@ -1144,6 +1147,7 @@ fil_node_free(
 		there are no unflushed modifications in the file */
 
 		node->modification_counter = node->flush_counter;
+		os_event_set(node->sync_event);
 
 		if (fil_buffering_disabled(space)) {
 
@@ -1167,6 +1171,7 @@ fil_node_free(
 
 	UT_LIST_REMOVE(chain, space->chain, node);
 
+	os_event_free(node->sync_event);
 	mem_free(node->name);
 	mem_free(node);
 }
@@ -5381,7 +5386,7 @@ fil_flush(
 	fil_space_t*	space;
 	fil_node_t*	node;
 	os_file_t	file;
-	ib_int64_t	old_mod_counter;
+
 
 	mutex_enter(&fil_system->mutex);
 
@@ -5417,87 +5422,88 @@ fil_flush(
 
 	space->n_pending_flushes++;	/*!< prevent dropping of the space while
 					we are flushing */
-	node = UT_LIST_GET_FIRST(space->chain);
+	for (node = UT_LIST_GET_FIRST(space->chain);
+	     node != NULL;
+	     node = UT_LIST_GET_NEXT(chain, node)) {
 
-	while (node) {
-		if (node->modification_counter > node->flush_counter) {
-			ut_a(node->open);
+		ib_int64_t old_mod_counter = node->modification_counter;;
 
-			/* We want to flush the changes at least up to
-			old_mod_counter */
-			old_mod_counter = node->modification_counter;
+		if (old_mod_counter <= node->flush_counter) {
+			continue;
+		}
 
-			if (space->purpose == FIL_TABLESPACE) {
-				fil_n_pending_tablespace_flushes++;
-			} else {
-				fil_n_pending_log_flushes++;
-				fil_n_log_flushes++;
-			}
+		ut_a(node->open);
+
+		if (space->purpose == FIL_TABLESPACE) {
+			fil_n_pending_tablespace_flushes++;
+		} else {
+			fil_n_pending_log_flushes++;
+			fil_n_log_flushes++;
+		}
 #ifdef __WIN__
-			if (node->is_raw_disk) {
+		if (node->is_raw_disk) {
 
-				goto skip_flush;
-			}
+			goto skip_flush;
+		}
 #endif /* __WIN__ */
 retry:
-			if (node->n_pending_flushes > 0) {
-				/* We want to avoid calling os_file_flush() on
-				the file twice at the same time, because we do
-				not know what bugs OS's may contain in file
-				i/o; sleep for a while */
+		if (node->n_pending_flushes > 0) {
+			/* We want to avoid calling os_file_flush() on
+			the file twice at the same time, because we do
+			not know what bugs OS's may contain in file
+			i/o */
 
-				mutex_exit(&fil_system->mutex);
-
-				os_thread_sleep(20000);
-
-				mutex_enter(&fil_system->mutex);
-
-				if (node->flush_counter >= old_mod_counter) {
-
-					goto skip_flush;
-				}
-
-				goto retry;
-			}
-
-			ut_a(node->open);
-			file = node->handle;
-			node->n_pending_flushes++;
+			ib_int64_t sig_count =
+				os_event_reset(node->sync_event);
 
 			mutex_exit(&fil_system->mutex);
 
-			/* fprintf(stderr, "Flushing to file %s\n",
-			node->name); */
-
-			os_file_flush(file);
+			os_event_wait_low(node->sync_event, sig_count);
 
 			mutex_enter(&fil_system->mutex);
 
-			node->n_pending_flushes--;
-skip_flush:
-			if (node->flush_counter < old_mod_counter) {
-				node->flush_counter = old_mod_counter;
+			if (node->flush_counter >= old_mod_counter) {
 
-				if (space->is_in_unflushed_spaces
-				    && fil_space_is_flushed(space)) {
-
-					space->is_in_unflushed_spaces = false;
-
-					UT_LIST_REMOVE(
-						unflushed_spaces,
-						fil_system->unflushed_spaces,
-						space);
-				}
+				goto skip_flush;
 			}
 
-			if (space->purpose == FIL_TABLESPACE) {
-				fil_n_pending_tablespace_flushes--;
-			} else {
-				fil_n_pending_log_flushes--;
+			goto retry;
+		}
+
+		ut_a(node->open);
+		file = node->handle;
+		node->n_pending_flushes++;
+
+		mutex_exit(&fil_system->mutex);
+
+		os_file_flush(file);
+
+		mutex_enter(&fil_system->mutex);
+
+		os_event_set(node->sync_event);
+
+		node->n_pending_flushes--;
+skip_flush:
+		if (node->flush_counter < old_mod_counter) {
+			node->flush_counter = old_mod_counter;
+
+			if (space->is_in_unflushed_spaces
+			    && fil_space_is_flushed(space)) {
+
+				space->is_in_unflushed_spaces = false;
+
+				UT_LIST_REMOVE(
+					unflushed_spaces,
+					fil_system->unflushed_spaces,
+					space);
 			}
 		}
 
-		node = UT_LIST_GET_NEXT(chain, node);
+		if (space->purpose == FIL_TABLESPACE) {
+			fil_n_pending_tablespace_flushes--;
+		} else {
+			fil_n_pending_log_flushes--;
+		}
 	}
 
 	space->n_pending_flushes--;
