@@ -628,11 +628,8 @@ ReceiveThreadClient::trp_deliver_signal(const NdbApiSignal *signal,
 }
 
 void
-TransporterFacade::checkClusterMgr(NDB_TICKS currTime, 
-                                   NDB_TICKS & lastTime)
+TransporterFacade::checkClusterMgr(NDB_TICKS & lastTime)
 {
-  if (currTime <= (lastTime + ((NDB_TICKS)100)))
-    return; /* 100 milliseconds haven't passed yet */
   lastTime = NdbTick_CurrentMillisecond();
   theClusterMgr->lock();
   theTransporterRegistry->update_connections();
@@ -740,6 +737,7 @@ static const int DEFAULT_MIN_ACTIVE_CLIENTS_RECV_THREAD = 8;
 void TransporterFacade::threadMainReceive(void)
 {
   bool poll_owner = false;
+  bool check_cluster_mgr;
   NDB_TICKS currTime = NdbTick_CurrentMillisecond();
   NDB_TICKS lastTime = currTime;
   theTransporterRegistry->startReceiving();
@@ -751,7 +749,9 @@ void TransporterFacade::threadMainReceive(void)
   while(!theStopReceive)
   {
     currTime = NdbTick_CurrentMillisecond();
-    checkClusterMgr(currTime, lastTime);
+    check_cluster_mgr = false;
+    if (currTime > (lastTime + ((NDB_TICKS)100)))
+      check_cluster_mgr = true; /* 100 milliseconds have passed */
     if (!poll_owner)
     {
       /*
@@ -771,7 +771,7 @@ void TransporterFacade::threadMainReceive(void)
     }
     if (poll_owner)
     {
-      bool stay_poll_owner = true;
+      bool stay_poll_owner = !check_cluster_mgr;
       if ((currTime - m_receive_activation_time) > (NDB_TICKS)1000)
       {
         /* Reset timer for next activation check time */
@@ -781,7 +781,6 @@ void TransporterFacade::threadMainReceive(void)
         {
           /* Go back to not have an active receive thread */
           stay_poll_owner = false;
-          poll_owner = false;
         }
         m_num_active_clients = 0; /* Reset active clients for next timeslot */
         unlock_poll_mutex();
@@ -789,14 +788,26 @@ void TransporterFacade::threadMainReceive(void)
       recv_client->start_poll();
       do_poll(recv_client, 10, true, stay_poll_owner);
       recv_client->complete_poll();
+      poll_owner = stay_poll_owner;
     }
-  }//while
+    if (check_cluster_mgr)
+    {
+      /*
+        ensure that this thread is not poll owner before calling
+        checkClusterMgr to avoid ending up in a deadlock when
+        acquiring locks on cluster manager mutexes.
+      */
+      assert(!poll_owner);
+      checkClusterMgr(lastTime);
+    }
+  }
+
   if (poll_owner)
   {
     /*
-      We need to ensure that we release poll ownership before we
-      proceed to delete the transporter client and thus close it.
-      That code expects not to be called when being the poll owner.
+      Ensure to release poll ownership before proceeding to delete the
+      transporter client and thus close it. That code expects not to be
+      called when being the poll owner.
     */
     recv_client->start_poll();
     do_poll(recv_client, 0, true, false);
@@ -1185,6 +1196,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
       m_threads.close(clnt->m_blockNo);
       return 0;
     }
+    bool not_finished;
     do
     {
       clnt->start_poll();
@@ -1195,8 +1207,9 @@ TransporterFacade::close_clnt(trp_client* clnt)
         first = false;
       }
       clnt->do_poll(0);
+      not_finished = (m_threads.get(clnt->m_blockNo) == clnt);
       clnt->complete_poll();
-    } while (m_threads.get(clnt->m_blockNo) == clnt);
+    } while (not_finished);
   }
   return 0;
 }
