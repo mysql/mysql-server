@@ -2651,7 +2651,9 @@ row_log_allocate(
 	log->head.block = buf;
 	log->tail.block = buf + srv_sort_buf_size;
 	log->tail.blocks = log->tail.bytes = 0;
+	log->tail.total = 0;
 	log->head.blocks = log->head.bytes = 0;
+	log->head.total = 0;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
 	index->online_log = log;
 
