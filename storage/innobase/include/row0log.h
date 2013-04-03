@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -122,6 +122,7 @@ row_log_table_delete(
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	bool		purge,	/*!< in: true=purging BLOBs */
 	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
 				it was deleted */
 	UNIV_COLD __attribute__((nonnull));
@@ -173,28 +174,24 @@ row_log_table_insert(
 				or X-latched */
 	const ulint*	offsets)/*!< in: rec_get_offsets(rec,index) */
 	UNIV_COLD __attribute__((nonnull));
-
 /******************************************************//**
-Notes that a transaction is being rolled back. */
+Notes that a BLOB is being freed during online ALTER TABLE. */
 UNIV_INTERN
 void
-row_log_table_rollback(
-/*===================*/
-	dict_index_t*	index,	/*!< in/out: clustered index */
-	trx_id_t	trx_id)	/*!< in: transaction being rolled back */
+row_log_table_blob_free(
+/*====================*/
+	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
+	ulint		page_no)/*!< in: starting page number of the BLOB */
 	UNIV_COLD __attribute__((nonnull));
-
 /******************************************************//**
-Check if a transaction rollback has been initiated.
-@return true if inserts of this transaction were rolled back */
+Notes that a BLOB is being allocated during online ALTER TABLE. */
 UNIV_INTERN
-bool
-row_log_table_is_rollback(
-/*======================*/
-	const dict_index_t*	index,	/*!< in: clustered index */
-	trx_id_t		trx_id)	/*!< in: transaction id */
-	__attribute__((nonnull));
-
+void
+row_log_table_blob_alloc(
+/*=====================*/
+	dict_index_t*	index,	/*!< in/out: clustered index, X-latched */
+	ulint		page_no)/*!< in: starting page number of the BLOB */
+	UNIV_COLD __attribute__((nonnull));
 /******************************************************//**
 Apply the row_log_table log to a table upon completing rebuild.
 @return DB_SUCCESS, or error code on failure */
