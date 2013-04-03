@@ -550,6 +550,8 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
 
   key is a null terminated array, since in some cases (clustered
   primary key) it must compare more than one index.
+  We only compare the fields that are specified in table->read_set and
+  stop at the first non set field. The first must be set!
 
   @param key                    Null terminated array of index information
   @param first_rec              Pointer to record compare with
@@ -573,6 +575,9 @@ int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
   Field *field;
   DBUG_ENTER("key_rec_cmp");
 
+  /* Assert that at least the first key part is read. */
+  DBUG_ASSERT(bitmap_is_set(key_info->table->read_set,
+                            key_info->key_part->field->field_index));
   /* loop over all given keys */
   do
   {
@@ -584,6 +589,10 @@ int key_rec_cmp(void *key_p, uchar *first_rec, uchar *second_rec)
     do
     {
       field= key_part->field;
+
+      /* If not read, compare is done and equal! */
+      if (!bitmap_is_set(field->table->read_set, field->field_index))
+        DBUG_RETURN(0);
 
       if (key_part->null_bit)
       {
