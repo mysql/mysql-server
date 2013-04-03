@@ -583,58 +583,123 @@ QueryNot.prototype = new AbstractQueryUnaryPredicate();
 var CandidateIndex = function(dbTableHandler, indexNumber) {
   this.dbTableHandler = dbTableHandler;
   this.dbIndexHandler = dbTableHandler.dbIndexHandlers[indexNumber];
+  udebug.log_detail('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name,
+      'isUnique', this.dbIndexHandler.dbIndex.isUnique, 'isOrdered', this.dbIndexHandler.dbIndex.isOrdered);
   if(! this.dbIndexHandler) {
     console.log("indexNumber", typeof(indexNumber));
     console.trace("not an index handler");
     throw new Error('Query.CandidateIndex<ctor> indexNumber is not found');
   }
-  
-  this.numberOfColumns = this.dbIndexHandler.dbIndex.columnNumbers.length;
+  var i;
+  this.numberOfColumnsInTable = this.dbTableHandler.fieldNumberToFieldMap.length;
+  this.numberOfColumnsInIndex = this.dbIndexHandler.dbIndex.columnNumbers.length;
   // make an array of parameter names corresponding to index columns
   this.parameterNames = [];
-  udebug.log_detail('CandidateIndex<ctor> for index', this.dbIndexHandler.dbIndex.name);
+  this.isOrdered = this.dbIndexHandler.dbIndex.isOrdered;
+  this.isUnique = this.dbIndexHandler.dbIndex.isUnique;
+  // count the number of query terms that can be used with this index
+  this.columnBounds = [];
+  for (i = 0; i < this.numberOfColumnsInTable; ++i) {
+    this.columnBounds[i] = {};
+  }
 };
 
 CandidateIndex.prototype.markEq = function(columnNumber, parameterName) {
+  udebug.log_detail('CandidateIndex markEq for index', this.dbIndexHandler.dbIndex.name,
+      'columnNumber', columnNumber,
+      'parameterName', parameterName);
+  if (this.isOrdered) {
+    this.columnBounds[columnNumber].greater = true;
+    this.columnBounds[columnNumber].less = true;
+  } else {
+    this.columnBounds[columnNumber].equal = true;
+  }
   this.parameterNames[columnNumber] = parameterName;
 };
 
-/** Not currently implemented; this comparison will be ignored when determining indexes */
 CandidateIndex.prototype.markGe = function(columnNumber, parameterName) {
+  udebug.log_detail('CandidateIndex markGe for index', this.dbIndexHandler.dbIndex.name,
+      'columnNumber', columnNumber,
+      'parameterName', parameterName);
+  if (this.isOrdered) {
+    // only works with ordered indexes
+    this.columnBounds[columnNumber].greater = true;
+    this.parameterNames[columnNumber] = parameterName;
+  }
 };
 
-/** Not currently implemented; this comparison will be ignored when determining indexes */
 CandidateIndex.prototype.markLe = function(columnNumber, parameterName) {
+  udebug.log_detail('CandidateIndex markLe for index', this.dbIndexHandler.dbIndex.name,
+      'columnNumber', columnNumber,
+      'parameterName', parameterName);
+  if (this.isOrdered) {
+    // only works with ordered indexes
+    this.columnBounds[columnNumber].less = true;
+    this.parameterNames[columnNumber] = parameterName;
+  }
 };
 
-/** Not currently implemented; this comparison will be ignored when determining indexes */
 CandidateIndex.prototype.markGt = function(columnNumber, parameterName) {
+  udebug.log_detail('CandidateIndex markGt for index', this.dbIndexHandler.dbIndex.name,
+      'columnNumber', columnNumber,
+      'parameterName', parameterName);
+  if (this.isOrdered) {
+    // only works with ordered indexes
+    this.columnBounds[columnNumber].greater = true;
+    this.parameterNames[columnNumber] = parameterName;
+  }
 };
 
-/** Not currently implemented; this comparison will be ignored when determining indexes */
 CandidateIndex.prototype.markLt = function(columnNumber, parameterName) {
+  udebug.log_detail('CandidateIndex markLt for index', this.dbIndexHandler.dbIndex.name,
+      'columnNumber', columnNumber,
+      'parameterName', parameterName);
+  if (this.isOrdered) {
+    // only works with ordered indexes
+    this.columnBounds[columnNumber].less = true;
+    this.parameterNames[columnNumber] = parameterName;
+  }
 };
 
 
-CandidateIndex.prototype.isUsable = function() {
-  udebug.log_detail('CandidateIndex.isUsable for', this.dbIndexHandler.dbIndex.name, 'with', this.parameterNames);
+CandidateIndex.prototype.isUsable = function(numberOfPredicateTerms) {
   var i, columnNumber;
   var numberOfMarkedColumns = 0;
+  var numberOfEqualColumns = 0;
+  var usable = false;
   // count the number of index columns marked
-  for (i = 0; i < this.numberOfColumns; ++i) {
+  for (i = 0; i < this.numberOfColumnsInIndex; ++i) {
     columnNumber = this.dbIndexHandler.dbIndex.columnNumbers[i];
     if (typeof(this.parameterNames[columnNumber]) !== 'undefined') {
       ++numberOfMarkedColumns;
+      if (this.columnBounds[columnNumber].equal) {
+        ++numberOfEqualColumns;
+      }
     }
   }
-  udebug.log_detail('CandidateIndex.isUsable found ', numberOfMarkedColumns, 'marked');
-  return numberOfMarkedColumns === this.numberOfColumns;
+  if (this.isUnique) {
+    // all columns must be marked with equal to use a unique index
+    if (numberOfMarkedColumns === this.numberOfColumnsInIndex
+        && numberOfEqualColumns === this.numberOfColumnsInIndex
+        && numberOfMarkedColumns === numberOfPredicateTerms
+        ) {
+      usable = true;
+    }
+  } else if (this.isOrdered) {
+    // any columns must be marked to use a btree index
+    usable = numberOfMarkedColumns > 0;
+  }
+  udebug.log_detail('CandidateIndex.isUsable found ', numberOfMarkedColumns,
+      'marked for', this.dbIndexHandler.dbIndex.name, 'with ', this.numberOfColumnsInIndex,
+      'columns in index; returning', usable);
+  return usable;
 };
 
 CandidateIndex.prototype.getKeys = function(parameterValues) {
   var result = [];
   var candidateIndex = this;
-  udebug.log_detail('CandidateIndex.getKeys parameters:',parameterValues, 'candidateIndex.parameterNames', candidateIndex.parameterNames);
+  udebug.log_detail('CandidateIndex.getKeys parameters:',parameterValues,
+      'candidateIndex.parameterNames', candidateIndex.parameterNames);
   // for each column in the index, get the parameter value from parameters
   this.dbIndexHandler.dbIndex.columnNumbers.forEach(function(columnNumber) {
     result.push(parameterValues[candidateIndex.parameterNames[columnNumber]]);
@@ -642,9 +707,21 @@ CandidateIndex.prototype.getKeys = function(parameterValues) {
   return result;
 };
 
-/** Placeholder for evaluating candidate indexes */
+/** Evaluate candidate indexes. One point for each upper bound and lower bound. */
 CandidateIndex.prototype.score = function() {
-  return 0;
+  var i;
+  var score = 0;
+  for (i = 0; i < this.numberOfColumnsInIndex; ++i) {
+    var columnIndex = this.dbIndexHandler.dbIndex.columnNumbers[i];
+    if (this.columnBounds[columnIndex].greater) {
+      ++score;
+    }
+    if (this.columnBounds[columnIndex].less) {
+      ++score;
+    }
+  }
+  udebug.log_detail('score', this.dbIndexHandler.dbIndex.name, 'is', score);
+  return score;
 };
 
 /******************************************************************************
@@ -671,7 +748,8 @@ var QueryHandler = function(dbTableHandler, predicate) {
   // if the primary index is usable, choose it
   var primaryCandidateIndex = new CandidateIndex(dbTableHandler, 0);
   predicate.markCandidateIndex(primaryCandidateIndex);
-  if (primaryCandidateIndex.isUsable()) {
+  var numberOfPredicateTerms = predicate.getTopLevelPredicates().length;
+  if (primaryCandidateIndex.isUsable(numberOfPredicateTerms)) {
     // we're done!
     this.candidateIndex = primaryCandidateIndex;
     this.queryType = 0; // primary key lookup
@@ -687,7 +765,7 @@ var QueryHandler = function(dbTableHandler, predicate) {
       // create a candidate index for unique index
       uniqueCandidateIndex = new CandidateIndex(dbTableHandler, i);
       predicate.markCandidateIndex(uniqueCandidateIndex);
-      if (uniqueCandidateIndex.isUsable()) {
+      if (uniqueCandidateIndex.isUsable(numberOfPredicateTerms)) {
         this.candidateIndex = uniqueCandidateIndex;
         this.queryType = 1; // unique key lookup
         // we're done!
