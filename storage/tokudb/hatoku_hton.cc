@@ -2416,7 +2416,7 @@ maria_declare_plugin(tokudb)
     tokudb_init_func,          /* plugin init */
     tokudb_done_func,          /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
-    NULL,                      /* status variables */
+    toku_global_status_variables_export,  /* status variables */
     tokudb_system_variables,   /* system variables */
     TOKUDB_PLUGIN_VERSION_STR, /* string version */
     MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
