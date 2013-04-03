@@ -72,6 +72,7 @@ private:
   int64 mts_last_known_parent_group_id;
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);
+  Slave_worker* get_free_worker(Relay_log_info *rli);
 public:
   Mts_submode_master()
   {
