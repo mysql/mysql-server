@@ -9,8 +9,21 @@
 # Test Case [5] Check the innochecksum tool when read from stdin for page-type-summary
 #************************************************************
 
---source include/not_windows.inc
 --source include/have_innodb.inc
+--source include/not_windows.inc
+
+# Must have debug code to use debug option for innochecksum tool.
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Embedded server does not support crashing.
+--source include/not_embedded.inc
+
+# Avoid CrashReporter popup on Mac.
+--source include/not_crashrep.inc
+
 call mtr.add_suppression("InnoDB: Unable to lock");
 
 let MYSQLD_BASEDIR= `SELECT @@basedir`;
@@ -34,7 +47,7 @@ INSERT INTO t1 VALUES(2, 'Innochecksum CRC32');
 --source include/wait_until_disconnected.inc
 
 # Test cases for read from standard input for innochecksum tool
---echo # Test[1] for read from standard input for innochecksum tool without rewrite of checksum with debug option.
+--echo # Test[1]: for read from standard input for innochecksum tool without rewrite of checksum with debug option.
 perl;
 use strict;
 use warnings;
@@ -54,7 +67,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $! ;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $! ;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
@@ -96,7 +109,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
@@ -105,7 +118,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the information for debug option.
@@ -125,7 +138,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
@@ -134,7 +147,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
@@ -187,7 +200,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
@@ -196,7 +209,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 
 $file= 'veroutput';
@@ -204,7 +217,7 @@ $file= 'veroutput';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/d:o,.*trace/d:o,mtrchecksum.trace/g;
@@ -212,7 +225,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the content for --verbose and --page-type-summary
@@ -236,7 +249,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
@@ -245,7 +258,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
@@ -253,7 +266,7 @@ EOF
 cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
 --remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
 
-#Replace the t.ibd with the newly created a.ibd having "none" checksum.
+# Replace the t.ibd with the newly created a.ibd having "none" checksum.
 --remove_file $MYSQLD_DATADIR/test/t1.ibd
 --copy_file $MYSQLTEST_VARDIR/tmp/a.ibd $MYSQLD_DATADIR/test/t1.ibd
 --remove_file $MYSQLTEST_VARDIR/tmp/a.ibd
@@ -296,7 +309,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = -/g;
@@ -305,7 +318,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 --echo # Print the information for debug option.
@@ -325,7 +338,7 @@ my $file= 'mtrchecksum.trace';
 open IN_FILE,"<", "$dir/tmp/$file" or die $!;
 open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
 while(<IN_FILE>) {
- #Replace all intergers to #
+ # Replace all intergers to #
  $_=~ s/\d+/#/g;
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = a.ibd/g;
@@ -334,7 +347,7 @@ while(<IN_FILE>) {
 }
 close(IN_FILE);
 close(OUT_FILE);
-#move the new content from tmp file to the orginal file.
+# move the new content from tmp file to the orginal file.
 move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
 EOF
 
@@ -422,9 +435,7 @@ select * from tab1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-#cleanup
+# cleanup
 DROP TABLE t1;
 DROP TABLE tab1;
 SET GLOBAL innodb_file_format=default;
-
---echo #TEST END
