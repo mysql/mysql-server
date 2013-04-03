@@ -94,26 +94,18 @@ ignore_broken_blob_tables()
 NdbColumnImpl::NdbColumnImpl()
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(this)
 {
-  DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   init();
-  DBUG_VOID_RETURN;
 }
 
 NdbColumnImpl::NdbColumnImpl(NdbDictionary::Column & f)
   : NdbDictionary::Column(* this), m_attrId(-1), m_facade(&f)
 {
-  DBUG_ENTER("NdbColumnImpl::NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   init();
-  DBUG_VOID_RETURN;
 }
 
 NdbColumnImpl&
 NdbColumnImpl::operator=(const NdbColumnImpl& col)
 {
-  DBUG_ENTER("NdbColumnImpl::operator=");
-  DBUG_PRINT("info", ("this: %p  &col: %p", this, &col));
   m_attrId = col.m_attrId;
   m_name = col.m_name;
   m_type = col.m_type;
@@ -145,7 +137,7 @@ NdbColumnImpl::operator=(const NdbColumnImpl& col)
   m_column_no = col.m_column_no;
   // Do not copy m_facade !!
 
-  DBUG_RETURN(*this);
+  return *this;
 }
 
 void
@@ -302,12 +294,9 @@ NdbColumnImpl::init(Type t)
 
 NdbColumnImpl::~NdbColumnImpl()
 {
-  DBUG_ENTER("NdbColumnImpl::~NdbColumnImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   if (m_blobTable != NULL)
     delete m_blobTable;
   m_blobTable = NULL;
-  DBUG_VOID_RETURN;
 }
 
 bool
@@ -582,26 +571,18 @@ NdbTableImpl::NdbTableImpl()
   : NdbDictionary::Table(* this), 
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(this)
 {
-  DBUG_ENTER("NdbTableImpl::NdbTableImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   init();
-  DBUG_VOID_RETURN;
 }
 
 NdbTableImpl::NdbTableImpl(NdbDictionary::Table & f)
   : NdbDictionary::Table(* this), 
     NdbDictObjectImpl(NdbDictionary::Object::UserTable), m_facade(&f)
 {
-  DBUG_ENTER("NdbTableImpl::NdbTableImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   init();
-  DBUG_VOID_RETURN;
 }
 
 NdbTableImpl::~NdbTableImpl()
 {
-  DBUG_ENTER("NdbTableImpl::~NdbTableImpl");
-  DBUG_PRINT("info", ("this: %p", this));
   if (m_index != 0) {
     delete m_index;
     m_index = 0;
@@ -618,8 +599,6 @@ NdbTableImpl::~NdbTableImpl()
     free(const_cast<unsigned char *>(m_pkMask));
     m_pkMask= 0;
   }
-  
-  DBUG_VOID_RETURN;
 }
 
 void
