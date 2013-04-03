@@ -423,7 +423,7 @@ private:
                            KEY *key_info, uint index_no);
   int get_fk_data(THD *thd, Ndb *ndb);
   void release_fk_data(THD *thd);
-  int create_fks(THD *thd, Ndb *ndb, TABLE *tab);
+  int create_fks(THD *thd, Ndb *ndb);
   int copy_fk_for_offline_alter(THD * thd, Ndb*, NdbDictionary::Table* _dsttab);
   int drop_fk_for_online_alter(THD*, NdbDictionary::Dictionary*,
                                const NdbDictionary::Table*);

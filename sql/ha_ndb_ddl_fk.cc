@@ -263,7 +263,7 @@ isnull(const char * str)
 }
 
 int
-ha_ndbcluster::create_fks(THD *thd, Ndb *ndb, TABLE *tab)
+ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
 {
   DBUG_ENTER("ha_ndbcluster::create_fks");
 
