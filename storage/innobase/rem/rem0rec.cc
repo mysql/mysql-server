@@ -1830,6 +1830,13 @@ rec_print_comp(
 			if (len <= 30) {
 
 				ut_print_buf(file, data, len);
+			} else if (rec_offs_nth_extern(offsets, i)) {
+				ut_print_buf(file, data, 30);
+				fprintf(file, " (total %lu bytes, external)",
+					(ulong) len);
+				ut_print_buf(file, data + len
+					     - BTR_EXTERN_FIELD_REF_SIZE,
+					     BTR_EXTERN_FIELD_REF_SIZE);
 			} else {
 				ut_print_buf(file, data, 30);
 

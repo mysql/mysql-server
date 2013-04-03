@@ -3579,7 +3579,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'foo' AND colb = 'bar'	{
 
 EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	cola	cola	3	const	1	Using index condition
+1	SIMPLE	t1	ref	cola	cola	3	const	1	NULL
 
 SELECT * FROM information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -3743,7 +3743,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`cola` = 'f\\no')"
+                  "attached": null
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -3751,9 +3751,7 @@ EXPLAIN SELECT * FROM t1 WHERE cola = 'f\no'	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`cola` = 'f\\no')",
-                "table_condition_attached": null
+                "table": "`t1`"
               }
             ] /* refine_plan */
           }
@@ -5635,7 +5633,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "((`t1`.`v` = 'a') and (`t1`.`i2` = 1) and (`t1`.`pk` < 3))"
+                  "attached": "((`t1`.`i2` = 1) and (`t1`.`pk` < 3))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -5644,7 +5642,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
             "refine_plan": [
               {
                 "table": "`t1`",
-                "pushed_index_condition": "((`t1`.`v` = 'a') and (`t1`.`pk` < 3))",
+                "pushed_index_condition": "(`t1`.`pk` < 3)",
                 "table_condition_attached": "(`t1`.`i2` = 1)"
               }
             ] /* refine_plan */
@@ -6148,7 +6146,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(`t1`.`c1` = '1')"
+                  "attached": null
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -6169,9 +6167,7 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
           {
             "refine_plan": [
               {
-                "table": "`t1`",
-                "pushed_index_condition": "(`t1`.`c1` = '1')",
-                "table_condition_attached": null
+                "table": "`t1`"
               }
             ] /* refine_plan */
           },
@@ -6185,7 +6181,6 @@ EXPLAIN SELECT * FROM t1 WHERE c1 = '1' ORDER BY i1	{
                 "table": "`t1`",
                 "index_provides_order": true,
                 "order_direction": "asc",
-                "disabled_pushed_condition_on_old_index": true,
                 "index": "k2",
                 "plan_changed": true,
                 "access_type": "ref"

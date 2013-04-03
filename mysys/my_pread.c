@@ -187,7 +187,6 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
       offset+= writtenbytes;
     }
     DBUG_PRINT("error",("Write only %u bytes", (uint) writtenbytes));
-#ifndef NO_BACKGROUND
 
     if (my_thread_var->abort)
       MyFlags&= ~ MY_WAIT_IF_FULL;		/* End if aborted by user */
@@ -210,7 +209,6 @@ size_t my_pwrite(File Filedes, const uchar *Buffer, size_t Count,
       /* We may come here if the file quota is exeeded */
       continue;
     }
-#endif
     break;                                  /* Return bytes written */
   }
   if (MyFlags & (MY_NABP | MY_FNABP))
