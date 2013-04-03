@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
- --source include/force_myisam_default.inc
-
 #
 # Some functional checks for the content of the performance_schema table
 # socket_summary_by_event_name.
