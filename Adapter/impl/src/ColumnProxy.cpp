@@ -18,29 +18,26 @@
  02110-1301  USA
  */
 
+#include "unified_debug.h"
 #include "ColumnProxy.h"
 
 using namespace v8;
 
 Handle<String> K_toDB, K_fromDB;
 
-void ColumnProxy_initOnLoad(Handle<Value>) {
+void ColumnProxy_initOnLoad(Handle<Object>) {
   HandleScope scope;
   K_toDB = Persistent<String>::New(String::NewSymbol("toDB"));
   K_fromDB = Persistent<String>::New(String::NewSymbol("fromDB"));
 }
 
 
-ColumnProxy::ColumnProxy(const NdbDictionary::Column * column,
-                         Handle<Object> _typeConverter) :
-  typeConverter(_typeConverter), isLoaded(false), isDirty(false)
+void ColumnProxy::setTypeConverter(Handle<Object> _typeConverter)
 {
   HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
 
-  /* Native read/write encoders */
-  encoder = getEncoderForColumn(column);
-
-  /* JavaScript typeConverters */
+  typeConverter = Persistent<Object>::New(_typeConverter);
   hasWriteConverter =
     (typeConverter->Has(K_toDB) && typeConverter->Get(K_toDB)->IsFunction());
  
@@ -59,6 +56,7 @@ ColumnProxy::~ColumnProxy() {
 Handle<Value> ColumnProxy::get(const NdbDictionary::Column *col,
                                char *buffer, size_t offset) {
   HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
   Handle<Value> val;
   
   if(! isLoaded) {
@@ -82,6 +80,7 @@ Handle<Value> ColumnProxy::get(const NdbDictionary::Column *col,
 
 void ColumnProxy::set(Handle<Value> newValue) {
   HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
   Handle<Value> val = newValue;
   
   /* Drop our claim on the old value */
@@ -104,16 +103,20 @@ void ColumnProxy::set(Handle<Value> newValue) {
 }
 
 
-Handle<Value> ColumnProxy::write(const NdbDictionary::Column *col,
-                                 char *buffer, size_t offset) {
+Handle<Value> ColumnProxy::write(Record *record, int col_idx, char *buffer) {
   HandleScope scope;
+  DEBUG_MARKER(UDEB_DEBUG);
+  const NdbDictionary::Column * col = record->getColumn(col_idx);
+  size_t offset = record->getColumnOffset(col_idx);
   Handle<Value> rval;
 
-  if(isDirty ||
-     (jsValue->IsObject() && jsValue->ToObject()->IsDirty())) {
-    rval = encoder->write(col, jsValue, buffer, offset);
-    isDirty = false;
+  if(isDirty || (jsValue->IsObject() && jsValue->ToObject()->IsDirty())) {
+    if(jsValue->IsNull()) 
+      record->setNull(col_idx, buffer);
+    else 
+      rval = encoder->write(col, jsValue, buffer, offset);
   }
+  isDirty = false;
   
   return scope.Close(rval);
 }

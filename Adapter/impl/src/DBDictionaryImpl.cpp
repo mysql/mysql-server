@@ -594,7 +594,6 @@ Handle<Value> createJsBuffer(node::Buffer *b, int len) {
 /* TODO: Probably we don't need the default value itself in JavaScript;
    merely a flag indicating that the column has a non-null default value
 */
-
 Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
   HandleScope scope;
   Handle<Value> v;
@@ -612,12 +611,38 @@ Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
 }
 
 
+/* arg0: TableMetadata wrapping NdbDictionary::Table *
+   arg1: Ndb *
+   arg2: number of columns
+   arg3: array of NdbDictionary::Column *
+*/
+Handle<Value> getRecordForMapping(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  NdbDictionary::Table *table = 
+    unwrapPointer<NdbDictionary::Table *>(args[0]->ToObject());
+  Ndb * ndb = unwrapPointer<Ndb *>(args[1]->ToObject());
+  unsigned int nColumns = args[2]->Int32Value();
+  Record * record = new Record(ndb->getDictionary(), nColumns);
+  for(unsigned int i = 0 ; i < nColumns ; i++) {
+    NdbDictionary::Column * col = 
+      unwrapPointer<NdbDictionary::Column *>
+        (args[3]->ToObject()->Get(i)->ToObject());
+    record->addColumn(col);
+  }
+  record->completeTableRecord(table);
+
+  return scope.Close(Record_Wrapper(record));
+}
+
+
 void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   Persistent<Object> dbdict_obj = Persistent<Object>(Object::New());
 
   DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
   DEFINE_JS_FUNCTION(dbdict_obj, "getTable", getTable);
+  DEFINE_JS_FUNCTION(dbdict_obj, "getRecordForMapping", getRecordForMapping);
 
   target->Set(Persistent<String>(String::NewSymbol("DBDictionary")), dbdict_obj);
 }

@@ -54,7 +54,9 @@ var DBIndexHandler;
 var proto = {
   dbTable                : {},    // TableMetadata 
   mapping                : {},    // TableMapping
-  newObjectConstructor   : null,  // constructor for mapped class  
+  resolvedMapping        : null,
+  newObjectConstructor   : null,  // Domain Object Constructor
+  ValueObject            : null,  // Value Object Constructor
   stubFields             : null,  // FieldMappings constructed by default rules
 
   fieldNameToFieldMap    : {},
