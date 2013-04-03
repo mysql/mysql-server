@@ -2482,6 +2482,15 @@ deallocate prepare stmt;
 drop table t1,t2;
 
 --echo #
+--echo # MDEV-4335: Unexpected results when selecting on information_schema
+--echo #
+CREATE TABLE t1 (db VARCHAR(64) DEFAULT NULL); 
+INSERT INTO t1 VALUES ('mysql'),('information_schema'); 
+SELECT * FROM t1 WHERE db IN (SELECT `SCHEMA_NAME` FROM information_schema.SCHEMATA); 
+DROP TABLE t1;
+
+
+--echo #
 --echo # MySQL Bug#13340270: assertion table->sort.record_pointers == __null
 --echo #
 

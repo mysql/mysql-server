@@ -323,7 +323,7 @@ public:
       0     Ok
       other Error
   */
-  virtual int init_ror_merged_scan(bool reuse_handler)
+  virtual int init_ror_merged_scan(bool reuse_handler, MEM_ROOT *alloc)
   { DBUG_ASSERT(0); return 1; }
 
   /*
@@ -473,7 +473,7 @@ public:
                       uchar *cur_prefix);
   bool reverse_sorted() { return 0; }
   bool unique_key_range();
-  int init_ror_merged_scan(bool reuse_handler);
+  int init_ror_merged_scan(bool reuse_handler, MEM_ROOT *alloc);
   void save_last_pos()
   { file->position(record); }
   int get_type() { return QS_TYPE_RANGE; }
@@ -722,7 +722,7 @@ public:
 #ifndef DBUG_OFF
   void dbug_dump(int indent, bool verbose);
 #endif
-  int init_ror_merged_scan(bool reuse_handler);
+  int init_ror_merged_scan(bool reuse_handler, MEM_ROOT *alloc);
   bool push_quick_back(MEM_ROOT *alloc, QUICK_RANGE_SELECT *quick_sel_range);
 
   class QUICK_SELECT_WITH_RECORD : public Sql_alloc
