@@ -23,7 +23,7 @@ IF(ESSENTIALS)
  ENDIF()
 ELSE()
   SET(CPACK_COMPONENTS_USED 
-    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient")
+    "Server;Client;DataFiles;Development;SharedLibraries;Embedded;Debuginfo;Documentation;IniFiles;Readme;Server_Scripts;DebugBinaries;ClusterTools;ClusterDataNode;ClusterManagementServer;ClusterManagementClient;ClusterJ")
 ENDIF()
 
 
@@ -93,6 +93,11 @@ SET(CPACK_COMPONENT_GROUP_DEVEL_DESCRIPTION "Installs C/C++ header files and lib
  SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded server library")
  SET(CPACK_COMPONENT_EMBEDDED_DESCRIPTION "Installs embedded server library")
  SET(CPACK_COMPONENT_EMBEDDED_WIX_LEVEL 2)
+
+ #Subfeature "ClusterJ"
+ SET(CPACK_COMPONENT_CLUSTERJ_GROUP "Devel")
+ SET(CPACK_COMPONENT_CLUSTERJ_DISPLAY_NAME "ClusterJ Java Connector for Cluster")
+ SET(CPACK_COMPONENT_CLUSTERJ_DESCRIPTION "Installs ClusterJ")
 
 #Feature Debug Symbols
 SET(CPACK_COMPONENT_GROUP_DEBUGSYMBOLS_DISPLAY_NAME "Debug Symbols")
