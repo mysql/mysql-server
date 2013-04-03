@@ -88,9 +88,7 @@ static bool			page_type_dump;
 char*				page_dump_filename = 0;
 /* skip the checksum verification & rewrite if page is doublewrite buffer. */
 static bool			skip_page = 0;
-
-const char	*default_dbug_option = IF_WIN("d:o,\\innochecksum.trace",
-					      "d:o,/tmp/innochecksum.trace");
+const char			*dbug_setting = "FALSE";
 
 #ifndef __WIN__
 /* advisory lock for non-window system. */
@@ -657,7 +655,7 @@ parse_page(
 	case FIL_PAGE_INODE:
 		page_type.n_fil_page_inode++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tInode Page\t\t\t|"
+			fprintf(file, "#::%8llu\t\t|\t\tInode page\t\t\t|"
 				"\t%s\n",cur_page_num, str);
 		}
 		break;
@@ -713,7 +711,7 @@ parse_page(
 	case FIL_PAGE_TYPE_XDES:
 		page_type.n_fil_page_type_xdes++;
 		if (page_type_dump) {
-			fprintf(file, "#::%8llu\t\t|\t\tan extent descriptor "
+			fprintf(file, "#::%8llu\t\t|\t\tExtent descriptor "
 				"page\t|\t%s\n", cur_page_num, str);
 		}
 		break;
@@ -759,31 +757,31 @@ print_summary(
 	fprintf(fil_out, "\n================PAGE TYPE SUMMARY==============\n");
 	fprintf(fil_out, "#PAGE_COUNT\tPAGE_TYPE");
 	fprintf(fil_out, "\n===============================================\n");
-	fprintf(fil_out, "%8d\tINDEX PAGE\n",
+	fprintf(fil_out, "%8d\tIndex page\n",
 		page_type.n_fil_page_index);
-	fprintf(fil_out, "%8d\tUNDO LOG PAGE\n",
+	fprintf(fil_out, "%8d\tUndo log page\n",
 		page_type.n_fil_page_undo_log);
-	fprintf(fil_out, "%8d\tINODE PAGE\n",
+	fprintf(fil_out, "%8d\tInode page\n",
 		page_type.n_fil_page_inode);
-	fprintf(fil_out, "%8d\tINSERT BUFFER FREE LIST PAGE\n",
+	fprintf(fil_out, "%8d\tINSERT buffer free list page\n",
 		page_type.n_fil_page_ibuf_free_list);
-	fprintf(fil_out, "%8d\tFRESHLY ALLOCATED PAGE\n",
+	fprintf(fil_out, "%8d\tFreshly allocated page\n",
 		page_type.n_fil_page_type_allocated);
-	fprintf(fil_out, "%8d\tINSERT BUFFER BITMAP\n",
+	fprintf(fil_out, "%8d\tInsert buffer bitmap\n",
 		page_type.n_fil_page_ibuf_bitmap);
-	fprintf(fil_out, "%8d\tSYSTEM PAGE\n",
+	fprintf(fil_out, "%8d\tSystem page\n",
 		page_type.n_fil_page_type_sys);
-	fprintf(fil_out, "%8d\tTRANSACTION SYSTEM PAGE\n",
+	fprintf(fil_out, "%8d\tTransaction system page\n",
 		page_type.n_fil_page_type_trx_sys);
-	fprintf(fil_out, "%8d\tFILE SPACE HEADER\n",
+	fprintf(fil_out, "%8d\tFile Space Header\n",
 		page_type.n_fil_page_type_fsp_hdr);
-	fprintf(fil_out, "%8d\tEXTENT DESCRIPTOR\n",
+	fprintf(fil_out, "%8d\tExtent descriptor page\n",
 		page_type.n_fil_page_type_xdes);
-	fprintf(fil_out, "%8d\tBLOB PAGE\n",
+	fprintf(fil_out, "%8d\tBLOB page\n",
 		page_type.n_fil_page_type_blob);
-	fprintf(fil_out, "%8d\tCOMPRESSED BLOB PAGE\n",
+	fprintf(fil_out, "%8d\tCompressed BLOB page\n",
 		page_type.n_fil_page_type_zblob);
-	fprintf(fil_out, "%8d\tOTHER TYPE OF PAGE",
+	fprintf(fil_out, "%8d\tOther type of page",
 		page_type.n_fil_page_type_other);
 	fprintf(fil_out, "\n===============================================\n");
 	fprintf(fil_out, "Additional information:\n");
@@ -811,9 +809,9 @@ static struct my_option innochecksum_options[] = {
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Verbose (prints progress every 5 seconds).",
     &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", 'd', "Output debug log.", &default_dbug_option,
-   &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 'c', "Print the count of pages in the file.",
+  {"debug", 'd', "Output debug log. See " REFMAN "dbug-package.html",
+    &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"count", 'c', "Print the count of pages in the file and exists.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
     &start_page, &start_page, 0, GET_ULL, REQUIRED_ARG,
@@ -859,9 +857,10 @@ static void usage(void)
 	puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
 	printf("InnoDB offline file checksum utility.\n");
 	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
-		"[-p <page>] [-v] [-d <>] [-a <allow mismatches>] [-n] "
+		"[-p <page>] [-v]  [-a <allow mismatches>] [-n] "
 		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
-		"<filename or [-]>\n", my_progname);
+		"[-d <>] <filename or [-]>\n", my_progname);
+	printf("See " REFMAN "innochecksum.html for usage hints.\n");
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
 }
@@ -874,7 +873,10 @@ innochecksum_get_one_option(
 {
 	switch (optid) {
 		case 'd':
-			DBUG_PUSH(argument ? argument : default_dbug_option);
+			dbug_setting = argument ? argument :
+					IF_WIN("d:O,innochecksum.trace",
+					       "d:o,/tmp/innochecksum.trace");
+			DBUG_PUSH(dbug_setting);
 			debug = TRUE;
 			break;
 		case 'e':
