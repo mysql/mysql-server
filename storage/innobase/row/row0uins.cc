@@ -112,9 +112,7 @@ row_undo_ins_remove_clust_rec(
 		const ulint*	offsets	= rec_get_offsets(
 			rec, index, NULL, ULINT_UNDEFINED, &heap);
 		row_log_table_delete(
-			rec, index, offsets,
-			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
-					+ rec));
+			rec, index, offsets, true, node->trx->id);
 		mem_heap_free(heap);
 	}
 
@@ -444,14 +442,6 @@ row_undo_ins(
 
 	node->index = dict_table_get_first_index(node->table);
 	ut_ad(dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		/* Note that we are rolling back this transaction, so
-		that all inserts and updates with this DB_TRX_ID can
-		be skipped. */
-		row_log_table_rollback(node->index, node->trx->id);
-	}
-
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(node->index);
 
