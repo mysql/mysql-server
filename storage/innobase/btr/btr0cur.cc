@@ -2687,7 +2687,12 @@ make_external:
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
 	page_cursor->rec = rec;
 
-	if (dict_index_is_sec_or_ibuf(index)) {
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)) {
 		/* Update PAGE_MAX_TRX_ID in the index page header.
 		It was not updated by btr_cur_pessimistic_insert()
 		because of BTR_NO_LOCKING_FLAG. */
@@ -2877,6 +2882,7 @@ UNIV_INTERN
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
@@ -2913,7 +2919,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
 					    index, NULL, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {
@@ -3872,7 +3878,7 @@ btr_estimate_number_of_different_key_vals(
 
 	default:
 		ut_error;
-        }
+	}
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
@@ -4534,6 +4540,7 @@ btr_store_big_rec_extern_fields(
 			page_t*		page;
 
 			mtr_start(&mtr);
+			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -5008,6 +5015,7 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(index->table, &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =
