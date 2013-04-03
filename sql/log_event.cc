@@ -2802,12 +2802,18 @@ bool mts_assign_parent_group_id(Log_event* ev, Relay_log_info* rli)
   if (rli->current_mts_submode->assign_group_parent_id(rli, ev))
   {
     llstr(rli->get_event_relay_log_pos(), llbuff);
-     my_error(ER_MTS_CANT_PARALLEL, MYF(0),
-      ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
-      "The master does not support the selected parallelization mode. "
-      "It may be too old, or replication was started from an event internal "
-      "to a transaaction.");
+    my_error(ER_MTS_CANT_PARALLEL, MYF(0),
+     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
+     "The master does not support the selected parallelization mode. "
+     "It may be too old, or replication was started from an event internal "
+     "to a transaaction.");
+    return true;
   }
+  // Check if we can schedule this event
+  if (rli->current_mts_submode->schedule_next_event(rli))
+    /* The previous group of events encountered an error and the slave
+      cannot continue. */
+    return true;
   return false;
 }
 
@@ -2902,7 +2908,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       ulong gaq_idx;
       rli->curr_group_isolated= FALSE;
       rli->mts_groups_assigned++;
-      group.reset(log_pos, rli->mts_groups_assigned);
+      group.reset(log_pos, 0);// rli->mts_groups_assigned);
       // the last occupied GAQ's array index
       gaq_idx= gaq->assigned_group_index= gaq->en_queue((void *) &group);
       DBUG_PRINT("info",("gaq_idx= %ld  gaq->size=%ld", gaq_idx, gaq->size));
@@ -2932,12 +2938,10 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
           // mark the current group as started with explicit Gtid-event
           rli->curr_group_seen_gtid= true;
         if (mts_assign_parent_group_id(this, rli))
+        {
+          rli->abort_slave= 1;
           DBUG_RETURN(NULL);
-        // Check if we can schedule this event
-        if (rli->current_mts_submode->schedule_next_event(rli))
-          /* The previous group of events encountered an error and the slave
-             cannot continue. */
-          DBUG_RETURN(NULL);
+        }
         DBUG_RETURN (ret_worker);
       }
     }
@@ -2952,28 +2956,23 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       insert_dynamic(&rli->curr_group_da, (uchar*) &ptr_curr_ev);
       rli->curr_group_seen_begin= true;
       rli->mts_end_group_sets_max_dbs= true;
-      mts_assign_parent_group_id(this, rli);
       if (mts_assign_parent_group_id(this, rli))
+      {
+        rli->abort_slave= 1;
         DBUG_RETURN(NULL);
+      }
 
-      // Check if we can schedule this event
-      if (rli->current_mts_submode->schedule_next_event(rli))
-        /* The previous group of events encountered an error and the slave
-           cannot continue. */
-        DBUG_RETURN(NULL);
       DBUG_ASSERT(rli->curr_group_da.elements == 2);
       DBUG_ASSERT(starts_group());
       DBUG_RETURN (ret_worker);
     }
     if (mts_assign_parent_group_id(this, rli))
+    {
+      rli->abort_slave= 1;
       DBUG_RETURN(NULL);
-
-    // Check if we can schedule this event
-    if (rli->current_mts_submode->schedule_next_event(rli))
-      /* The previous group of events encountered an error and the slave
-         cannot continue. */
-      DBUG_RETURN(NULL);
+    }
   }
+
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
   if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC)
   {

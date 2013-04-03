@@ -193,7 +193,6 @@ Mts_submode_database::assign_group_parent_id(Relay_log_info* rli,
 bool
 Mts_submode_master::schedule_next_event(Relay_log_info* rli)
 {
-  Slave_committed_queue *gaq= rli->gaq;
   DBUG_ENTER("Mts_submode_master::schedule_next_event");
   /*
     The coordinator waits till the last group was completely applied before
@@ -201,14 +200,17 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli)
     data locks are handled for a short duration while updating the
     log positions.
   */
-  Slave_job_group* ptr_group=
-                      gaq->get_job_group(gaq->assigned_group_index);
-  DBUG_PRINT("info", ("parent_seq= %lld lwm_seq=%lld",
-                       ptr_group->parent_seqno,  rli->gaq->lwm.total_seqno));
-  while (ptr_group->parent_seqno > gaq->lwm.total_seqno)
+  if (!rli->is_new_group)
+    rli->delegated_jobs++;
+  else
   {
-    if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
-      DBUG_RETURN(true);
+    while (rli->delegated_jobs > rli->jobs_done)
+      if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
+      {
+        DBUG_RETURN(true);
+      }
+    rli->delegated_jobs= 1;
+    rli->jobs_done= 0;
   }
   DBUG_RETURN(false);
 }
@@ -306,7 +308,8 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
        number of available workers then schedule the events to the consecutive
        workers
       -If the i-th transaction is being scheduled in this group where "i" >
-       number of available workers then schedule this to the least loaded worker.
+       number of available workers then schedule this to the forst worker that
+       becomes free..
    */
   if (rli->last_assigned_worker)
     worker= rli->last_assigned_worker;
@@ -319,9 +322,11 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
     }
     else
     {
-      /* get least occupied  worker */
-      worker= *(Slave_worker **)
-              dynamic_array_ptr(&rli->least_occupied_workers, 0);
+      /* wait and get a free worker */
+      do
+      {
+        worker= get_free_worker(rli);
+      } while (!worker);
     }
   }
 
@@ -379,19 +384,40 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     mts_last_known_commit_parent= commit_seq_no;
     mts_last_known_parent_group_id=
       gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
-      rli->mts_groups_assigned - 1;
+      rli->mts_groups_assigned-1;
     worker_seq= 0;
+    rli->is_new_group= true;
   }
   else
   {
     gaq->get_job_group(rli->gaq->assigned_group_index)->parent_seqno=
       mts_last_known_parent_group_id;
+    rli->is_new_group= false;
   }
   DBUG_PRINT("info", ("MTS::slave c=%lld, pid= %lld", commit_seq_no,
                       mts_last_known_parent_group_id));
   if (first_event) first_event= false;
   return false;
 }
+
+/**
+  Protected method to fetch a free  worker. returns NULL if non are free.
+  It is up to caller to make sure that it polls using this function for
+  any free workers.
+ */
+Slave_worker*
+Mts_submode_master::get_free_worker(Relay_log_info *rli)
+{
+  Slave_worker *w_i;
+  for (uint i= 0; i < rli->workers.elements; i++)
+  {
+    get_dynamic(&rli->workers, (uchar *) &w_i, i);
+    if (w_i->jobs.len == 0)
+      return w_i;
+  }
+  return 0;
+}
+
 
 /**
   Protected method to fetch the server_id and pseudo_thread_id from a
