@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -293,7 +293,7 @@ row_undo_mod_clust(
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
 				btr_pcur_get_rec(pcur), index, offsets,
-				node->trx->id);
+				true, node->trx->id);
 			break;
 		default:
 			ut_ad(0);
@@ -1089,14 +1089,6 @@ row_undo_mod(
 
 	node->index = dict_table_get_first_index(node->table);
 	ut_ad(dict_index_is_clust(node->index));
-
-	if (dict_index_is_online_ddl(node->index)) {
-		/* Note that we are rolling back this transaction, so
-		that all inserts and updates with this DB_TRX_ID can
-		be skipped. */
-		row_log_table_rollback(node->index, node->trx->id);
-	}
-
 	/* Skip the clustered index (the first index) */
 	node->index = dict_table_get_next_index(node->index);
 
