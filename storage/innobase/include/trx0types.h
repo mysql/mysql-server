@@ -161,13 +161,6 @@ public:
 	}
 
 	/**
-	Reset trx_no and clear cached rollback segments. */
-	void reset() {
-		m_trx_no = 0;
-		m_rsegs.clear();
-	}
-
-	/**
 	Get transaction number
 	@return trx_id_t - get transaction number. */
 	trx_id_t get_trx_no() const
