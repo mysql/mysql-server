@@ -37,7 +37,7 @@ CREATE INDEX idx1 ON tab2(col_3(10));
 CREATE INDEX idx2 ON tab2(col_4(10));
 CREATE INDEX idx3 ON tab2(col_5(10));
 
---echo #generate a input text file for loading the table
+--echo # Generate a input text file for loading the table
 perl;
 $count=0;
 my $MYSQLD_TMPDIR= $ENV{'MYSQLTEST_VARDIR'}."/tmp";
@@ -71,22 +71,22 @@ dec $i;
 # check the record count 7014000 ,to ensure ibd file size is 3GB
 SELECT COUNT(*) FROM tab2;
 
---echo #stop the server
+--echo # Stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
 
---echo #R07: rewrite the tab2.ibd file into new checksum=CRC32
+--echo # Rewrite the tab2.ibd file into new checksum=CRC32
 --exec $INNOCHECKSUM --no-check --write=CRC32 $MYSQLD_DATADIR/test/tab2.ibd
 
---echo #restart the DB server with default innodb_checksum_algorithm=InnoDB (Default)
+--echo # Restart the DB server with default innodb_checksum_algorithm=InnoDB (Default)
 --echo # no need to pass to the server.
 --exec echo "restart:  --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
---echo #load the with repeat function
+--echo # Load the with repeat function
 SET @col_1 = repeat('A', 5);
 SET @col_2 = repeat('B', 20);
 SET @col_3 = repeat('D', 100);
@@ -94,23 +94,23 @@ SET @col_4 = repeat('E', 100);
 SET @col_5 = repeat('F', 100);
 SET @col_6 = repeat('G', 100);
 
---echo #check the table status with DML
+--echo # Check the table status with DML
 let $i = 1000;
 eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
---echo #check with Read operation by record count
+--echo # Check with Read operation by record count
 SELECT COUNT(*) FROM tab2 where col_7=1000;
 
---echo #stop the server
+--echo # Stop the server
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 30
 --source include/wait_until_disconnected.inc
 
---echo #R07: rewrite the tab2.ibd file into new checksum=None
+--echo # Rewrite the tab2.ibd file into new checksum=None
 --exec $INNOCHECKSUM --no-check -w None $MYSQLD_DATADIR/test/tab2.ibd
 
---echo #R07: Check the page type summary with longform for *.ibd
+--echo # Check the page type summary with longform for *.ibd
 --replace_regex /File.*.ibd/File::tab2.ibd/ /[0-9]+/#/
 --exec $INNOCHECKSUM --page-type-summary $MYSQLD_DATADIR/test/tab2.ibd
 
@@ -130,7 +130,7 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 #check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
 
---echo #check the default engine is always InnoDB after restart
+--echo # Check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
 
 --echo #load the with repeat function
@@ -141,17 +141,14 @@ SET @col_4 = repeat('J', 100);
 SET @col_5 = repeat('K', 100);
 SET @col_6 = repeat('L', 100);
 
---echo #check the table status with DML
+--echo # Check the table status with DML
 let $i = 2000;
 eval INSERT INTO tab2(col_1,col_2,col_3,col_4,col_5,col_6,col_7)
 VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 
---echo #check with Read operation that record count
+--echo # Check with Read operation that record count
 SELECT COUNT(*) FROM tab2 where col_7=2000;
 
 --enable_warnings
-
---echo #cleanup
+#cleanup
 DROP TABLE IF EXISTS tab2;
-
---echo #TEST END
