@@ -840,17 +840,6 @@ lock_trx_has_rec_x_lock(
 	__attribute__((nonnull, warn_unused_result));
 #endif /* UNIV_DEBUG */
 
-/*******************************************************************//**
-Check if any of the tables locked by this transaction are being altered
-by online DDL, this is a temporary work around for bug#16503490.
-@return true if they are being altered */
-UNIV_INTERN
-bool
-lock_tables_are_being_altered(
-/*==========================*/
-	const trx_t*	trx)	/*!< in: transaction */
-	__attribute__((warn_unused_result));
-
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
