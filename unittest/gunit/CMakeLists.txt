@@ -237,6 +237,7 @@ SET(TESTS
   mysys_lf
   mysys_my_atomic
   mysys_my_malloc
+  mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_vsnprintf
   mysys_my_write
