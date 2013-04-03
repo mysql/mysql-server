@@ -263,6 +263,25 @@ function readResultRow(op) {
 }
 
 
+function buildValueObject(op) {
+  udebug.log("buildValueObject");
+  var VOC = op.tableHandler.ValueObject;
+  var DOC = op.tableHandler.newDomainObject;
+  
+  if(VOC) {
+    op.result.value = new VOC(op.buffers.row);
+    /* The user's constructor is called on the new value: */
+    if(DOC) {
+      DOC.call(op.result.value);
+    }
+  }
+  else {
+    assert("NO VOC!");
+    process.exit();
+  }
+}
+
+
 function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log("buildOperationResult");
   var op_ndb_error, result_code;
@@ -312,7 +331,8 @@ function buildOperationResult(transactionHandler, op, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-      readResultRow(op);
+      // readResultRow(op);
+      buildValueObject(op);
     } 
   }
   stats.incr( [ "result_code", result_code ] );
@@ -340,16 +360,55 @@ function completeExecutedOps(dbTxHandler, execMode, operationsList) {
 }
 
 
+function storeNativeConstructorInMapping(dbTableHandler) {
+  var i, nfields, record, fieldNames;
+  var VOC, DOC;  // Value Object Constructor, Domain Object Constructor
+  if(dbTableHandler.ValueObject) { 
+    return;
+  }
+  /* Step 1: Create Record
+     getRecordForMapping(table, ndb, nColumns, columns array)
+  */
+  nfields = dbTableHandler.fieldNumberToColumnMap.length;
+  record = adapter.impl.DBDictionary.getRecordForMapping(
+    dbTableHandler.dbTable,
+    dbTableHandler.dbTable.per_table_ndb,
+    nfields,
+    dbTableHandler.fieldNumberToColumnMap
+  );
+
+  /* Step 2: Get NdbRecordObject Constructor
+    getValueObjectConstructor(record, fieldNames, typeConverters)
+  */
+  fieldNames = {};
+  for(i = 0 ; i < nfields ; i++) {
+    fieldNames[i] = dbTableHandler.resolvedMapping.fields[i].fieldName;
+  }
+  VOC = adapter.impl.getValueObjectConstructor(record, fieldNames);
+
+  /* Apply the user's prototype */
+  DOC = dbTableHandler.newObjectConstructor;
+  if(DOC && DOC.prototype) {
+    VOC.prototype = DOC.prototype;
+  }
+
+  /* Store the VOC in the mapping */
+  dbTableHandler.ValueObject = VOC;
+}
+
 function verifyIndexHandler(dbIndexHandler) {
   if(! dbIndexHandler.tableHandler) { throw ("Invalid dbIndexHandler"); }
 }
-
 
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   udebug.log("newReadOperation", keys);
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler, null);
   op.keys = keys;
+
+  if(! dbIndexHandler.tableHandler.NativeConstructor) {
+    storeNativeConstructorInMapping(dbIndexHandler.tableHandler);
+  }
 
   assert(doc.LockModes.indexOf(lockMode) !== -1);
   if(op.index.isPrimaryKey || lockMode === "EXCLUSIVE") {

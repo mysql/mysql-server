@@ -29,11 +29,13 @@ using namespace v8;
 
 class ColumnProxy {
 public:
-  ColumnProxy(const NdbDictionary::Column *, Handle<Object> typeConverter);
+  ColumnProxy();
+  ~ColumnProxy();
+  void setColumn(const NdbDictionary::Column *);
+  void setTypeConverter(Handle<Object> typeConverter);
   Handle<Value> get(const NdbDictionary::Column *, char *, size_t);
   void set(Handle<Value>);
-  Handle<Value> write(const NdbDictionary::Column *, char *, size_t);
-  ~ColumnProxy();
+  Handle<Value> write(Record *, int, char *);
 
 private:
   Persistent<Object> typeConverter;
@@ -44,4 +46,15 @@ private:
   bool hasReadConverter;
   bool hasWriteConverter;
 };
+
+
+inline ColumnProxy::ColumnProxy() :
+  isLoaded(false), isDirty(false), 
+  hasReadConverter(false), hasWriteConverter(false) 
+{}
+
+inline void ColumnProxy::setColumn(const NdbDictionary::Column * column) 
+{
+  encoder = getEncoderForColumn(column);
+}
 
