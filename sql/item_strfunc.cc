@@ -4271,7 +4271,7 @@ String *Item_func_uuid::val_str(String *str)
       *--s=_dig_vec_lower[mac[i] >> 4];
     }
     randominit(&uuid_rand, tmp + (ulong) server_start_time,
-               tmp + (ulong) IF_WIN(GetCurrentProcessId(), getpid()));
+	       tmp + (ulong) thd->status_var.bytes_sent);
     set_clock_seq_str();
   }
 
