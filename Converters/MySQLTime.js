@@ -39,7 +39,7 @@ MySQLTime.prototype = {
   microsec : 0,
 };
 
-MySQLTime.prototype.initializeFromJsDate = function(jsdate) {
+MySQLTime.prototype.initializeFromJsDateUTC = function(jsdate) {
   this.year     = jsdate.getUTCFullYear();
   this.month    = jsdate.getUTCMonth() + 1;
   this.day      = jsdate.getUTCDate();
@@ -50,15 +50,33 @@ MySQLTime.prototype.initializeFromJsDate = function(jsdate) {
   return this;
 };
 
-MySQLTime.prototype.toJsDate = function() {
+MySQLTime.prototype.initializeFromJsDateLocal = function(jsdate) {
+  this.year     = jsdate.getFullYear();
+  this.month    = jsdate.getMonth() + 1;
+  this.day      = jsdate.getDate();
+  this.hour     = jsdate.getHours();
+  this.minute   = jsdate.getMinutes();
+  this.second   = jsdate.getSeconds();
+  this.microsec = jsdate.getMilliseconds() * 1000;
+  return this;
+}
+
+MySQLTime.prototype.toJsDateUTC = function() {
   var utcdate = Date.UTC(this.year, this.month - 1, this.day,
                          this.hour, this.minute, this.second,
                          this.microsec / 1000);
   return new Date(utcdate);
 };
 
+MySQLTime.prototype.toJsDateLocal = function() {
+  return new Date(this.year, this.month - 1, this.day,
+                  this.hour, this.minute, this.second,
+                  this.microsec / 1000);
+};
+
 MySQLTime.initializeFromNdb = function(dbTime) {
-  dbTime.toJsDate = MySQLTime.prototype.toJsDate;
+  dbTime.toJsDateUTC = MySQLTime.prototype.toJsDateUTC;
+  dbTime.toJsDateLocal = MySQLTime.prototype.toJsDateLocal;
   return dbTime;
 }
 

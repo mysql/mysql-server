@@ -216,6 +216,16 @@ Test.prototype.errorIfError = function(val) {
   }
 };
 
+/* Value must be defined and not-null 
+   Function returns true if there was no error; false on error 
+*/
+Test.prototype.errorIfUnset = function(message, value) {
+  var r = (typeof val === 'undefined' || val === null); 
+  if(r) {
+    this.errorMessages += message;
+  }
+  return ! r;
+}
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
