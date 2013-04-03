@@ -9,6 +9,8 @@ create table if not exists integraltypes (
   tbigint bigint not null default 0,
   
   unique key(tint),
+  unique key(ttinyint) using hash,
+  key (tsmallint),
   primary key(id)
 
 ) ENGINE=ndbcluster;

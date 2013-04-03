@@ -18,50 +18,51 @@
  02110-1301  USA
  */
 
-var udebug = unified_debug.getLogger("integraltypes/QueryTableScan.js");
+var udebug = unified_debug.getLogger("integraltypes/QueryPrimaryIndexScan.js");
 
 var t0 = new harness.ConcurrentTest('test');
 t0.run = function() {
   this.pass();
 };
 
-var q1 = {p1: 4, p2: 6, expected: [4, 5, 6], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.ge(qdt.param('p1')).and(qdt.ttinyint.le(qdt.param('p2')));
+var q1 = {p1: 4, p2: 6, expected: [4, 5, 6], queryType: 2, ordered: false, predicate: function(qdt) {
+  return qdt.id.ge(qdt.param('p1')).and(qdt.id.le(qdt.param('p2')));
 }};
 
-var q2 = {p1: 3, p2: 7, expected: [4, 5, 6], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.gt(qdt.param('p1')).and(qdt.ttinyint.lt(qdt.param('p2')));
+var q2 = {p1: 3, p2: 7, expected: [4, 5, 6], queryType: 2, ordered: false, predicate: function(qdt) {
+  return qdt.id.gt(qdt.param('p1')).and(qdt.id.lt(qdt.param('p2')));
 }};
 
-var q3 = {p1: 3, p2: 7, expected: [7], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.ne(qdt.param('p1')).and(qdt.ttinyint.eq(qdt.param('p2')));
+var q3 = {p1: 3, p2: 7, expected: [7], queryType: 2, ordered: false, predicate: function(qdt) {
+  return qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2')));
 }};
 
 var q4 = {p1: 8, p2: 2, expected: [0, 1, 2, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.ge(qdt.param('p1')).or(qdt.ttinyint.le(qdt.param('p2')));
+  return qdt.id.ge(qdt.param('p1')).or(qdt.id.le(qdt.param('p2')));
 }};
 
-var q5 = {p1: 3, p2: 7, expected: [7, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.gt(qdt.param('p1')).and(qdt.not((qdt.ttinyint.lt(qdt.param('p2')))));
+var q5 = {p1: 3, p2: 7, expected: [7, 8, 9], queryType: 2, ordered: false, predicate: function(qdt) {
+  return qdt.id.gt(qdt.param('p1')).and(qdt.not((qdt.id.lt(qdt.param('p2')))));
 }};
 
 var q6 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.not(qdt.ttinyint.ne(qdt.param('p1')).and(qdt.ttinyint.eq(qdt.param('p2'))));
+  return qdt.not(qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2'))));
 }};
 
 var q7 = {p1: 3, p2: 7, expected: [0, 1, 2, 3, 4, 5, 6, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
-  return (qdt.ttinyint.ne(qdt.param('p1')).and(qdt.ttinyint.eq(qdt.param('p2')))).not();
+  return (qdt.id.ne(qdt.param('p1')).and(qdt.id.eq(qdt.param('p2')))).not();
 }};
 
-var q8 = {p1: 3, p2: 7, expected: [4, 5, 6, 7], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.gt(qdt.param('p1')).andNot((qdt.ttinyint.gt(qdt.param('p2'))));
+var q8 = {p1: 3, p2: 7, expected: [4, 5, 6, 7], queryType: 2, ordered: false, predicate: function(qdt) {
+  return qdt.id.gt(qdt.param('p1')).andNot((qdt.id.gt(qdt.param('p2'))));
 }};
 
 var q9 = {p1: 7, p2: 2, expected: [0, 1, 8, 9], queryType: 3, ordered: false, predicate: function(qdt) {
-  return qdt.ttinyint.gt(qdt.param('p1')).orNot((qdt.ttinyint.ge(qdt.param('p2'))));
+  return qdt.id.gt(qdt.param('p1')).orNot((qdt.id.ge(qdt.param('p2'))));
 }};
 
 var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8, q9];
+//var queryTests = [q1];
 
 /***** Build and run queries ***/
 var testQueries = new harness.ConcurrentTest("testQueries");
@@ -79,8 +80,7 @@ testQueries.run = function() {
         // each query test gets its own query domain type
         session.createQuery(from, function(err, q) {
           if (err) {
-            testCase.appendErrorMessage('QueryTableScanTest.testQueries ' + queryTest.testName +
-                ' returned error: ' + err);
+            testCase.appendErrorMessage('QueryTableScanTest.testQueries ' + queryTest.testName + ' returned error: ' + err);
             --testCount;
             return;
           }
@@ -88,8 +88,7 @@ testQueries.run = function() {
           testCase.errorIfNotEqual('Wrong query type for ' + queryTest.testName,
               queryTest.queryType, q.mynode_query_domain_type.queryType);
           q.execute(queryTest, function(err, results, queryTest) {
-            udebug.log_detail('QueryTableScanTest.testQueries ' + queryTest.testName +
-                ' results.length: ' + results.length);
+            udebug.log_detail('QueryTableScanTest.testQueries ' + queryTest.testName + ' results.length: ' + results.length);
             // check results
             // get the result ids in an array
             for (j = 0; j < results.length; ++j) {

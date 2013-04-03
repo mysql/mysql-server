@@ -144,7 +144,7 @@ checkSource("impl/mysql/mysql_service_provider.js");
 checkSource("impl/mysql/MySQLConnectionPool.js");
 checkSource("impl/mysql/MySQLConnection.js");
 checkSource("impl/mysql/MySQLDictionary.js",
-    166); // Line 166[7]: Missing 'break' after 'case'
+    168); // Line 166[7]: Missing 'break' after 'case'
 
 checkSource("impl/ndb/ndb_service_provider.js");
 checkSource("impl/ndb/NdbConnection.js");

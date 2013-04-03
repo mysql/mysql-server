@@ -619,6 +619,8 @@ function createDeleteSQL(dbTableHandler, index) {
           deleteSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ?';
           separator = ' AND ';
         }
+        // for unique btree indexes the first one is the unique index we are interested in
+        break;
       }
     }
   }
@@ -661,6 +663,8 @@ function createSelectSQL(dbTableHandler, index) {
           whereSQL += separator + columns[indexMetadata.columnNumbers[j]].name + ' = ? ';
           separator = ' AND ';
         }
+        // for unique btree indexes the first one is the unique index we are interested in
+        break;
       }
     }
     selectSQL += whereSQL;
@@ -721,26 +725,26 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 
 
 exports.DBSession.prototype.buildScanOperation = function(queryDomainType, parameterValues, transaction, callback) {
-  udebug.log_detail('dbSession.buildTableScanOperation with queryDomainType:', queryDomainType,
+  udebug.log_detail('dbSession.buildScanOperation with queryDomainType:', queryDomainType,
       'parameterValues', parameterValues);
   var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
   getMetadata(dbTableHandler);
   // add the WHERE clause to the sql
   var whereSQL = ' WHERE ' + queryDomainType.mynode_query_domain_type.predicate.getSQL().sqlText;
-  var selectSQL = dbTableHandler.mysql.selectTableScanSQL + whereSQL;
-  
+  var scanSQL = dbTableHandler.mysql.selectTableScanSQL + whereSQL;
+  udebug.log_detail('dbSession.buildScanOperation sql', scanSQL, 'parameter values', parameterValues);
   // resolve parameters
   var sql = queryDomainType.mynode_query_domain_type.predicate.getSQL();
   var formalParameters = sql.formalParameters;
   var sqlParameters = [];
-  udebug.log_detail('MySQLConnection.DBSession.buildScanOperation boundParameters:', formalParameters);
+  udebug.log_detail('MySQLConnection.DBSession.buildScanOperation formalParameters:', formalParameters);
   var i;
   for (i = 0; i < formalParameters.length; ++i) {
     var parameterName = formalParameters[i].name;
     var value = parameterValues[parameterName];
     sqlParameters.push(value);
   }
-  return new ScanOperation(dbTableHandler, selectSQL, sqlParameters, callback);
+  return new ScanOperation(dbTableHandler, scanSQL, sqlParameters, callback);
 };
 
 

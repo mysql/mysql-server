@@ -661,6 +661,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
         result = dbOperation.result.value;
       }
       if (result !== null) {
+        // TODO: filter in memory if the adapter didn't filter all conditions
         resultList = [result];
       } else {
         resultList = [];
@@ -678,6 +679,7 @@ exports.UserContext.prototype.executeQuery = function(queryDomainType) {
       userContext.applyCallback(error, null);
     } else {
       udebug.log_detail('executeQuery.executeQueryScanOnResult', dbOperation.result.value);
+      // TODO: filter in memory if the adapter didn't filter all conditions
       userContext.applyCallback(null, dbOperation.result.value);      
     }
   }
