@@ -2944,7 +2944,7 @@ btr_cur_del_mark_set_clust_rec(
 
 	if (dict_index_is_online_ddl(index)) {
 		row_log_table_delete(
-			rec, index, offsets,
+			rec, index, offsets, false,
 			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
 					+ rec));
 	}
@@ -4597,6 +4597,8 @@ alloc_another:
 						page_no, MLOG_4BYTES, &mtr);
 				}
 
+			} else if (dict_index_is_online_ddl(index)) {
+				row_log_table_blob_alloc(index, page_no);
 			}
 
 			if (page_zip) {
@@ -4933,13 +4935,17 @@ btr_free_externally_stored_field(
 					X-latch to the index tree */
 {
 	page_t*		page;
-	ulint		space_id;
+	const ulint	space_id	= mach_read_from_4(
+		field_ref + BTR_EXTERN_SPACE_ID);
+	const ulint	start_page	= mach_read_from_4(
+		field_ref + BTR_EXTERN_PAGE_NO);
 	ulint		rec_zip_size = dict_table_zip_size(index->table);
 	ulint		ext_zip_size;
 	ulint		page_no;
 	ulint		next_page_no;
 	mtr_t		mtr;
 
+	ut_ad(dict_index_is_clust(index));
 	ut_ad(mtr_memo_contains(local_mtr, dict_index_get_lock(index),
 				MTR_MEMO_X_LOCK));
 	ut_ad(mtr_memo_contains_page(local_mtr, field_ref,
@@ -4956,7 +4962,7 @@ btr_free_externally_stored_field(
 		return;
 	}
 
-	space_id = mach_read_from_4(field_ref + BTR_EXTERN_SPACE_ID);
+	ut_ad(space_id == index->space);
 
 	if (UNIV_UNLIKELY(space_id != dict_index_get_space(index))) {
 		ext_zip_size = fil_space_get_zip_size(space_id);
@@ -4986,8 +4992,7 @@ btr_free_externally_stored_field(
 
 		btr_blob_dbg_t	b;
 
-		b.blob_page_no = mach_read_from_4(
-			field_ref + BTR_EXTERN_PAGE_NO);
+		b.blob_page_no = start_page;
 
 		if (rec) {
 			/* Remove the reference from the record to the
@@ -5041,6 +5046,10 @@ btr_free_externally_stored_field(
 			mtr_commit(&mtr);
 
 			return;
+		}
+
+		if (page_no == start_page && dict_index_is_online_ddl(index)) {
+			row_log_table_blob_free(index, start_page);
 		}
 
 		ext_block = buf_page_get(space_id, ext_zip_size, page_no,

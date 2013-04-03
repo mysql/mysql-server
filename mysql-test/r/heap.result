@@ -169,7 +169,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	btn	NULL	NULL	NULL	14	Using where
 explain select * from t1 where btn="a" and new_col="a";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	btn	btn	11	const,const	2	Using where
+1	SIMPLE	t1	ref	btn	btn	11	const,const	2	NULL
 drop table t1;
 CREATE TABLE t1 (
 a int default NULL,
@@ -367,10 +367,10 @@ count(*)
 9
 explain select count(*) from t1 where v='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	10	Using where
+1	SIMPLE	t1	ref	v	v	13	const	10	NULL
 explain select count(*) from t1 where c='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c	c	11	const	10	Using where
+1	SIMPLE	t1	ref	c	c	11	const	10	NULL
 explain select count(*) from t1 where t='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	t	t	13	const	10	Using where
@@ -399,7 +399,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	10	Using where
+1	SIMPLE	t1	ref	v	v	13	const	10	NULL
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -590,10 +590,10 @@ count(*)
 10
 explain select count(*) from t1 where v='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	#	Using where
+1	SIMPLE	t1	ref	v	v	13	const	#	NULL
 explain select count(*) from t1 where c='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c	c	11	const	#	Using where
+1	SIMPLE	t1	ref	c	c	11	const	#	NULL
 explain select count(*) from t1 where t='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	t	t	13	const	#	Using where
@@ -622,7 +622,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	#	Using where
+1	SIMPLE	t1	ref	v	v	13	const	#	NULL
 drop table t1;
 create table t1 (a char(10), unique using btree (a)) engine=heap;
 insert into t1 values ('a');
