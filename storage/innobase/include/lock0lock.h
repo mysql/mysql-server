@@ -449,6 +449,7 @@ lock_sec_rec_cons_read_sees(
 	const rec_t*		rec,	/*!< in: user record which
 					should be read or passed over
 					by a read cursor */
+	const dict_index_t*     index,  /*!< in: index */
 	const read_view_t*	view)	/*!< in: consistent read view */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
