@@ -344,7 +344,7 @@ EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	k1	k1	3015	const,const,const,const,const,const	#	Using where; Using index
+1	SIMPLE	t1	ref	k1	k1	3015	const,const,const,const,const,const	#	Using index
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';

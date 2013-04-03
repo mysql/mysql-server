@@ -2046,10 +2046,10 @@ a
 BB
 EXPLAIN SELECT a FROM t1 WHERE a='AA' GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	7	const	3	Using where; Using index
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	7	const	3	Using index
 EXPLAIN SELECT a FROM t1 WHERE a='BB' GROUP BY a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	PRIMARY	PRIMARY	7	const	1	Using where; Using index
+1	SIMPLE	t1	ref	PRIMARY	PRIMARY	7	const	1	Using index
 SELECT DISTINCT a FROM t1 WHERE a='BB';
 a
 BB
