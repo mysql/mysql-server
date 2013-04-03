@@ -1,0 +1,27 @@
+
+{
+  "name"        : "mysql-js"
+  ,
+  "version"     : "0.0.165-alpha"
+  ,  
+  "description" : "Lightweight object mapping layer for MySQL and MySQL Cluster"
+  ,
+  "keywords"    : ["mysql", "cluster", "mysql cluster", "ndb", "mapping" ]
+  ,
+  "homepage"    : ""
+  ,
+  "bugs"        : {}
+  ,
+  "contributors": [ "John David Duncan <john.duncan@oracle.com>" ,
+                    "Craig Russell <craig.russell@oracle.com>" ]
+  ,
+  "main"        : "Adapter/api/mynode"
+  ,
+  "scripts"     : {"preinstall" : "setup/build.sh" }
+  ,
+  "dependencies": []
+  ,
+  "repository"  : {}
+  ,
+  "os"          : [ "!win32" ]
+}
