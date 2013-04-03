@@ -9734,7 +9734,7 @@ int ha_ndbcluster::create(const char *name,
 
   if (!is_truncate && my_errno == 0)
   {
-    my_errno= create_fks(thd, ndb, form);
+    my_errno= create_fks(thd, ndb);
   }
 
   if ((is_alter || is_truncate) && my_errno == 0)
@@ -16616,7 +16616,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
 
   if (alter_flags & Alter_inplace_info::ADD_FOREIGN_KEY)
   {
-    int res= create_fks(thd, ndb, 0);
+    int res= create_fks(thd, ndb);
     if (res != 0)
     {
       /*
