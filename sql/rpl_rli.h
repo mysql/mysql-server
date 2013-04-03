@@ -621,6 +621,39 @@ public:
 
   /* MTS submode  */
   Mts_submode* current_mts_submode;
+  int64 mts_last_committed_parent_id;
+  /*
+     The following are used to check if the last group has been appliedi
+     completely, Here is how this works.
+
+     C := coordinator rli
+
+     if (!C->is_new_group)
+     {
+       C->delegated_jobs++;
+       schedule this group.
+     }
+     else
+     {
+       while (C->delegated_jobs > C->jobs_done)
+         mts check_point_routine()...
+      C->delegated_jobs = 1;
+      C->jobs_done= 0;
+      schedule next event...
+     }
+
+     in mts_checkpoint routine
+     {
+       for every job completed by a worker,
+       C->job_done++;
+     }
+     Also since both these are being done by the coordinator, we
+     dont need any locks
+   */
+  bool is_new_group;
+  uint delegated_jobs;
+  uint jobs_done;
+
   /*
     Slave side local seq_no identifying a parent group that being
     the scheduled transaction is considered to be dependent

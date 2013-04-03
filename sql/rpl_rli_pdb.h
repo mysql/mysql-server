@@ -201,7 +201,7 @@ typedef struct st_slave_job_group
 class Slave_committed_queue : public circular_buffer_queue
 {
 public:
-  
+
   bool inited;
 
   /* master's Rot-ev exec */
@@ -211,7 +211,7 @@ public:
      The last checkpoint time Low-Water-Mark
   */
   Slave_job_group lwm;
-  
+
   /* last time processed indexes for each worker */
   DYNAMIC_ARRAY last_done;
 
@@ -224,7 +224,7 @@ public:
   {
     uint k;
     ulonglong l= 0;
-    
+
     if (max >= (ulong) -1 || !circular_buffer_queue::inited_queue)
       return;
     else
@@ -237,7 +237,7 @@ public:
   }
 
   ~Slave_committed_queue ()
-  { 
+  {
     if (inited)
     {
       delete_dynamic(&last_done);

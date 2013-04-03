@@ -4927,7 +4927,12 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   */
   if (cnt == 0)
     goto end;
-
+ /*
+    The workers have completed  cnt jobs from the gaq. This means that we
+    should increment C->jobs_done by cnt.
+  */
+  if (!is_mts_worker(rli->info_thd))
+    rli->jobs_done+= cnt;
 
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
