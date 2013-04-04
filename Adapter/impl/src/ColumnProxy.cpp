@@ -41,14 +41,13 @@ Handle<Value> ColumnProxy::get(char *buffer) {
 void ColumnProxy::set(Handle<Value> newValue) {
   HandleScope scope;
   DEBUG_MARKER(UDEB_DEBUG);
-  Handle<Value> val = newValue;
   
   /* Drop our claim on the old value */
   if(! jsValue.IsEmpty()) jsValue.Dispose();
   
-  isNull = jsValue->IsNull();
+  isNull = newValue->IsNull();
   isDirty = true;  
-  jsValue = Persistent<Value>::New(val);
+  jsValue = Persistent<Value>::New(newValue);
 }
 
 
