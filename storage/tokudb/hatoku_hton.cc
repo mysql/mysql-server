@@ -339,6 +339,10 @@ static void destroy_tokudb_hton_initialized_lock(void)
     rwlock_destroy(&tokudb_hton_initialized_lock);
 }
 
+static SHOW_VAR *toku_global_status_variables = NULL;
+static uint64_t toku_global_status_max_rows;
+static TOKU_ENGINE_STATUS_ROW_S* toku_global_status_rows = NULL;
+
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_init_func");
     int r;
@@ -532,6 +536,15 @@ static int tokudb_init_func(void *p) {
     r = db_env->set_lock_timeout(db_env, tokudb_lock_timeout);
     assert(r == 0);
 
+    r = db_env->get_engine_status_num_rows (db_env, &toku_global_status_max_rows);
+    assert(r==0);
+
+    {
+        const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
+        toku_global_status_variables = (SHOW_VAR*)my_malloc(sizeof(*toku_global_status_variables)*toku_global_status_max_rows, mem_flags);
+        toku_global_status_rows = (TOKU_ENGINE_STATUS_ROW_S*)my_malloc(sizeof(*toku_global_status_rows)*toku_global_status_max_rows, mem_flags);
+    }
+
     r = db_create(&metadata_db, db_env, 0);
     if (r) {
         DBUG_PRINT("info", ("failed to create metadata db %d\n", r));
@@ -559,6 +572,8 @@ static int tokudb_init_func(void *p) {
         }
     }
 
+
+
     tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
     //3938: succeeded, set the init status flag and unlock
@@ -585,6 +600,13 @@ error:
 
 static int tokudb_done_func(void *p) {
     TOKUDB_DBUG_ENTER("tokudb_done_func");
+    {
+        const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
+        my_free(toku_global_status_variables, mem_flags);
+        my_free(toku_global_status_rows, mem_flags);
+        toku_global_status_variables = NULL;
+        toku_global_status_rows = NULL;
+    }
     my_hash_free(&tokudb_open_tables);
     pthread_mutex_destroy(&tokudb_mutex);
     pthread_mutex_destroy(&tokudb_meta_mutex);
@@ -2149,8 +2171,6 @@ static struct st_mysql_information_schema tokudb_user_data_exact_information_sch
 enum { TOKUDB_PLUGIN_VERSION = 0x0400 };
 #define TOKUDB_PLUGIN_VERSION_STR "1024"
 
-static SHOW_VAR *toku_global_status_variables = NULL;
-
 // Retrieves variables for information_schema.global_status.
 // Names (columnname) are automatically converted to upper case, and prefixed with "TOKUDB_"
 static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
@@ -2160,38 +2180,10 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
     uint64_t panic;
     const int panic_string_len = 1024;
     char panic_string[panic_string_len] = {'\0'};
-    uint64_t max_rows;
     fs_redzone_state redzone_state;
-    const int bufsiz = 1024;
-    char buf[bufsiz];
-
-    static uint64_t num_variables = 0;
-    //TODO: See if we can use handlerton memory for this isntead of allocating as needed.  Maybe store directly in handlerton?
-    static void** extras = NULL;
-    static TOKU_ENGINE_STATUS_ROW_S* mystat;
-
-    const myf mem_flags = MY_FAE|MY_WME|MY_ZEROFILL|MY_ALLOW_ZERO_PTR|MY_FREE_ON_ERROR;
-    if (extras != NULL) {
-        assert(num_variables > 0);
-        // Free any additional memory.
-        // TODO: This doesn't leak memory but might cause issues with valgrind?
-        for (uint64_t row = 0; row < num_variables; row++) {
-            if (extras[row] != NULL) {
-                my_free(extras[row], mem_flags);
-                extras[row] = NULL;
-            }
-        }
-    }
-    error = db_env->get_engine_status_num_rows (db_env, &max_rows);
-    if (!toku_global_status_variables || num_variables <= max_rows) {
-        num_variables = max_rows + 1;
-        toku_global_status_variables = (SHOW_VAR*)my_realloc(toku_global_status_variables, sizeof(*toku_global_status_variables)*num_variables, mem_flags);
-        mystat = (TOKU_ENGINE_STATUS_ROW_S*)my_realloc(mystat, sizeof(*mystat)*num_variables, mem_flags);
-        extras = (void**)my_realloc(extras, sizeof(*extras)*num_variables, mem_flags);
-    }
 
     uint64_t num_rows;
-    error = db_env->get_engine_status (db_env, mystat, max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_GLOBAL_STATUS);
+    error = db_env->get_engine_status (db_env, toku_global_status_rows, toku_global_status_max_rows, &num_rows, &redzone_state, &panic, panic_string, panic_string_len, TOKU_GLOBAL_STATUS);
     //TODO: Maybe do something with the panic output?
 #if 0
     if (strlen(panic_string)) {
@@ -2199,6 +2191,7 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
     }
 #endif
     if (error == 0) {
+        assert(num_rows <= toku_global_status_max_rows);
         //TODO: Maybe enable some of the items here: (copied from engine status
 #if 0
         if (panic) {
@@ -2229,54 +2222,55 @@ static int show_tokudb_vars(THD *thd, SHOW_VAR *var, char *buff) {
         //TODO: (optionally) add redzone state, panic, panic string, etc. Right now it's being ignored.
 
         for (uint64_t row = 0; row < num_rows; row++) {
-            SHOW_VAR &status = toku_global_status_variables[row];
-            status.name = mystat[row].columnname;
-            switch (mystat[row].type) {
+            SHOW_VAR &status_var = toku_global_status_variables[row];
+            TOKU_ENGINE_STATUS_ROW_S &status_row = toku_global_status_rows[row];
+
+            status_var.name = status_row.columnname;
+            switch (status_row.type) {
             case FS_STATE:
             case UINT64:
-                status.type = SHOW_LONGLONG;
-                status.value = (char*)&mystat[row].value.num;
+                status_var.type = SHOW_LONGLONG;
+                status_var.value = (char*)&status_row.value.num;
                 break;
             case CHARSTR:
-                status.type = SHOW_CHAR;
-                status.value = (char*)mystat[row].value.str;
+                status_var.type = SHOW_CHAR;
+                status_var.value = (char*)status_row.value.str;
                 break;
             case UNIXTIME:
                 {
-                    status.type = SHOW_CHAR;
-                    time_t t = mystat[row].value.num;
+                    status_var.type = SHOW_CHAR;
+                    time_t t = status_row.value.num;
                     char tbuf[26];
-                    snprintf(buf, bufsiz, "%.24s", ctime_r(&t, tbuf));
-                    //Need some persistent memory, so copy it.
-                    extras[row] = my_strdup(buf, mem_flags);
-                    status.value = (char*)extras[row];
+                    // Reuse the memory in status_row. (It belongs to us).
+                    snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "%.24s", ctime_r(&t, tbuf));
+                    status_var.value = (char*)&status_row.value.datebuf[0];
                 }
                 break;
             case TOKUTIME:
                 {
-                    status.type = SHOW_DOUBLE;
-                    double t = tokutime_to_seconds(mystat[row].value.num);
-                    // Reuse the memory in mystat[row]. (It belongs to us).
-                    mystat[row].value.dnum = t;
-                    status.value = (char*)&mystat[row].value.dnum;
+                    status_var.type = SHOW_DOUBLE;
+                    double t = tokutime_to_seconds(status_row.value.num);
+                    // Reuse the memory in status_row. (It belongs to us).
+                    status_row.value.dnum = t;
+                    status_var.value = (char*)&status_row.value.dnum;
                 }
                 break;
             case PARCOUNT:
                 {
-                    status.type = SHOW_LONGLONG;
-                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
-                    // Reuse the memory in mystat[row]. (It belongs to us).
-                    mystat[row].value.num = v;
-                    status.value = (char*)&mystat[row].value.num;
+                    status_var.type = SHOW_LONGLONG;
+                    uint64_t v = read_partitioned_counter(status_row.value.parcount);
+                    // Reuse the memory in status_row. (It belongs to us).
+                    status_row.value.num = v;
+                    status_var.value = (char*)&status_row.value.num;
                 }
                 break;
             default:
                 {
-                    status.type = SHOW_CHAR;
-                    snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d", mystat[row].type);
-                    //Need some persistent memory, so copy it.
-                    extras[row] = my_strdup(buf, mem_flags);
-                    status.value = (char*)extras[row];
+                    status_var.type = SHOW_CHAR;
+                    // Reuse the memory in status_row.datebuf. (It belongs to us).
+                    // UNKNOWN TYPE: %d fits in 26 bytes (sizeof datebuf) for any integer.
+                    snprintf(status_row.value.datebuf, sizeof(status_row.value.datebuf), "UNKNOWN TYPE: %d", status_row.type);
+                    status_var.value = (char*)&status_row.value.datebuf[0];
                 }
                 break;
             }
