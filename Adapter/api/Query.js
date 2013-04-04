@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global unified_debug */
+/*global unified_debug, util */
 
 "use strict";
 
@@ -263,14 +263,24 @@ AbstractQueryPredicate.prototype.and = function(predicate) {
   return new QueryAnd(this, predicate);
 };
 
-AbstractQueryPredicate.prototype.or = function(predicate) {
+AbstractQueryPredicate.prototype.andNot = function(predicate) {
   // TODO validate parameter
+  return new QueryAnd(this, new QueryNot(predicate));
+};
+
+AbstractQueryPredicate.prototype.or = function(predicate) {
+  // TODO validate parameter for OR
   return new QueryOr(this, predicate);
 };
 
-AbstractQueryPredicate.prototype.not = function(predicate) {
+AbstractQueryPredicate.prototype.orNot = function(predicate) {
   // TODO validate parameter
-  return new QueryNot(this, predicate);
+  return new QueryOr(this, new QueryNot(predicate));
+};
+
+AbstractQueryPredicate.prototype.not = function() {
+  // TODO validate parameter
+  return new QueryNot(this);
 };
 
 AbstractQueryPredicate.prototype.getTopLevelPredicates = function() {
@@ -525,6 +535,10 @@ QueryAnd = function(left, right) {
 
 QueryAnd.prototype = new AbstractQueryNaryPredicate();
 
+QueryAnd.prototype.getTopLevelPredicates = function() {
+  return this.predicates;
+};
+
 /** Override the "and" function to collect all predicates in one variable. */
 QueryAnd.prototype.and = function(predicate) {
   this.predicates.push(predicate);
@@ -542,6 +556,10 @@ QueryOr = function(left, right) {
 
 QueryOr.prototype = new AbstractQueryNaryPredicate();
 
+QueryOr.prototype.getTopLevelPredicates = function() {
+  return [];
+};
+
 /** Override the "or" function to collect all predicates in one variable. */
 QueryOr.prototype.or = function(predicate) {
   this.predicates.push(predicate);
@@ -554,7 +572,7 @@ QueryOr.prototype.or = function(predicate) {
 QueryNot = function(left) {
   this.operator = ' NOT ';
   this.predicates = [left];
-  udebug.log_detail('QueryNot<ctor>', this);
+  udebug.log_detail('QueryNot<ctor>', this, 'parameter', left);
 };
 
 QueryNot.prototype = new AbstractQueryUnaryPredicate();
@@ -644,6 +662,7 @@ CandidateIndex.prototype.score = function() {
  * 
  */
 var QueryHandler = function(dbTableHandler, predicate) {
+  udebug.log_detail('QueryHandler<ctor>', util.inspect(predicate));
   this.dbTableHandler = dbTableHandler;
   this.predicate = predicate;
   var indexes = dbTableHandler.dbTable.indexes;

@@ -720,20 +720,23 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 };
 
 
-exports.DBSession.prototype.buildTableScanOperation = function(queryDomainType, parameterValues, transaction, callback) {
-  udebug.log('dbSession.buildTableScanOperation with queryDomainType:', queryDomainType,
+exports.DBSession.prototype.buildScanOperation = function(queryDomainType, parameterValues, transaction, callback) {
+  udebug.log_detail('dbSession.buildTableScanOperation with queryDomainType:', queryDomainType,
       'parameterValues', parameterValues);
   var dbTableHandler = queryDomainType.mynode_query_domain_type.dbTableHandler;
   getMetadata(dbTableHandler);
   // add the WHERE clause to the sql
   var whereSQL = ' WHERE ' + queryDomainType.mynode_query_domain_type.predicate.getSQL().sqlText;
   var selectSQL = dbTableHandler.mysql.selectTableScanSQL + whereSQL;
+  
   // resolve parameters
+  var sql = queryDomainType.mynode_query_domain_type.predicate.getSQL();
+  var formalParameters = sql.formalParameters;
   var sqlParameters = [];
-  var boundParameters = queryDomainType.mynode_query_domain_type.predicate.getSQL().parameters;
+  udebug.log_detail('MySQLConnection.DBSession.buildScanOperation boundParameters:', formalParameters);
   var i;
-  for (i = 0; i < boundParameters.length; ++i) {
-    var parameterName = boundParameters[i].name;
+  for (i = 0; i < formalParameters.length; ++i) {
+    var parameterName = formalParameters[i].name;
     var value = parameterValues[parameterName];
     sqlParameters.push(value);
   }
