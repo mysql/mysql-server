@@ -27,6 +27,31 @@
 #define NAME_LEN                (NAME_CHAR_LEN*SYSTEM_CHARSET_MBMAXLEN)
 #define USERNAME_LENGTH         (USERNAME_CHAR_LENGTH*SYSTEM_CHARSET_MBMAXLEN)
 
+/*
+  MDEV-4088
+
+  MySQL (and MariaDB 5.x before the fix) was using the first character of the
+  server version string (as sent in the first handshake protocol packet) to
+  decide on the replication event formats. And for 10.x the first character
+  is "1", which the slave thought comes from some ancient 1.x version
+  (ignoring the fact that the first ever MySQL version was 3.x).
+
+  To support replication to these old clients, we fake the version in the
+  first handshake protocol packet to start from "5.5.5-" (for example,
+  it might be "5.5.5-10.0.1-MariaDB-debug-log".
+
+  On the client side we remove this fake version prefix to restore the
+  correct server version. The version "5.5.5" did not support
+  pluggable authentication, so any version starting from "5.5.5-" and
+  claiming to support pluggable auth, must be using this fake prefix.
+*/
+#ifdef EMBEDDED_LIBRARY
+#define RPL_VERSION_HACK ""
+#else
+/* this version must be the one that *does not* support pluggable auth */
+#define RPL_VERSION_HACK "5.5.5-"
+#endif
+
 #define SERVER_VERSION_LENGTH 60
 #define SQLSTATE_LENGTH 5
 
@@ -144,6 +169,8 @@ enum enum_server_command
 #define CLIENT_SECURE_CONNECTION 32768  /* New 4.1 authentication */
 #define CLIENT_MULTI_STATEMENTS (1UL << 16) /* Enable/disable multi-stmt support */
 #define CLIENT_MULTI_RESULTS    (1UL << 17) /* Enable/disable multi-results */
+
+#define CLIENT_PLUGIN_AUTH  (1UL << 19) /* Client supports plugin authentication */
 
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
