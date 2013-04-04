@@ -164,19 +164,28 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   Local<Object> o;
   Local<Object> valueObj;
 
-  /* "Trust but verify" that we really have a Value Object */
+  /* Verify that we really have a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
   if(v->IsNull()) {
-    DEBUG_PRINT("Expected HelperSpec value_obj");
+    DEBUG_PRINT("Expected non-null value_obj in helper");
     return Null();
   }
   valueObj = v->ToObject();
   
   if(! objectHoldsWrappedPointer(valueObj)) {
+    DEBUG_PRINT("Expected value_obj to hold a wrapped pointer");
+    return Null();
+  }
+
+  /* Now we trust the user's value enough to cast it to an NRO.
+  */
+  NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
   
-  
+  /* Set the key record and key buffer */
   setKeysInOp(spec, op);
   
+  op.row_record = nro->getRecord();
+  op.row_buffer = nro->getBuffer();
 
 }
 

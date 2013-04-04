@@ -18,6 +18,8 @@
       [
         '<(mysql_path)/include',
         '<(mysql_path)/include/mysql',
+        '<(mysql_path)/include/mysql/storage/ndb',
+        '<(mysql_path)/include/mysql/storage/ndb/ndbapi',
         '<(mysql_path)/include/storage/ndb',
         '<(mysql_path)/include/storage/ndb/ndbapi',
         'Adapter/impl/include'
@@ -79,6 +81,7 @@
             'libraries':
             [
               "-L<(mysql_path)/lib",
+              "-L<(mysql_path)/lib/mysql",
               "-lndbclient",
               "-lmysqlclient"
             ]

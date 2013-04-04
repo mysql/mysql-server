@@ -218,7 +218,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   */
   if(isVOwrite) {
     helperSpec[OpHelper.value_obj] = this.values;
-  }
+  }  
   else {
     /* All non-VO operations get a row record */
     helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;

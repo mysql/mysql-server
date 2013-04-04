@@ -32,6 +32,10 @@ public:
   void setField(int nField, Handle<Value> value);
   Handle<Value> prepare();
 
+  Record * getRecord() const;
+  char * getBuffer() const;
+  const uint8_t * getMask() const;
+
 private:
   Record * record;
   char * buffer;
@@ -62,4 +66,18 @@ inline void NdbRecordObject::setField(int nField, Handle<Value> value) {
   proxy[nField].set(value);
 }
 
+
+inline Record * NdbRecordObject::getRecord() const {
+  return record;
+}
+
+
+inline char * NdbRecordObject::getBuffer() const {
+  return buffer;
+}
+
+
+inline const uint8_t * NdbRecordObject::getMask() const {
+  return & row_mask[0];
+}
 
