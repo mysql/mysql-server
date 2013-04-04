@@ -18,6 +18,8 @@
  02110-1301  USA
  */
 
+var udebug = unified_debug.getLogger("integraltypes/QueryVisitorTest.js");
+
 var t0 = new harness.ConcurrentTest('test');
 t0.run = function() {
   this.pass();
@@ -173,14 +175,22 @@ var q17 = {
 
 var q18 = {
     'predicate': function(qint) {
-      return qint.tint.eq(qint.param('pint_first')).or(qint.tint.eq(qint.param('pint_second'))).not();
+      return qint.tint.eq(qint.param('pint_first')).orNot((qint.tint.eq(qint.param('pint_second'))));
      },
-    'sqlText': ' NOT ((tint = ?) OR (tint = ?))',
+    'sqlText': '(tint = ?) OR ( NOT (tint = ?))',
     'param': 'pint_first,pint_second'
   };
 
 
-var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15, q16, q17, q18];
+var q19 = {
+    'predicate': function(qint) {
+      return qint.tint.eq(qint.param('pint_first')).andNot(qint.tint.eq(qint.param('pint_second')));
+     },
+    'sqlText': '(tint = ?) AND ( NOT (tint = ?))',
+    'param': 'pint_first,pint_second'
+  };
+
+var queryTests = [q1, q2, q3, q4, q5, q6, q7, q8, q9, q10, q11, q12, q13, q14, q15, q16, q17, q18, q19];
 
 /***** Verify that predicates are constructed properly ***/
 var t1 = new harness.ConcurrentTest("testQueryVisitor");
