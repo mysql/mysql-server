@@ -467,10 +467,18 @@ function newUpdateOperation(tx, dbIndexHandler, keys, row) {
 }
 
 
+function newScanOperation(tx, queryHandler, properties) {
+  udebug.log("newScanOperation");
+  var op = new DBOperation(0, tx, queryHandler.dbIndexHandler, queryHandler.dbTableHandler);
+  op.keys = properties;
+  return op;
+}
+
 exports.DBOperation         = DBOperation;
 exports.newReadOperation    = newReadOperation;
 exports.newInsertOperation  = newInsertOperation;
 exports.newDeleteOperation  = newDeleteOperation;
 exports.newUpdateOperation  = newUpdateOperation;
 exports.newWriteOperation   = newWriteOperation;
+exports.newScanOperation    = newScanOperation;
 exports.completeExecutedOps = completeExecutedOps;
