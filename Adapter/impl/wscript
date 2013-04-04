@@ -38,6 +38,7 @@ def build(ctx):
   "src/NdbRecordObject.cpp " +\
   "src/ColumnProxy.cpp " +\
   "src/ColumnHandler.cpp " +\
+  "src/ValueObject.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""

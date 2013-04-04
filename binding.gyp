@@ -44,7 +44,8 @@
          "Adapter/impl/src/NdbTypeEncoders.cpp",
          "Adapter/impl/src/NdbRecordObject.cpp",
          "Adapter/impl/src/ColumnProxy.cpp",
-         "Adapter/impl/src/ColumnHandler.cpp"         
+         "Adapter/impl/src/ColumnHandler.cpp",
+         "Adapter/impl/src/ValueObject.cpp" 
       ],
 
       'conditions': 
