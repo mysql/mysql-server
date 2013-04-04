@@ -427,7 +427,11 @@ cat_file $MYSQLTEST_VARDIR/tmp/ver_output;
 --remove_file $MYSQLTEST_VARDIR/tmp/ver_output
 
 --echo [21]: Test for --debug option , generate the output in mtrchecksum.trace file
---exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+--exec $INNOCHECKSUM --debug="d:o,$MYSQLTEST_VARDIR/mtrchecksum.trace" $MYSQLD_DATADIR/test/tab1.ibd
+
+--file_exists $MYSQLTEST_VARDIR/mtrchecksum.trace
+--list_files $MYSQLTEST_VARDIR *.trace
+
 perl;
 use strict;
 use warnings;
@@ -436,8 +440,8 @@ my $dir = $ENV{'MYSQLTEST_VARDIR'};
 opendir(DIR, $dir) or die $!;
 my $file= 'mtrchecksum.trace';
 # open file in write mode
-open IN_FILE,"<", "$dir/tmp/$file" or die $!;
-open OUT_FILE, ">", "$dir/tmp/tmpfile" or die $!;
+open IN_FILE,"<", "$dir/$file" or die $!;
+open OUT_FILE, ">", "$dir/tmpfile" or die $!;
 while(<IN_FILE>)
 {
  # Replace all intergers to # and complete file path to file name.
@@ -445,22 +449,27 @@ while(<IN_FILE>)
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
  $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
 close(OUT_FILE);
 # move the new content from tmp file to the orginal file.
-move ("$dir/tmp/tmpfile", "$dir/tmp/$file");
+move ("$dir/tmpfile", "$dir/$file");
 closedir(DIR);
 EOF
 
 --echo # Print the contents of trace file.
-cat_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace;
---remove_file $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+cat_file $MYSQLTEST_VARDIR/mtrchecksum.trace;
+--remove_file $MYSQLTEST_VARDIR/mtrchecksum.trace
 
 --echo [22]: test for --debug option with --strict-check=innodb for innochecksum
 --echo : With verbose long option.
 --exec $INNOCHECKSUM --verbose --debug="d:o,$MYSQLTEST_VARDIR/tmp/mtrchecksum.trace" --strict-check=innodb $MYSQLD_DATADIR/test/tab1.ibd 2>$MYSQLTEST_VARDIR/tmp/ver_output
+
+--file_exists $MYSQLTEST_VARDIR/tmp/mtrchecksum.trace
+--list_files $MYSQLTEST_VARDIR/tmp *.trace
+
 perl;
 use strict;
 use warnings;
@@ -478,6 +487,7 @@ while(<IN_FILE>)
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
  $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -533,6 +543,7 @@ while(<IN_FILE>)
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
  $_=~ s/file .+ =/file tab1.ibd =/g;
+  $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -566,6 +577,7 @@ while(<IN_FILE>)
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
  $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);
@@ -599,6 +611,7 @@ while(<IN_FILE>)
  $_=~ s/crc#/crc32/g;
  $_=~ s/Filename =.+/Filename = tab1.ibd/g;
  $_=~ s/file .+ =/file tab1.ibd =/g;
+ $_=~ s/find_type:.+$//g;
  print OUT_FILE $_;
 }
 close(IN_FILE);

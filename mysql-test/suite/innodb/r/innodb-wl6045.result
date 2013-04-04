@@ -131,6 +131,7 @@ write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
 [21]: Test for --debug option , generate the output in mtrchecksum.trace file
+mtrchecksum.trace
 # Print the contents of trace file.
 main: info: Filename = tab1.ibd
 main: info: page::#; log sequence number:first = #; second = #
@@ -154,6 +155,7 @@ main: info: page::#; log sequence number:first = #; second = #
 main: info: Page::# is empty and uncorrupted
 [22]: test for --debug option with --strict-check=innodb for innochecksum
 : With verbose long option.
+mtrchecksum.trace
 # Print the verbose output
 
 Variables (--variable-name=value)
@@ -172,7 +174,7 @@ write                             crc32
 page-type-summary                 FALSE
 page-type-dump                    (No default value)
 # Print the contents of trace file
-find_type: enter: x: 'innodb'  lib: #x#a#
+
 main: info: Filename = tab1.ibd
 main: info: file tab1.ibd = # bytes (# pages)
 main: info: InnoChecksum: checking pages in range # to #
@@ -203,7 +205,7 @@ Fail: page 2 invalid
 Fail: page 3 invalid
 Fail: page 4 invalid
 # Print the contents of trace file.
-find_type: enter: x: 'crc32'  lib: #x#a#
+
 main: info: Filename = tab1.ibd
 main: info: page::#; log sequence number:first = #; second = #
 main: info: page::#; crc32 calculated = #;recorded checksum field# = # recorded checksum field# =#
