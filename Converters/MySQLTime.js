@@ -59,7 +59,7 @@ MySQLTime.prototype.initializeFromJsDateLocal = function(jsdate) {
   this.second   = jsdate.getSeconds();
   this.microsec = jsdate.getMilliseconds() * 1000;
   return this;
-}
+};
 
 MySQLTime.prototype.toJsDateUTC = function() {
   var utcdate = Date.UTC(this.year, this.month - 1, this.day,

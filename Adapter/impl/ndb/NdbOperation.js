@@ -361,7 +361,7 @@ function completeExecutedOps(dbTxHandler, execMode, operationsList) {
 
 
 function storeNativeConstructorInMapping(dbTableHandler) {
-  var i, nfields, record, fieldNames;
+  var i, nfields, record, fieldNames, typeConverters;
   var VOC, DOC;  // Value Object Constructor, Domain Object Constructor
   if(dbTableHandler.ValueObject) { 
     return;
@@ -381,10 +381,13 @@ function storeNativeConstructorInMapping(dbTableHandler) {
     getValueObjectConstructor(record, fieldNames, typeConverters)
   */
   fieldNames = {};
+  typeConverters = {};
   for(i = 0 ; i < nfields ; i++) {
     fieldNames[i] = dbTableHandler.resolvedMapping.fields[i].fieldName;
+    typeConverters[i] = dbTableHandler.fieldNumberToColumnMap[i].typeConverter;
   }
-  VOC = adapter.impl.getValueObjectConstructor(record, fieldNames);
+
+  VOC = adapter.impl.getValueObjectConstructor(record, fieldNames, typeConverters);
 
   /* Apply the user's prototype */
   DOC = dbTableHandler.newObjectConstructor;
