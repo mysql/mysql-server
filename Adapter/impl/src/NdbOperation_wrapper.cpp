@@ -39,7 +39,7 @@ using namespace v8;
 
 class NdbOperationEnvelopeClass : public Envelope {
 public:
-  NdbOperationEnvelopeClass() : Envelope("NdbOperation") {
+  NdbOperationEnvelopeClass() : Envelope("const NdbOperation") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", 
                        getNdbError<NdbOperation>);
   }

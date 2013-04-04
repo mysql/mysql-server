@@ -58,9 +58,9 @@ using namespace v8;
  *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
 */
-Envelope NdbDictTableEnv("NdbDictionary::Table");
-Envelope NdbDictColumnEnv("NdbDictionary::Column");
-Envelope NdbDictIndexEnv("NdbDictionary::Index");
+Envelope NdbDictTableEnv("const NdbDictionary::Table");
+Envelope NdbDictColumnEnv("const NdbDictionary::Column");
+Envelope NdbDictIndexEnv("const NdbDictionary::Index");
 
 Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
