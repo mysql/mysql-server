@@ -351,6 +351,7 @@ extern char *master_ssl_cipher, *master_ssl_key;
 int mts_recovery_groups(Relay_log_info *rli);
 bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
                             bool force, bool need_data_lock);
+bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 #endif /* HAVE_REPLICATION */
 
 /* masks for start/stop operations on io and sql slave threads */

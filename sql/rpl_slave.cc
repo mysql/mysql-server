@@ -23,7 +23,6 @@
   @brief Code to run the io thread and the sql thread on the
   replication slave.
 */
-
 #include "sql_priv.h"
 #include "my_global.h"
 #include "rpl_slave.h"
@@ -200,7 +199,6 @@ static int process_io_rotate(Master_info* mi, Rotate_log_event* rev);
 static int process_io_create_file(Master_info* mi, Create_file_log_event* cev);
 static bool wait_for_relay_log_space(Relay_log_info* rli);
 static inline bool io_slave_killed(THD* thd,Master_info* mi);
-static inline bool sql_slave_killed(THD* thd,Relay_log_info* rli);
 static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type);
 static void print_slave_skip_errors(void);
 static int safe_connect(THD* thd, MYSQL* mysql, Master_info* mi);
@@ -1213,7 +1211,7 @@ static bool io_slave_killed(THD* thd, Master_info* mi)
    @return TRUE the killed status is recognized, FALSE a possible killed
            status is deferred.
 */
-static bool sql_slave_killed(THD* thd, Relay_log_info* rli)
+bool sql_slave_killed(THD* thd, Relay_log_info* rli)
 {
   bool ret= FALSE;
   bool is_parallel_warn= FALSE;
@@ -4932,7 +4930,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
     should increment C->jobs_done by cnt.
   */
   if (!is_mts_worker(rli->info_thd))
+  {
+    DBUG_PRINT("info", ("jobs_done this itr=%ld", cnt));
     rli->jobs_done+= cnt;
+  }
 
   /* TODO: 
      to turn the least occupied selection in terms of jobs pieces
@@ -5349,6 +5350,8 @@ pthread_handler_t handle_slave_sql(void *arg)
    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
        (Mts_submode*) new Mts_submode_master();
+  rli->jobs_done= 0;
+  rli->delegated_jobs= 0;
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 
@@ -7064,10 +7067,10 @@ static Log_event* next_event(Relay_log_info* rli)
          MTS checkpoint in the successful read branch
       */
       bool force= (rli->checkpoint_seqno > (rli->checkpoint_group - 1));
-      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force)/* &&
-          We don't ned this in MTS+master parallel slave since this will
-             foil the scheduling logic of coordinator
-          rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC*/)
+      if (rli->is_parallel_exec() && (opt_mts_checkpoint_period != 0 || force) &&
+          /* We don't ned this in MTS+master parallel slave since this will
+             foil the scheduling logic of coordinator */
+          rli->current_mts_submode->get_type() != MTS_PARALLEL_TYPE_BGC)
       {
         ulonglong period= static_cast<ulonglong>(opt_mts_checkpoint_period * 1000000ULL);
         mysql_mutex_unlock(&rli->data_lock);
