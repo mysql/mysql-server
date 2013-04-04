@@ -90,7 +90,7 @@ void gcWeakRefCallback(Persistent<Value>, void*);
 class ColumnHandlerSet {
 public:
   ColumnHandlerSet(int _size) : size(_size), handlers(new ColumnHandler[size]) { }
-  ~ColumnHandlerSet() { delete[] handlers; }  
+  ~ColumnHandlerSet() { delete[] handlers; }
   ColumnHandler * getHandler(int i) { assert(i < size); return & handlers[i]; }
 private:
   int size;
@@ -148,8 +148,7 @@ NdbRecordObject::NdbRecordObject(Record *_record,
 
 NdbRecordObject::~NdbRecordObject() {
   DEBUG_MARKER(UDEB_DEBUG);
-  if(! persistentBufferHandle.IsEmpty()) 
-    persistentBufferHandle.Dispose();
+  persistentBufferHandle.Dispose();
   delete[] proxy;
 }
 
@@ -246,6 +245,7 @@ Handle<Value> nroConstructor(const Arguments &args) {
 
     /* Wrap for JavaScript */
     wrapPointerInObject<NdbRecordObject *>(nro, nroEnvelope, args.This());
+    freeFromGC(nro, args.This());
   }
   else {
     ThrowException(Exception::Error(String::New("must be a called as constructor")));

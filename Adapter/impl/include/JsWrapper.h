@@ -56,13 +56,16 @@ public:
 
 /*****************************************************************
  Create a weak handle for a wrapped object.
- Use it to delete the wrapped object
+ Use it to delete the wrapped object 
  when the GC wants to reclaim the handle.
+ We do not use this on any "const PTR" type.  For example,
+ the "const NdbDictionary::Column *" you get from the dictionary
+ is not a wrapped object you would want to delete, and because
+ the NDBAPI declares it as const the compiler won't let you do it.
 ******************************************************************/
 template<typename PTR> 
 void onGcReclaim(Persistent<Value> notifier, void * param) {
-  PTR * ptr = static_cast<PTR *>(param);
-fprintf(stderr, "GcDESTRUCTO! ");
+  PTR ptr = static_cast<PTR>(param);
   delete ptr;
   notifier.Dispose();
 }
