@@ -323,7 +323,12 @@ global.fail_openSession = function(testCase, callback) {
       return;
     }
     testCase.session = session;
-    callback(session, testCase);
+    try {
+      callback(session, testCase);
+    }
+    catch(e) {
+      testCase.fail(e);
+    }
  });
 };
 

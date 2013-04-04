@@ -121,7 +121,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
 };
 
 
-inline const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *col) {
+const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *col) {
   return AllEncoders[col->getType()];
 }
 
@@ -791,7 +791,7 @@ Handle<Value> DatetimeWriter(const NdbDictionary::Column * col,
   The packed datetime2 integer part is:
    
   1 bit  sign (1= non-negative, 0= negative)     [ALWAYS POSITIVE IN MYSQL 5.6]
- 17 bits year*13+month  (year 0-9999, month 0-12)
+ 17 bits year*13+month  (year 0-9999, month 1-12)
   5 bits day            (0-31)
   5 bits hour           (0-23)
   6 bits minute         (0-59)

@@ -58,9 +58,9 @@ using namespace v8;
  *   The IndexMetadta objects for SECONDARY indexes wrap an NdbDictionary::Index,
  *    -- but IndexMetadta for PK does *not* wrap any native object!
 */
-Envelope NdbDictTableEnv("NdbDictionary::Table");
-Envelope NdbDictColumnEnv("NdbDictionary::Column");
-Envelope NdbDictIndexEnv("NdbDictionary::Index");
+Envelope NdbDictTableEnv("const NdbDictionary::Table");
+Envelope NdbDictColumnEnv("const NdbDictionary::Column");
+Envelope NdbDictIndexEnv("const NdbDictionary::Index");
 
 Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
@@ -156,7 +156,7 @@ class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *,
 {
 private:
   const NdbDictionary::Table * ndb_table;
-  Ndb * ndb_auto_inc;
+  Ndb * per_table_ndb;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
   
@@ -168,7 +168,7 @@ public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
     NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
-    ndb_table(0), ndb_auto_inc(0), idx_list()
+    ndb_table(0), per_table_ndb(0), idx_list()
   {
   }
   
@@ -194,11 +194,10 @@ void GetTableCall::run() {
   dict = ndb->getDictionary();
   ndb_table = dict->getTable(tableName);
   if(ndb_table) {
-    /* Get an Ndb object to manage the table's cache of auto-increment values */
-    if(ndb_table->getNoOfAutoIncrementColumns() > 0) {
-      ndb_auto_inc = new Ndb(& ndb->get_ndb_cluster_connection());
-      ndb_auto_inc->init();
-    }
+    /* Ndb object used to create NdbRecords and to cache auto-increment values */
+    per_table_ndb = new Ndb(& ndb->get_ndb_cluster_connection());
+    per_table_ndb->init();
+
     /* List the indexes */
     return_val = dict->listIndexes(idx_list, tableName);
   }
@@ -295,8 +294,8 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
     table->Set(String::NewSymbol("record"), Record_Wrapper(rec));    
 
     // Autoincrement Cache Impl (also not part of spec)
-    if(ndb_auto_inc) {
-      table->Set(String::NewSymbol("ndb_auto_inc"), Ndb_Wrapper(ndb_auto_inc));
+    if(per_table_ndb) {
+      table->Set(String::NewSymbol("per_table_ndb"), Ndb_Wrapper(per_table_ndb));
     }
     
     // User Callback
@@ -592,6 +591,9 @@ Handle<Value> createJsBuffer(node::Buffer *b, int len) {
 }
 
 
+/* TODO: Probably we don't need the default value itself in JavaScript;
+   merely a flag indicating that the column has a non-null default value
+*/
 Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
   HandleScope scope;
   Handle<Value> v;
@@ -609,12 +611,38 @@ Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
 }
 
 
+/* arg0: TableMetadata wrapping NdbDictionary::Table *
+   arg1: Ndb *
+   arg2: number of columns
+   arg3: array of NdbDictionary::Column *
+*/
+Handle<Value> getRecordForMapping(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  NdbDictionary::Table *table = 
+    unwrapPointer<NdbDictionary::Table *>(args[0]->ToObject());
+  Ndb * ndb = unwrapPointer<Ndb *>(args[1]->ToObject());
+  unsigned int nColumns = args[2]->Int32Value();
+  Record * record = new Record(ndb->getDictionary(), nColumns);
+  for(unsigned int i = 0 ; i < nColumns ; i++) {
+    NdbDictionary::Column * col = 
+      unwrapPointer<NdbDictionary::Column *>
+        (args[3]->ToObject()->Get(i)->ToObject());
+    record->addColumn(col);
+  }
+  record->completeTableRecord(table);
+
+  return scope.Close(Record_Wrapper(record));
+}
+
+
 void DBDictionaryImpl_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   Persistent<Object> dbdict_obj = Persistent<Object>(Object::New());
 
   DEFINE_JS_FUNCTION(dbdict_obj, "listTables", listTables);
   DEFINE_JS_FUNCTION(dbdict_obj, "getTable", getTable);
+  DEFINE_JS_FUNCTION(dbdict_obj, "getRecordForMapping", getRecordForMapping);
 
   target->Set(Persistent<String>(String::NewSymbol("DBDictionary")), dbdict_obj);
 }

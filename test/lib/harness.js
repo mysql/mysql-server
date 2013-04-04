@@ -31,6 +31,11 @@ var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
 var SQL = {};
+var disabledTests = {};
+try {
+  disabledTests = require("../disabled-tests.conf").disabledTests;
+}
+catch(e) {}
 
 /* Test  
 */
@@ -84,6 +89,7 @@ Test.prototype.test = function(result) {
   udebug.log_detail('test starting:', this.suite.name, this.name);
   this.result = result;
   result.listener.startTest(this);
+  var runReturnCode;
 
   /* If a concurrent test has a proxy, then it is considered to be an async 
      test incorporated into some larger test, and it will pass or fail while 
@@ -92,29 +98,33 @@ Test.prototype.test = function(result) {
     return;
   }
 
+  udebug.log_detail('test.run:', this.suite.name, this.name);
   try {
-    udebug.log_detail('test.run:', this.suite.name, this.name);
-    if (!this.run()) {
-      udebug.log_detail(this.name, 'started.');
-      // async test must call Test.pass or Test.fail when done
-      return;
-    }
-    // fail if any error messages have been reported
-    if(! this.skipped) {
-      if (this.errorMessages === '') {
-        udebug.log_detail(this.name, this.suite.name, 'result.pass');
-        result.pass(this);
-      } else {
-        this.failed = true;
-        udebug.log_detail(this.name, this.suite.name, 'result.fail');
-        result.fail(this, this.errorMessages);
-      }
-    }
+    runReturnCode = this.run();
   }
   catch(e) {
-    udebug.log_detail('result.fail');
+    console.log(this.name, 'threw exception & failed');
     this.failed = true;
     result.fail(this, e);
+    return;
+  }
+
+  if(! runReturnCode) {
+    // async test must call Test.pass or Test.fail when done
+    udebug.log(this.name, 'started.');
+    return;
+  }
+
+  // Test ran synchronously.  Fail if any error messages have been reported.
+  if(! this.skipped) {
+    if (this.errorMessages === '') {
+      udebug.log_detail(this.name, 'passed');
+      result.pass(this);
+    } else {
+      this.failed = true;
+      udebug.log_detail(this.name, 'failed');
+      result.fail(this, this.errorMessages);
+    }
   }
 };
 
@@ -216,6 +226,16 @@ Test.prototype.errorIfError = function(val) {
   }
 };
 
+/* Value must be defined and not-null 
+   Function returns true if there was no error; false on error 
+*/
+Test.prototype.errorIfUnset = function(message, value) {
+  var r = (typeof value === 'undefined' || value === null); 
+  if(r) {
+    this.errorMessages += message;
+  }
+  return ! r;
+};
 
 /** Suite
   *  A suite consists of all tests in all test programs in a directory 
@@ -250,7 +270,12 @@ Suite.prototype.addTest = function(filename, test) {
   udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;
-  this.tests.push(test);
+  if(disabledTests && disabledTests[this.filename]) {
+    udebug.log("Skipping ", this.filename, "[DISABLED]");
+  }
+  else {
+    this.tests.push(test);
+  }
   return test;
 };
 

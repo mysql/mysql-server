@@ -26,6 +26,17 @@ function TestData(id) {
   this.cTimestamp = new Date();
 }
 
+function ErrorVerifier(testCase, sqlState) {
+  this.run = function onRead(err, rowRead) {
+    var message = "Expected SQLState " + sqlState;
+    if(testCase.errorIfUnset(message, err && err.cause && err.cause.sqlstate)) 
+    {
+      testCase.errorIfNotEqual("Expected sqlstate", sqlState, err.cause.sqlstate);
+    }
+    testCase.failOnError();
+  };
+}
+
 function ValueVerifier(testCase, field, value) {
   this.run = function onRead(err, rowRead) {
     testCase.errorIfError(err);
@@ -71,7 +82,7 @@ t1.run = function() {
 var t2 = new harness.ConcurrentTest("VerifyDatetimeDefault");
 t2.run = function() {
   var data = new TestData(2);
-  var expect = new Date("November 9 1989 17:00:00 UTC"); // the column default
+  var expect = new Date("Thu, 09 Nov 1989 17:00:00"); // the column default
   this.verifier = new ValueVerifier(this, "cDatetimeDefault", expect);
   fail_openSession(this, InsertFunction(data));
 }
@@ -110,13 +121,13 @@ t5.run = function() {
 }
 
 // cNullableTimestamp 1969.
-// Does MySQL support this?
+// This should return 22008 INVALID DATETIME
 var t6 = new harness.ConcurrentTest("Timestamp1969");
 t6.run = function() {
   var data = new TestData(6);
   var date1969 = new Date(-10000);
   data.cNullableTimestamp = date1969;
-  this.verifier = new ValueVerifier(this, "cNullableTimestamp", date1969);
+  this.verifier = new ErrorVerifier(this, "22008");
   fail_openSession(this, InsertFunction(data));
 }
 
