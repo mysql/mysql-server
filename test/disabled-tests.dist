@@ -1,0 +1,9 @@
+
+
+/* Add test names to this structure to disable them */
+
+module.exports.disabledTests = {
+  "integraltypes/QueryTableScanTest.js" : 1
+
+};
+

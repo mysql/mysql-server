@@ -31,6 +31,11 @@ var udebug = unified_debug.getLogger("harness.js");
 var exec = require("child_process").exec;
 var re_matching_test_case = /Test\.js$/;
 var SQL = {};
+var disabledTests = {};
+try {
+  disabledTests = require("../disabled-tests.conf").disabledTests;
+}
+catch(e) {}
 
 /* Test  
 */
@@ -260,7 +265,12 @@ Suite.prototype.addTest = function(filename, test) {
   udebug.log_detail('Suite', this.name, 'adding test', test.name, 'from', this.filename);
   test.filename = filename;
   test.suite = this;
-  this.tests.push(test);
+  if(disabledTests && disabledTests[this.filename]) {
+    udebug.log("Skipping ", this.filename, "[DISABLED]");
+  }
+  else {
+    this.tests.push(test);
+  }
   return test;
 };
 
