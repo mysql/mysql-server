@@ -32,26 +32,58 @@ static bool is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
 //Heaviside function to search through an OMT by a TXNID
 int find_by_xid (const TOKUTXN &txn, const TXNID &txnidfind);
 
+static bool is_txnid_live(TXN_MANAGER txn_manager, TXNID txnid) {
+    TOKUTXN result = NULL;
+    TXNID_PAIR id = { .parent_id64 = txnid, .child_id64 = TXNID_NONE };
+    toku_txn_manager_id2txn_unlocked(txn_manager, id, &result);
+    return (result != NULL);
+}
+
+static void toku_txn_manager_clone_state_for_gc_unlocked(
+    TXN_MANAGER txn_manager,
+    xid_omt_t* snapshot_xids,
+    rx_omt_t* referenced_xids,
+    xid_omt_t* live_root_txns
+    );
+
 static void
 verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
-#if 0
-    uint32_t    num_snapshot_txnids = txn_manager->snapshot_txnids.size();
+    uint32_t    num_snapshot_txnids = txn_manager->num_snapshots;
     TXNID       snapshot_txnids[num_snapshot_txnids];
-    uint32_t    num_live_txns = txn_manager->live_txns.size();
+    TOKUTXN     snapshot_txns[num_snapshot_txnids];
+    uint32_t    num_live_txns = txn_manager->live_root_txns.size();
     TOKUTXN     live_txns[num_live_txns];
     uint32_t    num_referenced_xid_tuples = txn_manager->referenced_xids.size();
     struct      referenced_xid_tuple  *referenced_xid_tuples[num_referenced_xid_tuples];
+
+    // do this to get an omt of snapshot_txnids
+    xid_omt_t snapshot_txnids_omt;
+    rx_omt_t referenced_xids_omt;
+    xid_omt_t live_root_txns_omt;
+    toku_txn_manager_clone_state_for_gc_unlocked(
+        txn_manager,
+        &snapshot_txnids_omt,
+        &referenced_xids_omt,
+        &live_root_txns_omt
+        );    
 
     int r;
     uint32_t i;
     uint32_t j;
     //set up arrays for easier access
-    for (i = 0; i < num_snapshot_txnids; i++) {
-        r = txn_manager->snapshot_txnids.fetch(i, &snapshot_txnids[i]);
-        assert_zero(r);
+    {
+        TOKUTXN curr_txn = txn_manager->snapshot_head;
+        uint32_t curr_index = 0;
+        while (curr_txn != NULL) {
+            snapshot_txns[curr_index] = curr_txn;
+            snapshot_txnids[curr_index] = curr_txn->snapshot_txnid64;
+            curr_txn = curr_txn->snapshot_next;
+            curr_index++;
+        }
     }
+
     for (i = 0; i < num_live_txns; i++) {
-        r = txn_manager->live_txns.fetch(i, &live_txns[i]);
+        r = txn_manager->live_root_txns.fetch(i, &live_txns[i]);
         assert_zero(r);
     }
     for (i = 0; i < num_referenced_xid_tuples; i++) {
@@ -63,9 +95,7 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
         //Verify snapshot_txnids
         for (i = 0; i < num_snapshot_txnids; i++) {
             TXNID snapshot_xid = snapshot_txnids[i];
-            invariant(is_txnid_live(txn_manager, snapshot_xid));
-            TOKUTXN snapshot_txn;
-            toku_txn_manager_id2txn_unlocked(txn_manager, snapshot_xid, &snapshot_txn);
+            TOKUTXN snapshot_txn = snapshot_txns[i];
             uint32_t num_live_root_txn_list = snapshot_txn->live_root_txn_list->size();
             TXNID     live_root_txn_list[num_live_root_txn_list];
             {
@@ -78,7 +108,7 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
                 // Only committed entries have return a youngest.
                 TXNID youngest = toku_get_youngest_live_list_txnid_for(
                     snapshot_xid,
-                    txn_manager->snapshot_txnids,
+                    snapshot_txnids_omt,
                     txn_manager->referenced_xids
                     );
                 invariant(youngest == TXNID_NONE);
@@ -88,7 +118,7 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
                 invariant(live_xid <= snapshot_xid);
                 TXNID youngest = toku_get_youngest_live_list_txnid_for(
                     live_xid,
-                    txn_manager->snapshot_txnids,
+                    snapshot_txnids_omt,
                     txn_manager->referenced_xids
                     );
                 if (is_txnid_live(txn_manager, live_xid)) {
@@ -113,26 +143,27 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
 
             {
                 //verify neither pair->begin_id nor end_id is in live_list
-                r = txn_manager->live_txns.find_zero<TXNID, find_by_xid>(tuple->begin_id, nullptr, nullptr);
+                r = txn_manager->live_root_txns.find_zero<TXNID, find_by_xid>(tuple->begin_id, nullptr, nullptr);
                 invariant(r == DB_NOTFOUND);
-                r = txn_manager->live_txns.find_zero<TXNID, find_by_xid>(tuple->end_id, nullptr, nullptr);
+                r = txn_manager->live_root_txns.find_zero<TXNID, find_by_xid>(tuple->end_id, nullptr, nullptr);
                 invariant(r == DB_NOTFOUND);
             }
             {
-                //verify neither pair->begin_id nor end_id is in snapshot_xids
-                r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(tuple->begin_id, nullptr, nullptr);
-                invariant(r == DB_NOTFOUND);
-                r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(tuple->end_id, nullptr, nullptr);
-                invariant(r == DB_NOTFOUND);
+                //verify neither pair->begin_id nor end_id is in snapshot_xids                
+                TOKUTXN curr_txn = txn_manager->snapshot_head;
+                uint32_t curr_index = 0;
+                while (curr_txn != NULL) {
+                    invariant(tuple->begin_id != curr_txn->txnid.parent_id64);
+                    invariant(tuple->end_id != curr_txn->txnid.parent_id64);
+                    curr_txn = curr_txn->snapshot_next;
+                    curr_index++;
+                }
             }
             {
                 // Verify number of references is correct
                 uint32_t refs_found = 0;
                 for (j = 0; j < num_snapshot_txnids; j++) {
-                    TXNID snapshot_xid = snapshot_txnids[j];
-                    TOKUTXN snapshot_txn;
-                    toku_txn_manager_id2txn_unlocked(txn_manager, snapshot_xid, &snapshot_txn);
-
+                    TOKUTXN snapshot_txn = snapshot_txns[j];
                     if (toku_is_txn_in_live_root_txn_list(*snapshot_txn->live_root_txn_list, tuple->begin_id)) {
                         refs_found++;
                     }
@@ -146,34 +177,21 @@ verify_snapshot_system(TXN_MANAGER txn_manager UU()) {
                 // Verify youngest makes sense.
                 TXNID youngest = toku_get_youngest_live_list_txnid_for(
                     tuple->begin_id,
-                    txn_manager->snapshot_txnids,
+                    snapshot_txnids_omt,
                     txn_manager->referenced_xids
                     );
                 invariant(youngest != TXNID_NONE);
                 invariant(youngest > tuple->begin_id);
                 invariant(youngest < tuple->end_id);
                 // Youngest must be found, and must be a snapshot txn
-                r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(youngest, nullptr, nullptr);
+                r = snapshot_txnids_omt.find_zero<TXNID, toku_find_xid_by_xid>(youngest, nullptr, nullptr);
                 invariant_zero(r);
             }
         }
     }
-    {
-        //Verify live_txns
-        for (i = 0; i < num_live_txns; i++) {
-            TOKUTXN txn = live_txns[i];
-
-            bool expect = txn->snapshot_txnid64 == txn->txnid64;
-            {
-                //verify pair->xid2 is in snapshot_xids
-                r = txn_manager->snapshot_txnids.find_zero<TXNID, toku_find_xid_by_xid>(txn->txnid64, nullptr, nullptr);
-                invariant(r==0 || r==DB_NOTFOUND);
-                invariant((r==0) == (expect!=0));
-            }
-
-        }
-    }
-#endif
+    snapshot_txnids_omt.destroy();
+    referenced_xids_omt.destroy();
+    live_root_txns_omt.destroy();
 }
 
 void toku_txn_manager_init(TXN_MANAGER* txn_managerp) {
@@ -679,14 +697,13 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
     return;
 }
 
-void toku_txn_manager_clone_state_for_gc(
+static void toku_txn_manager_clone_state_for_gc_unlocked(
     TXN_MANAGER txn_manager,
     xid_omt_t* snapshot_xids,
     rx_omt_t* referenced_xids,
     xid_omt_t* live_root_txns
     )
 {
-    txn_manager_lock(txn_manager);
     TXNID* snapshot_xids_array = NULL;
     XMALLOC_N(txn_manager->num_snapshots, snapshot_xids_array);
     TOKUTXN curr_txn = txn_manager->snapshot_head;
@@ -704,8 +721,26 @@ void toku_txn_manager_clone_state_for_gc(
     
     referenced_xids->clone(txn_manager->referenced_xids);
     setup_live_root_txn_list(&txn_manager->live_root_ids, live_root_txns);  
+}
+
+void toku_txn_manager_clone_state_for_gc(
+    TXN_MANAGER txn_manager,
+    xid_omt_t* snapshot_xids,
+    rx_omt_t* referenced_xids,
+    xid_omt_t* live_root_txns
+    )
+{
+    txn_manager_lock(txn_manager);
+    toku_txn_manager_clone_state_for_gc_unlocked(
+        txn_manager, 
+        snapshot_xids, 
+        referenced_xids, 
+        live_root_txns
+        );
     txn_manager_unlock(txn_manager);
 }
+
+
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID_PAIR txnid, TOKUTXN *result) {
     TOKUTXN txn;
