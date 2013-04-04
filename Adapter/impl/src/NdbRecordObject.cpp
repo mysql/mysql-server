@@ -190,11 +190,13 @@ Handle<Value> NdbRecordObject::prepare() {
 
 
 inline void NdbRecordObject::maskIn(unsigned int nField) {
+  assert(nField < ncol);
   row_mask[nField >> 3] |= (1 << (nField & 7));
 }
 
   
 inline bool NdbRecordObject::isMaskedIn(unsigned int nField) {
+  assert(nField < ncol);
   return (row_mask[nField >> 3] & (1<<(nField & 7)));
 }
 

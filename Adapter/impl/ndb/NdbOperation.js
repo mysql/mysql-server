@@ -266,7 +266,7 @@ function readResultRow(op) {
 function buildValueObject(op) {
   udebug.log("buildValueObject");
   var VOC = op.tableHandler.ValueObject;
-  var DOC = op.tableHandler.newDomainObject;
+  var DOC = op.tableHandler.newObjectConstructor;
   
   if(VOC) {
     op.result.value = new VOC(op.buffers.row);
@@ -276,7 +276,8 @@ function buildValueObject(op) {
     }
   }
   else {
-    assert("NO VOC!");
+    /* If there is a good reason to have no VOC, just call readResultRow()... */
+    console.log("NO VOC!");
     process.exit();
   }
 }
