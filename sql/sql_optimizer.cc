@@ -6315,18 +6315,8 @@ static bool test_if_ref(Item *root_cond,
         /*
           We can remove all fields except:
           1. String data types:
-           - For CHAR/VARCHAR fields with equality against a string
-             that is longer than the field: In this case ref access
-             will return all rows that matches on a prefix of the
-             string and the condition needs to be evaluated by the
-             server. The call to save_in_field_no_warnings() returns
-             OK in this case. @todo Consider if it would be more
-             correct if save_in_field_no_warnings() should return
-             something else than OK for this case or if it would be
-             possible to filter such conditions out during the
-             optimization phase (since it will always be false).
            - For BINARY/VARBINARY fields with equality against a
-             string: Ref access can return more rows than matche the
+             string: Ref access can return more rows than match the
              string. The reason seems to be that the string constant
              is not "padded" to the full length of the field when
              setting up ref access. @todo Change how ref access for
@@ -6348,11 +6338,10 @@ static bool test_if_ref(Item *root_cond,
           trailing spaces, it can return false candidates. Further
           comparison of the actual table values is required.
         */
-        if (field->type() != MYSQL_TYPE_STRING &&
-            field->type() != MYSQL_TYPE_VARCHAR &&
-            (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
+        if (!((field->type() == MYSQL_TYPE_STRING ||                       // 1
+               field->type() == MYSQL_TYPE_VARCHAR) && field->binary()) &&
+            !(field->type() == MYSQL_TYPE_FLOAT && field->decimals() > 0)) // 2
         {
-          DBUG_ASSERT(field->binary());
           return !right_item->save_in_field_no_warnings(field, true);
         }
       }
