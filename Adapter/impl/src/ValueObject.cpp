@@ -197,7 +197,7 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
 }
 
 
-void NdbRecordObject_initOnLoad(Handle<Object> target) {
+void ValueObject_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   DEFINE_JS_FUNCTION(target, "getValueObjectConstructor",
                      getValueObjectConstructor);
