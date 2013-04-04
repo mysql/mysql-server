@@ -1,9 +1,21 @@
 
+/**
+  How to disable certain test cases: 
 
-/* Add test names to this structure to disable them */
+  If this file is called disabled-tests.dist, 
+    then copy it to disabled-tests.conf
 
+  Edit the disabled tests lists below to include the 
+  filenames of tests to skip.  For example:
+
+  module.exports.disabledTests = {
+    "integraltypes/QueryTableScanTest.js" : 1
+  };
+
+**/
+
+ 
 module.exports.disabledTests = {
-  "integraltypes/QueryTableScanTest.js" : 1
-
+  /* skipped tests go here: */
+  
 };
-
