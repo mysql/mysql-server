@@ -1410,13 +1410,13 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	a	NULL	NULL	NULL	12	Using where
 EXPLAIN SELECT a FROM t1 WHERE a = 'Käli Käli 2+4';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	53	const	4	Using where
+1	SIMPLE	t1	ref	a	a	53	const	4	NULL
 EXPLAIN SELECT a FROM t2 WHERE a LIKE 'Kali Kali 2+4';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ALL	a	NULL	NULL	NULL	12	Using where
 EXPLAIN SELECT a FROM t2 WHERE a = 'Kali Kali 2+4';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	14	const	4	Using where
+1	SIMPLE	t2	ref	a	a	14	const	4	NULL
 DROP TABLE t1,t2;
 CREATE TABLE t1 (
 a char(255) DEFAULT '', 
