@@ -5,7 +5,8 @@
   If this file is called disabled-tests.dist, 
     then copy it to disabled-tests.conf
 
-  Edit the disabled tests lists below to include the 
+  Then dit the disabled tests lists below,
+  in disabled-tests.conf, to include the 
   filenames of tests to skip.  For example:
 
   module.exports.disabledTests = {
