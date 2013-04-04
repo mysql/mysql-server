@@ -45,3 +45,31 @@ private:
   bool hasConverterReader, hasConverterWriter;
 };
 
+
+
+class ColumnHandlerSet {
+public:
+  ColumnHandlerSet(int);
+  ~ColumnHandlerSet();
+  ColumnHandler * getHandler(int);
+private:
+  int size;
+  ColumnHandler * const handlers;
+};
+
+
+inline ColumnHandlerSet::ColumnHandlerSet(int _size) :
+  size(_size),
+  handlers(new ColumnHandler[size])
+{ }
+
+inline ColumnHandlerSet::~ColumnHandlerSet() {
+  delete[] handlers;
+}
+
+inline ColumnHandler * ColumnHandlerSet::getHandler(int i) {
+  assert(i < size);
+  return & handlers[i];
+}
+
+
