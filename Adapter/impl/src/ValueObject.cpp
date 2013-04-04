@@ -85,6 +85,8 @@
 
 *************************************************************/
 
+Persistent<String> isVO;
+
 Envelope columnHandlerSetEnvelope("ColumnHandlerSet");
 Envelope nroEnvelope("NdbRecordObject");
 
@@ -181,14 +183,19 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
                                           jsHandlerSet);
   mapData->Set(1, jsHandlerSet);
 
-  /* Create accessors for the mapped fields in the instance template
-     AccessorInfo.Data() for the accessor will hold the field number 
+  /* Create accessors for the mapped fields in the instance template.
+     AccessorInfo.Data() for the accessor will hold the field number.
   */
   Local<Object> jsFields = args[1]->ToObject();
   for(unsigned int i = 0 ; i < ncol; i++) {
     Handle<String> fieldName = jsFields->Get(i)->ToString();
     inst->SetAccessor(fieldName, nroGetter, nroSetter, Number::New(i));
   }
+
+  /* Create an invisible (non-enumerable) property so we can know 
+     in JavaScript that a value is a VO.
+  */
+  inst->Set(isVO, True(), DontEnum);
 
   /* The generic constructor is the CallHandler */
   ft->SetCallHandler(nroConstructor, Persistent<Object>::New(mapData));
@@ -201,4 +208,5 @@ void ValueObject_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   DEFINE_JS_FUNCTION(target, "getValueObjectConstructor",
                      getValueObjectConstructor);
+  isVO = Persistent<String>::New(String::NewSymbol("_isNdbValueObject_"));
 }

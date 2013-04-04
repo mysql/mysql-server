@@ -115,6 +115,16 @@ PTR unwrapPointer(Local<Object> obj) {
   return ptr;
 }
 
+/*****************************************************************
+ Test that a JS object really contains a C++ pointer that we
+ have wrapped
+******************************************************************/
+inline bool objectHoldsWrappedPointer(Handle<Obj> obj) {
+  return(obj->InternalFieldCount() == 2
+         &&
+         static_cast<Envelope *>(obj->GetPointerFromInternalField(0))
+         ->magic == 0xF00D);
+}
 
 /*****************************************************************
  Capture an error message from a C++ routine 
