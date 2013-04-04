@@ -280,26 +280,30 @@ DBTableHandler.prototype.newResultObject = function(values) {
  * @return the object to return to the user
  */
 DBTableHandler.prototype.applyMappingToResult = function(obj) {
-  var i, f, fieldName, value, convertedValue;
   if (this.newObjectConstructor) {
     // create the domain object from the result
-    return this.newResultObject(obj);
+    obj = this.newResultObject(obj);
   }
-  // apply user column converters to result columns
-  for (i = 0; i < this.fieldNumberToFieldMap.length; ++i) {
+  this.applyFieldConverters(obj);
+  return obj;
+};
+
+
+/** applyFieldConverters(object) 
+ *  IMMEDIATE
+ *  Apply the field converters to an existing object
+ */ 
+DBTableHandler.prototype.applyFieldConverters = function(obj) {
+  var i, f, value, convertedValue;
+
+  for (i = 0; i < this.fieldNumberToFieldMap.length; i++) {
     f = this.fieldNumberToFieldMap[i];
-    fieldName = f.fieldName;
-    value = obj[fieldName];
-    if (value && f.converter) {
-      // replace the value with the converted value
+    if(f.converter) {
+      value = obj[f.fieldName];
       convertedValue = f.converter.fromDB(value);
-      udebug.log_detail('for field', fieldName, 
-          'applying column converter to value', value,
-          'returns', convertedValue);
-      obj[fieldName] = convertedValue;
+      obj[f.fieldName] = convertedValue;
     }
   }
-  return obj;
 };
 
 

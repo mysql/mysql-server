@@ -265,12 +265,17 @@ function readResultRow(op) {
 
 function buildValueObject(op) {
   udebug.log("buildValueObject");
-  var VOC = op.tableHandler.ValueObject;
-  var DOC = op.tableHandler.newObjectConstructor;
+  var VOC = op.tableHandler.ValueObject; // NDB Value Object Constructor
+  var DOC = op.tableHandler.newObjectConstructor;  // User's Domain Object Ctor
   
   if(VOC) {
+    /* Turn the buffer into a Value Object */
     op.result.value = new VOC(op.buffers.row);
-    /* The user's constructor is called on the new value: */
+
+    /* DBT may have some fieldConverters for this object */
+    op.tableHandler.applyFieldConverters(op.result.value);
+
+    /* Finally the user's constructor is called on the new value: */
     if(DOC) {
       DOC.call(op.result.value);
     }
