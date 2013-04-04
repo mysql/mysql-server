@@ -54,6 +54,25 @@ public:
 };
 
 
+/*****************************************************************
+ Create a weak handle for a wrapped object.
+ Use it to delete the wrapped object
+ when the GC wants to reclaim the handle.
+******************************************************************/
+template<typename PTR> 
+void onGcReclaim(Persistent<Value> notifier, void * param) {
+  PTR * ptr = static_cast<PTR *>(param);
+fprintf(stderr, "GcDESTRUCTO! ");
+  delete ptr;
+  notifier.Dispose();
+}
+
+template<typename PTR> 
+void freeFromGC(PTR ptr, Handle<Object> obj) {
+  Persistent<Object> notifier = Persistent<Object>::New(obj);
+  notifier.MarkIndependent();
+  notifier.MakeWeak(ptr, onGcReclaim<PTR>);
+}
 
 /*****************************************************************
  Construct a wrapped object. 

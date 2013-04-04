@@ -85,8 +85,6 @@
    it will dispose this handle
 */
 
-Handle<String> K_toDB, K_fromDB;
-
 void gcWeakRefCallback(Persistent<Value>, void*);
 
 class ColumnHandlerSet {
