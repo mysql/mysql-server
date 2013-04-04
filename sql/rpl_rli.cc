@@ -101,6 +101,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
    mts_last_committed_parent_id(-1),
+   is_new_group(true), delegated_jobs(0), jobs_done(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
