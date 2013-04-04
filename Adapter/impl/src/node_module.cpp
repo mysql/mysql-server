@@ -39,7 +39,7 @@ extern LOADER_FUNCTION udebug_initOnLoad;
 extern LOADER_FUNCTION AsyncNdbContext_initOnLoad;
 extern LOADER_FUNCTION NdbWrapper_initOnLoad;
 extern LOADER_FUNCTION NdbTypeEncoders_initOnLoad;
-extern LOADER_FUNCTION NdbRecordObject_initOnLoad;
+extern LOADER_FUNCTION ValueObject_initOnLoad;
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
@@ -53,7 +53,7 @@ void init_impl(Handle<Object> target) {
   DBOperationHelper_initOnLoad(target);
   AsyncNdbContext_initOnLoad(target);
   NdbWrapper_initOnLoad(target);
-  NdbRecordObject_initOnLoad(target);
+  ValueObject_initOnLoad(target);
 }
 
 
