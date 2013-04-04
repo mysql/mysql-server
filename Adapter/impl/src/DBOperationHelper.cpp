@@ -28,6 +28,7 @@
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NdbWrappers.h"
+#include "NdbRecordObject.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -36,42 +37,39 @@ enum {
   HELPER_KEY_RECORD,
   HELPER_LOCK_MODE,
   HELPER_COLUMN_MASK,
+  HELPER_VALUE_OBJECT
 };
+
+
+Handle<Value> DBOperationHelper_VO(const Arguments &);
+Handle<Value> DBOperationHelper_NonVO(const Arguments &);
+Handle<Value> buildNdbOperation(Operation &, int, NdbTransaction *);
+void setKeysInOp(Handle<Object> spec, Operation & op);
+
 
 /* DBOperationHelper() is the C++ companion to DBOperation.prepare
    in NdbOperation.js
    It takes a HelperSpec object, and returns a fully-prepared Operation
 */
-   
+
 Handle<Value> DBOperationHelper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  return
+    args[3]->ToBoolean()->Value() ?
+      DBOperationHelper_VO(args) : DBOperationHelper_NonVO(args);
+}
+
+
+void setKeysInOp(Handle<Object> spec, Operation & op) {
   HandleScope scope;
 
-  Operation op;
-
-  const Local<Object> spec = args[0]->ToObject();
   Local<Value> v;
   Local<Object> o;
-  
-  v = spec->Get(HELPER_ROW_BUFFER);
-  if(! v->IsNull()) {
-    o = v->ToObject();
-    DEBUG_PRINT("Setting operation row_buffer");
-    op.row_buffer = V8BINDER_UNWRAP_BUFFER(o);
-  }
-  
+
   v = spec->Get(HELPER_KEY_BUFFER);
   if(! v->IsNull()) {
     o = v->ToObject();
     DEBUG_PRINT("Setting operation key_buffer");
     op.key_buffer = V8BINDER_UNWRAP_BUFFER(o);
-  }
-  
-  v = spec->Get(HELPER_ROW_RECORD);
-  if(! v->IsNull()) {
-    o = v->ToObject();
-    DEBUG_PRINT("Setting operation row_record");
-    op.row_record = unwrapPointer<Record *>(o);
   }
   
   v = spec->Get(HELPER_KEY_RECORD);
@@ -80,26 +78,10 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     DEBUG_PRINT("Setting operation key_record");
     op.key_record = unwrapPointer<Record *>(o);
   }
+}
 
-  v = spec->Get(HELPER_LOCK_MODE);
-  if(! v->IsNull()) {
-    int intLockMode = v->Int32Value();
-    DEBUG_PRINT("Setting operation lock_mode");
-    op.lmode = static_cast<NdbOperation::LockMode>(intLockMode);
-  }
 
-  v = spec->Get(HELPER_COLUMN_MASK);
-  if(! v->IsNull()) {
-    Array *maskArray = Array::Cast(*v);
-    DEBUG_PRINT("Setting operation column mask");
-    for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
-      Local<Value> colId = maskArray->Get(m);
-      op.useColumn(colId->Int32Value());
-    }
-  }
-  
-  int opcode = args[1]->Int32Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
   const NdbOperation * ndbop;
     
   switch(opcode) {
@@ -120,9 +102,83 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
       break;
   }
 
-  return scope.Close(NdbOperation_Wrapper(ndbop));
+  return NdbOperation_Wrapper(ndbop);
 }
 
+
+Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  Operation op;
+
+  const Local<Object> spec = args[0]->ToObject();
+  Local<Value> v;
+  Local<Object> o;
+
+  setKeysInOp(spec, op);
+  
+  v = spec->Get(HELPER_ROW_BUFFER);
+  if(! v->IsNull()) {
+    o = v->ToObject();
+    DEBUG_PRINT("Setting operation row_buffer");
+    op.row_buffer = V8BINDER_UNWRAP_BUFFER(o);
+  }
+  
+  v = spec->Get(HELPER_ROW_RECORD);
+  if(! v->IsNull()) {
+    o = v->ToObject();
+    DEBUG_PRINT("Setting operation row_record");
+    op.row_record = unwrapPointer<Record *>(o);
+  }
+  
+  v = spec->Get(HELPER_LOCK_MODE);
+  if(! v->IsNull()) {
+    int intLockMode = v->Int32Value();
+    DEBUG_PRINT("Setting operation lock_mode");
+    op.lmode = static_cast<NdbOperation::LockMode>(intLockMode);
+  }
+
+  v = spec->Get(HELPER_COLUMN_MASK);
+  if(! v->IsNull()) {
+    Array *maskArray = Array::Cast(*v);
+    DEBUG_PRINT("Setting operation column mask");
+    for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
+      Local<Value> colId = maskArray->Get(m);
+      op.useColumn(colId->Int32Value());
+    }
+  }
+  
+  int opcode = args[1]->Int32Value();
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+
+  return scope.Close(buildNdbOperation(op, opcode, tx));
+}
+
+Handle<Value> DBOperationHelper_VO(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  Operation op;
+
+  const Local<Object> spec = args[0]->ToObject();
+  Local<Value> v;
+  Local<Object> o;
+  Local<Object> valueObj;
+
+  /* "Trust but verify" that we really have a Value Object */
+  v = spec->Get(HELPER_VALUE_OBJECT);
+  if(v->IsNull()) {
+    DEBUG_PRINT("Expected HelperSpec value_obj");
+    return Null();
+  }
+  valueObj = v->ToObject();
+  
+  if(! objectHoldsWrappedPointer(valueObj)) {
+  
+  
+  setKeysInOp(spec, op);
+  
+
+}
 
 void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
@@ -136,6 +192,7 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "key_record",  HELPER_KEY_RECORD);
   DEFINE_JS_INT(OpHelper, "lock_mode",   HELPER_LOCK_MODE);
   DEFINE_JS_INT(OpHelper, "column_mask", HELPER_COLUMN_MASK);
+  DEFINE_JS_INT(OpHelper, "value_obj",   HELPER_VALUE_OBJECT);
 
   Persistent<Object> LockModes = Persistent<Object>(Object::New());
   target->Set(Persistent<String>(String::NewSymbol("LockModes")), LockModes);

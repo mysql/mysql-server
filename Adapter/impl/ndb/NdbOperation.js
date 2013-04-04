@@ -31,6 +31,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
     constants     = adapter.impl,
+    DBOperationHelper = adapter.impl.DBOperationHelper,
     OpHelper      = constants.OpHelper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
@@ -189,6 +190,7 @@ HelperSpec.prototype.clear = function() {
   this[OpHelper.key_record]  = null;
   this[OpHelper.lock_mode]   = null;
   this[OpHelper.column_mask] = null;
+  this[OpHelper.value_obj]   = null;
 };
 
 var helperSpec = new HelperSpec();
@@ -197,40 +199,49 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", opcodes[this.opcode], this.values);
   stats.incr("prepared");
   var code = this.opcode;
+  var isVOwrite = (this.values && this.values._isNdbValueObject_);
   var helper;
 
   /* There is one global helperSpec */
   helperSpec.clear();
-  
-  /* All operations get a row record */
-  helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
-  
-  /* All but insert use a key.  
-  */
+
+  /* All operations but insert use a key. */
   if(code !== 2) {
     allocateKeyBuffer(this);
     encodeKeyBuffer(this);
     helperSpec[OpHelper.key_record]  = this.index.record;
     helperSpec[OpHelper.key_buffer]  = this.buffers.key;
   }
+  
+  /* If this is an update-after-read operation on a Value Object, 
+     DBOperationHelper only needs the VO.
+  */
+  if(isVOwrite) {
+    helperSpec[OpHelper.value_obj] = this.values;
+  }
+  else {
+    /* All non-VO operations get a row record */
+    helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
+    
+    /* All but delete get an allocated row buffer, and column mask */
+    if(code !== 16) {
+      allocateRowBuffer(this);
+      helperSpec[OpHelper.row_buffer]  = this.buffers.row;
+      helperSpec[OpHelper.column_mask] = this.columnMask;
 
-  /* All but delete get an allocated row buffer, and column mask */
-  if(code !== 16) {
-    allocateRowBuffer(this);
-    helperSpec[OpHelper.row_buffer]  = this.buffers.row;
-    helperSpec[OpHelper.column_mask] = this.columnMask;
-
-    /* Read gets a lock mode; writes get the data encoded into the row buffer. */
-    if(code === 1) {
-      helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
-    }
-    else { 
-      encodeRowBuffer(this);
+      /* Read gets a lock mode; 
+         writes get the data encoded into the row buffer. */
+      if(code === 1) {
+        helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
+      }
+      else { 
+        encodeRowBuffer(this);
+      }
     }
   }
   
   /* Use the HelperSpec and opcode to build the NdbOperation */
-  this.ndbop = adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction);
+  this.ndbop = DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
 
   this.state = doc.OperationStates[1];  // PREPARED
 };
