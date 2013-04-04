@@ -651,6 +651,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("         double   dnum; \n");
     printf("         uint64_t num; \n");
     printf("         const char *   str; \n");
+    printf("         char           datebuf[26]; \n");
     printf("         struct partitioned_counter *parcount;\n");
     printf("  } value;       \n");
     printf("} * TOKU_ENGINE_STATUS_ROW, TOKU_ENGINE_STATUS_ROW_S; \n");
