@@ -330,7 +330,7 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
   if (result && result != EBUSY)
   {
     fprintf(stderr, "NdbMutex_TryLock, unexpected result %d returned from "
-            "pthread_mutex_trylock: '%s'", result, strerror(result));
+            "pthread_mutex_trylock: '%s'\n", result, strerror(result));
   }
 #endif
   assert(result == 0 || result == EBUSY);
