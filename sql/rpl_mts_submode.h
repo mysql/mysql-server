@@ -49,7 +49,10 @@ public:
 class Mts_submode_database: public Mts_submode
 {
 public:
-  Mts_submode_database(){type= MTS_PARALLEL_TYPE_DB_NAME;}
+  Mts_submode_database()
+  {
+    type= MTS_PARALLEL_TYPE_DB_NAME;
+  }
   bool schedule_next_event(Relay_log_info* rli);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);

@@ -1,20 +1,21 @@
-/* copyright (c) 2013, oracle and/or its affiliates. all rights reserved.
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
-   this program is free software; you can redistribute it and/or modify
-   it under the terms of the gnu general public license as published by
-   the free software foundation; version 2 of the license.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-   this program is distributed in the hope that it will be useful,
-   but without any warranty; without even the implied warranty of
-   merchantability or fitness for a particular purpose.  see the
-   gnu general public license for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-   you should have received a copy of the gnu general public license
-   along with this program; if not, write to the free software
-   foundation, inc., 51 franklin st, fifth floor, boston, ma 02110-1301  usa */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "rpl_mts_submode.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_slave.h"
 
 /*
  Does necessary arrangement before scheduling next event.
@@ -204,11 +205,25 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli)
     rli->delegated_jobs++;
   else
   {
+    /*
+      We have a new group and we must check if the last group was completey applied before
+      we move on to the next group
+     */
+    // we should check if the SQL thread was already killed before we schecdule
+    // the next transaction
+    if (sql_slave_killed(rli->info_thd, rli))
+      DBUG_RETURN(true);
+    DBUG_PRINT("info",("delegated %d, jobs_done %d", rli->delegated_jobs, rli->jobs_done));
     while (rli->delegated_jobs > rli->jobs_done)
+    {
       if (mts_checkpoint_routine(rli, 0, true, true /*need_data_lock=true*/))
       {
         DBUG_RETURN(true);
       }
+    }
+    DBUG_PRINT("info",("delegated %d, jobs_done %d, we can schedule "
+                       "the next group.", rli->delegated_jobs, rli->jobs_done));
+    //DBUG_ASSERT(rli->delegated_jobs == rli->jobs_done);
     rli->delegated_jobs= 1;
     rli->jobs_done= 0;
   }
@@ -299,6 +314,18 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
   Slave_worker *worker= NULL;
   Slave_job_group* ptr_group;
   DBUG_ENTER("Mts_submode_master::get_least_occupied_worker");
+#ifndef DBUG_OFF
+
+  if (DBUG_EVALUATE_IF("mts_distribute_round_robin", 1, 0))
+  {
+    worker= *((Slave_worker **)dynamic_array_ptr(ws,
+                                                 w_rr % ws->elements));
+    sql_print_information("Chosing worker id %lu, the following is"
+                          " going to be %lu", worker->id, w_rr % ws->elements);
+    DBUG_ASSERT(worker != NULL);
+    DBUG_RETURN(worker);
+  }
+#endif
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
   /*
     The scheduling works as follows, in this sequence

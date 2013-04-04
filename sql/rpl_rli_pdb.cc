@@ -181,6 +181,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
    (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)?
        (Mts_submode*) new Mts_submode_database():
        (Mts_submode*) new Mts_submode_master();
+  this->jobs_done= 0;
 
   DBUG_RETURN(0);
 }
@@ -994,9 +995,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     Slave_job_group *ptr_g= gaq->get_job_group(gaq_idx);
 
     // first ever group must have relay log name
-   // DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
-    //            ptr_g->group_relay_log_name != NULL);
-    DBUG_ASSERT(ptr_g->worker_id == id);
+    DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
+                ptr_g->group_relay_log_name != NULL);
+//    DBUG_ASSERT(ptr_g->worker_id == id);
 
     if (ev->get_type_code() != XID_EVENT)
     {

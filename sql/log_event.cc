@@ -2976,6 +2976,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
   ptr_group= gaq->get_job_group(rli->gaq->assigned_group_index);
   if (rli->current_mts_submode->get_type() == MTS_PARALLEL_TYPE_BGC)
   {
+    mts_group_idx= gaq->assigned_group_index;
     /* Get least occupied worker */
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers, this);
