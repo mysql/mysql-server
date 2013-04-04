@@ -116,7 +116,7 @@ private:
   char * buffer;
   ColumnHandlerSet * handlers;
   Persistent<Value> persistentBufferHandle;
-  const unsigned int & ncol;
+  const unsigned int ncol;
   ColumnProxy * const proxy;
   uint8_t row_mask[4];
   void maskIn(unsigned int nField);
