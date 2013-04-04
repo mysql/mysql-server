@@ -58,6 +58,7 @@ Handle<Value> Record_Wrapper(Record *rec) {
   
   Local<Object> js_record = RecordEnvelope.newWrapper();
   wrapPointerInObject(rec, RecordEnvelope, js_record);
+  freeFromGC(rec, js_record);
   return scope.Close(js_record);
 }
 

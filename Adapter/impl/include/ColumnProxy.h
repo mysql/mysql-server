@@ -22,26 +22,40 @@
 #include <node.h>
 #include <NdbApi.hpp>
 
-#include "Record.h"
-#include "NdbTypeEncoders.h"
+#include "ColumnHandler.h"
 
 using namespace v8;
 
 class ColumnProxy {
 public:
-  ColumnProxy(const NdbDictionary::Column *, Handle<Object> typeConverter);
-  Handle<Value> get(const NdbDictionary::Column *, char *, size_t);
-  void set(Handle<Value>);
-  Handle<Value> write(const NdbDictionary::Column *, char *, size_t);
+  ColumnProxy();
   ~ColumnProxy();
+  void setHandler(const ColumnHandler *);
+
+  Handle<Value> get(char *);
+  void          set(Handle<Value>);
+  Handle<Value> write(char *);
+  bool          isNull;  // value has been set to null
 
 private:
-  Persistent<Object> typeConverter;
-  const NdbTypeEncoder *encoder;
+  const ColumnHandler *handler;
   Persistent<Value> jsValue;
   bool isLoaded;         // value has been read from buffer
   bool isDirty;          // value should be rewritten in buffer
-  bool hasReadConverter;
-  bool hasWriteConverter;
 };
+
+
+inline ColumnProxy::ColumnProxy() :
+  isNull(false), isLoaded(false), isDirty(false)
+{}
+
+inline ColumnProxy::~ColumnProxy() {
+  if(! jsValue.IsEmpty())
+    jsValue.Dispose();
+}
+
+inline void ColumnProxy::setHandler(const ColumnHandler *h) {
+  handler = h;
+}
+
 

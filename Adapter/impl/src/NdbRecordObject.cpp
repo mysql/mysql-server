@@ -23,82 +23,63 @@
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
-#include "js_wrapper_macros.h"
-#include "JsWrapper.h"
-#include "Record.h"
-#include "NdbTypeEncoders.h"
-
-void gcWeakRefCallback(Persistent<Value>, void*);
+#include "unified_debug.h"
+#include "NdbRecordObject.h"
 
 
-/* QUESTION: who is responsible for creating the Node Buffer?
-   If MappedNdbRecord is ...
-   If the caller is ... 
-*/
-class MappedNdbRecord {
-public:
-  MappedNdbRecord(Record *);
-  ~MappedNdbRecord();
-
-  Handle<Value> getBuffer();
-  Handle<Value> getField(Local<String>, const AccessorInfo &);
-  void setField(Local<String>, Local<Value>, const AccessorInfo&);
-
-private:
-  Record * record;
-  int ncol;
-  node::Buffer * buffer;
-  Handle<Object> jsBuffer;
-//  NdbTypeEncoder * encoders[];        // TypeEncoders for each column
-//  Handle<Value> cachedConversions[];  // cached of converted values
-};  
-
-MappedNdbRecord::MappedNdbRecord(Record *rec) : 
-  record(rec) 
+NdbRecordObject::NdbRecordObject(Record *_record, 
+                                 ColumnHandlerSet * _handlers,
+                                 Handle<Value> jsBuffer) : 
+  record(_record), 
+  handlers(_handlers),
+  ncol(record->getNoOfColumns()),
+  proxy(new ColumnProxy[record->getNoOfColumns()])
 {
-  ncol = record->getNoOfColumns();
-  buffer = node::Buffer::New(record->getBufferSize());
-  //jsBuffer = createJsBuffer(..);  // implemented in DBDictionaryImpl
-}
-
-
-MappedNdbRecord::~MappedNdbRecord() {
-  // Free the buffer
-  // Free the encoders array
-  // Free the cached conversions
-  
-
-
-}
-
-
-//Handle<Value> MappedNdbRecord::getField(Local<String> key,
-//                                        const AccessorInfo & info) {
-//  /* The column number is stored in info.Data() */
-//
-//}                                        
-
-/* arg0: Ndb 
-   arg1: NdbDictionary::Table
-   arg2: resolvedMapping 
-     which contains an array "fields"
-     where each element has "columnName" and "fieldName" properties
-   
-   Returns: a constructor function that can be used to create native-backed 
-   objects
-*/
-Handle<Value> NroBuilder(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  //Ndb * ndb =  unwrapPointer<Ndb *>(args[0]->ToObject());
-  //Handle<Object> jsDbTable = args[1]->ToObject();
-  //NdbDictionary::Table * table = unwrapPointer<NdbDictionary::Table *>(jsDbTable);
+
+  /* Retain a handler on the buffer for our whole lifetime */
+  persistentBufferHandle = Persistent<Value>::New(jsBuffer);
+  buffer = node::Buffer::Data(jsBuffer->ToObject());  
+  // You could assert here that buffer size == record buffer size
+
+  /* Initialize the list of masked-in columns */
+  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
   
-  return scope.Close(Null()); //fixme
+  /* Attach the column proxies to their handlers */
+  for(unsigned int i = 0 ; i < ncol ; i++)
+    proxy[i].setHandler(handlers->getHandler(i));
 }
 
 
-void NdbRecordObject_initOnLoad(Handle<Object> target) {
+NdbRecordObject::~NdbRecordObject() {
+  DEBUG_MARKER(UDEB_DEBUG);
+  persistentBufferHandle.Dispose();
+  delete[] proxy;
+}
+
+
+Handle<Value> NdbRecordObject::getField(int nField) {
+  if(record->isNull(nField, buffer))
+    return Null();
+  else
+    return proxy[nField].get(buffer);
+}
+
+
+Handle<Value> NdbRecordObject::prepare() {
   HandleScope scope;
-  DEFINE_JS_FUNCTION(target, "NdbRecordObjectBuilder",  NroBuilder);
+  Handle<Value> writeStatus;
+  Handle<Value> savedError = Undefined();
+  for(unsigned int i = 0 ; i < ncol ; i++) {
+    if(isMaskedIn(i)) {
+      if(proxy[i].isNull) {
+        record->setNull(i, buffer);
+      }
+      else {
+        writeStatus = proxy[i].write(buffer);
+        if(! writeStatus->IsUndefined()) savedError = writeStatus;
+      }
+    }
+  }
+  return scope.Close(savedError);
 }

@@ -47,10 +47,10 @@ var MySQLTime = require("./MySQLTime.js"),
 
 
 exports.toDB = function(jsdate) {
-  return new MySQLTime().initializeFromJsDate(jsdate);
+  return new MySQLTime().initializeFromJsDateLocal(jsdate);
 };
 
 exports.fromDB = function(dbTime) {
-  return MySQLTime.initializeFromNdb(dbTime).toJsDate();
+  return MySQLTime.initializeFromNdb(dbTime).toJsDateLocal();
 };
 

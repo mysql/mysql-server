@@ -247,9 +247,7 @@ DBConnectionPool.prototype.close = function(userCallback) {
   var i, table;
   /* Close the NDB on open tables */
   while(table = this.openTables.pop()) {
-    if(table.autoIncrementCache) { 
-      table.autoIncrementCache.close();
-    }
+    table.per_table_ndb.close();
   }
 
   for(i = 0 ; i < this.ndbSessionFreeList.length ; i++) {

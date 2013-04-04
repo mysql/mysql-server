@@ -25,7 +25,6 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-    PooledBuffer  = require("./PooledBuffer.js"),
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -264,6 +263,31 @@ function readResultRow(op) {
 }
 
 
+function buildValueObject(op) {
+  udebug.log("buildValueObject");
+  var VOC = op.tableHandler.ValueObject; // NDB Value Object Constructor
+  var DOC = op.tableHandler.newObjectConstructor;  // User's Domain Object Ctor
+  
+  if(VOC) {
+    /* Turn the buffer into a Value Object */
+    op.result.value = new VOC(op.buffers.row);
+
+    /* DBT may have some fieldConverters for this object */
+    op.tableHandler.applyFieldConverters(op.result.value);
+
+    /* Finally the user's constructor is called on the new value: */
+    if(DOC) {
+      DOC.call(op.result.value);
+    }
+  }
+  else {
+    /* If there is a good reason to have no VOC, just call readResultRow()... */
+    console.log("NO VOC!");
+    process.exit();
+  }
+}
+
+
 function buildOperationResult(transactionHandler, op, execMode) {
   udebug.log("buildOperationResult");
   var op_ndb_error, result_code;
@@ -313,7 +337,8 @@ function buildOperationResult(transactionHandler, op, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-      readResultRow(op);
+      // readResultRow(op);
+      buildValueObject(op);
     } 
   }
   stats.incr( [ "result_code", result_code ] );
@@ -341,16 +366,58 @@ function completeExecutedOps(dbTxHandler, execMode, operationsList) {
 }
 
 
+function storeNativeConstructorInMapping(dbTableHandler) {
+  var i, nfields, record, fieldNames, typeConverters;
+  var VOC, DOC;  // Value Object Constructor, Domain Object Constructor
+  if(dbTableHandler.ValueObject) { 
+    return;
+  }
+  /* Step 1: Create Record
+     getRecordForMapping(table, ndb, nColumns, columns array)
+  */
+  nfields = dbTableHandler.fieldNumberToColumnMap.length;
+  record = adapter.impl.DBDictionary.getRecordForMapping(
+    dbTableHandler.dbTable,
+    dbTableHandler.dbTable.per_table_ndb,
+    nfields,
+    dbTableHandler.fieldNumberToColumnMap
+  );
+
+  /* Step 2: Get NdbRecordObject Constructor
+    getValueObjectConstructor(record, fieldNames, typeConverters)
+  */
+  fieldNames = {};
+  typeConverters = {};
+  for(i = 0 ; i < nfields ; i++) {
+    fieldNames[i] = dbTableHandler.resolvedMapping.fields[i].fieldName;
+    typeConverters[i] = dbTableHandler.fieldNumberToColumnMap[i].typeConverter;
+  }
+
+  VOC = adapter.impl.getValueObjectConstructor(record, fieldNames, typeConverters);
+
+  /* Apply the user's prototype */
+  DOC = dbTableHandler.newObjectConstructor;
+  if(DOC && DOC.prototype) {
+    VOC.prototype = DOC.prototype;
+  }
+
+  /* Store the VOC in the mapping */
+  dbTableHandler.ValueObject = VOC;
+}
+
 function verifyIndexHandler(dbIndexHandler) {
   if(! dbIndexHandler.tableHandler) { throw ("Invalid dbIndexHandler"); }
 }
-
 
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
   udebug.log("newReadOperation", keys);
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler, null);
   op.keys = keys;
+
+  if(! dbIndexHandler.tableHandler.NativeConstructor) {
+    storeNativeConstructorInMapping(dbIndexHandler.tableHandler);
+  }
 
   assert(doc.LockModes.indexOf(lockMode) !== -1);
   if(op.index.isPrimaryKey || lockMode === "EXCLUSIVE") {
@@ -400,10 +467,18 @@ function newUpdateOperation(tx, dbIndexHandler, keys, row) {
 }
 
 
+function newScanOperation(tx, queryHandler, properties) {
+  udebug.log("newScanOperation");
+  var op = new DBOperation(0, tx, queryHandler.dbIndexHandler, queryHandler.dbTableHandler);
+  op.keys = properties;
+  return op;
+}
+
 exports.DBOperation         = DBOperation;
 exports.newReadOperation    = newReadOperation;
 exports.newInsertOperation  = newInsertOperation;
 exports.newDeleteOperation  = newDeleteOperation;
 exports.newUpdateOperation  = newUpdateOperation;
 exports.newWriteOperation   = newWriteOperation;
+exports.newScanOperation    = newScanOperation;
 exports.completeExecutedOps = completeExecutedOps;

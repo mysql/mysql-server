@@ -262,6 +262,20 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
   return op;
 };
 
+/* buildScanOperation(QueryHandler queryHandler,
+                        Object properties, 
+                        DBTransactionHandler transaction,
+                        function(error, result) userCallback)
+   IMMEDIATE
+*/
+NdbSession.prototype.buildScanOperation = function(queryHandler, properties, 
+                                                   tx, callback) {
+  udebug.log("buildDeleteOperation");  
+  var op = ndboperation.newScanOperation(tx, queryHandler, properties);
+  op.userCallback = callback;
+  return op;
+}                                                   
+
 
 /* getTransactionHandler() 
    IMMEDIATE
