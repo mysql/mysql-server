@@ -22,40 +22,26 @@
 #include <node.h>
 #include <NdbApi.hpp>
 
-#include "ColumnHandler.h"
+#include "Record.h"
+#include "NdbTypeEncoders.h"
 
 using namespace v8;
 
-class ColumnProxy {
+class ColumnHandler {
 public:
-  ColumnProxy();
-  ~ColumnProxy();
-  void setHandler(const ColumnHandler *);
-
-  Handle<Value> get(char *);
-  void          set(Handle<Value>);
-  Handle<Value> write(char *);
-  bool          isNull;  // value has been set to null
-
-private:
-  const ColumnHandler *handler;
-  Persistent<Value> jsValue;
-  bool isLoaded;         // value has been read from buffer
-  bool isDirty;          // value should be rewritten in buffer
+  ColumnHandler();
+  ~ColumnHandler();
+  void init(const NdbDictionary::Column *, size_t, Handle<Value>);
+  Handle<Value> read(char *) const;
+  Handle<Value> write(Handle<Value>, char *) const;
+    
+private: 
+  const NdbDictionary::Column *column;
+  size_t offset;
+  const NdbTypeEncoder *encoder;
+  Persistent<Object> converterClass;
+  Persistent<Object> converterReader;
+  Persistent<Object> converterWriter;
+  bool hasConverterReader, hasConverterWriter;
 };
-
-
-inline ColumnProxy::ColumnProxy() :
-  isNull(false), isLoaded(false), isDirty(false)
-{}
-
-inline ColumnProxy::~ColumnProxy() {
-  if(! jsValue.IsEmpty())
-    jsValue.Dispose();
-}
-
-inline void ColumnProxy::setHandler(const ColumnHandler *h) {
-  handler = h;
-}
-
 

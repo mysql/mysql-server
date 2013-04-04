@@ -23,6 +23,7 @@
 #include <NdbApi.hpp>
 
 #include "adapter_global.h"
+#include "unified_debug.h"
 #include "js_wrapper_macros.h"
 #include "JsWrapper.h"
 #include "ColumnProxy.h"
@@ -84,78 +85,121 @@
    it will dispose this handle
 */
 
+Handle<String> K_toDB, K_fromDB;
+
 void gcWeakRefCallback(Persistent<Value>, void*);
+
+class ColumnHandlerSet {
+public:
+  ColumnHandlerSet(int _size) : size(_size), handlers(new ColumnHandler[size]) { }
+  ~ColumnHandlerSet() { delete[] handlers; }  
+  ColumnHandler * getHandler(int i) { assert(i < size); return & handlers[i]; }
+private:
+  int size;
+  ColumnHandler * const handlers;
+};
+
+Envelope columnHandlerSetEnvelope("ColumnHandlerSet");
 
 
 class NdbRecordObject {
 public:
-  NdbRecordObject(Record *, char *);
+  NdbRecordObject(Record *, ColumnHandlerSet *, Handle<Value>);
   ~NdbRecordObject();
-
-  Handle<Value> getField(int nField) {
-    if(record->isNull(nField, buffer))
-      return Null();
-    else
-      return proxy[nField].get(record->getColumn(nField), buffer, 
-                               record->getColumnOffset(nField));
-  };
   
-  void setField(int nField, Handle<Value> value) {
-    maskIn(nField);
-    proxy[nField].set(value);
-  };
-
+  Handle<Value> getField(int);
+  void setField(int nField, Handle<Value> value);
   Handle<Value> prepare();
 
 private:
   Record * record;
   char * buffer;
+  ColumnHandlerSet * handlers;
+  Persistent<Value> persistentBufferHandle;
   const unsigned int & ncol;
   ColumnProxy * const proxy;
   uint8_t row_mask[4];
-
-  void maskIn(unsigned int nField) {
-    row_mask[nField >> 3] |= (1 << (nField & 7));
-  }
-  
-  bool isMaskedIn(unsigned int nField) {
-    return (row_mask[nField >> 3] & (1<<(nField & 7)));
-  }
+  void maskIn(unsigned int nField);
+  bool isMaskedIn(unsigned int nField);
 };
 
 
-NdbRecordObject::NdbRecordObject(Record *_record, char *_buffer) : 
+NdbRecordObject::NdbRecordObject(Record *_record, 
+                                 ColumnHandlerSet * _handlers,
+                                 Handle<Value> jsBuffer) : 
   record(_record), 
-  buffer(_buffer),
+  handlers(_handlers),
   ncol(record->getNoOfColumns()),
   proxy(new ColumnProxy[record->getNoOfColumns()])
 {
+  DEBUG_MARKER(UDEB_DEBUG);
+
+  /* Retain a handler on the buffer for our whole lifetime */
+  persistentBufferHandle = Persistent<Value>::New(jsBuffer);
+  buffer = node::Buffer::Data(jsBuffer->ToObject());  
+  // You could assert here that buffer size == record buffer size
+
+  /* Initialize the list of masked-in columns */
   row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
-  for(unsigned int i = 0; i < ncol ; i++) {
-    proxy[i].setColumn(record->getColumn(i));
-  }
+  
+  /* Attach the column proxies to their handlers */
+  for(unsigned int i = 0 ; i < ncol ; i++)
+    proxy[i].setHandler(handlers->getHandler(i));
 }
 
 
 NdbRecordObject::~NdbRecordObject() {
+  DEBUG_MARKER(UDEB_DEBUG);
+  if(! persistentBufferHandle.IsEmpty()) 
+    persistentBufferHandle.Dispose();
   delete[] proxy;
+}
+
+
+Handle<Value> NdbRecordObject::getField(int nField) {
+  if(record->isNull(nField, buffer))
+    return Null();
+  else
+    return proxy[nField].get(buffer);
+}
+
+
+inline void NdbRecordObject::setField(int nField, Handle<Value> value) {
+  maskIn(nField); 
+  proxy[nField].set(value);
 }
 
 
 Handle<Value> NdbRecordObject::prepare() {
   HandleScope scope;
+  Handle<Value> writeStatus;
   Handle<Value> savedError = Undefined();
-  Handle<Value> error;
   for(unsigned int i = 0 ; i < ncol ; i++) {
     if(isMaskedIn(i)) {
-      error = proxy[i].write(record, i, buffer);
-      if(! error->IsUndefined()) savedError = error;
+      if(proxy[i].isNull) {
+        record->setNull(i, buffer);
+      }
+      else {
+        writeStatus = proxy[i].write(buffer);
+        if(! writeStatus->IsUndefined()) savedError = writeStatus;
+      }
     }
   }
   return scope.Close(savedError);
 }
 
+
+inline void NdbRecordObject::maskIn(unsigned int nField) {
+  row_mask[nField >> 3] |= (1 << (nField & 7));
+}
+
+  
+inline bool NdbRecordObject::isMaskedIn(unsigned int nField) {
+  return (row_mask[nField >> 3] & (1<<(nField & 7)));
+}
+
 Envelope nroEnvelope("NdbRecordObject");
+
 
 /************************************************************************/
 
@@ -186,20 +230,22 @@ Handle<Value> nroConstructor(const Arguments &args) {
   HandleScope scope;
 
   if(args.IsConstructCall()) {
-    // You could assert here that buffer size == record buffer size
-    Handle<Object> thisNro = args.This();
-    // Do we need to keep a persistent handle to the buffer?
-    char * buffer = node::Buffer::Data(args[0]->ToObject());
+    /* Unwrap record from mapData */
     Local<Object> mapData = args.Data()->ToObject();
-    
-    Record * record = unwrapPointer<Record *>(mapData->Get(0)->ToObject());
-    NdbRecordObject * nro = new NdbRecordObject(record, buffer);
-    thisNro->SetPointerInInternalField(0, & nroEnvelope); 
-    thisNro->SetPointerInInternalField(1, nro);
+    Record * record = 
+      unwrapPointer<Record *>(mapData->Get(0)->ToObject());
 
-    // TODO: Apply the TypeConverters from mapData
+    /* Unwrap Column Handlers from mapData */
+    ColumnHandlerSet * handlers = 
+      unwrapPointer<ColumnHandlerSet *>(mapData->Get(1)->ToObject());
+
+    /* Build NdbRecordObject */
+    NdbRecordObject * nro = new NdbRecordObject(record, handlers, args[0]);
 
     // TODO: Expose JS wrapper for NdbRecordObject::prepare()
+
+    /* Wrap for JavaScript */
+    wrapPointerInObject<NdbRecordObject *>(nro, nroEnvelope, args.This());
   }
   else {
     ThrowException(Exception::Error(String::New("must be a called as constructor")));
@@ -220,27 +266,40 @@ Handle<Value> NroConstructorBuilder(const Arguments &args) {
   HandleScope scope;
   Local<FunctionTemplate> ft = FunctionTemplate::New();
   Local<ObjectTemplate> inst = ft->InstanceTemplate();
-  inst->SetInternalFieldCount(3);
+  inst->SetInternalFieldCount(2);
 
-  // Store the record in the mapData
+  /* Initialize the mapData */
   Local<Object> mapData = Object::New();
-  mapData->Set(0, Persistent<Value>::New(args[0]));
-  Record * record = unwrapPointer<Record *>(args[0]->ToObject());
+  
+  /* Store the record in the mapData at 0 */
+  mapData->Set(0, args[0]);
 
-  // Create accessors for the mapped fields in the instance template
-  Local<Object> vFields = args[1]->ToObject();
-  for(unsigned int i = 0 ; i < record->getNoOfColumns() ; i++) {
-    char fieldbuf[100];
-    vFields->Get(i)->ToString()->WriteAscii(fieldbuf);
-    DEBUG_PRINT("Accessor for %s", fieldbuf);
-    inst->SetAccessor(vFields->Get(i)->ToString(), 
-                      nroGetter, nroSetter, 
-                      Number::New(i));
+  /* Build the ColumnHandlers and store them in the mapData at 1 */
+  Record * record = unwrapPointer<Record *>(args[0]->ToObject());
+  const uint32_t ncol = record->getNoOfColumns();
+  ColumnHandlerSet *columnHandlers = new ColumnHandlerSet(ncol);
+  for(unsigned int i = 0 ; i < ncol ; i++) {
+    const NdbDictionary::Column * col = record->getColumn(i);
+    size_t offset = record->getColumnOffset(i);
+    ColumnHandler * handler = columnHandlers->getHandler(i);
+    handler->init(col, offset, args[2]->ToObject()->Get(i));
+  }
+  Local<Object> jsHandlerSet = columnHandlerSetEnvelope.newWrapper();
+  wrapPointerInObject<ColumnHandlerSet *>(columnHandlers, 
+                                          columnHandlerSetEnvelope,
+                                          jsHandlerSet);
+  mapData->Set(1, jsHandlerSet);
+
+  /* Create accessors for the mapped fields in the instance template
+     AccessorInfo.Data() for the accessor will hold the field number 
+  */
+  Local<Object> jsFields = args[1]->ToObject();
+  for(unsigned int i = 0 ; i < ncol; i++) {
+    Handle<String> fieldName = jsFields->Get(i)->ToString();
+    inst->SetAccessor(fieldName, nroGetter, nroSetter, Number::New(i));
   }
 
-  // TODO: Store TypeConverters in the mapData
-  
-  // The generic constructor is the CallHandler
+  /* The generic constructor is the CallHandler */
   ft->SetCallHandler(nroConstructor, Persistent<Object>::New(mapData));
 
   return scope.Close(ft->GetFunction());
