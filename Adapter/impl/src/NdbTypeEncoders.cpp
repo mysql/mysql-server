@@ -121,7 +121,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
 };
 
 
-inline const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *col) {
+const NdbTypeEncoder * getEncoderForColumn(const NdbDictionary::Column *col) {
   return AllEncoders[col->getType()];
 }
 
