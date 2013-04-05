@@ -315,20 +315,6 @@ commit;
 update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
 select count(*) from t1 where keyc < 0;
 drop table t1;
-# check with non temp table
-create table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(100);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
 
 # change innodb_change_buffering value to none
 set @@global.innodb_change_buffering = none ;
@@ -341,20 +327,6 @@ create index idx on t1(keyc, c1(20));
 set autocommit=0;
 select count(*) from t1;
 CALL populate_t1(20000);
-select count(*) from t1;
-select * from t1 limit 10;
-commit;
-update t1 set keyc = -1 * keyc where keyc%50 = 0 ;
-select count(*) from t1 where keyc < 0;
-drop table t1;
-# check with non temp table
-create table t1
-	(keyc int, c1 char(100), c2 char(100),
-	 primary key(keyc)) engine = innodb;
-create index idx on t1(keyc, c1(20));
-set autocommit=0;
-select count(*) from t1;
-CALL populate_t1(100);
 select count(*) from t1;
 select * from t1 limit 10;
 commit;
