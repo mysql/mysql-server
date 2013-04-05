@@ -899,6 +899,8 @@ enum enum_acl_lists
   Note that it works only for native and "old" mysql authentication built-in
   plugins.
   
+  Assumption : user's authentication plugin information is available.
+
   @return Password hash validation
     @retval false Hash is of suitable length
     @retval true Hash is of wrong length or format
@@ -1029,7 +1031,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   int password_length;
+  char *password;
+  uint password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
+  bool password_expired= false;
   DBUG_ENTER("acl_load");
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1052,6 +1057,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
   {
+    password_expired= false;
     /* Reading record from mysql.user */
     ACL_USER user;
     memset(&user, 0, sizeof(user));
@@ -1069,31 +1075,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
 
     /* Read legacy password */
-    {
-      char *password= get_field(&global_acl_memory,
-                                table->field[MYSQL_USER_FIELD_PASSWORD]);
-      uint password_len= password ? strlen(password) : 0;
-      user.auth_string.str= password ? password : const_cast<char*>("");
-      user.auth_string.length= password_len;
-      /*
-         Transform hex to octets and adjust the format.
-       */
-      if (set_user_salt(&user, password, password_len))
-      {
-        sql_print_warning("Found invalid password for user: '%s@%s'; "
-                          "Ignoring user", user.user ? user.user : "",
-                          user.host.get_host() ? user.host.get_host() : "");
-        continue;
-      }
-
-      /*
-        Set temporary plugin deduced from password length. If there are 
-        enough fields in the user table the real plugin will be read later.
-       */
-      user.plugin= native_password_plugin_name;
-      if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        user.plugin= old_password_plugin_name;
-    } 
+    password= get_field(&global_acl_memory,
+                        table->field[MYSQL_USER_FIELD_PASSWORD]);
+    password_len= password ? strlen(password) : 0;
+    user.auth_string.str= password ? password : const_cast<char*>("");
+    user.auth_string.length= password_len;
 
     {
       uint next_field;
@@ -1246,6 +1232,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                 user.host.get_host() ? user.host.get_host() : "");
               continue;
             }
+            password_expired= true;
           }
         }
       } // end if (table->s->fields >= 31)
@@ -1266,6 +1253,33 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= SUPER_ACL | EXECUTE_ACL;
 #endif
       }
+      if (!user.plugin.length)
+      {
+        /*
+           Set plugin deduced from password length.
+           We can reach here in two cases:
+           1. mysql.user doesn't have plugin field
+           2. Plugin field is empty
+         */
+        user.plugin= native_password_plugin_name;
+        if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+          user.plugin= old_password_plugin_name;
+  
+      }
+      /*
+         Transform hex to octets and adjust the format.
+       */
+      if (set_user_salt(&user, password, password_len))
+      {
+        sql_print_warning("Found invalid password for user: '%s@%s'; "
+                          "Ignoring user", user.user ? user.user : "",
+                          user.host.get_host() ? user.host.get_host() : "");
+        continue;
+      }
+
+      /* set_user_salt resets expiration flag so restore it */
+      user.password_expired= password_expired;
+
       (void) push_dynamic(&acl_users,(uchar*) &user);
       if (user.host.check_allow_all_hosts())
         allow_all_hosts=1;			// Anyone can connect
