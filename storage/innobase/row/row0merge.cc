@@ -326,18 +326,12 @@ row_merge_buf_add(
 				fts_doc_item_t*	doc_item;
 				byte*		value;
 
-				if (dfield_is_null(field)) {
-					n_row_added = 1;
-					continue;
-				}
-
-				doc_item = static_cast<fts_doc_item_t*>(
-					mem_heap_alloc(
-						buf->heap,
-						sizeof(fts_doc_item_t)));
-
 				/* fetch Doc ID if it already exists
-				in the row, and not supplied by the caller */
+				in the row, and not supplied by the
+				caller. Even if the value column is
+				NULL, we still need to get the Doc
+				ID so to maintain the correct max
+				Doc ID */
 				if (*doc_id == 0) {
 					const dfield_t*	doc_field;
 					doc_field = dtuple_get_nth_field(
@@ -348,13 +342,22 @@ row_merge_buf_add(
 						dfield_get_data(doc_field)));
 
 					if (*doc_id == 0) {
-						fprintf(stderr, "InnoDB FTS: "
-							"User supplied Doc ID "
-							"is zero. Record "
-							"Skipped\n");
+						ib_logf(IB_LOG_LEVEL_WARN,
+							"FTS Doc ID is zero. "
+							"Record Skipped");
 						return(0);
 					}
 				}
+
+				if (dfield_is_null(field)) {
+					n_row_added = 1;
+					continue;
+				}
+
+				doc_item = static_cast<fts_doc_item_t*>(
+					mem_heap_alloc(
+						buf->heap,
+						sizeof(*doc_item)));
 
 				value = static_cast<byte*>(
 					ut_malloc(field->len));
