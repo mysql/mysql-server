@@ -694,6 +694,8 @@ get_next_noredo_rseg(
 		}
 	}
 
+	ut_ad(rseg->space == srv_tmp_space.space_id());
+
 	return(rseg);
 }
 
@@ -739,7 +741,7 @@ trx_assign_rseg_low(
 	if (rseg_type == TRX_RSEG_TYPE_REDO) {
 		rseg = get_next_redo_rseg(max_undo_logs, n_tablespaces);
 	} else if (rseg_type == TRX_RSEG_TYPE_NOREDO) {
-		rseg = get_next_noredo_rseg(max_undo_logs);
+		rseg = get_next_noredo_rseg(max_undo_logs + srv_tmp_undo_logs);
 	}
 
 	return(rseg);
