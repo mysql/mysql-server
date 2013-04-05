@@ -274,7 +274,7 @@ NdbSession.prototype.buildScanOperation = function(queryHandler, properties,
   var op = ndboperation.newScanOperation(tx, queryHandler, properties);
   op.userCallback = callback;
   return op;
-}                                                   
+};
 
 
 /* getTransactionHandler() 
