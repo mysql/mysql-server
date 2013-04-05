@@ -43,6 +43,7 @@ public:
   void useSelectedColumns();
   void useAllColumns();
   void useColumn(int id);
+  void copyRowMask(const uint8_t *);
   
   /* NdbTransaction method wrappers */
   // startTransaction
@@ -83,7 +84,9 @@ inline void Operation::useColumn(int col_id) {
   row_mask[col_id >> 3] |= (1 << (col_id & 7));
 }
 
-
+inline void Operation::copyRowMask(const uint8_t * mask) {
+  memcpy(row_mask, mask, 4);
+}
 /* NdbTransaction method wrappers */
 
 inline const NdbOperation * 
