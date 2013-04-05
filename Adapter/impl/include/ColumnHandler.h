@@ -35,8 +35,9 @@ public:
   Handle<Value> read(char *) const;
   Handle<Value> write(Handle<Value>, char *) const;
     
-private: 
+public:
   const NdbDictionary::Column *column;
+private: 
   size_t offset;
   const NdbTypeEncoder *encoder;
   Persistent<Object> converterClass;

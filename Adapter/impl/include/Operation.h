@@ -19,6 +19,8 @@
  */
 #pragma once
 
+#include <string.h>
+
 #include <NdbApi.hpp>
 
 #include "Record.h"

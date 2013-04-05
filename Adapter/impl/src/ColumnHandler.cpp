@@ -101,6 +101,7 @@ Handle<Value> ColumnHandler::write(Handle<Value> val, char *buffer) const {
   HandleScope scope;
   Handle<Value> writeStatus;
 
+  DEBUG_PRINT("write %s", column->getName());
   if(hasConverterWriter) {
     TryCatch tc;
     Handle<Value> arguments[1];

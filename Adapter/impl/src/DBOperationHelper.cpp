@@ -159,11 +159,11 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   HandleScope scope;
   Operation op;
 
-fprintf(stderr,"VO helper ***\n");
   const Local<Object> spec = args[0]->ToObject();
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
+  Handle<Value> returnVal;
 
   /* Verify that we really have a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
@@ -181,6 +181,9 @@ fprintf(stderr,"VO helper ***\n");
   /* Now we trust the user's value enough to cast it to an NRO.
   */
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
+
+  /* Get the VO ready */
+  returnVal = nro->prepare();  // do something with this?
   
   /* Set the key record and key buffer from the helper spec */
   setKeysInOp(spec, op);
@@ -188,12 +191,16 @@ fprintf(stderr,"VO helper ***\n");
   /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
-  op.copyRowMask(nro->getMask());
+  op.copyRowMask(nro->getMask()); 
     
   int opcode = args[1]->Int32Value();
   NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
-  return scope.Close(buildNdbOperation(op, opcode, tx));
+  returnVal = buildNdbOperation(op, opcode, tx);
+  
+  nro->resetMask();   // all columns ready for writing again
+
+  return scope.Close(returnVal);
 }
 
 
