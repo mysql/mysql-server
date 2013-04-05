@@ -19,7 +19,7 @@
  */
 
 /***** Find with domain object and primitive primary key ***/
-var t1 = new harness.ConcurrentTest("PersistFindModifySaveFind");
+var t1 = new harness.ConcurrentTest("Find_Modify_Save");
 t1.run = function() {
   
   /* Create a row with age = 23.
@@ -61,6 +61,15 @@ t1.run = function() {
   fail_openSession(this, onOpen);
 };
 
+// Find_Modify_Save and test that all columns are in mask
+// Find_Modify_Update and test that only the modified column is in mask
+// Find_Delete
+// Find_ModifyPK_Save (new row, mask will be invalid) 
+// Find_ModifyPK_Persist
+// Find_ModifyPK_Delete
+// Find_ModifyPK_Load
+// Find_ModifyUK_Load
 
+// implement getColumnMaskForVO(obj) and test masked columns 
 exports.tests = [ t1];
 
