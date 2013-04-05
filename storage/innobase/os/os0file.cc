@@ -2085,7 +2085,7 @@ os_file_get_size(
 	/* Store current position */
 	cur_pos = (os_offset_t) lseek(file, 0, SEEK_CUR);
 	offset = (os_offset_t) lseek(file, 0, SEEK_END);
-	/* Restore current position */
+	/* Restore current position as the function should not change it */
 	lseek(file, cur_pos, SEEK_SET);
 	return(offset);
 #endif /* __WIN__ */
@@ -2205,7 +2205,7 @@ os_file_truncate(
 
 	size_bytes = os_file_get_size(file);
 
-	/* Do nothing if the size preserved is smaller or equal than
+	/* Do nothing if the size preserved is larger than or equal with
 	current size of file */
 	if (size >= size_bytes) {
 		return(TRUE);
