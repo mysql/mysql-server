@@ -793,6 +793,93 @@ row_log_table_update(
 	row_log_table_low(rec, index, offsets, false, old_pk);
 }
 
+/** Gets the old table column of a PRIMARY KEY column.
+@param table	old table (before ALTER TABLE)
+@param col_map	mapping of old column numbers to new ones
+@param col_no	column position in the new table
+@return old table column, or NULL if this is an added column */
+static
+const dict_col_t*
+row_log_table_get_pk_old_col(
+/*=========================*/
+	const dict_table_t*	table,
+	const ulint*		col_map,
+	ulint			col_no)
+{
+	for (ulint i = 0; i < table->n_cols; i++) {
+		if (col_no == col_map[i]) {
+			return(dict_table_get_nth_col(table, i));
+		}
+	}
+
+	return(NULL);
+}
+
+/** Maps an old table column of a PRIMARY KEY column.
+@param col	old table column (before ALTER TABLE)
+@param ifield	clustered index field in the new table (after ALTER TABLE)
+@param dfield	clustered index tuple field in the new table
+@param heap	memory heap for allocating dfield contents
+@param rec	clustered index leaf page record in the old table
+@param offsets	rec_get_offsets(rec)
+@param i	rec field corresponding to col
+@param zip_size	compressed page size of the old table, or 0 for uncompressed
+@param max_len	maximum length of dfield
+@retval DB_INVALID_NULL if a NULL value is encountered
+@retval DB_TOO_BIG_INDEX_COL if the maximum prefix length is exceeded */
+static
+dberr_t
+row_log_table_get_pk_col(
+/*=====================*/
+	const dict_col_t*	col,
+	const dict_field_t*	ifield,
+	dfield_t*		dfield,
+	mem_heap_t*		heap,
+	const rec_t*		rec,
+	const ulint*		offsets,
+	ulint			i,
+	ulint			zip_size,
+	ulint			max_len)
+{
+	const byte*	field;
+	ulint		len;
+
+	ut_ad(ut_is_2pow(zip_size));
+
+	field = rec_get_nth_field(rec, offsets, i, &len);
+
+	if (len == UNIV_SQL_NULL) {
+		return(DB_INVALID_NULL);
+	}
+
+	if (rec_offs_nth_extern(offsets, i)) {
+		ulint	field_len = ifield->prefix_len;
+		byte*	blob_field;
+
+		if (!field_len) {
+			field_len = ifield->fixed_len;
+			if (!field_len) {
+				field_len = max_len + 1;
+			}
+		}
+
+		blob_field = static_cast<byte*>(
+			mem_heap_alloc(heap, field_len));
+
+		len = btr_copy_externally_stored_field_prefix(
+			blob_field, field_len, zip_size, field, len);
+		if (len >= max_len + 1) {
+			return(DB_TOO_BIG_INDEX_COL);
+		}
+
+		dfield_set_data(dfield, blob_field, len);
+	} else {
+		dfield_set_data(dfield, mem_heap_dup(heap, field, len), len);
+	}
+
+	return(DB_SUCCESS);
+}
+
 /******************************************************//**
 Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
@@ -865,107 +952,64 @@ row_log_table_get_pk(
 		dict_index_copy_types(tuple, new_index, tuple->n_fields);
 		dtuple_set_n_fields_cmp(tuple, new_n_uniq);
 
+		const ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(new_table);
+		const ulint zip_size = dict_table_zip_size(index->table);
+
 		for (ulint new_i = 0; new_i < new_n_uniq; new_i++) {
-			dict_field_t*		ifield;
-			dfield_t*		dfield;
-			const dict_col_t*	new_col;
-			const dict_col_t*	col;
-			ulint			col_no;
-			ulint			i;
-			ulint			len;
-			ulint			prtype;
-			ulint			mbminmaxlen;
-			const byte*		field;
+			dict_field_t*	ifield;
+			dfield_t*	dfield;
+			ulint		prtype;
+			ulint		mbminmaxlen;
 
 			ifield = dict_index_get_nth_field(new_index, new_i);
 			dfield = dtuple_get_nth_field(tuple, new_i);
-			new_col = dict_field_get_col(ifield);
-			col_no = new_col->ind;
-			col = dict_table_get_nth_col(index->table, col_no);
 
-			for (ulint old_i = 0; old_i < index->table->n_cols;
-			     old_i++) {
-				if (col_no == log->col_map[old_i]) {
-					col_no = old_i;
-					goto copy_col;
-				}
-			}
+			const ulint	col_no
+				= dict_field_get_col(ifield)->ind;
 
-			/* No matching column was found in the old
-			table, so this must be an added column.
-			Copy the default value. */
-			ut_ad(log->add_cols);
+			if (const dict_col_t* col
+			    = row_log_table_get_pk_old_col(
+				    index->table, log->col_map, col_no)) {
+				ulint	i = dict_col_get_clust_pos(col, index);
 
-			dfield_copy(dfield,
-				    dtuple_get_nth_field(
-					    log->add_cols, col_no));
-			len = dfield_get_len(dfield);
-			mbminmaxlen = dfield_get_type(dfield)->mbminmaxlen;
-			prtype = dfield_get_type(dfield)->prtype;
-			goto copied_col;
-
-copy_col:
-			i = dict_col_get_clust_pos(col, index);
-
-			if (i == ULINT_UNDEFINED) {
-				ut_ad(0);
-				log->error = DB_CORRUPTION;
-				tuple = NULL;
-				goto func_exit;
-			}
-
-			field = rec_get_nth_field(rec, offsets, i, &len);
-
-			if (len == UNIV_SQL_NULL) {
-				log->error = DB_INVALID_NULL;
-				tuple = NULL;
-				goto func_exit;
-			}
-
-			if (rec_offs_nth_extern(offsets, i)) {
-				ulint		field_len = ifield->prefix_len;
-				byte*		blob_field;
-				const ulint	max_len =
-					DICT_MAX_FIELD_LEN_BY_FORMAT(
-						new_table);
-
-				if (!field_len) {
-					field_len = ifield->fixed_len;
-					if (!field_len) {
-						field_len = max_len + 1;
-					}
+				if (i == ULINT_UNDEFINED) {
+					ut_ad(0);
+					log->error = DB_CORRUPTION;
+					goto err_exit;
 				}
 
-				blob_field = static_cast<byte*>(
-					mem_heap_alloc(*heap, field_len));
+				log->error = row_log_table_get_pk_col(
+					col, ifield, dfield, *heap,
+					rec, offsets, i, zip_size, max_len);
 
-				len = btr_copy_externally_stored_field_prefix(
-					blob_field, field_len,
-					dict_table_zip_size(index->table),
-					field, len);
-				if (len == max_len + 1) {
-					log->error = DB_TOO_BIG_INDEX_COL;
+				if (log->error != DB_SUCCESS) {
+err_exit:
 					tuple = NULL;
 					goto func_exit;
 				}
 
-				dfield_set_data(dfield, blob_field, len);
+				mbminmaxlen = col->mbminmaxlen;
+				prtype = col->prtype;
 			} else {
-				dfield_set_data(
-					dfield,
-					mem_heap_dup(*heap, field, len), len);
+				/* No matching column was found in the old
+				table, so this must be an added column.
+				Copy the default value. */
+				ut_ad(log->add_cols);
+
+				dfield_copy(dfield, dtuple_get_nth_field(
+						    log->add_cols, col_no));
+				mbminmaxlen = dfield->type.mbminmaxlen;
+				prtype = dfield->type.prtype;
 			}
 
-			mbminmaxlen = col->mbminmaxlen;
-			prtype = col->prtype;
-copied_col:
 			ut_ad(!dfield_is_ext(dfield));
-			ut_ad(len != UNIV_SQL_NULL);
+			ut_ad(!dfield_is_null(dfield));
 
 			if (ifield->prefix_len) {
-				len = dtype_get_at_most_n_mbchars(
+				ulint	len = dtype_get_at_most_n_mbchars(
 					prtype, mbminmaxlen,
-					ifield->prefix_len, len,
+					ifield->prefix_len,
+					dfield_get_len(dfield),
 					static_cast<const char*>(
 						dfield_get_data(dfield)));
 
