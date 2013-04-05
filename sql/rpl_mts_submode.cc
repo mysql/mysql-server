@@ -22,8 +22,7 @@
  @param:  Relay_log_info rli
  @return: TRUE  if error
           FALSE if no error
- */
-
+*/
 bool
 Mts_submode_database::schedule_next_event(Relay_log_info *rli)
 {
@@ -36,8 +35,8 @@ Mts_submode_database::schedule_next_event(Relay_log_info *rli)
   @param: THD thd
           Relay_log_info rli
           Query_log_event ev
- */
-
+  @return: void
+*/
 void
 Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                          Query_log_event* ev)
@@ -59,6 +58,14 @@ Mts_submode_database::attach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
+/*
+ Logic to detach the temporary tables from the worker threads upon
+ event execution
+ @param: thd THD instance
+         rli Relay_log_info instance
+         ev  Query_log_event that is being applied
+ @return: void
+ */
 void
 Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                          Query_log_event *ev)
@@ -138,6 +145,14 @@ Mts_submode_database::detach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
+/*
+  Logic to get least occupied worker when the sql mts_submode= database
+  @param
+    rli relay log info of coordinator
+    ws arrayy of worker threads
+    ev event for which we are searching for a worker.
+  @return slave worker thread
+ */
 Slave_worker *
 Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
                                                 DYNAMIC_ARRAY *ws,
@@ -175,6 +190,14 @@ Mts_submode_database::get_least_occupied_worker(Relay_log_info *rli,
   DBUG_RETURN(worker);
 }
 
+/*
+ Logic to assign the parent id to the transaction
+ @param rli Relay_log_info of the coordinator
+ @return true is error
+         false otherwise
+ @return: true if error
+          false otherwise
+*/
 bool
 Mts_submode_database::assign_group_parent_id(Relay_log_info* rli,
                                              Log_event * ev)
@@ -190,7 +213,6 @@ Mts_submode_database::assign_group_parent_id(Relay_log_info* rli,
  @return: TRUE  if error
           FALSE if no error
  */
-
 bool
 Mts_submode_master::schedule_next_event(Relay_log_info* rli)
 {
@@ -230,6 +252,14 @@ Mts_submode_master::schedule_next_event(Relay_log_info* rli)
   DBUG_RETURN(false);
 }
 
+/*
+ Logic to attach the temporary tables from the worker threads upon
+ event execution
+ @param: thd THD instance
+         rli Relay_log_info instance
+         ev  Query_log_event that is being applied
+ @return: void
+ */
 void
 Mts_submode_master::attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                        Query_log_event * ev)
@@ -284,6 +314,14 @@ Mts_submode_master::attach_temp_tables(THD *thd, const Relay_log_info* rli,
   DBUG_VOID_RETURN;
 }
 
+/*
+ Logic to detach the temporary tables from the worker threads upon
+ event execution
+ @param: thd THD instance
+         rli Relay_log_info instance
+         ev  Query_log_event that is being applied
+ @return: void
+ */
 void
 Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
                                         Query_log_event * ev)
@@ -304,6 +342,15 @@ Mts_submode_master::detach_temp_tables( THD *thd, const Relay_log_info* rli,
   thd->temporary_tables= 0;
   DBUG_VOID_RETURN;
 }
+
+/*
+  Logic to get least occupied worker when the sql mts_submode= master_parallel
+  @param
+    rli relay log info of coordinator
+    ws arrayy of worker threads
+    ev event for which we are searching for a worker.
+  @return slave worker thread
+ */
 
 Slave_worker *
 Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
@@ -368,6 +415,12 @@ Mts_submode_master::get_least_occupied_worker(Relay_log_info *rli,
   DBUG_RETURN(worker);
 }
 
+/*
+ Logic to assign the parent id to the transaction
+ @param rli Relay_log_info of the coordinator
+ @return true is error
+         false otherwise
+*/
 bool
 Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
                                             Log_event *ev)
@@ -444,7 +497,6 @@ Mts_submode_master::get_free_worker(Relay_log_info *rli)
   }
   return 0;
 }
-
 
 /**
   Protected method to fetch the server_id and pseudo_thread_id from a

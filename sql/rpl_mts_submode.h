@@ -22,30 +22,40 @@
 class Mts_submode_database;
 class Mts_submode_master;
 
+// Extend the following class as per requirement for each sub mode
 class Mts_submode
 {
 private:
 protected:
+
+  /* Parallel type */
   enum_mts_parallel_type  type;
 public:
+  /* default constructor */
   Mts_submode(){}
   inline enum_mts_parallel_type get_type(){return type;}
-  /* pure virtual methods */
+  // pure virtual methods. Should be extended in the derieved class
+  /* Logic to schedule the next event. called at the B event for each
+     transaction */
   virtual bool schedule_next_event(Relay_log_info* rli)= 0;
+  /* logic to attach temp tables Should be extended in the derieved class */
   virtual void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                   Query_log_event *ev)= 0;
+  /* logic to detach temp tables. Should be extended in the derieved class  */
   virtual void detach_temp_tables(THD *thd, const Relay_log_info* rli,
                                   Query_log_event *ev)= 0;
+  /* returns the least occupied worker. Should be extended in the derieved class  */
   virtual Slave_worker* get_least_occupied_worker(Relay_log_info* rli,
                                                   DYNAMIC_ARRAY *ws,
                                                   Log_event *ev)= 0;
+  /* assigns the parent id to the group. Should be extended in the derieved class  */
   virtual bool assign_group_parent_id(Relay_log_info* rli, Log_event* ev)= 0;
 };
 
-/* Extend the above class as per requirement  for each sub mode */
 /*
   DB partitioned submode
- */
+  For significance of each method check definition of Mts_submode
+*/
 class Mts_submode_database: public Mts_submode
 {
 public:
@@ -64,7 +74,8 @@ public:
 };
 
 /*
-  Parallelization using BGC
+  Parallelization using Master parallelization information
+  For significance of each method check definition of Mts_submode
  */
 class Mts_submode_master: public Mts_submode
 {
