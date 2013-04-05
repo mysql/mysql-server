@@ -547,6 +547,11 @@ buf_buddy_relocate(
 	offset	= mach_read_from_4((const byte*) src
 				   + FIL_PAGE_OFFSET);
 
+	/* Suppress Valgrind warnings about conditional jump
+	on uninitialized value. */
+	UNIV_MEM_VALID(&space, sizeof space);
+	UNIV_MEM_VALID(&offset, sizeof offset);
+
 	ut_ad(space != BUF_BUDDY_STAMP_FREE);
 
 	bpage = buf_page_hash_get(buf_pool, space, offset);
