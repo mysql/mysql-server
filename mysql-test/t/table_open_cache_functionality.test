@@ -24,6 +24,7 @@
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
+-- source include/have_open_file_limit_more_than_5000.inc
 
 if (`select $PS_PROTOCOL != 0`)
 {
