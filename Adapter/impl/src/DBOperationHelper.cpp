@@ -191,6 +191,7 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
+// TODO: "write" and "persist" don't use mask
   op.copyRowMask(nro->getMask()); 
     
   int opcode = args[1]->Int32Value();

@@ -457,7 +457,7 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
   return op;
 }
 
-
+//// Write Operation on VO must write all fields. 
 function newWriteOperation(tx, dbIndexHandler, row) {
   udebug.log("newWriteOperation");
   verifyIndexHandler(dbIndexHandler);

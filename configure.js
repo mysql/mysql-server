@@ -1,3 +1,15 @@
+
+/* 
+
+    TODO
+    DONE: Move this script up to top level configure.js 
+    In README direct people to say "node configure.js"
+    DONE: Remove interactive and readline support from waf builds
+    DONE: Read mysql path from filesystem in wscript? 
+    Auto-detect mysql layout here, and write about it in config.gypi
+    
+*/
+
 /*
  Copyright (c) 2012, Oracle and/or its affiliates. All rights
  reserved.
@@ -149,22 +161,23 @@ function build_prompt(candidates) {
   return found;
 }
 
+function finish() {
+  console.log("");
+  console.log("Now run this command:\n\tnode-gyp configure build");
+  process.exit(0);
+}
 
-function configure(mysql) {
-  var envCmd = "";
-
-  // Write the tempfile, used with node-waf builds
-  var tempfile = process.argv[2];
+function configure(mysql, layout) {
   if(mysql) {
-    envCmd = 'PREFERRED_MYSQL=' + mysql + '\n';
+    layout = "";  // fixme
+    var gyp = { "variables" : {"mysql_path":mysql, "mysql_layout":layout}};
+    fs.writeFileSync("config.gypi", JSON.stringify(gyp) + "\n", "ascii");
+    fs.writeFileSync("config.waf", mysql + "\n", 'ascii');
+    finish();
   }
-  fs.writeFileSync(tempfile, envCmd, 'ascii');
-
-  // Write config.gypi, used with node-gyp
-  var gyp = { "variables" : { "mysql_path" : mysql }};
-  fs.writeFileSync("config.gypi", JSON.stringify(gyp) + "\n", "ascii");
-
-  process.exit();
+  else {
+    process.exit(-1);
+  }
 }
 
 
@@ -189,8 +202,6 @@ function completion(line) {
       matches.push(path.join(dir, files[i]));
     }
   }
-  
- 
   
   if(matches.length == 1) {
     try {
