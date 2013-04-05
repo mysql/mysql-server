@@ -31,7 +31,6 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
     constants     = adapter.impl,
-    DBOperationHelper = adapter.impl.DBOperationHelper,
     OpHelper      = constants.OpHelper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
@@ -241,7 +240,8 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   }
   
   /* Use the HelperSpec and opcode to build the NdbOperation */
-  this.ndbop = DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
+  this.ndbop = 
+    adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
 
   this.state = doc.OperationStates[1];  // PREPARED
 };
