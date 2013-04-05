@@ -576,17 +576,21 @@ row_rename_table_for_mysql(
 	bool		commit)		/*!< in: whether to commit trx */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Checks that the index contains entries in an ascending order, unique
-constraint is not broken, and calculates the number of index entries
+Scans an index for either COOUNT(*) or CHECK TABLE.
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
-@return true if ok */
+@return DB_SUCCESS or other error */
 UNIV_INTERN
-bool
-row_check_index_for_mysql(
-/*======================*/
+dberr_t
+row_scan_index_for_mysql(
+/*=====================*/
 	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
 						in MySQL handle */
 	const dict_index_t*	index,		/*!< in: index */
+	bool			check_keys,	/*!< in: true=check for mis-
+						ordered or duplicate records,
+						false=count the rows only */
 	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
 	__attribute__((nonnull, warn_unused_result));
