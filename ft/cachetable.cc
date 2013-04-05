@@ -3540,13 +3540,25 @@ void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t 
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
 
+    // set max difference to around 500MB
+    int64_t max_diff = (1 << 29);
+    
     m_low_size_watermark = _size_limit;
     // these values are selected kind of arbitrarily right now as 
     // being a percentage more than low_size_watermark, which is provided
     // by the caller.
     m_low_size_hysteresis = (11 * _size_limit)/10; //10% more
+    if ((m_low_size_hysteresis - m_low_size_watermark) > max_diff) {
+        m_low_size_hysteresis = m_low_size_watermark + max_diff;
+    }
     m_high_size_hysteresis = (5 * _size_limit)/4; // 20% more
+    if ((m_high_size_hysteresis - m_low_size_hysteresis) > max_diff) {
+        m_high_size_hysteresis = m_low_size_hysteresis + max_diff;
+    }
     m_high_size_watermark = (3 * _size_limit)/2; // 50% more
+    if ((m_high_size_watermark - m_high_size_hysteresis) > max_diff) {
+        m_high_size_watermark = m_high_size_hysteresis + max_diff;
+    }
     
     m_size_reserved = unreservable_memory(_size_limit);
     m_size_current = 0;
