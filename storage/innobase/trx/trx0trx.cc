@@ -1040,7 +1040,9 @@ trx_write_serialisation_history(
 				trx->rsegs.m_redo.update_undo, mtr);
 
 			trx_undo_update_cleanup(
-				trx, &trx->rsegs.m_redo, undo_hdr_page, mtr);
+				trx, &trx->rsegs.m_redo, undo_hdr_page,
+				!(trx->rsegs.m_noredo.update_undo != NULL),
+				mtr);
 		}
 
 		DBUG_EXECUTE_IF("ib_trx_crash_during_commit", DBUG_SUICIDE(););
@@ -1053,7 +1055,8 @@ trx_write_serialisation_history(
 				trx->rsegs.m_noredo.update_undo, mtr);
 
 			trx_undo_update_cleanup(
-				trx, &trx->rsegs.m_noredo, undo_hdr_page, mtr);
+				trx, &trx->rsegs.m_noredo, undo_hdr_page,
+				true, mtr);
 		}
 	}
 
