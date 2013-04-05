@@ -401,6 +401,10 @@ this many index pages */
 UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
+UNIV_INTERN ibool	srv_use_atomic_writes = FALSE;
+#ifdef HAVE_POSIX_FALLOCATE
+UNIV_INTERN ibool	srv_use_posix_fallocate = TRUE;
+#endif
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 
 UNIV_INTERN ulong	srv_replication_delay		= 0;

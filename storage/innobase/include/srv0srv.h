@@ -212,6 +212,11 @@ extern ibool	srv_innodb_status;
 extern unsigned long long	srv_stats_sample_pages;
 
 extern ibool	srv_use_doublewrite_buf;
+extern ibool	srv_use_atomic_writes;
+#ifdef HAVE_POSIX_FALLOCATE
+extern ibool	srv_use_posix_fallocate;
+#endif
+
 extern ibool	srv_use_checksums;
 
 extern ulong	srv_max_buf_pool_modified_pct;
