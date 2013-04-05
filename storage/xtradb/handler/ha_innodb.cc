@@ -185,6 +185,8 @@ static my_bool	innobase_file_format_check		= TRUE;
 static my_bool	innobase_log_archive			= FALSE;
 static char*	innobase_log_arch_dir			= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
+static my_bool	innobase_use_atomic_writes		= FALSE;
+static my_bool	innobase_use_fallocate			= TRUE;
 static my_bool	innobase_use_doublewrite		= TRUE;
 static my_bool	innobase_use_checksums			= TRUE;
 static my_bool	innobase_fast_checksum			= FALSE;
@@ -3056,6 +3058,38 @@ innobase_change_buffering_inited_ok:
 #ifndef EXTENDED_FOR_KILLIDLE
 	srv_kill_idle_transaction = 0;
 #endif
+
+#ifdef HAVE_POSIX_FALLOCATE
+	srv_use_posix_fallocate = (ibool) innobase_use_fallocate;
+#endif
+	srv_use_atomic_writes = (ibool) innobase_use_atomic_writes;
+	if (innobase_use_atomic_writes) {
+		fprintf(stderr, "InnoDB: using atomic writes.\n");
+
+		/* Force doublewrite buffer off, atomic writes replace it. */
+		if (srv_use_doublewrite_buf) {
+			fprintf(stderr, "InnoDB: Switching off doublewrite buffer "
+				"because of atomic writes.\n");
+				innobase_use_doublewrite = srv_use_doublewrite_buf = FALSE;
+		}
+
+		/* Force O_DIRECT on Unixes (on Windows writes are always unbuffered)*/
+#ifndef _WIN32
+		if(!innobase_file_flush_method ||
+			!strstr(innobase_file_flush_method, "O_DIRECT")) {
+			innobase_file_flush_method = 
+				srv_file_flush_method_str = (char*)"O_DIRECT";
+			fprintf(stderr, "InnoDB: using O_DIRECT due to atomic writes.\n");
+		}
+#endif
+#ifdef HAVE_POSIX_FALLOCATE
+		/* Due to a bug in directFS, using atomics needs  
+		 * posix_fallocate to extend the file
+		 * pwrite()  past end of the file won't work
+		 */
+		srv_use_posix_fallocate = TRUE;
+#endif
+	}
 
 #ifdef HAVE_PSI_INTERFACE
 	/* Register keys with MySQL performance schema */
@@ -12615,6 +12649,20 @@ static MYSQL_SYSVAR_BOOL(doublewrite, innobase_use_doublewrite,
   "Disable with --skip-innodb-doublewrite.",
   NULL, NULL, TRUE);
 
+static MYSQL_SYSVAR_BOOL(use_atomic_writes, innobase_use_atomic_writes,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Prevent partial page writes, via atomic writes."
+  "The option is used to prevent partial writes in case of a crash/poweroff, "
+  "as faster alternative to doublewrite buffer."
+  "Currently this option works only "
+  "on Linux only with FusionIO device, and directFS filesystem.",
+  NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_BOOL(use_fallocate, innobase_use_fallocate,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Preallocate files fast, using operating system functionality. On POSIX systems, posix_fallocate system call is used.",
+  NULL, NULL, TRUE);
+
 static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Number of IOPs the server can do. Tunes the background IO rate",
@@ -13259,6 +13307,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_file),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
+  MYSQL_SYSVAR(use_atomic_writes),
+  MYSQL_SYSVAR(use_fallocate),
   MYSQL_SYSVAR(recovery_stats),
   MYSQL_SYSVAR(fast_shutdown),
   MYSQL_SYSVAR(file_io_threads),

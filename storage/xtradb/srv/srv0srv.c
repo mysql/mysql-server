@@ -409,6 +409,10 @@ UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
 #endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
+UNIV_INTERN ibool	srv_use_atomic_writes = FALSE;
+#ifdef HAVE_POSIX_FALLOCATE
+UNIV_INTERN ibool	srv_use_posix_fallocate = TRUE;
+#endif
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
 UNIV_INTERN ibool	srv_fast_checksum = FALSE;
 

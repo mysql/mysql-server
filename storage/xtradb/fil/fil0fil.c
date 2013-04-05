@@ -4865,6 +4865,24 @@ fil_extend_space_to_desired_size(
 	start_page_no = space->size;
 	file_start_page_no = space->size - node->size;
 
+#ifdef HAVE_POSIX_FALLOCATE
+	if (srv_use_posix_fallocate) {
+		offset_high = size_after_extend * page_size / (4ULL*1024*1024*1024);
+		offset_low = size_after_extend * page_size % (4ULL*1024*1024*1024);
+
+		mutex_exit(&fil_system->mutex);
+		success = os_file_set_size(node->name, node->handle,
+				offset_low, offset_high);
+		mutex_enter(&fil_system->mutex);
+		if (success) {
+			node->size += (size_after_extend - start_page_no);
+			space->size += (size_after_extend - start_page_no);
+			os_has_said_disk_full = FALSE;
+		}
+		goto complete_io;
+	}
+#endif
+
 	/* Extend at most 64 pages at a time */
 	buf_size = ut_min(64, size_after_extend - start_page_no) * page_size;
 	buf2 = mem_alloc(buf_size + page_size);
@@ -4920,6 +4938,10 @@ fil_extend_space_to_desired_size(
 	}
 
 	mem_free(buf2);
+
+#ifdef HAVE_POSIX_FALLOCATE
+complete_io:
+#endif
 
 	fil_node_complete_io(node, fil_system, OS_FILE_WRITE);
 

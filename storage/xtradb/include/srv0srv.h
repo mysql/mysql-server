@@ -249,6 +249,11 @@ extern ulong	srv_sys_stats_root_page;
 #endif
 
 extern ibool	srv_use_doublewrite_buf;
+extern ibool	srv_use_atomic_writes;
+#ifdef HAVE_POSIX_FALLOCATE
+extern ibool	srv_use_posix_fallocate;
+#endif
+
 extern ibool	srv_use_checksums;
 extern ibool	srv_fast_checksum;
 
