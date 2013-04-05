@@ -1039,9 +1039,12 @@ trx_write_serialisation_history(
 			undo_hdr_page = trx_undo_set_state_at_finish(
 				trx->rsegs.m_redo.update_undo, mtr);
 
+			bool update_rseg_len =
+				!(trx->rsegs.m_noredo.update_undo != NULL);
+
 			trx_undo_update_cleanup(
 				trx, &trx->rsegs.m_redo, undo_hdr_page,
-				!(trx->rsegs.m_noredo.update_undo != NULL),
+				update_rseg_len, (update_rseg_len ? 1 : 0),
 				mtr);
 		}
 
@@ -1054,9 +1057,12 @@ trx_write_serialisation_history(
 			undo_hdr_page = trx_undo_set_state_at_finish(
 				trx->rsegs.m_noredo.update_undo, mtr);
 
+			ulint n_added_logs =
+				(redo_rseg_undo_ptr != NULL) ? 2 : 1;
+
 			trx_undo_update_cleanup(
 				trx, &trx->rsegs.m_noredo, undo_hdr_page,
-				true, mtr);
+				true, n_added_logs, mtr);
 		}
 	}
 

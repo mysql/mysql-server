@@ -81,6 +81,7 @@ trx_purge_add_update_undo_to_history(
 	bool		update_rseg_history_len,
 					/*!< in: if true: update rseg history
 					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr);		/*!< in: mtr */
 /*******************************************************************//**
 This function runs a purge batch.
