@@ -1926,6 +1926,7 @@ trx_undo_update_cleanup(
 	bool		update_rseg_history_len,
 					/*!< in: if true: update rseg history
 					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_rseg_t*	rseg;
@@ -1937,7 +1938,8 @@ trx_undo_update_cleanup(
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	trx_purge_add_update_undo_to_history(
-		trx, undo_ptr, undo_page, update_rseg_history_len, mtr);
+		trx, undo_ptr, undo_page,
+		update_rseg_history_len, n_added_logs, mtr);
 
 	UT_LIST_REMOVE(undo_list, rseg->update_undo_list, undo);
 

@@ -324,6 +324,7 @@ trx_purge_add_update_undo_to_history(
 	bool		update_rseg_history_len,
 					/*!< in: if true: update rseg history
 					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	trx_undo_t*	undo;
@@ -374,10 +375,11 @@ trx_purge_add_update_undo_to_history(
 
 	if (update_rseg_history_len) {
 #ifdef HAVE_ATOMIC_BUILTINS
-		os_atomic_increment_ulint(&trx_sys->rseg_history_len, 1);
+		os_atomic_increment_ulint(
+			&trx_sys->rseg_history_len, n_added_logs);
 #else
 		mutex_enter(&trx_sys->mutex);
-		++trx_sys->rseg_history_len;
+		trx_sys->rseg_history_len += n_added_logs;
 		mutex_exit(&trx_sys->mutex);
 #endif /* HAVE_ATOMIC_BUILTINS */
 		srv_wake_purge_thread_if_not_active();

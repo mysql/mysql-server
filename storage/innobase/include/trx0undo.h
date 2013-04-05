@@ -342,6 +342,7 @@ trx_undo_update_cleanup(
 	bool		update_rseg_history_len,
 					/*!< in: if true: update rseg history
 					len else skip updating it. */
+	ulint		n_added_logs,	/*!< in: number of logs added */
 	mtr_t*		mtr);		/*!< in: mtr */
 
 /******************************************************************//**
