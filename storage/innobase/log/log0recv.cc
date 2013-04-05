@@ -2415,9 +2415,9 @@ loop:
 				recv_sys->recovered_lsn)) {
 					ib_logf(IB_LOG_LEVEL_ERROR,
 						"File op log record of type "
-						"%lu space %lu does not "
-						"complete in the parse/replay "
-						"phase.", (ulint) type, space);
+						"MLOG_FILE_TRUNCATE space %lu "
+						"does not complete in the "
+						"parse/replay phase.", space);
 
 				ut_error;
 			}

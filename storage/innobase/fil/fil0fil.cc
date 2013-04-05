@@ -3053,7 +3053,7 @@ fil_delete_tablespace(
 }
 
 /*******************************************************************//**
-Check if an index tree is freed by a descriptor bit of a page.
+Check if an index tree is freed by a descriptor bit of index root page.
 @return true if the index tree is freed */
 UNIV_INTERN
 bool
@@ -3088,8 +3088,7 @@ fil_index_tree_is_freed(
 }
 
 /*******************************************************************//**
-Prepare for truncating a single-table tablespace. The tablespace
-must be cached in the memory cache.
+Prepare for truncating a single-table tablespace.
 1) Check pending operations on a tablespace;
 2) Remove all insert buffer entries for the tablespace;
 @return DB_SUCCESS or error */
@@ -3121,8 +3120,7 @@ fil_prepare_for_truncate(
 }
 
 /*******************************************************************//**
-Write a log record for truncating a single-table tablespace.
-*/
+Write a log record for truncating a single-table tablespace. */
 UNIV_INTERN
 void
 fil_truncate_write_log(
@@ -3227,7 +3225,7 @@ fil_truncate_write_log(
 The set of the truncated tablespaces need to be initialized
 during recovery.
 @return true if the space is in the set, otherwise false */
-UNIV_INTERN
+UNIV_INTERN inline
 bool
 fil_space_is_truncated(
 /*===================*/
