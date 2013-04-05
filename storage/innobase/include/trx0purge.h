@@ -78,6 +78,9 @@ trx_purge_add_update_undo_to_history(
 	trx_undo_ptr_t*	undo_ptr,	/*!< in: update undo log. */
 	page_t*		undo_page,	/*!< in: update undo log header page,
 					x-latched */
+	bool		update_rseg_history_len,
+					/*!< in: if true: update rseg history
+					len else skip updating it. */
 	mtr_t*		mtr);		/*!< in: mtr */
 /*******************************************************************//**
 This function runs a purge batch.
@@ -132,6 +135,15 @@ struct purge_iter_t {
 					than this */
 	undo_no_t	undo_no;	/*!< Purge has advanced past all records
 					whose undo number is less than this */
+	ulint		undo_rseg_space;
+					/*!< Last undo record resided in this
+					space id. */
+	void init()
+	{
+		trx_no = 0;
+		undo_no = 0;
+		undo_rseg_space = ULINT_UNDEFINED;
+	}
 };
 
 /** The control structure used in the purge operation */
