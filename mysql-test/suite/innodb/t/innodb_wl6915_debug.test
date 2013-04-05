@@ -22,6 +22,8 @@ call mtr.add_suppression("InnoDB: Error: table .* does not exist "
 # Will test following scenarios:
 # 1. Hitting crash while preparing xa trx.
 # 2. Hitting crash while committing normal trx involving temp/non-temp tables.
+# 3. try to start server with different values of innodb_undo_logs.
+#    (try scenario such that a rollback segment is shared by multiple transactions).
 #
 ################################################################################
 
@@ -105,6 +107,65 @@ select count(*) from t2;
 drop table t2;
 drop procedure populate_t1_t2;
 
+#-----------------------------------------------------------------------------
+#
+# 3. try to start server with different values of innodb_undo_logs.
+#    (try scenario such that a rollback segment is shared by multiple transactions).
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 30
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_undo_logs=1 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+create table t (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+create temporary table t2 (i int) engine=innodb;
+insert into t values (1);
+insert into t values (2);
+drop table t;
+drop table t2;
+#
+connect (con1,localhost,root,,);
+connect (con2,localhost,root,,);
+#
+connection default;
+delimiter |;
+create procedure populate_t1_t2()
+begin
+	declare i int default 1;
+	while (i <= 1000) DO
+		insert into t1 values (i, 'a', 'b');
+		insert into t2 values (i, 'a', 'b');
+		set i = i + 1;
+	end while;
+end|
+delimiter ;|
+create table t2
+	(a int, b char(100), c char(100)) engine = innodb;
+#
+connection con1;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+select count(*) from t1;
+drop table t1;
+#
+connection con2;
+create temporary table t1
+	(a int, b char(100), c char(100)) engine = innodb;
+call populate_t1_t2();
+commit;
+select count(*) from t1;
+drop table t1;
+#
+connection default;
+drop table t2;
+drop procedure populate_t1_t2;
 
 #-----------------------------------------------------------------------------
 #
