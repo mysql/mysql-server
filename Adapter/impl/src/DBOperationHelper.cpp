@@ -159,6 +159,7 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   HandleScope scope;
   Operation op;
 
+fprintf(stderr,"VO helper ***\n");
   const Local<Object> spec = args[0]->ToObject();
   Local<Value> v;
   Local<Object> o;
@@ -181,13 +182,20 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   */
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
   
-  /* Set the key record and key buffer */
+  /* Set the key record and key buffer from the helper spec */
   setKeysInOp(spec, op);
   
+  /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
+  op.copyRowMask(nro->getMask());
+    
+  int opcode = args[1]->Int32Value();
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
+  return scope.Close(buildNdbOperation(op, opcode, tx));
 }
+
 
 void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEBUG_MARKER(UDEB_DETAIL);
