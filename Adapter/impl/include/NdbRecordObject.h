@@ -31,6 +31,7 @@ public:
   Handle<Value> getField(int);
   void setField(int nField, Handle<Value> value);
   Handle<Value> prepare();
+  void resetMask();
 
   Record * getRecord() const;
   char * getBuffer() const;
@@ -79,5 +80,10 @@ inline char * NdbRecordObject::getBuffer() const {
 
 inline const uint8_t * NdbRecordObject::getMask() const {
   return & row_mask[0];
+}
+
+
+inline void NdbRecordObject::resetMask() {
+  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
 }
 

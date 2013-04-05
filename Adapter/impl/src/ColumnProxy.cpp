@@ -26,7 +26,6 @@ using namespace v8;
 
 Handle<Value> ColumnProxy::get(char *buffer) {
   HandleScope scope;
-  DEBUG_MARKER(UDEB_DEBUG);
   Handle<Value> val;
   
   if(! isLoaded) {    
@@ -40,27 +39,26 @@ Handle<Value> ColumnProxy::get(char *buffer) {
 
 void ColumnProxy::set(Handle<Value> newValue) {
   HandleScope scope;
-  DEBUG_MARKER(UDEB_DEBUG);
-  
+    
   /* Drop our claim on the old value */
   if(! jsValue.IsEmpty()) jsValue.Dispose();
   
-  isNull = newValue->IsNull();
-  isDirty = true;  
+  isNull = (newValue->IsNull());
+  isLoaded = isDirty = true;
   jsValue = Persistent<Value>::New(newValue);
+  DEBUG_PRINT("set %s", handler->column->getName());
 }
 
 
 Handle<Value> ColumnProxy::write(char *buffer) {
   HandleScope scope;
-  DEBUG_MARKER(UDEB_DEBUG);
   Handle<Value> rval;
 
   if(isDirty || (jsValue->IsObject() && jsValue->ToObject()->IsDirty())) {
     rval = handler->write(jsValue, buffer);
   }
   isDirty = false;
-  
+  DEBUG_PRINT("write %s", handler->column->getName());
   return scope.Close(rval);
 }
 

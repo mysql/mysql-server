@@ -35,7 +35,8 @@ NdbRecordObject::NdbRecordObject(Record *_record,
   ncol(record->getNoOfColumns()),
   proxy(new ColumnProxy[record->getNoOfColumns()])
 {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_PRINT("    ___Constructor___       [%d col, bufsz %d]", 
+              ncol, record->getBufferSize());
 
   /* Retain a handler on the buffer for our whole lifetime */
   persistentBufferHandle = Persistent<Value>::New(jsBuffer);
@@ -43,7 +44,7 @@ NdbRecordObject::NdbRecordObject(Record *_record,
   // You could assert here that buffer size == record buffer size
 
   /* Initialize the list of masked-in columns */
-  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
+  resetMask();
   
   /* Attach the column proxies to their handlers */
   for(unsigned int i = 0 ; i < ncol ; i++)
@@ -52,7 +53,7 @@ NdbRecordObject::NdbRecordObject(Record *_record,
 
 
 NdbRecordObject::~NdbRecordObject() {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_PRINT(" << Destructor");
   persistentBufferHandle.Dispose();
   delete[] proxy;
 }
@@ -68,10 +69,12 @@ Handle<Value> NdbRecordObject::getField(int nField) {
 
 Handle<Value> NdbRecordObject::prepare() {
   HandleScope scope;
+  int n = 0;
   Handle<Value> writeStatus;
   Handle<Value> savedError = Undefined();
   for(unsigned int i = 0 ; i < ncol ; i++) {
     if(isMaskedIn(i)) {
+      n++;
       if(proxy[i].isNull) {
         record->setNull(i, buffer);
       }
@@ -81,5 +84,6 @@ Handle<Value> NdbRecordObject::prepare() {
       }
     }
   }
+  DEBUG_PRINT("Prepared %d column%s", n, (n == 1 ? "" : "s"));
   return scope.Close(savedError);
 }
