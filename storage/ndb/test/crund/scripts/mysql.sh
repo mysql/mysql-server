@@ -1,4 +1,6 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+#!/bin/sh
+
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,5 +15,25 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# the number of warmup iterations to be skipped for result aggregation
-nWarmupRuns=5
+if [ "$MYSQL_HOME" = "" ] ; then
+  source ../env.properties
+  echo MYSQL_HOME=$MYSQL_HOME
+fi
+
+#set -x
+
+# 4 bash parameter substitution forms: $*, "$*", $@, "$@" (use last here)
+#echo nArgs=$#
+#echo args=\'"$@"\'
+#for p in "$@"; do echo "    [$p]"; done
+
+#echo
+#"$MYSQL_BIN/mysql" "$@"
+# for localhost connections:
+#"$MYSQL_BIN/mysql" -S ./ndblog/mysql.sock "$@"
+"$MYSQL_BIN/mysql" --socket=./ndblog/mysql.sock "$@"
+# for remote connections:
+#"$MYSQL_BIN/mysql" -h localhost -P 3307 "$@"
+#"$MYSQL_BIN/mysql" -host=localhost -port=3307 "$@"
+
+#set +x

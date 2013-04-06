@@ -1,4 +1,6 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+#!/bin/sh
+
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,26 +15,20 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-#
-# config.ini -- MySQL Cluster configuration file
-#
+#set -x
 
-[ndbd default]
+user="$(whoami)"
+echo
+echo "grant privileges to users: '', $user"
+# MySQL doesn't support wildcards in user names but anonymous users as '';
+# any user who connects from the local host with the correct password for
+# the anonymous user will be allowed access then.
+./mysql.sh -v -u root -e "GRANT ALL ON *.* TO ''@localhost, $user@localhost;"
+s=$?
+echo "mysql exit status: $s"
 
-NoOfReplicas= 1
+echo
+echo done.
+exit $s
 
-[ndb_mgmd default]
-
-[mysqld default]
-
-[tcp default]
-
-[ndb_mgmd]
-HostName=127.0.0.1		# hostname or IP address (default: localhost)
-
-[ndbd]
-HostName=127.0.0.1		# hostname or IP address
-
-[mysqld]
-
-[mysqld]
+#set +x
