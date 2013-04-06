@@ -85,10 +85,8 @@
 
 *************************************************************/
 
-Persistent<String> isVO;
-
 Envelope columnHandlerSetEnvelope("ColumnHandlerSet");
-Envelope nroEnvelope("NdbRecordObject");
+Envelope nroEnvelope("NdbRecordObject", NdbRecordObject::env_class_id);
 
 
 /* Generic getter for all NdbRecordObjects
@@ -192,11 +190,6 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
     inst->SetAccessor(fieldName, nroGetter, nroSetter, Number::New(i));
   }
 
-  /* Create an invisible (non-enumerable) property so we can know 
-     in JavaScript that a value is a VO.
-  */
-  inst->Set(isVO, True(), DontEnum);
-
   /* The generic constructor is the CallHandler */
   ft->SetCallHandler(nroConstructor, Persistent<Object>::New(mapData));
 
@@ -204,9 +197,14 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
 }
 
 
+Handle<Value> isValueObject(const Arguments &args) {
+  HandleScope scope;
+  return scope.Close(Boolean::New(jsValueIsWrappedNdbRecordObject(args[0])));
+}
+
+
 void ValueObject_initOnLoad(Handle<Object> target) {
   HandleScope scope;
-  DEFINE_JS_FUNCTION(target, "getValueObjectConstructor",
-                     getValueObjectConstructor);
-  isVO = Persistent<String>::New(String::NewSymbol("_isNdbValueObject_"));
+  DEFINE_JS_FUNCTION(target, "getValueObjectConstructor", getValueObjectConstructor);
+  DEFINE_JS_FUNCTION(target, "isValueObject", isValueObject);
 }

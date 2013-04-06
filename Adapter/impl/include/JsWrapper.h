@@ -36,11 +36,16 @@ class Envelope {
 public:
   /* Instance variables */
   int magic;                            // for safety when unwrapping 
+  int class_id;                         // for checking type of wrapped object
   const char * classname;               // for debugging output
   Persistent<ObjectTemplate> stencil;   // for creating JavaScript objects
   
   /* Constructor */
-  Envelope(const char *name) : magic(0xF00D), classname(name) {
+  Envelope(const char *name, int id = 0) : 
+    magic(0xF00D), 
+    class_id(id),
+    classname(name)
+  {
     HandleScope scope; 
     Handle<ObjectTemplate> proto = ObjectTemplate::New();
     proto->SetInternalFieldCount(2);
@@ -115,16 +120,6 @@ PTR unwrapPointer(Local<Object> obj) {
   return ptr;
 }
 
-/*****************************************************************
- Test that a JS object really contains a C++ pointer that we
- have wrapped
-******************************************************************/
-inline bool objectHoldsWrappedPointer(Handle<Object> obj) {
-  return(obj->InternalFieldCount() == 2
-         &&
-         static_cast<Envelope *>(obj->GetPointerFromInternalField(0))
-         ->magic == 0xF00D);
-}
 
 /*****************************************************************
  Capture an error message from a C++ routine 
