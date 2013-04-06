@@ -35,25 +35,14 @@ import java.io.InputStream;
 
 
 /**
- * This class benchmarks standard database operations over a series
- * of transactions on an increasing data set.
+ * This class benchmarks transactions of standard database operations on
+ * different datastore implementations.
  * <p>
- * The abstract database operations are variations of: Create,
- * Read, Update, Navigate, and Delete -- hence, the benchmark's name: CRUND.
- * <p>
- * The actual operations are defined by subclasses to allow measuring the
- * operation performance across different datastore implementations.
- *
- * @see <a href="http://www.urbandictionary.com/define.php?term=crund">Urban Dictionary: crund</a>
- * <ol>
- * <li> used to debase people who torture others with their illogical
- * attempts to make people laugh;
- * <li> reference to cracking obsolete jokes;
- * <li> a dance form;
- * <li> to hit hard or smash.
- * </ol>
+ * The operations are variations of Create, Read, Update, Navigate, and
+ * Delete (hence, the benchmark's name CRUND).  Subclasses implement these
+ * operations for different datastore APIs.
  */
-abstract public class Driver {
+public abstract class Driver {
 
     // console
     static protected final PrintWriter out = new PrintWriter(System.out, true);
@@ -301,6 +290,7 @@ abstract public class Driver {
         out.println("nRuns:                          " + nRuns);
     }
 
+    // writes the benchmark's properties
     protected void writeProperties(String fileName) {
         File logger = new File(fileName);
         OutputStream out;
@@ -316,6 +306,7 @@ abstract public class Driver {
             throw new RuntimeException("Unexpected exception writing file logger.properties.", e);
         }
     }
+
     // opens the benchmark's data log file
     private void openLogFile() throws IOException {
         out.println();

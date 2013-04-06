@@ -28,7 +28,7 @@
 #include "helpers.hpp"
 #include "string_helpers.hpp"
 
-#include "CrundNdbApiOperations.hpp"
+#include "CrundNdbapiOperations.hpp"
 
 //using namespace std;
 using std::cout;
@@ -169,7 +169,7 @@ CrundModel::init(Ndb* ndb)
 */
 
 void
-CrundNdbApiOperations::init(const char* mgmd_conn_str)
+CrundNdbapiOperations::init(const char* mgmd_conn_str)
 {
     assert(mgmd == NULL);
     assert(mgmd_conn_str);
@@ -201,7 +201,7 @@ CrundNdbApiOperations::init(const char* mgmd_conn_str)
 }
 
 void
-CrundNdbApiOperations::close()
+CrundNdbapiOperations::close()
 {
     assert(mgmd != NULL);
 
@@ -217,7 +217,7 @@ CrundNdbApiOperations::close()
 }
 
 void
-CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
+CrundNdbapiOperations::initConnection(const char* catalog, const char* schema,
                                       NdbOperation::LockMode defaultLockMode)
 {
     assert(mgmd != NULL);
@@ -273,7 +273,7 @@ CrundNdbApiOperations::initConnection(const char* catalog, const char* schema,
 }
 
 void
-CrundNdbApiOperations::closeConnection()
+CrundNdbapiOperations::closeConnection()
 {
     assert(mgmd != NULL);
     assert(ndb != NULL);
@@ -293,7 +293,7 @@ CrundNdbApiOperations::closeConnection()
 }
 
 void
-CrundNdbApiOperations::beginTransaction()
+CrundNdbapiOperations::beginTransaction()
 {
     assert(tx == NULL);
 
@@ -304,7 +304,7 @@ CrundNdbApiOperations::beginTransaction()
 }
 
 void
-CrundNdbApiOperations::executeOperations()
+CrundNdbapiOperations::executeOperations()
 {
     assert(tx != NULL);
 
@@ -315,7 +315,7 @@ CrundNdbApiOperations::executeOperations()
 }
 
 void
-CrundNdbApiOperations::commitTransaction()
+CrundNdbapiOperations::commitTransaction()
 {
     assert(tx != NULL);
 
@@ -326,7 +326,7 @@ CrundNdbApiOperations::commitTransaction()
 }
 
 void
-CrundNdbApiOperations::closeTransaction()
+CrundNdbapiOperations::closeTransaction()
 {
     assert(tx != NULL);
 
@@ -339,7 +339,7 @@ CrundNdbApiOperations::closeTransaction()
 // ----------------------------------------------------------------------
 
 void
-CrundNdbApiOperations::clearData()
+CrundNdbapiOperations::clearData()
 {
     cout << "deleting all rows ..." << flush;
     const bool batch = true;
@@ -400,7 +400,7 @@ selectString(int length)
 }
 
 void
-CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
+CrundNdbapiOperations::ins(const NdbDictionary::Table* table,
                            int from, int to,
                            bool setAttrs, bool batch)
 {
@@ -436,7 +436,7 @@ CrundNdbApiOperations::ins(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
+CrundNdbapiOperations::delByScan(const NdbDictionary::Table* table, int& count,
                                  bool batch)
 {
     beginTransaction();
@@ -501,7 +501,7 @@ CrundNdbApiOperations::delByScan(const NdbDictionary::Table* table, int& count,
 }
 
 void
-CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
+CrundNdbapiOperations::delByPK(const NdbDictionary::Table* table,
                                int from, int to,
                                bool batch)
 {
@@ -527,7 +527,7 @@ CrundNdbApiOperations::delByPK(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
+CrundNdbapiOperations::setByPK(const NdbDictionary::Table* table,
                     int from, int to,
                     bool batch)
 {
@@ -561,7 +561,7 @@ CrundNdbApiOperations::setByPK(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::getByPK_bb(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getByPK_bb(const NdbDictionary::Table* table,
                        int from, int to,
                        bool batch)
 {
@@ -641,7 +641,7 @@ getCommonAB(const CommonAB_AR* const ab)
 }
 
 void
-CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getByPK_ar(const NdbDictionary::Table* table,
                        int from, int to,
                        bool batch)
 {
@@ -700,7 +700,7 @@ CrundNdbApiOperations::getByPK_ar(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setVarbinary(const NdbDictionary::Table* table,
+CrundNdbapiOperations::setVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool batch, int length)
 {
     setVar(table, model->attr_B0_cvarbinary_def,
@@ -708,7 +708,7 @@ CrundNdbApiOperations::setVarbinary(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setVarchar(const NdbDictionary::Table* table,
+CrundNdbapiOperations::setVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool batch, int length)
 {
     setVar(table, model->attr_B0_cvarchar_def,
@@ -716,7 +716,7 @@ CrundNdbApiOperations::setVarchar(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::getVarbinary(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getVarbinary(const NdbDictionary::Table* table,
                          int from, int to, bool batch, int length)
 {
     getVar(table, model->attr_B0_cvarbinary_def,
@@ -724,7 +724,7 @@ CrundNdbApiOperations::getVarbinary(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::getVarchar(const NdbDictionary::Table* table,
+CrundNdbapiOperations::getVarchar(const NdbDictionary::Table* table,
                        int from, int to, bool batch, int length)
 {
     getVar(table, model->attr_B0_cvarchar_def,
@@ -732,7 +732,7 @@ CrundNdbApiOperations::getVarchar(const NdbDictionary::Table* table,
 }
 
 void
-CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbapiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
                    bool batch, const char* str)
 {
@@ -781,7 +781,7 @@ CrundNdbApiOperations::setVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
+CrundNdbapiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
                    int from, int to,
                    bool batch, const char* str)
 {
@@ -851,7 +851,7 @@ CrundNdbApiOperations::getVar(const NdbDictionary::Table* table, int attr_cvar,
 }
 
 void
-CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::setB0ToA(int nOps, bool batch)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
@@ -880,7 +880,7 @@ CrundNdbApiOperations::setB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::nullB0ToA(int nOps, bool batch)
 {
     beginTransaction();
     for (int i = 1; i <= nOps; i++) {
@@ -908,7 +908,7 @@ CrundNdbApiOperations::nullB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
+CrundNdbapiOperations::navB0ToA(int nOps, bool batch)
 {
     // allocate attributes holder
     CommonAB* const ab = new CommonAB[nOps];
@@ -988,7 +988,7 @@ CrundNdbApiOperations::navB0ToA(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
+CrundNdbapiOperations::navB0ToAalt(int nOps, bool batch)
 {
     // allocate foreign key values holder
     Int32* const a_id = new Int32[nOps];
@@ -1076,7 +1076,7 @@ CrundNdbApiOperations::navB0ToAalt(int nOps, bool batch)
 }
 
 void
-CrundNdbApiOperations::navAToB0(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToB0(int nOps, bool forceSend)
 {
     // attributes holder
     CommonAB h;
@@ -1157,7 +1157,7 @@ CrundNdbApiOperations::navAToB0(int nOps, bool forceSend)
 }
 
 void
-CrundNdbApiOperations::navAToB0alt(int nOps, bool forceSend)
+CrundNdbapiOperations::navAToB0alt(int nOps, bool forceSend)
 {
     // number of operations in a multi-scan batch
     const int nmscans = (nOps < 256 ? nOps : 256);

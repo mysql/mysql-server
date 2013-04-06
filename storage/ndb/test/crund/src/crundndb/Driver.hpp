@@ -94,7 +94,7 @@ protected:
     // benchmark operations
     virtual void runTests() = 0;
     virtual void begin(const string& name);
-    virtual void commit(const string& name);
+    virtual void finish(const string& name);
 };
 
 #endif // Driver_hpp

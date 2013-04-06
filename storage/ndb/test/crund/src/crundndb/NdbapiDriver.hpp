@@ -15,37 +15,37 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef NdbApiDriver_hpp
-#define NdbApiDriver_hpp
+#ifndef NdbapiDriver_hpp
+#define NdbapiDriver_hpp
 
 #include <string>
 
 #include "CrundDriver.hpp"
-#include "CrundNdbApiOperations.hpp"
+#include "CrundNdbapiOperations.hpp"
 
 using std::string;
 
 // global type aliases
 typedef const NdbDictionary::Table* NdbTable;
 
-class NdbApiDriver : public CrundDriver {
+class NdbapiDriver : public CrundDriver {
 public:
 
     // the generated features are OK
-    //NdbApiDriver() {}
+    //NdbapiDriver() {}
     //virtual ~NdbApsDriver() {}
-    //NdbApiDriver(const NdbApiDriver&) {}
-    //NdbApiDriver& operator=(const NdbApiDriver&) {}
+    //NdbapiDriver(const NdbapiDriver&) {}
+    //NdbapiDriver& operator=(const NdbapiDriver&) {}
 
 protected:
 
-    // NDB API resources
+    // NDB API settings
     string mgmdConnect;
     string catalog;
     string schema;
 
     // the benchmark's basic database operations
-    static CrundNdbApiOperations* ops;
+    static CrundNdbapiOperations* ops;
 
     // NDB API intializers/finalizers
     virtual void initProperties();
@@ -60,23 +60,23 @@ protected:
     template< bool, bool > struct AInsOp;
     template< bool, bool > struct B0InsOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(NdbTable,int,int,bool),
+              void (CrundNdbapiOperations::*)(NdbTable,int,int,bool),
               bool >
     struct AByPKOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(NdbTable,int,int,bool),
+              void (CrundNdbapiOperations::*)(NdbTable,int,int,bool),
               bool >
     struct B0ByPKOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(NdbTable,int,int,bool,int),
+              void (CrundNdbapiOperations::*)(NdbTable,int,int,bool,int),
               bool >
     struct LengthOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(NdbTable,int,int,bool,int),
+              void (CrundNdbapiOperations::*)(NdbTable,int,int,bool,int),
               bool >
     struct ZeroLengthOp;
     template< const char**,
-              void (CrundNdbApiOperations::*)(int,bool),
+              void (CrundNdbapiOperations::*)(int,bool),
               bool >
     struct RelOp;
     virtual void initOperations();
@@ -85,7 +85,6 @@ protected:
     // NDB API datastore operations
     virtual void initConnection();
     virtual void closeConnection();
-    virtual void clearPersistenceContext();
     virtual void clearData();
 };
 

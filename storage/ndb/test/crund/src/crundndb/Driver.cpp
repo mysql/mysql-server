@@ -244,7 +244,7 @@ Driver::begin(const string& name) {
 }
 
 void
-Driver::commit(const string& name) {
+Driver::finish(const string& name) {
     if (logRealTime && logCpuTime) {
         s1 = hrt_tnow(&t1);
     } else if (logRealTime) {
