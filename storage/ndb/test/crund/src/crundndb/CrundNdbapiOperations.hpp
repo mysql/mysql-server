@@ -15,8 +15,8 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#ifndef CrundNdbApiOperations_hpp
-#define CrundNdbApiOperations_hpp
+#ifndef CrundNdbapiOperations_hpp
+#define CrundNdbapiOperations_hpp
 
 #include <NdbApi.hpp>
 #include <NdbError.hpp>
@@ -60,7 +60,7 @@ struct CrundModel
 /**
  * Implements the benchmark's basic database operations.
  */
-class CrundNdbApiOperations
+class CrundNdbapiOperations
 {
 // For a better locality of information, consider refactorizing this
 // class into separate classes: Cluster, Db, Tx, and Operations by
@@ -71,11 +71,11 @@ class CrundNdbApiOperations
 
 public:
 
-    CrundNdbApiOperations()
+    CrundNdbapiOperations()
         : model(NULL), mgmd(NULL), ndb(NULL), tx(NULL) {
     }
 
-    ~CrundNdbApiOperations() {
+    ~CrundNdbapiOperations() {
         assert(model == NULL);
         assert(mgmd == NULL); assert(ndb == NULL); assert(tx == NULL);
     }
@@ -100,8 +100,8 @@ protected:
 
 private:
 
-    CrundNdbApiOperations(const CrundNdbApiOperations&);
-    CrundNdbApiOperations& operator=(const CrundNdbApiOperations&);
+    CrundNdbapiOperations(const CrundNdbapiOperations&);
+    CrundNdbapiOperations& operator=(const CrundNdbapiOperations&);
 
 public:
 
@@ -181,4 +181,4 @@ protected:
     //static void ndbapiToString1blp(char* to, const void* from, size_t width);
 };
 
-#endif // CrundNdbApiOperations_hpp
+#endif // CrundNdbapiOperations_hpp

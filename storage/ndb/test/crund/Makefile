@@ -47,13 +47,12 @@ distclean:
 # read the generic settings
 include	env.properties
 
-# not sure if needed:
-#	LD_LIBRARY_PATH=${NDB_LIBDIR}:$(SRC)/crundndb/Driver 
-run.driver:	$(SRC)/crundndb/NdbApiDriver
-	$(SRC)/crundndb/NdbApiDriver \
+run.driver:	$(SRC)/crundndb/NdbapiDriver
+	$(SRC)/crundndb/NdbapiDriver \
 	-p crundRun.properties -p crundNdbapi.properties
-#
-#run.driver:
-#	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
+
+run.tws:	$(SRC)/crundndb/tws
+	$(SRC)/crundndb/tws \
+	-p twsRun.properties -p crundNdbapi.properties
 
 #------------------------------------------------------------------------------
