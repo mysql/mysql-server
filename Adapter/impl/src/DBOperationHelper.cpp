@@ -157,25 +157,22 @@ Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
 Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
-  Operation op;
-
-  const Local<Object> spec = args[0]->ToObject();
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
   Handle<Value> returnVal;
+  Operation op;
 
-  /* Verify that we really have a VO */
+  const Local<Object> spec = args[0]->ToObject();
+  int opcode = args[1]->Int32Value();
+  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+
+  /* NdbOperation.prepare() just verified that this is really a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
-  if(! jsValueIsWrappedNdbRecordObject(v)) {
-    DEBUG_PRINT("Expected value_obj to hold a wrapped pointer");
-    return Null();
-  }
-
   valueObj = v->ToObject();
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
-  /* Get the VO ready */
+  /* The VO may have values that are not yet encoded to its buffer. */
   returnVal = nro->prepare();  // do something with this?
   
   /* Set the key record and key buffer from the helper spec */
@@ -184,11 +181,9 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
-// TODO: "write" and "persist" don't use mask
+// TODO: "write" and "persist" don't use mask. opcodes 2 and 8.
   op.copyRowMask(nro->getMask()); 
     
-  int opcode = args[1]->Int32Value();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
   returnVal = buildNdbOperation(op, opcode, tx);
   
