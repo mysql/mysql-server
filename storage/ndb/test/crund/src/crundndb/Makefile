@@ -20,20 +20,20 @@ include	../../env.properties
 
   DISTCLEAN	= *~ *% */*~
 
-  INCLUDES	= $(JAVA_INCLUDEOPTS) -I. -I"$(MARTINS_LITTLE_HELPERS)"	\
-		  $(NDB_INCLUDEOPT0) $(NDB_INCLUDEOPT1)
+  INCLUDES	= '$(JAVA_INCLUDEOPTS)' -I. -I"$(MARTINS_LITTLE_HELPERS)" \
+		  '$(NDB_INCLUDEOPT)'
 
 # for library dependencies, LOADLIBES and LDLIBS have been used historically
 # this convention is used sometimes: use
 #   LDLIBS for project-wide libs (like -lc or -lm)
 #   LOADLIBES for libs for the individual case
 # check with non-gnu makes: use of LOADLIBES, LDLIBS
-  LDLIBS	= -L${NDB_LIBDIR} -lndbclient
-# XXX undefined symbols when linking with 
+  LDLIBS	= -L$(NDB_LIBDIR) -lndbclient
+# undefined symbols when linking with
 #  LOADLIBES	= -L$(MARTINS_LITTLE_HELPERS) -lutils
-# XXX which seems to be the same as
+# which seems to be the same as
 #  LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.dylib
-# XXX but linking statically is fine:
+# but linking statically is fine:
   LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.a
 
 #------------------------------------------------------------------------------
@@ -55,7 +55,7 @@ com_mysql_cluster_crund_NdbApiLoad.h:
 #	$(COMPILE.java) $<
 
 # not sure if needed:
-#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
+#	LD_LIBRARY_PATH=$(NDB_LIBDIR):./Driver
 run.driver:	NdbApiDriver
 	./NdbApiDriver \
 	-p ../../crundRun.properties -p ../../crundNdbapi.properties
@@ -63,7 +63,7 @@ run.driver:	NdbApiDriver
 # for JVM processes, try running valgrind with
 # --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
 # not sure if needed:
-#	LD_LIBRARY_PATH=${NDB_LIBDIR}:./Driver
+#	LD_LIBRARY_PATH=$(NDB_LIBDIR):./Driver
 valgrind.driver:	NdbApiDriver
 	valgrind \
 	--leak-check=full --show-reachable=yes --trace-children=yes \
@@ -83,7 +83,7 @@ libcrundndb.a:	libcrundndb.a(CrundNdbApiOperations.o)	\
 libcrundndb.so:	CrundNdbApiOperations.cpp
 	$(LINK.cpp) \
 	-fPIC -shared \
-	-L${NDB_LIBDIR} \
+	-L$(NDB_LIBDIR) \
 	-lndbclient \
 	-o libcrundndb.so \
 	CrundNdbApiOperations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
@@ -91,26 +91,10 @@ libcrundndb.so:	CrundNdbApiOperations.cpp
 libcrundndb.dylib:	CrundNdbApiOperations.cpp
 	$(LINK.cpp) \
 	-fPIC -shared -dynamiclib \
-	-L${NDB_LIBDIR} \
+	-L$(NDB_LIBDIR) \
 	-lndbclient \
 	-o libcrundndb.dylib \
 	CrundNdbApiOperations.cpp com_mysql_cluster_crund_NdbApiLoad.cpp
-
-# Solaris cc?
-# -#          <!-- verbose mode -->
-# -G          <!-- create shared object -->
-# cc \
-# 	-# \
-# 	-I. \
-# 	-I${JAVA_HOME}/include \
-# 	-I${JAVA_HOME}/include/solaris \
-# 	-I${NDB_INCLUDE} \
-# 	-I${NDB_INCLUDE}/ndbapi \
-# 	-L${NDB_LIB} \
-# 	-lndbclient \
-# 	-G \
-# 	-o libcrundndb.so \
-# 	../src/crundndb/*.cpp
 
 #------------------------------------------------------------------------------
 
