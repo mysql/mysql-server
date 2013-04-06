@@ -5514,15 +5514,12 @@ void Item_func_match::init_search(bool no_order)
 {
   DBUG_ENTER("Item_func_match::init_search");
 
+  if (!table->file->get_table()) // the handler isn't opened yet
+    DBUG_VOID_RETURN;
+
   /* Check if init_search() has been called before */
   if (ft_handler)
   {
-    /*
-      We should reset ft_handler as it is cleaned up
-      on destruction of FT_SELECT object
-      (necessary in case of re-execution of subquery).
-      TODO: FT_SELECT should not clean up ft_handler.
-    */
     if (join_key)
       table->file->ft_handler= ft_handler;
     DBUG_VOID_RETURN;
@@ -5531,10 +5528,10 @@ void Item_func_match::init_search(bool no_order)
   if (key == NO_SUCH_KEY)
   {
     List<Item> fields;
-    fields.push_back(new Item_string(" ",1, cmp_collation.collation));
-    for (uint i=1; i < arg_count; i++)
+    fields.push_back(new Item_string(" ", 1, cmp_collation.collation));
+    for (uint i= 1; i < arg_count; i++)
       fields.push_back(args[i]);
-    concat_ws=new Item_func_concat_ws(fields);
+    concat_ws= new Item_func_concat_ws(fields);
     /*
       Above function used only to get value and do not need fix_fields for it:
       Item_string - basic constant
@@ -5546,10 +5543,10 @@ void Item_func_match::init_search(bool no_order)
 
   if (master)
   {
-    join_key=master->join_key=join_key|master->join_key;
+    join_key= master->join_key= join_key | master->join_key;
     master->init_search(no_order);
-    ft_handler=master->ft_handler;
-    join_key=master->join_key;
+    ft_handler= master->ft_handler;
+    join_key= master->join_key;
     DBUG_VOID_RETURN;
   }
 
@@ -5559,7 +5556,7 @@ void Item_func_match::init_search(bool no_order)
   if (!(ft_tmp=key_item()->val_str(&value)))
   {
     ft_tmp= &value;
-    value.set("",0,cmp_collation.collation);
+    value.set("", 0, cmp_collation.collation);
   }
 
   if (ft_tmp->charset() != cmp_collation.collation)
@@ -5572,7 +5569,11 @@ void Item_func_match::init_search(bool no_order)
 
   if (join_key && !no_order)
     flags|=FT_SORTED;
-  ft_handler=table->file->ft_init_ext(flags, key, ft_tmp);
+
+  if (key != NO_SUCH_KEY)
+    thd_proc_info(table->in_use, "FULLTEXT initialization");
+
+  ft_handler= table->file->ft_init_ext(flags, key, ft_tmp);
 
   if (join_key)
     table->file->ft_handler=ft_handler;

@@ -10191,6 +10191,11 @@ bool JOIN_TAB::preread_init()
   preread_init_done= TRUE;
   if (select && select->quick)
     select->quick->replace_handler(table->file);
+
+  /* init ftfuns for just initialized derived table */
+  if (table->fulltext_searched)
+    init_ftfuncs(join->thd, join->select_lex, test(join->order));
+
   return FALSE;
 }
 
