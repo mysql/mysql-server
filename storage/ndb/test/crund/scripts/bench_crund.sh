@@ -1,3 +1,5 @@
+#!/bin/sh
+
 # Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -13,5 +15,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# the number of warmup iterations to be skipped for result aggregation
-nWarmupRuns=5
+#for f in run.ndbapi.opt run.ndbjtie.opt run.clusterj.opt run.mysql.opt run.openjpa.mysql.opt run.openjpa.clusterj.opt ; do
+#for f in run.ndbapi.opt run.ndbjtie.opt run.clusterj.opt run.mysql.opt ; do
+#for f in run.ndbjtie.opt ; do
+#for f in run.ndbapi.opt ; do
+for f in run.clusterj.opt ; do
+  echo testing $f
+  ./bench_crundjava.sh $f
+  mv -v results/xxx  results/xxx_$f
+done

@@ -1,4 +1,6 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+#!/bin/sh
+
+# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -11,15 +13,21 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-# not implemented by other backends yet
-#exclude=setBlob1000,getBlob1000,setBlob10000,getBlob10000,setBlob100000,getBlob100000,setText1000,getText1000,setText10000,getText10000,setText100000,getText100000
-#exclude=navA->B0,navA->B0_opt
+if [ "$MYSQL_HOME" = "" ] ; then
+  source ../env.properties
+  echo MYSQL_HOME=$MYSQL_HOME
+fi
 
-# JDBC - Derby connection settings
-jdbc.url=jdbc:derby:crunddb
-jdbc.driver=org.apache.derby.jdbc.EmbeddedDriver
-#jdbc.user=mz
-#jdbc.password=mz
-jdbc.autoCommit=false
+#set -x
+
+# 4 bash parameter substitution forms: $*, "$*", $@, "$@" (use last here)
+#echo nArgs=$#
+#echo args=\'"$@"\'
+#for p in "$@"; do echo "    [$p]"; done
+
+echo
+"$MYSQL_BIN/ndb_waiter" -c "$NDB_CONNECT" "$@"
+
+#set +x
