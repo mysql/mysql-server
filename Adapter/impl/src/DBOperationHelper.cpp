@@ -167,19 +167,12 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
 
   /* Verify that we really have a VO */
   v = spec->Get(HELPER_VALUE_OBJECT);
-  if(v->IsNull()) {
-    DEBUG_PRINT("Expected non-null value_obj in helper");
-    return Null();
-  }
-  valueObj = v->ToObject();
-  
-  if(! objectHoldsWrappedPointer(valueObj)) {
+  if(! jsValueIsWrappedNdbRecordObject(v)) {
     DEBUG_PRINT("Expected value_obj to hold a wrapped pointer");
     return Null();
   }
 
-  /* Now we trust the user's value enough to cast it to an NRO.
-  */
+  valueObj = v->ToObject();
   NdbRecordObject * nro = unwrapPointer<NdbRecordObject *>(valueObj);
 
   /* Get the VO ready */

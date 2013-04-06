@@ -198,7 +198,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", opcodes[this.opcode], this.values);
   stats.incr("prepared");
   var code = this.opcode;
-  var isVOwrite = (this.values && this.values._isNdbValueObject_);
+  var isVOwrite = (this.values && adapter.impl.isValueObject(this.value));
   var helper;
 
   /* There is one global helperSpec */

@@ -22,6 +22,7 @@
 
 #include "ColumnProxy.h"
 
+bool jsValueIsWrappedNdbRecordObject(Handle<Value>);
 
 class NdbRecordObject {
 public:
@@ -36,6 +37,8 @@ public:
   Record * getRecord() const;
   char * getBuffer() const;
   const uint8_t * getMask() const;
+
+  static const int env_class_id = 130404;
 
 private:
   Record * record;

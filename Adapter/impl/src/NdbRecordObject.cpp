@@ -24,6 +24,7 @@
 
 #include "adapter_global.h"
 #include "unified_debug.h"
+#include "jsWrapper.h"
 #include "NdbRecordObject.h"
 
 
@@ -86,4 +87,21 @@ Handle<Value> NdbRecordObject::prepare() {
   }
   DEBUG_PRINT("Prepared %d column%s", n, (n == 1 ? "" : "s"));
   return scope.Close(savedError);
+}
+
+
+bool jsValueIsWrappedNdbRecordObject(Handle<Value> v) {
+  bool answer = false;
+
+  if(v->IsObject()) {
+    Local<Object> o = v->ToObject();
+    if(o->InternalFieldCount() == 2) {
+      Envelope * n = (Envelope *) o->GetPointerFromInternalField(0);
+      if(n->magic == 0xF00D && n->class_id == NdbRecordObject::env_class_id) {
+        answer = true;
+      }
+    }
+  }
+
+  return answer;
 }
