@@ -208,7 +208,7 @@
     <delete dir="${doc}"/>
     <!-- this file is deleted by the local Makefile; otherwise, "javah"
 	 followed by "clean" will have no effect
-    <delete file="${src.crundndb}/com_mysql_cluster_crund_NdbApiLoad.h"/> -->
+    <delete file="${src.crundndb}/com_mysql_cluster_crund_NdbapiLoad.h"/> -->
   </target>
 
   <!-- deletes also log files -->
@@ -231,12 +231,12 @@
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}" >
       <classpath refid="classpath.all.compile"/>
       <!-- does not accept empty strings: <compilerarg value=""/> -->
-      <!--<compilerarg value="-Xlint"/>-->
+      <compilerarg value="-Xlint"/>
     </javac>
   </target>
 
   <!-- generates all JNI headers -->
-  <target name="javah" depends="com_mysql_cluster_crund_NdbApiLoad.h"/>
+  <target name="javah" depends="com_mysql_cluster_crund_NdbapiLoad.h"/>
 
   <!-- forces to compile all code,
        fails if any module cannot be build due to unset properties -->
@@ -313,9 +313,11 @@
   <target name="compile.driver" depends="set.compile,check.compile.driver"
 	  if="compile.driver.set">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
-	   includes="com/mysql/cluster/crund/*Driver.java"/>
-    <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
-	   includes="com/mysql/cluster/crund/*Processor.java"/>
+	   includes="com/mysql/cluster/crund/*Driver.java">
+      <include name="com/mysql/cluster/crund/TwsLoad.java"/>
+      <include name="com/mysql/cluster/crund/*Processor.java"/>
+      <compilerarg value="-Xlint"/>
+    </javac>
   </target>
   <target name="compile.driver.opt" depends="set.compile.opt,compile.driver"/>
 
@@ -340,7 +342,7 @@
 	  if="compile.ndbapi.set">
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   classpathref="classpath.ndbapi.compile"
-	   includes="com/mysql/cluster/crund/NdbApiLoad.java"/>
+	   includes="com/mysql/cluster/crund/NdbapiLoad.java"/>
   </target>
   <target name="compile.ndbapi.opt" depends="set.compile.opt,compile.ndbapi"/>
 
@@ -358,7 +360,7 @@
     <echo message="file not found: ${NDB_LIBDIR}"/>
   </target>
 
-  <!-- sets the paths for running against NDBAPI -->
+  <!-- sets the paths for running on NDBAPI -->
   <target name="set.run.ndbapi"
 	  depends="check.ndb.libdir,check.compile.ndbapi">
     <path id="classpath.ndbapi.run">
@@ -377,7 +379,7 @@
   </target>
 
   <!-- generates the JNI header -->
-  <target name="com_mysql_cluster_crund_NdbApiLoad.h"
+  <target name="com_mysql_cluster_crund_NdbapiLoad.h"
 	  depends="compile.ndbapi">
     <exec executable="javah" dir="." failonerror="yes">
       <!--<arg line="-verbose"/>-->
@@ -385,11 +387,11 @@
       <arg path="${build}"/>
       <arg line="-d ${src.crundndb}"/>
       <arg line="-jni"/>
-      <arg line="com.mysql.cluster.crund.NdbApiLoad"/>
+      <arg line="com.mysql.cluster.crund.NdbapiLoad"/>
     </exec>
   </target>
 
-  <!-- runs the benchmark against NDBAPI -->
+  <!-- runs the benchmark on NDBAPI -->
   <target name="run.ndbapi" depends="set.run,check.run.ndbapi"
 	  if="run.ndbapi.set">
     <echo message="using:"/>
@@ -397,7 +399,7 @@
     <echo message="  classpath.ndbapi.run: ${toString:classpath.ndbapi.run}"/>
     <echo message=""/>
 
-    <java classname="com.mysql.cluster.crund.NdbApiLoad"
+    <java classname="com.mysql.cluster.crund.NdbapiLoad"
      fork="true" failonerror="true" classpathref="classpath.ndbapi.run">
       <jvmarg line="${jvmflags}"/>
       <!-- path to NDB client lib, native benchmark backend -->
@@ -448,13 +450,14 @@
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   classpathref="classpath.ndbjtie.compile"
 	   includes="com/mysql/cluster/crund/NdbJTieLoad.java">
+      <include name="com/mysql/cluster/crund/NdbjtieTwsLoad.java"/>
       <compilerarg value="-Xlint"/>
     </javac>
   </target>
   <target name="compile.ndbjtie.opt"
 	  depends="set.compile.opt,compile.ndbjtie"/>
 
-  <!-- sets the paths for running against NDBJTIE -->
+  <!-- sets the paths for running on NDBJTIE -->
   <target name="set.run.ndbjtie"
 	  depends="check.ndb.libdir,check.compile.ndbjtie">
     <path id="classpath.ndbjtie.run">
@@ -472,7 +475,7 @@
     <echo message="will skip target run.ndbjtie due to missing prerequisites"/>
   </target>
 
-  <!-- runs the benchmark against NDBJTIE -->
+  <!-- runs the benchmark on NDBJTIE -->
   <target name="run.ndbjtie" depends="set.run,check.run.ndbjtie"
 	  if="run.ndbjtie.set">
     <echo message="using:"/>
@@ -530,6 +533,7 @@
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   classpathref="classpath.clusterj.compile"
 	   includes="com/mysql/cluster/crund/ClusterjLoad.java">
+      <include name="com/mysql/cluster/crund/ClusterjTwsLoad.java"/>
       <compilerarg value="-Xlint"/>
     </javac>
   </target>
@@ -550,7 +554,7 @@
     <echo message="file not found: ${CLUSTERJ_JAR}"/>
   </target>
 
-  <!-- sets the paths for running against Cluster/J -->
+  <!-- sets the paths for running on Cluster/J -->
   <target name="set.run.clusterj"
 	  depends="check.ndb.libdir,check.compile.clusterj,check.clusterj.jar">
     <path id="classpath.clusterj.run">
@@ -570,7 +574,7 @@
     <echo message="will skip target run.clusterj due to missing prerequisites"/>
   </target>
 
-  <!-- runs the benchmark against Cluster/J -->
+  <!-- runs the benchmark on Cluster/J -->
   <target name="run.clusterj" depends="set.run,check.run.clusterj"
 	  if="run.clusterj.set">
     <echo message="using:"/>
@@ -610,6 +614,7 @@
     <javac srcdir="${src.java}" destdir="${build}" debug="${debug}"
 	   classpathref="classpath.jdbc.compile"
 	   includes="com/mysql/cluster/crund/JdbcLoad.java">
+      <include name="com/mysql/cluster/crund/JdbcTwsLoad.java"/>
       <compilerarg value="-Xlint"/>
     </javac>
   </target>
@@ -697,7 +702,7 @@
     <echo message="file not found: ${MYSQL_JDBC_JAR}"/>
   </target>
 
-  <!-- sets the paths for running against MySQL JDBC -->
+  <!-- sets the paths for running on MySQL JDBC -->
   <target name="set.run.mysql"
 	  depends="check.compile.jdbc,check.mysql.jdbc.jar">
     <path id="classpath.mysql.run">
@@ -737,7 +742,7 @@
     </java>
   </target>
 
-  <!-- runs the benchmark against MySQL JDBC -->
+  <!-- runs the benchmark on MySQL JDBC -->
   <target name="run.mysql" depends="set.run,check.run.mysql"
 	  if="run.mysql.set">
     <echo message="using:"/>
@@ -799,7 +804,7 @@
     <echo message="file not found: ${ANTLRRUNTIME_JAR}"/>
   </target>
 
-  <!-- sets the paths for running against CLUSTERJDBC -->
+  <!-- sets the paths for running on CLUSTERJDBC -->
   <target name="set.run.clusterjdbc"
 	  depends="check.run.mysql,check.run.clusterj,check.clusterjdbc.jar,check.antlr32.jar,check.antlrruntime.jar">
     <path id="classpath.clusterjdbc.run">
@@ -825,7 +830,7 @@
     <echo message="will skip target run.clusterjdbc due to missing prerequisites"/>
   </target>
 
-  <!-- runs the benchmark against MySQL CLUSTERJDBC -->
+  <!-- runs the benchmark on MySQL CLUSTERJDBC -->
   <target name="run.clusterjdbc" depends="set.run,check.run.clusterjdbc"
 	  if="run.clusterjdbc.set">
     <echo message="using:"/>
@@ -1010,7 +1015,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="file not found: ${SERP_JAR}"/>
   </target>
 
-  <!-- sets the paths for running against OpenJPA -->
+  <!-- sets the paths for running on OpenJPA -->
   <target name="set.run.openjpa"
 	  depends="check.compile.jpa,check.openjpa.jar,check.jta.api.jar,check.commons.lang.jar,check.commons.collections.jar,check.commons.pool.jar,check.serp.jar">
     <!-- Java agent for automatic class-enhancement -->
@@ -1106,7 +1111,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
        # OpenJPA over MySQL JDBC
        ################################################################# -->
 
-  <!-- sets the paths for running against OpenJPA over MySQL JDBC -->
+  <!-- sets the paths for running on OpenJPA over MySQL JDBC -->
   <target name="set.run.openjpa.mysql"
 	  depends="check.run.openjpa,check.run.mysql">
     <path id="classpath.openjpa.mysql.run">
@@ -1125,7 +1130,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="will skip target run.openjpa.mysql due to missing prerequisites"/>
   </target>
 
-  <!-- runs the benchmark against OpenJPA over MySQL JDBC -->
+  <!-- runs the benchmark on OpenJPA over MySQL JDBC -->
   <target name="run.openjpa.mysql"
 	  depends="set.run,check.run.openjpa.mysql"
 	  if="run.openjpa.mysql.set">
@@ -1164,7 +1169,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="file not found: ${CLUSTERJPA_JAR}"/>
   </target>
 
-  <!-- sets the paths for running against ClusterJPA -->
+  <!-- sets the paths for running on ClusterJPA -->
   <target name="set.run.openjpa.clusterj"
 	  depends="check.clusterjpa.jar,check.run.openjpa,check.run.clusterj,check.run.mysql">
     <path id="classpath.openjpa.clusterj.run">
@@ -1188,7 +1193,7 @@ Note that the enhancement process for subclasses introduces dependencies on -
     <echo message="will skip target run.openjpa.clusterj due to missing prerequisites"/>
   </target>
 
-  <!-- runs the benchmark against ClusterJPA -->
+  <!-- runs the benchmark on ClusterJPA -->
   <target name="run.openjpa.clusterj"
 	  depends="set.run,check.run.openjpa.clusterj"
 	  if="run.openjpa.clusterj.set">
@@ -1210,5 +1215,51 @@ Note that the enhancement process for subclasses introduces dependencies on -
   </target>
   <target name="run.openjpa.clusterj.opt"
 	  depends="set.run.opt,run.openjpa.clusterj"/>
+
+  <!-- #################################################################
+       # TWS
+       ################################################################# -->
+
+  <!-- sets the paths for running TWS on NDBJTIE, Cluster/J, MySQL JDBC -->
+  <target name="set.run.tws"
+	  depends="check.run.ndbjtie,check.run.clusterj,check.run.mysql">
+    <path id="classpath.tws.run">
+      <pathelement location="${build}"/>
+      <path refid="classpath.ndbjtie.run"/>
+      <path refid="classpath.clusterj.run"/>
+      <path refid="classpath.mysql.run"/>
+    </path>
+    <condition property="run.tws.set">
+      <and>
+	<isset property="run.ndbjtie.set"/>
+	<isset property="run.clusterj.set"/>
+	<isset property="run.mysql.set"/>
+      </and>
+    </condition>
+  </target>
+  <target name="check.run.tws" depends="set.run.tws"
+	  unless="run.tws.set">
+    <echo message="will skip target run.tws due to missing prerequisites"/>
+  </target>
+
+  <!-- runs TWS on NDBJTIE, Cluster/J, MySQL JDBC -->
+  <target name="run.tws" depends="set.run,check.run.tws"
+	  if="run.tws.set">
+    <echo message="using:"/>
+    <echo message="  ndb.libdir: ${ndb.libdir}"/>
+    <echo message="  classpath.tws.run: ${toString:classpath.tws.run}"/>
+    <echo message=""/>
+
+    <java classname="com.mysql.cluster.crund.TwsDriver"
+     fork="true" failonerror="true" classpathref="classpath.tws.run">
+      <jvmarg line="${jvmflags}"/>
+      <jvmarg line="-Djava.library.path='${ndb.libdir}'"/>
+      <arg line="-p twsRun.properties"/>
+      <arg line="-p crundNdbjtie.properties"/>
+      <arg line="-p crundClusterj.properties"/>
+      <arg line="-p crundMysql.properties"/>
+    </java>
+  </target>
+  <target name="run.tws.opt" depends="set.run.opt,run.tws"/>
 
 </project>

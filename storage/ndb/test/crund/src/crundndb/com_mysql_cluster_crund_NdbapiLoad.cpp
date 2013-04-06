@@ -20,19 +20,19 @@
 
 #include "helpers.hpp"
 
-#include "com_mysql_cluster_crund_NdbApiLoad.h"
+#include "com_mysql_cluster_crund_NdbapiLoad.h"
 
-#include "CrundNdbApiOperations.hpp"
+#include "CrundNdbapiOperations.hpp"
 
 // ----------------------------------------------------------------------
 
 // provides the benchmark's basic database operations
-static CrundNdbApiOperations* ops = NULL;
+static CrundNdbapiOperations* ops = NULL;
 
 // ----------------------------------------------------------------------
 
 JNIEXPORT jint JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_ndbinit(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_ndbinit(JNIEnv* env,
                                                 jclass cls,
                                                 jstring mgmd_jstr)
 {
@@ -44,7 +44,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_ndbinit(JNIEnv* env,
     const char* mgmd_cstr = env->GetStringUTFChars(mgmd_jstr, NULL);
 
     // initialize the benchmark's resources
-    ops = new CrundNdbApiOperations();
+    ops = new CrundNdbapiOperations();
     ops->init(mgmd_cstr);
 
     // release the native and Java strings
@@ -54,7 +54,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_ndbinit(JNIEnv* env,
 }
 
 JNIEXPORT jint JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_ndbclose(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_ndbclose(JNIEnv* env,
                                                  jclass cls)
 {
     TRACE("ndbclose()");
@@ -67,7 +67,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_ndbclose(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_initConnection(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_initConnection(JNIEnv* env,
                                                        jobject obj,
                                                        jstring catalog_jstr,
                                                        jstring schema_jstr,
@@ -90,7 +90,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_initConnection(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_closeConnection(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_closeConnection(JNIEnv* env,
                                                         jobject obj)
 {
     TRACE("closeConnection()");
@@ -98,7 +98,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_closeConnection(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_clearData(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_clearData(JNIEnv* env,
                                                   jobject obj)
 {
     TRACE("clearData()");
@@ -106,7 +106,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_clearData(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_delAllA(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_delAllA(JNIEnv* env,
                                                 jobject obj,
                                                 jint nOps,
                                                 jboolean batch)
@@ -118,7 +118,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delAllA(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_delAllB0(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_delAllB0(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean batch)
@@ -130,7 +130,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delAllB0(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_insA(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_insA(JNIEnv* env,
                                              jobject obj,
                                              jint nOps,
                                              jboolean setAttrs,
@@ -142,7 +142,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_insA(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_insB0(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_insB0(JNIEnv* env,
                                               jobject obj,
                                               jint nOps,
                                               jboolean setAttrs,
@@ -154,7 +154,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_insB0(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_delAByPK(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_delAByPK(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean batch)
@@ -164,7 +164,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delAByPK(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_delB0ByPK(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_delB0ByPK(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
                                                   jboolean batch)
@@ -174,7 +174,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_delB0ByPK(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_setAByPK(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_setAByPK(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean batch)
@@ -184,7 +184,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setAByPK(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_setB0ByPK(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_setB0ByPK(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
                                                   jboolean batch)
@@ -194,7 +194,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setB0ByPK(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1bb(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getAByPK_1bb(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
                                                      jboolean batch)
@@ -204,7 +204,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1bb(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1bb(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getB0ByPK_1bb(JNIEnv* env,
                                                       jobject obj,
                                                       jint nOps,
                                                       jboolean batch)
@@ -214,7 +214,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1bb(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1ar(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getAByPK_1ar(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
                                                      jboolean batch)
@@ -224,7 +224,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getAByPK_1ar(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1ar(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getB0ByPK_1ar(JNIEnv* env,
                                                       jobject obj,
                                                       jint nOps,
                                                       jboolean batch)
@@ -234,7 +234,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getB0ByPK_1ar(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_setVarbinary(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_setVarbinary(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
                                                      jboolean batch,
@@ -246,7 +246,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setVarbinary(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getVarbinary(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getVarbinary(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
                                                      jboolean batch,
@@ -258,7 +258,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getVarbinary(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_setVarchar(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_setVarchar(JNIEnv* env,
                                                    jobject obj,
                                                    jint nOps,
                                                    jboolean batch,
@@ -270,7 +270,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setVarchar(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_getVarchar(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_getVarchar(JNIEnv* env,
                                                    jobject obj,
                                                    jint nOps,
                                                    jboolean batch,
@@ -282,7 +282,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_getVarchar(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_setB0ToA(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_setB0ToA(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean batch)
@@ -292,7 +292,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_setB0ToA(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_navB0ToA(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_navB0ToA(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean batch)
@@ -302,7 +302,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_navB0ToA(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_navB0ToAalt(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_navB0ToAalt(JNIEnv* env,
                                                     jobject obj,
                                                     jint nOps,
                                                     jboolean batch)
@@ -312,7 +312,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_navB0ToAalt(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_navAToB0(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_navAToB0(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
                                                  jboolean forceSend)
@@ -322,7 +322,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_navAToB0(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_navAToB0alt(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_navAToB0alt(JNIEnv* env,
                                                     jobject obj,
                                                     jint nOps,
                                                     jboolean forceSend)
@@ -332,7 +332,7 @@ Java_com_mysql_cluster_crund_NdbApiLoad_navAToB0alt(JNIEnv* env,
 }
 
 JNIEXPORT void JNICALL
-Java_com_mysql_cluster_crund_NdbApiLoad_nullB0ToA(JNIEnv* env,
+Java_com_mysql_cluster_crund_NdbapiLoad_nullB0ToA(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
                                                   jboolean batch)

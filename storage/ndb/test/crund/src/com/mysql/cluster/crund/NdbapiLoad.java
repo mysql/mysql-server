@@ -17,7 +17,7 @@
 
 package com.mysql.cluster.crund;
 
-public class NdbApiLoad extends NdbBase {
+public class NdbapiLoad extends NdbBase {
 
     // ----------------------------------------------------------------------
     // NDB API intializers/finalizers
@@ -45,7 +45,7 @@ public class NdbApiLoad extends NdbBase {
         // initialize NDB resources
         final int ret = ndbinit(mgmdConnect);
         if (ret != 0) {
-            String msg = ("NdbApiLoad: failed initializing NDBAPI;"
+            String msg = ("NdbapiLoad: failed initializing NDBAPI;"
                           + " return value = " + ret);
             err.println(msg);
             throw new Exception(msg);
@@ -56,7 +56,7 @@ public class NdbApiLoad extends NdbBase {
         // release NDB resources
         final int ret = ndbclose();
         if (ret != 0) {
-            String msg = ("NdbApiLoad: failed closing NDBAPI;"
+            String msg = ("NdbapiLoad: failed closing NDBAPI;"
                           + " return value = " + ret);
             err.println(msg);
             throw new Exception(msg);
@@ -325,10 +325,10 @@ public class NdbApiLoad extends NdbBase {
     // ----------------------------------------------------------------------
 
     static public void main(String[] args) {
-        System.out.println("NdbApiLoad.main()");
+        System.out.println("NdbapiLoad.main()");
         parseArguments(args);
-        new NdbApiLoad().run();
+        new NdbapiLoad().run();
         System.out.println();
-        System.out.println("NdbApiLoad.main(): done.");
+        System.out.println("NdbapiLoad.main(): done.");
     }
 }

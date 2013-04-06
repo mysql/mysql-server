@@ -15,7 +15,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "CrundDriver.hpp"
+#include "TwsDriver.hpp"
 
 #include <iostream>
 #include <sstream>
@@ -37,13 +37,25 @@ using utils::toBool;
 using utils::toInt;
 using utils::toString;
 
-// ----------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Helper Macros & Functions
+// ---------------------------------------------------------------------------
+
+#define ABORT_VERIFICATION_ERROR()                                      \
+    do { cout << "!!! error in " << __FILE__ << ", line: " << __LINE__  \
+              << ", failed data verification." << endl;                 \
+        exit(-1);                                                       \
+    } while (0)
+
+// ---------------------------------------------------------------------------
+// TwsDriver Implementation
+// ---------------------------------------------------------------------------
 
 void
-CrundDriver::initProperties() {
+TwsDriver::initProperties() {
     Driver::initProperties();
 
-    cout << "setting ndb properties ..." << flush;
+    cout << "setting tws properties ..." << flush;
 
     ostringstream msg;
 
@@ -84,54 +96,17 @@ CrundDriver::initProperties() {
         nOpsScale = 2;
     }
 
-    maxVarbinaryBytes = toInt(props[L"maxVarbinaryBytes"], 100, 0);
-    if (maxVarbinaryBytes < 1) {
-        msg << "[ignored] maxVarbinaryBytes:    '"
-            << toString(props[L"maxVarbinaryBytes"]) << "'" << endl;
-        maxVarbinaryBytes = 100;
-    }
-    maxVarcharChars = toInt(props[L"maxVarcharChars"], 100, 0);
-    if (maxVarcharChars < 1) {
-        msg << "[ignored] maxVarcharChars:      '"
-            << toString(props[L"maxVarcharChars"]) << "'" << endl;
-        maxVarcharChars = 100;
-    }
-
-    maxBlobBytes = toInt(props[L"maxBlobBytes"], 1000, 0);
-    if (maxBlobBytes < 1) {
-        msg << "[ignored] maxBlobBytes:         '"
-            << toString(props[L"maxBlobBytes"]) << "'" << endl;
-        maxBlobBytes = 1000;
-    }
-    maxTextChars = toInt(props[L"maxTextChars"], 1000, 0);
-    if (maxTextChars < 1) {
-        msg << "[ignored] maxTextChars:         '"
-            << toString(props[L"maxTextChars"]) << "'" << endl;
-        maxTextChars = 1000;
-    }
-
-    // initialize exclude set
-    const wstring& estr = props[L"exclude"];
-    //cout << "estr='" << toString(estr) << "'" << endl;
-    const size_t len = estr.length();
-    size_t beg = 0, next;
-    while (beg < len
-           && ((next = estr.find_first_of(L",", beg)) != wstring::npos)) {
-        // add substring if not empty
-        if (beg < next) {
-            const wstring& s = estr.substr(beg, next - beg);
-            exclude.insert(toString(s));
-        }
-        beg = next + 1;
-    }
-    // add last substring if any
-    if (beg < len) {
-        const wstring& s = estr.substr(beg, len - beg);
-        exclude.insert(toString(s));
-    }
+    doInsert = toBool(props[L"doInsert"], true);
+    doLookup = toBool(props[L"doLookup"], true);
+    doUpdate = toBool(props[L"doUpdate"], true);
+    doDelete = toBool(props[L"doDelete"], true);
+    doSingle = toBool(props[L"doSingle"], true);
+    doBulk = toBool(props[L"doBulk"], true);
+    doBatch = toBool(props[L"doBatch"], true);
+    doVerify = toBool(props[L"doVerify"], true);
 
     if (!msg.tellp()) {
-        cout << "    [ok: "
+        cout << "      [ok: "
              << "nOps=" << nOpsStart << ".." << nOpsEnd << "]" << endl;
     } else {
         cout << endl << msg.str() << endl;
@@ -139,7 +114,7 @@ CrundDriver::initProperties() {
 }
 
 void
-CrundDriver::printProperties() {
+TwsDriver::printProperties() {
     Driver::printProperties();
 
     const ios_base::fmtflags f = cout.flags();
@@ -147,7 +122,7 @@ CrundDriver::printProperties() {
     //cout << ios_base::boolalpha;
     cout.flags(ios_base::boolalpha);
 
-    cout << endl << "crund settings ..." << endl;
+    cout << endl << "tws settings..." << endl;
     cout << "renewConnection:                " << renewConnection << endl;
     cout << "renewOperations:                " << renewOperations << endl;
     cout << "logSumOfOps:                    " << logSumOfOps << endl;
@@ -155,11 +130,14 @@ CrundDriver::printProperties() {
     cout << "nOpsStart:                      " << nOpsStart << endl;
     cout << "nOpsEnd:                        " << nOpsEnd << endl;
     cout << "nOpsScale:                      " << nOpsScale << endl;
-    cout << "maxVarbinaryBytes:              " << maxVarbinaryBytes << endl;
-    cout << "maxVarcharChars:                " << maxVarcharChars << endl;
-    cout << "maxBlobBytes:                   " << maxBlobBytes << endl;
-    cout << "maxTextChars:                   " << maxTextChars << endl;
-    cout << "exclude:                        " << toString(exclude) << endl;
+    cout << "doInsert:                       " << doInsert << endl;
+    cout << "doLookup:                       " << doLookup << endl;
+    cout << "doUpdate:                       " << doUpdate << endl;
+    cout << "doDelete:                       " << doDelete << endl;
+    cout << "doSingle:                       " << doSingle << endl;
+    cout << "doBulk:                         " << doBulk << endl;
+    cout << "doBatch:                        " << doBatch << endl;
+    cout << "doVerify:                       " << doVerify << endl;
 
     cout.flags(f);
 }
@@ -167,7 +145,7 @@ CrundDriver::printProperties() {
 // ----------------------------------------------------------------------
 
 void
-CrundDriver::runTests() {
+TwsDriver::runTests() {
     cout << endl;
     initConnection();
     initOperations();
@@ -186,7 +164,7 @@ CrundDriver::runTests() {
 }
 
 void
-CrundDriver::runLoads(int nOps) {
+TwsDriver::runLoads(int nOps) {
     cout << endl
          << "------------------------------------------------------------" << endl;
 
@@ -252,27 +230,73 @@ CrundDriver::runLoads(int nOps) {
 }
 
 void
-CrundDriver::runOperations(int nOps) {
-    for (Operations::const_iterator i = operations.begin();
-         i != operations.end(); ++i) {
-        // no need for pre-tx cleanup with NDBAPI-based loads
-        //}
-        runOp(**i, nOps);
+TwsDriver::runOperations(int nOps) {
+    cout << endl
+         << "running TWS operations ..." << "      [nOps=" << nOps << "]"
+         << endl;
+
+    if (doSingle) {
+        if (doInsert) runInserts(SINGLE, nOps);
+        if (doLookup) runLookups(SINGLE, nOps);
+        if (doUpdate) runUpdates(SINGLE, nOps);
+        if (doDelete) runDeletes(SINGLE, nOps);
+    }
+    if (doBulk) {
+        if (doInsert) runInserts(BULK, nOps);
+        if (doLookup) runLookups(BULK, nOps);
+        if (doUpdate) runUpdates(BULK, nOps);
+        if (doDelete) runDeletes(BULK, nOps);
+    }
+    if (doBatch) {
+        if (doInsert) runInserts(BATCH, nOps);
+        if (doLookup) runLookups(BATCH, nOps);
+        if (doUpdate) runUpdates(BATCH, nOps);
+        if (doDelete) runDeletes(BATCH, nOps);
     }
 }
 
 void
-CrundDriver::runOp(const Op& op, int nOps) {
-    const string& name = op.name;
-    if (exclude.find(name) == exclude.end()) {
-        begin(name);
-        op.run(nOps);
-        finish(name);
+TwsDriver::verify(int exp, int act) {
+    if (doVerify) {
+        //cout << "XXX exp=" << exp << ", act=" << act << endl;
+        if (exp != act) {
+            ABORT_VERIFICATION_ERROR();
+        }
+    }
+}
+
+void
+TwsDriver::verify(long exp, long act) {
+    if (doVerify) {
+        //cout << "XXX exp=" << exp << ", act=" << act << endl;
+        if (exp != act) {
+            ABORT_VERIFICATION_ERROR();
+        }
+    }
+}
+
+void
+TwsDriver::verify(long long exp, long long act) {
+    if (doVerify) {
+        //cout << "XXX exp=" << exp << ", act=" << act << endl;
+        if (exp != act) {
+            ABORT_VERIFICATION_ERROR();
+        }
+    }
+}
+
+void
+TwsDriver::verify(const char* exp, const char* act) {
+    if (doVerify) {
+        //cout << "XXX exp='" << exp << "', act='" << act << "'" << endl;
+        if (strcmp(exp, act) != 0) {
+            ABORT_VERIFICATION_ERROR();
+        }
     }
 }
 
 const char*
-CrundDriver::toStr(XMode mode) {
+TwsDriver::toStr(XMode mode) {
     switch (mode) {
     case SINGLE:
         return "single";
@@ -287,7 +311,7 @@ CrundDriver::toStr(XMode mode) {
 }
 
 const char*
-CrundDriver::toStr(LockMode mode) {
+TwsDriver::toStr(LockMode mode) {
     switch (mode) {
     case SINGLE:
         return "read_committed";
