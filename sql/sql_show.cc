@@ -6617,20 +6617,20 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
       break;
     case MYSQL_TYPE_DATE:
       if (!(item=new Item_return_date_time(fields_info->field_name,
-                                           MAX_DATE_WIDTH,
+                                           strlen(fields_info->field_name),
                                            fields_info->field_type)))
         DBUG_RETURN(0);
       break;
     case MYSQL_TYPE_TIME:
       if (!(item=new Item_return_date_time(fields_info->field_name,
-                                           MAX_TIME_FULL_WIDTH,
+                                           strlen(fields_info->field_name),
                                            fields_info->field_type)))
         DBUG_RETURN(0);
       break;
     case MYSQL_TYPE_TIMESTAMP:
     case MYSQL_TYPE_DATETIME:
       if (!(item=new Item_return_date_time(fields_info->field_name,
-                                           MAX_DATETIME_WIDTH,
+                                           strlen(fields_info->field_name),
                                            fields_info->field_type)))
         DBUG_RETURN(0);
       break;
