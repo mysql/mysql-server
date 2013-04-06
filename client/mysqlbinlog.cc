@@ -662,6 +662,81 @@ write_event_header_and_base64(Log_event *ev, FILE *result_file,
 }
 
 
+static bool print_base64(PRINT_EVENT_INFO *print_event_info, Log_event *ev)
+{
+  /*
+    These events must be printed in base64 format, if printed.
+    base64 format requires a FD event to be safe, so if no FD
+    event has been printed, we give an error.  Except if user
+    passed --short-form, because --short-form disables printing
+    row events.
+  */
+  if (!print_event_info->printed_fd_event && !short_form &&
+      opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
+  {
+    const char* type_str= ev->get_type_str();
+    if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
+      error("--base64-output=never specified, but binlog contains a "
+            "%s event which must be printed in base64.",
+            type_str);
+    else
+      error("malformed binlog: it does not contain any "
+            "Format_description_log_event. I now found a %s event, which "
+            "is not safe to process without a "
+            "Format_description_log_event.",
+            type_str);
+    return 1;
+  }
+  ev->print(result_file, print_event_info);
+  return print_event_info->head_cache.error == -1;
+}
+
+
+static bool print_row_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
+                            ulong table_id, bool is_stmt_end)
+{
+  Table_map_log_event *ignored_map= 
+    print_event_info->m_table_map_ignored.get_table(table_id);
+  bool skip_event= (ignored_map != NULL);
+
+  /* 
+     end of statement check:
+       i) destroy/free ignored maps
+      ii) if skip event, flush cache now
+   */
+  if (is_stmt_end)
+  {
+    /* 
+      Now is safe to clear ignored map (clear_tables will also
+      delete original table map events stored in the map).
+    */
+    if (print_event_info->m_table_map_ignored.count() > 0)
+      print_event_info->m_table_map_ignored.clear_tables();
+
+    /* 
+       One needs to take into account an event that gets
+       filtered but was last event in the statement. If this is
+       the case, previous rows events that were written into
+       IO_CACHEs still need to be copied from cache to
+       result_file (as it would happen in ev->print(...) if
+       event was not skipped).
+    */
+    if (skip_event)
+    {
+      if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
+          copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+        return 1;
+    }
+  }
+
+  /* skip the event check */
+  if (skip_event)
+    return 0;
+
+  return print_base64(print_event_info, ev);
+}
+
+
 /**
   Print the given event, and either delete it or delegate the deletion
   to someone else.
@@ -921,79 +996,29 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         destroy_evt= FALSE;
         goto end;
       }
+      if (print_base64(print_event_info, ev))
+        goto err;
+      break;
     }
     case WRITE_ROWS_EVENT:
     case DELETE_ROWS_EVENT:
     case UPDATE_ROWS_EVENT:
+    {
+      Rows_log_event *e= (Rows_log_event*) ev;
+      if (print_row_event(print_event_info, ev, e->get_table_id(),
+                          e->get_flags(Rows_log_event::STMT_END_F)))
+        goto err;
+      break;
+    }
     case PRE_GA_WRITE_ROWS_EVENT:
     case PRE_GA_DELETE_ROWS_EVENT:
     case PRE_GA_UPDATE_ROWS_EVENT:
     {
-      if (ev_type != TABLE_MAP_EVENT)
-      {
-        Rows_log_event *e= (Rows_log_event*) ev;
-        Table_map_log_event *ignored_map= 
-          print_event_info->m_table_map_ignored.get_table(e->get_table_id());
-        bool skip_event= (ignored_map != NULL);
-
-        /* 
-           end of statement check:
-             i) destroy/free ignored maps
-            ii) if skip event, flush cache now
-         */
-        if (e->get_flags(Rows_log_event::STMT_END_F))
-        {
-          /* 
-            Now is safe to clear ignored map (clear_tables will also
-            delete original table map events stored in the map).
-          */
-          if (print_event_info->m_table_map_ignored.count() > 0)
-            print_event_info->m_table_map_ignored.clear_tables();
-
-          /* 
-             One needs to take into account an event that gets
-             filtered but was last event in the statement. If this is
-             the case, previous rows events that were written into
-             IO_CACHEs still need to be copied from cache to
-             result_file (as it would happen in ev->print(...) if
-             event was not skipped).
-          */
-          if (skip_event)
-          {
-            if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-                copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
-              goto err;
-          }
-        }
-
-        /* skip the event check */
-        if (skip_event)
-          goto end;
-      }
-      /*
-        These events must be printed in base64 format, if printed.
-        base64 format requires a FD event to be safe, so if no FD
-        event has been printed, we give an error.  Except if user
-        passed --short-form, because --short-form disables printing
-        row events.
-      */
-      if (!print_event_info->printed_fd_event && !short_form &&
-          opt_base64_output_mode != BASE64_OUTPUT_DECODE_ROWS)
-      {
-        const char* type_str= ev->get_type_str();
-        if (opt_base64_output_mode == BASE64_OUTPUT_NEVER)
-          error("--base64-output=never specified, but binlog contains a "
-                "%s event which must be printed in base64.",
-                type_str);
-        else
-          error("malformed binlog: it does not contain any "
-                "Format_description_log_event. I now found a %s event, which "
-                "is not safe to process without a "
-                "Format_description_log_event.",
-                type_str);
+      Old_rows_log_event *e= (Old_rows_log_event*) ev;
+      if (print_row_event(print_event_info, ev, e->get_table_id(),
+                          e->get_flags(Old_rows_log_event::STMT_END_F)))
         goto err;
-      }
-      /* FALL THROUGH */
+      break;
     }
     default:
       ev->print(result_file, print_event_info);
