@@ -18,9 +18,53 @@
  02110-1301  USA
  */
 
-/***** Find with domain object and primitive primary key ***/
+/*  Store a row and read it back
+ *  Callback gets: (error, foundObject, session) 
+*/ 
+function persistAndFind(testCase, object, onFindCallback) {
+
+  function onPersistThenFind(err, session) {
+    session.find(t_basic, object.id, onFindCallback, session);
+  }
+
+  function onOpenThenPersist(session, testCase) { 
+    testCase.session = session;
+    session.persist(t_basic, object, onPersistThenFind, testCase.session);
+  }
+    
+  fail_openSession(testCase, onOpenThenPersist);
+}
+
+/* Generates a callback function to find a row,
+   compare it to a known row, and pass or fail the test case.
+*/
+function makeFindAndCompare(testCase, session, refObject) {
+  function onFindThenCompare(err, readObject, writtenObject) {
+    testCase.errorIfError(err);
+    testCase.errorIfNull("expected readObject on Find", readObject);
+    try {
+      testCase.errorIfNotEqual("id", writtenObject.id, readObject.id);
+      testCase.errorIfNotEqual("name", writtenObject.name, readObject.name);
+      testCase.errorIfNotEqual("age", writtenObject.age, readObject.age);
+      testCase.errorIfNotEqual("magic", writtenObject.magic, readObject.magic);
+    }
+    catch(e) {
+      testCase.appendErrorMessage(e);
+    }
+    testCase.failOnError();  
+  }
+
+  return function findAndCompare(err) {
+    testCase.errorIfError(err);
+    session.find(t_basic, refObject.id, onFindThenCompare, refObject);
+  }
+}
+
+
+// Find_Modify_Save 
 var t1 = new harness.ConcurrentTest("Find_Modify_Save");
 t1.run = function() {
+  var row = new t_basic(23001, 'Snoopy', 23, 23001);
   
   /* Create a row with age = 23.
      Read it. 
@@ -29,47 +73,112 @@ t1.run = function() {
      Read it again.
   */
 
-  function onReadAgain(err, readObject, writtenObject) {
-    t1.errorIfError(err);
-    t1.errorIfNotEqual("id", writtenObject.id, readObject.id);
-    t1.errorIfNotEqual("name", writtenObject.name, readObject.name);
-    t1.errorIfNotEqual("age", writtenObject.age, readObject.age);
-    t1.failOnError();  
-  }
-  
-  function onSave(err, sess, thePreviousObject) { 
-    t1.errorIfError(err);
-    sess.find(t_basic, 23001, onReadAgain, thePreviousObject);
-  }
-  
-  function onFind(err, object, theSession) {
+  function onFindThenSave(err, object, theSession) {
     object.age = 29; 
-    t1.errorIfNotEqual("ReadAfterWrite", 29, object.age);
-    theSession.save(object, onSave, theSession, object);
+    t1.errorIfNotEqual("Age:Write_Read", 29, object.age);
+    theSession.save(object, makeFindAndCompare(t1, theSession, object));
   }
 
-  function onInsert(err, aSession) {
-    aSession.find(t_basic, 23001, onFind, aSession);
-  }
-
-  function onOpen(session, testCase) { 
-    testCase.session = session;
-    var row = new t_basic(23001, 'Snoopy', 23, 23001);
-    session.persist(t_basic, row, onInsert, testCase.session);
-  }
-  
-  fail_openSession(this, onOpen);
+  persistAndFind(this, row, onFindThenSave);
 };
 
-// Find_Modify_Save and test that all columns are in mask
-// Find_Modify_Update and test that only the modified column is in mask
-// Find_Delete
-// Find_ModifyPK_Save (new row, mask will be invalid) 
+
+// Find_Modify_Update 
+var t2 = new harness.ConcurrentTest("Find_Modify_Update");
+t2.run = function() {
+  var row = new t_basic(23002, 'Linus', 23, 23002); 
+  
+  function onFindThenUpdate(err, object, session) {
+    object.age = object.age + 10;
+    t2.errorIfNotEqual("Age:Read_Write_Read", row.age+10, object.age);
+    session.update(object, makeFindAndCompare(t2, session, object));
+  }
+  
+  persistAndFind(this, row, onFindThenUpdate);
+};
+
+// Find_Remove
+var t3 = new harness.ConcurrentTest("Find_Remove");
+t3.run = function() {
+  var row = new t_basic(23003, 'Charlie Brown', 5, 23003);
+  
+  function onFindDeletedRow(err, obj) {
+    t3.errorIfNotNull("found row should be null", obj);
+    t3.failOnError();
+  }
+    
+  function onDeleteThenFindAgain(err, session) {
+    t3.errorIfError(err);
+    session.find(t_basic, 20003, onFindDeletedRow);        
+  }
+
+  function onFindThenDelete(err, object, session) {
+    t3.errorIfError(err);
+    session.remove(object, onDeleteThenFindAgain, session)
+  }
+  
+  persistAndFind(this, row, onFindThenDelete);
+};
+
+
+// Find_ModifyPK_Save
+var t4 = new harness.ConcurrentTest("Find_ModifyPK_Save");
+t4.run = function() {
+  var row4a = new t_basic(23004, 'Lucy', 80, 23004);
+  var row4b = new t_basic(23104, 'Lucy', 80, 23104);
+
+  function onFindThenChange(err, object, session) {
+    t4.errorIfError(err);
+    object.id = 23104;
+    object.magic = 23104;  // unique index on magic
+    session.save(object, makeFindAndCompare(t4, session, row4b));
+  }
+  
+  persistAndFind(this, row4a, onFindThenChange);
+};
+
 // Find_ModifyPK_Persist
+var t5 = new harness.ConcurrentTest("Find_ModifyPK_Persist");
+t5.run = function() {
+  var row5a = new t_basic(23005, 'Sally', 4, 23005);
+  var row5b = new t_basic(23105, 'Sally', 4, 23105);
+
+  function onFindThenChange(err, object, session) {
+    t5.errorIfError(err);
+    object.id = 23105;
+    object.magic = 23105;  // unique index on magic
+    session.persist(object, makeFindAndCompare(t5, session, row5b));
+  }
+  
+  persistAndFind(this, row5a, onFindThenChange);
+};
+
+
 // Find_ModifyPK_Delete
+var t6 = new harness.ConcurrentTest("Find_ModifyPK_Delete");
+t6.run = function() {
+  var row6 = new t_basic(23006, 'Schroeder', 12, 23006);
+
+  function onDeleteExpectError(err) { 
+    t6.errorIfNull("Expected Error", err);
+    t6.errorIfNotEqual("Expected SQLSTATE 02000", err.sqlstate, "02000");
+    t6.failOnError();
+  }
+
+  function onFindThenModify(err, object, theSession) {
+    object.id = 23106;    
+    theSession.remove(object, onDeleteExpectError);
+  }
+
+  persistAndFind(this, row6, onFindThenModify);
+};
+
+
+
+
 // Find_ModifyPK_Load
 // Find_ModifyUK_Load
 
 // implement getColumnMaskForVO(obj) and test masked columns 
-exports.tests = [ t1];
+exports.tests = [t1, t2, t3, t4, t5, t6];
 
