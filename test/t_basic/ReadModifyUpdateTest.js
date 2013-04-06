@@ -174,6 +174,26 @@ t6.run = function() {
 };
 
 
+// Find_Modify_Save 
+var t1 = new harness.ConcurrentTest("Find_Modify_Save");
+t1.run = function() {
+  var row = new t_basic(23001, 'Snoopy', 23, 23001);
+  
+  /* Create a row with age = 23.
+     Read it. 
+     Update age to 29.
+     Save it.
+     Read it again.
+  */
+
+  function onFindThenSave(err, object, theSession) {
+    object.age = 29; 
+    t1.errorIfNotEqual("Age:Write_Read", 29, object.age);
+    theSession.save(object, makeFindAndCompare(t1, theSession, object));
+  }
+
+  persistAndFind(this, row, onFindThenSave);
+};
 
 
 // Find_ModifyPK_Load
