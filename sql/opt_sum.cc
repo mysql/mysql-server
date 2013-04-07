@@ -334,7 +334,17 @@ int opt_sum_query(THD *thd,
         {
           if (!is_exact_count)
           {
-            if ((count= get_exact_record_count(tables)) == ULONGLONG_MAX)
+            /*
+              Don't get exact record count for EXPLAIN since it wouldn't be
+              shown anyway. The reason is that storage engine's records()
+              could be slow, and while for execution it would be faster than
+              counting all rows, it still could be a significant performance
+              regression for EXPLAIN. This could block some optimizations
+              done in this function from showing in EXPLAIN, that's ok as
+              real query will be executed faster than one shown by EXPLAIN.
+            */
+            if (!thd->lex->describe &&
+                (count= get_exact_record_count(tables)) == ULONGLONG_MAX)
             {
               /* Error from handler in counting rows. Don't optimize count() */
               const_result= 0;
@@ -370,7 +380,8 @@ int opt_sum_query(THD *thd,
         else
           const_result= 0;
 
-        if (const_result == 1) {
+        // See comment above for get_exact_record_count()
+        if (!thd->lex->describe && const_result == 1) {
           ((Item_sum_count*) item)->make_const((longlong) count);
           recalc_const_item= true;
         }
