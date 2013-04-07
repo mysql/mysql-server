@@ -2164,8 +2164,28 @@ static my_socket activate_tcp_port(uint port)
   for (a= ai; a != NULL; a= a->ai_next)
   {
     ip_sock= socket(a->ai_family, a->ai_socktype, a->ai_protocol);
-    if (ip_sock != INVALID_SOCKET)
+      
+    char ip_addr[INET6_ADDRSTRLEN];
+
+    if (vio_get_normalized_ip_string(a->ai_addr, a->ai_addrlen,
+                                     ip_addr, sizeof (ip_addr)))
+    {
+      ip_addr[0]= 0;
+    }
+
+    if (ip_sock == INVALID_SOCKET)
+    {
+      sql_print_error("Failed to create a socket for %s '%s': errno: %d.",
+                      (a->ai_family == AF_INET) ? "IPv4" : "IPv6",
+                      (const char *) ip_addr,
+                      (int) socket_errno);
+    }
+    else 
+    {
+      sql_print_information("Server socket created on IP: '%s'.",
+                          (const char *) ip_addr);
       break;
+    }
   }
 
   if (ip_sock == INVALID_SOCKET)
@@ -7656,28 +7676,6 @@ mysqld_get_one_option(int optid,
     break;
   case (int) OPT_WANT_CORE:
     test_flags |= TEST_CORE_ON_SIGNAL;
-    break;
-  case (int) OPT_BIND_ADDRESS:
-    {
-      struct addrinfo *res_lst, hints;    
-
-      bzero(&hints, sizeof(struct addrinfo));
-      hints.ai_socktype= SOCK_STREAM;
-      hints.ai_protocol= IPPROTO_TCP;
-
-      if (getaddrinfo(argument, NULL, &hints, &res_lst) != 0) 
-      {
-        sql_print_error("Can't start server: cannot resolve hostname!");
-        return 1;
-      }
-
-      if (res_lst->ai_next)
-      {
-        sql_print_error("Can't start server: bind-address refers to multiple interfaces!");
-        return 1;
-      }
-      freeaddrinfo(res_lst);
-    }
     break;
   case OPT_CONSOLE:
     if (opt_console)
