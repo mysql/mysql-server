@@ -2188,7 +2188,9 @@ ha_innobase::ha_innobase(
 		  HA_TABLE_SCAN_ON_INDEX |
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
-		  HA_CAN_EXPORT),
+		  HA_CAN_EXPORT |
+		  HA_HAS_RECORDS
+		  ),
 	start_of_scan(0),
 	num_write_row(0)
 {}
@@ -2224,6 +2226,9 @@ ha_innobase::update_thd(
 	}
 
 	user_thd = thd;
+
+	DBUG_ASSERT(prebuilt->trx->magic_n == TRX_MAGIC_N);
+	DBUG_ASSERT(prebuilt->trx == thd_to_trx(user_thd));
 }
 
 /*********************************************************************//**
@@ -4464,8 +4469,6 @@ ha_innobase::innobase_initialize_autoinc()
 		ulint		err;
 
 		update_thd(ha_thd());
-
-		ut_a(prebuilt->trx == thd_to_trx(user_thd));
 
 		col_name = field->field_name;
 		index = innobase_get_index(table->s->next_number_index);
@@ -10297,6 +10300,97 @@ ha_innobase::rename_table(
 }
 
 /*********************************************************************//**
+Returns the exact number of records that this client can see using this
+handler object
+@return	Number of rows. HA_POS_ERROR on error */
+UNIV_INTERN
+ha_rows
+ha_innobase::records()
+/*==================*/
+{
+	DBUG_ENTER("ha_innobase::records()");
+
+	dberr_t		ret;
+	dict_index_t*	index;		/* The clustered index. */
+	ulint		n_rows = 0;	/* Record count in this view */
+
+	update_thd();
+
+	if (dict_table_is_discarded(prebuilt->table)) {
+		ib_senderrf(
+			user_thd,
+			IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+		ib_senderrf(
+			user_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_MISSING,
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+
+	} else if (prebuilt->table->corrupted) {
+err_table_corrupted:
+		ib_errf(user_thd, IB_LOG_LEVEL_WARN,
+			ER_INNODB_INDEX_CORRUPT,
+			"Table '%s' is corrupt.",
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	prebuilt->trx->op_info = "counting records";
+
+	index = dict_table_get_first_index(prebuilt->table);
+	ut_ad(dict_index_is_clust(index));
+
+	prebuilt->index_usable = row_merge_is_index_usable(
+		prebuilt->trx, index);
+	if (!prebuilt->index_usable) {
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	/* (Re)Build the prebuilt->mysql_template if it is null to use
+	the clustered index and just the key, no off-record data. */
+	prebuilt->index = index;
+	dtuple_set_n_fields(prebuilt->search_tuple, 0);
+	prebuilt->read_just_key = 1;
+	build_template(false);
+
+	/* Count the records in the clustered index */
+	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
+	reset_template();
+	switch (ret) {
+	case DB_SUCCESS:
+		break;
+	case DB_LOCK_WAIT_TIMEOUT:
+		my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
+		DBUG_RETURN(HA_POS_ERROR);
+	case DB_INTERRUPTED:
+		my_error(ER_QUERY_INTERRUPTED, MYF(0));
+		DBUG_RETURN(HA_POS_ERROR);
+	default:
+		ut_ad(0);  /* Catch any unkown error here during debug */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown error %u from row_scan_index_for_mysql()"
+			" in handler::records()", ret);
+	case DB_CORRUPTION:
+		goto err_table_corrupted;
+	}
+
+	prebuilt->trx->op_info = "";
+	if (thd_killed(user_thd)) {
+		DBUG_RETURN(HA_POS_ERROR);
+	}
+
+	DBUG_RETURN((ha_rows) n_rows);
+}
+
+/*********************************************************************//**
 Estimates the number of index records in a range.
 @return	estimated number of rows */
 UNIV_INTERN
@@ -11315,14 +11409,23 @@ ha_innobase::check(
 
 		prebuilt->select_lock_type = LOCK_NONE;
 
-		bool check_result = row_check_index_for_mysql(prebuilt, index, &n_rows);
+		/* Scan this index. */
+		dberr_t ret = row_scan_index_for_mysql(
+			prebuilt, index, true, &n_rows);
+
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
-			if (!(index->type & DICT_CLUSTERED)) {
-				check_result = false;
+			if (!dict_index_is_clust(index)) {
+				ret = DB_CORRUPTION;
 			});
 
-		if (!check_result) {
+		if (ret == DB_INTERRUPTED || thd_killed(user_thd)) {
+			/* Do not report error since this could happen
+			during shutdown */
+			break;
+		}
+		if (ret != DB_SUCCESS) {
+			/* Assume some kind of corruption. */
 			innobase_format_name(
 				index_name, sizeof index_name,
 				index->name, TRUE);
@@ -11335,10 +11438,6 @@ ha_innobase::check(
 			is_ok = FALSE;
 			dict_set_corrupted(
 				index, prebuilt->trx, "CHECK TABLE");
-		}
-
-		if (thd_killed(user_thd)) {
-			break;
 		}
 
 #if 0
@@ -11680,7 +11779,6 @@ ha_innobase::get_foreign_key_list(
 	FOREIGN_KEY_INFO*	pf_key_info;
 	dict_foreign_t*		foreign;
 
-	ut_a(prebuilt != NULL);
 	update_thd(ha_thd());
 
 	prebuilt->trx->op_info = "getting list of foreign keys";
@@ -11718,7 +11816,6 @@ ha_innobase::get_parent_foreign_key_list(
 	FOREIGN_KEY_INFO*	pf_key_info;
 	dict_foreign_t*		foreign;
 
-	ut_a(prebuilt != NULL);
 	update_thd(ha_thd());
 
 	prebuilt->trx->op_info = "getting list of referencing foreign keys";
