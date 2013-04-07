@@ -1348,7 +1348,6 @@ trx_cleanup_at_db_startup(
 
 	UT_LIST_REMOVE(trx_list, trx_sys->rw_trx_list, trx);
 
-	assert_trx_in_rw_list(trx);
 	ut_d(trx->in_rw_trx_list = FALSE);
 
 	mutex_exit(&trx_sys->mutex);
