@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,7 @@
 #include <m_string.h>
 #include <my_getopt.h>
 #include "my_default.h"
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 
 const char *config_file="my";			/* Default config file */
@@ -103,7 +104,7 @@ static void usage(my_bool version)
 	 MACHINE_TYPE);
   if (version)
     return;
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Prints all arguments that is give to some program using the default files");
   printf("Usage: %s [OPTIONS] groups\n", my_progname);
   my_print_help(my_long_options);

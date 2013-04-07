@@ -79,10 +79,10 @@ FROM information_schema.innodb_cmp_per_index
 ORDER BY 1, 2, 3;
 database_name	test
 table_name	t
-index_name	b
+index_name	PRIMARY
 compress_ops	0
 compress_ops_ok	0
-uncompress_ops	6
+uncompress_ops	9
 DROP TABLE t;
 SET GLOBAL innodb_cmp_per_index_enabled=default;
 SET GLOBAL innodb_file_format=default;
