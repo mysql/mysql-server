@@ -229,7 +229,9 @@ trx_purge_sys_create(
 	purge_sys->event = os_event_create();
 	purge_sys->iter.init();
 	purge_sys->limit.init();
+#ifdef UNIV_DEBUG
 	purge_sys->done.init();
+#endif /* UNIV_DEBUG */
 
 	/* Take ownership of purge_queue, we are responsible for freeing it. */
 	purge_sys->purge_queue = purge_queue;
