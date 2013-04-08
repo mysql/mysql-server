@@ -152,7 +152,7 @@ class TrxUndoRsegs {
 private:
 	typedef std::vector<trx_rseg_t*> trx_rsegs_t;
 public:
-	typedef trx_rsegs_t::iterator iterator_t;
+	typedef trx_rsegs_t::iterator iterator;
 
 	TrxUndoRsegs(trx_id_t trx_no)
 		:
@@ -178,14 +178,14 @@ public:
 
 	/**
 	@return an iterator to the first element */
-	iterator_t begin()
+	iterator begin()
 	{
 		return(m_rsegs.begin());
 	}
 
 	/**
 	@return an iterator to the end */
-	iterator_t end()
+	iterator end()
 	{
 		return(m_rsegs.end());
 	}

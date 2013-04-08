@@ -244,7 +244,7 @@ struct TrxUndoRsegsIterator {
 	Sets the next rseg to purge in m_purge_sys.
 	@return zip_size if log is for a compressed table, ULINT_UNDEFINED if
 	no rollback segments to purge, 0 for non compressed tables. */
-	ulint operator++(int);
+	ulint set_next();
 
 private:
 	// Disable copying
@@ -258,7 +258,7 @@ private:
 	TrxUndoRsegs			m_trx_undo_rsegs;
 
 	/** Track the current element in m_trx_undo_rseg */
-	TrxUndoRsegs::iterator_t	m_iter;
+	TrxUndoRsegs::iterator		m_iter;
 
 	/** Sentinel value */
 	static const TrxUndoRsegs	NullElement;
