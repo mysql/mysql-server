@@ -117,46 +117,46 @@ public:
     void clearData();
 
     void delByScan(const NdbDictionary::Table* table, int& count,
-                   bool batch);
+                   bool bulk);
 
     void ins(const NdbDictionary::Table* table, int from, int to,
-             bool setAttrs, bool batch);
+             bool setAttrs, bool bulk);
 
     void delByPK(const NdbDictionary::Table* table, int from, int to,
-                 bool batch);
+                 bool bulk);
 
     void setByPK(const NdbDictionary::Table* table, int from, int to,
-                 bool batch);
+                 bool bulk);
 
     void getByPK_bb(const NdbDictionary::Table* table, int from, int to,
-                    bool batch);
+                    bool bulk);
 
     void getByPK_ar(const NdbDictionary::Table* table, int from, int to,
-                    bool batch);
+                    bool bulk);
 
     void setVarbinary(const NdbDictionary::Table* table,
-                      int from, int to, bool batch, int length);
+                      int from, int to, bool bulk, int length);
 
     void getVarbinary(const NdbDictionary::Table* table,
-                      int from, int to, bool batch, int length);
+                      int from, int to, bool bulk, int length);
 
     void setVarchar(const NdbDictionary::Table* table,
-                    int from, int to, bool batch, int length);
+                    int from, int to, bool bulk, int length);
 
     void getVarchar(const NdbDictionary::Table* table,
-                    int from, int to, bool batch, int length);
+                    int from, int to, bool bulk, int length);
 
-    void setB0ToA(int nOps, bool batch);
+    void setB0ToA(int nOps, bool bulk);
 
-    void navB0ToA(int nOps, bool batch);
+    void navB0ToA(int nOps, bool bulk);
 
-    void navB0ToAalt(int nOps, bool batch);
+    void navB0ToAalt(int nOps, bool bulk);
 
     void navAToB0(int nOps, bool forceSend);
 
     void navAToB0alt(int nOps, bool forceSend);
 
-    void nullB0ToA(int nOps, bool batch);
+    void nullB0ToA(int nOps, bool bulk);
 
 protected:
 
@@ -171,10 +171,10 @@ protected:
     void closeTransaction();
 
     void setVar(const NdbDictionary::Table* table, int attr_cvar,
-                int from, int to, bool batch, const char* str);
+                int from, int to, bool bulk, const char* str);
 
     void getVar(const NdbDictionary::Table* table, int attr_cvar,
-                int from, int to, bool batch, const char* str);
+                int from, int to, bool bulk, const char* str);
 
     // XXX not used yet, see TwsDriver
     //static void ndbapiToBuffer1blp(void* to, const char* from, size_t width);

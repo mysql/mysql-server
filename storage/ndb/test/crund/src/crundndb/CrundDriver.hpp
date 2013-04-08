@@ -36,8 +36,7 @@ protected:
     // benchmark settings
     enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
     static const char* toStr(LockMode mode);
-    //enum XMode { INDY, EACH, BULK }; // XXX not used yet
-    enum XMode { SINGLE, BULK, BATCH }; // XXX not used yet
+    enum XMode { BULK, EACH, INDY }; // XXX not used yet
     static const char* toStr(XMode mode); // XXX not used yet
     bool renewConnection;
     bool renewOperations;

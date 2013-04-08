@@ -274,12 +274,12 @@ CrundDriver::runOp(const Op& op, int nOps) {
 const char*
 CrundDriver::toStr(XMode mode) {
     switch (mode) {
-    case SINGLE:
-        return "single";
     case BULK:
         return "bulk";
-    case BATCH:
-        return "batch";
+    case EACH:
+        return "each";
+    case INDY:
+        return "indy";
     default:
         assert(false);
         return "<invalid value>";
@@ -289,7 +289,7 @@ CrundDriver::toStr(XMode mode) {
 const char*
 CrundDriver::toStr(LockMode mode) {
     switch (mode) {
-    case SINGLE:
+    case READ_COMMITTED:
         return "read_committed";
     case SHARED:
         return "shared";

@@ -159,7 +159,7 @@ NdbapiDriver::initOperations() {
 template< bool OB >
 struct NdbapiDriver::ADelAllOp : Op {
     ADelAllOp() : Op(string("delAllA")
-                     + (OB ? "_batch" : "")) {
+                     + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -172,7 +172,7 @@ struct NdbapiDriver::ADelAllOp : Op {
 template< bool OB >
 struct NdbapiDriver::B0DelAllOp : Op {
     B0DelAllOp() : Op(string("delAllB0")
-                      + (OB ? "_batch" : "")) {
+                      + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -186,7 +186,7 @@ template< bool OSA, bool OB >
 struct NdbapiDriver::AInsOp : Op {
     AInsOp() : Op(string("insA")
                   + (OSA ? "_attr" : "")
-                  + (OB ? "_batch" : "")) {
+                  + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -198,7 +198,7 @@ template< bool OSA, bool OB >
 struct NdbapiDriver::B0InsOp : Op {
     B0InsOp() : Op(string("insB0")
                    + (OSA ? "_attr" : "")
-                   + (OB ? "_batch" : "")) {
+                   + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -211,7 +211,7 @@ template< const char** ON,
           bool OB >
 struct NdbapiDriver::AByPKOp : Op {
     AByPKOp() : Op(string(*ON)
-                   + (OB ? "_batch" : "")) {
+                   + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -224,7 +224,7 @@ template< const char** ON,
           bool OB >
 struct NdbapiDriver::B0ByPKOp : Op {
     B0ByPKOp() : Op(string(*ON)
-                    + (OB ? "_batch" : "")) {
+                    + (OB ? "_bulk" : "")) {
     }
 
     virtual void run(int nOps) const {
@@ -240,7 +240,7 @@ struct NdbapiDriver::LengthOp : Op {
 
     LengthOp(int length) : Op(string(*ON)
                               + toString(length)
-                              + (OB ? "_batch" : "")),
+                              + (OB ? "_bulk" : "")),
                            length(length) {
     }
 

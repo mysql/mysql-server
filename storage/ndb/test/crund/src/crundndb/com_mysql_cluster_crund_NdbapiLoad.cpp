@@ -109,11 +109,11 @@ JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_delAllA(JNIEnv* env,
                                                 jobject obj,
                                                 jint nOps,
-                                                jboolean batch)
+                                                jboolean bulk)
 {
     TRACE("delAllA()");
     int count;
-    ops->delByScan(ops->model->table_A, count, batch == JNI_TRUE);
+    ops->delByScan(ops->model->table_A, count, bulk == JNI_TRUE);
     assert(count == nOps);
 }
 
@@ -121,11 +121,11 @@ JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_delAllB0(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
-                                                 jboolean batch)
+                                                 jboolean bulk)
 {
     TRACE("delAllB0()");
     int count;
-    ops->delByScan(ops->model->table_B0, count, batch == JNI_TRUE);
+    ops->delByScan(ops->model->table_B0, count, bulk == JNI_TRUE);
     assert(count == nOps);
 }
 
@@ -134,11 +134,11 @@ Java_com_mysql_cluster_crund_NdbapiLoad_insA(JNIEnv* env,
                                              jobject obj,
                                              jint nOps,
                                              jboolean setAttrs,
-                                             jboolean batch)
+                                             jboolean bulk)
 {
     TRACE("insA()");
     ops->ins(ops->model->table_A, 1, nOps,
-             setAttrs == JNI_TRUE, batch == JNI_TRUE);
+             setAttrs == JNI_TRUE, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
@@ -146,169 +146,169 @@ Java_com_mysql_cluster_crund_NdbapiLoad_insB0(JNIEnv* env,
                                               jobject obj,
                                               jint nOps,
                                               jboolean setAttrs,
-                                              jboolean batch)
+                                              jboolean bulk)
 {
     TRACE("insB0()");
     ops->ins(ops->model->table_B0, 1, nOps,
-             setAttrs == JNI_TRUE, batch == JNI_TRUE);
+             setAttrs == JNI_TRUE, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_delAByPK(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
-                                                 jboolean batch)
+                                                 jboolean bulk)
 {
     TRACE("delAByPK()");
-    ops->delByPK(ops->model->table_A, 1, nOps, batch == JNI_TRUE);
+    ops->delByPK(ops->model->table_A, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_delB0ByPK(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
-                                                  jboolean batch)
+                                                  jboolean bulk)
 {
     TRACE("delB0ByPK()");
-    ops->delByPK(ops->model->table_B0, 1, nOps, batch == JNI_TRUE);
+    ops->delByPK(ops->model->table_B0, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_setAByPK(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
-                                                 jboolean batch)
+                                                 jboolean bulk)
 {
     TRACE("setAByPK()");
-    ops->setByPK(ops->model->table_A, 1, nOps, batch == JNI_TRUE);
+    ops->setByPK(ops->model->table_A, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_setB0ByPK(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
-                                                  jboolean batch)
+                                                  jboolean bulk)
 {
     TRACE("setB0ByPK()");
-    ops->setByPK(ops->model->table_B0, 1, nOps, batch == JNI_TRUE);
+    ops->setByPK(ops->model->table_B0, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getAByPK_1bb(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
-                                                     jboolean batch)
+                                                     jboolean bulk)
 {
     TRACE("getAByPK_bb()");
-    ops->getByPK_bb(ops->model->table_A, 1, nOps, batch == JNI_TRUE);
+    ops->getByPK_bb(ops->model->table_A, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getB0ByPK_1bb(JNIEnv* env,
                                                       jobject obj,
                                                       jint nOps,
-                                                      jboolean batch)
+                                                      jboolean bulk)
 {
     TRACE("getB0ByPK_bb()");
-    ops->getByPK_bb(ops->model->table_B0, 1, nOps, batch == JNI_TRUE);
+    ops->getByPK_bb(ops->model->table_B0, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getAByPK_1ar(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
-                                                     jboolean batch)
+                                                     jboolean bulk)
 {
     TRACE("getAByPK_ar()");
-    ops->getByPK_ar(ops->model->table_A, 1, nOps, batch == JNI_TRUE);
+    ops->getByPK_ar(ops->model->table_A, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getB0ByPK_1ar(JNIEnv* env,
                                                       jobject obj,
                                                       jint nOps,
-                                                      jboolean batch)
+                                                      jboolean bulk)
 {
     TRACE("getB0ByPK_ar()");
-    ops->getByPK_ar(ops->model->table_B0, 1, nOps, batch == JNI_TRUE);
+    ops->getByPK_ar(ops->model->table_B0, 1, nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_setVarbinary(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
-                                                     jboolean batch,
+                                                     jboolean bulk,
                                                      jint length)
 {
     TRACE("setVarbinary()");
     ops->setVarbinary(ops->model->table_B0,
-                      1, nOps, batch == JNI_TRUE, length);
+                      1, nOps, bulk == JNI_TRUE, length);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getVarbinary(JNIEnv* env,
                                                      jobject obj,
                                                      jint nOps,
-                                                     jboolean batch,
+                                                     jboolean bulk,
                                                      jint length)
 {
     TRACE("getVarbinary()");
     ops->getVarbinary(ops->model->table_B0,
-                      1, nOps, batch == JNI_TRUE, length);
+                      1, nOps, bulk == JNI_TRUE, length);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_setVarchar(JNIEnv* env,
                                                    jobject obj,
                                                    jint nOps,
-                                                   jboolean batch,
+                                                   jboolean bulk,
                                                    jint length)
 {
     TRACE("setVarchar()");
     ops->setVarchar(ops->model->table_B0,
-                    1, nOps, batch == JNI_TRUE, length);
+                    1, nOps, bulk == JNI_TRUE, length);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_getVarchar(JNIEnv* env,
                                                    jobject obj,
                                                    jint nOps,
-                                                   jboolean batch,
+                                                   jboolean bulk,
                                                    jint length)
 {
     TRACE("getVarchar()");
     ops->getVarchar(ops->model->table_B0,
-                    1, nOps, batch == JNI_TRUE, length);
+                    1, nOps, bulk == JNI_TRUE, length);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_setB0ToA(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
-                                                 jboolean batch)
+                                                 jboolean bulk)
 {
     TRACE("setB0ToA()");
-    ops->setB0ToA(nOps, batch == JNI_TRUE);
+    ops->setB0ToA(nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_navB0ToA(JNIEnv* env,
                                                  jobject obj,
                                                  jint nOps,
-                                                 jboolean batch)
+                                                 jboolean bulk)
 {
     TRACE("navB0ToA()");
-    ops->navB0ToA(nOps, batch == JNI_TRUE);
+    ops->navB0ToA(nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_navB0ToAalt(JNIEnv* env,
                                                     jobject obj,
                                                     jint nOps,
-                                                    jboolean batch)
+                                                    jboolean bulk)
 {
     TRACE("navB0ToAalt()");
-    ops->navB0ToAalt(nOps, batch == JNI_TRUE);
+    ops->navB0ToAalt(nOps, bulk == JNI_TRUE);
 }
 
 JNIEXPORT void JNICALL
@@ -335,10 +335,10 @@ JNIEXPORT void JNICALL
 Java_com_mysql_cluster_crund_NdbapiLoad_nullB0ToA(JNIEnv* env,
                                                   jobject obj,
                                                   jint nOps,
-                                                  jboolean batch)
+                                                  jboolean bulk)
 {
     TRACE("nullB0ToA()");
-    ops->nullB0ToA(nOps, batch == JNI_TRUE);
+    ops->nullB0ToA(nOps, bulk == JNI_TRUE);
 }
 
 // ----------------------------------------------------------------------

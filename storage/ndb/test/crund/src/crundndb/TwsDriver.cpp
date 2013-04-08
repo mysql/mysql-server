@@ -100,9 +100,9 @@ TwsDriver::initProperties() {
     doLookup = toBool(props[L"doLookup"], true);
     doUpdate = toBool(props[L"doUpdate"], true);
     doDelete = toBool(props[L"doDelete"], true);
-    doSingle = toBool(props[L"doSingle"], true);
     doBulk = toBool(props[L"doBulk"], true);
-    doBatch = toBool(props[L"doBatch"], true);
+    doEach = toBool(props[L"doEach"], true);
+    doIndy = toBool(props[L"doIndy"], true);
     doVerify = toBool(props[L"doVerify"], true);
 
     if (!msg.tellp()) {
@@ -134,9 +134,9 @@ TwsDriver::printProperties() {
     cout << "doLookup:                       " << doLookup << endl;
     cout << "doUpdate:                       " << doUpdate << endl;
     cout << "doDelete:                       " << doDelete << endl;
-    cout << "doSingle:                       " << doSingle << endl;
     cout << "doBulk:                         " << doBulk << endl;
-    cout << "doBatch:                        " << doBatch << endl;
+    cout << "doEach:                         " << doEach << endl;
+    cout << "doIndy:                         " << doIndy << endl;
     cout << "doVerify:                       " << doVerify << endl;
 
     cout.flags(f);
@@ -235,23 +235,23 @@ TwsDriver::runOperations(int nOps) {
          << "running TWS operations ..." << "      [nOps=" << nOps << "]"
          << endl;
 
-    if (doSingle) {
-        if (doInsert) runInserts(SINGLE, nOps);
-        if (doLookup) runLookups(SINGLE, nOps);
-        if (doUpdate) runUpdates(SINGLE, nOps);
-        if (doDelete) runDeletes(SINGLE, nOps);
-    }
     if (doBulk) {
         if (doInsert) runInserts(BULK, nOps);
         if (doLookup) runLookups(BULK, nOps);
         if (doUpdate) runUpdates(BULK, nOps);
         if (doDelete) runDeletes(BULK, nOps);
     }
-    if (doBatch) {
-        if (doInsert) runInserts(BATCH, nOps);
-        if (doLookup) runLookups(BATCH, nOps);
-        if (doUpdate) runUpdates(BATCH, nOps);
-        if (doDelete) runDeletes(BATCH, nOps);
+    if (doEach) {
+        if (doInsert) runInserts(EACH, nOps);
+        if (doLookup) runLookups(EACH, nOps);
+        if (doUpdate) runUpdates(EACH, nOps);
+        if (doDelete) runDeletes(EACH, nOps);
+    }
+    if (doIndy) {
+        if (doInsert) runInserts(INDY, nOps);
+        if (doLookup) runLookups(INDY, nOps);
+        if (doUpdate) runUpdates(INDY, nOps);
+        if (doDelete) runDeletes(INDY, nOps);
     }
 }
 
@@ -298,12 +298,12 @@ TwsDriver::verify(const char* exp, const char* act) {
 const char*
 TwsDriver::toStr(XMode mode) {
     switch (mode) {
-    case SINGLE:
-        return "single";
     case BULK:
         return "bulk";
-    case BATCH:
-        return "batch";
+    case EACH:
+        return "each";
+    case INDY:
+        return "indy";
     default:
         assert(false);
         return "<invalid value>";
@@ -313,7 +313,7 @@ TwsDriver::toStr(XMode mode) {
 const char*
 TwsDriver::toStr(LockMode mode) {
     switch (mode) {
-    case SINGLE:
+    case READ_COMMITTED:
         return "read_committed";
     case SHARED:
         return "shared";
