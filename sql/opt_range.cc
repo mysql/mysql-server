@@ -7244,8 +7244,10 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,COND *cond)
     DBUG_RETURN(tree);
   }
   /* Here when simple cond */
-  if (cond->const_item() && !cond->is_expensive())
+  if (cond->const_item())
   {
+    if (cond->is_expensive())
+      DBUG_RETURN(0);
     /*
       During the cond->val_int() evaluation we can come across a subselect 
       item which may allocate memory on the thd->mem_root and assumes 
