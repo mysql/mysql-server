@@ -32,9 +32,9 @@ public class TwsDriver extends Driver {
     protected boolean doLookup;
     protected boolean doUpdate;
     protected boolean doDelete;
-    protected boolean doSingle;
     protected boolean doBulk;
-    protected boolean doBatch;
+    protected boolean doEach;
+    protected boolean doIndy;
     protected LockMode lockMode;
     protected int nRows;
     protected int nRuns;
@@ -124,9 +124,9 @@ public class TwsDriver extends Driver {
         doLookup = parseBoolean("doLookup", false);
         doUpdate = parseBoolean("doUpdate", false);
         doDelete = parseBoolean("doDelete", false);
-        doSingle = parseBoolean("doSingle", false);
         doBulk = parseBoolean("doBulk", false);
-        doBatch = parseBoolean("doBatch", false);
+        doEach = parseBoolean("doEach", false);
+        doIndy = parseBoolean("doIndy", false);
 
         final String lm = props.getProperty("lockMode");
         try {
@@ -170,9 +170,9 @@ public class TwsDriver extends Driver {
         out.println("doLookup:                       " + doLookup);
         out.println("doUpdate:                       " + doUpdate);
         out.println("doDelete:                       " + doDelete);
-        out.println("doSingle:                       " + doSingle);
         out.println("doBulk:                         " + doBulk);
-        out.println("doBatch:                        " + doBatch);
+        out.println("doEach:                         " + doEach);
+        out.println("doIndy:                         " + doIndy);
         out.println("lockMode:                       " + lockMode);
         out.println("nRows:                          " + nRows);
         out.println("nRuns:                          " + nRuns);
@@ -220,7 +220,7 @@ public class TwsDriver extends Driver {
         clearLogBuffers();
     }
     
-    enum XMode { SINGLE, BULK, BATCH }
+    enum XMode { BULK, EACH, INDY }
 
     protected void runOperations(TwsLoad load) throws Exception {
         //out.println("running operations ..."

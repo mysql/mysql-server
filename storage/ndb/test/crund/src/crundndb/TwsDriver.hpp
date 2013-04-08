@@ -26,7 +26,7 @@ protected:
     // benchmark settings
     enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
     static const char* toStr(LockMode mode);
-    enum XMode { SINGLE, BULK, BATCH };
+    enum XMode { BULK, EACH, INDY };
     static const char* toStr(XMode mode);
     bool renewConnection;
     bool renewOperations;
@@ -39,9 +39,9 @@ protected:
     bool doLookup;
     bool doUpdate;
     bool doDelete;
-    bool doSingle;
     bool doBulk;
-    bool doBatch;
+    bool doEach;
+    bool doIndy;
     bool doVerify;
 
     // benchmark intializers/finalizers

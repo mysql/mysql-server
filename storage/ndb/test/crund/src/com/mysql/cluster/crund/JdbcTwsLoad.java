@@ -267,23 +267,23 @@ class JdbcTwsLoad extends TwsLoad {
         out.println("running JDBC operations ..."
                     + "     [nRows=" + driver.nRows + "]");
 
-        if (driver.doSingle) {
-            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.SINGLE);
-            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.SINGLE);
-            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.SINGLE);
-            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.SINGLE);
-        }
         if (driver.doBulk) {
             if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.BULK);
-            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.BULK);
+            //if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.BULK);
             if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.BULK);
             if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.BULK);
         }
-        if (driver.doBatch) {
-            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.BATCH);
-            //if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.BATCH);
-            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.BATCH);
-            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.BATCH);
+        if (driver.doEach) {
+            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.EACH);
+            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.EACH);
+            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.EACH);
+            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.EACH);
+        }
+        if (driver.doIndy) {
+            if (driver.doInsert) runJdbcInsert(TwsDriver.XMode.INDY);
+            if (driver.doLookup) runJdbcLookup(TwsDriver.XMode.INDY);
+            if (driver.doUpdate) runJdbcUpdate(TwsDriver.XMode.INDY);
+            if (driver.doDelete) runJdbcDelete(TwsDriver.XMode.INDY);
         }
     }
 
@@ -293,13 +293,13 @@ class JdbcTwsLoad extends TwsLoad {
         final String name = "insert_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        connection.setAutoCommit(mode == TwsDriver.XMode.SINGLE);
+        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
             jdbcInsert(i, mode);
         }
-        if (mode == TwsDriver.XMode.BATCH)
+        if (mode == TwsDriver.XMode.BULK)
             ins0.executeBatch();
-        if (mode != TwsDriver.XMode.SINGLE)
+        if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
         driver.finish(name);
@@ -318,7 +318,7 @@ class JdbcTwsLoad extends TwsLoad {
             ins0.setString(6, str);
             ins0.setString(7, str);
             ins0.setString(8, str);
-            if (mode == TwsDriver.XMode.BATCH) {
+            if (mode == TwsDriver.XMode.BULK) {
                 ins0.addBatch();
             } else {
                 int cnt = ins0.executeUpdate();
@@ -332,16 +332,16 @@ class JdbcTwsLoad extends TwsLoad {
     // ----------------------------------------------------------------------
 
     protected void runJdbcLookup(TwsDriver.XMode mode) throws SQLException {
-        assert(mode != TwsDriver.XMode.BATCH);
+        assert(mode != TwsDriver.XMode.BULK);
 
         final String name = "lookup_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        connection.setAutoCommit(mode == TwsDriver.XMode.SINGLE);
+        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
             jdbcLookup(i);
         }
-        if (mode != TwsDriver.XMode.SINGLE)
+        if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
         driver.finish(name);
@@ -385,13 +385,13 @@ class JdbcTwsLoad extends TwsLoad {
         final String name = "update_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        connection.setAutoCommit(mode == TwsDriver.XMode.SINGLE);
+        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
             jdbcUpdate(i, mode);
         }
-        if (mode == TwsDriver.XMode.BATCH)
+        if (mode == TwsDriver.XMode.BULK)
             upd0.executeBatch();
-        if (mode != TwsDriver.XMode.SINGLE)
+        if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
         driver.finish(name);
@@ -412,7 +412,7 @@ class JdbcTwsLoad extends TwsLoad {
             upd0.setString(6, str1);
             upd0.setString(7, str1);
             upd0.setString(8, str0); // key
-            if (mode == TwsDriver.XMode.BATCH) {
+            if (mode == TwsDriver.XMode.BULK) {
                 upd0.addBatch();
             } else {
                 int cnt = upd0.executeUpdate();
@@ -429,13 +429,13 @@ class JdbcTwsLoad extends TwsLoad {
         final String name = "delete_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        connection.setAutoCommit(mode == TwsDriver.XMode.SINGLE);
+        connection.setAutoCommit(mode == TwsDriver.XMode.INDY);
         for(int i = 0; i < driver.nRows; i++) {
             jdbcDelete(i, mode);
         }
-        if (mode == TwsDriver.XMode.BATCH)
+        if (mode == TwsDriver.XMode.BULK)
             del0.executeBatch();
-        if (mode != TwsDriver.XMode.SINGLE)
+        if (mode != TwsDriver.XMode.INDY)
             connection.commit();
 
         driver.finish(name);
@@ -446,7 +446,7 @@ class JdbcTwsLoad extends TwsLoad {
         try {
             final String str = Integer.toString(c0);
             del0.setString(1, str);
-            if (mode == TwsDriver.XMode.BATCH) {
+            if (mode == TwsDriver.XMode.BULK) {
                 del0.addBatch();
             } else {
                 int cnt = del0.executeUpdate();
