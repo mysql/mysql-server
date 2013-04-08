@@ -39,7 +39,6 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0xa.h"
 #include "ut0vec.h"
 #include "fts0fts.h"
-#include <vector>
 
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
