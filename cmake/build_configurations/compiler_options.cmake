@@ -1,4 +1,4 @@
-# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,22 +41,6 @@ IF(UNIX)
     ENDIF()
     SET(CMAKE_CXX_FLAGS_DEBUG          "${COMMON_CXX_FLAGS}")
     SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-O3 ${COMMON_CXX_FLAGS}")
-  ENDIF()
-
-  # HPUX flags
-  IF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-    IF(CMAKE_C_COMPILER_ID MATCHES "HP")
-      IF(CMAKE_SYSTEM_PROCESSOR MATCHES "ia64")
-        SET(COMMON_C_FLAGS                 "+DSitanium2 -mt -AC99")
-        SET(COMMON_CXX_FLAGS               "+DSitanium2 -mt -Aa")
-        SET(CMAKE_C_FLAGS_DEBUG            "+O0 -g ${COMMON_C_FLAGS}")
-        SET(CMAKE_CXX_FLAGS_DEBUG          "+O0 -g ${COMMON_CXX_FLAGS}")
-        # We have seen compiler bugs with optimisation and -g, so disabled for now
-        SET(CMAKE_C_FLAGS_RELWITHDEBINFO   "+O2 ${COMMON_C_FLAGS}")
-        SET(CMAKE_CXX_FLAGS_RELWITHDEBINFO "+O2 ${COMMON_CXX_FLAGS}")
-      ENDIF()
-    ENDIF()
-    SET(WITH_SSL no)
   ENDIF()
 
   # Linux flags

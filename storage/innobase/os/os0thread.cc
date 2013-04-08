@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -77,14 +77,7 @@ os_thread_pf(
 /*=========*/
 	os_thread_id_t	a)	/*!< in: OS thread identifier */
 {
-#ifdef UNIV_HPUX10
-	/* In HP-UX-10.20 a pthread_t is a struct of 3 fields: field1, field2,
-	field3. We do not know if field1 determines the thread uniquely. */
-
-	return((ulint)(a.field1));
-#else
 	return((ulint) a);
-#endif
 }
 
 /*****************************************************************//**
@@ -158,41 +151,20 @@ os_thread_create_func(
 	int		ret;
 	pthread_attr_t	attr;
 
-#ifndef UNIV_HPUX10
 	pthread_attr_init(&attr);
-#endif
 
-#ifdef UNIV_AIX
-	/* We must make sure a thread stack is at least 32 kB, otherwise
-	InnoDB might crash; we do not know if the default stack size on
-	AIX is always big enough. An empirical test on AIX-4.3 suggested
-	the size was 96 kB, though. */
-
-	ret = pthread_attr_setstacksize(&attr,
-					(size_t)(PTHREAD_STACK_MIN
-						 + 32 * 1024));
-	if (ret) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"pthread_attr_setstacksize returned %d", ret);
-	}
-#endif
 	os_mutex_enter(os_sync_mutex);
 	os_thread_count++;
 	os_mutex_exit(os_sync_mutex);
 
-#ifdef UNIV_HPUX10
-	ret = pthread_create(&new_thread_id, pthread_attr_default, func, arg);
-#else
 	ret = pthread_create(&new_thread_id, &attr, func, arg);
-#endif
+
 	if (ret) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"pthread_create returned %d", ret);
 	}
 
-#ifndef UNIV_HPUX10
 	pthread_attr_destroy(&attr);
-#endif
 
 #endif /* not __WIN__ */
 
