@@ -1,0 +1,30 @@
+create table tc (a int, b int, c int, primary key(a), key(b)) partition by hash(a) partitions 2;
+select * from information_schema.tokudb_file_map;
+dictionary_name	internal_file_name
+./test/ta#P#p0-key-b	./_test_ta_P_p0_key_b_9_17.tokudb
+./test/ta#P#p0-main	./_test_ta_P_p0_main_8_17.tokudb
+./test/ta#P#p0-status	./_test_ta_P_p0_status_7_17.tokudb
+./test/ta#P#p1-key-b	./_test_ta_P_p1_key_b_d_17.tokudb
+./test/ta#P#p1-main	./_test_ta_P_p1_main_c_17.tokudb
+./test/ta#P#p1-status	./_test_ta_P_p1_status_b_17.tokudb
+./test/tc#P#p0-key-b	./_test_tc_P_p0_key_b_1f_3_18.tokudb
+./test/tc#P#p0-main	./_test_tc_P_p0_main_1f_2_18.tokudb
+./test/tc#P#p0-status	./_test_tc_P_p0_status_1f_1_18.tokudb
+./test/tc#P#p1-key-b	./_test_tc_P_p1_key_b_20_3_18.tokudb
+./test/tc#P#p1-main	./_test_tc_P_p1_main_20_2_18.tokudb
+./test/tc#P#p1-status	./_test_tc_P_p1_status_20_1_18.tokudb
+tokudb_meta	./tokudb_meta_3_17.tokudb
+drop table ta;
+select * from information_schema.tokudb_file_map;
+dictionary_name	internal_file_name
+./test/tc#P#p0-key-b	./_test_tc_P_p0_key_b_1f_3_18.tokudb
+./test/tc#P#p0-main	./_test_tc_P_p0_main_1f_2_18.tokudb
+./test/tc#P#p0-status	./_test_tc_P_p0_status_1f_1_18.tokudb
+./test/tc#P#p1-key-b	./_test_tc_P_p1_key_b_20_3_18.tokudb
+./test/tc#P#p1-main	./_test_tc_P_p1_main_20_2_18.tokudb
+./test/tc#P#p1-status	./_test_tc_P_p1_status_20_1_18.tokudb
+tokudb_meta	./tokudb_meta_3_17.tokudb
+drop table tc;
+select * from information_schema.tokudb_file_map;
+dictionary_name	internal_file_name
+tokudb_meta	./tokudb_meta_3_17.tokudb
