@@ -461,7 +461,6 @@ CHECK_FUNCTION_EXISTS (pthread_attr_create HAVE_PTHREAD_ATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_attr_getstacksize HAVE_PTHREAD_ATTR_GETSTACKSIZE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setscope HAVE_PTHREAD_ATTR_SETSCOPE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setstacksize HAVE_PTHREAD_ATTR_SETSTACKSIZE)
-CHECK_FUNCTION_EXISTS (pthread_condattr_create HAVE_PTHREAD_CONDATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_key_delete HAVE_PTHREAD_KEY_DELETE)
 CHECK_FUNCTION_EXISTS (pthread_rwlock_rdlock HAVE_PTHREAD_RWLOCK_RDLOCK)
@@ -555,8 +554,6 @@ CHECK_INCLUDE_FILES(ia64intrin.h HAVE_IA64INTRIN_H)
 
 CHECK_FUNCTION_EXISTS(times HAVE_TIMES)
 CHECK_FUNCTION_EXISTS(gettimeofday HAVE_GETTIMEOFDAY)
-CHECK_FUNCTION_EXISTS(read_real_time HAVE_READ_REAL_TIME)
-# This should work on AIX.
 
 CHECK_FUNCTION_EXISTS(ftime HAVE_FTIME)
 # This is still a normal call for milliseconds.
@@ -1001,7 +998,7 @@ CHECK_C_SOURCE_COMPILES("
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
+    #if !defined(__osf__) && !defined(_REENTRANT)
     #define _REENTRANT
     #endif
     #include <pthread.h>
@@ -1097,7 +1094,6 @@ ENDIF()
 
 
 # Check for sockaddr_storage.ss_family
-# It is called differently under OS400 and older AIX
 
 CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
  ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE_SS_FAMILY)
