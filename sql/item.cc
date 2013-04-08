@@ -7384,13 +7384,6 @@ void Item_ref::set_properties()
 }
 
 
-table_map Item_ref::resolved_used_tables() const
-{
-  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
-  return ((Item_field*)(*ref))->resolved_used_tables();
-}
-
-
 void Item_ref::cleanup()
 {
   DBUG_ENTER("Item_ref::cleanup");
