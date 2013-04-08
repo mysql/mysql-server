@@ -1,0 +1,38 @@
+130408 13:12:25 mysqld_safe Starting mysqld daemon with databases from /home/prohaska/our.distros/mysql-5.5.28-tokudb-6.6.8-54738-linux-x86_64/data
+130408 13:12:25 [Note] Plugin 'FEDERATED' is disabled.
+130408 13:12:25 InnoDB: The InnoDB memory heap is disabled
+130408 13:12:25 InnoDB: Mutexes and rw_locks use GCC atomic builtins
+130408 13:12:25 InnoDB: Compressed tables use zlib 1.2.3
+130408 13:12:25 InnoDB: Using Linux native AIO
+130408 13:12:25 InnoDB: Initializing buffer pool, size = 128.0M
+130408 13:12:25 InnoDB: Completed initialization of buffer pool
+InnoDB: The first specified data file ./ibdata1 did not exist:
+InnoDB: a new database to be created!
+130408 13:12:25  InnoDB: Setting file ./ibdata1 size to 10 MB
+InnoDB: Database physically writes the file full: wait...
+130408 13:12:25  InnoDB: Log file ./ib_logfile0 did not exist: new to be created
+InnoDB: Setting log file ./ib_logfile0 size to 5 MB
+InnoDB: Database physically writes the file full: wait...
+130408 13:12:25  InnoDB: Log file ./ib_logfile1 did not exist: new to be created
+InnoDB: Setting log file ./ib_logfile1 size to 5 MB
+InnoDB: Database physically writes the file full: wait...
+InnoDB: Doublewrite buffer not found: creating new
+InnoDB: Doublewrite buffer created
+InnoDB: 127 rollback segment(s) active.
+InnoDB: Creating foreign key constraint system tables
+InnoDB: Foreign key constraint system tables created
+130408 13:12:25 InnoDB: 1.1.8 started; log sequence number 0
+130408 13:12:26 [Note] Server hostname (bind-address): '0.0.0.0'; port: 100000
+130408 13:12:26 [Note]   - '0.0.0.0' resolves to '0.0.0.0';
+130408 13:12:26 [Note] Server socket created on IP: '0.0.0.0'.
+130408 13:12:26 [Note] Event Scheduler: Loaded 0 events
+130408 13:12:26 [Note] /home/prohaska/our.distros/mysql-5.5.28-tokudb-6.6.8-54738-linux-x86_64/bin/mysqld: ready for connections.
+Version: '5.5.28'  socket: '/tmp/rfp.sock'  port: 100000  MySQL Community Server (GPL)
+130408 13:18:22 [Note] /home/prohaska/our.distros/mysql-5.5.28-tokudb-6.6.8-54738-linux-x86_64/bin/mysqld: Normal shutdown
+
+130408 13:18:22 [Note] Event Scheduler: Purging the queue. 0 events
+130408 13:18:22  InnoDB: Starting shutdown...
+130408 13:18:23  InnoDB: Shutdown completed; log sequence number 1595675
+130408 13:18:23 [Note] /home/prohaska/our.distros/mysql-5.5.28-tokudb-6.6.8-54738-linux-x86_64/bin/mysqld: Shutdown complete
+
+130408 13:18:23 mysqld_safe mysqld from pid file /home/prohaska/our.distros/mysql-5.5.28-tokudb-6.6.8-54738-linux-x86_64/data/lex1.tokutek.com.pid ended
