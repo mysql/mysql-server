@@ -91,7 +91,7 @@ Sets the next rseg to purge in m_purge_sys.
 @return zip_size if log is for a compressed table, ULINT_UNDEFINED if
 no rollback segments to purge, 0 for non compressed tables. */
 ulint
-TrxUndoRsegsIterator::operator++(int)
+TrxUndoRsegsIterator::set_next()
 {
 	mutex_enter(&m_purge_sys->pq_mutex);
 
@@ -837,7 +837,7 @@ trx_purge_choose_next_log(void)
 {
 	ut_ad(purge_sys->next_stored == FALSE);
 
-	ulint	zip_size = (*purge_sys->rseg_iter)++;
+	ulint	zip_size = purge_sys->rseg_iter->set_next();
 
 	if (purge_sys->rseg != NULL) {
 		trx_purge_read_undo_rec(purge_sys, zip_size);
