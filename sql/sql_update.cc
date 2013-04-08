@@ -598,7 +598,10 @@ int mysql_update(THD *thd,
 
       /* If quick select is used, initialize it before retrieving rows. */
       if (select && select->quick && select->quick->reset())
+      {
+        close_cached_file(&tempfile);
         goto exit_without_my_ok;
+      }
       table->file->try_semi_consistent_read(1);
 
       /*
