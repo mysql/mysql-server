@@ -469,7 +469,7 @@ trx_get_que_state_str(
 	const trx_t*	trx);	/*!< in: transaction */
 
 /****************************************************************//**
-Assign a transaction temp-tablespace bounded rollback-segment. */
+Assign a transaction temp-tablespace bound rollback-segment. */
 UNIV_INTERN
 void
 trx_assign_rseg(
@@ -716,14 +716,14 @@ struct trx_undo_ptr_t{
 
 /** Rollback segments assigned to a transaction for undo logging. */
 struct trx_rsegs_t {
-	/** undo log ptr bounded to system/undo tablespace used for undo logging
-	of all objects those needs to be recovered on crash. */
+	/** undo log ptr holding reference to a rollback segment that resides in
+	system/undo tablespace used for undo logging of tables that needs
+	to be recovered on crash. */
 	trx_undo_ptr_t	m_redo;
 
-	/** undo log ptr bounded to temp tablespace used for undo logging of
-	objects only that don't need to be recovered on crash.
-	Can be NULL if transaction doesn't modify any such table that doesn't
-	need to be recovered. */
+	/** undo log ptr holding reference to a rollback segment that resides in
+	temp tablespace used for undo logging of tables that doesn't need
+	to be recovered on crash. */
 	trx_undo_ptr_t	m_noredo;
 };
 

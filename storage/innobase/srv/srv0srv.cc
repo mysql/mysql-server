@@ -110,7 +110,8 @@ UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
 /** The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
 
-/** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
+/** UNDO logs that are not redo logged.
+These logs reside in the temp tablespace.*/
 const ulong		srv_tmp_undo_logs = 32;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
