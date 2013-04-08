@@ -131,6 +131,15 @@ struct TrxUndoRsegsIterator;
 /** This is the purge pointer/iterator. We need both the undo no and the
 transaction no up to which purge has parsed and applied the records. */
 struct purge_iter_t {
+	purge_iter_t()
+		:
+		trx_no(),
+		undo_no(),
+		undo_rseg_space(ULINT_UNDEFINED)
+	{
+		// Do nothing
+	}
+
 	trx_id_t	trx_no;		/*!< Purge has advanced past all
 					transactions whose number is less
 					than this */
@@ -139,12 +148,6 @@ struct purge_iter_t {
 	ulint		undo_rseg_space;
 					/*!< Last undo record resided in this
 					space id. */
-	void init()
-	{
-		trx_no = 0;
-		undo_no = 0;
-		undo_rseg_space = ULINT_UNDEFINED;
-	}
 };
 
 /** The control structure used in the purge operation */
