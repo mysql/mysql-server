@@ -467,23 +467,23 @@ class NdbjtieTwsLoad extends TwsLoad {
         out.println("running NDB JTie operations ..."
                     + " [nRows=" + driver.nRows + "]");
 
-        if (driver.doSingle) {
-            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.SINGLE);
-            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.SINGLE);
-            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.SINGLE);
-            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.SINGLE);
-        }
         if (driver.doBulk) {
             if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.BULK);
             if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.BULK);
             if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.BULK);
             if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.BULK);
         }
-        if (driver.doBatch) {
-            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.BATCH);
-            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.BATCH);
-            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.BATCH);
-            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.BATCH);
+        if (driver.doEach) {
+            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.EACH);
+            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.EACH);
+            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.EACH);
+            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.EACH);
+        }
+        if (driver.doIndy) {
+            if (driver.doInsert) runNdbjtieInsert(TwsDriver.XMode.INDY);
+            if (driver.doLookup) runNdbjtieLookup(TwsDriver.XMode.INDY);
+            if (driver.doUpdate) runNdbjtieUpdate(TwsDriver.XMode.INDY);
+            if (driver.doDelete) runNdbjtieDelete(TwsDriver.XMode.INDY);
         }
     }
 
@@ -493,7 +493,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         final String name = "insert_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        if (mode == TwsDriver.XMode.SINGLE) {
+        if (mode == TwsDriver.XMode.INDY) {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieBeginTransaction();
                 ndbjtieInsert(i);
@@ -505,7 +505,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieInsert(i);
 
-                if (mode == TwsDriver.XMode.BULK)
+                if (mode == TwsDriver.XMode.EACH)
                     ndbjtieExecuteTransaction();
             }
             ndbjtieCommitTransaction();
@@ -603,7 +603,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         final String name = "lookup_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        if (mode == TwsDriver.XMode.SINGLE) {
+        if (mode == TwsDriver.XMode.INDY) {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieBeginTransaction();
                 ndbjtieLookup(i);
@@ -616,7 +616,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieLookup(i);
 
-                if (mode == TwsDriver.XMode.BULK)
+                if (mode == TwsDriver.XMode.EACH)
                     ndbjtieExecuteTransaction();
             }
             ndbjtieCommitTransaction();
@@ -753,7 +753,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         final String name = "update_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        if (mode == TwsDriver.XMode.SINGLE) {
+        if (mode == TwsDriver.XMode.INDY) {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieBeginTransaction();
                 ndbjtieUpdate(i);
@@ -765,7 +765,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieUpdate(i);
 
-                if (mode == TwsDriver.XMode.BULK)
+                if (mode == TwsDriver.XMode.EACH)
                     ndbjtieExecuteTransaction();
             }
             ndbjtieCommitTransaction();
@@ -842,7 +842,7 @@ class NdbjtieTwsLoad extends TwsLoad {
         final String name = "delete_" + mode.toString().toLowerCase();
         driver.begin(name);
 
-        if (mode == TwsDriver.XMode.SINGLE) {
+        if (mode == TwsDriver.XMode.INDY) {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieBeginTransaction();
                 ndbjtieDelete(i);
@@ -854,7 +854,7 @@ class NdbjtieTwsLoad extends TwsLoad {
             for(int i = 0; i < driver.nRows; i++) {
                 ndbjtieDelete(i);
 
-                if (mode == TwsDriver.XMode.BULK)
+                if (mode == TwsDriver.XMode.EACH)
                     ndbjtieExecuteTransaction();
             }
             ndbjtieCommitTransaction();

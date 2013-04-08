@@ -617,7 +617,7 @@ public class JpaLoad extends CrundDriver {
         //import org.eclipse.persistence.config.HintValues;
         //query.setHint(QueryHints.QUERY_TYPE, QueryType.ReadObject);
         //query.setHint(QueryHints.PESSIMISTIC_LOCK, PessimisticLock.LockNoWait);
-        //query.setHint("eclipselink.batch", "e.address");
+        //query.setHint("eclipselink.bulk", "e.address");
         //query.setHint("eclipselink.join-fetch", "e.address");
         delAllA = em.createQuery("DELETE FROM A");
         delAllB0 = em.createQuery("DELETE FROM B0");

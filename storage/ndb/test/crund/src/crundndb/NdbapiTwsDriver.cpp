@@ -241,7 +241,7 @@ NdbapiTwsDriver::runInserts(XMode mode, int nOps) {
     const string name = string("insert_") + toStr(mode);
     begin(name);
 
-    if (mode == SINGLE) {
+    if (mode == INDY) {
         for(int i = 0; i < nOps; i++) {
             ndbapiBeginTransaction();
             ndbapiInsert(i);
@@ -252,7 +252,7 @@ NdbapiTwsDriver::runInserts(XMode mode, int nOps) {
         ndbapiBeginTransaction();
         for(int i = 0; i < nOps; i++) {
             ndbapiInsert(i);
-            if (mode == BULK)
+            if (mode == EACH)
                 ndbapiExecuteTransaction();
         }
         ndbapiCommitTransaction();
@@ -267,7 +267,7 @@ NdbapiTwsDriver::runLookups(XMode mode, int nOps) {
     const string name = string("lookup_") + toStr(mode);
     begin(name);
 
-    if (mode == SINGLE) {
+    if (mode == INDY) {
         for(int i = 0; i < nOps; i++) {
             ndbapiBeginTransaction();
             ndbapiLookup(i);
@@ -280,7 +280,7 @@ NdbapiTwsDriver::runLookups(XMode mode, int nOps) {
         for(int i = 0; i < nOps; i++) {
             ndbapiLookup(i);
 
-            if (mode == BULK)
+            if (mode == EACH)
                 ndbapiExecuteTransaction();
         }
         ndbapiCommitTransaction();
@@ -298,7 +298,7 @@ NdbapiTwsDriver::runUpdates(XMode mode, int nOps) {
     const string name = string("update_") + toStr(mode);
     begin(name);
 
-    if (mode == SINGLE) {
+    if (mode == INDY) {
             for(int i = 0; i < nOps; i++) {
             ndbapiBeginTransaction();
             ndbapiUpdate(i);
@@ -309,7 +309,7 @@ NdbapiTwsDriver::runUpdates(XMode mode, int nOps) {
         ndbapiBeginTransaction();
         for(int i = 0; i < nOps; i++) {
             ndbapiUpdate(i);
-            if (mode == BULK)
+            if (mode == EACH)
                 ndbapiExecuteTransaction();
         }
         ndbapiCommitTransaction();
@@ -324,7 +324,7 @@ NdbapiTwsDriver::runDeletes(XMode mode, int nOps) {
     const string name = string("delete_") + toStr(mode);
     begin(name);
 
-    if (mode == SINGLE) {
+    if (mode == INDY) {
             for(int i = 0; i < nOps; i++) {
             ndbapiBeginTransaction();
             ndbapiDelete(i);
@@ -335,7 +335,7 @@ NdbapiTwsDriver::runDeletes(XMode mode, int nOps) {
         ndbapiBeginTransaction();
         for(int i = 0; i < nOps; i++) {
             ndbapiDelete(i);
-            if (mode == BULK)
+            if (mode == EACH)
                 ndbapiExecuteTransaction();
         }
         ndbapiCommitTransaction();

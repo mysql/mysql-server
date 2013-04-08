@@ -44,8 +44,7 @@ import java.util.Set;
  */
 abstract public class CrundDriver extends Driver {
 
-    //enum XMode { SINGLE, BULK, BATCH }
-    enum XMode { INDY, EACH, BULK }
+    enum XMode { BULK, EACH, INDY }
     enum LockMode { READ_COMMITTED, SHARED, EXCLUSIVE };
 
     // benchmark settings
