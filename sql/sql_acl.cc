@@ -11870,9 +11870,14 @@ int check_password_strength(String *password)
 /* called when new user is created or exsisting password is changed */
 int check_password_policy(String *password)
 {
-  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
-                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  DBUG_ASSERT(password != NULL);
+  plugin_ref plugin;
+  String empty_string;
+
+  if (!password)
+    password= &empty_string;
+
+  plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                 MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)
   {
     st_mysql_validate_password *password_validate=

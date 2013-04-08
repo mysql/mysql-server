@@ -15481,6 +15481,12 @@ grant_user:
               MYSQL_YYABORT;
             $$= $1; 
             $1->password= $5; 
+            if (!strcmp($5.str, ""))
+            {
+              String *password= new (YYTHD->mem_root) String ((const char *)"",
+                                     YYTHD->variables.character_set_client);
+              check_password_policy(password);
+            }
             /*
               1. Plugin must be resolved
             */
@@ -15509,6 +15515,7 @@ grant_user:
           {
             $$= $1;
             $1->password= null_lex_str;
+            check_password_policy(NULL);
           }
         ;
 
