@@ -26,13 +26,13 @@ begin;
 call populate_t1();
 commit;
 select count(*) from t1;
-# post this stmt purge should kick in.
+# purge should kick-in after delete.
 delete from t1 where a < 500;
 select count(*) from t1;
-update t1 set b = 'innodb' where b = 'a'; 
+update t1 set b = 'innodb' where b = 'a';
 update t1 set c = 'mysql' where c = 'b' and a < 1000;
 begin;
-update t1 set c = 'sqldb' where c = 'mysql' and a < 1000; 
+update t1 set c = 'sqldb' where c = 'mysql' and a < 1000;
 select count(*) from t1 where c = 'sqldb';
 rollback;
 #
