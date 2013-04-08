@@ -400,8 +400,8 @@ trx_rseg_get_n_undo_tablespaces(
 		ulint	page_no;
 		ulint	space;
 
-		/* Skip temp-tablespace slot as while looking out for validation
-		of undo-tablespace. */
+		/* Skip non-redo rollback segment slots as this function is
+		suppose to return space-ids of redo slots only. */
 		if (trx_sys_is_noredo_rseg_slot(i)) {
 			continue;
 		}

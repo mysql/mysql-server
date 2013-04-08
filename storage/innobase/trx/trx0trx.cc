@@ -717,9 +717,6 @@ trx_assign_rseg_low(
 		return(NULL);
 	}
 
-	ut_ad(rseg_type > TRX_RSEG_TYPE_NONE
-	      && rseg_type <= TRX_RSEG_TYPE_NOREDO);
-
 	/* This breaks true round robin but that should be OK. */
 	ut_ad(max_undo_logs > 0 && max_undo_logs <= TRX_SYS_N_RSEGS);
 
@@ -738,10 +735,20 @@ trx_assign_rseg_low(
 	      || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
 
 	trx_rseg_t* rseg = 0;
-	if (rseg_type == TRX_RSEG_TYPE_REDO) {
+
+	switch (rseg_type) {
+
+	case TRX_RSEG_TYPE_REDO:
 		rseg = get_next_redo_rseg(max_undo_logs, n_tablespaces);
-	} else if (rseg_type == TRX_RSEG_TYPE_NOREDO) {
+		break;
+
+	case TRX_RSEG_TYPE_NOREDO:
 		rseg = get_next_noredo_rseg(max_undo_logs + srv_tmp_undo_logs);
+		break;
+
+	default:
+		break;
+
 	}
 
 	return(rseg);
@@ -1013,9 +1020,10 @@ trx_write_serialisation_history(
 	if (trx->rsegs.m_redo.update_undo != NULL
 	    || trx->rsegs.m_noredo.update_undo != NULL) {
 
-		/* Assign the transaction serialisation number and also update
-		the purge min binary heap if this is the first UNDO log being
-		written to the assigned rollback segment. */
+		/* Assign the transaction serialisation number and add these
+		rollback segments to purge trx-no sorted priority queue
+		if this is the first UNDO log being written to assigned
+		rollback segments. */
 
 		trx_undo_ptr_t* redo_rseg_undo_ptr =
 			trx->rsegs.m_redo.update_undo != NULL
@@ -2019,8 +2027,8 @@ Prepares a transaction for given rollback segment.
 @return lsn_t: lsn assigned for commit of scheduled rollback segment */
 static
 lsn_t
-trx_prepare(
-/*========*/
+trx_prepare_low(
+/*============*/
 	trx_t*		trx,		/*!< in/out: transaction */
 	trx_undo_ptr_t*	undo_ptr,	/*!< in/out: pointer to rollback
 					segment scheduled for prepare. */
@@ -2078,8 +2086,8 @@ trx_prepare(
 Prepares a transaction. */
 static
 void
-trx_prepare_step(
-/*=============*/
+trx_prepare(
+/*========*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
 	lsn_t	lsn = 0;
@@ -2089,13 +2097,14 @@ trx_prepare_step(
 	ut_a(!trx->is_recovered);
 
 	if (trx->rsegs.m_redo.rseg) {
-		lsn = trx_prepare(trx, &trx->rsegs.m_redo, false);
+		lsn = trx_prepare_low(trx, &trx->rsegs.m_redo, false);
 	}
 
 	DBUG_EXECUTE_IF("ib_trx_crash_during_xa_prepare_step", DBUG_SUICIDE(););
 
 	if (trx->rsegs.m_noredo.rseg) {
-		lsn_t noredo_lsn = trx_prepare(trx, &trx->rsegs.m_noredo, true);
+		lsn_t noredo_lsn = trx_prepare_low(
+			trx, &trx->rsegs.m_noredo, true);
 		ut_ad(lsn <= noredo_lsn);
 		lsn = noredo_lsn;
 	}
@@ -2142,7 +2151,7 @@ trx_prepare_for_mysql(
 
 	trx->op_info = "preparing";
 
-	trx_prepare_step(trx);
+	trx_prepare(trx);
 
 	trx->op_info = "";
 }
