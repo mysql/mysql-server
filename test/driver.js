@@ -30,6 +30,7 @@ global.suites_dir = __dirname;
 global.harness    = require(path.join(suites_dir, "lib", "harness"));
 global.mynode     = require(api_module);
 global.adapter    = "ndb";
+global.engine     = "ndb";
 
 var tprops = require(path.join(suites_dir, "lib", "test_properties"));
 var stream = require("stream");
@@ -169,7 +170,8 @@ var usageMessage =
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
   "   --test=<n,m,...>: only run tests numbered n, m, etc. in <file>\n " +
-  "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
+  "--adapter=<adapter>: only run on the named adapter/engine (e.g. ndb or mysql)\n" +
+  "                     optionally add engine (e.g. mysql/ndb or mysql/innodb\n" +
   "     --timeout=<ms>: set timeout (in msec); set to 0 to disable timeout.\n" +
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
@@ -242,7 +244,29 @@ for(i = 2; i < process.argv.length ; i++) {
         driver.testInFile = values[1];
         break;
       case '--adapter':
-        global.adapter = values[1];
+        // adapter is adapter/engine
+        var adapterSplit = values[1].split('/');
+        var engine;
+        switch (adapterSplit.length) {
+        case 1:
+          global.adapter = values[1];
+          global.engine = 'ndb';
+          break;
+        case 2:
+          global.adapter = adapterSplit[0];
+          engine = adapterSplit[1];
+          if (engine === 'ndb' || engine === 'innodb') {
+            global.engine = engine;
+          } else {
+            exit = true;
+            console.log('Invalid adapter engine parameter -- use ndb or innodb');
+          }
+          break;
+        default:
+          console.log('Invalid adapter parameter');
+        exit = true;
+        break;
+        }
         break;
       case '--timeout':
         timeoutMillis = values[1];

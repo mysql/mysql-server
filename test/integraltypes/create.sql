@@ -13,7 +13,7 @@ create table if not exists integraltypes (
   key (tsmallint),
   primary key(id)
 
-) ENGINE=ndbcluster;
+);
 
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(0, 0, 0, 0, 0, 0);
 insert into integraltypes (id, ttinyint, tsmallint, tmediumint, tint, tbigint) values(1, 1, 1, 1, 1, 1);

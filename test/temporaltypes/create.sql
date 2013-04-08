@@ -9,4 +9,4 @@ create table if not exists temporaltypes (
   cDate date,
   cDatetime datetime,
   cDatetimeDefault datetime NOT NULL DEFAULT "1989-11-09 17:00:00"
-) ENGINE=ndbcluster;
+);
