@@ -402,31 +402,11 @@ TransporterFacade::start_instance(NodeId nodeId,
   return 0;
 }
 
-/**
- * Note that this function need no locking since its
- * only called from the destructor of Ndb (the NdbObject)
- * 
- * Which is protected by a mutex
- */
 void
 TransporterFacade::stop_instance(){
   DBUG_ENTER("TransporterFacade::stop_instance");
-  doStop();
-  DBUG_VOID_RETURN;
-}
 
-void
-TransporterFacade::doStop(){
-  DBUG_ENTER("TransporterFacade::doStop");
-  /**
-   * First stop the ClusterMgr because it needs to send one more signal
-   * and also uses theFacadeInstance to lock/unlock theMutexPtr
-   */
-  if (theClusterMgr != NULL) theClusterMgr->doStop();
-  
-  /**
-   * Now stop the send and receive threads
-   */
+  // Stop the send and receive threads
   void *status;
   theStopReceive = 1;
   if (theReceiveThread) {
@@ -438,6 +418,13 @@ TransporterFacade::doStop(){
     NdbThread_WaitFor(theSendThread, &status);
     NdbThread_Destroy(&theSendThread);
   }
+
+  // Stop clustmgr last as (currently) recv thread accesses clusterMgr
+  if (theClusterMgr)
+  {
+    theClusterMgr->doStop();
+  }
+
   DBUG_VOID_RETURN;
 }
 
@@ -1203,7 +1190,7 @@ TransporterFacade::close_clnt(trp_client* clnt)
       if (first)
       {
         clnt->raw_sendSignal(&signal, theOwnId);
-        clnt->flush_send_buffers();
+        clnt->do_forceSend(1);
         first = false;
       }
       clnt->do_poll(0);
