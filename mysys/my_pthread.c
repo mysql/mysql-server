@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -374,85 +374,6 @@ int my_pthread_cond_init(pthread_cond_t *mp, const pthread_condattr_t *attr)
 
 #endif
 
-
-/*****************************************************************************
-  Patches for HPUX
-  We need these because the pthread_mutex.. code returns -1 on error,
-  instead of the error code.
-
-  Note that currently we only remap pthread_ functions used by MySQL.
-  If we are depending on the value for some other pthread_xxx functions,
-  this has to be added here.
-****************************************************************************/
-
-#if defined(HPUX10) || defined(HAVE_BROKEN_PTHREAD_COND_TIMEDWAIT)
-
-int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-			      struct timespec *abstime)
-{
-  int error=pthread_cond_timedwait(cond, mutex, abstime);
-  if (error == -1)			/* Safety if the lib is fixed */
-  {
-    if (!(error=errno))
-      error= ETIMEDOUT;			/* Can happen on HPUX */
-  }
-  if (error == EAGAIN)			/* Correct errno to Posix */
-    error= ETIMEDOUT;
-  return error;
-}
-#endif
-
-#if defined(HPUX10)
-
-void my_pthread_attr_getstacksize(pthread_attr_t *connection_attrib,
-				  size_t *stack_size)
-{
-  *stack_size= pthread_attr_getstacksize(*connection_attrib);
-}
-#endif
-
-
-#ifdef HAVE_POSIX1003_4a_MUTEX
-/*
-  In HP-UX-10.20 and other old Posix 1003.4a Draft 4 implementations
-  pthread_mutex_trylock returns 1 on success, not 0 like
-  pthread_mutex_lock
-
-  From the HP-UX-10.20 man page:
-  RETURN VALUES
-      If the function fails, errno may be set to one of the following
-      values:
-           Return | Error    | Description
-           _______|__________|_________________________________________
-              1   |          | Successful completion.
-              0   |          | The mutex is  locked; therefore, it was
-                  |          | not acquired.
-             -1   | [EINVAL] | The value specified by mutex is invalid.
-
-*/
-
-/*
-  Convert pthread_mutex_trylock to return values according to latest POSIX
-
-  RETURN VALUES
-  0		If we are able successfully lock the mutex.
-  EBUSY		Mutex was locked by another thread
-  #		Other error number returned by pthread_mutex_trylock()
-		(Not likely)  
-*/
-
-int my_pthread_mutex_trylock(pthread_mutex_t *mutex)
-{
-  int error= pthread_mutex_trylock(mutex);
-  if (error == 1)
-    return 0;				/* Got lock on mutex */
-  if (error == 0)			/* Someon else is locking mutex */
-    return EBUSY;
-  if (error == -1)			/* Safety if the lib is fixed */
-    error= errno;			/* Probably invalid parameter */
-   return error;
-}
-#endif /* HAVE_POSIX1003_4a_MUTEX */
 
 /* Some help functions */
 
