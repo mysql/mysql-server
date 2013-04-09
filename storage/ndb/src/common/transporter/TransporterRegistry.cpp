@@ -361,7 +361,8 @@ void TransporterRegistry::set_mgm_handle(NdbMgmHandle h)
 TransporterRegistry::~TransporterRegistry()
 {
   DBUG_ENTER("TransporterRegistry::~TransporterRegistry");
-  
+ 
+  disconnectAll(); 
   removeAll();
   
   delete[] theTCPTransporters;
@@ -2131,12 +2132,6 @@ TransporterRegistry::startReceiving()
 
 void
 TransporterRegistry::stopReceiving(){
-  /**
-   * Disconnect all transporters, this includes detach from remote node
-   * and since that must be done from the same process that called attach
-   * it's done here in the receive thread
-   */
-  disconnectAll();
 }
 
 void
