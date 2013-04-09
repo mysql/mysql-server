@@ -2433,8 +2433,11 @@ fts_optimize_table(
 	fts_optimize_t*	optim = NULL;
 	fts_t*		fts = table->fts;
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS start optimize %s\n", table->name);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS start optimize %s\n",
+			table->name);
+	}
 
 	optim = fts_optimize_create(table);
 
@@ -2508,8 +2511,11 @@ fts_optimize_table(
 
 	fts_optimize_free(optim);
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: FTS end optimize %s\n", table->name);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS end optimize %s\n",
+			table->name);
+	}
 
 	return(error);
 }
@@ -2665,9 +2671,9 @@ fts_optimize_start_table(
 	slot = fts_optimize_find_slot(tables, table);
 
 	if (slot == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Error: table %s not registered "
-			"with the optimize thread.\n", table->name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"table %s not registered with the optimize thread.\n",
+			table->name);
 	} else {
 		slot->last_run = 0;
 		slot->completed = 0;
@@ -2744,9 +2750,11 @@ fts_optimize_del_table(
 		if (slot->state != FTS_STATE_EMPTY
 		    && slot->table->id == table->id) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: FTS Optimize Removing "
-				"table %s\n", table->name);
+			if (fts_enable_diag_print) {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"FTS Optimize Removing table %s\n",
+					table->name);
+			}
 
 			slot->table = NULL;
 			slot->state = FTS_STATE_EMPTY;

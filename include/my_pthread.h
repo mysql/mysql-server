@@ -243,7 +243,7 @@ extern int my_pthread_cond_init(pthread_cond_t *mp,
 #define pthread_sigmask(A,B,C) sigthreadmask((A),(B),(C))
 #endif
 
-#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS) && !defined(_AIX)
+#if !defined(HAVE_SIGWAIT) && !defined(sigwait) && !defined(alpha_linux_port) && !defined(HAVE_NONPOSIX_SIGWAIT) && !defined(HAVE_DEC_3_2_THREADS)
 int sigwait(sigset_t *setp, int *sigp);		/* Use our implemention */
 #endif
 
@@ -294,12 +294,6 @@ struct tm *localtime_r(const time_t *clock, struct tm *res);
 
 #ifndef HAVE_GMTIME_R
 struct tm *gmtime_r(const time_t *clock, struct tm *res);
-#endif
-
-#ifdef HAVE_PTHREAD_CONDATTR_CREATE
-/* DCE threads on HPUX 10.20 */
-#define pthread_condattr_init pthread_condattr_create
-#define pthread_condattr_destroy pthread_condattr_delete
 #endif
 
 /* FSU THREADS */
@@ -355,18 +349,6 @@ struct tm *gmtime_r(const time_t *clock, struct tm *res);
 #endif
 
 #endif /* defined(__WIN__) */
-
-#if defined(HPUX10) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
-#undef pthread_cond_timedwait
-#define pthread_cond_timedwait(a,b,c) my_pthread_cond_timedwait((a),(b),(c))
-int my_pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-			      struct timespec *abstime);
-#endif
-
-#if defined(HPUX10)
-#define pthread_attr_getstacksize(A,B) my_pthread_attr_getstacksize(A,B)
-void my_pthread_attr_getstacksize(pthread_attr_t *attrib, size_t *size);
-#endif
 
 #if defined(HAVE_POSIX1003_4a_MUTEX) && !defined(DONT_REMAP_PTHREAD_FUNCTIONS)
 #undef pthread_mutex_trylock

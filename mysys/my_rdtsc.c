@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -125,10 +125,7 @@ ulonglong my_timer_cycles_il_x86_64();
   or on time buffer (which is not really a cycle count
   but a separate counter with less than nanosecond
   resolution) for most PowerPC platforms, or on
-  gethrtime which is okay for hpux and solaris, or on
-  clock_gettime(CLOCK_SGI_CYCLE) for Irix platforms,
-  or on read_real_time for aix platforms. There is
-  nothing for Alpha platforms, they would be tricky.
+  gethrtime which is okay for solaris.
 */
 
 ulonglong my_timer_cycles(void)
@@ -166,13 +163,13 @@ ulonglong my_timer_cycles(void)
     __asm __volatile__ ("mov %0=ar.itc" : "=r" (result));
     return result;
   }
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__) || (defined(_POWER) && defined(_AIX52))) && (defined(__64BIT__) || defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (defined(__64BIT__) || defined(_ARCH_PPC64))
   {
     ulonglong result;
     __asm __volatile__ ("mftb %0" : "=r" (result));
     return result;
   }
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__) || (defined(_POWER) && defined(_AIX52))) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   {
     /*
       mftbu means "move from time-buffer-upper to result".
@@ -218,12 +215,6 @@ ulonglong my_timer_cycles(void)
     __asm __volatile__ ("rd %%tick,%1; srlx %1,32,%0" : "=r" (result.splitresult.high), "=r" (result.splitresult.low));
     return result.wholeresult;
   }
-#elif defined(__sgi) && defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_SGI_CYCLE)
-  {
-    struct timespec tp;
-    clock_gettime(CLOCK_SGI_CYCLE, &tp);
-    return (ulonglong) tp.tv_sec * 1000000000 + (ulonglong) tp.tv_nsec;
-  }
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* gethrtime may appear as either cycle or nanosecond counter */
   return (ulonglong) gethrtime();
@@ -246,13 +237,7 @@ ulonglong my_timer_cycles(void)
 
 ulonglong my_timer_nanoseconds(void)
 {
-#if defined(HAVE_READ_REAL_TIME)
-  {
-    timebasestruct_t tr;
-    read_real_time(&tr, TIMEBASE_SZ);
-    return (ulonglong) tr.tb_high * 1000000000 + (ulonglong) tr.tb_low;
-  }
-#elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
+#if defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   /* SunOS 5.10+, Solaris, HP-UX: hrtime_t gethrtime(void) */
   return (ulonglong) gethrtime();
 #elif defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_REALTIME)
@@ -515,9 +500,9 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_IA64;
 #elif defined(__GNUC__) && defined(__ia64__)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_IA64;
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__) || (defined(_POWER) && defined(_AIX52))) && (defined(__64BIT__) || defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (defined(__64BIT__) || defined(_ARCH_PPC64))
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_PPC64;
-#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__) || (defined(_POWER) && defined(_AIX52))) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
+#elif defined(__GNUC__) && (defined(__powerpc__) || defined(__POWERPC__)) && (!defined(__64BIT__) && !defined(_ARCH_PPC64))
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_PPC;
 #elif (defined(__SUNPRO_CC) || defined(__SUNPRO_C)) && defined(__sparcv9) && defined(_LP64) && !defined(__SunOS_5_7)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_SUNPRO_SPARC64;
@@ -531,8 +516,6 @@ void my_timer_init(MY_TIMER_INFO *mti)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC64;
 #elif defined(__GNUC__) && defined(__sparc__) && !defined(_LP64) && (__GNUC__>2)
   mti->cycles.routine= MY_TIMER_ROUTINE_ASM_GCC_SPARC32;
-#elif defined(__sgi) && defined(HAVE_CLOCK_GETTIME) && defined(CLOCK_SGI_CYCLE)
-  mti->cycles.routine= MY_TIMER_ROUTINE_SGI_CYCLE;
 #elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->cycles.routine= MY_TIMER_ROUTINE_GETHRTIME;
 #else
@@ -549,9 +532,7 @@ void my_timer_init(MY_TIMER_INFO *mti)
 
   /* nanoseconds */
   mti->nanoseconds.frequency=  1000000000; /* initial assumption */
-#if defined(HAVE_READ_REAL_TIME)
-  mti->nanoseconds.routine= MY_TIMER_ROUTINE_READ_REAL_TIME;
-#elif defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
+#if defined(HAVE_SYS_TIMES_H) && defined(HAVE_GETHRTIME)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_GETHRTIME;
 #elif defined(HAVE_CLOCK_GETTIME)
   mti->nanoseconds.routine= MY_TIMER_ROUTINE_CLOCK_GETTIME;
