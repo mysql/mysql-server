@@ -261,10 +261,11 @@ typedef struct st_log_info
   my_off_t index_file_offset, index_file_start_offset;
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
+  int entry_index; //used in purge_logs(), calculatd in find_log_pos().
   mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
-      pos(0), fatal(0)
+      pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
       mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
@@ -698,8 +699,8 @@ public:
   bool flush_and_sync(const bool force= false);
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
-                 ulonglong *decrease_log_space);
-  int purge_logs_before_date(time_t purge_time);
+                 ulonglong *decrease_log_space, bool auto_purge);
+  int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
