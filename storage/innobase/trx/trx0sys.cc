@@ -853,6 +853,37 @@ trx_sys_file_format_close(void)
 }
 
 /*********************************************************************
+Creates non-redo rollback segments.
+@return number of non-redo rollback segments created. */
+static
+ulint
+trx_sys_create_noredo_rsegs(
+/*========================*/
+	ulint	n_nonredo_rseg)	/*!< number of non-redo rollback segment
+				to create. */
+{
+	ulint n_created = 0;
+
+	/* Create non-redo rollback segments residing in temp-tablespace.
+	non-redo rollback segments don't perform redo logging and so
+	are used for undo logging of objects/table that don't need to be
+	recover on crash.
+	(Non-Redo rollback segments are created on every server startup).
+	Slot-0: reserved for system-tablespace.
+	Slot-1....Slot-N: reserved for temp-tablespace.
+	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
+	for (ulint i = 0; i < n_nonredo_rseg; i++) {
+		ulint space = srv_tmp_space.space_id();
+		if (trx_rseg_create(space, i) == NULL) {
+			break;
+		}
+		++n_created;
+	}
+
+	return(n_created);
+}
+
+/*********************************************************************
 Creates the rollback segments.
 @return number of rollback segments that are active. */
 UNIV_INTERN
@@ -866,6 +897,7 @@ trx_sys_create_rsegs(
 {
 	mtr_t	mtr;
 	ulint	n_used;
+	ulint	n_noredo_created;
 
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
@@ -875,21 +907,8 @@ trx_sys_create_rsegs(
 		return(ULINT_UNDEFINED);
 	}
 
-	/* Create rollback segments for temp-tables bounded in temp-tablespace.
-	Will use noredo slots. Note: no-redo slots are open slots that can
-	be used by any tablespace provided rseg allocated in these no-redo
-	slots don't perform redo logging to track changes to undo logging.
-	temp-tables don't need to be restored after a crash and so can use
-	no-redo slots.
-	Slot-0: reserved for system-tablespace.
-	Slot-1....Slot-N: reserved for temp-tablespace.
-	Slot-N+1....Slot-127: reserved for system/undo-tablespace. */
-	for (ulint i = 0; i < n_tmp_rsegs; i++) {
-		ulint space = srv_tmp_space.space_id();
-		if (trx_rseg_create(space, i) == NULL) {
-			break;
-		}
-	}
+	/* Create non-redo rollback segments. */
+	n_noredo_created = trx_sys_create_noredo_rsegs(n_tmp_rsegs);
 
 	/* This is executed in single-threaded mode therefore it is not
 	necessary to use the same mtr in trx_rseg_create(). n_used cannot
@@ -930,7 +949,14 @@ trx_sys_create_rsegs(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"%lu rollback segment(s) are active.", n_used);
+		"%lu redo rollback segment(s) found."
+		" %lu redo rollback segment(s) are active.",
+		(n_used - srv_tmp_undo_logs),
+		(n_rsegs <= n_tmp_rsegs ? 1 : (n_rsegs - n_tmp_rsegs)));
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%lu non-redo rollback segment(s) are active.",
+		n_noredo_created);
 
 	return(n_used);
 }
