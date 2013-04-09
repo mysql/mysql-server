@@ -630,8 +630,8 @@ public:
   bool flush_and_sync(const bool force= false);
   int purge_logs(const char *to_log, bool included,
                  bool need_lock_index, bool need_update_threads,
-                 ulonglong *decrease_log_space);
-  int purge_logs_before_date(time_t purge_time);
+                 ulonglong *decrease_log_space, bool auto_purge);
+  int purge_logs_before_date(time_t purge_time, bool auto_purge);
   int purge_first_log(Relay_log_info* rli, bool included);
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
