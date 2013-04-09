@@ -1217,13 +1217,14 @@ LET $ID= `SELECT connection_id()`;
 CONNECTION default;
 --disable_query_log
 eval KILL QUERY $ID;
+--enable_query_log
+
+CONNECTION con1;
+let $wait_timeout= 5;
 let $wait_condition=
   SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE
   INFO= "KILL QUERY $ID";
 --source include/wait_condition.inc
---enable_query_log
-
-CONNECTION con1;
 --error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE non_existent;
 

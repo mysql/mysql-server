@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,7 +33,7 @@
 #include <my_net.h>
 #include <my_getopt.h>
 
-#if !defined(_AIX) && !defined(h_errno)
+#if !defined(h_errno)
 extern int h_errno;
 #endif
 

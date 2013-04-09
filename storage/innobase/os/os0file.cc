@@ -973,15 +973,7 @@ next_file:
 #ifdef HAVE_READDIR_R
 	ret = readdir_r(dir, (struct dirent*) dirent_buf, &ent);
 
-	if (ret != 0
-#ifdef UNIV_AIX
-	    /* On AIX, only if we got non-NULL 'ent' (result) value and
-	    a non-zero 'ret' (return) value, it indicates a failed
-	    readdir_r() call. An NULL 'ent' with an non-zero 'ret'
-	    would indicate the "end of the directory" is reached. */
-	    && ent != NULL
-#endif
-	   ) {
+	if (ret != 0) {
 		fprintf(stderr,
 			"InnoDB: cannot read directory %s, error %lu\n",
 			dirname, (ulong) ret);
@@ -2360,7 +2352,7 @@ os_file_io(
 
 	for (ulint i = 0; i < NUM_RETRIES_ON_PARTIAL_IO; ++i) {
 		if (type == OS_FILE_READ ) {
-#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PREAD)
 			n_bytes = pread(file, buf, n, offset);
 #else
 			off_t ret_offset;
@@ -2370,10 +2362,10 @@ os_file_io(
 				return(bytes_returned);
 			}
 			n_bytes = read(file, buf, (ssize_t) n);
-#endif /* HAVE_PREAD && !HAVE_BROKEN_PREAD */
+#endif /* HAVE_PREAD */
 		} else {
 			ut_ad(type == OS_FILE_WRITE);
-#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PWRITE)
 			n_bytes = pwrite(file, buf, n, offset);
 #else
 			off_t ret_offset;
@@ -2383,7 +2375,7 @@ os_file_io(
 				return(bytes_returned);
 			}
 			n_bytes = write(file, buf, (ssize_t) n);
-#endif /* HAVE_PWRITE && !HAVE_BROKEN_PREAD */
+#endif /* HAVE_PWRITE */
 		}
 
 		if ((ulint) n_bytes == n) {
@@ -2453,7 +2445,7 @@ os_file_pread(
 	}
 
 	os_n_file_reads++;
-#if defined(HAVE_PREAD) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PREAD)
 #if defined(HAVE_ATOMIC_BUILTINS) && UNIV_WORD_SIZE == 8
 	(void) os_atomic_increment_ulint(&os_n_pending_reads, 1);
 	(void) os_atomic_increment_ulint(&os_file_n_pending_preads, 1);
@@ -2555,7 +2547,7 @@ os_file_pwrite(
 
 	os_n_file_writes++;
 
-#if defined(HAVE_PWRITE) && !defined(HAVE_BROKEN_PREAD)
+#if defined(HAVE_PWRITE)
 #if !defined(HAVE_ATOMIC_BUILTINS) || UNIV_WORD_SIZE < 8
 	os_mutex_enter(os_file_count_mutex);
 	os_file_n_pending_pwrites++;
