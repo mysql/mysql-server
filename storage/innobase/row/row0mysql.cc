@@ -3858,6 +3858,8 @@ row_truncate_table_for_mysql(
 	dict_table_autoinc_initialize(table, 1);
 	dict_table_autoinc_unlock(table);
 
+	table->update_time = time(NULL);
+
 	if (trx->state != TRX_STATE_NOT_STARTED) {
 		trx_commit_for_mysql(trx);
 	}
