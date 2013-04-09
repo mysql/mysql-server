@@ -136,12 +136,6 @@
 #define default_shared_memory_base_name "MYSQL"
 #endif /* _WIN32*/
 
-
-/* Workaround for _LARGE_FILES and _LARGE_FILE_API incompatibility on AIX */
-#if defined(_AIX) && defined(_LARGE_FILE_API)
-#undef _LARGE_FILE_API
-#endif
-
 /*
   The macros below are used to allow build of Universal/fat binaries of
   MySQL and MySQL applications under darwin. 
@@ -250,57 +244,16 @@
 #define _POSIX_PTHREAD_SEMANTICS /* We want posix threads */
 #endif
 
-#if !defined(SCO)
 #define _REENTRANT	1	/* Some thread libraries require this */
-#endif
-#if !defined(_THREAD_SAFE) && !defined(_AIX)
+
+#if !defined(_THREAD_SAFE)
 #define _THREAD_SAFE            /* Required for OSF1 */
 #endif
-#if defined(HPUX10) || defined(HPUX11)
-C_MODE_START			/* HPUX needs this, signal.h bug */
 #include <pthread.h>
-C_MODE_END
-#else
-#include <pthread.h>		/* AIX must have this included first */
-#endif
-#if !defined(SCO) && !defined(_REENTRANT)
-#define _REENTRANT	1	/* Threads requires reentrant code */
-#endif
 #endif /* !defined(__WIN__) */
-
-/* Go around some bugs in different OS and compilers */
-#ifdef _AIX			/* By soren@t.dk */
-#define _H_STRINGS
-#define _SYS_STREAM_H
-/* #define _AIX32_CURSES */	/* XXX: this breaks AIX 4.3.3 (others?). */
-#define ulonglong2double(A) my_ulonglong2double(A)
-#define my_off_t2double(A)  my_ulonglong2double(A)
-C_MODE_START
-inline double my_ulonglong2double(unsigned long long A) { return (double A); }
-C_MODE_END
-#endif /* _AIX */
-
-#ifdef HAVE_BROKEN_SNPRINTF	/* HPUX 10.20 don't have this defined */
-#undef HAVE_SNPRINTF
-#endif
-#ifdef HAVE_BROKEN_PREAD
-/*
-  pread()/pwrite() are not 64 bit safe on HP-UX 11.0 without
-  installing the kernel patch PHKL_20349 or greater
-*/
-#undef HAVE_PREAD
-#undef HAVE_PWRITE
-#endif
-
-#ifdef UNDEF_HAVE_INITGROUPS			/* For AIX 4.3 */
-#undef HAVE_INITGROUPS
-#endif
 
 #if defined(_lint) && !defined(lint)
 #define lint
-#endif
-#if SIZEOF_LONG_LONG > 4 && !defined(_LONG_LONG)
-#define _LONG_LONG 1		/* For AIX string library */
 #endif
 
 #ifndef stdin
@@ -379,22 +332,6 @@ C_MODE_END
   } while(0)
 #endif
 
-/* Go around some bugs in different OS and compilers */
-#if defined (HPUX11) && defined(_LARGEFILE_SOURCE)
-#ifndef _LARGEFILE64_SOURCE
-#define _LARGEFILE64_SOURCE
-#endif
-#endif
-
-#if defined(_HPUX_SOURCE) && defined(HAVE_SYS_STREAM_H)
-#include <sys/stream.h>		/* HPUX 10.20 defines ulong here. UGLY !!! */
-#define HAVE_ULONG
-#endif
-#if defined(HPUX10) && defined(_LARGEFILE64_SOURCE)
-/* Fix bug in setrlimit */
-#undef setrlimit
-#define setrlimit cma_setrlimit64
-#endif
 /* Declare madvise where it is not declared for C++, like Solaris */
 #if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
 extern "C" int madvise(void *addr, size_t len, int behav);
@@ -653,7 +590,6 @@ typedef SOCKET_SIZE_TYPE size_socket;
 
 /* Some defines of functions for portability */
 
-#undef remove		/* Crashes MySQL on SCO 5.0.0 */
 #ifndef __WIN__
 #define closesocket(A)	close(A)
 #endif
