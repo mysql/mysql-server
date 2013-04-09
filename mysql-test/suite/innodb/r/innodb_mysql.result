@@ -234,22 +234,19 @@ select 1, max(1) from t1i where 1=99;
 1	NULL
 explain select count(*), min(7), max(7) from t1m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t1m, t2i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1m	system	NULL	NULL	NULL	NULL	0	const row not found
-1	SIMPLE	t2i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t1m, t2i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
 explain select count(*), min(7), max(7) from t2m, t1i;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2m	system	NULL	NULL	NULL	NULL	1	NULL
-1	SIMPLE	t1i	ALL	NULL	NULL	NULL	NULL	1	NULL
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Select tables optimized away
 select count(*), min(7), max(7) from t2m, t1i;
 count(*)	min(7)	max(7)
 0	NULL	NULL
@@ -2408,14 +2405,14 @@ test.t1	analyze	status	OK
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	10
+key	NULL
+key_len	NULL
 ref	NULL
-rows	10
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP TABLE t1;
 #
 # Bug #49838: DROP INDEX and ADD UNIQUE INDEX for same index may
@@ -2619,53 +2616,53 @@ INSERT INTO t1 VALUES (1,1,1,1), (2,2,2,2), (3,3,3,3);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	4
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	8
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	b
-key_len	13
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP INDEX b ON t1;
 CREATE INDEX b ON t1(a,b,c,d);
 EXPLAIN SELECT COUNT(*) FROM t1;
 id	1
 select_type	SIMPLE
-table	t1
-type	index
+table	NULL
+type	NULL
 possible_keys	NULL
-key	PRIMARY
-key_len	8
+key	NULL
+key_len	NULL
 ref	NULL
-rows	3
-Extra	Using index
+rows	NULL
+Extra	Select tables optimized away
 DROP TABLE t1;
 #
 # Bug#55826: create table .. select crashes with when KILL_BAD_DATA 

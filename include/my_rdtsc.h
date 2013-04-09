@@ -105,9 +105,9 @@ C_MODE_END
 #define MY_TIMER_ROUTINE_RDTSC                    5
 #define MY_TIMER_ROUTINE_ASM_IA64                 6
 #define MY_TIMER_ROUTINE_ASM_PPC                  7
-#define MY_TIMER_ROUTINE_SGI_CYCLE                8
+/* #define MY_TIMER_ROUTINE_SGI_CYCLE                8  - No longer used */
 #define MY_TIMER_ROUTINE_GETHRTIME                9
-#define MY_TIMER_ROUTINE_READ_REAL_TIME          10
+/* #define MY_TIMER_ROUTINE_READ_REAL_TIME          10  - No longer used */
 #define MY_TIMER_ROUTINE_CLOCK_GETTIME           11
 #define MY_TIMER_ROUTINE_NXGETTIME               12
 #define MY_TIMER_ROUTINE_GETTIMEOFDAY            13
