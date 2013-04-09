@@ -115,11 +115,7 @@
 #if !defined(STDC) && (defined(MSDOS) || defined(WINDOWS) || defined(WIN32))
 #  define STDC
 #endif
-#if !defined(STDC) && (defined(OS2) || defined(__HOS_AIX__))
-#  define STDC
-#endif
-
-#if defined(__OS400__) && !defined(STDC)    /* iSeries (formerly AS/400). */
+#if !defined(STDC) && defined(OS2)
 #  define STDC
 #endif
 
@@ -130,7 +126,7 @@
 #endif
 
 /* Some Mac compilers merge all .h files incorrectly: */
-#if defined(__MWERKS__)||defined(applec)||defined(THINK_C)||defined(__SC__)
+#if defined(applec)||defined(THINK_C)||defined(__SC__)
 #  define NO_DUMMY_DECL
 #endif
 
@@ -303,10 +299,6 @@ typedef uLong FAR uLongf;
 #endif
 #ifndef z_off_t
 #  define z_off_t long
-#endif
-
-#if defined(__OS400__)
-#  define NO_vsnprintf
 #endif
 
 #if defined(__MVS__)
