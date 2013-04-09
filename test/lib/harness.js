@@ -644,8 +644,9 @@ var runSQL = function(sqlPath, source, callback) {
     }
   }
 
+  var cmd = 'cat ./' + global.engine + '.sql ' + sqlPath + ' | mysql';
+  
   var p = test_conn_properties;
-  var cmd = 'mysql';
   if(p) {
     if(p.mysql_socket)     { cmd += " --socket=" + p.mysql_socket; }
     else if(p.mysql_port)  { cmd += " --port=" + p.mysql_port; }
@@ -653,7 +654,6 @@ var runSQL = function(sqlPath, source, callback) {
     if(p.mysql_user)     { cmd += " -u " + p.mysql_user; }
     if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
   }
-  cmd += ' <' + sqlPath; 
   udebug.log_detail('harness runSQL forking process...' + cmd);
   var child = exec(cmd, childProcess);
 };
