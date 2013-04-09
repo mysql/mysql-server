@@ -370,7 +370,11 @@ static int tokudb_init_func(void *p) {
     tokudb_hton->state = SHOW_OPTION_YES;
     // tokudb_hton->flags= HTON_CAN_RECREATE;  // QQQ this came from skeleton
     tokudb_hton->flags = HTON_CLOSE_CURSORS_AT_COMMIT;
-    tokudb_hton->db_type = DB_TYPE_TOKUDB;
+
+    // we have historically been a dynamic storage engine, so we set db_type according.
+    // however, extended keys is triggered off of the db_type, so tokudb adds another type so that extended keys works
+    tokudb_hton->db_type = DB_TYPE_UNKNOWN;
+    tokudb_hton->other_db_type = DB_TYPE_TOKUDB;
 
     tokudb_hton->create = tokudb_create_handler;
     tokudb_hton->close_connection = tokudb_close_connection;
