@@ -22,8 +22,6 @@
 
 #include "ColumnProxy.h"
 
-bool jsValueIsWrappedNdbRecordObject(Handle<Value>);
-
 class NdbRecordObject {
 public:
   NdbRecordObject(Record *, ColumnHandlerSet *, Handle<Value>);
@@ -36,9 +34,7 @@ public:
 
   Record * getRecord() const;
   char * getBuffer() const;
-  const uint8_t * getMask() const;
-
-  static const int env_class_id = 130404;
+  const uint32_t getMaskValue() const;
 
 private:
   Record * record;
@@ -47,7 +43,10 @@ private:
   Persistent<Value> persistentBufferHandle;
   const unsigned int ncol;
   ColumnProxy * const proxy;
-  uint8_t row_mask[4];
+  union {
+    uint8_t row_mask[4];
+    uint32_t maskvalue;
+  } u;
   void maskIn(unsigned int nField);
   bool isMaskedIn(unsigned int nField);
 };
@@ -55,13 +54,13 @@ private:
 
 inline void NdbRecordObject::maskIn(unsigned int nField) {
   assert(nField < ncol);
-  row_mask[nField >> 3] |= (1 << (nField & 7));
+  u.row_mask[nField >> 3] |= (1 << (nField & 7));
 }
 
   
 inline bool NdbRecordObject::isMaskedIn(unsigned int nField) {
   assert(nField < ncol);
-  return (row_mask[nField >> 3] & (1<<(nField & 7)));
+  return (u.row_mask[nField >> 3] & (1<<(nField & 7)));
 }
 
 
@@ -81,12 +80,12 @@ inline char * NdbRecordObject::getBuffer() const {
 }
 
 
-inline const uint8_t * NdbRecordObject::getMask() const {
-  return & row_mask[0];
+inline const uint32_t NdbRecordObject::getMaskValue() const {
+  return u.maskvalue;
 }
 
 
 inline void NdbRecordObject::resetMask() {
-  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
+  u.maskvalue = 0;
 }
 

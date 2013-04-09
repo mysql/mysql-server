@@ -7,6 +7,14 @@
     DONE: Remove interactive and readline support from waf builds
     DONE: Read mysql path from filesystem in wscript? 
     Auto-detect mysql layout here, and write about it in config.gypi
+    Fix crash if user types ~ in path name
+    Tab completion bug:
+      7.1.23/ 7.1.23-m32/ 7.1.23-m64/   completion supplies / after 23 
+    Verify default windows install path for 7.3
+    Don't offer the "skip" choice
+    If the first character is not a number, it's a path
+    If it's a tilde try to expand it to process.env.HOME
+    
     
 */
 
@@ -186,6 +194,7 @@ function configure(mysql, layout) {
 function completion(line) {
   var matches = [];
   var dir, base, files, stat;
+//wrong:mmmm
   try {  // input is a directory?
     dir = line;
     files = fs.readdirSync(dir);
