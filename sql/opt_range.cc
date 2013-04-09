@@ -12931,15 +12931,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
-#ifdef HPUX11
-  /*
-    volatile is required by a bug in the HP compiler due to which the
-    last test of result fails.
-  */
-  volatile int result;
-#else
   int result;
-#endif
   int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");
