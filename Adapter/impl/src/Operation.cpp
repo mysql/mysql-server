@@ -31,7 +31,7 @@ Operation::Operation() : row_buffer(0), key_buffer(0),
                          lmode(NdbOperation::LM_SimpleRead),
                          options(0)
 {
-  row_mask[3] = row_mask[2] = row_mask[1] = row_mask[0] = 0;
+   u.maskvalue = 0;
 }
 
 

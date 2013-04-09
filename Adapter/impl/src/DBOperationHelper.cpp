@@ -68,14 +68,12 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
   v = spec->Get(HELPER_KEY_BUFFER);
   if(! v->IsNull()) {
     o = v->ToObject();
-    DEBUG_PRINT("Setting operation key_buffer");
     op.key_buffer = V8BINDER_UNWRAP_BUFFER(o);
   }
   
   v = spec->Get(HELPER_KEY_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    DEBUG_PRINT("Setting operation key_record");
     op.key_record = unwrapPointer<Record *>(o);
   }
 }
@@ -107,7 +105,6 @@ Handle<Value> buildNdbOperation(Operation &op, int opcode, NdbTransaction *tx) {
 
 
 Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   Operation op;
 
@@ -120,28 +117,24 @@ Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
   v = spec->Get(HELPER_ROW_BUFFER);
   if(! v->IsNull()) {
     o = v->ToObject();
-    DEBUG_PRINT("Setting operation row_buffer");
     op.row_buffer = V8BINDER_UNWRAP_BUFFER(o);
   }
   
   v = spec->Get(HELPER_ROW_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    DEBUG_PRINT("Setting operation row_record");
     op.row_record = unwrapPointer<Record *>(o);
   }
   
   v = spec->Get(HELPER_LOCK_MODE);
   if(! v->IsNull()) {
     int intLockMode = v->Int32Value();
-    DEBUG_PRINT("Setting operation lock_mode");
     op.lmode = static_cast<NdbOperation::LockMode>(intLockMode);
   }
 
   v = spec->Get(HELPER_COLUMN_MASK);
   if(! v->IsNull()) {
     Array *maskArray = Array::Cast(*v);
-    DEBUG_PRINT("Setting operation column mask");
     for(unsigned int m = 0 ; m < maskArray->Length() ; m++) {
       Local<Value> colId = maskArray->Get(m);
       op.useColumn(colId->Int32Value());
@@ -150,12 +143,12 @@ Handle<Value> DBOperationHelper_NonVO(const Arguments &args) {
   
   int opcode = args[1]->Int32Value();
   NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+  DEBUG_PRINT("Non-VO opcode: %d mask: %u", opcode, op.u.maskvalue);
 
   return scope.Close(buildNdbOperation(op, opcode, tx));
 }
 
 Handle<Value> DBOperationHelper_VO(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
@@ -181,13 +174,20 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   /* Set the row record, row buffer, and mask from the VO */
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
-// TODO: "write" and "persist" don't use mask. opcodes 2 and 8.
-  op.copyRowMask(nro->getMask()); 
-    
+
+  /* "write" and "persist" must write all columns. 
+     Other operations only require teh columns that have changed since read.
+  */
+  if(opcode == 2 || opcode == 8) 
+    op.setRowMask(0xFFFFFFFF);
+  else 
+    op.setRowMask(nro->getMaskValue());
+
+  DEBUG_PRINT("  VO   opcode: %d mask: %u", opcode, op.u.maskvalue);
 
   returnVal = buildNdbOperation(op, opcode, tx);
   
-  nro->resetMask();   // all columns ready for writing again
+  nro->resetMask(); 
 
   return scope.Close(returnVal);
 }

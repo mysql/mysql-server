@@ -5,12 +5,12 @@
   If this file is called disabled-tests.dist, 
     then copy it to disabled-tests.conf
 
-  Then dit the disabled tests lists below,
+  Then edit the disabled tests lists below,
   in disabled-tests.conf, to include the 
   filenames of tests to skip.  For example:
 
   module.exports.disabledTests = {
-    "integraltypes/QueryTableScanTest.js" : 1
+    "integraltypes/QueryTableScanTest.js" : true
   };
 
 **/

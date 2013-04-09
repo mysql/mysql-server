@@ -86,7 +86,7 @@
 *************************************************************/
 
 Envelope columnHandlerSetEnvelope("ColumnHandlerSet");
-Envelope nroEnvelope("NdbRecordObject", NdbRecordObject::env_class_id);
+Envelope nroEnvelope("NdbRecordObject");
 
 
 /* Generic getter for all NdbRecordObjects
@@ -199,9 +199,21 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
 
 Handle<Value> isValueObject(const Arguments &args) {
   HandleScope scope;
-  return scope.Close(Boolean::New(jsValueIsWrappedNdbRecordObject(args[0])));
-}
+  bool answer = false;  
+  Handle<Value> v = args[0];
 
+  if(v->IsObject()) {
+    Local<Object> o = v->ToObject();
+    if(o->InternalFieldCount() == 2) {
+      Envelope * n = (Envelope *) o->GetPointerFromInternalField(0);
+      if(n == & nroEnvelope) {
+        answer = true;
+      }
+    }
+  }
+
+  return scope.Close(Boolean::New(answer));
+}
 
 void ValueObject_initOnLoad(Handle<Object> target) {
   HandleScope scope;
