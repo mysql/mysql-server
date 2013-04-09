@@ -47,13 +47,10 @@ ColumnMetadata = {
 
 /* IndexMetadata represents a table index.  
 
-   The "indexes" array of TableMetadata will hold one IndexMetadata 
-   per table index. 
-
-   An NDB primary key might be viewed through the NDBAPI adapter as two indexes 
-   (one unique, the other ordered), but through a MySQL adapter as a single 
-   index that is both unique and ordered.  We tolerate this discrepancy and note 
-   that the code in Adapter/api must treat the two descriptions as equivalent. 
+   The "indexes" array of TableMetadata will hold one or two IndexMetadata 
+   records per table index.  For an index that is both unique and ordered, two
+   records are created, one with the isUnique flag set, and the other with the 
+   isOrdered flag set. 
 */
 IndexMetadata = {
   name             : ""    ,  // Index name; undefined for PK 
