@@ -9,7 +9,7 @@ create table if not exists autopk (
 
   unique key idx_unique_hash_magic (magic) using hash,
   key idx_btree_age (age)
-) ENGINE=ndbcluster;
+);
 
 insert into autopk(name, age, magic) values('Employee 1', 1, 1);
 insert into autopk(name, age, magic) values('Employee 2', 2, 2);
@@ -31,7 +31,7 @@ create table if not exists autouk (
 
   unique key idx_unique_hash_magic (magic) using hash,
   key idx_btree_age (age)
-) ENGINE=ndbcluster;
+);
 
 insert into autouk(id, name, age) values(1, 'Employee 1', 1);
 insert into autouk(id, name, age) values(2, 'Employee 2', 2);
