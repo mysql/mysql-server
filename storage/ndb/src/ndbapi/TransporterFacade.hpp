@@ -261,7 +261,6 @@ private:
   NDB_TICKS m_receive_activation_time;
 
   bool isConnected(NodeId aNodeId);
-  void doStop();
 
   TransporterRegistry* theTransporterRegistry;
   SocketServer m_socket_server;
