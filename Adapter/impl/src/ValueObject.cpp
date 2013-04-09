@@ -187,7 +187,8 @@ Handle<Value> getValueObjectConstructor(const Arguments &args) {
   Local<Object> jsFields = args[1]->ToObject();
   for(unsigned int i = 0 ; i < ncol; i++) {
     Handle<String> fieldName = jsFields->Get(i)->ToString();
-    inst->SetAccessor(fieldName, nroGetter, nroSetter, Number::New(i));
+    inst->SetAccessor(fieldName, nroGetter, nroSetter, Number::New(i),
+                      DEFAULT, DontDelete);
   }
 
   /* The generic constructor is the CallHandler */

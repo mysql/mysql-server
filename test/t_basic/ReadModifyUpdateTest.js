@@ -197,6 +197,23 @@ t6.run = function() {
 };
 
 
+function onLoadThenCompare(err, testCase, expectedObject, loadedObject) {
+  var i, keys, k;
+  testCase.errorIfError(err);
+  assertVO(testCase, loadedObject, true);
+  try {
+    keys = Object.keys(expectedObject);
+    for(i = 0 ; i < keys.length ; i++) {
+      k = keys[i];
+      testCase.errorIfNotEqual(k, expectedObject[k], loadedObject[k]);
+    }
+  }
+  catch(e) {
+    testCase.appendErrorMessage(e);
+  }
+  testCase.failOnError();  
+}
+
 /* load uses the object it has and copies database values into it 
     based on finding the object in the database. */
 // Find_ModifyPK_Load
@@ -211,7 +228,7 @@ t7.run = function() {
     assertVO(t7, object, true);
     object.id = 7; 
     object.specialTag = specialTag;
-    theSession.load(object, makeFindAndCompare(t7, theSession, row7b));
+    theSession.load(object, onLoadThenCompare, t7, row7b, object);
   }
 
   persistAndFind(this, row7a, onFindThenLoad);
@@ -219,7 +236,7 @@ t7.run = function() {
 
 
 // Find_ModifyUK_Load
-var t8 = new harness.ConcurrentTest("Find_ModifyPK_Load");
+var t8 = new harness.ConcurrentTest("Find_ModifyUK_Load");
 t8.run = function() {
   var specialTag = 1;
   var row8a = new t_basic(23008, 'Franklin', 23, 23008);
@@ -230,7 +247,9 @@ t8.run = function() {
     assertVO(t8, object, true);
     object.magic = 8; 
     object.specialTag = specialTag;
-    theSession.load(object, makeFindAndCompare(t8, theSession, row8b));
+/// NB: 
+    object.id = undefined;
+    theSession.load(object, onLoadThenCompare, t8, row8b, object);
   }
 
   persistAndFind(this, row8a, onFindThenLoad);
