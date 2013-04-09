@@ -187,10 +187,6 @@ extern int memcntl(caddr_t, size_t, int, caddr_t, int, int);
 #endif /* __sun__ ... */
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
-#ifdef _AIX41
-int initgroups(const char *,unsigned int);
-#endif
-
 #if defined(__FreeBSD__) && defined(HAVE_IEEEFP_H) && !defined(HAVE_FEDISABLEEXCEPT)
 #include <ieeefp.h>
 #ifdef HAVE_FP_EXCEPT       // Fix type conflict
@@ -262,13 +258,6 @@ inline void setup_fpu()
 #endif /* _WIN32 && */
 #endif /* __i386__ */
 
-#if defined(__sgi) && defined(HAVE_SYS_FPU_H)
-  /* Enable denormalized DOUBLE values support for IRIX */
-  union fpc_csr n;
-  n.fc_word = get_fpc_csr();
-  n.fc_struct.flush = 0;
-  set_fpc_csr(n.fc_word);
-#endif
 }
 
 } /* cplusplus */
