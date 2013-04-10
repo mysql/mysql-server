@@ -50,6 +50,10 @@ void setKeysInOp(Handle<Object> spec, Operation & op);
 /* DBOperationHelper() is the C++ companion to DBOperation.prepare
    in NdbOperation.js
    It takes a HelperSpec object, and returns a fully-prepared Operation
+   arg0: DBOperation HelperSpec
+   arg1: opcode
+   arg2: NdbTransaction *
+   arg3: boolean isValueObject
 */
 
 Handle<Value> DBOperationHelper(const Arguments &args) {

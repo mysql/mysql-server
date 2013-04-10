@@ -42,6 +42,7 @@ extern LOADER_FUNCTION ValueObject_initOnLoad;
 extern LOADER_FUNCTION IndexBound_initOnLoad;
 extern LOADER_FUNCTION NdbInterpretedCode_initOnLoad;
 extern LOADER_FUNCTION NdbScanFilter_initOnLoad;
+extern LOADER_FUNCTION ScanHelper_initOnLoad;
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
@@ -59,6 +60,7 @@ void init_impl(Handle<Object> target) {
   NdbWrapper_initOnLoad(target);
   ValueObject_initOnLoad(target);
   IndexBound_initOnLoad(target);
+  ScanHelper_initOnLoad(target);
 }
 
 

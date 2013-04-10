@@ -47,7 +47,6 @@ public:
 
 NdbOperationEnvelopeClass NdbOperationEnvelope;
 Envelope NdbScanOperationEnvelope("NdbScanOperation");
-Envelope NdbIndexScanOperationEnvelope("NdbIndexScanOperation");
 
 
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *op) {
@@ -67,14 +66,4 @@ Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *op) {
   wrapPointerInObject(op, NdbScanOperationEnvelope, jsobj);
   return scope.Close(jsobj);
 }
-
-
-Handle<Value> NdbIndexScanOperation_Wrapper(NdbIndexScanOperation *op) {
-  HandleScope scope;
-  Local<Object> jsobj = NdbIndexScanOperationEnvelope.newWrapper();
-  wrapPointerInObject(op, NdbIndexScanOperationEnvelope, jsobj);
-  return scope.Close(jsobj);
-}
-
-
 

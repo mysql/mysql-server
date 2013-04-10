@@ -107,10 +107,14 @@ Handle<Value> newIndexBound(const Arguments &args) {
 
 
 void IndexBound_initOnLoad(Handle<Object> target) {
-  DEFINE_JS_FUNCTION(target, "newIndexBound", newIndexBound);
+  Persistent<Object> ibObj = Persistent<Object>(Object::New());
+  Persistent<String> ibKey = Persistent<String>(String::NewSymbol("IndexBound"));
+  target->Set(ibKey, ibObj);
+
+  DEFINE_JS_FUNCTION(ibObj, "new", newIndexBound);
 
   Persistent<Object> BoundHelper = Persistent<Object>(Object::New());
-  target->Set(Persistent<String>(String::NewSymbol("BoundHelper")), BoundHelper);
+  ibObj->Set(Persistent<String>(String::NewSymbol("helper")), BoundHelper);
 
   DEFINE_JS_INT(BoundHelper, "low_key", BOUND_LOW_KEY);
   DEFINE_JS_INT(BoundHelper, "low_key_count", BOUND_LOW_KEY_COUNT);
