@@ -138,14 +138,13 @@ inline NdbScanOperation *
 
 inline NdbIndexScanOperation * 
   Operation::scanIndex(NdbTransaction *tx,
-                       NdbIndexScanOperation::IndexBound *bound) {
-  
-  return tx->scanIndex(key_record->getNdbRecord(),    // scan key    
-                       row_record->getNdbRecord(),    // row record  
-                       lmode,                         // lock mode   
-                       u.row_mask,                    // result mask 
-                       bound,                         // bound       
-                       scan_options);
+                       NdbIndexScanOperation::IndexBound *bound = 0) {
+    return tx->scanIndex(key_record->getNdbRecord(),    // scan key    
+                         row_record->getNdbRecord(),    // row record  
+                         lmode,                         // lock mode   
+                         read_mask_ptr,                 // result mask 
+                         bound,                         // bound       
+                         scan_options, 0);
 }
 
 inline const NdbOperation * 

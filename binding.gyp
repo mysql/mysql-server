@@ -34,6 +34,7 @@
          "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/DBOperationHelper.cpp",
          "Adapter/impl/src/IndexBoundHelper.cpp",
+         "Adapter/impl/src/DBScanHelper.cpp", 
          "Adapter/impl/src/DBDictionaryImpl.cpp",
          "Adapter/impl/src/NdbTypeEncoders.cpp",
          "Adapter/impl/src/NdbRecordObject.cpp",

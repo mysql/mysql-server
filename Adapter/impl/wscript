@@ -24,6 +24,7 @@ def build(ctx):
   "src/Record.cpp " +\
   "src/DBOperationHelper.cpp " +\
   "src/IndexBoundHelper.cpp " +\
+  "src/DBScanHelper.cpp " +\
   "src/DBDictionaryImpl.cpp " +\
   "src/Record_wrapper.cpp " +\
   "src/Ndb_init_wrapper.cpp " +\
