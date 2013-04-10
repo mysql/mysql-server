@@ -31,7 +31,6 @@
          "Adapter/impl/src/async_common.cpp",
          "Adapter/impl/src/unified_debug.cpp",
          "Adapter/impl/src/Record.cpp",
-         "Adapter/impl/src/Operation.cpp",
          "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/DBOperationHelper.cpp",
          "Adapter/impl/src/IndexBoundHelper.cpp",

@@ -75,8 +75,14 @@ public:
 
 /* ================= Inline methods ================= */
 
+inline Operation::Operation(): 
+  row_buffer(0), key_buffer(0), row_record(0), key_record(0),
+  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0)
+{
+  u.maskvalue = 0;
+}
+ 
 /* Select columns for reading */
-
 inline void Operation::useSelectedColumns() {
   read_mask_ptr = u.row_mask;
 }
@@ -128,6 +134,18 @@ inline NdbScanOperation *
   Operation::scanTable(NdbTransaction *tx) {
     return tx->scanTable(row_record->getNdbRecord(), lmode,
                          read_mask_ptr, scan_options, 0);
+}
+
+inline NdbIndexScanOperation * 
+  Operation::scanIndex(NdbTransaction *tx,
+                       NdbIndexScanOperation::IndexBound *bound) {
+  
+  return tx->scanIndex(key_record->getNdbRecord(),    // scan key    
+                       row_record->getNdbRecord(),    // row record  
+                       lmode,                         // lock mode   
+                       u.row_mask,                    // result mask 
+                       bound,                         // bound       
+                       scan_options);
 }
 
 inline const NdbOperation * 
