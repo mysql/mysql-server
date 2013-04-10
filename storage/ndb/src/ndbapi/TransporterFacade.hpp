@@ -255,7 +255,8 @@ private:
                           trp_client** arr);
   void try_lock_last_client(trp_client* clnt,
                             bool &new_owner_locked,
-                            trp_client** new_owner_ptr);
+                            trp_client** new_owner_ptr,
+                            Uint32 first_check);
 
   Uint32 m_num_active_clients;
   NDB_TICKS m_receive_activation_time;
