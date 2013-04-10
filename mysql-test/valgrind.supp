@@ -1088,7 +1088,7 @@
    fun:_itoa_word
    fun:vfprintf
    fun:fprintf
-   fun:mi_arena.11949
+   fun:mi_arena.*
    fun:malloc_info
 }
 
@@ -1096,6 +1096,6 @@
    Malloc_info conditional jump depends on uninitialised values
    Memcheck:Cond
    ...
-   fun:mi_arena.11949
+   fun:mi_arena.*
    fun:malloc_info
 }
