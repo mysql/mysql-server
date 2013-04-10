@@ -66,6 +66,9 @@ Handle<Value> getColumnType(const NdbDictionary::Column *);
 Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *);
 Handle<Value> getDefaultValue(const NdbDictionary::Column *);
 
+Envelope * getNdbDictTableEnvelope() {
+  return & NdbDictTableEnv;
+}
 
 /*** DBDictionary.listTables()
   **

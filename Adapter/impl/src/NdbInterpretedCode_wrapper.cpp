@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -37,7 +37,7 @@ typedef Handle<Value> _Wrapper_(const Arguments &);
 _Wrapper_ load_const_null;
 _Wrapper_ load_const_u16;
 _Wrapper_ load_const_u32;
-_Wrapper_ load_const_u64;
+// _Wrapper_ load_const_u64;   // not wrapped
 _Wrapper_ read_attr;
 _Wrapper_ write_attr;
 _Wrapper_ add_reg;
@@ -75,13 +75,12 @@ _Wrapper_ def_sub;
 _Wrapper_ call_sub;
 _Wrapper_ ret_sub;
 _Wrapper_ finalise;
-_Wrapper_ getTable;
+_Wrapper_ NdbInterpretedCode_getTable_wrapper;   // rename to avoid duplicate symbol
 _Wrapper_ getNdbError;
 _Wrapper_ getWordsUsed;
-_Wrapper_ copy;
+// _Wrapper_ copy; // not wrapped
 
 #define WRAPPER_FUNCTION(A) DEFINE_JS_FUNCTION(Envelope::stencil, #A, A)
-
 
 class NdbInterpretedCodeEnvelopeClass : public Envelope {
 public:
@@ -89,7 +88,7 @@ public:
     WRAPPER_FUNCTION( load_const_null);
     WRAPPER_FUNCTION( load_const_u16);
     WRAPPER_FUNCTION( load_const_u32);
-    WRAPPER_FUNCTION( load_const_u64);
+    // WRAPPER_FUNCTION( load_const_u64); 
     WRAPPER_FUNCTION( read_attr);
     WRAPPER_FUNCTION( write_attr);
     WRAPPER_FUNCTION( add_reg);
@@ -127,19 +126,38 @@ public:
     WRAPPER_FUNCTION( call_sub);
     WRAPPER_FUNCTION( ret_sub);
     WRAPPER_FUNCTION( finalise);
-    WRAPPER_FUNCTION( getTable);
-    WRAPPER_FUNCTION( getNdbError);
     WRAPPER_FUNCTION( getWordsUsed);
-    WRAPPER_FUNCTION( copy);
+    // WRAPPER_FUNCTION( copy);   // not wrapped 
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getTable",
+                       NdbInterpretedCode_getTable_wrapper);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<NdbInterpretedCode>);
   }
 };
 
 NdbInterpretedCodeEnvelopeClass NdbInterpretedCodeEnvelope;
 
-Envelope * getNdbInterpretedCodeEnvelope() {
-  return & NdbInterpretedCodeEnvelope;
+/* The const version has no methods attached: */
+Envelope ConstNdbInterpretedCodeEnvelope("const NdbInterpretedCode");
+
+Envelope * getConstNdbInterpretedCodeEnvelope() {
+  return & ConstNdbInterpretedCodeEnvelope;
 }
 
+Handle<Value> newNdbInterpretedCode(const Arguments & args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_CONSTRUCTOR_CALL();
+  REQUIRE_ARGS_LENGTH(1);
+
+  JsValueConverter<const NdbDictionary::Table *> arg0(args[0]);
+  
+  NdbInterpretedCode * c = new NdbInterpretedCode(arg0.toC());
+  
+  wrapPointerInObject(c, NdbInterpretedCodeEnvelope, args.This());
+  freeFromGC(c, args.This());
+  return args.This();
+}
 
 Handle<Value> load_const_null(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
@@ -168,16 +186,6 @@ Handle<Value> load_const_u32(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-/* TODO: JsValueConverter for Uint64
-Handle<Value> load_const_u64(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
-  HandleScope scope;
-  typedef NativeMethodCall_2_<int, NdbInterpretedCode, uint32_t, uint64_t> NCALL;
-  NCALL ncall(& NdbInterpretedCode::load_const_u64, args);
-  ncall.run();
-  return scope.Close(ncall.jsReturnVal());
-}
-*/
 
 /* TODO: read_attr and write_attr have two forms */
 Handle<Value> read_attr(const Arguments &args) {
@@ -323,6 +331,10 @@ Handle<Value> branch_eq_null(const Arguments &args) {
 /****************************************************************
  *     BRANCH ON COLUMN AND VALUE 
  *     These have hand-written wrappers 
+ *     ARG0: Buffer
+ *     ARG1: Offset
+ *     ARG2: AttrID
+ *     ARG3: Branch Label
  ****************************************************************/
 
 /* Utility function */
@@ -492,17 +504,16 @@ Handle<Value> finalise(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-/** FIXME: Return value conversion
-Handle<Value> getTable(const Arguments &args) {
+Handle<Value> NdbInterpretedCode_getTable_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   typedef NativeConstMethodCall_0_<const NdbDictionary::Table*, 
                                    NdbInterpretedCode> NCALL;
   NCALL ncall(& NdbInterpretedCode::getTable, args);
+  ncall.wrapReturnValueAs(getNdbDictTableEnvelope());
   ncall.run();
   return scope.Close(ncall.jsReturnVal());
 }
-*/
 
 Handle<Value> getWordsUsed(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
@@ -513,14 +524,15 @@ Handle<Value> getWordsUsed(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-/** FIXME: Value conversion 
-Handle<Value> copy(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DETAIL);
+
+void NdbInterpretedCode_initOnLoad(Handle<Object> target) {
   HandleScope scope;
-  typedef NativeMethodCall_1_<int, NdbInterpretedCode, NdbInterpretedCode *> NCALL;
-  NCALL ncall(& NdbInterpretedCode::copy, args);
-  ncall.run();
-  return scope.Close(ncall.jsReturnVal());
+
+  Persistent<String> ic_key = Persistent<String>(String::NewSymbol("NdbInterpretedCode"));
+  Persistent<Object> ic_obj = Persistent<Object>(Object::New());
+
+  target->Set(ic_key, ic_obj);
+
+  DEFINE_JS_FUNCTION(ic_obj, "new", newNdbInterpretedCode);
 }
-*/
 

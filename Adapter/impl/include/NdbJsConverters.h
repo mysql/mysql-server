@@ -70,13 +70,36 @@ public:
   }
 };
 
+template <>
+class JsValueConverter <NdbScanFilter::Group> {
+public:
+  jsvalue jsval;
+  
+  JsValueConverter(jsvalue v) : jsval(v) {};
+  NdbScanFilter::Group toC() { 
+    return static_cast<NdbScanFilter::Group>(jsval->Int32Value());
+  }
+};
+
 
 /*****************************************************************
  isWrappedPointer() functions
  Used in AsyncMethodCall.h: if(isWrappedPointer(return_val)) ...
 ******************************************************************/
+// Things that are not pointers return false
 template <> inline bool isWrappedPointer(NdbTransaction::CommitStatusType typ) {
   return false;
+}
+
+
+// These return true. They return const pointers.
+// You cannot cast a const T * to a void *, so the generic version fails for them.
+template <> inline bool isWrappedPointer(const NdbInterpretedCode * typ) { 
+  return true; 
+}
+
+template <> inline bool isWrappedPointer(const NdbDictionary::Table * typ) { 
+  return true; 
 }
 
 
