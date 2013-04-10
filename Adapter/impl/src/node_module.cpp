@@ -40,11 +40,15 @@ extern LOADER_FUNCTION NdbWrapper_initOnLoad;
 extern LOADER_FUNCTION NdbTypeEncoders_initOnLoad;
 extern LOADER_FUNCTION ValueObject_initOnLoad;
 extern LOADER_FUNCTION IndexBound_initOnLoad;
+extern LOADER_FUNCTION NdbInterpretedCode_initOnLoad;
+extern LOADER_FUNCTION NdbScanFilter_initOnLoad;
 
 void init_ndbapi(Handle<Object> target) {
   Ndb_cluster_connection_initOnLoad(target);
   Ndb_init_initOnLoad(target);
   NdbTransaction_initOnLoad(target);
+  NdbInterpretedCode_initOnLoad(target);
+  NdbScanFilter_initOnLoad(target);
 }
 
 
@@ -63,7 +67,7 @@ void initModule(Handle<Object> target) {
   Persistent<Object> ndb_obj    = Persistent<Object>(Object::New());
   Persistent<Object> ndbapi_obj = Persistent<Object>(Object::New());
   Persistent<Object> impl_obj   = Persistent<Object>(Object::New());
-  Persistent<Object> debug_obj   = Persistent<Object>(Object::New());
+  Persistent<Object> debug_obj  = Persistent<Object>(Object::New());
   
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);

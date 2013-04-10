@@ -32,8 +32,16 @@
          "Adapter/impl/src/unified_debug.cpp",
          "Adapter/impl/src/Record.cpp",
          "Adapter/impl/src/Operation.cpp",
+         "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/DBOperationHelper.cpp",
+         "Adapter/impl/src/IndexBoundHelper.cpp",
          "Adapter/impl/src/DBDictionaryImpl.cpp",
+         "Adapter/impl/src/NdbTypeEncoders.cpp",
+         "Adapter/impl/src/NdbRecordObject.cpp",
+         "Adapter/impl/src/ColumnProxy.cpp",
+         "Adapter/impl/src/ColumnHandler.cpp",
+         "Adapter/impl/src/ValueObject.cpp",
+
          "Adapter/impl/src/Record_wrapper.cpp",
          "Adapter/impl/src/Ndb_init_wrapper.cpp",
          "Adapter/impl/src/Ndb_cluster_connection_wrapper.cpp",
@@ -41,14 +49,10 @@
          "Adapter/impl/src/Ndb_wrapper.cpp",
          "Adapter/impl/src/NdbError_wrapper.cpp",
          "Adapter/impl/src/NdbOperation_wrapper.cpp",
-         "Adapter/impl/src/AsyncNdbContext.cpp",
          "Adapter/impl/src/AsyncNdbContext_wrapper.cpp",
-         "Adapter/impl/src/NdbTypeEncoders.cpp",
-         "Adapter/impl/src/NdbRecordObject.cpp",
-         "Adapter/impl/src/ColumnProxy.cpp",
-         "Adapter/impl/src/ColumnHandler.cpp",
-         "Adapter/impl/src/ValueObject.cpp" 
-      ],
+         "Adapter/impl/src/NdbInterpretedCode_wrapper.cpp",
+         "Adapter/impl/src/NdbScanFilter_wrapper.cpp"
+        ],
 
       'conditions': 
       [

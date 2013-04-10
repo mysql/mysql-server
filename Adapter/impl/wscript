@@ -33,6 +33,8 @@ def build(ctx):
   "src/NdbError_wrapper.cpp " +\
   "src/NdbTransaction_wrapper.cpp " +\
   "src/NdbOperation_wrapper.cpp " +\
+  "src/NdbInterpretedCode_wrapper.cpp " +\
+  "src/NdbScanFilter_wrapper.cpp " +\
   "src/AsyncNdbContext.cpp " +\
   "src/AsyncNdbContext_wrapper.cpp " +\
   "src/NdbTypeEncoders.cpp " +\
