@@ -416,6 +416,28 @@ Handle<Value> branch_col_ne_null(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
+// FIXME: arg[0] needs to be converted from String
+Handle<Value> branch_col_like(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  typedef NativeMethodCall_4_<int, NdbInterpretedCode,  
+                              const void *, uint32_t, uint32_t, uint32_t> NCALL;
+  NCALL ncall(& NdbInterpretedCode::branch_col_like, args);
+  ncall.run();
+  return scope.Close(ncall.jsReturnVal());
+}
+
+// FIXME: arg[0] needs to be converted from String
+Handle<Value> branch_col_notlike(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  typedef NativeMethodCall_4_<int, NdbInterpretedCode,  
+                              const void *, uint32_t, uint32_t, uint32_t> NCALL;
+  NCALL ncall(& NdbInterpretedCode::branch_col_notlike, args);
+  ncall.run();
+  return scope.Close(ncall.jsReturnVal());
+}
+
 /****************************************************************
  *   End of column/value branch instructions
  ****************************************************************/
