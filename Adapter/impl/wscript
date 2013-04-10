@@ -22,7 +22,6 @@ def build(ctx):
   "src/unified_debug.cpp " +\
   \
   "src/Record.cpp " +\
-  "src/Operation.cpp " +\
   "src/DBOperationHelper.cpp " +\
   "src/IndexBoundHelper.cpp " +\
   "src/DBDictionaryImpl.cpp " +\
