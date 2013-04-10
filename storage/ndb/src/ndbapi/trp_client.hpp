@@ -131,7 +131,8 @@ private:
     void start_poll(trp_client* self);
 
     void lock_client(trp_client*);
-    bool check_if_locked(const trp_client*) const;
+    bool check_if_locked(const trp_client*,
+                         const Uint32 start) const;
     Uint32 m_locked_cnt;
     Uint32 m_lock_array_size;
     trp_client ** m_locked_clients;
