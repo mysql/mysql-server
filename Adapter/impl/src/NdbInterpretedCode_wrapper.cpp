@@ -339,6 +339,7 @@ Handle<Value> branch_eq_null(const Arguments &args) {
 
 /* Utility function */
 const void * getValueAddr(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   Local<Object> buffer = args[0]->ToObject();
   size_t offset = args[1]->Uint32Value();
@@ -346,6 +347,7 @@ const void * getValueAddr(const Arguments &args) {
 }
 
 Handle<Value> branch_col_eq(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
@@ -354,6 +356,7 @@ Handle<Value> branch_col_eq(const Arguments &args) {
 }
 
 Handle<Value> branch_col_ne(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
@@ -362,6 +365,7 @@ Handle<Value> branch_col_ne(const Arguments &args) {
 }
 
 Handle<Value> branch_col_lt(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
@@ -370,6 +374,7 @@ Handle<Value> branch_col_lt(const Arguments &args) {
 }
 
 Handle<Value> branch_col_le(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
@@ -378,6 +383,7 @@ Handle<Value> branch_col_le(const Arguments &args) {
 }
 
 Handle<Value> branch_col_gt(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
@@ -386,12 +392,54 @@ Handle<Value> branch_col_gt(const Arguments &args) {
 }
 
 Handle<Value> branch_col_ge(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   const void * val = getValueAddr(args);
   NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
   int rval = code->branch_col_ge(val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
   return scope.Close(toJS<int>(rval));
 }
+
+Handle<Value> branch_col_and_mask_eq_mask(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  const void * val = getValueAddr(args);
+  NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
+  int rval = code->branch_col_and_mask_eq_mask(
+    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  return scope.Close(toJS<int>(rval));
+}
+
+Handle<Value> branch_col_and_mask_ne_mask(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  const void * val = getValueAddr(args);
+  NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
+  int rval = code->branch_col_and_mask_ne_mask(
+    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  return scope.Close(toJS<int>(rval));
+}
+
+Handle<Value> branch_col_and_mask_eq_zero(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  const void * val = getValueAddr(args);
+  NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
+  int rval = code->branch_col_and_mask_eq_zero(
+    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  return scope.Close(toJS<int>(rval));
+}
+
+Handle<Value> branch_col_and_mask_ne_zero(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  const void * val = getValueAddr(args);
+  NdbInterpretedCode * code = unwrapPointer<NdbInterpretedCode *>(args.Holder());
+  int rval = code->branch_col_and_mask_ne_zero(
+    val, 0, args[2]->Uint32Value(), args[3]->Uint32Value());
+  return scope.Close(toJS<int>(rval));
+}
+
 
 /****************************************************************
  *    Back to generic wrappers
@@ -437,6 +485,7 @@ Handle<Value> branch_col_notlike(const Arguments &args) {
   ncall.run();
   return scope.Close(ncall.jsReturnVal());
 }
+
 
 /****************************************************************
  *   End of column/value branch instructions
