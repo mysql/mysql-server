@@ -1065,7 +1065,7 @@ TransporterFacade::for_each(trp_client* sender,
     trp_client * clnt = m_threads.m_objectExecute[i];
     if (clnt != 0 && clnt != sender)
     {
-      bool res = m_poll_owner->m_poll.check_if_locked(clnt);
+      bool res = m_poll_owner->m_poll.check_if_locked(clnt, (Uint32)0);
       if (res)
       {
         clnt->trp_deliver_signal(aSignal, ptr);
@@ -2182,11 +2182,13 @@ TransporterFacade::finish_poll(trp_client* clnt,
 void
 TransporterFacade::try_lock_last_client(trp_client* clnt,
                                         bool& new_owner_locked,
-                                        trp_client** new_owner_ptr)
+                                        trp_client** new_owner_ptr,
+                                        Uint32 first_check)
 {
   /**
    * take last client in poll queue and try lock it
    */
+  bool already_locked = false;
   trp_client* new_owner = remove_last_from_poll_queue();
   *new_owner_ptr = new_owner;
   assert(new_owner != clnt);
@@ -2196,8 +2198,12 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
     /**
      * Note: we can only try lock here, to prevent potential deadlock
      *   given that we acquire mutex in different order when starting to poll
+     *   Only lock if not already locked (can happen when signals received
+     *   and trp_client isn't ready).
      */
-    if (NdbMutex_Trylock(new_owner->m_mutex) != 0)
+    already_locked = clnt->m_poll.check_if_locked(new_owner, first_check);
+    if ((!already_locked) &&
+        (NdbMutex_Trylock(new_owner->m_mutex) != 0))
     {
       /**
        * If we fail to try lock...we put him back into poll-queue
@@ -2224,8 +2230,7 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
      */
     dbg("wake new_owner(%p)", new_owner);
 #ifndef NDEBUG
-    Uint32 cnt = clnt->m_poll.m_locked_cnt - 1; // skip self
-    for (Uint32 i = 0; i <= cnt; i++)
+    for (Uint32 i = 0; i < first_check; i++)
     {
       assert(clnt->m_poll.m_locked_clients[i] != new_owner);
     }
@@ -2233,7 +2238,11 @@ TransporterFacade::try_lock_last_client(trp_client* clnt,
     assert(new_owner->m_poll.m_waiting == trp_client::PollQueue::PQ_WAITING);
     new_owner->m_poll.m_poll_owner = true;
     NdbCondition_Signal(new_owner->m_poll.m_condition);
-    NdbMutex_Unlock(new_owner->m_mutex);
+    if (!already_locked)
+    {
+      /* Don't release lock if already locked */
+      NdbMutex_Unlock(new_owner->m_mutex);
+    }
   }
 }
 
@@ -2290,7 +2299,10 @@ TransporterFacade::do_poll(trp_client* clnt,
   }
   else
   {
-    try_lock_last_client(clnt, new_owner_locked, &new_owner);
+    try_lock_last_client(clnt,
+                         new_owner_locked,
+                         &new_owner,
+                         cnt_woken + 1);
   }
 
   /**
@@ -2423,9 +2435,10 @@ trp_client::PollQueue::start_poll(trp_client* self)
 }
 
 bool
-trp_client::PollQueue::check_if_locked(const trp_client* clnt) const
+trp_client::PollQueue::check_if_locked(const trp_client* clnt,
+                                       const Uint32 start) const
 {
-  for (Uint32 i = 0; i<m_locked_cnt; i++)
+  for (Uint32 i = start; i<m_locked_cnt; i++)
   {
     if (m_locked_clients[i] == clnt) // already locked
       return true;
@@ -2437,7 +2450,7 @@ void
 trp_client::PollQueue::lock_client (trp_client* clnt)
 {
   assert(m_locked_cnt <= m_lock_array_size);
-  if (check_if_locked(clnt))
+  if (check_if_locked(clnt, (Uint32)0))
     return;
 
   dbg("lock_client(%p)", clnt);
