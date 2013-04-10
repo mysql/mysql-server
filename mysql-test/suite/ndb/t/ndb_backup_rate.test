@@ -55,9 +55,12 @@ while (!$mysql_errno)
       die Failed waiting for redo log full;
     }
     dec $counter;
+
+    # Delete the inserted rows to avoid table full
+    # and of course creating even more REDO log
+    --error 0,1297
+    delete from t1 limit 8192;
   }
-  --error 0,1297
-  delete from t1 limit 8192;
 }
 --enable_query_log
 --enable_result_log
