@@ -2492,6 +2492,15 @@ mysql_execute_command(THD *thd)
     DBUG_ASSERT(! thd->in_sub_stmt);
     /* Commit or rollback the statement transaction. */
     thd->is_error() ? trans_rollback_stmt(thd) : trans_commit_stmt(thd);
+
+    /*
+      Implicit commit is not allowed with an active XA transaction.
+      In this case we should not release metadata locks as the XA transaction
+      will not be rolled back. Therefore we simply return here.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
+
     /* Commit the normal transaction if one is active. */
     if (trans_commit_implicit(thd))
       goto error;
@@ -3689,6 +3698,12 @@ end_with_restore_list:
     */
     if (thd->variables.option_bits & OPTION_TABLE_LOCK)
     {
+      /*
+        Can we commit safely? If not, return to avoid releasing
+        transactional metadata locks.
+      */
+      if (trans_check_state(thd))
+        DBUG_RETURN(-1);
       res= trans_commit_implicit(thd);
       thd->locked_tables_list.unlock_locked_tables(thd);
       thd->mdl_context.release_transactional_locks();
@@ -3701,6 +3716,12 @@ end_with_restore_list:
     my_ok(thd);
     break;
   case SQLCOM_LOCK_TABLES:
+    /*
+      Can we commit safely? If not, return to avoid releasing
+      transactional metadata locks.
+    */
+    if (trans_check_state(thd))
+      DBUG_RETURN(-1);
     /* We must end the transaction first, regardless of anything */
     res= trans_commit_implicit(thd);
     thd->locked_tables_list.unlock_locked_tables(thd);
