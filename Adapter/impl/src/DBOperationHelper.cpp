@@ -176,7 +176,7 @@ Handle<Value> DBOperationHelper_VO(const Arguments &args) {
   op.row_buffer = nro->getBuffer();
 
   /* "write" and "persist" must write all columns. 
-     Other operations only require teh columns that have changed since read.
+     Other operations only require the columns that have changed since read.
   */
   if(opcode == 2 || opcode == 8) 
     op.setRowMask(0xFFFFFFFF);
