@@ -108,12 +108,13 @@ struct innodb_page_type {
 	int n_undo_state_to_purge;
 	int n_undo_state_prepared;
 	int n_undo_state_other;
-	int n_undo_insert, n_undo_update, n_undo_other;
+	int n_undo_insert;
+	int n_undo_update;
+	int n_undo_other;
 	int n_fil_page_index;
 	int n_fil_page_undo_log;
 	int n_fil_page_inode;
 	int n_fil_page_ibuf_free_list;
-	int n_fil_page_allocated;
 	int n_fil_page_ibuf_bitmap;
 	int n_fil_page_type_sys;
 	int n_fil_page_type_trx_sys;
@@ -763,7 +764,7 @@ print_summary(
 		page_type.n_fil_page_undo_log);
 	fprintf(fil_out, "%8d\tInode page\n",
 		page_type.n_fil_page_inode);
-	fprintf(fil_out, "%8d\tINSERT buffer free list page\n",
+	fprintf(fil_out, "%8d\tInsert buffer free list page\n",
 		page_type.n_fil_page_ibuf_free_list);
 	fprintf(fil_out, "%8d\tFreshly allocated page\n",
 		page_type.n_fil_page_type_allocated);
@@ -811,7 +812,7 @@ static struct my_option innochecksum_options[] = {
     &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug", 'd', "Output debug log. See " REFMAN "dbug-package.html",
     &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-  {"count", 'c', "Print the count of pages in the file and exists.",
+  {"count", 'c', "Print the count of pages in the file and exits.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"start_page", 's', "Start on this page number (0 based).",
     &start_page, &start_page, 0, GET_ULL, REQUIRED_ARG,
@@ -859,7 +860,7 @@ static void usage(void)
 	printf("Usage: %s [-c] [-s <start page>] [-e <end page>] "
 		"[-p <page>] [-v]  [-a <allow mismatches>] [-n] "
 		"[-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] "
-		"[-d <>] <filename or [-]>\n", my_progname);
+		"[-d <dbug-package name>] <filename or [-]>\n", my_progname);
 	printf("See " REFMAN "innochecksum.html for usage hints.\n");
 	my_print_help(innochecksum_options);
 	my_print_variables(innochecksum_options);
@@ -874,8 +875,8 @@ innochecksum_get_one_option(
 	switch (optid) {
 		case 'd':
 			dbug_setting = argument ? argument :
-					IF_WIN("d:O,innochecksum.trace",
-					       "d:o,/tmp/innochecksum.trace");
+				       IF_WIN("d:O,innochecksum.trace",
+					      "d:o,/tmp/innochecksum.trace");
 			DBUG_PUSH(dbug_setting);
 			debug = TRUE;
 			break;
@@ -1224,16 +1225,17 @@ int main(
 		}
 
 		if (page_type_dump) {
-			fprintf(fil_page_type, "\n\nFilename::%s\n", filename);
-			fprintf(fil_page_type, "==============================="
-					"======================================"
-					"========\n");
-			fprintf(fil_page_type, "\tPAGE_NO\t\t|\t\tPAGE_TYPE\t\t"
+			fprintf(fil_page_type,
+				"\n\nFilename::%s\n", filename);
+			fprintf(fil_page_type,
+				"========================================"
+				"======================================\n");
+			fprintf(fil_page_type,
+				"\tPAGE_NO\t\t|\t\tPAGE_TYPE\t\t"
 				"\t|\tEXTRA INFO\n");
-			fprintf(fil_page_type, "=============================="
-				"============================================="
-				"===\n");
-
+			fprintf(fil_page_type,
+				"========================================"
+				"======================================\n");
 		}
 
 		/* main checksumming loop */
