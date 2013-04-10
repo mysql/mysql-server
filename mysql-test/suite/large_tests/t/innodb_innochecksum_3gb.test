@@ -121,19 +121,19 @@ SELECT COUNT(*) FROM tab2 where col_7=1000;
 --echo # check whether dump.txt file exist
 --file_exists $MYSQL_TMP_DIR/dump.txt
 
---echo #restart the DB server with default innodb_checksum_algorithm=CRC32
+--echo # Restart the DB server with default innodb_checksum_algorithm=CRC32
 --exec echo "restart: --innodb_checksum_algorithm=crc32 --default_storage_engine=InnoDB " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
-#check the server startup option of the checksum
+# Check the server startup option of the checksum
 SHOW variables like '%innodb_checksum_algorithm%';
 
 --echo # Check the default engine is always InnoDB after restart
 SELECT @@default_storage_engine;
 
---echo #load the with repeat function
+--echo # Load the with repeat function
 SET @col_1 = repeat('G', 5);
 SET @col_2 = repeat('H', 20);
 SET @col_3 = repeat('I', 100);
@@ -150,5 +150,5 @@ VALUES (@col_1,@col_2,@col_3,@col_4,@cl_5,@col_6,$i);
 SELECT COUNT(*) FROM tab2 where col_7=2000;
 
 --enable_warnings
-#cleanup
+# Cleanup
 DROP TABLE IF EXISTS tab2;

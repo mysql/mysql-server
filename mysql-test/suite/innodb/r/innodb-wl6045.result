@@ -338,7 +338,7 @@ File::tab#.ibd
        #	Index page
        #	Undo log page
        #	Inode page
-       #	INSERT buffer free list page
+       #	Insert buffer free list page
        #	Freshly allocated page
        #	Insert buffer bitmap
        #	System page
@@ -361,7 +361,7 @@ File::tab#.ibd
        #	Index page
        #	Undo log page
        #	Inode page
-       #	INSERT buffer free list page
+       #	Insert buffer free list page
        #	Freshly allocated page
        #	Insert buffer bitmap
        #	System page
@@ -380,7 +380,7 @@ Undo page state: # active, # cached, # to_free, # to_purge, # prepared, # other
 
 
 Filename::tab#.ibd
-=============================================================================
+==============================================================================
 	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
 ==============================================================================
 #::       #		|		File Space Header		|	-
@@ -395,7 +395,7 @@ Filename::tab#.ibd
 
 
 Filename::tab#.ibd
-=============================================================================
+==============================================================================
 	PAGE_NO		|		PAGE_TYPE			|	EXTRA INFO
 ==============================================================================
 #::       #		|		File Space Header		|	-
@@ -427,7 +427,7 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 InnoDB offline file checksum utility.
-Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-d <>] <filename or [-]>
+Usage: innochecksum [-c] [-s <start page>] [-e <end page>] [-p <page>] [-v]  [-a <allow mismatches>] [-n] [-C <strict-check>] [-w <write>] [-S] [-D <page type dump>] [-d <dbug-package name>] <filename or [-]>
 See REFMAN for usage hints.
   -?, --help          Displays this help and exits.
   -I, --info          Synonym for --help.
@@ -435,7 +435,7 @@ See REFMAN for usage hints.
   -v, --verbose       Verbose (prints progress every 5 seconds).
   -d, --debug[=name]  Output debug log. See
                       REFMAN
-  -c, --count         Print the count of pages in the file and exists.
+  -c, --count         Print the count of pages in the file and exits.
   -s, --start-page=#  Start on this page number (0 based).
   -e, --end-page=#    End at this page number (0 based).
   -p, --page=#        Check only this page (0 based).
