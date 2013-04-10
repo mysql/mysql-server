@@ -97,6 +97,18 @@ IF(WITH_INNOBASE_STORAGE_ENGINE)
      )
   MYSQL_ADD_EXECUTABLE(innochecksum innochecksum.cc ${INNOBASE_SOURCES})
   TARGET_LINK_LIBRARIES(innochecksum mysys mysys_ssl)
+  IF(DEBUG_EXTNAME)
+    SET_TARGET_PROPERTIES(innochecksum PROPERTIES DEBUG_OUTPUT_NAME "innochecksum-debug")
+    INSTALL_DEBUG_TARGET(innochecksum
+      DESTINATION ${INSTALL_BINDIR}
+      PDB_DESTINATION ${INSTALL_BINDIR}
+      SUFFIX "-debug")
+  ELSE()
+    INSTALL_DEBUG_TARGET(innochecksum
+      DESTINATION ${INSTALL_BINDIR} 
+      PDB_DESTINATION ${INSTALL_BINDIR}/debug
+      RENAME innochecksum-debug)
+  ENDIF()
 ENDIF()
 
 IF(UNIX)
