@@ -100,7 +100,7 @@ create table t2
 create procedure populate_t1_t2()
 begin
 declare i int default 1;
-while (i <= 20000) DO
+while (i <= 2000) DO
 insert into t1 values (i, 'a', 'b');
 insert into t2 values (i, 'a', 'b');
 set i = i + 1;
@@ -109,7 +109,7 @@ end|
 create procedure populate_t1_t2_small()
 begin
 declare i int default 1;
-while (i <= 2000) DO
+while (i <= 200) DO
 insert into t1 values (i, 'a', 'b');
 insert into t2 values (i, 'a', 'b');
 set i = i + 1;
@@ -120,48 +120,48 @@ call populate_t1_t2();
 commit;
 select count(*) from t1;
 count(*)
-20000
+2000
 select count(*) from t2;
 count(*)
-20000
+2000
 begin;
-delete from t1 where a <= 1000;
-delete from t2 where a > 19000;
+delete from t1 where a <= 100;
+delete from t2 where a > 1900;
 select count(*) from t1;
 count(*)
-19000
+1900
 select count(*) from t2;
 count(*)
-19000
+1900
 commit;
 begin;
-update t1 set b = 'innodb' where b = 'a' and a <= 10000;
-update t2 set b = 'myisam' where c = 'b' and a > 10000;
+update t1 set b = 'innodb' where b = 'a' and a <= 1000;
+update t2 set b = 'myisam' where c = 'b' and a > 1000;
 commit;
 delete from t1 where b = 'a';
 delete from t2 where c = 'myisam';
 select count(*) from t1;
 count(*)
-9000
+900
 select count(*) from t2;
 count(*)
-19000
+1900
 insert into t1 values (1000000, 'mysql', 'db');
 begin;
 call populate_t1_t2_small();
 select count(*) from t1;
 count(*)
-11001
+1101
 select count(*) from t2;
 count(*)
-21000
+2100
 rollback;
 select count(*) from t1;
 count(*)
-9001
+901
 select count(*) from t2;
 count(*)
-19000
+1900
 drop table t2;
 drop table t1;
 drop procedure populate_t1_t2;
