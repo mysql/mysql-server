@@ -3862,6 +3862,12 @@ funct_exit:
 
 	trx->op_info = "";
 
+	/* For temporary tables or if there is an error we need to reset
+	the dict operation flags */
+	trx->ddl = false;
+	trx->dict_operation = TRX_DICT_OP_NONE;
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
 	srv_wake_master_thread();
 
 	return(err);

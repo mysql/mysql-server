@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -48,13 +48,11 @@ C_MODE_START
 #include <sys/ioctl.h>
 #endif
 
-#if !defined(__WIN__) && !defined(HAVE_BROKEN_NETINET_INCLUDES)
+#if !defined(__WIN__)
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
 #include <netinet/ip.h>
-# if !defined(alpha_linux_port)
-#   include <netinet/tcp.h>
-# endif
+#include <netinet/tcp.h>
 #endif
 
 #if defined(__WIN__)
