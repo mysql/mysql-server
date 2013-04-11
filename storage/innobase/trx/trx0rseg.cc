@@ -180,6 +180,8 @@ trx_rseg_mem_create(
 	ulint		page_no,	/*!< in: page number of the segment
 					header */
 	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
+	trx_rseg_t**	rseg_array,	/*!< out: add rseg reference to this
+					central array. */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
 	ulint		len;
@@ -205,7 +207,7 @@ trx_rseg_mem_create(
 
 	/* const_cast<trx_rseg_t*>() because this function is
 	like a constructor.  */
-	*((trx_rseg_t**) trx_sys->rseg_array + rseg->id) = rseg;
+	*((trx_rseg_t**) rseg_array + rseg->id) = rseg;
 
 	rseg_header = trx_rsegf_get_new(space, zip_size, page_no, mtr);
 
@@ -259,6 +261,46 @@ trx_rseg_mem_create(
 }
 
 /********************************************************************
+Check if rseg in given slot needs to be scheduled for purge. */
+static
+void
+trx_rseg_schedule_pending_purge(
+/*============================*/
+	trx_sysf_t*	sys_header,	/*!< in: trx system header */
+	purge_pq_t*	purge_queue,	/*!< in/out: rseg queue */
+	ulint		slot,		/*!< in: check rseg from given slot. */
+	mtr_t*		mtr)		/*!< in: mtr */
+{
+	ulint	page_no;
+	ulint	space;
+
+	page_no = trx_sysf_rseg_get_page_no(sys_header, slot, mtr);
+	space = trx_sysf_rseg_get_space(sys_header, slot, mtr);
+
+	if (page_no != FIL_NULL
+	    && Tablespace::is_system_or_undo_tablespace(space)) {
+
+		/* rseg resides in system or undo tablespace and so
+		this is an upgrade scenario. trx_rseg_mem_create
+		will add rseg to purge queue if needed. */
+
+		ulint		zip_size;
+		trx_rseg_t*	rseg = NULL;
+
+		zip_size = !Tablespace::is_system_tablespace(space)
+			? fil_space_get_zip_size(space) : 0;
+
+		trx_rseg_t** rseg_array =
+			((trx_rseg_t**) trx_sys->pending_purge_rseg_array);
+		rseg = trx_rseg_mem_create(
+			slot, space, zip_size, page_no,
+			purge_queue, rseg_array, mtr);
+
+		ut_a(rseg->id == slot);
+	}
+}
+
+/********************************************************************
 Creates the memory copies for the rollback segments and initializes the
 rseg array in trx_sys at a database startup. */
 static
@@ -274,10 +316,17 @@ trx_rseg_create_instance(
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
 
-		/* Slot-1 to Slot-n are reserved for temp-tablespace rsegs
-		and given that temp-tablespace rsegs are re-created on
-		start-up skip their creation at this stage. */
+		/* Slot-1....Slot-n are reserved for non-redo rsegs.
+		Non-redo rsegs are recreated on server re-start so
+		avoid initializing the existing non-redo rsegs. */
 		if (trx_sys_is_noredo_rseg_slot(i)) {
+
+			/* If this is an upgrade scenario then existing rsegs
+			in range from slot-1....slot-n needs to be scheduled
+			for purge if there are pending purge operation. */
+			trx_rseg_schedule_pending_purge(
+				sys_header, purge_queue, i, mtr);
+
 			continue;
 		}
 
@@ -295,8 +344,12 @@ trx_rseg_create_instance(
 			zip_size = !Tablespace::is_system_tablespace(space)
 				   ? fil_space_get_zip_size(space) : 0;
 
+			trx_rseg_t** rseg_array =
+				((trx_rseg_t**) trx_sys->rseg_array);
+
 			rseg = trx_rseg_mem_create(
-				i, space, zip_size, page_no, purge_queue, mtr);
+				i, space, zip_size, page_no,
+				purge_queue, rseg_array, mtr);
 
 			ut_a(rseg->id == i);
 		} else {
@@ -348,9 +401,12 @@ trx_rseg_create(
 		zip_size = !Tablespace::is_system_tablespace(space)
 			? fil_space_get_zip_size(space) : 0;
 
+		trx_rseg_t** rseg_array =
+			((trx_rseg_t**) trx_sys->rseg_array);
+
 		rseg = trx_rseg_mem_create(
 			slot_no, space, zip_size, page_no,
-			purge_sys->purge_queue, &mtr);
+			purge_sys->purge_queue, rseg_array, &mtr);
 	}
 
 	mtr_commit(&mtr);

@@ -1241,6 +1241,16 @@ trx_sys_close(void)
 		}
 	}
 
+	for (i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg;
+
+		rseg = trx_sys->pending_purge_rseg_array[i];
+
+		if (rseg != NULL) {
+			trx_rseg_mem_free(rseg);
+		}
+	}
+
 	view = UT_LIST_GET_FIRST(trx_sys->view_list);
 
 	while (view != NULL) {

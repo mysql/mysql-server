@@ -665,6 +665,13 @@ struct trx_sys_t{
 					single-threaded mode; not protected
 					by any mutex, because it is read-only
 					during multi-threaded operation */
+	trx_rseg_t*	const pending_purge_rseg_array[TRX_SYS_N_RSEGS];
+					/*!< Pointer array to rollback segments
+					between slot-1..slot-srv_tmp_undo_logs
+					that are now replaced by non-redo
+					rollback segments. We need them for
+					scheduling purge if any of the rollback
+					segment has pending records to purge. */
 	ulint		rseg_history_len;/*!< Length of the TRX_RSEG_HISTORY
 					list (update undo logs for committed
 					transactions), protected by

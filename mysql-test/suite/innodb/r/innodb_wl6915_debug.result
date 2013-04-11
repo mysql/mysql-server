@@ -32,7 +32,7 @@ create table t2
 create procedure populate_t1_t2()
 begin
 declare i int default 1;
-while (i <= 500) DO
+while (i <= 50) DO
 insert into t1 values (i, 'a', 'b');
 insert into t2 values (i, 'a', 'b');
 set i = i + 1;
@@ -45,16 +45,16 @@ update t1 set a = a + 1;
 update t2 set a = a + 1;
 select count(*) from t1;
 count(*)
-1000
+100
 select count(*) from t2;
 count(*)
-1000
+100
 set session debug="+d,ib_trx_crash_during_commit";
 commit;
 ERROR HY000: Lost connection to MySQL server during query
 select count(*) from t2;
 count(*)
-500
+50
 drop table t2;
 drop procedure populate_t1_t2;
 create table t (i int) engine=innodb;
@@ -68,7 +68,7 @@ drop table t2;
 create procedure populate_t1_t2()
 begin
 declare i int default 1;
-while (i <= 1000) DO
+while (i <= 100) DO
 insert into t1 values (i, 'a', 'b');
 insert into t2 values (i, 'a', 'b');
 set i = i + 1;
@@ -81,7 +81,7 @@ create temporary table t1
 call populate_t1_t2();
 select count(*) from t1;
 count(*)
-1000
+100
 drop table t1;
 create temporary table t1
 (a int, b char(100), c char(100)) engine = innodb;
@@ -89,7 +89,7 @@ call populate_t1_t2();
 commit;
 select count(*) from t1;
 count(*)
-1000
+100
 drop table t1;
 drop table t2;
 drop procedure populate_t1_t2;
