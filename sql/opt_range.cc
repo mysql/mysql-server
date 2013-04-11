@@ -125,7 +125,12 @@
 
 static int sel_cmp(Field *f,uchar *a,uchar *b,uint8 a_flag,uint8 b_flag);
 
-static uchar is_null_string[2]= {1,0};
+/*
+  this should be long enough so that any memcmp with a string that
+  starts from '\0' won't cross is_null_string boundaries, even
+  if the memcmp is optimized to compare 4- 8- or 16- bytes at once
+*/
+static uchar is_null_string[20]= {1,0};
 
 class RANGE_OPT_PARAM;
 /*
