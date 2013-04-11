@@ -127,7 +127,7 @@ using std::vector;
 
 /* We have HAVE_purify below as this speeds up the shutdown of MySQL */
 
-#if defined(HAVE_DEC_3_2_THREADS) || defined(HAVE_purify) && defined(__linux__)
+#if defined(HAVE_purify) && defined(__linux__)
 #define HAVE_CLOSE_SERVER_SOCK 1
 #endif
 
@@ -2962,7 +2962,6 @@ static void start_signal_handler(void)
   DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
-#if !defined(HAVE_DEC_3_2_THREADS)
   pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr,PTHREAD_CREATE_DETACHED);
 #if defined(__ia64__) || defined(__ia64)
@@ -2973,7 +2972,6 @@ static void start_signal_handler(void)
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size*2);
 #else
   pthread_attr_setstacksize(&thr_attr,my_thread_stack_size);
-#endif
 #endif
 
   mysql_mutex_lock(&LOCK_thread_count);

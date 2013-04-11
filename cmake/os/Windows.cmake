@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,10 +52,22 @@ IF(CMAKE_C_COMPILER MATCHES "icl")
 ENDIF()
 
 ADD_DEFINITIONS("-D_WINDOWS -D__WIN__ -D_CRT_SECURE_NO_DEPRECATE")
-ADD_DEFINITIONS("-D_WIN32_WINNT=0x0501")
+ADD_DEFINITIONS("-D_WIN32_WINNT=0x0502")
+SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0502")
 # Speed up build process excluding unused header files
 ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
   
+# Should be available on Windows Server 2003 and above.
+CHECK_CXX_SOURCE_COMPILES(
+"#include <Windows.h>
+int main() {
+  GetCurrentProcessorNumber();
+  return 0;
+} " HAVE_GETCURRENTPROCESSORNUMBER)
+IF(HAVE_GETCURRENTPROCESSORNUMBER)
+ ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
+ENDIF()
+
 # Adjust compiler and linker flags
 IF(MINGW AND CMAKE_SIZEOF_VOID_P EQUAL 4)
    # mininal architecture flags, i486 enables GCC atomics
