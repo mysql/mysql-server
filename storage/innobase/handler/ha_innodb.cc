@@ -2222,6 +2222,8 @@ ha_innobase::update_thd(
 	DBUG_ASSERT(prebuilt->table->n_ref_count > 0);
 
 	trx = check_trx_exists(thd);
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	if (prebuilt->trx != trx) {
 
@@ -3427,6 +3429,9 @@ innobase_commit(
 
 	trx = check_trx_exists(thd);
 
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+
 	/* Since we will reserve the trx_sys->mutex, we have to release
 	the search system latch first to obey the latching order. */
 
@@ -3554,6 +3559,8 @@ innobase_rollback(
 	DBUG_PRINT("trans", ("aborting transaction"));
 
 	trx = check_trx_exists(thd);
+	ut_ad(trx->dict_operation_lock_mode == 0);
+	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system
