@@ -842,7 +842,7 @@ struct trx_t{
 					calls from MySQL; this is intended
 					to reduce contention on the search
 					latch */
-	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op */
+	trx_dict_op_t	dict_operation;	/**< @see enum trx_dict_op_t */
 
 	/* Fields protected by the srv_conc_mutex. */
 	ulint		declared_to_be_inside_innodb;
