@@ -4259,6 +4259,10 @@ static const char filename_safe_char[128]=
 
 #define MY_FILENAME_ESCAPE '@'
 
+/*
+  note, that we cannot trust 'e' here, it's may be fake,
+  see strconvert()
+*/
 static int
 my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
                   my_wc_t *pwc, const uchar *s, const uchar *e)
@@ -4280,7 +4284,7 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
     return MY_CS_TOOSMALL3;
   
   byte1= s[1];
-  byte2= s[2];
+  byte2= byte1 ? s[2] : 0;
   
   if (byte1 >= 0x30 && byte1 <= 0x7F &&
       byte2 >= 0x30 && byte2 <= 0x7F)
@@ -4305,7 +4309,7 @@ my_mb_wc_filename(CHARSET_INFO *cs __attribute__((unused)),
       (byte2= hexlo(byte2)) >= 0)
   {
     int byte3= hexlo(s[3]);
-    int byte4= hexlo(s[4]);
+    int byte4= hexlo(s[3] ? s[4] : 0);
     if (byte3 >=0 && byte4 >=0)
     {
       *pwc= (byte1 << 12) + (byte2 << 8) + (byte3 << 4) + byte4;
