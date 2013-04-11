@@ -39,7 +39,7 @@ UNIV_INTERN ulint	ut_dbg_zero	= 0;
 Flush stderr and stdout, then abort execution. */
 UNIV_INTERN
 void
-ut_panic(void)
+ut_abort(void)
 /************/
 {
 	fflush(stderr);
