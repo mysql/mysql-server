@@ -36,6 +36,7 @@ Tables_in_test_user_db
 t1
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_user already exists
 2)
 Warning: Using a password on the command line interface can be insecure.
 current_user()
@@ -66,6 +67,7 @@ Tables_in_test_user_db
 t1
 REVOKE ALL PRIVILEGES ON test_user_db.* FROM 'plug_user'
                          IDENTIFIED WITH test_plugin_server AS 'plug_dest';
+ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_user already exists
 DROP USER plug_user,plug_dest;
 ========== test 1.2 ========================================
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_user
