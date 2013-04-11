@@ -1162,4 +1162,3 @@ Tablespace::is_system_tablespace(
 	       || id == srv_tmp_space.space_id());
 }
 
-
