@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,6 @@
 #include "my_static.h"
 #include <m_string.h>
 
-#ifndef DO_NOT_REMOVE_THREAD_WRAPPERS
 /* Remove wrappers */
 #undef pthread_mutex_t
 #undef pthread_mutex_init
@@ -34,10 +33,6 @@
 #undef pthread_mutex_destroy
 #undef pthread_cond_wait
 #undef pthread_cond_timedwait
-#ifdef HAVE_NONPOSIX_PTHREAD_MUTEX_INIT
-#define pthread_mutex_init(a,b) my_pthread_mutex_init((a),(b))
-#endif
-#endif /* DO_NOT_REMOVE_THREAD_WRAPPERS */
 
 /* Not instrumented */
 static pthread_mutex_t THR_LOCK_mutex;
