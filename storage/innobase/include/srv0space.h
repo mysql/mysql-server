@@ -360,6 +360,10 @@ public:
 	@return true if system tablespace */
 	static bool is_system_tablespace(ulint id);
 
+	/** Check if shared-system or undo tablespace.
+	@return true if shared-system or undo tablespace */
+	static bool is_system_or_undo_tablespace(ulint id);
+
 private:
 	/**
 	@return the size of the last data file in the array */
