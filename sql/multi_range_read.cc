@@ -1648,7 +1648,7 @@ int DsMrr_impl::dsmrr_explain_info(uint mrr_mode, char *str, size_t size)
 
     uint used_str_len= strlen(used_str);
     uint copy_len= min(used_str_len, size);
-    memcpy(str, used_str, size);
+    memcpy(str, used_str, copy_len);
     return copy_len;
   }
   return 0;
