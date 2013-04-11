@@ -532,10 +532,11 @@ row_quiesce_table_start(
 
 	ut_a(table->id > 0);
 
-	ulint	count = 0;
-
-	while (ibuf_contract_in_background(table->id, TRUE) != 0) {
-		if (!(++count % 20)) {
+	for (ulint count = 0;
+	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     && !trx_is_interrupted(trx);
+	     ++count) {
+		if (!(count % 20)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Merging change buffer entries for '%s'",
 				table_name);
