@@ -3537,9 +3537,9 @@ bool check_column_name(const char *name)
     }
 #else
     last_char_is_space= *name==' ';
-#endif
-    if (*name == NAMES_SEP_CHAR)
+    if (*name == '\377')
       return 1;
+#endif
     name++;
     name_length++;
   }
