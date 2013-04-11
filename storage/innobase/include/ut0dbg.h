@@ -54,7 +54,7 @@ extern ulint	ut_dbg_zero;
 Flush stderr and stdout, then abort execution. */
 UNIV_INTERN
 void
-ut_panic(void)
+ut_abort(void)
 	UNIV_COLD __attribute__((noreturn));
 
 /*************************************************************//**
@@ -74,14 +74,14 @@ ut_dbg_assertion_failed(
 	if (UT_DBG_FAIL(EXPR)) {				\
 		ut_dbg_assertion_failed(#EXPR,			\
 				__FILE__, (ulint) __LINE__);	\
-		ut_panic();					\
+		ut_abort();					\
 	}							\
 } while (0)
 
 /** Abort execution. */
 #define ut_error do {						\
 	ut_dbg_assertion_failed(0, __FILE__, (ulint) __LINE__);	\
-	ut_panic();						\
+	ut_abort();						\
 } while (0)
 
 #ifdef UNIV_DEBUG
