@@ -29,13 +29,18 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 
+# Cache 8192 rows in temporary table in order
+# to avoid scan during insert
+create temporary table t1_8192(a varchar(1024));
+insert into t1_8192 select * from t1 limit 8192;
+
 # ~32M 
 --error 0,1297
-insert into t1 select * from t1 limit 8192;
+insert into t1 select * from t1_8192;
 --error 0,1297
-insert into t1 select * from t1 limit 8192;
+insert into t1 select * from t1_8192;
 --error 0,1297
-insert into t1 select * from t1 limit 8192;
+insert into t1 select * from t1_8192;
 
 --echo Continuing insert/delete until redo is full
 
@@ -46,7 +51,7 @@ let $counter= 50;
 while (!$mysql_errno)
 {
   --error 0,1297
-  insert into t1 select * from t1 limit 8192;
+  insert into t1 select * from t1_8192;
 
   if (!$mysql_errno)
   {
@@ -75,13 +80,13 @@ let $counter= 600;
 while ($mysql_errno)
 {
   --error 0,1297
-  insert into t1 select * from t1 limit 8192;
+  insert into t1 select * from t1_8192;
 
   if ($mysql_errno)
   {
     if (!$counter)
     {
-      die Failed waiting for redo log full;
+      die Failed waiting for redo log having space;
     }
     dec $counter;
     --sleep 0.1
@@ -93,3 +98,4 @@ while ($mysql_errno)
 --echo Redo had space again.
   
 drop table t1;
+drop table t1_8192;
