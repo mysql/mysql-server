@@ -16,6 +16,7 @@
 # These are expected.  So suppressing the associated warnings.
 call mtr.add_suppression("InnoDB: Error: table .* does not exist "
 			 "in the InnoDB internal");
+call mtr.add_suppression("Found .* prepared XA transactions");
 
 ################################################################################
 #
@@ -23,7 +24,7 @@ call mtr.add_suppression("InnoDB: Error: table .* does not exist "
 # 1. Hitting crash while preparing xa trx.
 # 2. Hitting crash while committing normal trx involving temp/non-temp tables.
 # 3. try to start server with different values of innodb_undo_logs.
-#    (try scenario such that a rollback segment is shared by multiple transactions).
+#    (try scenario such that a rollback segment is shared by multiple trxs).
 #
 ################################################################################
 
@@ -64,6 +65,8 @@ xa prepare 'tx2';
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 #
+select * from t2;
+xa commit 'tx2';
 select * from t2;
 drop table t2;
 
@@ -110,7 +113,7 @@ drop procedure populate_t1_t2;
 #-----------------------------------------------------------------------------
 #
 # 3. try to start server with different values of innodb_undo_logs.
-#    (try scenario such that a rollback segment is shared by multiple transactions).
+#    (try scenario such that a rollback segment is shared by multiple trxs).
 #
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 30
