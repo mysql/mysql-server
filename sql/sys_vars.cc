@@ -1068,7 +1068,7 @@ static Sys_var_ulonglong Sys_max_binlog_cache_size(
        "Sets the total size of the transactional cache",
        GLOBAL_VAR(max_binlog_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
-       DEFAULT((UINT_MAX/IO_SIZE)*IO_SIZE),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
 
 static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
@@ -1076,7 +1076,7 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
        "Sets the total size of the statement cache",
        GLOBAL_VAR(max_binlog_stmt_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(IO_SIZE, ULONGLONG_MAX),
-       DEFAULT((UINT_MAX/IO_SIZE)*IO_SIZE),
+       DEFAULT((ULONGLONG_MAX/IO_SIZE)*IO_SIZE),
        BLOCK_SIZE(IO_SIZE));
 
 static bool fix_max_binlog_size(sys_var *self, THD *thd, enum_var_type type)

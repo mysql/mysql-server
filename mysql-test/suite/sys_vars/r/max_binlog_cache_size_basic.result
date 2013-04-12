@@ -1,7 +1,7 @@
 SET @start_value = @@global.max_binlog_cache_size;
 SELECT @start_value;
 @start_value
-4294963200
+18446744073709547520
 '#--------------------FN_DYNVARS_072_01------------------------#'
 SET @@global.max_binlog_cache_size = 5000;
 Warnings:
@@ -9,7 +9,7 @@ Warning	1292	Truncated incorrect max_binlog_cache_size value: '5000'
 SET @@global.max_binlog_cache_size = DEFAULT;
 SELECT @@global.max_binlog_cache_size;
 @@global.max_binlog_cache_size
-4294963200
+18446744073709547520
 '#---------------------FN_DYNVARS_072_02-------------------------#'
 SET @@global.max_binlog_cache_size = @start_value;
 SELECT @@global.max_binlog_cache_size = 4294967295;
@@ -149,4 +149,4 @@ ERROR 42S22: Unknown column 'max_binlog_cache_size' in 'field list'
 SET @@global.max_binlog_cache_size = @start_value;
 SELECT @@global.max_binlog_cache_size;
 @@global.max_binlog_cache_size
-4294963200
+18446744073709547520
