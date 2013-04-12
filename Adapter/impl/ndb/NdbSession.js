@@ -270,7 +270,7 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.buildScanOperation = function(queryHandler, properties, 
                                                    tx, callback) {
-  udebug.log("buildDeleteOperation");  
+  udebug.log("buildScanOperation");
   var op = ndboperation.newScanOperation(tx, queryHandler, properties);
   op.userCallback = callback;
   return op;
