@@ -39,7 +39,6 @@ var DBIndexHandler;
    These are the structural parts of a DBT: 
      * mapping, an API TableMapping, either created explicitly or by default.
      * A TableMetadata object, obtained from the data dictionary.
-     * The stubFields - a set of FieldMappings created implicitly by default rules. 
      * An internal set of maps between Fields and Columns
      
     The mapping and TableMetadata are supplied as arguments to the 
@@ -57,7 +56,6 @@ var proto = {
   resolvedMapping        : null,
   newObjectConstructor   : null,  // Domain Object Constructor
   ValueObject            : null,  // Value Object Constructor
-  stubFields             : null,  // FieldMappings constructed by default rules
 
   fieldNameToFieldMap    : {},
   columnNumberToFieldMap : {},
@@ -112,6 +110,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       c,               // a ColumnMetadata
       n,               // a field or column number
       index,           // a DBIndex
+      stubFields,      // fields created through default mapping
       nMappedFields;
 
   stats.incr("constructor_calls");
@@ -140,7 +139,6 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
   
   /* New Arrays */
-  this.stubFields             = [];
   this.columnNumberToFieldMap = [];  
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
@@ -169,12 +167,13 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Now build the implicitly mapped fields and add them to the map */
+  stubFields = [];
   if(this.mapping.mapAllColumns) {
     for(i = 0 ; i < this.dbTable.columns.length ; i++) {
       if(! this.columnNumberToFieldMap[i]) {
         c = this.dbTable.columns[i];
         f = new FieldMapping(c.name);
-        this.stubFields.push(f);
+        stubFields.push(f);
         this.columnNumberToFieldMap[i] = f;
         f.columnNumber = i;
         f.defaultValue = c.defaultValue;
@@ -183,7 +182,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   /* Total number of mapped fields */
-  nMappedFields = this.mapping.fields.length + this.stubFields.length;
+  nMappedFields = this.mapping.fields.length + stubFields.length;
          
   /* Create the resolved mapping to be returned by getMapping() */
   this.resolvedMapping = {};
