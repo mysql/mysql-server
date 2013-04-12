@@ -42,6 +42,7 @@ def build(ctx):
   "src/ColumnProxy.cpp " +\
   "src/ColumnHandler.cpp " +\
   "src/ValueObject.cpp " +\
+  "src/ScanImpl.cpp " +\
   \
   "src/mysqlclient_wrapper.cpp " +\
   ""

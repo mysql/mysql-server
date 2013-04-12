@@ -41,6 +41,7 @@
          "Adapter/impl/src/ColumnProxy.cpp",
          "Adapter/impl/src/ColumnHandler.cpp",
          "Adapter/impl/src/ValueObject.cpp",
+         "Adapter/impl/src/ScanImpl.cpp",
 
          "Adapter/impl/src/Record_wrapper.cpp",
          "Adapter/impl/src/Ndb_init_wrapper.cpp",

@@ -19,11 +19,7 @@
 */
 
 
-/* Wrapper for four classes: 
-    NdbOperation
-    NdbIndexOperation
-    NdbScanOperation 
-    NdbIndexScanOperation
+/* Wrapper for NdbOperation & NdbScanOperation 
 */
 
 #include <NdbApi.hpp>
@@ -37,6 +33,13 @@
 
 using namespace v8;
 
+/* Methods from ScanNextResultImpl.cpp */
+typedef Handle<Value> __Method__(const Arguments &);
+extern __Method__ scanNextResult;
+extern __Method__ scanFetchResults;
+
+
+/******** NdbOperation **********************************/
 class NdbOperationEnvelopeClass : public Envelope {
 public:
   NdbOperationEnvelopeClass() : Envelope("const NdbOperation") {
@@ -46,8 +49,6 @@ public:
 };
 
 NdbOperationEnvelopeClass NdbOperationEnvelope;
-Envelope NdbScanOperationEnvelope("NdbScanOperation");
-
 
 Handle<Value> NdbOperation_Wrapper(const NdbOperation *op) {
   HandleScope scope;
@@ -59,6 +60,39 @@ Handle<Value> NdbOperation_Wrapper(const NdbOperation *op) {
   return Null();
 }
 
+
+
+/******** NdbScanOperation ******************************/
+
+/* NdbOperation * lockCurrentTuple(NdbTransaction* lockTrans)
+   IMMEDIATE
+*/
+Handle<Value> lockCurrentTuple(const Arguments & args) {
+  DEBUG_MARKER(UDEB_DETAIL);
+  HandleScope scope;
+  
+  REQUIRE_ARGS_LENGTH(1);
+  typedef NativeMethodCall_1_<NdbOperation *, NdbScanOperation, NdbTransaction *> NCALL;
+  NCALL ncall(& NdbScanOperation::lockCurrentTuple, args);
+  ncall.wrapReturnValueAs(& NdbOperationEnvelope);
+  ncall.run();
+  
+  return scope.Close(ncall.jsReturnVal());
+}
+
+
+class NdbScanOperationEnvelopeClass : public Envelope {
+public: 
+  NdbScanOperationEnvelopeClass() : Envelope("NdbScanOperation") {
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", 
+                       getNdbError<NdbScanOperation>);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "fetchResults", scanFetchResults);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "nextResult", scanNextResult);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "lockCurrentTuple", lockCurrentTuple);  
+  }
+};
+
+NdbScanOperationEnvelopeClass NdbScanOperationEnvelope;
 
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *op) {
   HandleScope scope;
