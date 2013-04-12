@@ -100,13 +100,22 @@ trx_rseg_header_create(
 		trx_rsegf_set_nth_undo(rsegf, i, FIL_NULL, mtr);
 	}
 
-	/* Add the rollback segment info to the free slot in
-	the trx system header */
+	if (!trx_sys_is_noredo_rseg_slot(rseg_slot_no)) {
+		/* Non-redo rseg are re-created on restart and so no need
+		to persist this information in sys-header. Anyway, on restart
+		this information is not valid too as there is no space with
+		persisted space-id on restart. */
 
-	sys_header = trx_sysf_get(mtr);
+		/* Add the rollback segment info to the free slot in
+		the trx system header */
 
-	trx_sysf_rseg_set_space(sys_header, rseg_slot_no, space, mtr);
-	trx_sysf_rseg_set_page_no(sys_header, rseg_slot_no, page_no, mtr);
+		sys_header = trx_sysf_get(mtr);
+
+		trx_sysf_rseg_set_space(sys_header, rseg_slot_no, space, mtr);
+
+		trx_sysf_rseg_set_page_no(
+			sys_header, rseg_slot_no, page_no, mtr);
+	}
 
 	return(page_no);
 }
@@ -396,7 +405,7 @@ trx_rseg_create(
 		sys_header = trx_sysf_get(&mtr);
 
 		id = trx_sysf_rseg_get_space(sys_header, slot_no, &mtr);
-		ut_a(id == space);
+		ut_a(trx_sys_is_noredo_rseg_slot(slot_no) || id == space);
 
 		zip_size = !Tablespace::is_system_tablespace(space)
 			? fil_space_get_zip_size(space) : 0;
@@ -455,12 +464,6 @@ trx_rseg_get_n_undo_tablespaces(
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
 		ulint	space;
-
-		/* Skip non-redo rollback segment slots as this function is
-		suppose to return space-ids of redo slots only. */
-		if (trx_sys_is_noredo_rseg_slot(i)) {
-			continue;
-		}
 
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, &mtr);
 
