@@ -63,12 +63,9 @@ function onAsyncSent(a,b) {
 /* NdbTransactionHandler internal run():
    Create a QueuedAsyncCall on the Ndb's execQueue.
 */
-function run(self, execId, execMode, abortFlag, callback) {
+function run(self, execMode, abortFlag, callback) {
   var qpos;
-  var idCallback = function(err) {
-    callback(err, execId);
-  };
-  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, idCallback);
+  var apiCall = new QueuedAsyncCall(self.dbSession.execQueue, callback);
   apiCall.tx = self;
   apiCall.execMode = execMode;
   apiCall.abortFlag = abortFlag;
@@ -90,7 +87,7 @@ function run(self, execId, execMode, abortFlag, callback) {
                                          onAsyncSent);
     }
     else {
-      stats.incr(["run","async"]);
+      stats.incr(["run","sync"]);
       this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
     }
   };
@@ -98,6 +95,7 @@ function run(self, execId, execMode, abortFlag, callback) {
   qpos = apiCall.enqueue();
   udebug.log("run()", self.moniker, "queue position:", qpos);
 }
+
 
 /* Error handling after NdbTransaction.execute() 
 */
@@ -163,27 +161,29 @@ function getExecIdForOperationList(self, operationList) {
 */ 
 function execute(self, execMode, abortFlag, dbOperationList, callback) {
 
-  function onCompleteExec(err, execId) {
-    onExecute(self, execMode, err, execId, callback);
-  }
-
   function executeNdbTransaction() {
     var execId = getExecIdForOperationList(self, dbOperationList);
-    run(self, execId, execMode, abortFlag, onCompleteExec);  
+
+    function onCompleteExec(err) {
+      onExecute(self, execMode, err, execId, callback);
+    }
+    
+    run(self, execMode, abortFlag, onCompleteExec);
   }
 
   function executeScans(scanList) {
-    function execOneScan() {
+    function execOneScan(err) {
       var scanop = scanList.pop();
-      var callback = scanList.length ? execOneScan : executeNdbTransaction;
-      scanop.executeScan(self, callback);
+      var cb = scanList.length ? execOneScan : executeNdbTransaction;      
+      ndboperation.getScanResults(scanop, cb);
     }
     
-    execOneScan();
+    /* Execute NoCommit so that you can start reading from scans */
+    run(self, NOCOMMIT, AO_IGNORE, execOneScan);
   }
 
-  function prepareOperationsAndExecute() {
-    udebug.log("execute prepareOperationsAndExecute", self.moniker);
+  function prepareOperations() {
+    udebug.log("execute prepareOperations", self.moniker);
     var i, op, scans, fatalError;
     scans = [];
     for(i = 0 ; i < dbOperationList.length; i++) {
@@ -194,9 +194,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;
       }
-      if(op.query) {
-        scans.push(op);
-      }
+      if(op.isScanOperation()) scans.push(op);
     }
     if(scans.length) {
       executeScans(scans);
@@ -210,10 +208,10 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     var autoIncHandler = new AutoIncHandler(dbOperationList);
     if(autoIncHandler.values_needed > 0) {
       udebug.log("execute getAutoIncrementValues", autoIncHandler.values_needed);
-      autoIncHandler.getAllValues(prepareOperationsAndExecute);
+      autoIncHandler.getAllValues(prepareOperations);
     }
     else {
-      prepareOperationsAndExecute();
+      prepareOperations();
     }  
   }
 

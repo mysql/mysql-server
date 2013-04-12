@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -25,6 +25,7 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
+    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -32,6 +33,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ROLLBACK      = adapter.ndbapi.Rollback,
     constants     = adapter.impl,
     OpHelper      = constants.OpHelper,
+    ScanHelper    = constants.Scan.helper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
@@ -91,6 +93,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   }
   
   /* NDB Impl-specific properties */
+  this.query        = null;
   this.ndbop        = null;
   this.autoinc      = null;
   this.buffers      = { 'row' : null, 'key' : null  };
@@ -194,58 +197,102 @@ HelperSpec.prototype.clear = function() {
 
 var helperSpec = new HelperSpec();
 
-DBOperation.prototype.prepare = function(ndbTransaction) {
-  udebug.log("prepare", opcodes[this.opcode], this.values);
-  stats.incr("prepared");
-  var code = this.opcode;
-  var isVOwrite = (this.values && adapter.impl.isValueObject(this.values));
-  var helper;
+function ScanHelperSpec() {
+  this.clear();
+}
+
+ScanHelperSpec.prototype.clear = function() {
+  this[ScanHelper.table_record] = null;
+  this[ScanHelper.index_record] = null;
+  this[ScanHelper.lock_mode]    = null;
+  this[ScanHelper.bounds]       = null;
+  this[ScanHelper.flags]        = null;
+  this[ScanHelper.batch_size]   = null;
+  this[ScanHelper.parallel]     = null;
+  this[ScanHelper.filter_code]  = null;
+}
+
+var scanSpec = new ScanHelperSpec;
+
+
+function prepareKeyOperation(op, ndbTransaction) {
+  var code = op.opcode;
+  var isVOwrite = (op.values && adapter.impl.isValueObject(op.values));
 
   /* There is one global helperSpec */
   helperSpec.clear();
 
   /* All operations but insert use a key. */
   if(code !== 2) {
-    allocateKeyBuffer(this);
-    encodeKeyBuffer(this);
-    helperSpec[OpHelper.key_record]  = this.index.record;
-    helperSpec[OpHelper.key_buffer]  = this.buffers.key;
+    allocateKeyBuffer(op);
+    encodeKeyBuffer(op);
+    helperSpec[OpHelper.key_record]  = op.index.record;
+    helperSpec[OpHelper.key_buffer]  = op.buffers.key;
   }
   
   /* If this is an update-after-read operation on a Value Object, 
      DBOperationHelper only needs the VO.
   */
   if(isVOwrite) {
-    helperSpec[OpHelper.value_obj] = this.values;
+    helperSpec[OpHelper.value_obj] = op.values;
   }  
   else {
     /* All non-VO operations get a row record */
-    helperSpec[OpHelper.row_record] = this.tableHandler.dbTable.record;
+    helperSpec[OpHelper.row_record] = op.tableHandler.dbTable.record;
     
     /* All but delete get an allocated row buffer, and column mask */
     if(code !== 16) {
-      allocateRowBuffer(this);
-      helperSpec[OpHelper.row_buffer]  = this.buffers.row;
-      helperSpec[OpHelper.column_mask] = this.columnMask;
+      allocateRowBuffer(op);
+      helperSpec[OpHelper.row_buffer]  = op.buffers.row;
+      helperSpec[OpHelper.column_mask] = op.columnMask;
 
       /* Read gets a lock mode; 
          writes get the data encoded into the row buffer. */
       if(code === 1) {
-        helperSpec[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
+        helperSpec[OpHelper.lock_mode]  = constants.LockModes[op.lockMode];
       }
       else { 
-        encodeRowBuffer(this);
+        encodeRowBuffer(op);
       }
     }
   }
   
   /* Use the HelperSpec and opcode to build the NdbOperation */
-  this.ndbop = 
+  op.ndbop = 
     adapter.impl.DBOperationHelper(helperSpec, code, ndbTransaction, isVOwrite);
+}
 
+function prepareScanOperation(op, ndbTransaction) {
+  var opcode = 33;  // How to tell from operation?
+
+  /* There is one global ScanHelperSpec */
+  scanSpec.clear();
+
+  scanSpec[ScanHelper.table_record] = op.query.dbTableHandler.dbTable.record;
+
+  if(op.query.queryType == 2) {  /* Index Scan */
+    scanSpec[ScanHelper.index_record] = op.query.dbIndexHandler.dbIndex.record;
+  }
+  
+  scanSpec[ScanHelper.lock_mode] = constants.LockModes[op.lockMode];
+  
+  /* Build the NdbScanOperation */
+  op.ndbop = adapter.impl.Scan.new(scanSpec, opcode, ndbTransaction);
+}
+
+
+DBOperation.prototype.isScanOperation = function() {
+  return (this.opcode >= 32);
+}
+
+DBOperation.prototype.prepare = function(ndbTransaction) {
+  udebug.log("prepare", opcodes[this.opcode], this.values);
+
+  var f = this.isScanOperation() ? prepareScanOperation : prepareKeyOperation;
+  f(this, ndbTransaction);
   this.state = doc.OperationStates[1];  // PREPARED
-};
-
+  return;
+}
 
 function readResultRow(op) {
   udebug.log("readResultRow");
@@ -296,6 +343,78 @@ function buildValueObject(op) {
     console.log("NO VOC!");
     process.exit();
   }
+}
+
+
+function fetchResults(dbSession, ndb_scan_op, buffer, callback) {
+  var apiCall = new QueuedAsyncCall(dbSession.execQueue, callback);
+  var force_send = true;
+  apiCall.ndb_scan_op = ndb_scan_op;
+  apiCall.buffer = buffer;
+  apiCall.run = function runFetchResults() {
+    this.ndb_scan_op.fetchResults(this.buffer, force_send, this.callback);
+  }
+  apiCall.enqueue();
+}
+
+
+function getScanResults(scanop, userCallback) {
+  var buffer;
+  var dbSession = scanop.transaction.dbSession;
+  var ResultConstructor = scanop.tableHandler.ValueObject;
+
+  if(ResultConstructor == null) {
+    storeNativeConstructorInMapping(scanop.tableHandler);
+    ResultConstructor = scanop.tableHandler.ValueObject;
+  }
+
+  var recordSize = scanop.tableHandler.dbTable.record.getBufferSize();
+
+  function gather(error, status) {    
+    udebug.log("Scan gather", status);
+    if(status !== 0) {
+      results.pop();  // remove the optimistic result 
+    }
+
+    if(status < 0) { // error
+      udebug.log("error", status, error);
+      scanop.result.success = false;
+      scanop.result.error = error;
+      userCallback(error, results);
+      return;
+    }
+    
+    /* Gather more results. */
+    while(status === 0) {
+      buffer = new Buffer(recordSize);
+      status = scanop.ndbop.nextResult(buffer);
+      if(status === 0) {
+        results.push(new ResultConstructor(buffer));
+      }    
+    }
+    
+    if(status == 2) {  // No more locally cached results
+      fetch();
+    }
+    else {  // end of scan.
+      assert(status === 1);
+      udebug.log("Scan Result length:", results.length);
+      scanop.result.success = true;
+      scanop.result.value = results;
+      userCallback(null, results);
+      return;
+    }    
+  }
+
+  function fetch() {
+    buffer = new Buffer(recordSize);
+    results.push(new ResultConstructor(buffer));  // Optimistic
+    fetchResults(dbSession, scanop.ndbop, buffer, gather);
+  }
+
+  /* start here */
+  var results = [];
+  fetch();
 }
 
 
@@ -363,9 +482,11 @@ function completeExecutedOps(dbTxHandler, execMode, operationsList) {
   while(op = operationsList.shift()) {
     assert(op.state === "PREPARED");
 
-    releaseKeyBuffer(op);
-    buildOperationResult(dbTxHandler, op, execMode);
-    releaseRowBuffer(op);
+    if(! op.isScanOperation()) {
+      releaseKeyBuffer(op);
+      buildOperationResult(dbTxHandler, op, execMode);
+      releaseRowBuffer(op);
+    }
 
     dbTxHandler.executedOperations.push(op);
     op.state = doc.OperationStates[2];  // COMPLETED
@@ -421,12 +542,11 @@ function verifyIndexHandler(dbIndexHandler) {
 }
 
 function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
-  udebug.log("newReadOperation", keys);
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_READ, tx, dbIndexHandler, null);
   op.keys = keys;
 
-  if(! dbIndexHandler.tableHandler.NativeConstructor) {
+  if(! dbIndexHandler.tableHandler.ValueObject) {
     storeNativeConstructorInMapping(dbIndexHandler.tableHandler);
   }
 
@@ -442,7 +562,6 @@ function newReadOperation(tx, dbIndexHandler, keys, lockMode) {
 
 
 function newInsertOperation(tx, tableHandler, row) {
-  udebug.log("newInsertOperation");
   var op = new DBOperation(opcodes.OP_INSERT, tx, null, tableHandler);
   op.values = row;
   return op;
@@ -450,7 +569,6 @@ function newInsertOperation(tx, tableHandler, row) {
 
 
 function newDeleteOperation(tx, dbIndexHandler, keys) {
-  udebug.log("newDeleteOperation");
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_DELETE, tx, dbIndexHandler, null);
   op.keys = keys;
@@ -459,7 +577,6 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
 
 //// Write Operation on VO must write all fields. 
 function newWriteOperation(tx, dbIndexHandler, row) {
-  udebug.log("newWriteOperation");
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_WRITE, tx, dbIndexHandler, null);
   op.keys = dbIndexHandler.getFields(row);
@@ -469,7 +586,6 @@ function newWriteOperation(tx, dbIndexHandler, row) {
 
 
 function newUpdateOperation(tx, dbIndexHandler, keys, row) {
-  udebug.log("newUpdateOperation");
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_UPDATE, tx, dbIndexHandler, null);
   op.keys = keys;
@@ -478,12 +594,17 @@ function newUpdateOperation(tx, dbIndexHandler, keys, row) {
 }
 
 
-function newScanOperation(tx, queryHandler, properties) {
-  udebug.log("newScanOperation");
-  var op = new DBOperation(0, tx, queryHandler.dbIndexHandler, queryHandler.dbTableHandler);
+function newScanOperation(tx, QueryTree, properties) {
+  var queryHandler = QueryTree.mynode_query_domain_type.queryHandler;
+  var op = new DBOperation(opcodes.OP_SCAN, tx, 
+                           queryHandler.dbIndexHandler, 
+                           queryHandler.dbTableHandler);
+  op.query = queryHandler;
   op.keys = properties;
+  // Walk the QueryHandler.predicate to build the filter
   return op;
 }
+
 
 exports.DBOperation         = DBOperation;
 exports.newReadOperation    = newReadOperation;
@@ -493,3 +614,4 @@ exports.newUpdateOperation  = newUpdateOperation;
 exports.newWriteOperation   = newWriteOperation;
 exports.newScanOperation    = newScanOperation;
 exports.completeExecutedOps = completeExecutedOps;
+exports.getScanResults      = getScanResults;
