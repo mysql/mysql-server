@@ -18,4 +18,3 @@ ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 ndb_dbug_lock : SEAGULL gsl locking order
 ndb_insert : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
 ndb_row_count : Bug#16021097 INSERT .. SELECT WITH KEY VIOLATION DOES NOT FAIL
-ndb_join_pushdown_bka : BUG#16485658 PUSHDOWN JOIN WITH BKA PRUNED SCAN
