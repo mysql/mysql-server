@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,19 +13,29 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-source ../env.properties
-echo MYSQL_HOME=$MYSQL_HOME
+if [ "$MYSQL_HOME" = "" ] ; then
+  source ../env.properties
+  echo MYSQL_HOME=$MYSQL_HOME
+fi
+
+#set -x
+
+#./show_cluster.sh
 
 echo shut down NDB...
-"$MYSQL_BIN/ndb_mgm" -e shutdown -t 1
+./mgm.sh -e shutdown -t 1
 
 timeout=60
 echo
-echo waiting up to $timeout s for ndb_mgmd to shut down...
-#"$MYSQL_BIN/ndb_waiter" -t $timeout -c "localhost:1186" --no-contact
-"$MYSQL_BIN/ndb_waiter" -t $timeout --no-contact
+echo "waiting ($timeout s) for ndb to shut down..."
+./waiter.sh -t $timeout --no-contact
 
-# need some extra time
-for ((i=0; i<6; i++)) ; do echo "." ; sleep 1; done
+# need some extra time for ndb_mgmd to terminate
+for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo
+
+#echo
+#ps -efa | grep ndb
+
+#set +x
