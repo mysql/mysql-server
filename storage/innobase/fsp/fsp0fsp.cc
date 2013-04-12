@@ -1140,7 +1140,7 @@ fsp_fill_free_list(
 		mlog_write_ulint(header + FSP_FREE_LIMIT, i + FSP_EXTENT_SIZE,
 				 MLOG_4BYTES, mtr);
 
-		if (UNIV_UNLIKELY(init_xdes)) {
+		if (init_xdes) {
 
 			buf_block_t*	block;
 
@@ -1165,30 +1165,35 @@ fsp_fill_free_list(
 
 			/* Initialize the ibuf bitmap page in a separate
 			mini-transaction because it is low in the latching
-			order, and we must be able to release its latch
-			before returning from the fsp routine */
+			order, and we must be able to release its latch.
+			Note: Insert-Buffering is disabled for tables that
+			reside in the temp-tablespace. */
+			if (space != srv_tmp_space.space_id()) {
+				mtr_start(&ibuf_mtr);
 
-			mtr_start(&ibuf_mtr);
+				/* Do not log operations when applying
+				MLOG_FILE_TRUNCATE log record during
+				recovery */
+				if (fil_space_is_truncated(space)) {
+					mtr_set_log_mode(
+						&ibuf_mtr, MTR_LOG_NONE);
+				}
 
-			/* Do not log operations when applying
-			MLOG_FILE_TRUNCATE log record during recovery */
-			if (fil_space_is_truncated(space)) {
-				mtr_set_log_mode(&ibuf_mtr, MTR_LOG_NONE);
+				block = buf_page_create(
+						space,
+						i + FSP_IBUF_BITMAP_OFFSET,
+						zip_size, &ibuf_mtr);
+				buf_page_get(space, zip_size,
+					     i + FSP_IBUF_BITMAP_OFFSET,
+					     RW_X_LATCH, &ibuf_mtr);
+				buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
+
+				fsp_init_file_page(block, &ibuf_mtr);
+
+				ibuf_bitmap_page_init(block, &ibuf_mtr);
+
+				mtr_commit(&ibuf_mtr);
 			}
-
-			block = buf_page_create(space,
-						    i + FSP_IBUF_BITMAP_OFFSET,
-						    zip_size, &ibuf_mtr);
-			buf_page_get(space, zip_size,
-				     i + FSP_IBUF_BITMAP_OFFSET,
-				     RW_X_LATCH, &ibuf_mtr);
-			buf_block_dbg_add_level(block, SYNC_FSP_PAGE);
-
-			fsp_init_file_page(block, &ibuf_mtr);
-
-			ibuf_bitmap_page_init(block, &ibuf_mtr);
-
-			mtr_commit(&ibuf_mtr);
 		}
 
 		descr = xdes_get_descriptor_with_space_hdr(header, space, i,
@@ -3123,20 +3128,16 @@ fseg_free_page_low(
 		      stderr);
 		ut_print_buf(stderr, descr, 40);
 
-		fprintf(stderr, "\n"
-			"InnoDB: Serious error! InnoDB is trying to"
-			" free page %lu\n"
-			"InnoDB: though it is already marked as free"
-			" in the tablespace!\n"
-			"InnoDB: The tablespace free space info is corrupt.\n"
-			"InnoDB: You may need to dump your"
-			" InnoDB tables and recreate the whole\n"
-			"InnoDB: database!\n", (ulong) page);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Fatal Error! InnoDB is trying to free page %lu"
+			" though it is already marked as free in the"
+			" tablespace! The tablespace free space info is"
+			" corrupt. You may need to dump your tables and"
+			" recreate the whole database!", (ulong) page);
 crash:
-		fputs("InnoDB: Please refer to\n"
-		      "InnoDB: " REFMAN "forcing-innodb-recovery.html\n"
-		      "InnoDB: about forcing recovery.\n", stderr);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Please refer to " REFMAN "forcing-innodb-recovery.html"
+			" about forcing recovery.");
 	}
 
 	state = xdes_get_state(descr, mtr);

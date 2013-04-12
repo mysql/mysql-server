@@ -193,28 +193,6 @@ protected:
 };
 
 
-#ifndef HAVE_SPATIAL
-/**
-  Common (non) builder for geometry functions.
-  This builder is used in <code>--without-geometry</code> builds only,
-  to report an error.
-*/
-
-class Create_func_no_geom : public Create_func
-{
-public:
-  virtual Item *create_func(THD *thd, LEX_STRING name, List<Item> *item_list);
-
-  /** Singleton. */
-  static Create_func_no_geom s_singleton;
-
-protected:
-  /** Constructor. */
-  Create_func_no_geom() {}
-  /** Destructor. */
-  virtual ~Create_func_no_geom() {}
-};
-#endif
 
 
 /*
@@ -288,7 +266,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_area : public Create_func_arg1
 {
 public:
@@ -300,10 +277,8 @@ protected:
   Create_func_area() {}
   virtual ~Create_func_area() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_as_wkb : public Create_func_arg1
 {
 public:
@@ -315,10 +290,8 @@ protected:
   Create_func_as_wkb() {}
   virtual ~Create_func_as_wkb() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_as_wkt : public Create_func_arg1
 {
 public:
@@ -330,7 +303,6 @@ protected:
   Create_func_as_wkt() {}
   virtual ~Create_func_as_wkt() {}
 };
-#endif
 
 
 class Create_func_asin : public Create_func_arg1
@@ -424,7 +396,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_centroid : public Create_func_arg1
 {
 public:
@@ -436,7 +407,6 @@ protected:
   Create_func_centroid() {}
   virtual ~Create_func_centroid() {}
 };
-#endif
 
 
 class Create_func_char_length : public Create_func_arg1
@@ -517,7 +487,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_contains : public Create_func_arg2
 {
 public:
@@ -542,7 +511,6 @@ protected:
   Create_func_contains() {}
   virtual ~Create_func_contains() {}
 };
-#endif
 
 
 class Create_func_conv : public Create_func_arg3
@@ -610,7 +578,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_crosses : public Create_func_arg2
 {
 public:
@@ -622,7 +589,6 @@ protected:
   Create_func_crosses() {}
   virtual ~Create_func_crosses() {}
 };
-#endif
 
 
 class Create_func_date_format : public Create_func_arg2
@@ -755,7 +721,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_dimension : public Create_func_arg1
 {
 public:
@@ -767,10 +732,8 @@ protected:
   Create_func_dimension() {}
   virtual ~Create_func_dimension() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_disjoint : public Create_func_arg2
 {
 public:
@@ -808,7 +771,6 @@ protected:
   Create_func_distance() {}
   virtual ~Create_func_distance() {}
 };
-#endif
 
 
 class Create_func_elt : public Create_native_func
@@ -850,7 +812,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_endpoint : public Create_func_arg1
 {
 public:
@@ -862,10 +823,8 @@ protected:
   Create_func_endpoint() {}
   virtual ~Create_func_endpoint() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_envelope : public Create_func_arg1
 {
 public:
@@ -877,10 +836,8 @@ protected:
   Create_func_envelope() {}
   virtual ~Create_func_envelope() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_equals : public Create_func_arg2
 {
 public:
@@ -905,7 +862,6 @@ protected:
   Create_func_equals() {}
   virtual ~Create_func_equals() {}
 };
-#endif
 
 
 class Create_func_exp : public Create_func_arg1
@@ -934,7 +890,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_exteriorring : public Create_func_arg1
 {
 public:
@@ -946,7 +901,6 @@ protected:
   Create_func_exteriorring() {}
   virtual ~Create_func_exteriorring() {}
 };
-#endif
 
 
 class Create_func_field : public Create_native_func
@@ -1040,7 +994,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_geometry_from_text : public Create_native_func
 {
 public:
@@ -1052,10 +1005,8 @@ protected:
   Create_func_geometry_from_text() {}
   virtual ~Create_func_geometry_from_text() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_geometry_from_wkb : public Create_native_func
 {
 public:
@@ -1067,10 +1018,8 @@ protected:
   Create_func_geometry_from_wkb() {}
   virtual ~Create_func_geometry_from_wkb() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_geometry_type : public Create_func_arg1
 {
 public:
@@ -1082,10 +1031,8 @@ protected:
   Create_func_geometry_type() {}
   virtual ~Create_func_geometry_type() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_geometryn : public Create_func_arg2
 {
 public:
@@ -1097,7 +1044,6 @@ protected:
   Create_func_geometryn() {}
   virtual ~Create_func_geometryn() {}
 };
-#endif
 
 
 class Create_func_get_lock : public Create_func_arg2
@@ -1113,7 +1059,7 @@ protected:
 };
 
 
-#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
 class Create_func_gis_debug : public Create_func_arg1
 {
 public:
@@ -1128,7 +1074,6 @@ protected:
 #endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_glength : public Create_func_arg1
 {
 public:
@@ -1140,7 +1085,6 @@ protected:
   Create_func_glength() {}
   virtual ~Create_func_glength() {}
 };
-#endif
 
 
 class Create_func_greatest : public Create_native_func
@@ -1325,7 +1269,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_interiorringn : public Create_func_arg2
 {
 public:
@@ -1337,10 +1280,8 @@ protected:
   Create_func_interiorringn() {}
   virtual ~Create_func_interiorringn() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_intersects : public Create_func_arg2
 {
 public:
@@ -1430,7 +1371,6 @@ protected:
   Create_func_buffer() {}
   virtual ~Create_func_buffer() {}
 };
-#endif /*HAVE_SPATIAL*/
 
 
 class Create_func_is_free_lock : public Create_func_arg1
@@ -1459,7 +1399,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_isclosed : public Create_func_arg1
 {
 public:
@@ -1471,10 +1410,8 @@ protected:
   Create_func_isclosed() {}
   virtual ~Create_func_isclosed() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_isempty : public Create_func_arg1
 {
 public:
@@ -1486,7 +1423,6 @@ protected:
   Create_func_isempty() {}
   virtual ~Create_func_isempty() {}
 };
-#endif
 
 
 class Create_func_isnull : public Create_func_arg1
@@ -1502,7 +1438,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_issimple : public Create_func_arg1
 {
 public:
@@ -1514,7 +1449,6 @@ protected:
   Create_func_issimple() {}
   virtual ~Create_func_issimple() {}
 };
-#endif
 
 
 class Create_func_last_day : public Create_func_arg1
@@ -1829,7 +1763,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_numgeometries : public Create_func_arg1
 {
 public:
@@ -1841,10 +1774,8 @@ protected:
   Create_func_numgeometries() {}
   virtual ~Create_func_numgeometries() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_numinteriorring : public Create_func_arg1
 {
 public:
@@ -1856,10 +1787,8 @@ protected:
   Create_func_numinteriorring() {}
   virtual ~Create_func_numinteriorring() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_numpoints : public Create_func_arg1
 {
 public:
@@ -1871,7 +1800,6 @@ protected:
   Create_func_numpoints() {}
   virtual ~Create_func_numpoints() {}
 };
-#endif
 
 
 class Create_func_oct : public Create_func_arg1
@@ -1900,7 +1828,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_overlaps : public Create_func_arg2
 {
 public:
@@ -1925,7 +1852,6 @@ protected:
   Create_func_overlaps() {}
   virtual ~Create_func_overlaps() {}
 };
-#endif
 
 
 class Create_func_period_add : public Create_func_arg2
@@ -1967,7 +1893,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_pointn : public Create_func_arg2
 {
 public:
@@ -1979,7 +1904,6 @@ protected:
   Create_func_pointn() {}
   virtual ~Create_func_pointn() {}
 };
-#endif
 
 
 class Create_func_pow : public Create_func_arg2
@@ -2216,7 +2140,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_srid : public Create_func_arg1
 {
 public:
@@ -2228,10 +2151,8 @@ protected:
   Create_func_srid() {}
   virtual ~Create_func_srid() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_startpoint : public Create_func_arg1
 {
 public:
@@ -2243,7 +2164,6 @@ protected:
   Create_func_startpoint() {}
   virtual ~Create_func_startpoint() {}
 };
-#endif
 
 
 class Create_func_str_to_date : public Create_func_arg2
@@ -2388,7 +2308,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_touches : public Create_func_arg2
 {
 public:
@@ -2400,7 +2319,6 @@ protected:
   Create_func_touches() {}
   virtual ~Create_func_touches() {}
 };
-#endif
 
 
 class Create_func_upper : public Create_func_arg1
@@ -2546,7 +2464,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_mbr_within : public Create_func_arg2
 {
 public:
@@ -2571,10 +2488,8 @@ protected:
   Create_func_within() {}
   virtual ~Create_func_within() {}
 };
-#endif
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_x : public Create_func_arg1
 {
 public:
@@ -2586,7 +2501,6 @@ protected:
   Create_func_x() {}
   virtual ~Create_func_x() {}
 };
-#endif
 
 
 class Create_func_xml_extractvalue : public Create_func_arg2
@@ -2615,7 +2529,6 @@ protected:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Create_func_y : public Create_func_arg1
 {
 public:
@@ -2627,7 +2540,6 @@ protected:
   Create_func_y() {}
   virtual ~Create_func_y() {}
 };
-#endif
 
 
 class Create_func_year_week : public Create_native_func
@@ -2671,21 +2583,6 @@ static bool has_named_parameters(List<Item> *params)
 
   return false;
 }
-
-#ifndef HAVE_SPATIAL
-Create_func_no_geom Create_func_no_geom::s_singleton;
-
-Item*
-Create_func_no_geom::create_func(THD * /* unused */,
-                            LEX_STRING /* unused */,
-                            List<Item> * /* unused */)
-{
-  /* FIXME: error message can't be translated. */
-  my_error(ER_FEATURE_DISABLED, MYF(0),
-           sym_group_geom.name, sym_group_geom.needed_define);
-  return NULL;
-}
-#endif
 
 
 Item*
@@ -3022,7 +2919,6 @@ Create_func_aes_decrypt::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_area Create_func_area::s_singleton;
 
 Item*
@@ -3030,10 +2926,8 @@ Create_func_area::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_area(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_as_wkb Create_func_as_wkb::s_singleton;
 
 Item*
@@ -3041,10 +2935,8 @@ Create_func_as_wkb::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_as_wkb(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_as_wkt Create_func_as_wkt::s_singleton;
 
 Item*
@@ -3052,7 +2944,6 @@ Create_func_as_wkt::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_as_wkt(arg1);
 }
-#endif
 
 
 Create_func_asin Create_func_asin::s_singleton;
@@ -3149,7 +3040,6 @@ Create_func_ceiling::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_centroid Create_func_centroid::s_singleton;
 
 Item*
@@ -3157,7 +3047,6 @@ Create_func_centroid::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_centroid(arg1);
 }
-#endif
 
 
 Create_func_char_length Create_func_char_length::s_singleton;
@@ -3240,7 +3129,6 @@ Create_func_connection_id::create(THD *thd)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_contains Create_func_mbr_contains::s_singleton;
 
 Item*
@@ -3259,7 +3147,6 @@ Create_func_contains::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_CONTAINS_FUNC);
 }
-#endif
 
 
 Create_func_conv Create_func_conv::s_singleton;
@@ -3307,7 +3194,6 @@ Create_func_crc32::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_crosses Create_func_crosses::s_singleton;
 
 Item*
@@ -3316,7 +3202,6 @@ Create_func_crosses::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_CROSSES_FUNC);
 }
-#endif
 
 
 Create_func_date_format Create_func_date_format::s_singleton;
@@ -3469,7 +3354,6 @@ Create_func_des_encrypt::create_native(THD *thd, LEX_STRING name,
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_dimension Create_func_dimension::s_singleton;
 
 Item*
@@ -3477,10 +3361,8 @@ Create_func_dimension::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_dimension(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_disjoint Create_func_mbr_disjoint::s_singleton;
 
 Item*
@@ -3508,7 +3390,6 @@ Create_func_distance::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_distance(arg1, arg2);
 }
-#endif
 
 
 Create_func_elt Create_func_elt::s_singleton;
@@ -3579,7 +3460,6 @@ Create_func_encrypt::create_native(THD *thd, LEX_STRING name,
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_endpoint Create_func_endpoint::s_singleton;
 
 Item*
@@ -3588,10 +3468,8 @@ Create_func_endpoint::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_ENDPOINT);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_envelope Create_func_envelope::s_singleton;
 
 Item*
@@ -3599,10 +3477,8 @@ Create_func_envelope::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_envelope(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_equals Create_func_mbr_equals::s_singleton;
 
 Item*
@@ -3621,7 +3497,6 @@ Create_func_equals::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                Item_func::SP_EQUALS_FUNC);
 }
-#endif
 
 
 Create_func_exp Create_func_exp::s_singleton;
@@ -3686,7 +3561,6 @@ Create_func_export_set::create_native(THD *thd, LEX_STRING name,
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_exteriorring Create_func_exteriorring::s_singleton;
 
 Item*
@@ -3695,7 +3569,6 @@ Create_func_exteriorring::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_EXTERIORRING);
 }
-#endif
 
 
 Create_func_field Create_func_field::s_singleton;
@@ -3805,7 +3678,6 @@ Create_func_from_unixtime::create_native(THD *thd, LEX_STRING name,
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_geometry_from_text Create_func_geometry_from_text::s_singleton;
 
 Item*
@@ -3842,10 +3714,8 @@ Create_func_geometry_from_text::create_native(THD *thd, LEX_STRING name,
 
   return func;
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_geometry_from_wkb Create_func_geometry_from_wkb::s_singleton;
 
 Item*
@@ -3882,10 +3752,8 @@ Create_func_geometry_from_wkb::create_native(THD *thd, LEX_STRING name,
 
   return func;
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_geometry_type Create_func_geometry_type::s_singleton;
 
 Item*
@@ -3893,10 +3761,8 @@ Create_func_geometry_type::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_geometry_type(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_geometryn Create_func_geometryn::s_singleton;
 
 Item*
@@ -3905,7 +3771,6 @@ Create_func_geometryn::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_GEOMETRYN);
 }
-#endif
 
 
 Create_func_get_lock Create_func_get_lock::s_singleton;
@@ -3919,7 +3784,7 @@ Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+#if !defined(DBUG_OFF)
 Create_func_gis_debug Create_func_gis_debug::s_singleton;
 
 Item*
@@ -3930,7 +3795,6 @@ Create_func_gis_debug::create(THD *thd, Item *arg1)
 #endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_glength Create_func_glength::s_singleton;
 
 Item*
@@ -3938,7 +3802,6 @@ Create_func_glength::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_glength(arg1);
 }
-#endif
 
 
 Create_func_greatest Create_func_greatest::s_singleton;
@@ -4079,7 +3942,6 @@ Create_func_instr::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_interiorringn Create_func_interiorringn::s_singleton;
 
 Item*
@@ -4088,10 +3950,8 @@ Create_func_interiorringn::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_INTERIORRINGN);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_intersects Create_func_mbr_intersects::s_singleton;
 
 Item*
@@ -4159,7 +4019,6 @@ Create_func_buffer::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_buffer(arg1, arg2);
 }
-#endif /*HAVE_SPATIAL*/
 
 
 Create_func_is_free_lock Create_func_is_free_lock::s_singleton;
@@ -4184,7 +4043,6 @@ Create_func_is_used_lock::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_isclosed Create_func_isclosed::s_singleton;
 
 Item*
@@ -4192,10 +4050,8 @@ Create_func_isclosed::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_isclosed(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_isempty Create_func_isempty::s_singleton;
 
 Item*
@@ -4203,7 +4059,6 @@ Create_func_isempty::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_isempty(arg1);
 }
-#endif
 
 
 Create_func_isnull Create_func_isnull::s_singleton;
@@ -4215,7 +4070,6 @@ Create_func_isnull::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_issimple Create_func_issimple::s_singleton;
 
 Item*
@@ -4223,7 +4077,6 @@ Create_func_issimple::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_issimple(arg1);
 }
-#endif
 
 
 Create_func_last_day Create_func_last_day::s_singleton;
@@ -4626,7 +4479,6 @@ Create_func_nullif::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_numgeometries Create_func_numgeometries::s_singleton;
 
 Item*
@@ -4634,10 +4486,8 @@ Create_func_numgeometries::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numgeometries(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_numinteriorring Create_func_numinteriorring::s_singleton;
 
 Item*
@@ -4645,10 +4495,8 @@ Create_func_numinteriorring::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numinteriorring(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_numpoints Create_func_numpoints::s_singleton;
 
 Item*
@@ -4656,7 +4504,6 @@ Create_func_numpoints::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_numpoints(arg1);
 }
-#endif
 
 
 Create_func_oct Create_func_oct::s_singleton;
@@ -4679,7 +4526,6 @@ Create_func_ord::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_overlaps Create_func_mbr_overlaps::s_singleton;
 
 Item*
@@ -4698,7 +4544,6 @@ Create_func_overlaps::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_OVERLAPS_FUNC);
 }
-#endif
 
 
 Create_func_period_add Create_func_period_add::s_singleton;
@@ -4729,7 +4574,6 @@ Create_func_pi::create(THD *thd)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_pointn Create_func_pointn::s_singleton;
 
 Item*
@@ -4738,7 +4582,6 @@ Create_func_pointn::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_decomp_n(arg1, arg2,
                                                         Item_func::SP_POINTN);
 }
-#endif
 
 
 Create_func_pow Create_func_pow::s_singleton;
@@ -4975,7 +4818,6 @@ Create_func_sqrt::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_srid Create_func_srid::s_singleton;
 
 Item*
@@ -4983,10 +4825,8 @@ Create_func_srid::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_srid(arg1);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_startpoint Create_func_startpoint::s_singleton;
 
 Item*
@@ -4995,7 +4835,6 @@ Create_func_startpoint::create(THD *thd, Item *arg1)
   return new (thd->mem_root) Item_func_spatial_decomp(arg1,
                                                       Item_func::SP_STARTPOINT);
 }
-#endif
 
 
 Create_func_str_to_date Create_func_str_to_date::s_singleton;
@@ -5097,7 +4936,6 @@ Create_func_to_seconds::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_touches Create_func_touches::s_singleton;
 
 Item*
@@ -5106,7 +4944,6 @@ Create_func_touches::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_TOUCHES_FUNC);
 }
-#endif
 
 
 Create_func_upper Create_func_upper::s_singleton;
@@ -5248,7 +5085,6 @@ Create_func_weekofyear::create(THD *thd, Item *arg1)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_mbr_within Create_func_mbr_within::s_singleton;
 
 Item*
@@ -5267,10 +5103,8 @@ Create_func_within::create(THD *thd, Item *arg1, Item *arg2)
   return new (thd->mem_root) Item_func_spatial_rel(arg1, arg2,
                                                    Item_func::SP_WITHIN_FUNC);
 }
-#endif
 
 
-#ifdef HAVE_SPATIAL
 Create_func_x Create_func_x::s_singleton;
 
 Item*
@@ -5278,7 +5112,6 @@ Create_func_x::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_x(arg1);
 }
-#endif
 
 
 Create_func_xml_extractvalue Create_func_xml_extractvalue::s_singleton;
@@ -5299,7 +5132,6 @@ Create_func_xml_update::create(THD *thd, Item *arg1, Item *arg2, Item *arg3)
 }
 
 
-#ifdef HAVE_SPATIAL
 Create_func_y Create_func_y::s_singleton;
 
 Item*
@@ -5307,7 +5139,6 @@ Create_func_y::create(THD *thd, Item *arg1)
 {
   return new (thd->mem_root) Item_func_y(arg1);
 }
-#endif
 
 
 Create_func_year_week Create_func_year_week::s_singleton;
@@ -5356,11 +5187,7 @@ struct Native_func_registry
 
 #define BUILDER(F) & F::s_singleton
 
-#ifdef HAVE_SPATIAL
-  #define GEOM_BUILDER(F) & F::s_singleton
-#else
-  #define GEOM_BUILDER(F) & Create_func_no_geom::s_singleton
-#endif
+#define GEOM_BUILDER(F) & F::s_singleton
 
 /*
   MySQL native functions.

@@ -113,6 +113,16 @@ SELECT * FROM articles WHERE MATCH (title,body)
 SELECT * FROM articles WHERE MATCH (title,body)
 	AGAINST ('(+MySQL - (Tricks Security)) - YourSQL' IN BOOLEAN MODE);
 
+# Test non-word delimiter combined with negate "-" operator
+# This should return the same result as 'mysql - (Security DBMS)'
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('mysql - Security&DBMS' IN BOOLEAN MODE);
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('mysql - (Security DBMS)' IN BOOLEAN MODE);
+
+# Again, the operator sequence should not matter
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST (' - Security&DBMS + YourSQL' IN BOOLEAN MODE);
+
+SELECT * FROM articles WHERE MATCH (title,body) AGAINST ('+YourSQL - Security&DBMS' IN BOOLEAN MODE);
+
 # Test query expansion
 SELECT COUNT(*) FROM articles
         WHERE MATCH (title,body)

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -246,7 +246,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     key_length=pointer;
     if (keydef->flag & HA_SPATIAL)
     {
-#ifdef HAVE_SPATIAL
       /* BAR TODO to support 3D and more dimensions in the future */
       uint sp_segs=SPDIMS*2;
       keydef->flag=HA_SPATIAL;
@@ -278,10 +277,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       key_length+=SPLEN*sp_segs;
       length++;                              /* At least one length byte */
       min_key_length_skip+=SPLEN*2*SPDIMS;
-#else
-      my_errno= HA_ERR_UNSUPPORTED;
-      goto err_no_lock;
-#endif /*HAVE_SPATIAL*/
     }
     else if (keydef->flag & HA_FULLTEXT)
     {
@@ -707,7 +702,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     for (j=0 ; j < keydefs[i].keysegs-sp_segs ; j++)
       if (mi_keyseg_write(file, &keydefs[i].seg[j]))
        goto err;
-#ifdef HAVE_SPATIAL
     for (j=0 ; j < sp_segs ; j++)
     {
       HA_KEYSEG sseg;
@@ -725,7 +719,6 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       if (mi_keyseg_write(file, &sseg))
         goto err;
     }
-#endif
   }
   /* Create extra keys for unique definitions */
   offset= real_reclength - uniques * MI_UNIQUE_HASH_LENGTH;

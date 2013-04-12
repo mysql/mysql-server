@@ -98,7 +98,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 set @@sql_mode="mysql323";
 show create table t1;
 Table	Create Table
@@ -106,7 +106,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) binary DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) TYPE=MyISAM
+) TYPE=ENGINE
 set @@sql_mode="mysql40";
 show create table t1;
 Table	Create Table
@@ -114,7 +114,7 @@ t1	CREATE TABLE `t1` (
   `a` char(10) DEFAULT NULL,
   `b` char(10) binary DEFAULT NULL,
   `c` binary(10) DEFAULT NULL
-) TYPE=MyISAM
+) TYPE=ENGINE
 drop table t1;
 set session sql_mode = '';
 create table t1 ( min_num   dec(6,6)     default .000001);
@@ -122,7 +122,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 set session sql_mode = 'IGNORE_SPACE';
 create table t1 ( min_num   dec(6,6)     default 0.000001);
@@ -130,14 +130,14 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 create table t1 ( min_num   dec(6,6)     default .000001);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `min_num` decimal(6,6) DEFAULT '0.000001'
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1 ;
 set @@SQL_MODE=NULL;
 ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
@@ -159,7 +159,7 @@ t1	CREATE TABLE `t1` (
   `f1` int(11) NOT NULL,
   `f2` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`f1`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 SET @OLD_SQL_MODE=@@SQL_MODE, @@SQL_MODE='';
 show local variables like 'SQL_MODE';

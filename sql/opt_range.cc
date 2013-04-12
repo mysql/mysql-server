@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -838,6 +838,15 @@ public:
     statistics is used for these indexes.
   */
   bool use_index_statistics;
+
+  bool statement_should_be_aborted() const
+  {
+    return
+      thd->is_fatal_error ||
+      thd->is_error() ||
+      alloced_sel_args > SEL_ARG::MAX_SEL_ARGS;
+  }
+
 };
 
 class PARAM : public RANGE_OPT_PARAM
@@ -1213,35 +1222,45 @@ int imerge_list_or_list(RANGE_OPT_PARAM *param,
   Perform OR operation on index_merge list and key tree.
 
   RETURN
-    0     OK, result is stored in *im1.
-    other Error
+    false     OK, result is stored in *im1.
+    true      Error
 */
 
-int imerge_list_or_tree(RANGE_OPT_PARAM *param,
-                        List<SEL_IMERGE> *im1,
-                        SEL_TREE *tree)
+static bool imerge_list_or_tree(RANGE_OPT_PARAM *param,
+                                List<SEL_IMERGE> *im1,
+                                SEL_TREE *tree)
 {
+  DBUG_ENTER("imerge_list_or_tree");
   SEL_IMERGE *imerge;
   List_iterator<SEL_IMERGE> it(*im1);
-  bool tree_used= FALSE;
+  
+  uint remaining_trees= im1->elements;
   while ((imerge= it++))
   {
     SEL_TREE *or_tree;
-    if (tree_used)
+    /*
+      Need to make a copy of 'tree' for all but the last OR operation
+      because or_sel_tree_with_checks() may change it.
+    */
+    if (--remaining_trees == 0)
+      or_tree= tree;
+    else
     {
       or_tree= new SEL_TREE (tree, param);
-      if (!or_tree ||
-          (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty()))
-        return FALSE;
+      if (!or_tree)
+        DBUG_RETURN(true);
+      if (or_tree->keys_map.is_clear_all() && or_tree->merges.is_empty())
+        DBUG_RETURN(false);
     }
-    else
-      or_tree= tree;
 
-    if (imerge->or_sel_tree_with_checks(param, or_tree))
+    int result_or= imerge->or_sel_tree_with_checks(param, or_tree);
+    if (result_or == 1)
       it.remove();
-    tree_used= TRUE;
+    else if (result_or == -1)
+      DBUG_RETURN(true);
   }
-  return im1->is_empty();
+  DBUG_ASSERT(remaining_trees == 0);
+  DBUG_RETURN(im1->is_empty());
 }
 
 
@@ -1366,12 +1385,9 @@ QUICK_RANGE_SELECT::QUICK_RANGE_SELECT(THD *thd, TABLE *table, uint key_nr,
 }
 
 
-void QUICK_RANGE_SELECT::need_sorted_output(bool sort)
+void QUICK_RANGE_SELECT::need_sorted_output()
 {
-  if (sort)
-    mrr_flags |= HA_MRR_SORTED;
-  else
-    mrr_flags &= ~HA_MRR_SORTED;
+  mrr_flags |= HA_MRR_SORTED;
 }
 
 
@@ -5804,6 +5820,10 @@ static SEL_TREE *get_func_mm_tree(RANGE_OPT_PARAM *param, Item_func *cond_func,
 
   switch (cond_func->functype()) {
 
+  case Item_func::XOR_FUNC:
+    DBUG_RETURN(NULL); // Always true (don't use range access on XOR).
+    break;             // See WL#5800
+
   case Item_func::NE_FUNC:
     tree= get_ne_mm_tree(param, cond_func, field, value, value, cmp_type);
     break;
@@ -6180,36 +6200,37 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
 
     if (((Item_cond*) cond)->functype() == Item_func::COND_AND_FUNC)
     {
-      tree=0;
+      tree= NULL;
       Item *item;
       while ((item=li++))
       {
-	SEL_TREE *new_tree=get_mm_tree(param,item);
-	if (param->thd->is_fatal_error || 
-            param->alloced_sel_args > SEL_ARG::MAX_SEL_ARGS)
-	  DBUG_RETURN(0);	// out of memory
-	tree=tree_and(param,tree,new_tree);
+        SEL_TREE *new_tree= get_mm_tree(param,item);
+        if (param->statement_should_be_aborted())
+          DBUG_RETURN(NULL);
+        tree= tree_and(param,tree,new_tree);
         dbug_print_tree("after_and", tree, param);
-	if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
-	  break;
+        if (tree && tree->type == SEL_TREE::IMPOSSIBLE)
+          break;
       }
     }
     else
-    {						// Item OR
-      tree=get_mm_tree(param,li++);
+    {                                           // Item OR
+      tree= get_mm_tree(param,li++);
+      if (param->statement_should_be_aborted())
+        DBUG_RETURN(NULL);
       if (tree)
       {
-	Item *item;
-	while ((item=li++))
-	{
-	  SEL_TREE *new_tree=get_mm_tree(param,item);
-	  if (!new_tree)
-	    DBUG_RETURN(0);	// out of memory
-	  tree=tree_or(param,tree,new_tree);
+        Item *item;
+        while ((item=li++))
+        {
+          SEL_TREE *new_tree=get_mm_tree(param,item);
+          if (new_tree == NULL || param->statement_should_be_aborted())
+            DBUG_RETURN(NULL);
+          tree= tree_or(param,tree,new_tree);
           dbug_print_tree("after_or", tree, param);
-	  if (!tree || tree->type == SEL_TREE::ALWAYS)
-	    break;
-	}
+          if (tree == NULL || tree->type == SEL_TREE::ALWAYS)
+            break;
+        }
       }
     }
     dbug_print_tree("tree_returned", tree, param);
@@ -6540,6 +6561,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   switch (err) {
   case TYPE_OK:
   case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
     return false;
   case TYPE_ERR_BAD_VALUE:
     /*
@@ -6665,9 +6687,13 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
       // Equality comparison is always false when time info has been truncated.
       goto impossible_cond;
     }
-    // Fall through
-  default:
     return true;
+  case TYPE_ERR_OOM:
+    return true;
+    /*
+      No default here to avoid adding new conversion status codes that are
+      unhandled in this function.
+    */
   }
 
   DBUG_ASSERT(FALSE); // Should never get here.
@@ -7725,7 +7751,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
       Ambiguity: *** 
         The range starts or stops somewhere in the "***" range.
-        Example: a starts before b and may end before/the same plase/after b
+        Example: a starts before b and may end before/the same place/after b
         a: [----***]
         b:   [---]
 
@@ -7760,7 +7786,7 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
         -1: key_value_a is smaller than key_value_b (not adjacent)
          0: the key values are equal
          1: key_value_a is bigger than key_value_b (not adjacent)
-        -2: key_value_a is bigger than key_value_b, and they are adjacent
+         2: key_value_a is bigger than key_value_b, and they are adjacent
 
       Example: "cmp= cur_key1->cmp_max_to_min(cur_key2)"
 
@@ -9407,6 +9433,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
       param->table->quick_condition_rows=
         min(param->table->quick_condition_rows, rows);
     }
+    param->table->possible_quick_keys.set_bit(keynr);
   }
   /* Figure out if the key scan is ROR (returns rows in ROWID order) or not */
   enum ha_key_alg key_alg= param->table->key_info[seq.real_keyno].algorithm;
@@ -9810,7 +9837,12 @@ FT_SELECT *get_ft_select(THD *thd, TABLE *table, uint key)
     return fts;
 }
 
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
+
+/*
+  Check if any columns in the key value specified
+  by 'key_info' has a NULL-value.
+*/
+
 static bool
 key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
 {
@@ -9828,7 +9860,6 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   }
   return FALSE;
 }
-#endif
 
 /*
   Create quick select from ref/ref_or_null scan.
@@ -9931,11 +9962,9 @@ QUICK_RANGE_SELECT *get_quick_select_for_ref(THD *thd, TABLE *table,
                     (table->key_read ? HA_MRR_INDEX_ONLY : 0);
   if (thd->lex->sql_command != SQLCOM_SELECT)
     quick->mrr_flags|= HA_MRR_SORTED; // Assumed to give faster ins/upd/del
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
   if (!ref->null_ref_key && !key_has_nulls(key_info, range->min_key,
                                            ref->key_length))
     quick->mrr_flags |= HA_MRR_NO_NULL_ENDPOINTS;
-#endif
 
   quick->mrr_buf_size= thd->variables.read_rnd_buff_size;
   if (table->file->multi_range_read_info(quick->index, 1, records,
@@ -10817,7 +10846,20 @@ int QUICK_SELECT_DESC::get_next()
     {
       int local_error;
       if ((local_error= file->ha_index_last(record)))
-	DBUG_RETURN(local_error);		// Empty table
+      {
+        /*
+          HA_ERR_END_OF_FILE is returned both when the table is empty and when
+          there are no qualifying records in the range (when using ICP).
+          Interpret this return value as "no qualifying rows in the range" to
+          avoid loss of records. If the error code truly meant "empty table"
+          the next iteration of the loop will exit.
+        */
+        if (local_error != HA_ERR_END_OF_FILE)
+          DBUG_RETURN(local_error);
+        last_range= NULL;                       // Go to next range
+        continue;
+      }
+
       if (cmp_prev(last_range) == 0)
 	DBUG_RETURN(0);
       last_range= 0;                            // No match; go to next range
@@ -12889,15 +12931,7 @@ int QUICK_GROUP_MIN_MAX_SELECT::get_next()
 {
   int min_res= 0;
   int max_res= 0;
-#ifdef HPUX11
-  /*
-    volatile is required by a bug in the HP compiler due to which the
-    last test of result fails.
-  */
-  volatile int result;
-#else
   int result;
-#endif
   int is_last_prefix= 0;
 
   DBUG_ENTER("QUICK_GROUP_MIN_MAX_SELECT::get_next");

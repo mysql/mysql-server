@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -124,9 +124,6 @@ extern rw_lock_stats_t	rw_lock_stats;
 #ifdef UNIV_PFS_RWLOCK
 /* Following are rwlock keys used to register with MySQL
 performance schema */
-# ifdef UNIV_LOG_ARCHIVE
-extern	mysql_pfs_key_t	archive_lock_key;
-# endif /* UNIV_LOG_ARCHIVE */
 extern	mysql_pfs_key_t btr_search_latch_key;
 extern	mysql_pfs_key_t	buf_block_lock_key;
 # ifdef UNIV_SYNC_DEBUG
@@ -141,9 +138,9 @@ extern	mysql_pfs_key_t	trx_i_s_cache_lock_key;
 extern	mysql_pfs_key_t	trx_purge_latch_key;
 extern	mysql_pfs_key_t	index_tree_rw_lock_key;
 extern	mysql_pfs_key_t	index_online_log_key;
-extern	mysql_pfs_key_t	dict_table_stats_latch_key;
+extern	mysql_pfs_key_t	dict_table_stats_key;
 extern  mysql_pfs_key_t trx_sys_rw_lock_key;
-extern  mysql_pfs_key_t hash_table_rw_lock_key;
+extern  mysql_pfs_key_t hash_table_locks_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 

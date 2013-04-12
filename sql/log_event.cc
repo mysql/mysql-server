@@ -463,20 +463,6 @@ inline int idempotent_error_code(int err_code)
 
 inline int ignored_error_code(int err_code)
 {
-#ifdef HAVE_NDB_BINLOG
-  /*
-    The following error codes are hard-coded and will always be ignored.
-  */
-  switch (err_code)
-  {
-  case ER_DB_CREATE_EXISTS:
-  case ER_DB_DROP_EXISTS:
-    return 1;
-  default:
-    /* Nothing to do */
-    break;
-  }
-#endif
   return ((err_code == ER_SLAVE_IGNORED_TABLE) ||
           (use_slave_mask && bitmap_is_set(&slave_error_mask, err_code)));
 }
@@ -1299,7 +1285,9 @@ bool Log_event::write_header(IO_CACHE* file, ulong event_data_length)
 
 int Log_event::read_log_event(IO_CACHE* file, String* packet,
                               mysql_mutex_t* log_lock,
-                              uint8 checksum_alg_arg)
+                              uint8 checksum_alg_arg,
+                              const char *log_file_name_arg,
+                              bool* is_binlog_active)
 {
   ulong data_len;
   int result=0;
@@ -1309,6 +1297,10 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
 
   if (log_lock)
     mysql_mutex_lock(log_lock);
+
+  if (log_file_name_arg)
+    *is_binlog_active= mysql_bin_log.is_active(log_file_name_arg);
+
   if (my_b_read(file, (uchar*) buf, sizeof(buf)))
   {
     /*
@@ -4253,7 +4245,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     sql_parse.cc
     */
 
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+#if !defined(MYSQL_CLIENT)
   if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
                                                     +  time_zone_len + 1
                                                     +  user.length + 1
@@ -4313,7 +4305,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     Append the db length at the end of the buffer. This will be used by
     Query_cache::send_result_to_client() in case the query cache is On.
    */
-#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+#if !defined(MYSQL_CLIENT)
   size_t db_length= (size_t)db_len;
   memcpy(start + data_len + 1, &db_length, sizeof(size_t));
 #endif
@@ -7264,7 +7256,7 @@ bool slave_execute_deferred_events(THD *thd)
     return res;
 
   res= rli->deferred_events->execute(rli);
-
+  rli->deferred_events->rewind();
   return res;
 }
 
@@ -7366,7 +7358,7 @@ bool Xid_log_event::do_commit(THD *thd)
     Increment the global status commit count variable
   */
   if (!error)
-    status_var_increment(thd->status_var.com_stat[SQLCOM_COMMIT]);
+    thd->status_var.com_stat[SQLCOM_COMMIT]++;
 
   return error;
 }
@@ -7604,7 +7596,7 @@ User_var_log_event(const char* buf, uint event_len,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
 #ifndef MYSQL_CLIENT
-  , deferred(false)
+  , deferred(false), query_id(0)
 #endif
 {
   bool error= false;
@@ -7891,11 +7883,16 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
+  query_id_t sav_query_id= 0; /* memorize orig id when deferred applying */
 
   if (rli->deferred_events_collecting)
   {
-    set_deferred();
+    set_deferred(current_thd->query_id);
     return rli->deferred_events->add(this);
+  } else if (is_deferred())
+  {
+    sav_query_id= current_thd->query_id;
+    current_thd->query_id= query_id; /* recreating original time context */
   }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
@@ -7967,6 +7964,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
                  (flags & User_var_log_event::UNSIGNED_F));
   if (!is_deferred())
     free_root(thd->mem_root, 0);
+  else
+    current_thd->query_id= sav_query_id; /* restore current query's context */
 
   return 0;
 }
@@ -10028,7 +10027,7 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
   DBUG_DUMP("record[0]", table->record[0], table->s->reclength);
   DBUG_DUMP("record[1]", table->record[1], table->s->reclength);
 
-  bool result= FALSE;
+  bool result= false;
   uchar saved_x[2]= {0, 0}, saved_filler[2]= {0, 0};
 
   if (table->s->null_bytes > 0)
@@ -10060,39 +10059,52 @@ static bool record_compare(TABLE *table, MY_BITMAP *cols)
     }
   }
 
-  if (table->s->blob_fields + table->s->varchar_fields == 0 &&
+  /**
+    Compare full record only if:
+    - there are no blob fields (otherwise we would also need
+      to compare blobs contents as well);
+    - there are no varchar fields (otherwise we would also need
+      to compare varchar contents as well);
+    - there are no null fields, otherwise NULLed fields
+      contents (i.e., the don't care bytes) may show arbitrary
+      values, depending on how each engine handles internally.
+    - if all the bitmap is set (both are full rows)
+    */
+  if ((table->s->blob_fields +
+       table->s->varchar_fields +
+       table->s->null_fields) == 0 &&
       bitmap_is_set_all(cols))
   {
     result= cmp_record(table,record[1]);
-    goto record_compare_exit;
   }
 
-  /* Compare null bits */
-  if (bitmap_is_set_all(cols) &&
-      memcmp(table->null_flags,
-       table->null_flags+table->s->rec_buff_length,
-       table->s->null_bytes))
+  /*
+    Fallback to field-by-field comparison:
+    1. start by checking if the field is signaled:
+    2. if it is, first compare the null bit if the field is nullable
+    3. then compare the contents of the field, if it is not
+       set to null
+   */
+  else
   {
-    result= TRUE;       // Diff in NULL value
-    goto record_compare_exit;
-  }
-
-  /* Compare updated fields */
-  for (Field **ptr= table->field ;
-       *ptr && ((*ptr)->field_index < cols->n_bits);
-       ptr++)
-  {
-    if (bitmap_is_set(cols, (*ptr)->field_index))
+    for (Field **ptr=table->field ;
+         *ptr && ((*ptr)->field_index < cols->n_bits) && !result;
+         ptr++)
     {
-      if ((*ptr)->cmp_binary_offset(table->s->rec_buff_length))
+      Field *field= *ptr;
+      if (bitmap_is_set(cols, field->field_index))
       {
-        result= TRUE;
-        goto record_compare_exit;
+        /* compare null bit */
+        if (field->is_null() != field->is_null_in_record(table->record[1]))
+          result= true;
+
+        /* compare content, only if fields are not set to NULL */
+        else if (!field->is_null())
+          result= field->cmp_binary_offset(table->s->rec_buff_length);
       }
     }
   }
 
-record_compare_exit:
   /*
     Restore the saved bytes.
 
@@ -11107,9 +11119,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
     for (uint i=0 ;  ptr && (i < rli->tables_to_lock_count); ptr= ptr->next_global, i++)
       const_cast<Relay_log_info*>(rli)->m_table_map.set_table(ptr->table_id, ptr->table);
 
-#ifdef HAVE_QUERY_CACHE
     query_cache.invalidate_locked_for_write(rli->tables_to_lock);
-#endif
   }
 
   TABLE* 
@@ -12156,8 +12166,8 @@ bool Table_map_log_event::write_data_body(IO_CACHE *file)
   DBUG_ASSERT(m_dbnam != NULL);
   DBUG_ASSERT(m_tblnam != NULL);
   /* We use only one byte per length for storage in event: */
-  DBUG_ASSERT(m_dblen < 128);
-  DBUG_ASSERT(m_tbllen < 128);
+  DBUG_ASSERT(m_dblen <= 128);
+  DBUG_ASSERT(m_tbllen <= 128);
 
   uchar const dbuf[]= { (uchar) m_dblen };
   uchar const tbuf[]= { (uchar) m_tbllen };
@@ -12264,7 +12274,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
     Increment the global status insert count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_INSERT]);
+    thd->status_var.com_stat[SQLCOM_INSERT]++;
 
   /**
      todo: to introduce a property for the event (handler?) which forces
@@ -12703,6 +12713,8 @@ Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 #ifdef MYSQL_CLIENT
 void Write_rows_log_event::print(FILE *file, PRINT_EVENT_INFO* print_event_info)
 {
+  DBUG_EXECUTE_IF("simulate_cache_read_error",
+                  {DBUG_SET("+d,simulate_my_b_fill_error");});
   Rows_log_event::print_helper(file, print_event_info, "Write_rows");
 }
 #endif
@@ -12752,7 +12764,7 @@ Delete_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status delete count variable
    */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_DELETE]);  
+    thd->status_var.com_stat[SQLCOM_DELETE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -12861,7 +12873,7 @@ Update_rows_log_event::do_before_row_operations(const Slave_reporting_capability
     Increment the global status update count variable
   */
   if (get_flags(STMT_END_F))
-    status_var_increment(thd->status_var.com_stat[SQLCOM_UPDATE]);
+    thd->status_var.com_stat[SQLCOM_UPDATE]++;
   error= row_operations_scan_and_key_setup();
   DBUG_RETURN(error);
 
@@ -13486,12 +13498,13 @@ void Previous_gtids_log_event::print(FILE *file,
 int Previous_gtids_log_event::add_to_set(Gtid_set *target) const
 {
   DBUG_ENTER("Previous_gtids_log_event::add_to_set(Gtid_set *)");
-#ifndef DBUG_OFF
-  char *str= get_str(NULL, &Gtid_set::default_string_format);
-  DBUG_PRINT("info", ("adding gtid_set: '%s'", str));
-  my_free(str);
-#endif
-  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf, buf_size));
+  size_t end_pos= 0;
+  size_t add_size= DBUG_EVALUATE_IF("gtid_has_extra_data", 10, 0);
+  /* Silently ignore additional unknown data at the end of the encoding */
+  PROPAGATE_REPORTED_ERROR_INT(target->add_gtid_encoding(buf,
+                                                         buf_size + add_size,
+                                                         &end_pos));
+  DBUG_ASSERT(end_pos <= (size_t) buf_size);
   DBUG_RETURN(0);
 }
 

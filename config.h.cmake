@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -194,7 +194,7 @@
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
-#cmakedefine HAVE_MALLINFO 1
+#cmakedefine HAVE_MALLOC_INFO 1
 #cmakedefine HAVE_MEMCPY 1
 #cmakedefine HAVE_MEMMOVE 1
 #cmakedefine HAVE_MKSTEMP 1
@@ -210,14 +210,12 @@
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
-#cmakedefine HAVE_READ_REAL_TIME 1
 #cmakedefine HAVE_PTHREAD_ATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_ATTR_GETSTACKSIZE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETPRIO 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSCOPE 1
 #cmakedefine HAVE_PTHREAD_ATTR_SETSTACKSIZE 1
-#cmakedefine HAVE_PTHREAD_CONDATTR_CREATE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
 #cmakedefine HAVE_PTHREAD_KEY_DELETE 1
@@ -327,8 +325,6 @@
 #cmakedefine HAVE_SYS_EVENT_H 1
 #cmakedefine HAVE_SYS_QUEUE_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
-#define USE_MB 1
-#define USE_MB_IDENT 1
 
 #cmakedefine HAVE_VALGRIND
 
@@ -400,7 +396,7 @@
 
 #cmakedefine HAVE_MBSTATE_T
 
-#define MAX_INDEXES 64U
+#cmakedefine MAX_INDEXES @MAX_INDEXES@
 
 #cmakedefine QSORT_TYPE_IS_VOID 1
 #cmakedefine RETQSORTTYPE @RETQSORTTYPE@
@@ -553,8 +549,6 @@
 #cmakedefine MYSQL_DEFAULT_CHARSET_NAME "@MYSQL_DEFAULT_CHARSET_NAME@"
 #cmakedefine MYSQL_DEFAULT_COLLATION_NAME "@MYSQL_DEFAULT_COLLATION_NAME@"
 
-#cmakedefine USE_MB 1
-#cmakedefine USE_MB_IDENT 1
 #cmakedefine USE_STRCOLL 1
 
 /* This should mean case insensitive file system */
@@ -604,14 +598,6 @@
 #cmakedefine COMPILE_FLAG_WERROR 1
 
 /*
-  Stuff that always need to be defined (compile breaks without it)
-*/
-#define HAVE_SPATIAL 1
-#define HAVE_RTREE_KEYS 1
-#define HAVE_QUERY_CACHE 1
-#define BIG_TABLES 1
-
-/*
   Important storage engines (those that really need define 
   WITH_<ENGINE>_STORAGE_ENGINE for the whole server)
 */
@@ -620,9 +606,6 @@
 #cmakedefine WITH_PARTITION_STORAGE_ENGINE 1
 #cmakedefine WITH_PERFSCHEMA_STORAGE_ENGINE 1
 #cmakedefine WITH_NDBCLUSTER_STORAGE_ENGINE 1
-#if (WITH_NDBCLUSTER_STORAGE_ENGINE) && !defined(EMBEDDED_LIBRARY)
-# define HAVE_NDB_BINLOG 1
-#endif
 
 #cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
 #cmakedefine SHAREDIR "@SHAREDIR@"

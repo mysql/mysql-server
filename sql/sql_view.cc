@@ -766,7 +766,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   }
 
   if (mode != VIEW_CREATE_NEW)
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
   if (res)
     goto err;
 
@@ -1121,6 +1121,7 @@ err:
    Go through a list of tables and join nests, recursively, and if they have
    the name_resolution_context which points to removed_select, repoint it to
    parent_select.
+   The select_lex pointer of the join nest is also repointed.
 
    @param  join_list  List of tables and join nests
    @param  removed_select  select_lex which is removed (merged into
@@ -1135,6 +1136,8 @@ static void repoint_contexts_of_join_nests(List<TABLE_LIST> join_list,
   TABLE_LIST *tbl;
   while ((tbl= ti++))
   {
+    DBUG_ASSERT(tbl->select_lex == removed_select);
+    tbl->select_lex= parent_select;
     if (tbl->context_of_embedding &&
         tbl->context_of_embedding->select_lex == removed_select)
       tbl->context_of_embedding->select_lex= parent_select;
@@ -1594,7 +1597,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         objects of the view.
       */
       if (!(table->view_sctx= (Security_context *)
-            thd->stmt_arena->alloc(sizeof(Security_context))))
+            thd->stmt_arena->calloc(sizeof(Security_context))))
         goto err;
       security_ctx= table->view_sctx;
     }
@@ -1894,7 +1897,7 @@ bool mysql_drop_view(THD *thd, TABLE_LIST *views, enum_drop_mode drop_mode)
     */
     tdc_remove_table(thd, TDC_RT_REMOVE_ALL, view->db, view->table_name,
                      FALSE);
-    query_cache_invalidate3(thd, view, 0);
+    query_cache.invalidate(thd, view, FALSE);
     sp_cache_invalidate();
   }
 
@@ -2208,7 +2211,7 @@ mysql_rename_view(THD *thd,
     DBUG_RETURN(1);  
 
   /* remove cache entries */
-  query_cache_invalidate3(thd, view, 0);
+  query_cache.invalidate(thd, view, FALSE);
   sp_cache_invalidate();
   error= FALSE;
 

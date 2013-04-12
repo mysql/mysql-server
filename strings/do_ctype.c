@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -140,10 +140,6 @@ void init_case_convert()
     to_upper[i]= sort_order[i]= to_lower[i]= (char) i;
 #endif
 
-#if defined(HPUX10)
-  higher_pos= (uchar *) "\xd0\xd8\xda\xdb\xdc\xd3";
-  lower_pos=  (uchar *) "\xd4\xcc\xce\xdf\xc9\xd7";
-#else
 #ifdef USE_INTERNAL_CTYPE
   higher_pos=lower_pos= (uchar* ) "";		/* System converts chars */
 #else
@@ -155,7 +151,6 @@ void init_case_convert()
   lower_pos=  (uchar *) "{}|`~";
 #endif
 #endif /* USE_INTERNAL_CTYPE */
-#endif /* HPUX10 */
 
   while (*higher_pos)
   {
@@ -166,9 +161,6 @@ void init_case_convert()
 	/* sets upp sortorder; higer_pos character (upper and lower) is */
 	/* changed to lower_pos character */
 
-#if defined(HPUX10)
-  higher_pos= lower_pos= (uchar *) "";		/* Tecknen i r{tt ordning */
-#else
 #ifdef USE_ISO_8859_1				/* As in USG5 ICL-386 */
   higher_pos= (uchar *) "\305\304\326\334\311";
   lower_pos=  (uchar *) "\304\305\326YE";
@@ -176,7 +168,6 @@ void init_case_convert()
   higher_pos= (uchar *) "][\\~`";		/* R{tt ordning p} tecknen */
   lower_pos= (uchar *)	"[\\]YE";		/* Ordning enligt ascii */
 #endif /* USE_ISO_8859_1 */
-#endif /* HPUX10 */
 
   while (*higher_pos)
   {

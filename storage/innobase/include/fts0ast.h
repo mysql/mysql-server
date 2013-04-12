@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,7 @@ Created 2007/03/16/03 Sunny Bains
 #define INNOBASE_FST0AST_H
 
 #include "mem0mem.h"
+#include "ha_prototypes.h"
 
 /* The type of AST Node */
 enum fts_ast_type_t {
@@ -268,6 +269,8 @@ struct fts_ast_state_t {
 	fts_ast_list_t	list;			/*!< List of nodes allocated */
 
 	fts_lexer_t*	lexer;			/*!< Lexer callback + arg */
+	CHARSET_INFO*	charset;		/*!< charset used for
+						tokenization */
 };
 
 #endif /* INNOBASE_FSTS0AST_H */

@@ -28,11 +28,23 @@ using my_testing::Server_initializer;
 int summary_count= 0;
 char last_query[10];
 
-bool logger(THD *thd, const char *query, size_t query_length)
+bool slow_logger(THD *thd, const char *query, size_t query_length)
 {
   summary_count++;
   strcpy(last_query, query);
   return false;
+}
+
+
+void error_logger(const char *format,  ...)
+{
+  va_list args;
+
+  va_start(args, format);
+  sprintf(last_query, format, va_arg(args, ulong));
+  va_end(args);
+
+  summary_count++;
 }
 
 
@@ -59,12 +71,17 @@ protected:
 };
 
 
-// Test basic functionality - throttling, eligibility, printing of summary
-TEST_F(LogThrottleTest, Basic)
+// Slow_log_throttles test cases starts from here.
+
+/*
+  Test basic functionality - throttling, eligibility, printing of summary of
+                             Slow_log_throttle.
+*/
+TEST_F(LogThrottleTest, SlowLogBasic)
 {
   ulong threshold= 2;
   ulong window= 1000000;
-  Log_throttle throttle(&threshold, &m_mutex, window, logger, "%lu");
+  Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Should not be throttled
   EXPECT_FALSE(throttle.log(thd(), true));
@@ -97,12 +114,12 @@ TEST_F(LogThrottleTest, Basic)
 }
 
 
-// Test changes to the threshold level
-TEST_F(LogThrottleTest, ThresholdChange)
+// Test changes to the threshold level of slow logger
+TEST_F(LogThrottleTest, SlowLogThresholdChange)
 {
   ulong threshold= 2;
   ulong window= 1000000;
-  Log_throttle throttle(&threshold, &m_mutex, window, logger, "%lu");
+  Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Reach threshold
   EXPECT_FALSE(throttle.log(thd(), true));
@@ -129,12 +146,12 @@ TEST_F(LogThrottleTest, ThresholdChange)
 }
 
 
-// Test number of suppressed messages written by logger
-TEST_F(LogThrottleTest, SuppressCount)
+// Test number of suppressed messages written by slow logger
+TEST_F(LogThrottleTest, SlowLogSuppressCount)
 {
   ulong threshold= 1;
   ulong window= 1000000;
-  Log_throttle throttle(&threshold, &m_mutex, window, logger, "%lu");
+  Slow_log_throttle throttle(&threshold, &m_mutex, window, slow_logger, "%lu");
 
   // Suppress 3 events
   EXPECT_FALSE(throttle.log(thd(), true));
@@ -155,5 +172,76 @@ TEST_F(LogThrottleTest, SuppressCount)
   EXPECT_EQ(2, summary_count);
   EXPECT_STREQ("2", last_query);
 }
+// End of Slow_log_throttles test cases.
+
+//Error_log_throttles test cases starts from here.
+
+/*
+  Test basic functionality - throttling, eligibility, printing of summary of
+                             Error_log_throttle.
+*/
+TEST_F(LogThrottleTest, ErrorLogBasic)
+{
+  ulong window= 1000000;
+  Error_log_throttle throttle(window, error_logger, "%lu");
+
+  // Should not be throttled
+  EXPECT_FALSE(throttle.log(thd()));
+
+  // Flush and check that summary was not printed
+  EXPECT_FALSE(throttle.flush(thd()));
+  EXPECT_EQ(0, summary_count);
+
+  /*
+    Should be throttled. Even though this is the first
+    log after flush, flush didn't do anything and window
+    is not ended yet.
+  */
+  EXPECT_TRUE(throttle.log(thd()));
+
+  // Should be throttled.
+  EXPECT_TRUE(throttle.log(thd()));
+
+  // Flush and check that summary was printed
+  EXPECT_TRUE(throttle.flush(thd()));
+  EXPECT_EQ(1, summary_count);
+
+  // Flush and check that summary was not printed again
+  EXPECT_FALSE(throttle.flush(thd()));
+  EXPECT_EQ(1, summary_count);
+
+  // Get another summary printed
+  EXPECT_FALSE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.flush(thd()));
+  EXPECT_EQ(2, summary_count);
+}
+
+
+// Test number of suppressed messages written by error logger
+TEST_F(LogThrottleTest, ErrorLogSuppressCount)
+{
+  ulong window= 1000000;
+  Error_log_throttle throttle(window, error_logger, "%lu");
+
+  // Suppress 3 events
+  EXPECT_FALSE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.flush(thd()));
+  EXPECT_EQ(1, summary_count);
+  EXPECT_STREQ("3", last_query);
+
+  // Suppress 2 events
+  EXPECT_FALSE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.log(thd()));
+  EXPECT_TRUE(throttle.flush(thd()));
+  EXPECT_EQ(2, summary_count);
+  EXPECT_STREQ("2", last_query);
+}
+//End of Error_log_throttles test cases.
 
 }

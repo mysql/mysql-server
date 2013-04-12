@@ -1212,7 +1212,7 @@ int ha_prepare(THD *thd)
     {
       int err;
       handlerton *ht= ha_info->ht();
-      status_var_increment(thd->status_var.ha_prepare_count);
+      thd->status_var.ha_prepare_count++;
       if (ht->prepare)
       {
         if ((err= ht->prepare(ht, thd, all)))
@@ -1458,9 +1458,12 @@ end:
                    issued by DDL. Is not set when called
                    at the end of statement, even if
                    autocommit=1.
+  @param[in]  run_after_commit
+                   True by default, otherwise, does not execute
+                   the after_commit hook in the function.
 */
 
-int ha_commit_low(THD *thd, bool all)
+int ha_commit_low(THD *thd, bool all, bool run_after_commit)
 {
   int error=0;
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
@@ -1478,7 +1481,7 @@ int ha_commit_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error=1;
       }
-      status_var_increment(thd->status_var.ha_commit_count);
+      thd->status_var.ha_commit_count++;
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
@@ -1487,26 +1490,26 @@ int ha_commit_low(THD *thd, bool all)
     trans->rw_ha_count= 0;
     if (all)
     {
-#ifdef HAVE_QUERY_CACHE
       if (thd->transaction.changed_tables)
         query_cache.invalidate(thd->transaction.changed_tables);
-#endif
     }
   }
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (all)
     thd->transaction.cleanup();
-
-  /* If commit succeeded, we call the after_commit hook */
-  if (!error)
-    (void) RUN_HOOK(transaction, after_commit, (thd, all));
-
   /*
     When the transaction has been committed, we clear the commit_low
     flag. This allow other parts of the system to check if commit_low
     was called.
   */
   thd->transaction.flags.commit_low= false;
+  if (run_after_commit)
+  {
+    /* If commit succeeded, we call the after_commit hook */
+    if (!error)
+      (void) RUN_HOOK(transaction, after_commit, (thd, all));
+    thd->transaction.flags.run_hooks= false;
+  }
   DBUG_RETURN(error);
 }
 
@@ -1532,7 +1535,7 @@ int ha_rollback_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
         error= 1;
       }
-      status_var_increment(thd->status_var.ha_rollback_count);
+      thd->status_var.ha_rollback_count++;
       ha_info_next= ha_info->next();
       ha_info->reset(); /* keep it conveniently zero-filled */
     }
@@ -1555,7 +1558,20 @@ int ha_rollback_trans(THD *thd, bool all)
 #ifndef DBUG_OFF
   THD_TRANS *trans=all ? &thd->transaction.all : &thd->transaction.stmt;
 #endif
-
+  /*
+    "real" is a nick name for a transaction for which a commit will
+    make persistent changes. E.g. a 'stmt' transaction inside a 'all'
+    transaction is not 'real': even though it's possible to commit it,
+    the changes are not durable as they might be rolled back if the
+    enclosing 'all' transaction is rolled back.
+    We establish the value of 'is_real_trans' by checking
+    if it's an explicit COMMIT or BEGIN statement, or implicit
+    commit issued by DDL (in these cases all == TRUE),
+    or if we're running in autocommit mode (it's only in the autocommit mode
+    ha_commit_one_phase() is called with an empty
+    transaction.all.ha_list, see why in trans_register_ha()).
+  */
+  bool is_real_trans= all || thd->transaction.all.ha_list == NULL;
   DBUG_ENTER("ha_rollback_trans");
 
   /*
@@ -1583,7 +1599,7 @@ int ha_rollback_trans(THD *thd, bool all)
     tc_log->rollback(thd, all);
 
   /* Always cleanup. Even if nht==0. There may be savepoints. */
-  if (all)
+  if (is_real_trans)
     thd->transaction.cleanup();
   if (all)
     thd->transaction_rollback_request= FALSE;
@@ -1592,7 +1608,7 @@ int ha_rollback_trans(THD *thd, bool all)
     Only call gtid_rollback(THD*), which will purge thd->owned_gtid, if
     complete transaction is being rollback or autocommit=1.
   */
-  if (all || 0 == thd->transaction.all.ha_list)
+  if (is_real_trans)
     gtid_rollback(thd);
 
   /*
@@ -1608,8 +1624,7 @@ int ha_rollback_trans(THD *thd, bool all)
   thd->transaction.stmt.dbug_unsafe_rollback_flags("stmt");
   thd->transaction.all.dbug_unsafe_rollback_flags("all");
 #endif
-  if ((all || thd->transaction.stmt.ha_list == 0) &&
-      thd->transaction.all.cannot_safely_rollback() &&
+  if (is_real_trans && thd->transaction.all.cannot_safely_rollback() &&
       !thd->slave_thread && thd->killed != THD::KILL_CONNECTION)
     thd->transaction.push_unsafe_rollback_warnings(thd);
   DBUG_RETURN(error);
@@ -1835,13 +1850,26 @@ int ha_recover(HASH *commit_list)
   if (info.commit_list)
     sql_print_information("Starting crash recovery...");
 
-  /*
-    for now, only InnoDB supports 2pc. It means we can always safely
-    rollback all pending transactions, without risking inconsistent data
-  */
-  DBUG_ASSERT(total_ha_2pc == (ulong) opt_bin_log+1); // only InnoDB and binlog
-  tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
-  info.dry_run=FALSE;
+  if (total_ha_2pc > (ulong)opt_bin_log + 1)
+  {
+    if (tc_heuristic_recover == TC_HEURISTIC_RECOVER_ROLLBACK)
+    {
+      sql_print_error("--tc-heuristic-recover rollback strategy is not safe "
+                      "on systems with more than one 2-phase-commit-capable "
+                      "storage engine. Aborting crash recovery.");
+      DBUG_RETURN(1);
+    }
+  }
+  else
+  {
+    /*
+      If there is only one 2pc capable storage engine it is always safe
+      to rollback. This setting will be ignored if we are in automatic
+      recovery mode.
+    */
+    tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
+    info.dry_run= false;
+  }
 
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
@@ -2035,7 +2063,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
-    status_var_increment(thd->status_var.ha_savepoint_rollback_count);
+    thd->status_var.ha_savepoint_rollback_count++;
     trans->no_2pc|= ht->prepare == 0;
   }
   /*
@@ -2052,7 +2080,7 @@ int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_ERROR_DURING_ROLLBACK, MYF(0), err);
       error=1;
     }
-    status_var_increment(thd->status_var.ha_rollback_count);
+    thd->status_var.ha_rollback_count++;
     ha_info_next= ha_info->next();
     ha_info->reset(); /* keep it conveniently zero-filled */
   }
@@ -2085,7 +2113,7 @@ int ha_prepare_low(THD *thd, bool all)
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err);
         error= 1;
       }
-      status_var_increment(thd->status_var.ha_prepare_count);
+      thd->status_var.ha_prepare_count++;
     }
     DBUG_EXECUTE_IF("crash_commit_after_prepare", DBUG_SUICIDE(););
   }
@@ -2123,7 +2151,7 @@ int ha_savepoint(THD *thd, SAVEPOINT *sv)
       my_error(ER_GET_ERRNO, MYF(0), err);
       error=1;
     }
-    status_var_increment(thd->status_var.ha_savepoint_count);
+    thd->status_var.ha_savepoint_count++;
   }
   /*
     Remember the list of registered storage engines. All new
@@ -2413,7 +2441,7 @@ err:
 
 void handler::ha_statistic_increment(ulonglong SSV::*offset) const
 {
-  status_var_increment(table->in_use->status_var.*offset);
+  (table->in_use->status_var.*offset)++;
 }
 
 void **handler::ha_data(THD *thd) const
@@ -4079,6 +4107,9 @@ int handler::ha_check(THD *thd, HA_CHECK_OPT *check_opt)
   }
   if ((error= check(thd, check_opt)))
     return error;
+  /* Skip updating frm version if not main handler. */
+  if (table->file != this)
+    return error;
   return update_frm_version(table);
 }
 
@@ -4391,7 +4422,8 @@ handler::check_if_supported_inplace_alter(TABLE *altered_table,
     Alter_inplace_info::ALTER_COLUMN_NAME |
     Alter_inplace_info::ALTER_COLUMN_DEFAULT |
     Alter_inplace_info::CHANGE_CREATE_OPTION |
-    Alter_inplace_info::ALTER_RENAME;
+    Alter_inplace_info::ALTER_RENAME |
+    Alter_inplace_info::RENAME_INDEX;
 
   /* Is there at least one operation that requires copy algorithm? */
   if (ha_alter_info->handler_flags & ~inplace_offline_operations)
@@ -5215,7 +5247,7 @@ int ha_discover(THD *thd, const char *db, const char *name,
     error= 0;
 
   if (!error)
-    status_var_increment(thd->status_var.ha_discover_count);
+    thd->status_var.ha_discover_count++;
   DBUG_RETURN(error);
 }
 
@@ -5402,7 +5434,6 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
-#ifdef HAVE_NDB_BINLOG
 
 int ha_reset_logs(THD *thd)
 {
@@ -5478,7 +5509,6 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
   else
     binlog_log_query_handlerton2(thd, hton, &b);
 }
-#endif
 
 int ha_binlog_end(THD* thd)
 {
@@ -5946,7 +5976,7 @@ int DsMrr_impl::dsmrr_init(handler *h_arg, RANGE_SEQ_IF *seq_funcs,
   is_mrr_assoc= !test(mode & HA_MRR_NO_ASSOCIATION);
 
   if (is_mrr_assoc)
-    status_var_increment(table->in_use->status_var.ha_multi_range_read_init_count);
+    table->in_use->status_var.ha_multi_range_read_init_count++;
  
   rowids_buf_end= buf->buffer_end;
   elem_size= h->ref_length + (int)is_mrr_assoc * sizeof(void*);

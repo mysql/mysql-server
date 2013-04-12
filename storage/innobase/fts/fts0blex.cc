@@ -479,7 +479,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 /* Required for reentrant parser */
 #define YY_DECL int fts_blexer(YYSTYPE* val, yyscan_t yyscanner)
-
+#define exit(A)   ut_error
 #define YY_NO_INPUT 1
 #line 484 "fts0blex.cc"
 
@@ -1611,7 +1611,7 @@ YY_BUFFER_STATE fts0b_scan_bytes  (yyconst char * yybytes, int  _yybytes_len , y
 
 static void yy_fatal_error (yyconst char* msg ,     yyscan_t yyscanner __attribute__((unused)) __attribute__((unused)) __attribute__((unused)) __attribute__((unused)))
 {
-    	(void) fprintf( stderr, "%s\n", msg );
+	(void) fprintf( stderr, "%s\n", msg );
 	exit( YY_EXIT_FAILURE );
 }
 

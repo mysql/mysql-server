@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 */
 
 /* mysqldump.c  - Dump a tables contents and format to an ASCII file
@@ -4653,7 +4653,7 @@ static char *get_actual_table_name(const char *old_table_name, MEM_ROOT *root)
               quote_for_like(old_table_name, show_name_buff));
 
   if (mysql_query_with_error_report(mysql, 0, query))
-    return NullS;
+    DBUG_RETURN(NullS);
 
   if ((table_res= mysql_store_result(mysql)))
   {
@@ -5423,18 +5423,28 @@ static my_bool process_set_gtid_purged(MYSQL* mysql_con)
   MYSQL_RES  *gtid_mode_res;
   MYSQL_ROW  gtid_mode_row;
   char       *gtid_mode_val= 0;
+  char buf[32], query[64];
 
   if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
     return FALSE;  /* nothing to be done */
 
+  /*
+    Check if the server has the knowledge of GTIDs(pre mysql-5.6)
+    or if the gtid_mode is ON or OFF.
+  */
+  my_snprintf(query, sizeof(query), "SHOW VARIABLES LIKE %s",
+              quote_for_like("gtid_mode", buf));
 
-  /* check if gtid_mode is ON or OFF */
-  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res,
-                                    "SELECT @@GTID_MODE"))
+  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res, query))
     return TRUE;
 
   gtid_mode_row = mysql_fetch_row(gtid_mode_res);
-  gtid_mode_val = (char*)gtid_mode_row[0];
+
+  /*
+     gtid_mode_row is NULL for pre 5.6 versions. For versions >= 5.6,
+     get the gtid_mode value from the second column.
+  */
+  gtid_mode_val = gtid_mode_row ? (char*)gtid_mode_row[1] : NULL;
 
   if (gtid_mode_val && strcmp(gtid_mode_val, "OFF"))
   {

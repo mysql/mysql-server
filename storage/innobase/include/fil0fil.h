@@ -55,7 +55,7 @@ extern const char*	fil_path_to_mysql_datadir;
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
-/* The length of index fields encoded buffer */
+/** The length of index fields encoded buffer */
 #define FIELDS_LEN			4096
 
 /** 'null' (undefined) page offset in the context of file spaces */
@@ -220,19 +220,6 @@ fil_node_create(
 	ibool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
 	__attribute__((nonnull, warn_unused_result));
-#ifdef UNIV_LOG_ARCHIVE
-/****************************************************************//**
-Drops files from the start of a file space, so that its size is cut by
-the amount given. */
-UNIV_INTERN
-void
-fil_space_truncate_start(
-/*=====================*/
-	ulint	id,		/*!< in: space id */
-	ulint	trunc_len);	/*!< in: truncate by this much; it is an error
-				if this does not equal to the combined size of
-				some initial files in the space */
-#endif /* UNIV_LOG_ARCHIVE */
 /*******************************************************************//**
 Creates a space memory object and puts it to the 'fil system' hash table.
 If there is an error, prints an error message to the .err log.
@@ -507,8 +494,7 @@ void
 fil_reinit_space_header(
 /*====================*/
 	ulint		id,	/*!< in: space id */
-	ulint		size,	/*!< in: size in blocks */
-	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+	ulint		size);	/*!< in: size in blocks */
 /*******************************************************************//**
 Truncate a single-table tablespace. The tablespace must be cached
 in the memory cache.
@@ -814,7 +800,7 @@ fil_io(
 				because i/os are not actually handled until
 				all have been posted: use with great
 				caution! */
-	ibool	sync,		/*!< in: TRUE if synchronous aio is desired */
+	bool	sync,		/*!< in: true if synchronous aio is desired */
 	ulint	space_id,	/*!< in: space id */
 	ulint	zip_size,	/*!< in: compressed page size in bytes;
 				0 for uncompressed pages */

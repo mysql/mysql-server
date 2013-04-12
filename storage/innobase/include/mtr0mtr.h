@@ -37,15 +37,17 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 
 /* Logging modes for a mini-transaction */
-#define MTR_LOG_ALL		21	/* default mode: log all operations
-					modifying disk-based data */
-#define	MTR_LOG_NONE		22	/* log no operations */
-#define	MTR_LOG_NO_REDO		23	/* Don't generate REDO */
-/*#define	MTR_LOG_SPACE	23 */	/* log only operations modifying
-					file space page allocation data
-					(operations in fsp0fsp.* ) */
-#define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
-					form */
+#define MTR_LOG_ALL			21	/* default mode: log all
+						operations modifying
+						disk-based data */
+#define	MTR_LOG_NONE			22	/* log no operations and dirty
+						pages are not added to the
+						flush list */
+#define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+						but add dirty pages to
+						flush list */
+#define MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */

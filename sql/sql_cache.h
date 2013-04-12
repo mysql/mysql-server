@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -522,7 +522,6 @@ protected:
   void unlock(void);
 };
 
-#ifdef HAVE_QUERY_CACHE
 struct Query_cache_query_flags
 {
   unsigned int client_long_flag:1;
@@ -545,48 +544,6 @@ struct Query_cache_query_flags
   MY_LOCALE *lc_time_names;
 };
 #define QUERY_CACHE_FLAGS_SIZE sizeof(Query_cache_query_flags)
-#include "sql_cache.h"
-#define query_cache_abort(A) query_cache.abort(A)
-#define query_cache_end_of_result(A) query_cache.end_of_result(A)
-#define query_cache_store_query(A, B) query_cache.store_query(A, B)
-#define query_cache_destroy() query_cache.destroy()
-#define query_cache_result_size_limit(A) query_cache.result_size_limit(A)
-#define query_cache_init() query_cache.init()
-#define query_cache_resize(A) query_cache.resize(A)
-#define query_cache_set_min_res_unit(A) query_cache.set_min_res_unit(A)
-#define query_cache_invalidate_single(A, B, C) query_cache.invalidate_single(A, B, C)
-#define query_cache_invalidate3(A, B, C) query_cache.invalidate(A, B, C)
-#define query_cache_invalidate1(A) query_cache.invalidate(A)
-#define query_cache_send_result_to_client(A, B, C) \
-  query_cache.send_result_to_client(A, B, C)
-#define query_cache_invalidate_by_MyISAM_filename_ref \
-  &query_cache_invalidate_by_MyISAM_filename
-/* note the "maybe": it's a read without mutex */
-#define query_cache_maybe_disabled(T)                                 \
-  (T->variables.query_cache_type == 0 || query_cache.query_cache_size == 0)
-#define query_cache_is_cacheable_query(L) \
-  (((L)->sql_command == SQLCOM_SELECT) && (L)->safe_to_cache_query && \
-   !(L)->describe)
-#else
-#define QUERY_CACHE_FLAGS_SIZE 0
-#define query_cache_store_query(A, B)
-#define query_cache_destroy()
-#define query_cache_result_size_limit(A)
-#define query_cache_init()
-#define query_cache_resize(A)
-#define query_cache_set_min_res_unit(A)
-#define query_cache_invalidate_single(A, B, C)
-#define query_cache_invalidate3(A, B, C)
-#define query_cache_invalidate1(A)
-#define query_cache_send_result_to_client(A, B, C) 0
-#define query_cache_invalidate_by_MyISAM_filename_ref NULL
-
-#define query_cache_abort(A)
-#define query_cache_end_of_result(A)
-#define query_cache_invalidate_by_MyISAM_filename_ref NULL
-#define query_cache_maybe_disabled(T) 1
-#define query_cache_is_cacheable_query(L) 0
-#endif /*HAVE_QUERY_CACHE*/
 
 extern Query_cache query_cache;
 #endif

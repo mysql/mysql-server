@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -271,6 +271,7 @@ int mysql_update(THD *thd,
   /* Calculate "table->covering_keys" based on the WHERE */
   table->covering_keys= table->s->keys_in_use;
   table->quick_keys.clear_all();
+  table->possible_quick_keys.clear_all();
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   /* Force privilege re-checking for views after they have been opened. */
@@ -408,6 +409,9 @@ int mysql_update(THD *thd,
     else
       conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
                            true, &result);
+
+    if (thd->is_error())
+        goto exit_without_my_ok;
 
     if (result == Item::COND_FALSE)
     {
@@ -596,8 +600,13 @@ int mysql_update(THD *thd,
         goto exit_without_my_ok;
 
       /* If quick select is used, initialize it before retrieving rows. */
-      if (select && select->quick && select->quick->reset())
+      if (select && select->quick && (error= select->quick->reset()))
+      {
+        close_cached_file(&tempfile);
+        table->file->print_error(error, MYF(0)); 
         goto exit_without_my_ok;
+      }
+
       table->file->try_semi_consistent_read(1);
 
       /*
@@ -617,7 +626,10 @@ int mysql_update(THD *thd,
         error= init_read_record_idx(&info, thd, table, 1, used_index, reverse);
 
       if (error)
+      {
+        close_cached_file(&tempfile);
         goto exit_without_my_ok;
+      }
 
       THD_STAGE_INFO(thd, stage_searching_rows_for_update);
       ha_rows tmp_limit= limit;
@@ -685,8 +697,12 @@ int mysql_update(THD *thd,
   if (ignore)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
-  if (select && select->quick && select->quick->reset())
+  if (select && select->quick && (error= select->quick->reset()))
+  {
+    table->file->print_error(error, MYF(0)); 
     goto exit_without_my_ok;
+  }
+
   table->file->try_semi_consistent_read(1);
   if ((error= init_read_record(&info, thd, table, select, 0, 1, FALSE)))
     goto exit_without_my_ok;
@@ -950,7 +966,7 @@ int mysql_update(THD *thd,
   */
   if (updated)
   {
-    query_cache_invalidate3(thd, table_list, 1);
+    query_cache.invalidate(thd, table_list, TRUE);
   }
   
   /*
@@ -1298,6 +1314,8 @@ int mysql_multi_update_prepare(THD *thd)
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
+
+  Prepare_error_tracker tracker(thd);
 
   /* following need for prepared statements, to run next time multi-update */
   thd->lex->sql_command= SQLCOM_UPDATE_MULTI;
@@ -2164,7 +2182,7 @@ void multi_update::abort_result_set()
 
   /* Something already updated so we have to invalidate cache */
   if (updated)
-    query_cache_invalidate3(thd, update_tables, 1);
+    query_cache.invalidate(thd, update_tables, TRUE);
   /*
     If all tables that has been updated are trans safe then just do rollback.
     If not attempt to do remaining updates.
@@ -2408,7 +2426,7 @@ bool multi_update::send_eof()
 
   if (updated)
   {
-    query_cache_invalidate3(thd, update_tables, 1);
+    query_cache.invalidate(thd, update_tables, TRUE);
   }
   /*
     Write the SQL statement to the binlog if we updated

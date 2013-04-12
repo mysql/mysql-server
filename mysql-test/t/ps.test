@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 -- source include/not_embedded.inc
 -- source include/have_log_bin.inc
 
@@ -3514,7 +3519,6 @@ eval KILL QUERY $con1_id;
 --echo # Connection con1
 connection con1;
 # Here the server asserts when running with "--ps-protocol"
---error ER_QUERY_INTERRUPTED
 SELECT * FROM t1;
 disconnect con1;
 --source include/wait_until_disconnected.inc

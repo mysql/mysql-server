@@ -2269,7 +2269,7 @@ row_import_cleanup(
 
 	DBUG_EXECUTE_IF("ib_import_before_checkpoint_crash", DBUG_SUICIDE(););
 
-	log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+	log_make_checkpoint_at(LSN_MAX, TRUE);
 
 	return(err);
 }
@@ -3482,14 +3482,14 @@ row_import_for_mysql(
 	ut_ad(prebuilt->trx);
 	ut_a(table->ibd_file_missing);
 
-	trx_start_if_not_started(prebuilt->trx);
+	trx_start_if_not_started(prebuilt->trx, true);
 
 	trx = trx_allocate_for_mysql();
 
 	/* So that the table is not DROPped during recovery. */
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, true);
 
 	/* So that we can send error messages to the user. */
 	trx->mysql_thd = prebuilt->trx->mysql_thd;

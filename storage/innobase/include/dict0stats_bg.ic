@@ -1,0 +1,45 @@
+/*****************************************************************************
+
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/dict0stats_bg.ic
+Code used for background table and index stats gathering.
+
+Created Feb 8, 2013 Marko Makela
+*******************************************************/
+
+/*****************************************************************//**
+Request the background collection of statistics to stop for a table.
+@retval true when no background process is active
+@retval false when it is not safe to modify the table definition */
+UNIV_INLINE
+bool
+dict_stats_stop_bg(
+/*===============*/
+	dict_table_t*	table)	/*!< in/out: table */
+{
+	ut_ad(!srv_read_only_mode);
+	ut_ad(mutex_own(&dict_sys->mutex));
+
+	if (!(table->stats_bg_flag & BG_STAT_IN_PROGRESS)) {
+		return(true);
+	}
+
+	table->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
+	return(false);
+}

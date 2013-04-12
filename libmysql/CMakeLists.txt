@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -173,7 +173,6 @@ IF(WIN32)
 ENDIF()
 
 # Merge several convenience libraries into one big mysqlclient
-# and link them together into shared library.
 MERGE_LIBRARIES(mysqlclient STATIC ${LIBS} COMPONENT Development)
 
 # Visual Studio users need debug  static library for debug projects
@@ -197,13 +196,15 @@ IF(UNIX)
 ENDIF()
 
 IF(NOT DISABLE_SHARED)
-  MERGE_LIBRARIES(libmysql SHARED ${LIBS} EXPORTS ${CLIENT_API_FUNCTIONS} COMPONENT SharedLibraries)
+  # Merge several convenience libraries into one big mysqlclient
+  # and link them together into shared library.
+  MERGE_LIBRARIES(libmysql SHARED ${LIBS}
+    EXPORTS ${CLIENT_API_FUNCTIONS}
+    COMPONENT SharedLibraries)
   IF(UNIX)
     # libtool compatability
     IF(CMAKE_SYSTEM_NAME MATCHES "FreeBSD" OR APPLE)
       SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}")
-    ELSEIF(CMAKE_SYSTEM_NAME MATCHES "HP-UX")
-      SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0")
     ELSE()
       SET(OS_SHARED_LIB_VERSION "${SHARED_LIB_MAJOR_VERSION}.0.0")
     ENDIF()
@@ -213,11 +214,17 @@ IF(NOT DISABLE_SHARED)
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
+
+    GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
+    IF(NOT libmysql_link_flag)
+      SET(libmysql_link_flags)
+    ENDIF()
+    SET(libmysql_link_flags
+      "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${libmysql_link_flags}")
+    SET_TARGET_PROPERTIES(libmysql
+      PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
+
     IF(LINK_FLAG_NO_UNDEFINED)
-      GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
-      IF(NOT libmysql_link_flag)
-        SET(libmysql_link_flags)
-      ENDIF()
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
       SET(libmysql_link_flags

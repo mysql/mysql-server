@@ -147,12 +147,6 @@ typedef struct st_ha_create_information HA_CREATE_INFO;
 #define TE_INFO_LENGTH 3
 #define MTYP_NOEMPTY_BIT 128
 
-/*
-  Minimum length pattern before Turbo Boyer-Moore is used
-  for SELECT "text" LIKE "%pattern%", excluding the two
-  wildcards in class Item_func_like.
-*/
-#define MIN_TURBOBM_PATTERN_LEN 3
 
 /* 
    Defines for binary logging.

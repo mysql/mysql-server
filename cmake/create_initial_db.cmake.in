@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@ SET(CMAKE_CFG_INTDIR "@CMAKE_CFG_INTDIR@")
 
 SET(WITH_SSL_PATH "@WITH_SSL_PATH@")
 SET(CRYPTO_LIBRARY "@CRYPTO_LIBRARY@")
-SET(OPENSSL_LIBRARY "@OPENSSL_LIBRARIES@")
+SET(OPENSSL_LIBRARY "@OPENSSL_LIBRARY@")
 
 SET(WIN32 "@WIN32@")
 

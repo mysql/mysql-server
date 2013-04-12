@@ -36,6 +36,18 @@ UNIV_INTERN ulint	ut_dbg_zero	= 0;
 #endif
 
 /*************************************************************//**
+Flush stderr and stdout, then abort execution. */
+UNIV_INTERN
+void
+ut_abort(void)
+/************/
+{
+	fflush(stderr);
+	fflush(stdout);
+	abort();
+}
+
+/*************************************************************//**
 Report a failed assertion. */
 UNIV_INTERN
 void

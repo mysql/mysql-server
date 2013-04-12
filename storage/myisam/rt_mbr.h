@@ -11,12 +11,10 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef _rt_mbr_h
 #define _rt_mbr_h
-
-#ifdef HAVE_RTREE_KEYS
 
 int rtree_key_cmp(HA_KEYSEG *keyseg, uchar *a, uchar *b, uint key_length,
                   uint nextflag);
@@ -32,5 +30,4 @@ double rtree_perimeter_increase(HA_KEYSEG *keyseg, uchar* a, uchar* b,
 				uint key_length, double *ab_perim);
 int rtree_page_mbr(MI_INFO *info, HA_KEYSEG *keyseg, uchar *page_buf, 
                    uchar* c, uint key_length);
-#endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_mbr_h */

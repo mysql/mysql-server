@@ -1,7 +1,7 @@
 #ifndef SQL_SELECT_INCLUDED
 #define SQL_SELECT_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "sql_array.h"                        /* Array */
 #include "records.h"                          /* READ_RECORD */
 #include "opt_range.h"                /* SQL_SELECT, QUICK_SELECT_I */
+#include "filesort.h"
 
 #include "mem_root_array.h"
 #include "sql_executor.h"
@@ -642,6 +643,7 @@ private:
   */
   table_map     added_tables_map;
 public:
+  /// ID of index used for index scan or semijoin LooseScan
   uint		index;
   uint		used_fields,used_fieldlength,used_blobs;
   uint          used_null_fields;
@@ -650,8 +652,6 @@ public:
   enum quick_type use_quick;
   enum join_type type;
   bool          not_used_in_distinct;
-  /* TRUE <=> index-based access method must return records in order */
-  bool          sorted;
   /* 
     If it's not 0 the number stored this field indicates that the index
     scan has been chosen to access the table data and we expect to scan 
@@ -774,14 +774,32 @@ public:
 
   bool is_using_loose_index_scan() const
   {
-    return (select && select->quick &&
-            (select->quick->get_type() ==
-             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
+    /*
+      If JOIN_TAB::filesort is set, then the access method defined in
+      filesort will be used to read from the table and
+      JOIN_TAB::select reads from filesort using scan or ref access.
+    */
+    DBUG_ASSERT(!(select && select->quick && filesort));
+
+    const SQL_SELECT *sel= filesort ? filesort->select : select;
+    return (sel && sel->quick &&
+            (sel->quick->get_type() == QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX));
   }
   bool is_using_agg_loose_index_scan() const
   {
-    return (is_using_loose_index_scan() &&
-            ((QUICK_GROUP_MIN_MAX_SELECT *)select->quick)->is_agg_distinct());
+    /*
+      If JOIN_TAB::filesort is set, then the access method defined in
+      filesort will be used to read from the table and
+      JOIN_TAB::select reads from filesort using scan or ref access.
+    */
+    DBUG_ASSERT(!(select && select->quick && filesort));
+
+    const SQL_SELECT *sel= filesort ? filesort->select : select;
+    return (sel && sel->quick &&
+            (sel->quick->get_type() ==
+             QUICK_SELECT_I::QS_TYPE_GROUP_MIN_MAX) &&
+            static_cast<QUICK_GROUP_MIN_MAX_SELECT*>(sel->quick)->
+                                                     is_agg_distinct());
   }
   /* SemiJoinDuplicateElimination: reserve space for rowid */
   bool check_rowid_field()
@@ -860,7 +878,9 @@ public:
   {
     return ref.has_guarded_conds();
   }
+  Item *unified_condition() const;
   bool prepare_scan();
+  bool use_order() const; ///< Use ordering provided by chosen index?
   bool sort_table();
   bool remove_duplicates();
 } JOIN_TAB;
@@ -917,7 +937,6 @@ st_join_table::st_join_table()
     use_quick(QS_NONE),
     type(JT_UNKNOWN),
     not_used_in_distinct(false),
-    sorted(false),
 
     limit(0),
     ref(),
@@ -1179,11 +1198,11 @@ type_conversion_status_to_store_key (type_conversion_status ts)
   {
   case TYPE_OK:
     return store_key::STORE_KEY_OK;
+  case TYPE_NOTE_TRUNCATED:
+  case TYPE_WARN_TRUNCATED:
   case TYPE_NOTE_TIME_TRUNCATED:
     return store_key::STORE_KEY_CONV;
   case TYPE_WARN_OUT_OF_RANGE:
-  case TYPE_NOTE_TRUNCATED:
-  case TYPE_WARN_TRUNCATED:
   case TYPE_ERR_NULL_CONSTRAINT_VIOLATION:
   case TYPE_ERR_BAD_VALUE:
   case TYPE_ERR_OOM:

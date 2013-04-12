@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -265,7 +265,7 @@ row_merge_is_index_usable(
 /*********************************************************************//**
 Drop a table. The caller must have ensured that the background stats
 thread is not processing the table. This can be done by calling
-dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+dict_stats_wait_bg_to_stop_using_table() after locking the dictionary and
 before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN

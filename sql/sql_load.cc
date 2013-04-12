@@ -426,7 +426,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       DBUG_RETURN(TRUE);
     }
 
-#if !defined(__WIN__) && ! defined(__NETWARE__)
+#if !defined(__WIN__)
     MY_STAT stat_info;
     if (!my_stat(name, &stat_info, MYF(MY_WME)))
       DBUG_RETURN(TRUE);
@@ -547,7 +547,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     We must invalidate the table in query cache before binlog writing and
     ha_autocommit_...
   */
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
   if (error)
   {
     if (read_file_from_client)
@@ -1607,7 +1607,6 @@ int READ_INFO::read_field()
 	  return 0;
 	}
       }
-#ifdef USE_MB
       if (my_mbcharlen(read_charset, chr) > 1 &&
           to + my_mbcharlen(read_charset, chr) <= end_of_buff)
       {
@@ -1639,7 +1638,6 @@ int READ_INFO::read_field()
           PUSH((uchar) *--to);
         chr= GET;
       }
-#endif
       *to++ = (uchar) chr;
     }
     /*
@@ -1743,7 +1741,6 @@ int READ_INFO::next_line()
   for (;;)
   {
     int chr = GET;
-#ifdef USE_MB
     if (chr == my_b_EOF)
     {
       eof= 1;
@@ -1758,7 +1755,6 @@ int READ_INFO::next_line()
        if (chr == escape_char)
 	   continue;
    }
-#endif
    if (chr == my_b_EOF)
    {
       eof=1;
@@ -1886,7 +1882,6 @@ int READ_INFO::read_value(int delim, String *val)
 
   for (chr= GET; my_tospace(chr) != delim && chr != my_b_EOF;)
   {
-#ifdef USE_MB
     if (my_mbcharlen(read_charset, chr) > 1)
     {
       DBUG_PRINT("read_xml",("multi byte"));
@@ -1903,7 +1898,6 @@ int READ_INFO::read_value(int delim, String *val)
           return chr;
       }
     }
-#endif
     if(chr == '&')
     {
       tmp.length(0);

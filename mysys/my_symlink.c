@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,9 +98,7 @@ int my_symlink(const char *content, const char *linkname, myf MyFlags)
 #endif /* HAVE_READLINK */
 }
 
-#if defined(SCO)
-#define BUFF_LEN 4097
-#elif defined(MAXPATHLEN)
+#if defined(MAXPATHLEN)
 #define BUFF_LEN MAXPATHLEN
 #else
 #define BUFF_LEN FN_LEN

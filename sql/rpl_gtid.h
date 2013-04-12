@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -983,9 +983,14 @@ public:
 
     @param string The string to parse.
     @param length The number of bytes.
+    @param actual_length If this is not NULL, it is set to the number
+    of bytes used by the encoding (which may be less than 'length').
+    If this is NULL, an error is generated if the encoding is shorter
+    than the given 'length'.
     @return GS_SUCCESS or GS_ERROR_PARSE or GS_ERROR_OUT_OF_MEMORY
   */
-  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length);
+  enum_return_status add_gtid_encoding(const uchar *encoded, size_t length,
+                                       size_t *actual_length= NULL);
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(rpl_sidno sidno, rpl_gno gno) const;
   /// Return true iff the given GTID exists in this set.
@@ -2196,7 +2201,7 @@ public:
   */
   void wait_for_gtid(THD *thd, const Gtid &gtid);
 #endif // ifndef MYSQL_CLIENT
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
   /**
     Locks one mutex for each SIDNO where the given Gtid_set has at
     least one GTID.  Locks are acquired in order of increasing SIDNO.
@@ -2212,7 +2217,7 @@ public:
     Gtid_set has at least one GTID.
   */
   void broadcast_sidnos(const Gtid_set *set);
-#endif // ifdef HAVE_NDB_BINLOG
+#endif // ifdef HAVE_GTID_NEXT_LIST
   /**
     Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
     have room for at least as many SIDNOs as sid_map.
@@ -2301,7 +2306,7 @@ public:
 #endif
   }
 private:
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
   void lock_owned_sidnos(const THD *thd);
 #endif
@@ -2755,7 +2760,7 @@ enum_gtid_statement_status gtid_pre_statement_checks(const THD *thd);
 int gtid_rollback(THD *thd);
 
 int gtid_acquire_ownership_single(THD *thd);
-#ifdef HAVE_NDB_BINLOG
+#ifdef HAVE_GTID_NEXT_LIST
 int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 

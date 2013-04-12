@@ -2719,7 +2719,7 @@ void mysqld_stmt_fetch(THD *thd, char *packet, uint packet_length)
 
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
-  status_var_increment(thd->status_var.com_stmt_fetch);
+  thd->status_var.com_stmt_fetch++;
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
@@ -2779,7 +2779,7 @@ void mysqld_stmt_reset(THD *thd, char *packet)
   /* First of all clear possible warnings from the previous command */
   mysql_reset_thd_for_next_command(thd);
 
-  status_var_increment(thd->status_var.com_stmt_reset);
+  thd->status_var.com_stmt_reset++;
   if (!(stmt= find_prepared_statement(thd, stmt_id)))
   {
     char llbuf[22];
@@ -2894,7 +2894,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
 #endif
   DBUG_ENTER("mysql_stmt_get_longdata");
 
-  status_var_increment(thd->status_var.com_stmt_send_long_data);
+  thd->status_var.com_stmt_send_long_data++;
 
   thd->get_stmt_da()->disable_status();
 #ifndef EMBEDDED_LIBRARY
@@ -3117,16 +3117,23 @@ void Prepared_statement::setup_set_params()
     Note: BUG#25843 applies here too (query cache lookup uses thd->db, not
     db from "prepare" time).
   */
-  if (query_cache_maybe_disabled(thd)) // we won't expand the query
+  if (thd->variables.query_cache_type == 0 ||
+      query_cache.query_cache_size == 0) // we won't expand the query
     lex->safe_to_cache_query= FALSE;   // so don't cache it at Execution
 
   /*
     Decide if we have to expand the query (because we must write it to logs or
     because we want to look it up in the query cache) or not.
+    We don't have to substitute the params when bin-logging DML in RBL.
   */
-  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command)) ||
+  if ((mysql_bin_log.is_open() && is_update_query(lex->sql_command) &&
+       (!thd->is_current_stmt_binlog_format_row() ||
+        ((sql_command_flags[lex->sql_command] & CF_AUTO_COMMIT_TRANS) ==
+         CF_AUTO_COMMIT_TRANS))) ||
       opt_general_log || opt_slow_log ||
-      query_cache_is_cacheable_query(lex))
+      (lex->sql_command == SQLCOM_SELECT &&
+       lex->safe_to_cache_query &&
+       !lex->describe))
   {
     set_params_from_vars= insert_params_from_vars_with_log;
 #ifndef EMBEDDED_LIBRARY
@@ -3270,7 +3277,7 @@ bool Prepared_statement::prepare(const char *packet, uint packet_len)
     However, it seems handy if com_stmt_prepare is increased always,
     no matter what kind of prepare is processed.
   */
-  status_var_increment(thd->status_var.com_stmt_prepare);
+  thd->status_var.com_stmt_prepare++;
 
   if (! (lex= new (mem_root) st_lex_local))
     DBUG_RETURN(TRUE);
@@ -3615,7 +3622,7 @@ Prepared_statement::reprepare()
 
   copy.set_sql_prepare(); /* To suppress sending metadata to the client. */
 
-  status_var_increment(thd->status_var.com_stmt_reprepare);
+  thd->status_var.com_stmt_reprepare++;
 
   if (mysql_opt_change_db(thd, &stmt_db_name, &saved_cur_db_name, TRUE,
                           &cur_db_changed))
@@ -3771,7 +3778,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
 
   LEX_STRING stmt_db_name= { db, db_length };
 
-  status_var_increment(thd->status_var.com_stmt_execute);
+  thd->status_var.com_stmt_execute++;
 
   if (flags & (uint) IS_IN_USE)
   {
@@ -3864,7 +3871,7 @@ bool Prepared_statement::execute(String *expanded_query, bool open_cursor)
       Note that multi-statements cannot exist here (they are not supported in
       prepared statements).
     */
-    if (query_cache_send_result_to_client(thd, thd->query(),
+    if (query_cache.send_result_to_client(thd, thd->query(),
                                           thd->query_length()) <= 0)
     {
       PSI_statement_locker *parent_locker;
@@ -3943,7 +3950,7 @@ error:
 void Prepared_statement::deallocate()
 {
   /* We account deallocate in the same manner as mysqld_stmt_close */
-  status_var_increment(thd->status_var.com_stmt_close);
+  thd->status_var.com_stmt_close++;
   /* Statement map calls delete stmt on erase */
   thd->stmt_map.erase(this);
 }

@@ -69,7 +69,6 @@ bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
 
-
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
   {
@@ -588,6 +587,8 @@ public:
 
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
+static void validate_user_plugin_records();
+
 static ulong get_sort(uint count,...);
 static bool show_proxy_grants (THD *thd, LEX_USER *user,
                                char *buff, size_t buffsize);
@@ -868,7 +869,7 @@ static bool update_user_table(THD *, TABLE *table, const char *host,
                               const char *new_password,
                               uint new_password_len,
                               enum mysql_user_table_field password_field,
-                              bool password_expired);
+                              bool password_expired, bool is_user_table_positioned);
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
@@ -898,6 +899,8 @@ enum enum_acl_lists
   Note that it works only for native and "old" mysql authentication built-in
   plugins.
   
+  Assumption : user's authentication plugin information is available.
+
   @return Password hash validation
     @retval false Hash is of suitable length
     @retval true Hash is of wrong length or format
@@ -1028,7 +1031,10 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   bool check_no_resolve= specialflag & SPECIAL_NO_RESOLVE;
   char tmp_name[NAME_LEN+1];
   int password_length;
+  char *password;
+  uint password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
+  bool password_expired= false;
   DBUG_ENTER("acl_load");
 
   thd->variables.sql_mode&= ~MODE_PAD_CHAR_TO_FULL_LENGTH;
@@ -1051,6 +1057,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   allow_all_hosts=0;
   while (!(read_record_info.read_record(&read_record_info)))
   {
+    password_expired= false;
     /* Reading record from mysql.user */
     ACL_USER user;
     memset(&user, 0, sizeof(user));
@@ -1068,31 +1075,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
     }
 
     /* Read legacy password */
-    {
-      char *password= get_field(&global_acl_memory,
-                                table->field[MYSQL_USER_FIELD_PASSWORD]);
-      uint password_len= password ? strlen(password) : 0;
-      user.auth_string.str= password ? password : const_cast<char*>("");
-      user.auth_string.length= password_len;
-      /*
-         Transform hex to octets and adjust the format.
-       */
-      if (set_user_salt(&user, password, password_len))
-      {
-        sql_print_warning("Found invalid password for user: '%s@%s'; "
-                          "Ignoring user", user.user ? user.user : "",
-                          user.host.get_host() ? user.host.get_host() : "");
-        continue;
-      }
-
-      /*
-        Set temporary plugin deduced from password length. If there are 
-        enough fields in the user table the real plugin will be read later.
-       */
-      user.plugin= native_password_plugin_name;
-      if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
-        user.plugin= old_password_plugin_name;
-    } 
+    password= get_field(&global_acl_memory,
+                        table->field[MYSQL_USER_FIELD_PASSWORD]);
+    password_len= password ? strlen(password) : 0;
+    user.auth_string.str= password ? password : const_cast<char*>("");
+    user.auth_string.length= password_len;
 
     {
       uint next_field;
@@ -1227,7 +1214,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             next_field++;
         }
 
-        if (table->s->fields >= 43)
+        if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
         {
           char *tmpstr= get_field(&global_acl_memory,
                                   table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]);
@@ -1245,6 +1232,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
                                 user.host.get_host() ? user.host.get_host() : "");
               continue;
             }
+            password_expired= true;
           }
         }
       } // end if (table->s->fields >= 31)
@@ -1263,6 +1251,33 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         if (user.access & PROCESS_ACL)
           user.access|= SUPER_ACL | EXECUTE_ACL;
       }
+      if (!user.plugin.length)
+      {
+        /*
+           Set plugin deduced from password length.
+           We can reach here in two cases:
+           1. mysql.user doesn't have plugin field
+           2. Plugin field is empty
+         */
+        user.plugin= native_password_plugin_name;
+        if (password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+          user.plugin= old_password_plugin_name;
+  
+      }
+      /*
+         Transform hex to octets and adjust the format.
+       */
+      if (set_user_salt(&user, password, password_len))
+      {
+        sql_print_warning("Found invalid password for user: '%s@%s'; "
+                          "Ignoring user", user.user ? user.user : "",
+                          user.host.get_host() ? user.host.get_host() : "");
+        continue;
+      }
+
+      /* set_user_salt resets expiration flag so restore it */
+      user.password_expired= password_expired;
+
       (void) push_dynamic(&acl_users,(uchar*) &user);
       if (user.host.check_allow_all_hosts())
         allow_all_hosts=1;			// Anyone can connect
@@ -1418,6 +1433,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   }
   freeze_size(&acl_proxy_users);
 
+  validate_user_plugin_records();
   init_check_host();
 
   initialized=1;
@@ -1761,8 +1777,9 @@ bool acl_getroot(Security_context *sctx, char *user, char *host,
                        (host ? host : "(NULL)"), (ip ? ip : "(NULL)"),
                        user, (db ? db : "(NULL)")));
   sctx->user= user;
-  sctx->host= host;
-  sctx->ip= ip;
+  sctx->set_host(host);
+  sctx->set_ip(ip);
+
   sctx->host_or_ip= host ? host : (ip ? ip : "");
 
   if (!initialized)
@@ -2312,8 +2329,11 @@ bool change_password(THD *thd, const char *host, const char *user,
   TABLE *table;
   /* Buffer should be extended when password length is extended. */
   char buff[512];
-  ulong query_length;
+  ulong query_length= 0;
   bool save_binlog_row_based;
+  uchar user_key[MAX_KEY_LENGTH];
+  char *plugin_temp= NULL;
+  bool plugin_empty;
   uint new_password_len= (uint) strlen(new_password);
   bool result= 1;
   enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
@@ -2363,7 +2383,26 @@ bool change_password(THD *thd, const char *host, const char *user,
     my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH), MYF(0));
     goto end;
   }
-  
+  mysql_mutex_assert_owner(&acl_cache->lock);
+  table->use_all_columns();
+  DBUG_ASSERT(host != '\0');
+  table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
+                                             system_charset_info);
+  table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
+                                             system_charset_info);
+
+  key_copy((uchar *) user_key, table->record[0], table->key_info,
+           table->key_info->key_length);
+  if (!table->file->ha_index_read_idx_map(table->record[0], 0, user_key,
+                                          HA_WHOLE_KEY,
+                                          HA_READ_KEY_EXACT))
+    plugin_temp= (table->s->fields > MYSQL_USER_FIELD_PLUGIN) ?
+                 get_field(&global_acl_memory, table->field[MYSQL_USER_FIELD_PLUGIN]) : NULL;
+  else
+    DBUG_ASSERT(FALSE);
+
+  plugin_empty= plugin_temp ? false: true;
+
   if (acl_user->plugin.length == 0)
   {
     acl_user->plugin.length= default_auth_plugin_name.length;
@@ -2446,26 +2485,44 @@ bool change_password(THD *thd, const char *host, const char *user,
     */
     if (new_password_len != 0)
     {
-      if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                        native_password_plugin_name.str) == 0 &&
-          new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
+      if (plugin_empty)
       {
-        my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
-        result= 1;
-        mysql_mutex_unlock(&acl_cache->lock);
-        goto end;  
+        if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH)
+          acl_user->plugin= native_password_plugin_name;
+        else if (new_password_len == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+          acl_user->plugin= old_password_plugin_name;
+        else
+        {
+          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
       }
       else
-      if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
-                        old_password_plugin_name.str) == 0 &&
-          new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
       {
-        my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
-        result= 1;
-        mysql_mutex_unlock(&acl_cache->lock);
-        goto end;  
+        if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
+                          native_password_plugin_name.str) == 0 &&
+            new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH)
+        {
+          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH);
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
+        else if (my_strcasecmp(system_charset_info, acl_user->plugin.str,
+                               old_password_plugin_name.str) == 0 &&
+                 new_password_len != SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+        {
+          my_error(ER_PASSWD_LENGTH, MYF(0), SCRAMBLED_PASSWORD_CHAR_LENGTH_323);
+          result= 1;
+          mysql_mutex_unlock(&acl_cache->lock);
+          goto end;
+        }
       }
     }
+    else if (plugin_empty)
+      acl_user->plugin= native_password_plugin_name;
 
     /*
       Update loaded acl entry in memory.
@@ -2497,7 +2554,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, false))
+                        new_password, new_password_len, password_field, false, true))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -2690,29 +2747,45 @@ update_user_table(THD *thd, TABLE *table,
                   const char *host, const char *user,
                   const char *new_password, uint new_password_len,
                   enum mysql_user_table_field password_field,
-                  bool password_expired)
+                  bool password_expired, bool is_user_table_positioned)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
   DBUG_ENTER("update_user_table");
   DBUG_PRINT("enter",("user: %s  host: %s",user,host));
 
-  table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
-  table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
-                                             system_charset_info);
-  table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
-                                             system_charset_info);
-  key_copy((uchar *) user_key, table->record[0], table->key_info,
-           table->key_info->key_length);
-
-  if (table->file->ha_index_read_idx_map(table->record[0], 0,
-                                         (uchar *) user_key, HA_WHOLE_KEY,
-                                         HA_READ_KEY_EXACT))
+  /* ALTER USER PASSWORD EXPIRE makes no sense on old system tables */
+  if (table->s->fields <= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+      password_expired)
   {
-    my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
-               MYF(0));	/* purecov: deadcode */
-    DBUG_RETURN(1);				/* purecov: deadcode */
+    my_error(ER_BAD_FIELD_ERROR, MYF(0), "password_expired", "mysql.user");
+    DBUG_RETURN(1);
+  }
+
+  /* 
+    If this function is reached through change_password, the user record is 
+    already available and hence need not be read again.
+  */
+
+  if (!is_user_table_positioned)
+  {
+    table->use_all_columns();
+    DBUG_ASSERT(host != '\0');
+    table->field[MYSQL_USER_FIELD_HOST]->store(host, (uint) strlen(host),
+					       system_charset_info);
+    table->field[MYSQL_USER_FIELD_USER]->store(user, (uint) strlen(user),
+					       system_charset_info);
+    key_copy((uchar *) user_key, table->record[0], table->key_info,
+	     table->key_info->key_length);
+
+    if (table->file->ha_index_read_idx_map(table->record[0], 0,
+					   (uchar *) user_key, HA_WHOLE_KEY,
+					   HA_READ_KEY_EXACT))
+    {
+      my_message(ER_PASSWORD_NO_MATCH, ER(ER_PASSWORD_NO_MATCH),
+		 MYF(0));	/* purecov: deadcode */
+      DBUG_RETURN(1);		/* purecov: deadcode */
+    }
   }
   store_record(table,record[1]);
  
@@ -2731,10 +2804,13 @@ update_user_table(THD *thd, TABLE *table,
     }
   }
 
-  /* password_expired */
-  table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ? 
-                                                         "Y" : "N", 1,
-                                                         system_charset_info);
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+  {
+    /* update password_expired if present */
+    table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ?
+                                                           "Y" : "N", 1,
+                                                           system_charset_info);
+  }
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
        error != HA_ERR_RECORD_IS_THE_SAME)
@@ -2768,7 +2844,7 @@ static bool test_if_create_new_users(THD *thd)
                       C_STRING_WITH_LEN("user"), "user", TL_WRITE);
     create_new_users= 1;
 
-    db_access=acl_get(sctx->host, sctx->ip,
+    db_access=acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
 		      sctx->priv_user, tl.db, 0);
     if (!(db_access & INSERT_ACL))
     {
@@ -2937,56 +3013,158 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     old_row_exists = 1;
     store_record(table,record[1]);			// Save copy for update
+
+    /*
+      GRANT statement using IDENTIFIED WITH clause can be used only to create
+      user and apply privileges to it. Hence it throws an error when used on
+      existing users.
+    */
+    if (combo->uses_identified_with_clause)
+    {
+      error= 1;
+      my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0), combo->user.length,
+	       combo->user.str);
+      goto end;
+    }
     
     /* 1. resolve plugins in the LEX_USER struct if needed */
-    if (!combo->uses_identified_with_clause)
-    {
-      /*
-        Get old plugin value from storage.
-      */
-      combo->plugin.str=
-        get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
+    LEX_STRING old_plugin;
 
-      /* 
-        It is important not to include the trailing '\0' in the string length 
-        because otherwise the plugin hash search will fail.
+    /*
+      Get old plugin value from storage.
+    */
+
+    old_plugin.str=
+      get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
+
+    /* 
+      It is important not to include the trailing '\0' in the string length 
+      because otherwise the plugin hash search will fail.
+    */
+    if (old_plugin.str)
+    {
+      old_plugin.length= strlen(old_plugin.str);
+
+      /*
+        Optimize for pointer comparision of built-in plugin name
       */
-      if (combo->plugin.str)
+
+      optimize_plugin_compare_by_pointer(&old_plugin);
+
+      /*
+        Disable plugin change for existing rows with anything but
+        the built in plugins.
+        The idea is that all built in plugins support
+        IDENTIFIED BY ... and none of the external ones currently do.
+      */
+      if ((combo->uses_identified_by_clause ||
+	   combo->uses_identified_by_password_clause) &&
+	  !auth_plugin_is_built_in(old_plugin.str))
       {
-        combo->plugin.length= strlen(combo->plugin.str);
+        old_plugin.length= strlen(old_plugin.str);
 
         /*
           Optimize for pointer comparision of built-in plugin name
         */
 
-        optimize_plugin_compare_by_pointer(&combo->plugin);
+        optimize_plugin_compare_by_pointer(&old_plugin);
+ 
+        /*
+          Disable plugin change for existing rows with anything but
+          the built in plugins.
+          The idea is that all built in plugins support
+          IDENTIFIED BY ... and none of the external ones currently do.
+        */
+        if ((combo->uses_identified_by_clause ||
+             combo->uses_identified_by_password_clause) &&
+            !auth_plugin_is_built_in(old_plugin.str))
+        {
+          const char *new_plugin= (combo->plugin.str && combo->plugin.str[0]) ?
+            combo->plugin.str : default_auth_plugin_name.str;
+
+          if (my_strcasecmp(system_charset_info, new_plugin, old_plugin.str))
+          {
+            push_warning(thd, Sql_condition::SL_WARNING, 
+              ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
+          }
+        }
       }
-    }    
+    }
+    old_plugin.length= 0;
+    combo->plugin= old_plugin;
+
+    /*
+      If the plugin value in user table is found to be null or an empty
+      string, the following steps are followed:
+
+      * If GRANT is used with IDENTIFIED BY PASSWORD clause, and the hash
+        is found to be of mysql_native_password or mysql_old_password
+        type, the statement passes without an error and the password field
+        is updated accordingly.
+      * If GRANT is used with IDENTIFIED BY clause and the password is
+        provided as a plain string, hashing of the string is done according
+        to the value of old_passwords variable in the following way.
+
+         if old_passwords == 0, mysql_native hashing is used.
+	 if old_passwords == 1, mysql_old hashing is used.
+	 if old_passwords == 2, error.
+      * An empty password is considered to be of mysql_native type.
+    */
     
-    /* No value for plugin field means default plugin is used */
     if (combo->plugin.str == NULL || combo->plugin.str == '\0')
     {
-      combo->plugin.str= default_auth_plugin_name.str;
-      combo->plugin.length= default_auth_plugin_name.length;
-    }
-    
-    if (combo->uses_identified_with_clause)
-    {
-      /*
-        Don't allow old plugin fields to change.
-      */
-      char *old_plugin= get_field(thd->mem_root,
-                                  table->field[MYSQL_USER_FIELD_PLUGIN]);
-      if (old_plugin != NULL &&
-          my_strcasecmp(system_charset_info, combo->plugin.str, old_plugin))
+      if (combo->uses_identified_by_password_clause)
       {
-        error= 1;
-        my_error(ER_GRANT_PLUGIN_USER_EXISTS, MYF(0), combo->user.length,
-                 combo->user.str);
-        goto end;
+	if ((combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH) ||
+	    (combo->password.length == 0))
+	{
+	  combo->plugin.str= native_password_plugin_name.str;
+	  combo->plugin.length= native_password_plugin_name.length;
+	}
+	else if (combo->password.length == SCRAMBLED_PASSWORD_CHAR_LENGTH_323)
+	{
+	  combo->plugin.str= old_password_plugin_name.str;
+	  combo->plugin.length= old_password_plugin_name.length;
+	}
+	else
+	{
+	  /*
+	    If hash length doesn't match either with mysql_native hash length or
+	    mysql_old hash length, throw an error.
+	  */
+	  my_error(ER_PASSWORD_FORMAT, MYF(0));
+	  error= 1;
+	  goto end;
+	}
+      }
+      else
+      {
+	/*
+	  Handling of combo->plugin when IDENTIFIED BY PASSWORD clause is not
+	  used, i.e. when the password hash is not provided within the GRANT
+	  query.
+	*/
+	if ((thd->variables.old_passwords == 1) && (combo->password.length != 0))
+	{
+	  combo->plugin.str= old_password_plugin_name.str;
+	  combo->plugin.length= old_password_plugin_name.length;
+	}
+	else if ((thd->variables.old_passwords == 0) || 
+		 (combo->password.length == 0))
+	{
+	  combo->plugin.str= native_password_plugin_name.str;
+	  combo->plugin.length= native_password_plugin_name.length;
+	}
+	else
+	{
+	  /* If old_passwords variable is neither 0 nor 1, throw an error. */
+	  my_error(ER_PASSWORD_FORMAT, MYF(0));
+	  error= 1;
+	  goto end;
+	}
       }
     }
-
+    
     if (!combo->uses_authentication_string_clause)
     {
       combo->auth.str= get_field(thd->mem_root,
@@ -3158,7 +3336,7 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
 
     /* if we have a password supplied we update the expiration field */
-    if (table->s->fields >= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
         password_len > 0)
       table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
                                                              system_charset_info);
@@ -4880,7 +5058,8 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    strnmov(tmp_db,db,NAME_LEN);
+    tmp_db[NAME_LEN]= '\0';
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
@@ -5540,7 +5719,8 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
       continue;
     }
 
-    GRANT_TABLE *grant_table= table_hash_search(sctx->host, sctx->ip,
+    GRANT_TABLE *grant_table= table_hash_search(sctx->get_host()->ptr(),
+                                                sctx->get_ip()->ptr(),
                                                 tl->get_db_name(),
                                                 sctx->priv_user,
                                                 tl->get_table_name(),
@@ -5630,8 +5810,8 @@ bool check_grant_column(THD *thd, GRANT_INFO *grant,
   if (grant->version != grant_version)
   {
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db_name,
-			sctx->priv_user,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+			db_name, sctx->priv_user,
 			table_name, 0);         /* purecov: inspected */
     grant->version= grant_version;		/* purecov: inspected */
   }
@@ -5789,8 +5969,8 @@ bool check_grant_all_columns(THD *thd, ulong want_access_arg,
         if (grant->version != grant_version)
         {
           grant->grant_table=
-            table_hash_search(sctx->host, sctx->ip, db_name,
-                              sctx->priv_user,
+            table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                              db_name, sctx->priv_user,
                               table_name, 0);	/* purecov: inspected */
           grant->version= grant_version;	/* purecov: inspected */
         }
@@ -5848,7 +6028,8 @@ static bool check_grant_db_routine(THD *thd, const char *db, HASH *hash)
 
     if (strcmp(item->user, sctx->priv_user) == 0 &&
         strcmp(item->db, db) == 0 &&
-        item->host.compare_hostname(sctx->host, sctx->ip))
+        item->host.compare_hostname(sctx->get_host()->ptr(),
+                                    sctx->get_ip()->ptr()))
     {
       return FALSE;
     }
@@ -5892,7 +6073,8 @@ bool check_grant_db(THD *thd,const char *db)
                       idx);
     if (len < grant_table->key_length &&
 	!memcmp(grant_table->hash_key,helping,len) &&
-        grant_table->host.compare_hostname(sctx->host, sctx->ip))
+        grant_table->host.compare_hostname(sctx->get_host()->ptr(),
+                                           sctx->get_ip()->ptr()))
     {
       error= FALSE; /* Found match. */
       break;
@@ -5943,7 +6125,7 @@ bool check_grant_routine(THD *thd, ulong want_access,
   for (table= procs; table; table= table->next_global)
   {
     GRANT_NAME *grant_proc;
-    if ((grant_proc= routine_hash_search(host, sctx->ip, table->db, user,
+    if ((grant_proc= routine_hash_search(host, sctx->get_ip()->ptr(), table->db, user,
 					 table->table_name, is_proc, 0)))
       table->grant.privilege|= grant_proc->privs;
 
@@ -5999,7 +6181,7 @@ bool check_routine_level_acl(THD *thd, const char *db, const char *name,
   Security_context *sctx= thd->security_ctx;
   mysql_rwlock_rdlock(&LOCK_grant);
   if ((grant_proc= routine_hash_search(sctx->priv_host,
-                                       sctx->ip, db,
+                                       sctx->get_ip()->ptr(), db,
                                        sctx->priv_user,
                                        name, is_proc, 0)))
     no_routine_acl= !(grant_proc->privs & SHOW_PROC_ACLS);
@@ -6023,8 +6205,9 @@ ulong get_table_grant(THD *thd, TABLE_LIST *table)
 #ifdef EMBEDDED_LIBRARY
   grant_table= NULL;
 #else
-  grant_table= table_hash_search(sctx->host, sctx->ip, db, sctx->priv_user,
-				 table->table_name, 0);
+  grant_table= table_hash_search(sctx->get_host()->ptr(),
+                                 sctx->get_ip()->ptr(), db, sctx->priv_user,
+                                 table->table_name, 0);
 #endif
   table->grant.grant_table=grant_table; // Remember for column test
   table->grant.version=grant_version;
@@ -6068,7 +6251,7 @@ ulong get_column_grant(THD *thd, GRANT_INFO *grant,
   {
     Security_context *sctx= thd->security_ctx;
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
                         db_name, sctx->priv_user,
 			table_name, 0);	        /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
@@ -7020,7 +7203,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     elements= acl_proxy_users.elements;
     break;
   default:
-    return -1;
+    DBUG_RETURN(-1);
   }
 
 #ifdef EXTRA_DEBUG
@@ -7457,20 +7640,13 @@ void append_user(THD *thd, String *str, LEX_USER *user, bool comma= true,
                                           user->password.length);
           str->append(tmp);
         }
-#if defined(HAVE_OPENSSL)
-        else if (thd->variables.old_passwords == 2)
-        {
-          char tmp[CRYPT_MAX_PASSWORD_SIZE + 1];
-          my_make_scrambled_password(tmp, user->password.str,
-                                     user->password.length);
-          str->append(tmp, user->password.length, system_charset_info);
-        }
-#endif
         else
         {
           /*
             Legacy password algorithm is just an obfuscation of a plain text
             so we're not going to write this.
+            Same with old_passwords == 2 since the scrambled password will
+            be binary anyway.
           */
           str->append("<secret>");
         }
@@ -7827,6 +8003,11 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   bool save_binlog_row_based;
   DBUG_ENTER("mysql_user_password_expire");
 
+  if (!initialized)
+  {
+    my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0), "--skip-grant-tables");
+    DBUG_RETURN(true);
+  }
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_WRITE);
 
 #ifdef HAVE_REPLICATION
@@ -7899,7 +8080,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                           acl_user->host.get_host() ?
                           acl_user->host.get_host() : "",
                           acl_user->user ? acl_user->user : "",
-                          NULL, 0, password_field, true))
+                          NULL, 0, password_field, true, false))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -8339,9 +8520,11 @@ bool sp_grant_privileges(THD *thd, const char *sp_db, const char *sp_name,
 
   if ((au= find_acl_user(combo->host.str=(char*)sctx->host_or_ip,combo->user.str,FALSE)))
     goto found_acl;
-  if ((au= find_acl_user(combo->host.str=(char*)sctx->host, combo->user.str,FALSE)))
+  if ((au= find_acl_user(combo->host.str=(char*)sctx->get_host()->ptr(),
+                                                combo->user.str, FALSE)))
     goto found_acl;
-  if ((au= find_acl_user(combo->host.str=(char*)sctx->ip, combo->user.str,FALSE)))
+  if ((au= find_acl_user(combo->host.str=(char*)sctx->get_ip()->ptr(),
+                                                combo->user.str, FALSE)))
     goto found_acl;
   if((au= find_acl_user(combo->host.str=(char*)"%", combo->user.str, FALSE)))
     goto found_acl;
@@ -8478,9 +8661,9 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
   {
     ACL_PROXY_USER *proxy= dynamic_element(&acl_proxy_users, i, 
                                            ACL_PROXY_USER *);
-    if (proxy->matches(thd->security_ctx->host,
+    if (proxy->matches(thd->security_ctx->get_host()->ptr(),
                        thd->security_ctx->user,
-                       thd->security_ctx->ip,
+                       thd->security_ctx->get_ip()->ptr(),
                        user) &&
         proxy->get_with_grant())
     {
@@ -8933,7 +9116,8 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   Security_context *sctx= thd->security_ctx;
   DBUG_ENTER("fill_effective_table_privileges");
   DBUG_PRINT("enter", ("Host: '%s', Ip: '%s', User: '%s', table: `%s`.`%s`",
-                       sctx->priv_host, (sctx->ip ? sctx->ip : "(NULL)"),
+                       sctx->priv_host, (sctx->get_ip()->length() ?
+                       sctx->get_ip()->ptr() : "(NULL)"),
                        (sctx->priv_user ? sctx->priv_user : "(NULL)"),
                        db, table));
   /* --skip-grants */
@@ -8955,14 +9139,15 @@ void fill_effective_table_privileges(THD *thd, GRANT_INFO *grant,
   }
 
   /* db privileges */
-  grant->privilege|= acl_get(sctx->host, sctx->ip, sctx->priv_user, db, 0);
+  grant->privilege|= acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                             sctx->priv_user, db, 0);
 
   /* table privileges */
   mysql_rwlock_rdlock(&LOCK_grant);
   if (grant->version != grant_version)
   {
     grant->grant_table=
-      table_hash_search(sctx->host, sctx->ip, db,
+      table_hash_search(sctx->get_host()->ptr(), sctx->get_ip()->ptr(), db,
 			sctx->priv_user,
 			table, 0);              /* purecov: inspected */
     grant->version= grant_version;              /* purecov: inspected */
@@ -10773,8 +10958,8 @@ server_mpvio_initialize(THD *thd, MPVIO_EXT *mpvio,
   mpvio->thread_id= thd->thread_id;
   mpvio->server_status= &thd->server_status;
   mpvio->net= &thd->net;
-  mpvio->ip= thd->security_ctx->ip;
-  mpvio->host= thd->security_ctx->host;
+  mpvio->ip= (char *) thd->security_ctx->get_ip()->ptr();
+  mpvio->host= (char *) thd->security_ctx->get_host()->ptr();
   mpvio->charset_adapter= charset_adapter;
 }
 
@@ -10950,9 +11135,10 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
-    proxy_user= acl_find_proxy_user(auth_user, sctx->host, sctx->ip,
+    proxy_user= acl_find_proxy_user(auth_user, sctx->get_host()->ptr(),
+                                    sctx->get_ip()->ptr(),
                                     mpvio.auth_info.authenticated_as,
-                                          &is_proxy_user);
+                                    &is_proxy_user);
     if (is_proxy_user)
     {
       ACL_USER *acl_proxy_user;
@@ -11086,8 +11272,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     if (!count_ok)
     {                                         // too many connections
       release_user_connection(thd);
-      statistic_increment_rwlock(connection_errors_max_connection, 
-                                 &LOCK_status);
+      connection_errors_max_connection++;
       my_error(ER_CON_COUNT_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
@@ -11115,7 +11300,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   }
 
   if (mpvio.auth_info.external_user[0])
-    sctx->external_user= my_strdup(mpvio.auth_info.external_user, MYF(0));
+    sctx->set_external_user(my_strdup(mpvio.auth_info.external_user, MYF(0)));
 
 
   if (res == CR_OK_HANDSHAKE_COMPLETE)
@@ -11308,12 +11493,107 @@ private:
   RSA *m_private_key;
   int m_cipher_len;
   char *m_pem_public_key;
+
+  /**
+    @brief Set key file path
+
+    @param  key[in]            Points to either auth_rsa_private_key_path or
+                               auth_rsa_public_key_path.
+    @param  key_file_path[out] Stores value of actual key file path.
+
+  */
+  void get_key_file_path(char *key, String *key_file_path)
+  {
+    /*
+       If a fully qualified path is entered use that, else assume the keys are 
+       stored in the data directory.
+     */
+    if (strchr(key, FN_LIBCHAR) != NULL ||
+        strchr(key, FN_LIBCHAR2) != NULL)
+      key_file_path->set_quick(key, strlen(key), system_charset_info);
+    else
+    {
+      key_file_path->append(mysql_real_data_home, strlen(mysql_real_data_home));
+      if ((*key_file_path)[key_file_path->length()] != FN_LIBCHAR)
+        key_file_path->append(FN_LIBCHAR);
+      key_file_path->append(key);
+    }
+  }
+
+  /**
+    @brief Read a key file and store its value in RSA structure
+
+    @param  key_ptr[out]         Address of pointer to RSA. This is set to
+                                 point to a non null value if key is correctly
+                                 read.
+    @param  is_priv_key[in]      Whether we are reading private key or public
+                                 key.
+    @param  key_text_buffer[out] To store key file content of public key.
+
+    @return Error status
+      @retval false              Success : Either both keys are read or none
+                                 are.
+      @retval true               Failure : An appropriate error is raised.
+  */
+  bool read_key_file(RSA **key_ptr, bool is_priv_key, char **key_text_buffer)
+  {
+    String key_file_path;
+    char *key;
+    const char *key_type;
+    FILE *key_file= NULL;
+
+    key= is_priv_key ? auth_rsa_private_key_path : auth_rsa_public_key_path;
+    key_type= is_priv_key ? "private" : "public";
+    *key_ptr= NULL;
+
+    get_key_file_path(key, &key_file_path);
+
+    /*
+       Check for existance of private key/public key file.
+    */
+    if ((key_file= fopen(key_file_path.c_ptr(), "r")) == NULL)
+    {
+      sql_print_information("RSA %s key file not found: %s."
+                            " Some authentication plugins will not work.",
+                            key_type, key_file_path.c_ptr());
+    }
+    else
+    {
+        *key_ptr= is_priv_key ? PEM_read_RSAPrivateKey(key_file, 0, 0, 0) :
+                                PEM_read_RSA_PUBKEY(key_file, 0, 0, 0);
+
+      if (!(*key_ptr))
+      {
+        char error_buf[MYSQL_ERRMSG_SIZE];
+        ERR_error_string_n(ERR_get_error(), error_buf, MYSQL_ERRMSG_SIZE);
+        sql_print_error("Failure to parse RSA %s key (file exists): %s:"
+                        " %s", key_type, key_file_path.c_ptr(), error_buf);
+        return true;
+      }
+
+      /* For public key, read key file content into a char buffer. */
+      if (!is_priv_key)
+      {
+        int filesize;
+        fseek(key_file, 0, SEEK_END);
+        filesize= ftell(key_file);
+        fseek(key_file, 0, SEEK_SET);
+        *key_text_buffer= new char[filesize+1];
+        (void) fread(*key_text_buffer, filesize, 1, key_file);
+        (*key_text_buffer)[filesize]= '\0';
+      }
+      fclose(key_file);
+    }
+    return false;
+  }
+
 public:
   Rsa_authentication_keys()
   {
     m_cipher_len= 0;
     m_private_key= 0;
     m_public_key= 0;
+    m_pem_public_key= 0;
   }
   
   ~Rsa_authentication_keys()
@@ -11323,10 +11603,14 @@ public:
   void free_memory()
   {
     if (m_private_key)
-    {
       RSA_free(m_private_key);
+
+    if (m_public_key)
+    {
       RSA_free(m_public_key);
+      m_cipher_len= 0;
     }
+
     if (m_pem_public_key)
       delete [] m_pem_public_key;
   }
@@ -11352,16 +11636,78 @@ public:
     return (m_cipher_len= RSA_size(m_public_key));
   }
 
-  int set_private_key(RSA *pk)
-  {
-    m_private_key= pk;
-    return 0;
-  }
+  /**
+    @brief Read RSA private key and public key from file and store them
+           in m_private_key and m_public_key. Also, read public key in
+           text format and store it in m_pem_public_key.
 
-  int set_public_key(RSA *pk)
+    @return Error status
+      @retval false        Success : Either both keys are read or none are.
+      @retval true         Failure : An appropriate error is raised.
+  */
+  bool read_rsa_keys()
   {
-    m_public_key= pk;
-    return 0;
+    RSA *rsa_private_key_ptr= NULL;
+    RSA *rsa_public_key_ptr= NULL;
+    char *pub_key_buff= NULL; 
+
+    if ((strlen(auth_rsa_private_key_path) == 0) &&
+        (strlen(auth_rsa_public_key_path) == 0))
+    {
+      sql_print_information("RSA key files not found."
+                            " Some authentication plugins will not work.");
+      return false;
+    }
+
+    /*
+      Read private key in RSA format.
+    */
+    if (read_key_file(&rsa_private_key_ptr, true, NULL))
+        return true;
+    
+    /*
+      Read public key in RSA format.
+    */
+    if (read_key_file(&rsa_public_key_ptr, false, &pub_key_buff))
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+      return true;
+    }
+
+    /*
+       If both key files are read successfully then assign values to following
+       members of the class
+       1. m_pem_public_key
+       2. m_private_key
+       3. m_public_key
+
+       Else clean up.
+     */
+    if (rsa_private_key_ptr && rsa_public_key_ptr)
+    {
+      int buff_len= strlen(pub_key_buff);
+      char *pem_file_buffer= (char *)allocate_pem_buffer(buff_len + 1);
+      strncpy(pem_file_buffer, pub_key_buff, buff_len);
+      pem_file_buffer[buff_len]= '\0';
+
+      m_private_key= rsa_private_key_ptr;
+      m_public_key= rsa_public_key_ptr;
+
+      delete [] pub_key_buff; 
+    }
+    else
+    {
+      if (rsa_private_key_ptr)
+        RSA_free(rsa_private_key_ptr);
+
+      if (rsa_public_key_ptr)
+      {
+        delete [] pub_key_buff; 
+        RSA_free(rsa_public_key_ptr);
+      }
+    }
+    return false;
   }
 
   const char *get_public_key_as_pem(void)
@@ -11408,119 +11754,13 @@ public:
  @see init_ssl()
  
  @return Error code
-   @retval 0 Success
-   @retval 1 Error
+   @retval false Success
+   @retval true Error
 */
 
-int init_rsa_keys(void)
+bool init_rsa_keys(void)
 {
-  FILE *priv_key_file;
-  FILE *public_key_file;
-  String priv_keypath;
-  String pub_keypath;
-  int auth_rsa_private_key_path_len;
-  int auth_rsa_public_key_path_len;
-  
-  auth_rsa_private_key_path_len= strlen(auth_rsa_private_key_path);
-  auth_rsa_public_key_path_len= strlen(auth_rsa_public_key_path);
-  if (auth_rsa_private_key_path_len == 0 || auth_rsa_public_key_path_len == 0)
-  {
-     sql_print_information("RSA key files not found."
-                          " Some authentication plugins will not work.");
-    return 0;
-  }
-
-  /*
-     If a fully qualified path is entered use that, else assume the keys are 
-     stored in the data directory.
-  */
-  if (strchr(auth_rsa_private_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_private_key_path, FN_LIBCHAR2) != NULL)
-    priv_keypath.set_quick(auth_rsa_private_key_path,
-                           auth_rsa_private_key_path_len, 
-                           system_charset_info);
-  else
-  {
-    priv_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (priv_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      priv_keypath.append(FN_LIBCHAR);
-    priv_keypath.append(auth_rsa_private_key_path);
-  }
-
-  if ((priv_key_file= fopen(priv_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA private key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          priv_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_priv(priv_key_file);
-
-  if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
-      strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
-    pub_keypath.set_quick(auth_rsa_public_key_path,
-                          auth_rsa_public_key_path_len, 
-                          system_charset_info);
-  else
-  {
-    pub_keypath.append(mysql_real_data_home, strlen(mysql_real_data_home));
-    if (pub_keypath[pub_keypath.length()] != FN_LIBCHAR)
-      pub_keypath.append(FN_LIBCHAR);
-    pub_keypath.append(auth_rsa_public_key_path);
-  }
-
-  if ((public_key_file= fopen(pub_keypath.c_ptr(), "r")) == NULL)
-  {
-    sql_print_information("RSA public key file not found: %s."
-                          " Some authentication plugins will not work.",
-                          pub_keypath.c_ptr());
-    /* Don't return an error; server will still be able to operate. */
-    return 0;
-  }
-  FileCloser close_public(public_key_file);
-
-  RSA *rsa_private_key= RSA_new();
-  if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,
-                                                        &rsa_private_key,
-                                                        0, 0)))
-  {
-    sql_print_error("Failure to parse RSA private key (file exists): %s",
-                    auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-    
-  }
-  
-  int filesize;
-  fseek(public_key_file, 0, SEEK_END);
-  filesize= ftell(public_key_file);
-  fseek(public_key_file, 0, SEEK_SET);
-  char *pem_file_buffer= (char *)g_rsa_keys.allocate_pem_buffer(filesize + 1);
-  (void) fread(pem_file_buffer, filesize, 1, public_key_file);
-  pem_file_buffer[filesize]= '\0';
-
-  if (int err= ferror(public_key_file))
-  {
-    sql_print_error("Failure code %d when reading RSA public key (%d bytes): %s",
-                    err, filesize, auth_rsa_private_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-  fseek(public_key_file, 0, SEEK_SET);
-
-  RSA *rsa_public_key= RSA_new();
-  if (g_rsa_keys.set_public_key(PEM_read_RSA_PUBKEY(public_key_file,
-                                                    &rsa_public_key,
-                                                    0, 0)))
-  {
-     sql_print_error("Failure to parse RSA public key (file exists): %s",
-                    auth_rsa_public_key_path);
-    /* An intention has been made clear which can't be fulfilled; stop server.*/
-    return 1;
-  }
-
-  return 0;
+  return (g_rsa_keys.read_rsa_keys());
 }
 #endif // ifndef HAVE_YASSL
 
@@ -11831,9 +12071,14 @@ int check_password_strength(String *password)
 /* called when new user is created or exsisting password is changed */
 int check_password_policy(String *password)
 {
-  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
-                                            MYSQL_VALIDATE_PASSWORD_PLUGIN);
-  DBUG_ASSERT(password != NULL);
+  plugin_ref plugin;
+  String empty_string;
+
+  if (!password)
+    password= &empty_string;
+
+  plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+                                 MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)
   {
     st_mysql_validate_password *password_validate=
@@ -11849,3 +12094,73 @@ int check_password_policy(String *password)
   }
   return (0);
 }
+
+#ifndef NO_EMBEDDED_ACCESS_CHECKS
+my_bool validate_user_plugins= TRUE;
+
+/**
+  Iterate over the user records and check for irregularities.
+  Currently this includes :
+   - checking if the plugin referenced is present.
+   - if there's sha256 users and there's neither SSL nor RSA configured
+*/
+static void
+validate_user_plugin_records()
+{
+  DBUG_ENTER("validate_user_plugin_records");
+  if (!validate_user_plugins)
+    DBUG_VOID_RETURN;
+
+  lock_plugin_data();
+  for (uint i=0 ; i < acl_users.elements ; i++)
+  {
+    struct st_plugin_int *plugin;
+    ACL_USER *acl_user=dynamic_element(&acl_users,i,ACL_USER*);
+
+    if (acl_user->plugin.length)
+    {
+      /* rule 1 : plugin does exit */
+      if (!auth_plugin_is_built_in(acl_user->plugin.str))
+      {
+        plugin= plugin_find_by_type(&acl_user->plugin,
+                                    MYSQL_AUTHENTICATION_PLUGIN);
+
+        if (!plugin)
+        {
+          sql_print_warning("The plugin '%.*s' used to authenticate "
+                            "user '%s'@'%.*s' is not loaded."
+                            " Nobody can currently login using this account.",
+                            (int) acl_user->plugin.length, acl_user->plugin.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+        }
+      }
+      if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+#if !defined(HAVE_YASSL)
+          (!g_rsa_keys.get_private_key() || !g_rsa_keys.get_public_key()) &&
+#endif
+          !ssl_acceptor_fd)
+      {
+          sql_print_warning("The plugin '%s' is used to authenticate "
+                            "user '%s'@'%.*s', "
+#if !defined(HAVE_YASSL)
+                            "but neither SSL nor RSA keys are "
+#else
+                            "but no SSL is "
+#endif
+                            "configured. "
+                            "Nobody can currently login using this account.",
+                            sha256_password_plugin_name.str,
+                            acl_user->user,
+                            acl_user->host.get_host_len(), 
+                            acl_user->host.get_host());
+      }
+    }
+  }
+  unlock_plugin_data();
+  DBUG_VOID_RETURN;
+}
+
+#endif // NO_EMBEDDED_ACCESS_CHECKS
+

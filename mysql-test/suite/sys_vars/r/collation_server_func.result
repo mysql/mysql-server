@@ -30,7 +30,7 @@ SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `a` char(20) COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 '---check if updating collation_server effects new table/column---'
 SET @@session.collation_server = latin1_swedish_ci;
 CREATE TABLE t2(a CHAR(10));
@@ -38,7 +38,7 @@ SHOW CREATE TABLE t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
   `a` char(10) COLLATE latin1_german1_ci DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_german1_ci
 INSERT INTO t1 VALUES('Muffler'),('Müller'),('MX Systems');
 '---check if collation_server effects results sort order---'
 SET @@session.collation_server = latin1_swedish_ci;
@@ -66,9 +66,6 @@ MX Systems
 '---check if indexing is effected by collation_server---'
 SET @@session.collation_server = latin1_swedish_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-db1.t1	repair	status	OK
 SELECT * FROM t1 ORDER BY a;
 a
 Muffler
@@ -77,9 +74,6 @@ MX Systems
 ALTER TABLE t1 DROP PRIMARY KEY;
 SET @@session.collation_server = latin1_german1_ci;
 ALTER TABLE t1 ADD PRIMARY KEY (a);
-REPAIR TABLE t1;
-Table	Op	Msg_type	Msg_text
-db1.t1	repair	status	OK
 SELECT * FROM t1 ORDER BY a;
 a
 Muffler

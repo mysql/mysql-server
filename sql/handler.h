@@ -1048,6 +1048,27 @@ typedef struct st_ha_create_information
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
 
+
+/**
+  Structure describing changes to an index to be caused by ALTER TABLE.
+*/
+
+struct KEY_PAIR
+{
+  /**
+    Pointer to KEY object describing old version of index in
+    TABLE::key_info array for TABLE instance representing old
+    version of table.
+  */
+  KEY *old_key;
+  /**
+    Pointer to KEY object describing new version of index in
+    Alter_inplace_info::key_info_buffer array.
+  */
+  KEY *new_key;
+};
+
+
 /**
   In-place alter handler context.
 
@@ -1193,6 +1214,14 @@ public:
   static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
 
   /**
+    Rename index. Note that we set this flag only if there are no other
+    changes to the index being renamed. Also for simplicity we don't
+    detect renaming of indexes which is done by dropping index and then
+    re-creating index with identical definition under different name.
+  */
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1254,6 +1283,19 @@ public:
   */
   uint *index_add_buffer;
 
+  /** Size of index_rename_buffer array. */
+  uint index_rename_count;
+
+  /**
+    Array of KEY_PAIR objects describing indexes being renamed.
+    For each index renamed it contains object with KEY_PAIR::old_key
+    pointing to KEY object belonging to the TABLE instance for old
+    version of table representing old version of index and with
+    KEY_PAIR::new_key pointing to KEY object for new version of
+    index in key_info_buffer member.
+  */
+  KEY_PAIR  *index_rename_buffer;
+
   /**
      Context information to allow handlers to keep context between in-place
      alter API calls.
@@ -1261,6 +1303,18 @@ public:
      @see inplace_alter_handler_ctx for information about object lifecycle.
   */
   inplace_alter_handler_ctx *handler_ctx;
+
+  /**
+    If the table uses several handlers, like ha_partition uses one handler
+    per partition, this contains a Null terminated array of ctx pointers
+    that should all be committed together.
+    Or NULL if only handler_ctx should be committed.
+    Set to NULL if the low level handler::commit_inplace_alter_table uses it,
+    to signal to the main handler that everything was committed as atomically.
+
+    @see inplace_alter_handler_ctx for information about object lifecycle.
+  */
+  inplace_alter_handler_ctx **group_commit_ctx;
 
   /**
      Flags describing in detail which operations the storage engine is to execute.
@@ -1308,7 +1362,10 @@ public:
     index_drop_buffer(NULL),
     index_add_count(0),
     index_add_buffer(NULL),
+    index_rename_count(0),
+    index_rename_buffer(NULL),
     handler_ctx(NULL),
+    group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
@@ -1332,6 +1389,41 @@ public:
   */
   void report_unsupported_error(const char *not_supported,
                                 const char *try_instead);
+
+  /** Add old and new version of key to array of indexes to be renamed. */
+  void add_renamed_key(KEY *old_key, KEY *new_key)
+  {
+    KEY_PAIR *key_pair= index_rename_buffer + index_rename_count++;
+    key_pair->old_key= old_key;
+    key_pair->new_key= new_key;
+    DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
+                        old_key->name, new_key->name));
+  }
+
+  /**
+    Add old and new version of modified key to arrays of indexes to
+    be dropped and added (correspondingly).
+  */
+  void add_modified_key(KEY *old_key, KEY *new_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    DBUG_PRINT("info", ("index changed: '%s'", old_key->name));
+  }
+
+  /** Drop key to array of indexes to be dropped. */
+  void add_dropped_key(KEY *old_key)
+  {
+    index_drop_buffer[index_drop_count++]= old_key;
+    DBUG_PRINT("info", ("index dropped: '%s'", old_key->name));
+  }
+
+  /** Add key to array of indexes to be added. */
+  void add_added_key(KEY *new_key)
+  {
+    index_add_buffer[index_add_count++]= new_key - key_info_buffer;
+    DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+  }
 };
 
 
@@ -2481,7 +2573,7 @@ public:
   uint max_keys() const
   {
     using std::min;
-    return min(MAX_KEY, max_supported_keys());
+    return min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
@@ -2924,6 +3016,10 @@ protected:
 
     @note In case of partitioning, this function might be called for rollback
     without prepare_inplace_alter_table() having been called first.
+    Also partitioned tables sets ha_alter_info->group_commit_ctx to a NULL
+    terminated array of the partitions handlers and if all of them are
+    committed as one, then group_commit_ctx should be set to NULL to indicate
+    to the partitioning handler that all partitions handlers are committed.
     @see prepare_inplace_alter_table().
 
     @param    altered_table     TABLE object for new version of table.
@@ -2938,7 +3034,11 @@ protected:
  virtual bool commit_inplace_alter_table(TABLE *altered_table,
                                          Alter_inplace_info *ha_alter_info,
                                          bool commit)
- { return false; }
+{
+  /* Nothing to commit/rollback, mark all handlers committed! */
+  ha_alter_info->group_commit_ctx= NULL;
+  return false;
+}
 
 
  /**
@@ -3378,7 +3478,7 @@ int ha_recover(HASH *commit_list);
  intended to be used by the transaction coordinators to
  commit/prepare/rollback transactions in the engines.
 */
-int ha_commit_low(THD *thd, bool all);
+int ha_commit_low(THD *thd, bool all, bool run_after_commit= true);
 int ha_prepare_low(THD *thd, bool all);
 int ha_rollback_low(THD *thd, bool all);
 
@@ -3404,7 +3504,6 @@ void trans_register_ha(THD *thd, bool all, handlerton *ht);
 #define trans_need_2pc(thd, all)                   ((total_ha_2pc > 1) && \
         !((all ? &thd->transaction.all : &thd->transaction.stmt)->no_2pc))
 
-#ifdef HAVE_NDB_BINLOG
 int ha_reset_logs(THD *thd);
 int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
@@ -3413,13 +3512,6 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
-#else
-#define ha_reset_logs(a) do {} while (0)
-#define ha_binlog_index_purge_file(a,b) do {} while (0)
-#define ha_reset_slave(a) do {} while (0)
-#define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
-#define ha_binlog_wait(a) do {} while (0)
-#endif
 
 /* It is required by basic binlog features on both MySQL server and libmysqld */
 int ha_binlog_end(THD *thd);

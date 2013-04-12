@@ -533,10 +533,11 @@ row_quiesce_table_start(
 
 	ut_a(table->id > 0);
 
-	ulint	count = 0;
-
-	while (ibuf_contract_in_background(table->id, TRUE) != 0) {
-		if (!(++count % 20)) {
+	for (ulint count = 0;
+	     ibuf_contract_in_background(table->id, TRUE) != 0
+	     && !trx_is_interrupted(trx);
+	     ++count) {
+		if (!(count % 20)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Merging change buffer entries for '%s'",
 				table_name);
@@ -611,7 +612,7 @@ row_quiesce_table_complete(
 
 	srv_get_meta_data_filename(table, cfg_name, sizeof(cfg_name));
 
-	os_file_delete_if_exists(innodb_file_data_key, cfg_name);
+	os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Deleting the meta-data file '%s'", cfg_name);
@@ -644,6 +645,12 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
+	} else if (dict_table_is_temporary(table)) {
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+
+		return(DB_UNSUPPORTED);
 	} else if (table->space == srv_sys_space.space_id()) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
@@ -653,13 +660,6 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
-
-		return(DB_UNSUPPORTED);
-
-	} else if (dict_table_is_temporary(table)) {
-
-		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
-			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		return(DB_UNSUPPORTED);
 

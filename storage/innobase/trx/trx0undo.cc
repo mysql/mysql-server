@@ -1277,9 +1277,8 @@ trx_undo_mem_create_at_db_start(
 	ibool		xid_exists = FALSE;
 
 	if (id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: undo->id is %lu\n", (ulong) id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu", (ulong) id);
 	}
 
 	undo_page = trx_undo_page_get(rseg->space, rseg->zip_size,
@@ -1459,9 +1458,8 @@ trx_undo_mem_create(
 	ut_ad(mutex_own(&(rseg->mutex)));
 
 	if (id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: undo->id is %lu\n", (ulong) id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu", (ulong) id);
 	}
 
 	undo = static_cast<trx_undo_t*>(mem_alloc(sizeof(*undo)));
@@ -1511,11 +1509,9 @@ trx_undo_mem_init_for_reuse(
 	ut_ad(mutex_own(&((undo->rseg)->mutex)));
 
 	if (UNIV_UNLIKELY(undo->id >= TRX_RSEG_N_SLOTS)) {
-		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
-			(ulong) undo->id);
-
 		mem_analyze_corruption(undo);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
 	undo->state = TRX_UNDO_ACTIVE;
@@ -1538,9 +1534,8 @@ trx_undo_mem_free(
 	trx_undo_t*	undo)	/*!< in: the undo object to be freed */
 {
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr,
-			"InnoDB: Error: undo->id is %lu\n", (ulong) undo->id);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
 	mem_free(undo);
@@ -1667,10 +1662,9 @@ trx_undo_reuse_cached(
 	ut_ad(undo->size == 1);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
-			(ulong) undo->id);
 		mem_analyze_corruption(undo);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu", (ulong) undo->id);
 	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->zip_size,
@@ -1825,10 +1819,9 @@ trx_undo_set_state_at_finish(
 	ulint		state;
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
-			(ulong) undo->id);
 		mem_analyze_corruption(undo);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->zip_size,
@@ -1876,10 +1869,9 @@ trx_undo_set_state_at_prepare(
 	ut_ad(trx && undo && mtr);
 
 	if (undo->id >= TRX_RSEG_N_SLOTS) {
-		fprintf(stderr, "InnoDB: Error: undo->id is %lu\n",
-			(ulong) undo->id);
 		mem_analyze_corruption(undo);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"undo->id is %lu\n", (ulong) undo->id);
 	}
 
 	undo_page = trx_undo_page_get(undo->space, undo->zip_size,

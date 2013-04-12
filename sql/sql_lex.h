@@ -27,6 +27,7 @@
 #include "sql_array.h"
 #include "mem_root_array.h"
 #include "sql_alter.h"                // Alter_info
+#include "sql_servers.h"
 
 /* YACC and LEX Definitions */
 
@@ -102,6 +103,50 @@ struct sys_var_with_base
   sys_var *var;
   LEX_STRING base_name;
 };
+
+
+/**
+  Bison "location" class
+*/
+typedef struct YYLTYPE
+{
+  // TODO: replace all "char *" types with "const char *"
+  const char *start; // token start in the preprocessed buffer
+  const char *end;   // the 1st byte after the token in the preprocessed buffer
+  const char *raw_start; // token start in the raw buffer
+  const char *raw_end;   // the 1st byte after the token in the raw buffer
+} YYLTYPE;
+
+#define YYLTYPE_IS_DECLARED 1 // signal Bison that we have our own YYLTYPE
+
+
+/**
+  Bison calls this macro:
+  1. each time a rule is matched and
+  2. to compute a syntax error location.
+
+  @param Current [out] location of the whole matched rule
+  @param Rhs           locations of all right hand side elements in the rule
+  @param N             number of right hand side elements in the rule
+*/
+#define YYLLOC_DEFAULT(Current, Rhs, N)                             \
+    do                                                              \
+      if (YYID (N))                                                 \
+      {                                                             \
+        (Current).start=     YYRHSLOC(Rhs, 1).start;                \
+        (Current).end=       YYRHSLOC(Rhs, N).end;                  \
+        (Current).raw_start= YYRHSLOC(Rhs, 1).raw_start;            \
+        (Current).raw_end=   YYRHSLOC(Rhs, N).raw_end;              \
+      }                                                             \
+      else                                                          \
+      {                                                             \
+        (Current).start=     YYRHSLOC(Rhs, 0).start;                \
+        (Current).end=       YYRHSLOC(Rhs, 0).end;                  \
+        (Current).raw_start= YYRHSLOC(Rhs, 0).raw_start;            \
+        (Current).raw_end=   YYRHSLOC(Rhs, 0).raw_end;              \
+      }                                                             \
+    while (YYID (0))
+
 
 #ifdef MYSQL_SERVER
 /*
@@ -219,14 +264,6 @@ enum enum_drop_mode
 
 typedef List<Item> List_item;
 typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
-
-/* SERVERS CACHE CHANGES */
-typedef struct st_lex_server_options
-{
-  long port;
-  uint server_name_length;
-  char *server_name, *host, *db, *username, *password, *scheme, *socket, *owner;
-} LEX_SERVER_OPTIONS;
 
 
 /**
@@ -779,7 +816,8 @@ public:
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
   int nest_level;     /* nesting level of select */
-  Item_sum *inner_sum_func_list; /* list of sum func in nested selects */ 
+  /* Circularly linked list of sum func in nested selects */
+  Item_sum *inner_sum_func_list;
   uint with_wild; /* item list contain '*' */
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
@@ -1987,11 +2025,9 @@ public:
   /** Mark the stream position as the start of a new token. */
   void start_token()
   {
-    m_tok_start_prev= m_tok_start;
     m_tok_start= m_ptr;
     m_tok_end= m_ptr;
 
-    m_cpp_tok_start_prev= m_cpp_tok_start;
     m_cpp_tok_start= m_cpp_ptr;
     m_cpp_tok_end= m_cpp_ptr;
   }
@@ -2028,12 +2064,6 @@ public:
   const char *get_cpp_tok_end()
   {
     return m_cpp_tok_end;
-  }
-
-  /** Get the previous token start position, in the raw buffer. */
-  const char *get_tok_start_prev()
-  {
-    return m_tok_start_prev;
   }
 
   /** Get the current stream pointer, in the raw buffer. */
@@ -2115,9 +2145,6 @@ private:
   /** End of the query text in the input stream, in the raw buffer. */
   const char *m_end_of_query;
 
-  /** Starting position of the previous token parsed, in the raw buffer. */
-  const char *m_tok_start_prev;
-
   /** Begining of the query text in the input stream, in the raw buffer. */
   const char *m_buf;
 
@@ -2139,12 +2166,6 @@ private:
     in the pre-processed buffer.
   */
   const char *m_cpp_tok_start;
-
-  /**
-    Starting position of the previous token parsed,
-    in the pre-procedded buffer.
-  */
-  const char *m_cpp_tok_start_prev;
 
   /**
     Ending position of the previous token parsed,
@@ -2331,7 +2352,7 @@ struct LEX: public Query_tables_list
   KEY_CREATE_INFO key_create_info;
   LEX_MASTER_INFO mi;				// used by CHANGE MASTER
   LEX_SLAVE_CONNECTION slave_connection;
-  LEX_SERVER_OPTIONS server_options;
+  Server_options server_options;
   USER_RESOURCES mqh;
   LEX_RESET_SLAVE reset_slave_info;
   ulong type;
@@ -2415,6 +2436,12 @@ struct LEX: public Query_tables_list
   bool all_privileges;
   bool proxy_priv;
   bool is_change_password;
+  /*
+    Temporary variable to distinguish SET PASSWORD command from others
+    SQLCOM_SET_OPTION commands. Should be removed when WL#6409 is
+    introduced.
+  */
+  bool is_set_password_sql;
   bool contains_plaintext_password;
 
 private:
@@ -2666,6 +2693,7 @@ public:
   {
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
+    yacc_yyls= NULL;
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
@@ -2695,6 +2723,12 @@ public:
     my_yyoverflow().
   */
   uchar *yacc_yyvs;
+
+  /**
+    Bison internal location value stack, yyls, when dynamically allocated using
+    my_yyoverflow().
+  */
+  uchar *yacc_yyls;
 
   /**
     Type of lock to be used for tables being added to the statement's
@@ -2787,7 +2821,7 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern void lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(void *arg, void *yythd);
+extern int MYSQLlex(void *arg, void *arg2, void *yythd);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 

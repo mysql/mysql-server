@@ -1458,7 +1458,7 @@ DROP USER test_u@localhost;
 #    was killed
 #
 SHOW CREATE TABLE non_existent;
-ERROR 70100: Query execution was interrupted
+ERROR 42S02: Table 'test.non_existent' doesn't exist
 End of 5.1 tests
 #
 # Bug#52593 SHOW CREATE TABLE is blocked if table is locked

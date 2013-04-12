@@ -1,6 +1,5 @@
 #!/usr/bin/perl
-# Copyright (c) 2000-2002, 2006, 2007 MySQL AB, 2009 Sun Microsystems, Inc.
-# Use is subject to license terms.
+# Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +28,7 @@ $opt_port=0;
 $exit_status=0;
 
 GetOptions(
-  "e|engine|type=s"       => \$opt_type,
+  "e|engine|type=s"       => \$opt_engine,
   "f|force"               => \$opt_force,
   "help|?"               => \$opt_help,
   "h|host=s"              => \$opt_host,

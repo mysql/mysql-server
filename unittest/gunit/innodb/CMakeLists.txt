@@ -24,6 +24,7 @@ INCLUDE_DIRECTORIES(
 SET(TESTS
   #example
   ha_innodb
+  mem0mem
   ut0crc32
   ut0mem
 )

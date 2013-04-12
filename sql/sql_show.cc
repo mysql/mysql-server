@@ -44,7 +44,7 @@
 #include "sql_trigger.h"
 #include "sql_derived.h"
 #include "sql_partition.h"
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 #include "events.h"
 #include "event_data_objects.h"
 #endif
@@ -265,7 +265,7 @@ static struct show_privileges_st sys_privileges[]=
   {"Create user", "Server Admin",  "To create new users"},
   {"Delete", "Tables",  "To delete existing rows"},
   {"Drop", "Databases,Tables", "To drop databases, tables, and views"},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"Event","Server Admin","To create, alter, drop and execute events"},
 #endif
   {"Execute", "Functions,Procedures", "To execute stored routines"},
@@ -954,8 +954,8 @@ bool mysqld_show_create_db(THD *thd, char *dbname,
   if (test_all_bits(sctx->master_access, DB_ACLS))
     db_access=DB_ACLS;
   else
-    db_access= (acl_get(sctx->host, sctx->ip, sctx->priv_user, dbname, 0) |
-		sctx->master_access);
+    db_access= (acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                        sctx->priv_user, dbname, 0) | sctx->master_access);
   if (!(db_access & DB_ACLS) && check_grant_db(thd,dbname))
   {
     my_error(ER_DBACCESS_DENIED_ERROR, MYF(0),
@@ -1150,6 +1150,26 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
   packet->append(&quote_char, 1, system_charset_info);
 }
 
+/**
+  Convert the given identifier into to_charset if needed
+  and append it to target string.
+  @param thd                   thread handler
+  @param packet                target string
+  @param name                  the identifier to be appended
+  @param length                length of the input identifier
+  @param from_cs               Charset information about the input string
+  @param to_cs                 Charset information about the target string
+*/
+
+void
+append_identifier(THD *thd, String *packet, const char *name, uint length,
+                  const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
+{
+        String to_name(name,length, from_cs);
+        if (from_cs != to_cs)
+            thd->convert_string(&to_name, from_cs, to_cs);
+        append_identifier(thd, packet, to_name.c_ptr(), to_name.length());
+}
 
 /*
   Get the quote character for displaying an identifier.
@@ -1755,24 +1775,30 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
   }
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   {
-    /*
-      Partition syntax for CREATE TABLE is at the end of the syntax.
-    */
-    uint part_syntax_len;
-    char *part_syntax;
     if (table->part_info &&
-        (!table->part_info->is_auto_partitioned) &&
-        ((part_syntax= generate_partition_syntax(table->part_info,
+        !((table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION) &&
+          table->part_info->is_auto_partitioned))
+    {
+      /*
+        Partition syntax for CREATE TABLE is at the end of the syntax.
+      */
+      uint part_syntax_len;
+      char *part_syntax;
+      String comment_start;
+      table->part_info->set_show_version_string(&comment_start);
+      if ((part_syntax= generate_partition_syntax(table->part_info,
                                                   &part_syntax_len,
                                                   FALSE,
                                                   show_table_options,
-                                                  NULL, NULL))))
-    {
-       table->part_info->set_show_version_string(packet);
-       if (packet->append(part_syntax, part_syntax_len) ||
-           packet->append(STRING_WITH_LEN(" */")))
-        error= 1;
-       my_free(part_syntax);
+                                                  NULL, NULL,
+                                                  comment_start.c_ptr())))
+      {
+         packet->append(comment_start);
+         if (packet->append(part_syntax, part_syntax_len) ||
+             packet->append(STRING_WITH_LEN(" */")))
+          error= 1;
+         my_free(part_syntax);
+      }
     }
   }
 #endif
@@ -2066,8 +2092,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
                                     (tmp->system_thread ?
                                      "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
-            thd->security_ctx->host_or_ip[0])
+	if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
+            tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
 	{
 	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
 	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
@@ -2076,7 +2102,8 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 	else
 	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
                                       tmp_sctx->host_or_ip : 
-                                      tmp_sctx->host ? tmp_sctx->host : "");
+                                      tmp_sctx->get_host()->length() ?
+                                      tmp_sctx->get_host()->ptr() : "");
         if ((thd_info->db=tmp->db))             // Safe test
           thd_info->db=thd->strdup(thd_info->db);
         thd_info->command=(int) tmp->get_command();
@@ -2171,8 +2198,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
             (tmp->system_thread ? "system user" : "unauthenticated user");
       table->field[1]->store(val, strlen(val), cs);
       /* HOST */
-      if (tmp->peer_port && (tmp_sctx->host || tmp_sctx->ip) &&
-          thd->security_ctx->host_or_ip[0])
+      if (tmp->peer_port && (tmp_sctx->get_host()->length() || 
+          tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
       {
         char host[LIST_PROCESS_HOST_LEN + 1];
         my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
@@ -2551,6 +2578,14 @@ static bool show_status_array(THD *thd, const char *wild,
         {
           if (!(pos= *(char**) value))
             pos= "";
+
+          DBUG_EXECUTE_IF("alter_server_version_str",
+                          if (!my_strcasecmp(system_charset_info,
+                                             variables->name,
+                                             "version")) {
+                            pos= "some-other-version";
+                          });
+
           end= strend(pos);
           break;
         }
@@ -3995,7 +4030,8 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
                        &thd->col_access, NULL, 0, 1) ||
           (!thd->col_access && check_grant_db(thd, db_name->str))) ||
         sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-        acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0))
+        acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                sctx->priv_user, db_name->str, 0))
 #endif
     {
       List<LEX_STRING> table_names;
@@ -4166,8 +4202,9 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
     }
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (sctx->master_access & (DB_ACLS | SHOW_DB_ACL) ||
-	acl_get(sctx->host, sctx->ip, sctx->priv_user, db_name->str, 0) ||
-	!check_grant_db(thd, db_name->str))
+	acl_get(sctx->get_host()->ptr(), sctx->get_ip()->ptr(),
+                sctx->priv_user, db_name->str, 0) ||
+                !check_grant_db(thd, db_name->str))
 #endif
     {
       load_db_opt_by_name(thd, db_name->str, &create);
@@ -6243,7 +6280,7 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
 }
 
 
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
 /*
   Loads an event from mysql.event and copies it's data to a row of
   I_S.EVENTS
@@ -7177,7 +7214,7 @@ static bool do_fill_table(THD *thd,
   tmp_da.reset_condition_info(thd->query_id);
 
   bool res= table_list->schema_table->fill_table(
-    thd, table_list, join_table->condition());
+    thd, table_list, join_table->unified_condition());
 
   thd->pop_diagnostics_area();
 
@@ -7991,7 +8028,7 @@ ST_SCHEMA_TABLE schema_tables[]=
    fill_schema_column_privileges, 0, 0, -1, -1, 0, 0},
   {"ENGINES", engines_fields_info, create_schema_table,
    fill_schema_engines, make_old_format, 0, -1, -1, 0, 0},
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
   {"EVENTS", events_fields_info, create_schema_table,
    Events::fill_schema_events, make_old_format, 0, -1, -1, 0, 0},
 #else // for alignment with enum_schema_tables

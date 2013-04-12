@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 ################################################################################
 #
 # NOTICE:
@@ -1215,7 +1220,12 @@ eval KILL QUERY $ID;
 --enable_query_log
 
 CONNECTION con1;
---error ER_QUERY_INTERRUPTED
+let $wait_timeout= 5;
+let $wait_condition=
+  SELECT COUNT(*)=0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE
+  INFO= "KILL QUERY $ID";
+--source include/wait_condition.inc
+--error ER_NO_SUCH_TABLE
 SHOW CREATE TABLE non_existent;
 
 DISCONNECT con1;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -49,6 +49,13 @@ size_t my_read(File Filedes, uchar *Buffer, size_t Count, myf MyFlags)
 #else
     readbytes= read(Filedes, Buffer, Count);
 #endif
+    DBUG_EXECUTE_IF ("simulate_file_read_error",
+                     {
+                       errno= ENOSPC;
+                       readbytes= (size_t) -1;
+                       DBUG_SET("-d,simulate_file_read_error");
+                       DBUG_SET("-d,simulate_my_b_fill_error");
+                     });
 
     if (readbytes != Count)
     {

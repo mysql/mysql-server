@@ -1167,7 +1167,7 @@ buf_chunk_not_freed(
 		ibool	ready;
 
 		switch (buf_block_get_state(block)) {
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_ZIP_DIRTY:
 			/* The uncompressed buffer pool should never
@@ -1492,7 +1492,7 @@ buf_relocate(
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 #ifdef UNIV_DEBUG
 	switch (buf_page_get_state(bpage)) {
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_FILE_PAGE:
@@ -1899,7 +1899,7 @@ buf_page_set_file_page_was_freed(
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
 		/* bpage->file_page_was_freed can already hold
-		when this code is invoked from dict_drop_index_tree() */
+		when this code is invoked from dict_drop_index_tree_step() */
 		bpage->file_page_was_freed = TRUE;
 		mutex_exit(block_mutex);
 	}
@@ -2014,7 +2014,7 @@ lookup:
 		buf_read_page(space, zip_size, offset);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 	}
 
@@ -2030,11 +2030,11 @@ err_exit:
 	ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 
 	switch (buf_page_get_state(bpage)) {
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
 	case BUF_BLOCK_REMOVE_HASH:
-	case BUF_BLOCK_ZIP_FREE:
 		break;
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
@@ -2240,7 +2240,7 @@ buf_block_align_instance(
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
-			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_POOL_WATCH:
 			case BUF_BLOCK_ZIP_PAGE:
 			case BUF_BLOCK_ZIP_DIRTY:
 				/* These types should only be used in
@@ -2542,28 +2542,26 @@ loop:
 			retries = 0;
 		} else if (retries < BUF_PAGE_READ_MAX_RETRIES) {
 			++retries;
+			DBUG_EXECUTE_IF(
+				"innodb_page_corruption_retries",
+				retries = BUF_PAGE_READ_MAX_RETRIES;
+			);
 		} else {
-			fprintf(stderr, "InnoDB: Error: Unable"
-				" to read tablespace %lu page no"
-				" %lu into the buffer pool after"
-				" %lu attempts\n"
-				"InnoDB: The most probable cause"
-				" of this error may be that the"
-				" table has been corrupted.\n"
-				"InnoDB: You can try to fix this"
-				" problem by using"
-				" innodb_force_recovery.\n"
-				"InnoDB: Please see reference manual"
-				" for more details.\n"
-				"InnoDB: Aborting...\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Unable to read tablespace %lu page no %lu"
+				" into the buffer pool after %lu attempts."
+				" The most probable cause of this error may"
+				" be that the table has been corrupted."
+				" You can try to fix this problem by using"
+				" innodb_force_recovery."
+				" Please see reference manual for more"
+				" details.   Aborting...",
 				space, offset,
 				BUF_PAGE_READ_MAX_RETRIES);
-
-			ut_error;
 		}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-		ut_a(++buf_dbg_counter % 37 || buf_validate());
+		ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 		goto loop;
 	}
@@ -2756,7 +2754,7 @@ wait_until_unfixed:
 
 		break;
 
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
 	case BUF_BLOCK_MEMORY:
@@ -3731,7 +3729,6 @@ buf_page_create(
 
 	/* Delete possible entries for the page from the insert buffer:
 	such can exist if the page belonged to an index which was dropped */
-
 	ibuf_merge_or_delete_for_page(NULL, space, offset, zip_size, TRUE);
 
 	frame = block->frame;
@@ -3749,7 +3746,7 @@ buf_page_create(
 	memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
-	ut_a(++buf_dbg_counter % 357 || buf_validate());
+	ut_a(++buf_dbg_counter % 5771 || buf_validate());
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a(ibuf_count_get(buf_block_get_space(block),
@@ -4058,11 +4055,9 @@ corrupt:
 				    && buf_mark_space_corrupt(bpage)) {
 					return(false);
 				} else {
-					fputs("InnoDB: Ending processing"
-					      " because of"
-					      " a corrupt database page.\n",
-					      stderr);
-					ut_error;
+					ib_logf(IB_LOG_LEVEL_FATAL,
+						"Aborting because of a"
+						" corrupt database page.");
 				}
 			}
 		}
@@ -4178,11 +4173,10 @@ buf_all_freed_instance(
 		const buf_block_t* block = buf_chunk_not_freed(chunk);
 
 		if (UNIV_LIKELY_NULL(block)) {
-			fprintf(stderr,
-				"Page %lu %lu still fixed or dirty\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Page %lu %lu still fixed or dirty",
 				(ulong) block->page.space,
 				(ulong) block->page.offset);
-			ut_error;
 		}
 	}
 
@@ -4217,7 +4211,7 @@ buf_pool_invalidate_instance(
 		pool invalidation to proceed we must ensure there is NO
 		write activity happening. */
 		if (buf_pool->n_flush[i] > 0) {
-			enum buf_flush	type = static_cast<enum buf_flush>(i);
+			buf_flush_t	type = static_cast<buf_flush_t>(i);
 
 			buf_pool_mutex_exit(buf_pool);
 			buf_flush_wait_batch_end(buf_pool, type);
@@ -4306,7 +4300,7 @@ buf_pool_validate_instance(
 			mutex_enter(&block->mutex);
 
 			switch (buf_block_get_state(block)) {
-			case BUF_BLOCK_ZIP_FREE:
+			case BUF_BLOCK_POOL_WATCH:
 			case BUF_BLOCK_ZIP_PAGE:
 			case BUF_BLOCK_ZIP_DIRTY:
 				/* These should only occur on
@@ -4458,7 +4452,7 @@ assert_s_latched:
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
 			break;
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
@@ -4480,18 +4474,19 @@ assert_s_latched:
 	mutex_exit(&buf_pool->zip_mutex);
 
 	if (n_lru + n_free > buf_pool->curr_size + n_zip) {
-		fprintf(stderr, "n LRU %lu, n free %lu, pool %lu zip %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"n_LRU %lu, n_free %lu, pool %lu zip %lu"
+			" Aborting...",
 			(ulong) n_lru, (ulong) n_free,
 			(ulong) buf_pool->curr_size, (ulong) n_zip);
-		ut_error;
 	}
 
 	ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 	if (UT_LIST_GET_LEN(buf_pool->free) != n_free) {
-		fprintf(stderr, "Free list len %lu, free blocks %lu\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Free list len %lu, free blocks %lu  Aborting...",
 			(ulong) UT_LIST_GET_LEN(buf_pool->free),
 			(ulong) n_free);
-		ut_error;
 	}
 
 	ut_a(buf_pool->n_flush[BUF_FLUSH_LIST] == n_list_flush);
@@ -4741,7 +4736,7 @@ buf_get_latched_pages_number_instance(
 		case BUF_BLOCK_FILE_PAGE:
 			/* uncompressed page */
 			break;
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:

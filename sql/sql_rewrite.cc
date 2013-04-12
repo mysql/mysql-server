@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -82,7 +82,7 @@ bool append_int(String *str, bool comma, const char *txt, size_t len,
   @retval          false if any subsequent key/value pair would be the first
 */
 
-bool append_str(String *str, bool comma, const char *key, char *val)
+bool append_str(String *str, bool comma, const char *key, const char *val)
 {
   if (val)
   {
@@ -554,13 +554,14 @@ static void mysql_rewrite_server_options(THD *thd, String *rlb)
   rlb->append(STRING_WITH_LEN(" OPTIONS ( "));
 
   rlb->append(STRING_WITH_LEN("PASSWORD '<secret>'"));
-  append_str(rlb, true, "USER", lex->server_options.username);
-  append_str(rlb, true, "HOST", lex->server_options.host);
-  append_str(rlb, true, "DATABASE", lex->server_options.db);
-  append_str(rlb, true, "OWNER", lex->server_options.owner);
-  append_str(rlb, true, "SOCKET", lex->server_options.socket);
-  append_int(rlb, true, STRING_WITH_LEN("PORT "), lex->server_options.port,
-             lex->server_options.port > 0);
+  append_str(rlb, true, "USER", lex->server_options.get_username());
+  append_str(rlb, true, "HOST", lex->server_options.get_host());
+  append_str(rlb, true, "DATABASE", lex->server_options.get_db());
+  append_str(rlb, true, "OWNER", lex->server_options.get_owner());
+  append_str(rlb, true, "SOCKET", lex->server_options.get_socket());
+  append_int(rlb, true, STRING_WITH_LEN("PORT "),
+             lex->server_options.get_port(),
+             lex->server_options.get_port() != Server_options::PORT_NOT_SET);
 
   rlb->append(STRING_WITH_LEN(" )"));
 }
@@ -577,17 +578,17 @@ static void mysql_rewrite_create_server(THD *thd, String *rlb)
 {
   LEX *lex= thd->lex;
 
-  if (!lex->server_options.password)
+  if (!lex->server_options.get_password())
     return;
 
   rlb->append(STRING_WITH_LEN("CREATE SERVER "));
 
-  rlb->append(lex->server_options.server_name ?
-              lex->server_options.server_name : "");
+  rlb->append(lex->server_options.m_server_name.str ?
+              lex->server_options.m_server_name.str : "");
 
   rlb->append(STRING_WITH_LEN(" FOREIGN DATA WRAPPER '"));
-  rlb->append(lex->server_options.scheme ?
-              lex->server_options.scheme : "");
+  rlb->append(lex->server_options.get_scheme() ?
+              lex->server_options.get_scheme() : "");
   rlb->append(STRING_WITH_LEN("'"));
 
   mysql_rewrite_server_options(thd, rlb);
@@ -605,13 +606,13 @@ static void mysql_rewrite_alter_server(THD *thd, String *rlb)
 {
   LEX *lex= thd->lex;
 
-  if (!lex->server_options.password)
+  if (!lex->server_options.get_password())
     return;
 
   rlb->append(STRING_WITH_LEN("ALTER SERVER "));
 
-  rlb->append(lex->server_options.server_name ?
-              lex->server_options.server_name : "");
+  rlb->append(lex->server_options.m_server_name.str ?
+              lex->server_options.m_server_name.str : "");
 
   mysql_rewrite_server_options(thd, rlb);
 }

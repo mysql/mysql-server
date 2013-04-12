@@ -1,3 +1,7 @@
+
+ #Get deafult engine value
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
+
 --disable_warnings
 drop table if exists t1;
 --enable_warnings
@@ -74,9 +78,15 @@ select hex(weight_string('ab' level 1 DESC REVERSE));
 # the result data type is BLOB.
 #
 create table t1 select weight_string('test') as w;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 create table t1 select weight_string(repeat('t',66000)) as w;
+
+#Replace default engine value with static engine string 
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t1;
 drop table t1;
 

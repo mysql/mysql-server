@@ -55,14 +55,13 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 /*
   Check that insert/update fields are from the same single table of a view.
 
-  SYNOPSIS
-    check_view_single_update()
-    fields            The insert/update fields to be checked.
-    view              The view for insert.
-    map     [in/out]  The insert table map.
+  @param fields            The insert/update fields to be checked.
+  @param values            The insert/update values to be checked, NULL if
+  checking is not wanted.
+  @param view              The view for insert.
+  @param map     [in/out]  The insert table map.
 
-  DESCRIPTION
-    This function is called in 2 cases:
+  This function is called in 2 cases:
     1. to check insert fields. In this case *map will be set to 0.
        Insert fields are checked to be all from the same single underlying
        table of the given view. Otherwise the error is thrown. Found table
@@ -72,9 +71,7 @@ static bool check_view_insertability(THD *thd, TABLE_LIST *view);
        the function to check insert fields. Update fields are checked to be
        from the same table as the insert fields.
 
-  RETURN
-    0   OK
-    1   Error
+  @returns false if success.
 */
 
 bool check_view_single_update(List<Item> &fields, List<Item> *values,
@@ -126,17 +123,16 @@ error:
 /*
   Check if insert fields are correct.
 
-  SYNOPSIS
-    check_insert_fields()
-    thd                         The current thread.
-    table                       The table for insert.
-    fields                      The insert fields.
-    values                      The insert values.
-    check_unique                If duplicate values should be rejected.
-
-  RETURN
-    0           OK
-    -1          Error
+  @param thd            The current thread.
+  @param table_list     The table we are inserting into (may be view)
+  @param fields         The insert fields.
+  @param values         The insert values.
+  @param check_unique   If duplicate values should be rejected.
+  @param fields_and_values_from_different_maps If 'values' are allowed to
+  refer to other tables than those of 'fields'
+  @param map            See check_view_single_update
+  
+  @returns 0 if success, -1 if error
 */
 
 static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
@@ -245,24 +241,25 @@ static int check_insert_fields(THD *thd, TABLE_LIST *table_list,
 }
 
 
-/*
-  Check update fields for the timestamp field.
+/**
+  Check if update fields are correct.
 
-  SYNOPSIS
-    check_update_fields()
-    thd                         The current thread.
-    insert_table_list           The insert table list.
-    table                       The table for update.
-    update_fields               The update fields.
+  @param thd                  The current thread.
+  @param insert_table_list    The table we are inserting into (may be view)
+  @param update_fields        The update fields.
+  @param update_values        The update values.
+  @param fields_and_values_from_different_maps If 'update_values' are allowed to
+  refer to other tables than those of 'update_fields'
+  @param map                  See check_view_single_update
 
-  RETURN
-    0           OK
-    -1          Error
+  @returns 0 if success, -1 if error
 */
 
 static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
                                List<Item> &update_fields,
-                               List<Item> &update_values, table_map *map)
+                               List<Item> &update_values,
+                               bool fields_and_values_from_different_maps,
+                               table_map *map)
 {
   /* Check the fields we are going to modify */
   if (setup_fields(thd, Ref_ptr_array(),
@@ -270,7 +267,9 @@ static int check_update_fields(THD *thd, TABLE_LIST *insert_table_list,
     return -1;
 
   if (insert_table_list->effective_algorithm == VIEW_ALGORITHM_MERGE &&
-      check_view_single_update(update_fields, &update_values,
+      check_view_single_update(update_fields,
+                               fields_and_values_from_different_maps ?
+                               (List<Item>*) 0 : &update_values,
                                insert_table_list, map))
     return -1;
   return 0;
@@ -752,7 +751,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         For the transactional algorithm to work the invalidation must be
         before binlog writing and ha_autocommit_or_rollback
       */
-      query_cache_invalidate3(thd, table_list, 1);
+      query_cache.invalidate(thd, table_list, TRUE);
     }
 
     if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
@@ -1146,7 +1145,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     {
       select_lex->no_wrap_view_item= TRUE;
       res= check_update_fields(thd, context->table_list, update_fields,
-                               update_values, &map);
+                               update_values, false, &map);
       select_lex->no_wrap_view_item= FALSE;
     }
 
@@ -1684,10 +1683,17 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     context->resolve_in_table_list_only(table_list);
 
     lex->select_lex.no_wrap_view_item= TRUE;
-    res= res || check_update_fields(thd, context->table_list,
-                                    *update.get_changed_columns(),
-                                    *update.update_values,
-                                    &map);
+    res= res ||
+      check_update_fields(thd, context->table_list,
+                          *update.get_changed_columns(),
+                          *update.update_values,
+                          /*
+                            In INSERT SELECT ON DUPLICATE KEY UPDATE col=x
+                            'x' can legally refer to a non-inserted table.
+                            'x' is not even resolved yet.
+                           */
+                          true,
+                          &map);
     lex->select_lex.no_wrap_view_item= FALSE;
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
@@ -1968,7 +1974,7 @@ bool select_insert::send_eof()
       We must invalidate the table in the query cache before binlog writing
       and ha_autocommit_or_rollback.
     */
-    query_cache_invalidate3(thd, table, 1);
+    query_cache.invalidate(thd, table, TRUE);
   }
 
   DBUG_ASSERT(trans_table || !changed || 
@@ -2086,7 +2092,7 @@ void select_insert::abort_result_set() {
                                    transactional_table, FALSE, FALSE, errcode);
         }
 	if (changed)
-	  query_cache_invalidate3(thd, table, 1);
+	  query_cache.invalidate(thd, table, TRUE);
     }
     DBUG_ASSERT(transactional_table || !changed ||
 		thd->transaction.stmt.cannot_safely_rollback());

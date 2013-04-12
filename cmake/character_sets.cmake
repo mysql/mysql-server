@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -56,6 +56,4 @@ ENDFOREACH()
 SET(HAVE_UCA_COLLATIONS 1)
 
 SET(HAVE_UTF8_GENERAL_CS 1)
-SET(USE_MB 1)
-SET(USE_MB_IDENT 1)
 

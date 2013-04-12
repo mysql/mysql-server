@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -356,7 +356,7 @@ handler_unlock_table(
 	lock_mode = (mode & HDL_READ) ? TL_READ : TL_WRITE;
 
 	if (lock_mode == TL_WRITE) {
-		query_cache_invalidate3(thd, table, 1);
+		query_cache.invalidate(thd, table, TRUE);
 		table->file->ha_release_auto_increment();
 	}
 

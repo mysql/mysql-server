@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -226,7 +226,7 @@ This could result in rescursive calls and out of stack error eventually.
 DICT_FK_MAX_RECURSIVE_LOAD defines the maximum number of recursive loads,
 when exceeded, the child table will not be loaded. It will be loaded when
 the foreign constraint check needs to be run. */
-#define DICT_FK_MAX_RECURSIVE_LOAD	255
+#define DICT_FK_MAX_RECURSIVE_LOAD	20
 
 /** Similarly, when tables are chained together with foreign key constraints
 with on cascading delete/update clause, delete from parent table could
@@ -795,20 +795,19 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
+	trx_id_t	query_cache_inv_id;
+				/*!< transactions whose view low limit is
+				greater than this number are not allowed
+				to store to the MySQL query cache or
+				retrieve from it; when a trx with undo
+				logs commits, it sets this to the value
+				of the current time. */
 	trx_id_t	def_trx_id;
 				/*!< transaction id that last touched
 				the table definition, either when
 				loading the definition or CREATE
 				TABLE, or ALTER TABLE (prepare,
 				commit, and rollback phases) */
-	trx_id_t	query_cache_inv_trx_id;
-				/*!< transactions whose trx id is
-				smaller than this number are not
-				allowed to store to the MySQL query
-				cache or retrieve from it; when a trx
-				with undo logs commits, it sets this
-				to the value of the trx id counter for
-				the tables it had an IX lock on */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;
@@ -916,7 +915,9 @@ struct dict_table_t{
 				the background stats thread will detect this
 				and will eventually quit sooner */
 	byte		stats_bg_flag;
-				/*!< see BG_STAT_* above */
+				/*!< see BG_STAT_* above.
+				Writes are covered by dict_sys->mutex.
+				Dirty reads are possible. */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the

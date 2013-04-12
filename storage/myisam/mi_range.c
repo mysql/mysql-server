@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /*
   Gives a approximated number of how many records there is between two keys.
@@ -62,7 +62,6 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
     mysql_rwlock_rdlock(&info->s->key_root_lock[inx]);
 
   switch(info->s->keyinfo[inx].key_alg){
-#ifdef HAVE_RTREE_KEYS
   case HA_KEY_ALG_RTREE:
   {
     uchar * key_buff;
@@ -92,7 +91,6 @@ ha_rows mi_records_in_range(MI_INFO *info, int inx,
     res= res ? res : 1;                       /* Don't return 0 */
     break;
   }
-#endif
   case HA_KEY_ALG_BTREE:
   default:
     start_pos= (min_key ?  _mi_record_pos(info, min_key->key,

@@ -11,14 +11,12 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /* Written by Ramil Kalimullin, who has a shared copyright to this code */
 
 #ifndef _rt_key_h
 #define _rt_key_h
-
-#ifdef HAVE_RTREE_KEYS
 
 int rtree_add_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                  uint key_length, uchar *page_buf, my_off_t *new_page);
@@ -27,5 +25,4 @@ int rtree_delete_key(MI_INFO *info, uchar *page, uchar *key,
 int rtree_set_key_mbr(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *key, 
                     uint key_length, my_off_t child_page);
 
-#endif /*HAVE_RTREE_KEYS*/
 #endif /* _rt_key_h */

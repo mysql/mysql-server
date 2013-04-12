@@ -137,15 +137,15 @@ The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_lock. This function will release the
 buf_page_get_mutex() and the hash_lock.
 
-If a compressed page or a compressed-only block descriptor is freed,
-other compressed pages or compressed-only block descriptors may be
-relocated.
-@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
-was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
+If a compressed page is freed other compressed pages may be relocated.
+@retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
+caller needs to free the page to the free list
+@retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
+this case the block is already returned to the buddy allocator. */
 static __attribute__((nonnull, warn_unused_result))
-enum buf_page_state
-buf_LRU_block_remove_hashed_page(
-/*=============================*/
+bool
+buf_LRU_block_remove_hashed(
+/*========================*/
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
@@ -460,13 +460,8 @@ buf_flush_or_remove_page(
 					don't remove else remove without
 					flushing to disk */
 {
-	ib_mutex_t*	block_mutex;
-	bool		processed = false;
-
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(buf_flush_list_mutex_own(buf_pool));
-
-	block_mutex = buf_page_get_mutex(bpage);
 
 	/* bpage->space and bpage->io_fix are protected by
 	buf_pool->mutex and block_mutex. It is safe to check
@@ -477,63 +472,60 @@ buf_flush_or_remove_page(
 		/* We cannot remove this page during this scan
 		yet; maybe the system is currently reading it
 		in, or flushing the modifications to the file */
+		return(false);
 
-	} else {
-
-		/* We have to release the flush_list_mutex to obey the
-		latching order. We are however guaranteed that the page
-		will stay in the flush_list because buf_flush_remove()
-		needs buf_pool->mutex as well (for the non-flush case). */
-
-		buf_flush_list_mutex_exit(buf_pool);
-
-		mutex_enter(block_mutex);
-
-		ut_ad(bpage->oldest_modification != 0);
-
-		if (bpage->buf_fix_count > 0) {
-
-			mutex_exit(block_mutex);
-
-			/* We cannot remove this page yet;
-			maybe the system is currently reading
-			it in, or flushing the modifications
-			to the file */
-
-		} else if (!flush) {
-
-			buf_flush_remove(bpage);
-
-			mutex_exit(block_mutex);
-
-			processed = true;
-
-		} else if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
-
-			/* Check the status again after releasing the flush
-			list mutex and acquiring the block mutex. The background
-			flush thread may be in the process of flushing this
-			page when we released the flush list mutex. */
-
-			/* The following call will release the buffer pool
-			and block mutex. */
-			buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE);
-
-			/* Wake possible simulated aio thread to actually
-			post the writes to the operating system */
-			os_aio_simulated_wake_handler_threads();
-
-			buf_pool_mutex_enter(buf_pool);
-
-			processed = true;
-		} else {
-			mutex_exit(block_mutex);
-		}
-
-		buf_flush_list_mutex_enter(buf_pool);
 	}
 
+	ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	bool		processed = false;
+
+	/* We have to release the flush_list_mutex to obey the
+	latching order. We are however guaranteed that the page
+	will stay in the flush_list and won't be relocated because
+	buf_flush_remove() and buf_flush_relocate_on_flush_list()
+	need buf_pool->mutex as well. */
+
+	buf_flush_list_mutex_exit(buf_pool);
+
+	mutex_enter(block_mutex);
+
+	ut_ad(bpage->oldest_modification != 0);
+
+	if (!flush) {
+
+		buf_flush_remove(bpage);
+
+		mutex_exit(block_mutex);
+
+		processed = true;
+
+	} else if (buf_flush_ready_for_flush(bpage,
+					     BUF_FLUSH_SINGLE_PAGE)) {
+
+		/* The following call will release the buffer pool
+		and block mutex. */
+		buf_flush_page(buf_pool, bpage, BUF_FLUSH_SINGLE_PAGE, false);
+		ut_ad(!mutex_own(block_mutex));
+
+		/* Wake possible simulated aio thread to actually
+		post the writes to the operating system */
+		os_aio_simulated_wake_handler_threads();
+
+		buf_pool_mutex_enter(buf_pool);
+
+		processed = true;
+	} else {
+		/* Not ready for flush. It can't be IO fixed because we
+		checked for that at the start of the function. It must
+		be buffer fixed. */
+		ut_ad(bpage->buf_fix_count > 0);
+		mutex_exit(block_mutex);
+	}
+
+	buf_flush_list_mutex_enter(buf_pool);
+
 	ut_ad(!mutex_own(block_mutex));
+	ut_ad(buf_pool_mutex_own(buf_pool));
 
 	return(processed);
 }
@@ -562,9 +554,11 @@ buf_flush_or_remove_pages(
 	buf_page_t*	prev;
 	buf_page_t*	bpage;
 	ulint		processed = 0;
-	bool		all_freed = true;
 
 	buf_flush_list_mutex_enter(buf_pool);
+
+rescan:
+	bool	all_freed = true;
 
 	for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
 	     bpage != NULL;
@@ -585,9 +579,33 @@ buf_flush_or_remove_pages(
 		} else if (!buf_flush_or_remove_page(buf_pool, bpage, flush)) {
 
 			/* Remove was unsuccessful, we have to try again
-			by scanning the entire list from the end. */
+			by scanning the entire list from the end.
+			This also means that we never released the
+			buf_pool mutex. Therefore we can trust the prev
+			pointer.
+			buf_flush_or_remove_page() released the
+			flush list mutex but not the buf_pool mutex.
+			Therefore it is possible that a new page was
+			added to the flush list. For example, in case
+			where we are at the head of the flush list and
+			prev == NULL. That is OK because we have the
+			tablespace quiesced and no new pages for this
+			space-id should enter flush_list. This is
+			because the only callers of this function are
+			DROP TABLE and FLUSH TABLE FOR EXPORT.
+			We know that we'll have to do at least one more
+			scan but we don't break out of loop here and
+			try to do as much work as we can in this
+			iteration. */
 
 			all_freed = false;
+		} else if (flush) {
+
+			/* The processing was successful. And during the
+			processing we have released the buf_pool mutex
+			when calling buf_page_flush(). We cannot trust
+			prev pointer. */
+			goto rescan;
 		}
 
 		++processed;
@@ -649,7 +667,7 @@ buf_flush_dirty_pages(
 		ut_ad(buf_flush_validate(buf_pool));
 
 		if (err == DB_FAIL) {
-			os_thread_sleep(20000);
+			os_thread_sleep(2000);
 		}
 
 		/* DB_FAIL is a soft error, it means that the task wasn't
@@ -658,6 +676,9 @@ buf_flush_dirty_pages(
 		ut_ad(buf_flush_validate(buf_pool));
 
 	} while (err == DB_FAIL);
+
+	ut_ad(err == DB_INTERRUPTED
+	      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 }
 
 /******************************************************************//**
@@ -778,22 +799,16 @@ scan_again:
 
 		/* Remove from the LRU list. */
 
-		if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
-		    != BUF_BLOCK_ZIP_FREE) {
-
+		if (buf_LRU_block_remove_hashed(bpage, true)) {
 			buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
-
 		} else {
-			/* The block_mutex should have been released
-			by buf_LRU_block_remove_hashed_page() when it
-			returns BUF_BLOCK_ZIP_FREE. */
 			ut_ad(block_mutex == &buf_pool->zip_mutex);
 		}
 
 		ut_ad(!mutex_own(block_mutex));
 
 #ifdef UNIV_SYNC_DEBUG
-		/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
+		/* buf_LRU_block_remove_hashed() releases the hash_lock */
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX));
 		ut_ad(!rw_lock_own(hash_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
@@ -835,15 +850,11 @@ buf_LRU_remove_pages(
 	case BUF_REMOVE_FLUSH_NO_WRITE:
 		ut_a(trx == 0);
 		buf_flush_dirty_pages(buf_pool, id, false, NULL);
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
 		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_pool_get_dirty_pages_count(buf_pool, id) == 0);
 		/* Ensure that all asynchronous IO is completed. */
 		os_aio_wait_until_no_pending_writes();
 		fil_flush(id);
@@ -892,13 +903,6 @@ buf_LRU_flush_or_remove_pages(
 
 		buf_LRU_remove_pages(buf_pool, id, buf_remove, trx);
 	}
-
-#ifdef UNIV_DEBUG
-	if (trx != 0 && id != 0) {
-		ut_ad(trx_is_interrupted(trx)
-		      || buf_flush_get_dirty_pages_count(id) == 0);
-	}
-#endif /* UNIV_DEBUG */
 }
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -1144,23 +1148,16 @@ buf_LRU_check_size_of_non_data_objects(
 	if (!recv_recovery_on && UT_LIST_GET_LEN(buf_pool->free)
 	    + UT_LIST_GET_LEN(buf_pool->LRU) < buf_pool->curr_size / 20) {
 		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  InnoDB: ERROR: over 95 percent of the buffer pool"
-			" is occupied by\n"
-			"InnoDB: lock heaps or the adaptive hash index!"
-			" Check that your\n"
-			"InnoDB: transactions do not set too many row locks.\n"
-			"InnoDB: Your buffer pool size is %lu MB."
-			" Maybe you should make\n"
-			"InnoDB: the buffer pool bigger?\n"
-			"InnoDB: We intentionally generate a seg fault"
-			" to print a stack trace\n"
-			"InnoDB: on Linux!\n",
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"Over 95 percent of the buffer pool is occupied by"
+			" lock heaps or the adaptive hash index!"
+			" Check that your transactions do not set too many"
+			" row locks. Your buffer pool size is %lu MB."
+			" Maybe you should make the buffer pool bigger?"
+			" We intentionally generate a seg fault to print"
+			" a stack trace on Linux!",
 			(ulong) (buf_pool->curr_size
 				 / (1024 * 1024 / UNIV_PAGE_SIZE)));
-
-		ut_error;
 
 	} else if (!recv_recovery_on
 		   && (UT_LIST_GET_LEN(buf_pool->free)
@@ -1805,7 +1802,6 @@ buf_LRU_free_page(
 {
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-	enum buf_page_state		page_state;
 	const ulint	fold = buf_page_address_fold(bpage->space,
 						     bpage->offset);
 	rw_lock_t*	hash_lock = buf_page_hash_lock_get(buf_pool, fold);
@@ -1885,19 +1881,15 @@ func_exit:
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(buf_page_can_relocate(bpage));
 
-	page_state = buf_LRU_block_remove_hashed_page(bpage, zip);
-
-#ifdef UNIV_SYNC_DEBUG
-	/* buf_LRU_block_remove_hashed_page() releases the hash_lock */
-	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
-	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-
-	if (page_state == BUF_BLOCK_ZIP_FREE) {
+	if (!buf_LRU_block_remove_hashed(bpage, zip)) {
 		return(true);
 	}
 
-	ut_ad(page_state == BUF_BLOCK_REMOVE_HASH);
+#ifdef UNIV_SYNC_DEBUG
+	/* buf_LRU_block_remove_hashed() releases the hash_lock */
+	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
+	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* We have just freed a BUF_BLOCK_FILE_PAGE. If b != NULL
 	then it was a compressed page with an uncompressed frame and
@@ -1926,7 +1918,7 @@ func_exit:
 		/* The fields in_page_hash and in_LRU_list of
 		the to-be-freed block descriptor should have
 		been cleared in
-		buf_LRU_block_remove_hashed_page(), which
+		buf_LRU_block_remove_hashed(), which
 		invokes buf_LRU_remove_block(). */
 		ut_ad(!bpage->in_page_hash);
 		ut_ad(!bpage->in_LRU_list);
@@ -1935,7 +1927,7 @@ func_exit:
 		ut_ad(!((buf_block_t*) bpage)->in_unzip_LRU_list);
 
 		/* The fields of bpage were copied to b before
-		buf_LRU_block_remove_hashed_page() was invoked. */
+		buf_LRU_block_remove_hashed() was invoked. */
 		ut_ad(!b->in_zip_hash);
 		ut_ad(b->in_page_hash);
 		ut_ad(b->in_LRU_list);
@@ -2037,7 +2029,7 @@ func_exit:
 
 	/* Remove possible adaptive hash index on the page.
 	The page was declared uninitialized by
-	buf_LRU_block_remove_hashed_page().  We need to flag
+	buf_LRU_block_remove_hashed().  We need to flag
 	the contents of the page valid (which it still is) in
 	order to avoid bogus Valgrind warnings.*/
 
@@ -2147,15 +2139,15 @@ The caller must hold buf_pool->mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_lock. This function will release the
 buf_page_get_mutex() and the hash_lock.
 
-If a compressed page or a compressed-only block descriptor is freed,
-other compressed pages or compressed-only block descriptors may be
-relocated.
-@return the new state of the block (BUF_BLOCK_ZIP_FREE if the state
-was BUF_BLOCK_ZIP_PAGE, or BUF_BLOCK_REMOVE_HASH otherwise) */
+If a compressed page is freed other compressed pages may be relocated.
+@retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
+caller needs to free the page to the free list
+@retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
+this case the block is already returned to the buddy allocator. */
 static
-enum buf_page_state
-buf_LRU_block_remove_hashed_page(
-/*=============================*/
+bool
+buf_LRU_block_remove_hashed(
+/*========================*/
 	buf_page_t*	bpage,	/*!< in: block, must contain a file page and
 				be in a state where it can be freed; there
 				may or may not be a hash index to the page */
@@ -2252,7 +2244,7 @@ buf_LRU_block_remove_hashed_page(
 		UNIV_MEM_ASSERT_W(bpage->zip.data,
 				  page_zip_get_size(&bpage->zip));
 		break;
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -2319,7 +2311,7 @@ buf_LRU_block_remove_hashed_page(
 
 		buf_pool_mutex_exit_allow(buf_pool);
 		buf_page_free_descriptor(bpage);
-		return(BUF_BLOCK_ZIP_FREE);
+		return(false);
 
 	case BUF_BLOCK_FILE_PAGE:
 		memset(((buf_block_t*) bpage)->frame
@@ -2370,9 +2362,9 @@ buf_LRU_block_remove_hashed_page(
 			page_zip_set_size(&bpage->zip, 0);
 		}
 
-		return(BUF_BLOCK_REMOVE_HASH);
+		return(true);
 
-	case BUF_BLOCK_ZIP_FREE:
+	case BUF_BLOCK_POOL_WATCH:
 	case BUF_BLOCK_ZIP_DIRTY:
 	case BUF_BLOCK_NOT_USED:
 	case BUF_BLOCK_READY_FOR_USE:
@@ -2382,7 +2374,7 @@ buf_LRU_block_remove_hashed_page(
 	}
 
 	ut_error;
-	return(BUF_BLOCK_ZIP_FREE);
+	return(false);
 }
 
 /******************************************************************//**
@@ -2427,12 +2419,11 @@ buf_LRU_free_one_page(
 	rw_lock_x_lock(hash_lock);
 	mutex_enter(block_mutex);
 
-	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)
-	    != BUF_BLOCK_ZIP_FREE) {
+	if (buf_LRU_block_remove_hashed(bpage, true)) {
 		buf_LRU_block_free_hashed_page((buf_block_t*) bpage);
 	}
 
-	/* buf_LRU_block_remove_hashed_page() releases hash_lock and block_mutex */
+	/* buf_LRU_block_remove_hashed() releases hash_lock and block_mutex */
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(hash_lock, RW_LOCK_EX)
 	      && !rw_lock_own(hash_lock, RW_LOCK_SHARED));
@@ -2606,7 +2597,7 @@ buf_LRU_validate_instance(
              bpage = UT_LIST_GET_NEXT(LRU, bpage)) {
 
 		switch (buf_page_get_state(bpage)) {
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_MEMORY:

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,6 +177,9 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
 {
   if (count <= 1)
     return;
+  if (param->sort_length == 0)
+    return;
+
   uchar **keys= get_sort_keys();
   std::pair<uchar**, ptrdiff_t> buffer;
   if (radixsort_is_appliccable(count, param->sort_length) &&

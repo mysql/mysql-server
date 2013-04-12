@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -27,6 +27,10 @@ Created Apr 25, 2012 Vasil Dimov
 #include "srv0start.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
+
+#ifdef UNIV_NONINL
+# include "dict0stats_bg.ic"
+#endif
 
 #include <vector>
 
@@ -174,37 +178,24 @@ dict_stats_recalc_pool_del(
 }
 
 /*****************************************************************//**
-Wait until background stats thread has stopped using the specified table(s).
+Wait until background stats thread has stopped using the specified table.
 The caller must have locked the data dictionary using
 row_mysql_lock_data_dictionary() and this function may unlock it temporarily
 and restore the lock before it exits.
-The background stats thead is guaranteed not to start using the specified
-tables after this function returns and before the caller unlocks the data
+The background stats thread is guaranteed not to start using the specified
+table after this function returns and before the caller unlocks the data
 dictionary because it sets the BG_STAT_IN_PROGRESS bit in table->stats_bg_flag
 under dict_sys->mutex. */
 UNIV_INTERN
 void
-dict_stats_wait_bg_to_stop_using_tables(
-/*====================================*/
-	dict_table_t*	table1,	/*!< in/out: table1 */
-	dict_table_t*	table2,	/*!< in/out: table2, could be NULL */
+dict_stats_wait_bg_to_stop_using_table(
+/*===================================*/
+	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx)	/*!< in/out: transaction to use for
 				unlocking/locking the data dict */
 {
-	ut_ad(!srv_read_only_mode);
-
-	while ((table1->stats_bg_flag & BG_STAT_IN_PROGRESS)
-	       || (table2 != NULL
-		   && (table2->stats_bg_flag & BG_STAT_IN_PROGRESS))) {
-
-		table1->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
-		if (table2 != NULL) {
-			table2->stats_bg_flag |= BG_STAT_SHOULD_QUIT;
-		}
-
-		row_mysql_unlock_data_dictionary(trx);
-		os_thread_sleep(250000);
-		row_mysql_lock_data_dictionary(trx);
+	while (!dict_stats_stop_bg(table)) {
+		DICT_STATS_BG_YIELD(trx);
 	}
 }
 

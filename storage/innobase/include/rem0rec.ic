@@ -259,7 +259,7 @@ rec_get_next_ptr_const(
 	}
 
 	if (comp) {
-#if UNIV_PAGE_SIZE <= 32768
+#if UNIV_PAGE_SIZE_MAX <= 32768
 		/* Note that for 64 KiB pages, field_value can 'wrap around'
 		and the debug assertion is not valid */
 
@@ -327,7 +327,7 @@ rec_get_next_offs(
 	field_value = mach_read_from_2(rec - REC_NEXT);
 
 	if (comp) {
-#if UNIV_PAGE_SIZE <= 32768
+#if UNIV_PAGE_SIZE_MAX <= 32768
 		/* Note that for 64 KiB pages, field_value can 'wrap around'
 		and the debug assertion is not valid */
 

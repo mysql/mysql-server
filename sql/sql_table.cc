@@ -207,7 +207,6 @@ uint explain_filename(THD* thd,
                       uint to_length,
                       enum_explain_filename_mode explain_mode)
 {
-  uint res= 0;
   char *to_p= to;
   char *end_p= to_p + to_length;
   const char *db_name= NULL;
@@ -218,7 +217,8 @@ uint explain_filename(THD* thd,
   int  part_name_len= 0;
   const char *subpart_name= NULL;
   int  subpart_name_len= 0;
-  enum enum_file_name_type {NORMAL, TEMP, RENAMED} name_type= NORMAL;
+  enum enum_part_name_type {NORMAL, TEMP, RENAMED} part_type= NORMAL;
+
   const char *tmp_p;
   DBUG_ENTER("explain_filename");
   DBUG_PRINT("enter", ("from '%s'", from));
@@ -237,17 +237,18 @@ uint explain_filename(THD* thd,
     table_name= tmp_p;
   }
   tmp_p= table_name;
-  while (!res && (tmp_p= strchr(tmp_p, '#')))
+  /* Look if there are partition tokens in the table name. */
+  while ((tmp_p= strchr(tmp_p, '#')))
   {
     tmp_p++;
     switch (tmp_p[0]) {
     case 'P':
     case 'p':
       if (tmp_p[1] == '#')
+      {
         part_name= tmp_p + 2;
-      else
-        res= 1;
-      tmp_p+= 2;
+        tmp_p+= 2;
+      }
       break;
     case 'S':
     case 's':
@@ -255,43 +256,33 @@ uint explain_filename(THD* thd,
       {
         part_name_len= tmp_p - part_name - 1;
         subpart_name= tmp_p + 3;
+        tmp_p+= 3;
       }
-      else
-        res= 2;
-      tmp_p+= 3;
       break;
     case 'T':
     case 't':
       if ((tmp_p[1] == 'M' || tmp_p[1] == 'm') &&
           (tmp_p[2] == 'P' || tmp_p[2] == 'p') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= TEMP;
-      else
-        res= 3;
-      tmp_p+= 4;
+      {
+        part_type= TEMP;
+        tmp_p+= 4;
+      }
       break;
     case 'R':
     case 'r':
       if ((tmp_p[1] == 'E' || tmp_p[1] == 'e') &&
           (tmp_p[2] == 'N' || tmp_p[2] == 'n') &&
           tmp_p[3] == '#' && !tmp_p[4])
-        name_type= RENAMED;
-      else
-        res= 4;
-      tmp_p+= 4;
+      {
+        part_type= RENAMED;
+        tmp_p+= 4;
+      }
       break;
     default:
-      res= 5;
+      /* Not partition name part. */
+      ;
     }
-  }
-  if (res)
-  {
-    /* Better to give something back if we fail parsing, than nothing at all */
-    DBUG_PRINT("info", ("Error in explain_filename: %u", res));
-    sql_print_warning("Invalid (old?) table or database name '%s'", from);
-    DBUG_RETURN(my_snprintf(to, to_length,
-                            "<result %u when explaining filename '%s'>",
-                            res, from));
   }
   if (part_name)
   {
@@ -300,7 +291,7 @@ uint explain_filename(THD* thd,
       subpart_name_len= strlen(subpart_name);
     else
       part_name_len= strlen(part_name);
-    if (name_type != NORMAL)
+    if (part_type != NORMAL)
     {
       if (subpart_name)
         subpart_name_len-= 5;
@@ -342,9 +333,9 @@ uint explain_filename(THD* thd,
       to_p= strnmov(to_p, " ", end_p - to_p);
     else
       to_p= strnmov(to_p, ", ", end_p - to_p);
-    if (name_type != NORMAL)
+    if (part_type != NORMAL)
     {
-      if (name_type == TEMP)
+      if (part_type == TEMP)
         to_p= strnmov(to_p, ER_THD_OR_DEFAULT(thd, ER_TEMPORARY_NAME),
                       end_p - to_p);
       else
@@ -1864,7 +1855,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                          &syntax_len,
                                                          TRUE, TRUE,
                                                          lpt->create_info,
-                                                         lpt->alter_info)))
+                                                         lpt->alter_info,
+                                                         NULL)))
         {
           DBUG_RETURN(TRUE);
         }
@@ -1957,7 +1949,8 @@ bool mysql_write_frm(ALTER_PARTITION_PARAM_TYPE *lpt, uint flags)
                                                        &syntax_len,
                                                        TRUE, TRUE,
                                                        lpt->create_info,
-                                                       lpt->alter_info)))
+                                                       lpt->alter_info,
+                                                       NULL)))
       {
         error= 1;
         goto err;
@@ -2314,11 +2307,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         */
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          append_identifier(thd, built_ptr_query, db, db_len);
+          append_identifier(thd, built_ptr_query, db, db_len,
+                            system_charset_info, thd->charset());
           built_ptr_query->append(".");
         }
         append_identifier(thd, built_ptr_query, table->table_name,
-                          strlen(table->table_name));
+                           strlen(table->table_name), system_charset_info,
+                           thd->charset());
         built_ptr_query->append(",");
       }
       /*
@@ -2380,12 +2375,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         */
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          append_identifier(thd, &built_query, db, db_len);
+          append_identifier(thd, &built_query, db, db_len,
+                            system_charset_info, thd->charset());
           built_query.append(".");
         }
-
         append_identifier(thd, &built_query, table->table_name,
-                          strlen(table->table_name));
+                          strlen(table->table_name), system_charset_info,
+                          thd->charset());
         built_query.append(",");
       }
     }
@@ -2471,7 +2467,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         }
         error|= new_error;
         /* Invalidate even if we failed to delete the .FRM file. */
-        query_cache_invalidate_single(thd, table, false);
+        query_cache.invalidate_single(thd, table, FALSE);
       }
        non_tmp_error= error ? TRUE : non_tmp_error;
     }
@@ -2852,7 +2848,6 @@ int prepare_create_field(Create_field *sql_field,
     (*blob_columns)++;
     break;
   case MYSQL_TYPE_GEOMETRY:
-#ifdef HAVE_SPATIAL
     if (!(table_flags & HA_CAN_GEOMETRY))
     {
       my_printf_error(ER_CHECK_NOT_IMPLEMENTED, ER(ER_CHECK_NOT_IMPLEMENTED),
@@ -2868,11 +2863,6 @@ int prepare_create_field(Create_field *sql_field,
     sql_field->unireg_check=Field::BLOB_FIELD;
     (*blob_columns)++;
     break;
-#else
-    my_printf_error(ER_FEATURE_DISABLED,ER(ER_FEATURE_DISABLED), MYF(0),
-                    sym_group_geom.name, sym_group_geom.needed_define);
-    DBUG_RETURN(1);
-#endif /*HAVE_SPATIAL*/
   case MYSQL_TYPE_VARCHAR:
 #ifndef QQ_ALL_HANDLERS_SUPPORT_VARCHAR
     if (table_flags & HA_NO_VARCHAR)
@@ -3720,14 +3710,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
           key_info->parser_name= 0;
 	break;
     case Key::SPATIAL:
-#ifdef HAVE_SPATIAL
 	key_info->flags= HA_SPATIAL;
 	break;
-#else
-	my_error(ER_FEATURE_DISABLED, MYF(0),
-                 sym_group_geom.name, sym_group_geom.needed_define);
-	DBUG_RETURN(TRUE);
-#endif
     case Key::FOREIGN_KEY:
       key_number--;				// Skip this key
       continue;
@@ -3787,7 +3771,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     }
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
-#ifdef HAVE_RTREE_KEYS
       if ((key_info->user_defined_key_parts & 1) == 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
@@ -3796,11 +3779,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       /* TODO: To be deleted */
       my_error(ER_NOT_SUPPORTED_YET, MYF(0), "RTREE INDEX");
       DBUG_RETURN(TRUE);
-#else
-      my_error(ER_FEATURE_DISABLED, MYF(0),
-               sym_group_rtree.name, sym_group_rtree.needed_define);
-      DBUG_RETURN(TRUE);
-#endif
     }
 
     /* Take block size from key part or table part */
@@ -3903,7 +3881,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    DBUG_RETURN(TRUE);
 	  }
 	}
-#ifdef HAVE_SPATIAL
 	if (key->type == Key::SPATIAL)
 	{
 	  if (!column->length)
@@ -3915,7 +3892,6 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	    column->length= 4*sizeof(double);
 	  }
 	}
-#endif
 	if (!(sql_field->flags & NOT_NULL_FLAG))
 	{
 	  if (key->type == Key::PRIMARY)
@@ -3971,6 +3947,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
+              /*
+               If SQL_MODE is STRICT, then report error, else report warning
+               and continue execution.
+              */
+              if (thd->is_error())
+                DBUG_RETURN(true);
 	    }
 	    else
 	    {
@@ -4018,6 +4000,12 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
+          /*
+            If SQL_MODE is STRICT, then report error, else report warning
+            and continue execution.
+          */
+          if (thd->is_error())
+            DBUG_RETURN(true);
 	}
 	else
 	{
@@ -4542,7 +4530,8 @@ bool create_table_impl(THD *thd,
                                                      &syntax_len,
                                                      TRUE, TRUE,
                                                      create_info,
-                                                     alter_info)))
+                                                     alter_info,
+                                                     NULL)))
       goto err;
     part_info->part_info_string= part_syntax_buf;
     part_info->part_info_len= syntax_len;
@@ -5383,7 +5372,7 @@ int mysql_discard_or_import_tablespace(THD *thd,
     The 0 in the call below means 'not in a transaction', which means
     immediate invalidation; that is probably what we wish here
   */
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   /* The ALTER TABLE is always in its own transaction */
   error= trans_commit_stmt(thd);
@@ -5453,7 +5442,69 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 
 
 /**
-  Check if index has changed in a new version of table.
+  Look-up KEY object by index name using case-insensitive comparison.
+
+  @param key_name   Index name.
+  @param key_start  Start of array of KEYs for table.
+  @param key_end    End of array of KEYs for table.
+
+  @note Skips indexes which are marked as renamed.
+  @note Case-insensitive comparison is necessary to correctly
+        handle renaming of keys.
+
+  @retval non-NULL - pointer to KEY object for index found.
+  @retval NULL     - no index with such name found (or it is marked
+                     as renamed).
+*/
+
+static KEY* find_key_ci(const char *key_name, KEY *key_start, KEY *key_end)
+{
+  for (KEY *key= key_start; key < key_end; key++)
+  {
+    /* Skip already renamed keys. */
+    if (! (key->flags & HA_KEY_RENAMED) &&
+        ! my_strcasecmp(system_charset_info, key_name, key->name))
+      return key;
+  }
+  return NULL;
+}
+
+
+/**
+  Look-up KEY object by index name using case-sensitive comparison.
+
+  @param key_name   Index name.
+  @param key_start  Start of array of KEYs for table.
+  @param key_end    End of array of KEYs for table.
+
+  @note Skips indexes which are marked as renamed.
+  @note Case-sensitive comparison is necessary to correctly
+        handle: ALTER TABLE t1 DROP KEY x, ADD KEY X(c).
+        where new and old index are identical except case
+        of their names (in this case index still needs
+        to be re-created to keep case of the name in .FRM
+        and storage-engine in sync).
+
+  @retval non-NULL - pointer to KEY object for index found.
+  @retval NULL     - no index with such name found (or it is marked
+                     as renamed).
+*/
+
+static KEY* find_key_cs(const char *key_name, KEY *key_start, KEY *key_end)
+{
+  for (KEY *key= key_start; key < key_end; key++)
+  {
+    /* Skip renamed keys. */
+    if (! (key->flags & HA_KEY_RENAMED) && ! strcmp(key_name, key->name))
+      return key;
+  }
+  return NULL;
+}
+
+
+/**
+  Check if index has changed in a new version of table (ignore
+  possible rename of index).
 
   @param  alter_info  Alter_info describing the changes to table
                       (is necessary to find correspondence between
@@ -5464,9 +5515,9 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
   @returns True - if index has changed, false -otherwise.
 */
 
-static bool has_index_changed(Alter_info *alter_info,
-                              const KEY *table_key,
-                              const KEY *new_key)
+static bool has_index_def_changed(Alter_info *alter_info,
+                                  const KEY *table_key,
+                                  const KEY *new_key)
 {
   const KEY_PART_INFO *key_part, *new_part, *end;
   const Create_field *new_field;
@@ -5578,7 +5629,10 @@ static bool fill_alter_inplace_info(THD *thd,
           (KEY**) thd->alloc(sizeof(KEY*) * table->s->keys)) ||
       ! (ha_alter_info->index_add_buffer=
           (uint*) thd->alloc(sizeof(uint) *
-                            alter_info->key_list.elements)))
+                            alter_info->key_list.elements)) ||
+      ! (ha_alter_info->index_rename_buffer=
+          (KEY_PAIR*) thd->alloc(sizeof(KEY_PAIR) *
+                                 alter_info->alter_rename_key_list.elements)))
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
@@ -5775,43 +5829,64 @@ static bool fill_alter_inplace_info(THD *thd,
                       table->s->keys, ha_alter_info->key_count));
 
   /*
-    Step through all keys of the old table and search matching new keys.
+    First, we need to handle keys being renamed, otherwise code handling
+    dropping/addition of keys might be confused in some situations.
   */
-  ha_alter_info->index_drop_count= 0;
-  ha_alter_info->index_add_count= 0;
   for (table_key= table->key_info; table_key < table_key_end; table_key++)
-  {
-    /* Search a new key with the same name. */
-    for (new_key= ha_alter_info->key_info_buffer;
-         new_key < new_key_end;
-         new_key++)
-    {
-      if (! strcmp(table_key->name, new_key->name))
-        break;
-    }
-    if (new_key >= new_key_end)
-    {
-      /* Key not found. Add the key to the drop buffer. */
-      ha_alter_info->index_drop_buffer
-        [ha_alter_info->index_drop_count++]=
-        table_key;
-      DBUG_PRINT("info", ("index dropped: '%s'", table_key->name));
-      continue;
-    }
+    table_key->flags&= ~HA_KEY_RENAMED;
+  for (new_key= ha_alter_info->key_info_buffer;
+       new_key < new_key_end; new_key++)
+    new_key->flags&= ~HA_KEY_RENAMED;
 
-    if (has_index_changed(alter_info, table_key, new_key))
+  List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
+                                                     alter_rename_key_list);
+  Alter_rename_key *rename_key;
+
+  while ((rename_key= rename_key_it++))
+  {
+    table_key= find_key_ci(rename_key->old_name, table->key_info, table_key_end);
+    new_key= find_key_ci(rename_key->new_name, ha_alter_info->key_info_buffer,
+                         new_key_end);
+
+    table_key->flags|= HA_KEY_RENAMED;
+    new_key->flags|= HA_KEY_RENAMED;
+
+    if (! has_index_def_changed(alter_info, table_key, new_key))
     {
-      /* Key modified. Add the key / key offset to both buffers. */
-      ha_alter_info->index_drop_buffer
-        [ha_alter_info->index_drop_count++]=
-        table_key;
-      ha_alter_info->index_add_buffer
-        [ha_alter_info->index_add_count++]=
-        new_key - ha_alter_info->key_info_buffer;
-      DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
+      /* Key was not modified but still was renamed. */
+      ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
+      ha_alter_info->add_renamed_key(table_key, new_key);
+    }
+    else
+    {
+      /* Key was modified. */
+      ha_alter_info->add_modified_key(table_key, new_key);
     }
   }
-  /*end of for (; table_key < table_key_end;) */
+
+  /*
+    Step through all keys of the old table and search matching new keys.
+  */
+  for (table_key= table->key_info; table_key < table_key_end; table_key++)
+  {
+    /* Skip renamed keys. */
+    if (table_key->flags & HA_KEY_RENAMED)
+      continue;
+
+    new_key= find_key_cs(table_key->name, ha_alter_info->key_info_buffer,
+                         new_key_end);
+
+    if (new_key == NULL)
+    {
+      /* Matching new key not found. This means the key should be dropped. */
+      ha_alter_info->add_dropped_key(table_key);
+    }
+    else if (has_index_def_changed(alter_info, table_key, new_key))
+    {
+      /* Key was modified. */
+      ha_alter_info->add_modified_key(table_key, new_key);
+    }
+  }
 
   /*
     Step through all keys of the new table and find matching old keys.
@@ -5820,19 +5895,14 @@ static bool fill_alter_inplace_info(THD *thd,
        new_key < new_key_end;
        new_key++)
   {
-    /* Search an old key with the same name. */
-    for (table_key= table->key_info; table_key < table_key_end; table_key++)
+    /* Skip renamed keys. */
+    if (new_key->flags & HA_KEY_RENAMED)
+      continue;
+
+    if (! find_key_cs(new_key->name, table->key_info, table_key_end))
     {
-      if (! strcmp(table_key->name, new_key->name))
-        break;
-    }
-    if (table_key >= table_key_end)
-    {
-      /* Key not found. Add the offset of the key to the add buffer. */
-      ha_alter_info->index_add_buffer
-        [ha_alter_info->index_add_count++]=
-        new_key - ha_alter_info->key_info_buffer;
-      DBUG_PRINT("info", ("index added: '%s'", new_key->name));
+      /* Matching old key not found. This means the key should be added. */
+      ha_alter_info->add_added_key(new_key);
     }
   }
 
@@ -6669,6 +6739,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Create_field> new_create_list;
   /* New key definitions are added here */
   List<Key> new_key_list;
+  /*
+    Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
+    call. So this function should not modify original list but rather work with
+    its copy.
+  */
+  List<Alter_rename_key> rename_key_list(alter_info->alter_rename_key_list,
+                                         thd->mem_root);
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
@@ -6901,7 +6978,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
   {
-    char *key_name= key_info->name;
+    const char *key_name= key_info->name;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -6987,6 +7064,34 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       enum Key::Keytype key_type;
       memset(&key_create_info, 0, sizeof(key_create_info));
 
+      /* If this index is to stay in the table check if it has to be renamed. */
+      List_iterator<Alter_rename_key> rename_key_it(rename_key_list);
+      Alter_rename_key *rename_key;
+
+      while ((rename_key= rename_key_it++))
+      {
+        if (! my_strcasecmp(system_charset_info, key_name,
+                            rename_key->old_name))
+        {
+          if (! my_strcasecmp(system_charset_info, key_name,
+                              primary_key_name))
+          {
+            my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), rename_key->old_name);
+            goto err;
+          }
+          else if (! my_strcasecmp(system_charset_info, rename_key->new_name,
+                                   primary_key_name))
+          {
+            my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), rename_key->new_name);
+            goto err;
+          }
+
+          key_name= rename_key->new_name;
+          rename_key_it.remove();
+          break;
+        }
+      }
+
       key_create_info.algorithm= key_info->algorithm;
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
@@ -7053,10 +7158,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
     }
   }
-  if (alter_info->alter_list.elements)
+  if (rename_key_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-             alter_info->alter_list.head()->name);
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), rename_key_list.head()->old_name,
+             table->s->table_name.str);
     goto err;
   }
 
@@ -7513,7 +7618,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
       my_ok(thd);
   }
   table_list->table= NULL;                    // For query cache
-  query_cache_invalidate3(thd, table_list, 0);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   if ((thd->locked_tables_mode == LTM_LOCK_TABLES ||
        thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
@@ -8449,7 +8554,7 @@ end_inplace:
     ha_flush_logs(old_db_type);
   }
   table_list->table= NULL;			// For query cache
-  query_cache_invalidate3(thd, table_list, false);
+  query_cache.invalidate(thd, table_list, FALSE);
 
   if (thd->locked_tables_mode == LTM_LOCK_TABLES ||
       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES)

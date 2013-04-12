@@ -110,10 +110,6 @@ UNIV_INTERN ulint	srv_undo_tablespaces_open = 8;
 /* The number of rollback segments to use */
 UNIV_INTERN ulong	srv_undo_logs = 1;
 
-#ifdef UNIV_LOG_ARCHIVE
-UNIV_INTERN char*	srv_arch_dir	= NULL;
-#endif /* UNIV_LOG_ARCHIVE */
-
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
@@ -154,7 +150,7 @@ Windows XP/2000.
 We use condition for events on Windows if possible, even if os_event
 resembles Windows kernel event object well API-wise. The reason is
 performance, kernel objects are heavyweights and WaitForSingleObject() is a
-performance killer causing calling thread to context switch. Besides, Innodb
+performance killer causing calling thread to context switch. Besides, InnoDB
 is preallocating large number (often millions) of os_events. With kernel event
 objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
@@ -225,12 +221,6 @@ UNIV_INTERN my_bool	srv_random_read_ahead	= FALSE;
 in the buffer cache and accessed sequentially for InnoDB to trigger a
 readahead request. */
 UNIV_INTERN ulong	srv_read_ahead_threshold	= 56;
-
-#ifdef UNIV_LOG_ARCHIVE
-UNIV_INTERN ibool		srv_log_archive_on	= FALSE;
-UNIV_INTERN ibool		srv_archive_recovery	= 0;
-UNIV_INTERN ib_uint64_t	srv_archive_recovery_limit_lsn;
-#endif /* UNIV_LOG_ARCHIVE */
 
 /* This parameter is used to throttle the number of insert buffers that are
 merged in a batch. By increasing this parameter on a faster disk you can
@@ -389,7 +379,7 @@ UNIV_INTERN mysql_pfs_key_t	srv_misc_tmpfile_mutex_key;
 /** Key to register srv_sys_t::mutex with performance schema */
 UNIV_INTERN mysql_pfs_key_t	srv_sys_mutex_key;
 /** Key to register srv_sys_t::tasks_mutex with performance schema */
-UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
+UNIV_INTERN mysql_pfs_key_t	srv_threads_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /** Temporary file for innodb monitor output */
@@ -917,7 +907,7 @@ srv_init(void)
 
 		mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
-		mutex_create(srv_sys_tasks_mutex_key,
+		mutex_create(srv_threads_mutex_key,
 			     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
 		srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
@@ -1438,7 +1428,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_trx_id_age =
-			trx_sys->rw_max_trx_id - done_trx_no + 1;
+			(ulint) (trx_sys->rw_max_trx_id - done_trx_no + 1);
 	}
 
 	if (!up_limit_id
@@ -1446,7 +1436,7 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_view_trx_id_age = 0;
 	} else {
 		export_vars.innodb_purge_view_trx_id_age =
-			trx_sys->rw_max_trx_id - up_limit_id;
+			(ulint) (trx_sys->rw_max_trx_id - up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -1706,15 +1696,11 @@ loop:
 	    && sema == old_sema && os_thread_eq(waiter, old_waiter)) {
 		fatal_cnt++;
 		if (fatal_cnt > 10) {
-
-			fprintf(stderr,
-				"InnoDB: Error: semaphore wait has lasted"
-				" > %lu seconds\n"
-				"InnoDB: We intentionally crash the server,"
-				" because it appears to be hung.\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"Semaphore wait has lasted > %lu seconds."
+				" We intentionally crash the server because"
+				" it appears to be hung.",
 				(ulong) srv_fatal_semaphore_wait_threshold);
-
-			ut_error;
 		}
 	} else {
 		fatal_cnt = 0;
@@ -2549,7 +2535,8 @@ srv_do_purge(
 
 		if (!(count++ % TRX_SYS_N_RSEGS)) {
 			/* Force a truncate of the history list. */
-			trx_purge(1, srv_purge_batch_size, true);
+			n_pages_purged += trx_purge(
+				1, srv_purge_batch_size, true);
 		}
 
 		*n_total_purged += n_pages_purged;
@@ -2578,9 +2565,10 @@ srv_purge_coordinator_suspend(
 	/** Maximum wait time on the purge event, in micro-seconds. */
 	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
+	ib_int64_t	sig_count = srv_suspend_thread(slot);
+
 	do {
 		ulint		ret;
-		ib_int64_t	sig_count = srv_suspend_thread(slot);
 
 		rw_lock_x_lock(&purge_sys->latch);
 
@@ -2617,6 +2605,8 @@ srv_purge_coordinator_suspend(
 
 		srv_sys_mutex_exit();
 
+		sig_count = srv_suspend_thread(slot);
+
 		rw_lock_x_lock(&purge_sys->latch);
 
 		stop = (purge_sys->state == PURGE_STATE_STOP);
@@ -2650,7 +2640,15 @@ srv_purge_coordinator_suspend(
 
 	} while (stop);
 
-	ut_a(!slot->suspended);
+	srv_sys_mutex_enter();
+
+	if (slot->suspended) {
+		slot->suspended = FALSE;
+		++srv_sys->n_threads_active[slot->type];
+		ut_a(srv_sys->n_threads_active[slot->type] == 1);
+	}
+
+	srv_sys_mutex_exit();
 }
 
 /*********************************************************************//**

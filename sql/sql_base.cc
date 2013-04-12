@@ -1032,58 +1032,6 @@ err_with_reopen:
 
 
 /**
-  Close all tables which match specified connection string or
-  if specified string is NULL, then any table with a connection string.
-*/
-
-bool close_cached_connection_tables(THD *thd, LEX_STRING *connection)
-{
-  uint idx;
-  TABLE_LIST tmp, *tables= NULL;
-  bool result= FALSE;
-  DBUG_ENTER("close_cached_connections");
-  DBUG_ASSERT(thd);
-
-  memset(&tmp, 0, sizeof(TABLE_LIST));
-
-  mysql_mutex_lock(&LOCK_open);
-
-  for (idx= 0; idx < table_def_cache.records; idx++)
-  {
-    TABLE_SHARE *share= (TABLE_SHARE *) my_hash_element(&table_def_cache, idx);
-
-    /* Ignore if table is not open or does not have a connect_string */
-    if (!share->connect_string.length || !share->ref_count)
-      continue;
-
-    /* Compare the connection string */
-    if (connection &&
-        (connection->length > share->connect_string.length ||
-         (connection->length < share->connect_string.length &&
-          (share->connect_string.str[connection->length] != '/' &&
-           share->connect_string.str[connection->length] != '\\')) ||
-         strncasecmp(connection->str, share->connect_string.str,
-                     connection->length)))
-      continue;
-
-    /* close_cached_tables() only uses these elements */
-    tmp.db= share->db.str;
-    tmp.table_name= share->table_name.str;
-    tmp.next_local= tables;
-
-    tables= (TABLE_LIST *) memdup_root(thd->mem_root, (char*)&tmp, 
-                                       sizeof(TABLE_LIST));
-  }
-  mysql_mutex_unlock(&LOCK_open);
-
-  if (tables)
-    result= close_cached_tables(thd, tables, FALSE, LONG_TIMEOUT);
-
-  DBUG_RETURN(result);
-}
-
-
-/**
   Mark all temporary tables which were used by the current statement or
   substatement as free for reuse, but only if the query_id can be cleared.
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,8 @@ Created 2/16/1997 Heikki Tuuri
 
 #include "srv0srv.h"
 #include "trx0sys.h"
+
+#include <algorithm>
 
 /*
 -------------------------------------------------------------------------------
@@ -198,9 +200,10 @@ read_view_create_low(
 
 /*********************************************************************//**
 Clones a read view object. This function will allocate space for two read
-views contiguously, one identical in size and content as @param view (starting
-at returned pointer) and another view immediately following the trx_ids array.
-The second view will have space for an extra trx_id_t element.
+views contiguously iff the creator_trx_id > 0. One identical in size
+and content as @param view (starting at returned pointer) and another view
+immediately following the trx_ids array. The second view will have and
+extra slot for a trx_id_t element iff view->creator_trx_id > 0.
 @return	read view struct */
 UNIV_INLINE
 read_view_t*
@@ -220,23 +223,31 @@ read_view_clone(
 
 	sz = sizeof(*view) + view->n_trx_ids * sizeof(*view->trx_ids);
 
-	/* Add an extra trx_id_t slot for the new view. */
+	if (view->creator_trx_id > 0) {
+		/* Add an extra trx_id_t slot for the new view. */
+		clone = static_cast<read_view_t*>(
+			mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t)));
+	} else {
+		/* No creator trx id, we can use the view as is for purge. */
 
-	clone = static_cast<read_view_t*>(
-		mem_heap_alloc(heap, (sz * 2) + sizeof(trx_id_t)));
+		clone = static_cast<read_view_t*>(mem_heap_alloc(heap, sz));
+	}
 
 	/* Only the contents of the old view are important, the new view
 	will be created from this and so we don't copy that across. */
 
 	memcpy(clone, view, sz);
 
-	clone->trx_ids = (trx_id_t*) &clone[1];
+	clone->trx_ids = reinterpret_cast<trx_id_t*>(&clone[1]);
 
-	new_view = (read_view_t*) &clone->trx_ids[clone->n_trx_ids];
-	new_view->trx_ids = (trx_id_t*) &new_view[1];
-	new_view->n_trx_ids = clone->n_trx_ids + 1;
+	if (view->creator_trx_id > 0) {
+		new_view = (read_view_t*) &clone->trx_ids[clone->n_trx_ids];
+		new_view->trx_ids = (trx_id_t*) &new_view[1];
 
-	ut_a(new_view->n_trx_ids == view->n_trx_ids + 1);
+		new_view->n_trx_ids = clone->n_trx_ids + 1;
+
+		ut_a(new_view->n_trx_ids == view->n_trx_ids + 1);
+	}
 
 	return(clone);
 }
@@ -244,7 +255,7 @@ read_view_clone(
 /*********************************************************************//**
 Insert the view in the proper order into the trx_sys->view_list. The
 read view list is ordered by read_view_t::low_limit_no in descending order. */
-static
+UNIV_INTERN
 void
 read_view_add(
 /*==========*/
@@ -292,6 +303,8 @@ struct	CreateView {
 		while we are holding the trx_sys->mutex. It may change
 		from ACTIVE to PREPARED or COMMITTED. */
 
+		ut_ad(trx->id > 0);
+
 		if (trx->id != m_view->creator_trx_id
 		    && !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY)) {
 
@@ -303,7 +316,7 @@ struct	CreateView {
 			trx_sys->max_trx_id can still be active, if it is
 			in the middle of its commit! Note that when a
 			transaction starts, we initialize trx->no to
-			IB_ULONGLONG_MAX. */
+			TRX_ID_MAX. */
 
 			/* trx->no is protected by trx_sys->mutex, which
 			we are holding. It is assigned by trx_commit()
@@ -330,8 +343,9 @@ read_view_open_now_low(
 /*===================*/
 	trx_id_t	cr_trx_id,	/*!< in: trx_id of creating
 					transaction, or 0 used in purge */
-	mem_heap_t*	heap)		/*!< in: memory heap from which
+	mem_heap_t*	heap,		/*!< in: memory heap from which
 					allocated */
+	bool		purge)		/*!< in: true if purge view */
 {
 	read_view_t*	view;
 	ulint		n_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
@@ -360,8 +374,10 @@ read_view_open_now_low(
 		view->up_limit_id = view->low_limit_id;
 	}
 
+	ut_ad(view->up_limit_id <= view->low_limit_id);
+
 	/* Purge views are not added to the view list. */
-	if (cr_trx_id > 0) {
+	if (!purge) {
 		read_view_add(view);
 	}
 
@@ -387,7 +403,7 @@ read_view_open_now(
 
 	mutex_enter(&trx_sys->mutex);
 
-	view = read_view_open_now_low(cr_trx_id, heap);
+	view = read_view_open_now_low(cr_trx_id, heap, false);
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -407,11 +423,8 @@ read_view_purge_open(
 	mem_heap_t*	heap)		/*!< in: memory heap from which
 					allocated */
 {
-	ulint		i;
 	read_view_t*	view;
 	read_view_t*	oldest_view;
-	trx_id_t	creator_trx_id;
-	ulint		insert_done	= 0;
 
 	mutex_enter(&trx_sys->mutex);
 
@@ -419,14 +432,15 @@ read_view_purge_open(
 
 	if (oldest_view == NULL) {
 
-		view = read_view_open_now_low(0, heap);
+		view = read_view_open_now_low(0, heap, true);
 
 		mutex_exit(&trx_sys->mutex);
 
 		return(view);
 	}
 
-	/* Allocate space for both views, the oldest and the new purge view. */
+	/* Clone the oldest view, if the creator_trx_id is > 0 then
+	allocate space for two views, the oldest and the new purge view. */
 
 	oldest_view = read_view_clone(oldest_view, heap);
 
@@ -434,46 +448,62 @@ read_view_purge_open(
 
 	mutex_exit(&trx_sys->mutex);
 
-	ut_a(oldest_view->creator_trx_id > 0);
-	creator_trx_id = oldest_view->creator_trx_id;
+	trx_id_t	creator_trx_id = oldest_view->creator_trx_id;
 
-	view = (read_view_t*) &oldest_view->trx_ids[oldest_view->n_trx_ids];
+	if (creator_trx_id > 0) {
 
-	/* Add the creator transaction id in the trx_ids array in the
-	correct slot. */
+		view = reinterpret_cast<read_view_t*>(
+			&oldest_view->trx_ids[oldest_view->n_trx_ids]);
 
-	for (i = 0; i < oldest_view->n_trx_ids; ++i) {
-		trx_id_t	id;
+		/* Add the creator transaction id in the trx_ids
+		array in the correct slot.  */
 
-		id = oldest_view->trx_ids[i - insert_done];
+		ulint	i;
+		ulint	insert_done = 0;
 
-		if (insert_done == 0 && creator_trx_id > id) {
-			id = creator_trx_id;
-			insert_done = 1;
+		for (i = 0; i < oldest_view->n_trx_ids; ++i) {
+			trx_id_t	id;
+
+			id = oldest_view->trx_ids[i - insert_done];
+
+			if (insert_done == 0 && creator_trx_id > id) {
+				id = creator_trx_id;
+				insert_done = 1;
+			}
+
+			view->trx_ids[i] = id;
 		}
 
-		view->trx_ids[i] = id;
-	}
+		if (insert_done == 0) {
+			view->trx_ids[i] = creator_trx_id;
+		} else {
+			ut_a(i > 0);
+			view->trx_ids[i] = oldest_view->trx_ids[i - 1];
+		}
 
-	if (insert_done == 0) {
-		view->trx_ids[i] = creator_trx_id;
+		view->creator_trx_id = 0;
+
+		view->low_limit_no = oldest_view->low_limit_no;
+		view->low_limit_id = oldest_view->low_limit_id;
+		view->up_limit_id = oldest_view->up_limit_id;
 	} else {
-		ut_a(i > 0);
-		view->trx_ids[i] = oldest_view->trx_ids[i - 1];
+		/* We can use the cloned view as is. */
+		view = oldest_view;
 	}
-
-	view->creator_trx_id = 0;
-
-	view->low_limit_no = oldest_view->low_limit_no;
-	view->low_limit_id = oldest_view->low_limit_id;
 
 	if (view->n_trx_ids > 0) {
-		/* The last active transaction has the smallest id: */
 
-		view->up_limit_id = view->trx_ids[view->n_trx_ids - 1];
-	} else {
-		view->up_limit_id = oldest_view->up_limit_id;
+		/* The last active transaction has the smallest id. However
+		it may be larger than the oldest view's up_limit_id because
+		the oldest view's creator id can be larger and that will be
+		in the tx_ids array. */
+
+		view->up_limit_id = std::min(
+			view->trx_ids[view->n_trx_ids - 1],
+			view->up_limit_id);
 	}
+
+	ut_ad(view->up_limit_id <= view->low_limit_id);
 
 	return(view);
 }

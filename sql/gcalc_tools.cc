@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,9 +15,6 @@
 
 
 #include "my_global.h"
-
-#ifdef HAVE_SPATIAL
-
 #include "sql_string.h"
 #include "gcalc_tools.h"
 #include "gstream.h"                            // Gis_read_stream
@@ -1332,6 +1329,3 @@ void Gcalc_operation_reducer::reset()
   free_list(m_first_active_thread);
   DBUG_VOID_RETURN;
 }
-
-#endif /*HAVE_SPATIAL*/
-

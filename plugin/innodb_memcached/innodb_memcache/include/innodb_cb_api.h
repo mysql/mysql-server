@@ -370,13 +370,19 @@ ib_ulint_t
 typedef
 ib_err_t
 (*cb_trx_get_start_time)(
-/*======================*/
+/*=====================*/
 	ib_trx_t	ib_trx);
 
 typedef
 ib_ulint_t
 (*cb_bk_commit_interval)();
 /*======================*/
+
+typedef
+const char*
+(*cb_ut_strerr)(
+/*============*/
+	ib_err_t	num);
 
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
@@ -429,5 +435,6 @@ cb_cursor_set_lock_t		ib_cb_cursor_set_lock;
 cb_cursor_clear_trx_t		ib_cb_cursor_clear_trx;
 cb_trx_get_start_time		ib_cb_trx_get_start_time;
 cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
+cb_ut_strerr			ib_cb_ut_strerr;
 
 #endif /* innodb_cb_api_h */
