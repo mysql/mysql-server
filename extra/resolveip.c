@@ -24,9 +24,7 @@
 #ifndef WIN32
 #  include <sys/types.h>
 #  include <sys/socket.h>
-#  ifndef HAVE_BROKEN_NETINET_INCLUDES
-#    include <netinet/in.h>
-#  endif
+#  include <netinet/in.h>
 #  include <arpa/inet.h>
 #  include <netdb.h>
 #endif

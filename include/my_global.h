@@ -197,11 +197,6 @@
 #include <sys/types.h>
 #endif
 
-#ifdef HAVE_THREADS_WITHOUT_SOCKETS
-/* MIT pthreads does not work with unix sockets */
-#undef HAVE_SYS_UN_H
-#endif
-
 #define __EXTENSIONS__ 1	/* We want some extension */
 #ifndef __STDC_EXT__
 #define __STDC_EXT__ 1          /* To get large file support on hpux */
@@ -300,10 +295,6 @@
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
-#if defined(__cplusplus) && defined(NO_CPLUSPLUS_ALLOCA)
-#undef HAVE_ALLOCA
-#undef HAVE_ALLOCA_H
-#endif
 #ifdef HAVE_ALLOCA_H
 #include <alloca.h>
 #endif
@@ -322,15 +313,11 @@
 #include <assert.h>
 
 /* an assert that works at compile-time. only for constant expression */
-#ifdef _some_old_compiler_that_does_not_understand_the_construct_below_
-#define compile_time_assert(X)  do { } while(0)
-#else
 #define compile_time_assert(X)                                  \
   do                                                            \
   {                                                             \
     typedef char compile_time_assert[(X) ? 1 : -1];             \
   } while(0)
-#endif
 
 /* Declare madvise where it is not declared for C++, like Solaris */
 #if HAVE_MADVISE && !HAVE_DECL_MADVISE && defined(__cplusplus)
@@ -708,18 +695,8 @@ extern double my_double_isnan(double x);
 C_MODE_END
 
 #ifdef HAVE_ISINF
-/* Check if C compiler is affected by GCC bug #39228 */
-#if !defined(__cplusplus) && defined(HAVE_BROKEN_ISINF)
-/* Force store/reload of the argument to/from a 64-bit double */
-static inline double my_isinf(double x)
-{
-  volatile double t= x;
-  return isinf(t);
-}
-#else
 /* System-provided isinf() is available and safe to use */
 #define my_isinf(X) isinf(X)
-#endif
 #else /* !HAVE_ISINF */
 #define my_isinf(X) (!finite(X) && !isnan(X))
 #endif
