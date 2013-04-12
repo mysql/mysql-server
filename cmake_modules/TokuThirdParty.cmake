@@ -51,13 +51,15 @@ if (NOT EXISTS "${XZ_SOURCE_DIR}/configure")
   message(FATAL_ERROR "Can't find the xz sources.  Please check them out to ${XZ_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or XZ_SOURCE_DIR.")
 endif ()
 
+FILE(GLOB XZ_ALL_FILES ${XZ_SOURCE_DIR}/*)
 if (CMAKE_GENERATOR STREQUAL Ninja)
   ## ninja doesn't understand "$(MAKE)"
   ExternalProject_Add(build_lzma
     PREFIX xz
-    SOURCE_DIR "${XZ_SOURCE_DIR}"
+    DOWNLOAD_COMMAND
+        cd ${XZ_SOURCE_DIR} && cp -ru "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
     CONFIGURE_COMMAND
-        "${XZ_SOURCE_DIR}/configure" ${xz_configure_opts}
+        "<SOURCE_DIR>/configure" ${xz_configure_opts}
         "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
     BUILD_COMMAND
         make -C src/liblzma
@@ -69,9 +71,10 @@ else ()
   ## seem to break Xcode...
   ExternalProject_Add(build_lzma
     PREFIX xz
-    SOURCE_DIR "${XZ_SOURCE_DIR}"
+    DOWNLOAD_COMMAND
+        cd ${XZ_SOURCE_DIR} && cp -ru "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
     CONFIGURE_COMMAND
-        "${XZ_SOURCE_DIR}/configure" ${xz_configure_opts}
+        "<SOURCE_DIR>/configure" ${xz_configure_opts}
         "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
     BUILD_COMMAND
         $(MAKE) -C src/liblzma
@@ -79,6 +82,12 @@ else ()
         $(MAKE) -C src/liblzma install
     )
 endif ()
+FILE(GLOB_RECURSE XZ_ALL_FILES_RECURSIVE ${XZ_SOURCE_DIR}/*)
+ExternalProject_Add_Step(build_lzma reclone_src # Names of project and custom step
+    COMMENT "(re)cloning xz source..."     # Text printed when step executes
+    DEPENDERS download configure   # Steps that depend on this step
+    DEPENDS   ${XZ_ALL_FILES_RECURSIVE}   # Files on which this step depends
+)
 
 set_source_files_properties(
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz/include/lzma.h"
