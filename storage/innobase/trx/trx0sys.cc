@@ -381,6 +381,10 @@ trx_sysf_rseg_find_free(
 	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
 		ulint	page_no;
 
+		if (!include_tmp_slots && trx_sys_is_noredo_rseg_slot(i)) {
+			continue;
+		}
+
 		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
 
 		if (page_no == FIL_NULL
@@ -394,6 +398,39 @@ trx_sysf_rseg_find_free(
 	}
 
 	return(ULINT_UNDEFINED);
+}
+
+/****************************************************************//**
+Looks for used slots for redo rollback segment.
+@return	number of used slots */
+static
+ulint
+trx_sysf_used_slots_for_redo_rseg(
+/*==============================*/
+	mtr_t*	mtr)			/*!< in: mtr */
+{
+	ulint		i;
+	trx_sysf_t*	sys_header;
+	ulint		n_used = 0;
+
+	sys_header = trx_sysf_get(mtr);
+
+	for (i = 0; i < TRX_SYS_N_RSEGS; i++) {
+
+		if (trx_sys_is_noredo_rseg_slot(i)) {
+			continue;
+		}
+
+		ulint	page_no;
+
+		page_no = trx_sysf_rseg_get_page_no(sys_header, i, mtr);
+
+		if (page_no != FIL_NULL) { 
+			++n_used;
+		}
+	}
+
+	return(n_used);
 }
 
 /*****************************************************************//**
@@ -914,12 +951,10 @@ trx_sys_create_rsegs(
 	necessary to use the same mtr in trx_rseg_create(). n_used cannot
 	change while the function is executing. */
 	mtr_start(&mtr);
-	n_used = trx_sysf_rseg_find_free(&mtr, false, 0);
+	n_used = trx_sysf_used_slots_for_redo_rseg(&mtr) + n_noredo_created;
 	mtr_commit(&mtr);
 
-	if (n_used == ULINT_UNDEFINED) {
-		n_used = TRX_SYS_N_RSEGS;
-	}
+	ut_ad(n_used <= TRX_SYS_N_RSEGS);
 
 	/* Do not create additional rollback segments if innodb_force_recovery
 	has been set and the database was not shutdown cleanly. */
