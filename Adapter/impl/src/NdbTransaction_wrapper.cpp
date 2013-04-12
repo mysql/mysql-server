@@ -115,7 +115,7 @@ Handle<Value> execute(const Arguments &args) {
   typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
                               NdbOperation::AbortOption, int> NCALL;
   NCALL * ncallptr = new NCALL(& NdbTransaction::execute, args);
-  ncallptr->errorHandler = getNdbErrorIfNonZero<int, NdbTransaction>;
+  ncallptr->errorHandler = getNdbErrorIfLessThanZero<int, NdbTransaction>;
   ncallptr->runAsync();
 
   return Undefined();

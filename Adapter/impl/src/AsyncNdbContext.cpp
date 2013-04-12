@@ -208,7 +208,7 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
   /* Create a container to help pass return values up the JS callback stack */
   typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
   MCALL * mcallptr = new MCALL(tx, jsCallback,
-                               getNdbErrorIfNonZero<int, NdbTransaction>);
+                               getNdbErrorIfLessThanZero<int, NdbTransaction>);
   
   /* send the transaction to NDB */
   tx->executeAsynch((NdbTransaction::ExecType) execType,

@@ -123,6 +123,7 @@ Handle<Value> isfalse(const Arguments & args) {
    ARG0: BinaryCondition
    ARG1: Column ID
    ARG2: Buffer
+XXXX:  THIS IS WRONG, THE BUFFER IS PROBABLY NOT THAT BUFFER, 
    ARG3: Record
   THIS WILL PROBABLY NOT WORK FOR "LIKE" or "NOT LIKE" COMPARISONS
 */
@@ -134,7 +135,7 @@ Handle<Value> cmp(const Arguments &args) {
   int columnId = args[1]->Uint32Value();
   char * buffer = node::Buffer::Data(args[2]->ToObject());
   Record * record = unwrapPointer<Record *>(args[3]->ToObject());
-  size_t offset = record->getColumnOffset(columnId);
+/*XXX*/  size_t offset = record->getColumnOffset(columnId);
   size_t length = record->getColumn(columnId)->getSizeInBytes();
 
   int rval = filter->cmp(NdbScanFilter::BinaryCondition(condition), 

@@ -51,10 +51,10 @@ NativeCodeError * getNdbErrorIfNull(R return_val, C * ndbapiobject) {
 
 
 template<typename R, typename C> 
-NativeCodeError * getNdbErrorIfNonZero(R return_val, C * ndbapiobject) {
+NativeCodeError * getNdbErrorIfLessThanZero(R return_val, C * ndbapiobject) {
   NativeCodeError *err = 0;
   
-  if(return_val != 0) {
+  if(return_val < 0) {
     err = new NdbNativeCodeError(ndbapiobject->getNdbError());
   }
   
