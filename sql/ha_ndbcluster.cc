@@ -419,6 +419,10 @@ static int ndb_get_table_statistics(THD *thd, ha_ndbcluster*, bool, Ndb*,
                                     bool have_lock= FALSE,
                                     uint part_id= ~(uint)0);
 
+static ulong multi_range_fixed_size(int num_ranges);
+
+static ulong multi_range_max_entry(NDB_INDEX_TYPE keytype, ulong reclength);
+
 THD *injector_thd= 0;
 
 /* Status variables shown with 'show status like 'Ndb%' */
@@ -6966,6 +6970,19 @@ int ha_ndbcluster::info(uint flag)
     DBUG_PRINT("info", ("HA_STATUS_POS"));
   if (flag & HA_STATUS_TIME)
     DBUG_PRINT("info", ("HA_STATUS_TIME"));
+  if (flag & HA_STATUS_CONST)
+  {
+    /*
+      Set size required by a single record in the MRR 'HANDLER_BUFFER'.
+      MRR buffer has both a fixed and a variable sized part.
+      Size is calculated assuming max size of the variable part.
+
+      See comments for multi_range_fixed_size() and
+      multi_range_max_entry() regarding how the MRR buffer is organized.
+    */
+    stats.mrr_length_per_rec= multi_range_fixed_size(1) +
+      multi_range_max_entry(PRIMARY_KEY_INDEX, table_share->reclength);
+  }
   while (flag & HA_STATUS_VARIABLE)
   {
     if (!thd)
