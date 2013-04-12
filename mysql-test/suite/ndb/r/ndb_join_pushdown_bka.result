@@ -6579,7 +6579,7 @@ information_schema.global_status as new
 where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
-NDB_PRUNED_SCAN_COUNT	31
+NDB_PRUNED_SCAN_COUNT	24
 NDB_PUSHED_QUERIES_DEFINED	0
 NDB_PUSHED_QUERIES_DROPPED	0
 NDB_PUSHED_QUERIES_EXECUTED	0
