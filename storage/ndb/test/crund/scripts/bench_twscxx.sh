@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,11 +28,11 @@ iostat 5 > iostat5.txt 2>&1 &
 #vmstat 5 > vmstat5.txt 2>&1 &
 pid=$!
 echo "" >> out.txt 2>&1
-( cd ../tws/tws_cpp/ ; make run.driver ) >> out.txt 2>&1
+( cd ../src/crundndb/ ; make run.tws ) >> out.txt 2>&1
 mkdir -p results/xxx
 mv -v [a-z]*.txt results/xxx
-mv -v ../tws/tws_cpp/log*.txt results/xxx
-cp -v ../tws/*.properties results/xxx
+mv -v ../src/crundndb/log*.txt results/xxx
+cp -v ../*.properties results/xxx
 cp -v ../config.ini results/xxx
 cp -v ../my.cnf results/xxx
 mv -v results/xxx  results/xxx_tws_cpp

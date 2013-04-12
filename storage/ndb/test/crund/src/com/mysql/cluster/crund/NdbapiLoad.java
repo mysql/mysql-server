@@ -1,25 +1,23 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 package com.mysql.cluster.crund;
 
-public class NdbApiLoad extends NdbBase {
+public class NdbapiLoad extends NdbBase {
 
     // ----------------------------------------------------------------------
     // NDB API intializers/finalizers
@@ -47,7 +45,7 @@ public class NdbApiLoad extends NdbBase {
         // initialize NDB resources
         final int ret = ndbinit(mgmdConnect);
         if (ret != 0) {
-            String msg = ("NdbApiLoad: failed initializing NDBAPI;"
+            String msg = ("NdbapiLoad: failed initializing NDBAPI;"
                           + " return value = " + ret);
             err.println(msg);
             throw new Exception(msg);
@@ -58,7 +56,7 @@ public class NdbApiLoad extends NdbBase {
         // release NDB resources
         final int ret = ndbclose();
         if (ret != 0) {
-            String msg = ("NdbApiLoad: failed closing NDBAPI;"
+            String msg = ("NdbapiLoad: failed closing NDBAPI;"
                           + " return value = " + ret);
             err.println(msg);
             throw new Exception(msg);
@@ -72,28 +70,28 @@ public class NdbApiLoad extends NdbBase {
     // NDB API operations
     // ----------------------------------------------------------------------
 
-    protected native void delAllA(int nOps, boolean batch);
-    protected native void delAllB0(int nOps, boolean batch);
-    protected native void insA(int nOps, boolean setAttrs, boolean batch);
-    protected native void insB0(int nOps, boolean setAttrs, boolean batch);
-    protected native void delAByPK(int nOps, boolean batch);
-    protected native void delB0ByPK(int nOps, boolean batch);
-    protected native void setAByPK(int nOps, boolean batch);
-    protected native void setB0ByPK(int nOps, boolean batch);
-    protected native void getAByPK_bb(int nOps, boolean batch);
-    protected native void getB0ByPK_bb(int nOps, boolean batch);
-    protected native void getAByPK_ar(int nOps, boolean batch);
-    protected native void getB0ByPK_ar(int nOps, boolean batch);
-    protected native void setVarbinary(int nOps, boolean batch, int length);
-    protected native void getVarbinary(int nOps, boolean batch, int length);
-    protected native void setVarchar(int nOps, boolean batch, int length);
-    protected native void getVarchar(int nOps, boolean batch, int length);
-    protected native void setB0ToA(int nOps, boolean batch);
-    protected native void navB0ToA(int nOps, boolean batch);
-    protected native void navB0ToAalt(int nOps, boolean batch);
-    protected native void navAToB0(int nOps, boolean batch);
-    protected native void navAToB0alt(int nOps, boolean batch);
-    protected native void nullB0ToA(int nOps, boolean batch);
+    protected native void delAllA(int nOps, boolean bulk);
+    protected native void delAllB0(int nOps, boolean bulk);
+    protected native void insA(int nOps, boolean setAttrs, boolean bulk);
+    protected native void insB0(int nOps, boolean setAttrs, boolean bulk);
+    protected native void delAByPK(int nOps, boolean bulk);
+    protected native void delB0ByPK(int nOps, boolean bulk);
+    protected native void setAByPK(int nOps, boolean bulk);
+    protected native void setB0ByPK(int nOps, boolean bulk);
+    protected native void getAByPK_bb(int nOps, boolean bulk);
+    protected native void getB0ByPK_bb(int nOps, boolean bulk);
+    protected native void getAByPK_ar(int nOps, boolean bulk);
+    protected native void getB0ByPK_ar(int nOps, boolean bulk);
+    protected native void setVarbinary(int nOps, boolean bulk, int length);
+    protected native void getVarbinary(int nOps, boolean bulk, int length);
+    protected native void setVarchar(int nOps, boolean bulk, int length);
+    protected native void getVarchar(int nOps, boolean bulk, int length);
+    protected native void setB0ToA(int nOps, boolean bulk);
+    protected native void navB0ToA(int nOps, boolean bulk);
+    protected native void navB0ToAalt(int nOps, boolean bulk);
+    protected native void navAToB0(int nOps, boolean bulk);
+    protected native void navAToB0alt(int nOps, boolean bulk);
+    protected native void nullB0ToA(int nOps, boolean bulk);
 
     protected void initOperations() {
         out.print("initializing operations ...");
@@ -101,63 +99,63 @@ public class NdbApiLoad extends NdbBase {
 
         for (boolean f = false, done = false; !done; done = f, f = true) {
             // inner classes can only refer to a constant
-            final boolean batch = f;
+            final boolean bulk = f;
             final boolean forceSend = f;
             final boolean setAttrs = true;
 
             ops.add(
-                new Op("insA" + (batch ? "_batch" : "")) {
+                new Op("insA" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        insA(nOps, !setAttrs, batch);
+                        insA(nOps, !setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insB0" + (batch ? "_batch" : "")) {
+                new Op("insB0" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        insB0(nOps, !setAttrs, batch);
+                        insB0(nOps, !setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("setAByPK" + (batch ? "_batch" : "")) {
+                new Op("setAByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setAByPK(nOps, batch);
+                        setAByPK(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("setB0ByPK" + (batch ? "_batch" : "")) {
+                new Op("setB0ByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setB0ByPK(nOps, batch);
+                        setB0ByPK(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getAByPK_bb" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_bb" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getAByPK_bb(nOps, batch);
+                        getAByPK_bb(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getAByPK_ar" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_ar" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getAByPK_ar(nOps, batch);
+                        getAByPK_ar(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getB0ByPK_bb" + (batch ? "_batch" : "")) {
+                new Op("getB0ByPK_bb" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getB0ByPK_bb(nOps, batch);
+                        getB0ByPK_bb(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getB0ByPK_ar" + (batch ? "_batch" : "")) {
+                new Op("getB0ByPK_ar" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getB0ByPK_ar(nOps, batch);
+                        getB0ByPK_ar(nOps, bulk);
                     }
                 });
 
@@ -165,23 +163,23 @@ public class NdbApiLoad extends NdbBase {
                 final int length = i;
 
                 ops.add(
-                    new Op("setVarbinary" + length + (batch ? "_batch" : "")) {
+                    new Op("setVarbinary" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarbinary(nOps, batch, length);
+                            setVarbinary(nOps, bulk, length);
                         }
                     });
 
                 ops.add(
-                    new Op("getVarbinary" + length + (batch ? "_batch" : "")) {
+                    new Op("getVarbinary" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            getVarbinary(nOps, batch, length);
+                            getVarbinary(nOps, bulk, length);
                         }
                     });
 
                 ops.add(
-                    new Op("clearVarbinary" + length + (batch ? "_batch" : "")) {
+                    new Op("clearVarbinary" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarbinary(nOps, batch, 0);
+                            setVarbinary(nOps, bulk, 0);
                         }
                     });
             }
@@ -190,46 +188,46 @@ public class NdbApiLoad extends NdbBase {
                 final int length = i;
 
                 ops.add(
-                    new Op("setVarchar" + length + (batch ? "_batch" : "")) {
+                    new Op("setVarchar" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarchar(nOps, batch, length);
+                            setVarchar(nOps, bulk, length);
                         }
                     });
 
                 ops.add(
-                    new Op("getVarchar" + length + (batch ? "_batch" : "")) {
+                    new Op("getVarchar" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            getVarchar(nOps, batch, length);
+                            getVarchar(nOps, bulk, length);
                         }
                     });
 
                 ops.add(
-                    new Op("clearVarchar" + length + (batch ? "_batch" : "")) {
+                    new Op("clearVarchar" + length + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarchar(nOps, batch, 0);
+                            setVarchar(nOps, bulk, 0);
                         }
                     });
 
             }
 
             ops.add(
-                new Op("setB0->A" + (batch ? "_batch" : "")) {
+                new Op("setB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setB0ToA(nOps, batch);
+                        setB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("navB0->A" + (batch ? "_batch" : "")) {
+                new Op("navB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        navB0ToA(nOps, batch);
+                        navB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("navB0->A_alt" + (batch ? "_batch" : "")) {
+                new Op("navB0->A_alt" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        navB0ToAalt(nOps, batch);
+                        navB0ToAalt(nOps, bulk);
                     }
                 });
 
@@ -248,51 +246,51 @@ public class NdbApiLoad extends NdbBase {
                 });
 
             ops.add(
-                new Op("nullB0->A" + (batch ? "_batch" : "")) {
+                new Op("nullB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        nullB0ToA(nOps, batch);
+                        nullB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delB0ByPK" + (batch ? "_batch" : "")) {
+                new Op("delB0ByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delB0ByPK(nOps, batch);
+                        delB0ByPK(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delAByPK" + (batch ? "_batch" : "")) {
+                new Op("delAByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delAByPK(nOps, batch);
+                        delAByPK(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insA_attr" + (batch ? "_batch" : "")) {
+                new Op("insA_attr" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        insA(nOps, setAttrs, batch);
+                        insA(nOps, setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insB0_attr" + (batch ? "_batch" : "")) {
+                new Op("insB0_attr" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        insB0(nOps, setAttrs, batch);
+                        insB0(nOps, setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delAllB0" + (batch ? "_batch" : "")) {
+                new Op("delAllB0" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delAllB0(nOps, batch);
+                        delAllB0(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delAllA" + (batch ? "_batch" : "")) {
+                new Op("delAllA" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delAllA(nOps, batch);
+                        delAllA(nOps, bulk);
                     }
                 });
         }
@@ -327,10 +325,10 @@ public class NdbApiLoad extends NdbBase {
     // ----------------------------------------------------------------------
 
     static public void main(String[] args) {
-        System.out.println("NdbApiLoad.main()");
+        System.out.println("NdbapiLoad.main()");
         parseArguments(args);
-        new NdbApiLoad().run();
+        new NdbapiLoad().run();
         System.out.println();
-        System.out.println("NdbApiLoad.main(): done.");
+        System.out.println("NdbapiLoad.main(): done.");
     }
 }

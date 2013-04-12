@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -13,42 +13,54 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
-# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-source ../env.properties
-echo MYSQL_HOME=$MYSQL_HOME
+if [ "$MYSQL_HOME" = "" ] ; then
+  source ../env.properties
+  echo MYSQL_HOME=$MYSQL_HOME
+fi
 
 #set -x
 
-mylogdir="ndblog"
-mkdir -p "$mylogdir"
-
-myini="../../config.ini"
-echo
-echo start mgmd...
-( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --initial -f "$myini" )
+./start_mgmd.sh
 
 # need some extra time
-for ((i=0; i<3; i++)) ; do echo "." ; sleep 1; done
+for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo
+
+cwd="$(pwd)"
+mylogdir="$cwd/ndblog"
+mkdir -p "$mylogdir"
+myini="$cwd/../config.ini"
+nNodes=$(grep -c '^ *\[ndbd\]' "$myini")
 
 echo
-echo start ndbd...
-( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
+echo "starting $nNodes data nodes..."
+for ((i=0; i<nNodes; i++)) ; do
+    echo
+    echo "start ndbd..."
+    # apparently, these options need to come first:
+    # --print-defaults        Print the program argument list and exit.
+    # --no-defaults           Don't read default options from any option file.
+    # --defaults-file=#       Only read default options from the given file #.
+    # --defaults-extra-file=# Read this file after the global files are read.
+    #( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
+    ( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" -c "$NDB_CONNECT" --initial )
+done
 
 #echo
-#echo start ndbd...
-#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndbd" --initial )
+#ps -efa | grep ndb
 
 # need some extra time
-for ((i=0; i<1; i++)) ; do echo "." ; sleep 1; done
+for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo
 
 timeout=60
 echo
-echo waiting up to $timeout s for ndbd to start up...
-"$MYSQL_BIN/ndb_waiter" -t $timeout
+echo "waiting ($timeout s) for ndbd to start up..."
+./waiter.sh -t $timeout
 
-echo
-echo show cluster...
-"$MYSQL_BIN/ndb_mgm" -e show -t 1
+# need some extra time
+for ((i=0; i<3; i++)) ; do printf "." ; sleep 1 ; done ; echo
+
+./show_cluster.sh
 
 #set +x
