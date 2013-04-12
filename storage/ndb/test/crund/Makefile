@@ -1,3 +1,18 @@
+# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+
 #------------------------------------------------------------------------------
 
   SRC		= ./src
@@ -32,13 +47,12 @@ distclean:
 # read the generic settings
 include	env.properties
 
-# not sure if needed:
-#	LD_LIBRARY_PATH=${NDB_LIBDIR}:$(SRC)/crundndb/Driver 
-run.driver:	$(SRC)/crundndb/NdbApiDriver
-	$(SRC)/crundndb/NdbApiDriver \
+run.driver:	$(SRC)/crundndb/NdbapiDriver
+	$(SRC)/crundndb/NdbapiDriver \
 	-p crundRun.properties -p crundNdbapi.properties
-#
-#run.driver:
-#	@cd $(SRC)/crundndb && $(MAKE) $(MFLAGS) $@
+
+run.tws:	$(SRC)/crundndb/tws
+	$(SRC)/crundndb/tws \
+	-p twsRun.properties -p crundNdbapi.properties
 
 #------------------------------------------------------------------------------

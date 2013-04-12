@@ -1,21 +1,19 @@
-/* -*- mode: java; c-basic-offset: 4; indent-tabs-mode: nil; -*-
- *  vim:expandtab:shiftwidth=4:tabstop=4:smarttab:
- *
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
- *
- *  This program is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; version 2 of the License.
- *
- *  This program is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *
- *  You should have received a copy of the GNU General Public License
- *  along with this program; if not, write to the Free Software
- *  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
- */
+/*
+  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; version 2 of the License.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+*/
 
 package com.mysql.cluster.crund;
 
@@ -234,63 +232,63 @@ public class NdbJTieLoad extends NdbBase {
 
         for (boolean f = false, done = false; !done; done = f, f = true) {
             // inner classes can only refer to a constant
-            final boolean batch = f;
+            final boolean bulk = f;
             final boolean forceSend = f;
             final boolean setAttrs = true;
 
             ops.add(
-                new Op("insA" + (batch ? "_batch" : "")) {
+                new Op("insA" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        ins(model.table_A, 1, nOps, !setAttrs, batch);
+                        ins(model.table_A, 1, nOps, !setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insB0" + (batch ? "_batch" : "")) {
+                new Op("insB0" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        ins(model.table_B0, 1, nOps, !setAttrs, batch);
+                        ins(model.table_B0, 1, nOps, !setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("setAByPK" + (batch ? "_batch" : "")) {
+                new Op("setAByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setByPK(model.table_A, 1, nOps, batch);
+                        setByPK(model.table_A, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("setB0ByPK" + (batch ? "_batch" : "")) {
+                new Op("setB0ByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setByPK(model.table_B0, 1, nOps, batch);
+                        setByPK(model.table_B0, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getAByPK_bb" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_bb" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getByPK_bb(model.table_A, 1, nOps, batch);
+                        getByPK_bb(model.table_A, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getAByPK_ar" + (batch ? "_batch" : "")) {
+                new Op("getAByPK_ar" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getByPK_ar(model.table_A, 1, nOps, batch);
+                        getByPK_ar(model.table_A, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getB0ByPK_bb" + (batch ? "_batch" : "")) {
+                new Op("getB0ByPK_bb" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getByPK_bb(model.table_B0, 1, nOps, batch);
+                        getByPK_bb(model.table_B0, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("getB0ByPK_ar" + (batch ? "_batch" : "")) {
+                new Op("getB0ByPK_ar" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        getByPK_ar(model.table_B0, 1, nOps, batch);
+                        getByPK_ar(model.table_B0, 1, nOps, bulk);
                     }
                 });
 
@@ -299,23 +297,23 @@ public class NdbJTieLoad extends NdbBase {
                 assert l == b.length;
 
                 ops.add(
-                    new Op("setVarbinary" + l + (batch ? "_batch" : "")) {
+                    new Op("setVarbinary" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarbinary(model.table_B0, 1, nOps, batch, b);
+                            setVarbinary(model.table_B0, 1, nOps, bulk, b);
                         }
                     });
 
                 ops.add(
-                    new Op("getVarbinary" + l + (batch ? "_batch" : "")) {
+                    new Op("getVarbinary" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            getVarbinary(model.table_B0, 1, nOps, batch, b);
+                            getVarbinary(model.table_B0, 1, nOps, bulk, b);
                         }
                     });
 
                 ops.add(
-                    new Op("clearVarbinary" + l + (batch ? "_batch" : "")) {
+                    new Op("clearVarbinary" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarbinary(model.table_B0, 1, nOps, batch, null);
+                            setVarbinary(model.table_B0, 1, nOps, bulk, null);
                         }
                     });
             }
@@ -325,45 +323,45 @@ public class NdbJTieLoad extends NdbBase {
                 assert l == s.length();
 
                 ops.add(
-                    new Op("setVarchar" + l + (batch ? "_batch" : "")) {
+                    new Op("setVarchar" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarchar(model.table_B0, 1, nOps, batch, s);
+                            setVarchar(model.table_B0, 1, nOps, bulk, s);
                         }
                     });
 
                 ops.add(
-                    new Op("getVarchar" + l + (batch ? "_batch" : "")) {
+                    new Op("getVarchar" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            getVarchar(model.table_B0, 1, nOps, batch, s);
+                            getVarchar(model.table_B0, 1, nOps, bulk, s);
                         }
                     });
 
                 ops.add(
-                    new Op("clearVarchar" + l + (batch ? "_batch" : "")) {
+                    new Op("clearVarchar" + l + (bulk ? "_bulk" : "")) {
                         public void run(int nOps) {
-                            setVarchar(model.table_B0, 1, nOps, batch, null);
+                            setVarchar(model.table_B0, 1, nOps, bulk, null);
                         }
                     });
             }
 
             ops.add(
-                new Op("setB0->A" + (batch ? "_batch" : "")) {
+                new Op("setB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        setB0ToA(nOps, batch);
+                        setB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("navB0->A" + (batch ? "_batch" : "")) {
+                new Op("navB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        navB0ToA(nOps, batch);
+                        navB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("navB0->A_alt" + (batch ? "_batch" : "")) {
+                new Op("navB0->A_alt" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        navB0ToAalt(nOps, batch);
+                        navB0ToAalt(nOps, bulk);
                     }
                 });
 
@@ -382,52 +380,52 @@ public class NdbJTieLoad extends NdbBase {
                 });
 
             ops.add(
-                new Op("nullB0->A" + (batch ? "_batch" : "")) {
+                new Op("nullB0->A" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        nullB0ToA(nOps, batch);
+                        nullB0ToA(nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delB0ByPK" + (batch ? "_batch" : "")) {
+                new Op("delB0ByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delByPK(model.table_B0, 1, nOps, batch);
+                        delByPK(model.table_B0, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delAByPK" + (batch ? "_batch" : "")) {
+                new Op("delAByPK" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        delByPK(model.table_A, 1, nOps, batch);
+                        delByPK(model.table_A, 1, nOps, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insA_attr" + (batch ? "_batch" : "")) {
+                new Op("insA_attr" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        ins(model.table_A, 1, nOps, setAttrs, batch);
+                        ins(model.table_A, 1, nOps, setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("insB0_attr" + (batch ? "_batch" : "")) {
+                new Op("insB0_attr" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        ins(model.table_B0, 1, nOps, setAttrs, batch);
+                        ins(model.table_B0, 1, nOps, setAttrs, bulk);
                     }
                 });
 
             ops.add(
-                new Op("delAllB0" + (batch ? "_batch" : "")) {
+                new Op("delAllB0" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        final int count = delByScan(model.table_B0, batch);
+                        final int count = delByScan(model.table_B0, bulk);
                         assert count == nOps;
                     }
                 });
 
             ops.add(
-                new Op("delAllA" + (batch ? "_batch" : "")) {
+                new Op("delAllA" + (bulk ? "_bulk" : "")) {
                     public void run(int nOps) {
-                        final int count = delByScan(model.table_A, batch);
+                        final int count = delByScan(model.table_A, bulk);
                         assert count == nOps;
                     }
                 });
@@ -529,7 +527,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void ins(TableConst table, int from, int to,
-                       boolean setAttrs, boolean batch) {
+                       boolean setAttrs, boolean bulk) {
         beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an insert operation for the table
@@ -554,7 +552,7 @@ public class NdbJTieLoad extends NdbBase {
             }
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
@@ -562,7 +560,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void delByPK(TableConst table, int from, int to,
-                           boolean batch) {
+                           boolean bulk) {
         beginTransaction();
         for (int i = from; i <= to; i++) {
             // get a delete operation for the table
@@ -577,14 +575,14 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
         closeTransaction();
     }
 
-    protected int delByScan(TableConst table, boolean batch) {
+    protected int delByScan(TableConst table, boolean bulk) {
         beginTransaction();
 
         // get a full table scan operation (no scan filter defined)
@@ -596,8 +594,8 @@ public class NdbJTieLoad extends NdbBase {
         final int lock_mode = NdbOperation.LockMode.LM_Exclusive;
         final int scan_flags = 0;
         final int parallel = 0;
-        final int batch_ = 0;
-        if (op.readTuples(lock_mode, scan_flags, parallel, batch_) != 0)
+        final int bulk_ = 0;
+        if (op.readTuples(lock_mode, scan_flags, parallel, bulk_) != 0)
             throw new RuntimeException(toStr(tx.getNdbError()));
 
         // start the scan; don't commit yet
@@ -606,26 +604,26 @@ public class NdbJTieLoad extends NdbBase {
         // delete all rows in a given scan
         int count = 0;
         int stat;
-        final boolean allowFetch = true; // request new batches when exhausted
+        final boolean allowFetch = true; // request new bulkes when exhausted
         final boolean forceSend = false; // send may be delayed
         while ((stat = op.nextResult(allowFetch, forceSend)) == 0) {
-            // delete all tuples within a batch
+            // delete all tuples within a bulk
             do {
                 if (op.deleteCurrentTuple() != 0)
                     throw new RuntimeException(toStr(tx.getNdbError()));
                 count++;
 
                 // execute the operation now if in non-batching mode
-                if (!batch)
+                if (!bulk)
                     executeOperations();
             } while ((stat = op.nextResult(!allowFetch, forceSend)) == 0);
 
             if (stat == 1) {
-                // no more batches
+                // no more bulkes
                 break;
             }
             if (stat == 2) {
-                // end of current batch, fetch next
+                // end of current bulk, fetch next
                 final int execType = NdbTransaction.ExecType.NoCommit;
                 final int abortOption = NdbOperation.AbortOption.AbortOnError;
                 final int force = 0;
@@ -650,7 +648,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void setByPK(TableConst table, int from, int to,
-                           boolean batch) {
+                           boolean bulk) {
         beginTransaction();
         for (int i = from; i <= to; i++) {
             // get an update operation for the table
@@ -675,7 +673,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
@@ -726,7 +724,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void getByPK_bb(TableConst table, int from, int to,
-                              boolean batch) {
+                              boolean bulk) {
         // operation results
         final int count = (to - from) + 1;
         final ByteBuffer cab = ByteBuffer.allocateDirect(count * 28);
@@ -749,7 +747,7 @@ public class NdbJTieLoad extends NdbBase {
             fetchCommonAttributes(cab, op);
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
@@ -766,7 +764,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void getByPK_ar(TableConst table, int from, int to,
-                              boolean batch) {
+                              boolean bulk) {
         // operation results
         final int count = (to - from) + 1;
         final CommonAB_RA[] cab_ra = new CommonAB_RA[count];
@@ -792,7 +790,7 @@ public class NdbJTieLoad extends NdbBase {
             cab_ra[i] = c;
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
@@ -810,7 +808,7 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void setVarbinary(TableConst table, int from, int to,
-                                boolean batch, byte[] bytes) {
+                                boolean bulk, byte[] bytes) {
 // XXX Buffer overflow, need to debug
 /*
         final ByteBuffer buf;
@@ -847,7 +845,7 @@ public class NdbJTieLoad extends NdbBase {
                 throw new RuntimeException(toStr(tx.getNdbError()));
 
             // execute the operation now if in non-batching mode
-            if (!batch)
+            if (!bulk)
                 executeOperations();
         }
         commitTransaction();
@@ -856,33 +854,33 @@ public class NdbJTieLoad extends NdbBase {
     }
 
     protected void setVarchar(TableConst table, int from, int to,
-                              boolean batch, String string) {
+                              boolean bulk, String string) {
 // XXX not implemented yet
     }
 
     protected void getVarbinary(TableConst table, int from, int to,
-                                boolean batch, byte[] bytes) {
+                                boolean bulk, byte[] bytes) {
 // XXX not implemented yet
     }
 
     protected void getVarchar(TableConst table, int from, int to,
-                              boolean batch, String string) {
+                              boolean bulk, String string) {
 // XXX not implemented yet
     }
 
-    protected void setB0ToA(int nOps, boolean batch) {
+    protected void setB0ToA(int nOps, boolean bulk) {
 // XXX not implemented yet
     }
 
-    protected void nullB0ToA(int nOps, boolean batch) {
+    protected void nullB0ToA(int nOps, boolean bulk) {
 // XXX not implemented yet
     }
 
-    protected void navB0ToA(int nOps, boolean batch) {
+    protected void navB0ToA(int nOps, boolean bulk) {
 // XXX not implemented yet
     }
 
-    protected void navB0ToAalt(int nOps, boolean batch) {
+    protected void navB0ToAalt(int nOps, boolean bulk) {
 // XXX not implemented yet
     }
 
