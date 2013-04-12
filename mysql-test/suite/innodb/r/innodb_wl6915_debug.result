@@ -24,12 +24,6 @@ ERROR HY000: Lost connection to MySQL server during query
 select * from t2;
 i
 301
-xa commit 'tx2';
-select * from t2;
-i
-301
-202
-303
 drop table t2;
 use test;
 create temporary table t1

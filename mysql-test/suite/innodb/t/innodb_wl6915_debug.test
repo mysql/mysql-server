@@ -66,8 +66,6 @@ xa prepare 'tx2';
 --disable_reconnect
 #
 select * from t2;
-xa commit 'tx2';
-select * from t2;
 drop table t2;
 
 #-----------------------------------------------------------------------------
