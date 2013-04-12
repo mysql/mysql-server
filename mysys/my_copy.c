@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,7 +21,7 @@
 #include <utime.h>
 #elif defined(HAVE_SYS_UTIME_H)
 #include <sys/utime.h>
-#elif !defined(HPUX10)
+#else
 #include <time.h>
 struct utimbuf {
   time_t actime;

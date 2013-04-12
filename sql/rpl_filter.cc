@@ -160,11 +160,14 @@ Rpl_filter::db_ok(const char* db)
     DBUG_RETURN(1); // Ok to replicate if the user puts no constraints
 
   /*
-    If the user has specified restrictions on which databases to replicate
-    and db was not selected, do not replicate.
+    Previous behaviour "if the user has specified restrictions on which
+    databases to replicate and db was not selected, do not replicate" has
+    been replaced with "do replicate".
+    Since the filtering criteria is not equal to "NULL" the statement should
+    be logged into binlog.
   */
   if (!db)
-    DBUG_RETURN(0);
+    DBUG_RETURN(1);
 
   if (!do_db.is_empty()) // if the do's are not empty
   {

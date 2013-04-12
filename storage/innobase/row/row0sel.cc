@@ -1268,7 +1268,8 @@ row_sel_try_search_shortcut(
 			goto func_exit;
 		}
 	} else if (!srv_read_only_mode
-		   && !lock_sec_rec_cons_read_sees(rec, node->read_view)) {
+		   && !lock_sec_rec_cons_read_sees(
+			rec, index, node->read_view)) {
 
 		ret = SEL_RETRY;
 		goto func_exit;
@@ -1713,7 +1714,7 @@ skip_lock:
 			}
 		} else if (!srv_read_only_mode
 			   && !lock_sec_rec_cons_read_sees(
-				   rec, node->read_view)) {
+				   rec, index, node->read_view)) {
 
 			cons_read_requires_clust_rec = TRUE;
 		}
@@ -2061,7 +2062,7 @@ row_sel_step(
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
-		trx_start_if_not_started_xa(thr_get_trx(thr));
+		trx_start_if_not_started_xa(thr_get_trx(thr), false);
 
 		plan_reset_cursor(sel_node_get_nth_plan(node, 0));
 
@@ -2393,8 +2394,11 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-
-		if (type == DATA_BLOB) {
+                /* Temporarily, prefix index on geometry data follow
+                the current behavior (currently geometry is treated as
+                BLOB), and it will be replaced by R-tree index in another
+                worklog. */
+		if (DATA_LARGE_MTYPE(type)) {
 			/* The key field is a column prefix of a BLOB or
 			TEXT */
 
@@ -2499,7 +2503,7 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
-                        ut_ad(0);
+			ut_ad(0);
 		}
 
 		n_fields++;
@@ -2690,6 +2694,11 @@ row_sel_field_store_in_mysql_format_func(
 					 len);
 		break;
 
+	case DATA_GEOMETRY:
+		/* We store geometry data as BLOB data. */
+		row_mysql_store_geometry(dest, templ->mysql_col_len, data, len);
+		break;
+
 	case DATA_MYSQL:
 		memcpy(dest, data, len);
 
@@ -2798,7 +2807,7 @@ row_sel_store_mysql_field_func(
 		ut_a(!prebuilt->trx->has_search_latch);
 		ut_ad(field_no == templ->clust_rec_field_no);
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 			if (prebuilt->blob_heap == NULL) {
 				prebuilt->blob_heap = mem_heap_create(
 					UNIV_PAGE_SIZE);
@@ -2864,7 +2873,7 @@ row_sel_store_mysql_field_func(
 			return(TRUE);
 		}
 
-		if (UNIV_UNLIKELY(templ->type == DATA_BLOB)) {
+		if (DATA_LARGE_MTYPE(templ->type)) {
 
 			/* It is a BLOB field locally stored in the
 			InnoDB record: we MUST copy its contents to
@@ -3704,8 +3713,7 @@ row_search_for_mysql(
 		putc('\n', stderr);
 
 		mem_analyze_corruption(prebuilt);
-
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
 #if 0
@@ -3740,8 +3748,8 @@ row_search_for_mysql(
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
 
-	if (UNIV_UNLIKELY(rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED)
-	    && trx->has_search_latch) {
+	if (trx->has_search_latch
+	    && rw_lock_get_writer(&btr_search_latch) != RW_LOCK_NOT_LOCKED) {
 
 		/* There is an x-latch request on the adaptive hash index:
 		release the s-latch to reduce starvation and wait for
@@ -4015,7 +4023,7 @@ release_search_latch_if_needed:
 	      || trx->read_view
 	      || srv_read_only_mode);
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	if (trx->isolation_level <= TRX_ISO_READ_COMMITTED
 	    && prebuilt->select_lock_type != LOCK_NONE
@@ -4168,6 +4176,7 @@ rec_loop:
 	/* PHASE 4: Look for matching records in a loop */
 
 	rec = btr_pcur_get_rec(pcur);
+
 	ut_ad(!!page_rec_is_comp(rec) == comp);
 #ifdef UNIV_SEARCH_DEBUG
 	/*
@@ -4220,6 +4229,7 @@ rec_loop:
 				goto lock_wait_or_error;
 			}
 		}
+
 		/* A page supremum record cannot be in the result set: skip
 		it now that we have placed a possible lock on it */
 
@@ -4586,7 +4596,7 @@ no_gap_lock:
 
 			if (!srv_read_only_mode
 			    && !lock_sec_rec_cons_read_sees(
-				    rec, trx->read_view)) {
+					rec, index, trx->read_view)) {
 				/* We should look at the clustered index.
 				However, as this is a non-locking read,
 				we can skip the clustered index lookup if
@@ -4779,8 +4789,7 @@ requires_clust_rec:
 	    && !prebuilt->clust_index_was_generated
 	    && !prebuilt->used_in_HANDLER
 	    && !prebuilt->innodb_api
-	    && prebuilt->template_type
-	    != ROW_MYSQL_DUMMY_TEMPLATE
+	    && prebuilt->template_type != ROW_MYSQL_DUMMY_TEMPLATE
 	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
@@ -5168,8 +5177,8 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	table = dict_table_open_on_name(norm_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(
+		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 
@@ -5178,15 +5187,21 @@ row_search_check_if_query_cache_permitted(
 
 	/* Start the transaction if it is not started yet */
 
-	trx_start_if_not_started(trx);
+	trx_start_if_not_started(trx, false);
 
 	/* If there are locks on the table or some trx has invalidated the
-	cache up to our trx id, then ret = FALSE.
-	We do not check what type locks there are on the table, though only
-	IX type locks actually would require ret = FALSE. */
+	cache before this transaction started then this transaction cannot
+	read/write from/to the cache.
+
+	If a read view has not been created for the transaction then it doesn't
+	really matter what this transactin sees. If a read view was created
+	then the view low_limit_id is the max trx id that this transaction
+	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && trx->id >= table->query_cache_inv_trx_id) {
+	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+		|| trx->read_view == NULL
+		|| trx->read_view->low_limit_id >= table->query_cache_inv_id)) {
 
 		ret = TRUE;
 
@@ -5194,7 +5209,8 @@ row_search_check_if_query_cache_permitted(
 		transaction if it does not yet have one */
 
 		if (trx->isolation_level >= TRX_ISO_REPEATABLE_READ
-		    && !trx->read_view) {
+		    && trx->read_view == NULL
+		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
 				trx->id, trx->global_read_view_heap);

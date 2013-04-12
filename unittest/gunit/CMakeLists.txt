@@ -218,6 +218,7 @@ SET(TESTS
   alignment
   bounded_queue
   bounds_checked_array
+  bitmap
   byteorder
 ##  client_string TODO: move to a client test directory
   cost_estimate
@@ -236,8 +237,10 @@ SET(TESTS
   mysys_lf
   mysys_my_atomic
   mysys_my_malloc
+  mysys_my_pwrite
   mysys_my_rdtsc
   mysys_my_vsnprintf
+  mysys_my_write
   sql_list
   sql_plist
   sql_string
@@ -253,12 +256,15 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
+  explain_filename
   field
   get_diagnostics
   handler
   insert_delayed
   item
   item_func_now_local
+  item_timefunc
+  item_like
   join_tab_sort
   log_throttle
   make_sortkey
@@ -268,6 +274,7 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
+  tc_log_mmap
 )
 
 ## Merging tests into fewer executables saves *a lot* of

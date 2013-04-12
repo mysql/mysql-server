@@ -179,7 +179,7 @@ bool mysql_rename_tables(THD *thd, TABLE_LIST *table_list, bool silent)
   }
 
   if (!error)
-    query_cache_invalidate3(thd, table_list, 0);
+    query_cache.invalidate(thd, table_list, FALSE);
 
 err:
   DBUG_RETURN(error || binlog_error);

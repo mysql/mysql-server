@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,9 @@ Created 5/11/2006 Osku Salerma
 #include "my_sys.h"
 #include "m_string.h"
 #include "debug_sync.h"
+#include "my_dbug.h"
+#include "gstream.h"
+#include "spatial.h"
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
@@ -383,8 +386,8 @@ ulint
 innobase_mysql_fts_get_token(
 /*=========================*/
 	CHARSET_INFO*	charset,	/*!< in: Character set */
-	byte*		start,		/*!< in: start of text */
-	byte*		end,		/*!< in: one character past end of
+	const byte*	start,		/*!< in: start of text */
+	const byte*	end,		/*!< in: one character past end of
 					text */
 	fts_string_t*	token,		/*!< out: token's text */
 	ulint*		offset);	/*!< out: offset to token,
@@ -424,7 +427,7 @@ innobase_get_fts_charset(
 Returns true if transaction should be flagged as read-only.
 @return	true if the thd is marked as read-only */
 UNIV_INTERN
-ibool
+bool
 thd_trx_is_read_only(
 /*=================*/
 	THD*	thd);	/*!< in/out: thread handle */

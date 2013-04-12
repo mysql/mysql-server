@@ -337,7 +337,6 @@ TODO list:
 #include "debug_sync.h"                         // DEBUG_SYNC
 #include "opt_trace.h"
 #include "sql_table.h"
-#ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
 #include <hash.h>
@@ -602,20 +601,34 @@ void Query_cache::unlock(void)
 /**
   Helper function for determine if a SELECT statement has a SQL_NO_CACHE
   directive.
-  
-  @param sql A pointer to the first white space character after SELECT
-  
+
+  @param sql           Query string
+  @param offset        Offset of the first whitespace character after SELECT
+  @param query_length  The total length of the query string
+
   @return
    @retval TRUE The character string contains SQL_NO_CACHE
    @retval FALSE No directive found.
 */
- 
-static bool has_no_cache_directive(char *sql)
+
+static bool has_no_cache_directive(const char *sql, uint offset,
+                                   uint query_length)
 {
-  int i=0;
-  while (sql[i] == ' ')
+  uint i= offset;
+
+  // Must have at least one whitespace char before SQL_NO_CACHE
+  if (!my_isspace(system_charset_info, sql[i]))
+    return false;
+
+  // But can have several
+  while (i < query_length &&
+         my_isspace(system_charset_info, sql[i]))
     ++i;
-    
+
+  // Check that we have enough chars left for SQL_NO_CACHE
+  if (i + 12 >= query_length)
+    return false;
+
   if (my_toupper(system_charset_info, sql[i])    == 'S' &&
       my_toupper(system_charset_info, sql[i+1])  == 'Q' &&
       my_toupper(system_charset_info, sql[i+2])  == 'L' &&
@@ -628,10 +641,10 @@ static bool has_no_cache_directive(char *sql)
       my_toupper(system_charset_info, sql[i+9])  == 'C' &&
       my_toupper(system_charset_info, sql[i+10]) == 'H' &&
       my_toupper(system_charset_info, sql[i+11]) == 'E' &&
-      my_toupper(system_charset_info, sql[i+12]) == ' ')
-    return TRUE;
-  
-  return FALSE;       
+      my_isspace(system_charset_info, sql[i+12]))
+    return true;
+
+  return false;
 }
 
 
@@ -1005,7 +1018,7 @@ void Query_cache::end_of_result(THD *thd)
 
   if (thd->killed || thd->is_error())
   {
-    query_cache_abort(&thd->query_cache_tls);
+    abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
 
@@ -1384,7 +1397,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
   }
   else if (thd->lex->sql_command == SQLCOM_SELECT)
-    statistic_increment(refused, &structure_guard_mutex);
+    refused++;
 
 end:
   DBUG_VOID_RETURN;
@@ -1518,7 +1531,10 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       goto err;
     }
     
-    if (query_length > 20 && has_no_cache_directive(&sql[i+6]))
+    DBUG_EXECUTE_IF("test_sql_no_cache",
+                    DBUG_ASSERT(has_no_cache_directive(sql, i+6,
+                                                       query_length)););
+    if (has_no_cache_directive(sql, i+6, query_length))
     {
       /*
         We do not increase 'refused' statistics here since it will be done
@@ -1695,7 +1711,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       {
         DBUG_PRINT("qcache",
                    ("Temporary table detected: '%s.%s'",
-                    table_list.db, table_list.alias));
+                    tmptable->s->db.str, tmptable->s->table_name.str));
         unlock();
         /*
           We should not store result of this query because it contain
@@ -3718,7 +3734,9 @@ Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
   TABLE_COUNTER_TYPE table_count;
   DBUG_ENTER("Query_cache::is_cacheable");
 
-  if (query_cache_is_cacheable_query(lex) &&
+  if (lex->sql_command == SQLCOM_SELECT &&
+      lex->safe_to_cache_query &&
+      !lex->describe &&
       (thd->variables.query_cache_type == 1 ||
        (thd->variables.query_cache_type == 2 && (lex->select_lex.options &
 						 OPTION_TO_QUERY_CACHE))))
@@ -4910,6 +4928,4 @@ err2:
 }
 
 #endif /* DBUG_OFF */
-
-#endif /*HAVE_QUERY_CACHE*/
 

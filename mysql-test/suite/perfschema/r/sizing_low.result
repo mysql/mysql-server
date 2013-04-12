@@ -7,6 +7,9 @@ table_open_cache	100
 show variables like "max_connections";
 Variable_name	Value
 max_connections	50
+show variables like "open_files_limit";
+Variable_name	Value
+open_files_limit	1024
 show variables like "%performance_schema%";
 Variable_name	Value
 performance_schema	ON
@@ -216,7 +219,7 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	4
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	82
+performance_schema	(table_share_hash).count	80
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5

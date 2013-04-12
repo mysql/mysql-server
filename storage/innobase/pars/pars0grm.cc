@@ -426,8 +426,6 @@ YYID (i)
 #    define YYSTACK_ALLOC __builtin_alloca
 #   elif defined __BUILTIN_VA_ARG_INCR
 #    include <alloca.h> /* INFRINGES ON USER NAME SPACE */
-#   elif defined _AIX
-#    define YYSTACK_ALLOC __alloca
 #   elif defined _MSC_VER
 #    include <malloc.h> /* INFRINGES ON USER NAME SPACE */
 #    define alloca _alloca

@@ -511,6 +511,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   char ***argvp= NULL;
   int fake_argc= 1;
   char *fake_argv[2];
+  char **foo= &fake_argv[0];
   char fake_server[]= "server";
   char fake_embedded[]= "embedded";
   char *fake_groups[]= { fake_server, fake_embedded, NULL };
@@ -544,7 +545,6 @@ int init_embedded_server(int argc, char **argv, char **groups)
     fake_argv[0]= fake_name;
     fake_argv[1]= NULL;
 
-    char **foo= &fake_argv[0];
     argcp= &fake_argc;
     argvp= &foo;
   }
@@ -673,7 +673,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
   mysqld_server_started= 1;
-  mysql_cond_signal(&COND_server_started);
+  mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -798,7 +798,8 @@ int check_embedded_connection(MYSQL *mysql, const char *db)
   thd_init_client_charset(thd, mysql->charset->number);
   thd->update_charset();
   Security_context *sctx= thd->security_ctx;
-  sctx->host_or_ip= sctx->host= (char*) my_localhost;
+  sctx->set_host(my_localhost);
+  sctx->host_or_ip= sctx->get_host()->ptr();
   strmake(sctx->priv_host, (char*) my_localhost,  MAX_HOSTNAME-1);
   strmake(sctx->priv_user, mysql->user,  USERNAME_LENGTH-1);
   sctx->user= my_strdup(mysql->user, MYF(0));

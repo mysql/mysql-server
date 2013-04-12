@@ -87,7 +87,9 @@ __weak_alias(strnunvisx,_strnunvisx)
 #define S_NUMBER	13	/* collecting number */
 #define S_STRING	14	/* collecting string */
 
+#ifndef isoctal
 #define	isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
+#endif
 #define xtod(c)		(isdigit(c) ? (c - '0') : ((tolower(c) - 'a') + 10))
 #define XTOD(c)		(isdigit(c) ? (c - '0') : ((c - 'A') + 10))
 

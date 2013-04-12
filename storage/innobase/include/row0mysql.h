@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -105,6 +105,36 @@ row_mysql_read_blob_ref(
 					MySQL format */
 	ulint		col_len);	/*!< in: BLOB reference length
 					(not BLOB length) */
+/*******************************************************************//**
+Converts InnoDB geometry data format to MySQL data format. */
+UNIV_INTERN
+void
+row_mysql_store_geometry(
+/*=====================*/
+	byte*		dest,		/*!< in/out: where to store */
+	ulint		dest_len,	/*!< in: dest buffer size: determines into
+					how many bytes the geometry length is stored,
+					the space for the length may vary from 1
+					to 4 bytes */
+	const byte*	src,		/*!< in: geometry data; if the value to store
+					is SQL NULL this should be NULL pointer */
+	ulint		src_len);	/*!< in: geometry length; if the value to store
+					is SQL NULL this should be 0; remember
+					also to set the NULL bit in the MySQL record
+					header! */
+/*******************************************************************//**
+Reads a reference to a geometry data in the MySQL format.
+@return	pointer to geometry data */
+UNIV_INTERN
+const byte*
+row_mysql_read_geometry(
+/*====================*/
+	ulint*		len,		/*!< out: geometry data length */
+	const byte*	ref,		/*!< in: reference in the
+					MySQL format */
+	ulint		col_len)	/*!< in: BLOB reference length
+					(not BLOB length) */
+	__attribute__((nonnull(1,2), warn_unused_result));
 /**************************************************************//**
 Pad a column with spaces. */
 UNIV_INTERN
@@ -387,7 +417,7 @@ row_create_table_for_mysql(
 				added to the data dictionary cache) */
 	trx_t*		trx,	/*!< in/out: transaction */
 	bool		commit)	/*!< in: if true, commit the transaction */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__(( warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
 to create an index results in dropping the whole table! This is no problem
@@ -406,7 +436,7 @@ row_create_index_for_mysql(
 					index columns, which are
 					then checked for not being too
 					large. */
-	__attribute__((nonnull(1,2), warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
@@ -422,17 +452,19 @@ row_table_add_foreign_constraints(
 	trx_t*		trx,		/*!< in: transaction */
 	const char*	sql_string,	/*!< in: table create statement where
 					foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-					table2 can be written also with the
-					database name before it: test.table2 */
+					FOREIGN KEY (a, b) REFERENCES
+					table2(c, d), table2 can be written
+					also with the database name before it:
+					test.table2 */
 	size_t		sql_length,	/*!< in: length of sql_string */
 	const char*	name,		/*!< in: table full name in the
 					normalized form
 					database_name/table_name */
-	ibool		reject_fks)	/*!< in: if TRUE, fail with error
+	bool		is_temp_table,	/*!< in: true if temp-table */
+	bool		reject_fks)	/*!< in: if TRUE, fail with error
 					code DB_CANNOT_ADD_CONSTRAINT if
 					any foreign keys are found. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
@@ -545,17 +577,21 @@ row_rename_table_for_mysql(
 	bool		commit)		/*!< in: whether to commit trx */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Checks that the index contains entries in an ascending order, unique
-constraint is not broken, and calculates the number of index entries
+Scans an index for either COOUNT(*) or CHECK TABLE.
+If CHECK TABLE; Checks that the index contains entries in an ascending order,
+unique constraint is not broken, and calculates the number of index entries
 in the read view of the current transaction.
-@return true if ok */
+@return DB_SUCCESS or other error */
 UNIV_INTERN
-bool
-row_check_index_for_mysql(
-/*======================*/
+dberr_t
+row_scan_index_for_mysql(
+/*=====================*/
 	row_prebuilt_t*		prebuilt,	/*!< in: prebuilt struct
 						in MySQL handle */
 	const dict_index_t*	index,		/*!< in: index */
+	bool			check_keys,	/*!< in: true=check for mis-
+						ordered or duplicate records,
+						false=count the rows only */
 	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
 	__attribute__((nonnull, warn_unused_result));

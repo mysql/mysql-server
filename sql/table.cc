@@ -1623,13 +1623,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* charset and geometry_type share the same byte in frm */
       if (field_type == MYSQL_TYPE_GEOMETRY)
       {
-#ifdef HAVE_SPATIAL
 	geom_type= (Field::geometry_type) strpos[14];
 	charset= &my_charset_bin;
-#else
-	error= 4;  // unsupported field type
-	goto err;
-#endif
       }
       else
       {
@@ -2097,6 +2092,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   if (!(outparam->alias= my_strdup(alias, MYF(MY_WME))))
     goto err;
   outparam->quick_keys.init();
+  outparam->possible_quick_keys.init();
   outparam->covering_keys.init();
   outparam->merge_keys.init();
   outparam->keys_in_use_for_query.init();
@@ -2866,7 +2862,7 @@ void append_unescaped(String *res, const char *pos, uint length)
 
   for (; pos != end ; pos++)
   {
-#if defined(USE_MB) && MYSQL_VERSION_ID < 40100
+#if MYSQL_VERSION_ID < 40100
     uint mblen;
     if (use_mb(default_charset_info) &&
         (mblen= my_ismbchar(default_charset_info, pos, end)))
@@ -3217,16 +3213,10 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
   const char *end= name+length;
   if (!length || length > NAME_LEN)
     return IDENT_NAME_WRONG;
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   bool last_char_is_space= FALSE;
-#else
-  if (name[length-1]==' ')
-    return IDENT_NAME_WRONG;
-#endif
 
   while (name != end)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3238,19 +3228,16 @@ enum_ident_name_check check_table_name(const char *name, size_t length,
         continue;
       }
     }
-#endif
     if (check_for_path_chars &&
         (*name == '/' || *name == '\\' || *name == '~' || *name == FN_EXTCHAR))
       return IDENT_NAME_WRONG;
     name++;
     name_length++;
   }
-#if defined(USE_MB) && defined(USE_MB_IDENT)
   if (last_char_is_space)
    return IDENT_NAME_WRONG;
   else if (name_length > NAME_CHAR_LEN)
    return IDENT_NAME_TOO_LONG;
-#endif
   return IDENT_NAME_OK;
 }
 
@@ -3263,7 +3250,6 @@ bool check_column_name(const char *name)
 
   while (*name)
   {
-#if defined(USE_MB) && defined(USE_MB_IDENT)
     last_char_is_space= my_isspace(system_charset_info, *name);
     if (use_mb(system_charset_info))
     {
@@ -3276,9 +3262,6 @@ bool check_column_name(const char *name)
         continue;
       }
     }
-#else
-    last_char_is_space= *name==' ';
-#endif
     if (*name == NAMES_SEP_CHAR)
       return 1;
     name++;
@@ -3746,6 +3729,50 @@ void TABLE::reset_item_list(List<Item> *item_list) const
   }
 }
 
+/**
+  Create a TABLE_LIST object representing a nested join
+
+  @param allocator  Mem root allocator that object is created from.
+  @param alias      Name of nested join object
+  @param embedding  Pointer to embedding join nest (or NULL if top-most)
+  @param belongs_to List of tables this nest belongs to (never NULL).
+  @param select     The query block that this join nest belongs within.
+
+  @returns Pointer to created join nest object, or NULL if error.
+*/
+
+TABLE_LIST *TABLE_LIST::new_nested_join(MEM_ROOT *allocator,
+                            const char *alias,
+                            TABLE_LIST *embedding,
+                            List<TABLE_LIST> *belongs_to,
+                            class st_select_lex *select)
+{
+  DBUG_ASSERT(belongs_to && select);
+
+  TABLE_LIST *const join_nest=
+    (TABLE_LIST *) alloc_root(allocator, ALIGN_SIZE(sizeof(TABLE_LIST))+
+                                                    sizeof(NESTED_JOIN));
+  if (join_nest == NULL)
+    return NULL;
+
+  memset(join_nest, 0, ALIGN_SIZE(sizeof(TABLE_LIST)) + sizeof(NESTED_JOIN));
+  join_nest->nested_join=
+    (NESTED_JOIN *) ((uchar *)join_nest + ALIGN_SIZE(sizeof(TABLE_LIST)));
+
+  join_nest->db= (char *)"";
+  join_nest->db_length= 0;
+  join_nest->table_name= (char *)"";
+  join_nest->table_name_length= 0;
+  join_nest->alias= (char *)alias;
+  
+  join_nest->embedding= embedding;
+  join_nest->join_list= belongs_to;
+  join_nest->select_lex= select;
+
+  join_nest->nested_join->join_list.empty();
+
+  return join_nest;
+}
 /*
   calculate md5 of query
 

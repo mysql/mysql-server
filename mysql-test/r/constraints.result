@@ -29,7 +29,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `constraint_1` (`a`),
   UNIQUE KEY `key_1` (`a`),
   UNIQUE KEY `key_2` (`a`)
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 drop table if exists t_illegal;
 create table t_illegal (a int, b int, check a>b);

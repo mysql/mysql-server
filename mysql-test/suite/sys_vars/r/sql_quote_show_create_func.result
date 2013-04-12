@@ -13,7 +13,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
   `a` varchar(20) DEFAULT NULL,
   `b` varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 EXPECTING identifiers a, b, t1 TO BE quoted like 'a','b','t1'
 '#-----------------------------FN_DYNVARS_163_02------------------------------------#'
 SET SESSION sql_quote_show_create = FALSE;
@@ -26,7 +26,7 @@ Table	Create Table
 t1	CREATE TEMPORARY TABLE t1 (
   a varchar(20) DEFAULT NULL,
   b varchar(20) DEFAULT NULL
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
 EXPECTING identifiers a, b, t1 NOT TO BE quoted like 'a','b','t1'
 '#----------------------------FN_DYNVARS_163_03--------------------------------------#'
 ** Connecting con_int1 using root **

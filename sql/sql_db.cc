@@ -871,9 +871,9 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 
     ha_drop_database(path);
     tmp_disable_binlog(thd);
-    query_cache_invalidate1(db);
+    query_cache.invalidate(db);
     (void) sp_drop_db_routines(thd, db); /* @todo Do not ignore errors */
-#ifdef HAVE_EVENT_SCHEDULER
+#ifndef EMBEDDED_LIBRARY
     Events::drop_schema_events(thd, db);
 #endif
     reenable_binlog(thd);
@@ -1536,8 +1536,8 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
   db_access=
     test_all_bits(sctx->master_access, DB_ACLS) ?
     DB_ACLS :
-    acl_get(sctx->host,
-            sctx->ip,
+    acl_get(sctx->get_host()->ptr(),
+            sctx->get_ip()->ptr(),
             sctx->priv_user,
             new_db_file_name.str,
             FALSE) | sctx->master_access;

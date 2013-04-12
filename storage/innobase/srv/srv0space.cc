@@ -381,7 +381,7 @@ Tablespace::open_data_file(
 	ibool	success;
 
 	file.m_handle = os_file_create(
-		innodb_file_data_key, file.m_filename, file.m_open_flags,
+		innodb_data_file_key, file.m_filename, file.m_open_flags,
 		OS_FILE_NORMAL, OS_DATA_FILE, &success);
 
 	if (!success) {
@@ -617,6 +617,10 @@ Tablespace::open_file(
 
 	if (file.m_type != SRV_OLD_RAW) {
 		err = check_size(file);
+		if (err != DB_SUCCESS) {
+			os_file_close(file.m_handle);
+			file.m_handle = os_file_t(~0);
+		}
 	}
 
 	return(err);
@@ -697,13 +701,15 @@ Tablespace::read_lsn_and_check_flags(
 
 /**
 Check if a file can be opened in the correct mode.
-@param file - data file spec
+@param file 	- data file spec
+@param reason_if_failed - exact reason if file_status check failed.
 @return DB_SUCCESS or error code. */
 UNIV_INTERN
 dberr_t
 Tablespace::check_file_status(
 /*==========================*/
-	const file_t&	file)
+	const file_t&	file,
+	file_status_t&  reason_if_failed)
 {
 	os_file_stat_t	stat;
 
@@ -711,6 +717,7 @@ Tablespace::check_file_status(
 
 	dberr_t	err = os_file_get_status(file.m_filename, &stat, true);
 
+	reason_if_failed = FILE_STATUS_VOID;
 	/* File exists but we can't read the rw-permission settings. */
 	switch (err) {
 	case DB_FAIL:
@@ -720,6 +727,7 @@ Tablespace::check_file_status(
 			file.m_filename);
 
 		err = DB_ERROR;
+		reason_if_failed = FILE_STATUS_RW_PERMISSION_ERROR;
 		break;
 
 	case DB_SUCCESS:
@@ -731,11 +739,14 @@ Tablespace::check_file_status(
 			if (!stat.rw_perm) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
-					"The system tablespace must be %s",
+					"%s must be %s",
+					file.m_filename,
 					!srv_read_only_mode
 					? "writable" : "readable");
 
 				err = DB_ERROR;
+				reason_if_failed =
+					FILE_STATUS_READ_WRITE_ERROR;
 			}
 
 		} else {
@@ -746,6 +757,7 @@ Tablespace::check_file_status(
 				file.m_filename);
 
 			err = DB_ERROR;
+			reason_if_failed = FILE_STATUS_NOT_REGULAR_FILE_ERROR;
 		}
 		break;
 
@@ -769,7 +781,7 @@ dberr_t
 Tablespace::file_not_found(
 /*=======================*/
 	file_t&	file,
-	ibool*	create_new_db)
+	bool*	create_new_db)
 {
 	file.m_exists = false;
 
@@ -788,14 +800,13 @@ Tablespace::file_not_found(
 		ut_a(!*create_new_db);
 		*create_new_db = TRUE;
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The first specified %sdata file \"%s\" "
-			"did not exist%s",
-			((m_space_id == TRX_SYS_SPACE) ? "" : "temp-"),
-			file.m_name,
-			(m_space_id == TRX_SYS_SPACE)
-			? " : a new database to be created!"
-			: "");
+		if (m_space_id == TRX_SYS_SPACE) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"The first specified data file \"%s\" "
+				"did not exist%s",
+				file.m_name,
+				" : a new database to be created!");
+		}
 
 	} else if (&file == &m_files.back()) {
 
@@ -877,7 +888,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::check_file_spec(
 /*========================*/
-	ibool*	create_new_db,
+	bool*	create_new_db,
 	ulint	min_expected_tablespace_size)
 {
 	srv_normalize_path_for_win(m_tablespace_path);
@@ -921,7 +932,8 @@ Tablespace::check_file_spec(
 
 		make_name(*it, m_tablespace_path);
 
-		err = check_file_status(*it);
+		file_status_t reason_if_failed;
+		err = check_file_status(*it, reason_if_failed);
 
 		if (err == DB_NOT_FOUND) {
 
@@ -932,6 +944,14 @@ Tablespace::check_file_spec(
 			}
 
 		} else if (err != DB_SUCCESS) {
+			if (reason_if_failed == FILE_STATUS_READ_WRITE_ERROR) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"The system %stablespace must be %s",
+					m_space_id == TRX_SYS_SPACE
+					? "" : "temp-",
+					!srv_read_only_mode
+					? "writable" : "readable");
+			}
 
 			ut_a(err != DB_FAIL);
 			break;
@@ -1140,12 +1160,14 @@ Tablespace::delete_files()
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
 		make_name(*it, m_tablespace_path);
+		bool file_pre_exists;
+		bool success = os_file_delete_if_exists(
+			innodb_data_file_key, it->m_filename, &file_pre_exists);
 
-		if (os_file_delete_if_exists(
-			innodb_file_data_key, it->m_filename)) {
+		if (success && file_pre_exists) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Removed temporary tablespace data file: "
-				"\"%s\" (if exists)", it->m_name);
+				"\"%s\"", it->m_name);
 		}
 	}
 }

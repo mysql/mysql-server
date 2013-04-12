@@ -263,6 +263,7 @@ easy way to get it to work. See http://bugs.mysql.com/bug.php?id=52263. */
 #if defined(INNODB_COMPILER_HINTS)      \
     && defined __GNUC__                 \
     && (__GNUC__ > 4 || __GNUC__ == 4 && __GNUC_MINOR__ >= 3)
+
 /** Starting with GCC 4.3, the "cold" attribute is used to inform the
 compiler that a function is unlikely executed.  The function is
 optimized for size rather than speed and on many targets it is placed
@@ -339,7 +340,7 @@ typedef enum innodb_file_formats_enum innodb_file_formats_t;
 #define UNIV_PAGE_SIZE_SHIFT	srv_page_size_shift
 
 /** The universal page size of the database */
-#define UNIV_PAGE_SIZE		srv_page_size
+#define UNIV_PAGE_SIZE		((ulint) srv_page_size)
 
 /** log2 of smallest compressed page size (1<<10 == 1024 bytes)
 Note: This must never change! */
@@ -493,11 +494,11 @@ typedef unsigned long long int	ullint;
 #define ULINT_MAX		((ulint)(-2))
 
 /** Maximum value for ib_uint64_t */
-#define IB_ULONGLONG_MAX	((ib_uint64_t) (~0ULL))
-#define IB_UINT64_MAX		IB_ULONGLONG_MAX
+#define IB_UINT64_MAX		((ib_uint64_t) (~0ULL))
 
 /** The generic InnoDB system object identifier data type */
-typedef ib_uint64_t	ib_id_t;
+typedef ib_uint64_t		ib_id_t;
+#define IB_ID_MAX		IB_UINT64_MAX
 
 /** The 'undefined' value for a ullint */
 #define ULLINT_UNDEFINED        ((ullint)(-1))
@@ -640,6 +641,10 @@ typedef void* os_thread_ret_t;
 			(const void*) (addr), (unsigned) (size), (long)	\
 			(((const char*) _p) - ((const char*) (addr))));	\
 	} while (0)
+# define UNIV_MEM_TRASH(addr, c, size) do {				\
+	ut_d(memset(addr, c, size));					\
+	UNIV_MEM_INVALID(addr, size);					\
+	} while (0)
 #else
 # define UNIV_MEM_VALID(addr, size) do {} while(0)
 # define UNIV_MEM_INVALID(addr, size) do {} while(0)
@@ -651,6 +656,7 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_RW_ABORT(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
+# define UNIV_MEM_TRASH(addr, c, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\
 	UNIV_MEM_ASSERT_W(addr, size);			\

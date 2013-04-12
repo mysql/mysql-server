@@ -724,7 +724,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   uint buflen;
   const char *name;
   int i;
-  uint size;
+  size_t size;
 
   DBUG_ENTER("pfs_show_status");
 
@@ -738,7 +738,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
   if (stat != HA_ENGINE_STATUS)
     DBUG_RETURN(false);
 
-  uint total_memory= 0;
+  size_t total_memory= 0;
 
   for (i=0; /* empty */; i++)
   {
@@ -1432,7 +1432,7 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       break;
     }
 
-    buflen= int10_to_str(size, buf, 10) - buf;
+    buflen= longlong10_to_str(size, buf, 10) - buf;
     if (print(thd,
               PERFORMANCE_SCHEMA_str.str, PERFORMANCE_SCHEMA_str.length,
               name, strlen(name),

@@ -3776,3 +3776,40 @@ void add_plugin_options(std::vector<my_option> *options, MEM_ROOT *mem_root)
   }
 }
 
+/** 
+  Searches for a correctly loaded plugin of a particular type by name
+
+  @param plugin   the name of the plugin we're looking for
+  @param type     type of the plugin (0-MYSQL_MAX_PLUGIN_TYPE_NUM)
+  @return plugin, or NULL if not found
+*/
+struct st_plugin_int *plugin_find_by_type(LEX_STRING *plugin, int type)
+{
+  st_plugin_int *ret;
+  DBUG_ENTER("plugin_find_by_type");
+
+  ret= plugin_find_internal(plugin, type);
+  DBUG_RETURN(ret && ret->state == PLUGIN_IS_READY ? ret : NULL);
+}
+
+
+/** 
+  Locks the plugin strucutres so calls to plugin_find_inner can be issued.
+
+  Must be followed by unlock_plugin_data.
+*/
+int lock_plugin_data()
+{
+  DBUG_ENTER("lock_plugin_data");
+  DBUG_RETURN(mysql_mutex_lock(&LOCK_plugin));
+}
+
+
+/** 
+  Unlocks the plugin strucutres as locked by lock_plugin_data()
+*/
+int unlock_plugin_data()
+{
+  DBUG_ENTER("unlock_plugin_data");
+  DBUG_RETURN(mysql_mutex_unlock(&LOCK_plugin));
+}

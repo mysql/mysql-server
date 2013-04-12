@@ -60,7 +60,7 @@ bool mysql_union(THD *thd, LEX *lex, select_result *result,
     Transactional engines must been signalled that the statement started,
     which external_lock signals.
   */
-  query_cache_store_query(thd, thd->lex->query_tables);
+  query_cache.store_query(thd, thd->lex->query_tables);
 
   res= unit->optimize() || unit->exec();
   res|= unit->cleanup();
@@ -570,8 +570,14 @@ bool st_select_lex_unit::optimize()
         sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 
       saved_error= sl->join->optimize();
-      /* Save estimated number of rows. */
-      result->estimated_rowcount+= sl->join->best_rowcount;
+      /*
+        Accumulate estimated number of rows. Notice that an implicitly grouped
+        query has one row (with HAVING it has zero or one rows).
+      */
+      result->estimated_rowcount+=
+        sl->with_sum_func && sl->group_list.elements == 0 ?
+          1 : sl->join->best_rowcount;
+
       thd->lex->current_select= lex_select_save;
     }
     if (saved_error)

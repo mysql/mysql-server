@@ -97,7 +97,8 @@ trx_rollback_to_savepoint_low(
 
 	trx->error_state = DB_SUCCESS;
 
-	if (trx->insert_undo || trx->update_undo) {
+	if (trx->insert_undo != 0 || trx->update_undo != 0) {
+		ut_ad(trx->rseg != 0);
 		thr = pars_complete_graph_for_exec(roll_node, trx, heap);
 
 		ut_a(thr == que_fork_start_command(
@@ -148,7 +149,7 @@ trx_rollback_to_savepoint(
 
 	srv_active_wake_master_thread();
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	trx_rollback_to_savepoint_low(trx, savept);
 
@@ -461,7 +462,7 @@ trx_savepoint_for_mysql(
 {
 	trx_named_savept_t*	savep;
 
-	trx_start_if_not_started_xa(trx);
+	trx_start_if_not_started_xa(trx, true);
 
 	savep = trx_savepoint_find(trx, savepoint_name);
 
@@ -1248,7 +1249,7 @@ static
 que_t*
 trx_roll_graph_build(
 /*=================*/
-	trx_t*	trx)	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
 {
 	mem_heap_t*	heap;
 	que_fork_t*	fork;
@@ -1288,7 +1289,11 @@ trx_rollback_start(
 
 	/* Initialize the rollback field in the transaction */
 
+	ut_ad(!trx->roll_limit);
+	ut_ad(!trx->in_rollback);
+
 	trx->roll_limit = roll_limit;
+	ut_d(trx->in_rollback = true);
 
 	ut_a(trx->roll_limit <= trx->undo_no);
 
@@ -1366,7 +1371,7 @@ trx_rollback_step(
 
 	if (node->state == ROLL_NODE_SEND) {
 		trx_t*		trx;
-		ib_id_t		roll_limit = 0;
+		ib_id_t		roll_limit;
 
 		trx = thr_get_trx(thr);
 

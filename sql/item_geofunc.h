@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 
 
 /* This file defines all spatial functions */
-
-#ifdef HAVE_SPATIAL
 
 #include "gcalc_slicescan.h"
 
@@ -538,10 +536,5 @@ public:
 
 #define GEOM_NEW(thd, obj_constructor) new (thd->mem_root) obj_constructor
 
-#else /*HAVE_SPATIAL*/
-
-#define GEOM_NEW(thd, obj_constructor) NULL
-
-#endif /*HAVE_SPATIAL*/
 #endif /*ITEM_GEOFUNC_INCLUDED*/
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -215,6 +215,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   table->covering_keys.clear_all();
   table->quick_keys.clear_all();		// Can't use 'only index'
+  table->possible_quick_keys.clear_all();
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   /* Prune a second time to be able to prune on subqueries in WHERE clause. */
@@ -316,8 +317,12 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
   }
 
   /* If quick select is used, initialize it before retrieving rows. */
-  if (select && select->quick && select->quick->reset())
-    goto exit_without_my_ok;
+  if (select && select->quick && (error= select->quick->reset()))
+  {
+     table->file->print_error(error, MYF(0));
+     goto exit_without_my_ok;
+  }
+
   if (usable_index==MAX_KEY || (select && select->quick))
     error= init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
@@ -433,7 +438,7 @@ cleanup:
   */
   if (deleted)
   {
-    query_cache_invalidate3(thd, table_list, 1);
+    query_cache.invalidate(thd, table_list, TRUE);
   }
 
   delete select;
@@ -580,6 +585,8 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
   TABLE_LIST *aux_tables= lex->auxiliary_table_list.first;
   TABLE_LIST *target_tbl;
   DBUG_ENTER("mysql_multi_delete_prepare");
+
+  Prepare_error_tracker tracker(thd);
 
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will not do it second
@@ -864,7 +871,7 @@ void multi_delete::abort_result_set()
 
   /* Something already deleted so we have to invalidate cache */
   if (deleted)
-    query_cache_invalidate3(thd, delete_tables, 1);
+    query_cache.invalidate(thd, delete_tables, TRUE);
 
   /*
     If rows from the first table only has been deleted and it is
@@ -1058,7 +1065,7 @@ bool multi_delete::send_eof()
   */
   if (deleted)
   {
-    query_cache_invalidate3(thd, delete_tables, 1);
+    query_cache.invalidate(thd, delete_tables, TRUE);
   }
   if ((local_error == 0) || thd->transaction.stmt.cannot_safely_rollback())
   {

@@ -91,7 +91,9 @@ static char *do_svis(char *, size_t *, int, int, int, const char *);
 #undef BELL
 #define BELL '\a'
 
+#ifndef isoctal
 #define isoctal(c)	(((u_char)(c)) >= '0' && ((u_char)(c)) <= '7')
+#endif
 #define iswhite(c)	(c == ' ' || c == '\t' || c == '\n')
 #define issafe(c)	(c == '\b' || c == BELL || c == '\r')
 #define xtoa(c)		"0123456789abcdef"[c]

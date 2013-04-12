@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -913,9 +913,6 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       buff[11]= 0;
       buff[14]= (uchar) field->geom_type;
-#ifndef HAVE_SPATIAL
-      DBUG_ASSERT(0);                           // Should newer happen
-#endif
     }
     else if (field->charset) 
     {

@@ -158,7 +158,7 @@ show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
   `t` varchar(4) CHARACTER SET cp1251 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 select
 cast(_latin1'ab'  AS char)    as c1,
@@ -196,7 +196,7 @@ t1	CREATE TABLE `t1` (
   `c3` varbinary(2) NOT NULL DEFAULT '',
   `c4` varbinary(2) NOT NULL DEFAULT '',
   `c5` varbinary(2) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 select
 cast(_koi8r'фг'  AS nchar)    as c1,
@@ -229,7 +229,7 @@ t1	CREATE TABLE `t1` (
   `c3` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c4` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT '',
   `c5` varchar(2) CHARACTER SET utf8 NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 (a binary(4), b char(4) character set koi8r);
 insert into t1 values (_binary'тест',_binary'тест');
@@ -491,6 +491,6 @@ Table	Create Table
 t1	CREATE TABLE `t1` (
   `CONCAT(CAST(REPEAT('9', 1000) AS SIGNED))` varchar(21) NOT NULL DEFAULT '',
   `CONCAT(CAST(REPEAT('9', 1000) AS UNSIGNED))` varchar(21) NOT NULL DEFAULT ''
-) ENGINE=MyISAM DEFAULT CHARSET=latin1
+) ENGINE=ENGINE DEFAULT CHARSET=latin1
 DROP TABLE t1;
 End of 5.5 tests

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,6 +37,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0rbt.h"
 #include "os0proc.h"
 #include "log0log.h"
+#include "srv0srv.h"
 
 /** @name Modes for buf_page_get_gen */
 /* @{ */
@@ -89,8 +90,6 @@ extern ibool		buf_debug_prints;/*!< If this is set TRUE, the program
 					prints info whenever read or flush
 					occurs */
 #endif /* UNIV_DEBUG */
-extern ulint srv_buf_pool_instances;
-extern ulint srv_buf_pool_curr_size;
 #else /* !UNIV_HOTBACKUP */
 extern buf_block_t*	back_block1;	/*!< first block, for --apply-log */
 extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
@@ -104,9 +103,7 @@ extern buf_block_t*	back_block2;	/*!< second block, for page reorganize */
 
 The enumeration values must be 0..7. */
 enum buf_page_state {
-	BUF_BLOCK_ZIP_FREE = 0,		/*!< contains a free
-					compressed page */
-	BUF_BLOCK_POOL_WATCH = 0,	/*!< a sentinel for the buffer pool
+	BUF_BLOCK_POOL_WATCH,		/*!< a sentinel for the buffer pool
 					watch, element of buf_pool->watch[] */
 	BUF_BLOCK_ZIP_PAGE,		/*!< contains a clean
 					compressed page */
@@ -897,7 +894,7 @@ buf_page_get_mutex(
 Get the flush type of a page.
 @return	flush type */
 UNIV_INLINE
-enum buf_flush
+buf_flush_t
 buf_page_get_flush_type(
 /*====================*/
 	const buf_page_t*	bpage)	/*!< in: buffer page */
@@ -909,7 +906,7 @@ void
 buf_page_set_flush_type(
 /*====================*/
 	buf_page_t*	bpage,		/*!< in: buffer page */
-	enum buf_flush	flush_type);	/*!< in: flush type */
+	buf_flush_t	flush_type);	/*!< in: flush type */
 /*********************************************************************//**
 Map a block to a file page. */
 UNIV_INLINE
@@ -1451,7 +1448,7 @@ struct buf_page_t{
 	unsigned	flush_type:2;	/*!< if this block is currently being
 					flushed to disk, this tells the
 					flush_type.
-					@see enum buf_flush */
+					@see buf_flush_t */
 	unsigned	io_fix:2;	/*!< type of pending I/O operation;
 					also protected by buf_pool->mutex
 					@see enum buf_io_fix */
@@ -1495,7 +1492,6 @@ struct buf_page_t{
 					- BUF_BLOCK_FILE_PAGE:	flush_list
 					- BUF_BLOCK_ZIP_DIRTY:	flush_list
 					- BUF_BLOCK_ZIP_PAGE:	zip_clean
-					- BUF_BLOCK_ZIP_FREE:	zip_free[]
 
 					If bpage is part of flush_list
 					then the node pointers are
@@ -1729,6 +1725,26 @@ Compute the hash fold value for blocks in buf_pool->zip_hash. */
 #define BUF_POOL_ZIP_FOLD_BPAGE(b) BUF_POOL_ZIP_FOLD((buf_block_t*) (b))
 /* @} */
 
+/** Struct that is embedded in the free zip blocks */
+struct buf_buddy_free_t {
+	union {
+		ulint	size;	/*!< size of the block */
+		byte	bytes[FIL_PAGE_DATA];
+				/*!< stamp[FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID]
+				== BUF_BUDDY_FREE_STAMP denotes a free
+				block. If the space_id field of buddy
+				block != BUF_BUDDY_FREE_STAMP, the block
+				is not in any zip_free list. If the
+				space_id is BUF_BUDDY_FREE_STAMP then
+				stamp[0] will contain the
+				buddy block size. */
+	} stamp;
+
+	buf_page_t	bpage;	/*!< Embedded bpage descriptor */
+	UT_LIST_NODE_T(buf_buddy_free_t) list;
+				/*!< Node of zip_free list */
+};
+
 /** @brief The buffer pool statistics structure. */
 struct buf_pool_stat_t{
 	ulint	n_page_gets;	/*!< number of page gets performed;
@@ -1839,7 +1855,12 @@ struct buf_pool_t{
 					and bpage::list pointers when
 					the bpage is on flush_list. It
 					also protects writes to
-					bpage::oldest_modification */
+					bpage::oldest_modification and
+					flush_list_hp */
+	const buf_page_t*	flush_list_hp;/*!< "hazard pointer"
+					used during scan of flush_list
+					while doing flush list batch.
+					Protected by flush_list_mutex */
 	UT_LIST_BASE_NODE_T(buf_page_t) flush_list;
 					/*!< base node of the modified block
 					list */
@@ -1925,7 +1946,7 @@ struct buf_pool_t{
 	UT_LIST_BASE_NODE_T(buf_page_t)	zip_clean;
 					/*!< unmodified compressed pages */
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-	UT_LIST_BASE_NODE_T(buf_page_t) zip_free[BUF_BUDDY_SIZES_MAX];
+	UT_LIST_BASE_NODE_T(buf_buddy_free_t) zip_free[BUF_BUDDY_SIZES_MAX];
 					/*!< buddy free lists */
 
 	buf_page_t*			watch;

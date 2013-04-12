@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -224,6 +224,10 @@ dtype_print(
 
 	case DATA_BLOB:
 		fputs("DATA_BLOB", stderr);
+		break;
+
+	case DATA_GEOMETRY:
+		fputs("DATA_GEOMETRY", stderr);
 		break;
 
 	case DATA_INT:

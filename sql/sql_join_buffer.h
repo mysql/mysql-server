@@ -3,7 +3,7 @@
 
 #include "sql_executor.h"
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -323,6 +323,12 @@ protected:
   */
   virtual uint aux_buffer_incr() { return 0; }
 
+  /**
+    This method must determine the minimum size for the auxiliary buffer.
+    If no auxiliary buffer is needed the function should return 0.
+  */
+  virtual uint aux_buffer_min_size() const { return 0; }
+
   /* Shall calculate how much space is remaining in the join buffer */ 
   virtual ulong rem_space() 
   { 
@@ -553,8 +559,11 @@ protected:
   /* Check the possibility to read the access keys directly from join buffer */  
   bool check_emb_key_usage();
 
-  /* Calculate the increment of the MM buffer for a record write */
+  /** Calculate the increment of the MRR buffer for a record write */
   uint aux_buffer_incr();
+
+  /** Calculate the minimume size for the MRR buffer */
+  uint aux_buffer_min_size() const;
 
   /* Using BKA find matches from the next table for records from join buffer */
   enum_nested_loop_state join_matching_records(bool skip_last);

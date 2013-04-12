@@ -1,7 +1,7 @@
 #ifndef FIELD_INCLUDED
 #define FIELD_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1663,10 +1663,11 @@ public:
 
 class Field_longstr :public Field_str
 {
-protected:
+private:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
                                                   bool count_spaces);
+protected:
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
@@ -3655,7 +3656,6 @@ private:
 };
 
 
-#ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
   virtual type_conversion_status store_internal(const char *from, uint length,
                                                 const CHARSET_INFO *cs);
@@ -3705,7 +3705,6 @@ public:
   }
   uint is_equal(Create_field *new_field);
 };
-#endif /*HAVE_SPATIAL*/
 
 
 class Field_enum :public Field_str {

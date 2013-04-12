@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # ==== Purpose ====
 #
 # Testing basic functionality of heartbeat.
@@ -421,7 +426,7 @@ while ($i) {
 --enable_query_log
 --let $assert_cond= [SHOW STATUS LIKE "slave_received_heartbeats", Value, 1] > $rcvd_heartbeats_before
 --let $assert_text= Should receive at least one heartbeat event while running FLUSH LOGS for 10 seconds
---source include/rpl_assert.inc
+--source include/assert.inc
 --echo
 
 # Use compressed protocol between master and slave

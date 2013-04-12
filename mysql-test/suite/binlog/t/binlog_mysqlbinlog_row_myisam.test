@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # mysqlbinlog_row.test
 #
 # Show that mysqlbinlog displays human readable comments to
@@ -9,7 +14,7 @@
 # See there for more informaton.
 #
 
-#--source include/have_myisam.inc
+#--source include/force_myisam_default.inc
 --source include/not_gtid_enabled.inc
 let $engine_type=MyISAM;
 
@@ -20,6 +25,5 @@ let $engine_type=MyISAM;
 #
 --source include/have_binlog_format_row.inc
 --source include/have_ucs2.inc 
---source include/not_gtid_enabled.inc
 
 --source extra/binlog_tests/mysqlbinlog_row_engine.inc

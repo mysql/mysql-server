@@ -1191,10 +1191,9 @@ sync_thread_add_level(
 	case SYNC_INDEX_ONLINE_LOG:
 	case SYNC_STATS_AUTO_RECALC:
 		if (!sync_thread_levels_g(array, level, TRUE)) {
-			fprintf(stderr,
-				"InnoDB: sync_thread_levels_g(array, %lu)"
-				" does not hold!\n", level);
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"sync_thread_levels_g(array, %lu)"
+				" does not hold!", level);
 		}
 		break;
 	case SYNC_TRX:
@@ -1210,10 +1209,9 @@ sync_thread_add_level(
 		/* We can have multiple mutexes of this type therefore we
 		can only check whether the greater than condition holds. */
 		if (!sync_thread_levels_g(array, level-1, TRUE)) {
-			fprintf(stderr,
-				"InnoDB: sync_thread_levels_g(array, %lu)"
-				" does not hold!\n", level-1);
-			ut_error;
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"sync_thread_levels_g(array, %lu)"
+				" does not hold!", level-1);
 		}
 		break;
 

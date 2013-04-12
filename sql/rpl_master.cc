@@ -724,7 +724,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
 
-  status_var_increment(thd->status_var.com_other);
+  thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
@@ -773,7 +773,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 
-  status_var_increment(thd->status_var.com_other);
+  thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
@@ -926,26 +926,26 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
-  if (slave_gtid_executed != NULL)
-  {
-    global_sid_lock->wrlock();
-    if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
-    {
-      global_sid_lock->unlock();
-      errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
-      my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
-      GOTO_ERR;
-    }
-    global_sid_lock->unlock();
-  }
-
-  name=search_file_name;
+  name= search_file_name;
   if (log_ident[0])
     mysql_bin_log.make_log_name(search_file_name, log_ident);
   else
-    name=0;					// Find first log
+  {
+    if (using_gtid_protocol)
+    {
+      if (mysql_bin_log.find_first_log_not_in_gtid_set(name,
+                                                       slave_gtid_executed,
+                                                       &errmsg))
+      {
+         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+         GOTO_ERR;
+      }
+    }
+    else
+      name= 0;					// Find first log
+  }
 
-  linfo.index_file_offset = 0;
+  linfo.index_file_offset= 0;
 
   if (mysql_bin_log.find_log_pos(&linfo, name, 1))
   {
@@ -1138,9 +1138,17 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
        file */
     if (reset_transmit_packet(thd, 0/*flags*/, &ev_offset, &errmsg))
       GOTO_ERR;
-
+    DBUG_EXECUTE_IF("semi_sync_3-way_deadlock",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+    bool is_active_binlog= false;
     while (!(error= Log_event::read_log_event(&log, packet, log_lock,
-                                              current_checksum_alg)))
+                                              current_checksum_alg,
+                                              log_file_name,
+                                              &is_active_binlog)))
     {
       DBUG_PRINT("info", ("read_log_event returned 0 on line %d", __LINE__));
 #ifndef DBUG_OFF
@@ -1365,6 +1373,13 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         GOTO_ERR;
     }
 
+    DBUG_EXECUTE_IF("wait_after_binlog_EOF",
+                    {
+                      const char act[]= "now wait_for signal.rotate_finished";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                    };);
+
     /*
       TODO: now that we are logging the offset, check to make sure
       the recorded offset and the actual match.
@@ -1375,7 +1390,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       GOTO_ERR;
 
-    if (mysql_bin_log.is_active(log_file_name) && !goto_next_binlog)
+    if (!is_active_binlog)
+      goto_next_binlog= true;
+
+    if (!goto_next_binlog)
     {
       /*
         Block until there is more data in the log
@@ -1668,14 +1686,9 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         log.error=0;
       }
     }
-    else
-      goto_next_binlog= true;
 
     if (goto_next_binlog)
     {
-      // need this to break out of the for loop from switch
-      bool loop_breaker = 0;
-
       // clear flag because we open a new binlog
       binlog_has_previous_gtids_log_event= false;
 
@@ -1683,20 +1696,11 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
       case 0:
         break;
-      case LOG_INFO_EOF:
-        if (mysql_bin_log.is_active(log_file_name))
-        {
-          loop_breaker= 0;
-          break;
-        }
       default:
         errmsg = "could not find next log";
         my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
         GOTO_ERR;
       }
-
-      if (loop_breaker)
-        break;
 
       end_io_cache(&log);
       mysql_file_close(file, MYF(MY_WME));
@@ -2044,6 +2048,8 @@ bool show_binlogs(THD* thd)
       goto err;
     }
   }
+  if(index_file->error == -1)
+    goto err;
   mysql_bin_log.unlock_index();
   my_eof(thd);
   DBUG_RETURN(FALSE);

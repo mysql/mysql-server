@@ -51,12 +51,16 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
-	table_id_t*	table_id,	/*!< out: table id
-					(not assigned if NULL) */
-	index_id_t*	index_id,	/*!< out: index id
-					(not assigned if NULL) */
-	ulint*		space_id);	/*!< out: space id
-					(not assigned if NULL) */
+	table_id_t*		table_id,	/*!< out: table id
+						(not assigned if NULL) */
+	index_id_t*		index_id,	/*!< out: index id
+						(not assigned if NULL) */
+	ulint*			space_id,	/*!< out: space id
+						(not assigned if NULL) */
+	const dict_table_t*	table,		/*!< in: table */
+	bool			disable_redo);	/*!< in: if true and table
+						object is NULL
+						then disable-redo */
 /**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */

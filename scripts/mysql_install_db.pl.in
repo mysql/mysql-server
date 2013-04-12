@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -402,7 +402,7 @@ my $print_defaults;
 
 if ( $opt->{srcdir} and $opt->{basedir} )
 {
-  error("Specify either --basedir or --srcdir, not both");
+  error($opt,"Specify either --basedir or --srcdir, not both");
 }
 if ( $opt->{srcdir} )
 {
@@ -435,19 +435,27 @@ my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
 -e $cfg_template or cannot_find_file("my-default.cnf");
 
 $copy_cfg_file= $config_file;
+my $failed_write_cfg= 0;
 if (-e $copy_cfg_file)
 {
   $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
   # Too early to print warning here, the user may not notice
 }
-open (TEMPL, $cfg_template) or error("Could not open config template");
-open (CFG, "> $copy_cfg_file") or error("Could not open config file");
-while (<TEMPL>)
+open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+if (open (CFG, "> $copy_cfg_file"))
 {
-  # Remove lines beginning with # *** which are template comments
-  print CFG $_ unless /^# \*\*\*/;
+  while (<TEMPL>)
+  {
+    # Remove lines beginning with # *** which are template comments
+    print CFG $_ unless /^# \*\*\*/;
+  }
+  close CFG;
 }
-close CFG;
+else
+{
+  warning($opt,"Could not write to config file $copy_cfg_file: $!");
+  $failed_write_cfg= 1;
+}
 close TEMPL;
 
 # ----------------------------------------------------------------------
@@ -838,12 +846,20 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
 
-    if ($copy_cfg_file eq $config_file)
+    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
     {
       report($opt,
 	     "New default config file was created as $config_file and",
 	     "will be used by default by the server when you start it.",
 	     "You may edit this file to change server settings");
+    }
+    elsif ($failed_write_cfg)
+    {
+      warning($opt,
+	      "Could not copy config file template $cfg_template to",
+	      "$copy_cfg_file, may not have access rights to do so.",
+	      "You may want to copy the file manually, or create your own,",
+              "it will then be used by default by the server when you start it.");
     }
     else
     {

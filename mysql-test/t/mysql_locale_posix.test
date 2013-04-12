@@ -1,6 +1,11 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --source include/not_windows.inc
 --source include/have_case_sensitive_file_system.inc
-
+--source include/have_lowercase0.inc
 
 #
 # Note, please keep this file UTF-8 compatible.

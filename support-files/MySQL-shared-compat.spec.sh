@@ -18,8 +18,8 @@
 # for more details.
 #
 # You should have received a copy of the GNU General Public License along
-# with this program; if not, write to the Free Software Foundation, Inc., 59
-# Temple Place, Suite 330, Boston, MA  02111-1307  USA
+# with this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 # For 5.0 and up, this is needed because of "libndbclient".
 %define _unpackaged_files_terminate_build 0

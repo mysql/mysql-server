@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,9 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "myisamdef.h"
-
-#ifdef HAVE_RTREE_KEYS
-
 #include "rt_index.h"
 #include "rt_key.h"
 #include "rt_mbr.h"
@@ -336,5 +333,3 @@ split_err:
   my_afree((uchar*) coord_buf);
   DBUG_RETURN(err_code);
 }
-
-#endif /*HAVE_RTREE_KEYS*/
