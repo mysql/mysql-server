@@ -3171,17 +3171,17 @@ index types, number of index fields and index field
 information of the table. */
 static
 void
-create_truncate_log_record(
-/*=======================*/
+row_truncate_create_log_record(
+/*===========================*/
 	const dict_table_t*	table,	/*!< in: table handle */
         btr_pcur_t*		pcur,	/*!< in/out: a b-tree cursor */
 	byte*			buf,	/*!< in/out: a heap buffer */
 	truncate_rec_t*	truncate_rec,	/*!< in/out: truncate record */
 	ulint			flags,	/*!< in: table flags */
+	byte*			fields,	/*!< in/out: field lengths */
 	mtr_t*			mtr)	/*!< in/out: mini-transaction handle */
 {
 	ulint			trx_id_col[MAX_INDEXES];
-	byte			fields[FIELDS_LEN];
 	dict_index_t*		index;
 	ulint			ind_count = 0;
 	ulint			buf_index = 0;
@@ -3273,6 +3273,7 @@ create_truncate_log_record(
 next_record:
 		btr_pcur_move_to_next_user_rec(pcur, mtr);
 	}
+
 	fields[buf_index + 1] = '\0';
 
 	truncate_rec->n_index = ind_count;
@@ -3489,13 +3490,17 @@ row_truncate_table_for_mysql(
 	if (table->space != TRX_SYS_SPACE
 	    && !table->dir_path_of_temp_table
 	    && flags != ULINT_UNDEFINED) {
-		truncate_rec_t	truncate_rec;
-		mtr_start(&mtr);
-		btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-					  BTR_MODIFY_LEAF, &pcur, &mtr);
 
-		create_truncate_log_record(table, &pcur, buf,
-					   &truncate_rec, flags, &mtr);
+		truncate_rec_t	truncate_rec;
+		byte		fields[FIELDS_LEN];
+
+		mtr_start(&mtr);
+		btr_pcur_open_on_user_rec(
+			sys_index, tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF,
+			&pcur, &mtr);
+
+		row_truncate_create_log_record(
+			table, &pcur, buf, &truncate_rec, flags, fields, &mtr);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
