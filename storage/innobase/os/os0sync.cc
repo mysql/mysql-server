@@ -186,10 +186,11 @@ os_cond_wait_timed(
 		break;
 
 	default:
-		fprintf(stderr, "  InnoDB: pthread_cond_timedwait() returned: "
-				"%d: abstime={%lu,%lu}\n",
-				ret, (ulong) abstime->tv_sec, (ulong) abstime->tv_nsec);
-		ut_error;
+		ib_logf(IB_LOG_LEVEL_FATAL,
+			"pthread_cond_timedwait() returned: %d"
+			" abstime={%lu,%lu}", ret,
+			(ulong) abstime->tv_sec,
+			(ulong) abstime->tv_nsec);
 	}
 
 	return(ret == ETIMEDOUT);

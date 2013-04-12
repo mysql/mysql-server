@@ -513,15 +513,6 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
-#ifdef USE_ALARM_THREAD
-PSI_thread_key key_thread_alarm;
-
-static PSI_thread_info all_mysys_threads[]=
-{
-  { &key_thread_alarm, "alarm", PSI_FLAG_GLOBAL}
-};
-#endif /* USE_ALARM_THREAD */
-
 #ifdef HUGETLB_USE_PROC_MEMINFO
 PSI_file_key key_file_proc_meminfo;
 #endif /* HUGETLB_USE_PROC_MEMINFO */
@@ -551,11 +542,6 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);
-
-#ifdef USE_ALARM_THREAD
-  count= sizeof(all_mysys_threads)/sizeof(all_mysys_threads[0]);
-  mysql_thread_register(category, all_mysys_threads, count);
-#endif /* USE_ALARM_THREAD */
 
   count= sizeof(all_mysys_files)/sizeof(all_mysys_files[0]);
   mysql_file_register(category, all_mysys_files, count);

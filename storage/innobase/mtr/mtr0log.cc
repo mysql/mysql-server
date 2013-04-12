@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -489,7 +489,7 @@ mlog_open_and_write_index(
 			len = field->fixed_len;
 			ut_ad(len < 0x7fff);
 			if (len == 0
-			    && (col->len > 255 || col->mtype == DATA_BLOB)) {
+			    && (DATA_BIG_COL(col))) {
 				/* variable-length field
 				with maximum length > 255 */
 				len = 0x7fff;

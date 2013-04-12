@@ -169,9 +169,10 @@ void
 log_init(void);
 /*==========*/
 /******************************************************************//**
-Inits a log group to the log system. */
-UNIV_INTERN
-void
+Inits a log group to the log system.
+@return true if success, false if not */
+UNIV_INTERN __attribute__((warn_unused_result))
+bool
 log_group_init(
 /*===========*/
 	ulint	id,			/*!< in: group id */
@@ -566,9 +567,6 @@ extern log_t*	log_sys;
 /* Values used as flags */
 #define LOG_FLUSH	7652559
 #define LOG_CHECKPOINT	78656949
-#ifdef UNIV_LOG_ARCHIVE
-# define LOG_ARCHIVE	11122331
-#endif /* UNIV_LOG_ARCHIVE */
 #define LOG_RECOVER	98887331
 
 /* The counting of lsn's starts from this value: this must be non-zero */
@@ -728,28 +726,6 @@ struct log_group_t{
 	byte**		file_header_bufs_ptr;/*!< unaligned buffers */
 	byte**		file_header_bufs;/*!< buffers for each file
 					header in the group */
-#ifdef UNIV_LOG_ARCHIVE
-	/*-----------------------------*/
-	byte**		archive_file_header_bufs_ptr;/*!< unaligned buffers */
-	byte**		archive_file_header_bufs;/*!< buffers for each file
-					header in the group */
-	ulint		archive_space_id;/*!< file space which
-					implements the log group
-					archive */
-	ulint		archived_file_no;/*!< file number corresponding to
-					log_sys->archived_lsn */
-	ulint		archived_offset;/*!< file offset corresponding to
-					log_sys->archived_lsn, 0 if we have
-					not yet written to the archive file
-					number archived_file_no */
-	ulint		next_archived_file_no;/*!< during an archive write,
-					until the write is completed, we
-					store the next value for
-					archived_file_no here: the write
-					completion function then sets the new
-					value to ..._file_no */
-	ulint		next_archived_offset; /*!< like the preceding field */
-#endif /* UNIV_LOG_ARCHIVE */
 	/*-----------------------------*/
 	lsn_t		scanned_lsn;	/*!< used only in recovery: recovery scan
 					succeeded up to this lsn in this log
@@ -927,42 +903,6 @@ struct log_t{
 	byte*		checkpoint_buf;	/*!< checkpoint header is read to this
 					buffer */
 	/* @} */
-#ifdef UNIV_LOG_ARCHIVE
-	/** Fields involved in archiving @{ */
-	ulint		archiving_state;/*!< LOG_ARCH_ON, LOG_ARCH_STOPPING
-					LOG_ARCH_STOPPED, LOG_ARCH_OFF */
-	lsn_t		archived_lsn;	/*!< archiving has advanced to this
-					lsn */
-	lsn_t		max_archived_lsn_age_async;
-					/*!< recommended maximum age of
-					archived_lsn, before we start
-					asynchronous copying to the archive */
-	lsn_t		max_archived_lsn_age;
-					/*!< maximum allowed age for
-					archived_lsn */
-	lsn_t		next_archived_lsn;/*!< during an archive write,
-					until the write is completed, we
-					store the next value for
-					archived_lsn here: the write
-					completion function then sets the new
-					value to archived_lsn */
-	ulint		archiving_phase;/*!< LOG_ARCHIVE_READ or
-					LOG_ARCHIVE_WRITE */
-	ulint		n_pending_archive_ios;
-					/*!< number of currently pending reads
-					or writes in archiving */
-	rw_lock_t	archive_lock;	/*!< this latch is x-locked when an
-					archive write is running; a thread
-					should wait for this without owning
-					the log mutex */
-	ulint		archive_buf_size;/*!< size of archive_buf */
-	byte*		archive_buf;	/*!< log segment is written to the
-					archive from this buffer */
-	os_event_t	archiving_on;	/*!< if archiving has been stopped,
-					a thread can wait for this event to
-					become signaled */
-	/* @} */
-#endif /* UNIV_LOG_ARCHIVE */
 };
 
 /** Test if flush order mutex is owned. */
@@ -977,16 +917,6 @@ struct log_t{
 # define log_flush_order_mutex_exit() do {		\
 	mutex_exit(&log_sys->log_flush_order_mutex);	\
 } while (0)
-
-#ifdef UNIV_LOG_ARCHIVE
-/** Archiving state @{ */
-#define LOG_ARCH_ON		71
-#define LOG_ARCH_STOPPING	72
-#define LOG_ARCH_STOPPING2	73
-#define LOG_ARCH_STOPPED	74
-#define LOG_ARCH_OFF		75
-/* @} */
-#endif /* UNIV_LOG_ARCHIVE */
 
 #ifndef UNIV_NONINL
 #include "log0log.ic"

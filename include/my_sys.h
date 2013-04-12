@@ -217,13 +217,6 @@ extern void my_large_free(uchar *ptr);
 #endif /* HAVE_LARGE_PAGES */
 
 #ifdef HAVE_ALLOCA
-#if defined(_AIX) && !defined(__GNUC__) && !defined(_AIX43)
-#pragma alloca
-#endif /* _AIX */
-#if defined(__MWERKS__)
-#undef alloca
-#define alloca _alloca
-#endif /* __MWERKS__ */
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
 #endif /* GNUC */
@@ -614,6 +607,15 @@ extern size_t my_fwrite(FILE *stream,const uchar *Buffer,size_t Count,
 extern my_off_t my_fseek(FILE *stream,my_off_t pos,int whence,myf MyFlags);
 extern my_off_t my_ftell(FILE *stream,myf MyFlags);
 
+/* implemented in my_syslog.c */
+
+// Maximum size of message  that will be logged.
+#define MAX_SYSLOG_MESSAGE_SIZE 1024
+
+int my_openlog(const char *eventSourceName);
+int my_closelog();
+int my_syslog(const CHARSET_INFO *cs, enum loglevel level, const char *msg);
+
 /* implemented in my_memmem.c */
 extern void *my_memmem(const void *haystack, size_t haystacklen,
                        const void *needle, size_t needlelen);
@@ -871,9 +873,6 @@ extern int my_getncpus();
 
 #ifndef MAP_NOSYNC
 #define MAP_NOSYNC      0
-#endif
-#ifndef MAP_NORESERVE
-#define MAP_NORESERVE 0         /* For irix and AIX */
 #endif
 
 #ifdef HAVE_MMAP64

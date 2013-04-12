@@ -407,7 +407,7 @@ public:
     need_tmp_table(need_tmp_table_arg), need_sort(need_sort_arg),
     is_update(is_update_arg), used_key_is_modified(used_key_is_modified_arg)
   {
-    usable_keys= table->keys_in_use_for_query;
+    usable_keys= table->possible_quick_keys;
   }
 
   virtual bool explain_modify_flags();

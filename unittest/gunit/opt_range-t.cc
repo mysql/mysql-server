@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
@@ -266,7 +266,7 @@ protected:
     Types of range predicates that create_tree() and create_item()
     can create
   */
-  enum pred_type_enum { GREATER, LESS, BETWEEN, EQUAL, NOT_EQUAL };
+  enum pred_type_enum { GREATER, LESS, BETWEEN, EQUAL, NOT_EQUAL, XOR };
 
   /**
     Utility funtion used to simplify creation of SEL_TREEs with
@@ -325,6 +325,16 @@ protected:
   */
   Item_func *create_item(pred_type_enum type, Mock_field_long *fld, int value);
 
+  /**
+    Create instance of Xor Item_func.
+
+    @param    item1     first item for xor condition.
+    @param    item2     second item for xor condition.
+
+    @return pointer to newly created instance of Xor Item.
+  */
+  Item_func_xor *create_xor_item(Item *item1, Item *item2);
+ 
 
   /**
     Check that the use_count of all SEL_ARGs in the SEL_TREE are
@@ -427,6 +437,9 @@ SelArgTest::create_item(pred_type_enum type, Mock_field_long *fld, int value)
   case EQUAL:
     result= new Item_equal(new Item_int(value), new Item_field(fld));
     break;
+  case XOR:
+    result= new Item_func_xor(new Item_field(fld), new Item_int(value));
+    break;
   default:
     result= NULL;
     DBUG_ASSERT(false);
@@ -435,6 +448,15 @@ SelArgTest::create_item(pred_type_enum type, Mock_field_long *fld, int value)
   Item *itm= static_cast<Item*>(result);
   result->fix_fields(thd(), &itm);
   return result;
+}
+
+Item_func_xor*
+SelArgTest::create_xor_item(Item *item1, Item *item2)
+{
+  Item_func_xor *xor_item= new Item_func_xor(item1, item2);
+  Item *itm= static_cast<Item*>(xor_item);
+  xor_item->fix_fields(thd(), &itm);
+  return xor_item;
 }
 
 void SelArgTest::check_use_count(SEL_TREE *tree)
@@ -621,6 +643,101 @@ TEST_F(SelArgTest, EqualCondNoIndexes)
 }
 
 
+/*
+  Exercise range optimizer with xor operator.
+*/
+TEST_F(SelArgTest, XorCondIndexes)
+{
+  create_table(1);
+
+  Mock_field_long *field_long= m_table_fields[0];
+  m_opt_param->add_key(field_long);
+  /*
+    XOR is not range optimizible ATM and is treated as
+    always true. No SEL_TREE is therefore expected.
+  */
+  SEL_TREE *tree= get_mm_tree(m_opt_param, create_item(XOR, field_long,  42));
+  EXPECT_EQ(null_tree, tree);
+}
+
+
+/*
+Exercise range optimizer with xor and different type of operator.
+*/
+TEST_F(SelArgTest, XorCondWithIndexes)
+{
+  create_table(5);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+  Mock_field_long *field_long3= m_table_fields[2];
+  Mock_field_long *field_long4= m_table_fields[3];
+  Mock_field_long *field_long5= m_table_fields[4];
+  m_opt_param->add_key(field_long1);
+  m_opt_param->add_key(field_long2);
+  m_opt_param->add_key(field_long3);
+  m_opt_param->add_key(field_long4);
+  m_opt_param->add_key(field_long5);
+
+  /*
+    Create SEL_TREE from "field1=7 AND (field1 XOR 42)". Since XOR is not range
+    optimizible (treated as always true), we get a tree for "field1=7" only.
+  */
+  const char expected1[]= "result keys[0]: (7 <= field_1 <= 7)\n";
+
+  SEL_TREE *tree= get_mm_tree(m_opt_param,
+                    new Item_cond_and(create_item(XOR, field_long1,  42),
+                                      create_item(EQUAL, field_long1, 7)));
+  SCOPED_TRACE("");
+  check_tree_result(tree, SEL_TREE::KEY, expected1);
+
+  /*
+    Create SEL_TREE from "(field1 XOR 0) AND (field1>14)". Since XOR is not range
+    optimizible (treated as always true), we get a tree for "field1>14" only.
+  */
+  const char expected2[]= "result keys[0]: (14 < field_1)\n";
+
+  tree= get_mm_tree(m_opt_param,
+                    new Item_cond_and(create_item(XOR, field_long1,  0),
+                                      create_item(GREATER, field_long1, 14)));
+  SCOPED_TRACE("");
+  check_tree_result(tree, SEL_TREE::KEY, expected2);
+
+  /*
+    Create SEL_TREE from "(field1<0 AND field1>14) XOR (field1>17)". Since
+    XOR is not range optimizible (treated as always true), we get a NULL tree.
+  */
+  tree= get_mm_tree(m_opt_param,
+                    create_xor_item(
+                      new Item_cond_and(create_item(LESS, field_long1, 0),
+                                        create_item(GREATER, field_long1, 14)),
+                      create_item(GREATER, field_long1, 17)));
+  SCOPED_TRACE("");
+  EXPECT_EQ(null_tree, tree);
+
+  /*
+    Create SEL_TREE from
+    (field1<0 AND field2>14) AND
+    ((field3<0 and field4>14) XOR field5>17) ".
+    Since XOR is not range  optimizible (treated as always true),
+    we get a tree for "field1<0 AND field2>14" only.
+  */
+  const char expected3[]=
+    "result keys[0]: (field_1 < 0)\n"
+    "result keys[1]: (14 < field_2)\n";
+
+  tree= get_mm_tree(m_opt_param,
+                    new Item_cond_and(
+                      new Item_cond_and(create_item(LESS, field_long1, 0),
+                                        create_item(GREATER, field_long2, 14)),
+                      create_xor_item(
+                        new Item_cond_and(create_item(LESS, field_long3, 0),
+                                          create_item(GREATER,
+                                                      field_long4, 14)),
+                        create_item(GREATER, field_long5, 17))));
+  SCOPED_TRACE("");
+  check_tree_result(tree, SEL_TREE::KEY, expected3);
+}
 /*
   Exercise range optimizer with single column index
 */
@@ -1107,6 +1224,98 @@ TEST_F(SelArgTest, treeAndOrComboSingleColIndex2)
       create_tree(EQUAL, field_long2, 3, 0, exp_f2_eq3),
       SEL_TREE::KEY, exp_and2),
     SEL_TREE::KEY, exp_or5
+  );
+}
+
+
+/**
+  Test for BUG#16241773
+*/
+TEST_F(SelArgTest, treeAndOrComboSingleColIndex3)
+{
+  create_table_singlecol_idx(2);
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+
+  // Single-index predicates
+  const char exp_f1_eq10[]=  "result keys[0]: (10 <= field_1 <= 10)\n";
+  const char exp_f2_gtr20[]= "result keys[1]: (20 < field_2)\n";
+
+  const char exp_f1_eq11[]=  "result keys[0]: (11 <= field_1 <= 11)\n";
+  const char exp_f2_gtr10[]= "result keys[1]: (10 < field_2)\n";
+
+  // OR1: Result of ORing f1_eq10 and f2_gtr20
+  const char exp_or1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n";
+
+  // OR2: Result of ORing f1_eq11 and f2_gtr10
+  const char exp_or2[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  // AND1: Result of ANDing OR1 and OR2
+  const char exp_and1[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (10 < field_2)\n";
+
+  SEL_TREE *tree_and1=
+    create_and_check_tree_and(
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 10, 0, exp_f1_eq10),
+        create_tree(GREATER, field_long2, 20, 0, exp_f2_gtr20),
+        SEL_TREE::KEY, exp_or1),
+      create_and_check_tree_or(
+        create_tree(EQUAL, field_long1, 11, 0, exp_f1_eq11),
+        create_tree(GREATER, field_long2, 10, 0, exp_f2_gtr10),
+        SEL_TREE::KEY, exp_or2),
+      SEL_TREE::KEY, exp_and1
+    );
+
+  const char exp_f2_eq5[]= "result keys[1]: (5 <= field_2 <= 5)\n";
+  // OR3: Result of OR'ing AND1 with f2_eq5
+  const char exp_or3[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (5 <= field_2 <= 5) OR (10 < field_2)\n";
+  SEL_TREE *tree_or3=
+    create_and_check_tree_or(
+      tree_and1,
+      create_tree(EQUAL, field_long2, 5, 0, exp_f2_eq5),
+      SEL_TREE::KEY, exp_or3
+    );
+
+  const char exp_f2_lt2[]= "result keys[1]: (field_2 < 2)\n";
+  // OR4: Result of OR'ing OR3 with f2_lt2
+  const char exp_or4[]=
+    "result contains the following merges\n"
+    "--- alternative 1 ---\n"
+    "  merge_tree keys[0]: (10 <= field_1 <= 10)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (20 < field_2)\n\n"
+    "--- alternative 2 ---\n"
+    "  merge_tree keys[0]: (11 <= field_1 <= 11)\n"
+    "  merge_tree keys[1]: (field_2 < 2) OR "
+                          "(5 <= field_2 <= 5) OR (10 < field_2)\n";
+
+  create_and_check_tree_or(
+    tree_or3,
+    create_tree(LESS, field_long2, 2, 0, exp_f2_lt2),
+    SEL_TREE::KEY, exp_or4
   );
 }
 

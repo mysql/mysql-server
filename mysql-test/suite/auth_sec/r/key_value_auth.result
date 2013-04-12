@@ -244,8 +244,8 @@ Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a futu
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
 Warnings:
 Warning	1287	'pre-4.1 password hash' is deprecated and will be removed in a future release. Please use post-4.1 password hash instead
-GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'mysql_old_password';
-GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'mysql_old_password';
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 set @@global.secure_auth=0;
 **** Client default_auth=mysql_old_password and server default_auth=native
 user()	current_user()
@@ -266,8 +266,8 @@ SET @@global.old_passwords=2;
 SET @@session.old_passwords=2;
 SET PASSWORD FOR 'Tanjotuser1'@'localhost'=PASSWORD('abc');
 SET PASSWORD FOR 'Tanjotuser2'@'127.0.0.1'=PASSWORD('abc');
-GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost' IDENTIFIED WITH 'sha256_password';
-GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1' IDENTIFIED WITH 'sha256_password';
+GRANT ALL ON *.* TO 'Tanjotuser1'@'localhost';
+GRANT ALL ON *.* TO 'Tanjotuser2'@'127.0.0.1';
 **** Client default_auth=sha_256_password and server default auth=native
 user()	current_user()
 Tanjotuser1@localhost	Tanjotuser1@localhost

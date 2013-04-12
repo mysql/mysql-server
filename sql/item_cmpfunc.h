@@ -1,7 +1,7 @@
 #ifndef ITEM_CMPFUNC_INCLUDED
 #define ITEM_CMPFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1566,19 +1566,19 @@ public:
 
 class Item_func_like :public Item_bool_func2
 {
-  // Turbo Boyer-Moore data
-  bool        canDoTurboBM;	// pattern is '%abcd%' case
+  // Boyer-Moore data
+  bool        can_do_bm;	// pattern is '%abcd%' case
   const char* pattern;
   int         pattern_len;
 
-  // TurboBM buffers, *this is owner
+  // Boyer-Moore buffers, *this is owner
   int* bmGs; //   good suffix shift table, size is pattern_len + 1
   int* bmBc; // bad character shift table, size is alphabet_size
 
-  void turboBM_compute_suffixes(int* suff);
-  void turboBM_compute_good_suffix_shifts(int* suff);
-  void turboBM_compute_bad_character_shifts();
-  bool turboBM_matches(const char* text, int text_len) const;
+  void bm_compute_suffixes(int* suff);
+  void bm_compute_good_suffix_shifts(int* suff);
+  void bm_compute_bad_character_shifts();
+  bool bm_matches(const char* text, int text_len) const;
   enum { alphabet_size = 256 };
 
   Item *escape_item;
@@ -1589,7 +1589,7 @@ public:
   int escape;
 
   Item_func_like(Item *a,Item *b, Item *escape_arg, bool escape_used)
-    :Item_bool_func2(a,b), canDoTurboBM(FALSE), pattern(0), pattern_len(0), 
+    :Item_bool_func2(a,b), can_do_bm(false), pattern(0), pattern_len(0), 
      bmGs(0), bmBc(0), escape_item(escape_arg),
      escape_used_in_parsing(escape_used) {}
   longlong val_int();

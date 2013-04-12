@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -157,8 +157,10 @@ TEST(Mysys, Vsnprintf)
   test1("conn 1 to: '(null)' user: '(null)' host: '(null)' ((null))",
         "conn %ld to: '%-.64s' user: '%-.32s' host: '%-.64s' (%-.64s)",
                    1L,     NULL,          NULL,          NULL,    NULL);
+#if defined (__GNUC__)
   test1("Hello string `I am a string`",
         "Hello string %`s", "I am a string");
+#endif
   test1("Hello TEST",
         "Hello %05s", "TEST");
   test1("My `Q` test",

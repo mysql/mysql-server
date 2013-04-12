@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -855,10 +855,15 @@ static TABLE_LIST *mysql_ha_find(THD *thd, TABLE_LIST *tables)
     hash_tables= (TABLE_LIST*) my_hash_element(&thd->handler_tables_hash, i);
     for (tables= first; tables; tables= tables->next_local)
     {
-      if ((! *tables->db ||
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->db, tables->db)) &&
-          ! my_strcasecmp(&my_charset_latin1, hash_tables->table_name,
-                          tables->table_name))
+      if (tables->is_anonymous_derived_table())
+        continue;
+      if ((! *tables->get_db_name() ||
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_db_name(),
+                          tables->get_db_name())) &&
+          ! my_strcasecmp(&my_charset_latin1,
+                          hash_tables->get_table_name(),
+                          tables->get_table_name()))
         break;
     }
     if (tables)

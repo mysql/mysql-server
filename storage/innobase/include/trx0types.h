@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -118,6 +118,9 @@ typedef ib_id_t	trx_id_t;
 typedef ib_id_t	roll_ptr_t;
 /** Undo number */
 typedef ib_id_t	undo_no_t;
+
+/** Maximum transaction identifier */
+#define TRX_ID_MAX	IB_ID_MAX
 
 /** Transaction savepoint */
 struct trx_savept_t{

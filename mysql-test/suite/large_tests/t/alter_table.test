@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 # The test for bug#27029 requires about 8 hours and 20 minutes on my
 # fastest machine.  This test requires at least 60 GB of disk space.
 --source include/big_test.inc

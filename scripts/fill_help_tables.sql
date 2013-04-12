@@ -11,7 +11,7 @@
 -- 
 -- You should have received a copy of the GNU General Public License
 -- along with this program; if not, write to the Free Software
--- Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+-- Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA
 
 -- fill_help_tables.sql - this file is a placeholder to satisfy build dependencies -
 -- it will be replaced with the appropriate content by the Boostrap script that

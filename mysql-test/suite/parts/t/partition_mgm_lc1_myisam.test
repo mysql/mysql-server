@@ -30,7 +30,7 @@
 # Engine specific settings and requirements
 
 ##### Storage engine to be tested
-#--source include/have_myisam.inc
+#--source include/force_myisam_default.inc
 let $engine= 'MyISAM';
 
 #------------------------------------------------------------------------------#

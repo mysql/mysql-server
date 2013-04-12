@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ Created July 18, 2007 Vasil Dimov
 #include "i_s.h"
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
+#include <vector>
 
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
@@ -55,6 +56,7 @@ Created July 18, 2007 Vasil Dimov
 #include "fts0priv.h"
 #include "btr0btr.h"
 #include "page0zip.h"
+#include "srv0space.h"
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
@@ -2944,8 +2946,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 };
 
 /* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_FT_DELETED
-INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED and
-INFORMATION_SCHEMA.INNODB_FT_INSERTED */
+INFORMATION_SCHEMA.INNODB_FT_BEING_DELETED */
 static ST_FIELD_INFO	i_s_fts_doc_fields_info[] =
 {
 #define	I_S_FTS_DOC_ID			0
@@ -3179,143 +3180,6 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_being_deleted_init),
-
-	/* the function to invoke when plugin is unloaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(deinit, i_s_common_deinit),
-
-	/* plugin version (for SHOW PLUGINS) */
-	/* unsigned int */
-	STRUCT_FLD(version, INNODB_VERSION_SHORT),
-
-	/* struct st_mysql_show_var* */
-	STRUCT_FLD(status_vars, NULL),
-
-	/* struct st_mysql_sys_var** */
-	STRUCT_FLD(system_vars, NULL),
-
-	/* reserved for dependency checking */
-	/* void* */
-	STRUCT_FLD(__reserved1, NULL),
-
-	/* Plugin flags */
-	/* unsigned long */
-	STRUCT_FLD(flags, 0UL),
-};
-
-/*******************************************************************//**
-Fill the dynamic table INFORMATION_SCHEMA.INNODB_FT_INSERTED.
-@return	0 on success, 1 on failure */
-static
-int
-i_s_fts_inserted_fill(
-/*==================*/
-	THD*		thd,	/*!< in: thread */
-	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
-	Item*		)	/*!< in: condition (ignored) */
-{
-	Field**			fields;
-	TABLE*			table = (TABLE*) tables->table;
-	trx_t*			trx;
-	fts_table_t		fts_table;
-	fts_doc_ids_t*		inserted;
-	dict_table_t*		user_table;
-
-	DBUG_ENTER("i_s_fts_inserted_fill");
-
-	/* deny access to non-superusers */
-	if (check_global_access(thd, PROCESS_ACL)) {
-		DBUG_RETURN(0);
-	}
-
-	if (!fts_internal_tbl_name) {
-		DBUG_RETURN(0);
-	}
-
-	user_table = dict_table_open_on_name(
-		fts_internal_tbl_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
-
-	if (!user_table) {
-		DBUG_RETURN(0);
-	}
-
-	inserted = fts_doc_ids_create();
-
-	trx = trx_allocate_for_background();
-	trx->op_info = "Select for FTS ADDED Table";
-
-	FTS_INIT_FTS_TABLE(&fts_table, "ADDED", FTS_COMMON_TABLE, user_table);
-
-	fts_table_fetch_doc_ids(trx, &fts_table, inserted);
-
-	fields = table->field;
-
-	for (ulint j = 0; j < ib_vector_size(inserted->doc_ids); ++j) {
-		doc_id_t	doc_id;
-
-		doc_id = *(doc_id_t*) ib_vector_get_const(inserted->doc_ids, j);
-
-		OK(fields[I_S_FTS_DOC_ID]->store((longlong) doc_id, true));
-
-		OK(schema_table_store_record(thd, table));
-	}
-
-	trx_free_for_background(trx);
-
-	fts_doc_ids_free(inserted);
-
-	dict_table_close(user_table, FALSE, FALSE);
-
-	DBUG_RETURN(0);
-}
-
-/*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_FT_INSERTED
-@return	0 on success */
-static
-int
-i_s_fts_inserted_init(
-/*==================*/
-	void*	p)	/*!< in/out: table schema object */
-{
-	DBUG_ENTER("i_s_fts_inserted_init");
-	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
-
-	schema->fields_info = i_s_fts_doc_fields_info;
-	schema->fill_table = i_s_fts_inserted_fill;
-
-	DBUG_RETURN(0);
-}
-
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_inserted =
-{
-	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
-	/* int */
-	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
-
-	/* pointer to type-specific plugin descriptor */
-	/* void* */
-	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
-
-	/* plugin name */
-	/* const char* */
-	STRUCT_FLD(name, "INNODB_FT_INSERTED"),
-
-	/* plugin author (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(author, plugin_author),
-
-	/* general descriptive text (for SHOW PLUGINS) */
-	/* const char* */
-	STRUCT_FLD(descr, "INNODB AUXILIARY FTS INSERTED TABLE"),
-
-	/* the plugin license (PLUGIN_LICENSE_XXX) */
-	/* int */
-	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
-
-	/* the function to invoke when plugin is loaded */
-	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_fts_inserted_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -3939,14 +3803,8 @@ static ST_FIELD_INFO	i_s_fts_config_fields_info[] =
 static const char* fts_config_key[] = {
 	FTS_OPTIMIZE_LIMIT_IN_SECS,
 	FTS_SYNCED_DOC_ID,
-	FTS_LAST_OPTIMIZED_WORD,
-	FTS_TOTAL_DELETED_COUNT,
-	FTS_TOTAL_WORD_COUNT,
-	FTS_OPTIMIZE_START_TIME,
-	FTS_OPTIMIZE_END_TIME,
 	FTS_STOPWORD_TABLE_NAME,
 	FTS_USE_STOPWORD,
-	FTS_TABLE_STATE,
         NULL
 };
 
@@ -4092,6 +3950,290 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_config =
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
 	STRUCT_FLD(init, i_s_fts_config_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+/* Fields of the dynamic table INNODB_TEMP_TABLE_INFO. */
+static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
+{
+#define IDX_TEMP_TABLE_ID		0
+	{STRUCT_FLD(field_name,		"TABLE_ID"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TEMP_TABLE_NAME		1
+	{STRUCT_FLD(field_name,		"NAME"),
+	 STRUCT_FLD(field_length,	MAX_TABLE_UTF8_LEN),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TEMP_TABLE_N_COLS		2
+	{STRUCT_FLD(field_name,		"N_COLS"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TEMP_TABLE_SPACE_ID		3
+	{STRUCT_FLD(field_name,		"SPACE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TEMP_TABLE_PTT		4
+	{STRUCT_FLD(field_name,		"PER_TABLE_TABLESPACE"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TEMP_TABLE_IS_COMPRESSED	5
+	{STRUCT_FLD(field_name,		"IS_COMPRESSED"),
+	 STRUCT_FLD(field_length,	64),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+	END_OF_ST_FIELD_INFO
+};
+
+struct temp_table_info_t{
+	table_id_t	m_table_id;
+	char		m_table_name[MAX_TABLE_UTF8_LEN];
+	unsigned	m_n_cols;
+	unsigned	m_space_id;
+	char		m_per_table_tablespace[64];
+	char		m_is_compressed[64];
+};
+
+typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
+
+/*******************************************************************//**
+Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
+temp-table
+@return	0 on success, 1 on failure */
+static
+int
+i_s_innodb_temp_table_info_fill(
+/*=============================*/
+	THD*				thd,		/*!< in: thread */
+	TABLE_LIST*			tables,		/*!< in/out: tables
+							to fill */
+	const temp_table_info_t*	info)		/*!< in: temp-table
+							information */
+{
+	TABLE*			table;
+	Field**			fields;
+
+	DBUG_ENTER("i_s_innodb_temp_table_info_fill");
+
+	table = tables->table;
+
+	fields = table->field;
+
+	OK(fields[IDX_TEMP_TABLE_ID]->store(info->m_table_id));
+
+	OK(field_store_string(fields[IDX_TEMP_TABLE_NAME], info->m_table_name));
+
+	OK(fields[IDX_TEMP_TABLE_N_COLS]->store(info->m_n_cols));
+
+	OK(fields[IDX_TEMP_TABLE_SPACE_ID]->store(info->m_space_id));
+
+	OK(field_store_string(
+		fields[IDX_TEMP_TABLE_PTT], info->m_per_table_tablespace));
+
+	OK(field_store_string(
+		fields[IDX_TEMP_TABLE_IS_COMPRESSED], info->m_is_compressed));
+
+	DBUG_RETURN(schema_table_store_record(thd, table));
+}
+
+/*******************************************************************//**
+Populate current table information to cache */
+static
+void
+innodb_temp_table_populate_cache(
+/*=============================*/
+	const dict_table_t*	table,  /*! in: table */
+	temp_table_info_t*	cache)  /*! in/out: populate data in this
+					cache */
+{
+	cache->m_table_id = table->id;
+
+	char	db_utf8[MAX_DB_UTF8_LEN];
+	char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+	dict_fs2utf8(table->name,
+		     db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
+	strcpy(cache->m_table_name, table_utf8);
+
+	cache->m_n_cols = table->n_cols;
+
+	cache->m_space_id = table->space;
+
+	if (table->space == srv_tmp_space.space_id()) {
+		strcpy(cache->m_per_table_tablespace, "FALSE");
+	} else {
+		strcpy(cache->m_per_table_tablespace, "TRUE");
+	}
+
+	if (dict_table_zip_size(table) != 0) {
+		strcpy(cache->m_is_compressed, "TRUE");
+	} else {
+		strcpy(cache->m_is_compressed, "FALSE");
+	}
+}
+
+/*******************************************************************//**
+This function will iterate over all available table and will fill
+stats for temp-tables to INNODB_TEMP_TABLE_INFO.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_innodb_temp_table_info_fill_table(
+/*===================================*/
+	THD*		thd,		/*!< in: thread */
+	TABLE_LIST*	tables,		/*!< in/out: tables to fill */
+	Item*		)		/*!< in: condition (ignored) */
+{
+	int			status	= 0;
+	dict_table_t*		table	= NULL;
+
+	DBUG_ENTER("i_s_innodb_temp_table_info_fill_table");
+
+	/* Only allow the PROCESS privilege holder to access the stats */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	/* First populate all temp-table info by acquiring dict_sys->mutex.
+	Note: Scan is being done on NON-LRU list which mainly has system
+	table entries and temp-table entries. This means 2 things: list
+	is smaller so processing would be faster and most of the data
+	is relevant */
+	temp_table_info_cache_t all_temp_info_cache;
+	all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
+
+	mutex_enter(&dict_sys->mutex);
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
+
+		if (!dict_table_is_temporary(table)) {
+			continue;
+		}
+
+		temp_table_info_t current_temp_table_info;
+
+		innodb_temp_table_populate_cache(
+			table, &current_temp_table_info);
+
+		all_temp_info_cache.push_back(current_temp_table_info);
+	}
+	mutex_exit(&dict_sys->mutex);
+
+	/* Now populate the info to MySQL table */
+	temp_table_info_cache_t::const_iterator end = all_temp_info_cache.end();
+	for (temp_table_info_cache_t::const_iterator it
+		= all_temp_info_cache.begin();
+	     it != end;
+	     it++) {
+		status = i_s_innodb_temp_table_info_fill(thd, tables, &(*it));
+		if (status) {
+			break;
+		}
+	}
+
+	DBUG_RETURN(status);
+}
+
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_innodb_temp_table_info_init(
+/*=============================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("i_s_innodb_temp_table_info_init");
+
+	schema = reinterpret_cast<ST_SCHEMA_TABLE*>(p);
+
+	schema->fields_info = i_s_innodb_temp_table_info_fields_info;
+	schema->fill_table = i_s_innodb_temp_table_info_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_info =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_TEMP_TABLE_INFO"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB Temp Table Stats"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_innodb_temp_table_info_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
@@ -4952,7 +5094,7 @@ i_s_innodb_buffer_page_fill(
 		/* First three states are for compression pages and
 		are not states we would get as we scan pages through
 		buffer blocks */
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_ZIP_PAGE:
 		case BUF_BLOCK_ZIP_DIRTY:
 			state_str = NULL;
@@ -5653,7 +5795,7 @@ i_s_innodb_buf_page_lru_fill(
 			state_str = "NO";
 			break;
 		/* We should not see following states */
-		case BUF_BLOCK_ZIP_FREE:
+		case BUF_BLOCK_POOL_WATCH:
 		case BUF_BLOCK_READY_FOR_USE:
 		case BUF_BLOCK_NOT_USED:
 		case BUF_BLOCK_MEMORY:

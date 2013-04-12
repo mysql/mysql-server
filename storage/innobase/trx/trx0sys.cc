@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -145,7 +145,7 @@ trx_in_trx_list(
 	/* Non-locking autocommits should not hold any locks. */
 	assert_trx_in_list(in_trx);
 
-	trx_list = in_trx->read_only
+	trx_list = (in_trx->read_only || in_trx->rseg == 0)
 		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
@@ -153,14 +153,18 @@ trx_in_trx_list(
 	ut_ad(trx_assert_started(in_trx));
 
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
-	     trx != NULL && trx != in_trx;
+	     trx != 0 && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
 		assert_trx_in_list(trx);
-		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
+
+		ut_ad(!(trx->rseg == 0 || trx->read_only)
+		      == (trx_list == &trx_sys->rw_trx_list)
+		      || (trx->rseg != 0 && trx->read_only)
+		      == (trx_list == &trx_sys->ro_trx_list));
 	}
 
-	return(trx != NULL);
+	return(trx != 0);
 }
 #endif /* UNIV_DEBUG */
 
@@ -990,7 +994,7 @@ trx_sys_read_file_format_id(
 	*format_id = ULINT_UNDEFINED;
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1070,7 +1074,7 @@ trx_sys_read_pertable_file_format_id(
 	*format_id = ULINT_UNDEFINED;
 
 	file = os_file_create_simple_no_error_handling(
-		innodb_file_data_key,
+		innodb_data_file_key,
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
@@ -1263,49 +1267,44 @@ trx_sys_any_active_transactions(void)
 #ifdef UNIV_DEBUG
 /*************************************************************//**
 Validate the trx_list_t.
-@return TRUE if valid. */
+@return true if valid. */
 static
-ibool
+bool
 trx_sys_validate_trx_list_low(
 /*===========================*/
-	trx_list_t*	trx_list)	/*!< in: &trx_sys->ro_trx_list
-					or &trx_sys->rw_trx_list */
+	trx_list_t*	trx_list)	/*!< in: &trx_sys->rw_trx_list */
 {
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	ut_ad(trx_list == &trx_sys->ro_trx_list
-	      || trx_list == &trx_sys->rw_trx_list);
+	ut_ad(trx_list == &trx_sys->rw_trx_list);
 
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
 		assert_trx_in_list(trx);
-		ut_ad(trx->read_only == (trx_list == &trx_sys->ro_trx_list));
-
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /*************************************************************//**
-Validate the trx_sys_t::ro_trx_list and trx_sys_t::rw_trx_list.
-@return TRUE if lists are valid. */
+Validate the trx_sys_t::rw_trx_list.
+@return true if the list is valid. */
 UNIV_INTERN
-ibool
-trx_sys_validate_trx_list(void)
-/*===========================*/
+bool
+trx_sys_validate_trx_list()
+/*=======================*/
 {
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	ut_a(trx_sys_validate_trx_list_low(&trx_sys->ro_trx_list));
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));
 
-	return(TRUE);
+	return(true);
 }
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */

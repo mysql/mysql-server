@@ -239,40 +239,6 @@ public:
 };
 
 
-class Alter_drop :public Sql_alloc {
-public:
-  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
-  const char *name;
-  enum drop_type type;
-  Alter_drop(enum drop_type par_type,const char *par_name)
-    :name(par_name), type(par_type)
-  {
-    DBUG_ASSERT(par_name != NULL);
-  }
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_drop *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_drop(*this); }
-};
-
-
-class Alter_column :public Sql_alloc {
-public:
-  const char *name;
-  Item *def;
-  Alter_column(const char *par_name,Item *literal)
-    :name(par_name), def(literal) {}
-  /**
-    Used to make a clone of this object for ALTER/CREATE TABLE
-    @sa comment for Key_part_spec::clone
-  */
-  Alter_column *clone(MEM_ROOT *mem_root) const
-    { return new (mem_root) Alter_column(*this); }
-};
-
-
 class Key :public Sql_alloc {
 public:
   enum Keytype { PRIMARY, UNIQUE, MULTIPLE, FULLTEXT, SPATIAL, FOREIGN_KEY};
@@ -1233,6 +1199,11 @@ void xid_cache_delete(XID_STATE *xid_state);
 */
 
 class Security_context {
+private:
+
+String host; 
+String ip; 
+String external_user;
 public:
   Security_context() {}                       /* Remove gcc warning */
   /*
@@ -1242,13 +1213,11 @@ public:
     priv_user - The user privilege we are using. May be "" for anonymous user.
     ip - client IP
   */
-  char   *host, *user, *ip;
+  char   *user;
   char   priv_user[USERNAME_LENGTH];
   char   proxy_user[USERNAME_LENGTH + MAX_HOSTNAME + 5];
   /* The host privilege we are using */
   char   priv_host[MAX_HOSTNAME];
-  /* The external user (if available) */
-  char   *external_user;
   /* points to host if host is available, otherwise points to ip */
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
@@ -1264,7 +1233,13 @@ public:
   }
   
   bool set_user(char *user_arg);
-
+  String *get_host();
+  String *get_ip();
+  String *get_external_user();
+  void set_host(const char *p);
+  void set_ip(const char *p);
+  void set_external_user(const char *p);
+  void set_host(const char *str, size_t len);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
@@ -1854,9 +1829,7 @@ public:
   */
   struct st_mysql_stmt *current_stmt;
 #endif
-#ifdef HAVE_QUERY_CACHE
   Query_cache_tls query_cache_tls;
-#endif
   NET	  net;				// client connection descriptor
   /** Aditional network instrumentation for the server only. */
   NET_SERVER m_net_server_extension;
@@ -2156,6 +2129,7 @@ private:
    */
   /**@{*/
   const char *m_trans_log_file;
+  const char *m_trans_fixed_log_file;
   my_off_t m_trans_end_pos;
   /**@}*/
 
@@ -2208,15 +2182,21 @@ public:
     /*
       (Mostly) binlog-specific fields use while flushing the caches
       and committing transactions.
+      We don't use bitfield any more in the struct. Modification will
+      be lost when concurrently updating multiple bit fields. It will
+      cause a race condition in a multi-threaded application. And we
+      already caught a race condition case between xid_written and
+      ready_preempt in MYSQL_BIN_LOG::ordered_commit.
     */
     struct {
-      bool enabled:1;                   // see ha_enable_transaction()
-      bool pending:1;                   // Is the transaction commit pending?
-      bool xid_written:1;               // The session wrote an XID
-      bool real_commit:1;               // Is this a "real" commit?
-      bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+      bool enabled;                   // see ha_enable_transaction()
+      bool pending;                   // Is the transaction commit pending?
+      bool xid_written;               // The session wrote an XID
+      bool real_commit;               // Is this a "real" commit?
+      bool commit_low;                // see MYSQL_BIN_LOG::ordered_commit
+      bool run_hooks;                 // Call the after_commit hook
 #ifndef DBUG_OFF
-      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+      bool ready_preempt;             // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
     } flags;
 
@@ -2658,13 +2638,22 @@ public:
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file= file + dirname_length(file);
+      MEM_ROOT *log_file_mem_root= &main_mem_root;
+      if (!m_trans_fixed_log_file)
+        m_trans_fixed_log_file= new (log_file_mem_root) char[FN_REFLEN + 1];
+      m_trans_fixed_log_file= strdup_root(log_file_mem_root,
+                                          file + dirname_length(file));
     }
     else
+    {
       m_trans_log_file= NULL;
+      m_trans_fixed_log_file= NULL;
+    }
 
     m_trans_end_pos= pos;
-    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_end_pos: %llu",
-                          m_trans_log_file, m_trans_end_pos));
+    DBUG_PRINT("return", ("m_trans_log_file: %s, m_trans_fixed_log_file: %s, "
+                          "m_trans_end_pos: %llu", m_trans_log_file,
+                          m_trans_fixed_log_file, m_trans_end_pos));
     DBUG_VOID_RETURN;
   }
 
@@ -2680,13 +2669,32 @@ public:
                           pos_var ? *pos_var : 0));
     DBUG_VOID_RETURN;
   }
+
+  void get_trans_fixed_pos(const char **file_var, my_off_t *pos_var) const
+  {
+    DBUG_ENTER("THD::get_trans_fixed_pos");
+    if (file_var)
+      *file_var = m_trans_fixed_log_file;
+    if (pos_var)
+      *pos_var= m_trans_end_pos;
+    DBUG_PRINT("return", ("file: %s, pos: %llu",
+                          file_var ? *file_var : "<none>",
+                          pos_var ? *pos_var : 0));
+    DBUG_VOID_RETURN;
+  }
   /**@}*/
 
 
   /*
     Error code from committing or rolling back the transaction.
   */
-  int commit_error;
+  enum Commit_error
+  {
+    CE_NONE= 0,
+    CE_FLUSH_ERROR,
+    CE_COMMIT_ERROR,
+    CE_ERROR_COUNT
+  } commit_error;
 
   /*
     Define durability properties that engines may check to

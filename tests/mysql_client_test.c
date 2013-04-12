@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 /*
   XXX: PLEASE RUN THIS PROGRAM UNDER VALGRIND AND VERIFY THAT YOUR TEST
@@ -6099,6 +6099,14 @@ static void test_date_frac()
 
   myheader("test_date");
 
+  if (mysql_get_server_version(mysql) < 50604)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_date_frac: fractinal seconds implemented "
+              "in MySQL 5.6.4\n");
+    return;
+  }
+
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS test_date");
   myquery(rc);
 
@@ -6216,6 +6224,14 @@ static void test_temporal_param()
   longlong     bigint= 123;
   double       real= 123;
   char         dec[40];
+
+  if (mysql_get_server_version(mysql) < 50600)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_temporal_param: this test cannot be "
+              "executed on servers prior to 5.6 until bug#16328037 is fixed\n");
+    return;
+  }
 
   /* Initialize param/fetch buffers for data, null flags, lengths */
   memset(&my_bind, 0, sizeof(my_bind));
@@ -7851,7 +7867,8 @@ static void test_cuted_rows()
   count= mysql_warning_count(mysql);
   if (!opt_silent)
     fprintf(stdout, "\n total warnings: %d", count);
-  DIE_UNLESS(count == 1);
+  // Number of warnings changed in mysql-5.7
+  DIE_UNLESS(count == (mysql_get_server_version(mysql) < 50700 ? 2 : 1));
 
   rc= mysql_query(mysql, "SHOW WARNINGS");
   myquery(rc);
@@ -7860,7 +7877,8 @@ static void test_cuted_rows()
   mytest(result);
 
   rc= my_process_result_set(result);
-  DIE_UNLESS(rc == 1);
+  // Number of warnings changed in mysql-5.7
+  DIE_UNLESS(rc == (mysql_get_server_version(mysql) < 50700 ? 2 : 1));
   mysql_free_result(result);
 
   rc= mysql_query(mysql, "INSERT INTO t1 VALUES('junk'), (876789)");
@@ -11904,6 +11922,14 @@ static void test_bug6049()
   int rc;
 
   myheader("test_bug6049");
+
+  if (mysql_get_server_version(mysql) < 50600)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_bug6049: this test cannot be executed "
+              "on servers prior to 5.6 until bug#16433596 is fixed\n");
+    return;
+  }
 
   stmt_text= "SELECT MAKETIME(-25, 12, 12)";
 
@@ -18000,8 +18026,6 @@ static void test_bug43560(void)
   Bug#36326: nested transaction and select
 */
 
-#ifdef HAVE_QUERY_CACHE
-
 static void test_bug36326()
 {
   int rc;
@@ -18047,8 +18071,6 @@ static void test_bug36326()
 
   DBUG_VOID_RETURN;
 }
-
-#endif
 
 /**
   Bug#41078: With CURSOR_TYPE_READ_ONLY mysql_stmt_fetch() returns short
@@ -19010,6 +19032,14 @@ static void test_wl5968()
 
   myheader("test_wl5968");
 
+  if (mysql_get_server_version(mysql) < 50600)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl5968: "
+              "tested feature does not exist in versions before MySQL 5.6\n");
+    return;
+  }
+
   rc= mysql_query(mysql, "START TRANSACTION");
   myquery(rc);
   DIE_UNLESS(mysql->server_status & SERVER_STATUS_IN_TRANS);
@@ -19044,6 +19074,15 @@ static void test_wl5924()
   MYSQL_ROW row;
 
   myheader("test_wl5924");
+
+  if (mysql_get_server_version(mysql) < 50600)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl5924: "
+              "tested feature does not exist in versions before MySQL 5.6\n");
+    return;
+  }
+
   l_mysql= mysql_client_init(NULL);
   DIE_UNLESS(l_mysql != NULL);
 
@@ -19156,6 +19195,14 @@ static void test_wl6587()
   my_bool can;
 
   myheader("test_wl6587");
+
+  if (mysql_get_server_version(mysql) < 50600)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl6587: "
+              "tested feature does not exist in versions before MySQL 5.6\n");
+    return;
+  }
 
   /* initialize the server user */
   rc= mysql_query(mysql,
@@ -19489,9 +19536,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug33831", test_bug33831 },
   { "test_bug40365", test_bug40365 },
   { "test_bug43560", test_bug43560 },
-#ifdef HAVE_QUERY_CACHE
   { "test_bug36326", test_bug36326 },
-#endif
   { "test_bug41078", test_bug41078 },
   { "test_bug44495", test_bug44495 },
   { "test_bug49972", test_bug49972 },

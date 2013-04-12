@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,6 +42,13 @@ IF(UNIX)
 ENDIF()
 
 
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCXX)
+  ## We will be using gcc to generate .so files
+  ## Add C flags (e.g. -m64) to CMAKE_SHARED_LIBRARY_C_FLAGS
+  SET(CMAKE_SHARED_LIBRARY_C_FLAGS
+    "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${CMAKE_C_FLAGS}")
+ENDIF()
+
 
 # System type affects version_compile_os variable 
 IF(NOT SYSTEM_TYPE)
@@ -58,6 +65,15 @@ IF(CMAKE_COMPILER_IS_GNUCXX)
 ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCC)
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall")
+ENDIF()
+
+IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_CXX_FLAGS
+    "${CMAKE_CXX_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
+ENDIF()
+IF(CMAKE_C_COMPILER_ID MATCHES "Clang")
+  SET(CMAKE_C_FLAGS
+    "${CMAKE_C_FLAGS} -Wall -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
@@ -212,6 +228,11 @@ IF(UNIX)
     IF(HAVE_LIBWRAP)
       SET(MYSYS_LIBWRAP_SOURCE  ${CMAKE_SOURCE_DIR}/mysys/my_libwrap.c)
       SET(LIBWRAP "wrap")
+    ELSE()
+      MESSAGE(FATAL_ERROR 
+      "WITH_LIBWRAP is defined, but can not find a working libwrap. "
+      "Make sure both the header files (tcpd.h) "
+      "and the library (libwrap) are installed.")
     ENDIF()
   ENDIF()
 ENDIF()
@@ -422,7 +443,7 @@ CHECK_FUNCTION_EXISTS (localtime_r HAVE_LOCALTIME_R)
 CHECK_FUNCTION_EXISTS (longjmp HAVE_LONGJMP)
 CHECK_FUNCTION_EXISTS (lstat HAVE_LSTAT)
 CHECK_FUNCTION_EXISTS (madvise HAVE_MADVISE)
-CHECK_FUNCTION_EXISTS (mallinfo HAVE_MALLINFO)
+CHECK_FUNCTION_EXISTS (malloc_info HAVE_MALLOC_INFO)
 CHECK_FUNCTION_EXISTS (memcpy HAVE_MEMCPY)
 CHECK_FUNCTION_EXISTS (memmove HAVE_MEMMOVE)
 CHECK_FUNCTION_EXISTS (mkstemp HAVE_MKSTEMP)
@@ -440,7 +461,6 @@ CHECK_FUNCTION_EXISTS (pthread_attr_create HAVE_PTHREAD_ATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_attr_getstacksize HAVE_PTHREAD_ATTR_GETSTACKSIZE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setscope HAVE_PTHREAD_ATTR_SETSCOPE)
 CHECK_FUNCTION_EXISTS (pthread_attr_setstacksize HAVE_PTHREAD_ATTR_SETSTACKSIZE)
-CHECK_FUNCTION_EXISTS (pthread_condattr_create HAVE_PTHREAD_CONDATTR_CREATE)
 CHECK_FUNCTION_EXISTS (pthread_condattr_setclock HAVE_PTHREAD_CONDATTR_SETCLOCK)
 CHECK_FUNCTION_EXISTS (pthread_key_delete HAVE_PTHREAD_KEY_DELETE)
 CHECK_FUNCTION_EXISTS (pthread_rwlock_rdlock HAVE_PTHREAD_RWLOCK_RDLOCK)
@@ -534,8 +554,6 @@ CHECK_INCLUDE_FILES(ia64intrin.h HAVE_IA64INTRIN_H)
 
 CHECK_FUNCTION_EXISTS(times HAVE_TIMES)
 CHECK_FUNCTION_EXISTS(gettimeofday HAVE_GETTIMEOFDAY)
-CHECK_FUNCTION_EXISTS(read_real_time HAVE_READ_REAL_TIME)
-# This should work on AIX.
 
 CHECK_FUNCTION_EXISTS(ftime HAVE_FTIME)
 # This is still a normal call for milliseconds.
@@ -676,6 +694,7 @@ ENDIF()
 
 # check whether time_t is unsigned
 CHECK_C_SOURCE_COMPILES("
+#include <time.h>
 int main()
 {
   int array[(((time_t)-1) > 0) ? 1 : -1];
@@ -979,7 +998,7 @@ CHECK_C_SOURCE_COMPILES("
 
 CHECK_CXX_SOURCE_COMPILES("
     #undef inline
-    #if !defined(SCO) && !defined(__osf__) && !defined(_REENTRANT)
+    #if !defined(__osf__) && !defined(_REENTRANT)
     #define _REENTRANT
     #endif
     #include <pthread.h>
@@ -1075,7 +1094,6 @@ ENDIF()
 
 
 # Check for sockaddr_storage.ss_family
-# It is called differently under OS400 and older AIX
 
 CHECK_STRUCT_HAS_MEMBER("struct sockaddr_storage"
  ss_family "${CMAKE_EXTRA_INCLUDE_FILES}" HAVE_SOCKADDR_STORAGE_SS_FAMILY)

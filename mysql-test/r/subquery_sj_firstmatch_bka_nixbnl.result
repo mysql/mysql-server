@@ -6348,7 +6348,7 @@ EXPLAIN
           ],
           "rows": 1,
           "filtered": 100,
-          "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10))"
+          "attached_condition": "(`test`.`t3`.`Percentage` > 10)"
         }
       }
     ]

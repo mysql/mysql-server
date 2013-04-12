@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -238,6 +238,11 @@ foreach my $option (@ARGV)
   {
       $cmakeargs = $cmakeargs." -DENABLE_GCOV=ON"; 
       next;
+  }
+  if ($option =~ /with-max-indexes=/)
+  {
+    $cmakeargs = $cmakeargs." -DMAX_INDEXES=".substr($option, 17); 
+    next;
   }
   if ($option =~ /with-client-ldflags/)
   {

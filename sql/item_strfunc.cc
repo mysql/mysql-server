@@ -1064,7 +1064,6 @@ String *Item_func_reverse::val_str(String *str)
   ptr= (char *) res->ptr();
   end= ptr + res->length();
   tmp= (char *) tmp_value.ptr() + tmp_value.length();
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     uint32 l;
@@ -1081,7 +1080,6 @@ String *Item_func_reverse::val_str(String *str)
     }
   }
   else
-#endif /* USE_MB */
   {
     while (ptr < end)
       *--tmp= *ptr++;
@@ -1103,7 +1101,7 @@ void Item_func_reverse::fix_length_and_dec()
   Don't reallocate val_str() if not needed.
 
   @todo
-    Fix that this works with binary strings when using USE_MB 
+    Fix that this works with binary strings
 */
 
 String *Item_func_replace::val_str(String *str)
@@ -1113,11 +1111,9 @@ String *Item_func_replace::val_str(String *str)
   int offset;
   uint from_length,to_length;
   bool alloced=0;
-#ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
   uint32 l;
   bool binary_cmp;
-#endif
 
   null_value=0;
   res=args[0]->val_str(str);
@@ -1129,26 +1125,18 @@ String *Item_func_replace::val_str(String *str)
 
   res->set_charset(collation.collation);
 
-#ifdef USE_MB
   binary_cmp = ((res->charset()->state & MY_CS_BINSORT) || !use_mb(res->charset()));
-#endif
 
   if (res2->length() == 0)
     return res;
-#ifndef USE_MB
-  if ((offset=res->strstr(*res2)) < 0)
-    return res;
-#else
   offset=0;
   if (binary_cmp && (offset=res->strstr(*res2)) < 0)
     return res;
-#endif
   if (!(res3=args[2]->val_str(&tmp_value2)))
     goto null;
   from_length= res2->length();
   to_length=   res3->length();
 
-#ifdef USE_MB
   if (!binary_cmp)
   {
     search=res2->ptr();
@@ -1198,7 +1186,6 @@ skip:
     }
   }
   else
-#endif /* USE_MB */
     do
     {
       if (res->length()-from_length + to_length >
@@ -1566,7 +1553,6 @@ String *Item_func_substr_index::val_str(String *str)
 
   res->set_charset(collation.collation);
 
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     const char *ptr= res->ptr();
@@ -1617,7 +1603,6 @@ String *Item_func_substr_index::val_str(String *str)
     }
   }
   else
-#endif /* USE_MB */
   {
     if (count > 0)
     {					// start counting from the beginning
@@ -1745,14 +1730,11 @@ String *Item_func_rtrim::val_str(String *str)
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
-#ifdef USE_MB
   char *p=ptr;
   uint32 l;
-#endif
   if (remove_length == 1)
   {
     char chr=(*remove_str)[0];
-#ifdef USE_MB
     if (use_mb(res->charset()))
     {
       while (ptr < end)
@@ -1762,14 +1744,12 @@ String *Item_func_rtrim::val_str(String *str)
       }
       ptr=p;
     }
-#endif
     while (ptr != end  && end[-1] == chr)
       end--;
   }
   else
   {
     const char *r_ptr=remove_str->ptr();
-#ifdef USE_MB
     if (use_mb(res->charset()))
     {
   loop:
@@ -1786,7 +1766,6 @@ String *Item_func_rtrim::val_str(String *str)
       }
     }
     else
-#endif /* USE_MB */
     {
       while (ptr + remove_length <= end &&
 	     !memcmp(end-remove_length, r_ptr, remove_length))
@@ -1830,7 +1809,6 @@ String *Item_func_trim::val_str(String *str)
   r_ptr= remove_str->ptr();
   while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
     ptr+=remove_length;
-#ifdef USE_MB
   if (use_mb(res->charset()))
   {
     char *p=ptr;
@@ -1850,7 +1828,6 @@ String *Item_func_trim::val_str(String *str)
     ptr=p;
   }
   else
-#endif /* USE_MB */
   {
     while (ptr + remove_length <= end &&
 	   !memcmp(end-remove_length,r_ptr,remove_length))
@@ -2612,7 +2589,8 @@ double Item_func_elt::val_real()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0.0;
   double result= args[tmp]->val_real();
   null_value= args[tmp]->null_value;
@@ -2625,7 +2603,8 @@ longlong Item_func_elt::val_int()
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return 0;
 
   longlong result= args[tmp]->val_int();
@@ -2639,7 +2618,8 @@ String *Item_func_elt::val_str(String *str)
   DBUG_ASSERT(fixed == 1);
   uint tmp;
   null_value=1;
-  if ((tmp=(uint) args[0]->val_int()) == 0 || tmp >= arg_count)
+  if ((tmp= (uint) args[0]->val_int()) == 0 || args[0]->null_value
+      || tmp >= arg_count)
     return NULL;
 
   String *result= args[tmp]->val_str(str);

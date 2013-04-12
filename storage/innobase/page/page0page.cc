@@ -122,10 +122,9 @@ page_dir_find_owner_slot(
 	while (UNIV_LIKELY(*(uint16*) slot != rec_offs_bytes)) {
 
 		if (UNIV_UNLIKELY(slot == first_slot)) {
-			fprintf(stderr,
-				"InnoDB: Probable data corruption on"
-				" page %lu\n"
-				"InnoDB: Original record ",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Probable data corruption on page %lu "
+				"Original record on that page;",
 				(ulong) page_get_page_no(page));
 
 			if (page_is_comp(page)) {
@@ -134,18 +133,15 @@ page_dir_find_owner_slot(
 				rec_print_old(stderr, rec);
 			}
 
-			fputs("\n"
-			      "InnoDB: on that page.\n"
-			      "InnoDB: Cannot find the dir slot for record ",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot find the dir slot for this record "
+				"on that page;");
 			if (page_is_comp(page)) {
 				fputs("(compact record)", stderr);
 			} else {
 				rec_print_old(stderr, page
 					      + mach_decode_2(rec_offs_bytes));
 			}
-			fputs("\n"
-			      "InnoDB: on that page!\n", stderr);
 
 			buf_page_print(page, 0, 0);
 
@@ -562,7 +558,13 @@ page_create_empty(
 
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(page)) {
 		max_trx_id = page_get_max_trx_id(page);
 		ut_ad(max_trx_id);
 	}
@@ -640,13 +642,12 @@ page_copy_rec_list_end_no_locks(
 				       BUF_PAGE_PRINT_NO_CRASH);
 			ut_print_timestamp(stderr);
 
-			fprintf(stderr,
-				"InnoDB: rec offset %lu, cur1 offset %lu,"
-				" cur2 offset %lu\n",
+			ib_logf(IB_LOG_LEVEL_FATAL,
+				"rec offset %lu, cur1 offset %lu,"
+				" cur2 offset %lu",
 				(ulong) page_offset(rec),
 				(ulong) page_offset(page_cur_get_rec(&cur1)),
 				(ulong) page_offset(cur2));
-			ut_error;
 		}
 
 		page_cur_move_to_next(&cur1);
@@ -720,8 +721,14 @@ page_copy_rec_list_end(
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
-	page in page_zip_compress() or page_zip_reorganize() below. */
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)) {
+	page in page_zip_compress() or page_zip_reorganize() below.
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && page_is_leaf(page)
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page), mtr);
 	}
@@ -848,9 +855,14 @@ page_copy_rec_list_start(
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
 	Modifications will be redo logged and copied to the compressed
-	page in page_zip_compress() or page_zip_reorganize() below. */
+	page in page_zip_compress() or page_zip_reorganize() below.
+	Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
 	if (dict_index_is_sec_or_ibuf(index)
-	    && page_is_leaf(page_align(rec))) {
+	    && page_is_leaf(page_align(rec))
+	    && !dict_table_is_temporary(index->table)) {
 		page_update_max_trx_id(new_block, NULL,
 				       page_get_max_trx_id(page_align(rec)),
 				       mtr);
@@ -2436,7 +2448,13 @@ page_validate(
 		}
 	}
 
-	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
+	/* Multiple transactions cannot simultaneously operate on the
+	same temp-table in parallel.
+	max_trx_id is ignored for temp tables because it not required
+	for MVCC. */
+	if (dict_index_is_sec_or_ibuf(index)
+	    && !dict_table_is_temporary(index->table)
+	    && page_is_leaf(page)
 	    && !page_is_empty(page)) {
 		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
 		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();

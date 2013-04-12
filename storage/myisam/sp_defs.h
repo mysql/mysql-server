@@ -11,7 +11,7 @@
    
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
 
 #ifndef _SP_DEFS_H
 #define _SP_DEFS_H
@@ -19,8 +19,6 @@
 #define SPDIMS 2
 #define SPTYPE HA_KEYTYPE_DOUBLE
 #define SPLEN  8
-
-#ifdef HAVE_SPATIAL
 
 enum wkbType
 {
@@ -42,5 +40,4 @@ enum wkbByteOrder
 uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
                  const uchar *record, my_off_t filepos);
 
-#endif /*HAVE_SPATIAL*/
 #endif /* _SP_DEFS_H */

@@ -5,7 +5,6 @@
 # as input.
 #
 # ==== Implementation ====
-
 --source include/have_gtid.inc
 
 # TODO: Need to look at making row based version once new binlog client is complete.

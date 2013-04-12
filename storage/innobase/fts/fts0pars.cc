@@ -271,8 +271,6 @@ YYID (yyi)
 #    define YYSTACK_ALLOC __builtin_alloca
 #   elif defined __BUILTIN_VA_ARG_INCR
 #    include <alloca.h> /* INFRINGES ON USER NAME SPACE */
-#   elif defined _AIX
-#    define YYSTACK_ALLOC __alloca
 #   elif defined _MSC_VER
 #    include <malloc.h> /* INFRINGES ON USER NAME SPACE */
 #    define alloca _alloca
@@ -717,11 +715,6 @@ yy_symbol_value_print (yyoutput, yytype, yyvaluep)
 # else
   YYUSE (yyoutput);
 # endif
-  switch (yytype)
-    {
-      default:
-	break;
-    }
 }
 
 
@@ -1081,13 +1074,6 @@ yydestruct (yymsg, yytype, yyvaluep)
   if (!yymsg)
     yymsg = "Deleting";
   YY_SYMBOL_PRINT (yymsg, yytype, yyvaluep, yylocationp);
-
-  switch (yytype)
-    {
-
-      default:
-	break;
-    }
 }
 
 /* Prevent warnings from -Wmissing-prototypes.  */
@@ -1835,7 +1821,7 @@ ftserror(
 /*=====*/
 	const char*	p)
 {
-	fprintf(stderr, "%s\n", p);
+	my_printf_error(ER_PARSE_ERROR, "%s", MYF(0), p);
 	return(0);
 }
 

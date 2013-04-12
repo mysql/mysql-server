@@ -420,24 +420,6 @@ JOIN::optimize_distinct()
   }
 }
 
-
-/**
-  There may be a pending 'sorted' request on the specified 
-  'join_tab' which we now has decided we can ignore.
-*/
-
-void
-disable_sorted_access(JOIN_TAB* join_tab)
-{
-  DBUG_ENTER("disable_sorted_access");
-  join_tab->sorted= 0;
-  if (join_tab->select && join_tab->select->quick)
-  {
-    join_tab->select->quick->need_sorted_output(false);
-  }
-  DBUG_VOID_RETURN;
-}
-
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct)
 {
   Item_sum *func;
@@ -951,7 +933,15 @@ do_select(JOIN *join)
   }
 
   join->thd->limit_found_rows= join->send_records;
-  /* Use info provided by filesort. */
+  /*
+    Use info provided by filesort for "order by with limit":
+
+    When using a Priority Queue, we cannot rely on send_records, but need
+    to use the rowcount read originally into the join_tab applying the
+    filesort. There cannot be any post-filtering conditions, nor any
+    following join_tabs in this case, so this rowcount properly represents
+    the correct number of qualifying rows.
+  */
   if (join->order)
   {
     // Save # of found records prior to cleanup
@@ -968,7 +958,7 @@ do_select(JOIN *join)
       sort_tab= join_tab + const_tables;
     }
     if (sort_tab->filesort &&
-        sort_tab->filesort->sortorder)
+        sort_tab->filesort->using_pq)
     {
       join->thd->limit_found_rows= sort_tab->records;
     }
@@ -1572,7 +1562,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     else if (join_tab->do_loosescan() && join_tab->match_tab->found_match)
     { 
       /* Loosescan algorithm requires 'sorted' retrieval of keys. */
-      DBUG_ASSERT(join_tab->sorted);
+      DBUG_ASSERT(join_tab->use_order());
       /* 
          Previous row combination for duplicate-generating range,
          generated a match.  Compare keys of this row and previous row
@@ -2017,8 +2007,8 @@ join_read_key(JOIN_TAB *tab)
 
   if (!table->file->inited)
   {
-    DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
-    if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
+    DBUG_ASSERT(!tab->use_order()); //Don't expect sort req. for single row.
+    if ((error= table->file->ha_index_init(table_ref->key, tab->use_order())))
     {
       (void) report_handler_error(table, error);
       return 1;
@@ -2116,9 +2106,9 @@ join_read_linked_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
-  DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
+  DBUG_ASSERT(!tab->use_order()); // Pushed child can't be sorted
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     DBUG_RETURN(error);
@@ -2194,7 +2184,7 @@ join_read_always_key(JOIN_TAB *tab)
 
   /* Initialize the index first */
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2235,7 +2225,7 @@ join_read_last_key(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2471,6 +2461,43 @@ join_materialize_semijoin(JOIN_TAB *tab)
   DBUG_RETURN(NESTED_LOOP_OK);
 }
 
+
+/**
+  Check if access to this JOIN_TAB has to retrieve rows
+  in sorted order as defined by the ordered index
+  used to access this table.
+*/
+bool
+JOIN_TAB::use_order() const
+{
+  /*
+    No need to require sorted access for single row reads
+    being performed by const- or EQ_REF-accessed tables.
+  */
+  if (type == JT_EQ_REF ||
+      type == JT_CONST  ||
+      type == JT_SYSTEM)
+    return false;
+
+  /*
+    First non-const table requires sorted results 
+    if ORDER or GROUP BY use ordered index. 
+  */
+  if (this == &join->join_tab[join->const_tables] && 
+      join->ordered_index_usage != JOIN::ordered_index_void)
+    return true;
+
+  /*
+    LooseScan strategy for semijoin requires sorted
+    results even if final result is not to be sorted.
+  */
+  if (position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    return true;
+
+  /* Fall through: Results don't have to be sorted */
+  return false;
+}
+
 /*
   Helper function for sorting table with filesort.
 */
@@ -2503,7 +2530,7 @@ join_read_first(JOIN_TAB *tab)
   tab->read_record.read_record=join_read_next;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2541,7 +2568,7 @@ join_read_last(JOIN_TAB *tab)
   tab->read_record.index=tab->index;
   tab->read_record.record=table->record[0];
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->index, tab->sorted)))
+      (error= table->file->ha_index_init(tab->index, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2569,7 +2596,7 @@ join_ft_read_first(JOIN_TAB *tab)
   TABLE *table= tab->table;
 
   if (!table->file->inited &&
-      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+      (error= table->file->ha_index_init(tab->ref.key, tab->use_order())))
   {
     (void) report_handler_error(table, error);
     return 1;
@@ -2763,16 +2790,15 @@ end_send(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         !join->do_send_rows)
     {
       /*
-        If filesort is used for sorting, stop after select_limit_cnt+1
-        records are read. Because of optimization in some cases it can
-        provide only select_limit_cnt+1 records.
+        If we have used Priority Queue for optimizing order by with limit,
+        then stop here, there are no more records to consume.
         When this optimization is used, end_send is called on the next
         join_tab.
       */
       if (join->order &&
           join->select_options & OPTION_FOUND_ROWS &&
           join_tab > join->join_tab &&
-          (join_tab - 1)->filesort && (join_tab - 1)->filesort->sortorder)
+          (join_tab - 1)->filesort && (join_tab - 1)->filesort->using_pq)
       {
         DBUG_PRINT("info", ("filesort NESTED_LOOP_QUERY_LIMIT"));
         DBUG_RETURN(NESTED_LOOP_QUERY_LIMIT);
@@ -3304,7 +3330,7 @@ create_sort_index(THD *thd, JOIN *join, JOIN_TAB *tab)
     }
     else
     {
-      DBUG_ASSERT(tab->type == JT_REF);
+      DBUG_ASSERT(tab->type == JT_REF || tab->type == JT_EQ_REF);
       // Update ref value
       if ((cp_buffer_from_ref(thd, table, &tab->ref) && thd->is_fatal_error))
         goto err;                                   // out of memory

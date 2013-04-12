@@ -54,10 +54,10 @@ Created 10/10/1995 Heikki Tuuri
 
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
+	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
 	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
 	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
-	typedef ib_counter_t<ulint, 64> ulint_ctr_64_t;
 	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
 
 	/** Count the amount of data written in total (in bytes) */
@@ -178,10 +178,6 @@ extern FILE*	srv_misc_tmpfile;
 
 extern char*	srv_data_home;
 
-#ifdef UNIV_LOG_ARCHIVE
-extern char*	srv_arch_dir;
-#endif /* UNIV_LOG_ARCHIVE */
-
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't
 sync the max trx id to disk either. */
@@ -296,12 +292,6 @@ is 5% of the max where max is srv_io_capacity.  */
 to treat NULL value when collecting statistics. It is not defined
 as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
-
-#ifdef UNIV_LOG_ARCHIVE
-extern ibool		srv_log_archive_on;
-extern ibool		srv_archive_recovery;
-extern ib_uint64_t	srv_archive_recovery_limit_lsn;
-#endif /* UNIV_LOG_ARCHIVE */
 
 extern char*	srv_file_flush_method_str;
 extern ulint	srv_unix_file_flush_method;
@@ -436,7 +426,7 @@ extern srv_stats_t	srv_stats;
 
 # ifdef UNIV_PFS_THREAD
 /* Keys to register InnoDB threads with performance schema */
-extern mysql_pfs_key_t	buf_page_cleaner_thread_key;
+extern mysql_pfs_key_t	page_cleaner_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
 extern mysql_pfs_key_t	io_ibuf_thread_key;
 extern mysql_pfs_key_t	io_log_thread_key;

@@ -1,3 +1,8 @@
+# The include statement below is a temp one for tests that are yet to
+#be ported to run with InnoDB,
+#but needs to be kept for tests that would need MyISAM in future.
+--source include/force_myisam_default.inc
+
 --echo #
 --echo # Test of function defaults for any server, including embedded.
 --echo # We run the same tests with different settings for better coverage.

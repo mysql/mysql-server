@@ -1,7 +1,7 @@
 #ifndef MYISAMPACK_INCLUDED
 #define MYISAMPACK_INCLUDED
 
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,16 +218,8 @@
 #endif /* __FLOAT_WORD_ORDER */
 #endif /* WORDS_BIGENDIAN */
 
-/* Fix to avoid warnings when sizeof(ha_rows) == sizeof(long) */
-
-#ifdef BIG_TABLES
 #define mi_rowstore(T,A)    mi_int8store(T, A)
 #define mi_rowkorr(T)       mi_uint8korr(T)
-#else
-#define mi_rowstore(T,A)    { mi_int4store(T, 0);\
-                              mi_int4store(((uchar*) (T) + 4), A); }
-#define mi_rowkorr(T)       mi_uint4korr((uchar*) (T) + 4)
-#endif
 
 #if SIZEOF_OFF_T > 4
 #define mi_sizestore(T,A)   mi_int8store(T, A)
