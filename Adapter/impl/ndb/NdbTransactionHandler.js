@@ -167,10 +167,25 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
     onExecute(self, execMode, err, execId, callback);
   }
 
+  function executeNdbTransaction() {
+    var execId = getExecIdForOperationList(self, dbOperationList);
+    run(self, execId, execMode, abortFlag, onCompleteExec);  
+  }
+
+  function executeScans(scanList) {
+    function execOneScan() {
+      var scanop = scanList.pop();
+      var callback = scanList.length ? execOneScan : executeNdbTransaction;
+      scanop.executeScan(self, callback);
+    }
+    
+    execOneScan();
+  }
+
   function prepareOperationsAndExecute() {
     udebug.log("execute prepareOperationsAndExecute", self.moniker);
-    var i, op, execId, fatalError;
-    execId = getExecIdForOperationList(self, dbOperationList);
+    var i, op, scans, fatalError;
+    scans = [];
     for(i = 0 ; i < dbOperationList.length; i++) {
       op = dbOperationList[i];
       op.prepare(self.ndbtx);
@@ -179,9 +194,16 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
         callback(new ndboperation.DBOperationError(fatalError), self);
         return;
       }
+      if(op.query) {
+        scans.push(op);
+      }
     }
-
-    run(self, execId, execMode, abortFlag, onCompleteExec);
+    if(scans.length) {
+      executeScans(scans);
+    }
+    else {
+      executeNdbTransaction();
+    }
   }
 
   function getAutoIncrementValues() {
