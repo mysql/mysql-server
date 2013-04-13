@@ -84,9 +84,9 @@ void freeFromGC(PTR ptr, Handle<Object> obj) {
 
 /*****************************************************************
  Construct a wrapped object. 
- arg1: pointer to the object to be wrapped.
- arg2: an Envelope reference
- arg3: a reference to a v8 object, which must have already been 
+ arg0: pointer to the object to be wrapped.
+ arg1: an Envelope reference
+ arg2: a reference to a v8 object, which must have already been 
        initialized from a proper ObjectTemplate.
 ******************************************************************/
 template <typename PTR>
@@ -102,10 +102,10 @@ void wrapPointerInObject(PTR ptr,
 
 /*****************************************************************
  Unwrap a native pointer from a JavaScript object
- arg1: pointer to the object to be wrapped.
- arg2: an Envelope reference
- arg3: a reference to a v8 object, which must have already been 
+ arg0: a reference to a v8 object, which must have already been 
        initialized from a proper ObjectTemplate.
+TODO: Find a way to prevent wrapping a pointer as one
+      type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
 PTR unwrapPointer(Local<Object> obj) {
