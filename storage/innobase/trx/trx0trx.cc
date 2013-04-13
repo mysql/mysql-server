@@ -725,6 +725,8 @@ trx_assign_rseg_low(
 	trx_rseg_t* rseg = 0;
 
 	switch (rseg_type) {
+	case TRX_RSEG_TYPE_NONE:
+		ut_error;
 
 	case TRX_RSEG_TYPE_REDO:
 		rseg = get_next_redo_rseg(max_undo_logs, n_tablespaces);
@@ -733,10 +735,6 @@ trx_assign_rseg_low(
 	case TRX_RSEG_TYPE_NOREDO:
 		rseg = get_next_noredo_rseg(max_undo_logs + srv_tmp_undo_logs);
 		break;
-
-	default:
-		break;
-
 	}
 
 	return(rseg);
@@ -834,14 +832,16 @@ trx_start_low(
 		trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
 			srv_undo_logs, srv_undo_tablespaces,
 			TRX_RSEG_TYPE_REDO);
-		/* Temporary rseg is assigned only if the transaction updates a
-		temporary table */
+
+		/* Temporary rseg is assigned only if the transaction
+		updates a temporary table */
 
 		mutex_enter(&trx_sys->mutex);
 
 		trx->id = trx_sys_get_new_trx_id();
 
 		ut_ad(trx->rsegs.m_redo.rseg != 0
+		      || srv_read_only_mode
 		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
 
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
