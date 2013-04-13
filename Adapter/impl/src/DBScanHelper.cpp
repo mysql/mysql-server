@@ -30,6 +30,7 @@
 #include "JsWrapper.h"
 #include "Operation.h"
 #include "NdbWrappers.h"
+#include "NdbWrapperErrors.h"
 
 using namespace v8;
 
@@ -60,7 +61,6 @@ Handle<Value> DBScanHelper(const Arguments &args) {
   HandleScope scope;
 
   Local<Value> v;
-  Local<Object> o;
 
   const Local<Object> spec = args[0]->ToObject();
   int opcode = args[1]->Int32Value();
@@ -78,13 +78,13 @@ Handle<Value> DBScanHelper(const Arguments &args) {
 
   v = spec->Get(SCAN_TABLE_RECORD);
   if(! v->IsNull()) {
-    o = v->ToObject();
+    Local<Object> o = v->ToObject();
     op.row_record = unwrapPointer<Record *>(o);
   }
 
   v = spec->Get(SCAN_INDEX_RECORD);
   if(! v->IsNull()) {
-    o = v->ToObject();
+    Local<Object> o = v->ToObject();
     isIndexScan = true;
     op.key_record = unwrapPointer<Record *>(o);
   }
@@ -97,7 +97,7 @@ Handle<Value> DBScanHelper(const Arguments &args) {
 
   v = spec->Get(SCAN_BOUNDS);
   if(! v->IsNull()) {
-    o = v->ToObject();
+    Local<Object> o = v->ToObject();
     bound = unwrapPointer<NdbIndexScanOperation::IndexBound *>(o);
   }
 
@@ -121,6 +121,7 @@ Handle<Value> DBScanHelper(const Arguments &args) {
   
   v = spec->Get(SCAN_FILTER_CODE);
   if(! v->IsNull()) {
+    Local<Object> o = v->ToObject();
     options.interpretedCode = unwrapPointer<NdbInterpretedCode *>(o);
     options.optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
   }
@@ -137,8 +138,9 @@ Handle<Value> DBScanHelper(const Arguments &args) {
   else {
     scan_op = op.scanTable(tx);
   }
-
-  return scope.Close(NdbScanOperation_Wrapper(scan_op));
+  
+  if(scan_op) return scope.Close(NdbScanOperation_Wrapper(scan_op));
+  else return Null();
 }
 
 
