@@ -1082,6 +1082,11 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 		dict_table_x_lock_indexes(table);
 	}
 
+	/* This is the event horizon, if an error occurs after this point then
+	the table will be tagged as corrupt in memory. On restart we will
+	recreate the table as per REDO semantics from the REDO log record
+	that we wrote above. */
+
 	/* All of the table's indexes should be locked in X mode. */
 
 	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
