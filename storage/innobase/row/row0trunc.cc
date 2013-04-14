@@ -25,10 +25,6 @@ Created 2013-04-12 Sunny Bains
 
 #include "row0mysql.h"
 
-#ifdef UNIV_NONINL
-#include "row0mysql.ic"
-#endif /* UNIV_NOINL */
-
 #include "pars0pars.h"
 #include "dict0crea.h"
 #include "dict0boot.h"
@@ -47,19 +43,14 @@ static const ulint INDEX_NUM_SECOND_SECONDARY = 3;
 Iterator over the the raw records in an index, doesn't support MVCC. */
 struct IndexIterator {
 
+	/**
+	Iterate over an indexes records
+	@param index		index to iterate over */
 	IndexIterator(dict_index_t* index)
 		:
-		m_heap(),
 		m_index(index)
 	{
 		/* Do nothing */
-	}
-
-	~IndexIterator()
-	{
-		if (m_heap) {
-			mem_heap_free(m_heap);
-		}
 	}
 
 	/**
@@ -75,21 +66,18 @@ struct IndexIterator {
 
 	mtr_t		m_mtr;
 	btr_pcur_t	m_pcur;
-	mem_heap_t*	m_heap;
 	dict_index_t*	m_index;
 };
 
 /**
-Search for key, Position the cursor on the first GE reord */
+Search for key, Position the cursor on the first GE record
+@param key		key to search for
+@return DB_SUCCESS or error, currenly only DB_SUCCESS */
 dberr_t
 IndexIterator::search(dtuple_t& key)
 {
-	ut_ad(m_heap == NULL);
-	m_heap = mem_heap_create(800);
-
 	mtr_start(&m_mtr);
 
-	/* Scan SYS_INDEXES for all indexes of the table. */
 
 	btr_pcur_open_on_user_rec(
 		m_index,
@@ -102,7 +90,8 @@ IndexIterator::search(dtuple_t& key)
 }
 
 /**
-Iterate over all the records
+Iterate over all the records.
+@param callback		Callback for each record that matches
 @return DB_SUCCESS or error code */
 template <typename Callback>
 dberr_t
@@ -174,8 +163,13 @@ dberr_t SysIndexIterator::for_each(Callback& callback) const
 	return(iterator.for_each(callback));
 }
 
+/** Generic callback abstract class. */
 struct Callback
 {
+	/**
+	Constructor
+	@param table		table we are processing
+	@param flags		tablespoace falgs */
 	Callback(dict_table_t* table, ulint flags)
 		:
 		m_id(),
@@ -187,6 +181,15 @@ struct Callback
 	}
 
 	/**
+	Destructor */
+	virtual ~Callback()
+	{
+		/* Do nothing */
+	}
+
+	/**
+	@param mtr		mini-transaction covering the iteration
+	@param pcur		persistent cursor used for iteration
 	@return true if the table id column matches. */
 	bool match(mtr_t* mtr, btr_pcur_t* pcur) const
 	{
@@ -204,11 +207,12 @@ struct Callback
 
 	/**
 	@return pointer to table id storage format buffer */
-	table_id_t* table_id()
+	const table_id_t* table_id() const
 	{
 		return(&m_id);
 	}
 
+protected:
 	/** Table id in storage format */
 	table_id_t		m_id;
 
@@ -245,7 +249,7 @@ struct Logger : public Callback {
 
 	/** Called after iteratoring over the records.
 	@return true if invariant satisfied. */
-	bool debug()
+	bool debug() const
 	{
 		/* We must find all the index entries on disk. */
 		return(UT_LIST_GET_LEN(m_table->indexes)
@@ -254,7 +258,7 @@ struct Logger : public Callback {
 
 	/**
 	Write the TRUNCATE redo log */
-	void log()
+	void log() const
 	{
 		m_truncate.write(
 			m_table->space, m_table->name, m_flags,
@@ -366,6 +370,8 @@ Logger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 
 	index.m_id = mach_read_from_8(field);
 
+	/* For compressed tables we need to store extra meta-data
+	required during btr_create(). */
 	if (fsp_flags_is_compressed(m_flags)) {
 
 		const dict_index_t* dict_index = find(index.m_id);
@@ -509,7 +515,6 @@ Rollback the transaction and release the index locks.
 
 @param table		table to truncate
 @param trx		transaction covering the TRUNCATE */
-
 static
 void
 row_truncate_rollback(dict_table_t* table, trx_t* trx)
@@ -534,7 +539,7 @@ Finish the TRUNCATE operations for both commit and rollback.
 @param err		status of truncate operation
 
 @return DB_SUCCESS or error code */
-static
+static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 {
@@ -578,80 +583,14 @@ row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
 }
 
 /**
-Write a REDO log record for the TRUNCATE operation on the table.
-
-@param table	table to truncate
-@param flags	tablespace flags */
-static
-void
-row_truncate_write_log(dict_table_t* table, ulint flags)
-{
-	ut_ad(!dict_table_is_temporary(table));
-
-	dberr_t	err;
-
-	Logger logger(table, flags);
-
-	err = SysIndexIterator().for_each(logger);
-
-	ut_ad(err == DB_SUCCESS);
-
-	ut_ad(logger.debug());
-
-	/* Write the TRUNCATE log record into redo log */
-	logger.log();
-}
-
-/**
-Truncate index and update SYSTEM TABLES accordingly.
-
-@param table		table to truncate
-@param flags		tablespace flags
-
-@return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
-dberr_t
-row_truncate_drop_indexes(dict_table_t* table, ulint flags)
-{
-	ut_ad(!dict_table_is_temporary(table));
-
-	DropIndex	dropIndex(table, flags);
-
-	return(SysIndexIterator().for_each(dropIndex));
-}
-
-/**
-Create the indexes.
-
-@param table		table to truncate
-@param flags		tablespace flags
-
-@return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
-dberr_t
-row_truncate_create_index(dict_table_t* table, ulint flags)
-{
-	ut_ad(!dict_table_is_temporary(table));
-
-	ut_ad(!dict_table_is_temporary(table));
-
-	CreateIndex	createIndex(table, flags);
-
-	return(SysIndexIterator().for_each(createIndex));
-}
-
-/**
 Handle FTS truncate issues.
+@param table		table being truncated
+@param new_id		new id for the table
+@param trx		transaction covering the truncate
 @return DB_SUCCESS or error code. */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_fts(
-/*=============*/
-	dict_table_t*	table,			/*!< in/out: table being
-						truncated */
-	table_id_t	new_id,			/*!< in: new id */
-	trx_t*		trx)			/*!< in/out: covering
-						transaction */
+row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 {
 	dict_table_t	fts_table;
 
@@ -699,16 +638,20 @@ row_truncate_fts(
 /**
 Truncatie also results in assignment of new table id, update the system
 SYSTEM TABLES with the new id.
+@param table,			table being truncated
+@param new_id,			new table id
+@param old_space,		old space id
+@param has_internal_doc_id,	has doc col (fts)
+@param trx)			transaction handle
 @return	error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_update_system_tables(
-/*==============================*/
-	dict_table_t*	table,			/*!< in/out: table */
-	table_id_t	new_id,			/*!< in: new table id */
-	ulint		old_space,		/*!< in: old space id */
-	bool		has_internal_doc_id,	/*!< in: has doc col (fts) */
-	trx_t*		trx)			/*!< in: transaction handle */
+	dict_table_t*	table,
+	table_id_t	new_id,
+	ulint		old_space,
+	bool		has_internal_doc_id,
+	trx_t*		trx)
 {
 	pars_info_t*	info	= NULL;
 	dberr_t		err	= DB_SUCCESS;
@@ -826,14 +769,12 @@ row_truncate_update_system_tables(
 /**
 Prepare for the truncate process. On success all of the table's indexes will
 be locked in X mode.
-@param table	table to truncate
+@param table		table to truncate
+@param flags		tablespace flags
 @return	error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_prepare(
-/*=================*/
-	dict_table_t*	table,		/*!< in/out: Table to truncate */
-	ulint*		flags)		/*!< out: tablespace flags */
+row_truncate_prepare(dict_table_t* table, ulint* flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
 	ut_ad(!Tablespace::is_system_tablespace(table->space));
@@ -858,14 +799,14 @@ row_truncate_prepare(
 
 /**
 Do foreign key checks before starting TRUNCATE.
+@param table		table being truncated
+@param trx		transaction covering the truncate
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
 row_truncate_foreign_key_checks(
-/*============================*/
-	const dict_table_t*	table,		/*!< in: table to truncate */
-	const trx_t*		trx)		/*!< in: trx covering the
-						truncate */
+	const dict_table_t*	table,
+	const trx_t*		trx)
 {
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
@@ -928,12 +869,11 @@ row_truncate_foreign_key_checks(
 
 /**
 Do some sanity checks before starting the actual TRUNCATE.
+@param table		table being truncated
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
 dberr_t
-row_truncate_sanity_checks(
-/*=======================*/
-	const dict_table_t*	table)		/*!< in: table to truncate */
+row_truncate_sanity_checks(const dict_table_t* table)
 {
 	if (srv_sys_space.created_new_raw()) {
 
@@ -959,16 +899,14 @@ row_truncate_sanity_checks(
 
 /**
 Truncates a table for MySQL.
+@param table		table being truncated
+@param trx		transaction covering the truncate
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_truncate_table_for_mysql(
-/*=========================*/
-	dict_table_t*	table,	/*!< in: table handle */
-	trx_t*		trx)	/*!< in: transaction handle */
+row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 {
 	dberr_t		err;
-	table_id_t	new_id;
 	ulint		old_space = table->space;
 
 	/* How do we prevent crashes caused by ongoing operations on
@@ -1118,9 +1056,17 @@ row_truncate_table_for_mysql(
 		dict_table_x_lock_indexes(table);
 
 		/* Write the TRUNCATE redo log. */
-		row_truncate_write_log(table, flags);
+		Logger logger(table, flags);
 
-		/* All of the table's indexes should be locked in X mode. */
+		err = SysIndexIterator().for_each(logger);
+
+		ut_ad(err == DB_SUCCESS);
+
+		ut_ad(logger.debug());
+
+		/* Write the TRUNCATE log record into redo log */
+		logger.log();
+
 	} else {
 
 		/* Lock all index trees for this table, as we will
@@ -1133,6 +1079,8 @@ row_truncate_table_for_mysql(
 		dict_table_x_lock_indexes(table);
 	}
 
+	/* All of the table's indexes should be locked in X mode. */
+
 	DBUG_EXECUTE_IF("crash_after_drop_tablespace",
 			log_buffer_flush_to_disk(););
 
@@ -1144,7 +1092,9 @@ row_truncate_table_for_mysql(
 
 	if (!dict_table_is_temporary(table)) {
 
-		err = row_truncate_drop_indexes(table, flags);
+		DropIndex	dropIndex(table, flags);
+
+		err = SysIndexIterator().for_each(dropIndex);
 
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(table, trx);
@@ -1199,7 +1149,9 @@ row_truncate_table_for_mysql(
 	if (!dict_table_is_temporary(table)) {
 
 		/* Recreate all the indexes. */
-		err = row_truncate_create_index(table, flags);
+		CreateIndex	createIndex(table, flags);
+
+		err = SysIndexIterator().for_each(createIndex);
 
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(table, trx);
@@ -1235,6 +1187,8 @@ row_truncate_table_for_mysql(
 	/* Done with index truncation, release index tree locks,
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
+
+	table_id_t	new_id;
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
 
