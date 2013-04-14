@@ -38,7 +38,7 @@ Record::Record(NdbDictionary::Dictionary *d, int ncol) :
   specs(new NdbDictionary::RecordSpecification[ncol])                      {};
 
 Record::~Record() {
-  dict->releaseRecord(ndb_record);
+  // dict->releaseRecord(ndb_record);  // causes crashes due to dict==0. ??
   delete[] specs;
 }
 
