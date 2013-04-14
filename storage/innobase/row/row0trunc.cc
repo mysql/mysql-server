@@ -36,7 +36,7 @@ Created 2013-04-12 Sunny Bains
 
 #ifdef UNIV_DEBUG
 /** The index number of the second secondary */
-static const ulint INDEX_NUM_SECOND_SECONDARY = 3;
+static const ulint DEBUG_CRASH_COUNT = 3;
 #endif /* UNIV_DEBUG */
 
 /**
@@ -406,7 +406,7 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 #ifdef UNIV_DEBUG
 	/* Crash during the drop of the second secondary */
-	if (++m_count == INDEX_NUM_SECOND_SECONDARY) {
+	if (++m_count == DEBUG_CRASH_COUNT) {
 
 		/* Write and flush the MLOG_FILE_TRUNCATE record
 		to the redo log before the crash. */
@@ -466,7 +466,7 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 
 #ifdef UNIV_DEBUG
 	/* Crash during the creation of the second secondary */
-	if (++m_count == INDEX_NUM_SECOND_SECONDARY) {
+	if (++m_count == DEBUG_CRASH_COUNT) {
 
 		/* Waiting for MLOG_FILE_TRUNCATE record is written
 		into redo log before the crash. */
@@ -1118,7 +1118,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			index on a temporary table. This test doesn't
 			really do much because temporary table meta-data
 			is not stored in the data dictionary. */
-			if (++ind_count == INDEX_NUM_SECOND_SECONDARY) {
+			if (++ind_count == DEBUG_CRASH_COUNT) {
 
 				DBUG_EXECUTE_IF(
 					"crash_during_drop_second_secondary",
@@ -1170,7 +1170,7 @@ row_truncate_table_for_mysql(dict_table_t* table, trx_t* trx)
 			really do much because temporary table meta-data
 			is not stored in the data dictionary. */
 
-			if (++ind_count == INDEX_NUM_SECOND_SECONDARY) {
+			if (++ind_count == DEBUG_CRASH_COUNT) {
 
 				DBUG_EXECUTE_IF(
 					"crash_during_create_second_secondary",
