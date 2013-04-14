@@ -8981,6 +8981,7 @@ sum_expr:
             if ($$ == NULL)
               MYSQL_YYABORT;
             $5->empty();
+            sel->gorder_list.empty();
           }
         ;
 
@@ -9050,18 +9051,27 @@ opt_gconcat_separator:
 
 opt_gorder_clause:
           /* empty */
+        | ORDER_SYM BY
           {
-            Select->gorder_list = NULL;
-          }
-        | order_clause
-          {
-            SELECT_LEX *select= Select;
-            select->gorder_list= new (YYTHD->mem_root)
-                                   SQL_I_List<ORDER>(select->order_list);
-            if (select->gorder_list == NULL)
+            LEX *lex= Lex;
+            SELECT_LEX *sel= lex->current_select;
+            if (sel->linkage != GLOBAL_OPTIONS_TYPE &&
+                sel->olap != UNSPECIFIED_OLAP_TYPE &&
+                (sel->linkage != UNION_TYPE || sel->braces))
+            {
+              my_error(ER_WRONG_USAGE, MYF(0),
+                       "CUBE/ROLLUP", "ORDER BY");
               MYSQL_YYABORT;
-            select->order_list.empty();
+            }
           }
+         gorder_list;
+        ;
+
+gorder_list:
+          gorder_list ',' order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $3,(bool) $4)) MYSQL_YYABORT; }
+        | order_ident order_dir
+          { if (add_gorder_to_list(YYTHD, $1,(bool) $2)) MYSQL_YYABORT; }
         ;
 
 in_sum_expr:
