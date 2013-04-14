@@ -240,8 +240,6 @@ FilterBuildingVisitor.prototype.visitQueryComparator = function(node) {
   var layout = node.ndb.layout;
   this.ndbScanFilter.cmp(opcode, layout.colId, 
                          this.paramBuffer, layout.offset, layout.length);
-  udebug.log("CMP", opcode, layout.colId, 
-                         this.paramBuffer, layout.offset, layout.length);
   // TODO: constants
 }
 
@@ -316,7 +314,6 @@ function encodeParameters(filterSpec, params) {
     for(i = 0; i < filterSpec.paramLayout.length ; i++) {
       f = filterSpec.paramLayout[i];
       adapter.ndb.impl.encoderWrite(f.column, params[f.param], buffer, f.offset);
-      udebug.log(f.param, ":=", params[f.param]);
     }
   }
   return buffer;
