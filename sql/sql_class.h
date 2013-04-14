@@ -5016,6 +5016,11 @@ inline bool add_order_to_list(THD *thd, Item *item, bool asc)
   return thd->lex->current_select->add_order_to_list(thd, item, asc);
 }
 
+inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+{
+  return thd->lex->current_select->add_gorder_to_list(thd, item, asc);
+}
+
 inline bool add_group_to_list(THD *thd, Item *item, bool asc)
 {
   return thd->lex->current_select->add_group_to_list(thd, item, asc);

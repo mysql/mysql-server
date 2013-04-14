@@ -126,7 +126,7 @@ struct TrxFactory {
 		trx->lock.lock_heap = mem_heap_create_typed(
 			256, MEM_HEAP_FOR_LOCK_HEAP);
 
-		trx->global_read_view_heap = mem_heap_create(256);
+		trx->read_view_heap = mem_heap_create(256);
 
 		mutex_create(trx_mutex_key, &trx->mutex, SYNC_TRX);
 
@@ -145,10 +145,6 @@ struct TrxFactory {
 		ut_ad(!trx->in_rw_trx_list);
 		ut_ad(!trx->in_mysql_trx_list);
 
-		if (trx->undo_no_arr != NULL) {
-			trx_undo_arr_free(trx->undo_no_arr);
-		}
-
 		ut_a(trx->lock.wait_lock == NULL);
 		ut_a(trx->lock.wait_thr == NULL);
 
@@ -162,11 +158,6 @@ struct TrxFactory {
 		}
 
 		ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-
-		if (trx->global_read_view_heap != NULL) {
-			mem_heap_free(trx->global_read_view_heap);
-			trx->global_read_view_heap = NULL;
-		}
 
 		mutex_free(&trx->mutex);
 		mutex_free(&trx->undo_mutex);
@@ -367,6 +358,8 @@ trx_free(trx_t*& trx)
 	}
 
 	trx_pools->free(trx);
+
+	trx = NULL;
 }
 
 /********************************************************************//**
@@ -1264,7 +1257,7 @@ trx_commit_in_memory(
 
 		trx->state = TRX_STATE_NOT_STARTED;
 
-		read_view_remove(trx->global_read_view, false);
+		read_view_remove(trx->read_view, false);
 
 		MONITOR_INC(MONITOR_TRX_NL_RO_COMMIT);
 	} else {
@@ -1300,20 +1293,14 @@ trx_commit_in_memory(
 
 		/* We already own the trx_sys_t::mutex, by doing it here we
 		avoid a potential context switch later. */
-		read_view_remove(trx->global_read_view, true);
+		read_view_remove(trx->read_view, true);
 
 		ut_ad(trx_sys_validate_trx_list());
 
 		mutex_exit(&trx_sys->mutex);
 	}
 
-	if (trx->global_read_view != NULL) {
-
-		mem_heap_empty(trx->global_read_view_heap);
-
-		trx->global_read_view = NULL;
-	}
-
+	mem_heap_empty(trx->read_view_heap);
 	trx->read_view = NULL;
 
 	if (lsn) {
@@ -1557,11 +1544,8 @@ trx_assign_read_view(
 	}
 
 	if (!trx->read_view) {
-
 		trx->read_view = read_view_open_now(
-			trx->id, trx->global_read_view_heap);
-
-		trx->global_read_view = trx->read_view;
+			trx->id, trx->read_view_heap);
 	}
 
 	return(trx->read_view);

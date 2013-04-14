@@ -4919,7 +4919,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
         if (row[1])
           fprintf(md_result_file, "MASTER_HOST='%s', ", row[1]);
         if (row[3])
-          fprintf(md_result_file, "MASTER_PORT='%s', ", row[3]);
+          fprintf(md_result_file, "MASTER_PORT=%s, ", row[3]);
       }
       fprintf(md_result_file,
               "MASTER_LOG_FILE='%s', MASTER_LOG_POS=%s;\n", row[9], row[21]);
