@@ -26,6 +26,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+    prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -180,7 +181,6 @@ function encodeRowBuffer(op) {
   }
 }
 
-
 function HelperSpec() {
   this.clear();
 }
@@ -273,9 +273,20 @@ function prepareScanOperation(op, ndbTransaction) {
   if(op.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = op.query.dbIndexHandler.dbIndex.record;
   }
-  
+
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[op.lockMode];
-  
+
+  if(typeof op.keys.order !== 'undefined') {
+    var flags = constants.Scan.flags.SF_OrderBy;
+    if(op.keys.order == 'desc') flags |= constants.Scan.flags.SF_Descending;
+    scanSpec[ScanHelper.flags] = flags;  
+  }
+
+  if(op.query.ndbFilterSpec) {
+    scanSpec[ScanHelper.filter_code] = 
+      op.query.ndbFilterSpec.getScanFilterCode(op.keys);
+  }
+
   /* Build the NdbScanOperation */
   op.ndbop = adapter.impl.Scan.new(scanSpec, opcode, ndbTransaction);
 }
@@ -575,7 +586,7 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
   return op;
 }
 
-//// Write Operation on VO must write all fields. 
+
 function newWriteOperation(tx, dbIndexHandler, row) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_WRITE, tx, dbIndexHandler, null);
@@ -599,9 +610,9 @@ function newScanOperation(tx, QueryTree, properties) {
   var op = new DBOperation(opcodes.OP_SCAN, tx, 
                            queryHandler.dbIndexHandler, 
                            queryHandler.dbTableHandler);
+  prepareFilterSpec(queryHandler);
   op.query = queryHandler;
   op.keys = properties;
-  // Walk the QueryHandler.predicate to build the filter
   return op;
 }
 
