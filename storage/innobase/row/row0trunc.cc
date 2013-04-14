@@ -709,19 +709,21 @@ row_truncate_update_system_tables(
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 
-		/* Update system table failed.  Table in memory metadata
+		/* Update of system table failed. Table in memory metadata
 		could be in an inconsistent state, mark the in-memory
-		table->corrupted to be true. In the long run, this
-		should be fixed by atomic truncate table */
+		table->corrupted to be true. */
 		table->corrupted = true;
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Unable to assign a new identifier to table ",
-		      stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs("\n"
-		      "InnoDB: after truncating it.  Background processes"
-		      " may corrupt the table!\n", stderr);
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to assign a new identifier to table %s "
+			"after truncating it. Marked the table as corrupted. "
+			"In-memory representation is now different from the "
+			"on-disk representation.", table_name);
 
 		/* Failed to update the table id, so drop the new
 		FTS auxiliary tables */
@@ -853,13 +855,14 @@ row_truncate_foreign_key_checks(
 
 	if (table->n_foreign_key_checks_running > 0) {
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Cannot truncate table ", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(" by DROP+CREATE\n"
-		      "InnoDB: because there is a foreign key check"
-		      " running on it.\n",
-		      stderr);
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot truncate table %s because there is a "
+			"foreign key check running on it.", table_name);
 
 		return(DB_ERROR);
 	}
