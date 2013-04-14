@@ -62,7 +62,6 @@ The parts not included are excluded by #ifndef UNIV_INNOCHECKSUM. */
 
 /* Global variables */
 static bool			verbose;
-bool				debug = 0;
 static bool			just_count;
 static ullint			start_page;
 static ullint			end_page;
@@ -96,9 +95,9 @@ struct flock			lk;
 #endif
 
 /* Strict check algorithm name. */
-static srv_checksum_algorithm_t	strict_check;
+static ulong			strict_check;
 /* Rewrite checksum algorithm name. */
-static srv_checksum_algorithm_t	write_check;
+static ulong			write_check;
 
 /* Innodb page type. */
 struct innodb_page_type {
@@ -350,25 +349,24 @@ is_page_corrupted(
 				buf + logical_page_size -
 				FIL_PAGE_END_LSN_OLD_CHKSUM + 4);
 
-		if (debug) {
-			DBUG_PRINT("info", ("page::%llu;"
-				   " log sequence number:first = %lu; "
-				   "second = %lu",
-				   cur_page_num, logseq, logseqfield));
+		DBUG_PRINT("info", ("page::%llu;"
+			   " log sequence number:first = %lu; "
+			   "second = %lu",
+			   cur_page_num, logseq, logseqfield));
 
-			if (logseq != logseqfield) {
-				DBUG_PRINT("info", ("Fail; page %llu invalid "
-					   "(fails log sequence number check)",
-					   cur_page_num));
-			}
+		if (logseq != logseqfield) {
+			DBUG_PRINT("info", ("Fail; page %llu invalid "
+				   "(fails log sequence number check)",
+				   cur_page_num));
 		}
-		is_corrupted = buf_page_is_corrupted(true, buf, 0, debug,
+
+		is_corrupted = buf_page_is_corrupted(true, buf, 0,
 						     cur_page_num,
 						     strict_verify);
 	} else {
 		is_corrupted = buf_page_is_corrupted(true, buf,
 						     physical_page_size,
-						     debug, cur_page_num,
+						     cur_page_num,
 						     strict_verify);
 	}
 
@@ -462,18 +460,16 @@ update_checksum(
 	if (iscompressed) {
 		/* page is compressed */
 		checksum = page_zip_calc_checksum(page, physical_page_size,
-						  write_check);
+						  static_cast<srv_checksum_algorithm_t>(write_check));
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
-		if (debug) {
-			DBUG_PRINT("info",("page %llu: Updated checksum = %u;\n",
-				   cur_page_num, checksum));
-		}
+		DBUG_PRINT("info",("page %llu: Updated checksum = %u;\n",
+			   cur_page_num, checksum));
 	} else {
 		/* page is uncompressed. */
 
 		/* Store the new formula checksum */
-		switch (write_check) {
+		switch ((srv_checksum_algorithm_t) write_check) {
 
 		case SRV_CHECKSUM_ALGORITHM_CRC32:
 		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
@@ -496,10 +492,8 @@ update_checksum(
 
 		mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 
-		if (debug) {
-			DBUG_PRINT("info", ("page %llu: Updated checksum field1"
-				   " = %u;", cur_page_num, checksum));
-		}
+		DBUG_PRINT("info", ("page %llu: Updated checksum field1"
+			   " = %u;", cur_page_num, checksum));
 
 		if (write_check == SRV_CHECKSUM_ALGORITHM_STRICT_INNODB
 		    || write_check == SRV_CHECKSUM_ALGORITHM_INNODB) {
@@ -510,10 +504,8 @@ update_checksum(
 		mach_write_to_4(page + physical_page_size -
 				FIL_PAGE_END_LSN_OLD_CHKSUM,checksum);
 
-		if (debug) {
-			DBUG_PRINT("info", ("page %llu: Updated checksum field2"
-				   " = %u;", cur_page_num, checksum));
-		}
+		DBUG_PRINT("info", ("page %llu: Updated checksum field2"
+			   " = %u;", cur_page_num, checksum));
 
 	}
 
@@ -810,7 +802,7 @@ static struct my_option innochecksum_options[] = {
     0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Verbose (prints progress every 5 seconds).",
     &verbose, &verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"debug", 'd', "Output debug log. See " REFMAN "dbug-package.html",
+  {"debug", '#', "Output debug log. See " REFMAN "dbug-package.html",
     &dbug_setting, &dbug_setting, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"count", 'c', "Print the count of pages in the file and exits.",
     &just_count, &just_count, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -878,7 +870,6 @@ innochecksum_get_one_option(
 				       IF_WIN("d:O,innochecksum.trace",
 					      "d:o,/tmp/innochecksum.trace");
 			DBUG_PUSH(dbug_setting);
-			debug = TRUE;
 			break;
 		case 'e':
 			use_end_page = TRUE;
@@ -894,7 +885,7 @@ innochecksum_get_one_option(
 			break;
 		case 'C':
 			strict_verify = TRUE;
-			switch (strict_check) {
+			switch ((srv_checksum_algorithm_t) strict_check) {
 
 				case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
 				case SRV_CHECKSUM_ALGORITHM_CRC32:
@@ -999,7 +990,7 @@ int main(
 	bool		partial_page_read	= FALSE;
 	/* Enabled when read from stdin is done. */
 	bool		read_from_stdin		= FALSE;
-	FILE*		fil_page_type;
+	FILE*		fil_page_type		= NULL;
 	fpos_t		pos;
 
 	/* Use to check the space id of given file. If space_id is zero,
@@ -1159,7 +1150,7 @@ int main(
 				   filename, size, pages));
 			if (do_one_page) {
 				DBUG_PRINT("info", ("InnoChecksum: checking "
-				"page %llu", do_page));
+					   "page %llu", do_page));
 			} else {
 				DBUG_PRINT("info", ("InnoChecksum: checking "
 					   "pages in range %llu to %llu",

@@ -2489,7 +2489,7 @@ sub environment_setup {
   # ----------------------------------------------------
   my $exe_innochecksum=
     mtr_exe_exists(vs_config_dirs('extra', 'innochecksum'),
-                   "$path_client_bindir/innochecksum-debug",
+                   "$path_client_bindir/innochecksum",
                    "$basedir/extra/innochecksum");
   $ENV{'INNOCHECKSUM'}= native_path($exe_innochecksum);
 
