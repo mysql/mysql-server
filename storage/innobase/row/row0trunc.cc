@@ -686,6 +686,9 @@ row_truncate_fts(
 			" table", stderr);
 		ut_print_name(stderr, trx, TRUE, table->name);
 		fputs("\n", stderr);
+
+		table->corrupted = true;
+
 	} else {
 		ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 	}
@@ -1263,6 +1266,10 @@ row_truncate_table_for_mysql(
 
 		err = row_truncate_update_system_tables(
 			table, new_id, old_space, has_internal_doc_id, trx);
+
+		if (err != DB_SUCCESS) {
+			table->corrupted = true;
+		}
 	}
 
 	/* Reset auto-increment. */
