@@ -47,9 +47,8 @@ static const ulint INDEX_NUM_SECOND_SECONDARY = 3;
 Iterator over the the raw records in an index, doesn't support MVCC. */
 struct IndexIterator {
 
-	IndexIterator(dict_index_t* index, bool rw = false)
+	IndexIterator(dict_index_t* index)
 		:
-		m_rw(rw),
 		m_heap(),
 		m_index(index)
 	{
@@ -74,7 +73,6 @@ struct IndexIterator {
 	template <typename Callback>
 	dberr_t for_each(Callback& callback);
 
-	bool		m_rw;
 	mtr_t		m_mtr;
 	btr_pcur_t	m_pcur;
 	mem_heap_t*	m_heap;
@@ -97,7 +95,7 @@ IndexIterator::search(dtuple_t& key)
 		m_index,
 		&key,
 		PAGE_CUR_GE,
-		(m_rw) ? BTR_MODIFY_LEAF : BTR_SEARCH_LEAF,
+		BTR_MODIFY_LEAF,
 		&m_pcur, &m_mtr);
 
 	return(DB_SUCCESS);
@@ -112,11 +110,11 @@ IndexIterator::for_each(Callback& callback)
 {
 	dberr_t	err = DB_SUCCESS;
 
-	callback.begin(&m_mtr);
-
 	for (;;) {
 
-		if (!btr_pcur_is_on_user_rec(&m_pcur)) {
+		if (!btr_pcur_is_on_user_rec(&m_pcur)
+		    || !callback.match(&m_mtr, &m_pcur)) {
+
 			/* The end of of the index has been reached. */
 			err = DB_END_OF_INDEX;
 			break;
@@ -126,7 +124,7 @@ IndexIterator::for_each(Callback& callback)
 
 		if (!rec_get_deleted_flag(rec, FALSE)) {
 
-			err = callback(btr_pcur_get_rec(&m_pcur));
+			err = callback(&m_mtr, &m_pcur);
 
 			if (err != DB_SUCCESS) {
 				break;
@@ -136,22 +134,51 @@ IndexIterator::for_each(Callback& callback)
 		btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr);
 	}
 
-	callback.end(&m_mtr, err);
-
 	btr_pcur_close(&m_pcur);
 	mtr_commit(&m_mtr);
 
-	return(err);
+	return(err == DB_END_OF_INDEX ? DB_SUCCESS : err);
 }
 
-/**
-Creates a TRUNCATE log record with space id, table name, data directory path,
-tablespace flags, table format, index ids, index types, number of index fields
-and index field information of the table. */
-struct Logger {
+/** SysIndex table iterator, iterate over records for a table. */
+struct SysIndexIterator {
+	/**
+	Iterate over all the records that match the table id.
+	@return DB_SUCCESS or error code */
+	template <typename Callback>
+	dberr_t for_each(Callback& callback) const;
+};
 
-	Logger(dict_table_t* table, ulint flags)
+template <typename Callback>
+dberr_t SysIndexIterator::for_each(Callback& callback) const
+{
+	dict_index_t*	sys_index;
+	byte		buf[DTUPLE_EST_ALLOC(1)];
+	dtuple_t*	tuple = dtuple_create_from_mem(buf, sizeof(buf), 1);
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+
+	dfield_set_data(
+		dfield,
+		callback.table_id(),
+		sizeof(*callback.table_id()));
+
+	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
+
+	dict_index_copy_types(tuple, sys_index, 1);
+
+	IndexIterator	iterator(sys_index);
+
+	/* Search on the table id and position the cursor on GE table_id. */
+	iterator.search(*tuple);
+
+	return(iterator.for_each(callback));
+}
+
+struct Callback
+{
+	Callback(dict_table_t* table, ulint flags)
 		:
+		m_id(),
 		m_table(table),
 		m_flags(flags)
 	{
@@ -159,75 +186,20 @@ struct Logger {
 		mach_write_to_8(&m_id, m_table->id);
 	}
 
-	dberr_t operator()(rec_t* rec)
+	/**
+	@return true if the table id column matches. */
+	bool match(mtr_t* mtr, btr_pcur_t* pcur) const
 	{
 		ulint		len;
 		const byte*	field;
+		rec_t*		rec = btr_pcur_get_rec(pcur);
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
 
 		ut_ad(len == 8);
 
-		if (memcmp(&m_id, field, len) != 0) {
-			/* End of indexes for the table (TABLE_ID mismatch). */
-			return(DB_END_OF_INDEX);
-		}
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
-
-		ut_ad(len == 4);
-
-		truncate_t::index_t	index;
-
-		index.m_type = mach_read_from_4(field);
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__ID, &len);
-
-		ut_ad(len == 8);
-
-		index.m_id = mach_read_from_8(field);
-
-		if (fsp_flags_is_compressed(m_flags)) {
-
-			const dict_index_t* dict_index = find(index.m_id);
-
-			if (dict_index != NULL) {
-				index.set(dict_index);
-			} else {
-				ib_logf(IB_LOG_LEVEL_WARN,
-					"Index id "IB_ID_FMT " not found",
-					index.m_id);
-			}
-		}
-
-		m_truncate.m_indexes.push_back(index);
-
-		return(DB_SUCCESS);
-	}
-
-	/** Called before iterating over the records. 
-	@mtr		mini-transaction used by the caller */
-	void begin(mtr_t* mtr) const
-	{
-		/* Do nothing */
-	}
-
-	/** Called after iteratoring over the records.
-	@param mtr	mini-transaction used by the iterator
-	@param err	error code that will be returned by the iterator */
-	void end(mtr_t* mtr, dberr_t err)
-	{
-		if (err == DB_SUCCESS || err == DB_END_OF_INDEX) {
-
-			/* We must find all the index entries on disk. */
-			ut_ad(UT_LIST_GET_LEN(m_table->indexes)
-			      == m_truncate.m_indexes.size());
-
-			m_truncate.m_dir_path = m_table->data_dir_path;
-		}
+		return(memcmp(&m_id, field, len) == 0);
 	}
 
 	/**
@@ -237,12 +209,56 @@ struct Logger {
 		return(&m_id);
 	}
 
+	/** Table id in storage format */
+	table_id_t		m_id;
+
+	/** Table to be truncated */
+	dict_table_t*		m_table;
+
+	/** Tablespace flags */
+	ulint			m_flags;
+};
+
+/**
+Creates a TRUNCATE log record with space id, table name, data directory path,
+tablespace flags, table format, index ids, index types, number of index fields
+and index field information of the table. */
+struct Logger : public Callback {
+
+	/**
+	Constructor
+
+	@param table	Table to truncate
+	@param flags	tablespace falgs */
+	Logger(dict_table_t* table, ulint flags)
+		:
+		Callback(table, flags)
+	{
+		m_truncate.m_dir_path = m_table->data_dir_path;
+	}
+
+	/**
+	@param mtr	mini-transaction covering the read
+	@param pcur	persistent cursor used for reading
+	@return DB_SUCCESS or error code */
+	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur);
+
+	/** Called after iteratoring over the records.
+	@return true if invariant satisfied. */
+	bool debug()
+	{
+		/* We must find all the index entries on disk. */
+		return(UT_LIST_GET_LEN(m_table->indexes)
+		       == m_truncate.m_indexes.size());
+	}
+
 	/**
 	Write the TRUNCATE redo log */
 	void log()
 	{
 		m_truncate.write(
-			m_table->space, m_table->name, m_flags, m_table->flags);
+			m_table->space, m_table->name, m_flags,
+			m_table->flags);
 	}
 
 private:
@@ -264,157 +280,367 @@ private:
 	}
 
 private:
-	/** Table id in storage format */
-	table_id_t		m_id;
-
-	/** Table to be truncated */
-	dict_table_t*		m_table;
-
-	/** Tablespace flags */
-	ulint			m_flags;
-
 	/** Collect the truncate REDO information */
 	truncate_t		m_truncate;
 };
 
-/*********************************************************************//**
-Create the indexes.
-@return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
-dberr_t
-row_truncate_create_index(
-/*======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	trx_t*		trx)		/*!< in/out: transaction covering
-					the TRUNCATE */
-{
-	dict_index_t*	sys_index;
-	mem_heap_t*	heap = mem_heap_create(800);
-	dtuple_t*	tuple = dtuple_create(heap, 1);
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
-	byte*		buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+/** Callback to drop indexes during TRUNCATE */
+struct DropIndex : public Callback {
+	/**
+	Constructor
 
-	mach_write_to_8(buf, table->id);
-
-	dfield_set_data(dfield, buf, 8);
-
-	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
-
-	dict_index_copy_types(tuple, sys_index, 1);
-
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-
-	mtr_start(&mtr);
-
-	btr_pcur_open_on_user_rec(
-		sys_index, tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF, &pcur, &mtr);
-
-#ifdef UNIV_DEBUG
-	ulint		ind_count = 0;
-#endif /* UNIV_DEBUG */
-
-	/* Create new index trees associated with rows in SYS_INDEXES table */
-	for (;;) {
-
-		if (!btr_pcur_is_on_user_rec(&pcur)) {
-			/* The end of SYS_INDEXES has been reached. */
-			break;
-		}
-
-		ulint	len;
-		ulint	root_page_no;
-		rec_t*	rec = btr_pcur_get_rec(&pcur);
-
-		const byte*	field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-
-		ut_ad(len == 8);
-
-		if (memcmp(buf, field, len) != 0) {
-			/* End of indexes for the table (TABLE_ID mismatch). */
-			break;
-		}
-
-		if (rec_get_deleted_flag(rec, FALSE)) {
-			/* The index has been dropped. */
-			goto next_rec;
-		}
-
-		root_page_no = dict_recreate_index_tree(table, &pcur, &mtr);
-
-#ifdef UNIV_DEBUG
-		/* Crash during the creation of the second secondary */
-		if (++ind_count == INDEX_NUM_SECOND_SECONDARY) {
-
-			/* Waiting for MLOG_FILE_TRUNCATE record is written
-			into redo log before the crash. */
-			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
-				log_buffer_flush_to_disk(););
-
-			DBUG_EXECUTE_IF("crash_during_create_second_secondary",
-				DBUG_SUICIDE(););
-		}
-#endif /* UNIV_DEBUG */
-
-		if (root_page_no != FIL_NULL) {
-
-			page_rec_write_field(
-				rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-				root_page_no, &mtr);
-
-			/* We will need to commit and restart the
-			mini-transaction in order to avoid deadlocks.
-			The dict_create_index_tree() call has allocated
-			a page in this mini-transaction, and the rest of
-			this loop could latch another index page. */
-			mtr_commit(&mtr);
-
-			mtr_start(&mtr);
-
-			btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
-		} else {
-			ulint	zip_size;
-
-			zip_size = fil_space_get_zip_size(table->space);
-
-			if (zip_size == ULINT_UNDEFINED) {
-				/* Rollback the truncation and mark the table
-				as corrupt if the .ibd file is missing */
-				btr_pcur_close(&pcur);
-
-				mtr_commit(&mtr);
-
-				mem_heap_free(heap);
-
-				dict_table_x_unlock_indexes(table);
-
-				trx->error_state = DB_SUCCESS;
-
-				trx_rollback_to_savepoint(trx, NULL);
-
-				trx->error_state = DB_SUCCESS;
-
-				table->corrupted = true;
-
-				return(DB_ERROR);
-			}
-		}
-
-next_rec:
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	@param table	Table to truncate
+	@param flags	tablespace falgs */
+	DropIndex(dict_table_t* table, ulint flags)
+		:
+		Callback(table, flags)
+	{
+		ut_d(m_count = 0);
 	}
 
-	btr_pcur_close(&pcur);
+	/**
+	@param mtr	mini-transaction covering the read
+	@param pcur	persistent cursor used for reading
+	@return DB_SUCCESS or error code */
+	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur) const;
 
-	mtr_commit(&mtr);
+private:
+#ifdef UNIV_DEBUG
+	mutable ulint		m_count;
+#endif /* UNIV_DEBUG */
+};
 
-	mem_heap_free(heap);
+/** Callback to create the indexes during TRUNCATE */
+struct CreateIndex : public Callback {
+
+	/**
+	Constructor
+
+	@param table	Table to truncate
+	@param flags	tablespace falgs */
+	CreateIndex(dict_table_t* table, ulint flags)
+		:
+		Callback(table, flags)
+	{
+		ut_d(m_count = 0);
+	}
+
+	/**
+	Create the new index and update the root page number in the
+	SysIndex table.
+
+	@param mtr	mini-transaction covering the read
+	@param pcur	persistent cursor used for reading
+	@return DB_SUCCESS or error code */
+	dberr_t operator()(mtr_t* mtr, btr_pcur_t* pcur) const;
+
+private:
+#ifdef UNIV_DEBUG
+	mutable ulint		m_count;
+#endif /* UNIV_DEBUG */
+};
+
+/**
+@param mtr	mini-transaction covering the read
+@param pcur	persistent cursor used for reading
+@return DB_SUCCESS or error code */
+dberr_t
+Logger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
+{
+	ulint		len;
+	const byte*	field;
+	rec_t*		rec = btr_pcur_get_rec(pcur);
+
+	field = rec_get_nth_field_old(
+		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
+
+	ut_ad(len == 4);
+
+	truncate_t::index_t	index;
+
+	index.m_type = mach_read_from_4(field);
+
+	field = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__ID, &len);
+
+	ut_ad(len == 8);
+
+	index.m_id = mach_read_from_8(field);
+
+	if (fsp_flags_is_compressed(m_flags)) {
+
+		const dict_index_t* dict_index = find(index.m_id);
+
+		if (dict_index != NULL) {
+			index.set(dict_index);
+		} else {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Index id "IB_ID_FMT " not found",
+				index.m_id);
+		}
+	}
+
+	m_truncate.m_indexes.push_back(index);
 
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************//**
+/**
+Drop an index in the table.
+
+@param mtr	mini-transaction covering the read
+@param pcur	persistent cursor used for reading
+@return DB_SUCCESS or error code */
+dberr_t
+DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
+{
+	ulint	root_page_no;
+	rec_t*	rec = btr_pcur_get_rec(pcur);
+
+	root_page_no = dict_drop_index_tree(rec, pcur, false, mtr);
+
+#ifdef UNIV_DEBUG
+	/* Crash during the drop of the second secondary */
+	if (++m_count == INDEX_NUM_SECOND_SECONDARY) {
+
+		/* Write and flush the MLOG_FILE_TRUNCATE record
+		to the redo log before the crash. */
+		DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
+				log_buffer_flush_to_disk(););
+
+		DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
+				DBUG_SUICIDE(););
+	}
+#endif /* UNIV_DEBUG */
+
+	DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+			root_page_no = FIL_NULL;);
+
+	if (root_page_no != FIL_NULL) {
+
+		/* We will need to commit and restart the
+		mini-transaction in order to avoid deadlocks.
+		The dict_drop_index_tree() call has freed
+		a page in this mini-transaction, and the rest
+		of this loop could latch another index page.*/
+		mtr_commit(mtr);
+
+		mtr_start(mtr);
+
+		btr_pcur_restore_position(BTR_SEARCH_LEAF, pcur, mtr);
+	} else {
+		ulint	zip_size;
+
+		/* Check if the .ibd file is missing. */
+		zip_size = fil_space_get_zip_size(m_table->space);
+
+		DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
+				zip_size = ULINT_UNDEFINED;);
+
+		if (zip_size == ULINT_UNDEFINED) {
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/**
+Create the new index and update the root page number in the
+SysIndex table.
+
+@param mtr	mini-transaction covering the read
+@param pcur	persistent cursor used for reading
+@return DB_SUCCESS or error code */
+dberr_t
+CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
+{
+	ulint	root_page_no;
+
+	root_page_no = dict_recreate_index_tree(m_table, pcur, mtr);
+
+#ifdef UNIV_DEBUG
+	/* Crash during the creation of the second secondary */
+	if (++m_count == INDEX_NUM_SECOND_SECONDARY) {
+
+		/* Waiting for MLOG_FILE_TRUNCATE record is written
+		into redo log before the crash. */
+		DBUG_EXECUTE_IF("crash_during_create_second_secondary",
+			log_buffer_flush_to_disk(););
+
+		DBUG_EXECUTE_IF("crash_during_create_second_secondary",
+				DBUG_SUICIDE(););
+	}
+#endif /* UNIV_DEBUG */
+
+	if (root_page_no != FIL_NULL) {
+
+		rec_t*	rec = btr_pcur_get_rec(pcur);
+
+		page_rec_write_field(
+			rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
+			root_page_no, mtr);
+
+		/* We will need to commit and restart the
+		mini-transaction in order to avoid deadlocks.
+		The dict_create_index_tree() call has allocated
+		a page in this mini-transaction, and the rest of
+		this loop could latch another index page. */
+		mtr_commit(mtr);
+
+		mtr_start(mtr);
+
+		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
+
+	} else {
+		ulint	zip_size;
+
+		zip_size = fil_space_get_zip_size(m_table->space);
+
+		if (zip_size == ULINT_UNDEFINED) {
+			return(DB_ERROR);
+		}
+	}
+
+	return(DB_SUCCESS);
+}
+
+/**
+Rollback the transaction and release the index locks.
+
+@param table		table to truncate
+@param trx		transaction covering the TRUNCATE */
+
+static
+void
+row_truncate_rollback(dict_table_t* table, trx_t* trx)
+{
+	dict_table_x_unlock_indexes(table);
+
+	trx->error_state = DB_SUCCESS;
+
+	trx_rollback_to_savepoint(trx, NULL);
+
+	trx->error_state = DB_SUCCESS;
+
+	table->corrupted = true;
+}
+
+/**
+Finish the TRUNCATE operations for both commit and rollback.
+
+@param table		table being truncated
+@param trx		transaction covering the truncate
+@param flags		tablespace flags
+@param err		status of truncate operation
+
+@return DB_SUCCESS or error code */
+static
+dberr_t
+row_truncate_complete(dict_table_t* table, trx_t* trx, ulint flags, dberr_t err)
+{
+	row_mysql_unlock_data_dictionary(trx);
+
+	if (!Tablespace::is_system_tablespace(table->id)
+	    && flags != ULINT_UNDEFINED
+	    && err == DB_SUCCESS) {
+
+		/* Waiting for MLOG_FILE_TRUNCATE record is written into
+		redo log before the crash. */
+		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
+				log_buffer_flush_to_disk(););
+
+		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
+
+		log_make_checkpoint_at(LSN_MAX, TRUE);
+
+		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
+
+		err = truncate_t::truncate(
+			table->space, table->name, table->data_dir_path, flags);
+
+		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
+				DBUG_SUICIDE(););
+	}
+
+	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
+
+	trx->op_info = "";
+
+	/* For temporary tables or if there was an error, we need to reset
+	the dict operation flags. */
+	trx->ddl = false;
+	trx->dict_operation = TRX_DICT_OP_NONE;
+	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+	srv_wake_master_thread();
+
+	return(err);
+}
+
+/**
+Write a REDO log record for the TRUNCATE operation on the table.
+
+@param table	table to truncate
+@param flags	tablespace flags */
+static
+void
+row_truncate_write_log(dict_table_t* table, ulint flags)
+{
+	ut_ad(!dict_table_is_temporary(table));
+
+	dberr_t	err;
+
+	Logger logger(table, flags);
+
+	err = SysIndexIterator().for_each(logger);
+
+	ut_ad(err == DB_SUCCESS);
+
+	ut_ad(logger.debug());
+
+	/* Write the TRUNCATE log record into redo log */
+	logger.log();
+}
+
+/**
+Truncate index and update SYSTEM TABLES accordingly.
+
+@param table		table to truncate
+@param flags		tablespace flags
+
+@return DB_SUCCESS or error code */
+static __attribute__((warn_unused_result))
+dberr_t
+row_truncate_drop_indexes(dict_table_t* table, ulint flags)
+{
+	ut_ad(!dict_table_is_temporary(table));
+
+	DropIndex	dropIndex(table, flags);
+
+	return(SysIndexIterator().for_each(dropIndex));
+}
+
+/**
+Create the indexes.
+
+@param table		table to truncate
+@param flags		tablespace flags
+
+@return DB_SUCCESS or error code */
+static __attribute__((warn_unused_result))
+dberr_t
+row_truncate_create_index(dict_table_t* table, ulint flags)
+{
+	ut_ad(!dict_table_is_temporary(table));
+
+	ut_ad(!dict_table_is_temporary(table));
+
+	CreateIndex	createIndex(table, flags);
+
+	return(SysIndexIterator().for_each(createIndex));
+}
+
+/**
 Handle FTS truncate issues.
 @return DB_SUCCESS or error code. */
 static __attribute__((warn_unused_result))
@@ -467,151 +693,7 @@ row_truncate_fts(
 	return(err);
 }
 
-/*********************************************************************//**
-Truncate index and update SYSTEM TABLES accordingly.
-@return DB_SUCCESS or error code */
-static __attribute__((warn_unused_result))
-dberr_t
-row_truncate_drop_indexes(
-/*======================*/
-	dict_table_t*	table,		/*!< in/out: table */
-	trx_t*		trx)		/*!< in/out: transaction covering the
-					TRUNCATE */
-{
-	ut_a(!dict_table_is_temporary(table));
-
-	dict_index_t*	sys_index;
-	mem_heap_t*	heap = mem_heap_create(800);
-	dtuple_t*	tuple = dtuple_create(heap, 1);
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
-	byte*		buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-
-	mach_write_to_8(buf, table->id);
-
-	dfield_set_data(dfield, buf, 8);
-
-	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
-
-	dict_index_copy_types(tuple, sys_index, 1);
-
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
-
-	mtr_start(&mtr);
-
-	btr_pcur_open_on_user_rec(
-		sys_index, tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF, &pcur, &mtr);
-
-#ifdef UNIV_DEBUG
-	ulint		ind_count = 0;
-#endif /* UNIV_DEBUG */
-
-	/* Scan SYS_INDEXES for all indexes of the table */
-	for (;;) {
-		ulint		len;
-		rec_t*		rec;
-		const byte*	field;
-
-		if (!btr_pcur_is_on_user_rec(&pcur)) {
-			/* The end of SYS_INDEXES has been reached. */
-			break;
-		}
-
-		rec = btr_pcur_get_rec(&pcur);
-
-		field = rec_get_nth_field_old(
-			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-
-		ut_ad(len == 8);
-
-		if (memcmp(buf, field, len) != 0) {
-			/* End of indexes for the table (TABLE_ID mismatch). */
-			break;
-		}
-		
-		if (rec_get_deleted_flag(rec, FALSE)) {
-			/* The index has been dropped. */
-			goto next_rec;
-		}
-
-		ulint	root_page_no;
-
-		root_page_no = dict_drop_index_tree(rec, &pcur, false, &mtr);
-
-#ifdef UNIV_DEBUG
-		/* Crash during the drop of the second secondary */
-		if (++ind_count == INDEX_NUM_SECOND_SECONDARY) {
-
-			/* Write and flush the MLOG_FILE_TRUNCATE record
-			to the redo log before the crash. */
-			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
-					log_buffer_flush_to_disk(););
-
-			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
-					DBUG_SUICIDE(););
-		}
-#endif /* UNIV_DEBUG */
-
-		DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
-				root_page_no = FIL_NULL;);
-
-		if (root_page_no != FIL_NULL) {
-
-			/* We will need to commit and restart the
-			mini-transaction in order to avoid deadlocks.
-			The dict_drop_index_tree() call has freed
-			a page in this mini-transaction, and the rest
-			of this loop could latch another index page.*/
-			mtr_commit(&mtr);
-
-			mtr_start(&mtr);
-
-			btr_pcur_restore_position(BTR_MODIFY_LEAF, &pcur, &mtr);
-		} else {
-			ulint	zip_size;
-
-			/* Check if the .ibd file is missing. */
-			zip_size = fil_space_get_zip_size(table->space);
-
-			DBUG_EXECUTE_IF("crash_if_ibd_file_is_missing",
-					zip_size = ULINT_UNDEFINED;);
-
-			if (zip_size == ULINT_UNDEFINED) {
-				/* Rollback the truncation and mark the table
-				as corrupt if the .ibd file is missing */
-				btr_pcur_close(&pcur);
-
-				mtr_commit(&mtr);
-
-				mem_heap_free(heap);
-
-				dict_table_x_unlock_indexes(table);
-
-				trx->error_state = DB_SUCCESS;
-
-				trx_rollback_to_savepoint(trx, NULL);
-
-				trx->error_state = DB_SUCCESS;
-
-				table->corrupted = true;
-
-				return(DB_ERROR);
-			}
-		}
-
-next_rec:
-		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
-
-	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
-}
-
-/*********************************************************************//**
+/**
 Truncatie also results in assignment of new table id, update the system
 SYSTEM TABLES with the new id.
 @return	error code or DB_SUCCESS */
@@ -738,8 +820,7 @@ row_truncate_update_system_tables(
 	return(err);
 }
 
-
-/*********************************************************************//**
+/**
 Prepare for the truncate process. On success all of the table's indexes will
 be locked in X mode.
 @param table	table to truncate
@@ -772,47 +853,7 @@ row_truncate_prepare(
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************//**
-Start the truncate process. On success all of the table's indexes will
-be locked in X mode.
-@param table	table to truncate
-@param flags	tablespace flags */
-static
-void
-row_truncate_log(
-/*===============*/
-	dict_table_t*	table,
-	ulint		flags)
-{
-	ut_ad(!dict_table_is_temporary(table));
-
-	dict_index_t*	sys_index;
-	Logger		logger(table, flags);
-	byte		buf[DTUPLE_EST_ALLOC(1)];
-	dtuple_t*	tuple = dtuple_create_from_mem(buf, sizeof(buf), 1);
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
-
-	dfield_set_data(dfield, logger.table_id(), sizeof(*logger.table_id()));
-
-	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
-
-	dict_index_copy_types(tuple, sys_index, 1);
-
-	IndexIterator	iterator(sys_index);
-
-	/* Search on the table id and position the cursor on GE table_id. */
-	iterator.search(*tuple);
-
-	/* Iterate over all the table's indexes. */
-	dberr_t	err = iterator.for_each(logger);
-
-	ut_ad(err == DB_SUCCESS || err == DB_END_OF_INDEX);
-
-	/* Write the TRUNCATE log record into redo log */
-	logger.log();
-}
-
-/*********************************************************************//**
+/**
 Do foreign key checks before starting TRUNCATE.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
@@ -882,7 +923,7 @@ row_truncate_foreign_key_checks(
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************//**
+/**
 Do some sanity checks before starting the actual TRUNCATE.
 @return DB_SUCCESS or error code */
 static __attribute__((warn_unused_result))
@@ -913,7 +954,7 @@ row_truncate_sanity_checks(
 	return(DB_SUCCESS);
 }
 
-/*********************************************************************//**
+/**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -956,7 +997,33 @@ row_truncate_table_for_mysql(
 
 	5) FOREIGN KEY operations: if
 	table->n_foreign_key_checks_running > 0, we do not allow the
-	TRUNCATE. We also reserve the data dictionary latch. */
+	TRUNCATE. We also reserve the data dictionary latch.
+
+	Lock all the indexes of the table in X mode, this is to prevent
+	concurrent access.
+
+	High level algorithm:
+
+	1. Write a TRUNCATE redo log record.
+
+	2. Drop all indexes of the table, don't update the root_page number
+	   in the system tables.
+
+	3. Reinitialise the tablespace header.
+
+	4. Truncate the .ibd file
+
+	5. Recreate the indexes in the table.
+
+	6. Give the table a new ID.
+
+	7. Reset the AUTOINC value to 1, if table contains an AUTOINC column.
+
+	The tablespace id remains the same.
+
+	For temporary tables we don't update the DD files on disk and we
+	disable REDO logging. We don't start the transaction and do any
+	UNDO loggin either. */
 
 	err = row_truncate_sanity_checks(table);
 
@@ -995,7 +1062,7 @@ row_truncate_table_for_mysql(
 	err = row_truncate_foreign_key_checks(table, trx);
 
 	if (err != DB_SUCCESS) {
-		goto funct_exit;
+		return(row_truncate_complete(table, trx, flags, err));
 	}
 
 	/* Remove all locks except the table-level X lock. */
@@ -1025,7 +1092,7 @@ row_truncate_table_for_mysql(
 		mutex_exit(&trx->undo_mutex);
 
 		if (err != DB_SUCCESS) {
-			goto funct_exit;
+			return(row_truncate_complete(table, trx, flags, err));
 		}
 	}
 
@@ -1035,7 +1102,7 @@ row_truncate_table_for_mysql(
 		err = row_truncate_prepare(table, &flags);
 
 		if (err != DB_SUCCESS) {
-			goto funct_exit;
+			return(row_truncate_complete(table, trx, flags, err));
 		}
 
 		/* Lock all index trees for this table, as we will truncate
@@ -1047,7 +1114,8 @@ row_truncate_table_for_mysql(
 
 		dict_table_x_lock_indexes(table);
 
-		row_truncate_log(table, flags);
+		/* Write the TRUNCATE redo log. */
+		row_truncate_write_log(table, flags);
 
 		/* All of the table's indexes should be locked in X mode. */
 	} else {
@@ -1073,10 +1141,11 @@ row_truncate_table_for_mysql(
 
 	if (!dict_table_is_temporary(table)) {
 
-		err = row_truncate_drop_indexes(table, trx);
+		err = row_truncate_drop_indexes(table, flags);
 
 		if (err != DB_SUCCESS) {
-			goto funct_exit;
+			row_truncate_rollback(table, trx);
+			return(row_truncate_complete(table, trx, flags, err));
 		}
 
 	} else {
@@ -1125,11 +1194,13 @@ row_truncate_table_for_mysql(
 	}
 
 	if (!dict_table_is_temporary(table)) {
+
 		/* Recreate all the indexes. */
-		err = row_truncate_create_index(table, trx);
+		err = row_truncate_create_index(table, flags);
 
 		if (err != DB_SUCCESS) {
-			goto funct_exit;
+			row_truncate_rollback(table, trx);
+			return(row_truncate_complete(table, trx, flags, err));
 		}
 	} else {
 #ifdef UNIV_DEBUG
@@ -1164,32 +1235,34 @@ row_truncate_table_for_mysql(
 
 	dict_hdr_get_new_id(&new_id, NULL, NULL, table, false);
 
-	{
-		/* Create new FTS auxiliary tables with the new_id, and
-		drop the old index later, only if everything runs successful. */
-		bool	has_internal_doc_id =
-			dict_table_has_fts_index(table)
-			|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
+	/* Create new FTS auxiliary tables with the new_id, and
+	drop the old index later, only if everything runs successful. */
+	bool	has_internal_doc_id =
+		dict_table_has_fts_index(table)
+		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
-		if (has_internal_doc_id) {
+	if (has_internal_doc_id) {
 
-			err = row_truncate_fts(table, new_id, trx);
+		err = row_truncate_fts(table, new_id, trx);
 
-			if (err != DB_SUCCESS) {
-				goto funct_exit;
-			}
+		if (err != DB_SUCCESS) {
+
+			return(row_truncate_complete(table, trx, flags, err));
 		}
+	}
 
-		if (dict_table_is_temporary(table)) {
+	if (dict_table_is_temporary(table)) {
 
-			dict_table_change_id_in_cache(table, new_id);
-			err = DB_SUCCESS;
+		dict_table_change_id_in_cache(table, new_id);
+		err = DB_SUCCESS;
 
-		} else {
-			err = row_truncate_update_system_tables(
-				table, new_id, old_space,
-				has_internal_doc_id, trx);
-		}
+	} else {
+
+		/* If this fails then we are in an inconsistent state and
+		the results are undefined. */
+
+		err = row_truncate_update_system_tables(
+			table, new_id, old_space, has_internal_doc_id, trx);
 	}
 
 	/* Reset auto-increment. */
@@ -1201,45 +1274,5 @@ row_truncate_table_for_mysql(
 		trx_commit_for_mysql(trx);
 	}
 
-funct_exit:
-
-	row_mysql_unlock_data_dictionary(trx);
-
-	if (!Tablespace::is_system_tablespace(table->id)
-	    && flags != ULINT_UNDEFINED
-	    && err == DB_SUCCESS) {
-
-		/* Waiting for MLOG_FILE_TRUNCATE record is written into
-		redo log before the crash. */
-		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
-				log_buffer_flush_to_disk(););
-
-		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
-
-		/* TODO: do not need to make the checkpoint after
-		global data dictionary is introduced. */
-		log_make_checkpoint_at(LSN_MAX, TRUE);
-
-		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
-
-		err = truncate_t::truncate(
-			table->space, table->name, table->data_dir_path, flags);
-
-		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
-				DBUG_SUICIDE(););
-	}
-
-	dict_stats_update(table, DICT_STATS_EMPTY_TABLE);
-
-	trx->op_info = "";
-
-	/* For temporary tables or if there was an error, we need to reset
-	the dict operation flags. */
-	trx->ddl = false;
-	trx->dict_operation = TRX_DICT_OP_NONE;
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
-
-	srv_wake_master_thread();
-
-	return(err);
+	return(row_truncate_complete(table, trx, flags, err));
 }
