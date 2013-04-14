@@ -1038,7 +1038,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %ghost %config(noreplace,missingok) %{_sysconfdir}/my.cnf
 
 %attr(755, root, root) %{_bindir}/innochecksum
-%attr(755, root, root) %{_bindir}/innochecksum-debug
 %attr(755, root, root) %{_bindir}/my_print_defaults
 %attr(755, root, root) %{_bindir}/myisam_ftdump
 %attr(755, root, root) %{_bindir}/myisamchk

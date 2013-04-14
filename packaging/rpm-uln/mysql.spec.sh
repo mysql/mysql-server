@@ -882,7 +882,6 @@ fi
 %{_bindir}/mysqlhotcopy
 %{_bindir}/mysqltest
 %{_bindir}/innochecksum
-%{_bindir}/innochecksum-debug
 %{_bindir}/perror
 %{_bindir}/replace
 %{_bindir}/resolve_stack_dump
