@@ -148,9 +148,9 @@ IndexIterator::for_each(Callback& callback)
 Creates a TRUNCATE log record with space id, table name, data directory path,
 tablespace flags, table format, index ids, index types, number of index fields
 and index field information of the table. */
-struct Collect {
+struct Logger {
 
-	Collect(dict_table_t* table, ulint flags)
+	Logger(dict_table_t* table, ulint flags)
 		:
 		m_table(table),
 		m_flags(flags)
@@ -232,7 +232,7 @@ struct Collect {
 
 	/**
 	@return pointer to table id storage format buffer */
-	table_id_t* id()
+	table_id_t* table_id()
 	{
 		return(&m_id);
 	}
@@ -779,29 +779,20 @@ be locked in X mode.
 @param flags	tablespace flags */
 static
 void
-row_truncate_start(
+row_truncate_log(
 /*===============*/
 	dict_table_t*	table,
 	ulint		flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
 
-	/* Lock all index trees for this table, as we will truncate the
-	table/index and possibly change their metadata. All DML/DDL are
-	blocked by table level lock, with a few exceptions such as queries
-	into information schema about the table, MySQL could try to access
-	index stats for this kind of query, we need to use index locks to
-	sync up */
-
-	dict_table_x_lock_indexes(table);
-
 	dict_index_t*	sys_index;
-	Collect		collect(table, flags);
+	Logger		logger(table, flags);
 	byte		buf[DTUPLE_EST_ALLOC(1)];
 	dtuple_t*	tuple = dtuple_create_from_mem(buf, sizeof(buf), 1);
 	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, collect.id(), sizeof(*collect.id()));
+	dfield_set_data(dfield, logger.table_id(), sizeof(*logger.table_id()));
 
 	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
 
@@ -813,12 +804,12 @@ row_truncate_start(
 	iterator.search(*tuple);
 
 	/* Iterate over all the table's indexes. */
-	dberr_t	err = iterator.for_each(collect);
+	dberr_t	err = iterator.for_each(logger);
 
 	ut_ad(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 
 	/* Write the TRUNCATE log record into redo log */
-	collect.log();
+	logger.log();
 }
 
 /*********************************************************************//**
@@ -1047,7 +1038,16 @@ row_truncate_table_for_mysql(
 			goto funct_exit;
 		}
 
-		row_truncate_start(table, flags);
+		/* Lock all index trees for this table, as we will truncate
+		the table/index and possibly change their metadata. All
+		DML/DDL are blocked by table level lock, with a few exceptions
+		such as queries into information schema about the table,
+		MySQL could try to access index stats for this kind of query,
+		we need to use index locks to sync up */
+
+		dict_table_x_lock_indexes(table);
+
+		row_truncate_log(table, flags);
 
 		/* All of the table's indexes should be locked in X mode. */
 	} else {
