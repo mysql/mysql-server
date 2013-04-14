@@ -5214,9 +5214,7 @@ row_search_check_if_query_cache_permitted(
 		    && !srv_read_only_mode) {
 
 			trx->read_view = read_view_open_now(
-				trx->id, trx->global_read_view_heap);
-
-			trx->global_read_view = trx->read_view;
+				trx->id, trx->read_view_heap);
 		}
 	}
 
