@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -50,28 +50,9 @@ trx_savept_t
 trx_savept_take(
 /*============*/
 	trx_t*	trx);	/*!< in: transaction */
-/*******************************************************************//**
-Frees an undo number array. */
-UNIV_INTERN
-void
-trx_undo_arr_free(
-/*==============*/
-	trx_undo_arr_t*	arr);	/*!< in: undo number array */
-/*******************************************************************//**
-Returns pointer to nth element in an undo number array.
-@return	pointer to the nth element */
-UNIV_INLINE
-trx_undo_inf_t*
-trx_undo_arr_get_nth_info(
-/*======================*/
-	trx_undo_arr_t*	arr,	/*!< in: undo number array */
-	ulint		n);	/*!< in: position */
 /********************************************************************//**
 Pops the topmost record when the two undo logs of a transaction are seen
-as a single stack of records ordered by their undo numbers. Inserts the
-undo number of the popped undo record to the array of currently processed
-undo numbers in the transaction. When the query thread finishes processing
-of this undo record, it must be released with trx_undo_rec_release.
+as a single stack of records ordered by their undo numbers.
 @return undo log record copied to heap, NULL if none left, or if the
 undo number of the top record would be less than the limit */
 UNIV_INTERN
@@ -82,25 +63,6 @@ trx_roll_pop_top_rec_of_trx(
 	undo_no_t	limit,	/*!< in: least undo number we need */
 	roll_ptr_t*	roll_ptr,/*!< out: roll pointer to undo record */
 	mem_heap_t*	heap);	/*!< in: memory heap where copied */
-/********************************************************************//**
-Reserves an undo log record for a query thread to undo. This should be
-called if the query thread gets the undo log record not using the pop
-function above.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-trx_undo_rec_reserve(
-/*=================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	undo_no_t	undo_no);/*!< in: undo number of the record */
-/*******************************************************************//**
-Releases a reserved undo record. */
-UNIV_INTERN
-void
-trx_undo_rec_release(
-/*=================*/
-	trx_t*		trx,	/*!< in/out: transaction */
-	undo_no_t	undo_no);/*!< in: undo number */
 /*******************************************************************//**
 Rollback or clean up any incomplete transactions which were
 encountered in crash recovery.  If the transaction already was
@@ -233,39 +195,20 @@ trx_roll_savepoints_free(
 	trx_named_savept_t*	savep);	/*!< in: free all savepoints > this one;
 					if this is NULL, free all savepoints
 					of trx */
-
-/** A cell of trx_undo_arr_t; used during a rollback and a purge */
-struct	trx_undo_inf_t{
-	ibool		in_use;	/*!< true if cell is being used */
-	trx_id_t	trx_no;	/*!< transaction number: not defined during
-				a rollback */
-	undo_no_t	undo_no;/*!< undo number of an undo record */
-};
-
-/** During a rollback and a purge, undo numbers of undo records currently being
-processed are stored in this array */
-
-struct trx_undo_arr_t{
-	ulint		n_cells;	/*!< number of cells in the array */
-	ulint		n_used;		/*!< number of cells in use */
-	trx_undo_inf_t*	infos;		/*!< the array of undo infos */
-	mem_heap_t*	heap;		/*!< memory heap from which allocated */
-};
-
 /** Rollback node states */
 enum roll_node_state {
 	ROLL_NODE_NONE = 0,		/*!< Unknown state */
 	ROLL_NODE_SEND,			/*!< about to send a rollback signal to
 					the transaction */
 	ROLL_NODE_WAIT			/*!< rollback signal sent to the
-				       	transaction, waiting for completion */
+					transaction, waiting for completion */
 };
 
 /** Rollback command node in a query graph */
 struct roll_node_t{
 	que_common_t		common;	/*!< node type: QUE_NODE_ROLLBACK */
 	enum roll_node_state	state;	/*!< node execution state */
-	ibool			partial;/*!< TRUE if we want a partial
+	bool			partial;/*!< TRUE if we want a partial
 					rollback */
 	trx_savept_t		savept;	/*!< savepoint to which to
 					roll back, in the case of a

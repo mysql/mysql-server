@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -2186,17 +2186,11 @@ row_upd_clust_rec(
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
-	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
-		row_log_table_update(btr_cur_get_rec(btr_cur),
-				     index, offsets, rebuilt_old_pk);
+	if (err == DB_SUCCESS) {
+		goto success;
 	}
 
 	mtr_commit(mtr);
-
-	if (UNIV_LIKELY(err == DB_SUCCESS)) {
-
-		goto func_exit;
-	}
 
 	if (buf_LRU_buf_pool_running_out()) {
 
@@ -2282,9 +2276,13 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 	}
 
-	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
-		row_log_table_update(btr_cur_get_rec(btr_cur),
-				     index, offsets, rebuilt_old_pk);
+	if (err == DB_SUCCESS) {
+success:
+		if (dict_index_is_online_ddl(index)) {
+			row_log_table_update(
+				btr_cur_get_rec(btr_cur),
+				index, offsets, rebuilt_old_pk);
+		}
 	}
 
 	mtr_commit(mtr);
