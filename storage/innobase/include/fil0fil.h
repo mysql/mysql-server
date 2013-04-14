@@ -40,10 +40,12 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 #include <list>
+#include <vector>
 
 // Forward declaration
 struct trx_t;
 struct fil_space_t;
+struct btr_create_t;
 
 typedef std::list<const char*> space_name_list_t;
 
@@ -54,9 +56,6 @@ extern const char*	fil_path_to_mysql_datadir;
 
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
-
-/** The length of index fields encoded buffer */
-#define FIELDS_LEN			4096
 
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
@@ -73,9 +72,131 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 #define	FIL_ADDR_SIZE	6	/* address size is 6 bytes */
 
 /** File space address */
-struct fil_addr_t{
+struct fil_addr_t {
 	ulint	page;		/*!< page number within a space */
 	ulint	boffset;	/*!< byte offset within the page */
+};
+
+/** The information of MLOG_FILE_TRUNCATE redo record */
+struct truncate_t {
+
+	/** The index information of MLOG_FILE_TRUNCATE redo record */
+	struct index_t {
+
+		typedef std::vector<byte> fields_t;
+
+		index_t()
+			:
+			m_id(),
+			m_type(),
+			m_n_fields(),
+			m_trx_id_pos(ULINT_UNDEFINED),
+			m_fields()
+		{
+			/* Do nothing */
+		}
+
+		/**
+		Set the truncate redo log values for a compressed table. */
+		void set(const dict_index_t* index);
+
+		/** Index id */
+		index_id_t	m_id;
+
+		/** Index type */
+		ulint		m_type;
+
+		/** Number of index fields */
+		ulint		m_n_fields;
+
+		/** DATA_TRX_ID column position. */
+		ulint		m_trx_id_pos;
+
+		/** Compressed table field meta data, encode by
+		page_zip_fields_encode. Empty for non-compressed tables.
+		Should be NUL terminated. */
+		fields_t	m_fields;
+	};
+
+	/**
+	Create an index for a table.
+
+	@param table_name	table name, for which to create the index
+	@param space_id		space id where we have to create the index
+	@param zip_size		page size of the .ibd file
+	@param index		truncate redo log index meta-data
+	@param btr_create_info	control info for ::btr_create()
+	@param mtr		mini-transaction covering the create index
+	@return root page no or FIL_NULL on failure */
+	ulint create_index(
+		const char*	table_name,
+		ulint		space_id,
+		ulint		zip_size,
+		const index_t&	index,
+		btr_create_t&	btr_create_info,
+		mtr_t*		mtr) const;
+
+	/** Create the indexes for a table
+
+	@param table_name	table name, for which to create the indexes
+	@param space_id		space id where we have to create the indexes
+	@param zip_size		page size of the .ibd file
+	@param flags		tablespace flags
+	@param format_flags	page format flags
+	@return DB_SUCCESS or error code. */
+	dberr_t create_indexes(
+		const char*	table_name,
+		ulint		space_id,
+		ulint		zip_size,
+		ulint		flags,
+		ulint		format_flags) const;
+
+	/**
+	Parses MLOG_FILE_TRUNCATE redo record during recovery
+	@param ptr		buffer containing the main body of
+				MLOG_FILE_TRUNCATE record
+	@param end_ptr		buffer end
+	@param flags		tablespace flags
+
+	@return true if successfully parsed the MLOG_FILE_TRUNCATE record */
+	bool parse(byte** ptr, const byte** end_ptr, ulint flags);
+
+	/**
+	Write a redo log record for truncating a single-table tablespace.
+
+	@param space_id		space id
+	@param tablename	the table name in the usual
+				databasename/tablename format of InnoDB
+	@param flags		tablespace flags
+	@param format_flags	page format */
+	void write(
+		ulint		space_id,
+		const char*	tablename,
+		ulint		flags,
+		ulint		format_flags) const;
+
+	/**
+	Truncate a single-table tablespace. The tablespace must be cached
+	in the memory cache.
+	@param space_id		space id
+	@param tablename	the table name in the usual
+				databasename/tablename format of InnoDB
+	@param dir_path		data directory path for .ibd file
+	@param flags		tablespace flags
+	@return DB_SUCCESS or error */
+	static dberr_t truncate(
+		ulint		id,
+		const char*	tablename,
+		const char*	dir_path,
+		ulint		flags);
+
+	typedef std::vector<index_t> indexes_t;
+
+	/** Data dir path of tablespace */
+	const char*		m_dir_path;
+
+	/** Index meta-data */
+	indexes_t		m_indexes;
 };
 
 /** The null file address */
@@ -420,24 +541,6 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
-/** The index information of MLOG_FILE_TRUNCATE redo record */
-struct truncate_index_t {
-	index_id_t	id;		/*!< index id */
-	ulint		type;		/*!< index type */
-	ulint		n_fields;	/*!< Number of index fields */
-	ulint		field_len;	/*!< index id */
-};
-/** The information of MLOG_FILE_TRUNCATE redo record */
-struct truncate_rec_t {
-	ulint			n_index;		/*!< the number
-							of index */
-	const char*		dir_path;		/*!< data dir
-							path of table */
-	const byte*		fields;			/*!< index field
-							information */
-	truncate_index_t	indexes[MAX_INDEXES];	/*!< indexes
-							information */
-};
 /*******************************************************************//**
 Check if an index tree is freed by a descriptor bit of a page.
 @return true if the index tree is freed */
@@ -459,19 +562,6 @@ dberr_t
 fil_prepare_for_truncate(
 /*=====================*/
 	ulint	id);			/*!< in: space id */
-/*******************************************************************//**
-Write a log record for truncating a single-table tablespace. */
-void
-fil_truncate_write_log(
-/*===================*/
-	ulint			space_id,	/*!< in: space id */
-	const char*		tablename,	/*!< in: the table name in the
-						usual databasename/tablename
-						format of InnoDB */
-	ulint			flags,		/*!< in: tablespace flags */
-	ulint			format_flags,	/*!< in: page format */
-	const truncate_rec_t*	truncate_rec);	/*!< in: The information of
-						MLOG_FILE_TRUNCATE record */
 /*******************************************************************//**
 The set of the truncated tablespaces need to be initialized during recovery.
 @return true if the space is in the set, otherwise false */
@@ -495,20 +585,6 @@ fil_reinit_space_header(
 /*====================*/
 	ulint		id,	/*!< in: space id */
 	ulint		size);	/*!< in: size in blocks */
-/*******************************************************************//**
-Truncate a single-table tablespace. The tablespace must be cached
-in the memory cache.
-@return DB_SUCCESS or error */
-UNIV_INTERN
-dberr_t
-fil_truncate_tablespace(
-/*====================*/
-	ulint		id,		/* !< in: space id */
-	const char*	tablename,	/*!< in: the table name in the usual
-					databasename/tablename format
-					of InnoDB */
-	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags);		/*!< in: tablespace flags */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.

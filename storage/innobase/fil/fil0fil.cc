@@ -2141,7 +2141,7 @@ fil_recreate_tablespace(
 	ulint			format_flags,	/*!< in: page format */
 	ulint			flags,		/*!< in: tablespace flags */
 	const char*		name,		/*!< in: table name */
-	const truncate_rec_t*	truncate_rec,	/*!< in: The information of
+	const truncate_t&	truncate,	/*!< in: The information of
 						MLOG_FILE_TRUNCATE record */
 	lsn_t			recv_lsn)	/*!< in: the end LSN of
 						the log record */
@@ -2155,9 +2155,9 @@ fil_recreate_tablespace(
 	to the tablespace. */
 	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
 
-	if (fil_truncate_tablespace(space_id, name,
-				    truncate_rec->dir_path,
-				    flags) != DB_SUCCESS) {
+	err = truncate.truncate(space_id, name, truncate.m_dir_path, flags);
+
+	if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"innodb_force_recovery was set to %lu. "
@@ -2239,86 +2239,12 @@ fil_recreate_tablespace(
 
 	mtr_commit(&mtr);
 
-	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	err = truncate.create_indexes(
+		name, space_id, zip_size, flags, format_flags);
 
-	/* Create all new index trees with table format,
-	index ids, index types, number of index fields
-	and index field information taken out from the
-	TRUNCATE log record. */
-	if (fsp_flags_is_compressed(flags)) {
-
-		ulint	buf_index = 0;
-
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-			btr_create_t	btr_create_info;
-
-			btr_create_info.format_flags = format_flags;
-
-			btr_create_info.n_fields =
-				truncate_rec->indexes[i].n_fields;
-
-			btr_create_info.field_len =
-				truncate_rec->indexes[i].field_len;
-
-			btr_create_info.fields =
-				truncate_rec->fields + buf_index;
-
-			ulint	root_page_no = btr_create(
-				truncate_rec->indexes[i].type, space_id,
-				zip_size, truncate_rec->indexes[i].id,
-				NULL, &btr_create_info, &mtr);
-
-			if (root_page_no == FIL_NULL) {
-
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though "
-					"we failed to create index %lu for "
-					"compressed table '%s' with tablespace "
-					"%lu during recovery",
-					srv_force_recovery,
-					truncate_rec->indexes[i].id,
-					name, space_id);
-
-				return;
-			}
-
-			buf_index += truncate_rec->indexes[i].field_len;
-		}
-
-	} else {
-		btr_create_t	btr_create_info;
-
-		memset(&btr_create_info, 0, sizeof(btr_create_info));
-
-		btr_create_info.format_flags = format_flags;
-
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-			ulint	root_page_no = btr_create(
-				truncate_rec->indexes[i].type, space_id,
-				0, truncate_rec->indexes[i].id,
-				NULL, &btr_create_info, &mtr);
-
-			if (root_page_no == FIL_NULL) {
-
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"innodb_force_recovery was set to %lu. "
-					"Continuing crash recovery even though "
-					"we failed to create index %lu for "
-					"table '%s' with tablespace %lu "
-					"during recovery",
-					srv_force_recovery,
-					truncate_rec->indexes[i].id,
-					name, space_id);
-				return;
-			}
-		}
+	if (err != DB_SUCCESS) {
+		return;
 	}
-
-	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
@@ -2390,107 +2316,6 @@ fil_recreate_tablespace(
 	mtr_commit(&mtr);
 }
 
-/********************************************************//**
-Parses MLOG_FILE_TRUNCATE redo record during recovery
-@return true if successfully parsed the
-MLOG_FILE_TRUNCATE record, otherwise false */
-static
-bool
-fil_parse_truncate_record(
-/*======================*/
-	byte**		ptr,		/*!< in/out: buffer containing
-					the main body of
-					MLOG_FILE_TRUNCATE record */
-	const byte**	end_ptr,	/*!< in: buffer end */
-	ulint		flags,		/*!< in: tablespace flags */
-	truncate_rec_t*	truncate_rec)	/*!< out: the information of
-					MLOG_FILE_TRUNCATE record */
-{
-	if (*end_ptr < *ptr + 4) {
-		return(false);
-	}
-
-	truncate_rec->n_index = mach_read_from_4(*ptr);
-	*ptr += 4;
-
-	/* Parse index ids and types from TRUNCATE log record */
-	for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-		if (*end_ptr < *ptr + 12) {
-			return(false);
-		}
-
-		truncate_rec->indexes[i].id = mach_read_from_8(*ptr);
-		*ptr += 8;
-
-		truncate_rec->indexes[i].type = mach_read_from_4(*ptr);
-		*ptr += 4;
-	}
-
-	/* Parse the remote directory from TRUNCATE log record */
-	if (FSP_FLAGS_HAS_DATA_DIR(flags)) {
-		ulint	dir_path_len;
-
-		if (*end_ptr < *ptr + 2) {
-			return(false);
-		}
-
-		dir_path_len = mach_read_from_2(*ptr);
-		*ptr += 2;
-
-		if (*end_ptr < *ptr + dir_path_len) {
-			return(false);
-		}
-
-		truncate_rec->dir_path = reinterpret_cast<const char*>(*ptr);
-		*ptr += dir_path_len;
-
-	}
-
-	if (fsp_flags_is_compressed(flags)) {
-
-		ulint	len = 0;
-
-		/* Parse the number of index fields from TRUNCATE log record */
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-			if (*end_ptr < *ptr + 4) {
-				return(false);
-			}
-
-			truncate_rec->indexes[i].n_fields =
-				mach_read_from_4(*ptr);
-			*ptr += 4;
-		}
-
-		/* Parse index fields info encoded from TRUNCATE log record */
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-			if (*end_ptr < *ptr + 4) {
-				return(false);
-			}
-
-			truncate_rec->indexes[i].field_len =
-				mach_read_from_4(*ptr);
-
-			*ptr += 4;
-			len += truncate_rec->indexes[i].field_len;
-		}
-
-		++len;
-
-		if (*end_ptr < *ptr + len) {
-			return(false);
-		}
-
-		truncate_rec->fields = *ptr;
-		*ptr += len;
-	}
-
-	return(true);
-
-}
-
 /*******************************************************************//**
 Parses the body of a log record written about an .ibd file operation. That is,
 the log record part after the standard (type, space id, page no) header of the
@@ -2531,8 +2356,8 @@ fil_op_log_parse_or_replay(
 	const char*	name;
 	ulint		name_len;
 	ulint		flags = 0;
+	truncate_t	truncate;
 	ulint		new_name_len;
-	truncate_rec_t	truncate_rec;
 	const char*	new_name = NULL;
 
 	if (type == MLOG_FILE_CREATE2 || type == MLOG_FILE_TRUNCATE) {
@@ -2564,8 +2389,8 @@ fil_op_log_parse_or_replay(
 	ptr += name_len;
 
 	if (type == MLOG_FILE_TRUNCATE
-	    && !fil_parse_truncate_record(&ptr, &end_ptr, flags,
-					  &truncate_rec)) {
+	    && !truncate.parse(&ptr, &end_ptr, flags)) {
+
 		return(NULL);
 	}
 
@@ -2632,7 +2457,7 @@ fil_op_log_parse_or_replay(
 			mutex_exit(&log_sys->mutex);
 
 			if (fil_create_new_single_table_tablespace(
-				    space_id, name, truncate_rec.dir_path,
+				    space_id, name, truncate.m_dir_path,
 				    flags, DICT_TF2_USE_TABLESPACE,
 				    FIL_IBD_FILE_INITIAL_SIZE) != DB_SUCCESS) {
 
@@ -2653,7 +2478,7 @@ fil_op_log_parse_or_replay(
 
 		fil_recreate_tablespace(
 			space_id, log_flags, flags, name,
-			&truncate_rec, recv_lsn);
+			truncate, recv_lsn);
 
 		break;
 
@@ -3176,130 +3001,6 @@ fil_prepare_for_truncate(
 }
 
 /*******************************************************************//**
-Write a log record for truncating a single-table tablespace. */
-UNIV_INTERN
-void
-fil_truncate_write_log(
-/*===================*/
-	ulint			space_id,	/*!< in: space id */
-	const char*		tablename,	/*!< in: the table name in the
-						usual databasename/tablename
-						format of InnoDB */
-	ulint			flags,		/*!< in: tablespace flags */
-	ulint			format_flags,	/*!< in: page format */
-	const truncate_rec_t*	truncate_rec)	/*!< in: The information of
-						MLOG_FILE_TRUNCATE record */
-{
-#ifndef UNIV_HOTBACKUP
-	ulint	len;
-	mtr_t	mtr;
-	byte*	log_ptr;
-
-	mtr_start(&mtr);
-	log_ptr = mlog_open(&mtr, 11 + 2 + 1);
-
-	if (log_ptr == NULL) {
-		/* Logging in mtr is switched off during crash recovery:
-		in that case mlog_open returns NULL */
-		return;
-	}
-
-	log_ptr = mlog_write_initial_log_record_for_file_op(
-		MLOG_FILE_TRUNCATE, space_id, format_flags, log_ptr, &mtr);
-
-	mach_write_to_4(log_ptr, flags);
-	log_ptr += 4;
-
-	/* Let us store the strings as null-terminated for easier readability
-	and handling */
-	len = strlen(tablename) + 1;
-
-	mach_write_to_2(log_ptr, len);
-	log_ptr += 2;
-	mlog_close(&mtr, log_ptr);
-
-	mlog_catenate_string(&mtr, (byte*) tablename, len);
-
-	log_ptr = mlog_open(&mtr, 4);
-	mach_write_to_4(log_ptr, truncate_rec->n_index);
-	log_ptr += 4;
-
-	mlog_close(&mtr, log_ptr);
-
-	/* Write index ids and types into mtr log */
-	for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-		log_ptr = mlog_open(&mtr, 12);
-
-		mach_write_to_8(log_ptr, truncate_rec->indexes[i].id);
-		log_ptr += 8;
-
-		mach_write_to_4(log_ptr, truncate_rec->indexes[i].type);
-		log_ptr += 4;
-
-		mlog_close(&mtr, log_ptr);
-	}
-
-	/* Write the remote directory of the table into mtr log */
-	if (truncate_rec->dir_path != NULL) {
-
-		len = strlen(truncate_rec->dir_path) + 1;
-
-		log_ptr = mlog_open(&mtr, 2 + len);
-
-		ut_a(log_ptr);
-		mach_write_to_2(log_ptr, len);
-		log_ptr += 2;
-
-		mlog_close(&mtr, log_ptr);
-
-		mlog_catenate_string(
-			&mtr,
-			reinterpret_cast<const byte*>(truncate_rec->dir_path),
-			len);
-	}
-
-	if (fsp_flags_is_compressed(flags)) {
-
-		/* write the number of index fields into mtr log */
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-
-			log_ptr = mlog_open(&mtr, 4);
-
-			mach_write_to_4(log_ptr,
-					truncate_rec->indexes[i].n_fields);
-			log_ptr += 4;
-
-			mlog_close(&mtr, log_ptr);
-		}
-
-		/* Write the index fields info encoded into mtr log */
-		len = 0;
-
-		for (ulint i = 0; i < truncate_rec->n_index; i++) {
-			log_ptr = mlog_open(&mtr, 4);
-
-			mach_write_to_4(log_ptr,
-					truncate_rec->indexes[i].field_len);
-			log_ptr += 4;
-
-			mlog_close(&mtr, log_ptr);
-
-			len += truncate_rec->indexes[i].field_len;
-		}
-
-		log_ptr = mlog_open(&mtr, len + 1);
-
-		mlog_close(&mtr, log_ptr);
-
-		mlog_catenate_string(&mtr, truncate_rec->fields, len + 1);
-	}
-
-	mtr_commit(&mtr);
-#endif /* !UNIV_HOTBACKUP */
-}
-
-/*******************************************************************//**
 The set of the truncated tablespaces need to be initialized
 during recovery.
 @return true if the space is in the set, otherwise false */
@@ -3363,116 +3064,6 @@ fil_reinit_space_header(
 
 	mtr_commit(&mtr);
 }
-
-/*******************************************************************//**
-Truncate a single-table tablespace. The tablespace must be cached
-in the memory cache.
-@return DB_SUCCESS or error */
-UNIV_INTERN
-dberr_t
-fil_truncate_tablespace(
-/*====================*/
-	ulint		id,		/* !< in: space id */
-	const char*	tablename,	/*!< in: the table name in the usual
-					databasename/tablename format
-					of InnoDB */
-	const char*	dir_path,	/*!< in: NULL or a dir path */
-	ulint		flags)		/*!< in: tablespace flags */
-{
-	char*		path;
-	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
-
-	ut_a(!Tablespace::is_system_tablespace(id));
-
-	if (has_data_dir) {
-		ut_ad(dir_path);
-		path = os_file_make_remote_pathname(dir_path, tablename, "ibd");
-	} else {
-		path = fil_make_ibd_name(tablename, false);
-	}
-
-	mutex_enter(&fil_system->mutex);
-
-	fil_space_t*	space = fil_space_get_by_id(id);
-
-	/* The following code must change when InnoDB supports
-	multiple datafiles per tablespace. */
-	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
-
-	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
-
-	if (recv_recovery_on) {
-		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
-	}
-
-	bool	opened;
-
-	if (!node->open) {
-
-		ibool	ret;
-
-		node->handle = os_file_create_simple_no_error_handling(
-			innodb_data_file_key, path, OS_FILE_OPEN,
-			OS_FILE_READ_WRITE, &ret);
-
-		if (!ret) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open tablespace file %s.", path);
-
-			mem_free(path);
-
-			return(DB_ERROR);
-		}
-
-		node->open = TRUE;
-		opened = true;
-	} else {
-		opened = false;
-	}
-
-	os_offset_t	trunc_size = recv_recovery_on
-		? FIL_IBD_FILE_INITIAL_SIZE
-		: space->size;
-
-	bool	success = os_file_truncate(
-		path, node->handle, trunc_size * UNIV_PAGE_SIZE);
-
-	dberr_t	err = DB_SUCCESS;
-
-	if (!success) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Cannot truncate file %s in TRUNCATE TABLESPACE.",
-			path);
-
-		err = DB_ERROR;
-	}
-
-	space->stop_new_ops = FALSE;
-	space->is_being_truncated = false;
-
-	mutex_exit(&fil_system->mutex);
-
-	if (opened) {
-		ibool	ret = os_file_close(node->handle);
-
-		if (!ret) {
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to close tablespace file %s.", path);
-
-			err = DB_ERROR;
-		} else {
-			node->open = FALSE;
-		}
-	}
-
-	mem_free(path);
-
-	return(err);
-}
-
 
 /*******************************************************************//**
 Returns TRUE if a single-table tablespace is being deleted.
@@ -6958,4 +6549,463 @@ fil_mtr_rename_log(
 		fil_op_write_log(MLOG_FILE_RENAME, new_space_id,
 				 0, 0, new_name, old_name, mtr);
 	}
+}
+
+/**
+Set the truncate redo log values for a compressed table. */
+void
+truncate_t::index_t::set(const dict_index_t* index)
+{
+	/* Collects info for creating compressed index page during recovery */
+	ulint	pos;
+
+	if (dict_index_is_clust(index)) {
+
+		pos = dict_index_get_sys_col_pos(index, DATA_TRX_ID);
+
+		ut_ad(pos > 0);
+		ut_ad(pos != ULINT_UNDEFINED);
+
+	} else {
+		pos = ULINT_UNDEFINED;
+	}
+
+	m_trx_id_pos = pos;
+
+	m_n_fields = dict_index_get_n_fields(index);
+
+	ulint	len;
+
+	/* See requirements of page_zip_fields_encode for size. */
+	byte	encoded[(m_n_fields + 1) * 2];
+
+	len = page_zip_fields_encode(m_n_fields, index, m_trx_id_pos, encoded);
+
+	ut_a(len <= sizeof(encoded));
+
+	/* Append the encoded fields data. */
+	m_fields.insert(m_fields.end(), &encoded[0], &encoded[len]);
+
+	/* NUL terminate the encoded data */
+	m_fields.push_back(0);
+}
+
+/**
+Create an index for a table.
+
+@param table_name	table name, for which to create the index
+@param space_id		space id where we have to create the index
+@param zip_size		page size of the .ibd file
+@param index		truncate redo log index meta-data
+@param btr_create_info	control info for ::btr_create()
+@param mtr		mini-transaction covering the create index
+@return root page no or FIL_NULL on failure */
+ulint
+truncate_t::create_index(
+	const char*	table_name,
+	ulint		space_id,
+	ulint		zip_size,
+	const index_t&	index,
+	btr_create_t&	btr_create_info,
+	mtr_t*		mtr) const
+{
+	ulint	root_page_no = btr_create(
+		index.m_type, space_id, zip_size, index.m_id,
+		NULL, &btr_create_info, mtr);
+
+	if (root_page_no == FIL_NULL) {
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"innodb_force_recovery was set to %lu. "
+			"Continuing crash recovery even though "
+			"we failed to create index %lu for "
+			"compressed table '%s' with tablespace "
+			"%lu during recovery",
+			srv_force_recovery,
+			index.m_id, table_name, space_id);
+	}
+
+	return(root_page_no);
+}
+
+/** Create the indexes for a table
+
+@param table_name	table name, for which to create the indexes
+@param space_id		space id where we have to create the indexes
+@param zip_size		page size of the .ibd file
+@param flags		tablespace flags
+@param format_flags	page format flags
+@return DB_SUCCESS or error code. */
+dberr_t
+truncate_t::create_indexes(
+	const char*	table_name,
+	ulint		space_id,
+	ulint		zip_size,
+	ulint		flags,
+	ulint		format_flags) const
+{
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	/* Don't log changes, we are in recoery mode. */
+	mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+	/* Create all new index trees with table format, index ids, index
+	types, number of index fields and index field information taken
+	out from the TRUNCATE log record. */
+
+	indexes_t::const_iterator 	end = m_indexes.end();
+
+	ulint	root_page_no = FIL_NULL;
+
+	for (indexes_t::const_iterator it = m_indexes.begin();
+	     it != end;
+	     ++it) {
+
+		btr_create_t	btr_create_info(&it->m_fields[0]);
+
+		btr_create_info.format_flags = format_flags;
+
+		if (fsp_flags_is_compressed(flags)) {
+
+			btr_create_info.n_fields = it->m_n_fields;
+			btr_create_info.field_len = it->m_fields.size();
+		}
+
+		root_page_no = create_index(
+			table_name, space_id, zip_size, *it,
+			btr_create_info, &mtr);
+
+		if (root_page_no == FIL_NULL) {
+			break;
+		}
+	}
+
+	mtr_commit(&mtr);
+
+	return(root_page_no == FIL_NULL ? DB_ERROR : DB_SUCCESS);
+}
+
+/**
+Write a redo log record for truncating a single-table tablespace.
+@param space_id		space id
+@param tablename	the table name in the usual databasename/tablename
+			format of InnoDB
+@param flags		tablespace flags
+@param format_flags	page format */
+void
+truncate_t::write(
+	ulint		space_id,
+	const char*	tablename,
+	ulint		flags,
+	ulint		format_flags) const
+{
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	byte*	log_ptr = mlog_open(&mtr, 14);
+
+	if (log_ptr == NULL) {
+
+		mtr_commit(&mtr);
+
+		/* Logging in mtr is switched off during crash recovery:
+		in that case mlog_open returns NULL */
+		return;
+	}
+
+	log_ptr = mlog_write_initial_log_record_for_file_op(
+		MLOG_FILE_TRUNCATE, space_id, format_flags, log_ptr, &mtr);
+
+	mach_write_to_4(log_ptr, flags);
+	log_ptr += 4;
+
+	/* Include the NUL in the log record. */
+	ulint	len = strlen(tablename) + 1;
+
+	mach_write_to_2(log_ptr, len);
+	log_ptr += 2;
+
+	mlog_close(&mtr, log_ptr);
+
+	mlog_catenate_string(
+		&mtr,
+		reinterpret_cast<const byte*>(tablename),
+		len);
+
+	/* Write the remote directory of the table into mtr log */
+	len = m_dir_path != NULL ? strlen(m_dir_path) + 1 : 0;
+
+	log_ptr = mlog_open(&mtr, 2 + 2);
+
+	/* Write out the number of indexes. */
+	mach_write_to_2(log_ptr, m_indexes.size());
+	log_ptr += 2;
+
+	/* Write the length (NUL included) of the .ibd path. */
+	mach_write_to_2(log_ptr, len);
+	log_ptr += 2;
+
+	mlog_close(&mtr, log_ptr);
+
+	if (m_dir_path != NULL) {
+
+		/* Must be NUL terminated. */
+		ut_ad(m_dir_path[len - 1] == 0);
+
+		const byte*	path;
+		path = reinterpret_cast<const byte*>(m_dir_path);
+
+		mlog_catenate_string(&mtr, path, len);
+	}
+
+	/* Write index ids and types into mtr log */
+	for (ulint i = 0; i < m_indexes.size(); ++i) {
+
+		log_ptr = mlog_open(&mtr, 12);
+
+		mach_write_to_8(log_ptr, m_indexes[i].m_id);
+		log_ptr += 8;
+
+		mach_write_to_4(log_ptr, m_indexes[i].m_type);
+		log_ptr += 4;
+
+		mlog_close(&mtr, log_ptr);
+	}
+
+	if (fsp_flags_is_compressed(flags)) {
+
+		/* Write the number of index fields into mtr log */
+		for (ulint i = 0; i < m_indexes.size(); ++i) {
+
+			len = m_indexes[i].m_fields.size();
+
+			log_ptr = mlog_open(&mtr, 2 + 2);
+
+			mach_write_to_2(log_ptr, m_indexes[i].m_n_fields);
+			log_ptr += 2;
+
+			/* The len should include the terminating NUL */
+			mach_write_to_2(log_ptr, len);
+			log_ptr += 2;
+
+			mlog_close(&mtr, log_ptr);
+
+			const byte*	ptr = &m_indexes[i].m_fields[0];
+
+			/* Must be NUL terminated. */
+			ut_ad(ptr[len - 1] == 0);
+
+			mlog_catenate_string(&mtr, ptr, len);
+		}
+	}
+
+	mtr_commit(&mtr);
+}
+/**
+Parses MLOG_FILE_TRUNCATE redo record during recovery
+@param ptr		buffer containing the main body of MLOG_FILE_TRUNCATE
+			record
+@param end_ptr		buffer end
+@param flags		tablespace flags
+
+@return true if successfully parsed the MLOG_FILE_TRUNCATE record */
+bool
+truncate_t::parse(byte** ptr, const byte** end_ptr, ulint flags)
+{
+	ut_ad(m_indexes.empty());
+
+	if (*end_ptr < *ptr + 4) {
+		return(false);
+	}
+
+	ulint	n_index = mach_read_from_2(*ptr);
+	*ptr += 2;
+
+	/* Parse the remote directory from TRUNCATE log record */
+	ulint	len = mach_read_from_2(*ptr);
+	*ptr += 2;
+
+	if (*end_ptr < *ptr + len) {
+		return(false);
+	}
+
+	if (len > 0) {
+
+		m_dir_path = reinterpret_cast<const char*>(*ptr);
+
+		/* Should be NUL terminated. */
+		ut_ad(m_dir_path[len - 1] == 0);
+
+		*ptr += len;
+	}
+
+	/* Parse index ids and types from TRUNCATE log record */
+	for (ulint i = 0; i < n_index; ++i) {
+		index_t	index;
+
+		if (*end_ptr < *ptr + 12) {
+			return(false);
+		}
+
+		index.m_id = mach_read_from_8(*ptr);
+		*ptr += 8;
+
+		index.m_type = mach_read_from_4(*ptr);
+		*ptr += 4;
+
+		m_indexes.push_back(index);
+	}
+
+	ut_ad(!m_indexes.empty());
+
+	if (fsp_flags_is_compressed(flags)) {
+
+		/* Parse the number of index fields from TRUNCATE log record */
+		for (ulint i = 0; i < m_indexes.size(); ++i) {
+
+			if (*end_ptr < *ptr + 4) {
+				return(false);
+			}
+
+			m_indexes[i].m_n_fields = mach_read_from_2(*ptr);
+			*ptr += 2;
+
+			ulint	len = mach_read_from_2(*ptr);
+			*ptr += 2;
+
+			if (*end_ptr < *ptr + len) {
+				return(false);
+			}
+
+			index_t&	index = m_indexes[i];
+
+			/* Should be NUL terminated. */
+			ut_ad((*ptr)[len - 1] == 0);
+
+			index_t::fields_t::iterator	end; 
+
+		       	end = index.m_fields.end();
+
+			index.m_fields.insert(end, *ptr, &(*ptr)[len]);
+
+			*ptr += len;
+		}
+	}
+
+	return(true);
+}
+
+/**
+Truncate a single-table tablespace. The tablespace must be cached
+in the memory cache.
+@param space_id		space id
+@param tablename	the table name in the usual databasename/tablename
+			format of InnoDB
+@param path		data directory path
+@param flags		tablespace flags
+@return DB_SUCCESS or error */
+dberr_t
+truncate_t::truncate(
+	ulint		id,
+	const char*	tablename,
+	const char*	dir_path,
+	ulint		flags)
+{
+	char*		path;
+	bool		has_data_dir = FSP_FLAGS_HAS_DATA_DIR(flags);
+
+	ut_a(!Tablespace::is_system_tablespace(id));
+
+	if (has_data_dir) {
+		ut_ad(dir_path != NULL);
+
+		path = os_file_make_remote_pathname(dir_path, tablename, "ibd");
+
+	} else {
+		path = fil_make_ibd_name(tablename, false);
+	}
+
+	mutex_enter(&fil_system->mutex);
+
+	fil_space_t*	space = fil_space_get_by_id(id);
+
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+	if (recv_recovery_on) {
+		space->size = node->size = FIL_IBD_FILE_INITIAL_SIZE;
+	}
+
+	bool	opened;
+
+	if (!node->open) {
+
+		ibool	ret;
+
+		node->handle = os_file_create_simple_no_error_handling(
+			innodb_data_file_key, path, OS_FILE_OPEN,
+			OS_FILE_READ_WRITE, &ret);
+
+		if (!ret) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to open tablespace file %s.", path);
+
+			mem_free(path);
+
+			return(DB_ERROR);
+		}
+
+		node->open = TRUE;
+		opened = true;
+	} else {
+		opened = false;
+	}
+
+	os_offset_t	trunc_size = recv_recovery_on
+		? FIL_IBD_FILE_INITIAL_SIZE
+		: space->size;
+
+	bool	success = os_file_truncate(
+		path, node->handle, trunc_size * UNIV_PAGE_SIZE);
+
+	dberr_t	err = DB_SUCCESS;
+
+	if (!success) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot truncate file %s in TRUNCATE TABLESPACE.",
+			path);
+
+		err = DB_ERROR;
+	}
+
+	space->stop_new_ops = FALSE;
+	space->is_being_truncated = false;
+
+	mutex_exit(&fil_system->mutex);
+
+	if (opened) {
+		ibool	ret = os_file_close(node->handle);
+
+		if (!ret) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Failed to close tablespace file %s.", path);
+
+			err = DB_ERROR;
+		} else {
+			node->open = FALSE;
+		}
+	}
+
+	mem_free(path);
+
+	return(err);
 }

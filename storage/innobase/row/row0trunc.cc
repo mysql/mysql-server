@@ -43,142 +43,239 @@ Created 2013-04-12 Sunny Bains
 static const ulint INDEX_NUM_SECOND_SECONDARY = 3;
 #endif /* UNIV_DEBUG */
 
-/*********************************************************************//**
-Creates a TRUNCATE log record with space id, table name, data
-directory path, tablespace flags, table format, index ids,
-index types, number of index fields and index field
-information of the table. */
-static
-void
-row_truncate_create_log_record(
-/*===========================*/
-	const dict_table_t*	table,	/*!< in: table handle */
-        btr_pcur_t*		pcur,	/*!< in/out: a b-tree cursor */
-	byte*			buf,	/*!< in/out: a heap buffer */
-	truncate_rec_t*		truncate_rec,
-					/*!< in/out: truncate record */
-	ulint			flags,	/*!< in: table flags */
-	byte*			fields,	/*!< out: index field encoded buffer */
-	mtr_t*			mtr)	/*!< in/out: mini-transaction handle */
-{
-	ulint			ind_count = 0;
-	ulint			buf_index = 0;
-	ulint			trx_id_col[MAX_INDEXES];
+/**
+Iterator over the the raw records in an index, doesn't support MVCC. */
+struct IndexIterator {
 
-	ut_ad(!dict_table_is_temporary(table));
+	IndexIterator(dict_index_t* index, bool rw = false)
+		:
+		m_rw(rw),
+		m_heap(),
+		m_index(index)
+	{
+		/* Do nothing */
+	}
+
+	~IndexIterator()
+	{
+		if (m_heap) {
+			mem_heap_free(m_heap);
+		}
+	}
+
+	/**
+	Search for key. Position the cursor on a record GE key.
+	@return DB_SUCCESS or error code. */
+	dberr_t search(dtuple_t& key);
+
+	/**
+	Iterate over all the records
+	@return DB_SUCCESS or error code */
+	template <typename Callback>
+	dberr_t for_each(Callback& callback);
+
+	bool		m_rw;
+	mtr_t		m_mtr;
+	btr_pcur_t	m_pcur;
+	mem_heap_t*	m_heap;
+	dict_index_t*	m_index;
+};
+
+/**
+Search for key, Position the cursor on the first GE reord */
+dberr_t
+IndexIterator::search(dtuple_t& key)
+{
+	ut_ad(m_heap == NULL);
+	m_heap = mem_heap_create(800);
+
+	mtr_start(&m_mtr);
+
+	/* Scan SYS_INDEXES for all indexes of the table. */
+
+	btr_pcur_open_on_user_rec(
+		m_index,
+		&key,
+		PAGE_CUR_GE,
+		(m_rw) ? BTR_MODIFY_LEAF : BTR_SEARCH_LEAF,
+		&m_pcur, &m_mtr);
+
+	return(DB_SUCCESS);
+}
+
+/**
+Iterate over all the records
+@return DB_SUCCESS or error code */
+template <typename Callback>
+dberr_t
+IndexIterator::for_each(Callback& callback)
+{
+	dberr_t	err = DB_SUCCESS;
+
+	callback.begin(&m_mtr);
 
 	for (;;) {
-		if (!btr_pcur_is_on_user_rec(pcur)) {
-			/* The end of SYS_INDEXES has been reached. */
+
+		if (!btr_pcur_is_on_user_rec(&m_pcur)) {
+			/* The end of of the index has been reached. */
+			err = DB_END_OF_INDEX;
 			break;
 		}
 
-		ulint		len;
-		ulint		type;
-		index_id_t	index_id;
-		byte		ind_field[FIELDS_LEN];
-		rec_t*		rec = btr_pcur_get_rec(pcur);
+		rec_t*	rec = btr_pcur_get_rec(&m_pcur);
 
-		const byte*	ptr;
-		const byte*	field = rec_get_nth_field_old(
+		if (!rec_get_deleted_flag(rec, FALSE)) {
+
+			err = callback(btr_pcur_get_rec(&m_pcur));
+
+			if (err != DB_SUCCESS) {
+				break;
+			}
+		}
+
+		btr_pcur_move_to_next_user_rec(&m_pcur, &m_mtr);
+	}
+
+	callback.end(&m_mtr, err);
+
+	btr_pcur_close(&m_pcur);
+	mtr_commit(&m_mtr);
+
+	return(err);
+}
+
+/**
+Creates a TRUNCATE log record with space id, table name, data directory path,
+tablespace flags, table format, index ids, index types, number of index fields
+and index field information of the table. */
+struct Collect {
+
+	Collect(dict_table_t* table, ulint flags)
+		:
+		m_table(table),
+		m_flags(flags)
+	{
+		/* Convert to storage byte order. */
+		mach_write_to_8(&m_id, m_table->id);
+	}
+
+	dberr_t operator()(rec_t* rec)
+	{
+		ulint		len;
+		const byte*	field;
+
+		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
 
 		ut_ad(len == 8);
 
-		if (memcmp(buf, field, len) != 0) {
-
-			/* End of indexes for the table
-			(TABLE_ID mismatch). */
-			break;
+		if (memcmp(&m_id, field, len) != 0) {
+			/* End of indexes for the table (TABLE_ID mismatch). */
+			return(DB_END_OF_INDEX);
 		}
 
-		if (rec_get_deleted_flag(rec, FALSE)) {
-
-			/* The index has been dropped. */
-
-			goto next_rec;
-		}
-
-		ptr = rec_get_nth_field_old(
+		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
 
 		ut_ad(len == 4);
 
-		type = mach_read_from_4(ptr);
+		truncate_t::index_t	index;
 
-		truncate_rec->indexes[ind_count].type = type;
+		index.m_type = mach_read_from_4(field);
 
-		ptr = rec_get_nth_field_old(
+		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_INDEXES__ID, &len);
+
 		ut_ad(len == 8);
 
-		index_id = mach_read_from_8(ptr);
+		index.m_id = mach_read_from_8(field);
 
-		truncate_rec->indexes[ind_count].id = index_id;
+		if (fsp_flags_is_compressed(m_flags)) {
 
-		if (!fsp_flags_is_compressed(flags)) {
+			const dict_index_t* dict_index = find(index.m_id);
 
-			truncate_rec->indexes[ind_count].n_fields = 0;
-			truncate_rec->indexes[ind_count].field_len = 0;
-
-			++ind_count;
-
-			/* Skip to collect compressed index info */
-			goto next_rec;
-		}
-
-		/* Collects info for creating compressed index page
-		during recovery */
-		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
-		     index != NULL;
-		     index = UT_LIST_GET_NEXT(indexes, index)) {
-
-			if (index->id == index_id) {
-
-				truncate_rec->indexes[ind_count].n_fields
-					= dict_index_get_n_fields(index);
-
-				if (dict_index_is_clust(index)) {
-
-					trx_id_col[ind_count] =
-						dict_index_get_sys_col_pos(
-							index, DATA_TRX_ID);
-
-					ut_ad(trx_id_col[ind_count] > 0);
-					ut_ad(trx_id_col[ind_count] !=
-					      ULINT_UNDEFINED);
-				} else {
-					trx_id_col[ind_count] = 0;
-				}
-
-				truncate_rec->indexes[ind_count].field_len =
-					page_zip_fields_encode(
-						truncate_rec->
-							indexes[ind_count].
-							n_fields, index,
-							trx_id_col[ind_count],
-							ind_field);
-
-				memcpy(fields + buf_index, ind_field,
-				       truncate_rec->indexes[ind_count].
-				       field_len);
-
-				buf_index += truncate_rec->indexes[ind_count].
-					field_len;
+			if (dict_index != NULL) {
+				index.set(dict_index);
+			} else {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Index id "IB_ID_FMT " not found",
+					index.m_id);
 			}
 		}
 
-		++ind_count;
-next_rec:
-		btr_pcur_move_to_next_user_rec(pcur, mtr);
+		m_truncate.m_indexes.push_back(index);
+
+		return(DB_SUCCESS);
 	}
 
-	fields[buf_index + 1] = 0;
+	/** Called before iterating over the records. 
+	@mtr		mini-transaction used by the caller */
+	void begin(mtr_t* mtr) const
+	{
+		/* Do nothing */
+	}
 
-	truncate_rec->fields = fields;
-	truncate_rec->n_index = ind_count;
-	truncate_rec->dir_path = table->data_dir_path;
-}
+	/** Called after iteratoring over the records.
+	@param mtr	mini-transaction used by the iterator
+	@param err	error code that will be returned by the iterator */
+	void end(mtr_t* mtr, dberr_t err)
+	{
+		if (err == DB_SUCCESS || err == DB_END_OF_INDEX) {
+
+			/* We must find all the index entries on disk. */
+			ut_ad(UT_LIST_GET_LEN(m_table->indexes)
+			      == m_truncate.m_indexes.size());
+
+			m_truncate.m_dir_path = m_table->data_dir_path;
+		}
+	}
+
+	/**
+	@return pointer to table id storage format buffer */
+	table_id_t* id()
+	{
+		return(&m_id);
+	}
+
+	/**
+	Write the TRUNCATE redo log */
+	void log()
+	{
+		m_truncate.write(
+			m_table->space, m_table->name, m_flags, m_table->flags);
+	}
+
+private:
+	/** Lookup the index using the index id.
+	@return index instance if found else NULL */
+	const dict_index_t* find(index_id_t id) const
+	{
+		for (const dict_index_t* index = UT_LIST_GET_FIRST(
+				m_table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+			if (index->id == id) {
+				return(index);
+			}
+		}
+
+		return(NULL);
+	}
+
+private:
+	/** Table id in storage format */
+	table_id_t		m_id;
+
+	/** Table to be truncated */
+	dict_table_t*		m_table;
+
+	/** Tablespace flags */
+	ulint			m_flags;
+
+	/** Collect the truncate REDO information */
+	truncate_t		m_truncate;
+};
 
 /*********************************************************************//**
 Create the indexes.
@@ -679,13 +776,13 @@ row_truncate_prepare(
 Start the truncate process. On success all of the table's indexes will
 be locked in X mode.
 @param table	table to truncate
-@return	error code or DB_SUCCESS */
-static __attribute__((warn_unused_result))
-dberr_t
+@param flags	tablespace flags */
+static
+void
 row_truncate_start(
 /*===============*/
-	dict_table_t*	table,		/*!< in/out: Table to truncate */
-	ulint		flags)		/*!< in: tablespace flags */
+	dict_table_t*	table,
+	ulint		flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
 
@@ -698,47 +795,30 @@ row_truncate_start(
 
 	dict_table_x_lock_indexes(table);
 
-	mem_heap_t*	heap = mem_heap_create(800);
-	dtuple_t*	tuple = dtuple_create(heap, 1);
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
-	byte*		buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-
-	mach_write_to_8(buf, table->id);
-
-	dfield_set_data(dfield, buf, 8);
-
 	dict_index_t*	sys_index;
+	Collect		collect(table, flags);
+	byte		buf[DTUPLE_EST_ALLOC(1)];
+	dtuple_t*	tuple = dtuple_create_from_mem(buf, sizeof(buf), 1);
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+
+	dfield_set_data(dfield, collect.id(), sizeof(*collect.id()));
 
 	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
 
 	dict_index_copy_types(tuple, sys_index, 1);
 
-	mtr_t		mtr;
-	btr_pcur_t	pcur;
+	IndexIterator	iterator(sys_index);
 
-	mtr_start(&mtr);
+	/* Search on the table id and position the cursor on GE table_id. */
+	iterator.search(*tuple);
 
-	/* Scan SYS_INDEXES for all indexes of the table. */
+	/* Iterate over all the table's indexes. */
+	dberr_t	err = iterator.for_each(collect);
 
-	btr_pcur_open_on_user_rec(
-		sys_index, tuple, PAGE_CUR_GE, BTR_MODIFY_LEAF, &pcur, &mtr);
-
-	truncate_rec_t	truncate_rec;
-	byte		fields[FIELDS_LEN];
-
-	row_truncate_create_log_record(
-		table, &pcur, buf, &truncate_rec, flags, fields, &mtr);
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
+	ut_ad(err == DB_SUCCESS || err == DB_END_OF_INDEX);
 
 	/* Write the TRUNCATE log record into redo log */
-	fil_truncate_write_log(
-		table->space, table->name, flags, table->flags, &truncate_rec);
-
-	mem_heap_free(heap);
-
-	return(DB_SUCCESS);
+	collect.log();
 }
 
 /*********************************************************************//**
@@ -967,11 +1047,7 @@ row_truncate_table_for_mysql(
 			goto funct_exit;
 		}
 
-		err = row_truncate_start(table, flags);
-
-		if (err != DB_SUCCESS) {
-			goto funct_exit;
-		}
+		row_truncate_start(table, flags);
 
 		/* All of the table's indexes should be locked in X mode. */
 	} else {
@@ -1146,7 +1222,7 @@ funct_exit:
 
 		DBUG_EXECUTE_IF("crash_after_log_checkpoint", DBUG_SUICIDE(););
 
-		err = fil_truncate_tablespace(
+		err = truncate_t::truncate(
 			table->space, table->name, table->data_dir_path, flags);
 
 		DBUG_EXECUTE_IF("crash_after_truncate_tablespace",
