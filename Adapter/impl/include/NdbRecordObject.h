@@ -34,7 +34,7 @@ public:
 
   Record * getRecord() const;
   char * getBuffer() const;
-  const uint32_t getMaskValue() const;
+  uint32_t getMaskValue() const;
 
 private:
   Record * record;
@@ -80,7 +80,7 @@ inline char * NdbRecordObject::getBuffer() const {
 }
 
 
-inline const uint32_t NdbRecordObject::getMaskValue() const {
+inline uint32_t NdbRecordObject::getMaskValue() const {
   return u.maskvalue;
 }
 
