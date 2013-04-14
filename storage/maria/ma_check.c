@@ -1246,16 +1246,12 @@ static int check_dynamic_record(HA_CHECK *param, MARIA_HA *info, int extend,
 {
   MARIA_BLOCK_INFO block_info;
   MARIA_SHARE *share= info->s;
-  my_off_t start_recpos, start_block, pos;
-  uchar *to;
-  ulong left_length;
+  my_off_t UNINIT_VAR(start_recpos), start_block, pos;
+  uchar *UNINIT_VAR(to);
+  ulong UNINIT_VAR(left_length);
   uint	b_type;
   char llbuff[22],llbuff2[22],llbuff3[22];
   DBUG_ENTER("check_dynamic_record");
-
-  LINT_INIT(left_length);
-  LINT_INIT(start_recpos);
-  LINT_INIT(to);
 
   pos= 0;
   while (pos < share->state.state.data_file_length)
@@ -1847,10 +1843,8 @@ static int check_block_record(HA_CHECK *param, MARIA_HA *info, int extend,
        pos < share->state.state.data_file_length;
        pos+= block_size, page++)
   {
-    uint row_count, real_row_count, empty_space, page_type, bitmap_pattern;
+    uint UNINIT_VAR(row_count), real_row_count, empty_space, page_type, bitmap_pattern;
     uint bitmap_for_page;
-    LINT_INIT(row_count);
-    LINT_INIT(empty_space);
 
     if (_ma_killed_ptr(param))
     {

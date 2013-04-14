@@ -758,12 +758,10 @@ static int collect_tables(LEX_STRING *str, LSN checkpoint_start_log_horizon)
   struct st_state_copy *state_copies= NULL, /**< fixed-size cache of states */
     *state_copies_end, /**< cache ends here */
     *state_copy; /**< iterator in cache */
-  TRANSLOG_ADDRESS state_copies_horizon; /**< horizon of states' _copies_ */
+  TRANSLOG_ADDRESS UNINIT_VAR(state_copies_horizon); /**< horizon of states' _copies_ */
   struct st_filter_param filter_param;
   PAGECACHE_FLUSH_FILTER filter;
   DBUG_ENTER("collect_tables");
-
-  LINT_INIT(state_copies_horizon);
 
   /* let's make a list of distinct shares */
   mysql_mutex_lock(&THR_LOCK_maria);
