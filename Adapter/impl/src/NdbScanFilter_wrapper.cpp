@@ -69,16 +69,17 @@ Handle<Value> newNdbScanFilter(const Arguments & args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
-  REQUIRE_CONSTRUCTOR_CALL();
+  PROHIBIT_CONSTRUCTOR_CALL();
   REQUIRE_ARGS_LENGTH(1);
 
-  JsValueConverter<NdbOperation *> arg0(args[0]);
+  JsValueConverter<NdbInterpretedCode *> arg0(args[0]);
   
   NdbScanFilter * f = new NdbScanFilter(arg0.toC());
   
-  wrapPointerInObject(f, NdbScanFilterEnvelope, args.This());
-  freeFromGC(f, args.This());
-  return args.This();
+  Local<Object> jsObject = NdbScanFilterEnvelope.newWrapper();
+  wrapPointerInObject(f, NdbScanFilterEnvelope, jsObject);
+  freeFromGC(f, jsObject);
+  return scope.Close(jsObject);
 }
 
 
@@ -123,20 +124,18 @@ Handle<Value> isfalse(const Arguments & args) {
    ARG0: BinaryCondition
    ARG1: Column ID
    ARG2: Buffer
-XXXX:  THIS IS WRONG, THE BUFFER IS PROBABLY NOT THAT BUFFER, 
-   ARG3: Record
-  THIS WILL PROBABLY NOT WORK FOR "LIKE" or "NOT LIKE" COMPARISONS
+   ARG3: Offset
+   ARG4: Length
 */
 Handle<Value> cmp(const Arguments &args) {
   HandleScope scope;
 
   NdbScanFilter * filter = unwrapPointer<NdbScanFilter *>(args.Holder());
   int condition = args[0]->Int32Value();
-  int columnId = args[1]->Uint32Value();
+  int columnId  = args[1]->Uint32Value();
   char * buffer = node::Buffer::Data(args[2]->ToObject());
-  Record * record = unwrapPointer<Record *>(args[3]->ToObject());
-/*XXX*/  size_t offset = record->getColumnOffset(columnId);
-  size_t length = record->getColumn(columnId)->getSizeInBytes();
+  size_t offset = args[3]->Uint32Value();
+  size_t length = args[4]->Uint32Value();
 
   int rval = filter->cmp(NdbScanFilter::BinaryCondition(condition), 
                          columnId, buffer + offset, length);

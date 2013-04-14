@@ -147,16 +147,17 @@ Handle<Value> newNdbInterpretedCode(const Arguments & args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
-  REQUIRE_CONSTRUCTOR_CALL();
+  PROHIBIT_CONSTRUCTOR_CALL();
   REQUIRE_ARGS_LENGTH(1);
 
   JsValueConverter<const NdbDictionary::Table *> arg0(args[0]);
   
   NdbInterpretedCode * c = new NdbInterpretedCode(arg0.toC());
   
-  wrapPointerInObject(c, NdbInterpretedCodeEnvelope, args.This());
-  freeFromGC(c, args.This());
-  return args.This();
+  Local<Object> jsObject = NdbInterpretedCodeEnvelope.newWrapper();
+  wrapPointerInObject(c, NdbInterpretedCodeEnvelope, jsObject);
+  freeFromGC(c, jsObject);
+  return scope.Close(jsObject);
 }
 
 Handle<Value> load_const_null(const Arguments &args) {
