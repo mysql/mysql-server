@@ -81,20 +81,14 @@ class Mts_submode_master: public Mts_submode
 {
 private:
   uint worker_seq;
-  bool first_event;
+  bool first_event, force_new_group;
   int64 mts_last_known_commit_parent;
   int64 mts_last_known_parent_group_id;
 protected:
   std::pair<uint, my_thread_id> get_server_and_thread_id(TABLE* table);
   Slave_worker* get_free_worker(Relay_log_info *rli);
 public:
-  Mts_submode_master()
-  {
-    type= MTS_PARALLEL_TYPE_BGC;
-    first_event=true;
-    mts_last_known_commit_parent= SEQ_UNINIT;
-    mts_last_known_parent_group_id= -1;
-  }
+  Mts_submode_master();
   bool schedule_next_event(Relay_log_info* rli);
   void attach_temp_tables(THD *thd, const Relay_log_info* rli,
                                                       Query_log_event *ev);

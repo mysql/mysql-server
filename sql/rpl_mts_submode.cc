@@ -205,7 +205,15 @@ Mts_submode_database::assign_group_parent_id(Relay_log_info* rli,
   return false;
 }
 
-/* MTS submode master */
+/* MTS submode master Default constructor */
+Mts_submode_master::Mts_submode_master()
+{
+  type= MTS_PARALLEL_TYPE_BGC;
+  first_event= true;
+  mts_last_known_commit_parent= SEQ_UNINIT;
+  mts_last_known_parent_group_id= -1;
+  force_new_group= false;
+}
 
 /*
  Does necessary arrangement before scheduling next event.
@@ -441,6 +449,9 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
   case GTID_LOG_EVENT:
     commit_seq_no= static_cast<Gtid_log_event*>(ev)->commit_seq_no;
     break;
+  case USER_VAR_EVENT:
+    force_new_group= true;
+    break;
 
   default:
     // these can never be a group changer
@@ -455,7 +466,8 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
     return true;
   }
 
-  if ((commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
+  if (force_new_group
+      ||(commit_seq_no != SEQ_UNINIT /* Not an internal event */ &&
       /* not same as last seq number */
       commit_seq_no != mts_last_known_commit_parent) ||
       /* first event after a submode switch */
@@ -467,6 +479,7 @@ Mts_submode_master::assign_group_parent_id(Relay_log_info* rli,
       rli->mts_groups_assigned-1;
     worker_seq= 0;
     rli->is_new_group= true;
+    force_new_group= false;
   }
   else
   {

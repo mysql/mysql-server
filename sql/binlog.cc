@@ -5530,6 +5530,7 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
   my_bool do_checksum= (binlog_checksum_options != BINLOG_CHECKSUM_ALG_OFF);
   uchar buf[BINLOG_CHECKSUM_LEN];
   bool pc_fixed= false;
+  Log_event_type ev_type;
 
   // while there is just one alg the following must hold:
   DBUG_ASSERT(!do_checksum ||
@@ -5683,8 +5684,18 @@ int MYSQL_BIN_LOG::do_write_cache(THD* thd, IO_CACHE *cache)
           uchar *log_pos= ev + LOG_POS_OFFSET;
           if (!pc_fixed)
           {
-            uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
-            fix_commit_seq_no(cache, pc_ptr);
+            ev_type= (Log_event_type)ev[EVENT_TYPE_OFFSET];
+            /* We don't have to fix the strayed user_var event outside
+               BEGIN;...COMMIT; boundaries, since they will force the slave
+               to start a new group anyway.*/
+            if (ev_type != USER_VAR_EVENT)
+            {
+              uchar* pc_ptr= (uchar *)cache->read_pos + pc_offset;
+              fix_commit_seq_no(cache, pc_ptr);
+            }
+            else
+              DBUG_PRINT("info",("Skipped strayed USER_VAR event not bounded "
+                                 "by BEGIN...COMMIT while fixing commit seq"));
             pc_fixed= true;
           }
 
