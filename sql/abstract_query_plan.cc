@@ -73,6 +73,42 @@ namespace AQP
     DBUG_ENTER("get_join_type");
     DBUG_ASSERT(get_access_no() > predecessor->get_access_no());
 
+#ifndef MCP_BUG16202425
+    const JOIN_TAB* const first_inner= get_join_tab()->first_inner;
+    if (first_inner == NULL)
+    {
+      // 'this' is not outer joined with any table.
+      DBUG_PRINT("info", ("JT_INNER_JOIN'ed table %s",
+                           get_join_tab()->table->alias));
+      DBUG_RETURN(JT_INNER_JOIN);
+    }
+
+    /**
+     * Fall Through: 'this' is a member in an outer join,
+     * but 'predecessor' may still be embedded in the same
+     * inner join as 'this'.
+     */
+    const JOIN_TAB* const last_inner= first_inner->last_inner;
+    if (predecessor->get_join_tab() >= first_inner &&
+        predecessor->get_join_tab() <= last_inner)
+    {
+      DBUG_PRINT("info", ("JT_INNER_JOIN between %s and %s",
+                          predecessor->get_join_tab()->table->alias,
+                          get_join_tab()->table->alias));
+      DBUG_RETURN(JT_INNER_JOIN);
+    }
+    else
+    {
+      /*
+        This cover unnested outer joins such as 
+        'select * from t1 left join t2 on t1.attr=t1.pk'.
+       */
+      DBUG_PRINT("info", ("JT_OUTER_JOIN between %s and %s",
+                          predecessor->get_join_tab()->table->alias,
+                          get_join_tab()->table->alias));
+      DBUG_RETURN(JT_OUTER_JOIN);
+    }
+#else
     if (get_join_tab()->table->pos_in_table_list->outer_join != 0)
     {
       /*
@@ -136,7 +172,8 @@ namespace AQP
       // Iterate through ancestors of predecessor_embedding.
       predecessor_embedding = predecessor_embedding->embedding;
     }
-  }
+#endif
+  } //Table_access::get_join_type
 
   /**
     Get the number of key values for this operation. It is an error
