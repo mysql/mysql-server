@@ -549,8 +549,9 @@ btr_cur_search_to_nth_level(
 		break;
 	case BTR_CONT_MODIFY_TREE:
 		/* Do nothing */
-		ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
-					MTR_MEMO_X_LOCK));
+		ut_ad(srv_read_only_mode
+		      || mtr_memo_contains(mtr, dict_index_get_lock(index),
+					   MTR_MEMO_X_LOCK));
 		break;
 	default:
 		if (!s_latch_by_caller && !srv_read_only_mode) {
