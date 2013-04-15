@@ -801,6 +801,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   {
     DBUG_PRINT("info",("Terminating SQL thread"));
     mi->rli->abort_slave= 1;
+    delete(mi->rli->current_mts_submode);
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
@@ -822,7 +823,6 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
       mysql_mutex_unlock(log_lock);
       DBUG_RETURN(ER_ERROR_DURING_FLUSH_LOGS);
     }
-
     mysql_mutex_unlock(log_lock);
   }
   if (thread_mask & (SLAVE_IO|SLAVE_FORCE_ALL))
@@ -5266,8 +5266,10 @@ void slave_stop_workers(Relay_log_info *rli, bool *mts_inited)
       thd->EXIT_COND(&old_stage);
       mysql_mutex_lock(&w->jobs_lock);
     }
+    // free the current submode object
     mysql_mutex_unlock(&w->jobs_lock);
 
+    delete(w->current_mts_submode);
     delete_dynamic_element(&rli->workers, i);
     delete w;
   }
@@ -7957,8 +7959,6 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
     push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
-  /* free memory current_mts_submode */
-  //delete(mi->rli->current_mts_submode);
   unlock_slave_threads(mi);
 
   if (slave_errno)
