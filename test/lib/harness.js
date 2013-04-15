@@ -573,14 +573,14 @@ Listener.prototype.listRunningTests = function() {
 function QuietListener() {
   this.started = 0;
   this.ended   = 0;
-  this.running = [];
+  this.runningTests = {};
 }
 
 QuietListener.prototype.startTest = Listener.prototype.startTest;
 
 QuietListener.prototype.pass = function(t) {
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
 };
 
 QuietListener.prototype.skip = QuietListener.prototype.pass;
