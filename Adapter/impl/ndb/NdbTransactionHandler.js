@@ -314,7 +314,7 @@ proto.commit = function commit(userCallback) {
   udebug.log("commit");
   ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
-    run(self, execId, COMMIT, AO_IGNORE, onNdbCommit);
+    run(self, COMMIT, AO_IGNORE, onNdbCommit);
   }
   else {
     udebug.log("commit STUB COMMIT (no underlying NdbTransaction)");
@@ -344,7 +344,7 @@ proto.rollback = function rollback(callback) {
   udebug.log("rollback");
 
   if(self.ndbtx) {
-    run(self, execId, ROLLBACK, AO_DEFAULT, onNdbRollback);
+    run(self, ROLLBACK, AO_DEFAULT, onNdbRollback);
   }
   else {
     udebug.log("rollback STUB ROLLBACK (no underlying NdbTransaction)");
