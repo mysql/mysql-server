@@ -527,30 +527,30 @@ function Listener() {
   this.started = 0;
   this.ended   = 0;
   this.printStackTraces = false;
-  this.running = [];
+  this.runningTests = {};
 }
 
 Listener.prototype.startTest = function(t) { 
   this.started++;
-  this.running[t.index] = t.fullName();
+  this.runningTests[t.fullName()] = 1;
 };
 
 Listener.prototype.pass = function(t) {
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   console.log("[pass]", t.fullName() );
 };
 
 Listener.prototype.skip = function(t, message) {
   this.skipped++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   console.log("[skipped]", t.fullName(), "\t", message);
 };
 
 Listener.prototype.fail = function(t, e) {
   var message = "";
   this.ended++;
-  delete this.running[t.index];
+  delete this.runningTests[t.fullName()];
   if(e) {
     message = e.toString();
     if (typeof(e.message) !== 'undefined') {
@@ -565,10 +565,7 @@ Listener.prototype.fail = function(t, e) {
 };
 
 Listener.prototype.listRunningTests = function() {
-  function listElement(e) {
-    console.log("  " + e);
-  }
-  this.running.forEach(listElement);
+  console.log(this.runningTests);
 };
 
 
@@ -644,6 +641,7 @@ var runSQL = function(sqlPath, source, callback) {
     }
   }
 
+///work here
   var cmd = 'cat ./' + global.engine + '.sql ' + sqlPath + ' | mysql';
   
   var p = test_conn_properties;
