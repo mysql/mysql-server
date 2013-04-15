@@ -620,11 +620,14 @@ row_truncate_fts(dict_table_t* table, table_id_t new_id, trx_t* trx)
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Unable to truncate FTS index for"
-			" table", stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs("\n", stderr);
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to truncate FTS index for table %s",
+			table_name);
 
 		table->corrupted = true;
 
