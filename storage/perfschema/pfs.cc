@@ -1479,7 +1479,9 @@ void pfs_register_stage_v1(const char *category,
     if (likely(full_length <= PFS_MAX_INFO_NAME_LENGTH))
     {
       memcpy(formatted_name + prefix_length, info->m_name, len);
-      info->m_key= register_stage_class(formatted_name, full_length,
+      info->m_key= register_stage_class(formatted_name,
+                                        prefix_length,
+                                        full_length,
                                         info->m_flags);
     }
     else
@@ -2161,17 +2163,7 @@ void pfs_set_thread_start_time_v1(time_t start_time)
 */
 void pfs_set_thread_state_v1(const char* state)
 {
-  PFS_thread *pfs= my_pthread_get_THR_PFS();
-
-  if (likely(pfs != NULL))
-  {
-    int state_len= state ? strlen(state) : 0;
-
-    pfs->m_processlist_state_lock.allocated_to_dirty();
-    pfs->m_processlist_state_ptr= state;
-    pfs->m_processlist_state_length= state_len;
-    pfs->m_processlist_state_lock.dirty_to_allocated();
-  }
+  /* DEPRECATED. */
 }
 
 /**
@@ -4283,11 +4275,14 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
 {
   ulonglong timer_value= 0;
 
-  if (! flag_global_instrumentation)
-    return;
-
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
+    return;
+
+  /* Always update column threads.processlist_state. */
+  pfs_thread->m_stage= key;
+
+  if (! flag_global_instrumentation)
     return;
 
   if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
@@ -4298,7 +4293,7 @@ void pfs_start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
   PFS_events_statements *parent_statement= & pfs_thread->m_statement_stack[0];
 
   PFS_instr_class *old_class= pfs->m_class;
-  if (likely(old_class != NULL))
+  if (old_class != NULL)
   {
     PFS_stage_stat *event_name_array;
     event_name_array= pfs_thread->m_instr_class_stages_stats;
@@ -4381,11 +4376,13 @@ void pfs_end_stage_v1()
 {
   ulonglong timer_value= 0;
 
-  if (! flag_global_instrumentation)
-    return;
-
   PFS_thread *pfs_thread= my_pthread_get_THR_PFS();
   if (unlikely(pfs_thread == NULL))
+    return;
+
+  pfs_thread->m_stage= 0;
+
+  if (! flag_global_instrumentation)
     return;
 
   if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
@@ -4394,7 +4391,7 @@ void pfs_end_stage_v1()
   PFS_events_stages *pfs= & pfs_thread->m_stage_current;
 
   PFS_instr_class *old_class= pfs->m_class;
-  if (likely(old_class != NULL))
+  if (old_class != NULL)
   {
     PFS_stage_stat *event_name_array;
     event_name_array= pfs_thread->m_instr_class_stages_stats;
