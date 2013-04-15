@@ -1336,3 +1336,38 @@ i
 3
 USE testdb_wl6445;
 DROP DATABASE testdb_wl6445;
+case # 7 (restart server in read-only mode and perform check table) 
+use test;
+create table t1 (
+i int,
+f float,
+c char(100),
+b blob
+) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 100) DO
+insert into t1 values (
+i, 2.323,
+'adfaqfafafafafsasfafsa',
+'badfadfsaeerer234234asdfdsafdasr2354234324234234');
+SET i = i + 1;
+END WHILE;
+END|
+begin;
+call populate_t1();
+commit;
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in read-only-mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+"restarting server in normal mode"
+check table t1 extended;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+drop table t1;
+drop procedure populate_t1;
