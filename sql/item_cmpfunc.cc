@@ -5733,7 +5733,7 @@ bool Item_func_like::bm_matches(const char* text, int text_len) const
     {
       int i;
 
-      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i);
+      for (i= plm1; (i >= 0) && (pattern[i] == text[i + j]) ;--i) {}
 
       if (i < 0)
 	return true;
@@ -5754,7 +5754,7 @@ bool Item_func_like::bm_matches(const char* text, int text_len) const
 
       for (i= plm1;
            (i >= 0) && likeconv(cs,pattern[i]) == likeconv(cs,text[i + j]);
-           --i);
+           --i) {}
 
       if (i < 0)
 	return true;
