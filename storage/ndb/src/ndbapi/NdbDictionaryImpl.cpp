@@ -8596,7 +8596,7 @@ int
 NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
                          const char * name)
 {
-  DBUG_ENTER("NdbDictInterface::get_file");
+  DBUG_ENTER("NdbDictInterface::get_fk");
   NdbApiSignal tSignal(m_reference);
   GetTabInfoReq * req = CAST_PTR(GetTabInfoReq, tSignal.getDataPtrSend());
 
@@ -8633,7 +8633,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
 		     DICT_WAITFOR_TIMEOUT, 100);
   if (r)
   {
-    DBUG_PRINT("info", ("get_file failed dictSignal"));
+    DBUG_PRINT("info", ("get_fk failed dictSignal"));
     DBUG_RETURN(-1);
   }
 
@@ -8643,7 +8643,7 @@ NdbDictInterface::get_fk(NdbForeignKeyImpl & dst,
 
   if (m_error.code)
   {
-    DBUG_PRINT("info", ("get_file failed parseFileInfo %d",
+    DBUG_PRINT("info", ("get_fk failed parseFileInfo %d",
                          m_error.code));
     DBUG_RETURN(m_error.code);
   }
