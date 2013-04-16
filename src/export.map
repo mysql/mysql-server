@@ -80,6 +80,9 @@
    toku_indexer_set_test_only_flags;
    toku_increase_last_xid;
 
+   toku_patent_string;
+   toku_copyright_string;
+
  local: *;
 };
 
