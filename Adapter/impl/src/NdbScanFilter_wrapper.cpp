@@ -191,7 +191,7 @@ void NdbScanFilter_initOnLoad(Handle<Object> target) {
 
   target->Set(sfKey, sfObj);
 
-  DEFINE_JS_FUNCTION(sfObj, "new", newNdbScanFilter);
+  DEFINE_JS_FUNCTION(sfObj, "create", newNdbScanFilter);
   WRAP_CONSTANT(AND);
   WRAP_CONSTANT(OR);
   WRAP_CONSTANT(NAND);

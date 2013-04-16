@@ -111,7 +111,7 @@ void IndexBound_initOnLoad(Handle<Object> target) {
   Persistent<String> ibKey = Persistent<String>(String::NewSymbol("IndexBound"));
   target->Set(ibKey, ibObj);
 
-  DEFINE_JS_FUNCTION(ibObj, "new", newIndexBound);
+  DEFINE_JS_FUNCTION(ibObj, "create", newIndexBound);
 
   Persistent<Object> BoundHelper = Persistent<Object>(Object::New());
   ibObj->Set(Persistent<String>(String::NewSymbol("helper")), BoundHelper);

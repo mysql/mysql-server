@@ -151,7 +151,7 @@ void ScanHelper_initOnLoad(Handle<Object> target) {
   Persistent<String> scanKey = Persistent<String>(String::NewSymbol("Scan"));
   target->Set(scanKey, scanObj);
 
-  DEFINE_JS_FUNCTION(scanObj, "new", DBScanHelper);
+  DEFINE_JS_FUNCTION(scanObj, "create", DBScanHelper);
 
   Persistent<Object> ScanHelper = Persistent<Object>(Object::New());
   Persistent<Object> ScanFlags = Persistent<Object>(Object::New());

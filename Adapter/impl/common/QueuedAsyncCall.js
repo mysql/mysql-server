@@ -47,7 +47,7 @@ function QueuedAsyncCall(queue, callback) {
     return function wrappedCallback(err, obj) {
       var thisCall, next;
       thisCall = queue.shift();  // Our own QueuedAsyncCall
-      udebug.log("wrappedCallback", thisCall.description);
+      udebug.log("wrappedCallback", thisCall.description, typeof callback);
       if(queue.length) {
         udebug.log("Run from queue");
         queue[0].run();

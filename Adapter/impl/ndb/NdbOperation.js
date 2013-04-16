@@ -25,8 +25,9 @@
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
-    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
-    prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
+  QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
+prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
+//   getBoundHelper = require("./IndexBounds.js").getBoundHelper, 
     stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
     index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
@@ -264,7 +265,8 @@ function prepareKeyOperation(op, ndbTransaction) {
 
 function prepareScanOperation(op, ndbTransaction) {
   var opcode = 33;  // How to tell from operation?
-
+  var boundHelper = null;
+ 
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
 
@@ -272,6 +274,10 @@ function prepareScanOperation(op, ndbTransaction) {
 
   if(op.query.queryType == 2) {  /* Index Scan */
     scanSpec[ScanHelper.index_record] = op.query.dbIndexHandler.dbIndex.record;
+//    boundHelper = getBoundHelper(op.query, op.keys);
+//    if(boundHelper) {
+//      scanHelper[bounds] = adapter.impl.IndexBound.create(boundHelper);
+//    }
   }
 
   scanSpec[ScanHelper.lock_mode] = constants.LockModes[op.lockMode];
@@ -284,11 +290,11 @@ function prepareScanOperation(op, ndbTransaction) {
 
   if(op.query.ndbFilterSpec) {
     scanSpec[ScanHelper.filter_code] = 
-      op.query.ndbFilterSpec.getScanFilterCode(op.keys);
+      op.query.ndbFilterSpec.getScanFilterCode(op.keys);  // call them params?
   }
 
   /* Build the NdbScanOperation */
-  op.ndbop = adapter.impl.Scan.new(scanSpec, opcode, ndbTransaction);
+  op.ndbop = adapter.impl.Scan.create(scanSpec, opcode, ndbTransaction);
 }
 
 
