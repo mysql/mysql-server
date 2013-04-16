@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,10 +46,6 @@
 #undef __WIN32__
 #define HAVE_ERRNO_AS_DEFINE
 #endif /* __CYGWIN__ */
-
-#if defined(__OpenBSD__) && (OpenBSD >= 200411)
-#define HAVE_ERRNO_AS_DEFINE
-#endif
 
 #if defined(i386) && !defined(__i386__)
 #define __i386__
