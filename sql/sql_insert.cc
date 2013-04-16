@@ -1379,6 +1379,37 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                  TRG_EVENT_UPDATE, 0))
           goto before_trg_err;
 
+        bool insert_id_consumed= false;
+        if (// UPDATE clause specifies a value for the auto increment field
+            table->auto_increment_field_not_null &&
+            // An auto increment value has been generated for this row
+            (insert_id_for_cur_row > 0))
+        {
+          // After-update value:
+          const ulonglong auto_incr_val= table->next_number_field->val_int();
+          if (auto_incr_val == insert_id_for_cur_row)
+          {
+            // UPDATE wants to use the generated value
+            insert_id_consumed= true;
+          }
+          else if (table->file->auto_inc_interval_for_cur_row.
+                   in_range(auto_incr_val))
+          {
+            /*
+              UPDATE wants to use one auto generated value which we have already
+              reserved for another (previous or following) row. That may cause
+              a duplicate key error if we later try to insert the reserved
+              value. Such conflicts on auto generated values would be strange
+              behavior, so we return a clear error now.
+            */
+            my_error(ER_AUTO_INCREMENT_CONFLICT, MYF(0));
+	    goto before_trg_err;
+          }
+        }
+
+        if (!insert_id_consumed)
+          table->file->restore_auto_increment(prev_insert_id);
+
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
         {
           const TABLE_LIST *inserted_view=
@@ -1393,7 +1424,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           }
         }
 
-        table->file->restore_auto_increment(prev_insert_id);
         info->stats.touched++;
         if (!records_are_comparable(table) || compare_records(table))
         {
@@ -1430,9 +1460,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           info->stats.copied++;
         }
 
-        if (table->next_number_field)
-          table->file->adjust_next_insert_id_after_explicit_value(
-            table->next_number_field->val_int());
         goto ok_or_after_trg_err;
       }
       else /* DUP_REPLACE */
