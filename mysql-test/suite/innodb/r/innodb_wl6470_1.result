@@ -9,7 +9,7 @@ primary key(keyc), index sec_index(c1)
 create procedure populate_t1()
 begin
 declare i int default 1;
-while (i <= 20000) do
+while (i <= 200) do
 insert into t1 values (i, 'a', 'b');
 set i = i + 1;
 end while;
@@ -17,15 +17,15 @@ end|
 create procedure populate_t1_small()
 begin
 declare i int default 1;
-while (i <= 2000) do
+while (i <= 20) do
 insert into t1 values (i, 'c', 'd');
 set i = i + 1;
 end while;
 end|
 create procedure populate_t1_small2()
 begin
-declare i int default 3000;
-while (i <= 5000) do
+declare i int default 30;
+while (i <= 50) do
 insert into t1 values (i, 'e', 'f');
 set i = i + 1;
 end while;
@@ -37,7 +37,7 @@ count(*)
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 select * from t1 limit 10;
 keyc	c1	c2
 1	a	b
@@ -58,11 +58,11 @@ begin;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 commit;
 select count(*) from t1;
 count(*)
-20000
+200
 truncate table t1;
 select count(*) from t1;
 count(*)
@@ -70,24 +70,24 @@ count(*)
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-2000
+20
 rollback;
 select count(*) from t1;
 count(*)
-2000
+20
 truncate table t1;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
-delete from t1 where keyc <= 6000;
+200
+delete from t1 where keyc <= 60;
 select count(*) from t1;
 count(*)
-14000
+140
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-16000
+160
 select * from t1 limit 10;
 keyc	c1	c2
 1	c	d
@@ -104,93 +104,93 @@ begin;
 call populate_t1_small2();
 select count(*) from t1;
 count(*)
-18001
-select * from t1 where keyc > 3000 limit 10;
+181
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-3001	e	f
-3002	e	f
-3003	e	f
-3004	e	f
-3005	e	f
-3006	e	f
-3007	e	f
-3008	e	f
-3009	e	f
-3010	e	f
+31	e	f
+32	e	f
+33	e	f
+34	e	f
+35	e	f
+36	e	f
+37	e	f
+38	e	f
+39	e	f
+40	e	f
 rollback;
 select count(*) from t1;
 count(*)
-16000
-select * from t1 where keyc > 3000 limit 10;
+160
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-6001	a	b
-6002	a	b
-6003	a	b
-6004	a	b
-6005	a	b
-6006	a	b
-6007	a	b
-6008	a	b
-6009	a	b
-6010	a	b
-update t1 set keyc = keyc + 200000;
+61	a	b
+62	a	b
+63	a	b
+64	a	b
+65	a	b
+66	a	b
+67	a	b
+68	a	b
+69	a	b
+70	a	b
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 rollback;
 begin;
-update t1 set keyc = keyc + 200000;
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-400001	c	d
-400002	c	d
-400003	c	d
-400004	c	d
-400005	c	d
-400006	c	d
-400007	c	d
-400008	c	d
-400009	c	d
-400010	c	d
+4001	c	d
+4002	c	d
+4003	c	d
+4004	c	d
+4005	c	d
+4006	c	d
+4007	c	d
+4008	c	d
+4009	c	d
+4010	c	d
 rollback;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 commit;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-insert into t2 select * from t1 where keyc < 210001;
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
+insert into t2 select * from t1 where keyc < 2101;
 select count(*) from t2;
 count(*)
-6000
+60
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
@@ -208,7 +208,7 @@ primary key(keyc), index sec_index(c1)
 create procedure populate_t1()
 begin
 declare i int default 1;
-while (i <= 20000) do
+while (i <= 200) do
 insert into t1 values (i, 'a', 'b');
 set i = i + 1;
 end while;
@@ -216,15 +216,15 @@ end|
 create procedure populate_t1_small()
 begin
 declare i int default 1;
-while (i <= 2000) do
+while (i <= 20) do
 insert into t1 values (i, 'c', 'd');
 set i = i + 1;
 end while;
 end|
 create procedure populate_t1_small2()
 begin
-declare i int default 3000;
-while (i <= 5000) do
+declare i int default 30;
+while (i <= 50) do
 insert into t1 values (i, 'e', 'f');
 set i = i + 1;
 end while;
@@ -236,7 +236,7 @@ count(*)
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 select * from t1 limit 10;
 keyc	c1	c2
 1	a	b
@@ -257,11 +257,11 @@ begin;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 commit;
 select count(*) from t1;
 count(*)
-20000
+200
 truncate table t1;
 select count(*) from t1;
 count(*)
@@ -269,24 +269,24 @@ count(*)
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-2000
+20
 rollback;
 select count(*) from t1;
 count(*)
-2000
+20
 truncate table t1;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
-delete from t1 where keyc <= 6000;
+200
+delete from t1 where keyc <= 60;
 select count(*) from t1;
 count(*)
-14000
+140
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-16000
+160
 select * from t1 limit 10;
 keyc	c1	c2
 1	c	d
@@ -303,93 +303,93 @@ begin;
 call populate_t1_small2();
 select count(*) from t1;
 count(*)
-18001
-select * from t1 where keyc > 3000 limit 10;
+181
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-3001	e	f
-3002	e	f
-3003	e	f
-3004	e	f
-3005	e	f
-3006	e	f
-3007	e	f
-3008	e	f
-3009	e	f
-3010	e	f
+31	e	f
+32	e	f
+33	e	f
+34	e	f
+35	e	f
+36	e	f
+37	e	f
+38	e	f
+39	e	f
+40	e	f
 rollback;
 select count(*) from t1;
 count(*)
-16000
-select * from t1 where keyc > 3000 limit 10;
+160
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-6001	a	b
-6002	a	b
-6003	a	b
-6004	a	b
-6005	a	b
-6006	a	b
-6007	a	b
-6008	a	b
-6009	a	b
-6010	a	b
-update t1 set keyc = keyc + 200000;
+61	a	b
+62	a	b
+63	a	b
+64	a	b
+65	a	b
+66	a	b
+67	a	b
+68	a	b
+69	a	b
+70	a	b
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 rollback;
 begin;
-update t1 set keyc = keyc + 200000;
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-400001	c	d
-400002	c	d
-400003	c	d
-400004	c	d
-400005	c	d
-400006	c	d
-400007	c	d
-400008	c	d
-400009	c	d
-400010	c	d
+4001	c	d
+4002	c	d
+4003	c	d
+4004	c	d
+4005	c	d
+4006	c	d
+4007	c	d
+4008	c	d
+4009	c	d
+4010	c	d
 rollback;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 commit;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-insert into t2 select * from t1 where keyc < 210001;
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
+insert into t2 select * from t1 where keyc < 2101;
 select count(*) from t2;
 count(*)
-6000
+60
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
@@ -408,7 +408,7 @@ primary key(keyc), index sec_index(c1)
 create procedure populate_t1()
 begin
 declare i int default 1;
-while (i <= 20000) do
+while (i <= 200) do
 insert into t1 values (i, 'a', 'b');
 set i = i + 1;
 end while;
@@ -416,15 +416,15 @@ end|
 create procedure populate_t1_small()
 begin
 declare i int default 1;
-while (i <= 2000) do
+while (i <= 20) do
 insert into t1 values (i, 'c', 'd');
 set i = i + 1;
 end while;
 end|
 create procedure populate_t1_small2()
 begin
-declare i int default 3000;
-while (i <= 5000) do
+declare i int default 30;
+while (i <= 50) do
 insert into t1 values (i, 'e', 'f');
 set i = i + 1;
 end while;
@@ -436,7 +436,7 @@ count(*)
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 select * from t1 limit 10;
 keyc	c1	c2
 1	a	b
@@ -457,11 +457,11 @@ begin;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
+200
 commit;
 select count(*) from t1;
 count(*)
-20000
+200
 truncate table t1;
 select count(*) from t1;
 count(*)
@@ -469,24 +469,24 @@ count(*)
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-2000
+20
 rollback;
 select count(*) from t1;
 count(*)
-2000
+20
 truncate table t1;
 call populate_t1();
 select count(*) from t1;
 count(*)
-20000
-delete from t1 where keyc <= 6000;
+200
+delete from t1 where keyc <= 60;
 select count(*) from t1;
 count(*)
-14000
+140
 call populate_t1_small();
 select count(*) from t1;
 count(*)
-16000
+160
 select * from t1 limit 10;
 keyc	c1	c2
 1	c	d
@@ -503,93 +503,93 @@ begin;
 call populate_t1_small2();
 select count(*) from t1;
 count(*)
-18001
-select * from t1 where keyc > 3000 limit 10;
+181
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-3001	e	f
-3002	e	f
-3003	e	f
-3004	e	f
-3005	e	f
-3006	e	f
-3007	e	f
-3008	e	f
-3009	e	f
-3010	e	f
+31	e	f
+32	e	f
+33	e	f
+34	e	f
+35	e	f
+36	e	f
+37	e	f
+38	e	f
+39	e	f
+40	e	f
 rollback;
 select count(*) from t1;
 count(*)
-16000
-select * from t1 where keyc > 3000 limit 10;
+160
+select * from t1 where keyc > 30 limit 10;
 keyc	c1	c2
-6001	a	b
-6002	a	b
-6003	a	b
-6004	a	b
-6005	a	b
-6006	a	b
-6007	a	b
-6008	a	b
-6009	a	b
-6010	a	b
-update t1 set keyc = keyc + 200000;
+61	a	b
+62	a	b
+63	a	b
+64	a	b
+65	a	b
+66	a	b
+67	a	b
+68	a	b
+69	a	b
+70	a	b
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 rollback;
 begin;
-update t1 set keyc = keyc + 200000;
+update t1 set keyc = keyc + 2000;
 select * from t1 limit 10;
 keyc	c1	c2
-400001	c	d
-400002	c	d
-400003	c	d
-400004	c	d
-400005	c	d
-400006	c	d
-400007	c	d
-400008	c	d
-400009	c	d
-400010	c	d
+4001	c	d
+4002	c	d
+4003	c	d
+4004	c	d
+4005	c	d
+4006	c	d
+4007	c	d
+4008	c	d
+4009	c	d
+4010	c	d
 rollback;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
 commit;
 select * from t1 limit 10;
 keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-insert into t2 select * from t1 where keyc < 210001;
+2001	c	d
+2002	c	d
+2003	c	d
+2004	c	d
+2005	c	d
+2006	c	d
+2007	c	d
+2008	c	d
+2009	c	d
+2010	c	d
+insert into t2 select * from t1 where keyc < 2101;
 select count(*) from t2;
 count(*)
-6000
+60
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
