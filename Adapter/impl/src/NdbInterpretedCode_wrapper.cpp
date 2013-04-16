@@ -605,6 +605,6 @@ void NdbInterpretedCode_initOnLoad(Handle<Object> target) {
 
   target->Set(ic_key, ic_obj);
 
-  DEFINE_JS_FUNCTION(ic_obj, "new", newNdbInterpretedCode);
+  DEFINE_JS_FUNCTION(ic_obj, "create", newNdbInterpretedCode);
 }
 
