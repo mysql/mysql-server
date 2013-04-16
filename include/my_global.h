@@ -35,10 +35,6 @@
 */
 #define INNODB_COMPATIBILITY_HOOKS
 
-#if defined(__OpenBSD__) && (OpenBSD >= 200411)
-#define HAVE_ERRNO_AS_DEFINE
-#endif
-
 #if defined(i386) && !defined(__i386__)
 #define __i386__
 #endif
