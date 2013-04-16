@@ -6562,17 +6562,20 @@ truncate_t::index_t::set(const dict_index_t* index)
 	ulint	len;
 
 	/* See requirements of page_zip_fields_encode for size. */
-	byte	encoded[(m_n_fields + 1) * 2];
+	ulint	sz = (m_n_fields + 1) * 2;
+	byte*	encoded = new (std::nothrow) byte[sz];
 
 	len = page_zip_fields_encode(m_n_fields, index, m_trx_id_pos, encoded);
 
-	ut_a(len <= sizeof(encoded));
+	ut_a(len <= sz);
 
 	/* Append the encoded fields data. */
 	m_fields.insert(m_fields.end(), &encoded[0], &encoded[len]);
 
 	/* NUL terminate the encoded data */
 	m_fields.push_back(0);
+
+	delete[] encoded;
 }
 
 /**
