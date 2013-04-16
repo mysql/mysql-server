@@ -219,9 +219,8 @@ run_test(const char *prog, const char *origft) {
     toku_free(fullprog);
     {
         char origbuf[TOKU_PATH_MAX + 1];
-        char *svnroot = getenv("TOKU_SVNROOT");
-        invariant_notnull(svnroot);
-        toku_path_join(origbuf, 3, svnroot, "tokudb.data", origft);
+        char *datadir = getenv("TOKUDB_DATA");
+        toku_path_join(origbuf, 2, datadir, origft);
         size_t len = 13 + strlen(origbuf) + strlen(tempft);
         char buf[len + 1];
         snprintf(buf, len + 1, "gunzip -c %s > %s", origbuf, tempft);

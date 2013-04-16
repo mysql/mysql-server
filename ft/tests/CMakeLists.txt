@@ -99,7 +99,7 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
     add_ft_test(${test})
   endforeach(test)
 
-  set_property(TEST ft/upgrade_test_simple APPEND PROPERTY ENVIRONMENT "TOKU_SVNROOT=${TOKU_SVNROOT}")
+  set_property(TEST ft/upgrade_test_simple APPEND PROPERTY ENVIRONMENT "TOKUDB_DATA=${TOKUDB_DATA}")
 
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests

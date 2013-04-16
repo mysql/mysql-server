@@ -566,9 +566,10 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       set(test ${base}.tdb)
 
       foreach(oldver 4.2.0 5.0.8 5.2.7 6.0.0 6.1.0 6.5.1 6.6.3)
-        set(versiondir ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver})
-        if (NOT EXISTS "${versiondir}/")
+        set(versiondir ${TOKUDB_DATA}/old-stress-test-envs/${oldver})
+        if (NOT EXISTS "${versiondir}/" AND NOT WARNED_ABOUT_DATA)
           message(WARNING "Test data for upgrade tests for version ${oldver} doesn't exist, check out ${versiondir}/*-2000-dir first or upgrade stress tests may fail.")
+          set(WARNED_ABOUT_DATA 1)
         endif ()
         foreach(p_or_s pristine stressed)
           if (NOT (${base} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
@@ -600,17 +601,18 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     endif ()
   endforeach(src)
 
-  if (NOT EXISTS "${TOKU_SVNROOT}/tokudb.data/test_5902/")
-    message(WARNING "Test data for dump-env.tdb doesn't exist, check out ${TOKU_SVNROOT}/tokudb.data/test_5902 first or dump-env.tdb may fail.")
+  if (NOT EXISTS "${TOKUDB_DATA}/test_5902/" AND NOT WARNED_ABOUT_DATA)
+    message(WARNING "Test data for dump-env.tdb doesn't exist, check out ${TOKUDB_DATA}/test_5902 first or dump-env.tdb may fail.")
+    set(WARNED_ABOUT_DATA 1)
   endif ()
   declare_custom_tests(dump-env.tdb)
   add_test(NAME ydb/dump-env.tdb/remove
     COMMAND ${CMAKE_COMMAND} -E remove_directory "dump-env.tdb.ctest-data")
   add_test(NAME ydb/dump-env.tdb/copy
-    COMMAND ${CMAKE_COMMAND} -E copy_directory "${TOKU_SVNROOT}/tokudb.data/test_5902" "dump-env.tdb.ctest-data")
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${TOKUDB_DATA}/test_5902" "dump-env.tdb.ctest-data")
   set_tests_properties(ydb/dump-env.tdb/copy PROPERTIES
     DEPENDS ydb/dump-env.tdb/remove
-    REQUIRED_FILES "${TOKU_SVNROOT}/tokudb.data/test_5902")
+    REQUIRED_FILES "${TOKUDB_DATA}/test_5902")
   add_ydb_test(dump-env.tdb)
   set_tests_properties(ydb/dump-env.tdb PROPERTIES
     DEPENDS ydb/dump-env.tdb/copy
@@ -639,9 +641,10 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     add_ydb_test_aux(test_abort4_${num}_1.tdb test_abort4.tdb -c 1 -l ${num})
   endforeach(num)
 
-  set(old_loader_upgrade_data "${TOKU_SVNROOT}/tokudb.data/env_preload.4.2.0.emptydictionaries.cleanshutdown")
-  if (NOT EXISTS "${old_loader_upgrade_data}/")
+  set(old_loader_upgrade_data "${TOKUDB_DATA}/env_preload.4.2.0.emptydictionaries.cleanshutdown")
+  if (NOT EXISTS "${old_loader_upgrade_data}/" AND NOT WARNED_ABOUT_DATA)
     message(WARNING "Test data for loader upgrade tests doesn't exist, check out ${old_loader_upgrade_data} first, or loader-stress-test3.tdb may fail.")
+    set(WARNED_ABOUT_DATA 1)
   endif ()
   function(add_loader_upgrade_test name bin)
     add_test(NAME ydb/${name}/remove
