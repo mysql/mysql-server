@@ -1269,6 +1269,12 @@ i	j
 5	mysql database innodb support
 6	innodb engine
 USE testdb_wl6445;
+show tables;
+Tables_in_testdb_wl6445
+t1
+select * from t1 where i = 4;
+i	j
+4	mysql database
 INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
 ERROR HY000: Can't lock file (errno: 165 - Table is read only)
 UPDATE t1 SET i = i + 20;
