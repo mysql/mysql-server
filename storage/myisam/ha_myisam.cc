@@ -30,6 +30,7 @@
 #include "rt_index.h"
 #include "sql_table.h"                          // tablename_to_filename
 #include "sql_class.h"                          // THD
+#include "debug_sync.h"
 
 ulonglong myisam_recover_options;
 static ulong opt_myisam_block_size;
@@ -1131,6 +1132,7 @@ int ha_myisam::repair(THD *thd, HA_CHECK &param, bool do_optimize)
         thd_proc_info(thd, "Repair by sorting");
         error = mi_repair_by_sort(&param, file, fixed_name,
                                   test(param.testflag & T_QUICK));
+        DEBUG_SYNC(thd, "myisam_after_repair_by_sort");
       }
     }
     else

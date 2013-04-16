@@ -29,7 +29,8 @@ while ($1)
 --enable_query_log
 
 --connect(con1,localhost,root,,)
---send
+SET debug_sync= 'myisam_after_repair_by_sort SIGNAL waiting WAIT_FOR go';
+send
   ALTER TABLE t1 ENABLE KEYS;
 
 --connection default
@@ -38,6 +39,8 @@ while ($1)
 --let $field= State
 --let $condition= = 'Repair by sorting'
 --source include/wait_show_condition.inc
+SET debug_sync= 'now WAIT_FOR waiting';
+SET debug_sync= 'now SIGNAL go';
 
 --replace_column 7 # 8 # 9 # 12 # 13 # 14 #
 SHOW TABLE STATUS LIKE 't1';
