@@ -3896,7 +3896,7 @@ row_drop_table_for_mysql(
 	dberr_t		err;
 	dict_foreign_t*	foreign;
 	dict_table_t*	table;
-	ibool		print_msg;
+	bool		print_msg;
 	ulint		space_id;
 	char*		filepath = NULL;
 	const char*	tablename_minus_db;
@@ -4454,8 +4454,8 @@ check_next_foreign:
 		    && !Tablespace::is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
-					space_id, tablename, FALSE,
-					print_msg, false, NULL, 0)) {
+				    space_id, tablename,
+				    print_msg, false, NULL, 0)) {
 				/* This might happen if we are dropping a
 				discarded tablespace */
 				err = DB_SUCCESS;
