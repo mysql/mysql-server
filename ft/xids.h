@@ -68,7 +68,7 @@ PATENT MARKING NOTICE:
 
 PATENT RIGHTS GRANT:
 
-  THIS IMPLEMENTATION" means the copyrightable works distributed by
+  "THIS IMPLEMENTATION" means the copyrightable works distributed by
   Tokutek as part of the Fractal Tree project.
 
   "PATENT CLAIMS" means the claims of patents that are owned or
