@@ -7362,6 +7362,8 @@ ha_innobase::index_read(
 		ret = DB_UNSUPPORTED;
 	}
 
+	DBUG_EXECUTE_IF("ib_select_query_failure", ret = DB_ERROR;);
+
 	switch (ret) {
 	case DB_SUCCESS:
 		error = 0;
