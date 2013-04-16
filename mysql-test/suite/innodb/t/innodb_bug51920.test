@@ -36,7 +36,7 @@ let $wait_condition =
 # depending on platform.
 #
 connection con1;
--- error 1317, 2006, 2013
+-- error 1317, 2006, 2013, ER_CONNECTION_KILLED
 reap;
 connection default;
 DROP TABLE bug51920;

@@ -33,7 +33,7 @@ while ($1)
   ALTER TABLE t1 ENABLE KEYS;
 
 --connection default
---let $wait_timeout=10
+--let $wait_timeout=60
 --let $show_statement= SHOW PROCESSLIST
 --let $field= State
 --let $condition= = 'Repair by sorting'

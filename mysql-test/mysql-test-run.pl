@@ -4772,6 +4772,9 @@ sub extract_warning_lines ($$) {
      qr|Warning: io_setup\(\) failed|,
      qr|Warning: io_setup\(\) attempt|,
      qr|setrlimit could not change the size of core files to 'infinity';|,
+     qr|feedback plugin: failed to retrieve the MAC address|,
+     qr|Plugin 'FEEDBACK' init function returned error|,
+     qr|Plugin 'FEEDBACK' registration as a INFORMATION SCHEMA failed|,
     );
 
   my $matched_lines= [];
