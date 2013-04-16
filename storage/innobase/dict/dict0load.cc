@@ -1090,7 +1090,7 @@ loop:
 			fil_load_single_table_tablespaces(). */
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, TRUE, !(is_temp || discarded),
+				space_id, name, !(is_temp || discarded),
 				false, NULL, 0);
 
 		} else if (!discarded) {
@@ -2308,8 +2308,7 @@ err_exit:
 		table->ibd_file_missing = TRUE;
 
 	} else if (!fil_space_for_table_exists_in_mem(
-			table->space, name, FALSE, FALSE, true, heap,
-			table->id)) {
+			   table->space, name, false, true, heap, table->id)) {
 
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 			/* Do not bother to retry opening temporary tables. */
