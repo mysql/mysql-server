@@ -7029,6 +7029,9 @@ ER_WARN_PURGE_LOG_IN_USE
 ER_WARN_PURGE_LOG_IS_ACTIVE
   eng "file %s was not purged because it is the active log file."
 
+ER_AUTO_INCREMENT_CONFLICT
+  eng "Auto-increment value in UPDATE conflicts with internally generated values"
+
 #
 #  End of 5.7 error messages.
 #
