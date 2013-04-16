@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 #ident "$Id$"
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 // Here are some timing numbers:
 // (Note: The not-quite-working version with cas can be found in r22519 of https://svn.tokutek.com/tokudb/toku/tokudb.2825/)  It's about as fast as "Best cas".)

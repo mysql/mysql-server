@@ -4,7 +4,7 @@
 #ifndef YDB_LOAD_H
 #define YDB_LOAD_H
 
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 /*  ydb functions used by loader
  */

@@ -4,7 +4,7 @@
 #ifndef _TDB_INTERNAL_H
 #define _TDB_INTERNAL_H
 
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "toku_list.h"
 // Included by db.h, defines some internal structures.  These structures are inlined in some versions of db.h

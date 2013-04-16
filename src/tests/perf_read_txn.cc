@@ -1,6 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id: perf_nop.cc 45903 2012-07-19 13:06:39Z leifwalsh $"
 #include "test.h"
 

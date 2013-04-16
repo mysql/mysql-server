@@ -6,7 +6,7 @@
 #define __TEST_H
 
 
-#ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #include <toku_portability.h>
 
 #include <string.h>

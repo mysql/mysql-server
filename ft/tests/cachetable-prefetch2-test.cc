@@ -4,7 +4,7 @@
 // verify that cachetable prefetch of the same block multiple times only
 // fetches the block once.
 #ident "$Id$"
-#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
 

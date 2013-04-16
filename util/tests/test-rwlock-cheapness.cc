@@ -1,7 +1,7 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
 
 #ident "$Id$"
-#ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 #include <errno.h>
 #include <stdlib.h>

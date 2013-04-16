@@ -3,7 +3,7 @@
 
 // verify that closing the cachetable with prefetches in progress works
 #ident "$Id$"
-#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "test.h"
 

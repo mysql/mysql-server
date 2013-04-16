@@ -3,7 +3,7 @@
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
 
-#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
 #include <db.h>

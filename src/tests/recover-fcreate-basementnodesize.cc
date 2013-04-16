@@ -2,7 +2,7 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 // verify thtat we can create the correct tree type after the db is removed
 #ident "$Id$"
-#ident "Copyright (c) 2011 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
 
 #include <sys/stat.h>
 #include "test.h"
