@@ -1,4 +1,5 @@
 #include <toku_portability.h>
+#include <toku_atomic.h>
 #include <unistd.h>
 #include <errno.h>
 #include <assert.h>
@@ -82,7 +83,15 @@ again:
     return r;
 }
 
+static uint64_t get_tnow(void) {
+    struct timeval tv;
+    int r = gettimeofday(&tv, NULL); assert(r == 0);
+    return tv.tv_sec * 1000000ULL + tv.tv_usec;
+}
+
 static int (*t_fsync)(int) = 0;
+static uint64_t toku_fsync_count;
+static uint64_t toku_fsync_time;
 
 int
 toku_set_func_fsync(int (*fsync_function)(int)) {
@@ -93,9 +102,19 @@ toku_set_func_fsync(int (*fsync_function)(int)) {
 int
 toku_file_fsync(int fd) {
     int r;
+    uint64_t tstart = get_tnow();
     if (t_fsync)
         r = t_fsync(fd);
     else
         r = fsync(fd);
+    toku_sync_fetch_and_add_uint64(&toku_fsync_count, 1);
+    toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
     return r;
 }
+
+void
+toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time) {
+    *fsync_count = toku_fsync_count;
+    *fsync_time = toku_fsync_time;
+}
+

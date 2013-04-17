@@ -121,10 +121,16 @@ void *os_realloc(void*,size_t);
 void  os_free(void*);
 ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off);
 ssize_t toku_os_write (int fd, const void *buf, size_t len);
-int toku_file_fsync(int fd);
-int toku_get_fsync_times(void);
 
+// wrapper around fsync
+int toku_file_fsync(int fd);
+
+// get the number of fsync calls and the fsync times
+void toku_get_fsync_times(uint64_t *fsync_count, uint64_t *fsync_time);
+
+// set a new fsync function (for debugging)
 int toku_set_func_fsync (int (*fsync_function)(int));
+
 int toku_set_func_malloc  (void *(*)(size_t));
 int toku_set_func_realloc (void *(*)(void*,size_t));
 int toku_set_func_free    (void (*)(void*));
