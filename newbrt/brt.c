@@ -6489,22 +6489,6 @@ int toku_brt_truncate (BRT brt) {
     return r;
 }
 
-static int
-toku_brt_lock_init(void) {
-    int r = 0;
-    if (r==0)
-	r = toku_pwrite_lock_init();
-    return r;
-}
-
-static int
-toku_brt_lock_destroy(void) {
-    int r = 0;
-    if (r==0) 
-	r = toku_pwrite_lock_destroy();
-    return r;
-}
-
 int toku_brt_init(void (*ydb_lock_callback)(void),
 		  void (*ydb_unlock_callback)(void),
 		  void (*db_set_brt)(DB*,BRT)) {
@@ -6512,8 +6496,6 @@ int toku_brt_init(void (*ydb_lock_callback)(void),
     //Portability must be initialized first
     if (r==0) 
 	r = toku_portability_init();
-    if (r==0) 
-	r = toku_brt_lock_init();
     if (r==0) 
 	r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
     if (r == 0)
@@ -6527,8 +6509,6 @@ int toku_brt_destroy(void) {
     int r = 0;
     if (r == 0)
 	r = toku_brt_serialize_destroy();
-    if (r==0) 
-	r = toku_brt_lock_destroy();
     if (r==0)
 	r = toku_checkpoint_destroy();
     //Portability must be cleaned up last
