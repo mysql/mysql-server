@@ -1,2 +1,2 @@
-insert_committed [300,301,302] 10 1 
-commit_any [300,301,302] 10 
+insert_committed [300,301,302] v10 k1 
+commit_any [300,301,302] v10 

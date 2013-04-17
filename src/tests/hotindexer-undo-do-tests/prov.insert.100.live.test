@@ -1,4 +1,4 @@
 live 100
-key 1
+key k1
 delete committed 0
-insert provisional 100 100
+insert provisional 100 v100

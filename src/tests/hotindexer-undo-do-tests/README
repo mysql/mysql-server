@@ -2,7 +2,7 @@
 
 The hotindexer undo do function is tested by feeding it a leafentry,
 capturing the actions taken on the hot dictionary,
-and comparing the actions with the precomputed expected actions.
+and comparing the actions with the expected actions.
 The test passes if the actions match the expected actions.
 
 Each test is described by a .test file and a .result file.
@@ -64,5 +64,12 @@ delete_provisional [<XIDS>] <KEY>
 
 == lock ==
 lock [<XIDS>] <KEY>
+
+= Schema =
+
+Source dictionary: <source key, source data>
+
+Hot dictionary:    <source data, source key>
+
 
 
