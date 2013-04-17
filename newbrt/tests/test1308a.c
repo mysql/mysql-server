@@ -12,7 +12,6 @@
 int
 main (int argc __attribute__((__unused__)), char *argv[] __attribute__((__unused__)))
 {
-    printf("hello\n");
     unlink(FNAME);
     
     int fd;

@@ -64,6 +64,7 @@ REGRESSION_TESTS_RAW = \
 	omt-test \
 	shortcut \
 	test1305 \
+	test1308 \
 	test-assert \
 	test-brt-delete-both \
 	test-brt-overflow \
