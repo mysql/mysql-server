@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <portability.h>
 #include <db.h>
 #include "ydb.h"
 
