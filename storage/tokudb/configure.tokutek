@@ -4,6 +4,7 @@
 # command line parameters
 
 tokudb=/usr/local/tokudb
+tokudb_version=`basename $tokudb`
 mysql=/usr/local/mysql
 libdir=/usr/local/mysql/lib
 
@@ -11,12 +12,16 @@ while [ $# -gt 0 ] ; do
     arg=$1; shift
     if [[ $arg =~ "--with-tokudb=(.*)" ]] ; then
 	tokudb=${BASH_REMATCH[1]}
+	tokudb_version=`basename $tokudb`
     fi
     if [[ $arg =~ "--with-mysql=(.*)" ]] ; then
         mysql=${BASH_REMATCH[1]}
     fi
     if [[ $arg =~ "--libdir=(.*)" ]] ; then
         libdir=${BASH_REMATCH[1]}
+    fi
+    if [[ $arg =~ "--tokudb_version=(.*)" ]] ; then
+	tokudb_version=${BASH_REMATCH[1]}
     fi
 done
 
@@ -35,7 +40,6 @@ if [ ! -d $libdir ] ; then
 fi
 if [ $error -ne 0 ] ; then exit 1 ; fi
 
-tokudb_version=`basename $tokudb`
 # escape the path names so that the sed works
 # note: i was not smart enough to get this right without a sequence of experiments
 tokudb=`echo $tokudb | sed -e s/\\\//\\\\\\\\\\\//g`
