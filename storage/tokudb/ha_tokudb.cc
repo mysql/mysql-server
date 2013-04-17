@@ -1870,17 +1870,12 @@ exit:
 //      error otherwise
 //
 int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn) {
-    DBT key;
-    DBT data;
     int error = ENOSYS;
     DBC* crsr = NULL;
-    u_int64_t less, equal, greater;
     int is_exact;
     bool do_commit = false;
+    DB_BTREE_STAT64 dict_stats;
     DB_TXN* txn_to_use = NULL;
-
-    bzero((void *)&key, sizeof(key));
-    bzero((void *)&data, sizeof(data));
 
     if (txn == NULL) {
         error = db_env->txn_begin(db_env, 0, &txn_to_use, DB_READ_UNCOMMITTED);
@@ -1890,37 +1885,15 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows, DB_TXN* txn) {
     else {
         txn_to_use = txn;
     }
-    
-    error = db->cursor(db, txn_to_use, &crsr, 0);
+
+    error = db->stat64(
+        share->file, 
+        txn_to_use, 
+        &dict_stats
+        );
     if (error) { goto cleanup; }
 
-    //
-    // get the first element, then estimate number of records
-    // by calling key_range64 on the first element
-    //
-    error = crsr->c_get(crsr, &key, &data, DB_FIRST);
-    if (error == DB_NOTFOUND) {
-        *num_rows = 0;
-        error = 0;
-        goto cleanup;
-    }
-    else if (error) { goto cleanup; }
-
-    error = db->key_range64(
-        db, 
-        txn_to_use, 
-        &key, 
-        &less,
-        &equal,
-        &greater,
-        &is_exact
-        );
-    if (error) {
-        goto cleanup;
-    }
-
-
-    *num_rows = equal + greater;
+    *num_rows = dict_stats.bt_ndata;
     error = 0;
 cleanup:
     if (crsr != NULL) {
