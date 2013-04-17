@@ -42,6 +42,18 @@ const char *toku_copyright_string = "Copyright (c) 2007-2009 Tokutek Inc.  All r
  int toku_close_trace_file (void) { return 0; } 
 #endif
 
+
+// Accountability: operation counters available for debugging and for "show engine status"
+static u_int64_t num_inserts;
+static u_int64_t num_deletes;
+static u_int64_t num_commits;
+static u_int64_t num_aborts;
+static u_int64_t num_point_queries;
+static u_int64_t num_sequential_queries;
+
+
+
+
 /** The default maximum number of persistent locks in a lock tree  */
 const u_int32_t __toku_env_default_max_locks = 1000;
 
@@ -983,6 +995,14 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    r = toku_ltm_get_max_locks_per_db(ltm, &(engstat->range_locks_max_per_db));  assert(r==0);
 	    r = toku_ltm_get_curr_locks(ltm, &(engstat->range_locks_curr));   assert(r==0);
 	}
+	{
+	    engstat->inserts            = num_inserts;
+	    engstat->deletes            = num_deletes;
+	    engstat->commits            = num_commits;
+	    engstat->aborts             = num_aborts;
+	    engstat->point_queries      = num_point_queries;
+	    engstat->sequential_queries = num_sequential_queries;
+	}
     }
     return r;
 }
@@ -1170,6 +1190,7 @@ static int toku_txn_commit(DB_TXN * txn, u_int32_t flags) {
     toku_free(db_txn_struct_i(txn));
 #endif
     toku_free(txn);
+    num_commits++;      // accountability
     if (flags!=0) return EINVAL;
     return r ? r : (r2 ? r2 : r_child_first);
 }
@@ -1209,6 +1230,7 @@ static int toku_txn_abort(DB_TXN * txn) {
     toku_free(db_txn_struct_i(txn));
 #endif
     toku_free(txn);
+    num_aborts++;    // accountability
     return r ? r : (r2 ? r2 : r_child_first);
 }
 
@@ -1844,7 +1866,7 @@ static int
 toku_c_getf_first(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-
+    num_point_queries++;   // accountability
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_first will call c_getf_first_callback(..., context) (if query is successful)
@@ -1898,7 +1920,7 @@ static int
 toku_c_getf_last(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
-
+    num_point_queries++;   // accountability
     QUERY_CONTEXT_S context; //Describes the context of this query.
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_last will call c_getf_last_callback(..., context) (if query is successful)
@@ -1957,6 +1979,7 @@ toku_c_getf_next(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     else if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
+        num_sequential_queries++;   // accountability
         query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
         r = toku_brt_cursor_next(dbc_struct_i(c)->c, c_getf_next_callback, &context);
@@ -2011,6 +2034,7 @@ toku_c_getf_next_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
     if (toku_c_uninitialized(c)) r = toku_c_getf_first(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
+        num_sequential_queries++;   // accountability
         query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_next will call c_getf_next_callback(..., context) (if query is successful)
         r = toku_brt_cursor_next_nodup(dbc_struct_i(c)->c, c_getf_next_callback, &context);
@@ -2028,6 +2052,7 @@ toku_c_getf_next_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
     if (toku_c_uninitialized(c)) return EINVAL;
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
+    num_sequential_queries++;   // accountability
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_next_dup will call c_getf_next_dup_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_next_dup(dbc_struct_i(c)->c, c_getf_next_dup_callback, &context);
@@ -2083,6 +2108,7 @@ toku_c_getf_prev(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra) {
     else if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
+        num_sequential_queries++;   // accountability
         query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
         r = toku_brt_cursor_prev(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
@@ -2137,6 +2163,7 @@ toku_c_getf_prev_nodup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *ex
     if (toku_c_uninitialized(c)) r = toku_c_getf_last(c, flag, f, extra);
     else {
         QUERY_CONTEXT_S context; //Describes the context of this query.
+        num_sequential_queries++;   // accountability
         query_context_init(&context, c, flag, f, extra); 
         //toku_brt_cursor_prev will call c_getf_prev_callback(..., context) (if query is successful)
         r = toku_brt_cursor_prev_nodup(dbc_struct_i(c)->c, c_getf_prev_callback, &context);
@@ -2154,6 +2181,7 @@ toku_c_getf_prev_dup(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extr
     if (toku_c_uninitialized(c)) return EINVAL;
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
+    num_sequential_queries++;   // accountability
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_prev_dup will call c_getf_prev_dup_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_prev_dup(dbc_struct_i(c)->c, c_getf_prev_dup_callback, &context);
@@ -2206,6 +2234,7 @@ toku_c_getf_current(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, void *extra
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
+    num_sequential_queries++;   // accountability
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT, c_getf_current_callback, &context);
@@ -2241,6 +2270,7 @@ toku_c_getf_current_binding(DBC *c, u_int32_t flag, YDB_CALLBACK_FUNCTION f, voi
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_S context; //Describes the context of this query.
+    num_sequential_queries++;   // accountability
     query_context_init(&context, c, flag, f, extra); 
     //toku_brt_cursor_current will call c_getf_current_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_current(dbc_struct_i(c)->c, DB_CURRENT_BINDING, c_getf_current_callback, &context);
@@ -2256,6 +2286,7 @@ toku_c_getf_set(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     //toku_brt_cursor_set will call c_getf_set_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, NULL, c_getf_set_callback, &context);
@@ -2313,6 +2344,7 @@ toku_c_getf_set_range(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f,
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     //toku_brt_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
@@ -2371,6 +2403,7 @@ toku_c_getf_set_range_reverse(DBC *c, u_int32_t flag, DBT *key, YDB_CALLBACK_FUN
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     //toku_brt_cursor_set_range_reverse will call c_getf_set_range_reverse_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_set_range_reverse(dbc_struct_i(c)->c, key, c_getf_set_range_reverse_callback, &context);
@@ -2429,6 +2462,7 @@ toku_c_getf_get_both(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLBACK_FU
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
     QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    num_point_queries++;   // accountability
     query_context_with_input_init(&context, c, flag, key, val, f, extra); 
     //toku_brt_cursor_get_both will call c_getf_get_both_callback(..., context) (if query is successful)
     int r = toku_brt_cursor_set(dbc_struct_i(c)->c, key, val, c_getf_get_both_callback, &context);
@@ -2481,6 +2515,7 @@ toku_c_getf_get_both_range(DBC *c, u_int32_t flag, DBT *key, DBT *val, YDB_CALLB
     if (c_db_is_nodup(c)) r = toku_c_getf_get_both(c, flag, key, val, f, extra);
     else {
         QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+        num_point_queries++;   // accountability
         query_context_with_input_init(&context, c, flag, key, val, f, extra); 
         //toku_brt_cursor_get_both_range will call c_getf_get_both_range_callback(..., context) (if query is successful)
         r = toku_brt_cursor_get_both_range(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_callback, &context);
@@ -2541,6 +2576,7 @@ toku_c_getf_get_both_range_reverse(DBC *c, u_int32_t flag, DBT *key, DBT *val, Y
     if (c_db_is_nodup(c)) r = toku_c_getf_get_both(c, flag, key, val, f, extra);
     else {
         QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+        num_point_queries++;   // accountability
         query_context_with_input_init(&context, c, flag, key, val, f, extra); 
         //toku_brt_cursor_get_both_range_reverse will call c_getf_get_both_range_reverse_callback(..., context) (if query is successful)
         r = toku_brt_cursor_get_both_range_reverse(dbc_struct_i(c)->c, key, val, c_getf_get_both_range_reverse_callback, &context);
@@ -2630,6 +2666,7 @@ toku_c_getf_heaviside(DBC *c, u_int32_t flag,
     int r;
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
+    num_point_queries++;   // accountability
     HEAVI_WRAPPER_S wrapper;
     heavi_wrapper_init(&wrapper, h, extra_h, direction);
     QUERY_CONTEXT_HEAVISIDE_S context; //Describes the context of this query.
@@ -2872,6 +2909,7 @@ static int
 toku_db_del(DB *db, DB_TXN *txn, DBT *key, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+    num_deletes++;       // accountability 
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
@@ -2978,6 +3016,7 @@ static int
 toku_db_delboth(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
+    num_deletes++;   // accountability 
     u_int32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
     BOOL error_if_missing = (BOOL)(!(flags&DB_DELETE_ANY));
@@ -3396,6 +3435,8 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, u_int32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r;
+
+    num_inserts++;
 
     u_int32_t lock_flags = get_prelocked_flags(flags, txn);
     flags &= ~lock_flags;
