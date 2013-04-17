@@ -9,9 +9,10 @@
 #include "checkpoint.h"
 #include "ule.h"
 
-#if GARBAGE_COLLECTION_DEBUG
+
+BOOL garbage_collection_debug = FALSE;
+
 static void verify_snapshot_system(TOKULOGGER logger);
-#endif
 
 // accountability
 static TXN_STATUS_S status = {.begin  = 0, 
@@ -127,9 +128,9 @@ int toku_txn_begin_with_xid (
     ) 
 {
     if (logger->is_panicked) return EINVAL;
-#if GARBAGE_COLLECTION_DEBUG
-    verify_snapshot_system(logger);
-#endif
+    if (garbage_collection_debug) {
+        verify_snapshot_system(logger);
+    }
     assert(logger->rollback_cachefile);
     TOKUTXN MALLOC(result);
     if (result==0) 
@@ -222,9 +223,9 @@ int toku_txn_begin_with_xid (
     toku_list_init(&result->checkpoint_before_commit);
     *tokutxn = result;
     status.begin++;
-#if GARBAGE_COLLECTION_DEBUG
-    verify_snapshot_system(logger);
-#endif
+    if (garbage_collection_debug) {
+        verify_snapshot_system(logger);
+    }
     return 0;
 
 died:
@@ -315,9 +316,9 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
-#if GARBAGE_COLLECTION_DEBUG
-    verify_snapshot_system(txn->logger);
-#endif
+    if (garbage_collection_debug) {
+        verify_snapshot_system(txn->logger);
+    }
     int r;
     // panic handled in log_commit
 
@@ -351,9 +352,9 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
-#if GARBAGE_COLLECTION_DEBUG
-    verify_snapshot_system(txn->logger);
-#endif
+    if (garbage_collection_debug) {
+        verify_snapshot_system(txn->logger);
+    }
     //printf("%s:%d aborting\n", __FILE__, __LINE__);
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
@@ -371,14 +372,11 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
 }
 
 void toku_txn_close_txn(TOKUTXN txn) {
-#if GARBAGE_COLLECTION_DEBUG
-    TOKULOGGER logger = txn->logger;
-#endif
-    
+    TOKULOGGER logger = txn->logger;    
     toku_rollback_txn_close(txn);
-#if GARBAGE_COLLECTION_DEBUG
-    verify_snapshot_system(logger);
-#endif
+    if (garbage_collection_debug) {
+        verify_snapshot_system(logger);
+    }
     status.close++;
     return;
 }
@@ -442,7 +440,6 @@ BOOL toku_is_txn_in_live_root_txn_list(TOKUTXN txn, TXNID xid) {
     return retval;
 }
 
-#if GARBAGE_COLLECTION_DEBUG
 static void
 verify_snapshot_system(TOKULOGGER logger) {
     int     num_snapshot_txnids = toku_omt_size(logger->snapshot_txnids);
@@ -551,5 +548,4 @@ verify_snapshot_system(TOKULOGGER logger) {
         }
     }
 }
-#endif
 

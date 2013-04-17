@@ -701,6 +701,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("void db_env_set_recover_callback (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_recover_callback2 (void (*)(void*), void*) %s;\n", VISIBLE);
     printf("void db_env_set_loader_size_factor (uint32_t) %s;\n", VISIBLE);
+    printf("void db_env_set_mvcc_garbage_collection_verification(u_int32_t) %s;\n", VISIBLE);
     printf("#if defined(__cplusplus)\n}\n#endif\n");
     printf("#endif\n");
     return 0;

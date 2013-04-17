@@ -2,11 +2,18 @@
 // In particular, check to see what happens if a subtransaction has different isolation level from its parent.
 
 #include "test.h"
-
 const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN|DB_PRIVATE;
 
 int test_main (int argc, char * const argv[]) {
     parse_args(argc, argv);
+    int useseed;
+
+    {
+      struct timeval tv;
+      gettimeofday(&tv, 0);
+      useseed = tv.tv_sec+tv.tv_usec*997;  // magic:  997 is a prime, and a million (microseconds/second) times 997 is still 32 bits.
+    }
+    
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -17,20 +24,26 @@ int test_main (int argc, char * const argv[]) {
     env->set_errfile(env, stderr);
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);
     CKERR(r);
-
-    int max_txns = 2000;
-    int num_runs = 10000;
+    db_env_set_mvcc_garbage_collection_verification(1);
+    int max_txns = 400;
+    int num_runs = 2000;
     DB_TXN* txns[max_txns];
     memset(txns, 0, sizeof(txns));
     int num_txns = 0;
     int i;
 
+    if (verbose) printf("seed=%d\n", useseed);
+    srandom(useseed);
+
     for (i = 0; i < num_runs; i++) {
         int rand_num = random()%max_txns;
-        //if (i%50 == 0) {
-        //    printf("num_txns %d\n", num_txns);
-        //    printf("iteration %d\n", i);
-        //}
+        /*
+            if (i%50 == 0) {
+                printf("rand_num %d\n", rand_num);
+                printf("num_txns %d\n", num_txns);
+                printf("iteration %d\n", i);
+            }
+            */
         if (rand_num >= num_txns) {
             // add a txn
             assert(txns[num_txns] == NULL);
