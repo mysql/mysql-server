@@ -7752,7 +7752,6 @@ int ha_tokudb::final_add_index(handler_add_index *add_arg, bool commit) {
 
     // extract the saved state variables
     ha_tokudb_add_index *add = static_cast<class ha_tokudb_add_index*>(add_arg);
-    DB_TXN *txn = add->txn;
     bool incremented_numDBs = add->incremented_numDBs;
     bool modified_DBs = add->modified_DBs;
     TABLE *table = add->table;
