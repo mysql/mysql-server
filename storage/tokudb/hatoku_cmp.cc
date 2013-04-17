@@ -475,6 +475,45 @@ inline uchar* unpack_toku_varbinary(
     return from_tokudb + length_bytes_in_tokudb+ length;
 }
 
+inline uchar* unpack_toku_blob(
+    uchar* to_mysql, 
+    uchar* from_tokudb, 
+    u_int32_t length_bytes_in_tokudb, // number of bytes used to encode length in from_tokudb
+    u_int32_t length_bytes_in_mysql // number of bytes used to encode length in to_mysql
+    ) 
+{
+    u_int32_t length = get_length_from_var_tokudata(from_tokudb, length_bytes_in_tokudb);
+    uchar* blob_pos = NULL;
+    //
+    // copy the length into the mysql buffer
+    //
+    switch (length_bytes_in_mysql) {
+    case (0):
+        break;
+    case (1):
+        *to_mysql = (uchar) length;
+        break;
+    case (2):
+        int2store(to_mysql, length);
+        break;
+    case (3):
+        int3store(to_mysql, length);
+        break;
+    case (4):
+        int4store(to_mysql, length);
+        break;
+    default:
+        assert(false);
+    }
+    //
+    // copy the binary data
+    //
+    blob_pos = from_tokudb + length_bytes_in_tokudb;
+    memcpy(to_mysql + length_bytes_in_mysql, &blob_pos, sizeof(uchar *));
+    return from_tokudb + length_bytes_in_tokudb+ length;
+}
+
+
 inline uchar* pack_toku_varstring(
     uchar* to_tokudb, 
     uchar* from_mysql, 
@@ -983,7 +1022,7 @@ uchar* unpack_toku_field(
             );
         goto exit;
     case (toku_type_blob):
-        new_pos = unpack_toku_varbinary(
+        new_pos = unpack_toku_blob(
             to_mysql,
             from_tokudb,
             get_length_bytes_from_max(key_part_length),
