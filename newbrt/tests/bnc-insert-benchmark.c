@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2011 Tokutek Inc.  All rights reserved."
 
@@ -74,6 +74,7 @@ int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
     unsigned long eltsize, nodesize, repeat;
 
+    initialize_dummymsn();
     if (argc != 4) {
         fprintf(stderr, "Usage: %s <eltsize> <nodesize> <repeat>\n", argv[0]);
         return 2;

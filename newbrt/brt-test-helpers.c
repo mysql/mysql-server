@@ -10,7 +10,7 @@
 
 
 // dummymsn needed to simulate msn because messages are injected at a lower level than toku_brt_root_put_cmd()
-#define MIN_DUMMYMSN ((MSN) {(uint64_t)100000000000})
+#define MIN_DUMMYMSN ((MSN) {(uint64_t)1 << 62})
 static MSN dummymsn;      
 static int testsetup_initialized = 0;
 

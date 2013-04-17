@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 #ident "Id:"
 
@@ -74,6 +74,7 @@ static void test_3748 (void) {
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
+    initialize_dummymsn();
     test_3748();
    
     return 0;

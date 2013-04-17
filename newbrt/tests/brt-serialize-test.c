@@ -1,4 +1,4 @@
-/* -*- mode: C; c-basic-offset: 4 -*- */
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
@@ -220,7 +220,6 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 2;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -290,7 +289,6 @@ test_serialize_leaf_check_msn(enum brtnode_verify_type bft, BOOL do_clone) {
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
-    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children>=1);
     assert(dn->max_msn_applied_to_node_on_disk.msn == POSTSERIALIZE_MSN_ON_DISK.msn);
     {
@@ -364,7 +362,6 @@ test_serialize_leaf_with_large_pivots(enum brtnode_verify_type bft, BOOL do_clon
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = nrows;
     sn.dirty = 1;
 
@@ -508,7 +505,6 @@ test_serialize_leaf_with_many_rows(enum brtnode_verify_type bft, BOOL do_clone) 
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 1;
     sn.dirty = 1;
 
@@ -649,7 +645,6 @@ test_serialize_leaf_with_large_rows(enum brtnode_verify_type bft, BOOL do_clone)
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 1;
     sn.dirty = 1;
     
@@ -798,7 +793,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 7;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -879,7 +873,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum brtnode_verify_type bft, BOOL
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
-    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children>0);
     {
 	// Man, this is way too ugly.  This entire test suite needs to be refactored.
@@ -949,7 +942,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 4;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -1006,7 +998,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum brtnode_verify_type 
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
-    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children == 1);
     {
         const u_int32_t npartitions = dn->n_children;
@@ -1069,7 +1060,6 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 0;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 2;
     sn.dirty = 1;
     MALLOC_N(sn.n_children, sn.bp);
@@ -1135,7 +1125,6 @@ test_serialize_leaf(enum brtnode_verify_type bft, BOOL do_clone) {
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 0);
-    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children>=1);
     {
 	// Man, this is way too ugly.  This entire test suite needs to be refactored.
@@ -1211,7 +1200,6 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 2;
     sn.dirty = 1;
     hello_string = toku_strdup("hello");
@@ -1282,7 +1270,6 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
     assert(dn->layout_version_original ==BRT_LAYOUT_VERSION);
     assert(dn->layout_version_read_from_disk ==BRT_LAYOUT_VERSION);
     assert(dn->height == 1);
-    assert(dn->optimized_for_upgrade == 1234);
     assert(dn->n_children==2);
     assert(strcmp(kv_pair_key(dn->childkeys[0]), "hello")==0);
     assert(toku_brt_pivot_key_len(dn->childkeys[0])==6);
@@ -1395,6 +1382,8 @@ test_serialize_nonleaf(enum brtnode_verify_type bft, BOOL do_clone) {
 
 int
 test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute__((__unused__))) {
+    initialize_dummymsn();
+
     test_serialize_leaf(read_none, FALSE);
     test_serialize_leaf(read_all, FALSE);
     test_serialize_leaf(read_compressed, FALSE);

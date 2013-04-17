@@ -301,7 +301,6 @@ test_prefetching(void) {
     sn.layout_version = BRT_LAYOUT_VERSION;
     sn.layout_version_original = BRT_LAYOUT_VERSION;
     sn.height = 1;
-    sn.optimized_for_upgrade = 1234;
     sn.n_children = 3;
     sn.dirty = 1;
 

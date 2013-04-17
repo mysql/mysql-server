@@ -85,7 +85,6 @@ setup_brtnode_header(struct brtnode *node)
     node->layout_version = BRT_LAYOUT_VERSION;
     node->layout_version_original = BRT_LAYOUT_VERSION;
     node->height = 0;
-    node->optimized_for_upgrade = 1324;
     node->dirty = 1;
     node->totalchildkeylens = 0;
 }

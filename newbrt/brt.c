@@ -696,7 +696,6 @@ void toku_brtnode_clone_callback(
     cloned_node->height = node->height;
     cloned_node->dirty = node->dirty;
     cloned_node->fullhash = node->fullhash;
-    cloned_node->optimized_for_upgrade = node->optimized_for_upgrade;
     cloned_node->n_children = node->n_children;
     cloned_node->totalchildkeylens = node->totalchildkeylens;
 
@@ -721,6 +720,7 @@ void toku_brtnode_clone_callback(
     // clear dirty bit
     node->dirty = 0;
     cloned_node->dirty = 0;
+    node->layout_version_read_from_disk = BRT_LAYOUT_VERSION;
     // set new pair attr if necessary
     if (node->height == 0) {
         *new_attr = make_brtnode_pair_attr(node);
@@ -763,6 +763,7 @@ void toku_brtnode_flush_callback (
             toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
             int r = toku_serialize_brtnode_to(fd, brtnode->thisnodename, brtnode, ndd, !is_clone, h, n_workitems, n_threads, for_checkpoint);
             assert_zero(r);
+            brtnode->layout_version_read_from_disk = BRT_LAYOUT_VERSION;
         }
         brt_status_update_flush_reason(brtnode, for_checkpoint);
     }
@@ -818,7 +819,8 @@ void toku_brtnode_pe_est_callback(
     assert(brtnode_pv != NULL);
     long bytes_to_free = 0;
     BRTNODE node = (BRTNODE)brtnode_pv;
-    if (node->dirty || node->height == 0) {
+    if (node->dirty || node->height == 0 ||
+        node->layout_version_read_from_disk < BRT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES) {
         *bytes_freed_estimate = 0;
         *cost = PE_CHEAP;
         goto exit;
@@ -876,8 +878,13 @@ compress_internal_node_partition(BRTNODE node, int i)
 // callback for partially evicting a node
 int toku_brtnode_pe_callback (void *brtnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR* new_attr, void* UU(extraargs)) {
     BRTNODE node = (BRTNODE)brtnode_pv;
-    // 
+    // Don't partially evict dirty nodes
     if (node->dirty) {
+        goto exit;
+    }
+    // Don't partially evict nodes whose partitions can't be read back
+    // from disk individually
+    if (node->layout_version_read_from_disk < BRT_FIRST_LAYOUT_VERSION_WITH_BASEMENT_NODES) {
         goto exit;
     }
     //
@@ -1404,7 +1411,6 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
     n->height = height;
-    n->optimized_for_upgrade = 0;
     n->totalchildkeylens = 0;
     n->childkeys = 0;
     n->bp = 0;
@@ -1623,7 +1629,6 @@ struct setval_extra_s {
     LEAFENTRY le;
     OMT snapshot_txnids;
     OMT live_list_reverse;
-    bool made_change;
     uint64_t * workdone;  // set by brt_leaf_apply_cmd_once()
 };
 
@@ -1659,7 +1664,6 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
                                 svextra->workdone);
         svextra->setval_r = 0;
     }
-    svextra->made_change = TRUE;
 }
 
 // We are already past the msn filter (in brt_leaf_put_cmd(), which calls do_update()),
@@ -1667,7 +1671,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
 // would be to put a dummy msn in the messages created by setval_fun(), but preserving
 // the original msn seems cleaner and it preserves accountability at a lower layer.
 static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafnode, BASEMENTNODE bn, BRT_MSG cmd, int idx,
-                     LEAFENTRY le, OMT snapshot_txnids, OMT live_list_reverse, bool* made_change,
+                     LEAFENTRY le, OMT snapshot_txnids, OMT live_list_reverse,
                      uint64_t * workdone) {
     LEAFENTRY le_for_update;
     DBT key;
@@ -1710,7 +1714,7 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
     }
 
     struct setval_extra_s setval_extra = {setval_tag, FALSE, 0, leafnode, bn, cmd->msn, cmd->xids,
-                                          keyp, idx, le_for_update, snapshot_txnids, live_list_reverse, 0, workdone};
+                                          keyp, idx, le_for_update, snapshot_txnids, live_list_reverse, workdone};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
     int r = update_fun(
@@ -1721,10 +1725,6 @@ static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BRTNODE leafno
         setval_fun, &setval_extra
         );
 
-    *made_change = setval_extra.made_change;
-
-    // TODO(leif): ensure that really bad return codes actually cause a
-    // crash higher up the stack somewhere
     if (r == 0) { r = setval_extra.setval_r; }
     return r;
 }
@@ -1738,7 +1738,6 @@ brt_leaf_put_cmd (
     BRTNODE leafnode,  // bn is within leafnode
     BASEMENTNODE bn, 
     BRT_MSG cmd, 
-    bool* made_change,
     uint64_t *workdone,
     OMT snapshot_txnids,
     OMT live_list_reverse
@@ -1754,7 +1753,6 @@ brt_leaf_put_cmd (
     u_int32_t omt_size;
     int r;
     struct cmd_leafval_heaviside_extra be = {compare_fun, desc, cmd->u.id.key};
-    *made_change = 0;
 
     unsigned int doing_seqinsert = bn->seqinsert;
     bn->seqinsert = 0;
@@ -1763,7 +1761,6 @@ brt_leaf_put_cmd (
     case BRT_INSERT_NO_OVERWRITE:
     case BRT_INSERT: {
 	u_int32_t idx;
-	*made_change = 1;
 	if (doing_seqinsert) {
 	    idx = toku_omt_size(bn->buffer);
 	    r = toku_omt_fetch(bn->buffer, idx-1, &storeddatav);
@@ -1816,7 +1813,6 @@ brt_leaf_put_cmd (
 	    u_int32_t num_leafentries_before = toku_omt_size(bn->buffer);
 
 	    brt_leaf_apply_cmd_once(leafnode, bn, cmd, idx, storeddata, snapshot_txnids, live_list_reverse, workdone);
-	    *made_change = 1;
 
 	    { 
 		// Now we must find the next leafentry. 
@@ -1851,9 +1847,6 @@ brt_leaf_put_cmd (
 	break;
     }
     case BRT_OPTIMIZE_FOR_UPGRADE:
-	*made_change = 1;
-	// TODO 4053: Record version of software that sent the optimize_for_upgrade message, but that goes in the
-	//       node's optimize_for_upgrade field, not in the basement.
 	// fall through so that optimize_for_upgrade performs rest of the optimize logic
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_OPTIMIZE:
@@ -1872,7 +1865,6 @@ brt_leaf_put_cmd (
 		    //Item was deleted.
 		    deleted = 1;
 		}
-		*made_change = 1;
 	    }
 	    if (deleted)
 		omt_size--;
@@ -1899,7 +1891,6 @@ brt_leaf_put_cmd (
 		    //Item was deleted.
 		    deleted = 1;
 		}
-		*made_change = 1;
 	    }
 	    if (deleted)
 		omt_size--;
@@ -1914,10 +1905,10 @@ brt_leaf_put_cmd (
 	r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
 			       &storeddatav, &idx);
 	if (r==DB_NOTFOUND) {
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, NULL, snapshot_txnids, live_list_reverse, made_change, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, NULL, snapshot_txnids, live_list_reverse, workdone);
 	} else if (r==0) {
 	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, snapshot_txnids, live_list_reverse, made_change, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, snapshot_txnids, live_list_reverse, workdone);
 	} // otherwise, a worse error, just return it
 	break;
     }
@@ -1929,7 +1920,7 @@ brt_leaf_put_cmd (
 	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
 	    assert(r==0);
 	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, snapshot_txnids, live_list_reverse, made_change, workdone);
+	    r = do_update(update_fun, desc, leafnode, bn, cmd, idx, storeddata, snapshot_txnids, live_list_reverse, workdone);
 	    // TODO(leif): This early return means get_leaf_reactivity()
 	    // and VERIFY_NODE() never get called.  Is this a problem?
 	    assert(r==0);
@@ -2481,7 +2472,6 @@ brtnode_put_cmd (
     // and instead defer to these functions
     //
     if (node->height==0) {
-        bool made_change = false;
         uint64_t workdone = 0;
         toku_apply_cmd_to_leaf(
             compare_fun,
@@ -2489,7 +2479,6 @@ brtnode_put_cmd (
             desc,
             node, 
             cmd, 
-            &made_change, 
             &workdone,
             snapshot_txnids,
             live_list_reverse
@@ -2512,7 +2501,6 @@ void toku_apply_cmd_to_leaf(
     DESCRIPTOR desc, 
     BRTNODE node, 
     BRT_MSG cmd, 
-    bool *made_change, 
     uint64_t *workdone,
     OMT snapshot_txnids,
     OMT live_list_reverse
@@ -2556,7 +2544,6 @@ void toku_apply_cmd_to_leaf(
                              node, 
                              BLB(node, childnum),
                              cmd,
-                             made_change,
                              workdone,
                              snapshot_txnids,
                              live_list_reverse);
@@ -2565,7 +2552,6 @@ void toku_apply_cmd_to_leaf(
         }
     }
     else if (brt_msg_applies_all(cmd)) {
-        bool bn_made_change = false;
         for (int childnum=0; childnum<node->n_children; childnum++) {
             if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
                 BLB(node, childnum)->max_msn_applied = cmd->msn;
@@ -2575,11 +2561,9 @@ void toku_apply_cmd_to_leaf(
                                  node,
                                  BLB(node, childnum),
                                  cmd,
-                                 &bn_made_change,
                                  workdone,
                                  snapshot_txnids,
                                  live_list_reverse);
-                if (bn_made_change) *made_change = 1;
             } else {
                 STATUS_VALUE(BRT_MSN_DISCARDS)++;
             }
@@ -2775,30 +2759,13 @@ toku_brt_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do
     return r;
 }
 
-static int brt_optimize (BRT brt, BOOL upgrade);
-
 // Effect: Optimize the brt.
 int
 toku_brt_optimize (BRT brt) {
-    int r = brt_optimize(brt, FALSE);
-    return r;
-}
-
-int
-toku_brt_optimize_for_upgrade (BRT brt) {
-    int r = brt_optimize(brt, TRUE);
-    return r;
-}
-
-static int
-brt_optimize (BRT brt, BOOL upgrade) {
     int r = 0;
 
-    TXNID oldest = TXNID_NONE_LIVING;
-    if (!upgrade) {
-	TOKULOGGER logger = toku_cachefile_logger(brt->cf);
-	oldest = toku_logger_get_oldest_living_xid(logger, NULL);
-    }
+    TOKULOGGER logger = toku_cachefile_logger(brt->cf);
+    TXNID oldest = toku_logger_get_oldest_living_xid(logger, NULL);
 
     XIDS root_xids = xids_get_root_xids();
     XIDS message_xids;
@@ -2814,16 +2781,8 @@ brt_optimize (BRT brt, BOOL upgrade) {
     DBT val;
     toku_init_dbt(&key);
     toku_init_dbt(&val);
-    if (upgrade) {
-	// maybe there's a better place than the val dbt to put the version, but it seems harmless and is convenient
-	toku_fill_dbt(&val, &this_version, sizeof(this_version));  
-	BRT_MSG_S brtcmd = { BRT_OPTIMIZE_FOR_UPGRADE, ZERO_MSN, message_xids, .u.id={&key,&val}};
-	r = toku_brt_root_put_cmd(brt, &brtcmd);
-    }
-    else {
-	BRT_MSG_S brtcmd = { BRT_OPTIMIZE, ZERO_MSN, message_xids, .u.id={&key,&val}};
-	r = toku_brt_root_put_cmd(brt, &brtcmd);
-    }
+    BRT_MSG_S brtcmd = { BRT_OPTIMIZE, ZERO_MSN, message_xids, .u.id={&key,&val}};
+    r = toku_brt_root_put_cmd(brt, &brtcmd);
     xids_destroy(&message_xids);
     return r;
 }
@@ -3305,14 +3264,13 @@ brt_init_header_partial (BRT t, TOKUTXN txn) {
     t->h->cf = t->cf;
     t->h->nodesize=t->nodesize;
     t->h->basementnodesize=t->basementnodesize;
-    t->h->num_blocks_to_upgrade_13 = 0;
-    t->h->num_blocks_to_upgrade_14 = 0;
     t->h->root_xid_that_created = txn ? txn->ancestor_txnid64 : TXNID_NONE;
     t->h->compare_fun = t->compare_fun;
     t->h->update_fun = t->update_fun;
     t->h->in_memory_stats          = ZEROSTATS;
     t->h->on_disk_stats            = ZEROSTATS;
     t->h->checkpoint_staging_stats = ZEROSTATS;
+    t->h->highest_unused_msn_for_upgrade.msn = MIN_MSN.msn - 1;
 
     BLOCKNUM root = t->h->root_blocknum;
     if ((r=setup_initial_brt_root_node(t, root))!=0) { return r; }
@@ -3419,7 +3377,17 @@ int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_
     int r;
     {
 	int fd = toku_cachefile_get_and_pin_fd (cf);
-	r = toku_deserialize_brtheader_from(fd, max_acceptable_lsn, &h);
+	enum deserialize_error_code e = toku_deserialize_brtheader_from(fd, max_acceptable_lsn, &h);
+        if (e == DS_XSUM_FAIL) {
+            fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
+            assert(false);  // make absolutely sure we crash before doing anything else
+        } else if (e == DS_ERRNO) {
+            r = errno;
+        } else if (e == DS_OK) {
+            r = 0;
+        } else {
+            assert(false);
+        }
 	toku_cachefile_unpin_fd(cf);
     }
     if (r!=0) return r;
@@ -3699,9 +3667,6 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     assert(t->h);
     assert(t->h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     assert(t->h->dict_id.dictid < dict_id_serial);
-
-    r = toku_maybe_upgrade_brt(t);	  // possibly do some work to complete the version upgrade of brt
-    if (r!=0) goto died_after_read_and_pin;
 
     // brtheader_note_brt_open must be after all functions that can fail.
     r = brtheader_note_brt_open(t);
@@ -4797,8 +4762,7 @@ do_brt_leaf_put_cmd(BRT t, BRTNODE leafnode, BASEMENTNODE bn, BRTNODE ancestor, 
         toku_fill_dbt(&hk, key, keylen);
         DBT hv;
         BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
-        bool made_change;
-        brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->cmp_descriptor, leafnode, bn, &brtcmd, &made_change, &BP_WORKDONE(ancestor, childnum), NULL, NULL);  // pass NULL omts (snapshot_txnids and live_list_reverse) to prevent GC from running on message application for a query
+        brt_leaf_put_cmd(t->compare_fun, t->update_fun, &t->h->cmp_descriptor, leafnode, bn, &brtcmd, &BP_WORKDONE(ancestor, childnum), NULL, NULL);  // pass NULL omts (snapshot_txnids and live_list_reverse) to prevent GC from running on message application for a query
     } else {
         STATUS_VALUE(BRT_MSN_DISCARDS)++;
     }
@@ -6857,6 +6821,7 @@ toku_brt_header_init(struct brt_header *h,
     h->flags            = 0;
     h->root_xid_that_created = root_xid_that_created;
     h->compression_method = compression_method;
+    h->highest_unused_msn_for_upgrade.msn  = MIN_MSN.msn - 1;
 }
 
 #include <valgrind/helgrind.h>

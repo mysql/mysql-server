@@ -12,6 +12,7 @@
 #include <toku_portability.h>
 #include "rbuf.h"
 #include "x1764.h"
+#include "mempool.h"
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 extern "C" {
@@ -168,7 +169,9 @@ leafentry_disksize_13(LEAFENTRY_13 le);
 int 
 toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry, // NULL if there was no stored data.
 		      size_t *new_leafentry_memorysize, 
-		      LEAFENTRY *new_leafentry_p);
+		      LEAFENTRY *new_leafentry_p,
+		      OMT omt,
+		      struct mempool *mp);
 
 
 #if defined(__cplusplus) || defined(__cilkplusplus)

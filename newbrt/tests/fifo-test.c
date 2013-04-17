@@ -1,3 +1,4 @@
+/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 #ident "$Id$"
 #include "includes.h"
 
@@ -89,6 +90,7 @@ test_fifo_enq (int n) {
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
+    initialize_dummymsn();
     test_fifo_create();
     test_fifo_enq(4);
     test_fifo_enq(512);
