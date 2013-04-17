@@ -49,21 +49,6 @@ ha_tokudb::print_alter_info(TABLE *altered_table, Alter_inplace_info *ha_alter_i
     printf("******\n");
 }
 
-class tokudb_alter_ctx : public inplace_alter_handler_ctx {
-public:
-    tokudb_alter_ctx() {
-        add_index_changed = false;
-        drop_index_changed = false;
-        compression_changed = false;
-    }
-public:
-    bool add_index_changed;
-    bool incremented_num_DBs, modified_DBs;
-    bool drop_index_changed;
-    bool compression_changed;
-    enum toku_compression_method orig_compression_method;
-};
-
 // workaround for fill_alter_inplace_info bug (#5193)
 // the function erroneously sets the ADD_INDEX and DROP_INDEX flags for a column addition that does not
 // change the keys.  the following code turns the ADD_INDEX and DROP_INDEX flags so that we can do hot
@@ -80,6 +65,36 @@ fix_handler_flags(Alter_inplace_info *ha_alter_info, TABLE *table, TABLE *altere
     }
     return handler_flags;
 }
+
+// require that there is no intersection of add and drop names.
+static bool
+is_disjoint_add_drop(Alter_inplace_info *ha_alter_info) {
+    for (uint d = 0; d < ha_alter_info->index_drop_count; d++) {
+        KEY *drop_key = ha_alter_info->index_drop_buffer[d];
+        for (uint a = 0; a < ha_alter_info->index_add_count; a++) {
+            KEY *add_key = &ha_alter_info->key_info_buffer[ha_alter_info->index_add_buffer[a]];
+            if (strcmp(drop_key->name, add_key->name) == 0) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+class tokudb_alter_ctx : public inplace_alter_handler_ctx {
+public:
+    tokudb_alter_ctx() {
+        add_index_changed = false;
+        drop_index_changed = false;
+        compression_changed = false;
+    }
+public:
+    bool add_index_changed;
+    bool incremented_num_DBs, modified_DBs;
+    bool drop_index_changed;
+    bool compression_changed;
+    enum toku_compression_method orig_compression_method;
+};
 
 // true if some bit in mask is set and no bit in ~mask is set
 // otherwise false
@@ -106,12 +121,11 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     ulong handler_flags = fix_handler_flags(ha_alter_info, table, altered_table);
 
     // add/drop index
-#if 0
-    // turn this on when we support add and drop in the same statement
     if (only_flags(handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX + 
                                   Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
         if ((ha_alter_info->index_add_count > 0 || ha_alter_info->index_drop_count > 0) &&
-            !tables_have_same_keys(table, altered_table, false, false)) {
+            !tables_have_same_keys(table, altered_table, false, false) &&
+            is_disjoint_add_drop(ha_alter_info)) {
 
             result = HA_ALTER_INPLACE_SHARED_LOCK;
 
@@ -123,29 +137,6 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
             }
         }
     } else
-#else
-    if (only_flags(handler_flags, Alter_inplace_info::ADD_INDEX + Alter_inplace_info::ADD_UNIQUE_INDEX)) {
-        if ((ha_alter_info->index_add_count > 0) &&
-            !tables_have_same_keys(table, altered_table, false, false)) {
-
-            result = HA_ALTER_INPLACE_SHARED_LOCK;
-
-            // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
-            // for now, hot indexing is only supported via session variable with the create index sql command
-            if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 && 
-                get_create_index_online(thd) && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) {
-                result = HA_ALTER_INPLACE_NO_LOCK;
-            }
-        }
-    } else
-    if (only_flags(handler_flags, Alter_inplace_info::DROP_INDEX + Alter_inplace_info::DROP_UNIQUE_INDEX)) {
-        if ((ha_alter_info->index_drop_count > 0) &&
-            !tables_have_same_keys(table, altered_table, false, false)) {
-
-            result = HA_ALTER_INPLACE_SHARED_LOCK;
-        }
-    } else
-#endif
     // column rename
     if (only_flags(handler_flags, Alter_inplace_info::ALTER_COLUMN_NAME + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
         // we have identified a possible column rename, 
@@ -474,12 +465,22 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
     }
 
     if (!commit || result == true) {
+
+        // abort the transaction NOW so that any alters are rolled back. this allows the following restores to work.
+        THD *thd = ha_thd();
+        tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        assert(trx && transaction == trx->stmt);
+        abort_txn(transaction);
+        transaction = NULL;
+        trx->stmt = NULL;
+
         tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
 
         if (ctx->add_index_changed) {
             restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
         }
         if (ctx->drop_index_changed) {
+
             // translate KEY pointers to indexes into the key_info array
             uint index_drop_offsets[ha_alter_info->index_drop_count];
             for (uint i = 0; i < ha_alter_info->index_drop_count; i++)
