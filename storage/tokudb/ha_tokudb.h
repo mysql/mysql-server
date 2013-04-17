@@ -5,19 +5,16 @@
 #pragma interface               /* gcc class implementation */
 #endif
 
-#define TOKU_INCLUDE_CHECKPOINT_LOCK 1
-
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #else
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
 #endif
 
-#define TOKU_INCLUDE_UPDATE_FUN 1
-
 #if !defined(HA_CLUSTERING)
 #define HA_CLUSTERING 0
 #endif
+
 #if !defined(HA_CLUSTERED_INDEX)
 #define HA_CLUSTERED_INDEX 0
 #endif
