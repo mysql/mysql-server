@@ -37,6 +37,15 @@ static inline void wbuf_char (struct wbuf *w, unsigned char ch) {
     x1764_add(&w->checksum, &w->buf[w->ndone-1], 1);
 }
 
+//Write an int that MUST be in network order regardless of disk order
+static void wbuf_network_int (struct wbuf *w, int32_t i) __attribute__((__unused__));
+static void wbuf_network_int (struct wbuf *w, int32_t i) {
+    assert(w->ndone + 4 <= w->size);
+    *(u_int32_t*)(&w->buf[w->ndone]) = toku_htonl(i);
+    x1764_add(&w->checksum, &w->buf[w->ndone], 4);
+    w->ndone += 4;
+}
+
 static void wbuf_int (struct wbuf *w, int32_t i) {
 #if 0
     wbuf_char(w, i>>24);
@@ -57,6 +66,7 @@ static void wbuf_int (struct wbuf *w, int32_t i) {
     w->ndone += 4;
 #endif
 }
+
 static void wbuf_uint (struct wbuf *w, u_int32_t i) {
     wbuf_int(w, (int32_t)i);
 }

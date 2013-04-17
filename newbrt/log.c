@@ -155,8 +155,8 @@ static int open_logfile (TOKULOGGER logger) {
         if (logger->fd==-1) return errno;
     }
     logger->next_log_file_number++;
-    int version_l = toku_htod32(log_format_version);
     r = write_it(logger->fd, "tokulogg", 8);             if (r!=8) return errno;
+    int version_l = toku_htonl(log_format_version); //version MUST be in network byte order regardless of disk order
     r = write_it(logger->fd, &version_l, 4);             if (r!=4) return errno;
     logger->fsynced_lsn = logger->written_lsn;
     logger->n_in_file = 12;
@@ -832,7 +832,8 @@ int toku_read_and_print_logmagic (FILE *f, u_int32_t *versionp) {
 	    return DB_BADFORMAT;
 	}
 	//printf("tokulog v.%d\n", toku_dtoh32(version));
-	*versionp=toku_dtoh32(version);
+        //version MUST be in network order regardless of disk order
+	*versionp=toku_ntohl(version);
     }
     return 0;
 }
