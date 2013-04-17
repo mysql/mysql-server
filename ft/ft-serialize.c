@@ -90,9 +90,9 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_ve
     toku_fill_dbt(&desc->dbt, data_copy, size);
 }
 
-static enum deserialize_error_code
+static int
 deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_version) {
-    enum deserialize_error_code e;
+    int r = 0;
     DISKOFF offset;
     DISKOFF size;
     unsigned char *dbuf = NULL;
@@ -103,8 +103,8 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
         {
             XMALLOC_N(size, dbuf);
             {
-                ssize_t r = toku_os_pread(fd, dbuf, size, offset);
-                lazy_assert(r==size);
+                ssize_t sz_read = toku_os_pread(fd, dbuf, size, offset);
+                lazy_assert(sz_read==size);
             }
             {
                 // check the checksum
@@ -113,7 +113,7 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
                 u_int32_t stored_x1764 = toku_dtoh32(*(int*)(dbuf + size-4));
                 if (x1764 != stored_x1764) {
                     fprintf(stderr, "Descriptor checksum failure: calc=0x%08x read=0x%08x\n", x1764, stored_x1764);
-                    e = DS_XSUM_FAIL;
+                    r = TOKUDB_BAD_CHECKSUM;
                     toku_free(dbuf);
                     goto exit;
                 }
@@ -127,16 +127,15 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
             toku_free(dbuf);
         }
     }
-    e = DS_OK;
 exit:
-    return e;
+    return r;
 }
 
 // We only deserialize brt header once and then share everything with all the brts.
-enum deserialize_error_code
+int
 deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 {
-    enum deserialize_error_code e = DS_OK;
+    int r;
     FT ft = NULL;
     invariant(version >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
     invariant(version <= FT_LAYOUT_VERSION);
@@ -152,14 +151,14 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 
     XCALLOC(ft);
     if (!ft) {
-        e = DS_ERRNO;
+        r = errno;
         goto exit;
     }
     ft->checkpoint_header = NULL;
     ft->panic = 0;
     ft->panic_string = 0;
     toku_list_init(&ft->live_ft_handles);
-    int r = toku_omt_create(&ft->txns);
+    r = toku_omt_create(&ft->txns);
     assert_zero(r);
 
     //version MUST be in network order on disk regardless of disk order
@@ -204,13 +203,13 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
             lazy_assert(readsz == translation_size_on_disk);
         }
         // Create table and read in data.
-        e = toku_blocktable_create_from_buffer(fd,
+        r = toku_blocktable_create_from_buffer(fd,
                                                &ft->blocktable,
                                                translation_address_on_disk,
                                                translation_size_on_disk,
                                                tbuf);
         toku_free(tbuf);
-        if (e != DS_OK) {
+        if (r != 0) {
             goto exit;
         }
     }
@@ -283,8 +282,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     (void) rbuf_int(rb); //Read in checksum and ignore (already verified).
     if (rb->ndone != rb->size) {
         fprintf(stderr, "Header size did not match contents.\n");
-        errno = EINVAL;
-        e = DS_ERRNO;
+        r = EINVAL;
         goto exit;
     }
 
@@ -319,15 +317,15 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_18) {
         // This needs ft->h to be non-null, so we have to do it after we
         // read everything else.
-        e = toku_upgrade_subtree_estimates_to_stat64info(fd, ft);
-        if (e != DS_OK) {
+        r = toku_upgrade_subtree_estimates_to_stat64info(fd, ft);
+        if (r != 0) {
             goto exit;
         }
     }
 
     invariant((uint32_t) ft->layout_version_read_from_disk == version);
-    e = deserialize_descriptor_from(fd, ft->blocktable, &ft->descriptor, version);
-    if (e != DS_OK) {
+    r = deserialize_descriptor_from(fd, ft->blocktable, &ft->descriptor, version);
+    if (r != 0) {
         goto exit;
     }
     // copy descriptor to cmp_descriptor for #4541
@@ -338,20 +336,19 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     // version if it gets written out, we need to write the descriptor in
     // the new format (without those bytes) before that happens.
     if (version <= FT_LAYOUT_VERSION_13) {
-    r = toku_update_descriptor(ft, &ft->cmp_descriptor, fd);
+        r = toku_update_descriptor(ft, &ft->cmp_descriptor, fd);
         if (r != 0) {
-            errno = r;
-            e = DS_ERRNO;
             goto exit;
         }
     }
+    r = 0;
 exit:
-    if (e != DS_OK && ft != NULL) {
+    if (r != 0 && ft != NULL) {
         toku_free(ft);
         ft = NULL;
     }
     *ftp = ft;
-    return e;
+    return r;
 }
 
 static u_int32_t
@@ -419,12 +416,11 @@ serialize_ft_min_size (u_int32_t version) {
 // file AND the header is useless
 int
 deserialize_ft_from_fd_into_rbuf(int fd,
-                                        toku_off_t offset_of_header,
-                                        struct rbuf *rb,
-                                        u_int64_t *checkpoint_count,
-                                        LSN *checkpoint_lsn,
-                                        u_int32_t * version_p,
-                                        enum deserialize_error_code *e)
+                                 toku_off_t offset_of_header,
+                                 struct rbuf *rb,
+                                 u_int64_t *checkpoint_count,
+                                 LSN *checkpoint_lsn,
+                                 u_int32_t * version_p)
 {
     int r = 0;
     const int64_t prefix_size = 8 + // magic ("tokudata")
@@ -508,9 +504,8 @@ deserialize_ft_from_fd_into_rbuf(int fd,
     u_int32_t calculated_x1764 = x1764_memory(rb->buf, rb->size-4);
     u_int32_t stored_x1764 = toku_dtoh32(*(int*)(rb->buf+rb->size-4));
     if (calculated_x1764 != stored_x1764) {
-        r = TOKUDB_DICTIONARY_NO_HEADER; //Header useless
+        r = TOKUDB_BAD_CHECKSUM; //Header useless
         fprintf(stderr, "Header checksum failure: calc=0x%08x read=0x%08x\n", calculated_x1764, stored_x1764);
-        *e = DS_XSUM_FAIL;
         goto exit;
     }
 
@@ -543,10 +538,10 @@ exit:
 // Read ft from file into struct.  Read both headers and use one.
 // We want the latest acceptable header whose checkpoint_lsn is no later
 // than max_acceptable_lsn.
-enum deserialize_error_code
+int
 toku_deserialize_ft_from(int fd,
-                                LSN max_acceptable_lsn,
-                                FT *ft)
+                         LSN max_acceptable_lsn,
+                         FT *ft)
 {
     struct rbuf rb_0;
     struct rbuf rb_1;
@@ -559,18 +554,15 @@ toku_deserialize_ft_from(int fd,
     BOOL h1_acceptable = FALSE;
     struct rbuf *rb = NULL;
     int r0, r1, r;
-    enum deserialize_error_code e0, e1, e;
 
     toku_off_t header_0_off = 0;
-    e0 = DS_OK;
-    r0 = deserialize_ft_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0, &e0);
+    r0 = deserialize_ft_from_fd_into_rbuf(fd, header_0_off, &rb_0, &checkpoint_count_0, &checkpoint_lsn_0, &version_0);
     if (r0 == 0 && checkpoint_lsn_0.lsn <= max_acceptable_lsn.lsn) {
         h0_acceptable = TRUE;
     }
 
     toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
-    e1 = DS_OK;
-    r1 = deserialize_ft_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1, &e1);
+    r1 = deserialize_ft_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
     if (r1 == 0 && checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) {
         h1_acceptable = TRUE;
     }
@@ -585,6 +577,9 @@ toku_deserialize_ft_from(int fd,
             r = TOKUDB_DICTIONARY_TOO_NEW;
         } else if (r0 == TOKUDB_DICTIONARY_TOO_OLD || r1 == TOKUDB_DICTIONARY_TOO_OLD) {
             r = TOKUDB_DICTIONARY_TOO_OLD;
+        } else if (r0 == TOKUDB_BAD_CHECKSUM && r1 == TOKUDB_BAD_CHECKSUM) {
+            fprintf(stderr, "Both header checksums failed.\n");
+            r = TOKUDB_BAD_CHECKSUM;
         } else if (r0 == TOKUDB_DICTIONARY_NO_HEADER || r1 == TOKUDB_DICTIONARY_NO_HEADER) {
             r = TOKUDB_DICTIONARY_NO_HEADER;
         } else {
@@ -596,13 +591,6 @@ toku_deserialize_ft_from(int fd,
         invariant(!((r0==0 && checkpoint_lsn_0.lsn > max_acceptable_lsn.lsn) &&
                     (r1==0 && checkpoint_lsn_1.lsn > max_acceptable_lsn.lsn)));
         invariant(r!=0);
-        if (e0 == DS_XSUM_FAIL && e1 == DS_XSUM_FAIL) {
-            fprintf(stderr, "Both header checksums failed.\n");
-            e = DS_XSUM_FAIL;
-        } else {
-            errno = r;
-            e = DS_ERRNO;
-        }
         goto exit;
     }
 
@@ -620,14 +608,14 @@ toku_deserialize_ft_from(int fd,
             version = version_1;
         }
     } else if (h0_acceptable) {
-        if (e1 == DS_XSUM_FAIL) {
+        if (r1 == TOKUDB_BAD_CHECKSUM) {
             // print something reassuring
             fprintf(stderr, "Header 2 checksum failed, but header 1 ok.  Proceeding.\n");
         }
         rb = &rb_0;
         version = version_0;
     } else if (h1_acceptable) {
-        if (e0 == DS_XSUM_FAIL) {
+        if (r0 == TOKUDB_BAD_CHECKSUM) {
             // print something reassuring
             fprintf(stderr, "Header 1 checksum failed, but header 2 ok.  Proceeding.\n");
         }
@@ -636,7 +624,7 @@ toku_deserialize_ft_from(int fd,
     }
 
     invariant(rb);
-    e = deserialize_ft_versioned(fd, rb, ft, version);
+    r = deserialize_ft_versioned(fd, rb, ft, version);
 
 exit:
     if (rb_0.buf) {
@@ -645,7 +633,7 @@ exit:
     if (rb_1.buf) {
         toku_free(rb_1.buf);
     }
-    return e;
+    return r;
 }
 
 

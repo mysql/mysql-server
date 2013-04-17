@@ -24,7 +24,7 @@ struct block_translation_pair {
 };
 
 void toku_blocktable_create_new(BLOCK_TABLE *btp);
-enum deserialize_error_code toku_blocktable_create_from_buffer(int fd, BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
+int toku_blocktable_create_from_buffer(int fd, BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
 void toku_ft_lock(FT h);
