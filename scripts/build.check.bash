@@ -177,45 +177,44 @@ function build() {
     runcmd 0 $productbuilddir retry svn checkout -q -r $revision $svnserver/$checkout . >>$tracefile 2>&1
 
     # portability
-    runcmd 0 $productbuilddir/$oschoice make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/$oschoice/tests make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/$oschoice/tests make -k -j$makejobs check -s SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/$oschoice make local -k -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/$oschoice/tests make -k -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/$oschoice/tests make check -k -j$makejobs -s SUMMARIZE=1 >>$tracefile 2>&1
 
     # newbrt
-    runcmd 0 $productbuilddir/newbrt make -k -j$makejobs checko2 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/newbrt make -k -s -j$makejobs >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/newbrt make local -k -s SUMMARIZE=1 >>$tracefile 2>&1
     if [ $dovalgrind -ne 0 ] ; then
-        runcmd 0 $productbuilddir/newbrt make -j$makejobs -k check -s SUMMARIZE=1 >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 >>$tracefile 2>&1
     else
-        runcmd 0 $productbuilddir/newbrt make -j$makejobs -k check -s SUMMARIZE=1 VGRIND="" >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/newbrt make check -j$makejobs -k -s SUMMARIZE=1 VGRIND="" >>$tracefile 2>&1
     fi
 
     # lock tree
-    runcmd 0 $productbuilddir/src/range_tree make -k -s -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/lock_tree make -k -s -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/range_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/src/lock_tree/tests make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/range_tree make -k -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/lock_tree make -k -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/range_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/lock_tree/tests make check -k -j$makejobs -s SUMMARIZE=1 >>$tracefile 2>&1
 
     # src
-    runcmd 0 $productbuilddir/src make -k -s -j$makejobs local >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/src make -k -j$makejobs check_globals >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src make local -k -s >>$tracefile 2>&1
+    runcmd $dowindows $productbuilddir/src make check_globals  >>$tracefile 2>&1
     runcmd 0 $productbuilddir/src/tests make -k -s -j$makejobs >>$tracefile 2>&1
 
     # utils
-    runcmd 0 $productbuilddir/utils make -k -s -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/utils make -k -s -j$makejobs check SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/utils make -k -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/utils make check -k -j$makejobs -s SUMMARIZE=1 >>$tracefile 2>&1
 
     # src/tests
-    runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.bdb VGRIND="" BDB_SUPPRESSIONS="" SUMMARIZE=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/src/tests make check.bdb -j$makejobs -k -s SUMMARIZE=1 VGRIND="" BDB_SUPPRESSIONS="" >>$tracefile 2>&1
     if [ $dovalgrind -ne 0 ] ; then
-        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.tdb SUMMARIZE=1 >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 >>$tracefile 2>&1
     else
-        runcmd 0 $productbuilddir/src/tests make -j$makejobs -k -s check.tdb VGRIND="" SUMMARIZE=1 >>$tracefile 2>&1
+        runcmd 0 $productbuilddir/src/tests make check.tdb -j$makejobs -k -s SUMMARIZE=1 VGRIND=""  >>$tracefile 2>&1
     fi
 
     # benchmark tests
     runcmd 0 $productbuilddir/db-benchmark-test make -k -j$makejobs >>$tracefile 2>&1
-    runcmd 0 $productbuilddir/db-benchmark-test make -j$makejobs -k check >>$tracefile 2>&1
+    runcmd 0 $productbuilddir/db-benchmark-test make check -j$makejobs -k >>$tracefile 2>&1
 
     # cxx
     runcmd $dowindows $productbuilddir/cxx make -k -s >>$tracefile 2>&1
@@ -237,8 +236,8 @@ function build() {
     fi
 
     # debug build
-    runcmd 0 $productbuilddir make -s clean >>$tracefile 2>&1
-    runcmd 0 $productbuilddir make -s -j$makejobs DEBUG=1 >>$tracefile 2>&1
+    runcmd 0 $productbuilddir make clean -s >>$tracefile 2>&1
+    runcmd 0 $productbuilddir make -s DEBUG=1 >>$tracefile 2>&1
 
     # run the brtloader tests with a debug build
     runcmd 0 $productbuilddir/newbrt/tests make check_brtloader -k -j$makejobs DEBUG=1 -s SUMMARIZE=1 >>$tracefile 2>&1
