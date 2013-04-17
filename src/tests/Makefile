@@ -1056,7 +1056,7 @@ tiny_%.drdrun: %.tdb
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 mid_%.drdrun: %.tdb
 	./$< --only_create --envdir dir.$@ --num_elements 10000 && \
-	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
+	$(VALGRIND) --tool=drd --quiet --check-stack-var=yes --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --only_stress --num_seconds 100 --envdir dir.$@ --num_elements 10000 \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 large_%.drdrun: %.tdb
 	./$< --only_create --envdir dir.$@ && \
