@@ -6494,7 +6494,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         num_processed++; 
 
         if ((num_processed % 1000) == 0) {
-            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows.", num_processed, (long long unsigned) share->rows);
+            sprintf(status_msg, "Adding indexes: Processed %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
             thd_proc_info(thd, status_msg);
             if (thd->killed) {
                 error = ER_ABORTING_CONNECTION;
