@@ -1,17 +1,14 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef BLOCK_ALLOCATOR_H
 #define  BLOCK_ALLOCATOR_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "fttypes.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 #define BLOCK_ALLOCATOR_ALIGNMENT 4096
 // How much must be reserved at the beginning for the block?
@@ -144,8 +141,5 @@ void block_allocator_merge_blockpairs_into (u_int64_t d,       struct block_allo
 //   No blocks may overlap.
 // Rationale: This is exposed so it can be tested by a glass box tester.  Otherwise it would be static (file-scope) function inside block_allocator.c
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif

@@ -1,10 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef FT_INTERNAL_H
 #define FT_INTERNAL_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <config.h>
@@ -29,6 +29,7 @@
 #include "block_table.h"
 #include "mempool.h"
 #include "compress.h"
+#include "omt-tmpl.h"
 
 // Uncomment the following to use quicklz
 
@@ -103,7 +104,7 @@ struct toku_fifo_entry_key_msn_heaviside_extra {
 // comparison function for inserting messages into a
 // ftnode_nonleaf_childinfo's message_tree
 int
-toku_fifo_entry_key_msn_heaviside(OMTVALUE v, void *extrap);
+toku_fifo_entry_key_msn_heaviside(const long &v, const struct toku_fifo_entry_key_msn_heaviside_extra &extra);
 
 struct toku_fifo_entry_key_msn_cmp_extra {
     DESCRIPTOR desc;
@@ -113,14 +114,16 @@ struct toku_fifo_entry_key_msn_cmp_extra {
 
 // same thing for qsort_r
 int
-toku_fifo_entry_key_msn_cmp(void *extrap, const void *ap, const void *bp);
+toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extrap, const long &a, const long &b);
+
+typedef toku::omt<long> off_omt_t;
 
 // data of an available partition of a nonleaf ftnode
 struct ftnode_nonleaf_childinfo {
     FIFO buffer;
-    OMT broadcast_list;
-    OMT fresh_message_tree;
-    OMT stale_message_tree;
+    off_omt_t broadcast_list;
+    off_omt_t fresh_message_tree;
+    off_omt_t stale_message_tree;
 };
 
 unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
@@ -140,6 +143,7 @@ toku_ft_nonleaf_is_gorged(FTNODE node);
 
 enum reactivity get_nonleaf_reactivity (FTNODE node);
 enum reactivity get_node_reactivity (FTNODE node);
+
 
 // data of an available partition of a leaf ftnode
 struct ftnode_leaf_basement_node {

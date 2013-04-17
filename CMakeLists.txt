@@ -7,6 +7,7 @@ include(TokuSetupIntelCompiler)
 
 project(TokuDB)
 
+# suppress -rdynamic
 set(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS "")
 
@@ -25,7 +26,7 @@ set(LIBTOKUDB "tokudb" CACHE STRING "Name of libtokudb.so")
 ## add an option for cilk
 option(USE_CILK "Use cilk in tokudb." OFF)
 ## can't use cilk without icc
-if (USE_CILK AND (NOT CMAKE_C_COMPILER_ID MATCHES Intel))
+if (USE_CILK AND (NOT CMAKE_CXX_COMPILER_ID MATCHES Intel))
   message(FATAL_ERROR "You specified USE_CILK=ON so you need INTEL_CC=ON.")
 endif ()
 

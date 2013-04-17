@@ -1,6 +1,6 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-set(lock_tree_srcs locktree.c idlth.c lth.c rth.c txnid_set.c wfg.c)
+set(lock_tree_srcs locktree idlth lth rth txnid_set wfg)
 
 ## make the linear library for tests
 add_library(lock_tree_lin SHARED ${lock_tree_srcs})
@@ -15,7 +15,7 @@ target_link_libraries(lock_tree_tlog range_tree_tlog)
 add_dependencies(lock_tree_tlog install_tdb_h)
 
 set_targets_need_intel_libs(lock_tree_lin lock_tree_tlog)
-if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+if (CMAKE_CXX_COMPILER_ID STREQUAL Intel)
   add_space_separated_property(TARGET lock_tree_lin LINK_FLAGS "-diag-disable 10237")
   add_space_separated_property(TARGET lock_tree_tlog LINK_FLAGS "-diag-disable 10237")
 endif ()

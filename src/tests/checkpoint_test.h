@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
@@ -247,8 +247,8 @@ dbcpy(DICTIONARY dest, DICTIONARY src, DB_TXN *open_txn) {
     r = env->get_iname(env, &src_dname_dbt, &src_iname_dbt);
     CKERR(r);
 
-    char * src_iname = cast_to_typeof(src_iname) src_iname_dbt.data;
-    char * dest_iname = cast_to_typeof(dest_iname) dest_iname_dbt.data;
+    char * CAST_FROM_VOIDP(src_iname, src_iname_dbt.data);
+    char * CAST_FROM_VOIDP(dest_iname, dest_iname_dbt.data);
 
     int bytes;
 

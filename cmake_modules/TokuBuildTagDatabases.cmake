@@ -1,17 +1,17 @@
 ## set up lists of sources and headers for tags
 file(GLOB_RECURSE all_srcs
-  include/*.c
-  toku_include/*.c
-  buildheader/*.c
-  portability/*.c
-  ft/*.c
-  src/*.c
-  utils/*.c
-  db-benchmark-test/*.c
+  include/*.cc
+  toku_include/*.cc
+  buildheader/*.cc
+  portability/*.cc
+  ft/*.cc
+  src/*.cc
+  utils/*.cc
+  db-benchmark-test/*.cc
   )
 list(APPEND all_srcs
-  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_code.c
-  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_print.c
+  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_code.cc
+  ${CMAKE_CURRENT_BINARY_DIR}/ft/log_print.cc
   )
 file(GLOB_RECURSE all_hdrs
   include/*.h

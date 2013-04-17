@@ -112,13 +112,11 @@ int DbEnv::maybe_throw_error(int err) throw (DbException) {
     return maybe_throw_error(err, this, do_no_exceptions);
 }
 
-extern "C" {
-void toku_ydb_error_all_cases(const DB_ENV * env, 
-                              int error, 
-                              BOOL include_stderrstring, 
-                              BOOL use_stderr_if_nothing_else, 
-                              const char *fmt, va_list ap);
-}
+extern "C" void toku_ydb_error_all_cases(const DB_ENV * env,
+                                         int error,
+                                         BOOL include_stderrstring,
+                                         BOOL use_stderr_if_nothing_else,
+                                         const char *fmt, va_list ap);
 
 void DbEnv::err(int error, const char *fmt, ...) {
     va_list ap;

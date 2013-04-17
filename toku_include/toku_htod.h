@@ -1,5 +1,6 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
 
@@ -39,9 +40,6 @@
 #error Standard endianness things not all defined
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 static const int64_t toku_byte_order_host = 0x0102030405060708LL;
 
@@ -84,9 +82,6 @@ toku_htod32(uint32_t i) {
 #error Not supported
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 
 #endif

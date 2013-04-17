@@ -1,5 +1,6 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 #ifndef MEMORY_H
 #define MEMORY_H
 
@@ -8,9 +9,6 @@
 #include <stdlib.h>
 #include <toku_portability.h>
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
@@ -48,29 +46,29 @@ size_t toku_malloc_usable_size(void *p) __attribute__((__visibility__("default")
  *    struct foo *MALLOC(x);
  * and you cannot go wrong.
  */
-#define MALLOC(v) v = cast_to_typeof(v) toku_malloc(sizeof(*v))
+#define MALLOC(v) CAST_FROM_VOIDP(v, toku_malloc(sizeof(*v)))
 /* MALLOC_N is like calloc(Except no 0ing of data):  It makes an array.  Write
  *   int *MALLOC_N(5,x);
  * to make an array of 5 integers.
  */
-#define MALLOC_N(n,v) v = cast_to_typeof(v) toku_malloc((n)*sizeof(*v))
+#define MALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_malloc((n)*sizeof(*v)))
 
 //CALLOC_N is like calloc with auto-figuring out size of members
-#define CALLOC_N(n,v) v = cast_to_typeof(v) toku_calloc((n), sizeof(*v)) 
+#define CALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_calloc((n), sizeof(*v)))
 
 #define CALLOC(v) CALLOC_N(1,v)
 
-#define REALLOC_N(n,v) v = cast_to_typeof(v) toku_realloc(v, (n)*sizeof(*v))
+#define REALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_realloc(v, (n)*sizeof(*v)))
 
 // XMALLOC macros are like MALLOC except they abort if the operation fails
-#define XMALLOC(v) v = cast_to_typeof(v) toku_xmalloc(sizeof(*v))
-#define XMALLOC_N(n,v) v = cast_to_typeof(v) toku_xmalloc((n)*sizeof(*v))
-#define XCALLOC_N(n,v) v = cast_to_typeof(v) toku_xcalloc((n), (sizeof(*v)))
+#define XMALLOC(v) CAST_FROM_VOIDP(v, toku_xmalloc(sizeof(*v)))
+#define XMALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xmalloc((n)*sizeof(*v)))
+#define XCALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xcalloc((n), (sizeof(*v))))
 
 #define XCALLOC(v) XCALLOC_N(1,(v))
-#define XREALLOC_N(n,v) v = cast_to_typeof(v) toku_xrealloc(v, (n)*sizeof(*v))
+#define XREALLOC_N(n,v) CAST_FROM_VOIDP(v, toku_xrealloc(v, (n)*sizeof(*v)))
 
-#define XMEMDUP(dst, src) dst = cast_to_typeof(dst) toku_xmemdup(src, sizeof(*src))
+#define XMEMDUP(dst, src) CAST_FROM_VOIDP(dst, toku_xmemdup(src, sizeof(*src)))
 
 // ZERO_ARRAY writes zeroes to a stack-allocated array
 #define ZERO_ARRAY(o) do { memset((o), 0, sizeof (o)); } while (0)
@@ -126,14 +124,13 @@ size_t toku_memory_footprint(void * p, size_t touched);
 
 #ifndef NVALGRIND
 # define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ANNOTATE_NEW_MEMORY(p, size)
+# define HELGRIND_VALGRIND_HG_ENABLE_CHECKING(p, size) VALGRIND_HG_ENABLE_CHECKING(p, size)
 # define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) VALGRIND_HG_DISABLE_CHECKING(p, size)
 #else
 # define HELGRIND_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
+# define HELGRIND_VALGRIND_HG_ENABLE_CHECKING(p, size) ((void) 0)
 # define HELGRIND_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
 
 #endif

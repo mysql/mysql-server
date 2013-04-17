@@ -101,9 +101,9 @@ endmacro(get_svn_wc_status)
 
 ## gather machine info
 uname("-m" machine_type)
-real_executable_name("${CMAKE_C_COMPILER}" real_c_compiler)
-get_svn_revision("${CMAKE_CURRENT_SOURCE_DIR}" svn_revision)  ## unused since it confuses cdash about history
-get_svn_wc_status("${CMAKE_CURRENT_SOURCE_DIR}" wc_status)    ## unused since it confuses cdash about history
+real_executable_name("${CMAKE_CXX_COMPILER}" real_cxx_compiler)
+#get_svn_revision("${CMAKE_CURRENT_SOURCE_DIR}" svn_revision)  ## unused since it confuses cdash about history
+#get_svn_wc_status("${CMAKE_CURRENT_SOURCE_DIR}" wc_status)    ## unused since it confuses cdash about history
 get_filename_component(branchname "${CMAKE_CURRENT_SOURCE_DIR}" NAME)
 hostname(host)
 whoami(user)
@@ -111,7 +111,7 @@ whoami(user)
 ## construct SITE, seems to have to happen before include(CTest)
 set(SITE "${user}@${host}")
 ## construct BUILDNAME, seems to have to happen before include(CTest)
-set(BUILDNAME "${branchname} ${CMAKE_BUILD_TYPE} ${CMAKE_SYSTEM} ${machine_type} ${CMAKE_C_COMPILER_ID} ${real_c_compiler} ${CMAKE_C_COMPILER_VERSION}" CACHE STRING "CTest build name" FORCE)
+set(BUILDNAME "${branchname} ${CMAKE_BUILD_TYPE} ${CMAKE_SYSTEM} ${machine_type} ${CMAKE_CXX_COMPILER_ID} ${real_cxx_compiler} ${CMAKE_CXX_COMPILER_VERSION}" CACHE STRING "CTest build name" FORCE)
 
 include(CTest)
 
@@ -128,7 +128,7 @@ if (BUILD_TESTING)
   set(CMAKE_HELGRIND_COMMAND_STRING "valgrind --quiet --tool=helgrind --error-exitcode=1 --suppressions=${TokuDB_SOURCE_DIR}/src/tests/helgrind.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
   function(add_helgrind_test name)
     if (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-        ((CMAKE_C_COMPILER_ID MATCHES Intel) AND
+        ((CMAKE_CXX_COMPILER_ID MATCHES Intel) AND
          (CMAKE_BUILD_TYPE MATCHES Release)) OR
         USE_GCOV)
       ## can't use helgrind on osx or with optimized intel, no point in
@@ -150,7 +150,7 @@ if (BUILD_TESTING)
   set(CMAKE_DRD_COMMAND_STRING "valgrind --quiet --tool=drd --error-exitcode=1 --suppressions=${TokuDB_SOURCE_DIR}/src/tests/drd.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
   function(add_drd_test name)
     if (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-        ((CMAKE_C_COMPILER_ID MATCHES Intel) AND
+        ((CMAKE_CXX_COMPILER_ID MATCHES Intel) AND
          (CMAKE_BUILD_TYPE MATCHES Release)) OR
         USE_GCOV)
       ## can't use drd on osx or with optimized intel, no point in

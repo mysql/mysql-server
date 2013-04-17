@@ -1,18 +1,18 @@
 if(BUILD_TESTING)
-  file(GLOB srcs *.c)
+  file(GLOB srcs *.cc)
   foreach(src ${srcs})
     get_filename_component(base ${src} NAME_WE)
 
     foreach(impl lin tlog)
-      ## each source file test_foo.c creates binaries lt_test_foo.lin and
+      ## each source file test_foo.cc creates binaries lt_test_foo.lin and
       ## lt_test_foo.tlog
       ## need lt_ prefix so that we have unique target names for cmake
-      add_executable(lt_${base}.${impl} ${src})
+      add_executable(lt_${base}.${impl} ${base})
       set_property(TARGET lt_${base}.${impl} APPEND PROPERTY
-        COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
+        COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.${impl}\"")
       add_common_options_to_binary_targets(lt_${base}.${impl})
       target_link_libraries(lt_${base}.${impl} lock_tree_${impl} range_tree_${impl} ft ${LIBTOKUPORTABILITY})
-      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.c.${impl}")
+      set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.${impl}")
 
       add_test(lock_tree/${base}.${impl} lt_${base}.${impl})
     endforeach(impl)
@@ -21,7 +21,7 @@ if(BUILD_TESTING)
       COMPILE_DEFINITIONS TOKU_RT_NOOVERLAPS)
   endforeach(src)
 
-  ## run test_footprint_point_write.c and test_footprint_range_write.c in
+  ## run test_footprint_point_write.cc and test_footprint_range_write.cc in
   ## a bunch of different ways.
   foreach(impl lin tlog)
     foreach(type point range)

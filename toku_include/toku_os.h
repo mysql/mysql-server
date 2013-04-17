@@ -1,14 +1,14 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #if !defined(TOKU_OS_INTERFACE_H)
 #define TOKU_OS_INTERFACE_H
 
 #include <dirent.h>
 #include <sys/time.h>
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 #include <toku_os_types.h>
 
@@ -108,9 +108,6 @@ int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__(
 // Portable linux 'dup2'
 int toku_dup2(int fd, int fd2) __attribute__((__visibility__("default")));
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif
 

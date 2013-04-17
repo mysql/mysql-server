@@ -1,6 +1,8 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
 #include "toku_assert.h"
@@ -11,9 +13,6 @@
 #include "ft-ops.h"
 #include <toku_htonl.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 
 #define CKERR(r) ({ int __r = r; if (__r!=0) fprintf(stderr, "%s:%d error %d %s\n", __FILE__, __LINE__, __r, strerror(r)); assert(__r==0); })
@@ -238,6 +237,3 @@ main(int argc, const char *argv[]) {
     return r;
 }
 
-#if defined(__cplusplus)
-};
-#endif

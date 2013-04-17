@@ -1,1 +1,0 @@
-../../windows/tests/test-pwrite4g.c

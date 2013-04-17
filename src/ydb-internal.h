@@ -1,9 +1,9 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef YDB_INTERNAL_H
 #define YDB_INTERNAL_H
 
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
 #include <db.h>
@@ -15,9 +15,6 @@
 #include "../ft/minicron.h"
 #include <limits.h>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 struct __toku_lock_tree;
 
@@ -216,8 +213,5 @@ void env_note_db_closed(DB_ENV *env, DB *db);
 int toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u_int32_t flags);
 int toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, u_int32_t flags);
 
-#if defined(__cplusplus)
-}
-#endif
 
 #endif

@@ -1,15 +1,12 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #if !defined(TOKU_OMT_H)
 #define TOKU_OMT_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 // Order Maintenance Tree (OMT)
 //
@@ -361,9 +358,6 @@ unsigned long toku_omt_memory_size (OMT omt);
 // Effect: Return the size (in bytes) of the omt, as it resides in main memory.  Don't include any of the OMTVALUES.
 
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif  /* #ifndef TOKU_OMT_H */
 

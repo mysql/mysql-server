@@ -21,7 +21,7 @@ MACRO(MERGE_STATIC_LIBS TARGET OUTPUT_NAME LIBS_TO_MERGE)
   # To produce a library we need at least one source file.
   # It is created by ADD_CUSTOM_COMMAND below and will helps 
   # also help to track dependencies.
-  SET(SOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_depends.c)
+  SET(SOURCE_FILE ${CMAKE_CURRENT_BINARY_DIR}/${TARGET}_depends.cc)
   ADD_LIBRARY(${TARGET} STATIC ${SOURCE_FILE})
   SET_TARGET_PROPERTIES(${TARGET} PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
 

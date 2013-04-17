@@ -1,15 +1,13 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKUTXN_H
 #define TOKUTXN_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include "txn_manager.h"
 
 void toku_txn_lock(TOKUTXN txn);
 void toku_txn_unlock(TOKUTXN txn);
@@ -99,7 +97,7 @@ typedef struct {
 
 void toku_txn_get_status(TXN_STATUS s);
 
-BOOL toku_is_txn_in_live_root_txn_list(OMT live_root_txn_list, TXNID xid);
+bool toku_is_txn_in_live_root_txn_list(const xid_omt_t &live_root_txn_list, TXNID xid);
 
 TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn);
 
@@ -117,9 +115,5 @@ void toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn);
 
 // Return whether txn (or it's descendents) have done no work.
 bool toku_txn_is_read_only(TOKUTXN txn);
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
 
 #endif //TOKUTXN_H

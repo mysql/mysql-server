@@ -1,10 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKURECOVER_H
 #define TOKURECOVER_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
@@ -15,9 +15,6 @@
 #include "memory.h"
 #include "x1764.h"
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 typedef void (*prepared_txn_callback_t)(DB_ENV*, TOKUTXN);
 typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);
@@ -57,8 +54,5 @@ int toku_recover_unlock(int lockfd);
 static const prepared_txn_callback_t NULL_prepared_txn_callback         __attribute__((__unused__)) = NULL;
 static const keep_cachetable_callback_t  NULL_keep_cachetable_callback  __attribute__((__unused__)) = NULL;
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif // TOKURECOVER_H

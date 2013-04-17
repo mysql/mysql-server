@@ -1,5 +1,8 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ifndef TOKU_PORTABILITY_H
 #define TOKU_PORTABILITY_H
 
@@ -7,9 +10,6 @@
 
 // Tokutek portability layer
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 #if defined(_MSC_VER) || (defined(__INTEL_COMPILER) && defined(__ICL))
 
@@ -77,7 +77,12 @@ typedef int64_t toku_off_t;
 
 #endif 
 
-#define cast_to_typeof(v) (__typeof__(v))
+#if defined(__cplusplus) || defined(__cilkplusplus)
+# define cast_to_typeof(v) (decltype(v))
+#else
+# define cast_to_typeof(v) (__typeof__(v))
+#endif
+
 #elif defined(__GNUC__)
 // GCC linux
 
@@ -94,11 +99,24 @@ typedef int64_t toku_off_t;
 #endif
 #include <alloca.h>
 
-#define cast_to_typeof(v) (__typeof__(v))
+#if defined(__cplusplus) || defined(__cilkplusplus)
+# define cast_to_typeof(v) (decltype(v))
+#else
+# define cast_to_typeof(v) (__typeof__(v))
+#endif
+
 #else
 
 #error Not ICC and not GNUC.  What compiler?
 
+#endif
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+// decltype() here gives a reference-to-pointer instead of just a pointer,
+// just use __typeof__
+# define CAST_FROM_VOIDP(name, value) name = static_cast<__typeof__(name)>(value)
+#else
+# define CAST_FROM_VOIDP(name, value) name = cast_to_typeof(name) (value)
 #endif
 
 #ifndef TOKU_OFF_T_DEFINED
@@ -111,6 +129,10 @@ typedef int64_t toku_off_t;
 #include "toku_assert.h"
 
 #define UU(x) x __attribute__((__unused__))
+
+#if defined(__cplusplus) || defined(__cilkplusplus)
+extern "C" {
+#endif
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
@@ -166,6 +188,10 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #   endif
 #endif
 
+#if defined(__cplusplus) || defined(__cilkplusplus)
+};
+#endif
+
 void *os_malloc(size_t) __attribute__((__visibility__("default")));
 void *os_realloc(void*,size_t) __attribute__((__visibility__("default")));
 void  os_free(void*) __attribute__((__visibility__("default")));
@@ -215,8 +241,5 @@ int toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 int toku_portability_init    (void);
 void toku_portability_destroy (void);
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
 
 #endif

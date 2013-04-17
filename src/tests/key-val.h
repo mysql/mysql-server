@@ -1,5 +1,6 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
 #ifndef KEY_VAL_H
@@ -13,9 +14,6 @@
 //     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
 //
 
-#if defined(__cilkplusplus) || defined (__cplusplus)
-extern "C" {
-#endif
 
 enum {MAX_DBS=32};
 enum {MAGIC=311};
@@ -199,8 +197,5 @@ static int UU() generate_initial_table(DB *db, DB_TXN *txn, uint32_t rows)
 
 
 
-#if defined(__cilkplusplus) || defined(__cplusplus)
-} // extern "C"
-#endif
 
 #endif // KEY_VAL_H

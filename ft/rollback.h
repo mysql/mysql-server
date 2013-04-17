@@ -1,17 +1,13 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKU_ROLLBACK_H
 #define TOKU_ROLLBACK_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "omt.h"
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
 
 void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint);
 
@@ -53,7 +49,7 @@ void toku_maybe_spill_rollbacks(TOKUTXN txn, ROLLBACK_LOG_NODE log);
 void toku_txn_maybe_note_ft (TOKUTXN txn, FT h);
 int toku_logger_txn_rollback_raw_count(TOKUTXN txn, u_int64_t *raw_count);
 
-int toku_find_xid_by_xid (OMTVALUE v, void *xidv);
+int toku_find_xid_by_xid (const TXNID &xid, const TXNID &xidfind);
 
 PAIR_ATTR rollback_memory_size(ROLLBACK_LOG_NODE log);
 
@@ -83,9 +79,5 @@ struct rollback_log_node {
     MEMARENA           rollentry_arena;
     size_t             rollentry_resident_bytecount; // How many bytes for the rollentries that are stored in main memory.
 };
-
-#if defined(__cplusplus) || defined(__cilkplusplus)
-};
-#endif
 
 #endif // TOKU_ROLLBACK_H

@@ -1,5 +1,5 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 #ident "Copyright (c) 2009 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
@@ -207,7 +207,7 @@ static void increment_counter(void *extra, enum operation_type type, uint64_t in
     int t = (int) type;
     invariant(extra);
     invariant(t >= 0 && t < (int) NUM_OPERATION_TYPES);
-    uint64_t *counters = cast_to_typeof(counters) extra;
+    uint64_t *CAST_FROM_VOIDP(counters, extra);
     counters[t] += inc;
 }
 
@@ -522,7 +522,7 @@ static void unlock_worker_op(struct worker_extra* we) {
 
 static void *worker(void *arg_v) {
     int r;
-    struct worker_extra* we = cast_to_typeof(we) arg_v;
+    struct worker_extra* CAST_FROM_VOIDP(we, arg_v);
     ARG arg = we->thread_arg;
     struct random_data random_data;
     ZERO_STRUCT(random_data);
@@ -601,7 +601,7 @@ struct scan_op_extra {
 
 static int
 scan_cb(const DBT *a, const DBT *b, void *arg_v) {
-    SCAN_CB_EXTRA cb_extra = cast_to_typeof(cb_extra) arg_v;
+    SCAN_CB_EXTRA CAST_FROM_VOIDP(cb_extra, arg_v);
     assert(a);
     assert(b);
     assert(cb_extra);
@@ -832,7 +832,7 @@ struct serial_put_extra {
 };
 
 static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
-    struct serial_put_extra *extra = cast_to_typeof(extra) operation_extra;
+    struct serial_put_extra *CAST_FROM_VOIDP(extra, operation_extra);
 
     int db_index = arg->thread_idx % arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
@@ -935,7 +935,7 @@ static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra
 }
 
 static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *UU(stats_extra)) {
-    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
+    struct scan_op_extra* CAST_FROM_VOIDP(extra, operation_extra);
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, true);
         assert_zero(r);
@@ -944,7 +944,7 @@ static int UU() scan_op(DB_TXN *txn, ARG UU(arg), void* operation_extra, void *U
 }
 
 static int UU() scan_op_no_check(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
-    struct scan_op_extra* extra = cast_to_typeof(extra) operation_extra;
+    struct scan_op_extra* CAST_FROM_VOIDP(extra, operation_extra);
     for (int i = 0; run_test && i < arg->cli->num_DBs; i++) {
         int r = scan_op_and_maybe_check_sum(arg->dbp[i], txn, extra, false);
         assert_zero(r);
@@ -1044,7 +1044,7 @@ static int update_op_callback(DB *UU(db), const DBT *UU(key),
         old_int_val = *(int*)old_val->data;
     }
     assert(extra->size == sizeof(struct update_op_extra));
-    struct update_op_extra *e = cast_to_typeof(e) extra->data;
+    struct update_op_extra *CAST_FROM_VOIDP(e, extra->data);
 
     int new_int_val;
     switch (e->type) {
@@ -1126,7 +1126,7 @@ UU() update_op_db(DB *db, DB_TXN *txn, ARG arg, void* operation_extra, void *UU(
     DBT key, val;
     int rand_key;
     update_count++;
-    struct update_op_args* op_args = cast_to_typeof(op_args) operation_extra;
+    struct update_op_args* CAST_FROM_VOIDP(op_args, operation_extra);
     struct update_op_extra extra;
     ZERO_STRUCT(extra);
     extra.type = UPDATE_ADD_DIFF;
@@ -1189,7 +1189,7 @@ UU() update_op(DB_TXN *txn, ARG arg, void* operation_extra, void *stats_extra) {
 }
 
 static int UU() update_with_history_op(DB_TXN *txn, ARG arg, void* operation_extra, void *UU(stats_extra)) {
-    struct update_op_args* op_args = cast_to_typeof(op_args) operation_extra;
+    struct update_op_args* CAST_FROM_VOIDP(op_args, operation_extra);
     assert(arg->bounded_element_range);
     assert(op_args->update_history_buffer);
     int r;
@@ -1325,7 +1325,7 @@ struct test_time_extra {
 };
 
 static void *test_time(void *arg) {
-    struct test_time_extra* tte = cast_to_typeof(tte) arg;
+    struct test_time_extra* CAST_FROM_VOIDP(tte, arg);
     int num_seconds = tte->num_seconds;
     const struct perf_formatter *perf_formatter = &perf_formatters[tte->cli_args->perf_output_format];
 
@@ -1527,8 +1527,8 @@ static int fill_table_from_fun(DB *db, int num_elements, int key_bufsz, int val_
 }
 
 static void zero_element_callback(int idx, void *UU(extra), void *keyv, int *keysz, void *valv, int *valsz) {
-    int *key = cast_to_typeof(key) keyv;
-    int *val = cast_to_typeof(val) valv;
+    int *CAST_FROM_VOIDP(key, keyv);
+    int *CAST_FROM_VOIDP(val, valv);
     *key = idx;
     *val = 0;
     *keysz = sizeof(int);

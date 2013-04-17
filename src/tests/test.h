@@ -1,12 +1,10 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+#ident "$Id$"
 
 #ifndef __TEST_H
 #define __TEST_H
 
-#if defined(__cilkplusplus) || defined(__cplusplus)
-extern "C" {
-#endif
 
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 #include <toku_portability.h>
@@ -372,9 +370,6 @@ default_parse_args (int argc, char * const argv[]) {
             { int chk_r = (txn)->abort(txn); CKERR(chk_r); }            \
         })
 
-#if defined(__cilkplusplus) || defined(__cplusplus)
-}
-#endif
 
 int test_main (int argc, char * const argv[]);
 int

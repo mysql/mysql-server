@@ -1,17 +1,43 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
-// vim: expandtab:ts=8:sw=4:softtabstop=4:
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+// vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef TOKUTXN_MANAGER_H
 #define TOKUTXN_MANAGER_H
 
 #ident "$Id$"
-#ident "Copyright (c) 2007-2010 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
-extern "C" {
-#endif
+#include <toku_portability.h>
+#include <toku_pthread.h>
+#include "omt.h"
+#include "omt-tmpl.h"
+#include "fttypes.h"
 
-struct txn_manager;
+struct referenced_xid_tuple {
+    TXNID begin_id;
+    TXNID end_id;
+    uint32_t references;
+};
+
+typedef toku::omt<TOKUTXN> txn_omt_t;
+typedef toku::omt<TXNID> xid_omt_t;
+typedef toku::omt<struct referenced_xid_tuple, struct referenced_xid_tuple *> rx_omt_t;
+
+struct txn_manager {
+    toku_mutex_t txn_manager_lock;  // a lock protecting this object
+    txn_omt_t live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
+    xid_omt_t live_root_txns; // a sorted tree.
+    xid_omt_t snapshot_txnids;    //contains TXNID x | x is snapshot txn
+    // Contains 3-tuples: (TXNID begin_id, TXNID end_id, uint64_t num_live_list_references)
+    //                    for committed root transaction ids that are still referenced by a live list.
+    rx_omt_t referenced_xids;
+    struct toku_list prepared_txns; // transactions that have been prepared and are unresolved, but have not been returned through txn_recover.
+    struct toku_list prepared_and_returned_txns; // transactions that have been prepared and unresolved, and have been returned through txn_recover.  We need this list so that we can restart the recovery.
+
+    toku_cond_t wait_for_unpin_of_txn;
+    TXNID last_xid;
+};
+
 
 void toku_txn_manager_init(TXN_MANAGER* txn_manager);
 void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
@@ -33,9 +59,9 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 
 void toku_txn_manager_clone_state_for_gc(
     TXN_MANAGER txn_manager,
-    OMT* snapshot_xids,
-    OMT* referenced_xids,
-    OMT* live_root_txns
+    xid_omt_t &snapshot_xids,
+    rx_omt_t &referenced_xids,
+    xid_omt_t &live_root_txns
     );
 
 void toku_txn_manager_id2txn_unlocked(TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *result);
@@ -43,13 +69,22 @@ void toku_txn_manager_id2txn (TXN_MANAGER txn_manager, TXNID txnid, TOKUTXN *res
 
 int toku_txn_manager_get_txn_from_xid (TXN_MANAGER txn_manager, TOKU_XA_XID *xid, DB_TXN **txnp);
 
-u_int32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager);
+uint32_t toku_txn_manager_num_live_txns(TXN_MANAGER txn_manager);
 
+
+template<typename iterate_extra_t,
+         int (*f)(const TOKUTXN &, const uint32_t, iterate_extra_t &)>
 int toku_txn_manager_iter_over_live_txns(
-    TXN_MANAGER txn_manager,
-    int (*f)(OMTVALUE, u_int32_t, void*),
-    void* v
-    );
+    TXN_MANAGER txn_manager, 
+    iterate_extra_t &v
+    ) 
+{
+    int r = 0;
+    toku_mutex_lock(&txn_manager->txn_manager_lock);
+    r = txn_manager->live_txns.iterate<iterate_extra_t, f>(v);
+    toku_mutex_unlock(&txn_manager->txn_manager_lock);
+    return r;
+}
 
 void toku_txn_manager_add_prepared_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
 void toku_txn_manager_note_abort_txn(TXN_MANAGER txn_manager, TOKUTXN txn);
@@ -76,9 +111,6 @@ TXNID toku_txn_manager_get_last_xid(TXN_MANAGER mgr);
 // Test-only function
 void toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment);
 
-TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, OMT snapshot_txnids, OMT referenced_xids);
-#if defined(__cplusplus) || defined(__cilkplusplus)
-}
-#endif
+TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, const xid_omt_t &snapshot_txnids, const rx_omt_t &referenced_xids);
 
 #endif //TOKUTXN_H
