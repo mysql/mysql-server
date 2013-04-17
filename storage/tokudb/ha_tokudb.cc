@@ -691,7 +691,8 @@ static const char *ha_tokudb_exts[] = {
  *  returns NULL terminated file extension string
  */
 const char **ha_tokudb::bas_ext() const {
-    return ha_tokudb_exts;
+    TOKUDB_DBUG_ENTER("ha_tokudb::bas_ext");
+    DBUG_RETURN(ha_tokudb_exts);
 }
 
 //
@@ -699,6 +700,7 @@ const char **ha_tokudb::bas_ext() const {
 // the arguments. The capabilities are defined in sql/handler.h.
 //
 ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_flags");
     ulong flags = (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER | HA_KEYREAD_ONLY | HA_READ_RANGE);
     for (uint i = all_parts ? 0 : part; i <= part; i++) {
         KEY_PART_INFO *key_part = table_share->key_info[idx].key_part + i;
@@ -722,7 +724,7 @@ ulong ha_tokudb::index_flags(uint idx, uint part, bool all_parts) const {
             break;
         }
     }
-    return flags;
+    DBUG_RETURN(flags);
 }
 
 static int tokudb_cmp_hidden_key(DB * file, const DBT * new_key, const DBT * saved_key) {
@@ -1376,6 +1378,7 @@ DBT *ha_tokudb::pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_
 }
 
 int ha_tokudb::read_last() {
+    TOKUDB_DBUG_ENTER("ha_tokudb::read_last");
     int do_commit = 0;
     if (transaction == NULL && (tokudb_init_flags & DB_INIT_TXN)) {
         int r = db_env->txn_begin(db_env, 0, &transaction, 0);
@@ -1391,7 +1394,7 @@ int ha_tokudb::read_last() {
         assert(r == 0);
         transaction = NULL;
     }
-    return error;
+    TOKUDB_DBUG_RETURN(error);
 }
 
 /** @brief
@@ -1399,6 +1402,7 @@ int ha_tokudb::read_last() {
     and the max used value for the hidden primary key.
 */
 void ha_tokudb::get_status() {
+    TOKUDB_DBUG_ENTER("ha_tokudb::get_status");
 
     if (!test_all_bits(share->status, (STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT))) {
         pthread_mutex_lock(&share->mutex);
@@ -1476,6 +1480,7 @@ void ha_tokudb::get_status() {
         share->status |= STATUS_PRIMARY_KEY_INIT | STATUS_ROW_COUNT_INIT;
         pthread_mutex_unlock(&share->mutex);
     }
+    DBUG_VOID_RETURN;
 }
 
 static int write_status(DB * status_block, char *buff, uint length) {
@@ -1539,7 +1544,8 @@ static void update_status(TOKUDB_SHARE * share, TABLE * table) {
     This is used in filesort.cc. 
 */
 ha_rows ha_tokudb::estimate_rows_upper_bound() {
-    return share->rows + HA_TOKUDB_EXTRA_ROWS;
+    TOKUDB_DBUG_ENTER("ha_tokudb::estimate_rows_upper_bound");
+    DBUG_RETURN(share->rows + HA_TOKUDB_EXTRA_ROWS);
 }
 
 int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
@@ -2384,7 +2390,8 @@ int ha_tokudb::rnd_init(bool scan) {
 // End a scan of the table
 //
 int ha_tokudb::rnd_end() {
-    return index_end();
+    TOKUDB_DBUG_ENTER("ha_tokudb::rnd_end");
+    TOKUDB_DBUG_RETURN(index_end());
 }
 
 //
@@ -2411,6 +2418,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
 
 
 DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::get_pos");
     /* We don't need to set app_data here */
     bzero((void *) to, sizeof(*to));
 
@@ -2426,7 +2434,7 @@ DBT *ha_tokudb::get_pos(DBT * to, uchar * pos) {
         to->size = (uint) (pos - (uchar *) to->data);
     }
     DBUG_DUMP("key", (const uchar *) to->data, to->size);
-    return to;
+    DBUG_RETURN(to);
 }
 
 //
@@ -2532,6 +2540,7 @@ int ha_tokudb::extra(enum ha_extra_function operation) {
 }
 
 int ha_tokudb::reset(void) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::reset");
     key_read = 0;
     using_ignore = 0;
     if (current_row.flags & (DB_DBT_MALLOC | DB_DBT_REALLOC)) {
@@ -2541,7 +2550,7 @@ int ha_tokudb::reset(void) {
             current_row.data = 0;
         }
     }
-    return 0;
+    TOKUDB_DBUG_RETURN(0);
 }
 
 /*
@@ -2688,6 +2697,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
 */
 
 THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_lock_type lock_type) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::store_lock");
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         /* If we are not doing a LOCK TABLE, then allow multiple writers */
         if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && !thd->in_lock_tables)
@@ -2695,7 +2705,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
         lock.type = lock_type;
     }
     *to++ = &lock;
-    return to;
+    DBUG_RETURN(to);
 }
 
 
@@ -2987,7 +2997,9 @@ int ha_tokudb::rename_table(const char *from, const char *to) {
 */
 /// QQQ why divide by 3
 double ha_tokudb::scan_time() {
-    return rows2double(stats.records / 3);
+    TOKUDB_DBUG_ENTER("ha_tokudb::scan_time");
+    double ret_val = stats.records / 3;
+    DBUG_RETURN(ret_val);
 }
 
 //
@@ -3043,6 +3055,7 @@ ha_rows ha_tokudb::records_in_range(uint keynr, key_range * start_key, key_range
 }
 
 void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::get_auto_increment");
     ulonglong nr;
 
     pthread_mutex_lock(&share->mutex);
@@ -3064,6 +3077,7 @@ void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulongl
                      offset, increment, nb_desired_values, nr, nb_desired_values);
     *first_value = nr;
     *nb_reserved_values = nb_desired_values;
+    DBUG_VOID_RETURN;
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
