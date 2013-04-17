@@ -376,6 +376,7 @@ toku_blocktable_destroy(BLOCK_TABLE *btp) {
     toku_free(bt->block_translation);
     bt->block_translation = NULL;
     destroy_block_allocator(&bt->block_allocator);
+    toku_free(bt);
     unlock_for_blocktable();
 }
 
