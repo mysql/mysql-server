@@ -22,6 +22,10 @@ extern "C" {
 #if TOKU_WINDOWS
 // Windows
 
+#if defined(__ICL)
+#define __attribute__(x)      /* Nothing */
+#endif
+
 #include "stdint.h"
 #include "inttypes.h"
 #include <direct.h>
@@ -31,10 +35,6 @@ extern "C" {
 #include "toku_pthread.h"
 
 #define UNUSED_WARNING(a) a=a /* To make up for missing attributes */
-
-#if defined(__ICL)
-#define __attribute__(x)      /* Nothing */
-#endif
 
 #elif defined(__INTEL_COMPILER)
 
