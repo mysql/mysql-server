@@ -24,7 +24,7 @@
 static int create_child_txn(DB_TXN* txn, ARG arg, void* UU(operation_extra), void *UU(stats_extra)) {
     DB_TXN* child_txn = NULL;
     DB_ENV* env = arg->env;
-    int r = env->txn_begin(env, txn, &child_txn, arg->txn_flags); 
+    int r = env->txn_begin(env, txn, &child_txn, arg->txn_type); 
     CKERR(r);
     r = child_txn->commit(child_txn, 0);
     CKERR(r);

@@ -132,7 +132,6 @@ int
 toku_db_del(DB *db, DB_TXN *txn, DBT *key, uint32_t flags, bool holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    HANDLE_READ_ONLY_TXN(txn);
 
     uint32_t unchecked_flags = flags;
     //DB_DELETE_ANY means delete regardless of whether it exists in the db.
@@ -176,7 +175,6 @@ int
 toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_mo_lock) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    HANDLE_READ_ONLY_TXN(txn);
     int r = 0;
 
     uint32_t lock_flags = get_prelocked_flags(flags);
@@ -224,7 +222,6 @@ toku_db_update(DB *db, DB_TXN *txn,
                uint32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    HANDLE_READ_ONLY_TXN(txn);
     int r = 0;
 
     uint32_t lock_flags = get_prelocked_flags(flags);
@@ -266,7 +263,6 @@ toku_db_update_broadcast(DB *db, DB_TXN *txn,
                          uint32_t flags) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    HANDLE_READ_ONLY_TXN(txn);
     int r = 0;
 
     uint32_t lock_flags = get_prelocked_flags(flags);
@@ -432,7 +428,6 @@ env_del_multiple(
     DB_INDEXER* indexer = NULL;
 
     HANDLE_PANICKED_ENV(env);
-    HANDLE_READ_ONLY_TXN(txn);
 
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
@@ -579,7 +574,6 @@ env_put_multiple_internal(
     DB_INDEXER* indexer = NULL;
 
     HANDLE_PANICKED_ENV(env);
-    HANDLE_READ_ONLY_TXN(txn);
 
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
@@ -680,7 +674,6 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
 
     HANDLE_PANICKED_ENV(env);
     DB_INDEXER* indexer = NULL;
-    HANDLE_READ_ONLY_TXN(txn);
 
     if (!txn) {
         r = EINVAL;

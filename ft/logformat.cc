@@ -412,7 +412,6 @@ generate_log_writer (void) {
                             fprintf(cf, "  //txn can be NULL during tests\n");
                             fprintf(cf, "  //never null when not checkpoint.\n");
                             fprintf(cf, "  if (txn && !txn->begin_was_logged) {\n");
-                            fprintf(cf, "    invariant(!txn_declared_read_only(txn));\n");
                             fprintf(cf, "    toku_maybe_log_begin_txn_for_write_operation(txn);\n");
                             fprintf(cf, "  }\n");
                             break;
@@ -420,7 +419,6 @@ generate_log_writer (void) {
                         case ASSERT_BEGIN_WAS_LOGGED: {
                             fprintf(cf, "  //txn can be NULL during tests\n");
                             fprintf(cf, "  invariant(!txn || txn->begin_was_logged);\n");
-                            fprintf(cf, "  invariant(!txn || !txn_declared_read_only(txn));\n");
                             break;
                         }
                         case IGNORE_LOG_BEGIN: break;

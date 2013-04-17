@@ -329,36 +329,6 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
 
     uint32_t txn_flags = 0;
     txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks. RFP remove this?
-
-    // handle whether txn is declared as read only
-    bool parent_txn_declared_read_only = 
-        stxn && 
-        (db_txn_struct_i(stxn)->flags & DB_TXN_READ_ONLY);    
-    bool txn_declared_read_only = false;
-    if (flags & DB_TXN_READ_ONLY) {
-        txn_declared_read_only = true;
-        txn_flags |=  DB_TXN_READ_ONLY;
-        flags &= ~(DB_TXN_READ_ONLY);
-    }
-    if (txn_declared_read_only && stxn &&
-        !parent_txn_declared_read_only
-        )
-    {
-        return toku_ydb_do_error(
-            env, 
-            EINVAL, 
-            "Current transaction set as read only, but parent transaction is not\n"
-            );
-    }
-    if (parent_txn_declared_read_only) 
-    {
-        // don't require child transaction to also set transaction as read only
-        // if parent has already done so
-        txn_flags |=  DB_TXN_READ_ONLY;
-        txn_declared_read_only = true;
-    }
-
-    
     TOKU_ISOLATION child_isolation = TOKU_ISO_SERIALIZABLE;
     uint32_t iso_flags = flags & DB_ISOLATION_FLAGS;
     if (!(iso_flags == 0 || 
@@ -464,8 +434,7 @@ toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags) {
         TXNID_PAIR_NONE,
         snapshot_type,
         result,
-        false, // for_recovery
-        txn_declared_read_only // read_only
+        false
         );
     if (r != 0) {
         toku_free(result);

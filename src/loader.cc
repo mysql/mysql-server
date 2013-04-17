@@ -169,7 +169,6 @@ toku_loader_create_loader(DB_ENV *env,
                           uint32_t loader_flags,
                           bool check_empty) {
     int rval;
-    HANDLE_READ_ONLY_TXN(txn);
 
     *blp = NULL;           // set later when created
 

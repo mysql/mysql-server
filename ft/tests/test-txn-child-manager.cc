@@ -47,8 +47,7 @@ void txn_child_manager_unit_test::run_child_txn_test() {
         NULL,
         &root_txn,
         logger,
-        TXN_SNAPSHOT_CHILD,
-        false
+        TXN_SNAPSHOT_CHILD
         );
     CKERR(r);
     // test starting a child txn
@@ -58,8 +57,7 @@ void txn_child_manager_unit_test::run_child_txn_test() {
         root_txn,
         &child_txn,
         logger,
-        TXN_SNAPSHOT_CHILD,
-        false
+        TXN_SNAPSHOT_CHILD
         );
     CKERR(r);
 
@@ -91,8 +89,7 @@ void txn_child_manager_unit_test::run_test() {
         NULL,
         &root_txn,
         logger,
-        TXN_SNAPSHOT_ROOT,
-        false
+        TXN_SNAPSHOT_ROOT
         );
     CKERR(r);
     txn_child_manager* cm = root_txn->child_manager;
@@ -111,8 +108,7 @@ void txn_child_manager_unit_test::run_test() {
         root_txn,
         &child_txn,
         logger,
-        TXN_SNAPSHOT_ROOT,
-        false
+        TXN_SNAPSHOT_ROOT
         );
     CKERR(r);
     assert(child_txn->child_manager == cm);
@@ -132,8 +128,7 @@ void txn_child_manager_unit_test::run_test() {
         child_txn,
         &grandchild_txn,
         logger,
-        TXN_SNAPSHOT_ROOT,
-        false
+        TXN_SNAPSHOT_ROOT
         );
     CKERR(r);
     assert(grandchild_txn->child_manager == cm);
@@ -158,8 +153,7 @@ void txn_child_manager_unit_test::run_test() {
         child_txn,
         &grandchild_txn,
         logger,
-        TXN_SNAPSHOT_ROOT,
-        false
+        TXN_SNAPSHOT_ROOT
         );
     CKERR(r);
     assert(grandchild_txn->child_manager == cm);
@@ -183,8 +177,7 @@ void txn_child_manager_unit_test::run_test() {
         xid,
         TXN_SNAPSHOT_NONE,
         NULL,
-        true, // for recovery
-        false // read_only
+        true // for recovery
         );
 
     assert(recovery_txn->child_manager == cm);

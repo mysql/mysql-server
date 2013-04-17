@@ -69,7 +69,6 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     soe[1].prefetch = false;
     myargs[1].operation_extra = &soe[1];
     myargs[1].operation = scan_op;
-    myargs[1].txn_flags = DB_TXN_SNAPSHOT | DB_TXN_READ_ONLY;
 
     // make the backward fast scanner
     soe[2].fast = true;
@@ -77,7 +76,6 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     soe[2].prefetch = false;
     myargs[2].operation_extra = &soe[2];
     myargs[2].operation = scan_op;
-    myargs[2].txn_flags = DB_TXN_SNAPSHOT | DB_TXN_READ_ONLY;
 
     // make the backward slow scanner
     soe[3].fast = false;

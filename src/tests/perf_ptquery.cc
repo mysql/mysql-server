@@ -54,7 +54,6 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation = ptquery_op;
-        myargs[i].txn_flags |= DB_TXN_READ_ONLY;
     }
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }

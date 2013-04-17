@@ -77,47 +77,17 @@ toku_txn_get_root_id(TOKUTXN txn)
     return txn->txnid.parent_id64;
 }
 
-bool txn_declared_read_only(TOKUTXN txn) {
-    return (txn->txnid.parent_id64 == TXNID_NONE);
-}
-
 int 
 toku_txn_begin_txn (
     DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
     TOKUTXN *tokutxn,
     TOKULOGGER logger, 
-    TXN_SNAPSHOT_TYPE snapshot_type,
-    bool read_only
+    TXN_SNAPSHOT_TYPE snapshot_type
     ) 
 {
-    int r = toku_txn_begin_with_xid(
-        parent_tokutxn, 
-        tokutxn, 
-        logger, 
-        TXNID_PAIR_NONE, 
-        snapshot_type, 
-        container_db_txn, 
-        false, // for_recovery
-        read_only
-        );
+    int r = toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, TXNID_PAIR_NONE, snapshot_type, container_db_txn, false);
     return r;
-}
-
-
-static void
-txn_create_xids(TOKUTXN txn, TOKUTXN parent) {
-    XIDS xids;
-    XIDS parent_xids;
-    if (parent == NULL) {
-        parent_xids = xids_get_root_xids();
-    } else {
-        parent_xids = parent->xids;
-    }
-    xids_create_unknown_child(parent_xids, &xids);
-    TXNID finalized_xid = (parent == NULL) ? txn->txnid.parent_id64 : txn->txnid.child_id64;
-    xids_finalize_with_child(xids, finalized_xid);
-    txn->xids = xids;
 }
 
 int 
@@ -128,22 +98,24 @@ toku_txn_begin_with_xid (
     TXNID_PAIR xid, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
-    bool for_recovery,
-    bool read_only
+    bool for_recovery
     ) 
 {   
     int r = 0;
-    TOKUTXN txn;
-    // check for case where we are trying to 
-    // create too many nested transactions
-    if (!read_only && parent && !xids_can_create_child(parent->xids)) {
-        r = EINVAL;
-        goto exit;
+    TOKUTXN txn;    
+    XIDS xids;
+    // Do as much (safe) work as possible before serializing on the txn_manager lock.
+    XIDS parent_xids;
+    if (parent == NULL) {
+        parent_xids = xids_get_root_xids();
+    } else {
+        parent_xids = parent->xids;
     }
-    if (read_only && parent) {
-        invariant(txn_declared_read_only(parent));
+    r = xids_create_unknown_child(parent_xids, &xids);
+    if (r != 0) {
+        return r;
     }
-    toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, for_recovery);
+    toku_txn_create_txn(&txn, parent, logger, snapshot_type, container_db_txn, xids, for_recovery);
     // txnid64, snapshot_txnid64 
     // will be set in here.
     if (for_recovery) {
@@ -167,8 +139,7 @@ toku_txn_begin_with_xid (
             toku_txn_manager_start_txn(
                 txn, 
                 logger->txn_manager, 
-                snapshot_type,
-                read_only
+                snapshot_type
                 );
         }
         else {
@@ -181,12 +152,10 @@ toku_txn_begin_with_xid (
                 );
         }
     }
-    if (!read_only) {
-        // this call will set txn->xids
-        txn_create_xids(txn, parent);
-    }
+    TXNID finalized_xid = (parent == NULL) ? txn->txnid.parent_id64 : txn->txnid.child_id64;
+    xids_finalize_with_child(txn->xids, finalized_xid);
     *txnp = txn;
-exit:
+
     return r;
 }
 
@@ -211,6 +180,7 @@ void toku_txn_create_txn (
     TOKULOGGER logger, 
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
+    XIDS xids,
     bool for_recovery
     )
 {
@@ -246,7 +216,7 @@ static txn_child_manager tcm;
         .child_manager = NULL,
         .container_db_txn = container_db_txn,
         .live_root_txn_list = nullptr,
-        .xids = NULL,
+        .xids = xids,
         .oldest_referenced_xid = TXNID_NONE,
         .begin_was_logged = false,
         .do_fsync = false,
@@ -570,9 +540,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
 
 void toku_txn_destroy_txn(TOKUTXN txn) {
     txn->open_fts.destroy();
-    if (txn->xids) {
-        xids_destroy(&txn->xids);
-    }
+    xids_destroy(&txn->xids);
     toku_mutex_destroy(&txn->txn_lock);
     toku_mutex_destroy(&txn->state_lock);
     toku_cond_destroy(&txn->state_cond);
@@ -589,14 +557,10 @@ void toku_txn_force_fsync_on_commit(TOKUTXN txn) {
 }
 
 TXNID toku_get_oldest_in_live_root_txn_list(TOKUTXN txn) {
+    invariant(txn->live_root_txn_list->size()>0);
     TXNID xid;
-    if (txn->live_root_txn_list->size()>0) {
-        int r = txn->live_root_txn_list->fetch(0, &xid);
-        assert_zero(r);
-    }
-    else {
-        xid = TXNID_NONE;
-    }
+    int r = txn->live_root_txn_list->fetch(0, &xid);
+    assert_zero(r);
     return xid;
 }
 

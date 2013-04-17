@@ -62,12 +62,6 @@ xids_get_root_xids(void) {
     return rval;
 }
 
-bool 
-xids_can_create_child(XIDS xids) {
-    invariant(xids->num_xids < MAX_TRANSACTION_RECORDS);
-    return (xids->num_xids + 1) != MAX_TRANSACTION_RECORDS;
-}
-
 
 int
 xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
@@ -76,15 +70,17 @@ xids_create_unknown_child(XIDS parent_xids, XIDS *xids_p) {
     int rval;
     invariant(parent_xids);
     uint32_t num_child_xids = parent_xids->num_xids + 1;
-    // assumes that caller has verified that num_child_xids will
-    // be less than MAX_TRANSACTIN_RECORDS
-    invariant(num_child_xids < MAX_TRANSACTION_RECORDS);
-    size_t new_size = sizeof(*parent_xids) + num_child_xids*sizeof(parent_xids->ids[0]);
-    XIDS CAST_FROM_VOIDP(xids, toku_xmalloc(new_size));
-    // Clone everything (parent does not have the newest xid).
-    memcpy(xids, parent_xids, new_size - sizeof(xids->ids[0]));
-    *xids_p = xids;
-    rval = 0;
+    invariant(num_child_xids > 0);
+    invariant(num_child_xids <= MAX_TRANSACTION_RECORDS);
+    if (num_child_xids == MAX_TRANSACTION_RECORDS) rval = EINVAL;
+    else {
+        size_t new_size = sizeof(*parent_xids) + num_child_xids*sizeof(parent_xids->ids[0]);
+        XIDS CAST_FROM_VOIDP(xids, toku_xmalloc(new_size));
+        // Clone everything (parent does not have the newest xid).
+        memcpy(xids, parent_xids, new_size - sizeof(xids->ids[0]));
+        *xids_p = xids;
+        rval = 0;
+    }
     return rval;
 }
 
@@ -103,13 +99,11 @@ int
 xids_create_child(XIDS   parent_xids,		// xids list for parent transaction
 		  XIDS * xids_p,		// xids list created
 		  TXNID  this_xid) {		// xid of this transaction (new innermost)
-    bool can_create_child = xids_can_create_child(parent_xids);
-    if (!can_create_child) {
-        return EINVAL;
+    int rval = xids_create_unknown_child(parent_xids, xids_p);
+    if (rval == 0) {
+        xids_finalize_with_child(*xids_p, this_xid);
     }
-    xids_create_unknown_child(parent_xids, xids_p);
-    xids_finalize_with_child(*xids_p, this_xid);
-    return 0;
+    return rval;
 }
 
 void
