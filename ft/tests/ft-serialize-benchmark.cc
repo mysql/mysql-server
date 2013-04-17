@@ -158,6 +158,11 @@ test_serialize_leaf(int valsize, int nelts, double entropy) {
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
     printf("deserialize leaf: %0.05lf\n", dt);
+    printf("io time %lf decompress time %lf deserialize time %lf\n",
+           tokutime_to_seconds(bfe.io_time),
+           tokutime_to_seconds(bfe.decompress_time),
+           tokutime_to_seconds(bfe.deserialize_time)
+           );
 
     toku_ftnode_free(&dn);
 
@@ -289,6 +294,11 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy) {
     gettimeofday(&t[1], NULL);
     dt = (t[1].tv_sec - t[0].tv_sec) + ((t[1].tv_usec - t[0].tv_usec) / USECS_PER_SEC);
     printf("deserialize nonleaf: %0.05lf\n", dt);
+    printf("io time %lf decompress time %lf deserialize time %lf\n",
+           tokutime_to_seconds(bfe.io_time),
+           tokutime_to_seconds(bfe.decompress_time),
+           tokutime_to_seconds(bfe.deserialize_time)
+           );
 
     toku_ftnode_free(&dn);
 
