@@ -209,6 +209,16 @@ cleanup:
     return r;
 }
 
+int toku_ltm_get_curr_locks(toku_ltm* mgr, u_int32_t* curr_locks) {
+    int r = ENOSYS;
+
+    if (!mgr || !curr_locks) { r = EINVAL; goto cleanup; }
+    *curr_locks = mgr->curr_locks;
+    r = 0;
+cleanup:
+    return r;
+}
+
 int toku_ltm_get_max_locks(toku_ltm* mgr, u_int32_t* max_locks) {
     int r = ENOSYS;
 
@@ -267,7 +277,7 @@ cleanup:
 
 /* Functions to update the range count and compare it with the
    maximum number of ranges */
-#if 0   //See ticket #596
+//See ticket #596
 static inline BOOL toku__ltm_lock_test_incr(toku_ltm* tree_mgr, 
                                             u_int32_t replace_locks) {
     assert(tree_mgr);
@@ -286,26 +296,28 @@ static inline void toku__ltm_lock_decr(toku_ltm* tree_mgr, u_int32_t locks) {
     assert(tree_mgr->curr_locks >= locks);
     tree_mgr->curr_locks -= locks;
 }
-#endif
 
 /* The following 3 are temporary functions.  See #596 */
 static inline BOOL toku__lt_lock_test_incr_per_db(toku_lock_tree* tree,
                                                   u_int32_t replace_locks) {
     assert(tree);
     assert(replace_locks <= tree->curr_locks);
-    return (BOOL)(tree->curr_locks - replace_locks < tree->max_locks);
+    return (BOOL)(tree->curr_locks - replace_locks < tree->max_locks) &&
+                  toku__ltm_lock_test_incr(tree->mgr, replace_locks);
 }
 
 static inline void toku__lt_lock_incr_per_db(toku_lock_tree* tree, u_int32_t replace_locks) {
     assert(toku__lt_lock_test_incr_per_db(tree, replace_locks));
     tree->curr_locks -= replace_locks;
     tree->curr_locks += 1;
+    toku__ltm_lock_incr(tree->mgr, replace_locks);
 }
 
 static inline void toku__lt_lock_decr_per_db(toku_lock_tree* tree, u_int32_t locks) {
     assert(tree);
     assert(tree->curr_locks >= locks);
     tree->curr_locks -= locks;
+    toku__ltm_lock_decr(tree->mgr, locks);
 }
 
 static inline void toku__p_free(toku_lock_tree* tree, toku_point* point) {

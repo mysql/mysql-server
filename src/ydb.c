@@ -973,6 +973,12 @@ env_get_engine_status(DB_ENV * env, ENGINE_STATUS * engstat) {
 	    engstat->cachetable_size_limit   = ctstat.size_limit;
 	    engstat->cachetable_size_writing = ctstat.size_writing;
 	}
+	{
+	    toku_ltm* ltm = env->i->ltm;
+	    r = toku_ltm_get_max_locks(ltm, &(engstat->range_locks_max));     assert(r==0);
+	    r = toku_ltm_get_max_locks_per_db(ltm, &(engstat->range_locks_max_per_db));  assert(r==0);
+	    r = toku_ltm_get_curr_locks(ltm, &(engstat->range_locks_curr));   assert(r==0);
+	}
     }
     return r;
 }
