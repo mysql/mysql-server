@@ -534,6 +534,8 @@ static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(
         assert(txn!=NULL);
         struct brt_header *h = tuple->brt->h;
         toku_brt_header_suppress_rollbacks(h, txn);
+	r = toku_txn_note_brt(txn, tuple->brt);
+	assert(r==0);
     }
     return 0;
 }
