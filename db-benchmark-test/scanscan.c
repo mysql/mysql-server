@@ -375,9 +375,9 @@ static void scanscan_range (void) {
     // print the times
     double tsum = 0.0, tmin = 0.0, tmax = 0.0;
     for (counter=0; counter<n_experiments; counter++) {
-        if (tmin == 0.0 || texperiments[counter] < tmin)
+        if (counter==0 || texperiments[counter] < tmin)
             tmin = texperiments[counter];
-        if (tmax == 0.0 || texperiments[counter] > tmax)
+        if (counter==0 || texperiments[counter] > tmax)
             tmax = texperiments[counter];
         tsum += texperiments[counter];
     }
