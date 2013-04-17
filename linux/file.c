@@ -16,7 +16,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
         switch (errno_write) {
             case EINTR: { //The call was interrupted by a signal before any data was written; see signal(7).
                 char err_msg[sizeof("Write of [] bytes to fd=[] interrupted.  Retrying.") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-                snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", len, fd);
+                snprintf(err_msg, sizeof(err_msg), "Write of [%"PRIu64"] bytes to fd=[%d] interrupted.  Retrying.", (uint64_t)len, fd);
                 perror(err_msg);
                 fflush(stdout);
                 try_again = 1;
@@ -24,7 +24,7 @@ try_again_after_handling_write_error(int fd, size_t len, ssize_t r_write) {
             }
             case ENOSPC: {
                 char err_msg[sizeof("Failed write of [] bytes to fd=[].") + 20+10]; //64 bit is 20 chars, 32 bit is 10 chars
-                snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", len, fd);
+                snprintf(err_msg, sizeof(err_msg), "Failed write of [%"PRIu64"] bytes to fd=[%d].", (uint64_t)len, fd);
                 perror(err_msg);
                 fflush(stdout);
                 int out_of_disk_space = 1;
