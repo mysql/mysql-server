@@ -70,6 +70,9 @@ const struct logtype rollbacks[] = {
     {"load", 'l', FA{{"BYTESTRING", "old_iname", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},
+    // #2954
+    {"hot_index", 'h', FA{{"FILENUMS",  "hot_index_filenums", 0},
+                          NULLFIELD}},
     {"dictionary_redirect", 'R', FA{{"FILENUM", "old_filenum", 0},
                                     {"FILENUM", "new_filenum", 0},
                                     NULLFIELD}},
@@ -172,6 +175,10 @@ const struct logtype logtypes[] = {
                      {"BYTESTRING", "old_iname", 0},
                      {"BYTESTRING", "new_iname", 0},
                      NULLFIELD}},
+    // #2954
+    {"hot_index", 'h', FA{{"TXNID",     "xid", 0},
+                          {"FILENUMS",  "hot_index_filenums", 0},
+                          NULLFIELD}},
     {0,0,FA{NULLFIELD}}
 };
 
@@ -527,6 +534,9 @@ generate_rollbacks (void) {
 		    DO_FIELDS(ft, lt, {
                         if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
                             fprintf2(cf, hf, ", BYTESTRING *%s_ptr", ft->name);
+                        } 
+                        else if ( strcmp(ft->type, "FILENUMS") == 0 ) {
+                            fprintf2(cf, hf, ", FILENUMS *%s_ptr", ft->name);
                         }
                         else {
                             fprintf2(cf, hf, ", %s %s", ft->type, ft->name);
@@ -542,9 +552,16 @@ generate_rollbacks (void) {
 		    // 'memdup' all BYTESTRINGS here
 		    DO_FIELDS(ft, lt, {
                         if ( strcmp(ft->type, "BYTESTRING") == 0 ) {
-                        fprintf(cf, "  BYTESTRING %s   = {\n"
+                            fprintf(cf, "  BYTESTRING %s   = {\n"
                                     "    .len  = %s_ptr->len,\n"
                                     "    .data = toku_memdup_in_rollback(log, %s_ptr->data, %s_ptr->len)\n"
+                                    "  };\n",
+                                    ft->name, ft->name, ft->name, ft->name);
+                        }
+                        if ( strcmp(ft->type, "FILENUMS") == 0 ) {
+                            fprintf(cf, "  FILENUMS %s   = {\n"
+                                    "    .num  = %s_ptr->num,\n"
+                                    "    .filenums = toku_memdup_in_rollback(log, %s_ptr->filenums, %s_ptr->num * (sizeof (FILENUM)))\n"
                                     "  };\n",
                                     ft->name, ft->name, ft->name, ft->name);
                         }

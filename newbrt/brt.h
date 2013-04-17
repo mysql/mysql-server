@@ -72,9 +72,15 @@ int toku_brt_optimize_for_upgrade (BRT brt)  __attribute__ ((warn_unused_result)
 
 // Effect: Insert a key and data pair into a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging, enum brt_msg_type type)  __attribute__ ((warn_unused_result));
+int toku_brt_maybe_insert (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum brt_msg_type type)  __attribute__ ((warn_unused_result));
+
+
 int toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_iname, int do_fsync, int do_log, LSN *load_lsn)  __attribute__ ((warn_unused_result));
 int toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *get_lsn)  __attribute__ ((warn_unused_result));
+// 2954
+int toku_brt_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do_log, LSN *hot_index_lsn);
+int toku_brt_hot_index(BRT brt, TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) __attribute__ ((warn_unused_result));
+
 int toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
 int toku_brt_log_put (TOKUTXN txn, BRT brt, const DBT *key, const DBT *val)  __attribute__ ((warn_unused_result));
 int toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, const DBT *key, const DBT *val) __attribute__ ((warn_unused_result));
@@ -86,16 +92,11 @@ int toku_brt_delete (BRT brt, DBT *k, TOKUTXN txn)  __attribute__ ((warn_unused_
 
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 // Returns 0 if successful
-int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, int do_logging)  __attribute__ ((warn_unused_result));
+int toku_brt_maybe_delete (BRT brt, DBT *k, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging)  __attribute__ ((warn_unused_result));
 
-// Effect: Delete a pair only if both k and v are equal according to the comparison function.
-// Returns 0 if successful
-int toku_brt_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn)  __attribute__ ((warn_unused_result)); 
-
-// Effect: Delete a pair only if both k and v are equal according to the comparison function and the
-// oplsn is newer than the brt lsn.  This function is called by recovery.
-// Returns 0 if successful
-int toku_brt_maybe_delete_both (BRT brt, DBT *k, DBT *v, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn)  __attribute__ ((warn_unused_result));
+int toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_type type) __attribute__ ((warn_unused_result));
+int toku_brt_send_delete(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
+int toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) __attribute__ ((warn_unused_result));
 
 int toku_brt_db_delay_closed (BRT brt, DB* db, int (*close_db)(DB*, u_int32_t), u_int32_t close_flags)  __attribute__ ((warn_unused_result));
 int toku_close_brt (BRT, char **error_string)  __attribute__ ((warn_unused_result));
@@ -154,7 +155,6 @@ int toku_brt_cursor_set_range(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNC
 int toku_brt_cursor_set_range_reverse(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 int toku_brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 int toku_brt_cursor_get_both_range_reverse(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-
 
 int toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN)  __attribute__ ((warn_unused_result));
 int toku_brt_cursor_close (BRT_CURSOR curs)  __attribute__ ((warn_unused_result));
@@ -227,6 +227,12 @@ int toku_brt_header_set_panic(struct brt_header *h, int panic, char *panic_strin
 BOOL toku_brt_is_empty (BRT brt, BOOL *try_again) __attribute__ ((warn_unused_result));
 // Effect: Return TRUE iff the tree is empty.  (However if  *try_again is set to TRUE by toku_brt_is_empty, then the answer is inconclusive, and the function should
 //  be tried again.  It's a good idea to release the big ydb lock in this case.
+
+BOOL toku_brt_is_empty_fast (BRT brt);
+// Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty
+// even though if we were to optimize the tree it might turn out that they are empty.
+
+double get_tdiff(void) __attribute__((__visibility__("default")));
 
 BOOL toku_brt_is_empty_fast (BRT brt) __attribute__ ((warn_unused_result));
 // Effect: Return TRUE if there are no messages or leaf entries in the tree.  If so, it's empty.  If there are messages  or leaf entries, we say it's not empty

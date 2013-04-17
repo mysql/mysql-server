@@ -26,19 +26,34 @@ toku_txn_get_status(TXN_STATUS s) {
     *s = status;
 }
 
-int toku_txn_begin_txn (
+
+int 
+toku_txn_begin_txn (
+    DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
-    TOKUTXN *tokutxn, 
+    TOKUTXN *tokutxn,
     TOKULOGGER logger, 
     TXN_SNAPSHOT_TYPE snapshot_type
     ) 
 {
-    return toku_txn_begin_with_xid(
-        parent_tokutxn, 
-        tokutxn, logger, 
-        0, 
-        snapshot_type
-        );
+    int r;
+    r = toku_txn_begin_with_xid(parent_tokutxn, 
+				tokutxn, logger, 
+				0, 
+				snapshot_type
+				);
+    if (r == 0) {
+	// container_db_txn set here, not in helper function toku_txn_begin_with_xid()
+	// because helper function is used by recovery, which does not have DB_TXN
+	(*tokutxn)->container_db_txn = container_db_txn; // internal struct points to container
+    }
+    return r;
+}
+
+DB_TXN *
+toku_txn_get_container_db_txn (TOKUTXN tokutxn) {
+    DB_TXN * container = tokutxn->container_db_txn;
+    return container;
 }
 
 static int
@@ -221,6 +236,10 @@ int toku_txn_begin_with_xid (
     result->force_fsync_on_commit = FALSE;
     result->recovered_from_checkpoint = FALSE;
     toku_list_init(&result->checkpoint_before_commit);
+    // 2954
+    r = toku_txn_ignore_init(result);
+    if (r != 0) goto died;
+
     *tokutxn = result;
     status.begin++;
     if (garbage_collection_debug) {
@@ -549,3 +568,106 @@ verify_snapshot_system(TOKULOGGER logger) {
     }
 }
 
+// routines for checking if rollback errors should be ignored because a hot index create was aborted
+// 2954
+// returns 
+//      0 on success
+//      ENOMEM if can't alloc memory
+//      EINVAL if txn = NULL
+//      -1 on other errors
+int toku_txn_ignore_init(TOKUTXN txn)
+{
+    if ( !txn ) return EINVAL;
+    TXN_IGNORE txni = toku_malloc(sizeof(TXN_IGNORE_S)); 
+    if ( txni == NULL ) return ENOMEM;
+
+    txni->fns_allocated = 0;
+    txni->filenums.num = 0;
+    txni->filenums.filenums = NULL;
+
+    txn->ignore_errors = txni;
+
+    return 0;
+}
+
+void toku_txn_ignore_free(TOKUTXN txn)
+{
+    TXN_IGNORE txni = txn->ignore_errors;
+    toku_free(txni->filenums.filenums);
+    toku_free(txni);
+    txni = NULL;
+}
+
+// returns 
+//      0 on success
+//      ENOMEM if can't alloc memory
+//      EINVAL if txn = NULL
+//      -1 on other errors
+int toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum) 
+{
+    if ( !txn ) return EINVAL;
+    // check for dups
+    if ( toku_txn_ignore_contains(txn, filenum) == 0 ) return 0;
+    // alloc more space if needed
+    const int N = 2;
+    TXN_IGNORE txni = txn->ignore_errors;
+    if ( txni->filenums.num == txni->fns_allocated ) {
+        if ( txni->fns_allocated == 0 ) {
+            CALLOC_N(N, txni->filenums.filenums);
+            if ( txni->filenums.filenums == NULL ) return ENOMEM;
+            txni->fns_allocated = N;
+        }
+        else {
+            XREALLOC_N(txni->fns_allocated * N, txni->filenums.filenums);
+            if ( txni->filenums.filenums == NULL ) return ENOMEM;
+            txni->fns_allocated = txni->fns_allocated * N;
+        }
+    }
+    txni->filenums.num++;
+    txni->filenums.filenums[txni->filenums.num - 1].fileid = filenum.fileid; 
+
+    return 0;
+}
+
+// returns 
+//      0 on success
+//      ENOENT if not found
+//      EINVAL if txn = NULL
+//      -1 on other errors
+int toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum)
+{
+    if ( !txn ) return EINVAL; 
+    TXN_IGNORE txni = txn->ignore_errors;
+    int found_fn = 0;
+    if ( txni->filenums.num == 0 ) return ENOENT;
+    for(uint32_t i=0; i<txni->filenums.num; i++) {
+        if ( !found_fn ) {
+            if ( txni->filenums.filenums[i].fileid == filenum.fileid ) {
+                found_fn = 1;
+            }
+        }
+        else { // remove bubble in array
+            txni->filenums.filenums[i-1].fileid = txni->filenums.filenums[i].fileid;
+        }
+    }
+    if ( !found_fn ) return ENOENT;
+    txni->filenums.num--;
+    return 0;
+}
+
+// returns 
+//      0 on success
+//      ENOENT if not found
+//      EINVAL if txn = NULL
+//      -1 on other errors
+int toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum) 
+{
+    if ( !txn ) return EINVAL;
+    TXN_IGNORE txni = txn->ignore_errors;
+    for(uint32_t i=0; i<txni->filenums.num; i++) {
+        if ( txni->filenums.filenums[i].fileid == filenum.fileid ) {
+            return 0;
+        }
+    }
+    return ENOENT;
+}

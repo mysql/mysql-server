@@ -29,6 +29,31 @@
 #include "xids.h"
 #include "brt_msg.h"
 #include "ule.h"
+#include "ule-internal.h"
+
+
+#define ULE_DEBUG 0
+
+
+///////////////////////////////////////////////////////////////////////////////////
+// Accessor functions used by outside world (e.g. indexer)
+//
+
+ULEHANDLE 
+toku_ule_create(void * le_p) {
+    ULE ule_p = toku_malloc(sizeof(ULE_S));
+    le_unpack(ule_p, le_p);
+    return (ULEHANDLE) ule_p;
+}
+
+void toku_ule_free(ULEHANDLE ule_p) {
+    ule_cleanup((ULE) ule_p);
+    toku_free(ule_p);
+}
+
+
+
+
 
 ///////////////////////////////////////////////////////////////////////////////////
 //
@@ -84,9 +109,6 @@ static void ule_optimize(ULE ule, XIDS xids);
 static inline BOOL uxr_type_is_insert(u_int8_t type);
 static inline BOOL uxr_type_is_delete(u_int8_t type);
 static inline BOOL uxr_type_is_placeholder(u_int8_t type);
-static inline BOOL uxr_is_insert(UXR uxr);
-static inline BOOL uxr_is_delete(UXR uxr);
-static inline BOOL uxr_is_placeholder(UXR uxr);
 static inline size_t uxr_pack_txnid(UXR uxr, uint8_t *p);
 static inline size_t uxr_pack_type_and_length(UXR uxr, uint8_t *p);
 static inline size_t uxr_pack_length_and_bit(UXR uxr, uint8_t *p);
@@ -1650,6 +1672,49 @@ ule_add_placeholders(ULE ule, XIDS xids) {
     }
 }
 
+int 
+ule_num_uxrs(ULE ule) {
+    return ule->num_cuxrs + ule->num_puxrs;
+}
+
+UXR 
+ule_get_uxr(ULE ule, int ith) {
+    invariant(0 <= ith && ith < ule_num_uxrs(ule));
+    return &ule->uxrs[ith];
+}
+
+int 
+ule_get_num_committed(ULE ule) {
+    return ule->num_cuxrs;
+}
+
+int 
+ule_get_num_provisional(ULE ule) {
+    return ule->num_puxrs;
+}
+
+int 
+ule_is_committed(ULE ule, int ith) {
+    invariant(0 <= ith && ith < ule_num_uxrs(ule));
+    return ith < (int) ule->num_cuxrs;
+}
+
+int 
+ule_is_provisional(ULE ule, int ith) {
+    invariant(0 <= ith && ith < ule_num_uxrs(ule));
+    return ith >= (int) ule->num_cuxrs;
+}
+
+void *
+ule_get_key(ULE ule) {
+    return ule->keyp;
+}
+
+uint32_t 
+ule_get_keylen(ULE ule) {
+    return ule->keylen;
+}
+
 /////////////////////////////////////////////////////////////////////////////////
 //  This layer of abstraction (uxr_xxx) understands uxr and nothing else.
 //
@@ -1660,7 +1725,7 @@ uxr_type_is_insert(u_int8_t type) {
     return rval;
 }
 
-static inline BOOL
+BOOL
 uxr_is_insert(UXR uxr) {
     return uxr_type_is_insert(uxr->type);
 }
@@ -1671,7 +1736,7 @@ uxr_type_is_delete(u_int8_t type) {
     return rval;
 }
 
-static inline BOOL
+BOOL
 uxr_is_delete(UXR uxr) {
     return uxr_type_is_delete(uxr->type);
 }
@@ -1682,9 +1747,25 @@ uxr_type_is_placeholder(u_int8_t type) {
     return rval;
 }
 
-static inline BOOL
+BOOL
 uxr_is_placeholder(UXR uxr) {
     return uxr_type_is_placeholder(uxr->type);
+}
+
+void *
+uxr_get_val(UXR uxr) {
+    return uxr->valp;
+}
+
+uint32_t 
+uxr_get_vallen(UXR uxr) {
+    return uxr->vallen;
+}
+
+
+TXNID 
+uxr_get_txnid(UXR uxr) {
+    return uxr->xid;
 }
 
 static int

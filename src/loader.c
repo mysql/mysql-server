@@ -58,6 +58,22 @@ struct __toku_loader_internal {
     char **inames_in_env; /* [N]  inames of new files to be created */
 };
 
+static void
+loader_add_refs(DB_LOADER *loader) {
+    if (loader->i->src_db)
+        toku_db_add_ref(loader->i->src_db);
+    for (int i = 0; i < loader->i->N; i++)
+        toku_db_add_ref(loader->i->dbs[i]);
+}
+
+static void
+loader_release_refs(DB_LOADER *loader) {
+    if (loader->i->src_db)
+        toku_db_release_ref(loader->i->src_db);
+    for (int i = 0; i < loader->i->N; i++)
+        toku_db_release_ref(loader->i->dbs[i]);
+}
+
 /*
  *  free_loader_resources() frees all of the resources associated with
  *      struct __toku_loader_internal 
@@ -67,6 +83,7 @@ struct __toku_loader_internal {
 static void free_loader_resources(DB_LOADER *loader) 
 {
     if ( loader->i ) {
+        loader_release_refs(loader);
         for (int i=0; i<loader->i->N; i++) {
             if (loader->i->ekeys &&
                 loader->i->ekeys[i].data &&
@@ -229,6 +246,7 @@ int toku_loader_create_loader(DB_ENV *env,
     }
     *blp = loader;
  create_exit:
+    loader_add_refs(loader);
     if (rval == 0) {
 	(void) toku_sync_fetch_and_increment_uint64(&status.create);
 	(void) toku_sync_fetch_and_increment_uint32(&status.current);

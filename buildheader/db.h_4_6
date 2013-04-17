@@ -54,6 +54,16 @@ struct __toku_loader {
   int (*close)(DB_LOADER *loader);                                                                        /* finish loading, free memory */
   int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */
 };
+typedef struct __toku_indexer DB_INDEXER;
+struct __toku_indexer_internal;
+struct __toku_indexer {
+  struct __toku_indexer_internal *i;
+  int (*set_error_callback)(DB_INDEXER *indexer, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra), void *error_extra); /* set the error callback */
+  int (*set_poll_function)(DB_INDEXER *indexer, int (*poll_func)(void *extra, float progress), void *poll_extra);             /* set the polling function */
+  int (*build)(DB_INDEXER *indexer);  /* build the indexes */
+  int (*close)(DB_INDEXER *indexer);  /* finish indexing, free memory */
+  int (*abort)(DB_INDEXER *indexer);  /* abort  indexing, free memory */
+};
 typedef struct __toku_engine_status {
   char             creationtime[26];        /* time of environment creation */ 
   char             startuptime[26];         /* time of engine startup */ 
@@ -271,12 +281,13 @@ struct __toku_db_env {
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
-  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
+  int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
+  int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags);
+  void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
                                              uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,
                                              void *extra) /* insert into multiple DBs */;
-  void *app_private; /* 32-bit offset=52 size=4, 64=bit offset=104 size=8 */
   int (*set_generate_row_callback_for_put)    (DB_ENV *env, 
                                              int (*generate_row_for_put)(DB *dest_db, DB *src_db,
                                                                          DBT *dest_key, DBT *dest_val,
@@ -302,7 +313,7 @@ struct __toku_db_env {
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
   int (*set_lk_max_memory)                    (DB_ENV *env, uint64_t max);
   int (*get_lk_max_memory)                    (DB_ENV *env, uint64_t *max);
-  void* __toku_dummy0[31];
+  void* __toku_dummy0[30];
   char __toku_dummy1[144];
   void *api1_internal; /* 32-bit offset=356 size=4, 64=bit offset=568 size=8 */
   void* __toku_dummy2[8];
@@ -409,7 +420,9 @@ struct __toku_db {
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
-  void* __toku_dummy1[31];
+  int (*set_indexer)(DB*, DB_INDEXER*);
+  void (*get_indexer)(DB*, DB_INDEXER**);
+  void* __toku_dummy1[29];
   char __toku_dummy2[80];
   void *api_internal; /* 32-bit offset=276 size=4, 64=bit offset=464 size=8 */
   void* __toku_dummy3[5];

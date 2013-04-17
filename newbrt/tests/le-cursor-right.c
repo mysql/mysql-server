@@ -44,7 +44,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     assert(error == 0);
 
     TOKUTXN txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     BRT brt = NULL;
@@ -56,7 +56,7 @@ create_populate_tree(const char *logdir, const char *fname, int n) {
     toku_txn_close_txn(txn);
 
     txn = NULL;
-    error = toku_txn_begin_txn(NULL, &txn, logger, TXN_SNAPSHOT_NONE);
+    error = toku_txn_begin_txn(NULL, NULL, &txn, logger, TXN_SNAPSHOT_NONE);
     assert(error == 0);
 
     // insert keys 0, 1, 2, .. (n-1)

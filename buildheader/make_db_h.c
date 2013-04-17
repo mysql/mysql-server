@@ -437,6 +437,18 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  int (*abort)(DB_LOADER *loader);                                                                        /* abort loading, free memory */\n");
     printf("};\n");
 
+    //indexer
+    printf("typedef struct __toku_indexer DB_INDEXER;\n");
+    printf("struct __toku_indexer_internal;\n");
+    printf("struct __toku_indexer {\n");
+    printf("  struct __toku_indexer_internal *i;\n");
+    printf("  int (*set_error_callback)(DB_INDEXER *indexer, void (*error_cb)(DB *db, int i, int err, DBT *key, DBT *val, void *error_extra), void *error_extra); /* set the error callback */\n");
+    printf("  int (*set_poll_function)(DB_INDEXER *indexer, int (*poll_func)(void *extra, float progress), void *poll_extra);             /* set the polling function */\n");
+    printf("  int (*build)(DB_INDEXER *indexer);  /* build the indexes */\n");
+    printf("  int (*close)(DB_INDEXER *indexer);  /* finish indexing, free memory */\n");
+    printf("  int (*abort)(DB_INDEXER *indexer);  /* abort  indexing, free memory */\n");
+    printf("};\n");
+
     //engine status info
     printf("typedef struct __toku_engine_status {\n");
     printf("  char             creationtime[26];        /* time of environment creation */ \n");
@@ -570,7 +582,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
 			     "int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*, char*, int) /* Fill in status struct, possibly env panic string */",
 			     "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
 			     "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
-                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
+                             "int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp,    DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags)",
+                             "int (*create_indexer)                       (DB_ENV *env, DB_TXN *txn, DB_INDEXER **idxrp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t indexer_flags)",
                              "int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,\n"
                              "                                             const DBT *key, const DBT *val,\n"
                              "                                             uint32_t num_dbs, DB **db_array, DBT *keys, DBT *vals, uint32_t *flags_array,\n"
@@ -652,6 +665,8 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
                              "int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */",
                              "int (*optimize)(DB*) /* Run garbage collecion and promote all transactions older than oldest. Amortized (happens during flattening) */",
                              "int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION)",
+                             "int (*set_indexer)(DB*, DB_INDEXER*)",
+                             "void (*get_indexer)(DB*, DB_INDEXER**)",
 			     NULL};
 	print_struct("db", 1, db_fields32, db_fields64, sizeof(db_fields32)/sizeof(db_fields32[0]), extra);
     }

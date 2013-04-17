@@ -46,6 +46,7 @@ u_int8_t xids_find_index_of_xid(XIDS xids, TXNID target_xid);
 u_int8_t xids_get_num_xids(XIDS xids);
 
 TXNID xids_get_innermost_xid(XIDS xids);
+TXNID xids_get_outermost_xid(XIDS xids);
 
 // return size in bytes
 u_int32_t xids_get_size(XIDS xids);

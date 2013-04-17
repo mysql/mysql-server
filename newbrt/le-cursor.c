@@ -72,7 +72,7 @@ le_cursor_next(LE_CURSOR le_cursor, DBT *key, DBT *val) {
 }
 
 int
-is_key_right_of_le_cursor(LE_CURSOR le_cursor, DBT *key, int (*keycompare)(DB *, const DBT *, const DBT *), DB *db) {
+is_key_right_of_le_cursor(LE_CURSOR le_cursor, const DBT *key, int (*keycompare)(DB *, const DBT *, const DBT *), DB *db) {
     int result;
     if (le_cursor->neg_infinity)
         result = TRUE;

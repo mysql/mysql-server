@@ -98,6 +98,18 @@ BDB_DONTRUN_TESTS = \
         helgrind1 \
         helgrind2 \
         helgrind3 \
+	hotindexer-bw \
+	hotindexer-db-busy \
+	hotindexer-error-callback \
+	hotindexer-insert-committed-optimized \
+	hotindexer-insert-committed \
+	hotindexer-insert-provisional \
+	hotindexer-multiclient \
+	hotindexer-nested-insert-committed \
+	hotindexer-put-multiple \
+	hotindexer-simple-abort \
+	hotindexer-undo-do-test \
+	hotindexer-with-queries \
 	insert-dup-prelock \
         isolation \
         isolation-read-committed \
@@ -108,11 +120,13 @@ BDB_DONTRUN_TESTS = \
         loader-cleanup-test \
 	loader-create-abort \
 	loader-create-close \
+	loader-db-busy \
         loader-dup-test \
         loader-no-puts \
         loader-reference-test \
         loader-stress-test \
         loader-tpch-load \
+	lock-pressure \
         manyfiles \
 	multiprocess \
 	mvcc-create-table \
@@ -177,6 +191,7 @@ BDB_DONTRUN_TESTS = \
         test_txn_nested3 \
         test_txn_nested4 \
         test_txn_nested5 \
+	txn-ignore \
         transactional_fileops \
 	update-multiple-nochange \
 	update-multiple-key0 \
@@ -739,6 +754,15 @@ LOADER_USE_DEFAULT_TESTS = create-abort create-close no-puts reference-test stre
 
 loader-tests: $(LOADER_TESTS)
 	echo $(LOADER_TESTS)
+
+HOTINDEXER_UNDO_TESTS = $(wildcard hotindexer-undo-do-tests/*.test)
+CHECK_HOTINDEXER_UNDO_TESTS = $(patsubst %.test,%.run,$(HOTINDEXER_UNDO_TESTS))
+
+hotindexer-undo-do-test.tdbrun: hotindexer-undo-do-test.tdb$(BINSUF) $(CHECK_HOTINDEXER_UNDO_TESTS)
+	true
+
+$(CHECK_HOTINDEXER_UNDO_TESTS): %.run: %.test
+	./run-hotindexer-undo-do-tests.bash $< $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(ALL_BINS)

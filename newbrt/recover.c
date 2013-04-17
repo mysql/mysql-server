@@ -977,6 +977,26 @@ static int toku_recover_backward_load(struct logtype_load *UU(l), RECOVER_ENV UU
     return 0;
 }
 
+// #2954
+static int toku_recover_hot_index(struct logtype_hot_index *UU(l), RECOVER_ENV UU(renv)) {
+    int r;
+    TOKUTXN txn = NULL;
+    r = toku_txnid2txn(renv->logger, l->xid, &txn);
+    assert(r == 0);
+    assert(txn!=NULL);
+    // just make an entry in the rollback log 
+    //   - set do_log = 0 -> don't write to recovery log
+    r = toku_brt_hot_index_recovery(txn, l->hot_index_filenums, 0, 0, (LSN*)NULL);
+    assert(r == 0);
+    return 0;
+}
+
+// #2954
+static int toku_recover_backward_hot_index(struct logtype_hot_index *UU(l), RECOVER_ENV UU(renv)) {
+    // nothing
+    return 0;
+}
+
 // Effects: If there are no log files, or if there is a "clean" checkpoint at the end of the log,
 // then we don't need recovery to run.  Skip the shutdown log entry if there is one.
 // Returns: TRUE if we need recovery, otherwise FALSE.

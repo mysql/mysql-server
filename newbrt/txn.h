@@ -10,12 +10,16 @@ extern "C" {
 #endif
 
 int toku_txn_begin_txn (
+    DB_TXN  *container_db_txn,
     TOKUTXN parent_tokutxn, 
     TOKUTXN *tokutxn, 
     TOKULOGGER logger,
     TXN_SNAPSHOT_TYPE snapshot_type
     );
 
+DB_TXN * toku_txn_get_container_db_txn (TOKUTXN tokutxn);
+
+// toku_txn_begin_with_xid is called from recovery and has no containing DB_TXN 
 int toku_txn_begin_with_xid (
     TOKUTXN parent_tokutxn, 
     TOKUTXN *tokutxn, 
@@ -23,6 +27,7 @@ int toku_txn_begin_with_xid (
     TXNID xid, 
     TXN_SNAPSHOT_TYPE snapshot_type
     );
+
 int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
@@ -68,6 +73,18 @@ typedef struct {
     TXNID xid1;
     TXNID xid2;
 } XID_PAIR_S, *XID_PAIR;
+
+// 2954
+typedef struct tokutxn_filenum_ignore_errors {
+    uint32_t fns_allocated;
+    FILENUMS filenums;
+} TXN_IGNORE_S, *TXN_IGNORE;
+
+int  toku_txn_ignore_init(TOKUTXN txn);
+void toku_txn_ignore_free(TOKUTXN txn);
+int  toku_txn_ignore_add(TOKUTXN txn, FILENUM filenum);
+int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);
+int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };

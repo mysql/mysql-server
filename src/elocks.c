@@ -63,9 +63,9 @@ ydbtime_destr(void *a) {
     struct ydbtime *ydbtime = (struct ydbtime *) a;
     int r;
     // printf("%s %p\n", __FUNCTION__, a);
-    r = toku_pthread_mutex_lock(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_lock(&ydb_big_lock.lock); resource_assert_zero(r);
     toku_list_remove(&ydbtime->all_ydbtimes);
-    r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); resource_assert_zero(r);
     toku_free(ydbtime);
 }
 
@@ -74,7 +74,7 @@ static uint64_t
 get_tnow(void) {
     struct timeval tv;
     int r = gettimeofday(&tv, NULL);
-    assert(r == 0);
+    resource_assert_zero(r);
     return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 #endif
@@ -83,7 +83,7 @@ static void
 init_status(void) {
     uint64_t cpuhz = 0;
 #if YDB_LOCK_MISS_TIME
-    int r = toku_os_get_processor_frequency(&cpuhz); assert(r == 0);
+    int r = toku_os_get_processor_frequency(&cpuhz); resource_assert_zero(r);
 #endif
     status.ydb_lock_ctr = 0;
     status.max_possible_sleep = MAX_SLEEP;
@@ -108,10 +108,10 @@ toku_ydb_lock_get_status(SCHEDULE_STATUS statp) {
 int 
 toku_ydb_lock_init(void) {
     int r;
-    r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); assert(r == 0);
+    r = toku_pthread_mutex_init(&ydb_big_lock.lock, NULL); resource_assert_zero(r);
 #if YDB_LOCK_MISS_TIME
     ydb_big_lock.waiters = 0;
-    r = toku_pthread_key_create(&ydb_big_lock.time_key, ydbtime_destr); assert(r == 0);
+    r = toku_pthread_key_create(&ydb_big_lock.time_key, ydbtime_destr); resource_assert_zero(r);
     toku_list_init(&ydb_big_lock.all_ydbtimes);
 #endif
     init_status();
@@ -122,21 +122,21 @@ int
 toku_ydb_lock_destroy(void) {
     int r;
 #if YDB_LOCK_MISS_TIME
-    r = toku_pthread_key_delete(ydb_big_lock.time_key); assert(r == 0);
+    r = toku_pthread_key_delete(ydb_big_lock.time_key); resource_assert_zero(r);
     while (!toku_list_empty(&ydb_big_lock.all_ydbtimes)) {
         struct toku_list *list = toku_list_pop(&ydb_big_lock.all_ydbtimes);
         struct ydbtime *ydbtime = toku_list_struct(list, struct ydbtime, all_ydbtimes);
         ydbtime_destr(ydbtime);
     }
 #endif
-    r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_destroy(&ydb_big_lock.lock); resource_assert_zero(r);
     return r;
 }
 
 void 
 toku_ydb_lock(void) {
 #if !YDB_LOCK_MISS_TIME
-    int r = toku_pthread_mutex_lock(&ydb_big_lock.lock);   assert(r == 0);
+    int r = toku_pthread_mutex_lock(&ydb_big_lock.lock);   resource_assert_zero(r);
 #endif
 
 #if YDB_LOCK_MISS_TIME
@@ -147,10 +147,10 @@ toku_ydb_lock(void) {
     if (!ydbtime) {          // allocate the per thread timestamp if not yet allocated
         new_ydbtime = TRUE;
         ydbtime = toku_malloc(sizeof (struct ydbtime));
-        assert(ydbtime);
+        resource_assert(ydbtime);
         memset(ydbtime, 0, sizeof (struct ydbtime));
         r = toku_pthread_setspecific(ydb_big_lock.time_key, ydbtime);
-        assert(r == 0);
+        resource_assert_zero(r);
 	(void) toku_sync_fetch_and_increment_uint64(&status.total_clients);
     }
     if (ydbtime->tacquire) { // delay the thread if the lock acquire time is set and is less than the current time
@@ -177,7 +177,7 @@ toku_ydb_lock(void) {
         (void) toku_sync_fetch_and_increment_int32(&ydb_big_lock.waiters);
         (void) toku_sync_fetch_and_increment_uint64(&status.total_waiters);
         r = toku_pthread_mutex_lock(&ydb_big_lock.lock);
-        assert(r == 0);
+        resource_assert_zero(r);
         (void) toku_sync_fetch_and_decrement_int32(&ydb_big_lock.waiters);
     }
     status.max_requested_sleep = u64max(status.max_requested_sleep, requested_sleep);
@@ -188,25 +188,27 @@ toku_ydb_lock(void) {
 #endif
 
     status.ydb_lock_ctr++;
-    assert((status.ydb_lock_ctr & 0x01) == 1);
+    invariant((status.ydb_lock_ctr & 0x01) == 1);
 }
 
-void 
-toku_ydb_unlock(void) {
+// low_priority causes the routine to sleep if there are others waiting for the ydb_lock
+static void 
+ydb_unlock_internal(unsigned long useconds) {
     status.ydb_lock_ctr++;
-    assert((status.ydb_lock_ctr & 0x01) == 0);
+    invariant((status.ydb_lock_ctr & 0x01) == 0);
 
 #if !YDB_LOCK_MISS_TIME
-    int r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
+    int r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); resource_assert_zero(r);
 #endif
 
 #if YDB_LOCK_MISS_TIME
     struct ydbtime *ydbtime = toku_pthread_getspecific(ydb_big_lock.time_key);
-    assert(ydbtime);
+    resource_assert(ydbtime);
 
     int r;
     uint64_t theld;
     int waiters = ydb_big_lock.waiters;             // get the number of lock waiters (used to compute the lock acquisition time)
+    int do_sleep = 0;
     if (waiters == 0) {
 	theld = 0;
     } else {
@@ -219,7 +221,7 @@ toku_ydb_unlock(void) {
         disk_count += fsync_count - ydb_big_lock.start_fsync_count; // time waiting for fsyncs to complete
         disk_time += fsync_time - ydb_big_lock.start_fsync_time;
 	if (disk_count == 0) {
-	    theld = 0;
+	    theld = 0; do_sleep = 1;
 	} else {
 	    theld = disk_time ? disk_time : disk_count * 20000ULL; // if we decide not to compile in miss_time, then backoff to 20 milliseconds per cache miss
 
@@ -235,7 +237,10 @@ toku_ydb_unlock(void) {
 	}
     }
 
-    r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); assert(r == 0);
+    r = toku_pthread_mutex_unlock(&ydb_big_lock.lock); resource_assert_zero(r);
+
+    if (do_sleep && useconds > 0)
+        usleep(useconds);
 
     // we use a lower bound of 100 microseconds on the sleep time to avoid system call overhead for short sleeps
     if (waiters == 0 || theld <= 100ULL)
@@ -246,3 +251,12 @@ toku_ydb_unlock(void) {
 
 }
 
+void 
+toku_ydb_unlock(void) {
+    ydb_unlock_internal(0);
+}
+
+void 
+toku_ydb_unlock_and_yield(unsigned long useconds) {
+    ydb_unlock_internal(useconds);
+}

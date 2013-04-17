@@ -158,6 +158,14 @@ xids_get_innermost_xid(XIDS xids) {
     return rval;
 }
 
+TXNID
+xids_get_outermost_xid(XIDS xids) {
+    TXNID rval = TXNID_NONE;
+    if (xids_get_num_xids(xids))
+        rval = xids_get_xid(xids, 0);
+    return rval;
+}
+
 void
 xids_cpy(XIDS target, XIDS source) {
     size_t size = xids_get_size(source);
