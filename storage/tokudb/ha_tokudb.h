@@ -259,8 +259,8 @@ private:
     int handle_cursor_error(int error, int err_to_return, uint keynr);
     DBT *get_pos(DBT * to, uchar * pos);
  
-    int open_main_dictionary(const char* name, int mode, DB_TXN* txn);
-    int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, int mode, DB_TXN* txn);
+    int open_main_dictionary(const char* name, bool is_read_only, DB_TXN* txn);
+    int open_secondary_dictionary(DB** ptr, KEY* key_info, const char* name, bool is_read_only, DB_TXN* txn);
     int open_status_dictionary(DB** ptr, const char* name, DB_TXN* txn);
     int acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt);
     int estimate_num_rows(DB* db, u_int64_t* num_rows);
