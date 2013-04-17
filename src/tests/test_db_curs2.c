@@ -33,14 +33,21 @@ struct primary_key {
     struct timestamp ts;
 };
 
-void print_pkey (DBT *dbt) {
+static u_int32_t
+int_from_chars (unsigned char *d) {
+    return (d[0]<<24)+(d[1]<<16)+(d[2]<<8)+d[3];
+}
+
+static __attribute__((__unused__))
+void
+print_pkey (DBT *dbt) {
     unsigned char *d = dbt->data;
     int i;
     assert(dbt->size==12);
     printf("pkey=%u.%u.%u {",
-	   (d[0]<<24)+(d[1]<<16)+(d[2]<<8)+d[3],
-	   (d[4]<<24)+(d[5]<<16)+(d[6]<<8)+d[7],
-	   (d[8]<<24)+(d[9]<<16)+(d[10]<<8)+d[11]);
+	   int_from_chars(d),
+	   int_from_chars(d+4),
+	   int_from_chars(d+8));
     for (i=0; i<12; i++) {
 	if (i!=0) printf(",");
 	printf("%d", d[i]);
@@ -59,34 +66,40 @@ struct primary_data {
     struct name_key name;
 };
 
-void free_pd (struct primary_data *pd) {
+static void
+free_pd (struct primary_data *pd) {
     free(pd->name.name);
     free(pd);
 }
 
-void write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
+static void
+write_uchar_to_dbt (DBT *dbt, const unsigned char c) {
     assert(dbt->size+1 <= dbt->ulen);
     ((char*)dbt->data)[dbt->size++]=c;
 }
 
-void write_uint_to_dbt (DBT *dbt, const unsigned int v) {
-    write_uchar_to_dbt(dbt, (v>>24)&0xff);
-    write_uchar_to_dbt(dbt, (v>>16)&0xff);
-    write_uchar_to_dbt(dbt, (v>> 8)&0xff);
-    write_uchar_to_dbt(dbt, (v>> 0)&0xff);
+static void
+write_uint_to_dbt (DBT *dbt, const unsigned int v) {
+    write_uchar_to_dbt(dbt, (unsigned char)((v>>24)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>>16)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>> 8)&0xff));
+    write_uchar_to_dbt(dbt, (unsigned char)((v>> 0)&0xff));
 }
 
-void write_timestamp_to_dbt (DBT *dbt, const struct timestamp *ts) {
+static void
+write_timestamp_to_dbt (DBT *dbt, const struct timestamp *ts) {
     write_uint_to_dbt(dbt, ts->tv_sec);
     write_uint_to_dbt(dbt, ts->tv_usec);
 }
 
-void write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
+static void
+write_pk_to_dbt (DBT *dbt, const struct primary_key *pk) {
     write_uint_to_dbt(dbt, pk->rand);
     write_timestamp_to_dbt(dbt, &pk->ts);
 }
 
-void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
+static void
+write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
     int i;
     for (i=0; 1; i++) {
 	write_uchar_to_dbt(dbt, nk->name[i]);
@@ -94,19 +107,22 @@ void write_name_to_dbt (DBT *dbt, const struct name_key *nk) {
     }
 }
 
-void write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
+static void
+write_pd_to_dbt (DBT *dbt, const struct primary_data *pd) {
     write_timestamp_to_dbt(dbt, &pd->creationtime);
     write_timestamp_to_dbt(dbt, &pd->expiretime);
     write_uchar_to_dbt(dbt, pd->doesexpire);
     write_name_to_dbt(dbt, &pd->name);
 }
 
-void read_uchar_from_dbt (const DBT *dbt, unsigned int *off, unsigned char *uchar) {
+static void
+read_uchar_from_dbt (const DBT *dbt, unsigned int *off, unsigned char *uchar) {
     assert(*off < dbt->size);
     *uchar = ((unsigned char *)dbt->data)[(*off)++];
 }
 
-void read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) {
+static void
+read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) {
     unsigned char a,b,c,d;
     read_uchar_from_dbt(dbt, off, &a);
     read_uchar_from_dbt(dbt, off, &b);
@@ -115,12 +131,14 @@ void read_uint_from_dbt (const DBT *dbt, unsigned int *off, unsigned int *uint) 
     *uint = (a<<24)+(b<<16)+(c<<8)+d;
 }
 
-void read_timestamp_from_dbt (const DBT *dbt, unsigned int *off, struct timestamp *ts) {
+static void
+read_timestamp_from_dbt (const DBT *dbt, unsigned int *off, struct timestamp *ts) {
     read_uint_from_dbt(dbt, off, &ts->tv_sec);
     read_uint_from_dbt(dbt, off, &ts->tv_usec);
 }
 
-void read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_key *nk) {
+static void
+read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_key *nk) {
     unsigned char buf[1000];
     int i;
     for (i=0; 1; i++) {
@@ -130,18 +148,16 @@ void read_name_from_dbt (const DBT *dbt, unsigned int *off, struct name_key *nk)
     nk->name=(unsigned char*)(strdup((char*)buf));
 }
 
-void read_pd_from_dbt (const DBT *dbt, unsigned int *off, struct primary_data *pd) {
+static void
+read_pd_from_dbt (const DBT *dbt, unsigned int *off, struct primary_data *pd) {
     read_timestamp_from_dbt(dbt, off, &pd->creationtime);
     read_timestamp_from_dbt(dbt, off, &pd->expiretime);
     read_uchar_from_dbt(dbt, off, &pd->doesexpire);
     read_name_from_dbt(dbt, off, &pd->name);
 }
 
-int name_offset_in_pd_dbt (void) {
-    return 17;
-}
-
-int name_callback (DB *secondary __attribute__((__unused__)), const DBT * UU(key), const DBT *data, DBT *result) {
+static int
+name_callback (DB *secondary __attribute__((__unused__)), const DBT * UU(key), const DBT *data, DBT *result) {
     struct primary_data *pd = malloc(sizeof(*pd));
     unsigned int off=0;
     read_pd_from_dbt(data, &off, pd);
@@ -155,7 +171,8 @@ int name_callback (DB *secondary __attribute__((__unused__)), const DBT * UU(key
     return 0;
 }
 
-int expire_callback (DB *UU(secondary), const DBT * UU(key), const DBT *data, DBT *result) {
+static int
+expire_callback (DB *UU(secondary), const DBT * UU(key), const DBT *data, DBT *result) {
     struct primary_data *d = data->data;
     if (d->doesexpire) {
 	result->flags=0;
@@ -183,7 +200,8 @@ int count_all_items=0;      // The total number of items
 DBT nc_key,nc_data;
 
 
-void create_databases (void) {
+static void
+create_databases (void) {
     int r;
 
     r = db_env_create(&dbenv, 0);                                                            CKERR(r);
@@ -202,7 +220,8 @@ void create_databases (void) {
     r = dbp->associate(dbp, NULL, expiredb, expire_callback, 0);                             CKERR(r);
 }
 
-void close_databases (void) {
+static void
+close_databases (void) {
     int r;
     if (delete_cursor) {
 	r = delete_cursor->c_close(delete_cursor); CKERR(r);
@@ -219,13 +238,15 @@ void close_databases (void) {
 }
     
 
-void gettod (struct timestamp *ts) {
+static void
+gettod (struct timestamp *ts) {
     static int counter=0;
     ts->tv_sec=0;
     ts->tv_usec=counter++;
 }
 
-void setup_for_db_create (void) {
+static void
+setup_for_db_create (void) {
 
     // Remove name.db and then rebuild it with associate(... DB_CREATE)
 
@@ -249,7 +270,8 @@ void setup_for_db_create (void) {
 
 }
 
-int count_entries (DB *db) {
+static int
+count_entries (DB *db) {
     DBC *dbc;
     int r = db->cursor(db, null_txn, &dbc, 0);                                       CKERR(r);
     DBT key,data;
@@ -266,7 +288,8 @@ int count_entries (DB *db) {
     return n_found;
 }
 
-void do_create (void) {
+static void
+do_create (void) {
     setup_for_db_create();
     // Now check to see if the number of names matches the number of associated things.
     int n_named = count_entries(namedb);
@@ -276,7 +299,8 @@ void do_create (void) {
 
 int rcount=0;
 
-void insert_person (void) {
+static void
+insert_person (void) {
     int namelen = 5+random()%245;
     rcount++;
     struct primary_key  pk;
@@ -347,16 +371,8 @@ void insert_person (void) {
     }
 }
 
-void print_dbt (DBT *dbt) {
-    unsigned int i;
-    for (i=0; i<dbt->size; i++) {
-	unsigned char c = ((char*)dbt->data)[i];
-	if (c!='\\' && isprint(c)) printf("%c", c);
-	else printf("\\%02x", c);
-    }
-}
-
-void delete_oldest_expired (void) {
+static void
+delete_oldest_expired (void) {
     printf("%s:%d %d:%d delete\n", __FILE__, __LINE__, oppass, opnum);
     int r;
     random();
@@ -411,7 +427,8 @@ void delete_oldest_expired (void) {
 }
 
 // Use a cursor to step through the names.
-void step_name (void) {
+static void
+step_name (void) {
     int r;
     if (name_cursor==0) {
 	r = namedb->cursor(namedb, null_txn, &name_cursor, 0); CKERR(r);
@@ -437,7 +454,8 @@ void step_name (void) {
 
 int cursor_load=2; /* Set this to a higher number to do more cursor work for every insertion.   Needed to get to the end. */
 
-void activity (void) {
+static void
+activity (void) {
     random();
     rcount++;
     if (oppass==2 && (opnum==8 || opnum==53 || opnum==57 || opnum==65 || opnum==78 || opnum==97)) {
@@ -457,8 +475,9 @@ void activity (void) {
 }
 		       
 
-void usage (const char *argv1) __attribute__((__noreturn__));
-void usage (const char *argv1) {
+static  __attribute__((__noreturn__))
+void
+usage (const char *argv1) {
     fprintf(stderr, "Usage:\n %s [ --DB-CREATE | --more ] [-v|-q] seed\n", argv1);
     exit(1);
 }

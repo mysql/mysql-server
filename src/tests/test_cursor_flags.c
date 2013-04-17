@@ -13,7 +13,8 @@
 
 #include "test.h"
 
-void test_cursor_flags(int cursor_flags, int expectr) {
+static void
+test_cursor_flags (int cursor_flags, int expectr) {
     if (verbose) printf("test_cursor_flags:%d %d\n", cursor_flags, expectr);
 
     DB_ENV * const null_env = 0;

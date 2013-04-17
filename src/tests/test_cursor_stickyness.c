@@ -13,46 +13,16 @@
 #include "test.h"
 
 
-
-void db_put(DB *db, int k, int v) {
+static void
+db_put (DB *db, int k, int v) {
     DB_TXN * const null_txn = 0;
     DBT key, val;
     int r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
     assert(r == 0);
 }
 
-void db_get(DB *db, int k) {
-    DB_TXN * const null_txn = 0;
-    DBT key, val;
-    int r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
-    assert(r == 0);
-    int vv;
-    assert(val.size == sizeof vv);
-    memcpy(&vv, val.data, val.size);
-    printf("do_search %d\n", htonl(vv));
-    free(val.data);
-}
-
-void db_del(DB *db, int k) {
-    DB_TXN * const null_txn = 0;
-    DBT key;
-    int r = db->del(db, null_txn, dbt_init(&key, &k, sizeof k), 0);
-    assert(r == 0);
-}
-
-void expect_db_get(DB *db, int k, int v) {
-    DB_TXN * const null_txn = 0;
-    DBT key, val;
-    int r = db->get(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), 0);
-    assert(r == 0);
-    int vv;
-    assert(val.size == sizeof vv);
-    memcpy(&vv, val.data, val.size);
-    assert(vv == v);
-    free(val.data);
-}
-
-int cursor_get(DBC *cursor, unsigned int *k, unsigned int *v, int op) {
+static int
+cursor_get (DBC *cursor, unsigned int *k, unsigned int *v, int op) {
     DBT key, val;
     int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
     if (r == 0) {
@@ -64,49 +34,8 @@ int cursor_get(DBC *cursor, unsigned int *k, unsigned int *v, int op) {
     return r;
 }
 
-void expect_cursor_get(DBC *cursor, unsigned int k, unsigned int v) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_NEXT);
-    assert(r == 0);
-    assert(key.size == sizeof k);
-    unsigned int kk;
-    memcpy(&kk, key.data, key.size);
-    assert(val.size == sizeof v);
-    unsigned int vv;
-    memcpy(&vv, val.data, val.size);
-    if (kk != k || vv != v) printf("expect key %d got %d - %d %d\n", htonl(k), htonl(kk), htonl(v), htonl(vv));
-    assert(kk == k);
-    assert(vv == v);
-
-    free(key.data);
-    free(val.data);
-}
-
-void expect_cursor_set(DBC *cursor, int k, int expectr) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init_malloc(&val), DB_SET);
-    assert(r == expectr);
-    if (val.data) free(val.data);
-}
-
-void expect_cursor_get_both(DBC *cursor, int k, int v) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_GET_BOTH);
-    assert(r == 0);
-}
-
-void expect_cursor_get_current(DBC *cursor, unsigned int k, unsigned int v) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), DB_CURRENT);
-    assert(r == 0);
-    unsigned int kk, vv;
-    assert(key.size == sizeof kk); memcpy(&kk, key.data, key.size); assert(kk == k);
-    assert(val.size == sizeof vv); memcpy(&vv, val.data, val.size); assert(vv == v);
-    free(key.data); free(val.data);
-}
-
-
-void test_cursor_sticky(int n, int dup_mode) {
+static void
+test_cursor_sticky (int n, int dup_mode) {
     if (verbose) printf("test_cursor_sticky:%d %d\n", n, dup_mode);
 
     DB_ENV * const null_env = 0;
