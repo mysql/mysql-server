@@ -100,7 +100,7 @@ int toku_logger_log_archive (TOKULOGGER logger, char ***logs_p, int flags);
 TOKUTXN toku_logger_txn_parent (TOKUTXN txn);
 void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn);
 
-TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger);
+TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger, time_t * oldest_living_starttime);
 LSN toku_logger_get_next_lsn(TOKULOGGER logger);
 void toku_logger_set_remove_finalize_callback(TOKULOGGER logger, void (*funcp)(DICTIONARY_ID, void *), void * extra);
 void toku_logger_call_remove_finalize_callback(TOKULOGGER logger, DICTIONARY_ID dict_id);

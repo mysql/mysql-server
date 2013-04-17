@@ -79,6 +79,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     // n_in_file is uninitialized
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
     result->oldest_living_xid = TXNID_NONE_LIVING;
+    result->oldest_living_starttime = 0;
     toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
     r = ml_init(&result->input_lock);                                  if (r!=0) goto panic;
@@ -1314,10 +1315,13 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
     logger->last_completed_checkpoint_lsn = lsn;
 }
 
-TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger) {
+TXNID toku_logger_get_oldest_living_xid(TOKULOGGER logger, time_t * oldest_living_starttime) {
     TXNID rval = 0;
-    if (logger)
+    if (logger) {
         rval = logger->oldest_living_xid;
+	if (oldest_living_starttime)
+	    *oldest_living_starttime = logger->oldest_living_starttime;
+    }
     return rval;
 }
 

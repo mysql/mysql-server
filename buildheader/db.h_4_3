@@ -94,7 +94,7 @@ typedef struct __toku_engine_status {
   u_int64_t        txn_abort;               /* txn abort operations                          */ 
   u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ 
   u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ 
-  char             txn_oldest_live_begin;   /* oldest extant txn start time                      */ 
+  char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ 
   u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ 
   u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ 
   u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ 

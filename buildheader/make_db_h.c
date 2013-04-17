@@ -481,7 +481,7 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  u_int64_t        txn_abort;               /* txn abort operations                          */ \n");
     printf("  u_int64_t        txn_close;               /* txn completions (should equal commit+abort)   */ \n");
     printf("  u_int64_t        txn_oldest_live;         /* oldest extant txn txnid                            */ \n");
-    printf("  char             txn_oldest_live_begin;   /* oldest extant txn start time                      */ \n");
+    printf("  char             txn_oldest_live_starttime[26];   /* oldest extant txn start time                      */ \n");
     printf("  u_int64_t        next_lsn;                /* lsn that will be assigned to next log entry   */ \n");
     printf("  u_int64_t        cachetable_lock_taken;   /* how many times has cachetable lock been taken */ \n");
     printf("  u_int64_t        cachetable_lock_released;/* how many times has cachetable lock been released */ \n");

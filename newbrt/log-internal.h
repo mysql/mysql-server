@@ -107,6 +107,7 @@ struct tokulogger {
 
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
     TXNID oldest_living_xid;
+    time_t oldest_living_starttime;   // timestamp in seconds of when txn with oldest_living_xid started
 
     u_int64_t input_lock_ctr;             // how many times has input_lock been taken and released
     u_int64_t output_condition_lock_ctr;  // how many times has output_condition_lock been taken and released
@@ -131,6 +132,7 @@ struct tokutxn {
     TOKULOGGER logger;
     TOKUTXN    parent;
     DB_TXN*    container_db_txn;  // reference to DB_TXN that contains this tokutxn
+    time_t     starttime;         // timestamp in seconds of transaction start
 
     u_int64_t  rollentry_raw_count;  // the total count of every byte in the transaction and all its children.
     OMT        open_brts; // a collection of the brts that we touched.  Indexed by filenum.

@@ -286,11 +286,13 @@ void toku_rollback_txn_close (TOKUTXN txn) {
             assert(oldest_txn != txn); // We just removed it
             assert(oldest_txn->txnid64 > txn->logger->oldest_living_xid); //Must be newer than the previous oldest
             txn->logger->oldest_living_xid = oldest_txn->txnid64;
+            txn->logger->oldest_living_starttime = oldest_txn->starttime;
         }
         else {
             //No living transactions
             assert(r==EINVAL);
             txn->logger->oldest_living_xid = TXNID_NONE_LIVING;
+            txn->logger->oldest_living_starttime = 0;
         }
     }
 
