@@ -5123,12 +5123,9 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             //
             rows_fetched_using_bulk_fetch = 0;
             if (direction > 0) {
-                error = cursor->c_getf_next(cursor, flags,
-                        smart_dbt_bf_callback, &bf_info);
-            }
-            else {
-                error = cursor->c_getf_prev(cursor, flags,
-                        smart_dbt_bf_callback, &bf_info);
+                error = cursor->c_getf_next(cursor, flags, smart_dbt_bf_callback, &bf_info);
+            } else {
+                error = cursor->c_getf_prev(cursor, flags, smart_dbt_bf_callback, &bf_info);
             }
             if (bulk_fetch_iteration < HA_TOKU_BULK_FETCH_ITERATION_MAX) {
                 bulk_fetch_iteration++;
@@ -5147,11 +5144,13 @@ int ha_tokudb::get_next(uchar* buf, int direction) {
             info.ha = this;
             info.buf = buf;
             info.keynr = active_index;
-            
-            error = cursor->c_getf_next(cursor, flags,
-                    SMART_DBT_CALLBACK, &info);
-            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, 
-                    active_index);
+
+            if (direction > 0) {
+                error = cursor->c_getf_next(cursor, flags, SMART_DBT_CALLBACK, &info);
+            } else {
+                error = cursor->c_getf_prev(cursor, flags, SMART_DBT_CALLBACK, &info);
+            }
+            error = handle_cursor_error(error, HA_ERR_END_OF_FILE, active_index);
         }
     }
 
