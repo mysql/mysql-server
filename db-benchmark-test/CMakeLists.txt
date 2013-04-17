@@ -10,6 +10,7 @@ set(both_bins
   )
 
 set(tokudbonly_bins
+  scanrace
   multi-bench
   db-verify
   )

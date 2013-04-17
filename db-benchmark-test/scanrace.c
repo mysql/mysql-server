@@ -25,7 +25,7 @@ static u_int32_t cachesize = 16*1024*1024;
 const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
 
 
-static void parse_args (int argc, const char *const argv[]) {
+static void parse_args (int argc, char *const argv[]) {
     pname=argv[0];
     argc--;
     argv++;
@@ -73,10 +73,6 @@ static void scanrace_setup (void) {
     r = db_create(&db, env, 0);                                                           assert(r==0);
     r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     r = db->open(db, tid, dbfilename, NULL, DB_BTREE, 0, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);                           assert(r==0);
-    r = db->pre_acquire_read_lock(db,
-				  tid,
-				  db->dbt_neg_infty(), db->dbt_neg_infty(),
-				  db->dbt_pos_infty(), db->dbt_pos_infty());
     assert(r==0);
 }
 
@@ -123,6 +119,8 @@ static void scanrace_lwc (void) {
     double prevtime = gettime();
     DBC *dbc;
     r = db->cursor(db, tid, &dbc, 0);                           assert(r==0);
+    r = dbc->c_pre_acquire_range_lock(dbc, db->dbt_neg_infty(), db->dbt_pos_infty());
+    assert(r==0);
     long rowcounter=0;
     while (0 == (r = dbc->c_getf_next(dbc, DB_PRELOCKED, counttotalbytes, &e))) {
 	//if (rowcounter%128==0) { printf("."); fflush(stdout); }
@@ -135,7 +133,7 @@ static void scanrace_lwc (void) {
     printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
 }
   
-static int test_main (int argc, char *const argv[]) {
+static int test_main (int argc, char * const argv[]) {
 
     parse_args(argc,argv);
 
