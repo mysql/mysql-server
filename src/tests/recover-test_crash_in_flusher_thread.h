@@ -76,7 +76,15 @@ run_recover_flt_test(int argc, char *const argv[]) {
     struct cli_args args = get_default_args();
     // make test time arbitrarily high because we expect a crash
     args.num_seconds = 1000000000;
-    args.num_elements = 2000;
+    if (state_to_crash == 1) {
+        // Getting flt_state 1 (inbox flush) requires a larger tree with more messages floating in it
+        args.num_elements = 100000;
+        args.disperse_keys = true;
+        args.key_size = 8;
+        args.val_size = 192;
+    } else {
+        args.num_elements = 2000;
+    }
     // we want to induce a checkpoint
     args.env_args.checkpointing_period = 0;
     parse_stress_test_args(argc, argv, &args);
