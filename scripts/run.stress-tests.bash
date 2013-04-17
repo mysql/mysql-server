@@ -180,8 +180,12 @@ do
     do
         (( small_cachetable = table_size * 50 ))
         suffix="${exec}-${table_size}-${small_cachetable}-$$"
+        touch "${log}/${suffix}"
         loop_test $exec $table_size $small_cachetable "${log}/${suffix}" "${savedir}/${suffix}" &
+        tail -f "${log}/${suffix}" &
         suffix="${exec}-${table_size}-1000000000-$$"
+        touch "${log}/${suffix}" &
         loop_test $exec $table_size 1000000000 "${log}/${suffix}" "${savedir}/${suffix}" &
+        tail -f "${log}/${suffix}" &
     done
 done
