@@ -1458,9 +1458,12 @@ exit:
 
 bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_INFO* kc_info, uint pk) {
     uint curr_num_DBs = table_share->keys + test(hidden_primary_key);
-    return (curr_num_DBs == 1);
-#if 0
-    bool ret_val = true;
+    bool ret_val;
+    if (curr_num_DBs == 1) {
+        ret_val = true;
+        goto exit;
+    }
+    ret_val = true;
     for (uint curr_index = 0; curr_index < table_share->keys; curr_index++) {
         if (curr_index == pk) continue;
         KEY* curr_key_info = &table_share->key_info[curr_index];
@@ -1480,7 +1483,6 @@ bool ha_tokudb::can_replace_into_be_fast(TABLE_SHARE* table_share, KEY_AND_COL_I
     }
 exit:
     return ret_val;
-#endif
 }
 
 int ha_tokudb::initialize_share(
@@ -3333,7 +3335,6 @@ int ha_tokudb::insert_row_to_main_dictionary(uchar* record, DBT* pk_key, DBT* pk
     THD *thd = ha_thd();
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
-    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,share->replace_into_fast);
 
     assert(curr_num_DBs == 1);
     
@@ -3364,10 +3365,16 @@ int ha_tokudb::insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN
     bool is_replace = is_replace_into(thd);
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     ulonglong wait_lock_time = get_write_lock_wait_time(thd);
-    bool do_ignore_opt = do_ignore_flag_optimization(thd,table,share->replace_into_fast);
     u_int32_t mult_put_flags[MAX_KEY + 1] = {DB_YESOVERWRITE};
 
     set_main_dict_put_flags(thd, &mult_put_flags[primary_key]);
+    if (mult_put_flags[primary_key] == DB_NOOVERWRITE_NO_ERROR) {
+        //
+        //hopefully temporary, right now, put_multiple does not
+        // support use of DB_NOOVERWRITE_NO_ERROR as put_flag
+        //
+        mult_put_flags[primary_key] = DB_NOOVERWRITE;
+    }
     
     lockretryN(wait_lock_time){
         error = db_env->put_multiple(
