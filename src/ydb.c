@@ -450,15 +450,22 @@ static int toku_env_open(DB_ENV * env, const char *home, u_int32_t flags, int mo
 
 	// Verify that the home exists.
 	{
-	struct stat buf;
-	r = stat(home, &buf);
-	if (r!=0) {
-	    return toku_ydb_do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
-	}
-    }
-
-    if (!(flags & DB_PRIVATE)) {
-	return toku_ydb_do_error(env, EINVAL, "TokuDB requires DB_PRIVATE when opening an env\n");
+	    BOOL made_new_home = FALSE;
+        char* new_home = NULL;
+    	struct stat buf;
+        if (home[strlen(home)-1] == '\\') {
+            new_home = toku_malloc(strlen(home));
+            memcpy(new_home, home, strlen(home));
+            new_home[strlen(home) - 1] = 0;
+            made_new_home = TRUE;
+        }
+    	r = stat(made_new_home? new_home : home, &buf);
+        if (made_new_home) {
+            toku_free(new_home);
+        }
+    	if (r!=0) {
+    	    return toku_ydb_do_error(env, errno, "Error from stat(\"%s\",...)\n", home);
+    	}
     }
     unused_flags &= ~DB_PRIVATE;
 
