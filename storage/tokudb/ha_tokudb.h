@@ -97,8 +97,15 @@ typedef enum {
 } TABLE_LOCK_TYPE;
 
 int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx);
-int generate_keys_vals_for_put(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
-int cleanup_keys_vals_for_put(DBT *row, uint32_t num_dbs, DB **dbs, DBT *keys, DBT *vals, void *extra);
+int generate_row_for_put(
+    DB *dest_db, 
+    DB *src_db,
+    DBT *dest_key, 
+    DBT *dest_val,
+    const DBT *src_key, 
+    const DBT *src_val,
+    void *extra
+    ); 
 
 
 class ha_tokudb : public handler {
@@ -152,6 +159,9 @@ private:
     //
     uchar* mult_key_buff[MAX_KEY];
     uchar* mult_rec_buff[MAX_KEY];
+    DBT mult_key_dbt[MAX_KEY + 1];
+    DBT mult_rec_dbt[MAX_KEY + 1];
+    
     ulong alloced_mult_rec_buff_length;
 
     //
@@ -241,7 +251,6 @@ private:
     ulong max_row_length(const uchar * buf);
     int pack_row(
         DBT * row, 
-        uchar* buf,
         const uchar* record,
         uint index
         );
@@ -291,7 +300,7 @@ private:
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
     int do_uniqueness_checks(uchar* record, DB_TXN* txn, THD* thd);
     int insert_rows_to_dictionaries(uchar* record, DBT* pk_key, DBT* pk_val, DB_TXN* txn);
-    int insert_rows_to_dictionaries_mult(uchar* row, u_int32_t row_size, DB_TXN* txn, THD* thd);
+    int insert_rows_to_dictionaries_mult(DBT* pk_key, DBT* pk_val, DB_TXN* txn, THD* thd);
     int test_row_packing(uchar* record, DBT* pk_key, DBT* pk_val);
 
  

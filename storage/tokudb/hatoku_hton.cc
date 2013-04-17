@@ -273,7 +273,7 @@ static int tokudb_init_func(void *p) {
 
     if (tokudb_debug & TOKUDB_DEBUG_INIT) TOKUDB_TRACE("%s:env open:flags=%x\n", __FUNCTION__, tokudb_init_flags);
 
-    r = db_env->set_multiple_callbacks(db_env, generate_keys_vals_for_put, cleanup_keys_vals_for_put, NULL, NULL);
+    r = db_env->set_generate_row_callback_for_put(db_env,generate_row_for_put);
     assert(!r);
 
     r = db_env->open(db_env, tokudb_home, tokudb_init_flags, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH);
