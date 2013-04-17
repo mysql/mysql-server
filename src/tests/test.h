@@ -73,7 +73,7 @@ print_engine_status(DB_ENV * UU(env)) {
       char buff[buffsize];
       env->get_engine_status_text(env, buff, buffsize);
       printf("Engine status:\n");
-      printf(buff);
+      printf("%s", buff);
     }
 #endif
 }
