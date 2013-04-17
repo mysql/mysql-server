@@ -24,7 +24,7 @@ to flush some child, given a parent and some advice
     - pick the child using advice->pick_child()
     - remove that childs buffer from the parent
     - flush the buffer to the child
-    - if the child has stable reactivity and 
+    - if the child has stable reactivity and
       advice->should_recursively_flush() is true, then
       flush_some_child() of the child
     - otherwise split the child if it needs to be split
@@ -56,18 +56,18 @@ checkpointing:
     many nodes and preventing other threads from traversing down the tree,
     for a query or otherwise.
 
-To shrink a file: Let X be the size of the reachable data.  
+To shrink a file: Let X be the size of the reachable data.
     We define an acceptable bloat constant of C.  For example we set C=2 if we are willing to allow the file to be as much as 2X in size.
     The goal is to find the smallest amount of stuff we can move to get the file down to size CX.
     That seems like a difficult problem, so we use the following heuristics:
-       If we can relocate the last block to an lower location, then do so immediately.	(The file gets smaller right away, so even though the new location
-	 may even not be in the first CX bytes, we are making the file smaller.)
-       Otherwise all of the earlier blocks are smaller than the last block (of size L).	 So find the smallest region that has L free bytes in it.
-	 (This can be computed in one pass)
-	 Move the first allocated block in that region to some location not in the interior of the region.
-	       (Outside of the region is OK, and reallocating the block at the edge of the region is OK).
-	    This has the effect of creating a smaller region with at least L free bytes in it.
-	 Go back to the top (because by now some other block may have been allocated or freed).
+       If we can relocate the last block to an lower location, then do so immediately.        (The file gets smaller right away, so even though the new location
+         may even not be in the first CX bytes, we are making the file smaller.)
+       Otherwise all of the earlier blocks are smaller than the last block (of size L).         So find the smallest region that has L free bytes in it.
+         (This can be computed in one pass)
+         Move the first allocated block in that region to some location not in the interior of the region.
+               (Outside of the region is OK, and reallocating the block at the edge of the region is OK).
+            This has the effect of creating a smaller region with at least L free bytes in it.
+         Go back to the top (because by now some other block may have been allocated or freed).
     Claim: if there are no other allocations going on concurrently, then this algorithm will shrink the file reasonably efficiently.  By this I mean that
        each block of shrinkage does the smallest amount of work possible.  That doesn't mean that the work overall is minimized.
     Note: If there are other allocations and deallocations going on concurrently, we might never get enough space to move the last block.  But it takes a lot
@@ -77,18 +77,18 @@ To split or merge a child of a node:
 Split_or_merge (node, childnum) {
   If the child needs to be split (it's a leaf with too much stuff or a nonleaf with too much fanout)
     fetch the node and the child into main memory.
-    split the child, producing two nodes A and B, and also a pivot.   Don't worry if the resulting child is still too big or too small.	 Fix it on the next pass.
+    split the child, producing two nodes A and B, and also a pivot.   Don't worry if the resulting child is still too big or too small.         Fix it on the next pass.
     fixup node to point at the two new children.  Don't worry about the node getting too much fanout.
     return;
   If the child needs to be merged (it's a leaf with too little stuff (less than 1/4 full) or a nonleaf with too little fanout (less than 1/4)
     fetch node, the child  and a sibling of the child into main memory.
     move all messages from the node to the two children (so that the FIFOs are empty)
     If the two siblings together fit into one node then
-      merge the two siblings. 
+      merge the two siblings.
       fixup the node to point at one child
     Otherwise
       load balance the content of the two nodes
-    Don't worry about the resulting children having too many messages or otherwise being too big or too small.	Fix it on the next pass.
+    Don't worry about the resulting children having too many messages or otherwise being too big or too small.        Fix it on the next pass.
   }
 }
 
@@ -96,8 +96,8 @@ Here's how querying works:
 
 lookups:
     - As of Dr. No, we don't do any tree shaping on lookup.
-    - We don't promote eagerly or use aggressive promotion or passive-aggressive 
-    promotion.	We just push messages down according to the traditional BRT 
+    - We don't promote eagerly or use aggressive promotion or passive-aggressive
+    promotion.        We just push messages down according to the traditional BRT
     algorithm on insertions.
     - when a node is brought into memory, we apply ancestor messages above it.
 
@@ -268,9 +268,9 @@ enum reactivity
 get_node_reactivity (BRTNODE node) {
     toku_assert_entire_node_in_memory(node);
     if (node->height==0)
-	return get_leaf_reactivity(node);
+        return get_leaf_reactivity(node);
     else
-	return get_nonleaf_reactivity(node);
+        return get_nonleaf_reactivity(node);
 }
 
 unsigned int
@@ -342,27 +342,27 @@ toku_bnc_n_entries(NONLEAF_CHILDINFO bnc)
 
 static const DBT *prepivotkey (BRTNODE node, int childnum, const DBT * const lower_bound_exclusive) {
     if (childnum==0)
-	return lower_bound_exclusive;
+        return lower_bound_exclusive;
     else {
-	return &node->childkeys[childnum-1];
+        return &node->childkeys[childnum-1];
     }
 }
 
 static const DBT *postpivotkey (BRTNODE node, int childnum, const DBT * const upper_bound_inclusive) {
     if (childnum+1 == node->n_children)
-	return upper_bound_inclusive;
+        return upper_bound_inclusive;
     else {
-	return &node->childkeys[childnum];
+        return &node->childkeys[childnum];
     }
 }
 static struct pivot_bounds next_pivot_keys (BRTNODE node, int childnum, struct pivot_bounds const * const old_pb) {
     struct pivot_bounds pb = {.lower_bound_exclusive = prepivotkey(node, childnum, old_pb->lower_bound_exclusive),
-			      .upper_bound_inclusive = postpivotkey(node, childnum, old_pb->upper_bound_inclusive)};
+                              .upper_bound_inclusive = postpivotkey(node, childnum, old_pb->upper_bound_inclusive)};
     return pb;
 }
 
 // how much memory does this child buffer consume?
-long  
+long
 toku_bnc_memory_size(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
@@ -392,7 +392,7 @@ get_avail_internal_node_partition_size(BRTNODE node, int i)
 }
 
 
-static long 
+static long
 brtnode_cachepressure_size(BRTNODE node)
 {
     long retval = 0;
@@ -454,13 +454,13 @@ brtnode_memory_size (BRTNODE node)
             else {
                 BASEMENTNODE bn = BLB(node, i);
                 retval += sizeof(*bn);
-		{
-		    // include fragmentation overhead but do not include space in the 
-		    // mempool that has not yet been allocated for leaf entries
-		    size_t poolsize = toku_mempool_footprint(&bn->buffer_mempool);  
-		    invariant (poolsize >= BLB_NBYTESINBUF(node,i));
-		    retval += poolsize;
-		}
+                {
+                    // include fragmentation overhead but do not include space in the
+                    // mempool that has not yet been allocated for leaf entries
+                    size_t poolsize = toku_mempool_footprint(&bn->buffer_mempool);
+                    invariant (poolsize >= BLB_NBYTESINBUF(node,i));
+                    retval += poolsize;
+                }
                 OMT curr_omt = BLB_BUFFER(node, i);
                 retval += (toku_omt_memory_size(curr_omt));
             }
@@ -472,30 +472,30 @@ brtnode_memory_size (BRTNODE node)
     return retval;
 }
 
-PAIR_ATTR make_brtnode_pair_attr(BRTNODE node) { 
+PAIR_ATTR make_brtnode_pair_attr(BRTNODE node) {
     long size = brtnode_memory_size(node);
     long cachepressure_size = brtnode_cachepressure_size(node);
     PAIR_ATTR result={
-     .size = size, 
-     .nonleaf_size = (node->height > 0) ? size : 0, 
-     .leaf_size = (node->height > 0) ? 0 : size, 
-     .rollback_size = 0, 
-     .cache_pressure_size = cachepressure_size,
-     .is_valid = TRUE
-    }; 
-    return result; 
+        .size = size,
+        .nonleaf_size = (node->height > 0) ? size : 0,
+        .leaf_size = (node->height > 0) ? 0 : size,
+        .rollback_size = 0,
+        .cache_pressure_size = cachepressure_size,
+        .is_valid = TRUE
+    };
+    return result;
 }
 
 PAIR_ATTR make_invalid_pair_attr(void) {
     PAIR_ATTR result={
-     .size = 0, 
-     .nonleaf_size = 0, 
-     .leaf_size = 0, 
-     .rollback_size = 0, 
-     .cache_pressure_size = 0,
-     .is_valid = FALSE
-    }; 
-    return result; 
+        .size = 0,
+        .nonleaf_size = 0,
+        .leaf_size = 0,
+        .rollback_size = 0,
+        .cache_pressure_size = 0,
+        .is_valid = FALSE
+    };
+    return result;
 }
 
 
@@ -504,20 +504,20 @@ static uint64_t dict_id_serial = 1;
 static DICTIONARY_ID
 next_dict_id(void) {
     uint64_t i = __sync_fetch_and_add(&dict_id_serial, 1);
-    assert(i);	// guarantee unique dictionary id by asserting 64-bit counter never wraps
+    assert(i);        // guarantee unique dictionary id by asserting 64-bit counter never wraps
     DICTIONARY_ID d = {.dictid = i};
     return d;
 }
 
 //
-// Given a bfe and a childnum, returns whether the query that constructed the bfe 
+// Given a bfe and a childnum, returns whether the query that constructed the bfe
 // wants the child available.
 // Requires: bfe->child_to_read to have been set
 //
-bool 
+bool
 toku_bfe_wants_child_available (struct brtnode_fetch_extra* bfe, int childnum)
 {
-    if (bfe->type == brtnode_fetch_all || 
+    if (bfe->type == brtnode_fetch_all ||
         (bfe->type == brtnode_fetch_subset && bfe->child_to_read == childnum))
     {
         return true;
@@ -627,14 +627,14 @@ static void brt_status_update_flush_reason(BRTNODE node, BOOL for_checkpoint) {
 }
 
 static void brtnode_update_disk_stats(
-    BRTNODE brtnode, 
-    struct brt_header* h, 
+    BRTNODE brtnode,
+    struct brt_header* h,
     BOOL for_checkpoint
-    ) 
+    )
 {
     STAT64INFO_S deltas = ZEROSTATS;
     // capture deltas before rebalancing basements for serialization
-    deltas = toku_get_and_clear_basement_stats(brtnode);  
+    deltas = toku_get_and_clear_basement_stats(brtnode);
     update_header_stats(&(h->on_disk_stats), &deltas);
     if (for_checkpoint) {
         update_header_stats(&(h->checkpoint_staging_stats), &deltas);
@@ -657,10 +657,10 @@ static void brtnode_clone_partitions(BRTNODE node, BRTNODE cloned_node) {
 }
 
 void toku_brtnode_clone_callback(
-    void* value_data, 
-    void** cloned_value_data, 
-    PAIR_ATTR* new_attr, 
-    BOOL for_checkpoint, 
+    void* value_data,
+    void** cloned_value_data,
+    PAIR_ATTR* new_attr,
+    BOOL for_checkpoint,
     void* write_extraargs
     )
 {
@@ -718,19 +718,19 @@ void toku_brtnode_clone_callback(
 
 //fd is protected (must be holding fdlock)
 void toku_brtnode_flush_callback (
-    CACHEFILE cachefile, 
-    int fd, 
-    BLOCKNUM nodename, 
-    void *brtnode_v, 
-    void** disk_data, 
-    void *extraargs, 
-    PAIR_ATTR size __attribute__((unused)), 
-    PAIR_ATTR* new_size, 
-    BOOL write_me, 
-    BOOL keep_me, 
+    CACHEFILE cachefile,
+    int fd,
+    BLOCKNUM nodename,
+    void *brtnode_v,
+    void** disk_data,
+    void *extraargs,
+    PAIR_ATTR size __attribute__((unused)),
+    PAIR_ATTR* new_size,
+    BOOL write_me,
+    BOOL keep_me,
     BOOL for_checkpoint,
     BOOL is_clone
-    ) 
+    )
 {
     struct brt_header *h = extraargs;
     BRTNODE brtnode = brtnode_v;
@@ -752,7 +752,7 @@ void toku_brtnode_flush_callback (
         brt_status_update_flush_reason(brtnode, for_checkpoint);
     }
     if (!keep_me) {
-        if (!is_clone) { 
+        if (!is_clone) {
             toku_free(*disk_data);
         }
         else {
@@ -800,30 +800,30 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
     e = toku_deserialize_brtnode_from(fd, nodename, fullhash, node, ndd, bfe);
     if (e != DS_OK) {
         if (e == DS_XSUM_FAIL) {
-            fprintf(stderr, 
+            fprintf(stderr,
                     "Checksum failure while reading node in file %s.\n",
                     toku_cachefile_fname_in_env(cachefile));
         } else if (e == DS_ERRNO) {
             r = errno;
-            fprintf(stderr, "Error deserializing node, errno = %d", r); 
+            fprintf(stderr, "Error deserializing node, errno = %d", r);
         }
         // make absolutely sure we crash before doing anything else.
         assert(false);
     }
 
     if (r == 0) {
-	(*node)->h = bfe->h;  // copy reference to header from bfe
-	*sizep = make_brtnode_pair_attr(*node);
-	*dirtyp = (*node)->dirty;  // deserialize could mark the node as dirty (presumably for upgrade)
+        (*node)->h = bfe->h;  // copy reference to header from bfe
+        *sizep = make_brtnode_pair_attr(*node);
+        *dirtyp = (*node)->dirty;  // deserialize could mark the node as dirty (presumably for upgrade)
     }
     return r;
 }
 
 void toku_brtnode_pe_est_callback(
-    void* brtnode_pv, 
+    void* brtnode_pv,
     void* disk_data,
-    long* bytes_freed_estimate, 
-    enum partial_eviction_cost *cost, 
+    long* bytes_freed_estimate,
+    enum partial_eviction_cost *cost,
     void* UU(write_extraargs)
     )
 {
@@ -850,7 +850,7 @@ void toku_brtnode_pe_est_callback(
             // we compress this node and add it to
             // bytes_to_free
 
-            // first get an estimate for how much space will be taken 
+            // first get an estimate for how much space will be taken
             // after compression, it is simply the size of compressed
             // data on disk plus the size of the struct that holds it
             BRTNODE_DISK_DATA ndd = disk_data;
@@ -879,7 +879,7 @@ compress_internal_node_partition(BRTNODE node, int i)
     sb = toku_xmalloc(sizeof(struct sub_block));
     sub_block_init(sb);
     toku_create_compressed_partition_from_available(node, i, sb);
-    
+
     // now free the old partition and replace it with this
     destroy_nonleaf_childinfo(BNC(node,i));
     set_BSB(node, i, sb);
@@ -990,7 +990,7 @@ BOOL toku_brtnode_pf_req_callback(void* brtnode_pv, void* read_extraargs) {
     //  - brtnode_fetch_none: no partitions are necessary (example use: stat64)
     //  - brtnode_fetch_subset: some subset is necessary (example use: toku_brt_search)
     //  - brtnode_fetch_all: entire node is necessary (example use: flush, split, merge)
-    // The code below checks if the necessary partitions are already in memory, 
+    // The code below checks if the necessary partitions are already in memory,
     // and if they are, return FALSE, and if not, return TRUE
     //
     if (bfe->type == brtnode_fetch_none) {
@@ -1122,9 +1122,9 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
     assert((bfe->type == brtnode_fetch_subset) || (bfe->type == brtnode_fetch_all) || (bfe->type == brtnode_fetch_prefetch));
     // determine the range to prefetch
     int lc, rc;
-    if (!bfe->disable_prefetching && 
+    if (!bfe->disable_prefetching &&
         (bfe->type == brtnode_fetch_subset || bfe->type == brtnode_fetch_prefetch)
-        ) 
+        )
     {
         lc = toku_bfe_leftmost_child_wanted(bfe, node);
         rc = toku_bfe_rightmost_child_wanted(bfe, node);
@@ -1172,13 +1172,13 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* disk_data, void* read_extra
 
 static int
 leafval_heaviside_le (u_int32_t klen, void *kval,
-		      struct cmd_leafval_heaviside_extra *be) {
+                      struct cmd_leafval_heaviside_extra *be) {
     DBT dbt;
     DBT const * const key = be->key;
     FAKE_DB(db, be->desc);
     return be->compare_fun(&db,
-			   toku_fill_dbt(&dbt, kval, klen),
-			   key);
+                           toku_fill_dbt(&dbt, kval, klen),
+                           key);
 }
 
 //TODO: #1125 optimize
@@ -1189,7 +1189,7 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
     u_int32_t keylen;
     void*     key = le_key_and_len(le, &keylen);
     return leafval_heaviside_le(keylen, key,
-				be);
+                                be);
 }
 
 static int
@@ -1217,18 +1217,18 @@ void toku_destroy_brtnode_internals(BRTNODE node)
     for (int i=0; i < node->n_children; i++) {
         if (BP_STATE(node,i) == PT_AVAIL) {
             if (node->height > 0) {
-		destroy_nonleaf_childinfo(BNC(node,i));
+                destroy_nonleaf_childinfo(BNC(node,i));
             } else {
-		destroy_basement_node(BLB(node, i));
+                destroy_basement_node(BLB(node, i));
             }
         } else if (BP_STATE(node,i) == PT_COMPRESSED) {
             SUB_BLOCK sb = BSB(node,i);
             toku_free(sb->compressed_ptr);
-	    toku_free(sb);
+            toku_free(sb);
         } else {
-	    assert(is_BNULL(node, i));
+            assert(is_BNULL(node, i));
         }
-	set_BNULL(node, i);
+        set_BNULL(node, i);
     }
     toku_free(node->bp);
     node->bp = NULL;
@@ -1266,39 +1266,39 @@ toku_initialize_empty_brtnode (BRTNODE n, BLOCKNUM nodename, int height, int num
     assert(height >= 0);
 
     if (height == 0)
-	STATUS_VALUE(BRT_CREATE_LEAF)++;
+        STATUS_VALUE(BRT_CREATE_LEAF)++;
     else
-	STATUS_VALUE(BRT_CREATE_NONLEAF)++;
+        STATUS_VALUE(BRT_CREATE_NONLEAF)++;
 
     n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
     n->h = h;
     n->nodesize = nodesize;
     n->flags = flags;
     n->thisnodename = nodename;
-    n->layout_version	       = layout_version;
+    n->layout_version               = layout_version;
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
     n->height = height;
     n->totalchildkeylens = 0;
     n->childkeys = 0;
     n->bp = 0;
-    n->n_children = num_children; 
+    n->n_children = num_children;
 
     if (num_children > 0) {
         XMALLOC_N(num_children-1, n->childkeys);
         XMALLOC_N(num_children, n->bp);
-	for (int i = 0; i < num_children; i++) {
+        for (int i = 0; i < num_children; i++) {
             BP_BLOCKNUM(n,i).b=0;
             BP_STATE(n,i) = PT_INVALID;
-	    BP_WORKDONE(n,i) = 0;
+            BP_WORKDONE(n,i) = 0;
             BP_INIT_TOUCHED_CLOCK(n, i);
             set_BNULL(n,i);
             if (height > 0) {
-		set_BNC(n, i, toku_create_empty_nl());
-	    } else {
-		set_BLB(n, i, toku_create_empty_bn());
+                set_BNC(n, i, toku_create_empty_nl());
+            } else {
+                set_BLB(n, i, toku_create_empty_bn());
             }
-	}
+        }
     }
     n->dirty = 1;  // special case exception, it's okay to mark as dirty because the basements are empty
 }
@@ -1325,10 +1325,10 @@ brt_init_new_root(struct brt_header *h, BRTNODE nodea, BRTNODE nodeb, DBT splitk
     BP_BLOCKNUM(newroot,0)=nodea->thisnodename;
     BP_BLOCKNUM(newroot,1)=nodeb->thisnodename;
     {
-	MSN msna = nodea->max_msn_applied_to_node_on_disk;
-	MSN msnb = nodeb->max_msn_applied_to_node_on_disk;
-	invariant(msna.msn == msnb.msn);
-	newroot->max_msn_applied_to_node_on_disk = msna;
+        MSN msna = nodea->max_msn_applied_to_node_on_disk;
+        MSN msnb = nodeb->max_msn_applied_to_node_on_disk;
+        invariant(msna.msn == msnb.msn);
+        newroot->max_msn_applied_to_node_on_disk = msna;
     }
     BP_STATE(newroot,0) = PT_AVAIL;
     BP_STATE(newroot,1) = PT_AVAIL;
@@ -1365,8 +1365,8 @@ toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, const DBT *pivotkey) 
     init_childinfo(node, childnum, child);
     XREALLOC_N(node->n_children-1, node->childkeys);
     if (pivotkey) {
-	invariant(childnum > 0);
-	init_childkey(node, childnum-1, pivotkey);
+        invariant(childnum > 0);
+        init_childkey(node, childnum-1, pivotkey);
     }
     toku_mark_node_dirty(node);
 }
@@ -1374,7 +1374,7 @@ toku_brt_nonleaf_append_child(BRTNODE node, BRTNODE child, const DBT *pivotkey) 
 static void
 brt_leaf_delete_leafentry (
     BASEMENTNODE bn,
-    u_int32_t idx, 
+    u_int32_t idx,
     LEAFENTRY le
     )
 // Effect: Delete leafentry
@@ -1384,8 +1384,8 @@ brt_leaf_delete_leafentry (
     // Figure out if one of the other keys is the same key
 
     {
-	int r = toku_omt_delete_at(bn->buffer, idx);
-	assert(r==0);
+        int r = toku_omt_delete_at(bn->buffer, idx);
+        assert(r==0);
     }
 
     bn->n_bytes_in_buffer -= leafentry_disksize(le);
@@ -1416,54 +1416,54 @@ toku_brt_bn_apply_cmd_once (
     int64_t numrows_delta = 0;   // will be +1 or -1 or 0 (if row was added or deleted or not)
 
     if (le)
-	oldsize = leafentry_memsize(le);
+        oldsize = leafentry_memsize(le);
 
     // apply_msg_to_leafentry() may call mempool_malloc_from_omt() to allocate more space.
-    // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is 
+    // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is
     // no longer in use.  We'll have to release the old mempool later.
     {
-	int r = apply_msg_to_leafentry(cmd, le, &newsize, &new_le, bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
-	invariant(r==0);
+        int r = apply_msg_to_leafentry(cmd, le, &newsize, &new_le, bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
+        invariant(r==0);
     }
 
     if (new_le) assert(newsize == leafentry_disksize(new_le));
     if (le && new_le) {
-	bn->n_bytes_in_buffer -= oldsize;
-	bn->n_bytes_in_buffer += newsize;
+        bn->n_bytes_in_buffer -= oldsize;
+        bn->n_bytes_in_buffer += newsize;
 
         // This mfree must occur after the mempool_malloc so that when
         // the mempool is compressed everything is accounted for.  But
         // we must compute the size before doing the mempool mfree
         // because otherwise the le pointer is no good.
         toku_mempool_mfree(&bn->buffer_mempool, 0, oldsize); // Must pass 0, since le may be no good any more.
-        
-	{ 
-	    int r = toku_omt_set_at(bn->buffer, new_le, idx); 
-	    invariant(r==0); 
-	}
 
-	workdone_this_le = (oldsize > newsize ? oldsize : newsize);  // work done is max of le size before and after message application
+        {
+            int r = toku_omt_set_at(bn->buffer, new_le, idx);
+            invariant(r==0);
+        }
+
+        workdone_this_le = (oldsize > newsize ? oldsize : newsize);  // work done is max of le size before and after message application
 
     } else {           // we did not just replace a row, so ...
-	if (le) {      
-	    //            ... we just deleted a row ...
+        if (le) {
+            //            ... we just deleted a row ...
             // It was there, note that it's gone and remove it from the mempool
-	    brt_leaf_delete_leafentry (bn, idx, le);
-	    workdone_this_le = oldsize;
-	    numrows_delta = -1;
-	}
-	if (new_le) {  
-	    //            ... or we just added a row
-	    int r = toku_omt_insert_at(bn->buffer, new_le, idx);
-	    invariant(r==0);
+            brt_leaf_delete_leafentry (bn, idx, le);
+            workdone_this_le = oldsize;
+            numrows_delta = -1;
+        }
+        if (new_le) {
+            //            ... or we just added a row
+            int r = toku_omt_insert_at(bn->buffer, new_le, idx);
+            invariant(r==0);
             bn->n_bytes_in_buffer += newsize;
-	    workdone_this_le = newsize;
-	    numrows_delta = 1;
+            workdone_this_le = newsize;
+            numrows_delta = 1;
         }
     }
     if (workdone) {  // test programs may call with NULL
-	*workdone += workdone_this_le;
-	if (*workdone > STATUS_VALUE(BRT_MAX_WORKDONE))
+        *workdone += workdone_this_le;
+        if (*workdone > STATUS_VALUE(BRT_MAX_WORKDONE))
             STATUS_VALUE(BRT_MAX_WORKDONE) = *workdone;
     }
 
@@ -1485,10 +1485,10 @@ static const uint32_t setval_tag = 0xee0ccb99; // this was gotten by doing "cat 
 struct setval_extra_s {
     u_int32_t  tag;
     BOOL did_set_val;
-    int	 setval_r;    // any error code that setval_fun wants to return goes here.
+    int         setval_r;    // any error code that setval_fun wants to return goes here.
     // need arguments for toku_brt_bn_apply_cmd_once
     BASEMENTNODE bn;
-    MSN msn;	      // captured from original message, not currently used
+    MSN msn;              // captured from original message, not currently used
     XIDS xids;
     const DBT *key;
     u_int32_t idx;
@@ -1524,14 +1524,14 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
             msg.u.id.val = &val;
         }
         toku_brt_bn_apply_cmd_once(svextra->bn, &msg,
-                                svextra->idx, svextra->le,
-                                svextra->workdone, svextra->stats_to_update);
+                                   svextra->idx, svextra->le,
+                                   svextra->workdone, svextra->stats_to_update);
         svextra->setval_r = 0;
     }
 }
 
 // We are already past the msn filter (in toku_brt_bn_apply_cmd(), which calls do_update()),
-// so capturing the msn in the setval_extra_s is not strictly required.	 The alternative
+// so capturing the msn in the setval_extra_s is not strictly required.         The alternative
 // would be to put a dummy msn in the messages created by setval_fun(), but preserving
 // the original msn seems cleaner and it preserves accountability at a lower layer.
 static int do_update(brt_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn, BRT_MSG cmd, int idx,
@@ -1600,12 +1600,12 @@ toku_brt_bn_apply_cmd (
     brt_compare_func compare_fun,
     brt_update_func update_fun,
     DESCRIPTOR desc,
-    BASEMENTNODE bn, 
-    BRT_MSG cmd, 
+    BASEMENTNODE bn,
+    BRT_MSG cmd,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
-// Effect: 
+// Effect:
 //   Put a cmd into a leaf.
 //   Calculate work done by message on leafnode and add it to caller's workdone counter.
 // The leaf could end up "too big" or "too small".  The caller must fix that up.
@@ -1623,177 +1623,177 @@ toku_brt_bn_apply_cmd (
     switch (cmd->type) {
     case BRT_INSERT_NO_OVERWRITE:
     case BRT_INSERT: {
-	u_int32_t idx;
-	if (doing_seqinsert) {
-	    idx = toku_omt_size(bn->buffer);
-	    r = toku_omt_fetch(bn->buffer, idx-1, &storeddatav);
-	    if (r != 0) goto fz;
-	    storeddata = storeddatav;
-	    int cmp = toku_cmd_leafval_heaviside(storeddata, &be);
-	    if (cmp >= 0) goto fz;
-	    r = DB_NOTFOUND;
-	} else {
-	fz:
-	    r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
-				   &storeddatav, &idx);
-	}
-	if (r==DB_NOTFOUND) {
-	    storeddata = 0;
-	} else {
-	    assert(r==0);
-	    storeddata=storeddatav;
-	}
-	toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+        u_int32_t idx;
+        if (doing_seqinsert) {
+            idx = toku_omt_size(bn->buffer);
+            r = toku_omt_fetch(bn->buffer, idx-1, &storeddatav);
+            if (r != 0) goto fz;
+            storeddata = storeddatav;
+            int cmp = toku_cmd_leafval_heaviside(storeddata, &be);
+            if (cmp >= 0) goto fz;
+            r = DB_NOTFOUND;
+        } else {
+        fz:
+            r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
+                                   &storeddatav, &idx);
+        }
+        if (r==DB_NOTFOUND) {
+            storeddata = 0;
+        } else {
+            assert(r==0);
+            storeddata=storeddatav;
+        }
+        toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
 
-	// if the insertion point is within a window of the right edge of
-	// the leaf then it is sequential
-	// window = min(32, number of leaf entries/16)
-	{
-	u_int32_t s = toku_omt_size(bn->buffer);
-	u_int32_t w = s / 16;
-	if (w == 0) w = 1;
-	if (w > 32) w = 32;
+        // if the insertion point is within a window of the right edge of
+        // the leaf then it is sequential
+        // window = min(32, number of leaf entries/16)
+        {
+            u_int32_t s = toku_omt_size(bn->buffer);
+            u_int32_t w = s / 16;
+            if (w == 0) w = 1;
+            if (w > 32) w = 32;
 
-	// within the window?
-	if (s - idx <= w)
-	    bn->seqinsert = doing_seqinsert + 1;
-	}
-	break;
+            // within the window?
+            if (s - idx <= w)
+                bn->seqinsert = doing_seqinsert + 1;
+        }
+        break;
     }
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY: {
-	u_int32_t idx;
-	// Apply to all the matches
+        u_int32_t idx;
+        // Apply to all the matches
 
-	r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
-			       &storeddatav, &idx);
-	if (r == DB_NOTFOUND) break;
-	assert(r==0);
-	storeddata=storeddatav;
+        r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
+                               &storeddatav, &idx);
+        if (r == DB_NOTFOUND) break;
+        assert(r==0);
+        storeddata=storeddatav;
 
-	while (1) {
-	    u_int32_t num_leafentries_before = toku_omt_size(bn->buffer);
+        while (1) {
+            u_int32_t num_leafentries_before = toku_omt_size(bn->buffer);
 
-	    toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+            toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
 
-	    { 
-		// Now we must find the next leafentry. 
-		u_int32_t num_leafentries_after = toku_omt_size(bn->buffer); 
-		//idx is the index of the leafentry we just modified.
-		//If the leafentry was deleted, we will have one less leafentry in 
-		//the omt than we started with and the next leafentry will be at the 
-		//same index as the deleted one. Otherwise, the next leafentry will 
-		//be at the next index (+1). 
-		assert(num_leafentries_before	== num_leafentries_after || 
-		       num_leafentries_before-1 == num_leafentries_after); 
-		if (num_leafentries_after==num_leafentries_before) idx++; //Not deleted, advance index.
+            {
+                // Now we must find the next leafentry.
+                u_int32_t num_leafentries_after = toku_omt_size(bn->buffer);
+                //idx is the index of the leafentry we just modified.
+                //If the leafentry was deleted, we will have one less leafentry in
+                //the omt than we started with and the next leafentry will be at the
+                //same index as the deleted one. Otherwise, the next leafentry will
+                //be at the next index (+1).
+                assert(num_leafentries_before        == num_leafentries_after ||
+                       num_leafentries_before-1 == num_leafentries_after);
+                if (num_leafentries_after==num_leafentries_before) idx++; //Not deleted, advance index.
 
-		assert(idx <= num_leafentries_after);
-		if (idx == num_leafentries_after) break; //Reached the end of the leaf
-		r = toku_omt_fetch(bn->buffer, idx, &storeddatav); 
-		assert_zero(r);
-	    } 
-	    storeddata=storeddatav;
-	    {	// Continue only if the next record that we found has the same key.
-		DBT adbt;
-		u_int32_t keylen;
-		void *keyp = le_key_and_len(storeddata, &keylen);
-		FAKE_DB(db, desc);
-		if (compare_fun(&db,
-				toku_fill_dbt(&adbt, keyp, keylen),
-				cmd->u.id.key) != 0)
-		    break;
-	    }
-	}
+                assert(idx <= num_leafentries_after);
+                if (idx == num_leafentries_after) break; //Reached the end of the leaf
+                r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
+                assert_zero(r);
+            }
+            storeddata=storeddatav;
+            {        // Continue only if the next record that we found has the same key.
+                DBT adbt;
+                u_int32_t keylen;
+                void *keyp = le_key_and_len(storeddata, &keylen);
+                FAKE_DB(db, desc);
+                if (compare_fun(&db,
+                                toku_fill_dbt(&adbt, keyp, keylen),
+                                cmd->u.id.key) != 0)
+                    break;
+            }
+        }
 
-	break;
+        break;
     }
     case BRT_OPTIMIZE_FOR_UPGRADE:
-	// fall through so that optimize_for_upgrade performs rest of the optimize logic
+        // fall through so that optimize_for_upgrade performs rest of the optimize logic
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_OPTIMIZE:
-	// Apply to all leafentries
-	omt_size = toku_omt_size(bn->buffer);
-	for (u_int32_t idx = 0; idx < omt_size; ) {
-	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
-	    assert_zero(r);
-	    storeddata=storeddatav;
-	    int deleted = 0;
-	    if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-		toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
-		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
-		if (new_omt_size != omt_size) {
-		    assert(new_omt_size+1 == omt_size);
-		    //Item was deleted.
-		    deleted = 1;
-		}
-	    }
-	    if (deleted)
-		omt_size--;
-	    else
-		idx++;
-	}
-	assert(toku_omt_size(bn->buffer) == omt_size);
+        // Apply to all leafentries
+        omt_size = toku_omt_size(bn->buffer);
+        for (u_int32_t idx = 0; idx < omt_size; ) {
+            r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
+            assert_zero(r);
+            storeddata=storeddatav;
+            int deleted = 0;
+            if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
+                toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+                u_int32_t new_omt_size = toku_omt_size(bn->buffer);
+                if (new_omt_size != omt_size) {
+                    assert(new_omt_size+1 == omt_size);
+                    //Item was deleted.
+                    deleted = 1;
+                }
+            }
+            if (deleted)
+                omt_size--;
+            else
+                idx++;
+        }
+        assert(toku_omt_size(bn->buffer) == omt_size);
 
-	break;
+        break;
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
-	// Apply to all leafentries if txn is represented
-	omt_size = toku_omt_size(bn->buffer);
-	for (u_int32_t idx = 0; idx < omt_size; ) {
-	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
-	    assert_zero(r);
-	    storeddata=storeddatav;
-	    int deleted = 0;
-	    if (le_has_xids(storeddata, cmd->xids)) {
-		toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
-		u_int32_t new_omt_size = toku_omt_size(bn->buffer);
-		if (new_omt_size != omt_size) {
-		    assert(new_omt_size+1 == omt_size);
-		    //Item was deleted.
-		    deleted = 1;
-		}
-	    }
-	    if (deleted)
-		omt_size--;
-	    else
-		idx++;
-	}
-	assert(toku_omt_size(bn->buffer) == omt_size);
+        // Apply to all leafentries if txn is represented
+        omt_size = toku_omt_size(bn->buffer);
+        for (u_int32_t idx = 0; idx < omt_size; ) {
+            r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
+            assert_zero(r);
+            storeddata=storeddatav;
+            int deleted = 0;
+            if (le_has_xids(storeddata, cmd->xids)) {
+                toku_brt_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+                u_int32_t new_omt_size = toku_omt_size(bn->buffer);
+                if (new_omt_size != omt_size) {
+                    assert(new_omt_size+1 == omt_size);
+                    //Item was deleted.
+                    deleted = 1;
+                }
+            }
+            if (deleted)
+                omt_size--;
+            else
+                idx++;
+        }
+        assert(toku_omt_size(bn->buffer) == omt_size);
 
-	break;
+        break;
     case BRT_UPDATE: {
-	u_int32_t idx;
-	r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
-			       &storeddatav, &idx);
-	if (r==DB_NOTFOUND) {
-	    r = do_update(update_fun, desc, bn, cmd, idx, NULL, workdone, stats_to_update);
-	} else if (r==0) {
-	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
-	} // otherwise, a worse error, just return it
-	break;
+        u_int32_t idx;
+        r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
+                               &storeddatav, &idx);
+        if (r==DB_NOTFOUND) {
+            r = do_update(update_fun, desc, bn, cmd, idx, NULL, workdone, stats_to_update);
+        } else if (r==0) {
+            storeddata=storeddatav;
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
+        } // otherwise, a worse error, just return it
+        break;
     }
     case BRT_UPDATE_BROADCAST_ALL: {
-	// apply to all leafentries.
-	u_int32_t idx = 0;
-	u_int32_t num_leafentries_before;
-	while (idx < (num_leafentries_before = toku_omt_size(bn->buffer))) {
-	    r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
-	    assert(r==0);
-	    storeddata=storeddatav;
-	    r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
-	    // TODO(leif): This early return means get_leaf_reactivity()
-	    // and VERIFY_NODE() never get called.  Is this a problem?
-	    assert(r==0);
+        // apply to all leafentries.
+        u_int32_t idx = 0;
+        u_int32_t num_leafentries_before;
+        while (idx < (num_leafentries_before = toku_omt_size(bn->buffer))) {
+            r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
+            assert(r==0);
+            storeddata=storeddatav;
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
+            // TODO(leif): This early return means get_leaf_reactivity()
+            // and VERIFY_NODE() never get called.  Is this a problem?
+            assert(r==0);
 
-	    if (num_leafentries_before == toku_omt_size(bn->buffer)) {
-		// we didn't delete something, so increment the index.
-		idx++;
-	    }
-	}
-	break;
+            if (num_leafentries_before == toku_omt_size(bn->buffer)) {
+                // we didn't delete something, so increment the index.
+                idx++;
+            }
+        }
+        break;
     }
     case BRT_NONE: break; // don't do anything
     }
@@ -1883,7 +1883,7 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 void
 toku_brt_append_to_child_buffer(brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, int childnum, enum brt_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
     assert(BP_STATE(node,childnum) == PT_AVAIL);
-    int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun); 
+    int r = toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun);
     invariant_zero(r);
     toku_mark_node_dirty(node);
 }
@@ -1905,22 +1905,22 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
 #if DO_PIVOT_SEARCH_LR
     int i;
     for (i=0; i<node->n_children-1; i++) {
-	int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
-	if (c > 0) continue;
-	if (c < 0) return i;
-	return i;
+        int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
+        if (c > 0) continue;
+        if (c < 0) return i;
+        return i;
     }
     return node->n_children-1;
 #else
 #endif
 #define DO_PIVOT_SEARCH_RL 0
 #if DO_PIVOT_SEARCH_RL
-    // give preference for appending to the dictionary.	 no change for
+    // give preference for appending to the dictionary.         no change for
     // random keys
     int i;
     for (i = node->n_children-2; i >= 0; i--) {
-	int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
-	if (c > 0) return i+1;
+        int c = brt_compare_pivot(desc, cmp, k, d, &node->childkeys[i]);
+        if (c > 0) return i+1;
     }
     return 0;
 #endif
@@ -1939,17 +1939,17 @@ unsigned int toku_brtnode_which_child(BRTNODE node, const DBT *k,
     int hi = n-1; // skip the last one, we checked it above
     int mi;
     while (lo < hi) {
-	mi = (lo + hi) / 2;
-	c = brt_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
-	if (c > 0) {
-	    lo = mi+1;
-	    continue;
-	} 
-	if (c < 0) {
-	    hi = mi;
-	    continue;
-	}
-	return mi;
+        mi = (lo + hi) / 2;
+        c = brt_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
+        if (c > 0) {
+            lo = mi+1;
+            continue;
+        }
+        if (c < 0) {
+            hi = mi;
+            continue;
+        }
+        return mi;
     }
     return lo;
 #endif
@@ -2009,11 +2009,11 @@ static void
 brt_nonleaf_cmd_all (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, BRT_MSG cmd, bool is_fresh)
 // Effect: Put the cmd into a nonleaf node.  We put it into all children, possibly causing the children to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
-//  The re_array[i] gets set to the reactivity of any modified child i.	 (And there may be several such children.)
+//  The re_array[i] gets set to the reactivity of any modified child i.         (And there may be several such children.)
 {
     int i;
     for (i = 0; i < node->n_children; i++) {
-	brt_nonleaf_cmd_once_to_child(compare_fun, desc, node, i, cmd, is_fresh);
+        brt_nonleaf_cmd_once_to_child(compare_fun, desc, node, i, cmd, is_fresh);
     }
 }
 
@@ -2039,7 +2039,7 @@ static void
 brt_nonleaf_put_cmd (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node, BRT_MSG cmd, bool is_fresh)
 // Effect: Put the cmd into a nonleaf node.  We may put it into a child, possibly causing the child to become reactive.
 //  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
-//  The re_array[i] gets set to the reactivity of any modified child i.	 (And there may be several such children.)
+//  The re_array[i] gets set to the reactivity of any modified child i.         (And there may be several such children.)
 //
 {
 
@@ -2048,31 +2048,31 @@ brt_nonleaf_put_cmd (brt_compare_func compare_fun, DESCRIPTOR desc, BRTNODE node
     // to understand why we handle setting
     // node->max_msn_applied_to_node_on_disk here,
     // and don't do it in toku_brt_node_put_cmd
-    //        
+    //
     MSN cmd_msn = cmd->msn;
     invariant(cmd_msn.msn > node->max_msn_applied_to_node_on_disk.msn);
     node->max_msn_applied_to_node_on_disk = cmd_msn;
 
     //TODO: Accessing type directly
     switch (cmd->type) {
-    case BRT_INSERT_NO_OVERWRITE: 
+    case BRT_INSERT_NO_OVERWRITE:
     case BRT_INSERT:
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
     case BRT_UPDATE:
-	brt_nonleaf_cmd_once(compare_fun, desc, node, cmd, is_fresh);
-	return;
+        brt_nonleaf_cmd_once(compare_fun, desc, node, cmd, is_fresh);
+        return;
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
     case BRT_OPTIMIZE:
     case BRT_OPTIMIZE_FOR_UPGRADE:
     case BRT_UPDATE_BROADCAST_ALL:
-	brt_nonleaf_cmd_all (compare_fun, desc, node, cmd, is_fresh);  // send message to all children
-	return;
+        brt_nonleaf_cmd_all (compare_fun, desc, node, cmd, is_fresh);  // send message to all children
+        return;
     case BRT_NONE:
-	return;
+        return;
     }
     abort(); // cannot happen
 }
@@ -2086,28 +2086,28 @@ brt_handle_maybe_reactive_root (struct brt_header *h, CACHEKEY *rootp, BRTNODE *
     enum reactivity re = get_node_reactivity(node);
     switch (re) {
     case RE_STABLE:
-	return FALSE;
+        return FALSE;
     case RE_FISSIBLE:
-	// The root node should split, so make a new root.
-	{
-	    BRTNODE nodea,nodeb;
-	    DBT splitk;
-	    assert(h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
-            //
-            // This happens on the client thread with the ydb lock, so it is safe to
-            // not pass in dependent nodes. Although if we wanted to, we could pass
-            // in just node. That would be correct.
-            //
-	    if (node->height==0) {
-		brtleaf_split(h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
-	    } else {
-		brt_nonleaf_split(h, node, &nodea, &nodeb, &splitk, 0, NULL);
-	    }
-	    brt_init_new_root(h, nodea, nodeb, splitk, rootp, nodep);
-	    return TRUE;
-	}
+    {
+        // The root node should split, so make a new root.
+        BRTNODE nodea,nodeb;
+        DBT splitk;
+        assert(h->nodesize>=node->nodesize); /* otherwise we might be in trouble because the nodesize shrank. */
+        //
+        // This happens on the client thread with the ydb lock, so it is safe to
+        // not pass in dependent nodes. Although if we wanted to, we could pass
+        // in just node. That would be correct.
+        //
+        if (node->height==0) {
+            brtleaf_split(h, node, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
+        } else {
+            brt_nonleaf_split(h, node, &nodea, &nodeb, &splitk, 0, NULL);
+        }
+        brt_init_new_root(h, nodea, nodeb, splitk, rootp, nodep);
+        return TRUE;
+    }
     case RE_FUSIBLE:
-	return FALSE; // Cannot merge anything at the root, so return happy.
+        return FALSE; // Cannot merge anything at the root, so return happy.
     }
     abort(); // cannot happen
 }
@@ -2182,7 +2182,7 @@ brt_basement_node_gc_once(BASEMENTNODE bn,
     delta->numrows += numrows_delta;
     delta->numbytes += numbytes_delta;
 
- exit:
+exit:
     return;
 }
 
@@ -2236,7 +2236,7 @@ brt_leaf_gc_all_les(BRTNODE node,
 int
 toku_bnc_flush_to_child(
     struct brt_header* h,
-    NONLEAF_CHILDINFO bnc, 
+    NONLEAF_CHILDINFO bnc,
     BRTNODE child
     )
 {
@@ -2253,8 +2253,8 @@ toku_bnc_flush_to_child(
                 h->compare_fun,
                 h->update_fun,
                 &h->cmp_descriptor,
-                child, 
-                &brtcmd, 
+                child,
+                &brtcmd,
                 is_fresh,
                 &stats_delta
                 );
@@ -2274,7 +2274,7 @@ toku_bnc_flush_to_child(
             r = toku_omt_clone_noptr(&snapshot_txnids,
                                      logger->snapshot_txnids);
             assert_zero(r);
-            r = toku_omt_clone_pool(&live_list_reverse, 
+            r = toku_omt_clone_pool(&live_list_reverse,
                                     logger->live_list_reverse,
                                     sizeof(XID_PAIR_S));
             assert_zero(r);
@@ -2346,8 +2346,8 @@ toku_brt_node_put_cmd (
             compare_fun,
             update_fun,
             desc,
-            node, 
-            cmd, 
+            node,
+            cmd,
             &workdone,
             stats_to_update
             );
@@ -2357,40 +2357,40 @@ toku_brt_node_put_cmd (
 }
 
 static const struct pivot_bounds infinite_bounds = {.lower_bound_exclusive=NULL,
-						    .upper_bound_inclusive=NULL};
+                                                    .upper_bound_inclusive=NULL};
 
 
 // Effect: applies the cmd to the leaf if the appropriate basement node is in memory.
 //           This function is called during message injection and/or flushing, so the entire
 //           node MUST be in memory.
 void toku_brt_leaf_apply_cmd(
-    brt_compare_func compare_fun, 
-    brt_update_func update_fun, 
-    DESCRIPTOR desc, 
-    BRTNODE node, 
-    BRT_MSG cmd, 
+    brt_compare_func compare_fun,
+    brt_update_func update_fun,
+    DESCRIPTOR desc,
+    BRTNODE node,
+    BRT_MSG cmd,
     uint64_t *workdone,
     STAT64INFO stats_to_update
-    ) 
+    )
 {
     VERIFY_NODE(t, node);
     toku_assert_entire_node_in_memory(node);
-    
+
     //
     // Because toku_brt_leaf_apply_cmd is called with the intent of permanently
     // applying a message to a leaf node (meaning the message is permanently applied
     // and will be purged from the system after this call, as opposed to
     // maybe_apply_ancestors_messages_to_node, which applies a message
-    // for a query, but the message may still reside in the system and 
-    // be reapplied later), we mark the node as dirty and 
+    // for a query, but the message may still reside in the system and
+    // be reapplied later), we mark the node as dirty and
     // take the opportunity to update node->max_msn_applied_to_node_on_disk.
     //
     toku_mark_node_dirty(node);
-    
+
     //
     // we cannot blindly update node->max_msn_applied_to_node_on_disk,
     // we must check to see if the msn is greater that the one already stored,
-    // because the cmd may have already been applied earlier (via 
+    // because the cmd may have already been applied earlier (via
     // maybe_apply_ancestors_messages_to_node) to answer a query
     //
     // This is why we handle node->max_msn_applied_to_node_on_disk both here
@@ -2406,12 +2406,12 @@ void toku_brt_leaf_apply_cmd(
         if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
             BLB(node, childnum)->max_msn_applied = cmd->msn;
             toku_brt_bn_apply_cmd(compare_fun,
-                             update_fun,
-                             desc,
-                             BLB(node, childnum),
-                             cmd,
-                             workdone,
-                             stats_to_update);
+                                  update_fun,
+                                  desc,
+                                  BLB(node, childnum),
+                                  cmd,
+                                  workdone,
+                                  stats_to_update);
         } else {
             STATUS_VALUE(BRT_MSN_DISCARDS)++;
         }
@@ -2421,12 +2421,12 @@ void toku_brt_leaf_apply_cmd(
             if (cmd->msn.msn > BLB(node, childnum)->max_msn_applied.msn) {
                 BLB(node, childnum)->max_msn_applied = cmd->msn;
                 toku_brt_bn_apply_cmd(compare_fun,
-                                 update_fun,
-                                 desc,
-                                 BLB(node, childnum),
-                                 cmd,
-                                 workdone,
-                                 stats_to_update);
+                                      update_fun,
+                                      desc,
+                                      BLB(node, childnum),
+                                      cmd,
+                                      workdone,
+                                      stats_to_update);
             } else {
                 STATUS_VALUE(BRT_MSN_DISCARDS)++;
             }
@@ -2439,7 +2439,7 @@ void toku_brt_leaf_apply_cmd(
 }
 
 static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MSG cmd)
-// Effect:  Put CMD into brt's root node, and update 
+// Effect:  Put CMD into brt's root node, and update
 // the value of root's max_msn_applied_to_node_on_disk
 {
     BRTNODE node = *nodep;
@@ -2481,10 +2481,10 @@ static void push_something_at_root (struct brt_header *h, BRTNODE *nodep, BRT_MS
     }
 }
 
-int 
+int
 toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
 // Effect:
-//  - assign msn to cmd	 
+//  - assign msn to cmd
 //  - push the cmd into the brt
 //  - cmd will set new msn in tree
 {
@@ -2500,7 +2500,7 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
     // We hold the header's tree lock to stop other threads from
     // descending down the tree while the root node may change.
     // The root node may change when brt_handle_maybe_reactive_root is called.
-    // Other threads (such as the cleaner thread or hot optimize) that want to 
+    // Other threads (such as the cleaner thread or hot optimize) that want to
     // descend down the tree must grab the header's tree lock, so they are
     // ensured that what they think is the root's blocknum is actually
     // the root's blocknum.
@@ -2510,11 +2510,11 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
     // this code is executing. A begin_checkpoint does (at least) two things
     // that can interfere with the operations here:
     //  - copies the header to a checkpoint header. Because we may change
-    //    the root blocknum below, we don't want the header to be copied in 
+    //    the root blocknum below, we don't want the header to be copied in
     //    the middle of these operations.
-    //  - Takes note of the log's LSN. Because this put operation has 
-    //     already been logged, this message injection must be included 
-    //     in any checkpoint that contains this put's logentry. 
+    //  - Takes note of the log's LSN. Because this put operation has
+    //     already been logged, this message injection must be included
+    //     in any checkpoint that contains this put's logentry.
     //     Holding the ydb lock throughout this function ensures that fact.
     //  As of Dr. Noga, I (Zardosht) THINK these are the only reasons why
     //  the ydb lock must be held for this function, but there may be
@@ -2530,10 +2530,10 @@ toku_brt_root_put_cmd (struct brt_header *h, BRT_MSG_S * cmd)
         struct brtnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, h);
         toku_pin_brtnode_off_client_thread(
-            h, 
-            root_key, 
+            h,
+            root_key,
             fullhash,
-            &bfe, 
+            &bfe,
             TRUE, // may_modify_node
             0,
             NULL,
@@ -2586,15 +2586,15 @@ toku_brt_load_recovery(TOKUTXN txn, char const * old_iname, char const * new_ina
     int r = 0;
     assert(txn);
     toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
-					  //before the (old) file is actually unlinked
+                                          //before the (old) file is actually unlinked
     TOKULOGGER logger = toku_txn_logger(txn);
 
     BYTESTRING old_iname_bs = {.len=strlen(old_iname), .data=(char*)old_iname};
     BYTESTRING new_iname_bs = {.len=strlen(new_iname), .data=(char*)new_iname};
     r = toku_logger_save_rollback_load(txn, &old_iname_bs, &new_iname_bs);
     if (r==0 && do_log && logger) {
-	TXNID xid = toku_txn_get_txnid(txn);
-	r = toku_log_load(logger, load_lsn, do_fsync, xid, old_iname_bs, new_iname_bs);
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_load(logger, load_lsn, do_fsync, xid, old_iname_bs, new_iname_bs);
     }
     return r;
 }
@@ -2613,9 +2613,9 @@ toku_brt_hot_index_recovery(TOKUTXN txn, FILENUMS filenums, int do_fsync, int do
     // write to the rollback log
     r = toku_logger_save_rollback_hot_index(txn, &filenums);
     if ( r==0 && do_log && logger) {
-	TXNID xid = toku_txn_get_txnid(txn);
-	// write to the recovery log
-	r = toku_log_hot_index(logger, hot_index_lsn, do_fsync, xid, filenums);
+        TXNID xid = toku_txn_get_txnid(txn);
+        // write to the recovery log
+        r = toku_log_hot_index(logger, hot_index_lsn, do_fsync, xid, filenums);
     }
     return r;
 }
@@ -2631,11 +2631,11 @@ toku_brt_optimize (BRT brt) {
     XIDS root_xids = xids_get_root_xids();
     XIDS message_xids;
     if (oldest == TXNID_NONE_LIVING) {
-	message_xids = root_xids;
+        message_xids = root_xids;
     }
     else {
-	r = xids_create_child(root_xids, &message_xids, oldest);
-	invariant(r==0);
+        r = xids_create_child(root_xids, &message_xids, oldest);
+        invariant(r==0);
     }
 
     DBT key;
@@ -2659,7 +2659,7 @@ toku_brt_load(BRT brt, TOKUTXN txn, char const * new_iname, int do_fsync, LSN *l
 
 // 2954
 // brt actions for logging hot index filenums
-int 
+int
 toku_brt_hot_index(BRT brt __attribute__ ((unused)), TOKUTXN txn, FILENUMS filenums, int do_fsync, LSN *lsn) {
     int r = 0;
     int do_log = 1;
@@ -2667,18 +2667,18 @@ toku_brt_hot_index(BRT brt __attribute__ ((unused)), TOKUTXN txn, FILENUMS filen
     return r;
 }
 
-int 
+int
 toku_brt_log_put (TOKUTXN txn, BRT brt, const DBT *key, const DBT *val) {
     int r = 0;
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING keybs = {.len=key->size, .data=key->data};
-	BYTESTRING valbs = {.len=val->size, .data=val->data};
-	TXNID xid = toku_txn_get_txnid(txn);
-	// if (type == BRT_INSERT)
-	    r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
-	// else
-	    // r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        // if (type == BRT_INSERT)
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
+        // else
+            // r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
     }
     return r;
 }
@@ -2690,67 +2690,67 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     assert(num_brts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
-	FILENUM	 fnums[num_brts];
-	int i;
-	int num_unsuppressed_brts = 0;
-	for (i = 0; i < num_brts; i++) {
-	    if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-		//Logging not suppressed for this brt.
-		fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->h->cf);
-	    }
-	}
-	if (num_unsuppressed_brts) {
-	    FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
-	    BYTESTRING keybs = {.len=key->size, .data=key->data};
-	    BYTESTRING valbs = {.len=val->size, .data=val->data};
-	    TXNID xid = toku_txn_get_txnid(txn);
-	    FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->h->cf) : FILENUM_NONE;
-	    r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
-	}
+        FILENUM         fnums[num_brts];
+        int i;
+        int num_unsuppressed_brts = 0;
+        for (i = 0; i < num_brts; i++) {
+            if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+                //Logging not suppressed for this brt.
+                fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->h->cf);
+            }
+        }
+        if (num_unsuppressed_brts) {
+            FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
+            BYTESTRING keybs = {.len=key->size, .data=key->data};
+            BYTESTRING valbs = {.len=val->size, .data=val->data};
+            TXNID xid = toku_txn_get_txnid(txn);
+            FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->h->cf) : FILENUM_NONE;
+            r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        }
     }
     return r;
 }
 
-int 
+int
 toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging, enum brt_msg_type type) {
     assert(type==BRT_INSERT || type==BRT_INSERT_NO_OVERWRITE);
     int r = 0;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-	if (brt->h->txnid_that_created_or_locked_when_empty != xid) {
-	    BYTESTRING keybs  = {key->size, key->data};
-	    r = toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(brt->h->cf), &keybs);
-	    if (r!=0) return r;
-	    r = toku_txn_note_brt(txn, brt->h);
-	    if (r!=0) return r;
-	    //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
-	    message_xids = toku_txn_get_xids(txn);
-	}
-	else if (txn->ancestor_txnid64 != brt->h->root_xid_that_created) {
-	    //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.	 We must send the full root-to-leaf-path
-	    message_xids = toku_txn_get_xids(txn);
-	}
+        if (brt->h->txnid_that_created_or_locked_when_empty != xid) {
+            BYTESTRING keybs  = {key->size, key->data};
+            r = toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(brt->h->cf), &keybs);
+            if (r!=0) return r;
+            r = toku_txn_note_brt(txn, brt->h);
+            if (r!=0) return r;
+            //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
+            message_xids = toku_txn_get_xids(txn);
+        }
+        else if (txn->ancestor_txnid64 != brt->h->root_xid_that_created) {
+            //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
+            message_xids = toku_txn_get_xids(txn);
+        }
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-	brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING keybs = {.len=key->size, .data=key->data};
-	BYTESTRING valbs = {.len=val->size, .data=val->data};
-	if (type == BRT_INSERT) {
-	    r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
-	}
-	else {
-	    r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
-	}
-	if (r!=0) return r;
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING valbs = {.len=val->size, .data=val->data};
+        if (type == BRT_INSERT) {
+            r = toku_log_enq_insert(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
+        }
+        else {
+            r = toku_log_enq_insert_no_overwrite(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs, valbs);
+        }
+        if (r!=0) return r;
     }
 
     LSN treelsn;
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
-	r = 0;
+        r = 0;
     } else {
-	r = toku_brt_send_insert(brt, key, val, message_xids, type);
+        r = toku_brt_send_insert(brt, key, val, message_xids, type);
     }
     return r;
 }
@@ -2758,48 +2758,48 @@ toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_vali
 static int
 brt_send_update_msg(BRT brt, BRT_MSG_S *msg, TOKUTXN txn) {
     msg->xids = (txn
-		 ? toku_txn_get_xids(txn)
-		 : xids_get_root_xids());
+                 ? toku_txn_get_xids(txn)
+                 : xids_get_root_xids());
     int r = toku_brt_root_put_cmd(brt->h, msg);
     return r;
 }
 
 int
 toku_brt_maybe_update(BRT brt, const DBT *key, const DBT *update_function_extra,
-		      TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
-		      BOOL do_logging) {
+                      TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
+                      BOOL do_logging) {
     int r = 0;
 
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-	BYTESTRING keybs = { key->size, key->data };
-	r = toku_logger_save_rollback_cmdupdate(
-	    txn, toku_cachefile_filenum(brt->h->cf), &keybs);
-	if (r != 0) { goto cleanup; }
-	r = toku_txn_note_brt(txn, brt->h);
-	if (r != 0) { goto cleanup; }
+        BYTESTRING keybs = { key->size, key->data };
+        r = toku_logger_save_rollback_cmdupdate(
+            txn, toku_cachefile_filenum(brt->h->cf), &keybs);
+        if (r != 0) { goto cleanup; }
+        r = toku_txn_note_brt(txn, brt->h);
+        if (r != 0) { goto cleanup; }
     }
 
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-	brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING keybs = {.len=key->size, .data=key->data};
-	BYTESTRING extrabs = {.len=update_function_extra->size,
-			      .data=update_function_extra->data};
-	r = toku_log_enq_update(logger, NULL, 0,
-				toku_cachefile_filenum(brt->h->cf),
-				xid, keybs, extrabs);
-	if (r != 0) { goto cleanup; }
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        BYTESTRING extrabs = {.len=update_function_extra->size,
+                              .data=update_function_extra->data};
+        r = toku_log_enq_update(logger, NULL, 0,
+                                toku_cachefile_filenum(brt->h->cf),
+                                xid, keybs, extrabs);
+        if (r != 0) { goto cleanup; }
     }
 
     LSN treelsn;
     if (oplsn_valid &&
-	oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
-	r = 0;
+        oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
+        r = 0;
     } else {
-	BRT_MSG_S msg = { BRT_UPDATE, ZERO_MSN, NULL,
-			  .u.id = { key, update_function_extra }};
-	r = brt_send_update_msg(brt, &msg, txn);
+        BRT_MSG_S msg = { BRT_UPDATE, ZERO_MSN, NULL,
+                          .u.id = { key, update_function_extra }};
+        r = brt_send_update_msg(brt, &msg, txn);
     }
 
 cleanup:
@@ -2808,40 +2808,40 @@ cleanup:
 
 int
 toku_brt_maybe_update_broadcast(BRT brt, const DBT *update_function_extra,
-				TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
-				BOOL do_logging, BOOL is_resetting_op) {
+                                TOKUTXN txn, BOOL oplsn_valid, LSN oplsn,
+                                BOOL do_logging, BOOL is_resetting_op) {
     int r = 0;
 
     TXNID xid = toku_txn_get_txnid(txn);
     u_int8_t  resetting = is_resetting_op ? 1 : 0;
     if (txn) {
-	r = toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(brt->h->cf), resetting);
-	if (r != 0) { goto cleanup; }
-	r = toku_txn_note_brt(txn, brt->h);
-	if (r != 0) { goto cleanup; }
+        r = toku_logger_save_rollback_cmdupdatebroadcast(txn, toku_cachefile_filenum(brt->h->cf), resetting);
+        if (r != 0) { goto cleanup; }
+        r = toku_txn_note_brt(txn, brt->h);
+        if (r != 0) { goto cleanup; }
     }
 
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-	brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING extrabs = {.len=update_function_extra->size,
-			      .data=update_function_extra->data};
-	r = toku_log_enq_updatebroadcast(logger, NULL, 0,
-					 toku_cachefile_filenum(brt->h->cf),
-					 xid, extrabs, resetting);
-	if (r != 0) { goto cleanup; }
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING extrabs = {.len=update_function_extra->size,
+                              .data=update_function_extra->data};
+        r = toku_log_enq_updatebroadcast(logger, NULL, 0,
+                                         toku_cachefile_filenum(brt->h->cf),
+                                         xid, extrabs, resetting);
+        if (r != 0) { goto cleanup; }
     }
 
     LSN treelsn;
     if (oplsn_valid &&
-	oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
-	r = 0;
+        oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
+        r = 0;
     } else {
-	DBT nullkey;
-	const DBT *nullkeyp = toku_init_dbt(&nullkey);
-	BRT_MSG_S msg = { BRT_UPDATE_BROADCAST_ALL, ZERO_MSN, NULL,
-			  .u.id = { nullkeyp, update_function_extra }};
-	r = brt_send_update_msg(brt, &msg, txn);
+        DBT nullkey;
+        const DBT *nullkeyp = toku_init_dbt(&nullkey);
+        BRT_MSG_S msg = { BRT_UPDATE_BROADCAST_ALL, ZERO_MSN, NULL,
+                          .u.id = { nullkeyp, update_function_extra }};
+        r = brt_send_update_msg(brt, &msg, txn);
     }
 
 cleanup:
@@ -2857,7 +2857,7 @@ toku_brt_send_insert(BRT brt, DBT *key, DBT *val, XIDS xids, enum brt_msg_type t
 
 int
 toku_brt_send_commit_any(BRT brt, DBT *key, XIDS xids) {
-    DBT val; 
+    DBT val;
     BRT_MSG_S brtcmd = { BRT_COMMIT_ANY, ZERO_MSN, xids, .u.id = { key, toku_init_dbt(&val) }};
     int r = toku_brt_root_put_cmd(brt->h, &brtcmd);
     return r;
@@ -2872,9 +2872,9 @@ toku_brt_log_del(TOKUTXN txn, BRT brt, const DBT *key) {
     int r = 0;
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING keybs = {.len=key->size, .data=key->data};
-	TXNID xid = toku_txn_get_txnid(txn);
-	r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs);
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        TXNID xid = toku_txn_get_txnid(txn);
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs);
     }
     return r;
 }
@@ -2886,60 +2886,60 @@ toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     assert(num_brts > 0);
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
-	FILENUM	 fnums[num_brts];
-	int i;
-	int num_unsuppressed_brts = 0;
-	for (i = 0; i < num_brts; i++) {
-	    if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-		//Logging not suppressed for this brt.
-		fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->h->cf);
-	    }
-	}
-	if (num_unsuppressed_brts) {
-	    FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
-	    BYTESTRING keybs = {.len=key->size, .data=key->data};
-	    BYTESTRING valbs = {.len=val->size, .data=val->data};
-	    TXNID xid = toku_txn_get_txnid(txn);
-	    FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->h->cf) : FILENUM_NONE;
-	    r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
-	}
+        FILENUM         fnums[num_brts];
+        int i;
+        int num_unsuppressed_brts = 0;
+        for (i = 0; i < num_brts; i++) {
+            if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+                //Logging not suppressed for this brt.
+                fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->h->cf);
+            }
+        }
+        if (num_unsuppressed_brts) {
+            FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
+            BYTESTRING keybs = {.len=key->size, .data=key->data};
+            BYTESTRING valbs = {.len=val->size, .data=val->data};
+            TXNID xid = toku_txn_get_txnid(txn);
+            FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->h->cf) : FILENUM_NONE;
+            r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        }
     }
     return r;
 }
 
-int 
+int
 toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn, BOOL do_logging) {
     int r;
     XIDS message_xids = xids_get_root_xids(); //By default use committed messages
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn) {
-	if (brt->h->txnid_that_created_or_locked_when_empty != xid) {
-	    BYTESTRING keybs  = {key->size, key->data};
-	    r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(brt->h->cf), &keybs);
-	    if (r!=0) return r;
-	    r = toku_txn_note_brt(txn, brt->h);
-	    if (r!=0) return r;
-	    //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
-	    message_xids = toku_txn_get_xids(txn);
-	}
-	else if (txn->ancestor_txnid64 != brt->h->root_xid_that_created) {
-	    //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.	 We must send the full root-to-leaf-path
-	    message_xids = toku_txn_get_xids(txn);
-	}
+        if (brt->h->txnid_that_created_or_locked_when_empty != xid) {
+            BYTESTRING keybs  = {key->size, key->data};
+            r = toku_logger_save_rollback_cmddelete(txn, toku_cachefile_filenum(brt->h->cf), &keybs);
+            if (r!=0) return r;
+            r = toku_txn_note_brt(txn, brt->h);
+            if (r!=0) return r;
+            //We have transactions, and this is not 2440.  We must send the full root-to-leaf-path
+            message_xids = toku_txn_get_xids(txn);
+        }
+        else if (txn->ancestor_txnid64 != brt->h->root_xid_that_created) {
+            //We have transactions, and this is 2440, however the txn doing 2440 did not create the dictionary.         We must send the full root-to-leaf-path
+            message_xids = toku_txn_get_xids(txn);
+        }
     }
     TOKULOGGER logger = toku_txn_logger(txn);
     if (do_logging && logger &&
-	brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-	BYTESTRING keybs = {.len=key->size, .data=key->data};
-	r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs);
-	if (r!=0) return r;
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+        BYTESTRING keybs = {.len=key->size, .data=key->data};
+        r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->h->cf), xid, keybs);
+        if (r!=0) return r;
     }
 
     LSN treelsn;
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt->h)).lsn) {
-	r = 0;
+        r = 0;
     } else {
-	r = toku_brt_send_delete(brt, key, message_xids);
+        r = toku_brt_send_delete(brt, key, message_xids);
     }
     return r;
 }
@@ -3018,7 +3018,7 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize,
 
     r = toku_brt_create(&brt);
     if (r != 0)
-	return r;
+        return r;
     r = toku_brt_set_nodesize(brt, nodesize); assert_zero(r);
     r = toku_brt_set_basementnodesize(brt, basementnodesize); assert_zero(r);
     r = toku_brt_set_compression_method(brt, compression_method); assert_zero(r);
@@ -3026,7 +3026,7 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize,
 
     r = toku_brt_open(brt, fname, is_create, only_create, cachetable, txn);
     if (r != 0) {
-	return r;
+        return r;
     }
 
     *newbrt = brt;
@@ -3042,13 +3042,13 @@ static int brt_create_file(BRT UU(brt), const char *fname, int *fdp) {
     fd = open(fname, O_RDWR | O_BINARY, mode);
     assert(fd==-1);
     if (errno != ENOENT) {
-	r = errno;
-	return r;
+        r = errno;
+        return r;
     }
     fd = open(fname, O_RDWR | O_CREAT | O_BINARY, mode);
     if (fd==-1) {
-	r = errno;
-	return r;
+        r = errno;
+        return r;
     }
 
     r = toku_fsync_directory(fname);
@@ -3065,9 +3065,9 @@ static int brt_open_file(const char *fname, int *fdp) {
     int fd;
     fd = open(fname, O_RDWR | O_BINARY, mode);
     if (fd==-1) {
-	r = errno;
-	assert(r!=0);
-	return r;
+        r = errno;
+        assert(r!=0);
+        return r;
     }
     *fdp = fd;
     return 0;
@@ -3090,19 +3090,19 @@ toku_brt_get_compression_method(BRT t, enum toku_compression_method *methodp)
 static int
 verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->compare_fun != toku_builtin_compare_fun))
-	return EINVAL;
+        return EINVAL;
     return 0;
 }
 
 int
 toku_brt_change_descriptor(
-    BRT t, 
-    const DBT* old_descriptor, 
-    const DBT* new_descriptor, 
-    BOOL do_log, 
+    BRT t,
+    const DBT* old_descriptor,
+    const DBT* new_descriptor,
+    BOOL do_log,
     TOKUTXN txn,
     BOOL update_cmp_descriptor
-    ) 
+    )
 {
     int r = 0;
     int fd;
@@ -3110,15 +3110,15 @@ toku_brt_change_descriptor(
     BYTESTRING old_desc_bs = { old_descriptor->size, old_descriptor->data };
     BYTESTRING new_desc_bs = { new_descriptor->size, new_descriptor->data };
     if (!txn) {
-	r = EINVAL;
-	goto cleanup;
+        r = EINVAL;
+        goto cleanup;
     }
     // put information into rollback file
     r = toku_logger_save_rollback_change_fdescriptor(
-	txn, 
-	toku_cachefile_filenum(t->h->cf), 
-	&old_desc_bs
-	);
+        txn,
+        toku_cachefile_filenum(t->h->cf),
+        &old_desc_bs
+        );
     if (r != 0) { goto cleanup; }
     r = toku_txn_note_brt(txn, t->h);
     if (r != 0) { goto cleanup; }
@@ -3127,7 +3127,7 @@ toku_brt_change_descriptor(
         TOKULOGGER logger = toku_txn_logger(txn);
         TXNID xid = toku_txn_get_txnid(txn);
         r = toku_log_change_fdescriptor(
-            logger, NULL, 0, 
+            logger, NULL, 0,
             toku_cachefile_filenum(t->h->cf),
             xid,
             old_desc_bs,
@@ -3155,7 +3155,7 @@ cleanup:
     return r;
 }
 
-// This is the actual open, used for various purposes, such as normal use, recovery, and redirect.  
+// This is the actual open, used for various purposes, such as normal use, recovery, and redirect.
 // fname_in_env is the iname, relative to the env_dir  (data_dir is already in iname as prefix).
 // The checkpointed version (checkpoint_lsn) of the dictionary must be no later than max_acceptable_lsn .
 static int
@@ -3273,8 +3273,8 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
     // important note here,
     // after this point, where we associate the header
     // with the brt, the function is not allowed to fail
-    // Code that handles failure (located below "exit"), 
-    // depends on this 
+    // Code that handles failure (located below "exit"),
+    // depends on this
     toku_brtheader_note_brt_open(t);
     if (txn_created) {
         assert(txn);
@@ -3323,14 +3323,14 @@ exit:
 }
 
 // Open a brt for the purpose of recovery, which requires that the brt be open to a pre-determined FILENUM
-// and may require a specific checkpointed version of the file.	 
+// and may require a specific checkpointed version of the file.
 // (dict_id is assigned by the brt_open() function.)
 int
 toku_brt_open_recovery(BRT t, const char *fname_in_env, int is_create, int only_create, CACHETABLE cachetable, TOKUTXN txn, FILENUM use_filenum, LSN max_acceptable_lsn) {
     int r;
     assert(use_filenum.fileid != FILENUM_NONE.fileid);
     r = brt_open(t, fname_in_env, is_create, only_create, cachetable,
-		 txn, use_filenum, DICTIONARY_ID_NONE, max_acceptable_lsn);
+                 txn, use_filenum, DICTIONARY_ID_NONE, max_acceptable_lsn);
     return r;
 }
 
@@ -3345,25 +3345,25 @@ toku_brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, C
 // Open a brt in normal use.  The FILENUM and dict_id are assigned by the brt_open() function.
 int
 toku_brt_open_with_dict_id(
-    BRT t, 
-    const char *fname_in_env, 
-    int is_create, 
-    int only_create, 
-    CACHETABLE cachetable, 
-    TOKUTXN txn, 
+    BRT t,
+    const char *fname_in_env,
+    int is_create,
+    int only_create,
+    CACHETABLE cachetable,
+    TOKUTXN txn,
     DICTIONARY_ID use_dictionary_id
-    ) 
+    )
 {
     int r;
     r = brt_open(
-        t, 
-        fname_in_env, 
-        is_create, 
-        only_create, 
-        cachetable, 
-        txn, 
-        FILENUM_NONE, 
-        use_dictionary_id, 
+        t,
+        fname_in_env,
+        is_create,
+        only_create,
+        cachetable,
+        txn,
+        FILENUM_NONE,
+        use_dictionary_id,
         MAX_LSN
         );
     return r;
@@ -3440,7 +3440,7 @@ brt_compare_func toku_brt_get_bt_compare (BRT brt) {
 
 int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, TOKULOGGER logger) {
     if (cachesize == 0)
-	cachesize = 128*1024*1024;
+        cachesize = 128*1024*1024;
     return toku_create_cachetable(ct, cachesize, initial_lsn, logger);
 }
 
@@ -3459,7 +3459,7 @@ toku_brt_close (BRT brt, bool oplsn_valid, LSN oplsn)
         toku_brtheader_lock(h);
         toku_list_remove(&brt->live_brt_link);
         toku_brtheader_unlock(h);
-        
+
         if (!toku_brt_header_needed(brt->h)) {
             // close header
             char *error_string = NULL;
@@ -3469,7 +3469,7 @@ toku_brt_close (BRT brt, bool oplsn_valid, LSN oplsn)
         }
     }
     toku_free(brt);
-    
+
     return r;
 }
 
@@ -3516,18 +3516,18 @@ brt_cursor_cleanup_dbts(BRT_CURSOR c) {
 // For the above to NOT be true:
 //  - id > context->snapshot_txnid64 OR id is in context's live root transaction list
 //
-static int 
+static int
 does_txn_read_entry(TXNID id, TOKUTXN context) {
     int rval;
     TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(context);
     if (id < oldest_live_in_snapshot || id == context->ancestor_txnid64) {
-	rval = TOKUDB_ACCEPT;
+        rval = TOKUDB_ACCEPT;
     }
     else if (id > context->snapshot_txnid64 || toku_is_txn_in_live_root_txn_list(context->live_root_txn_list, id)) {
-	rval = 0;
+        rval = 0;
     }
     else {
-	rval = TOKUDB_ACCEPT;
+        rval = TOKUDB_ACCEPT;
     }
     return rval;
 }
@@ -3536,48 +3536,48 @@ static inline void
 brt_cursor_extract_key_and_val(LEAFENTRY le,
                                BRT_CURSOR cursor,
                                u_int32_t *keylen,
-                               void	    **key,
+                               void            **key,
                                u_int32_t *vallen,
-                               void	    **val) {
+                               void            **val) {
     if (toku_brt_cursor_is_leaf_mode(cursor)) {
-	*key = le_key_and_len(le, keylen);
-	*val = le;
-	*vallen = leafentry_memsize(le);
+        *key = le_key_and_len(le, keylen);
+        *val = le;
+        *vallen = leafentry_memsize(le);
     } else if (cursor->is_snapshot_read) {
-	le_iterate_val(
-	    le, 
-	    does_txn_read_entry, 
-	    val, 
-	    vallen, 
-	    cursor->ttxn
-	    );
-	*key = le_key_and_len(le, keylen);
+        le_iterate_val(
+            le,
+            does_txn_read_entry,
+            val,
+            vallen,
+            cursor->ttxn
+            );
+        *key = le_key_and_len(le, keylen);
     } else {
-	*key = le_key_and_len(le, keylen);
-	*val = le_latest_val_and_len(le, vallen);
+        *key = le_key_and_len(le, keylen);
+        *val = le_latest_val_and_len(le, vallen);
     }
 }
 
 int toku_brt_cursor (
-    BRT brt, 
-    BRT_CURSOR *cursorptr, 
-    TOKUTXN ttxn, 
+    BRT brt,
+    BRT_CURSOR *cursorptr,
+    TOKUTXN ttxn,
     BOOL is_snapshot_read,
     BOOL disable_prefetching
-    ) 
+    )
 {
     if (is_snapshot_read) {
-	invariant(ttxn != NULL);
-	int accepted = does_txn_read_entry(brt->h->root_xid_that_created, ttxn);
-	if (accepted!=TOKUDB_ACCEPT) {
-	    invariant(accepted==0);
-	    return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
-	}
+        invariant(ttxn != NULL);
+        int accepted = does_txn_read_entry(brt->h->root_xid_that_created, ttxn);
+        if (accepted!=TOKUDB_ACCEPT) {
+            invariant(accepted==0);
+            return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
+        }
     }
     BRT_CURSOR cursor = toku_malloc(sizeof *cursor);
     // if this cursor is to do read_committed fetches, then the txn objects must be valid.
     if (cursor == 0)
-	return ENOMEM;
+        return ENOMEM;
     memset(cursor, 0, sizeof(*cursor));
     cursor->brt = brt;
     cursor->prefetching = FALSE;
@@ -3667,10 +3667,10 @@ brt_cursor_not_set(BRT_CURSOR cursor) {
 
 static int
 pair_leafval_heaviside_le (u_int32_t klen, void *kval,
-			   brt_search_t *search) {
+                           brt_search_t *search) {
     DBT x;
     int cmp = search->compare(search,
-			      search->k ? toku_fill_dbt(&x, kval, klen) : 0);
+                              search->k ? toku_fill_dbt(&x, kval, klen) : 0);
     // The search->compare function returns only 0 or 1
     switch (search->direction) {
     case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
@@ -3688,28 +3688,28 @@ heaviside_from_search_t (OMTVALUE lev, void *extra) {
     void* key = le_key_and_len(le, &keylen);
 
     return pair_leafval_heaviside_le (keylen, key,
-				      search);
+                                      search);
 }
 
 
 //
 // Returns true if the value that is to be read is empty.
 //
-static inline int 
+static inline int
 is_le_val_del(LEAFENTRY le, BRT_CURSOR brtcursor) {
     int rval;
     if (brtcursor->is_snapshot_read) {
-	BOOL is_del;
-	le_iterate_is_del(
-	    le, 
-	    does_txn_read_entry, 
-	    &is_del, 
-	    brtcursor->ttxn
-	    );
-	rval = is_del;
+        BOOL is_del;
+        le_iterate_is_del(
+            le,
+            does_txn_read_entry,
+            &is_del,
+            brtcursor->ttxn
+            );
+        rval = is_del;
     }
     else {
-	rval = le_latest_is_del(le);
+        rval = le_latest_is_del(le);
     }
     return rval;
 }
@@ -3718,7 +3718,7 @@ static const DBT zero_dbt = {0,0,0,0};
 
 static void search_save_bound (brt_search_t *search, DBT *pivot) {
     if (search->have_pivot_bound) {
-	toku_free(search->pivot_bound.data);
+        toku_free(search->pivot_bound.data);
     }
     search->pivot_bound = zero_dbt;
     search->pivot_bound.data = toku_malloc(pivot->size);
@@ -3737,10 +3737,10 @@ static BOOL search_pivot_is_bounded (brt_search_t *search, DESCRIPTOR desc, brt_
     FAKE_DB(db, desc);
     int comp = cmp(&db, pivot, &search->pivot_bound);
     if (search->direction == BRT_SEARCH_LEFT) {
-	// searching from left to right.  If the comparison function says the pivot is <= something we already compared, don't do it again.
-	return comp>0;
+        // searching from left to right.  If the comparison function says the pivot is <= something we already compared, don't do it again.
+        return comp>0;
     } else {
-	return comp<0;
+        return comp<0;
     }
 }
 
@@ -3827,11 +3827,11 @@ do_bn_apply_cmd(BRT t, BASEMENTNODE bn, BRTNODE ancestor, int childnum, const st
         DBT hv;
         BRT_MSG_S brtcmd = { type, msn, xids, .u.id = { &hk, toku_fill_dbt(&hv, val, vallen) } };
         toku_brt_bn_apply_cmd(
-            t->compare_fun, 
-            t->update_fun, 
-            &t->h->cmp_descriptor, 
-            bn, 
-            &brtcmd, 
+            t->compare_fun,
+            t->update_fun,
+            &t->h->cmp_descriptor,
+            bn,
+            &brtcmd,
             &BP_WORKDONE(ancestor, childnum),
             stats_to_update
             );
@@ -4202,9 +4202,9 @@ exit:
 
 static int
 brt_cursor_shortcut (
-    BRT_CURSOR cursor, 
-    int direction, 
-    BRT_GET_CALLBACK_FUNCTION getf, 
+    BRT_CURSOR cursor,
+    int direction,
+    BRT_GET_CALLBACK_FUNCTION getf,
     void *getf_v,
     u_int32_t *keylen,
     void **key,
@@ -4232,7 +4232,7 @@ brt_search_basement_node(
     case BRT_SEARCH_RIGHT:  direction = -1; goto ok;
     }
     return EINVAL;  // This return and the goto are a hack to get both compile-time and run-time checking on enum
- ok: ;
+ok: ;
     OMTVALUE datav;
     u_int32_t idx = 0;
     int r = toku_omt_find(bn->buffer,
@@ -4244,7 +4244,7 @@ brt_search_basement_node(
 
     LEAFENTRY le = datav;
     if (toku_brt_cursor_is_leaf_mode(brtcursor))
-        goto got_a_good_value;	// leaf mode cursors see all leaf entries
+        goto got_a_good_value;        // leaf mode cursors see all leaf entries
     if (is_le_val_del(le,brtcursor)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something
@@ -4256,7 +4256,7 @@ brt_search_basement_node(
                     return DB_NOTFOUND;
                 break;
             case BRT_SEARCH_RIGHT:
-                if (idx == 0) 
+                if (idx == 0)
                     return DB_NOTFOUND;
                 idx--;
                 break;
@@ -4282,13 +4282,13 @@ got_a_good_value:
                                        &key,
                                        &vallen,
                                        &val
-                                       );
+            );
 
         r = getf(keylen, key, vallen, val, getf_v, false);
         if (r==0 || r == TOKUDB_CURSOR_CONTINUE) {
             brtcursor->leaf_info.to_be.omt   = bn->buffer;
             brtcursor->leaf_info.to_be.index = idx;
-            
+
             if (r == TOKUDB_CURSOR_CONTINUE && can_bulk_fetch) {
                 r = brt_cursor_shortcut(
                     brtcursor,
@@ -4403,10 +4403,10 @@ unlock_brtnode_fun (void *v) {
     BRTNODE node = x->node;
     // CT lock is held
     int r = toku_cachetable_unpin_ct_prelocked_no_flush(
-        brt->h->cf, 
-        node->thisnodename, 
-        node->fullhash, 
-        (enum cachetable_dirty) node->dirty, 
+        brt->h->cf,
+        node->thisnodename,
+        node->fullhash,
+        (enum cachetable_dirty) node->dirty,
         x->msgs_applied ? make_brtnode_pair_attr(node) : make_invalid_pair_attr()
         );
     assert(r==0);
@@ -4714,7 +4714,7 @@ toku_brt_search (BRT brt, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, 
     uint trycount = 0;     // How many tries did it take to get the result?
 
 try_again:
-    
+
     trycount++;
     assert(brt->h);
 
@@ -4732,10 +4732,10 @@ try_again:
     //  - Take the search parameter, and create a brtnode_fetch_extra, that will be used by toku_pin_brtnode(_holding_lock)
     //  - Call toku_pin_brtnode(_holding_lock) with the bfe as the extra for the fetch callback (in case the node is not at all in memory)
     //       and the partial fetch callback (in case the node is perhaps partially in memory) to the fetch the node
-    //  - This eventually calls either toku_brtnode_fetch_callback or  toku_brtnode_pf_req_callback depending on whether the node is in 
+    //  - This eventually calls either toku_brtnode_fetch_callback or  toku_brtnode_pf_req_callback depending on whether the node is in
     //     memory at all or not.
     //  - Within these functions, the "brt_search_t search" parameter is used to evaluate which child the search is interested in.
-    //     If the node is not in memory at all, toku_brtnode_fetch_callback will read the node and decompress only the partition for the 
+    //     If the node is not in memory at all, toku_brtnode_fetch_callback will read the node and decompress only the partition for the
     //     relevant child, be it a message buffer or basement node. If the node is in memory, then toku_brtnode_pf_req_callback
     //     will tell the cachetable that a partial fetch is required if and only if the relevant child is not in memory. If the relevant child
     //     is not in memory, then toku_brtnode_pf_callback is called to fetch the partition.
@@ -4762,10 +4762,10 @@ try_again:
         CACHEKEY root_key;
         toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
         toku_pin_brtnode_off_client_thread(
-            brt->h, 
-            root_key, 
+            brt->h,
+            root_key,
             fullhash,
-            &bfe, 
+            &bfe,
             FALSE, // may_modify_node set to FALSE, because root cannot change during search
             0,
             NULL,
@@ -4778,26 +4778,26 @@ try_again:
 
 
     struct unlock_brtnode_extra unlock_extra   = {brt,node,FALSE};
-    struct unlockers		unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
+    struct unlockers                unlockers      = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
     {
-	BOOL doprefetch = FALSE;
-	//static int counter = 0;	 counter++;
-	r = brt_search_node(brt, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, brtcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds, can_bulk_fetch);
-	if (r==TOKUDB_TRY_AGAIN) {
+        BOOL doprefetch = FALSE;
+        //static int counter = 0;         counter++;
+        r = brt_search_node(brt, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, brtcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds, can_bulk_fetch);
+        if (r==TOKUDB_TRY_AGAIN) {
             // there are two cases where we get TOKUDB_TRY_AGAIN
             //  case 1 is when some later call to toku_pin_brtnode returned
             //  that value and unpinned all the nodes anyway. case 2
             //  is when brt_search_node had to stop its search because
-            //  some piece of a node that it needed was not in memory. 
+            //  some piece of a node that it needed was not in memory.
             //  In this case, the node was not unpinned, so we unpin it here
             if (unlockers.locked) {
                 toku_unpin_brtnode_read_only(brt, node);
             }
-	    goto try_again;
-	} else {
-	    assert(unlockers.locked);
-	}
+            goto try_again;
+        } else {
+            assert(unlockers.locked);
+        }
     }
 
     assert(unlockers.locked);
@@ -4828,7 +4828,7 @@ try_again:
         if (retrycount) STATUS_VALUE(BRT_TOTAL_RETRIES) += retrycount;
         if (retrycount > tree_height) {         // if at least one node was read from disk more than once
             STATUS_VALUE(BRT_SEARCH_TRIES_GT_HEIGHT)++;
-            uint excess_tries = retrycount - tree_height;  
+            uint excess_tries = retrycount - tree_height;
             if (excess_tries > STATUS_VALUE(BRT_MAX_SEARCH_EXCESS_RETRIES))
                 STATUS_VALUE(BRT_MAX_SEARCH_EXCESS_RETRIES) = excess_tries;
             if (retrycount > (tree_height+3))
@@ -4870,22 +4870,22 @@ static int brt_cursor_compare_set(brt_search_t *search, DBT *x) {
 }
 
 static int
-brt_cursor_current_getf(ITEMLEN keylen,		 bytevec key,
-			ITEMLEN vallen,		 bytevec val,
-			void *v, bool lock_only) {
+brt_cursor_current_getf(ITEMLEN keylen,                 bytevec key,
+                        ITEMLEN vallen,                 bytevec val,
+                        void *v, bool lock_only) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
     if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
+        r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
     } else {
-	BRT_CURSOR cursor = bcss->cursor;
-	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
-	if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only); // This was once DB_KEYEMPTY
-	    if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-	}
-	else
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
+        BRT_CURSOR cursor = bcss->cursor;
+        DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
+        if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
+            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only); // This was once DB_KEYEMPTY
+            if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
+        }
+        else
+            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
     }
     return r;
 }
@@ -4894,13 +4894,13 @@ int
 toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     if (brt_cursor_not_set(cursor))
-	return EINVAL;
+        return EINVAL;
     if (op == DB_CURRENT) {
-	struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
-	brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
-	int r = toku_brt_search(cursor->brt, &search, brt_cursor_current_getf, &bcss, cursor, FALSE);
-	brt_search_finish(&search);
-	return r;
+        struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
+        brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
+        int r = toku_brt_search(cursor->brt, &search, brt_cursor_current_getf, &bcss, cursor, FALSE);
+        brt_search_finish(&search);
+        return r;
     }
     return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v, false); // brt_cursor_copyout(cursor, outkey, outval);
 }
@@ -4931,15 +4931,15 @@ static int brt_cursor_compare_next(brt_search_t *search, DBT *x) {
 
 static int
 brt_cursor_shortcut (
-    BRT_CURSOR cursor, 
-    int direction, 
-    BRT_GET_CALLBACK_FUNCTION getf, 
+    BRT_CURSOR cursor,
+    int direction,
+    BRT_GET_CALLBACK_FUNCTION getf,
     void *getf_v,
     u_int32_t *keylen,
     void **key,
     u_int32_t *vallen,
     void **val
-    ) 
+    )
 {
     int r = 0;
     u_int32_t index = cursor->leaf_info.to_be.index;
@@ -4954,9 +4954,9 @@ brt_cursor_shortcut (
         index += direction;
         r = toku_omt_fetch(omt, index, &le);
         assert_zero(r);
-    
+
         if (toku_brt_cursor_is_leaf_mode(cursor) || !is_le_val_del(le, cursor)) {
-            
+
             brt_cursor_extract_key_and_val(
                 le,
                 cursor,
@@ -4965,7 +4965,7 @@ brt_cursor_shortcut (
                 vallen,
                 val
                 );
-            
+
             r = getf(*keylen, *key, *vallen, *val, getf_v, false);
             if (r == 0 || r == TOKUDB_CURSOR_CONTINUE) {
                 //Update cursor.
@@ -4979,7 +4979,7 @@ brt_cursor_shortcut (
             }
         }
     }
-    
+
     return r;
 }
 
@@ -4994,22 +4994,22 @@ toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *ge
 }
 
 static int
-brt_cursor_search_eq_k_x_getf(ITEMLEN keylen,	       bytevec key,
-			      ITEMLEN vallen,	       bytevec val,
-			      void *v, bool lock_only) {
+brt_cursor_search_eq_k_x_getf(ITEMLEN keylen,               bytevec key,
+                              ITEMLEN vallen,               bytevec val,
+                              void *v, bool lock_only) {
     struct brt_cursor_search_struct *bcss = v;
     int r;
     if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, false);
+        r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, false);
     } else {
-	BRT_CURSOR cursor = bcss->cursor;
-	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
-	if (compare_k_x(cursor->brt, bcss->search->k, &newkey) == 0) {
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
-	} else {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
-	    if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-	}
+        BRT_CURSOR cursor = bcss->cursor;
+        DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
+        if (compare_k_x(cursor->brt, bcss->search->k, &newkey) == 0) {
+            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
+        } else {
+            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
+            if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
+        }
     }
     return r;
 }
@@ -5039,7 +5039,7 @@ toku_brt_cursor_prev(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *ge
 
 static int brt_cursor_compare_set_range(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    return compare_k_x(brt, search->k,	x) <= 0; /* return kv <= xy */
+    return compare_k_x(brt, search->k,        x) <= 0; /* return kv <= xy */
 }
 
 int
@@ -5082,32 +5082,32 @@ toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf
 {
     int op = get_flags & DB_OPFLAGS_MASK;
     if (get_flags & ~DB_OPFLAGS_MASK)
-	return EINVAL;
+        return EINVAL;
 
     switch (op) {
     case DB_CURRENT:
     case DB_CURRENT_BINDING:
-	return toku_brt_cursor_current(cursor, op, getf, getf_v);
+        return toku_brt_cursor_current(cursor, op, getf, getf_v);
     case DB_FIRST:
-	return toku_brt_cursor_first(cursor, getf, getf_v);
+        return toku_brt_cursor_first(cursor, getf, getf_v);
     case DB_LAST:
-	return toku_brt_cursor_last(cursor, getf, getf_v);
+        return toku_brt_cursor_last(cursor, getf, getf_v);
     case DB_NEXT:
     case DB_NEXT_NODUP:
-	if (brt_cursor_not_set(cursor))
-	    return toku_brt_cursor_first(cursor, getf, getf_v);
-	else
-	    return toku_brt_cursor_next(cursor, getf, getf_v);
+        if (brt_cursor_not_set(cursor))
+            return toku_brt_cursor_first(cursor, getf, getf_v);
+        else
+            return toku_brt_cursor_next(cursor, getf, getf_v);
     case DB_PREV:
     case DB_PREV_NODUP:
-	if (brt_cursor_not_set(cursor))
-	    return toku_brt_cursor_last(cursor, getf, getf_v);
-	else
-	    return toku_brt_cursor_prev(cursor, getf, getf_v);
+        if (brt_cursor_not_set(cursor))
+            return toku_brt_cursor_last(cursor, getf, getf_v);
+        else
+            return toku_brt_cursor_prev(cursor, getf, getf_v);
     case DB_SET:
-	return toku_brt_cursor_set(cursor, key, getf, getf_v);
+        return toku_brt_cursor_set(cursor, key, getf, getf_v);
     case DB_SET_RANGE:
-	return toku_brt_cursor_set_range(cursor, key, getf, getf_v);
+        return toku_brt_cursor_set_range(cursor, key, getf, getf_v);
     default: ;// Fall through
     }
     return EINVAL;
@@ -5172,13 +5172,13 @@ toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN txn) {
     if (unchecked_flags!=0) r = EINVAL;
     else if (brt_cursor_not_set(cursor)) r = EINVAL;
     else {
-	r = 0;
-	if (error_if_missing) {
-	    r = toku_brt_cursor_current(cursor, DB_CURRENT, getf_nothing, NULL);
-	}
-	if (r == 0) {
-	    r = toku_brt_delete(cursor->brt, &cursor->key, txn);
-	}
+        r = 0;
+        if (error_if_missing) {
+            r = toku_brt_cursor_current(cursor, DB_CURRENT, getf_nothing, NULL);
+        }
+        if (r == 0) {
+            r = toku_brt_delete(cursor->brt, &cursor->key, txn);
+        }
     }
     return r;
 }
@@ -5191,7 +5191,7 @@ struct keyrange_compare_s {
     DBT *key;
 };
 
-static int 
+static int
 keyrange_compare (OMTVALUE lev, void *extra) {
     LEAFENTRY le = lev;
     u_int32_t keylen;
@@ -5204,7 +5204,7 @@ keyrange_compare (OMTVALUE lev, void *extra) {
     return s->brt->compare_fun(&db, &omt_dbt, s->key);
 }
 
-static void 
+static void
 keyrange_in_leaf_partition (BRT brt, BRTNODE node, DBT *key, int child_number, u_int64_t estimated_num_rows,
                             u_int64_t *less, u_int64_t *equal, u_int64_t *greater)
 // If the partition is in main memory then estimate the number
@@ -5212,31 +5212,31 @@ keyrange_in_leaf_partition (BRT brt, BRTNODE node, DBT *key, int child_number, u
 {
     assert(node->height == 0); // we are in a leaf
     if (BP_STATE(node, child_number) == PT_AVAIL) {
-	// If the partition is in main memory then get an exact count.
-	struct keyrange_compare_s s = {brt,key};
-	BASEMENTNODE bn = BLB(node, child_number);
-	OMTVALUE datav;
-	u_int32_t idx = 0;
-	// if key is NULL then set r==-1 and idx==0.
-	int r = key ? toku_omt_find_zero(bn->buffer, keyrange_compare, &s, &datav, &idx) : -1;
-	if (r==0) {
-	    *less    = idx;
-	    *equal   = 1;
-	    *greater = toku_omt_size(bn->buffer)-idx-1;
-	} else {
-	    // If not found, then the idx says where it's between.
-	    *less    = idx;
-	    *equal   = 0;
-	    *greater = toku_omt_size(bn->buffer)-idx;
-	}
+        // If the partition is in main memory then get an exact count.
+        struct keyrange_compare_s s = {brt,key};
+        BASEMENTNODE bn = BLB(node, child_number);
+        OMTVALUE datav;
+        u_int32_t idx = 0;
+        // if key is NULL then set r==-1 and idx==0.
+        int r = key ? toku_omt_find_zero(bn->buffer, keyrange_compare, &s, &datav, &idx) : -1;
+        if (r==0) {
+            *less    = idx;
+            *equal   = 1;
+            *greater = toku_omt_size(bn->buffer)-idx-1;
+        } else {
+            // If not found, then the idx says where it's between.
+            *less    = idx;
+            *equal   = 0;
+            *greater = toku_omt_size(bn->buffer)-idx;
+        }
     } else {
-	*less    = estimated_num_rows / 2;
-	*equal   = 0;
-	*greater = *less;
+        *less    = estimated_num_rows / 2;
+        *equal   = 0;
+        *greater = *less;
     }
 }
 
-static int 
+static int
 toku_brt_keyrange_internal (BRT brt, BRTNODE node,
                             DBT *key, u_int64_t *less, u_int64_t *equal, u_int64_t *greater,
                             u_int64_t estimated_num_rows,
@@ -5250,60 +5250,60 @@ toku_brt_keyrange_internal (BRT brt, BRTNODE node,
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
     if (node->height == 0) {
 
-	keyrange_in_leaf_partition(brt, node, key, child_number, rows_per_child, less, equal, greater);
+        keyrange_in_leaf_partition(brt, node, key, child_number, rows_per_child, less, equal, greater);
 
         *less    += rows_per_child * child_number;
         *greater += rows_per_child * (node->n_children - child_number - 1);
-        
+
     } else {
-	// do the child.
-	struct ancestors next_ancestors = {node, child_number, ancestors};
-	BLOCKNUM childblocknum = BP_BLOCKNUM(node, child_number);
-	u_int32_t fullhash = compute_child_fullhash(brt->h->cf, node, child_number);
-	BRTNODE childnode;
+        // do the child.
+        struct ancestors next_ancestors = {node, child_number, ancestors};
+        BLOCKNUM childblocknum = BP_BLOCKNUM(node, child_number);
+        u_int32_t fullhash = compute_child_fullhash(brt->h->cf, node, child_number);
+        BRTNODE childnode;
         BOOL msgs_applied = FALSE;
-	r = toku_pin_brtnode(
-            brt, 
-            childblocknum, 
-            fullhash, 
-            unlockers, 
-            &next_ancestors, 
-            bounds, 
+        r = toku_pin_brtnode(
+            brt,
+            childblocknum,
+            fullhash,
+            unlockers,
+            &next_ancestors,
+            bounds,
             bfe,
             FALSE, // may_modify_node is FALSE, because node guaranteed to not change
-            FALSE, 
-            &childnode, 
+            FALSE,
+            &childnode,
             &msgs_applied
             );
         assert(!msgs_applied);
-	if (r != TOKUDB_TRY_AGAIN) {
-	    assert(r == 0);
+        if (r != TOKUDB_TRY_AGAIN) {
+            assert(r == 0);
 
-	    struct unlock_brtnode_extra unlock_extra   = {brt,childnode,FALSE};
-	    struct unlockers next_unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, unlockers};
-	    const struct pivot_bounds next_bounds = next_pivot_keys(node, child_number, bounds);
+            struct unlock_brtnode_extra unlock_extra   = {brt,childnode,FALSE};
+            struct unlockers next_unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, unlockers};
+            const struct pivot_bounds next_bounds = next_pivot_keys(node, child_number, bounds);
 
-	    r = toku_brt_keyrange_internal(brt, childnode, key, less, equal, greater, rows_per_child,
+            r = toku_brt_keyrange_internal(brt, childnode, key, less, equal, greater, rows_per_child,
                                            bfe, &next_unlockers, &next_ancestors, &next_bounds);
-	    if (r != TOKUDB_TRY_AGAIN) {
-		assert(r == 0);
+            if (r != TOKUDB_TRY_AGAIN) {
+                assert(r == 0);
 
-		*less    += rows_per_child * child_number;
-		*greater += rows_per_child * (node->n_children - child_number - 1);
+                *less    += rows_per_child * child_number;
+                *greater += rows_per_child * (node->n_children - child_number - 1);
 
-		assert(unlockers->locked);
-		toku_unpin_brtnode_read_only(brt, childnode);
-	    }
-	}
+                assert(unlockers->locked);
+                toku_unpin_brtnode_read_only(brt, childnode);
+            }
+        }
     }
     return r;
 }
 
-int 
-toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_int64_t *greater_p) 
+int
+toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_int64_t *greater_p)
 // Effect: Return an estimate  of the number of keys to the left, the number equal, and the number to the right of the key.
 //   The values are an estimate.
-//   If you perform a keyrange on two keys that are in the same in-memory and uncompressed basement, 
+//   If you perform a keyrange on two keys that are in the same in-memory and uncompressed basement,
 //   you can use the keys_right numbers (or the keys_left) numbers to get an exact number keys in the range,
 //   if the basement does not change between the keyrange queries.
 //   TODO 4184: What to do with a NULL key?
@@ -5312,9 +5312,9 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
     assert(brt->h);
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, brt->h);  // read pivot keys but not message buffers
- try_again:
+try_again:
     {
-	u_int64_t less = 0, equal = 0, greater = 0;
+        u_int64_t less = 0, equal = 0, greater = 0;
         BRTNODE node = NULL;
         {
             toku_brtheader_grab_treelock(brt->h);
@@ -5323,10 +5323,10 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
             CACHEKEY root_key;
             toku_calculate_root_offset_pointer(brt->h, &root_key, &fullhash);
             toku_pin_brtnode_off_client_thread(
-                brt->h, 
-                root_key, 
+                brt->h,
+                root_key,
                 fullhash,
-                &bfe, 
+                &bfe,
                 FALSE, // may_modify_node, cannot change root during keyrange
                 0,
                 NULL,
@@ -5335,33 +5335,33 @@ toku_brt_keyrange (BRT brt, DBT *key, u_int64_t *less_p, u_int64_t *equal_p, u_i
             toku_brtheader_release_treelock(brt->h);
         }
 
-	struct unlock_brtnode_extra unlock_extra = {brt,node,FALSE};
-	struct unlockers unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
+        struct unlock_brtnode_extra unlock_extra = {brt,node,FALSE};
+        struct unlockers unlockers = {TRUE, unlock_brtnode_fun, (void*)&unlock_extra, (UNLOCKERS)NULL};
 
-	{
-	    int64_t numrows = brt->h->in_memory_stats.numrows;
-	    if (numrows < 0)
-		numrows = 0;  // prevent appearance of a negative number
-	    int r = toku_brt_keyrange_internal (brt, node, key,
-						&less, &equal, &greater,
-						numrows,
-						&bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
-	    assert(r == 0 || r == TOKUDB_TRY_AGAIN);
-	    if (r == TOKUDB_TRY_AGAIN) {
-		assert(!unlockers.locked);
-		goto try_again;
-	    }
-	}
-	assert(unlockers.locked);
-	toku_unpin_brtnode_read_only(brt, node);
-	*less_p    = less;
-	*equal_p   = equal;
-	*greater_p = greater;
+        {
+            int64_t numrows = brt->h->in_memory_stats.numrows;
+            if (numrows < 0)
+                numrows = 0;  // prevent appearance of a negative number
+            int r = toku_brt_keyrange_internal (brt, node, key,
+                                                &less, &equal, &greater,
+                                                numrows,
+                                                &bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
+            assert(r == 0 || r == TOKUDB_TRY_AGAIN);
+            if (r == TOKUDB_TRY_AGAIN) {
+                assert(!unlockers.locked);
+                goto try_again;
+            }
+        }
+        assert(unlockers.locked);
+        toku_unpin_brtnode_read_only(brt, node);
+        *less_p    = less;
+        *equal_p   = equal;
+        *greater_p = greater;
     }
     return 0;
 }
 
-int 
+int
 toku_brt_stat64 (BRT brt, TOKUTXN UU(txn), struct brtstat64_s *s) {
     assert(brt->h);
     toku_brtheader_stat64(brt->h, s);
@@ -5380,71 +5380,71 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, const DBT 
     struct brtnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, brt->h);
     int r = toku_cachetable_get_and_pin(
-        brt->h->cf, 
-        blocknum, 
+        brt->h->cf,
+        blocknum,
         fullhash,
-        &node_v, 
+        &node_v,
         NULL,
         get_write_callbacks_for_node(brt->h),
-	toku_brtnode_fetch_callback, 
+        toku_brtnode_fetch_callback,
         toku_brtnode_pf_req_callback,
         toku_brtnode_pf_callback,
-        TRUE, // may_modify_value, just safe to set to TRUE, I think it could theoretically be FALSE 
-	&bfe 
-	);
+        TRUE, // may_modify_value, just safe to set to TRUE, I think it could theoretically be FALSE
+        &bfe
+        );
     assert_zero(r);
     node=node_v;
     assert(node->fullhash==fullhash);
     fprintf(file, "%*sNode=%p\n", depth, "", node);
-    
+
     fprintf(file, "%*sNode %"PRId64" nodesize=%u height=%d n_children=%d  keyrange=%s %s\n",
-	depth, "", blocknum.b, node->nodesize, node->height, node->n_children, (char*)(lorange ? lorange->data : 0), (char*)(hirange ? hirange->data : 0));
+            depth, "", blocknum.b, node->nodesize, node->height, node->n_children, (char*)(lorange ? lorange->data : 0), (char*)(hirange ? hirange->data : 0));
     {
-	int i;
-	for (i=0; i+1< node->n_children; i++) {
-	    fprintf(file, "%*spivotkey %d =", depth+1, "", i);
-	    toku_print_BYTESTRING(file, node->childkeys[i].size, node->childkeys[i].data);
-	    fprintf(file, "\n");
-	}
-	for (i=0; i< node->n_children; i++) {
-	    if (node->height > 0) {
+        int i;
+        for (i=0; i+1< node->n_children; i++) {
+            fprintf(file, "%*spivotkey %d =", depth+1, "", i);
+            toku_print_BYTESTRING(file, node->childkeys[i].size, node->childkeys[i].data);
+            fprintf(file, "\n");
+        }
+        for (i=0; i< node->n_children; i++) {
+            if (node->height > 0) {
                 NONLEAF_CHILDINFO bnc = BNC(node, i);
-		fprintf(file, "%*schild %d buffered (%d entries):", depth+1, "", i, toku_bnc_n_entries(bnc));
-		FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, type, msn, xids, UU(is_fresh),
-				  {
-				      data=data; datalen=datalen; keylen=keylen;
-				      fprintf(file, "%*s xid=%"PRIu64" %u (type=%d) msn=0x%"PRIu64"\n", depth+2, "", xids_get_innermost_xid(xids), (unsigned)toku_dtoh32(*(int*)key), type, msn.msn);
-				      //assert(strlen((char*)key)+1==keylen);
-				      //assert(strlen((char*)data)+1==datalen);
-				  });
-	    }
-	    else {
-		int size = toku_omt_size(BLB_BUFFER(node, i));
-		if (0)
-		for (int j=0; j<size; j++) {
-		    OMTVALUE v = 0;
-		    r = toku_omt_fetch(BLB_BUFFER(node, i), j, &v);
-		    assert_zero(r);
-		    fprintf(file, " [%d]=", j);
-		    print_leafentry(file, v);
-		    fprintf(file, "\n");
-		}
-		//	       printf(" (%d)%u ", len, *(int*)le_key(data)));
-		fprintf(file, "\n");
-	    }
-	}
-	if (node->height > 0) {
-	    for (i=0; i<node->n_children; i++) {
-		fprintf(file, "%*schild %d\n", depth, "", i);
-		if (i>0) {
-		    char *key = node->childkeys[i-1].data;
-		    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1].size, (unsigned)toku_dtoh32(*(int*)key));
-		}
-		toku_dump_brtnode(file, brt, BP_BLOCKNUM(node, i), depth+4,
-				  (i==0) ? lorange : &node->childkeys[i-1],
-				  (i==node->n_children-1) ? hirange : &node->childkeys[i]);
-	    }
-	}
+                fprintf(file, "%*schild %d buffered (%d entries):", depth+1, "", i, toku_bnc_n_entries(bnc));
+                FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, type, msn, xids, UU(is_fresh),
+                             {
+                                 data=data; datalen=datalen; keylen=keylen;
+                                 fprintf(file, "%*s xid=%"PRIu64" %u (type=%d) msn=0x%"PRIu64"\n", depth+2, "", xids_get_innermost_xid(xids), (unsigned)toku_dtoh32(*(int*)key), type, msn.msn);
+                                 //assert(strlen((char*)key)+1==keylen);
+                                 //assert(strlen((char*)data)+1==datalen);
+                             });
+            }
+            else {
+                int size = toku_omt_size(BLB_BUFFER(node, i));
+                if (0)
+                    for (int j=0; j<size; j++) {
+                        OMTVALUE v = 0;
+                        r = toku_omt_fetch(BLB_BUFFER(node, i), j, &v);
+                        assert_zero(r);
+                        fprintf(file, " [%d]=", j);
+                        print_leafentry(file, v);
+                        fprintf(file, "\n");
+                    }
+                //               printf(" (%d)%u ", len, *(int*)le_key(data)));
+                fprintf(file, "\n");
+            }
+        }
+        if (node->height > 0) {
+            for (i=0; i<node->n_children; i++) {
+                fprintf(file, "%*schild %d\n", depth, "", i);
+                if (i>0) {
+                    char *key = node->childkeys[i-1].data;
+                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1].size, (unsigned)toku_dtoh32(*(int*)key));
+                }
+                toku_dump_brtnode(file, brt, BP_BLOCKNUM(node, i), depth+4,
+                                  (i==0) ? lorange : &node->childkeys[i-1],
+                                  (i==node->n_children-1) ? hirange : &node->childkeys[i]);
+            }
+        }
     }
     r = toku_cachetable_unpin(brt->h->cf, blocknum, fullhash, CACHETABLE_CLEAN, make_brtnode_pair_attr(node));
     assert_zero(r);
@@ -5469,27 +5469,27 @@ int toku_dump_brt (FILE *f, BRT brt) {
 }
 
 int toku_brt_init(void (*ydb_lock_callback)(void),
-		  void (*ydb_unlock_callback)(void)) {
+                  void (*ydb_unlock_callback)(void)) {
     int r = 0;
     //Portability must be initialized first
-    if (r==0) 
-	r = toku_portability_init();
-    if (r==0) 
-	r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
+    if (r==0)
+        r = toku_portability_init();
+    if (r==0)
+        r = toku_checkpoint_init(ydb_lock_callback, ydb_unlock_callback);
     if (r == 0)
-	r = toku_brt_serialize_init();
+        r = toku_brt_serialize_init();
     return r;
 }
 
 int toku_brt_destroy(void) {
     int r = 0;
     if (r == 0)
-	r = toku_brt_serialize_destroy();
+        r = toku_brt_serialize_destroy();
     if (r==0)
-	r = toku_checkpoint_destroy();
+        r = toku_checkpoint_destroy();
     //Portability must be cleaned up last
-    if (r==0) 
-	r = toku_portability_destroy();
+    if (r==0)
+        r = toku_portability_destroy();
     return r;
 }
 
@@ -5497,8 +5497,8 @@ int toku_brt_destroy(void) {
 void
 toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn) {
     assert(brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(txn));
-    assert(brt->h->txnid_that_suppressed_recovery_logs	   == TXNID_NONE);
-    brt->h->txnid_that_suppressed_recovery_logs		   = toku_txn_get_txnid(txn);
+    assert(brt->h->txnid_that_suppressed_recovery_logs           == TXNID_NONE);
+    brt->h->txnid_that_suppressed_recovery_logs                   = toku_txn_get_txnid(txn);
     txn->checkpoint_needed_before_commit = TRUE;
 }
 
@@ -5537,18 +5537,18 @@ int toku_brt_remove_on_commit(TOKUTXN txn, DBT* iname_in_env_dbt_p) {
     else {
         assert(r==ENOENT);
     }
-    
-    toku_txn_force_fsync_on_commit(txn);  //If the txn commits, the commit MUST be in the log
-				     //before the file is actually unlinked
+
+    toku_txn_force_fsync_on_commit(txn);  // If the txn commits, the commit MUST be in the log
+                                          // before the file is actually unlinked
     {
-	BYTESTRING iname_in_env_bs = { .len=strlen(iname_in_env), .data = (char*)iname_in_env };
-	// make entry in rollback log
-	r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, &iname_in_env_bs);
-	assert_zero(r); //On error we would need to remove the CF reference, which is complicated.
+        BYTESTRING iname_in_env_bs = { .len=strlen(iname_in_env), .data = (char*)iname_in_env };
+        // make entry in rollback log
+        r = toku_logger_save_rollback_fdelete(txn, was_open, filenum, &iname_in_env_bs);
+        assert_zero(r); //On error we would need to remove the CF reference, which is complicated.
     }
     if (r==0)
-	// make entry in recovery log
-	r = toku_logger_log_fdelete(txn, iname_in_env);
+        // make entry in recovery log
+        r = toku_logger_log_fdelete(txn, iname_in_env);
     return r;
 }
 
@@ -5560,13 +5560,13 @@ int toku_brt_remove_now(CACHETABLE ct, DBT* iname_in_env_dbt_p) {
     CACHEFILE cf;
     r = toku_cachefile_of_iname_in_env(ct, iname_in_env, &cf);
     if (r == 0) {
-	r = toku_cachefile_redirect_nullfd(cf);
-	assert_zero(r);
+        r = toku_cachefile_redirect_nullfd(cf);
+        assert_zero(r);
     }
     else
-	assert(r==ENOENT);
+        assert(r==ENOENT);
     char *iname_in_cwd = toku_cachetable_get_fname_in_cwd(ct, iname_in_env_dbt_p->data);
-    
+
     r = unlink(iname_in_cwd);  // we need a pathname relative to cwd
     assert_zero(r);
     toku_free(iname_in_cwd);
@@ -5582,12 +5582,12 @@ toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
 
     int64_t file_size;
     if (toku_cachefile_is_dev_null_unlocked(brt->h->cf))
-	r = EINVAL;
+        r = EINVAL;
     else
-	r = toku_os_get_file_size(fd, &file_size);
+        r = toku_os_get_file_size(fd, &file_size);
     if (r==0) {
-	report->file_size_bytes = file_size;
-	toku_block_table_get_fragmentation_unlocked(brt->h->blocktable, report);
+        report->file_size_bytes = file_size;
+        toku_block_table_get_fragmentation_unlocked(brt->h->blocktable, report);
     }
     toku_brtheader_unlock(brt->h);
     toku_cachefile_unpin_fd(brt->h->cf);
@@ -5596,17 +5596,17 @@ toku_brt_get_fragmentation(BRT brt, TOKU_DB_FRAGMENTATION report) {
 
 static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
     if (node->height > 0) {
-	for (int childnum=0; childnum<node->n_children; childnum++) {
+        for (int childnum=0; childnum<node->n_children; childnum++) {
             if (toku_bnc_nbytesinbuf(BNC(node, childnum)) != 0) {
                 return 0; // it's not empty if there are bytes in buffers
             }
-	    BRTNODE childnode;
-	    {
-		BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
-		u_int32_t fullhash =  compute_child_fullhash(brt->h->cf, node, childnum);
+            BRTNODE childnode;
+            {
+                BLOCKNUM childblocknum = BP_BLOCKNUM(node,childnum);
+                u_int32_t fullhash =  compute_child_fullhash(brt->h->cf, node, childnum);
                 struct brtnode_fetch_extra bfe;
                 fill_bfe_for_full_read(&bfe, brt->h);
-                // don't need to pass in dependent nodes as we are not 
+                // don't need to pass in dependent nodes as we are not
                 // modifying nodes we are pinning
                 toku_pin_brtnode_off_client_thread(
                     brt->h,
@@ -5618,20 +5618,20 @@ static BOOL is_empty_fast_iter (BRT brt, BRTNODE node) {
                     NULL,
                     &childnode
                     );
-	    }
-	    int child_is_empty = is_empty_fast_iter(brt, childnode);
-	    toku_unpin_brtnode(brt->h, childnode);
-	    if (!child_is_empty) return 0;
-	}
-	return 1;
+            }
+            int child_is_empty = is_empty_fast_iter(brt, childnode);
+            toku_unpin_brtnode(brt->h, childnode);
+            if (!child_is_empty) return 0;
+        }
+        return 1;
     } else {
-	// leaf:  If the omt is empty, we are happy.
-	for (int i = 0; i < node->n_children; i++) {
-	    if (toku_omt_size(BLB_BUFFER(node, i))) {
-		return FALSE;
-	    }
-	}
-	return TRUE;
+        // leaf:  If the omt is empty, we are happy.
+        for (int i = 0; i < node->n_children; i++) {
+            if (toku_omt_size(BLB_BUFFER(node, i))) {
+                return FALSE;
+            }
+        }
+        return TRUE;
     }
 }
 
@@ -5670,20 +5670,20 @@ BOOL toku_brt_is_empty_fast (BRT brt)
 int toku_brt_strerror_r(int error, char *buf, size_t buflen)
 {
     if (error>=0) {
-	return (long) strerror_r(error, buf, buflen);
+        return (long) strerror_r(error, buf, buflen);
     } else {
-	switch (error) {
-	case DB_KEYEXIST:
-	    snprintf(buf, buflen, "Key exists");
-	    return 0;
-	case TOKUDB_CANCELED:
-	    snprintf(buf, buflen, "User canceled operation");
-	    return 0;
-	default:
-	    snprintf(buf, buflen, "Unknown error %d", error);
-	    errno = EINVAL;
-	    return -1;
-	}
+        switch (error) {
+        case DB_KEYEXIST:
+            snprintf(buf, buflen, "Key exists");
+            return 0;
+        case TOKUDB_CANCELED:
+            snprintf(buf, buflen, "User canceled operation");
+            return 0;
+        default:
+            snprintf(buf, buflen, "Unknown error %d", error);
+            errno = EINVAL;
+            return -1;
+        }
     }
 }
 
