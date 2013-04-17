@@ -2618,7 +2618,7 @@ typedef struct heavi_info {
 //
 static int after_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_packed_key(info->db, info->key, key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return cmp>0 ? 1 : -1;
 }
 
@@ -2648,7 +2648,7 @@ static int after_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
 //
 static int prefix_last_or_prev_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_packed_key(info->db, info->key, key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return cmp;
 }
 
@@ -2677,7 +2677,7 @@ static int prefix_last_or_prev_heavi(const DBT *key, const DBT *value, void *ext
 //
 static int before_key_heavi(const DBT *key, const DBT *value, void *extra_h) {
     HEAVI_INFO info = (HEAVI_INFO)extra_h;
-    int cmp = tokudb_prefix_cmp_packed_key(info->db, info->key, key);
+    int cmp = tokudb_prefix_cmp_packed_key(info->db, key, info->key);
     return (cmp<0) ? -1 : 1;
 }
 
