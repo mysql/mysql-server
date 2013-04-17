@@ -238,6 +238,7 @@ if(BUILD_TESTING)
       test_stress5.c
       test_stress6.c
       test_stress7.c
+      test_stress_openclose.c
       test_stress_with_verify.c
       test_stress_hot_indexing.c
       test_transactional_descriptor.c
