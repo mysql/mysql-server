@@ -6234,7 +6234,7 @@ double ha_tokudb::read_time(
     total_scan = scan_time();
 
     if (stats.records < rows) {
-        ret_val = is_clustering ? total_scan + 1.0 : total_scan;
+        ret_val = is_clustering ? total_scan + 0.00001 : total_scan;
         goto cleanup;
     }
 
@@ -6242,7 +6242,7 @@ double ha_tokudb::read_time(
     // one disk seek per range plus the proportional scan time of the rows
     //
     ret_val = (ranges + (double) rows / (double) stats.records * total_scan);
-    ret_val = is_clustering ? ret_val + 1.0 : ret_val;
+    ret_val = is_clustering ? ret_val + 0.00001 : ret_val;
     
 cleanup:
     return ret_val;
