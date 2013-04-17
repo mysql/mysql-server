@@ -578,6 +578,7 @@ static int cachetable_fetch_pair(CACHETABLE ct, CACHEFILE cf, PAIR p) {
     }
     p->state = CTPAIR_IDLE;
     ctpair_write_unlock(&p->rwlock);
+    if (0) printf("%s:%d %"PRId64" complete\n", __FUNCTION__, __LINE__, key.b);
     return 0;
 }
 
@@ -922,6 +923,7 @@ int toku_cachefile_prefetch(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                             CACHETABLE_FLUSH_CALLBACK flush_callback, 
                             CACHETABLE_FETCH_CALLBACK fetch_callback, 
                             void *extraargs) {
+    if (0) printf("%s:%d %"PRId64"\n", __FUNCTION__, __LINE__, key.b);
     CACHETABLE ct = cf->cachetable;
     cachetable_lock(ct);
     // lookup
