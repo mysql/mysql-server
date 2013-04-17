@@ -230,7 +230,7 @@ ifneq ($(CYGWIN),)
 	    CRUNTIME=MTd
 	endif
 	endif
-        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
+        ALWAYS_LINK=$(LIBPORTABILITY) $(TOKUROOT)windows/lib/$(CRUNTIME)/pthreadVC2.lib $(TOKUROOT)windows/lib/$(CRUNTIME)/zlib.lib Ws2_32.lib psapi.lib
         LINK=#Empty
         BINOUTPUT=-Fe
         OOUTPUT=-Fo
@@ -241,7 +241,7 @@ ifneq ($(CYGWIN),)
         WRONGAEXT=a
         SOEXT=dll
         WRONGSOEXT=so
-        C99       = -Qstd=c99
+        C99       = -Qstd=c99 -Qvc9
         OPT_OPTFLAGS = -Ox -Qip -Qipo1
         DBG_OPTFLAGS = -Od
         COMBINE_C = -Qipo-c
@@ -386,6 +386,17 @@ NOIPO_YDB     = $(TOKUROOT)src/static_libtokudb.$(AEXT)
 $(NOIPO_YDB) $(IPO_YDB): $(@D)*.[ch]
 	cd $(@D) && $(MAKE) $(@F)
 endif
+
+ifeq ($(OS_CHOICE),windows)
+PTHREAD_LIB=$(TOKUROOT)windows/lib/$(CRUNTIME)/pthreadVC2.dll
+PTHREAD_LOCAL=$(notdir $(PTHREAD_LIB))
+
+$(PTHREAD_LOCAL): $(PTHREAD_LIB)
+	cp $< $@
+else
+PTHREAD_LOCAL=
+endif
+
 
 BIN_FROM_C_FLAGS      =$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS)       $(BINOUTPUT)$@
 BIN_FROM_C_FLAGS_NOLIB=$(CFLAGS) $(CPPFLAGS)    $(LDFLAGS_NOLIB) $(BINOUTPUT)$@

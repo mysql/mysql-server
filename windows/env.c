@@ -1,6 +1,6 @@
+#include <toku_portability.h>
 #include <windows.h>
 #include <toku_stdlib.h>
-#include "toku_portability.h"
 #include <assert.h>
 
 int

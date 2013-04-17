@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 
-#include "toku_portability.h"
+#include <toku_portability.h>
 #include "toku_pthread.h"
 #include "toku_assert.h"
 #include "memory.h"
@@ -27,7 +27,7 @@ int threadpool_create(THREADPOOL *threadpoolptr, int max_threads) {
     threadpool->current_threads = 0;
     int i;
     for (i=0; i<max_threads; i++)
-        threadpool->tids[i] = 0;
+        memset(&threadpool->tids[i], 0, sizeof(threadpool->tids[i]));
     *threadpoolptr = threadpool;
     return 0;
 }

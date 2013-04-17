@@ -201,7 +201,7 @@ tests: tests.bdb tests.tdb ;
 tests.bdb: $(BDB_TESTS) ;
 check.bdb: $(RUN_BDB_TESTS) ;
 tests.tdb: $(TDB_TESTS) ;
-check.tdb: $(notdir $(LIBTDB)) $(RUN_TDB_TESTS) ;
+check.tdb: $(notdir $(LIBTDB)) $(PTHREAD_LOCAL) $(RUN_TDB_TESTS) ;
 
 foo:
 	echo RUN_TDB_TESTS: $(RUN_TDB_TESTS)
@@ -257,7 +257,7 @@ endif
 # Use -s on the command line to make things quiet.
 %.bdbrun: %.bdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(WINDOWS_BDB_LIB_NAME)
 	$(BDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-%.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB))
+%.tdbrun: %.tdb$(BINSUF) $(DEPEND_COMPILE) $(DEPEND_LINK) $(notdir $(LIBTDB)) $(PTHREAD_LOCAL)
 	$(TDBVGRIND) ./$< $(VERBVERBOSE) $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 ifeq ($(OS_CHOICE),windows)
@@ -268,8 +268,7 @@ else
     TDBLOAD=$(TOKUROOT)utils/tokudb_load_static$(BINSUF)
 endif
 
-
-%.recover: %.tdb$(BINSUF)
+%.recover: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	echo doing ./$< &&\
 	$(VGRIND) ./$<                                                                          && \
 	rm -rf dir.$*.c.tdb.recover                                                             && \
@@ -282,11 +281,11 @@ endif
 	diff -q dir.$*.c.tdb/foo.dump dir.$*.c.tdb.recover/foo.dump                                   \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
-%.recoverwc: %.tdb$(BINSUF)
+%.recoverwc: %.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	 (cd dir.$*.c.tdb;pwd;cat log*| ../../../newbrt/tdb_logprint |wc -c)
 
 .PHONY: %.recover
-all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) ;
+all.recover: $(patsubst %,test_log%.recover,$(TLRECOVER)) $(PTHREAD_LOCAL) ;
 
 #DISABLE standard tdbrun for recover tests.
 $(patsubst %,test_log%.tdbrun,$(TLRECOVER)): ;
@@ -422,11 +421,11 @@ test_get_both_range.tdbrun: \
  # intentionally blank line
 	true $(SUMMARIZE_CMD) #State that this has passed.
 
-tgbr_%_a.tdbrun: test_get_both_range.tdb$(BINSUF)
+tgbr_%_a.tdbrun: test_get_both_range.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -a $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF)
+tgbr_%_b.tdbrun: test_get_both_range.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -b $(MAYBEINVERTER) $(SUMMARIZE_CMD)
-tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF)
+tgbr_%_c.tdbrun: test_get_both_range.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) -i $* -c $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 ifeq ($(OS_CHOICE),windows)
@@ -442,7 +441,7 @@ dump.bdb.1426: test1426.bdb$(BINSUF) test1426.bdbdump/dump.bdb.1426
 endif
 
 # test1426 is run by comparing the BDB output to the TDB output
-test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426
+test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426 $(PTHREAD_LOCAL)
 	(./test1426.tdb$(BINSUF) -q && \
 	 $(TDBDUMP) -p -h dir.test1426.c.tdb main > dump.tdb.1426 && \
 	 diff -q -I db_pagesize=4096 dump.bdb.1426 dump.tdb.1426 ) \
@@ -452,7 +451,7 @@ test1426.tdbrun: test1426.tdb$(BINSUF) dump.bdb.1426
 STRESS_RUNS=5
 STRESS_SIZE=5001
 checkpoint_stress.tdbrun: SHELL=/bin/bash
-checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF)
+checkpoint_stress.tdbrun: checkpoint_stress.tdb$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< -C -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	($(VGRIND) ./$< -C -i 0 -n $(STRESS_SIZE) $(VERBVERBOSE) && \
 	 for (( i = 1; i < $(STRESS_RUNS); i++ )); do \
@@ -475,6 +474,6 @@ dumpit:
 	../../newbrt/brtdump  dir.test_log5.c.tdb.recover/foo.db > dump.r && ../../newbrt/brtdump  dir.test_log5.c.tdb/foo.db > dump.o && diff -q dump.o dump.r
 
 # test on small stacks
-test_thread_stack.%run: test_thread_stack.%$(BINSUF)
+test_thread_stack.%run: test_thread_stack.%$(BINSUF) $(PTHREAD_LOCAL)
 	./$< -a -thread_stack 16384         && \
 	./$< -a -thread_stack 16384 -resume $(SUMMARIZE_CMD)

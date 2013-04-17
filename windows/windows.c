@@ -4,8 +4,8 @@
 #define _CRT_RAND_S
 #include <stdlib.h>
 
+#include <toku_portability.h>
 #include <windows.h>
-#include "toku_portability.h"
 #include <dirent.h>
 #include <assert.h>
 #include <direct.h>

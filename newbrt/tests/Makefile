@@ -121,7 +121,7 @@ CHECKS = \
 #CHECKS will be defined automatically. 
 
 build: $(BINS)
-check: $(patsubst %,check_%,$(CHECKS))
+check: $(PTHREAD_LOCAL) $(patsubst %,check_%,$(CHECKS))
 
 check_fail:
 	test 0 = 1 $(SUMMARIZE_CMD)
@@ -136,23 +136,23 @@ check_test1305:
 	@echo SKIPPED SLOW TEST $@
 endif
 
-check_benchmarktest_256: benchmark-test$(BINSUF)
+check_benchmarktest_256: benchmark-test$(BINSUF) $(PTHREAD_LOCAL)
 	$(VGRIND) ./$< $(VERBVERBOSE) --valsize 256 --verify 1 $(SUMMARIZE_CMD)
 
-check_test-assertA: test-assert$(BINSUF)
+check_test-assertA: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# no arguments, should err
 	$(VGRIND) ./$< > /dev/null 2>&1 ; test $$? = 1 $(SUMMARIZE_CMD)
-check_test-assertB: test-assert$(BINSUF)
+check_test-assertB: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, not "ok" should err
 	@rm -f test-assert.out
 	($(VGRIND) ./$< notok) > test-assert.out 2>&1 ; test $$? = 1 && fgrep failed test-assert.out > /dev/null $(SUMMARIZE_CMD)
-check_test-assertC: test-assert$(BINSUF)
+check_test-assertC: test-assert$(BINSUF) $(PTHREAD_LOCAL)
 
-check_test-assert$(BINSUF): test-assert$(BINSUF)
+check_test-assert$(BINSUF): test-assert$(BINSUF) $(PTHREAD_LOCAL)
 	@# one argument, "ok" should not error
 	$(VGRIND) ./$< ok $(SUMMARIZE_CMD)
 
-check_%: %
+check_%: % $(PTHREAD_LOCAL)
 	$(VGRIND)  ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 
 benchmark-test.$(OEXT): ../brt.h ../brt-search.h ../../include/db.h
