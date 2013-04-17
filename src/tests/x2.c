@@ -45,7 +45,7 @@ do_x2_shutdown (BOOL do_commit)
     r = dba->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txnU, *txnV;
     r = env->txn_begin(env, NULL, &txnU, 0);                                            CKERR(r);
-   r = env->txn_begin(env, NULL, &txnV, 0);                                            CKERR(r);
+    r = env->txn_begin(env, NULL, &txnV, 0);                                            CKERR(r);
     put(txnU, dba, "u.a", "u.a.data");
     put(txnV, dbb, "v.b", "v.b.data");
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
@@ -134,7 +134,7 @@ do_test_internal (BOOL commit)
     // Now find out what happend
     
     if (0 == (pid = fork())) {
-	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--recover-commited" : "--recover-aborted", NULL);
+	int r=execl(cmd, verbose ? "-v" : "-q", commit ? "--recover-committed" : "--recover-aborted", NULL);
 	assert(r==-1);
 	printf("execl failed: %d (%s)\n", errno, strerror(errno));
 	assert(0);
@@ -154,7 +154,7 @@ do_test (void) {
     do_test_internal(FALSE);
 }
 
-BOOL do_commit=FALSE, do_abort=FALSE, do_recover_commited=FALSE,  do_recover_aborted=FALSE;
+BOOL do_commit=FALSE, do_abort=FALSE, do_recover_committed=FALSE,  do_recover_aborted=FALSE;
 
 static void
 x1_parse_args (int argc, char *argv[]) {
@@ -171,14 +171,14 @@ x1_parse_args (int argc, char *argv[]) {
 	    do_abort=1;
 	} else if (strcmp(argv[0],"--commit")==0) {
 	    do_commit=1;
-	} else if (strcmp(argv[0],"--recover-commited")==0) {
-	    do_recover_commited=1;
+	} else if (strcmp(argv[0],"--recover-committed")==0) {
+	    do_recover_committed=1;
 	} else if (strcmp(argv[0],"--recover-aborted")==0) {
 	    do_recover_aborted=1;
 	} else if (strcmp(argv[0], "-h")==0) {
 	    resultcode=0;
 	do_usage:
-	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] {--abort | --commit | --recover-commited | --recover-aborted } \n", cmd);
+	    fprintf(stderr, "Usage:\n%s [-v|-q]* [-h] {--abort | --commit | --recover-committed | --recover-aborted } \n", cmd);
 	    exit(resultcode);
 	} else {
 	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
@@ -192,10 +192,10 @@ x1_parse_args (int argc, char *argv[]) {
 	int n_specified=0;
 	if (do_commit)            n_specified++;
 	if (do_abort)             n_specified++;
-	if (do_recover_commited)  n_specified++;
+	if (do_recover_committed)  n_specified++;
 	if (do_recover_aborted)   n_specified++;
 	if (n_specified>1) {
-	    printf("Specify only one of --commit or --abort or --recover-commited or --recover-aborted\n");
+	    printf("Specify only one of --commit or --abort or --recover-committed or --recover-aborted\n");
 	    resultcode=1;
 	    goto do_usage;
 	}
@@ -210,7 +210,7 @@ test_main (int argc, char *argv[])
 	do_x2_shutdown (TRUE);
     } else if (do_abort) {
 	do_x2_shutdown (FALSE);
-    } else if (do_recover_commited) {
+    } else if (do_recover_committed) {
 	do_x1_recover(TRUE);
     } else if (do_recover_aborted) {
 	do_x1_recover(FALSE);
