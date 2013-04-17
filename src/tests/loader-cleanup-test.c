@@ -78,10 +78,12 @@ static void assert_inames_missing(DBT* inames);
 static ssize_t bad_write(int, const void *, size_t);
 
 int fwrite_count = 0;
+int fwrite_enospc = 0;
 int fwrite_count_nominal = 0;  // number of fwrite calls for normal operation, initially zero
 int fwrite_count_trigger = 0;  // sequence number of fwrite call that will fail (zero disables induced failure)
 
 int write_count = 0;
+int write_enospc = 0;
 int write_count_nominal = 0;  // number of write calls for normal operation, initially zero
 int write_count_trigger = 0;  // sequence number of write call that will fail (zero disables induced failure)
 
@@ -89,6 +91,7 @@ static size_t bad_fwrite (const void *ptr, size_t size, size_t nmemb, FILE *stre
     fwrite_count++;
     size_t r;
     if (fwrite_count_trigger == fwrite_count) {
+        fwrite_enospc++;
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -106,6 +109,7 @@ bad_write(int fd, const void * bp, size_t len) {
     ssize_t r;
     write_count++;
     if (write_count_trigger == write_count) {
+        write_enospc++;
 	errno = ENOSPC;
 	r = -1;
     } else {
@@ -546,8 +550,8 @@ static void run_test(enum test_type t, int trigger)
 
     generate_permute_tables();
 
-    fwrite_count = 0;
-    write_count  = 0;
+    fwrite_count = fwrite_enospc = 0;
+    write_count  = write_enospc = 0;
     if (t == enospc_f)
 	fwrite_count_trigger = trigger;
     else
@@ -610,7 +614,8 @@ int test_main(int argc, char * const *argv) {
 	}
 	// induce write error at end of process
 	for (i = 1; i < 5 * NUM_DBS; i++) {
-	    trigger = NUM_DBS - i;
+	    trigger = 5 * NUM_DBS - i;
+            assert(trigger > 0);
 	    if (verbose) printf("\n\nTesting loader with enospc induced at fwrite count %d\n", trigger);
 	    run_test(enospc_f, trigger);
 	}
@@ -641,11 +646,6 @@ static void do_args(int argc, char * const argv[]) {
                 resultcode=1;
                 goto do_usage;
             }
-        } else if (strcmp(argv[0], "-v")==0) {
-	    verbose++;
-	} else if (strcmp(argv[0],"-q")==0) {
-	    verbose--;
-	    if (verbose<0) verbose=0;
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);
