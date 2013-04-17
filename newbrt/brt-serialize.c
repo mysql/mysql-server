@@ -813,7 +813,7 @@ BASEMENTNODE toku_create_empty_bn(void) {
 
 BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     BASEMENTNODE XMALLOC(bn);
-    bn->max_dsn_applied.dsn = 0;
+    bn->max_dsn_applied = MIN_DSN;
     bn->max_msn_applied.msn = 0;
     bn->buffer = NULL;
     bn->n_bytes_in_buffer = 0;
