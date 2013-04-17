@@ -98,6 +98,7 @@ test_main (int argc, const char *argv[]) {
         for (int size = total_size - e; size <= total_size + e; size++) {
             run_test(size, n_cores, TOKU_NO_COMPRESSION);
             run_test(size, n_cores, TOKU_ZLIB_METHOD);
+            run_test(size, n_cores, TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD);
             run_test(size, n_cores, TOKU_QUICKLZ_METHOD);
             run_test(size, n_cores, TOKU_LZMA_METHOD);
         }
