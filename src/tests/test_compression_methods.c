@@ -13,14 +13,15 @@ static const int NUM_ROWS = 1 << 12;
 static int
 insert(DB_ENV *env, DB *db, void *UU(extra))
 {
-    char val[VAL_SIZE];
+    assert(VAL_SIZE%sizeof(int)==0);
+    int val[VAL_SIZE/sizeof(int)];
     memset(val, 0, sizeof val);
     DB_TXN *txn;
     int r = env->txn_begin(env, 0, &txn, 0);
     CKERR(r);
     for (int i = 0; i < NUM_ROWS; ++i) {
         DBT k, v;
-        *((int *) val) = i;
+        val[0] = i;
         r = db->put(db, txn, dbt_init(&k, &i, sizeof i), dbt_init(&v, val, sizeof val), 0);
         CKERR(r);
     }
