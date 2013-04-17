@@ -100,14 +100,23 @@ htonl(u_int32_t x) {
 
 #define __attribute__(x)
 
+
 #elif defined __GNUC__
 
 // Gcc:
 //   Define ntohl using arpa/inet.h
 #include <arpa/inet.h>
+
 #else
 #error Not ICC and not GNUC.  What compiler?
 #endif
 
+// This hack is to avoid initializing variables that gcc can figure out are not used in an undefined way.
+// But some compiler cannot figure it out, so we initialize the value to zero.
+#if defined __INTEL_COMPILER
+#define MAYBE_INIT(n) = n
+#elif defined __GNUC__
+#define MAYBE_INIT(n)
+#endif
 
 #endif

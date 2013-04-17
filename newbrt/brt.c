@@ -382,7 +382,29 @@ static int fill_buf (OMTVALUE lev, u_int32_t idx, void *varray) {
     return 0;
 }
 
-static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk) {
+static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
+    switch (BNC_HAVE_FULLHASH(node, childnum)) {
+    case TRUE:
+	{
+	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
+	    return BNC_FULLHASH(node, childnum);
+	}
+    case FALSE:
+	{
+	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
+	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
+	    BNC_FULLHASH(node, childnum) = child_fullhash;
+	    return child_fullhash;
+	}
+    }
+    assert(0);
+    return 0;
+}
+
+static int
+brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
+// Effect: Split a leaf node.
+{
     BRTNODE B;
     int r;
 
@@ -532,6 +554,43 @@ static int brtleaf_split (TOKULOGGER logger, FILENUM filenum, BRT t, BRTNODE nod
     *nodea = node;
     *nodeb = B;
     return 0;
+}
+
+static int
+handle_split_of_child_simple (BRT t, BRTNODE node, int childnum,
+			      BRTNODE childa, BRTNODE childb,
+			      DBT *splitk, /* the data in the childsplitk is previously alloc'd and is consumed by this call. */
+			      TOKULOGGER logger);
+
+static int
+brt_split_child (BRT t, BRTNODE node, int childnum, TOKULOGGER logger) {
+    assert(node->height>0);
+    BRTNODE child;
+    {
+	void *childnode_v;
+	int r = toku_cachetable_get_and_pin(t->cf,
+					    BNC_BLOCKNUM(node, childnum),
+					    compute_child_fullhash(t->cf, node, childnum),
+					    &childnode_v,
+					    NULL,
+					    toku_brtnode_flush_callback, toku_brtnode_fetch_callback,
+					    t->h);
+	assert(r==0); // REMOVE LATER
+	if (r!=0) return r;
+	child = childnode_v;
+	assert(child->thisnodename.b!=0);
+	VERIFY_NODE(child);
+    }
+    if (child->height==0) {
+	BRTNODE nodea, nodeb;
+	DBT splitk;
+	int r = brtleaf_split(logger, toku_cachefile_filenum(t->cf), t, child, &nodea, &nodeb, &splitk);
+	assert(r==0); // REMOVE LATER
+	if (r!=0) return r;
+	r = handle_split_of_child_simple (t, node, childnum, nodea, nodeb, &splitk, logger);
+    } else {
+	split_nonleaf();
+    }
 }
 
 //#define MAX_PATHLEN_TO_ROOT 40
@@ -718,6 +777,9 @@ static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 			    int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 			    DBT *split,
 			    TOKULOGGER);
+static int
+brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+			BOOL *should_split, BOOL *should_merge);
 
 // The maximum row size is 16KB according to the PRD.  That means the max pivot key size is 16KB.
 #define MAX_PIVOT_KEY_SIZE (1<<14)
@@ -820,6 +882,181 @@ static int push_a_brt_cmd_down (BRT t, BRTNODE node, BRTNODE child, int childnum
 static int brtnode_maybe_push_down(BRT t, BRTNODE node, int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, TOKULOGGER logger);
 
 static int split_count=0;
+
+/* NODE is a node with a child.
+ * childnum was split into two nodes childa, and childb.  childa is the same as the original child.  childb is a new child.
+ * We must slide things around, & move things from the old table to the new tables.
+ * We also move things to the new children as much as we can without doing any pushdowns or splitting of the child.
+ * We must delete the old buffer (but the old child is already deleted.)
+ * We also unpin the new children.
+ */
+static int
+handle_split_of_child_simple (BRT t, BRTNODE node, int childnum,
+			      BRTNODE childa, BRTNODE childb,
+			      DBT *splitk, /* the data in the childsplitk is alloc'd and is consumed by this call. */
+			      TOKULOGGER logger) {
+    assert(node->height>0);
+    assert(0 <= childnum && childnum < node->u.n.n_children);
+    FIFO      old_h = BNC_BUFFER(node,childnum);
+    int       old_count = BNC_NBYTESINBUF(node, childnum);
+    int cnum;
+    int r;
+    assert(node->u.n.n_children<=TREE_FANOUT);
+
+    if (toku_brt_debug_mode) {
+	int i;
+	printf("%s:%d Child %d splitting on %s\n", __FILE__, __LINE__, childnum, (char*)splitk->data);
+	printf("%s:%d oldsplitkeys:", __FILE__, __LINE__);
+	for(i=0; i<node->u.n.n_children-1; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
+	printf("\n");
+    }
+
+    node->dirty = 1;
+
+    //verify_local_fingerprint_nonleaf(node);
+
+    REALLOC_N(node->u.n.n_children+2, node->u.n.childinfos);
+    REALLOC_N(node->u.n.n_children+1, node->u.n.childkeys);
+    // Slide the children over.
+    BNC_SUBTREE_FINGERPRINT       (node, node->u.n.n_children+1)=0;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, node->u.n.n_children+1)=0;
+    for (cnum=node->u.n.n_children; cnum>childnum+1; cnum--) {
+	node->u.n.childinfos[cnum] = node->u.n.childinfos[cnum-1];
+    }
+    r = toku_log_addchild(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum+1, childb->thisnodename, 0);
+    node->u.n.n_children++;
+
+    assert(BNC_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
+    BNC_BLOCKNUM(node, childnum+1) = childb->thisnodename;
+    BNC_HAVE_FULLHASH(node, childnum+1) = TRUE;
+    BNC_FULLHASH(node, childnum+1) = childb->fullhash;
+    // BNC_SUBTREE_FINGERPRINT(node, childnum)=0; // leave the subtreefingerprint alone for the child, so we can log the change
+    BNC_SUBTREE_FINGERPRINT       (node, childnum+1)=0;
+    BNC_SUBTREE_LEAFENTRY_ESTIMATE(node, childnum+1)=0;
+    fixup_child_fingerprint(node, childnum,   childa, t, logger);
+    fixup_child_fingerprint(node, childnum+1, childb, t, logger);
+    r=toku_fifo_create(&BNC_BUFFER(node,childnum+1)); assert(r==0);
+    //verify_local_fingerprint_nonleaf(node);    // The fingerprint hasn't changed and everhything is still there.
+    r=toku_fifo_create(&BNC_BUFFER(node,childnum));   assert(r==0); // ??? SHould handle this error case
+    BNC_NBYTESINBUF(node, childnum) = 0;
+    BNC_NBYTESINBUF(node, childnum+1) = 0;
+
+    // Remove all the cmds from the local fingerprint.  Some may get added in again when we try to push to the child.
+    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid,
+		 {
+		     u_int32_t old_fingerprint   = node->local_fingerprint;
+		     u_int32_t new_fingerprint   = old_fingerprint - node->rand4fingerprint*toku_calc_fingerprint_cmd(type, xid, skey, skeylen, sval, svallen);
+		     if (t->txn_that_created != xid) {
+			 r = toku_log_brtdeq(logger, &node->log_lsn, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum);
+			 assert(r==0);
+		     }
+		     node->local_fingerprint = new_fingerprint;
+		 });
+
+    //verify_local_fingerprint_nonleaf(node);
+
+    // Slide the keys over
+    {
+	struct kv_pair *pivot = splitk->data;
+	BYTESTRING bs = { .len  = splitk->size,
+			  .data = kv_pair_key(pivot) };
+	r = toku_log_setpivot(logger, (LSN*)0, 0, toku_cachefile_filenum(t->cf), node->thisnodename, childnum, bs);
+	if (r!=0) return r;
+
+	for (cnum=node->u.n.n_children-2; cnum>childnum; cnum--) {
+	    node->u.n.childkeys[cnum] = node->u.n.childkeys[cnum-1];
+	}
+	//if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // the setpivot is wrong for TOKU_DB_DUPSORT, so recovery will be broken.
+	node->u.n.childkeys[childnum]= pivot;
+	node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, pivot);
+    }
+
+    if (toku_brt_debug_mode) {
+	int i;
+	printf("%s:%d splitkeys:", __FILE__, __LINE__);
+	for(i=0; i<node->u.n.n_children-2; i++) printf(" %s", (char*)node->u.n.childkeys[i]);
+	printf("\n");
+    }
+
+    //verify_local_fingerprint_nonleaf(node);
+
+    node->u.n.n_bytes_in_buffers -= old_count; /* By default, they are all removed.  We might add them back in. */
+    /* Keep pushing to the children, but not if the children would require a pushdown */
+    FIFO_ITERATE(old_h, skey, skeylen, sval, svallen, type, xid, {
+	DBT skd; DBT svd;
+        BRT_CMD_S brtcmd = build_brt_cmd((enum brt_cmd_type)type, xid, toku_fill_dbt(&skd, skey, skeylen), toku_fill_dbt(&svd, sval, svallen));
+	//verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb);
+	int pusha = 0; int pushb = 0;
+	switch (type) {
+	case BRT_INSERT:
+	case BRT_DELETE_BOTH:
+	case BRT_DELETE_ANY:
+	case BRT_ABORT_BOTH:
+	case BRT_ABORT_ANY:
+	case BRT_COMMIT_BOTH:
+	case BRT_COMMIT_ANY:
+	    if ((type!=BRT_DELETE_ANY && type!=BRT_ABORT_ANY && type!=BRT_COMMIT_ANY) || 0==(t->flags&TOKU_DB_DUPSORT)) {
+		// If it's an INSERT or DELETE_BOTH or there are no duplicates then we just put the command into one subtree
+		int cmp = brt_compare_pivot(t, &skd, &svd, splitk->data);
+		if (cmp <= 0) pusha = 1;
+		else          pushb = 1;
+	    } else {
+		assert((type==BRT_DELETE_ANY || type==BRT_ABORT_ANY || type==BRT_COMMIT_ANY) && t->flags&TOKU_DB_DUPSORT);
+		// It is a DELETE or ABORT_ANY and it's a DUPSORT database,
+		// in which case if the comparison function comes up 0 we must write the command to both children.  (See #201)
+		int cmp = brt_compare_pivot(t, &skd, 0, splitk->data);
+		if (cmp<=0)   pusha=1;
+		if (cmp>=0)   pushb=1;  // Could be that both pusha and pushb are set
+	    }
+	    if (pusha) {
+		// If we already have something in the buffer, we must add the new command to the buffer so that commands don't get out of order.
+		if (toku_fifo_n_entries(BNC_BUFFER(node,childnum))==0) {
+		    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childa, &brtcmd, childnum, logger);
+		} else {
+		    r=insert_to_buffer_in_nonleaf(node, childnum, &skd, &svd, type, xid);
+		}
+	    }
+	    if (pushb) {
+		// If we already have something in the buffer, we must add the new command to the buffer so that commands don't get out of order.
+		if (toku_fifo_n_entries(BNC_BUFFER(node,childnum+1))==0) {
+		    r=push_brt_cmd_down_only_if_it_wont_push_more_else_put_here(t, node, childb, &brtcmd, childnum+1, logger);
+		} else {
+		    r=insert_to_buffer_in_nonleaf(node, childnum+1, &skd, &svd, type, xid);
+		}
+	    }
+	    //verify_local_fingerprint_nonleaf(childa); 	verify_local_fingerprint_nonleaf(childb); 
+	    if (r!=0) printf("r=%d\n", r);
+	    assert(r==0);
+
+	    goto ok;
+
+
+	case BRT_NONE:
+	    // Don't have to do anything in this case, can just drop the command
+            goto ok;
+	}
+	printf("Bad type %d\n", type); // Don't use default: because I want a compiler warning if I forget a enum case, and I want a runtime error if the type isn't one of the expected ones.
+	assert(0);
+     ok: /*nothing*/;
+		     });
+
+    toku_fifo_free(&old_h);
+
+    //verify_local_fingerprint_nonleaf(childa);
+    //verify_local_fingerprint_nonleaf(childb);
+    //verify_local_fingerprint_nonleaf(node);
+
+    VERIFY_NODE(node);
+    VERIFY_NODE(childa);
+    VERIFY_NODE(childb);
+
+    r=toku_unpin_brtnode(t, childa);
+    assert(r==0);
+    r=toku_unpin_brtnode(t, childb);
+    assert(r==0);
+		
+    return 0;
+}
 
 /* NODE is a node with a child.
  * childnum was split into two nodes childa, and childb.  childa is the same as the original child.  childb is a new child.
@@ -1021,25 +1258,6 @@ static int handle_split_of_child (BRT t, BRTNODE node, int childnum,
         }
 	if (*did_split == 0) assert(toku_serialize_brtnode_size(node)<=node->nodesize);
     }
-    return 0;
-}
-
-static u_int32_t compute_child_fullhash (CACHEFILE cf, BRTNODE node, int childnum) {
-    switch (BNC_HAVE_FULLHASH(node, childnum)) {
-    case TRUE:
-	{
-	    assert(BNC_FULLHASH(node, childnum)==toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum)));
-	    return BNC_FULLHASH(node, childnum);
-	}
-    case FALSE:
-	{
-	    u_int32_t child_fullhash = toku_cachetable_hash(cf, BNC_BLOCKNUM(node, childnum));
-	    BNC_HAVE_FULLHASH(node, childnum) = TRUE;
-	    BNC_FULLHASH(node, childnum) = child_fullhash;
-	    return child_fullhash;
-	}
-    }
-    assert(0);
     return 0;
 }
 
@@ -1537,13 +1755,17 @@ static int brt_leaf_apply_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER
     return 0;
 }
 
-static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
-			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
-			     TOKULOGGER logger) {
+static int
+brt_leaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+			 u_int64_t *new_size /*OUT*/
+			 )
+// Effect: Put a cmd into a leaf.
+//  Return the serialization size in *new_size.
+// The leaf could end up "too big".  It is up to the caller to fix that up.
+{
 //    toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
     VERIFY_NODE(node);
     assert(node->height==0);
-    FILENUM filenum = toku_cachefile_filenum(t->cf);
 
     LEAFENTRY storeddata;
     OMTVALUE storeddatav=NULL;
@@ -1668,8 +1890,19 @@ static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 //	toku_pma_verify_fingerprint(node->u.l.buffer, node->rand4fingerprint, node->subtree_fingerprint);
 
     VERIFY_NODE(node);
+    *new_size = toku_serialize_brtnode_size(node);
+    return 0;
+}
+
+static int brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
+			     int *did_split, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk,
+			     TOKULOGGER logger) {
+    u_int64_t leaf_size MAYBE_INIT(0);
+    int r = brt_leaf_put_cmd_simple(t, node, cmd, logger, &leaf_size);
+    if (r!=0) return r;
     // If it doesn't fit, then split the leaf.
-    if (toku_serialize_brtnode_size(node) > node->nodesize) {
+    if (leaf_size > node->nodesize) {
+	FILENUM filenum = toku_cachefile_filenum(t->cf);
 	r = brtleaf_split (logger, filenum, t, node, nodea, nodeb, splitk);
 	if (r!=0) return r;
 	//printf("%s:%d splitkey=%s\n", __FILE__, __LINE__, (char*)*splitkey);
@@ -1707,6 +1940,49 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     }
     return 0;
 #endif
+}
+
+/* put a cmd into a nodes child */
+static int
+brt_nonleaf_put_cmd_child_node_simple (BRT t, BRTNODE node, int childnum, BOOL maybe, BRT_CMD cmd, TOKULOGGER logger,
+				       BOOL *should_split /* OUT */,
+				       BOOL *should_merge)
+// Effect: Put CMD into the child of node.
+// If MAYBE is false and the child is not in main memory, then don't do anything.
+// If we return 0, then store *must_split and *must_merge appropriately.
+{
+    int r;
+    void *child_v;
+    BRTNODE child;
+    int child_did_split;
+
+    BLOCKNUM childblocknum=BNC_BLOCKNUM(node, childnum);
+    u_int32_t fullhash = compute_child_fullhash(t->cf, node, childnum);
+    if (maybe) 
+        r = toku_cachetable_maybe_get_and_pin(t->cf, childblocknum, fullhash, &child_v);
+    else 
+        r = toku_cachetable_get_and_pin(t->cf, childblocknum, fullhash, &child_v, NULL, 
+					toku_brtnode_flush_callback, toku_brtnode_fetch_callback, t->h);
+    if (r != 0)
+        return r;
+
+    child = child_v;
+
+    child_did_split = 0;
+    r = brtnode_put_cmd_simple(t, child, cmd, logger, should_split, should_merge);
+    if (r != 0) {
+        /* putting to the child failed for some reason, so unpin the child and return the error code */
+	int rr = toku_unpin_brtnode(t, child);
+        assert(rr == 0);
+        return r;
+    }
+    {    
+	//verify_local_fingerprint_nonleaf(child);
+	fixup_child_fingerprint(node, childnum, child, t, logger);
+	int rr = toku_unpin_brtnode(t, child);
+        assert(rr == 0);
+    }
+    return r;
 }
 
 /* put a cmd into a nodes child */
@@ -1792,6 +2068,64 @@ static int brt_nonleaf_put_cmd_child (BRT t, BRTNODE node, BRT_CMD cmd,
     }
     *do_push_down = 1;
     return 0;
+}
+
+/* put a cmd into a node at childnum */
+static int
+brt_nonleaf_put_cmd_child_simple (BRT t, BRTNODE node, unsigned int childnum, BRT_CMD cmd, TOKULOGGER logger, u_int32_t *new_fanout) {
+    //verify_local_fingerprint_nonleaf(node);
+    BOOL must_split MAYBE_INIT(FALSE);
+    BOOL must_merge MAYBE_INIT(FALSE);
+
+    /* Push the cmd to the subtree if the buffer is empty */
+    if (BNC_NBYTESINBUF(node, childnum) == 0) {
+        int r = brt_nonleaf_put_cmd_child_node_simple(t, node, childnum, TRUE, cmd, logger, &must_split, &must_merge);
+	if (r==0) {
+	maybe_split_or_merge:
+	    assert(!(must_split && must_merge));
+	    if (must_split) do_split(node, childnum);
+	    if (must_merge) do_merge(node, childnum);
+	    new_fanout = node->fanout:
+	    return 0;
+	} else {
+	    // Fall out and append it to the child buffer.
+	}
+    }
+    //verify_local_fingerprint_nonleaf(node);
+
+    /* append the cmd to the child buffer */
+    {
+        int type = cmd->type;
+        DBT *k = cmd->u.id.key;
+        DBT *v = cmd->u.id.val;
+
+	int r = log_and_save_brtenq(logger, t, node, childnum, cmd->xid, type, k->data, k->size, v->data, v->size, &node->local_fingerprint);
+	if (r!=0) return r;
+	int diff = k->size + v->size + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD;
+        r=toku_fifo_enq(BNC_BUFFER(node,childnum), k->data, k->size, v->data, v->size, type, cmd->xid);
+	assert(r==0);
+	node->u.n.n_bytes_in_buffers += diff;
+	BNC_NBYTESINBUF(node, childnum) += diff;
+        node->dirty = 1;
+    }
+    if (too_big()) {
+	push_biggest_child(&must_split, &must_merge);
+	goto maybe_split_or_merge;
+    }
+    new_fanout = node->fanout;
+    return 0;
+}
+
+static int
+brt_nonleaf_cmd_once_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+			     u_int32_t *new_fanout) {
+    //verify_local_fingerprint_nonleaf(node);
+
+    /* find the right subtree */
+    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
+
+    /* put the cmd in the subtree */
+    return brt_nonleaf_put_cmd_child_simple(t, node, childnum, cmd, logger, new_fanout);
 }
 
 static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_CMD cmd,
@@ -1897,6 +2231,27 @@ static int brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_CMD cmd,
     }
     return 0;
 }
+
+static int brt_nonleaf_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+				       u_int32_t *new_fanout) {
+    switch (cmd->type) {
+    case BRT_INSERT:
+    case BRT_DELETE_BOTH:
+    case BRT_ABORT_BOTH:
+    case BRT_COMMIT_BOTH:
+    do_once:
+        return brt_nonleaf_cmd_once_simple(t, node, cmd, logger, new_fanout);
+    case BRT_DELETE_ANY:
+    case BRT_ABORT_ANY:
+    case BRT_COMMIT_ANY:
+	if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // nondupsort delete_any is just do once.
+        return brt_nonleaf_cmd_many_simple(t, node, cmd, logger, new_fanout);
+    case BRT_NONE:
+	break;
+    }
+    return EINVAL;
+}
+
 static int brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
 				int *did_split, BRTNODE *nodea, BRTNODE *nodeb,
 				DBT *splitk,
@@ -1929,6 +2284,27 @@ static void verify_local_fingerprint_nonleaf (BRTNODE node) {
 		     fp += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xid, key, keylen, data, datalen);
 		     );
     assert(fp==node->local_fingerprint);
+}
+
+static int
+brtnode_put_cmd_simple (BRT t, BRTNODE node, BRT_CMD cmd, TOKULOGGER logger,
+			BOOL *should_split, BOOL *should_merge) {
+    if (node->height==0) {
+	int r;
+	u_int64_t new_size MAYBE_INIT(0);
+	r = brt_leaf_put_cmd_simple(t, node, cmd, logger, &new_size);
+	if (r!=0) return r;
+	*should_split = new_size > node->nodesize;
+	*should_merge = (new_size*4) < node->nodesize;
+    } else {
+	int r;
+	u_int32_t new_fanout;
+	r = brt_nonleaf_put_cmd_simple(t, node, cmd, logger, &new_fanout);
+	if (r!=0) return 0;
+	*should_split = new_fanout > TREE_FANOUT;
+	*should_merge = new_fanout*4 < TREE_FANOUT;
+    }
+    return 0;
 }
 
 static int brtnode_put_cmd (BRT t, BRTNODE node, BRT_CMD cmd,
