@@ -25,12 +25,14 @@
 
 #include "indexer-internal.h"
 
+// initialize the commit keys collection
 static void
 indexer_commit_keys_init(struct indexer_commit_keys *keys) {
     keys->max_keys = keys->current_keys = 0;
     keys->keys = NULL;
 }
 
+// destroy the commit keys collection
 static void
 indexer_commit_keys_destroy(struct indexer_commit_keys *keys) {
     for (int i = 0; i < keys->max_keys; i++)
@@ -38,11 +40,13 @@ indexer_commit_keys_destroy(struct indexer_commit_keys *keys) {
     toku_free(keys->keys);
 }
 
+// return the number of keys in the collection
 static int
-indexer_commit_keys_max_valid(struct indexer_commit_keys *keys) {
+indexer_commit_keys_valid(struct indexer_commit_keys *keys) {
     return keys->current_keys;
 }
 
+// add a key to the commit keys collection
 static void
 indexer_commit_keys_add(struct indexer_commit_keys *keys, size_t length, void *ptr) {
     if (keys->current_keys >= keys->max_keys) {
@@ -54,13 +58,12 @@ indexer_commit_keys_add(struct indexer_commit_keys *keys, size_t length, void *p
         keys->max_keys = new_max_keys;
     }
     DBT *key = &keys->keys[keys->current_keys];
-    if (key->flags == 0)
-        assert(key->data == NULL);
     key->flags = DB_DBT_REALLOC;
     toku_dbt_set(length, ptr, key, NULL);
     keys->current_keys++;
 }
 
+// set the collection to empty
 static void
 indexer_commit_keys_set_empty(struct indexer_commit_keys *keys) {
     keys->current_keys = 0;
@@ -82,15 +85,15 @@ static int indexer_brt_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS 
 static int indexer_lock_key(DB_INDEXER *indexer, DB *hotdb, DBT *key, TXNID outermost_live_xid);
 static int indexer_is_xid_live(DB_INDEXER *indexer, TXNID xid);
 
+// initialize undo globals located in the indexer private object
 void
 indexer_undo_do_init(DB_INDEXER *indexer) {
     indexer_commit_keys_init(&indexer->i->commit_keys);
-
-    // DBTs for the key and val
     toku_init_dbt(&indexer->i->hotkey); indexer->i->hotkey.flags = DB_DBT_REALLOC;
     toku_init_dbt(&indexer->i->hotval); indexer->i->hotval.flags = DB_DBT_REALLOC;
 }
 
+// destroy the undo globals
 void
 indexer_undo_do_destroy(DB_INDEXER *indexer) {
     toku_destroy_dbt(&indexer->i->hotkey);
@@ -165,7 +168,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             invariant(0);
 
         // send commit messages if needed
-        for (int i = 0; result == 0 && i < indexer_commit_keys_max_valid(&indexer->i->commit_keys); i++) 
+        for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) 
             result = indexer_brt_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
 
         if (result != 0)
@@ -270,7 +273,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     }
 
     // send commits if the outermost provisional transaction is committed
-    for (int i = 0; result == 0 && i < indexer_commit_keys_max_valid(&indexer->i->commit_keys); i++) 
+    for (int i = 0; result == 0 && i < indexer_commit_keys_valid(&indexer->i->commit_keys); i++) 
         result = indexer_brt_commit(indexer, hotdb, &indexer->i->commit_keys.keys[i], xids);
 
     xids_destroy(&xids);
@@ -279,40 +282,13 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
 }
 
 
-static int UU()
-indexer_fast_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
-    int result = 0;
-    UXRHANDLE uxr = ule_get_uxr(ule, 0); invariant(uxr);
-    if (uxr_is_insert(uxr)) {
-        // generate the hot key and val
-        result = indexer_generate_hot_key_val(indexer, hotdb, ule, uxr, &indexer->i->hotkey, &indexer->i->hotval);
-        if (result == 0) {
-            // send the insert message
-            // TXNID this_xid = uxr_get_txnid(uxr);
-            XIDS xids = NULL; // xids init one this_xid
-            result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
-        }
-    }
-    return result;
- }
-
 int
 indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
-    int result = 0;
+    int result;
 
-#if 0
-    int num_committed = ule_get_num_committed(ule);
-    int num_provisional = ule_get_num_provisional(ule);
-    // fast path for a simple ule with a single committed transaction record
-    if (num_committed == 1 && num_provisonal == 0) {
-        result = indexer_fast_undo_do(indexer, hotdb, ule);
-    } else 
-#endif
-    {
-        result = indexer_undo_do_committed(indexer, hotdb, ule);
-        if (result == 0)
-            result = indexer_undo_do_provisional(indexer, hotdb, ule);
-    }
+    result = indexer_undo_do_committed(indexer, hotdb, ule);
+    if (result == 0)
+        result = indexer_undo_do_provisional(indexer, hotdb, ule);
         
     if ( indexer->i->test_only_flags == INDEXER_TEST_ONLY_ERROR_CALLBACK ) 
         result = EINVAL;
