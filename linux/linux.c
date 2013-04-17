@@ -18,6 +18,7 @@
 #include <sys/statvfs.h>
 #include "toku_portability.h"
 #include "toku_os.h"
+#include "toku_time.h"
 
 static int
 toku_mallopt_init(void) {
