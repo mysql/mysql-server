@@ -886,11 +886,20 @@ static int UU() keyrange_op(DB_TXN *txn, ARG arg, void* UU(operation_extra), voi
     return r;
 }
 
+static int verify_progress_callback(void *UU(extra), float UU(progress)) {
+    if (!run_test) {
+        return -1;
+    }
+}
+
 static int UU() verify_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
     int r = 0;
-    for (int i = 0; i < arg->cli->num_DBs; i++) {
+    for (int i = 0; i < arg->cli->num_DBs && run_test; i++) {
         DB* db = arg->dbp[i];
-        r = db->verify_with_progress(db, NULL, NULL, 1, 0);
+        r = db->verify_with_progress(db, verify_progress_callback, nullptr, 1, 0);
+        if (!run_test) {
+            r = 0;
+        }
         CKERR(r);
     }
     return r;
