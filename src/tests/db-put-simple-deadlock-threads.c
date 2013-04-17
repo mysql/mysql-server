@@ -1,7 +1,9 @@
-// T(a) put 0
-// T(b) put N-1
-// T(a) put N-1, should wait on lock W(N-1)
-// T(b) put 0, should return deadlock
+// this test demonstrates that the lock manager can detect a simple deadlock with 2 transactions on 2 threads
+// the threads do:
+// T(a) put 0, grabs write lock on 0
+// T(b) put N-1, grabs write lock on N-1
+// T(a) put N-1, try's to grab write lock on N-1, should return lock not granted
+// T(b) put 0, try's to grab write lock on 0, should return deadlock
 // T(b) abort
 // T(a) gets lock W(N-1)
 // T(A) commit
@@ -69,17 +71,12 @@ static void *run_txn_b(void *arg) {
     insert_row(db, txn_b, htonl(n-1), n-1, 0);
     test_seq_next_state(test_seq);
 
-#if defined(USE_TDB)
     test_seq_sleep(test_seq, 3);
     insert_row(db, txn_b, htonl(0), 0, DB_LOCK_NOTGRANTED);
-    int r = txn_b->commit(txn_b, 0); assert(r == 0);
-#elif defined(USE_BDB)
-    test_seq_sleep(test_seq, 2);
-    insert_row(db, txn_b, htonl(0), 0, DB_LOCK_DEADLOCK);
-    int r = txn_b->abort(txn_b); assert(r == 0);
-#else
-#error
-#endif
+    test_seq_next_state(test_seq);
+
+    test_seq_sleep(test_seq, 5);
+    int r = txn_b->abort(txn_b); assert(r == 0);    
 
     return arg;
 }
@@ -100,15 +97,19 @@ static void simple_deadlock(DB_ENV *db_env, DB *db, int do_txn, int n) {
         r = txn_init->commit(txn_init, 0); assert(r == 0);
     }
 
+    uint32_t txn_flags = 0;
+#if USE_BDB
+    txn_flags = DB_TXN_NOWAIT; // force no wait for BDB to avoid a bug described below
+#endif
 
     DB_TXN *txn_a = NULL;
     if (do_txn) {
-        r = db_env->txn_begin(db_env, NULL, &txn_a, 0); assert(r == 0);
+        r = db_env->txn_begin(db_env, NULL, &txn_a, txn_flags); assert(r == 0);
     }
 
     DB_TXN *txn_b = NULL;
     if (do_txn) {
-        r = db_env->txn_begin(db_env, NULL, &txn_b, 0); assert(r == 0);
+        r = db_env->txn_begin(db_env, NULL, &txn_b, txn_flags); assert(r == 0);
     }
 
     struct test_seq test_seq; test_seq_init(&test_seq);
@@ -122,21 +123,18 @@ static void simple_deadlock(DB_ENV *db_env, DB *db, int do_txn, int n) {
     test_seq_next_state(&test_seq);
 
     test_seq_sleep(&test_seq, 2);
-#if defined(USE_TDB)
+    // BDB does not time out this lock request, so the test hangs. it looks like a bug in bdb's __lock_get_internal.
     insert_row(db, txn_a, htonl(n-1), n-1, DB_LOCK_NOTGRANTED);
-#elif defined(USE_BDB)
-    insert_row(db, txn_a, htonl(n-1), n-1, 0);
-#else
-#error
-#endif
+    test_seq_next_state(&test_seq);
+
+    test_seq_sleep(&test_seq, 4);
+    if (do_txn) {
+        r = txn_a->abort(txn_a); assert(r == 0);
+    }
     test_seq_next_state(&test_seq);
 
     void *ret = NULL;
     r = toku_pthread_join(tid, &ret); assert(r == 0);
-
-    if (do_txn) {
-        r = txn_a->commit(txn_a, 0); assert(r == 0);
-    }
 
     test_seq_destroy(&test_seq);
 }
@@ -190,9 +188,15 @@ int test_main(int argc, char * const argv[]) {
     }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
+#if USE_BDB
+    r = db_env->set_flags(db_env, DB_TIME_NOTGRANTED, 1); assert(r == 0); // force DB_LOCK_DEADLOCK to DB_LOCK_NOTGRANTED
+#endif
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if defined(USE_BDB)
+#if defined(USE_TDB)
+    r = db_env->set_lock_timeout(db_env, 0); assert(r == 0); // no wait
+#elif defined(USE_BDB)
     r = db_env->set_lk_detect(db_env, DB_LOCK_YOUNGEST); assert(r == 0);
+    r = db_env->set_timeout(db_env, 10000, DB_SET_LOCK_TIMEOUT); assert(r == 0);
 #endif
 
     // create the db
