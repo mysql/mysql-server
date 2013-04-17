@@ -1151,11 +1151,11 @@ static inline int tokudb_generate_row(
     desc_size = (*(u_int32_t *)row_desc) - 4;
     row_desc += 4;
     if (dest_val != NULL) {
-        if (!is_key_clustering(row_desc, desc_size)) {
+        if (!is_key_clustering(row_desc, desc_size) || src_val->size == 0) {
             dest_val->size = 0;
         }
         else {
-            uchar* buff = NULL;            
+            uchar* buff = NULL;
             if (dest_val->flags == 0) {
                 dest_val->ulen = 0;
                 dest_val->size = 0;
