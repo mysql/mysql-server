@@ -11,6 +11,7 @@ static toku_pthread_mutex_t logger_mutex = TOKU_PTHREAD_MUTEX_INITIALIZER;
 
 static int (*toku_os_fsync_function)(int)=fsync;
 static int open_logfile (TOKULOGGER logger);
+static int delete_logfile(TOKULOGGER logger, long long index);
 static int do_write (TOKULOGGER logger, int do_fsync);
 
 int toku_logger_create (TOKULOGGER *resultp) {
@@ -30,6 +31,7 @@ int toku_logger_create (TOKULOGGER *resultp) {
     result->checkpoint_lsn=(LSN){0};
     result->oldest_living_xid = TXNID_NONE_LIVING;
     result->write_block_size = BRT_DEFAULT_NODE_SIZE; // default logging size is the same as the default brt block size
+    toku_logfilemgr_create(&result->logfilemgr);
     *resultp=result;
     r = ml_init(&result->input_lock); if (r!=0) goto died1;
     r = ml_init(&result->output_lock); if (r!=0) goto died2;
@@ -49,19 +51,10 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     if (logger->is_panicked) return EINVAL;
 
     int r;
-    TOKULOGCURSOR logcursor;
-    struct log_entry *le;
-    logger->lsn.lsn=0;
-    // In searching existing logfiles for last LSN, have chosen to 
-    // ignore errors that may occur.  In the event of a return error, 
-    // revert to using LSN=0
-    r = toku_logcursor_create(&logcursor, directory);
-    if (r==0) {
-        r = toku_logcursor_last(logcursor, &le);
-        if (r==0)
-            logger->lsn = toku_log_entry_get_lsn(le);
-        toku_logcursor_destroy(&logcursor);
-    }
+    r = toku_logfilemgr_init(logger->logfilemgr, directory);
+    if ( r!=0 ) 
+        return r;
+    logger->lsn = toku_logfilemgr_get_last_lsn(logger->logfilemgr);
     //printf("starting after LSN=%lu\n", logger->lsn.lsn);
     logger->written_lsn = logger->lsn;
     logger->fsynced_lsn = logger->lsn;
@@ -87,7 +80,6 @@ int toku_logger_open (const char *directory, TOKULOGGER logger) {
     open_logfile(logger);
 
     logger->is_open = 1;
-
     return 0;
 }
 
@@ -160,6 +152,7 @@ int toku_logger_close(TOKULOGGER *loggerp) {
     logger->is_panicked=1; // Just in case this might help.
     if (logger->directory) toku_free(logger->directory);
     toku_omt_destroy(&logger->live_txns);
+    toku_logfilemgr_destroy(&logger->logfilemgr);
     toku_free(logger);
     *loggerp=0;
     if (locked_logger) {
@@ -344,6 +337,7 @@ static int open_logfile (TOKULOGGER logger) {
     int fnamelen = strlen(logger->directory)+50;
     char fname[fnamelen];
     snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, logger->next_log_file_number);
+    long long index = logger->next_log_file_number;
     if (logger->write_log_files) {
         logger->fd = open(fname, O_CREAT+O_WRONLY+O_TRUNC+O_EXCL+O_BINARY, S_IRWXU);     
         if (logger->fd==-1) return errno;
@@ -356,9 +350,47 @@ static int open_logfile (TOKULOGGER logger) {
     r = write_it(logger->fd, "tokulogg", 8);             if (r!=8) return errno;
     int version_l = toku_htonl(log_format_version); //version MUST be in network byte order regardless of disk order
     r = write_it(logger->fd, &version_l, 4);             if (r!=4) return errno;
+    TOKULOGFILEINFO lf_info = toku_malloc(sizeof(struct toku_logfile_info));
+    if (lf_info == NULL) 
+        return ENOMEM;
+    lf_info->index = index;
+    lf_info->maxlsn = logger->written_lsn; // ?? not sure this is right, but better than 0 - DSW
+    toku_logfilemgr_add_logfile_info(logger->logfilemgr, lf_info);
     logger->fsynced_lsn = logger->written_lsn;
     logger->n_in_file = 12;
     return 0;
+}
+
+static int delete_logfile(TOKULOGGER logger, long long index) {
+    int fnamelen = strlen(logger->directory)+50;
+    char fname[fnamelen];
+    snprintf(fname, fnamelen, "%s/log%012lld.tokulog", logger->directory, index);
+    int r = remove(fname);
+    return r;
+}
+
+int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn) {
+    int r=0;
+    TOKULOGFILEMGR lfm = logger->logfilemgr;
+    int n_logfiles = toku_logfilemgr_num_logfiles(lfm);
+
+    TOKULOGFILEINFO lf_info = NULL;
+    while ( n_logfiles > 1 ) { // don't delete current logfile
+        lf_info = toku_logfilemgr_get_oldest_logfile_info(lfm);
+        if ( lf_info->maxlsn.lsn > oldest_open_lsn.lsn ) {
+            // file contains an open LSN, can't delete this or any newer log files
+            break;
+        }
+        // need to save copy - toku_logfilemgr_delete_oldest_logfile_info free's the lf_info
+        long long index = lf_info->index;
+        toku_logfilemgr_delete_oldest_logfile_info(lfm);
+        n_logfiles--;
+        r = delete_logfile(logger, index);
+        if (r!=0) {
+            return r;
+        }
+    }
+    return r;
 }
 
 static int close_and_open_logfile (TOKULOGGER logger) {
@@ -426,6 +458,7 @@ static int do_write (TOKULOGGER logger, int do_fsync) {
         }
 	logger->fsynced_lsn = logger->written_lsn;
     }
+    toku_logfilemgr_update_last_lsn(logger->logfilemgr, logger->written_lsn);
     return 0;
  panic:
     toku_logger_panic(logger, r);

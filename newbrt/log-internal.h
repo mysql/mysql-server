@@ -10,6 +10,7 @@
 #include "toku_assert.h"
 #include "list.h"
 #include "memarena.h"
+#include "logfilemgr.h"
 #include <stdio.h>
 #include <toku_pthread.h>
 #include <sys/types.h>
@@ -75,6 +76,8 @@ struct tokulogger {
     long long next_log_file_number;
     char buf[LOGGER_BUF_SIZE]; // used to marshall logbytes so we can use only a single write
     int n_in_file;
+
+    TOKULOGFILEMGR logfilemgr;
 
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?
     TXNID oldest_living_xid;
