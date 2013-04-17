@@ -23,8 +23,8 @@ static int my_compare(DB *UU(db), const DBT *a, const DBT *b) {
     uint32_t which = forced_version-1;
     size_t len = strlen(descriptor_contents[which])+1;
 
-    assert(db->descriptor->dbt.size == len);
-    assert(memcmp(db->descriptor->dbt.data, descriptor_contents[which], len) == 0);
+    assert(db->cmp_descriptor->dbt.size == len);
+    assert(memcmp(db->cmp_descriptor->dbt.data, descriptor_contents[which], len) == 0);
 
     assert(a->size == b->size);
     verified = 1;
