@@ -1147,7 +1147,7 @@ cleanup:
 
 bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print, enum ha_stat_type stat_type) {
     switch (stat_type) {
-#if defined(HA_ENGINE_DATA_AMOUNT)
+#if TOKU_INCLUDE_SHOW_DATA_AMOUNT
     case HA_ENGINE_DATA_AMOUNT:
         return tokudb_show_data_size(thd, stat_print, false);
         break;
@@ -1158,7 +1158,7 @@ bool tokudb_show_status(handlerton * hton, THD * thd, stat_print_fn * stat_print
     case HA_ENGINE_STATUS:
         return tokudb_show_engine_status(thd, stat_print);
         break;
-#if defined(HA_ENGINE_CHECKPOINT_LOCK)
+#if TOKU_INCLUDE_CHECKPOINT_LOCK
     case HA_ENGINE_CHECKPOINT_LOCK:
         return tokudb_checkpoint_lock(thd, stat_print);
         break;
