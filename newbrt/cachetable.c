@@ -1313,16 +1313,16 @@ static void do_partial_eviction(CACHETABLE ct, PAIR p) {
     // other than CTPAIR_IDLE so that other threads know to not hold
     // ydb lock while waiting on this node
     p->state = CTPAIR_WRITING;
-    long new_size; 
-    long old_size = p->size; 
+    long bytes_freed;
+    
     cachetable_unlock(ct);
-    p->pe_callback(p->value, 0, &new_size, p->write_extraargs); 
+    p->pe_callback(p->value, 0, &bytes_freed, p->write_extraargs);
     cachetable_lock(ct);
-    //assert(bytes_freed <= ct->size_current); 
-    //assert(bytes_freed <= curr_in_clock->size); 
-    ct->size_current += new_size; 
-    ct->size_current -= old_size; 
-    p->size = new_size; 
+
+    assert(bytes_freed <= ct->size_current);
+    assert(bytes_freed <= p->size);
+    ct->size_current -= bytes_freed;
+    p->size -= bytes_freed;  
 
     assert(ct->size_evicting >= p->size_evicting_estimate);
     ct->size_evicting -= p->size_evicting_estimate;
