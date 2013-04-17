@@ -23,8 +23,8 @@ static int basementnodesize = BASEMENT_NODE_SIZE;
 static enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 static int keysize = sizeof (long long);
 static int valsize = sizeof (long long);
-static int do_verify =0; /* Do a slow verify after every insert. */
-static int verify_period = 1; /* how many inserts between verifies. */
+static int do_verify =0; /* Do a slow verify after every k inserts. */
+static int verify_period = 256; /* how many inserts between verifies. */
 
 static int do_serial = 1;
 static int do_random = 1;
