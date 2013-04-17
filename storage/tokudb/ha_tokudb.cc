@@ -898,7 +898,7 @@ static int add_table_to_metadata(const char *name, TABLE* table, DB_TXN* txn) {
         txn,
         &key,
         &val,
-        DB_YESOVERWRITE
+        0
         );
     return error;
 }
@@ -954,7 +954,7 @@ static int rename_table_in_metadata(const char *from, const char *to, DB_TXN* tx
         txn,
         &to_key,
         &val,
-        DB_YESOVERWRITE
+        0
         );
     if (error) {
         goto cleanup;
@@ -1233,7 +1233,7 @@ ha_tokudb::ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg):handler(hton, t
     bzero(&lc, sizeof(lc));
     lock.type = TL_IGNORE;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
-        mult_put_flags[i] = DB_YESOVERWRITE;
+        mult_put_flags[i] = 0;
         mult_del_flags[i] = DB_DELETE_ANY;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
     }
@@ -3688,20 +3688,20 @@ void ha_tokudb::set_main_dict_put_flags(
     // consistency between indexes
     //
     if (hidden_primary_key){
-        *put_flags = DB_YESOVERWRITE|old_prelock_flags;
+        *put_flags = old_prelock_flags;
     }
     else if (thd_test_options(thd, OPTION_RELAXED_UNIQUE_CHECKS) && 
         !is_replace_into(thd) && 
         !is_insert_ignore(thd)
         ) 
     {
-        *put_flags = DB_YESOVERWRITE|old_prelock_flags;
+        *put_flags = old_prelock_flags;
     }
     else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
         is_replace_into(thd)  && !in_hot_index
         ) 
     {
-        *put_flags = DB_YESOVERWRITE|old_prelock_flags;
+        *put_flags = old_prelock_flags;
     }
     else if (do_ignore_flag_optimization(thd,table,share->replace_into_fast) && 
         is_insert_ignore(thd) && no_overwrite_no_error_allowed && !in_hot_index
@@ -6859,7 +6859,7 @@ int ha_tokudb::tokudb_add_index(
     *inc_num_DBs = false;
     *modified_DBs = false;
     for (u_int32_t i = 0; i < MAX_KEY+1; i++) {
-        mult_put_flags[i] = DB_YESOVERWRITE;
+        mult_put_flags[i] = 0;
         mult_dbt_flags[i] = DB_DBT_REALLOC;
     }
     //
