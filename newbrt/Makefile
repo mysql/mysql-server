@@ -19,6 +19,7 @@ DEPEND_COMPILE += \
 # keep this line so I can have a \ on the previous line
 
 NEWBRT_SO        = $(TOKUROOT)lib/libnewbrt.$(SOEXT)
+NEWBRT_A       = $(TOKUROOT)lib/libnewbrt.$(AEXT)
 
 SKIP_NEWBRTRULE=1
 include $(TOKUROOT)toku_include/Makefile.include
@@ -121,6 +122,7 @@ $(NEWBRT_SO): DISABLE_WARNING += 10237 # Do not complain about -lcilkrts being l
 $(NEWBRT_SO): $(NEWBRT_O_FILES)
 	echo $(patsubst %,newbrt/%,$(NEWBRT_O_FILES)) > ../lib/newbrt.olist
 	$(TOKULINKER) $(SHARED) $(SYMBOLS) $(GCOV_FLAGS) $(SKIP_WARNING) $(NEWBRT_O_FILES) -o$(NEWBRT_SO) $(LINUX_NOSTDLIB) $(LCILKRTS)
+$(NEWBRT_A): $(NEWBRT_O_FILES)
 
 log_code.$(OEXT): log_header.h wbuf.h log-internal.h rbuf.h
 
@@ -139,7 +141,11 @@ logformat$(BINSUF): logformat.c $(LIBPORTABILITY_SO)
 	$(CC) $< $(BIN_FROM_O_FLAGS_NOLIB) $(LDFLAGS) $(ALWAYS_LINK) $(LINK_MUST_BE_LAST) $(LIBPORTABILITY_SO)
 
 
+ifeq ($(PROF),1)
+libs: $(NEWBRT_A)
+else
 libs: $(NEWBRT_SO)
+endif
 bins: $(BINS)
 
 # Put the benchmarktest_256 first since it takes the longest (and we want to use parallelism in the make)
@@ -148,7 +154,11 @@ bins: $(BINS)
 check: bins
 	cd tests;$(MAKE) check
 
+ifeq ($(PROF),1)
+$(BINS): $(NEWBRT_A) $(LIBPORTABILITY_SO)
+else
 $(BINS): $(NEWBRT_SO) $(LIBPORTABILITY_SO)
+endif
 
 foo2:
 	echo $(BINS)
