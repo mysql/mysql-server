@@ -2,10 +2,6 @@
 // hot-optimize-table-tests.c
 
 #include "test.h"
-#include "includes.h"
-#include <brt-cachetable-wrappers.h>
-#include "db.h"
-#include "ydb.h"
 
 const int envflags = DB_INIT_MPOOL |
                      DB_CREATE |
