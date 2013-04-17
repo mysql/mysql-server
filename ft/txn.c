@@ -287,17 +287,11 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
-    if (txn->begin_was_logged) {
+    if (!toku_txn_is_read_only(txn)) {
         r = toku_log_xcommit(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
         if (r != 0) {
             goto cleanup;
         }
-    }
-    else {
-        // Did no work.
-        invariant(txn->roll_info.num_rollentries == 0);
-        // Was not prepared.
-        invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_commit
     // but it's cheap (only a number of function calls that return immediately)
@@ -328,17 +322,11 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, LSN oplsn,
     int r;
     txn->do_fsync = FALSE;
 
-    if (txn->begin_was_logged) {
+    if (!toku_txn_is_read_only(txn)) {
         r = toku_log_xabort(txn->logger, &txn->do_fsync_lsn, 0, txn, txn->txnid64);
         if (r != 0) {
             goto cleanup;
         }
-    }
-    else {
-        // Did no work.
-        invariant(txn->roll_info.num_rollentries == 0);
-        // Was not prepared.
-        invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
     }
     // If !txn->begin_was_logged, we could skip toku_rollback_abort
     // but it's cheap (only a number of function calls that return immediately)
@@ -360,7 +348,7 @@ static void copy_xid (TOKU_XA_XID *dest, TOKU_XA_XID *source) {
 
 int toku_txn_prepare_txn (TOKUTXN txn, TOKU_XA_XID *xa_xid) {
     int r = 0;
-    if (txn->parent || !txn->begin_was_logged) {
+    if (txn->parent || toku_txn_is_read_only(txn)) {
         // nothing to do if there's a parent, or if it's read-only
         goto cleanup;
     }
@@ -524,6 +512,19 @@ toku_maybe_log_begin_txn_for_write_operation(TOKUTXN txn) {
     toku_txn_lock(txn);
     maybe_log_begin_txn_for_write_operation_unlocked(txn);
     toku_txn_unlock(txn);
+}
+
+bool
+toku_txn_is_read_only(TOKUTXN txn) {
+    if (!txn->begin_was_logged) {
+        // Did no work.
+        invariant(txn->roll_info.num_rollentries == 0);
+        // Was not prepared.
+        invariant(txn->do_fsync_lsn.lsn == ZERO_LSN.lsn);
+        invariant(toku_omt_size(txn->open_fts) == 0);
+        return true;
+    }
+    return false;
 }
 
 #include <valgrind/helgrind.h>
