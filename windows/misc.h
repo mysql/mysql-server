@@ -80,6 +80,8 @@ int usleep(unsigned int useconds);
 
 int mkstemp(char * ttemplate);
 
+toku_off_t ftello(FILE *stream);
+
 #if defined(__cplusplus)
 };
 #endif

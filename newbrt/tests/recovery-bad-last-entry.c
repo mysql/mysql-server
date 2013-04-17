@@ -11,7 +11,7 @@ static int
 run_test(void) {
     int r;
     int trim = 1;
-    struct stat st;
+    toku_struct_stat st;
 
     while ( 1 ) {
         // setup the test dir

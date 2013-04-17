@@ -1,9 +1,9 @@
 /* -*- mode: C; c-basic-offset: 4 -*- */
+#include "test.h"
 #include <stdio.h>
 #include <unistd.h>
 
 
-#include "test.h"
 #include "checkpoint.h"
 
 static const int item_size = 1;

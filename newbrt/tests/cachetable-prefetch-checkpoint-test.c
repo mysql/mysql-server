@@ -2,11 +2,11 @@
 
 // verify that the cache table checkpoint with prefetched blocks active works.
 // the blocks in the reading state should be ignored.
+#include "test.h"
 #include <stdio.h>
 #include <unistd.h>
 
 
-#include "test.h"
 #include "checkpoint.h"
 
 const int item_size = 1;

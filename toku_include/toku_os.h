@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include "toku_os_types.h"
+#include <dirent.h>
 
 // Returns: the current process id
 int toku_os_getpid(void)   __attribute__((__visibility__("default")));
@@ -75,6 +76,8 @@ void toku_set_assert_on_write_enospc(int do_assert) __attribute__((__visibility_
 // *enospc_current   is the number of threads waiting on space
 // *enospc_total     is the number of times ENOSPC was returned by write or pwrite
 void toku_fs_get_write_info(time_t *enospc_last_time, uint64_t *enospc_current, uint64_t *enospc_total);
+
+int toku_fsync_dirfd_without_accounting(DIR *dirp);
 
 #if TOKU_WINDOWS
 #include <sys/types.h>

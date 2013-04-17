@@ -13,7 +13,10 @@ extern "C" {
 int fsync(int fildes);
 
 int
-ftruncate(int fildes, int64_t offset);
+ftruncate(int fildes, toku_off_t offset);
+
+int
+truncate(const char *path, toku_off_t length);
 
 int64_t
 pwrite(int fildes, const void *buf, size_t nbyte, int64_t offset);

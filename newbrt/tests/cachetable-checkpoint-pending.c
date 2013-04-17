@@ -1,10 +1,10 @@
 // Make sure that the pending stuff gets checkpointed, but subsequent changes don't, even with concurrent updates.
 
-#include <stdio.h>
-#include <unistd.h>
 
 
 #include "test.h"
+#include <stdio.h>
+#include <unistd.h>
 #include "checkpoint.h"
 #include "toku_atomic.h"
 
