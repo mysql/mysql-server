@@ -131,8 +131,6 @@ toku_brt_get_status(BRT_STATUS s) {
     *s = brt_status;
 }
 
-
-
 void
 toku_brt_header_suppress_rollbacks(struct brt_header *h, TOKUTXN txn) {
     TXNID txnid = toku_txn_get_txnid(txn);
@@ -7692,4 +7690,11 @@ toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created) {
     h->root_xid_that_created = new_root_xid_that_created;
     h->dirty = 1;
     toku_brtheader_unlock (h);
+}
+
+#include <valgrind/drd.h>
+void __attribute__((__constructor__)) toku_brt_drd_ignore(void);
+void
+toku_brt_drd_ignore(void) {
+    DRD_IGNORE_VAR(brt_status);
 }

@@ -239,3 +239,10 @@ toku_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 	status.checkpoint_count_fail++;
     return r;
 }
+
+#include <valgrind/drd.h>
+void __attribute__((__constructor__)) toku_checkpoint_drd_ignore(void);
+void
+toku_checkpoint_drd_ignore(void) {
+    DRD_IGNORE_VAR(status);
+}

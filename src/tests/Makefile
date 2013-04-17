@@ -975,6 +975,9 @@ stress_tests.drdrun: $(TINY_STRESS_TESTS) \
 	large_test_stress1.drdrun large_test_stress3.drdrun
 	true
 
+tiny_stress_tests.drdrun: $(TINY_STRESS_TESTS)
+	true
+
 tiny_%.drdrun: %.tdb
 	$(VALGRIND) --tool=drd --quiet --suppressions=drd.suppressions --error-exitcode=1 ./$< $(VERBVERBOSE) --num_seconds 5 --num_elements 150 --envdir dir.$@ \
 	$(MAYBEINVERTER) $(SUMMARIZE_CMD)
