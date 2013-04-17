@@ -1887,9 +1887,12 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 
 static int
 maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
-			       BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, BOOL *did_merge, struct kv_pair **splitk)
-// Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    (We do this if the resulting node is not fissible)
-//         or distribute the leafentries evenly between a and b.   (If a and be are already evenly distributed, we may do nothing.)
+			       BRTNODE a, BRTNODE b, struct kv_pair *parent_splitk, 
+                               BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
+// Effect: Either merge a and b into one one node (merge them into a) and set *did_merge = TRUE.    
+//         (We do this if the resulting node is not fissible)
+//         or distribute the leafentries evenly between a and b, and set *did_rebalance = TRUE.   
+//         (If a and be are already evenly distributed, we may do nothing.)
 {
     unsigned int sizea = toku_serialize_brtnode_size(a);
     unsigned int sizeb = toku_serialize_brtnode_size(b);
@@ -1898,16 +1901,19 @@ maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
         *did_merge = FALSE;
         if (sizea*4 > a->nodesize && sizeb*4 > a->nodesize) {
             // no need to do anything if both are more than 1/4 of a node.
+            *did_rebalance = FALSE;
             *splitk = parent_splitk;
             return 0;
         }
         // one is less than 1/4 of a node, and together they are more than 3/4 of a node.
         toku_free(parent_splitk); // We don't need the parent_splitk any more.  If we need a splitk (if we don't merge) we'll malloc a new one.
+        *did_rebalance = TRUE;
         int r = balance_leaf_nodes(a, b, splitk);
 	if (r != 0) return r;
     } else {
         // we are merging them.
         *did_merge = TRUE;
+        *did_rebalance = FALSE;
         *splitk = 0;
         toku_free(parent_splitk); // if we are merging, the splitk gets freed.
         int r = merge_leaf_nodes(a, b);
@@ -1922,8 +1928,7 @@ static int
 maybe_merge_pinned_nonleaf_nodes (BRT t,
                                   BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
                                   BRTNODE a, BRTNODE b,
-                                  BOOL *did_merge,
-                                  struct kv_pair **splitk)
+                                  BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
 {
     verify_local_fingerprint_nonleaf(a);
     assert(parent_splitk);
@@ -1966,6 +1971,7 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
     fixup_child_fingerprint(parent, childnum_of_parent, a);
 //    abort(); // don't forget to reuse blocknums
     *did_merge = TRUE;
+    *did_rebalance = FALSE;
     *splitk    = NULL;
     verify_local_fingerprint_nonleaf(a);
     return 0;
@@ -1974,9 +1980,12 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
 static int
 maybe_merge_pinned_nodes (BRT t,
                           BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
-                          BRTNODE a, BRTNODE b, BOOL *did_merge, struct kv_pair **splitk)
-// Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  (We do this if the resulting node is not fissible)
-//             or distribute a and b evenly and set *did_merge = FALSE  (If a and be are already evenly distributed, we may do nothing.)
+                          BRTNODE a, BRTNODE b, 
+                          BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
+// Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  
+//         (We do this if the resulting node is not fissible)
+//         or distribute a and b evenly and set *did_merge = FALSE and *did_rebalance = TRUE  
+//         (If a and be are already evenly distributed, we may do nothing.)
 //  If we distribute:
 //    For leaf nodes, we distribute the leafentries evenly.
 //    For nonleaf nodes, we distribute the children evenly.  That may leave one or both of the nodes overfull, but that's OK.
@@ -1996,9 +2005,9 @@ maybe_merge_pinned_nodes (BRT t,
     verify_local_fingerprint_nonleaf(a);
     parent->dirty = 1; // just to make sure 
     if (a->height == 0) {
-        return maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, splitk);
+        return maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
-        int r = maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, did_merge, splitk);
+        int r = maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, did_merge, did_rebalance, splitk);
         verify_local_fingerprint_nonleaf(a);
         return r;
     }
@@ -2062,18 +2071,18 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
     // now we have both children pinned in main memory.
 
     int r;
-    BOOL did_merge;
+    BOOL did_merge, did_rebalance;
     {
         struct kv_pair *splitk_kvpair = 0;
         struct kv_pair *old_split_key = node->u.n.childkeys[childnuma];
         unsigned int deleted_size = toku_brt_pivot_key_len(t, old_split_key);
         verify_local_fingerprint_nonleaf(childa);
-        r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, &did_merge, &splitk_kvpair);
+        r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
         verify_local_fingerprint_nonleaf(childa);
         if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
         //(toku_verify_counts(childa), toku_verify_estimates(t,childa));
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
-        *did_react = did_merge || (splitk_kvpair != 0);
+        *did_react = did_merge || did_rebalance;
         if (did_merge) assert(!splitk_kvpair); else assert(splitk_kvpair);
         if (r!=0) goto return_r;
 
