@@ -70,7 +70,7 @@ int test_main (int argc, char * const argv[]) {
         r = snapshot_cursor->c_get(snapshot_cursor, &curr_key, &curr_val, DB_NEXT); CKERR(r);
         assert(((char *)(curr_key.data))[0] == 'a');
         assert((*(uint32_t *)(curr_val.data)) == i);
-        assert(curr_key.size == 4);
+        assert(curr_key.size == 2);
         assert(curr_val.size == 4);
         snapshot_cursor->c_close(snapshot_cursor);
     }
@@ -91,7 +91,7 @@ int test_main (int argc, char * const argv[]) {
         CKERR(r);
         assert(((char *)(curr_key.data))[0] == 'a');
         assert((*(uint32_t *)(curr_val.data)) == (num_read_txns - 1));
-        assert(curr_key.size == 4);
+        assert(curr_key.size == 2);
         assert(curr_val.size == 4);
         read_uncommitted_cursor->c_close(read_uncommitted_cursor);
     }
