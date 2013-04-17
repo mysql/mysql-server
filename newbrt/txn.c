@@ -354,7 +354,7 @@ local_checkpoints_and_log_xcommit(void *thunk) {
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
-    txn->state = TOKUTXN_COMMIT;
+    txn->state = TOKUTXN_COMMITTING;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
     }
@@ -391,7 +391,7 @@ int toku_txn_abort_txn(TOKUTXN txn, YIELDF yield, void *yieldv,
 
 int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
-    txn->state = TOKUTXN_ABORT;
+    txn->state = TOKUTXN_ABORTING;
     if (garbage_collection_debug) {
         verify_snapshot_system(txn->logger);
     }

@@ -185,9 +185,9 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     XIDS xids = xids_get_root_xids();
 
     TXNID outermost_xid = TXNID_NONE;
-    TOKUTXN_STATE outermost_xid_state = TOKUTXN_NOT_LIVE;
+    TOKUTXN_STATE outermost_xid_state = TOKUTXN_RETIRED;
 
-    // scan the provisional stack from bottom to top
+    // scan the provisional stack from the outermost to the innermost transaction record
     uint32_t num_committed = ule_get_num_committed(ule);
     uint32_t num_provisional = ule_get_num_provisional(ule);
     for (uint64_t xrindex = num_committed; xrindex < num_committed + num_provisional; xrindex++) {
@@ -198,10 +198,10 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
         TXNID this_xid = uxr_get_txnid(uxr);
         TOKUTXN_STATE this_xid_state = indexer_xid_state(indexer, this_xid);
 
-        if (this_xid_state == TOKUTXN_ABORT)
+        if (this_xid_state == TOKUTXN_ABORTING)
             break;         // nothing to do once we reach a transaction that is aborting
 
-        if (xrindex == num_committed) {
+        if (xrindex == num_committed) { // if this is the outermost xr
             outermost_xid = this_xid;
             outermost_xid_state = this_xid_state;
             result = indexer_set_xid(indexer, this_xid, &xids);    // always add the outermost xid to the XIDS list
@@ -211,7 +211,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             break;
 
         if (outermost_xid_state != TOKUTXN_LIVE && xrindex > num_committed)
-            invariant(this_xid_state == TOKUTXN_NOT_LIVE);
+            invariant(this_xid_state == TOKUTXN_RETIRED);
 
         if (uxr_is_placeholder(uxr))
             continue;         // skip placeholders
@@ -229,12 +229,12 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
                 if (result == 0) {
                     // send the delete message
                     if (outermost_xid_state == TOKUTXN_LIVE) {
-                        invariant(this_xid_state != TOKUTXN_ABORT);
+                        invariant(this_xid_state != TOKUTXN_ABORTING);
                         result = indexer_brt_delete_provisional(indexer, hotdb, &indexer->i->hotkey, xids);
                         if (result == 0)
                             result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                     } else {
-                        invariant(outermost_xid_state == TOKUTXN_NOT_LIVE || outermost_xid_state == TOKUTXN_COMMIT);
+                        invariant(outermost_xid_state == TOKUTXN_RETIRED || outermost_xid_state == TOKUTXN_COMMITTING);
                         result = indexer_brt_delete_committed(indexer, hotdb, &indexer->i->hotkey, xids);
                         if (result == 0)
                             indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
@@ -255,15 +255,15 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
             if (result == 0) {
                 // send the insert message
                 if (outermost_xid_state == TOKUTXN_LIVE) {
-                    invariant(this_xid_state != TOKUTXN_ABORT);
+                    invariant(this_xid_state != TOKUTXN_ABORTING);
                     result = indexer_brt_insert_provisional(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
                     if (result == 0) 
                         result = indexer_lock_key(indexer, hotdb, &indexer->i->hotkey, outermost_xid);
                 } else {
-                    invariant(outermost_xid_state == TOKUTXN_NOT_LIVE || outermost_xid_state == TOKUTXN_COMMIT);
+                    invariant(outermost_xid_state == TOKUTXN_RETIRED || outermost_xid_state == TOKUTXN_COMMITTING);
                     result = indexer_brt_insert_committed(indexer, hotdb, &indexer->i->hotkey, &indexer->i->hotval, xids);
 #if 0
-                    // no need to do this
+                    // no need to do this because we do implicit commits on inserts
                     if (result == 0)
                         indexer_commit_keys_add(&indexer->i->commit_keys, indexer->i->hotkey.size, indexer->i->hotkey.data);
 #endif
@@ -355,11 +355,11 @@ indexer_generate_hot_key_val(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule, UXRH
     return result;
 }
 
-// looks up the TOKUTXN by TXNID.  if it does not exist then the transaction is committed.
-// returns TRUE if the xid is committed.  otherwise returns FALSE.
+// return the state of a transaction given a transaction id.  if the transaction no longer exists, 
+// then return TOKUTXN_RETIRED.
 static TOKUTXN_STATE
 indexer_xid_state(DB_INDEXER *indexer, TXNID xid) {
-    TOKUTXN_STATE result = TOKUTXN_NOT_LIVE;
+    TOKUTXN_STATE result = TOKUTXN_RETIRED;
     // TEST
     if (indexer->i->test_xid_state) {
         result = indexer->i->test_xid_state(indexer, xid);

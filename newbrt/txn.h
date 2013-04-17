@@ -87,10 +87,10 @@ int  toku_txn_ignore_remove(TOKUTXN txn, FILENUM filenum);
 int  toku_txn_ignore_contains(TOKUTXN txn, FILENUM filenum);
 
 enum tokutxn_state {
-    TOKUTXN_NOT_LIVE,
-    TOKUTXN_LIVE,
-    TOKUTXN_COMMIT,
-    TOKUTXN_ABORT,
+    TOKUTXN_LIVE,         // initial txn state
+    TOKUTXN_COMMITTING,   // txn in the process of committing
+    TOKUTXN_ABORTING,     // txn in the process of aborting
+    TOKUTXN_RETIRED,      // txn no longer exists
 };
 typedef enum tokutxn_state TOKUTXN_STATE;
 
