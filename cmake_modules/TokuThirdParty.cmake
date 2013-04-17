@@ -46,39 +46,39 @@ if (NOT CMAKE_BUILD_TYPE MATCHES Release)
   list(APPEND xz_configure_opts --enable-debug)
 endif ()
 
-set(XZ_SOURCE_DIR "${TokuDB_SOURCE_DIR}/third_party/xz-4.999.9beta" CACHE FILEPATH "Where to find sources for xz (lzma).")
+set(XZ_SOURCE_DIR "${TOKU_SVNROOT}/xz-4.999.9beta" CACHE FILEPATH "Where to find sources for xz (lzma).")
 if (NOT EXISTS "${XZ_SOURCE_DIR}/configure")
-    message(FATAL_ERROR "Can't find the xz sources.  Please check them out to ${XZ_SOURCE_DIR} or modify TokuDB_SOURCE_DIR (${TokuDB_SOURCE_DIR}) or XZ_SOURCE_DIR.")
+  message(FATAL_ERROR "Can't find the xz sources.  Please check them out to ${XZ_SOURCE_DIR} or modify TOKU_SVNROOT (${TOKU_SVNROOT}) or XZ_SOURCE_DIR.")
 endif ()
 
-FILE(GLOB XZ_ALL_FILES ${XZ_SOURCE_DIR}/*)
 if (CMAKE_GENERATOR STREQUAL Ninja)
   ## ninja doesn't understand "$(MAKE)"
-  set(SUBMAKE_COMMAND make)
+  ExternalProject_Add(build_lzma
+    PREFIX xz
+    SOURCE_DIR "${XZ_SOURCE_DIR}"
+    CONFIGURE_COMMAND
+        "${XZ_SOURCE_DIR}/configure" ${xz_configure_opts}
+        "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
+    BUILD_COMMAND
+        make -C src/liblzma
+    INSTALL_COMMAND
+        make -C src/liblzma install
+    )
 else ()
   ## use "$(MAKE)" for submakes so they can use the jobserver, doesn't
   ## seem to break Xcode...
-  set(SUBMAKE_COMMAND $(MAKE))
-endif ()
-
-ExternalProject_Add(build_lzma
+  ExternalProject_Add(build_lzma
     PREFIX xz
-    DOWNLOAD_COMMAND
-        cp -au "${XZ_ALL_FILES}" "<SOURCE_DIR>/"
+    SOURCE_DIR "${XZ_SOURCE_DIR}"
     CONFIGURE_COMMAND
-        "<SOURCE_DIR>/configure" ${xz_configure_opts}
+        "${XZ_SOURCE_DIR}/configure" ${xz_configure_opts}
         "--prefix=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz"
     BUILD_COMMAND
-        ${SUBMAKE_COMMAND} -C src/liblzma
+        $(MAKE) -C src/liblzma
     INSTALL_COMMAND
-        ${SUBMAKE_COMMAND} -C src/liblzma install
-)
-FILE(GLOB_RECURSE XZ_ALL_FILES_RECURSIVE ${XZ_SOURCE_DIR}/*)
-ExternalProject_Add_Step(build_lzma reclone_src # Names of project and custom step
-    COMMENT "(re)cloning xz source..."     # Text printed when step executes
-    DEPENDERS download configure   # Steps that depend on this step
-    DEPENDS   ${XZ_ALL_FILES_RECURSIVE}   # Files on which this step depends
-)
+        $(MAKE) -C src/liblzma install
+    )
+endif ()
 
 set_source_files_properties(
   "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/xz/include/lzma.h"
