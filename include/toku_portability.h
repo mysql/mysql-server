@@ -72,7 +72,10 @@ extern "C" {
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
 #   if defined(__ICL) //Windows Intel Compiler
-#       pragma deprecated (fstat, getpid, syscall, sysconf, mkdir, strdup, malloc, free)
+#       pragma deprecated (fstat, getpid, syscall, sysconf, mkdir, strdup);
+#    ifndef DONT_DEPRECATE_MALLOC
+#       pragma deprecated (malloc, free, realloc)
+#    endif
 #   else
 int      fstat()                        __attribute__((__deprecated__));
 int      getpid(void)                   __attribute__((__deprecated__));
@@ -85,9 +88,11 @@ int      mkdir()                        __attribute__((__deprecated__));
 char*    strdup(const char *)           __attribute__((__deprecated__));
 #undef __strdup
 char*    __strdup(const char *)         __attribute__((__deprecated__));
+#ifndef DONT_DEPRECATE_MALLOC
 void *malloc(size_t)                    __attribute__((__deprecated__));
 void free(void*)                        __attribute__((__deprecated__));
 void *realloc(void*, size_t)            __attribute__((__deprecated__));
+#endif
 #   endif
 #endif
 
