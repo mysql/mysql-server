@@ -10,6 +10,7 @@
 #include <ft-internal.h>
 #include <ft.h>
 #include <portability/toku_atomic.h>
+#include <util/partitioned_counter.h>
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -32,21 +33,17 @@ struct hot_flusher_extra {
 
 static FT_HOT_STATUS_S hot_status;
 
-#define STATUS_INIT(k,t,l) {                            \
-        hot_status.status[k].keyname = #k;              \
-        hot_status.status[k].type    = t;               \
-        hot_status.status[k].legend  = "hot: " l;       \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(hot_status, k, t, "hot: " l, inc)
 
 #define STATUS_VALUE(x) hot_status.status[x].value.num
 
 void
 toku_ft_hot_status_init(void)
 {
-    STATUS_INIT(FT_HOT_NUM_STARTED,          UINT64, "operations ever started");
-    STATUS_INIT(FT_HOT_NUM_COMPLETED,        UINT64, "operations successfully completed");
-    STATUS_INIT(FT_HOT_NUM_ABORTED,          UINT64, "operations aborted");
-    STATUS_INIT(FT_HOT_MAX_ROOT_FLUSH_COUNT, UINT64, "max number of flushes from root ever required to optimize a tree");
+    STATUS_INIT(FT_HOT_NUM_STARTED,          UINT64, "operations ever started", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_HOT_NUM_COMPLETED,        UINT64, "operations successfully completed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_HOT_NUM_ABORTED,          UINT64, "operations aborted", TOKU_ENGINE_STATUS);
+    STATUS_INIT(FT_HOT_MAX_ROOT_FLUSH_COUNT, UINT64, "max number of flushes from root ever required to optimize a tree", TOKU_ENGINE_STATUS);
 
     hot_status.initialized = true;
 }

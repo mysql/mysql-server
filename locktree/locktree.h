@@ -220,6 +220,8 @@ public:
         lt_escalate_cb m_lt_escalate_callback;
         void *m_lt_escalate_callback_extra;
 
+        LTM_STATUS_S status;
+
         omt<locktree *> m_locktree_map;
 
         // the manager's mutex protects the locktree map
@@ -228,6 +230,8 @@ public:
         void mutex_lock(void);
 
         void mutex_unlock(void);
+
+        void status_init(void);
 
         // effect: Gets a locktree from the map.
         // requires: Manager's mutex is held

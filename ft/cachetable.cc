@@ -40,38 +40,32 @@ static CACHETABLE_STATUS_S ct_status;
 
 // Note, toku_cachetable_get_status() is below, after declaration of cachetable.
 
-#define STATUS_INIT(k,t,l) { \
-    ct_status.status[k].keyname = #k; \
-    ct_status.status[k].type    = t;  \
-    ct_status.status[k].legend  = "cachetable: " l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(ct_status, k, t, "cachetable: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
 
-    STATUS_INIT(CT_MISS,                   UINT64, "miss");
-    STATUS_INIT(CT_MISSTIME,               UINT64, "miss time");
-    STATUS_INIT(CT_PREFETCHES,             UINT64, "prefetches");
-    STATUS_INIT(CT_SIZE_CURRENT,           UINT64, "size current");
-    STATUS_INIT(CT_SIZE_LIMIT,             UINT64, "size limit");
-    STATUS_INIT(CT_SIZE_WRITING,           UINT64, "size writing");
-    STATUS_INIT(CT_SIZE_NONLEAF,           UINT64, "size nonleaf");
-    STATUS_INIT(CT_SIZE_LEAF,              UINT64, "size leaf");
-    STATUS_INIT(CT_SIZE_ROLLBACK,          UINT64, "size rollback");
-    STATUS_INIT(CT_SIZE_CACHEPRESSURE,     UINT64, "size cachepressure");
-    STATUS_INIT(CT_EVICTIONS,              UINT64, "evictions");
-    STATUS_INIT(CT_CLEANER_EXECUTIONS,     UINT64, "cleaner executions");
-    STATUS_INIT(CT_CLEANER_PERIOD,         UINT64, "cleaner period");
-    STATUS_INIT(CT_CLEANER_ITERATIONS,     UINT64, "cleaner iterations");
+    STATUS_INIT(CT_MISS,                   UINT64, "miss", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_MISSTIME,               UINT64, "miss time", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_PREFETCHES,             UINT64, "prefetches", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_SIZE_CURRENT,           UINT64, "size current", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_SIZE_LIMIT,             UINT64, "size limit", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_SIZE_WRITING,           UINT64, "size writing", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_SIZE_NONLEAF,           UINT64, "size nonleaf", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_SIZE_LEAF,              UINT64, "size leaf", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_SIZE_ROLLBACK,          UINT64, "size rollback", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_SIZE_CACHEPRESSURE,     UINT64, "size cachepressure", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_EVICTIONS,              UINT64, "evictions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_CLEANER_EXECUTIONS,     UINT64, "cleaner executions", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_CLEANER_PERIOD,         UINT64, "cleaner period", TOKU_ENGINE_STATUS);
+    STATUS_INIT(CT_CLEANER_ITERATIONS,     UINT64, "cleaner iterations", TOKU_ENGINE_STATUS);
     ct_status.initialized = true;
 }
 #undef STATUS_INIT
 
 #define STATUS_VALUE(x) ct_status.status[x].value.num
-
-
 
 static void * const zero_value = nullptr;
 static PAIR_ATTR const zero_attr = {

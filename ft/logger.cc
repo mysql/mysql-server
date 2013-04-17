@@ -13,6 +13,7 @@
 #include "log-internal.h"
 #include "txn_manager.h"
 #include "rollback_log_node_cache.h"
+#include <util/partitioned_counter.h>
 
 static const int log_format_version=TOKU_LOG_VERSION;
 
@@ -1307,24 +1308,20 @@ void toku_logger_note_checkpoint(TOKULOGGER logger, LSN lsn) {
 
 static LOGGER_STATUS_S logger_status;
 
-#define STATUS_INIT(k,t,l) { \
-        logger_status.status[k].keyname = #k; \
-        logger_status.status[k].type    = t;  \
-        logger_status.status[k].legend  = "logger: " l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(logger_status, k, t, "logger: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(LOGGER_NEXT_LSN,     UINT64,  "next LSN");
-    STATUS_INIT(LOGGER_ILOCK_CTR,    UINT64,  "ilock count");
-    STATUS_INIT(LOGGER_OLOCK_CTR,    UINT64,  "olock count");
-    STATUS_INIT(LOGGER_SWAP_CTR,     UINT64,  "swap count");
-    STATUS_INIT(LOGGER_NUM_WRITES,                  UINT64,  "writes");
-    STATUS_INIT(LOGGER_BYTES_WRITTEN,               UINT64,  "writes (bytes)");
-    STATUS_INIT(LOGGER_UNCOMPRESSED_BYTES_WRITTEN,  UINT64,  "writes (uncompressed bytes)");
-    STATUS_INIT(LOGGER_TOKUTIME_WRITES,             TOKUTIME,  "writes (seconds)");
+    STATUS_INIT(LOGGER_NEXT_LSN,     UINT64,  "next LSN", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_ILOCK_CTR,    UINT64,  "ilock count", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_OLOCK_CTR,    UINT64,  "olock count", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_SWAP_CTR,     UINT64,  "swap count", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_NUM_WRITES,                  UINT64,  "writes", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_BYTES_WRITTEN,               UINT64,  "writes (bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_UNCOMPRESSED_BYTES_WRITTEN,  UINT64,  "writes (uncompressed bytes)", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LOGGER_TOKUTIME_WRITES,             TOKUTIME,  "writes (seconds)", TOKU_ENGINE_STATUS);
     logger_status.initialized = true;
 }
 #undef STATUS_INIT

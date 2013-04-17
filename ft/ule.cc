@@ -29,6 +29,7 @@
 #include "ule.h"
 #include "txn_manager.h"
 #include "ule-internal.h"
+#include <util/partitioned_counter.h>
 
 
 #define ULE_DEBUG 0
@@ -44,20 +45,16 @@ static uint32_t ule_get_innermost_numbytes(ULE ule);
 
 static LE_STATUS_S le_status;
 
-#define STATUS_INIT(k,t,l) { \
-        le_status.status[k].keyname = #k; \
-        le_status.status[k].type    = t;  \
-        le_status.status[k].legend  = "le: " l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(le_status, k, t, "le: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(LE_MAX_COMMITTED_XR,   UINT64, "max committed xr");
-    STATUS_INIT(LE_MAX_PROVISIONAL_XR, UINT64, "max provisional xr");
-    STATUS_INIT(LE_EXPANDED,           UINT64, "expanded");
-    STATUS_INIT(LE_MAX_MEMSIZE,        UINT64, "max memsize");
+    STATUS_INIT(LE_MAX_COMMITTED_XR,   UINT64, "max committed xr", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_MAX_PROVISIONAL_XR, UINT64, "max provisional xr", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_EXPANDED,           UINT64, "expanded", TOKU_ENGINE_STATUS);
+    STATUS_INIT(LE_MAX_MEMSIZE,        UINT64, "max memsize", TOKU_ENGINE_STATUS);
     le_status.initialized = true;
 }
 #undef STATUS_INIT

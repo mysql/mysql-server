@@ -335,7 +335,7 @@ static void print_db_env_struct (void) {
                              "int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */",
                              "int (*set_default_bt_compare)               (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */",
                              "int (*get_engine_status_num_rows)           (DB_ENV*, uint64_t*)  /* return number of rows in engine status */",
-                             "int (*get_engine_status)                    (DB_ENV*, TOKU_ENGINE_STATUS_ROW, uint64_t, fs_redzone_state*, uint64_t*, char*, int) /* Fill in status struct and redzone state, possibly env panic string */",
+                             "int (*get_engine_status)                    (DB_ENV*, TOKU_ENGINE_STATUS_ROW, uint64_t, uint64_t*, fs_redzone_state*, uint64_t*, char*, int, toku_engine_status_include_type) /* Fill in status struct and redzone state, possibly env panic string */",
                              "int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */",
                              "int (*crash)                                (DB_ENV*, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/)",
                              "int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */",
@@ -623,20 +623,29 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
 
     printf("// engine status info\n");
     printf("// engine status is passed to handlerton as an array of TOKU_ENGINE_STATUS_ROW_S[]\n");
+
     printf("typedef enum {\n");
     printf("   FS_STATE = 0,   // interpret as file system state (redzone) enum \n");
     printf("   UINT64,         // interpret as uint64_t \n");
     printf("   CHARSTR,        // interpret as char * \n");
     printf("   UNIXTIME,       // interpret as time_t \n");
-    printf("   TOKUTIME,       // interpret as tokutime_t \n");  
+    printf("   TOKUTIME,       // interpret as tokutime_t \n");
     printf("   PARCOUNT       // interpret as PARTITIONED_COUNTER\n");
     printf("} toku_engine_status_display_type; \n");
+
+
+    printf("typedef enum {\n");
+    printf("   TOKU_ENGINE_STATUS             = (1ULL<<0),  // Include when asking for engine status\n");
+    printf("   TOKU_GLOBAL_STATUS = (1ULL<<1),  // Include when asking for information_schema.global_status\n");
+    printf("} toku_engine_status_include_type; \n");
 
     printf("typedef struct __toku_engine_status_row {\n");
     printf("  const char * keyname;                  // info schema key, should not change across revisions without good reason \n");
     printf("  const char * legend;                   // the text that will appear at user interface \n");
     printf("  toku_engine_status_display_type type;  // how to interpret the value \n");
+    printf("  toku_engine_status_include_type include;  // which kinds of callers should get read this row?\n");
     printf("  union {              \n");
+    printf("         double   dnum; \n");
     printf("         uint64_t num; \n");
     printf("         const char *   str; \n");
     printf("         struct partitioned_counter *parcount;\n");

@@ -58,6 +58,17 @@ void partitioned_counters_init(void);
 void partitioned_counters_destroy(void);
 // Effect: Destroy any partitioned counters data structures.
 
+#define TOKUDB_STATUS_INIT(array, k, t, l, inc) do { \
+    array.status[k].keyname = #k;                    \
+    array.status[k].type    = t;                     \
+    array.status[k].legend  = l;                     \
+    static_assert((inc) != 0, "Var must be included in at least one place"); \
+    array.status[k].include = static_cast<toku_engine_status_include_type>(inc);  \
+    if (t == PARCOUNT) {                                               \
+        array.status[k].value.parcount = create_partitioned_counter(); \
+    }                                                                  \
+} while (0)
+
 #if 0
 #include <pthread.h>
 #include "fttypes.h"

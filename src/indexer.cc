@@ -28,6 +28,7 @@
 #include <ft/checkpoint.h>
 #include <portability/toku_atomic.h>
 #include "loader.h"
+#include <util/partitioned_counter.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -37,25 +38,21 @@
 
 static INDEXER_STATUS_S indexer_status;
 
-#define STATUS_INIT(k,t,l) { \
-        indexer_status.status[k].keyname = #k; \
-        indexer_status.status[k].type    = t;  \
-        indexer_status.status[k].legend  = "indexer: " l; \
-    }
+#define STATUS_INIT(k,t,l, inc) TOKUDB_STATUS_INIT(indexer_status, k, t, "indexer: " l, inc)
 
 static void
 status_init(void) {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(INDEXER_CREATE,      UINT64, "number of indexers successfully created");
-    STATUS_INIT(INDEXER_CREATE_FAIL, UINT64, "number of calls to toku_indexer_create_indexer() that failed");
-    STATUS_INIT(INDEXER_BUILD,       UINT64, "number of calls to indexer->build() succeeded");
-    STATUS_INIT(INDEXER_BUILD_FAIL,  UINT64, "number of calls to indexer->build() failed");
-    STATUS_INIT(INDEXER_CLOSE,       UINT64, "number of calls to indexer->close() that succeeded");
-    STATUS_INIT(INDEXER_CLOSE_FAIL,  UINT64, "number of calls to indexer->close() that failed");
-    STATUS_INIT(INDEXER_ABORT,       UINT64, "number of calls to indexer->abort()");
-    STATUS_INIT(INDEXER_CURRENT,     UINT64, "number of indexers currently in existence");
-    STATUS_INIT(INDEXER_MAX,         UINT64, "max number of indexers that ever existed simultaneously");
+    STATUS_INIT(INDEXER_CREATE,      UINT64, "number of indexers successfully created", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_CREATE_FAIL, UINT64, "number of calls to toku_indexer_create_indexer() that failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_BUILD,       UINT64, "number of calls to indexer->build() succeeded", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_BUILD_FAIL,  UINT64, "number of calls to indexer->build() failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_CLOSE,       UINT64, "number of calls to indexer->close() that succeeded", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_CLOSE_FAIL,  UINT64, "number of calls to indexer->close() that failed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_ABORT,       UINT64, "number of calls to indexer->abort()", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_CURRENT,     UINT64, "number of indexers currently in existence", TOKU_ENGINE_STATUS);
+    STATUS_INIT(INDEXER_MAX,         UINT64, "max number of indexers that ever existed simultaneously", TOKU_ENGINE_STATUS);
     indexer_status.initialized = true;
 }
 #undef STATUS_INIT
