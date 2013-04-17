@@ -700,7 +700,7 @@ initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_
 }
 
 static int
-brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp, TOKULOGGER logger, BRTNODE *newrootp)
+brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *rootp, TOKULOGGER logger __attribute__((__unused__)), BRTNODE *newrootp)
 // Effect:  Create a new root node whose two children are NODEA and NODEB, an dthe pivotkey is SPLITK.
 //  Store the new root's identity in *ROOTP, and the node in *NEWROOTP.
 //  Unpin nodea and nodeb.
@@ -714,7 +714,6 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
     toku_allocate_blocknum(brt->h->blocktable, &newroot_diskoff, brt->h);
     assert(newroot);
     newroot->ever_been_written = 0;
-    toku_log_changeunnamedroot(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), *rootp, newroot_diskoff);
     *rootp=newroot_diskoff;
     initialize_empty_brtnode (brt, newroot, newroot_diskoff, new_height, 0);
     //printf("new_root %lld %d %lld %lld\n", newroot_diskoff, newroot->height, nodea->thisnodename, nodeb->thisnodename);
@@ -2873,7 +2872,6 @@ brt_init_header_partial (BRT t) {
 #ifdef __ICL
         lh = lh; //Satisfy icl (variable set but unused)
 #endif
-        //if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
     }
 #endif
     BLOCKNUM root = t->h->root;
@@ -3308,7 +3306,7 @@ int toku_close_brt (BRT brt, TOKULOGGER logger, char **error_string) {
         if (logger) {
             assert(brt->fname);
             BYTESTRING bs = {.len=strlen(brt->fname), .data=brt->fname};
-            r = toku_log_brtclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
+            r = toku_log_fclose(logger, &lsn, 1, bs, toku_cachefile_filenum(brt->cf)); // flush the log on close, otherwise it might not make it out.
             if (r!=0) return r;
         }
 	if (!brt->h->panic)

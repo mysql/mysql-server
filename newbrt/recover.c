@@ -200,44 +200,6 @@ static int toku_recover_backward_fcreate (struct logtype_fcreate *l, struct back
     return 0;
 }
 
-static void toku_recover_fheader (LSN UU(lsn), TXNID UU(txnid),FILENUM filenum, LOGGEDBRTHEADER header) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(filenum, &pair);
-    assert(r==0);
-    struct brt_header *MALLOC(h);
-    assert(h);
-    h->dirty=0;
-    h->panic=0;
-    h->panic_string=0;
-    h->flags = header.flags;
-    h->nodesize = header.nodesize;
-    //toku_blocktable_create_from_loggedheader(&h->blocktable, header);
-    assert(0); //create from loggedheader disabled for now. //TODO: #1605
-    assert(h->blocktable);
-    h->root = header.root;
-    h->root_hash.valid= FALSE;
-    //toku_cachetable_put(pair->cf, header_blocknum, fullhash, h, 0, toku_brtheader_flush_callback, toku_brtheader_fetch_callback, 0);
-    if (pair->brt) {
-	toku_free(pair->brt->h);
-    }  else {
-	r = toku_brt_create(&pair->brt);
-	assert(r==0);
-	pair->brt->cf = pair->cf;
-	list_init(&pair->brt->cursors);
-	pair->brt->compare_fun = 0;
-	pair->brt->dup_compare = 0;
-	pair->brt->db = 0;
-    }
-    pair->brt->h = h;
-    pair->brt->nodesize = h->nodesize;
-    pair->brt->flags    = h->nodesize;
-    toku_cachefile_set_userdata(pair->cf, pair->brt->h, toku_brtheader_close, toku_brtheader_checkpoint, toku_brtheader_begin_checkpoint, toku_brtheader_end_checkpoint);
-}
-
-static int toku_recover_backward_fheader (struct logtype_fheader *UU(l), struct backward_scan_state *UU(bs)) {
-    return 0;
-}
-
 static void
 toku_recover_enqrootentry (LSN lsn __attribute__((__unused__)), FILENUM filenum, TXNID xid, u_int32_t typ, BYTESTRING key, BYTESTRING val) {
     struct cf_pair *pair = NULL;
@@ -266,7 +228,7 @@ static int toku_recover_backward_enqrootentry (struct logtype_enqrootentry *l, s
 
 
 static void
-toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
+toku_recover_fclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     struct cf_pair *pair = NULL;
     int r = find_cachefile(filenum, &pair);
     assert(r==0);
@@ -276,47 +238,8 @@ toku_recover_brtclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
     toku_free_BYTESTRING(fname);
 }
 
-static int toku_recover_backward_brtclose (struct logtype_brtclose *l, struct backward_scan_state *UU(bs)) {
+static int toku_recover_backward_fclose (struct logtype_fclose *l, struct backward_scan_state *UU(bs)) {
     toku_free_BYTESTRING(l->fname);
-    return 0;
-}
-
-static void
-toku_recover_cfclose (LSN UU(lsn), BYTESTRING UU(fname), FILENUM filenum) {
-    int i;
-    for (i=0; i<n_cf_pairs; i++) {
-	if (filenum.fileid==cf_pairs[i].filenum.fileid) {
-	    int r = toku_cachefile_close(&cf_pairs[i].cf, 0, 0, ZERO_LSN);
-	    assert(r==0);
-	    cf_pairs[i] = cf_pairs[n_cf_pairs-1];
-	    n_cf_pairs--;
-	    break;
-	}
-    }
-    toku_free_BYTESTRING(fname);
-}
-
-static int toku_recover_backward_cfclose (struct logtype_cfclose *UU(l), struct backward_scan_state *UU(bs)) {
-    return 0;
-}
-
-static void
-toku_recover_changeunnamedroot (LSN UU(lsn), FILENUM filenum, BLOCKNUM UU(oldroot), BLOCKNUM newroot) {
-    struct cf_pair *pair = NULL;
-    int r = find_cachefile(filenum, &pair);
-    assert(r==0);
-    assert(pair->brt);
-    assert(pair->brt->h);
-    pair->brt->h->root = newroot;
-    pair->brt->h->root_hash.valid = FALSE;
-}
-static int toku_recover_backward_changeunnamedroot (struct logtype_changeunnamedroot *UU(l), struct backward_scan_state *UU(bs)) {
-    return 0;
-}
-
-static void
-toku_recover_changenamedroot (LSN UU(lsn), FILENUM UU(filenum), BYTESTRING UU(name), BLOCKNUM UU(oldroot), BLOCKNUM UU(newroot)) { assert(0); }
-static int toku_recover_backward_changenamedroot (struct logtype_changenamedroot *UU(l), struct backward_scan_state *UU(bs)) {
     return 0;
 }
 
