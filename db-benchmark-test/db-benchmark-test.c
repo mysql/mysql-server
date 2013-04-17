@@ -138,8 +138,8 @@ put_multiple_generate(DBT *row, uint32_t num_dbs_in, DB **dbs_in, DBT *keys, DBT
     assert((int)row->size >= 4+keysize);
     int32_t row_valsize = row->size - 4 - keysize;
     assert(row_valsize == valsize);
-    void *key = row->data+4;
-    void *val = row->data+4 + keysize;
+    void *key = ((uint8_t*)row->data)+4;
+    void *val = ((uint8_t*)row->data)+4 + keysize;
     for (which = 0; which < num_dbs; which++) {
         assert(dbs_in[which] == dbs[which]);
         keys[which].size = keysize;
