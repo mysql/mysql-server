@@ -684,14 +684,14 @@ cget_heavi (BOOL success, BOOL find, char txn, int _key, int _val,
 #if defined(USE_BDB)
     IGNORE(success);
     IGNORE(find);
-    IGNORE(txn);
-    IGNORE(_key);
-    IGNORE(_val);
-    IGNORE(_key_expect);
-    IGNORE(_val_expect);
-    IGNORE(direction);
+    IGNORE((size_t)txn);
+    IGNORE((size_t)_key);
+    IGNORE((size_t)_val);
+    IGNORE((size_t)_key_expect);
+    IGNORE((size_t)_val_expect);
+    IGNORE((size_t)direction);
     IGNORE(h);
-    IGNORE(r_h_expect);
+    IGNORE((size_t)r_h_expect);
     return;
 #else
     assert(txns[(int)txn] && cursors[(int)txn]);
