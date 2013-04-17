@@ -5,13 +5,13 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <assert.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
 #include <syscall.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <assert.h>
 #include "toku_portability.h"
 #include "toku_os.h"
 #include <malloc.h>
@@ -226,8 +226,26 @@ toku_fstat(int fd, toku_struct_stat *buf) {
     return r;
 }
 
-int
-toku_os_get_processor_frequency(uint64_t *hzret) {
+static int
+toku_get_processor_frequency_sys(uint64_t *hzret) {
+    int r;
+    FILE *fp = fopen("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq", "r");
+    if (!fp) 
+        r = errno;
+    else {
+        unsigned int khz = 0;
+        if (fscanf(fp, "%u", &khz) == 1) {
+            *hzret = khz * 1000ULL;
+            r = 0;
+        } else
+            r = ENOENT;
+        fclose(fp);
+    }
+    return r;
+}
+
+static int
+toku_get_processor_frequency_cpuinfo(uint64_t *hzret) {
     int r;
     FILE *fp = fopen("/proc/cpuinfo", "r");
     if (!fp) {
@@ -252,5 +270,14 @@ toku_os_get_processor_frequency(uint64_t *hzret) {
         *hzret = maxhz;
         r = maxhz == 0 ? ENOENT : 0;;
     }
+    return r;
+}
+
+int
+toku_os_get_processor_frequency(uint64_t *hzret) {
+    int r;
+    r = toku_get_processor_frequency_sys(hzret);
+    if (r != 0)
+        r = toku_get_processor_frequency_cpuinfo(hzret);
     return r;
 }
