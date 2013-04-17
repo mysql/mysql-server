@@ -6161,13 +6161,19 @@ compression_method_to_row_type(enum toku_compression_method method)
     }
 }
 
+static enum row_type
+get_row_type_for_key(DB *file)
+{
+    enum toku_compression_method method;
+    int r = file->get_compression_method(file, &method);
+    assert(r == 0);
+    return compression_method_to_row_type(method);
+}
+
 enum row_type
 ha_tokudb::get_row_type(void)
 {
-    enum toku_compression_method method;
-    int r = share->file->get_compression_method(share->file, &method);
-    assert(r == 0);
-    return compression_method_to_row_type(method);
+    return get_row_type_for_key(share->file);
 }
 
 static inline enum toku_compression_method
@@ -6197,7 +6203,7 @@ static int create_sub_table(
     DB_TXN* txn, 
     uint32_t block_size, 
     uint32_t read_block_size,
-    enum row_type row_type,
+    enum toku_compression_method compression_method,
     bool is_hot_index
     ) 
 {
@@ -6237,13 +6243,10 @@ static int create_sub_table(
         goto exit;
     } 
 
-    {
-        enum toku_compression_method method = row_type_to_compression_method(row_type);
-        error = file->set_compression_method(file, method);
-        if (error != 0) {
-            DBUG_PRINT("error", ("Got error: %d when setting compression type %u for table '%s'", error, method, table_name));
-            goto exit;
-        }
+    error = file->set_compression_method(file, compression_method);
+    if (error != 0) {
+        DBUG_PRINT("error", ("Got error: %d when setting compression type %u for table '%s'", error, compression_method, table_name));
+        goto exit;
     }
 
     error = file->change_descriptor(file, txn, row_descriptor, (is_hot_index ? DB_IS_HOT_INDEX : 0));
@@ -6413,7 +6416,8 @@ int ha_tokudb::create_secondary_dictionary(
     DB_TXN* txn, 
     KEY_AND_COL_INFO* kc_info, 
     u_int32_t keynr,
-    bool is_hot_index
+    bool is_hot_index,
+    enum row_type row_type
     ) 
 {
     int error;
@@ -6468,7 +6472,7 @@ int ha_tokudb::create_secondary_dictionary(
     }
     read_block_size = get_tokudb_read_block_size(thd);
 
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, form->s->row_type, is_hot_index);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), is_hot_index);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -6513,7 +6517,7 @@ u_int32_t create_main_key_descriptor(
 // create and close the main dictionarr with name of "name" using table form, all within
 // transaction txn.
 //
-int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info) {
+int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, enum row_type row_type) {
     int error;
     DBT row_descriptor;
     uchar* row_desc_buff = NULL;
@@ -6564,7 +6568,7 @@ int ha_tokudb::create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn
     read_block_size = get_tokudb_read_block_size(thd);
 
     /* Create the main table that will hold the real rows */
-    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, form->s->row_type, false);
+    error = create_sub_table(newname, &row_descriptor, txn, block_size, read_block_size, row_type_to_compression_method(row_type), false);
 cleanup:    
     my_free(newname, MYF(MY_ALLOW_ZERO_PTR));
     my_free(row_desc_buff, MYF(MY_ALLOW_ZERO_PTR));
@@ -6626,11 +6630,9 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         goto cleanup;
     }
 
-    if (create_info->used_fields & HA_CREATE_USED_ROW_FORMAT) {
-        form->s->row_type = create_info->row_type;
-    } else {
-        form->s->row_type = row_format_to_row_type(get_row_format(thd));
-    }
+    const enum row_type row_type = ((create_info->used_fields & HA_CREATE_USED_ROW_FORMAT)
+                                    ? create_info->row_type
+                                    : row_format_to_row_type(get_row_format(thd)));
 
     newname = (char *)my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
@@ -6691,7 +6693,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
         );
     if (error) { goto cleanup; }
 
-    error = create_main_dictionary(name, form, txn, &kc_info);
+    error = create_main_dictionary(name, form, txn, &kc_info, row_type);
     if (error) {
         goto cleanup;
     }
@@ -6699,7 +6701,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
 
     for (uint i = 0; i < form->s->keys; i++) {
         if (i != primary_key) {
-            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i, false);
+            error = create_secondary_dictionary(name, form, &form->key_info[i], txn, &kc_info, i, false, row_type);
             if (error) {
                 goto cleanup;
             }
@@ -7340,6 +7342,11 @@ int ha_tokudb::tokudb_add_index(
     uint curr_num_DBs = table_arg->s->keys + test(hidden_primary_key);
 
     //
+    // get the row type to use for the indexes we're adding
+    //
+    const enum row_type row_type = get_row_type_for_key(table_arg->s->file);
+
+    //
     // status message to be shown in "show process list"
     //
     char status_msg[MAX_ALIAS_NAME + 200]; //buffer of 200 should be a good upper bound.
@@ -7409,7 +7416,7 @@ int ha_tokudb::tokudb_add_index(
         }
 
 
-        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index, creating_hot_index);
+        error = create_secondary_dictionary(share->table_name, table_arg, &key_info[i], txn, &share->kc_info, curr_index, creating_hot_index, row_type);
         if (error) { goto cleanup; }
 
         error = open_secondary_dictionary(
@@ -8044,7 +8051,7 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
     int error;
     bool is_pk = (keynr == primary_key);
 
-    enum row_type type = get_row_type();
+    const enum row_type row_type = get_row_type_for_key(share->key_file[keynr]);
     error = share->key_file[keynr]->close(share->key_file[keynr], 0);
     assert(error == 0);
 
@@ -8074,10 +8081,8 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
         if (error) { goto cleanup; }
     }
 
-    table->s->row_type = type; // ensure newly created dictionary has the original compression type
-
     if (is_pk) {
-        error = create_main_dictionary(share->table_name, table, txn, &share->kc_info);
+        error = create_main_dictionary(share->table_name, table, txn, &share->kc_info, row_type);
     }
     else {
         error = create_secondary_dictionary(
@@ -8087,7 +8092,8 @@ int ha_tokudb::truncate_dictionary( uint keynr, DB_TXN* txn ) {
             txn,
             &share->kc_info,
             keynr,
-            false
+            false,
+            row_type
             );
     }
     if (error) { goto cleanup; }
