@@ -164,7 +164,7 @@ toku_ydb_lock(void) {
                 t = MAX_SLEEP;
 		(void) toku_sync_fetch_and_increment_uint64(&status.times_max_sleep_used);
 	    }
-#if !TOKU_WINDOWS || TOKU_WINDOWS_HAS_FAST_ATOMIC_64 
+#if !TOKU_WINDOWS || TOKU_WINDOWS_HAS_ATOMIC_64 
 	    (void) toku_sync_fetch_and_add_uint64(&status.total_sleep_time, t);
 #endif
 	    (void) toku_sync_fetch_and_increment_uint64(&status.total_sleepers);

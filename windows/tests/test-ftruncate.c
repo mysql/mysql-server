@@ -8,7 +8,7 @@
 #include <string.h>
 #include <sys/stat.h>
 
-#if 0 && defined _WIN32
+#if 0 && TOKU_WINDOWS
 #include <windows.h>
 static int ftruncate(int fd, uint64_t offset) {
     HANDLE h = (HANDLE) _get_osfhandle(fd);
@@ -38,8 +38,7 @@ int test_main(int argc, char *argv[]) {
     for (i=0; i<32; i++) {
         char junk[4096];
         memset(junk, 0, sizeof junk);
-        r = write(fd, junk, sizeof junk);
-        assert(r == sizeof junk);
+        toku_os_full_write(fd, junk, sizeof junk);
     }
     
     toku_struct_stat filestat;

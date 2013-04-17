@@ -4,9 +4,11 @@ int test_main(int argc, char *argv[]);
 
 int
 main(int argc, char *argv[]) {
-    toku_portability_init();
+    int ri = toku_portability_init();
+    assert(ri==0);
     int r = test_main(argc, argv);
-    toku_portability_destroy();
+    int rd = toku_portability_destroy();
+    assert(rd==0);
     return r;
 }
 

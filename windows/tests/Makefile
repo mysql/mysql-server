@@ -24,9 +24,9 @@ check: $(BINS) $(RUNTARGETS);
 %.tdbrun: %$(BINSUF) $(PTHREAD_LOCAL)
 	mkdir -p dir.$*
 ifeq ($(VGRIND),)
-	cd dir.$* && ../$< $(SUMMARIZE_CMD)
+	cd dir.$* && ../$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
 else
-	cd dir.$* && .$(VGRIND) --log-file=$<.valgrind ../$<; \
+	cd dir.$* && .$(VGRIND) --log-file=$<.valgrind ../$< $(VERBVERBOSE); \
 	if [ $$? = 0 ] ; then \
 		grep "LEAK SUMMARY" dir.$*/$<.valgrind >/dev/null 2>&1; \
 		if [ $$? = 0 ] ; then cat dir.$*/$<.valgrind; test 0 = 1; fi \

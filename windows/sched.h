@@ -60,7 +60,7 @@
 
 #define PTW32_LEVEL_MAX 3
 
-#if !defined(PTW32_LEVEL)
+#if ( defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112 )  || !defined(PTW32_LEVEL)
 #define PTW32_LEVEL PTW32_LEVEL_MAX
 /* Include everything */
 #endif
@@ -114,12 +114,14 @@
 #endif /* PTW32_LEVEL >= PTW32_LEVEL_MAX */
 
 #if defined(__MINGW32__) || defined(_UWIN)
-#if PTW32_LEVEL >= PTW32_LEVEL_MAX
+# if PTW32_LEVEL >= PTW32_LEVEL_MAX
 /* For pid_t */
 #  include <sys/types.h>
 /* Required by Unix 98 */
 #  include <time.h>
-#endif /* PTW32_LEVEL >= PTW32_LEVEL_MAX */
+# else
+  typedef int pid_t;
+# endif
 #else
 typedef int pid_t;
 #endif

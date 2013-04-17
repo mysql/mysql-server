@@ -381,7 +381,7 @@ static int add222_fetch (CACHEFILE cf, CACHEKEY key, u_int32_t fullhash, void **
     return 0;
 }
 
-#if !defined(_WIN32)
+#if !TOKU_WINDOWS
 
 static void test_multi_filehandles (void) {
     CACHETABLE t;
@@ -721,7 +721,7 @@ test_main (int argc, const char *argv[]) {
     test_mutex_init();
 
     // run tests
-#if !defined(_WIN32)
+#if !TOKU_WINDOWS
     test_multi_filehandles();
 #endif
     test_cachetable_create();
@@ -732,7 +732,7 @@ test_main (int argc, const char *argv[]) {
     for (i=0; i<1; i++) {
         test0();
         test_nested_pin();
-#if !defined(_WIN32)
+#if !TOKU_WINDOWS
         test_multi_filehandles ();
 #endif
         test_dirty();

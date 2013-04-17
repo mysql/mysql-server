@@ -188,7 +188,7 @@ random_acts(void * d) {
     }
 
 
-#if IS_TDB && !defined(_WIN32) && !defined(_WIN64)
+#if IS_TDB && !TOKU_WINDOWS
     return intothevoid;
 #endif
 }
