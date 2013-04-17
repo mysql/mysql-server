@@ -28,7 +28,7 @@ int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER log
 int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger, TXNID xid) {
     if (logger->is_panicked) return EINVAL;
     assert(logger->rollback_cachefile);
-    TAGMALLOC(TOKUTXN, result);
+    TOKUTXN MALLOC(result);
     if (result==0) 
         return errno;
     int r;

@@ -47,7 +47,6 @@ int toku_commit_fileentries (int fd, TOKUTXN txn, YIELDF yield,void *yieldv, LSN
 int find_xid (OMTVALUE v, void *txnv);
 
 struct rollback_log_node {
-    enum typ_tag       tag;
     int                layout_version;
     int                layout_version_original;
     int                layout_version_read_from_disk;

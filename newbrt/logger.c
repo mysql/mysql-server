@@ -52,7 +52,7 @@ static BOOL is_a_logfile (const char *name, long long *number_result) {
 
 int toku_logger_create (TOKULOGGER *resultp) {
     int r;
-    TAGMALLOC(TOKULOGGER, result);
+    TOKULOGGER MALLOC(result);
     if (result==0) return errno;
     result->is_open=FALSE;
     result->is_panicked=FALSE;
@@ -1132,7 +1132,6 @@ int toku_txnid2txn (TOKULOGGER logger, TXNID txnid, TOKUTXN *result) {
     int r = toku_omt_find_zero(logger->live_txns, find_by_xid, &txnid, &txnfound, NULL, NULL);
     if (r==0) {
         TOKUTXN txn = txnfound;
-        assert(txn->tag==TYP_TOKUTXN);
         assert(txn->txnid64==txnid);
         *result = txn;
         rval = 0;

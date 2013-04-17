@@ -63,7 +63,6 @@ struct logbuf {
 };
 
 struct tokulogger {
-    enum typ_tag tag; // must be first
     struct mylock  input_lock;
 
     toku_pthread_mutex_t output_condition_lock; // if you need both this lock and input_lock, acquire the output_lock first, then input_lock. More typical is to get the output_is_available condition to be false, and then acquire the input_lock.
@@ -117,7 +116,6 @@ struct brtcachefile_pair {
 };
 
 struct tokutxn {
-    enum typ_tag tag;
     u_int64_t txnid64; /* this happens to be the first lsn */
     TOKULOGGER logger;
     TOKUTXN    parent;

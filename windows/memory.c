@@ -36,16 +36,6 @@ toku_calloc(size_t nmemb, size_t size)
 }
 
 void *
-toku_tagmalloc(size_t size, enum typ_tag typtag)
-{
-    void *r = toku_malloc(size);
-    if (!r) return 0;
-    assert(size>sizeof(int));
-    ((int*)r)[0] = typtag;
-    return r;
-}
-
-void *
 toku_realloc(void *p, size_t size)
 {
     void *q;

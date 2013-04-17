@@ -637,7 +637,6 @@ static void
 initialize_empty_brtnode (BRT t, BRTNODE n, BLOCKNUM nodename, int height, size_t suggest_mpsize)
 // Effect: Fill in N as an empty brtnode.
 {
-    n->tag = TYP_BRTNODE;
     n->nodesize = t->h->nodesize;
     n->flags = t->flags;
     n->thisnodename = nodename;
@@ -690,7 +689,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 //  Leave the new root pinned.
 //  Stores the sum of the fingerprints of the children into the new node.  (LAZY:  Later we'll only store the fingerprints when evicting.)
 {
-    TAGMALLOC(BRTNODE, newroot);
+    BRTNODE MALLOC(newroot);
     int r;
     int new_height = nodea->height+1;
     BLOCKNUM newroot_diskoff;
@@ -737,7 +736,7 @@ brt_init_new_root(BRT brt, BRTNODE nodea, BRTNODE nodeb, DBT splitk, CACHEKEY *r
 
 // logs the memory allocation, but not the creation of the new node
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize) {
-    TAGMALLOC(BRTNODE, n);
+    BRTNODE MALLOC(n);
     int r;
     BLOCKNUM name;
     toku_allocate_blocknum(t->h->blocktable, &name, t->h);
@@ -2719,7 +2718,7 @@ int toku_open_brt (const char *fname, int is_create, BRT *newbrt, int nodesize, 
 
 static int setup_initial_brt_root_node (BRT t, BLOCKNUM blocknum) {
     int r;
-    TAGMALLOC(BRTNODE, node);
+    BRTNODE MALLOC(node);
     assert(node);
     node->ever_been_written = 0;
     //printf("%s:%d\n", __FILE__, __LINE__);
