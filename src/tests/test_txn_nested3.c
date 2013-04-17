@@ -236,7 +236,7 @@ test_main(int argc, char *argv[]) {
     initialize_values();
     int i;
     setup_db();
-    for (i = 0; i < 100; i++) {
+    for (i = 0; i < 64; i++) {
         test_txn_nested_jumble(i);
     }
     close_db();
