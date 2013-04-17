@@ -416,6 +416,10 @@ build_index(DB_INDEXER *indexer) {
     for (uint64_t loop_count = 0; !done; loop_count++) {
 
         toku_indexer_lock(indexer);
+        // grab the multi operation lock because we will be injecting messages
+        // grab it here because we must hold it before
+        // trying to pin any live transactions, as discovered by #5775
+        toku_multi_operation_client_lock();
 
         // grab the next leaf entry and get its provisional info. we'll
         // need the provisional info for the undo-do algorithm, and we get
@@ -457,6 +461,7 @@ build_index(DB_INDEXER *indexer) {
             toku_ule_free(prov_info.ule);
         }
 
+        toku_multi_operation_client_unlock();
         toku_indexer_unlock(indexer);
         ule_prov_info_destroy(&prov_info);
         
