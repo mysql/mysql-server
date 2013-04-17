@@ -96,6 +96,7 @@ le10_provpair (TXNID xid, u_int32_t klen, void* kval, u_int32_t plen, void* pval
     return 0;
 }
 
+#if 0 //Needed for upgrade (probably)
 //TODO: #1125 FUNCTION NEEDED for upgrading?
 static u_int32_t memsize_le10_committed (u_int32_t keylen, void *key __attribute__((__unused__)),
 				       u_int32_t vallen, void *val __attribute__((__unused__))) {
@@ -175,6 +176,7 @@ u_int32_t le10_disksize (LEAFENTRY le) {
 #endif
     return d;
 }
+#endif
 
 void wbuf_LEAFENTRY(struct wbuf *w, LEAFENTRY le) {
     wbuf_literal_bytes(w, le, leafentry_disksize(le));

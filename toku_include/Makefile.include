@@ -221,6 +221,9 @@ ifeq ($(CC),icc)
 	#Linux
         ICC_NOWARN=-diag-disable #Need the space
     endif
+    SKIP_WARNING += $(ICC_NOWARN)810     # Remove warnings about losing precision
+    SKIP_WARNING += $(ICC_NOWARN)94      # Allow arrays of length 0
+    SKIP_WARNING += $(ICC_NOWARN)118     # Allow void functions to return void functions
     SKIP_WARNING += $(ICC_NOWARN)177     # Don't complain about static variables that are not used.
     #SKIP_WARNING += $(ICC_NOWARN)188     # Don't complain about enumerated type mixed with another type.
     SKIP_WARNING += $(ICC_NOWARN)589     # Don't complain about goto into a block that skips initializing variables.  GCC catches the actual uninitialized variables.

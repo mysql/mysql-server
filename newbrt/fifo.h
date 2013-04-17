@@ -44,7 +44,7 @@ void toku_fifo_iterate (FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,I
       int     typevar = e->type;                                                      \
       XIDS    xidsvar = &e->xids_s;                                                   \
       bytevec keyvar  = xids_get_end_of_array(xidsvar);                               \
-      bytevec datavar = keyvar + e->keylen;                                           \
+      bytevec datavar = (const u_int8_t*)keyvar + e->keylen;                          \
       body;                                                                           \
   } } while (0)
 

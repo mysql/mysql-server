@@ -173,7 +173,7 @@ xids_get_size(XIDS xids){
     u_int8_t num_stored_xids = xids->num_stored_xids;
     rval = sizeof(*xids) + num_stored_xids * sizeof(xids->ids[0]);
     return rval;
-};
+}
 
 u_int32_t 
 xids_get_serialize_size(XIDS xids){
@@ -182,7 +182,7 @@ xids_get_serialize_size(XIDS xids){
     rval = 1 + //num stored xids
            8 * num_stored_xids;
     return rval;
-};
+}
 
 void
 toku_calc_more_murmur_xids (struct x1764 *mm, XIDS xids) {

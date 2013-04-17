@@ -74,7 +74,7 @@ void *
 fifo_msg_get_key(FIFO_MSG fifo_msg) {
     void * rval;
     u_int32_t xidslen = fifo_msg_get_xids_size(fifo_msg);
-    rval = (void*)fifo_msg->xids_and_key_and_val + xidslen;
+    rval = (u_int8_t*)fifo_msg->xids_and_key_and_val + xidslen;
     return rval;
 }
 
@@ -83,7 +83,7 @@ fifo_msg_get_val(FIFO_MSG fifo_msg) {
     void * rval;
     void * key = fifo_msg_get_key(fifo_msg);
     u_int32_t keylen  = fifo_msg_get_keylen(fifo_msg);
-    rval = key + keylen;
+    rval = (u_int8_t*)key + keylen;
     return rval;
 }
 
@@ -116,27 +116,5 @@ fifo_msg_get_size_required(BRT_MSG brt_msg) {
     u_int32_t xidslen = xids_get_size(xids);
     rval = keylen + vallen + xidslen + sizeof(struct fifo_msg_t);
     return rval;
-}
-
-void
-fifo_msg_from_brt_msg(FIFO_MSG fifo_msg, BRT_MSG brt_msg) {
-    u_int32_t keylen_host = brt_msg_get_keylen(brt_msg);
-    u_int32_t vallen_host = brt_msg_get_vallen(brt_msg);
-    fifo_msg->type   = brt_msg_get_type(brt_msg);
-    fifo_msg->keylen = toku_htod32(keylen_host);
-    fifo_msg->vallen = toku_htod32(vallen_host);
-    //Copy XIDS
-    XIDS xids         = brt_msg_get_xids(brt_msg);
-    XIDS xids_target  = fifo_msg_get_xids(fifo_msg);
-    u_int32_t xidslen = xids_get_size(xids);
-    memcpy(xids_target, xids, xidslen);
-    //Copy Key
-    void *key         = brt_msg_get_key(brt_msg);
-    void *key_target  = fifo_msg_get_key(fifo_msg);
-    memcpy(key_target, key, keylen_host);
-    //Copy Val
-    void *val         = brt_msg_get_val(brt_msg);
-    void *val_target  = fifo_msg_get_val(fifo_msg);
-    memcpy(val_target, val, vallen_host);
 }
 
