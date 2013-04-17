@@ -1313,6 +1313,12 @@ static void cachetable_fetch_pair(
 static void cachetable_complete_write_pair (CACHETABLE ct, PAIR p, BOOL do_remove, BOOL* destroyed);
 
 
+//
+// This function writes a PAIR's value out to disk. Currently, it is called
+// by get_and_pin functions that write a PAIR out for checkpoint, by 
+// evictor threads that evict dirty PAIRS, and by the checkpoint thread
+// that needs to write out a dirty node for checkpoint.
+//
 static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
     rwlock_read_lock(&ct->pending_lock, ct->mutex);
     
@@ -1337,12 +1343,12 @@ static void cachetable_write_locked_pair(CACHETABLE ct, PAIR p) {
     flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, old_attr, &new_attr, dowrite, TRUE, for_checkpoint);
     
     cachetable_lock(ct);
+    rwlock_read_unlock(&cachefile->fdlock);
     //
     // now let's update variables
     //
     p->attr = new_attr;
     cachetable_change_pair_attr(ct, old_attr, new_attr);
-    rwlock_read_unlock(&cachefile->fdlock);
     
     // the pair is no longer dirty once written
     p->dirty = CACHETABLE_CLEAN;
@@ -2129,7 +2135,9 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
     note_hash_count(count);
     int r;
     // Note.  hashit(t,key) may have changed as a result of flushing.  But fullhash won't have changed.
+    // The pair was not found, we must retrieve it from disk 
     {
+        // insert a PAIR into the cachetable
 	p = cachetable_insert_at(
             ct, 
             cachefile, 
@@ -2149,6 +2157,9 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
         nb_mutex_write_lock(&p->nb_mutex, ct->mutex);
 	uint64_t t0 = get_tnow();
 
+        // Retrieve the value of the PAIR from disk.
+        // The pair being fetched will be marked as pending if a checkpoint happens during the
+        // fetch because begin_checkpoint will mark as pending any pair that is locked even if it is clean.        
         cachetable_fetch_pair(ct, cachefile, p, fetch_callback, read_extraargs, TRUE);
         cachetable_miss++;
         cachetable_misstime += get_tnow() - t0;
@@ -2159,9 +2170,12 @@ got_value:
     if (sizep) *sizep = p->attr.size;
 
     //
+    // A checkpoint cannot begin while we are checking dependent pairs or pending bits. 
+    // Here is why.
+    //
     // Now that we have all of the locks on the pairs we 
     // care about, we can take care of the necessary checkpointing.
-    // For each pair, we simply need to do is write the pair if it is 
+    // For each pair, we simply need to write the pair if it is 
     // pending a checkpoint. If no pair is pending a checkpoint,
     // then all of this work will be done with the cachetable lock held,
     // so we don't need to worry about a checkpoint beginning 
