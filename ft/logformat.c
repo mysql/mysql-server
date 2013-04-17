@@ -411,12 +411,16 @@ generate_log_writer (void) {
                         fprintf(cf, "  if (logger==0) return 0;\n");
                         switch (lt->log_begin_action) {
                         case SHOULD_LOG_BEGIN: {
+                            fprintf(cf, "  //txn can be NULL during tests\n");
+                            fprintf(cf, "  //txn can be also be NULL for suppress_rollback during checkpoint,\n");
+                            fprintf(cf, "  //never null when not checkpoint.\n");
                             fprintf(cf, "  if (txn && !txn->begin_was_logged) {\n");
                             fprintf(cf, "    toku_maybe_log_begin_txn_for_write_operation(txn);\n");
                             fprintf(cf, "  }\n");
                             break;
                         }
                         case ASSERT_BEGIN_WAS_LOGGED: {
+                            fprintf(cf, "  //txn can be NULL during tests\n");
                             fprintf(cf, "  invariant(!txn || txn->begin_was_logged);\n");
                             break;
                         }
