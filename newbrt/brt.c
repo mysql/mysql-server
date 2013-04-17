@@ -3314,7 +3314,7 @@ brt_open(BRT t, const char *fname_in_env, int is_create, int only_create, CACHET
                 if (r != 0) goto died1;
             }
             txn_created = (BOOL)(txn!=NULL);
-            r = toku_logger_log_fcreate2(txn, fname_in_env, reserved_filenum, mode, t->flags, &(t->temp_descriptor), t->nodesize);
+            r = toku_logger_log_fcreate(txn, fname_in_env, reserved_filenum, mode, t->flags, &(t->temp_descriptor), t->nodesize);
             if (r!=0) goto died1;
             r = brt_create_file(t, fname_in_cwd, &fd);
         }
