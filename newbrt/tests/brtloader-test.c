@@ -64,11 +64,11 @@ static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
     struct row *MALLOC_N(na+nb, cr);
     DB *dest_db = NULL;
     struct brtloader_s bl;
-    brt_loader_init_error_callback(&bl);
-    brt_loader_set_error_function(&bl, dups ? expect_dups_cb : err_cb, NULL);
+    brt_loader_init_error_callback(&bl.error_callback);
+    brt_loader_set_error_function(&bl.error_callback, dups ? expect_dups_cb : err_cb, NULL);
     struct rowset rs = {.data=(char*)ab};
     merge_row_arrays_base(cr, ar, na, br, nb, 0, dest_db, compare_ints, &bl, &rs);
-    brt_loader_call_error_function(&bl);
+    brt_loader_call_error_function(&bl.error_callback);
     if (dups) {
 	assert(founddup);
     } else {
@@ -95,7 +95,7 @@ static void test_merge_internal (int a[], int na, int b[], int nb, BOOL dups) {
     toku_free(ar);
     toku_free(br);
     toku_free(ab);
-    brt_loader_destroy_error_callback(&bl);
+    brt_loader_destroy_error_callback(&bl.error_callback);
 }
 
 /* Test the basic merger. */
@@ -295,7 +295,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     fill_rowset(&bset, b_keys, b_vals, 4);
     toku_brt_loader_set_n_rows(&bl, 6+3);
 
-    brt_loader_set_error_function(&bl, err_cb, NULL);
+    brt_loader_set_error_function(&bl.error_callback, err_cb, NULL);
     r = brt_loader_sort_and_write_rows(&aset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     r = brt_loader_sort_and_write_rows(&bset, &fs, &bl, 0, dest_db, compare_ints, 0);  CKERR(r);
     assert(fs.n_temp_files==2 && fs.n_temp_files_limit >= fs.n_temp_files);

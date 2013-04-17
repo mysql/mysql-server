@@ -55,8 +55,8 @@ static int pqueue_compare(pqueue_t *q, DBT *next_key, DBT *next_val, DBT *curr_k
     int r = q->compare(q->db, next_key, curr_key);
     if ( r == 0 ) { // duplicate key : next_key == curr_key
         q->dup_error = 1; 
-        if (q->error_callback->set_error_and_callback)
-            q->error_callback->set_error_and_callback(q->error_callback->bl, DB_KEYEXIST, q->db, q->which_db, next_key, next_val);
+        if (q->error_callback)
+            brt_loader_set_error_and_callback(q->error_callback, DB_KEYEXIST, q->db, q->which_db, next_key, next_val);
     }
     return ( r > -1 );
 }
