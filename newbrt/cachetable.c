@@ -1851,20 +1851,20 @@ int toku_cachetable_get_and_pin_nonblocking (
                 {
                     rwlock_read_lock(&p->rwlock, ct->mutex);
                     BOOL partial_fetch_required = pf_req_callback(p->value,read_extraargs);
-                    rwlock_read_unlock(&p->rwlock);
                     //
                     // in this case, a partial fetch is required so we must grab the PAIR's write lock
                     // and then call a callback to retrieve what we need
                     //
                     if (partial_fetch_required) {
+                        rwlock_read_unlock(&p->rwlock);
                         rwlock_write_lock(&p->rwlock, ct->mutex);
                         run_unlockers(unlockers); // The contract says the unlockers are run with the ct lock being held.
                         if (ct->ydb_unlock_callback) ct->ydb_unlock_callback();
                         // Now wait for the I/O to occur.
                         rwlock_prefer_read_lock(&cf->fdlock, ct->mutex);
-                        cachetable_unlock(ct);
                         long old_size = p->size;
                         long size = 0;
+                        cachetable_unlock(ct);
                         int r = pf_callback(p->value, read_extraargs, cf->fd, &size);
                         lazy_assert_zero(r);
                         cachetable_lock(ct);
@@ -1877,7 +1877,6 @@ int toku_cachetable_get_and_pin_nonblocking (
                         if (ct->ydb_lock_callback) ct->ydb_lock_callback();
                         return TOKUDB_TRY_AGAIN;
                     }
-                    rwlock_read_lock(&p->rwlock, ct->mutex);
                     pair_touch(p);
                     *value = p->value;
                     if (sizep) *sizep = p->size;
