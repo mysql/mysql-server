@@ -240,7 +240,7 @@ int toku_maybe_spill_rollbacks (TOKUTXN txn) {
 	assert((ssize_t)w.ndone==bufsize);
 	txn->oldest_logentry = txn->newest_logentry = 0;
 	if (txn->rollentry_fd<0) {
-	    const char filenamepart[] = "/__rolltmp.";
+	    const char filenamepart[] = "/__tokudb_rolltmp.";
 	    int fnamelen = strlen(txn->logger->directory)+sizeof(filenamepart)+16;
 	    assert(txn->rollentry_filename==0);
 	    txn->rollentry_filename = toku_malloc(fnamelen);
