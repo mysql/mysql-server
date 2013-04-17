@@ -42,10 +42,10 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //   - one thread doing random point queries
     //
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 5 + cli_args->num_ptquery_threads;
+    const int num_threads = 4 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env);
+        arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
     // make the forward fast scanner
@@ -69,18 +69,22 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[3].operation = scan_op_no_check;
 
     // make the guy that updates the db
-    myargs[4].update_history_buffer = toku_xmalloc(n * (sizeof myargs[4].update_history_buffer[0]));
-    memset(myargs[4].update_history_buffer, 0, n * (sizeof myargs[4].update_history_buffer[0]));
-    myargs[4].operation = update_with_history_op;
+    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+        myargs[i].update_history_buffer = toku_xmalloc(n * (sizeof myargs[i].update_history_buffer[0]));
+        memset(myargs[i].update_history_buffer, 0, n * (sizeof myargs[i].update_history_buffer[0]));
+        myargs[i].operation = update_with_history_op;
+    }
 
     // make the guys that do point queries
-    for (int i = 5; i < num_threads; i++) {
+    for (int i = 4 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
 
     run_workers(myargs, num_threads, cli_args->time_of_test, false);
 
-    toku_free(myargs[4].update_history_buffer);
+    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+        toku_free(myargs[i].update_history_buffer);
+    }
 }
 
 int

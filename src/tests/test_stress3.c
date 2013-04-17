@@ -42,10 +42,10 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //   - one thread doing random point queries
     //
     if (verbose) printf("starting creation of pthreads\n");
-    const int num_threads = 6 + cli_args->num_ptquery_threads;
+    const int num_threads = 5 + cli_args->num_update_threads + cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
-        arg_init(&myargs[i], n, dbp, env);
+        arg_init(&myargs[i], n, dbp, env, cli_args);
     }
 
     // make the forward fast scanner
@@ -69,16 +69,18 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[3].operation = scan_op;
 
     // make the guy that updates the db
-    myargs[4].lock_type = STRESS_LOCK_SHARED;
-    myargs[4].operation = update_op;
+    for (int i = 4; i < 4 + cli_args->num_update_threads; ++i) {
+        myargs[i].lock_type = STRESS_LOCK_SHARED;
+        myargs[i].operation = update_op;
+    }
 
     // make the guy that sends update broadcasts
-    myargs[5].lock_type = STRESS_LOCK_EXCL;
-    myargs[5].sleep_ms = cli_args->update_broadcast_period_ms;
-    myargs[5].operation = update_broadcast_op;
+    myargs[4 + cli_args->num_update_threads].lock_type = STRESS_LOCK_EXCL;
+    myargs[4 + cli_args->num_update_threads].sleep_ms = cli_args->update_broadcast_period_ms;
+    myargs[4 + cli_args->num_update_threads].operation = update_broadcast_op;
 
     // make the guys that do point queries
-    for (int i = 6; i < num_threads; i++) {
+    for (int i = 5 + cli_args->num_update_threads; i < num_threads; i++) {
         myargs[i].operation = ptquery_op;
     }
 

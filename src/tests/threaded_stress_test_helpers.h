@@ -49,11 +49,35 @@ struct arg {
     toku_pthread_mutex_t *broadcast_lock_mutex;
     struct rwlock *broadcast_lock;
     int update_pad_frequency;
+    bool crash_on_update_failure;
+    u_int32_t update_txn_size;
+};
+
+struct cli_args {
+    int num_elements;
+    int time_of_test;
+    int node_size;
+    int basement_node_size;
+    u_int64_t cachetable_size;
+    bool only_create;
+    bool only_stress;
+    int checkpointing_period;
+    int cleaner_period;
+    int cleaner_iterations;
+    int update_broadcast_period_ms;
+    int num_ptquery_threads;
+    test_update_callback_f update_function;
+    bool do_test_and_crash;
+    bool do_recover;
+    char *envdir;
+    int num_update_threads;
+    bool crash_on_update_failure;
+    u_int32_t update_txn_size;
 };
 
 DB_TXN * const null_txn = 0;
 
-static void arg_init(struct arg *arg, int n, DB **dbp, DB_ENV *env) {
+static void arg_init(struct arg *arg, int n, DB **dbp, DB_ENV *env, struct cli_args *cli_args) {
     arg->n = n;
     arg->dbp = dbp;
     arg->env = env;
@@ -66,6 +90,8 @@ static void arg_init(struct arg *arg, int n, DB **dbp, DB_ENV *env) {
     arg->txn_type = DB_TXN_SNAPSHOT;
     arg->update_history_buffer = NULL;
     arg->update_pad_frequency = n/100; // bit arbitrary. Just want dictionary to grow and shrink so splits and merges occur
+    arg->crash_on_update_failure = cli_args->crash_on_update_failure;
+    arg->update_txn_size = cli_args->update_txn_size;
 }
 
 static void *worker(void *arg_v) {
@@ -89,8 +115,16 @@ static void *worker(void *arg_v) {
         }
 
         int r = env->txn_begin(env, 0, &txn, arg->txn_type); CKERR(r);
-        r = arg->operation(env, dbp, txn, arg); CKERR(r);
-        CHK(txn->commit(txn,0));
+        r = arg->operation(env, dbp, txn, arg);
+        if (r == 0) {
+            CHK(txn->commit(txn,0));
+        } else {
+            if (arg->crash_on_update_failure) {
+                CKERR(r);
+            } else {
+                CHK(txn->abort(txn));
+            }
+        }
 
         toku_pthread_mutex_lock(arg->broadcast_lock_mutex);
         if (arg->lock_type == STRESS_LOCK_SHARED) {
@@ -337,7 +371,7 @@ static int UU()update_op2(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
     memset(&extra, 0, sizeof(extra));
     extra.type = UPDATE_ADD_DIFF;
     extra.pad_bytes = 0;
-    for (u_int32_t i = 0; i < 500; i++) {
+    for (u_int32_t i = 0; i < arg->update_txn_size; i++) {
         rand_key = random();
         if (arg->bounded_update_range) {
             rand_key = rand_key % (arg->n/2);
@@ -353,6 +387,9 @@ static int UU()update_op2(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
             dbt_init(&val, &extra, sizeof extra),
             0
             );
+        if (r != 0 && !arg->crash_on_update_failure) {
+            return r;
+        }
         CKERR(r);
         extra.u.d.diff = -1;
         r = db->update(
@@ -362,6 +399,9 @@ static int UU()update_op2(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
             dbt_init(&val, &extra, sizeof extra),
             0
             );
+        if (r != 0 && !arg->crash_on_update_failure) {
+            return r;
+        }
         CKERR(r);
     }
     return r;
@@ -382,9 +422,8 @@ static int UU()update_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
         if (update_count % (2*arg->update_pad_frequency) == update_count%arg->update_pad_frequency) {
             extra.pad_bytes = 100;
         }
-        
     }
-    for (u_int32_t i = 0; i < 1000; i++) {
+    for (u_int32_t i = 0; i < arg->update_txn_size; i++) {
         rand_key = random();
         if (arg->bounded_update_range) {
             rand_key = rand_key % arg->n;
@@ -402,6 +441,9 @@ static int UU()update_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
             dbt_init(&val, &extra, sizeof extra),
             0
             );
+        if (r != 0 && !arg->crash_on_update_failure) {
+            return r;
+        }
         CKERR(r);
     }
     //
@@ -419,6 +461,9 @@ static int UU()update_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, ARG arg) {
         dbt_init(&val, &extra, sizeof extra),
         0
         );
+    if (r != 0 && !arg->crash_on_update_failure) {
+        return r;
+    }
     CKERR(r);
 
     return r;
@@ -443,7 +488,7 @@ static int UU() update_with_history_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, A
         }
         
     }
-    for (u_int32_t i = 0; i < 1000; i++) {
+    for (u_int32_t i = 0; i < arg->update_txn_size; i++) {
         rand_key = random() % arg->n;
         extra.u.h.new = random() % MAX_RANDOM_VAL;
         // just make every other value random
@@ -460,6 +505,9 @@ static int UU() update_with_history_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, A
             dbt_init(&val, &extra, sizeof extra),
             0
             );
+        if (r != 0 && !arg->crash_on_update_failure) {
+            return r;
+        }
         CKERR(r);
     }
     //
@@ -479,6 +527,9 @@ static int UU() update_with_history_op(DB_ENV *UU(env), DB **dbp, DB_TXN *txn, A
         dbt_init(&val, &extra, sizeof extra),
         0
         );
+    if (r != 0 && !arg->crash_on_update_failure) {
+        return r;
+    }
     CKERR(r);
 
     return r;
@@ -727,25 +778,6 @@ static int close_table(DB_ENV *env, DB *db) {
     return r;
 }
 
-struct cli_args {
-    int num_elements;
-    int time_of_test;
-    int node_size;
-    int basement_node_size;
-    u_int64_t cachetable_size;
-    bool only_create;
-    bool only_stress;
-    int checkpointing_period;
-    int cleaner_period;
-    int cleaner_iterations;
-    int update_broadcast_period_ms;
-    int num_ptquery_threads;
-    test_update_callback_f update_function;
-    bool do_test_and_crash;
-    bool do_recover;
-    char *envdir;
-};
-
 static const struct cli_args DEFAULT_ARGS = {
     .num_elements = 150000,
     .time_of_test = 180,
@@ -763,6 +795,9 @@ static const struct cli_args DEFAULT_ARGS = {
     .do_test_and_crash = false,
     .do_recover = false,
     .envdir = ENVDIR,
+    .num_update_threads = 1,
+    .crash_on_update_failure = true,
+    .update_txn_size = 1000,
 };
 
 static inline void parse_stress_test_args (int argc, char *const argv[], struct cli_args *args) {
@@ -779,16 +814,19 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         do_usage:
             fprintf(stderr, "Usage:\n%s [-h|-v|-q] [OPTIONS] [--only_create|--only_stress]\n", argv0);
             fprintf(stderr, "OPTIONS are among:\n");
-            fprintf(stderr, "\t--num_elements             INT (default %d)\n", DEFAULT_ARGS.num_elements);
-            fprintf(stderr, "\t--num_seconds              INT (default %ds)\n", DEFAULT_ARGS.time_of_test);
-            fprintf(stderr, "\t--node_size                INT (default %d bytes)\n", DEFAULT_ARGS.node_size);
-            fprintf(stderr, "\t--basement_node_size       INT (default %d bytes)\n", DEFAULT_ARGS.basement_node_size);
-            fprintf(stderr, "\t--cachetable_size          INT (default %ld bytes)\n", DEFAULT_ARGS.cachetable_size);
-            fprintf(stderr, "\t--checkpointing_period     INT (default %ds)\n",      DEFAULT_ARGS.checkpointing_period);
-            fprintf(stderr, "\t--cleaner_period           INT (default %ds)\n",      DEFAULT_ARGS.cleaner_period);
-            fprintf(stderr, "\t--cleaner_iterations       INT (default %ds)\n",      DEFAULT_ARGS.cleaner_iterations);
-            fprintf(stderr, "\t--update_broadcast_period  INT (default %dms)\n",     DEFAULT_ARGS.update_broadcast_period_ms);
-            fprintf(stderr, "\t--num_ptquery_threads      INT (default %d threads)\n", DEFAULT_ARGS.num_ptquery_threads);
+            fprintf(stderr, "\t--num_elements                  INT (default %d)\n", DEFAULT_ARGS.num_elements);
+            fprintf(stderr, "\t--num_seconds                   INT (default %ds)\n", DEFAULT_ARGS.time_of_test);
+            fprintf(stderr, "\t--node_size                     INT (default %d bytes)\n", DEFAULT_ARGS.node_size);
+            fprintf(stderr, "\t--basement_node_size            INT (default %d bytes)\n", DEFAULT_ARGS.basement_node_size);
+            fprintf(stderr, "\t--cachetable_size               INT (default %ld bytes)\n", DEFAULT_ARGS.cachetable_size);
+            fprintf(stderr, "\t--checkpointing_period          INT (default %ds)\n",      DEFAULT_ARGS.checkpointing_period);
+            fprintf(stderr, "\t--cleaner_period                INT (default %ds)\n",      DEFAULT_ARGS.cleaner_period);
+            fprintf(stderr, "\t--cleaner_iterations            INT (default %ds)\n",      DEFAULT_ARGS.cleaner_iterations);
+            fprintf(stderr, "\t--update_broadcast_period       INT (default %dms)\n",     DEFAULT_ARGS.update_broadcast_period_ms);
+            fprintf(stderr, "\t--num_ptquery_threads           INT (default %d threads)\n", DEFAULT_ARGS.num_ptquery_threads);
+            fprintf(stderr, "\t--num_update_threads            INT (default %d threads)\n", DEFAULT_ARGS.num_update_threads);
+            fprintf(stderr, "\t--update_txn_size               INT (default %d rows)\n", DEFAULT_ARGS.update_txn_size);
+            fprintf(stderr, "\t--[no-]crash_on_update_failure  BOOL (default %s)\n", DEFAULT_ARGS.crash_on_update_failure ? "yes" : "no");
             exit(resultcode);
         }
         else if (strcmp(argv[1], "--num_elements") == 0) {
@@ -830,6 +868,20 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         else if (strcmp(argv[1], "--num_ptquery_threads") == 0) {
             argc--; argv++;
             args->num_ptquery_threads = atoi(argv[1]);
+        }
+        else if (strcmp(argv[1], "--num_update_threads") == 0) {
+            argc--; argv++;
+            args->num_update_threads = atoi(argv[1]);
+        }
+        else if (strcmp(argv[1], "--crash_on_update_failure") == 0) {
+            args->crash_on_update_failure = true;
+        }
+        else if (strcmp(argv[1], "--no-crash_on_update_failure") == 0) {
+            args->crash_on_update_failure = false;
+        }
+        else if (strcmp(argv[1], "--update_txn_size") == 0) {
+            argc--; argv++;
+            args->update_txn_size = atoi(argv[1]);
         }
         else if (strcmp(argv[1], "--only_create") == 0) {
             args->only_create = true;
@@ -913,7 +965,7 @@ UU() stress_recover(struct cli_args *args) {
 
     DB_TXN* txn = NULL;    
     struct arg recover_args;
-    arg_init(&recover_args, args->num_elements, &db, env);
+    arg_init(&recover_args, args->num_elements, &db, env, args);
     int r = env->txn_begin(env, 0, &txn, recover_args.txn_type);
     CKERR(r);
     r = scan_op_and_maybe_check_sum(env, &db, txn, &recover_args, true);
