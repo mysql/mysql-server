@@ -2755,7 +2755,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
             assert(h_key.size == last_key.size);
             assert(h_val.size == row.size);
             assert(!memcmp(h_key.data, last_key.data, h_key.size));
-            assert(!memcmp(h_val.data, row.data, h_key.size));
+            assert(!memcmp(h_val.data, row.data, h_val.size));
             free(h_key.data);
             free(h_val.data);
         }
