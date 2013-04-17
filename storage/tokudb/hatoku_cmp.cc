@@ -1389,22 +1389,22 @@ int tokudb_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keya->size, 
         keyb->data,
         keyb->size,
-        (uchar *)file->descriptor.data + 4,
-        (*(u_int32_t *)file->descriptor.data) - 4,
+        (uchar *)file->descriptor->data + 4,
+        (*(u_int32_t *)file->descriptor->data) - 4,
         false
         );
     return cmp;
 }
 
 int tokudb_cmp_dbt_data(DB *file, const DBT *keya, const DBT *keyb) {
-    int row_desc_offset = *(u_int32_t *)file->descriptor.data;
+    int row_desc_offset = *(u_int32_t *)file->descriptor->data;
     int cmp = tokudb_compare_two_keys(
         keya->data, 
         keya->size, 
         keyb->data,
         keyb->size,
-        (uchar *)file->descriptor.data + row_desc_offset,
-        file->descriptor.size - row_desc_offset,
+        (uchar *)file->descriptor->data + row_desc_offset,
+        file->descriptor->size - row_desc_offset,
         false
         );
     return cmp;
@@ -1417,8 +1417,8 @@ int tokudb_prefix_cmp_dbt_key(DB *file, const DBT *keya, const DBT *keyb) {
         keya->size, 
         keyb->data,
         keyb->size,
-        (uchar *)file->descriptor.data + 4,
-        *(u_int32_t *)file->descriptor.data - 4,
+        (uchar *)file->descriptor->data + 4,
+        *(u_int32_t *)file->descriptor->data - 4,
         true
         );
     return cmp;

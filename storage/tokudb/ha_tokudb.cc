@@ -1674,8 +1674,8 @@ int ha_tokudb::cmp_ref(const uchar * ref1, const uchar * ref2) {
         *(u_int32_t *)ref1,
         ref2 + sizeof(u_int32_t),
         *(u_int32_t *)ref2,
-        (uchar *)share->file->descriptor.data + 4,
-        *(u_int32_t *)share->file->descriptor.data - 4,
+        (uchar *)share->file->descriptor->data + 4,
+        *(u_int32_t *)share->file->descriptor->data - 4,
         false
         );
     return ret_val;
