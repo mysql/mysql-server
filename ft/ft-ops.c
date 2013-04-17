@@ -3166,10 +3166,10 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
     {
         int fd = -1;
         r = ft_open_file(fname_in_cwd, &fd);
-        int use_reserved_filenum = reserved_filenum.fileid != FILENUM_NONE.fileid;
+        if (reserved_filenum.fileid == FILENUM_NONE.fileid) {
+            reserved_filenum = toku_cachetable_reserve_filenum(cachetable);
+        }
         if (r==ENOENT && is_create) {
-            toku_cachetable_reserve_filenum(cachetable, &reserved_filenum, use_reserved_filenum, reserved_filenum);
-            if (use_reserved_filenum) assert(reserved_filenum.fileid == use_filenum.fileid);
             did_create = TRUE;
             mode_t mode = S_IRWXU|S_IRWXG|S_IRWXO;
             if (txn) {
@@ -3184,10 +3184,7 @@ ft_handle_open(FT_HANDLE t, const char *fname_in_env, int is_create, int only_cr
             assert_zero(r);
         }
         if (r) { goto exit; }
-        // TODO: #2090
-        r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd,
-                                              fname_in_env,
-                                              use_reserved_filenum||did_create, reserved_filenum, did_create);
+        r=toku_cachetable_openfd_with_filenum(&cf, cachetable, fd, fname_in_env, reserved_filenum);
         if (r) { goto exit; }
     }
     assert(t->nodesize>0);
@@ -3299,9 +3296,6 @@ exit:
             else {
                 toku_cachefile_close(&cf, 0, FALSE, ZERO_LSN);
             }
-        }
-        if (did_create) {
-            toku_cachetable_unreserve_filenum(cachetable, reserved_filenum);
         }
     }
     return r;

@@ -240,7 +240,6 @@ struct cachetable {
                                   // use this)
     // TODO: review the removal of this mutex, since it is only ever held when the ydb lock is held
     toku_mutex_t openfd_mutex;  // make toku_cachetable_openfd() single-threaded
-    OMT reserved_filenums;
     char *env_dir;
 
     // variables for engine status
@@ -526,7 +525,6 @@ int toku_create_cachetable(CACHETABLE *result, long size_limit, LSN UU(initial_l
     toku_minicron_setup(&ct->checkpointer, 0, checkpoint_thread, ct); // default is no checkpointing
     toku_minicron_setup(&ct->cleaner, 0, toku_cleaner_thread, ct); // default is no cleaner, for now
     ct->cleaner_iterations = 1; // default is one iteration
-    int r = toku_omt_create(&ct->reserved_filenums);  assert(r==0);
     ct->env_dir = toku_xstrdup(".");
     toku_cond_init(&ct->clones_background_wait, NULL);
     *result = ct;
@@ -609,138 +607,45 @@ static void cachefile_init_filenum(CACHEFILE cf, int fd, const char *fname_in_en
     cf->fname_in_env = toku_xstrdup(fname_in_env);
 }
 
+// TEST-ONLY function
 // If something goes wrong, close the fd.  After this, the caller shouldn't close the fd, but instead should close the cachefile.
 int toku_cachetable_openfd (CACHEFILE *cfptr, CACHETABLE ct, int fd, const char *fname_in_env) {
-    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, FALSE, next_filenum_to_use, FALSE);
+    FILENUM filenum = toku_cachetable_reserve_filenum(ct);
+    return toku_cachetable_openfd_with_filenum(cfptr, ct, fd, fname_in_env, filenum);
 }
 
-static int
-find_by_filenum (OMTVALUE v, void *filenumv) {
-    FILENUM fnum     = *(FILENUM*)v;
-    FILENUM fnumfind = *(FILENUM*)filenumv;
-    if (fnum.fileid<fnumfind.fileid) return -1;
-    if (fnum.fileid>fnumfind.fileid) return +1;
-    return 0;
-}
-
-static BOOL
-is_filenum_reserved(CACHETABLE ct, FILENUM filenum) {
-    OMTVALUE v;
-    int r;
-    BOOL rval;
-
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, NULL);
-    if (r==0) {
-        FILENUM* found = v;
-        assert(found->fileid == filenum.fileid);
-        rval = TRUE;
-    }
-    else {
-        assert(r==DB_NOTFOUND);
-        rval = FALSE;
-    }
-    return rval;
-}
-
-static void
-reserve_filenum(CACHETABLE ct, FILENUM filenum) {
-    int r;
-    assert(filenum.fileid != FILENUM_NONE.fileid);
-
-    uint32_t index;
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, NULL, &index);
-    assert(r==DB_NOTFOUND);
-    FILENUM *XMALLOC(entry);
-    *entry = filenum;
-    r = toku_omt_insert_at(ct->reserved_filenums, entry, index);
-    assert(r==0);
-}
-
-static void
-unreserve_filenum(CACHETABLE ct, FILENUM filenum) {
-    OMTVALUE v;
-    int r;
-
-    uint32_t index;
-    r = toku_omt_find_zero(ct->reserved_filenums, find_by_filenum, &filenum, &v, &index);
-    assert(r==0);
-    FILENUM* found = v;
-    assert(found->fileid == filenum.fileid);
-    toku_free(found);
-    r = toku_omt_delete_at(ct->reserved_filenums, index);
-    assert(r==0);
-}
-
-    
-int
-toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum) {
-    int r;
+// Get a unique filenum from the cachetable
+FILENUM
+toku_cachetable_reserve_filenum(CACHETABLE ct) {
     CACHEFILE extant;
-    
+    FILENUM filenum;
+    invariant(ct);
+    toku_mutex_lock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
     cachetable_lock(ct);
     cachefiles_lock(ct);
-
-    if (with_filenum) {
-        // verify that filenum is not in use
-        for (extant = ct->cachefiles; extant; extant=extant->next) {
-            if (filenum.fileid == extant->filenum.fileid) {
-                r = EEXIST;
-                goto exit;
-            }
-        }
-        if (is_filenum_reserved(ct, filenum)) {
-            r = EEXIST;
-            goto exit;
-        }
-    } else {
-        // find an unused fileid and use it
-    try_again:
-        for (extant = ct->cachefiles; extant; extant=extant->next) {
-            if (next_filenum_to_use.fileid==extant->filenum.fileid) {
-                next_filenum_to_use.fileid++;
-                goto try_again;
-            }
-        }
-        if (is_filenum_reserved(ct, next_filenum_to_use)) {
+try_again:
+    for (extant = ct->cachefiles; extant; extant=extant->next) {
+        if (next_filenum_to_use.fileid==extant->filenum.fileid) {
             next_filenum_to_use.fileid++;
             goto try_again;
         }
     }
-    {
-        //Reserve a filenum.
-        FILENUM reserved;
-        if (with_filenum)
-            reserved.fileid = filenum.fileid;
-        else
-            reserved.fileid = next_filenum_to_use.fileid++;
-        reserve_filenum(ct, reserved);
-        *reserved_filenum = reserved;
-        r = 0;
-    }
- exit:
+    filenum = next_filenum_to_use;
+    next_filenum_to_use.fileid++;
     cachefiles_unlock(ct);
     cachetable_unlock(ct);
-    return r;
-}
-
-void
-toku_cachetable_unreserve_filenum (CACHETABLE ct, FILENUM reserved_filenum) {
-    cachetable_lock(ct);
-    cachefiles_lock(ct);
-    unreserve_filenum(ct, reserved_filenum);
-    cachefiles_unlock(ct);
-    cachetable_unlock(ct);
+    toku_mutex_unlock(&ct->openfd_mutex);   // purpose is to make this function single-threaded
+    return filenum;
 }
 
 int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd, 
                                          const char *fname_in_env,
-                                         BOOL with_filenum, FILENUM filenum, BOOL reserved) {
+                                         FILENUM filenum) {
     int r;
     CACHEFILE extant;
     struct fileid fileid;
     
-    if (with_filenum) assert(filenum.fileid != FILENUM_NONE.fileid);
-    if (reserved) assert(with_filenum);
+    assert(filenum.fileid != FILENUM_NONE.fileid);
     r = toku_os_get_unique_file_id(fd, &fileid);
     if (r != 0) { 
         r=errno; close(fd); // no change for t:2444
@@ -754,7 +659,6 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         if (memcmp(&extant->fileid, &fileid, sizeof(fileid))==0) {
             //File is already open (and in cachetable as extant)
             assert(!extant->is_closing);
-            assert(!is_filenum_reserved(ct, extant->filenum));
             r = close(fd);  // no change for t:2444
             assert(r == 0);
             // re-use pre-existing cachefile 
@@ -764,44 +668,17 @@ int toku_cachetable_openfd_with_filenum (CACHEFILE *cfptr, CACHETABLE ct, int fd
         }
     }
 
-    //File is not open.  Make a new cachefile.
-
-    if (with_filenum) {
-        // verify that filenum is not in use
-        for (extant = ct->cachefiles; extant; extant=extant->next) {
-            if (filenum.fileid == extant->filenum.fileid) {
-                r = EEXIST;
-                goto exit;
-            }
-        }
-        if (is_filenum_reserved(ct, filenum)) {
-            if (reserved)
-                unreserve_filenum(ct, filenum);
-            else {
-                r = EEXIST;
-                goto exit;
-            }
-        }
-    } else {
-        // find an unused fileid and use it
-    try_again:
-        assert(next_filenum_to_use.fileid != FILENUM_NONE.fileid);
-        for (extant = ct->cachefiles; extant; extant=extant->next) {
-            if (next_filenum_to_use.fileid==extant->filenum.fileid) {
-                next_filenum_to_use.fileid++;
-                goto try_again;
-            }
-        }
-        if (is_filenum_reserved(ct, next_filenum_to_use)) {
-            next_filenum_to_use.fileid++;
-            goto try_again;
-        }
+    // assert that the filenum is not in use
+    for (extant = ct->cachefiles; extant; extant=extant->next) {
+        invariant(extant->filenum.fileid != filenum.fileid);
     }
+
+    //File is not open.  Make a new cachefile.
     {
         // create a new cachefile entry in the cachetable
         CACHEFILE XCALLOC(newcf);
         newcf->cachetable = ct;
-        newcf->filenum.fileid = with_filenum ? filenum.fileid : next_filenum_to_use.fileid++;
+        newcf->filenum = filenum;
         cachefile_init_filenum(newcf, fd, fname_in_env, fileid);
         newcf->next = ct->cachefiles;
         ct->cachefiles = newcf;
@@ -3212,7 +3089,6 @@ toku_cachetable_close (CACHETABLE *ctp) {
     toku_destroy_workers(&ct->wq, &ct->threadpool);
     toku_destroy_workers(&ct->checkpoint_wq, &ct->checkpoint_threadpool);
     toku_kibbutz_destroy(ct->kibbutz);
-    toku_omt_destroy(&ct->reserved_filenums);
     toku_mutex_destroy(&ct->cachefiles_mutex);
     toku_cond_destroy(&ct->clones_background_wait);
     toku_free(ct->table);
