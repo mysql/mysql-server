@@ -3899,7 +3899,32 @@ int ha_tokudb::write_row(uchar * record) {
         }
         else {
             error = do_uniqueness_checks(record, txn, thd);
-            if (error) { goto cleanup; }
+            if (error) {
+                // for #4633
+                // if we have a duplicate key error, let's check the primary key to see
+                // if there is a duplicate there. If so, set last_dup_key to the pk
+                if (error == DB_KEYEXIST && !test(hidden_primary_key)) {
+                    int r = share->file->getf_set(
+                        share->file, 
+                        txn, 
+                        0, 
+                        &prim_key, 
+                        smart_dbt_do_nothing, 
+                        NULL
+                        );
+                    if (r == 0) {
+                        // if we get no error, that means the row
+                        // was found and this is a duplicate key,
+                        // so we set last_dup_key
+                        last_dup_key = primary_key;
+                    }
+                    else if (r != DB_NOTFOUND) {
+                        // if some other error is returned, return that to the user.
+                        error = r;
+                    }
+                }
+                goto cleanup; 
+            }
 
             error = insert_rows_to_dictionaries_mult(&prim_key, &row, txn, thd);
             if (error) { goto cleanup; }
