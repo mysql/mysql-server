@@ -599,9 +599,17 @@ int main (int argc __attribute__((__unused__)), char *const argv[] __attribute__
     printf("  uint64_t         disk_flush_nonleaf;          /* number of nonleaf nodes flushed to disk, not for checkpoint */\n");
     printf("  uint64_t         disk_flush_leaf_for_checkpoint; /* number of leaf nodes flushed to disk for checkpoint */\n");
     printf("  uint64_t         disk_flush_nonleaf_for_checkpoint; /* number of nonleaf nodes flushed to disk for checkpoint */\n");
+    printf("  uint64_t         create_leaf;                 /* number of leaf nodes created */\n");
+    printf("  uint64_t         create_nonleaf;              /* number of nonleaf nodes created */\n");
     printf("  uint64_t         destroy_leaf;                /* number of leaf nodes destroyed */\n");
     printf("  uint64_t         destroy_nonleaf;             /* number of nonleaf nodes destroyed */\n");
-
+    printf("  uint64_t         split_leaf;                  /* number of leaf nodes split */\n");
+    printf("  uint64_t         split_nonleaf;               /* number of nonleaf nodes split */\n");
+    printf("  uint64_t         merge_leaf;                  /* number of times leaf nodes are merged */\n");
+    printf("  uint64_t         merge_nonleaf;               /* number of times nonleaf nodes are merged  */\n");
+    printf("  uint64_t         dirty_leaf;                  /* number of times leaf nodes are dirtied when previously clean */\n");
+    printf("  uint64_t         dirty_nonleaf;               /* number of times nonleaf nodes are dirtied when previously clean */\n");
+    printf("  uint64_t         balance_leaf;                /* number of times a leaf node is balanced inside brt */\n");
     printf("  uint64_t         msg_bytes_in;                /* how many bytes of messages injected at root (for all trees)*/\n");
     printf("  uint64_t         msg_bytes_out;               /* how many bytes of messages flushed from h1 nodes to leaves*/\n");
     printf("  uint64_t         msg_bytes_curr;              /* how many bytes of messages currently in trees (estimate)*/\n");

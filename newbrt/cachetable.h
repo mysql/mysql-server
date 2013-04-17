@@ -60,6 +60,9 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 // Return the filename
 char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
+// return value of the cachefile is_closing flag
+BOOL toku_cachefile_is_closing(CACHEFILE cf);
+
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 

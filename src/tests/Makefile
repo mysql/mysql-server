@@ -139,9 +139,6 @@ BDB_DONTRUN_TESTS = \
         isolation \
         isolation-read-committed \
         keyrange \
-        keyrange-dupsort \
-        keyrange-dupsort-unflat \
-        keyrange-unflat \
 	last-verify-time \
         loader-cleanup-test \
 	loader-create-abort \
@@ -242,7 +239,7 @@ BDB_DONTRUN_TESTS = \
         root_fifo_32 \
         root_fifo_41 \
 	shutdown-3344 \
-        stat64 stat64-create-modify-times stat64_flatten stat64-null-txn \
+        stat64 stat64-create-modify-times stat64_flatten stat64-null-txn stat64-root-changes \
 	stress-gc \
         test1324 \
         test1426 \
@@ -1011,6 +1008,30 @@ upgrade-tests.tdbrun: $(UPGRADE_TESTS_VALGRIND)
 
 upgrade-test-%.valgrind: upgrade-test-%.tdb
 	$(VGRIND) ./$< $(VERBVERBOSE) $(SUMMARIZE_CMD)
+
+# keyrange tests
+keyrange.tdbrun: keyrange-get0.tdbrun keyrange-get1.tdbrun \
+	keyrange-random-get0.tdbrun keyrange-random-get1.tdbrun \
+	keyrange-loader-get0.tdbrun keyrange-loader-get1.tdbrun
+	true
+
+keyrange-get0.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+keyrange-get1.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+keyrange-random-get0.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --random_keys 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+keyrange-random-get1.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --random_keys 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+keyrange-loader-get0.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 0 --loader 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
+
+keyrange-loader-get1.tdbrun: keyrange.tdb
+	$(TDBVGRIND) ./$< $(VERBVERBOSE) --get 1 --loader 1 --envdir dir.$@ $(MAYBEINVERTER) $(SUMMARIZE_CMD)
 
 clean:
 	rm -f $(ALL_BINS)

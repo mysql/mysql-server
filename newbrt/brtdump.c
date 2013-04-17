@@ -105,6 +105,8 @@ dump_header (int f, struct brt_header **header, CACHEFILE cf) {
     printf(" unnamed_root=%" PRId64 "\n", h->root.b);
     printf(" flags=%u\n", h->flags);
     dump_descriptor(&h->descriptor);
+    printf(" estimated numrows=%" PRId64 "\n", h->in_memory_stats.numrows);
+    printf(" estimated numbytes=%" PRId64 "\n", h->in_memory_stats.numbytes);
     *header = h;
 }
 

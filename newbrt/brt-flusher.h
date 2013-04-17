@@ -68,7 +68,8 @@ brtleaf_split(
     DBT *splitk,
     BOOL create_new_node,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes
+    BRTNODE* dependent_nodes,
+    BRT_STATUS brt_status
     );
 
 /**
@@ -88,7 +89,8 @@ brt_nonleaf_split(
     BRTNODE *nodeb,
     DBT *splitk,
     u_int32_t num_dependent_nodes,
-    BRTNODE* dependent_nodes
+    BRTNODE* dependent_nodes,
+    BRT_STATUS brt_status
     );
 
 C_END

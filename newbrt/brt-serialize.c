@@ -1025,6 +1025,7 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
     bn->seqinsert = 0;
     bn->stale_ancestor_messages_applied = false;
     toku_mempool_zero(&bn->buffer_mempool);
+    bn->stat64_delta = ZEROSTATS;
     return bn;
 }
 
@@ -1814,6 +1815,9 @@ serialize_brt_header_min_size (u_int32_t version) {
 
 
     switch(version) {
+        case BRT_LAYOUT_VERSION_17:
+	    size += 16;
+	    invariant(sizeof(STAT64INFO_S) == 16);
         case BRT_LAYOUT_VERSION_16:
         case BRT_LAYOUT_VERSION_15:
             size += 4;  // basement node size
@@ -1885,6 +1889,8 @@ int toku_serialize_brt_header_to_wbuf (struct wbuf *wbuf, struct brt_header *h, 
     wbuf_TXNID(wbuf, h->root_xid_that_created);
     wbuf_int(wbuf, h->basementnodesize);
     wbuf_ulonglong(wbuf, h->time_of_last_verification);
+    wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numrows);
+    wbuf_ulonglong(wbuf, h->checkpoint_staging_stats.numbytes);
     u_int32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);
@@ -2155,6 +2161,12 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
         h->basementnodesize = rbuf_int(&rc);
         h->time_of_last_verification = rbuf_ulonglong(&rc);
     }
+    if (h->layout_version >= BRT_LAYOUT_VERSION_17) {
+	h->on_disk_stats.numrows = rbuf_ulonglong(&rc);
+	h->on_disk_stats.numbytes = rbuf_ulonglong(&rc);
+	h->in_memory_stats = h->on_disk_stats;
+    }
+
     (void)rbuf_int(&rc); //Read in checksum and ignore (already verified).
     if (rc.ndone!=rc.size) {ret = EINVAL; goto died1;}
     toku_free(rc.buf);
@@ -2207,8 +2219,9 @@ deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **br
             case BRT_LAYOUT_VERSION_14:
                 h->basementnodesize = 128*1024;  // basement nodes added in v15
                 //fall through on purpose
-            case BRT_LAYOUT_VERSION_16:
-            case BRT_LAYOUT_VERSION_15: // this may no properly support version 15, we'll fix that on upgrade.
+            case BRT_LAYOUT_VERSION_17:
+            case BRT_LAYOUT_VERSION_16: // version 16 never released to customers
+            case BRT_LAYOUT_VERSION_15: // this will not properly support version 15, we'll fix that on upgrade.
                 invariant(h->layout_version == BRT_LAYOUT_VERSION);
                 h->upgrade_brt_performed = FALSE;
                 if (upgrade) {

@@ -471,6 +471,13 @@ cachefile_refup (CACHEFILE cf) {
     cf->refcount++;
 }
 
+BOOL 
+toku_cachefile_is_closing (CACHEFILE cf) {
+    BOOL rval = cf->is_closing;
+    return rval;
+}
+
+
 // What cachefile goes with particular iname (iname relative to env)?
 // The transaction that is adding the reference might not have a reference
 // to the brt, therefore the cachefile might be closing.
@@ -1218,7 +1225,9 @@ static void cachetable_remove_pair (CACHETABLE ct, PAIR p) {
 // Maybe remove a pair from the cachetable and free it, depending on whether
 // or not there are any threads interested in the pair.  The flush callback
 // is called with write_me and keep_me both false, and the pair is destroyed.
-
+// The sole purpose of this function is to remove the node, so the write_me 
+// argument to the flush callback is false, and the flush callback won't do
+// anything except destroy the node.
 static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* destroyed) {
     *destroyed = FALSE;
     if (nb_mutex_users(&p->nb_mutex) == 0) {
@@ -1236,6 +1245,8 @@ static void cachetable_maybe_remove_and_free_pair (CACHETABLE ct, PAIR p, BOOL* 
         cachetable_evictions++;
         cachetable_unlock(ct);
         PAIR_ATTR new_attr = p->attr;
+	// Note that flush_callback is called with write_me FALSE, so the only purpose of this 
+	// call is to tell the brt layer to evict the node (keep_me is FALSE).
         flush_callback(cachefile, cachefile->fd, key, value, write_extraargs, old_attr, &new_attr, FALSE, FALSE, TRUE);
 
         cachetable_lock(ct);

@@ -253,6 +253,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     BRT_CURSOR cursor = NULL;
     r = toku_brt_cursor(t, &cursor, NULL, FALSE, FALSE); assert(r == 0);
 
+    size_t userdata = 0;
     int i;
     for (i=0; i<n; i++) {
 	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], strlen(sorted_vals[i]), sorted_vals[i], 0};
@@ -262,6 +263,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
 	    break;
 	}
 	assert(pair.call_count==1);
+        userdata += pair.keylen + pair.vallen;
     }
     
     struct check_pair pair; memset(&pair, 0, sizeof pair);
@@ -269,11 +271,16 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     assert(r != 0);
 
     r = toku_brt_cursor_close(cursor); assert(r == 0);
+
+    struct brtstat64_s s;
+    r = toku_brt_stat64(t, NULL, &s); assert(r == 0);
+    assert(s.nkeys == (u_int64_t) n && s.ndata == (u_int64_t) n && s.dsize == userdata);
+    
     r = toku_close_brt(t, 0); assert(r==0);
     r = toku_cachetable_close(&ct);assert(r==0);
 }
 
-    static void test_merge_files (const char *template, const char *output_name) {
+static void test_merge_files (const char *template, const char *output_name) {
     DB *dest_db = NULL;
     struct brtloader_s bl = {
         .temp_file_template = template,

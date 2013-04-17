@@ -29,6 +29,7 @@ endif
 # For very verbose output do 
 #   make VERBOSE=2
 
+# Exclude orthopush-flush until it is fixed.
 SRCS=$(sort $(filter-out dir.%.c,$(wildcard *.c)))
 
 REGRESSION_TESTS_RAW = $(patsubst %.c,%,$(SRCS))

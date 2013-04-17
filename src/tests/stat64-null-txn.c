@@ -76,9 +76,9 @@ test_stat64 (unsigned int N) {
             printf("fsize=%" PRIu64 "\n", s.bt_fsize);
             printf("expected dsize=%" PRIu64 "\n", dsize); 
         }
-        assert(s.bt_nkeys <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_ndata <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_dsize <= 15*dsize); // This can probably be tightened up when we fix #3995.
+        assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
+        assert(s.bt_ndata == s.bt_nkeys);
+        assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
         assert(s.bt_fsize > N);
     }
     /* r=txn->commit(txn, 0); CKERR(r); */
@@ -109,9 +109,9 @@ test_stat64 (unsigned int N) {
             printf("fsize=%" PRIu64 "\n", s.bt_fsize);
             printf("expected dsize=%" PRIu64 "\n", dsize); 
         }
-        assert(s.bt_nkeys <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_ndata <= 4*N);      // This can probably be tightened up when we fix #3995.
-        assert(s.bt_dsize <= 15*dsize); // This can probably be tightened up when we fix #3995.
+        assert(0 < s.bt_nkeys && s.bt_nkeys <= N);
+        assert(s.bt_ndata == s.bt_nkeys);
+        assert(0 < s.bt_dsize && s.bt_dsize <= dsize);
         assert(s.bt_fsize > N);
     }
     /* r=txn->commit(txn, 0); CKERR(r); */

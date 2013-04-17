@@ -393,12 +393,13 @@ test_le_apply(ULE ule_initial, BRT_MSG msg, ULE ule_expected) {
     CKERR(r);
 
     size_t result_memsize;
+    int64_t ignoreme;
     r = apply_msg_to_leafentry(msg,
                                le_initial,
                                &result_memsize,
                                &le_result,
                                NULL, NULL, NULL, 
-                               NULL, NULL);
+                               NULL, NULL, &ignoreme);
     CKERR(r);
 
     if (le_result)

@@ -20,12 +20,16 @@ int test_main(int argc, char * const argv[]) {
             verbose++;
             continue;
         }
+        if (strcmp(argv[i], "-q") == 0) {
+            if (verbose > 0)
+                verbose--;
+            continue;
+        }
         if (strcmp(argv[i], "-x") == 0) {
             do_txns = true;
             continue;
         }
-    }
-   
+    }   
 
     DB_ENV *env = NULL;
     r = db_env_create(&env, 0); 
@@ -40,6 +44,12 @@ int test_main(int argc, char * const argv[]) {
 
     r = db->open(db, NULL, dbfilename, NULL, DB_BTREE, DB_AUTO_COMMIT, S_IRUSR|S_IWUSR|S_IRGRP|S_IROTH);
     assert(r == 0);
+
+    if (verbose) {
+        DB_BTREE_STAT64 s;
+        r = db->stat64(db, NULL, &s); assert(r == 0);
+        printf("nkeys=%" PRIu64" dsize=%" PRIu64 "\n", s.bt_nkeys, s.bt_dsize);
+    }
 
     r = db->verify_with_progress(db, NULL, NULL, verbose > 0, false);
     assert(r == 0);
