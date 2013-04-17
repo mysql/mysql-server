@@ -40,10 +40,10 @@ check: $(TARGETS) $(RUNTARGETS);
 ifeq ($(VGRIND),)
 	./$< $(SUMMARIZE_CMD)
 else
-	$(VGRIND) --log-file=$<.valgrind ./$<; \
+	$(VGRIND) --error-exitcode=1 --quiet --leak-check=full --log-file=$<.valgrind ./$<; \
 	if [ $$? = 0 ] ; then \
-		grep "LEAK SUMMARY" $<.valgrind >/dev/null 2>&1; \
-		if [ $$? = 0 ] ; then cat $<.valgrind; test 0 = 1; fi \
+		lines=`cat $<.valgrind | wc -l`; \
+		if [ $$lines -ne 0 ] ; then cat $<.valgrind; test 0 = 1; fi \
 	fi \
 	$(SUMMARIZE_CMD)
 endif
