@@ -180,6 +180,9 @@ enum {
                                      4),  // localfingerprint
 };
 
+#include "sub_block.h"
+#include "sub_block_map.h"
+
 static int
 addupsize (OMTVALUE lev, u_int32_t UU(idx), void *vp) {
     LEAFENTRY le=lev;
@@ -215,6 +218,7 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 	}
 	assert(hsize==node->u.n.n_bytes_in_buffers);
 	assert(csize==node->u.n.totalchildkeylens);
+        size += node->u.n.n_children*stored_sub_block_map_size;
 	return size+hsize+csize;
     } else {
 	unsigned int hsize=0;
@@ -243,6 +247,7 @@ toku_serialize_brtnode_size (BRTNODE node) {
 	result+=node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result+=(8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
 	result+=node->u.n.n_bytes_in_buffers;
+        result += node->u.n.n_children*stored_sub_block_map_size;
     } else {
 	result+=4; /* n_entries in buffer table. */
 	result+=3*8; /* the three leaf stats. */
@@ -261,8 +266,6 @@ enum {
     uncompressed_magic_offset = 0,
     uncompressed_version_offset = 8,
 };
-
-#include "sub_block.h"
 
 static void
 serialize_node_header(BRTNODE node, struct wbuf *wbuf) {
@@ -326,14 +329,12 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
         //printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
     }
 
-#if 0
-    // RFP
     // map the child buffers
-    // RFP maybe move sub block boundaries 
     struct sub_block_map child_buffer_map[node->u.n.n_children];
-    size_t offset = wbuf_get_woffset(wbuf) + node->u.n.n_children * stored_sub_block_map_size;
+    size_t offset = wbuf_get_woffset(wbuf) - node_header_overhead + node->u.n.n_children * stored_sub_block_map_size;
     for (int i = 0; i < node->u.n.n_children; i++) {
         int idx = get_sub_block_index(n_sub_blocks, sub_block, offset);
+        assert(idx >= 0);
         size_t size = sizeof (u_int32_t) + BNC_NBYTESINBUF(node, i); // # elements + size of the elements
         sub_block_map_init(&child_buffer_map[i], idx, offset, size);
         offset += size;
@@ -342,10 +343,6 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
     // serialize the child buffer map
     for (int i = 0; i < node->u.n.n_children ; i++)
         sub_block_map_serialize(&child_buffer_map[i], wbuf);
-#else
-    n_sub_blocks = n_sub_blocks;
-    sub_block = sub_block;
-#endif
 
     // serialize the child buffers
     {
@@ -404,7 +401,7 @@ serialize_leaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], str
         assert(0);
     }
 
-    // serialize the partition maps
+    // RFP serialize the partition maps
     for (int i = 0; i < npartitions; i++) 
         sub_block_map_serialize(&part_map[i], wbuf);
 #else
@@ -440,7 +437,7 @@ toku_serialize_brtnode_to_memory (BRTNODE node, int UU(n_workitems), int UU(n_th
     unsigned int calculated_size = toku_serialize_brtnode_size(node); 
 
     // choose sub block parameters
-    int n_sub_blocks, sub_block_size;
+    int n_sub_blocks = 0, sub_block_size = 0;
     size_t data_size = calculated_size - node_header_overhead;
     choose_sub_block_size(data_size, max_sub_blocks, &sub_block_size, &n_sub_blocks);
     assert(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
@@ -541,6 +538,110 @@ toku_serialize_brtnode_to (int fd, BLOCKNUM blocknum, BRTNODE node, struct brt_h
 
 static void deserialize_descriptor_from_rbuf(struct rbuf *rb, struct descriptor *desc, BOOL temporary);
 
+#include "workset.h"
+
+struct deserialize_child_buffer_work {
+    struct work base;
+
+    BRTNODE node;               // in node pointer
+    int cnum;                   // in child number
+    struct rbuf rb;             // in child rbuf
+
+    uint32_t local_fingerprint; // out node fingerprint
+};
+
+static void
+deserialize_child_buffer_init(struct deserialize_child_buffer_work *dw, BRTNODE node, int cnum, unsigned char *buf, size_t size) {
+    dw->node = node;
+    dw->cnum = cnum;
+    rbuf_init(&dw->rb, buf, size);
+}
+
+static void
+deserialize_child_buffer(BRTNODE node, int cnum, struct rbuf *rbuf, u_int32_t *local_fingerprint_ret) {
+    uint32_t local_fingerprint = 0;
+    int n_bytes_in_buffer = 0;
+    int n_in_this_buffer = rbuf_int(rbuf);
+    for (int i = 0; i < n_in_this_buffer; i++) {
+        bytevec key; ITEMLEN keylen;
+        bytevec val; ITEMLEN vallen;
+        //toku_verify_counts(result);
+        int type = rbuf_char(rbuf);
+        XIDS xids;
+        xids_create_from_buffer(rbuf, &xids);
+        rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
+        rbuf_bytes(rbuf, &val, &vallen);
+        local_fingerprint += node->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
+        //printf("Found %s,%s\n", (char*)key, (char*)val);
+        int r = toku_fifo_enq(BNC_BUFFER(node, cnum), key, keylen, val, vallen, type, xids); /* Copies the data into the fifo */
+        assert(r == 0);
+        n_bytes_in_buffer += keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
+        //printf("Inserted\n");
+        xids_destroy(&xids);
+    }
+    assert(rbuf->ndone == rbuf->size);
+
+    BNC_NBYTESINBUF(node, cnum) = n_bytes_in_buffer;
+    *local_fingerprint_ret = local_fingerprint;
+}
+
+static void *
+deserialize_child_buffer_worker(void *arg) {
+    struct workset *ws = (struct workset *) arg;
+    while (1) {
+        struct deserialize_child_buffer_work *dw = (struct deserialize_child_buffer_work *) workset_get(ws);
+        if (dw == NULL)
+            break;
+        deserialize_child_buffer(dw->node, dw->cnum, &dw->rb, &dw->local_fingerprint);
+    }
+    return arg;
+}
+
+static void
+deserialize_all_child_buffers(BRTNODE result, struct rbuf *rbuf, struct sub_block_map child_buffer_map[], int my_num_cores, uint32_t *check_local_fingerprint_ret) {
+    int n_nonempty_fifos = 0; // how many fifos are nonempty?
+    for(int i = 0; i < result->u.n.n_children; i++) {
+        if (child_buffer_map[i].size > 4)
+            n_nonempty_fifos++;
+    }
+
+    int T = my_num_cores; // T = min(num_cores, n_nonempty_fifos) - 1
+    if (T > n_nonempty_fifos)
+        T = n_nonempty_fifos;
+    if (T > 0)
+        T = T - 1;       // threads in addition to the running thread
+
+    struct workset ws;
+    workset_init(&ws);
+
+    struct deserialize_child_buffer_work work[result->u.n.n_children];
+    workset_lock(&ws);
+    for (int i = 0; i < result->u.n.n_children; i++) {
+        deserialize_child_buffer_init(&work[i], result, i, rbuf->buf + node_header_overhead + child_buffer_map[i].offset, child_buffer_map[i].size);
+        workset_put_locked(&ws, &work[i].base);
+    }
+    workset_unlock(&ws);
+
+    // deserialize the fifos
+    if (0) printf("%s:%d T=%d N=%d %d\n", __FUNCTION__, __LINE__, T, result->u.n.n_children, n_nonempty_fifos);
+    toku_pthread_t tids[T];
+    threadset_create(tids, &T, deserialize_child_buffer_worker, &ws);
+    deserialize_child_buffer_worker(&ws);
+
+    threadset_join(tids, T);
+    // combine the fingerprints and update the buffer counts
+    uint32_t check_local_fingerprint = 0;
+    for (int i = 0; i < result->u.n.n_children; i++) {
+        check_local_fingerprint += work[i].local_fingerprint;
+        result->u.n.n_bytes_in_buffers += BNC_NBYTESINBUF(result, i);
+    }
+
+    // cleanup
+    workset_destroy(&ws);
+
+    *check_local_fingerprint_ret = check_local_fingerprint;
+}
+
 static int
 deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *rb) {
     int r;
@@ -590,58 +691,35 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
         BNC_NBYTESINBUF(result,i) = 0;
         //printf("Child %d at %lld\n", i, result->children[i]);
     }
+
+    // deserialize the child buffer map
+    struct sub_block_map child_buffer_map[result->u.n.n_children];
+    for (int i = 0; i < result->u.n.n_children; i++) 
+        sub_block_map_deserialize(&child_buffer_map[i], rb);
+
+    // init the child buffers
     result->u.n.n_bytes_in_buffers = 0;
     for (int i=0; i<result->u.n.n_children; i++) {
         r=toku_fifo_create(&BNC_BUFFER(result,i));
         if (r!=0) {
-            int j;
-            if (0) { died_1: j=result->u.n.n_bytes_in_buffers; }
-            for (j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
+            for (int j=0; j<i; j++) toku_fifo_free(&BNC_BUFFER(result,j));
             return toku_db_badformat();
         }
     }
-    {
-        int cnum;
-        u_int32_t check_local_fingerprint = 0;
-        for (cnum=0; cnum<result->u.n.n_children; cnum++) {
-            int n_in_this_hash = rbuf_int(rb);
-            //printf("%d in hash\n", n_in_hash);
-            for (int i=0; i<n_in_this_hash; i++) {
-                int diff;
-                bytevec key; ITEMLEN keylen;
-                bytevec val; ITEMLEN vallen;
-                //toku_verify_counts(result);
-                int type = rbuf_char(rb);
-                XIDS xids;
-                xids_create_from_buffer(rb, &xids);
-                rbuf_bytes(rb, &key, &keylen); /* Returns a pointer into the rbuf. */
-                rbuf_bytes(rb, &val, &vallen);
-                check_local_fingerprint += result->rand4fingerprint * toku_calc_fingerprint_cmd(type, xids, key, keylen, val, vallen);
-                //printf("Found %s,%s\n", (char*)key, (char*)val);
-                {
-                    r=toku_fifo_enq(BNC_BUFFER(result, cnum), key, keylen, val, vallen, type, xids); /* Copies the data into the hash table. */
-                    if (r!=0) { goto died_1; }
-                }
-                diff = keylen + vallen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
-                result->u.n.n_bytes_in_buffers += diff;
-                BNC_NBYTESINBUF(result,cnum)   += diff;
-                //printf("Inserted\n");
-                xids_destroy(&xids);
-            }
-        }
-        if (check_local_fingerprint != result->local_fingerprint) {
-            fprintf(stderr, "%s:%d local fingerprint is wrong (found %8x calcualted %8x\n", __FILE__, __LINE__, result->local_fingerprint, check_local_fingerprint);
-            return toku_db_badformat();
-        }
-        if (check_subtree_fingerprint+check_local_fingerprint != subtree_fingerprint) {
-            fprintf(stderr, "%s:%d subtree fingerprint is wrong\n", __FILE__, __LINE__);
-            return toku_db_badformat();
-        }
+
+    // deserialize all child buffers, like the function says
+    uint32_t check_local_fingerprint;
+    deserialize_all_child_buffers(result, rb, child_buffer_map, num_cores, &check_local_fingerprint);
+
+    if (check_local_fingerprint != result->local_fingerprint) {
+        fprintf(stderr, "%s:%d local fingerprint is wrong (found %8x calcualted %8x\n", __FILE__, __LINE__, result->local_fingerprint, check_local_fingerprint);
+        return toku_db_badformat();
     }
-    // RFP REMOVE (void)rbuf_int(rb); //Ignore the crc (already verified).
-    if (rb->ndone != rb->size) { //Verify we read exactly the entire block.
-        r = toku_db_badformat(); goto died_1;
+    if (check_subtree_fingerprint+check_local_fingerprint != subtree_fingerprint) {
+        fprintf(stderr, "%s:%d subtree fingerprint is wrong\n", __FILE__, __LINE__);
+        return toku_db_badformat();
     }
+
     return 0;
 }
 
@@ -825,7 +903,8 @@ decompress_brtnode_from_raw_block_into_rbuf(u_int8_t *raw_block, struct rbuf *rb
     unsigned char *uncompressed_data = rb->buf + node_header_overhead;    
 
     // decompress all the compressed sub blocks into the uncompressed buffer
-    decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores);
+    r = decompress_all_sub_blocks(n_sub_blocks, sub_block, compressed_data, uncompressed_data, num_cores);
+    assert(r == 0);
 
     toku_trace("decompress done");
 

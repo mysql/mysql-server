@@ -44,8 +44,9 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
     fprintf(stderr, "  --log_dir LOGDIR    put the logs in LOGDIR\n");
-    fprintf(stderr, "  --range <low> <high> set the low and high key boundaries in which random range queries are made\n");
-    fprintf(stderr, "  --experiments <n>   run n experiments (default:%d)\n", n_experiments);
+    fprintf(stderr, "  --range LOW HIGH    set the LOW and HIGH key boundaries in which random range queries are made\n");
+    fprintf(stderr, "  --experiments N     run N experiments (default:%d)\n", n_experiments);
+    fprintf(stderr, "  --srandom N         srandom(N)\n");
     fprintf(stderr, "  --recover           run recovery\n");
     fprintf(stderr, "  --verbose           print verbose information\n");
     return 1;
@@ -128,6 +129,9 @@ static void parse_args (int argc, const char *const argv[]) {
         } else if (strcmp(*argv, "--experiments") == 0 && argc > 1) {
             argc--; argv++;
             n_experiments = strtol(*argv, NULL, 10);
+        } else if (strcmp(*argv, "--srandom") == 0 && argc > 1) {
+	    argc--; argv++;
+            srandom(atoi(*argv));
         } else if (strcmp(*argv, "--recover") == 0) {
             env_open_flags_yesx |= DB_RECOVER;
             env_open_flags_nox |= DB_RECOVER;
@@ -309,8 +313,7 @@ static void scanscan_lwc (void) {
 
 static void scanscan_flatten (void) {
     int r;
-    int counter=0;
-    for (counter=0; counter<n_experiments; counter++) {
+    for (int counter=0; counter<n_experiments; counter++) {
 	double prevtime = gettime();
         r = db->flatten(db, tid);
 	assert(r==0);
@@ -325,20 +328,21 @@ static void scanscan_range (void) {
     int r;
 
     double texperiments[n_experiments];
+    u_int64_t k = 0;
+    char kv[8];
+    DBT key, val;
+  
+    for (int counter = 0; counter < n_experiments; counter++) {
 
-    int counter;
-    for (counter=0; counter<n_experiments; counter++) {
-
-    makekey:
-        ;
-        // generate a random key in the key range
-        u_int64_t k = (start_range + (random() % (end_range - start_range))) * (1<<6);
-        char kv[8];
-        int i;
-        for (i=0; i<8; i++)
-            kv[i] = k >> (56-8*i);
-        DBT key; memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
-        DBT val; memset(&val, 0, sizeof val);
+        if (1) { //if ((counter&1) == 0) {   
+   	makekey:
+	    // generate a random key in the key range
+	    k = (start_range + (random() % (end_range - start_range))) * (1<<6);
+	    for (int i = 0; i < 8; i++)
+                kv[i] = k >> (56-8*i);
+	}
+	memset(&key, 0, sizeof key); key.data = &kv, key.size = sizeof kv;
+	memset(&val, 0, sizeof val);
 
         double tstart = gettime();
 
@@ -349,7 +353,7 @@ static void scanscan_range (void) {
         r = dbc->c_get(dbc, &key, &val, DB_SET_RANGE+lock_flag);
         if (r != 0) {
             assert(r == DB_NOTFOUND);
-            printf("%s:%d\n", __FUNCTION__, __LINE__);
+            printf("%s:%d %"PRIu64"\n", __FUNCTION__, __LINE__, k);
             goto makekey;
         }
 
@@ -369,12 +373,12 @@ static void scanscan_range (void) {
         assert(r==0);
 
         texperiments[counter] = gettime() - tstart;
-        printf("%f\n", texperiments[counter]); fflush(stdout);
+        printf("%"PRIu64" %f\n", k, texperiments[counter]); fflush(stdout);
     }
 
     // print the times
     double tsum = 0.0, tmin = 0.0, tmax = 0.0;
-    for (counter=0; counter<n_experiments; counter++) {
+    for (int counter = 0; counter < n_experiments; counter++) {
         if (counter==0 || texperiments[counter] < tmin)
             tmin = texperiments[counter];
         if (counter==0 || texperiments[counter] > tmax)

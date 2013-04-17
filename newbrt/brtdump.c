@@ -104,7 +104,10 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	printf(" children:\n");
 	for (i=0; i<n->u.n.n_children; i++) {
 	    printf("   child %d: %" PRId64 "\n", i, BNC_BLOCKNUM(n, i).b);
-	    printf("   buffer contains %u bytes (%d items)\n", BNC_NBYTESINBUF(n, i), toku_fifo_n_entries(BNC_BUFFER(n,i)));
+	    unsigned int n_bytes = BNC_NBYTESINBUF(n, i); 
+	    int n_entries = toku_fifo_n_entries(BNC_BUFFER(n, i));
+	    if (n_bytes > 0 || n_entries > 0)
+    	        printf("   buffer contains %u bytes (%d items)\n", n_bytes, n_entries);
 	    if (dump_data) {
 		FIFO_ITERATE(BNC_BUFFER(n,i), key, keylen, data, datalen, typ, xids,
 			     {

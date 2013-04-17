@@ -38,11 +38,16 @@ get_sum_uncompressed_size(int n_sub_blocks, struct sub_block sub_block[]);
 
 // Choose n_sub_blocks and sub_block_size such that the product is >= total_size and the sub_block_size is at
 // least >= the target_sub_block_size.
-void
+int
 choose_sub_block_size(int total_size, int n_sub_blocks_limit, int *sub_block_size_ret, int *n_sub_blocks_ret);
 
 void
 set_all_sub_block_sizes(int total_size, int sub_block_size, int n_sub_blocks, struct sub_block sub_block[]);
+
+// find the index of the first sub block that contains the offset
+// Returns the index if found, else returns -1
+int
+get_sub_block_index(int n_sub_blocks, struct sub_block sub_block[], size_t offset);
 
 #include "workset.h"
 
@@ -88,7 +93,9 @@ decompress_sub_block(void *compress_ptr, u_int32_t compress_size, void *uncompre
 void *
 decompress_worker(void *arg);
 
-void
+// decompress all sub blocks from the compressed_data buffer to the uncompressed_data buffer
+// Returns 0 if success, otherwise an error
+int
 decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores);
 
 

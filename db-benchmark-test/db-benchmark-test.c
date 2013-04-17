@@ -502,6 +502,7 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "    --numdbs N            Insert same items into N dbs (1 to %d)\n", MAX_DBS); 
     fprintf(stderr, "    --insertmultiple      Use DB_ENV->put_multiple api.  Requires transactions.\n"); 
     fprintf(stderr, "    --redzone N           redzone in percent\n");
+    fprintf(stderr, "    --srandom N           srandom(N)\n");
     fprintf(stderr, "   n_iterations     how many iterations (default %lld)\n", default_n_items/DEFAULT_ITEMS_TO_INSERT_PER_ITERATION);
 
     return 1;
