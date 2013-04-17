@@ -953,9 +953,9 @@ typedef enum {
     FT_PARTIAL_EVICTIONS_NONLEAF,              // number of nonleaf node partial evictions
     FT_PARTIAL_EVICTIONS_LEAF,                 // number of leaf node partial evictions
     FT_MSN_DISCARDS,                           // how many messages were ignored by leaf because of msn
-    FT_MAX_WORKDONE,                           // max workdone value of any buffer
+    //FT_MAX_WORKDONE,                           // max workdone value of any buffer
     FT_TOTAL_RETRIES,                          // total number of search retries due to TRY_AGAIN
-    FT_MAX_SEARCH_EXCESS_RETRIES,              // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
+    //FT_MAX_SEARCH_EXCESS_RETRIES,              // max number of excess search retries (retries - treeheight) due to TRY_AGAIN
     FT_SEARCH_TRIES_GT_HEIGHT,                 // number of searches that required more tries than the height of the tree
     FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            // number of searches that required more tries than the height of the tree plus three
     FT_DISK_FLUSH_LEAF,                        // number of leaf nodes flushed to disk,    not for checkpoint
@@ -969,7 +969,7 @@ typedef enum {
     FT_MSG_BYTES_IN,                           // how many bytes of messages injected at root (for all trees)
     FT_MSG_BYTES_OUT,                          // how many bytes of messages flushed from h1 nodes to leaves
     FT_MSG_BYTES_CURR,                         // how many bytes of messages currently in trees (estimate)
-    FT_MSG_BYTES_MAX,                          // how many bytes of messages currently in trees (estimate)
+    //FT_MSG_BYTES_MAX,                          // how many bytes of messages currently in trees (estimate)
     FT_MSG_NUM,                                // how many messages injected at root
     FT_MSG_NUM_BROADCAST,                      // how many broadcast messages injected at root
     FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      // how many basement nodes were decompressed because they were the target of a query

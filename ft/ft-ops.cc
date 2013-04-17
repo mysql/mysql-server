@@ -146,11 +146,14 @@ static const uint32_t this_version = FT_LAYOUT_VERSION;
  */
 static FT_STATUS_S ft_status;
 
-#define STATUS_INIT(k,t,l) {                            \
-        ft_status.status[k].keyname = #k;              \
-        ft_status.status[k].type    = t;               \
-        ft_status.status[k].legend  = "brt: " l;       \
-    }
+#define STATUS_INIT(k,t,l) do {                                         \
+        ft_status.status[k].keyname = #k;                               \
+        ft_status.status[k].type    = t;                                \
+        ft_status.status[k].legend  = "brt: " l;                        \
+        if (t == PARCOUNT) {                                            \
+            ft_status.status[k].value.parcount = create_partitioned_counter(); \
+        }                                                               \
+    } while (0)
 
 static toku_mutex_t ft_open_close_lock;
 
@@ -159,64 +162,68 @@ status_init(void)
 {
     // Note, this function initializes the keyname, type, and legend fields.
     // Value fields are initialized to zero by compiler.
-    STATUS_INIT(FT_UPDATES,                                UINT64, "dictionary updates");
-    STATUS_INIT(FT_UPDATES_BROADCAST,                      UINT64, "dictionary broadcast updates");
-    STATUS_INIT(FT_DESCRIPTOR_SET,                         UINT64, "descriptor set");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              UINT64, "nonleaf node partial evictions");
-    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 UINT64, "leaf node partial evictions");
-    STATUS_INIT(FT_MSN_DISCARDS,                           UINT64, "messages ignored by leaf due to msn");
-    STATUS_INIT(FT_MAX_WORKDONE,                           UINT64, "max workdone over all buffers");
-    STATUS_INIT(FT_TOTAL_RETRIES,                          UINT64, "total search retries due to TRY_AGAIN");
-    STATUS_INIT(FT_MAX_SEARCH_EXCESS_RETRIES,              UINT64, "max excess search retries (retries - tree height) due to TRY_AGAIN");
-    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 UINT64, "searches requiring more tries than the height of the tree");
-    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            UINT64, "searches requiring more tries than the height of the tree plus three");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF,                        UINT64, "leaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                     UINT64, "nonleaf nodes flushed to disk (not for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         UINT64, "leaf nodes flushed to disk (for checkpoint)");
-    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      UINT64, "nonleaf nodes flushed to disk (for checkpoint)");
-    STATUS_INIT(FT_CREATE_LEAF,                            UINT64, "leaf nodes created");
-    STATUS_INIT(FT_CREATE_NONLEAF,                         UINT64, "nonleaf nodes created");
-    STATUS_INIT(FT_DESTROY_LEAF,                           UINT64, "leaf nodes destroyed");
-    STATUS_INIT(FT_DESTROY_NONLEAF,                        UINT64, "nonleaf nodes destroyed");
-    STATUS_INIT(FT_MSG_BYTES_IN,                           UINT64, "bytes of messages injected at root (all trees)");
-    STATUS_INIT(FT_MSG_BYTES_OUT,                          UINT64, "bytes of messages flushed from h1 nodes to leaves");
-    STATUS_INIT(FT_MSG_BYTES_CURR,                         UINT64, "bytes of messages currently in trees (estimate)");
-    STATUS_INIT(FT_MSG_BYTES_MAX,                          UINT64, "max bytes of messages ever in trees (estimate)");
-    STATUS_INIT(FT_MSG_NUM,                                UINT64, "messages injected at root");
-    STATUS_INIT(FT_MSG_NUM_BROADCAST,                      UINT64, "broadcast messages injected at root");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      UINT64, "basements decompressed as a target of a query");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  UINT64, "basements decompressed for prelocked range");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    UINT64, "basements decompressed for prefetch");
-    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE,       UINT64, "basements decompressed for write");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     UINT64, "buffers decompressed as a target of a query");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, UINT64, "buffers decompressed for prelocked range");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   UINT64, "buffers decompressed for prefetch");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      UINT64, "buffers decompressed for write");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               UINT64, "pivots fetched for query");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            UINT64, "pivots fetched for prefetch");
-    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               UINT64, "pivots fetched for write");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           UINT64, "basements fetched as a target of a query");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       UINT64, "basements fetched for prelocked range");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         UINT64, "basements fetched for prefetch");
-    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            UINT64, "basements fetched for write");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          UINT64, "buffers fetched as a target of a query");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      UINT64, "buffers fetched for prelocked range");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        UINT64, "buffers fetched for prefetch");
-    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           UINT64, "buffers fetched for write");
+    STATUS_INIT(FT_UPDATES,                                PARCOUNT, "dictionary updates");
+    STATUS_INIT(FT_UPDATES_BROADCAST,                      PARCOUNT, "dictionary broadcast updates");
+    STATUS_INIT(FT_DESCRIPTOR_SET,                         PARCOUNT, "descriptor set");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_NONLEAF,              PARCOUNT, "nonleaf node partial evictions");
+    STATUS_INIT(FT_PARTIAL_EVICTIONS_LEAF,                 PARCOUNT, "leaf node partial evictions");
+    STATUS_INIT(FT_MSN_DISCARDS,                           PARCOUNT, "messages ignored by leaf due to msn");
+    //STATUS_INIT(FT_MAX_WORKDONE,                           UINT64, "max workdone over all buffers");
+    STATUS_INIT(FT_TOTAL_RETRIES,                          PARCOUNT, "total search retries due to TRY_AGAIN");
+    //STATUS_INIT(FT_MAX_SEARCH_EXCESS_RETRIES,              UINT64, "max excess search retries (retries - tree height) due to TRY_AGAIN");
+    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHT,                 PARCOUNT, "searches requiring more tries than the height of the tree");
+    STATUS_INIT(FT_SEARCH_TRIES_GT_HEIGHTPLUS3,            PARCOUNT, "searches requiring more tries than the height of the tree plus three");
+    STATUS_INIT(FT_DISK_FLUSH_LEAF,                        PARCOUNT, "leaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF,                     PARCOUNT, "nonleaf nodes flushed to disk (not for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT,         PARCOUNT, "leaf nodes flushed to disk (for checkpoint)");
+    STATUS_INIT(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT,      PARCOUNT, "nonleaf nodes flushed to disk (for checkpoint)");
+    STATUS_INIT(FT_CREATE_LEAF,                            PARCOUNT, "leaf nodes created");
+    STATUS_INIT(FT_CREATE_NONLEAF,                         PARCOUNT, "nonleaf nodes created");
+    STATUS_INIT(FT_DESTROY_LEAF,                           PARCOUNT, "leaf nodes destroyed");
+    STATUS_INIT(FT_DESTROY_NONLEAF,                        PARCOUNT, "nonleaf nodes destroyed");
+    STATUS_INIT(FT_MSG_BYTES_IN,                           PARCOUNT, "bytes of messages injected at root (all trees)");
+    STATUS_INIT(FT_MSG_BYTES_OUT,                          PARCOUNT, "bytes of messages flushed from h1 nodes to leaves");
+    STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)");
+    //STATUS_INIT(FT_MSG_BYTES_MAX,                          UINT64, "max bytes of messages ever in trees (estimate)");
+    STATUS_INIT(FT_MSG_NUM,                                PARCOUNT, "messages injected at root");
+    STATUS_INIT(FT_MSG_NUM_BROADCAST,                      PARCOUNT, "broadcast messages injected at root");
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL,      PARCOUNT, "basements decompressed as a target of a query");
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE,  PARCOUNT, "basements decompressed for prelocked range");
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH,    PARCOUNT, "basements decompressed for prefetch");
+    STATUS_INIT(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE,       PARCOUNT, "basements decompressed for write");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL,     PARCOUNT, "buffers decompressed as a target of a query");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, PARCOUNT, "buffers decompressed for prelocked range");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH,   PARCOUNT, "buffers decompressed for prefetch");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE,      PARCOUNT, "buffers decompressed for write");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_QUERY,               PARCOUNT, "pivots fetched for query");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_PREFETCH,            PARCOUNT, "pivots fetched for prefetch");
+    STATUS_INIT(FT_NUM_PIVOTS_FETCHED_WRITE,               PARCOUNT, "pivots fetched for write");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_NORMAL,           PARCOUNT, "basements fetched as a target of a query");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE,       PARCOUNT, "basements fetched for prelocked range");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_PREFETCH,         PARCOUNT, "basements fetched for prefetch");
+    STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE,      PARCOUNT, "buffers fetched for prelocked range");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH,        PARCOUNT, "buffers fetched for prefetch");
+    STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_WRITE,           PARCOUNT, "buffers fetched for write");
 
     ft_status.initialized = true;
+}
+static void status_destroy(void) {
+    for (int i = 0; i < FT_STATUS_NUM_ROWS; ++i) {
+        if (ft_status.status[i].type == PARCOUNT) {
+            destroy_partitioned_counter(ft_status.status[i].value.parcount);
+        }
+    }
 }
 #undef STATUS_INIT
 
 void
 toku_ft_get_status(FT_STATUS s) {
-    if (!ft_status.initialized) {
-        status_init();
-    }
     *s = ft_status;
 }
 
-#define STATUS_VALUE(x) ft_status.status[x].value.num
+#define STATUS_INC(x, d) increment_partitioned_counter(ft_status.status[x].value.parcount, d)
 
 bool is_entire_node_in_memory(FTNODE node) {
     for (int i = 0; i < node->n_children; i++) {
@@ -585,18 +592,18 @@ toku_get_and_clear_basement_stats(FTNODE leafnode) {
 static void ft_status_update_flush_reason(FTNODE node, bool for_checkpoint) {
     if (node->height == 0) {
         if (for_checkpoint) {
-            __sync_fetch_and_add(&STATUS_VALUE(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT), 1);
+            STATUS_INC(FT_DISK_FLUSH_LEAF_FOR_CHECKPOINT, 1);
         }
         else {
-            __sync_fetch_and_add(&STATUS_VALUE(FT_DISK_FLUSH_LEAF), 1);
+            STATUS_INC(FT_DISK_FLUSH_LEAF, 1);
         }
     }
     else {
         if (for_checkpoint) {
-            __sync_fetch_and_add(&STATUS_VALUE(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT), 1);
+            STATUS_INC(FT_DISK_FLUSH_NONLEAF_FOR_CHECKPOINT, 1);
         }
         else {
-            __sync_fetch_and_add(&STATUS_VALUE(FT_DISK_FLUSH_NONLEAF), 1);
+            STATUS_INC(FT_DISK_FLUSH_NONLEAF, 1);
         }
     }
 }
@@ -755,11 +762,11 @@ void
 toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
 {
     if (bfe->type == ftnode_fetch_prefetch) {
-        STATUS_VALUE(FT_NUM_PIVOTS_FETCHED_PREFETCH)++;
+        STATUS_INC(FT_NUM_PIVOTS_FETCHED_PREFETCH, 1);
     } else if (bfe->type == ftnode_fetch_all) {
-        STATUS_VALUE(FT_NUM_PIVOTS_FETCHED_WRITE)++;
+        STATUS_INC(FT_NUM_PIVOTS_FETCHED_WRITE, 1);
     } else if (bfe->type == ftnode_fetch_subset) {
-        STATUS_VALUE(FT_NUM_PIVOTS_FETCHED_QUERY)++;
+        STATUS_INC(FT_NUM_PIVOTS_FETCHED_QUERY, 1);
     }
 }
 
@@ -892,7 +899,7 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    STATUS_VALUE(FT_PARTIAL_EVICTIONS_NONLEAF)++;
+                    STATUS_INC(FT_PARTIAL_EVICTIONS_NONLEAF, 1);
                     cilk_spawn compress_internal_node_partition(node, i, ft->h->compression_method);
                 }
                 else {
@@ -914,7 +921,7 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
         for (int i = 0; i < node->n_children; i++) {
             // Get rid of compressed stuff no matter what.
             if (BP_STATE(node,i) == PT_COMPRESSED) {
-                STATUS_VALUE(FT_PARTIAL_EVICTIONS_LEAF)++;
+                STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
                 SUB_BLOCK sb = BSB(node, i);
                 toku_free(sb->compressed_ptr);
                 toku_free(sb);
@@ -923,7 +930,7 @@ int toku_ftnode_pe_callback (void *ftnode_pv, PAIR_ATTR UU(old_attr), PAIR_ATTR*
             }
             else if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    STATUS_VALUE(FT_PARTIAL_EVICTIONS_LEAF)++;
+                    STATUS_INC(FT_PARTIAL_EVICTIONS_LEAF, 1);
                     toku_evict_bn_from_memory(node, i, ft);
                 }
                 else {
@@ -1031,54 +1038,54 @@ ft_status_update_partial_fetch_reason(
     if (is_leaf) {
         if (bfe->type == ftnode_fetch_prefetch) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH)++;
+                STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_PREFETCH, 1);
             } else {
-                STATUS_VALUE(FT_NUM_BASEMENTS_FETCHED_PREFETCH)++;
+                STATUS_INC(FT_NUM_BASEMENTS_FETCHED_PREFETCH, 1);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE)++;
+                STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_WRITE, 1);
             } else {
-                STATUS_VALUE(FT_NUM_BASEMENTS_FETCHED_WRITE)++;
+                STATUS_INC(FT_NUM_BASEMENTS_FETCHED_WRITE, 1);
             }
         } else if (i == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL)++;
+                STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_NORMAL, 1);
             } else {
-                STATUS_VALUE(FT_NUM_BASEMENTS_FETCHED_NORMAL)++;
+                STATUS_INC(FT_NUM_BASEMENTS_FETCHED_NORMAL, 1);
             }
         } else {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE)++;
+                STATUS_INC(FT_NUM_BASEMENTS_DECOMPRESSED_AGGRESSIVE, 1);
             } else {
-                STATUS_VALUE(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE)++;
+                STATUS_INC(FT_NUM_BASEMENTS_FETCHED_AGGRESSIVE, 1);
             }
         }
     }
     else {
         if (bfe->type == ftnode_fetch_prefetch) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_PREFETCH, 1);
             } else {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_PREFETCH, 1);
             }
         } else if (bfe->type == ftnode_fetch_all) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_WRITE, 1);
             } else {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_FETCHED_WRITE)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_WRITE, 1);
             }
         } else if (i == bfe->child_to_read) {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_NORMAL, 1);
             } else {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_FETCHED_NORMAL)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_NORMAL, 1);
             }
         } else {
             if (state == PT_COMPRESSED) {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_DECOMPRESSED_AGGRESSIVE, 1);
             } else {
-                STATUS_VALUE(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE)++;
+                STATUS_INC(FT_NUM_MSG_BUFFER_FETCHED_AGGRESSIVE, 1);
             }
         }
     }
@@ -1223,9 +1230,9 @@ void toku_ftnode_free (FTNODE *nodep) {
                 toku_mempool_destroy(mp);
             }
         }
-        STATUS_VALUE(FT_DESTROY_LEAF)++;
+        STATUS_INC(FT_DESTROY_LEAF, 1);
     } else {
-        STATUS_VALUE(FT_DESTROY_NONLEAF)++;
+        STATUS_INC(FT_DESTROY_NONLEAF, 1);
     }
     toku_destroy_ftnode_internals(node);
     toku_free(node);
@@ -1240,9 +1247,9 @@ toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_c
     assert(height >= 0);
 
     if (height == 0)
-        STATUS_VALUE(FT_CREATE_LEAF)++;
+        STATUS_INC(FT_CREATE_LEAF, 1);
     else
-        STATUS_VALUE(FT_CREATE_NONLEAF)++;
+        STATUS_INC(FT_CREATE_NONLEAF, 1);
 
     n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
     n->flags = flags;
@@ -1473,9 +1480,10 @@ toku_ft_bn_apply_cmd_once (
         }
     }
     if (workdone) {  // test programs may call with NULL
-        uint64_t new_workdone = __sync_add_and_fetch(workdone, workdone_this_le);
-        if (new_workdone > STATUS_VALUE(FT_MAX_WORKDONE))
-            STATUS_VALUE(FT_MAX_WORKDONE) = new_workdone;
+        //uint64_t new_workdone =
+        (void) __sync_add_and_fetch(workdone, workdone_this_le);
+        //if (new_workdone > STATUS_VALUE(FT_MAX_WORKDONE))
+        //    STATUS_VALUE(FT_MAX_WORKDONE) = new_workdone;
     }
 
     // if we created a new mempool buffer, free the old one
@@ -1561,7 +1569,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
     if (cmd->type == FT_UPDATE) {
         // key is passed in with command (should be same as from le)
         // update function extra is passed in with command
-        STATUS_VALUE(FT_UPDATES)++;
+        STATUS_INC(FT_UPDATES, 1);
         keyp = cmd->u.id.key;
         update_function_extra = cmd->u.id.val;
     } else if (cmd->type == FT_UPDATE_BROADCAST_ALL) {
@@ -1570,7 +1578,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
         assert(le);  // for broadcast updates, we just hit all leafentries
                      // so this cannot be null
         assert(cmd->u.id.key->size == 0);
-        STATUS_VALUE(FT_UPDATES_BROADCAST)++;
+        STATUS_INC(FT_UPDATES_BROADCAST, 1);
         keyp = toku_fill_dbt(&key, le_key(le), le_keylen(le));
         update_function_extra = cmd->u.id.val;
     } else {
@@ -2274,9 +2282,9 @@ toku_bnc_flush_to_child(
             live_root_txns
             );
         size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
-        STATUS_VALUE(FT_MSG_BYTES_OUT) += buffsize;
+        STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
         // may be misleading if there's a broadcast message in there
-        STATUS_VALUE(FT_MSG_BYTES_CURR) -= buffsize;
+        STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
         // Perform the garbage collection.
         ft_leaf_gc_all_les(child, h, snapshot_txnids, referenced_xids, live_root_txns);
 
@@ -2401,7 +2409,7 @@ void toku_ft_leaf_apply_cmd(
                                   workdone,
                                   stats_to_update);
         } else {
-            STATUS_VALUE(FT_MSN_DISCARDS)++;
+            STATUS_INC(FT_MSN_DISCARDS, 1);
         }
     }
     else if (ft_msg_applies_all(cmd)) {
@@ -2416,7 +2424,7 @@ void toku_ft_leaf_apply_cmd(
                                       workdone,
                                       stats_to_update);
             } else {
-                STATUS_VALUE(FT_MSN_DISCARDS)++;
+                STATUS_INC(FT_MSN_DISCARDS, 1);
             }
         }
     }
@@ -2457,14 +2465,14 @@ static void push_something_at_root (FT h, FTNODE *nodep, FT_MSG cmd)
     // update some status variables
     if (node->height != 0) {
         uint64_t msgsize = ft_msg_size(cmd);
-        STATUS_VALUE(FT_MSG_BYTES_IN) += msgsize;
-        STATUS_VALUE(FT_MSG_BYTES_CURR) += msgsize;
-        if (STATUS_VALUE(FT_MSG_BYTES_CURR) > STATUS_VALUE(FT_MSG_BYTES_MAX)) {
-            STATUS_VALUE(FT_MSG_BYTES_MAX) = STATUS_VALUE(FT_MSG_BYTES_CURR);
-        }
-        STATUS_VALUE(FT_MSG_NUM)++;
+        STATUS_INC(FT_MSG_BYTES_IN, msgsize);
+        STATUS_INC(FT_MSG_BYTES_CURR, msgsize);
+        //if (STATUS_VALUE(FT_MSG_BYTES_CURR) > STATUS_VALUE(FT_MSG_BYTES_MAX)) {
+        //    STATUS_VALUE(FT_MSG_BYTES_MAX) = STATUS_VALUE(FT_MSG_BYTES_CURR);
+        //}
+        STATUS_INC(FT_MSG_NUM, 1);
         if (ft_msg_applies_all(cmd)) {
-            STATUS_VALUE(FT_MSG_NUM_BROADCAST)++;
+            STATUS_INC(FT_MSG_NUM_BROADCAST, 1);
         }
     }
 }
@@ -3137,7 +3145,7 @@ toku_ft_change_descriptor(
     toku_ft_update_descriptor(ft_h->ft, &new_d);
     // very infrequent operation, worth precise threadsafe count
     if (r == 0) {
-        STATUS_VALUE(FT_DESCRIPTOR_SET)++;
+        STATUS_INC(FT_DESCRIPTOR_SET, 1);
     }
     if (r!=0) goto cleanup;
 
@@ -3848,7 +3856,7 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, FTNODE ancestor, int childnum, str
             stats_to_update
             );
     } else {
-        STATUS_VALUE(FT_MSN_DISCARDS)++;
+        STATUS_INC(FT_MSN_DISCARDS, 1);
     }
     // We must always mark entry as stale since it has been marked
     // (using omt::iterate_and_mark_range)
@@ -4906,14 +4914,16 @@ try_again:
     }
     {   // accounting (to detect and measure thrashing)
         uint retrycount = trycount - 1;         // how many retries were needed?
-        if (retrycount) STATUS_VALUE(FT_TOTAL_RETRIES) += retrycount;
+        if (retrycount) {
+            STATUS_INC(FT_TOTAL_RETRIES, retrycount);
+        }
         if (retrycount > tree_height) {         // if at least one node was read from disk more than once
-            STATUS_VALUE(FT_SEARCH_TRIES_GT_HEIGHT)++;
-            uint excess_tries = retrycount - tree_height;
-            if (excess_tries > STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES))
-                STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES) = excess_tries;
+            STATUS_INC(FT_SEARCH_TRIES_GT_HEIGHT, 1);
+            //uint excess_tries = retrycount - tree_height;
+            //if (excess_tries > STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES))
+            //    STATUS_VALUE(FT_MAX_SEARCH_EXCESS_RETRIES) = excess_tries;
             if (retrycount > (tree_height+3))
-                STATUS_VALUE(FT_SEARCH_TRIES_GT_HEIGHTPLUS3)++;
+                STATUS_INC(FT_SEARCH_TRIES_GT_HEIGHTPLUS3, 1);
         }
     }
     return r;
@@ -5549,6 +5559,7 @@ int toku_ft_layer_init(void) {
     if (r) { goto exit; }
 
     partitioned_counters_init();
+    status_init();
     toku_checkpoint_init();
     toku_ft_serialize_layer_init();
     toku_mutex_init(&ft_open_close_lock, NULL);
@@ -5560,6 +5571,7 @@ void toku_ft_layer_destroy(void) {
     toku_mutex_destroy(&ft_open_close_lock);
     toku_ft_serialize_layer_destroy();
     toku_checkpoint_destroy();
+    status_destroy();
     partitioned_counters_destroy();
     //Portability must be cleaned up last
     toku_portability_destroy();
@@ -5751,4 +5763,4 @@ toku_ft_helgrind_ignore(void) {
     HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&ft_status, sizeof ft_status);
 }
 
-#undef STATUS_VALUE
+#undef STATUS_INC

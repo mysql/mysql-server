@@ -627,7 +627,9 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("   UINT64,         // interpret as uint64_t \n");
     printf("   CHARSTR,        // interpret as char * \n");
     printf("   UNIXTIME,       // interpret as time_t \n");
-    printf("   TOKUTIME        // interpret as tokutime_t \n");  
+    printf("   TOKUTIME,       // interpret as tokutime_t \n");  
+    printf("   PARCOUNT,       // interpret as PARTITIONED_COUNTER\n");
+    printf("   MAXCOUNT        // interpret as MAX_PARTITIONED_COUNTER\n");
     printf("} toku_engine_status_display_type; \n");
 
     printf("typedef struct __toku_engine_status_row {\n");
@@ -637,6 +639,8 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("  union {              \n");
     printf("         uint64_t num; \n");
     printf("         const char *   str; \n");
+    printf("         struct partitioned_counter *parcount;\n");
+    printf("         struct max_partitioned_counter *maxcount;\n");
     printf("  } value;       \n");
     printf("} * TOKU_ENGINE_STATUS_ROW, TOKU_ENGINE_STATUS_ROW_S; \n");
 
