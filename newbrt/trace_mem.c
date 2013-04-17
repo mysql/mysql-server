@@ -65,8 +65,8 @@ static FILE* bltrace_fp = NULL;
 #endif
 
 void bl_trace(const char *func __attribute__((unused)), 
-                     int line __attribute__ ((unused)), 
-                     char *str __attribute__((unused))) 
+                     int  line __attribute__((unused)), 
+              const char *str  __attribute__((unused))) 
 {
 #if BL_DO_TRACE
     if ( bl_next_trace < BL_TRACE_MAX_ENTRIES ) {
@@ -97,6 +97,7 @@ void bl_trace_end(void)
 #if BL_DO_TRACE
     char bltracefile[128];
     sprintf(bltracefile, "brtloader_%d.trace", toku_os_getpid());;
+    printf("brtloader_%d.trace", toku_os_getpid());
     bltrace_fp = fopen(bltracefile, "w");
     assert(bltrace_fp != NULL);
     for (int i=0;i<bl_next_trace;i++) {

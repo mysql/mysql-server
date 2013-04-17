@@ -27,8 +27,9 @@ void toku_print_trace_mem(void) __attribute__((__visibility__("default")));
 
 //  some trace functions added for the bulk loader
 void bl_trace(const char *func __attribute__((unused)), 
-              int line __attribute__ ((unused)), 
-              char *str __attribute__((unused))) __attribute__((unused));
+              int         line __attribute__ ((unused)), 
+              const char *str  __attribute__((unused)))
+    __attribute__((unused));
 void bl_trace_end(void) __attribute__((unused));
 
 #define BL_DO_TRACE 0
