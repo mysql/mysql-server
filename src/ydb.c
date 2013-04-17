@@ -2617,7 +2617,9 @@ locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
     // will grab the multi operation lock, and then not be able to complete the checkpoint because
     // this thread has its rollback log pinned and is trying to grab the multi operation lock.
     //
+    toku_ydb_lock();
     int r = toku_unpin_inprogress_rollback_log(ttxn);
+    toku_ydb_unlock();
     assert(r==0);
     if (toku_txn_requires_checkpoint(ttxn)) {
         toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL);
