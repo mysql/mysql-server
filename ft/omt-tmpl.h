@@ -524,29 +524,6 @@ private:
     template<typename omtcmp_t,
              int (*h)(const omtdata_t &, const omtcmp_t &)>
     int find_internal_minus(const node_idx n_idx, const omtcmp_t &extra, omtdataout_t *value, uint32_t *const idxp) const;
-
-    __attribute__((nonnull))
-    static int deep_clone_iter(const omtdata_t &value, const uint32_t idx, omt *const dest);
-
-    static int free_items_iter(omtdata_t *value, const uint32_t UU(idx), void *const UU(unused));
-public:
-    /**
-     * Effect: Iterate over the values of the omt, from left to right, freeing each value with toku_free
-     * Requires: all items in OMT to have been malloced with toku_malloc
-     * Rational: This function was added due to a problem encountered in ft-ops.c. We needed to free the elements and then
-     *   destroy the OMT. However, destroying the OMT requires invalidating cursors. This cannot be done if the values of the OMT
-     *   have been already freed. So, this function is written to invalidate cursors and free items.
-     */
-    void free_items(void);
-
-    /**
-     * Effect: Creates a copy of an omt.
-     *  Creates this as the clone.
-     *  Each element is assumed to be a pointer, and the underlying data is duplicated for the clone using toku_malloc.
-     * Performance: the running time of iterate()
-     */
-    void deep_clone(const omt &src);
-
 };
 
 } // namespace toku

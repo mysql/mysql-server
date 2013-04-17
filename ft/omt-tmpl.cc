@@ -899,39 +899,4 @@ int omt<omtdata_t, omtdataout_t>::find_internal_minus(const node_idx n_idx, cons
         return this->find_internal_minus<omtcmp_t, h>(n->left, extra, value, idxp);
     }
 }
-
-template<typename omtdata_t, typename omtdataout_t>
-int omt<omtdata_t, omtdataout_t>::deep_clone_iter(const omtdata_t &value, const uint32_t idx, omt *const dest) {
-#ifndef __ICC
-    static_assert(std::is_pointer<omtdata_t>::value, "omtdata_t isn't a pointer, can't do deep clone");
-#endif
-    invariant_notnull(dest);
-    invariant(idx == dest->d.a.num_values);
-    invariant(idx < dest->capacity);
-    omtdata_t &destp = dest->d.a.values[dest->d.a.num_values++];
-    XMEMDUP(destp, value);
-    return 0;
-}
-
-template<typename omtdata_t, typename omtdataout_t>
-int omt<omtdata_t, omtdataout_t>::free_items_iter(omtdata_t *value, const uint32_t UU(idx), void *const UU(unused)) {
-#ifndef __ICC
-    static_assert(std::is_pointer<omtdata_t>::value, "omtdata_t isn't a pointer, can't do free items");
-#endif
-    invariant_notnull(*value);
-    toku_free(*value);
-    return 0;
-}
-template<typename omtdata_t, typename omtdataout_t>
-void omt<omtdata_t, omtdataout_t>::free_items(void) {
-    this->iterate_ptr<void, free_items_iter>(nullptr);
-}
-template<typename omtdata_t, typename omtdataout_t>
-void omt<omtdata_t, omtdataout_t>::deep_clone(const omt &src) {
-    this->create_internal(src.size());
-    int r = src.iterate<omt, deep_clone_iter>(this);
-    lazy_assert_zero(r);
-    this->d.a.num_values = src.size();
-}
-
 } // namespace toku
