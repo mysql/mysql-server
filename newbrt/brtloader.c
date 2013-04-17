@@ -1178,7 +1178,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
 					 +4 // compressed size
 					 +4 // compressed size
 					 );
-    int compression_level = 1;
+    int compression_level = 5;
     int uncompressed_len = lbuf->dbuf.off - n_uncompressed_bytes_at_beginning;
     int bound = compressBound(uncompressed_len);
     unsigned char *MALLOC_N(bound + n_uncompressed_bytes_at_beginning  + n_extra_bytes_for_compression, compressed_buf);
