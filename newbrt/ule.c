@@ -2019,7 +2019,6 @@ bool transaction_open(TXNID xid) {
 
 #endif
 
-#if BRT_LAYOUT_MIN_SUPPORTED_VERSION <= BRT_LAYOUT_VERSION_12 
 #if TOKU_WINDOWS
 #pragma pack(push, 1)
 #endif
@@ -2215,6 +2214,4 @@ toku_le_upgrade_12_13(LEAFENTRY_12 old_leafentry,
     ule_cleanup(&ule);
     return rval;
 }
-
-#endif
 
