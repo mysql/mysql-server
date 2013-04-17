@@ -2686,16 +2686,22 @@ toku_brt_log_put_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         FILENUM  fnums[num_brts];
-        FILENUMS filenums = {.num = num_brts, .filenums = fnums};
         int i;
+        int num_unsuppressed_brts = 0;
         for (i = 0; i < num_brts; i++) {
-            fnums[i] = toku_cachefile_filenum(brts[i]->cf);
+            if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+                //Logging not suppressed for this brt.
+                fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->cf);
+            }
         }
-        BYTESTRING keybs = {.len=key->size, .data=key->data};
-        BYTESTRING valbs = {.len=val->size, .data=val->data};
-        TXNID xid = toku_txn_get_txnid(txn);
-        FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
-        r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        if (num_unsuppressed_brts) {
+            FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
+            BYTESTRING keybs = {.len=key->size, .data=key->data};
+            BYTESTRING valbs = {.len=val->size, .data=val->data};
+            TXNID xid = toku_txn_get_txnid(txn);
+            FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
+            r = toku_log_enq_insert_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        }
     }
     return r;
 }
@@ -2725,7 +2731,8 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
         message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (do_logging && logger) {
+    if (do_logging && logger &&
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         if (type == BRT_INSERT) {
@@ -2759,16 +2766,22 @@ toku_brt_log_del_multiple (TOKUTXN txn, BRT src_brt, BRT *brts, int num_brts, co
     TOKULOGGER logger = toku_txn_logger(txn);
     if (logger) {
         FILENUM  fnums[num_brts];
-        FILENUMS filenums = {.num = num_brts, .filenums = fnums};
         int i;
+        int num_unsuppressed_brts = 0;
         for (i = 0; i < num_brts; i++) {
-            fnums[i] = toku_cachefile_filenum(brts[i]->cf);
+            if (brts[i]->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
+                //Logging not suppressed for this brt.
+                fnums[num_unsuppressed_brts++] = toku_cachefile_filenum(brts[i]->cf);
+            }
         }
-        BYTESTRING keybs = {.len=key->size, .data=key->data};
-        BYTESTRING valbs = {.len=val->size, .data=val->data};
-        TXNID xid = toku_txn_get_txnid(txn);
-        FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
-        r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        if (num_unsuppressed_brts) {
+            FILENUMS filenums = {.num = num_unsuppressed_brts, .filenums = fnums};
+            BYTESTRING keybs = {.len=key->size, .data=key->data};
+            BYTESTRING valbs = {.len=val->size, .data=val->data};
+            TXNID xid = toku_txn_get_txnid(txn);
+            FILENUM src_filenum = src_brt ? toku_cachefile_filenum(src_brt->cf) : FILENUM_NONE;
+            r = toku_log_enq_delete_multiple(logger, (LSN*)0, 0, src_filenum, filenums, xid, keybs, valbs);
+        }
     }
     return r;
 }
@@ -2791,7 +2804,8 @@ int toku_brt_maybe_delete(BRT brt, DBT *key, TOKUTXN txn, BOOL oplsn_valid, LSN 
         message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (do_logging && logger) {
+    if (do_logging && logger &&
+        brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         r = toku_log_enq_delete_any(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs);
         if (r!=0) return r;
@@ -3022,6 +3036,7 @@ brt_init_header (BRT t) {
 
     toku_list_init(&t->h->live_brts);
     toku_list_init(&t->h->zombie_brts);
+    toku_list_init(&t->h->checkpoint_before_commit_link);
     int r = brt_init_header_partial(t);
     if (r==0) toku_block_verify_no_free_blocknums(t->h->blocktable);
     return r;
@@ -3782,7 +3797,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
 // Write checkpoint-in-progress versions of header and translation to disk (really to OS internal buffer).
 // Must have access to fd (protected)
 int
-toku_brtheader_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v)
+toku_brtheader_checkpoint (CACHEFILE cf, int fd, void *header_v)
 {
     struct brt_header *h = header_v;
     struct brt_header *ch = h->checkpoint_header;
@@ -3794,6 +3809,11 @@ toku_brtheader_checkpoint (CACHEFILE UU(cachefile), int fd, void *header_v)
     if (ch->panic!=0) goto handle_error;
     assert(ch->type == BRTHEADER_CHECKPOINT_INPROGRESS);
     if (ch->dirty) {	// this is only place this bit is tested (in checkpoint_header)
+        TOKULOGGER logger = toku_cachefile_logger(cf);
+        if (logger) {
+            r = toku_logger_fsync_if_lsn_not_fsynced(logger, ch->checkpoint_lsn);
+            if (r!=0) goto handle_error;
+        }
 	{
 	    ch->checkpoint_count++;
 	    // write translation and header to disk (or at least to OS internal buffer)
@@ -5338,7 +5358,7 @@ int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL op
         message_xids = xids_get_root_xids();
     }
     TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger) {
+    if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
         BYTESTRING keybs = {.len=key->size, .data=key->data};
         BYTESTRING valbs = {.len=val->size, .data=val->data};
         r = toku_log_enq_delete_both(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
@@ -5693,25 +5713,18 @@ toku_brt_is_empty (BRT brt) {
     return is_empty;
 }
 
-int
-toku_brt_note_table_lock (BRT brt, TOKUTXN txn, BOOL ignore_not_empty) {
-    int r = 0;
-    if (brt->h->txnid_that_created_or_locked_when_empty != toku_txn_get_txnid(txn) &&
-        (ignore_not_empty || toku_brt_is_empty(brt)) &&
-        brt->h->txnid_that_created_or_locked_when_empty == TXNID_NONE)
-    {
-        brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(txn);
-        r = toku_txn_note_brt(txn, brt);
-        assert(r==0);
-        r = toku_logger_save_rollback_tablelock_on_empty_table(txn, toku_cachefile_filenum(brt->cf));
-        if (r==0) {
-            TOKULOGGER logger = toku_txn_logger(txn);
-            TXNID xid = toku_txn_get_txnid(txn);
-            r = toku_log_tablelock_on_empty_table(logger, (LSN*)NULL,
-                                                  0, toku_cachefile_filenum(brt->cf), xid);
-        }
-    }
-    return r;
+//Suppress both rollback and recovery logs.
+void
+toku_brt_suppress_recovery_logs (BRT brt, TOKUTXN txn) {
+    assert(brt->h->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(txn));
+    assert(brt->h->txnid_that_suppressed_recovery_logs     == TXNID_NONE);
+    brt->h->txnid_that_suppressed_recovery_logs            = toku_txn_get_txnid(txn);
+    toku_list_push(&txn->checkpoint_before_commit, &brt->h->checkpoint_before_commit_link);
+}
+
+BOOL
+toku_brt_is_recovery_logging_suppressed (BRT brt) {
+    return brt->h->txnid_that_suppressed_recovery_logs != TXNID_NONE;
 }
 
 LSN toku_brt_checkpoint_lsn(BRT brt) {

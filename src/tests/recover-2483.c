@@ -40,8 +40,8 @@ do_x1_shutdown (void) {
     {
         DB_LOADER *loader;
         DB *dbs[1] = {db};
-        uint32_t db_flags[1] = {DB_NOOVERWRITE};
-        uint32_t dbt_flags[1];
+        uint32_t db_flags[1]  = {DB_NOOVERWRITE};
+        uint32_t dbt_flags[1] = {0};
         uint32_t loader_flags = 0;
 
         r = env->create_loader(env, tid, &loader, NULL, 1, dbs, db_flags, dbt_flags, loader_flags);

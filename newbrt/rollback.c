@@ -104,7 +104,7 @@ toku_apply_txn (TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn,
                 r = func(txn, item, yield, yieldv, lsn);
                 if (r!=0) return r;
                 count++;
-                if (count%2 == 0) yield(NULL, yieldv);
+                if (count%2 == 0) yield(NULL, NULL, yieldv);
             }
         }
         if (next_log.b == txn->spilled_rollback_head.b) {
@@ -206,6 +206,11 @@ static int note_brt_used_in_txns_parent(OMTVALUE brtv, u_int32_t UU(index), void
         //Pass magic "no rollback needed" flag to parent.
         brt->h->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
     }
+    if (r==0 &&
+        brt->h->txnid_that_suppressed_recovery_logs == toku_txn_get_txnid(child)) {
+        //Pass magic "no recovery needed" flag to parent.
+        brt->h->txnid_that_suppressed_recovery_logs = toku_txn_get_txnid(parent);
+    }
     return r;
 }
 
@@ -279,6 +284,12 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
         r = toku_omt_iterate(txn->open_brts, note_brt_used_in_txns_parent, txn);
         assert(r==0);
 
+        // Merge the list of headers that must be checkpointed before commit
+        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
+            struct toku_list *list = toku_list_pop(&txn->checkpoint_before_commit);
+            toku_list_push(&txn->parent->checkpoint_before_commit, list);
+        }
+
         //If this transaction needs an fsync (if it commits)
         //save that in the parent.  Since the commit really happens in the root txn.
         txn->parent->force_fsync_on_commit |= txn->force_fsync_on_commit;
@@ -293,6 +304,11 @@ int toku_rollback_commit(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
 
 int toku_rollback_abort(TOKUTXN txn, YIELDF yield, void*yieldv, LSN lsn) {
     int r;
+    //Empty the list
+    while (!toku_list_empty(&txn->checkpoint_before_commit)) {
+        toku_list_pop(&txn->checkpoint_before_commit);
+    }
+
     r = toku_apply_txn(txn, yield, yieldv, lsn, toku_abort_rollback_item);
     assert(r==0);
     return r;
@@ -557,7 +573,10 @@ static int remove_txn (OMTVALUE brtv, u_int32_t UU(idx), void *txnv) {
     r = toku_omt_delete_at(brt->txns, index);
     assert(r==0);
     if (txn->txnid64==brt->h->txnid_that_created_or_locked_when_empty) {
-        brt->h->txnid_that_created_or_locked_when_empty = 0;
+        brt->h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
+    }
+    if (txn->txnid64==brt->h->txnid_that_suppressed_recovery_logs) {
+        brt->h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
     }
     if (!toku_brt_zombie_needed(brt) && brt->was_closed) {
         //Close immediately.

@@ -66,6 +66,7 @@
 static DB_ENV *env = NULL;
 static DB_TXN *txn_parent = NULL;
 static DB_TXN *txn_child  = NULL;
+static DB_TXN *txn_hold_dname_lock  = NULL;
 static DB     *db;
 static char *dname = DICT_0;
 static DBT key;
@@ -106,6 +107,37 @@ end_env(void) {
     r=env->close(env, 0);
     CKERR(r);
     env = NULL;
+}
+
+static void
+start_txn_prevent_dname_lock(void) {
+    assert(env!=NULL);
+    assert(txn_hold_dname_lock==NULL);
+    int r;
+    r=env->txn_begin(env, 0, &txn_hold_dname_lock, 0);
+    CKERR(r);
+    DB *db2;
+
+    r = db_create(&db2, env, 0);
+    CKERR(r);
+
+    r=db2->open(db2, txn_hold_dname_lock, dname, 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);
+    CKERR(r);
+    r = db2->close(db2, 0);
+}
+
+static void nopoll(TOKU_TXN_PROGRESS UU(progress), void *UU(extra)) {
+    assert(FALSE);
+}
+
+static void
+commit_txn_prevent_dname_lock(void) {
+    assert(env!=NULL);
+    assert(txn_hold_dname_lock!=NULL);
+    int r;
+    r = txn_hold_dname_lock->commit_with_progress(txn_hold_dname_lock, 0, nopoll, NULL);
+    CKERR(r);
+    txn_hold_dname_lock = NULL;
 }
 
 static void
@@ -301,43 +333,29 @@ progress_test_1(int n, int commit) {
     end_env();
 }
 
-struct progress_stall_expect {
-    int  num_calls;
-    BOOL has_been_stalled;
-};
-
-static void stall_poll(TOKU_TXN_PROGRESS progress, void *extra) {
-    struct progress_stall_expect *info = extra;
-    info->num_calls++;
-    assert(info->num_calls <= 2);
-    assert(progress->is_commit == FALSE);
-    if (!info->has_been_stalled) {
-        assert(info->num_calls==1);
-        assert(progress->stalled_on_checkpoint); 
-        info->has_been_stalled = TRUE;
-    }
-    else {
-        assert(info->num_calls==2);
-        assert(!progress->stalled_on_checkpoint); 
-    }
-}
-
-
 static void
 abort_txn_stall_checkpoint(void) {
+    //We have disabled the norollback log fallback optimization.
+    //Checkpoint will not stall
     assert(env!=NULL);
     assert(txn_parent);
     assert(!txn_child);
     
-    struct progress_stall_expect extra = {
-        .num_calls = 0,
-        .has_been_stalled = FALSE
-    };
-
     int r;
-    r=txn_parent->abort_with_progress(txn_parent, stall_poll, &extra);
+    r=txn_parent->abort_with_progress(txn_parent, nopoll, NULL);
     CKERR(r);
-    assert(extra.num_calls == 2);
+    txn_parent = NULL;
+}
+
+static void
+abort_txn_nostall_checkpoint(void) {
+    assert(env!=NULL);
+    assert(txn_parent);
+    assert(!txn_child);
+    
+    int r;
+    r=txn_parent->abort_with_progress(txn_parent, nopoll, NULL);
+    CKERR(r);
     txn_parent = NULL;
 }
 
@@ -358,8 +376,21 @@ progress_test_2(void) {
     start_env();
     open_db();
     start_txn();
+    start_txn_prevent_dname_lock();
     lock();
+    commit_txn_prevent_dname_lock();
     abort_txn_stall_checkpoint();
+    close_db();
+    end_env();
+}
+
+static void
+progress_test_3(void) {
+    start_env();
+    open_db();
+    start_txn();
+    lock();
+    abort_txn_nostall_checkpoint();
     close_db();
     end_env();
 }
@@ -373,5 +404,6 @@ test_main (int argc, char * const argv[])
         progress_test_1(4, commit);
     }
     progress_test_2();
+    progress_test_3();
     return 0;
 }

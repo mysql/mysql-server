@@ -435,6 +435,7 @@ deserialize_brtheader_10 (int fd, struct rbuf *rb, struct brt_header **brth) {
     h->panic_string = 0;
     toku_list_init(&h->live_brts);
     toku_list_init(&h->zombie_brts);
+    toku_list_init(&h->checkpoint_before_commit_link);
     //version MUST be in network order on disk regardless of disk order
     h->layout_version = rbuf_network_int(&rc);
     assert(h->layout_version==BRT_LAYOUT_VERSION_10);

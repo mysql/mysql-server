@@ -147,7 +147,13 @@ static inline int rwlock_readers(RWLOCK rwlock) {
     return rwlock->reader;
 }
 
-// returns: the number of writers
+// returns: the number of readers who are waiting for the lock
+
+static inline int rwlock_blocked_readers(RWLOCK rwlock) {
+    return rwlock->want_read;
+}
+
+// returns: the number of writers who are waiting for the lock
 
 static inline int rwlock_blocked_writers(RWLOCK rwlock) {
     return rwlock->want_write;

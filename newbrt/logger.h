@@ -21,6 +21,7 @@ int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, BOOL cre
 int toku_logger_close_rollback(TOKULOGGER logger, BOOL recovery_failed);
 
 int toku_logger_fsync (TOKULOGGER logger);
+int toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
 void toku_logger_panic (TOKULOGGER logger, int err);
 int toku_logger_panicked(TOKULOGGER logger);
 int toku_logger_is_open(TOKULOGGER logger);

@@ -13,8 +13,8 @@
 #include "memory.h"
 #include "x1764.h"
 
-typedef void(*voidfp)(void);
-typedef void(*YIELDF)(voidfp, void*);
+typedef void(*voidfp)(void *thunk);
+typedef void(*YIELDF)(voidfp, void *fpthunk, void *yieldthunk);
 struct roll_entry;
 
 #include "logger.h"

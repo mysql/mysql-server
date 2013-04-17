@@ -458,6 +458,24 @@ int toku_logger_fsync (TOKULOGGER logger)
     return r;
 }
 
+int
+toku_logger_fsync_if_lsn_not_fsynced (TOKULOGGER logger, LSN lsn) {
+    int r = 0;
+    if (logger->is_panicked) r = EINVAL;
+    else if (logger->write_log_files && logger->fsynced_lsn.lsn < lsn.lsn) {
+        r = ml_lock(&logger->input_lock);        assert(r==0);
+        logger->input_lock_ctr++;
+        r = toku_logger_maybe_fsync(logger, lsn, TRUE);
+        if (r!=0) {
+            toku_logger_panic(logger, r);
+        }
+        else {
+            assert(logger->fsynced_lsn.lsn >= lsn.lsn);
+        }
+    }
+    return r;
+}
+
 void toku_logger_panic (TOKULOGGER logger, int err) {
     logger->panic_errno=err;
     logger->is_panicked=TRUE;

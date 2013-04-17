@@ -135,6 +135,7 @@ struct tokutxn {
     uint32_t   current_rollback_hash;
     BOOL       recovered_from_checkpoint;
     ROLLBACK_LOG_NODE pinned_inprogress_rollback_log;
+    struct toku_list checkpoint_before_commit;
 };
 
 struct txninfo {

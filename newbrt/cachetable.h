@@ -322,4 +322,5 @@ void toku_cachetable_set_env_dir(CACHETABLE ct, char *env_dir);
 char * toku_construct_full_name(int count, ...);
 char * toku_cachetable_get_fname_in_cwd(CACHETABLE ct, const char * fname_in_env);
 
+int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[n]);
 #endif

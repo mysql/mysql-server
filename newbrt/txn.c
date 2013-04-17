@@ -5,6 +5,7 @@
 
 #include "includes.h"
 #include "txn.h"
+#include "checkpoint.h"
 
 int toku_txn_begin_txn (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGER logger) {
     return toku_txn_begin_with_xid(parent_tokutxn, tokutxn, logger, 0);
@@ -70,6 +71,7 @@ int toku_txn_begin_with_xid (TOKUTXN parent_tokutxn, TOKUTXN *tokutxn, TOKULOGGE
     result->rollentry_raw_count = 0;
     result->force_fsync_on_commit = FALSE;
     result->recovered_from_checkpoint = FALSE;
+    toku_list_init(&result->checkpoint_before_commit);
     *tokutxn = result;
     return 0;
 
@@ -112,16 +114,52 @@ toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
 
 // Doesn't close the txn, just performs the commit operations.
 int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk) {
+                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN,
-				    poll, poll_extra,
-				    release_locks, reacquire_locks, locks_thunk);
+				    poll, poll_extra);
+}
+
+struct xcommit_info {
+    int r;
+    TOKUTXN txn;
+    int do_fsync;
+};
+
+//Called during a yield (ydb lock NOT held).
+static void
+local_checkpoints_and_log_xcommit(void *thunk) {
+    struct xcommit_info *info = thunk;
+    TOKUTXN txn = info->txn;
+
+    if (!txn->parent && !toku_list_empty(&txn->checkpoint_before_commit)) {
+        //Do local checkpoints that must happen BEFORE logging xcommit
+        uint32_t num_cachefiles = 0;
+        uint32_t list_size = 16;
+        CACHEFILE *cachefiles= NULL;
+        XMALLOC_N(list_size, cachefiles);
+        while (!toku_list_empty(&txn->checkpoint_before_commit)) {
+            struct toku_list *list = toku_list_pop(&txn->checkpoint_before_commit);
+            struct brt_header *h = toku_list_struct(list,
+                                                    struct brt_header,
+                                                    checkpoint_before_commit_link);
+            cachefiles[num_cachefiles++] = h->cf;
+            if (num_cachefiles == list_size) {
+                list_size *= 2;
+                XREALLOC_N(list_size, cachefiles);
+            }
+        }
+        assert(num_cachefiles);
+        CACHETABLE ct = toku_cachefile_get_cachetable(cachefiles[0]);
+
+        int r = toku_cachetable_local_checkpoint_for_commit(ct, txn, num_cachefiles, cachefiles);
+        assert(r==0);
+    }
+
+    info->r = toku_log_xcommit(txn->logger, (LSN*)0, info->do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
 }
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
-			     void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk) {
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
     int r;
     // panic handled in log_commit
 
@@ -131,9 +169,15 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
-    if (release_locks) release_locks(locks_thunk);
-    r = toku_log_xcommit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
-    if (reacquire_locks) reacquire_locks(locks_thunk);
+    {
+        struct xcommit_info info = {
+            .r = 0,
+            .txn = txn,
+            .do_fsync = do_fsync
+        };
+        yield(local_checkpoints_and_log_xcommit, &info, yieldv);
+        r = info.r;
+    }
     if (r!=0)
         return r;
     r = toku_rollback_commit(txn, yield, yieldv, oplsn);
@@ -152,6 +196,7 @@ int toku_txn_abort_with_lsn(TOKUTXN txn, YIELDF yield, void *yieldv, LSN oplsn,
     // Must undo everything.  Must undo it all in reverse order.
     // Build the reverse list
     //printf("%s:%d abort\n", __FILE__, __LINE__);
+
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
     int r=0;
