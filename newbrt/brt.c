@@ -1288,7 +1288,7 @@ maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
     assert(node->u.l.leaf_stats.exact);
 }
 
-static void
+static void UU()
 brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
 // Effect: fully promote leafentry
 //   le is old leafentry (and new one)
@@ -1347,7 +1347,7 @@ brt_leaf_apply_full_promotion_once (BRTNODE node, LEAFENTRY le)
 }
 
 static void
-maybe_do_implicit_promotion_on_query (BRT_CURSOR brtcursor, LEAFENTRY le) {
+maybe_do_implicit_promotion_on_query (BRT_CURSOR UU(brtcursor), LEAFENTRY UU(le)) {
     //Requires: le is not a provdel (Callers never call it unless not provdel).
     //assert(!le_is_provdel(le)); //Must be as fast as possible.  Assert is superfluous.
 
@@ -1362,10 +1362,12 @@ maybe_do_implicit_promotion_on_query (BRT_CURSOR brtcursor, LEAFENTRY le) {
     //  * We allow errors here to improve speed.
     //   * We will sometimes say a txn is uncommitted when it is committed.
     //   * We will NEVER say a txn is committed when it is uncommitted.
+#if DO_IMPLICIT_PROMOTION_ON_QUERY
     TXNID outermost_uncommitted_xid = le_outermost_uncommitted_xid(le);
     if (outermost_uncommitted_xid != 0 && outermost_uncommitted_xid < brtcursor->oldest_living_xid) {
         brt_leaf_apply_full_promotion_once(brtcursor->leaf_info.node, le);
     }
+#endif
 }
 
 static int
