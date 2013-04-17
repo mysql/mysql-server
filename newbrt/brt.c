@@ -3293,6 +3293,7 @@ brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
     //Only one can be pinned (only one checkpoint at a time), but not worth verifying.
     struct brt_header *h = header_v;
     BRT brt_to_pin;
+    toku_brtheader_lock(h);
     if (!toku_list_empty(&h->live_brts)) {
         brt_to_pin = toku_list_struct(toku_list_head(&h->live_brts), struct brt, live_brt_link);
     }
@@ -3301,6 +3302,7 @@ brtheader_note_pin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
         assert(!toku_list_empty(&h->zombie_brts));
         brt_to_pin = toku_list_struct(toku_list_head(&h->zombie_brts), struct brt, zombie_brt_link);
     }
+    toku_brtheader_unlock(h);
     assert(!brt_to_pin->pinned_by_checkpoint);
     brt_to_pin->pinned_by_checkpoint = 1;
 
@@ -3319,6 +3321,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
     struct brt_header *h = header_v;
     BRT brt_to_unpin = NULL;
 
+    toku_brtheader_lock(h);
     if (!toku_list_empty(&h->live_brts)) {
         struct toku_list *list;
         for (list = h->live_brts.next; list != &h->live_brts; list = list->next) {
@@ -3343,6 +3346,7 @@ brtheader_note_unpin_by_checkpoint (CACHEFILE UU(cachefile), void *header_v)
             }
         }
     }
+    toku_brtheader_unlock(h);
     assert(brt_to_unpin);
     assert(brt_to_unpin->pinned_by_checkpoint);
     brt_to_unpin->pinned_by_checkpoint = 0; //Unpin
@@ -3519,6 +3523,7 @@ toku_brt_db_delay_closed (BRT zombie, DB* db, int (*close_db)(DB*, u_int32_t), u
 
 int toku_close_brt_lsn (BRT brt, char **error_string, BOOL oplsn_valid, LSN oplsn) {
     assert(!toku_brt_zombie_needed(brt));
+    assert(!brt->pinned_by_checkpoint);
     int r;
     while (!toku_list_empty(&brt->cursors)) {
         BRT_CURSOR c = toku_list_struct(toku_list_pop(&brt->cursors), struct brt_cursor, cursors_link);
