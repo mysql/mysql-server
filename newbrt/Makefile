@@ -49,13 +49,11 @@ BRT_SOURCES = \
   log \
   log_code \
   memarena \
-  memory \
   mempool \
   omt \
   recover \
   roll \
   threadpool \
-  toku_assert \
   trace_mem \
   x1764 \
   ybt \

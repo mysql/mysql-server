@@ -100,6 +100,11 @@ void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
 
+int toku_set_func_fsync (int (*fsync_function)(int));
+int toku_set_func_malloc  (void *(*)(size_t));
+int toku_set_func_realloc (void *(*)(void*,size_t));
+int toku_set_func_free    (void (*)(void*));
+
 #if defined __cplusplus
 };
 #endif

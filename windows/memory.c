@@ -1,9 +1,8 @@
 #include "toku_portability.h"
-#include "toku_assert.h"
 #include "memory.h"
 #include <string.h>
 #include <stdlib.h>
-
+#include "toku_assert.h"
 
 int toku_memory_check=0;
 
