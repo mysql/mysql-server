@@ -16,7 +16,7 @@ include $(TOKUROOT)toku_include/Makefile.include
 # OPTFLAGS = -O2
 # GCOV_FLAGS = -fprofile-arcs -ftest-coverage
 CPPFLAGS = -I../include -I../toku_include
-CXXFLAGS = -Wall -g $(OPTFLAGS) $(GCOV_FLAGS)
+CXXFLAGS = $(GCC_VERSION_SPECIFIC) -Werror -Wall -g $(OPTFLAGS) $(GCOV_FLAGS)
 CC = c++
 LDFLAGS = -lz
 SRCS = $(wildcard *.cpp)
