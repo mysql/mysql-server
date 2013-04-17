@@ -2520,7 +2520,7 @@ serialize_rollback_log_node_to_buf(ROLLBACK_LOG_NODE log, char *buf, size_t calc
 }
 
 // TODO: can't fail. assert on ENOMEM for compressed_buf...
-static int
+static void
 serialize_uncompressed_block_to_memory(char * uncompressed_buf,
                                        int n_sub_blocks,
                                        struct sub_block sub_block[/*n_sub_blocks*/],
@@ -2532,9 +2532,6 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
     size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
     size_t header_len = node_header_overhead + sub_block_header_len + sizeof (uint32_t); // node + sub_block + checksum
     char *XMALLOC_N(header_len + compressed_len, compressed_buf);
-    if (compressed_buf == NULL) {
-        return get_error_errno();
-    }
 
     // copy the header
     memcpy(compressed_buf, uncompressed_buf, node_header_overhead);
@@ -2566,8 +2563,6 @@ serialize_uncompressed_block_to_memory(char * uncompressed_buf,
 
     *n_bytes_to_write = header_len + compressed_len;
     *bytes_to_write   = compressed_buf;
-
-    return 0;
 }
 
 
@@ -2613,13 +2608,10 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
     }
     BLOCKNUM blocknum = serialized_log->blocknum;
 
-    {
-        //Compress and malloc buffer to write
-        int r = serialize_uncompressed_block_to_memory(serialized_log->data,
-                serialized_log->n_sub_blocks, serialized_log->sub_block,
-                h->h->compression_method, &n_to_write, &compressed_buf);
-        if (r!=0) return r;
-    }
+    //Compress and malloc buffer to write
+    serialize_uncompressed_block_to_memory(serialized_log->data,
+            serialized_log->n_sub_blocks, serialized_log->sub_block,
+            h->h->compression_method, &n_to_write, &compressed_buf);
 
     {
         lazy_assert(blocknum.b>=0);
