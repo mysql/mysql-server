@@ -3158,7 +3158,7 @@ static int toku_db_set_pagesize(DB *db, u_int32_t pagesize) {
 
 static int toku_db_stat64(DB * db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     HANDLE_PANICKED_DB(db);
-    return toku_brt_stat64(db->i->brt, txn->i->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize);
+    return toku_brt_stat64(db->i->brt, txn->i->tokutxn, &s->bt_nkeys, &s->bt_ndata, &s->bt_dsize, &s->bt_fsize);
 }
 static int locked_db_stat64 (DB *db, DB_TXN *txn, DB_BTREE_STAT64 *s) {
     toku_ydb_lock();
