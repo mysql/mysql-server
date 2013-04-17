@@ -9,20 +9,26 @@ namespace toku {
     template<typename T>
     void circular_buffer<T>::init(T * const array, size_t cap) {
         invariant_notnull(array);
-        toku_mutex_init(&m_lock, nullptr);
-        toku_cond_init(&m_cond, nullptr);
         m_array = array;
         m_cap = cap;
         m_begin = 0;
         m_limit = 0;
+        toku_mutex_init(&m_lock, nullptr);
+        toku_cond_init(&m_push_cond, nullptr);
+        toku_cond_init(&m_pop_cond, nullptr);
+        m_push_waiters = 0;
+        m_pop_waiters = 0;
     }
 
     template<typename T>
     void circular_buffer<T>::deinit(void) {
         lock();
-        invariant(this->is_empty());
+        invariant(is_empty());
+        invariant_zero(m_push_waiters);
+        invariant_zero(m_pop_waiters);
         unlock();
-        toku_cond_destroy(&m_cond);
+        toku_cond_destroy(&m_pop_cond);
+        toku_cond_destroy(&m_push_cond);
         toku_mutex_destroy(&m_lock);
     }
 
@@ -70,11 +76,10 @@ namespace toku {
     void circular_buffer<T>::push_and_maybe_signal_unlocked(const T &elt) {
         toku_mutex_assert_locked(&m_lock);
         invariant(!is_full());
-        bool will_signal = is_empty();
         size_t location = m_limit++;
         *get_addr(location) = elt;
-        if (will_signal) {
-            toku_cond_signal(&m_cond);
+        if (m_pop_waiters > 0) {
+            toku_cond_signal(&m_pop_cond);
         }
     }
 
@@ -82,7 +87,9 @@ namespace toku {
     void circular_buffer<T>::push(const T &elt) {
         lock();
         while (is_full()) {
-            toku_cond_wait(&m_cond, &m_lock);
+            ++m_push_waiters;
+            toku_cond_wait(&m_push_cond, &m_lock);
+            --m_push_waiters;
         }
         push_and_maybe_signal_unlocked(elt);
         unlock();
@@ -92,7 +99,7 @@ namespace toku {
     bool circular_buffer<T>::trypush(const T &elt) {
         bool pushed = false;
         lock();
-        if (!is_full()) {
+        if (!is_full() && m_push_waiters == 0) {
             push_and_maybe_signal_unlocked(elt);
             pushed = true;
         }
@@ -104,11 +111,10 @@ namespace toku {
     T circular_buffer<T>::pop_and_maybe_signal_unlocked(void) {
         toku_mutex_assert_locked(&m_lock);
         invariant(!is_empty());
-        bool will_signal = is_full();
         T ret = *get_addr(m_begin);
         ++m_begin;
-        if (will_signal) {
-            toku_cond_signal(&m_cond);
+        if (m_push_waiters > 0) {
+            toku_cond_signal(&m_push_cond);
         }
         return ret;
     }
@@ -117,7 +123,9 @@ namespace toku {
     T circular_buffer<T>::pop(void) {
         lock();
         while (is_empty()) {
-            toku_cond_wait(&m_cond, &m_lock);
+            ++m_pop_waiters;
+            toku_cond_wait(&m_pop_cond, &m_lock);
+            --m_pop_waiters;
         }
         T ret = pop_and_maybe_signal_unlocked();
         unlock();
@@ -129,7 +137,7 @@ namespace toku {
         bool popped = false;
         invariant_notnull(eltp);
         lock();
-        if (!is_empty()) {
+        if (!is_empty() && m_pop_waiters == 0) {
             *eltp = pop_and_maybe_signal_unlocked();
             popped = true;
         }

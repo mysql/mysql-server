@@ -47,11 +47,13 @@ private:
 
     T pop_and_maybe_signal_unlocked(void);
 
-    toku_mutex_t m_lock;
-    toku_cond_t m_cond;
     T *m_array;
     size_t m_cap;
     size_t m_begin, m_limit;
+    toku_mutex_t m_lock;
+    toku_cond_t m_push_cond;
+    toku_cond_t m_pop_cond;
+    int m_push_waiters, m_pop_waiters;
 };
 
 }
