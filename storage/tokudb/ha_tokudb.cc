@@ -1397,13 +1397,13 @@ int ha_tokudb::estimate_num_rows(DB* db, u_int64_t* num_rows) {
     *num_rows = equal + greater;
     error = 0;
 cleanup:
-    if (do_commit) {
-        transaction->commit(transaction, 0);
-        transaction = NULL;
-    }
     if (crsr != NULL) {
         crsr->c_close(crsr);
         crsr = NULL;
+    }
+    if (do_commit) {
+        transaction->commit(transaction, 0);
+        transaction = NULL;
     }
     return error;
 }
@@ -5392,7 +5392,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     //
     
     error = db_env->txn_begin(db_env, 0, &txn, 0);
-    assert(error == 0);
+    if (error) { goto cleanup; }
 
     //
     // grab some locks to make this go faster
@@ -5407,7 +5407,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         share->file->dbt_pos_infty(), 
         NULL
         );
-    if (error) { txn->commit(txn, 0); goto cleanup; }
+    if (error) { goto cleanup; }
 
     //
     // now grab a table write lock for secondary tables we
@@ -5419,7 +5419,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             share->key_file[curr_index],
             txn
             );
-        if (error) { txn->commit(txn, 0); goto cleanup; }
+        if (error) { goto cleanup; }
     }
 
     if ((error = share->file->cursor(share->file, txn, &tmp_cursor, 0))) {
@@ -5466,13 +5466,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             }
             if (error) {
                 //
-                // in the case of any error anywhere, we can just nuke all the files created, so we dont need
-                // to be tricky and try to roll back changes. That is why we commit the transaction,
-                // which should be fast. The DB is going to go away anyway, so no pt in trying to keep
-                // it in a good state.
-                //
-                txn->commit(txn, 0);
-                //
                 // found a duplicate in a no_dup DB
                 //
                 if ( (error == DB_KEYEXIST) && (key_info[i].flags & HA_NOSAME)) {
@@ -5490,7 +5483,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
             thd_proc_info(thd, status_msg);
             if (thd->killed) {
                 error = ER_ABORTING_CONNECTION;
-                txn->commit(txn, 0);
                 goto cleanup;
             }
         }
@@ -5520,9 +5512,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
         while (error != DB_NOTFOUND) {
             error = tmp_cursor->c_getf_next(tmp_cursor, DB_PRELOCKED, smart_dbt_do_nothing, NULL);
             if (error && error != DB_NOTFOUND) {
-                tmp_cursor->c_close(tmp_cursor);
-                tmp_cursor = NULL;
-                txn->commit(txn, 0);
                 goto cleanup;
             }
             num_processed++;
@@ -5531,7 +5520,6 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
                 thd_proc_info(thd, status_msg);
                 if (thd->killed) {
                     error = ER_ABORTING_CONNECTION;
-                    txn->commit(txn, 0);
                     goto cleanup;
                 }
             }
@@ -5542,6 +5530,7 @@ int ha_tokudb::add_index(TABLE *table_arg, KEY *key_info, uint num_of_keys) {
     }
 
     error = txn->commit(txn, 0);
+    txn = NULL;
     assert(error == 0);
     
     error = 0;
@@ -5550,6 +5539,15 @@ cleanup:
         if (tmp_cursor) {            
             tmp_cursor->c_close(tmp_cursor);
             tmp_cursor = NULL;
+        }
+        if (txn) {
+            //
+            // in the case of any error anywhere, we can just nuke all the files created, so we dont need
+            // to be tricky and try to roll back changes. That is why we commit the transaction,
+            // which should be fast. The DB is going to go away anyway, so no pt in trying to keep
+            // it in a good state.
+            //
+            txn->commit(txn, 0);
         }
         //
         // We need to delete all the files that may have been created
