@@ -459,7 +459,7 @@ if(BUILD_TESTING)
       foreach(oldver 4.2.0 5.0.8 5.2.7)
         foreach(p_or_s pristine stressed)
           if (NOT (${src} MATCHES test_stress4 AND ${p_or_s} MATCHES stressed))
-            foreach(size 2000 200000 50000000)
+            foreach(size 2000)
               add_custom_executable(upgrade_${oldver}_${p_or_s}_${size} ${test} ${src})
               add_test(
                 NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
