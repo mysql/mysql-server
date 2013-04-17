@@ -630,7 +630,6 @@ int deserialize_brtheader_7_or_later(u_int32_t size, int fd, DISKOFF off, struct
     h->free_blocks   = rbuf_blocknum(&rc);
     h->unused_blocks = rbuf_blocknum(&rc);
     h->n_named_roots = rbuf_int(&rc);
-    h->free_blocks   = make_blocknum(-1);
     if (h->n_named_roots>=0) {
 	int i;
 	int n_to_malloc = (h->n_named_roots == 0) ? 1 : h->n_named_roots;
@@ -702,6 +701,7 @@ unsigned int toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
 // we might not be able to allocate a large enough buffer to hold everything,
 // and it would be more complex to batch up several writes.
 int toku_serialize_fifo_at (int fd, off_t freeoff, FIFO fifo) {
+    //printf("%s:%d Serializing fifo at %" PRId64 " (count=%d)\n", __FILE__, __LINE__, freeoff, toku_fifo_n_entries(fifo));
     {
 	int size=4;
 	char buf[size];
@@ -765,7 +765,7 @@ int read_nbytes (int fd, off_t *at, char **data, u_int32_t len) {
     char *result = toku_malloc(len);
     if (result==0) return errno;
     ssize_t r = pread(fd, result, len, *at);
-    //printf("%s:%d read %d bytes, which are %s\n", __FILE__, __LINE__, len, result);
+    //printf("%s:%d read %d bytes at %" PRId64 ", which are %s\n", __FILE__, __LINE__, len, *at, result);
     if (r<0) return errno;
     assert(r==(ssize_t)len);
     (*at)+=len;
