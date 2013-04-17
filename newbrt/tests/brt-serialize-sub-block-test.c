@@ -57,7 +57,7 @@ static void test_sub_block(int n) {
         int k = htonl(i);
         int v = i;
 	struct check_pair pair = {sizeof k, &k, sizeof v, &v, 0};	
-        error = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+        error = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (error != 0) {
 	    assert(pair.call_count==0);
             break;

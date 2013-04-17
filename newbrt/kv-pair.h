@@ -67,18 +67,6 @@ static inline unsigned int kv_pair_keylen(const struct kv_pair *pair) {
     return pair->keylen;
 }
 
-static inline void *kv_pair_val(struct kv_pair *pair) {
-    return pair->key + pair->keylen;
-}
-
-static inline const void *kv_pair_val_const(const struct kv_pair *pair) {
-    return pair->key + pair->keylen;
-}
-
-static inline unsigned int kv_pair_vallen(const struct kv_pair *pair) {
-    return pair->vallen;
-}
-
 #if defined(__cplusplus) || defined(__cilkplusplus)
 };
 #endif

@@ -149,7 +149,6 @@ do_x1_shutdown (void) {
     r=db_env_create(&env, 0);                                                  assert(r==0);
     env->set_errfile(env, stderr);
     r = env->set_default_bt_compare(env, uint_dbt_cmp);                                                       CKERR(r);
-    r = env->set_default_dup_compare(env, uint_dbt_cmp);                                                      CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
 

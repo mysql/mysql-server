@@ -35,7 +35,7 @@ run_test(void) {
 
     // run recovery
     r = tokudb_recover(TESTDIR, TESTDIR,
-                       toku_builtin_compare_fun, toku_builtin_compare_fun,
+                       toku_builtin_compare_fun,
                        NULL, NULL,
                        0);
     assert(r == 0);

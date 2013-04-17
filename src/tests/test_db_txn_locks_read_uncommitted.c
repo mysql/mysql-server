@@ -81,7 +81,7 @@ early_commit (char name) {
 }
 
 static void
-setup_dbs (u_int32_t dup_flags) {
+setup_dbs (void) {
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -99,13 +99,7 @@ setup_dbs (u_int32_t dup_flags) {
     
     r = db_create(&db, dbenv, 0);
         CKERR(r);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-            CKERR(r);
-    }
     r = db->set_bt_compare( db, int_dbt_cmp);
-    CKERR(r);
-    r = db->set_dup_compare(db, int_dbt_cmp);
     CKERR(r);
 
     char a;
@@ -190,13 +184,13 @@ table_prelock(char txn, BOOL success) {
 }
 
 static void
-test (u_int32_t dup_flags) {
+test (void) {
     char txn;
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     close_dbs();
     /* ********************************************************************** */
-    setup_dbs(dup_flags);
+    setup_dbs();
     table_scan('0', TRUE);
     table_prelock('a', TRUE);
     put(TRUE, 'a', 0, 0);
@@ -221,7 +215,6 @@ test (u_int32_t dup_flags) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    test(0);
-    test(DB_DUP | DB_DUPSORT);
+    test();
     return 0;
 }

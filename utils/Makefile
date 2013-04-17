@@ -14,8 +14,8 @@ include $(TOKUROOT)toku_include/Makefile.include
 ifndef BDBDIR
 BDBDIR=/usr/local/BerkeleyDB.4.6
 endif
-BDB_DUMP=$(BDBDIR)/bin/db_dump$(BINSUF) -h dir.$@.bdb
-BDB_LOAD=$(BDBDIR)/bin/db_load$(BINSUF) -h dir.$@.bdb
+BDB_DUMP= LD_LIBRARY_PATH=$(BDBDIR)/lib $(BDBDIR)/bin/db_dump$(BINSUF) -h dir.$@.bdb
+BDB_LOAD= LD_LIBRARY_PATH=$(BDBDIR)/lib $(BDBDIR)/bin/db_load$(BINSUF) -h dir.$@.bdb
 
 DIFF=diff -q -I 'db_pagesize='
 
@@ -125,9 +125,9 @@ coverage: $(UTILS)
 strip: $(STATIC_UTILS) 
 	strip $(STATIC_UTILS)
 
-check: build test_gen test_load test_dump test_nodup test_dupsort
+check: build test_gen test_load test_dump test_nodup
 
-test-coverage: $(UTILS) test_gen test_load test_dump test_nodup test_dupsort
+test-coverage: $(UTILS) test_gen test_load test_dump test_nodup
 
 test_gen: test_gen_hex
 
@@ -234,21 +234,6 @@ test_nodup: build
 	$(TDB_DUMP) $@.tdb.temp >$@.dump.tdb.temp && \
 	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp \
 	$(SUMMARIZE_CMD)
-
-test_dupsort: build
-	rm -rf dir.$@.*
-	mkdir dir.$@.tdb
-	mkdir dir.$@.bdb
-	$(TDB_GEN) $(TEST_GEN_HEX_FLAGS) -D -S >$@.gen.temp && \
-	$(BDB_LOAD) $@.bdb.temp <$@.gen.temp && \
-	$(BDB_DUMP) $@.bdb.temp >$@.dump.bdb.temp && \
-	$(TDB_LOAD) $@.tdb.temp <$@.gen.temp && \
-	$(TDB_DUMP) $@.tdb.temp >$@.dump.tdb.temp && \
-	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp && \
-	$(TDB_LOAD) $@.tdb.temp <$@.gen.temp && \
-	$(TDB_DUMP) $@.tdb.temp >$@.dump.tdb.temp && \
-	$(DIFF) -q $@.dump.bdb.temp $@.dump.tdb.temp \
-        $(SUMMARIZE_CMD)
 
 #if $(DIFF) -q <(echo "foo") <(echo "foo") > /dev/null; then echo yes; else echo no; fi
 clean:

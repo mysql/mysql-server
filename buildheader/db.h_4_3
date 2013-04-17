@@ -169,8 +169,6 @@ typedef enum {
 #define DB_LOCK_DEFAULT 1
 #define DB_LOCK_OLDEST 7
 #define DB_LOCK_RANDOM 8
-#define DB_DUP 2
-#define DB_DUPSORT 4
 #define DB_KEYFIRST 15
 #define DB_KEYLAST 16
 #define DB_NOOVERWRITE 22
@@ -195,12 +193,9 @@ typedef enum {
 #define DB_DELETE_ANY 65536
 #define DB_TRUNCATE_WITHCURSORS 131072
 #define DB_FIRST 9
-#define DB_GET_BOTH 10
-#define DB_GET_BOTH_RANGE 12
 #define DB_LAST 17
 #define DB_CURRENT 7
 #define DB_NEXT 18
-#define DB_NEXT_DUP 19
 #define DB_NEXT_NODUP 20
 #define DB_PREV 25
 #define DB_PREV_NODUP 26
@@ -208,7 +203,6 @@ typedef enum {
 #define DB_SET_RANGE 30
 #define DB_CURRENT_BINDING 253
 #define DB_SET_RANGE_REVERSE 252
-#define DB_GET_BOTH_RANGE_REVERSE 251
 #define DB_RMW 536870912
 #define DB_PRELOCKED 0x00800000
 #define DB_PRELOCKED_WRITE 0x00400000
@@ -249,11 +243,10 @@ struct __toku_db_env {
   int (*checkpointing_begin_atomic_operation) (DB_ENV*) /* Begin a set of operations (that must be atomic as far as checkpoints are concerned). i.e. inserting into every index in one table */;
   int (*checkpointing_end_atomic_operation)   (DB_ENV*) /* End   a set of operations (that must be atomic as far as checkpoints are concerned). */;
   int (*set_default_bt_compare)  (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (key) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
-  int (*set_default_dup_compare) (DB_ENV*,int (*bt_compare) (DB *, const DBT *, const DBT *)) /* Set default (val) comparison function for all DBs in this environment.  Required for RECOVERY since you cannot open the DBs manually. */;
   int (*get_engine_status)                    (DB_ENV*, ENGINE_STATUS*) /* Fill in status struct */;
   int (*get_engine_status_text)               (DB_ENV*, char*, int)     /* Fill in status text */;
-  void *app_private; /* 32-bit offset=44 size=4, 64=bit offset=88 size=8 */
   int (*get_iname)                            (DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) /* FOR TEST ONLY: lookup existing iname */;
+  void *app_private; /* 32-bit offset=44 size=4, 64=bit offset=88 size=8 */
   int (*create_loader)                        (DB_ENV *env, DB_TXN *txn, DB_LOADER **blp, DB *src_db, int N, DB *dbs[/*N*/], uint32_t db_flags[/*N*/], uint32_t dbt_flags[/*N*/], uint32_t loader_flags);
   int (*put_multiple)                         (DB_ENV *env, DB *src_db, DB_TXN *txn,
                                              const DBT *key, const DBT *val,
@@ -275,7 +268,7 @@ struct __toku_db_env {
                                                                          void *extra));
   int (*get_redzone)                          (DB_ENV *env, int *redzone) /* get the redzone limit */;
   int (*set_redzone)                          (DB_ENV *env, int redzone) /* set the redzone limit in percent of total space */;
-  void* __toku_dummy0[17];
+  void* __toku_dummy0[18];
   char __toku_dummy1[96];
   void *api1_internal; /* 32-bit offset=244 size=4, 64=bit offset=392 size=8 */
   void* __toku_dummy2[7];
@@ -365,21 +358,19 @@ struct __toku_db {
 #define db_struct_i(x) ((x)->i)
   int (*key_range64)(DB*, DB_TXN *, DBT *, u_int64_t *less, u_int64_t *equal, u_int64_t *greater, int *is_exact);
   int (*stat64)(DB *, DB_TXN *, DB_BTREE_STAT64 *);
-  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*, const DBT*, const DBT*);
+  int (*pre_acquire_read_lock)(DB*, DB_TXN*, const DBT*, const DBT*);
   void *app_private; /* 32-bit offset=16 size=4, 64=bit offset=32 size=8 */
   DB_ENV *dbenv; /* 32-bit offset=20 size=4, 64=bit offset=40 size=8 */
   int (*pre_acquire_table_lock)(DB*, DB_TXN*);
   const DBT* (*dbt_pos_infty)(void) /* Return the special DBT that refers to positive infinity in the lock table.*/;
   const DBT* (*dbt_neg_infty)(void)/* Return the special DBT that refers to negative infinity in the lock table.*/;
-  int (*delboth) (DB*, DB_TXN*, DBT*, DBT*, u_int32_t) /* Delete the key/value pair. */;
   int (*row_size_supported) (DB*, u_int32_t) /* Test whether a row size is supported. */;
   DESCRIPTOR descriptor /* saved row/dictionary descriptor for aiding in comparisons */;
   int (*set_descriptor) (DB*, u_int32_t version, const DBT* descriptor) /* set row/dictionary descriptor for a db.  Available only while db is open */;
   int (*getf_set)(DB*, DB_TXN*, u_int32_t, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_set without a persistent cursor) */;
-  int (*getf_get_both)(DB*, DB_TXN*, u_int32_t, DBT*, DBT*, YDB_CALLBACK_FUNCTION, void*) /* same as DBC->c_getf_get_both without a persistent cursor) */;
   int (*flatten)(DB*, DB_TXN*) /* Flatten a dictionary, similar to (but faster than) a table scan */;
   int (*get_fragmentation)(DB*,TOKU_DB_FRAGMENTATION);
-  void* __toku_dummy0[21];
+  void* __toku_dummy0[23];
   char __toku_dummy1[96];
   void *api_internal; /* 32-bit offset=248 size=4, 64=bit offset=400 size=8 */
   void* __toku_dummy2[5];
@@ -400,22 +391,20 @@ struct __toku_db {
   int (*remove) (DB *, const char *, const char *, u_int32_t); /* 32-bit offset=376 size=4, 64=bit offset=656 size=8 */
   int (*rename) (DB *, const char *, const char *, const char *, u_int32_t); /* 32-bit offset=380 size=4, 64=bit offset=664 size=8 */
   int (*truncate) (DB *, DB_TXN *, u_int32_t *, u_int32_t); /* 32-bit offset=384 size=4, 64=bit offset=672 size=8 */
-  void* __toku_dummy7[3];
-  int (*set_dup_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=400 size=4, 64=bit offset=704 size=8 */
-  void* __toku_dummy8[2];
+  void* __toku_dummy7[6];
   void (*set_errfile) (DB *, FILE*); /* 32-bit offset=412 size=4, 64=bit offset=728 size=8 */
-  void* __toku_dummy9[2];
+  void* __toku_dummy8[2];
   int (*set_flags) (DB *, u_int32_t); /* 32-bit offset=424 size=4, 64=bit offset=752 size=8 */
-  void* __toku_dummy10[4];
+  void* __toku_dummy9[4];
   int (*set_pagesize) (DB *, u_int32_t); /* 32-bit offset=444 size=4, 64=bit offset=792 size=8 */
-  void* __toku_dummy11[1];
+  void* __toku_dummy10[1];
   int (*stat) (DB *, void *, u_int32_t); /* 32-bit offset=452 size=4, 64=bit offset=808 size=8 */
-  void* __toku_dummy12[3];
+  void* __toku_dummy11[3];
   int (*verify) (DB *, const char *, const char *, FILE *, u_int32_t); /* 32-bit offset=468 size=4, 64=bit offset=840 size=8 */
-  void* __toku_dummy13[1];
+  void* __toku_dummy12[1];
   int (*set_bt_compare) (DB *, int (*)(DB *, const DBT *, const DBT *)); /* 32-bit offset=476 size=4, 64=bit offset=856 size=8 */
-  void* __toku_dummy14[23]; /* Padding at the end */ 
-  char __toku_dummy15[8];  /* Padding at the end */ 
+  void* __toku_dummy13[23]; /* Padding at the end */ 
+  char __toku_dummy14[8];  /* Padding at the end */ 
 };
 struct __toku_db_txn_active {
   u_int32_t txnid; /* 32-bit offset=0 size=4, 64=bit offset=0 size=4 */
@@ -466,20 +455,13 @@ struct __toku_dbc {
   int (*c_getf_first)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_last)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_next)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_next_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_next_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_prev)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_prev_dup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_prev_nodup)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_current)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_current_binding)(DBC *, u_int32_t, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
   int (*c_getf_set_range_reverse)(DBC *, u_int32_t, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both_range)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  int (*c_getf_get_both_range_reverse)(DBC *, u_int32_t, DBT *, DBT *, YDB_CALLBACK_FUNCTION, void *);
-  void* __toku_dummy0[2];
+  void* __toku_dummy0[9];
   char __toku_dummy1[112];
   int (*c_close) (DBC *); /* 32-bit offset=188 size=4, 64=bit offset=264 size=8 */
   int (*c_count) (DBC *, db_recno_t *, u_int32_t); /* 32-bit offset=192 size=4, 64=bit offset=272 size=8 */

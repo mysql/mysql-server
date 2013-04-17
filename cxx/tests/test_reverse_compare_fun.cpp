@@ -53,8 +53,8 @@ void expect(Dbc *cursor, int k, int v) {
     toku_free(val.get_data());
 }
 
-void test_reverse_compare(int n, int dup_flags) {
-    if (verbose) printf("test_reverse_compare:%d %d\n", n, dup_flags);
+void test_reverse_compare(int n) {
+    if (verbose) printf("test_reverse_compare:%d\n", n);
 
     Db *db;
     DbTxn * const null_txn = 0;
@@ -72,13 +72,9 @@ void test_reverse_compare(int n, int dup_flags) {
     r = env.open(DIR, DB_INIT_MPOOL + DB_CREATE + DB_PRIVATE, 0777); assert(r == 0);
     db = new Db(&env, DB_CXX_NO_EXCEPTIONS);
     assert(db);
-    r = db->set_flags(dup_flags);
-    assert(r == 0);
     r = db->set_pagesize(4096);
     assert(r == 0);
     r = db->set_bt_compare(reverse_compare);
-    assert(r == 0);
-    r = db->set_dup_compare(reverse_compare);
     assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     assert(r == 0);
@@ -86,7 +82,7 @@ void test_reverse_compare(int n, int dup_flags) {
     /* insert n unique keys {0, 1,  n-1} */
     for (i=0; i<n; i++) {
         int k, v;
-        k = htonl(dup_flags ? n : i);
+        k = htonl(i);
         Dbt key(&k, sizeof k);
         v = htonl(i);
         Dbt val(&v, sizeof v);
@@ -101,13 +97,9 @@ void test_reverse_compare(int n, int dup_flags) {
 
     db = new Db(&env, 0);
     assert(db);
-    r = db->set_flags(dup_flags);
-    assert(r == 0);
     r = db->set_pagesize(4096);
     assert(r == 0);
     r = db->set_bt_compare(reverse_compare);
-    assert(r == 0);
-    r = db->set_dup_compare(reverse_compare);
     assert(r == 0);
     r = db->open(null_txn, fname, "main", DB_BTREE, 0, 0666);
     assert(r == 0);
@@ -115,7 +107,7 @@ void test_reverse_compare(int n, int dup_flags) {
     /* insert n unique keys {n, n+1,  2*n-1} */
     for (i=n; i<2*n; i++) {
         int k, v;
-        k = htonl(dup_flags ? n : i);
+        k = htonl(i);
         Dbt key(&k, sizeof k);
         v = htonl(i);
         Dbt val(&v, sizeof v);
@@ -130,7 +122,7 @@ void test_reverse_compare(int n, int dup_flags) {
 
     //for (i=0; i<2*n; i++) 
     for (i=2*n-1; i>=0; i--)
-        expect(cursor, htonl(dup_flags ? n : i), htonl(i));
+        expect(cursor, htonl(i), htonl(i));
 
     r = cursor->close();
     assert(r == 0);
@@ -143,8 +135,7 @@ void test_reverse_compare(int n, int dup_flags) {
 int main(int argc, const char *argv[]) {
     int i;
     for (i = 1; i <= (1<<16); i *= 2) {
-        test_reverse_compare(i, 0);
-        test_reverse_compare(i, DB_DUP + DB_DUPSORT);
+        test_reverse_compare(i);
     }
     return 0;
 }

@@ -35,8 +35,8 @@ db_put (DB *db, DB_TXN *txn, int k, int v) {
    the magic number where found via experimentation */
 
 static void
-test_hsoc (int pagesize, int dup_mode) {
-    if (verbose) printf("test_hsoc:%d %d\n", pagesize, dup_mode);
+test_hsoc (int pagesize) {
+    if (verbose) printf("test_hsoc:%d\n", pagesize);
 
     int npp = pagesize / 16;
     int n = npp + 13*npp/2;
@@ -56,7 +56,6 @@ test_hsoc (int pagesize, int dup_mode) {
 
     DB *db;
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, pagesize); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
 
@@ -84,7 +83,6 @@ test_hsoc (int pagesize, int dup_mode) {
     if (verbose) printf("reopen\n");
     r = db->close(db, 0); assert(r == 0);
     r = db_create(&db, env, 0); assert(r == 0);
-    r = db->set_flags(db, dup_mode); assert(r == 0);
     r = db->set_pagesize(db, pagesize); assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666); assert(r == 0);
 
@@ -117,7 +115,7 @@ int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
-    test_hsoc(4096, DB_DUP + DB_DUPSORT);
+    test_hsoc(4096);
 
     return 0;
 }

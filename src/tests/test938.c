@@ -47,10 +47,10 @@ run (int choice) {
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
 	for (i=0; i<N; i++) {
 	    DBT kdbt,vdbt;
-	    char key=25;
+	    char key[2]={25,v[i]};
 	    char val=v[i];
 	    //printf("put %d %d\n", key, val);
-	    r=db->put(db, txn, dbt_init(&kdbt, &key, 1), dbt_init(&vdbt, &val, 1), DB_YESOVERWRITE); CKERR(r);
+	    r=db->put(db, txn, dbt_init(&kdbt, &key, 2), dbt_init(&vdbt, &val, 1), DB_YESOVERWRITE); CKERR(r);
 	}
 	r=txn->commit(txn, DB_TXN_NOSYNC);                                        CKERR(r);
     }
@@ -129,11 +129,13 @@ test_main(int argc, char *const argv[]) {
     DB_TXN *txn;
     {
         r = db_env_create(&env, 0);                                   CKERR(r);
+#ifdef TOKUDB
+	r = env->set_redzone(env, 0);                                 CKERR(r);
+#endif
 	r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 	env->set_errfile(env, stderr);
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
 	r=db_create(&db, env, 0);                                     CKERR(r);
-	r=db->set_flags(db, DB_DUP|DB_DUPSORT);
 	r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }

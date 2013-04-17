@@ -198,7 +198,7 @@ u_int64_t max_windows_cachesize = 256 << 20;
 static void
 run_test (int iter, int die) {
 
-    u_int32_t flags = DB_DUP|DB_DUPSORT;
+    u_int32_t flags = 0;
 
     int i;
 

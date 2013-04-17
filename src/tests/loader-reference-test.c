@@ -113,7 +113,6 @@ static void run_test(void)
     r = env->set_lg_dir(env, "log");
     CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);                                                      CKERR(r);
-    r = env->set_default_dup_compare(env, int64_dbt_cmp);                                                     CKERR(r);
     r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
     CKERR(r);
 //    int envflags = DB_INIT_LOCK | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE | DB_INIT_LOG;

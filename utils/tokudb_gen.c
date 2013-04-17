@@ -50,7 +50,6 @@ bool           set_seed       = false;
 bool           printableonly  = false;
 bool           leadingspace   = true;
 bool           force_unique   = true;
-bool           duplicates     = false;
 bool           dupsort        = false;
 
 static int test_main (int argc, char *const argv[]) {
@@ -182,8 +181,14 @@ static int test_main (int argc, char *const argv[]) {
             printf("%s\n", db_version(NULL, NULL, NULL));
             return EXIT_SUCCESS;
          }
-         case 'D': duplicates = true; break;
-         case 'S': dupsort = true; break;
+         case 'D': {
+	    fprintf(stderr, "Duplicates no longer supported by tokudb\n");
+	    return EXIT_FAILURE;
+	 }
+         case 'S': {
+	    fprintf(stderr, "Dupsort no longer supported by tokudb\n");
+	    return EXIT_FAILURE;
+	 }
          case ('?'):
          default: {
             return (usage());
@@ -254,8 +259,6 @@ static int test_main (int argc, char *const argv[]) {
       printf("format=%s\n", g.plaintext ? "print" : "bytevalue");
       printf("type=btree\n");
       // printf("db_pagesize=%d\n", 4096);  //Don't write pagesize which would be useless.
-      if (duplicates)
-         printf("duplicates=%d\n", duplicates);
       if (dupsort)
          printf("dupsort=%d\n", dupsort);
       printf("HEADER=END\n");

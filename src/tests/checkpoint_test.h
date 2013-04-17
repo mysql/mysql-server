@@ -21,7 +21,7 @@ typedef struct {
 } DICTIONARY_S, *DICTIONARY;
 
 
-static inline int64_t UU()
+static inline int64_t
 generate_val(int64_t key) {
     int64_t val = key + 314;
     return val;
@@ -102,8 +102,6 @@ static void  UU()
         CKERR(r);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, int64_dbt_cmp);
-        CKERR(r);
-    r = env->set_default_dup_compare(env, int64_dbt_cmp);
         CKERR(r);
     if (bytes) {
 	r = env->set_cachesize(env, bytes >> 30, bytes % (1<<30), 1);
@@ -291,8 +289,8 @@ db_truncate(DB* db, DB_TXN *txn) {
 
 static void UU()
 insert_random(DB *db1, DB *db2, DB_TXN *txn) {
-    int64_t k = random64();
-    int64_t v = random64();
+    int64_t v = random();
+    int64_t k = ((int64_t)(random()) << 32) + v;
     int r;
     DBT key;
     DBT val;
@@ -312,19 +310,16 @@ insert_random(DB *db1, DB *db2, DB_TXN *txn) {
 static void UU()
 delete_both_random(DB *db1, DB *db2, DB_TXN *txn, u_int32_t flags) {
     int64_t k = random64();
-    int64_t v = random64();
     int r;
     DBT key;
-    DBT val;
     dbt_init(&key, &k, sizeof(k));
-    dbt_init(&val, &v, sizeof(v));
 
     if (db1) {
-        r = db1->delboth(db1, txn, &key, &val, flags);
+        r = db1->del(db1, txn, &key, flags);
 	CKERR2s(r, 0, DB_NOTFOUND);
     }
     if (db2) {
-        r = db2->delboth(db2, txn, &key, &val, flags);
+        r = db2->del(db2, txn, &key, flags);
 	CKERR2s(r, 0, DB_NOTFOUND);
     }
 }
@@ -335,18 +330,15 @@ static void UU()
 delete_fixed(DB *db1, DB *db2, DB_TXN *txn, int64_t k, u_int32_t flags) {
     int r;
     DBT key;
-    DBT val;
-    int64_t v = generate_val(k);
 
     dbt_init(&key, &k, sizeof(k));
-    dbt_init(&val, &v, sizeof(v));
 
     if (db1) {
-        r = db1->delboth(db1, txn, &key, &val, flags);
+        r = db1->del(db1, txn, &key, flags);
 	CKERR2s(r, 0, DB_NOTFOUND);
     }
     if (db2) {
-        r = db2->delboth(db2, txn, &key, &val, flags);
+        r = db2->del(db2, txn, &key, flags);
 	CKERR2s(r, 0, DB_NOTFOUND);
     }
 }
@@ -371,13 +363,14 @@ insert_n(DB *db1, DB *db2, DB_TXN *txn, int firstkey, int n, int offset) {
     //    printf("enter %s, iter = %d\n", __FUNCTION__, iter);
     //    printf("db1 = 0x%08lx, db2 = 0x%08lx, *txn = 0x%08lx, firstkey = %d, n = %d\n",
     //	   (unsigned long) db1, (unsigned long) db2, (unsigned long) txn, firstkey, n);
-	
 
     fflush(stdout);
 
     for (i = 0; i<n; i++) {
-	k = firstkey + i;
-	v = generate_val(k) + offset;
+	int64_t kk = firstkey+i;
+	v = generate_val(kk) + offset;
+	k = (kk<<32) + v;
+	//printf("I(%32lx,%32lx)\n", k, v);
 	dbt_init(&key, &k, sizeof(k));
 	dbt_init(&val, &v, sizeof(v));
 	if (db1) {
@@ -410,7 +403,6 @@ verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
     //This does not lock the dbs/grab table locks.
     //This means that you CANNOT CALL THIS while another thread is modifying the db.
     //You CAN call it while a txn is open however.
-    int rval = 0;
     DB_TXN *compare_txn;
     int r, r1;
 
@@ -434,20 +426,19 @@ verify_sequential_rows(DB* compare_db, int64_t firstkey, int64_t numkeys) {
     dbt_init(&key2, &k, sizeof(k));
     dbt_init(&val2, &v, sizeof(v));
 
-    k = firstkey;
-    v = generate_val(k);
-    r1 = c1->c_get(c1, &key2, &val2, DB_GET_BOTH);
+    v = generate_val(firstkey);
+    k = (firstkey<<32) + v;
+    r1 = c1->c_get(c1, &key2, &val2, DB_SET);
     CKERR(r1);
 
     int64_t i;
     for (i = 1; i<numkeys; i++) {
-	k = i + firstkey;
-	v = generate_val(k);
+	int64_t kk = firstkey+i;
+	v = generate_val(kk);
+	k = (kk<<32) + v;
         r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);
         assert(r1==0);
-	rval = verify_identical_dbts(&key1, &key2) |
-	    verify_identical_dbts(&val1, &val2);
-	assert(rval == 0);
+	assert(key1.size==8 && val1.size==8 && *(int64_t*)key1.data==k && *(int64_t*)val1.data==v);
     }
     // now verify that there are no rows after the last expected 
     r1 = c1->c_get(c1, &key1, &val1, DB_NEXT);

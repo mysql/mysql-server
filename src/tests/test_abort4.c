@@ -23,7 +23,7 @@ DB_TXN *txn;
 u_int32_t find_num;
 
 static void
-init(u_int32_t dup_flags) {
+init(void) {
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -31,10 +31,6 @@ init(u_int32_t dup_flags) {
     r=db_env_create(&env, 0); CKERR(r);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_PRIVATE|DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-        CKERR(r);
-    }
     r=db->open(db, null_txn, "foo.db", 0, DB_BTREE, DB_CREATE|DB_EXCL, S_IRWXU|S_IRWXG|S_IRWXO);
     CKERR(r);
     r=db->close(db, 0); CKERR(r);
@@ -165,24 +161,24 @@ verify_and_tear_down(int close_first) {
 }
 
 static void
-runtests(u_int32_t dup_flags) {
+runtests(void) {
     int close_first;
     for (close_first = 0; close_first < 2; close_first++) {
-        init(dup_flags);
+        init();
         abort_txn();
         verify_and_tear_down(close_first);
         u_int32_t n;
         for (n = 1; n < 1<<20; n*=2) {
             if (verbose) {
-                printf("\t%s:%d-%s() dup=%05x close_first=%d n=%06x\n",
-                       __FILE__, __LINE__, __FUNCTION__, dup_flags, close_first, n);
+                printf("\t%s:%d-%s() close_first=%d n=%06x\n",
+                       __FILE__, __LINE__, __FUNCTION__, close_first, n);
                 fflush(stdout);
             }
-            init(dup_flags);
+            init();
             test_insert_and_abort(n);
             verify_and_tear_down(close_first);
 
-            init(dup_flags);
+            init();
             test_insert_and_abort_and_insert(n);
             verify_and_tear_down(close_first);
         }
@@ -193,8 +189,7 @@ int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
 
-    runtests(0);
-    runtests(DB_DUPSORT|DB_DUP);
+    runtests();
     return 0;
 }
 

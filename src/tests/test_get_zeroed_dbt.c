@@ -12,20 +12,17 @@
 
 
 static void
-test_get (int dup_mode) {
+test_get (void) {
     DB_TXN * const null_txn = 0;
     DBT key,data;
-    int fnamelen = sizeof(ENVDIR) + 30;
-    char fname[fnamelen];
+    char fname[] = "test.db";
     int r;
-    snprintf(fname, fnamelen, "test%d.db", dup_mode);
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
     r = db_create (&db, env, 0);                                        assert(r == 0);
-    r = db->set_flags(db, dup_mode);                                         assert(r == 0);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);    assert(r == 0);
     dbt_init(&key, "a", 2);
     r = db->put(db, null_txn, &key, dbt_init(&data, "b", 2), DB_YESOVERWRITE); assert(r==0);
@@ -44,7 +41,6 @@ test_main (int argc, char *const argv[]) {
     CKERR(r);
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
-    test_get(0);
-    test_get(DB_DUP + DB_DUPSORT);
+    test_get();
     return 0;
 }

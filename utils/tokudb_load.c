@@ -368,8 +368,6 @@ if (!strcmp(field, match)) {                             \
       PARSE_IGNOREDFLAG(      "chksum",      DB_CHKSUM);             \
       PARSE_IGNOREDNUMBER(    "db_lorder",   db->set_lorder);        \
       PARSE_IGNOREDNUMBER(    "db_pagesize", db->set_pagesize);      \
-      PARSE_FLAG(             "duplicates",  DB_DUP);                \
-      PARSE_FLAG(             "dupsort",     DB_DUPSORT);            \
       PARSE_UNSUPPORTEDNUMBER("extentsize",  db->set_q_extentsize);  \
       PARSE_UNSUPPORTEDNUMBER("h_ffactor",   db->set_h_ffactor);     \
       PARSE_UNSUPPORTEDNUMBER("h_nelem",     db->set_h_nelem);       \
@@ -389,7 +387,6 @@ int read_header()
    int ch;
    int32_t num;
    int retval;
-   DB* db = g.db;
    int r;
 
    assert(g.header);
@@ -513,7 +510,6 @@ int apply_commandline_options()
    char* value = NULL;
    int32_t num;
    int retval;
-   DB* db = g.db;
 
    for (idx = 0; g.config_options[idx]; idx++) {
       if (value) {

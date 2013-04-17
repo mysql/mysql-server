@@ -28,9 +28,11 @@ setup_db (char* name) {
     toku_os_mkdir(ENVDIR, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&env, 0);                     CKERR(r);
+#ifdef USE_TDB
+    r = env->set_redzone(env, 0);                                 CKERR(r);
+#endif
     r = env->open(env, ENVDIR, DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL, 0666);  CKERR(r);
     r = db_create(&db, env, 0);                     CKERR(r);
-    r = db->set_flags(db, DB_DUP | DB_DUPSORT);     CKERR(r);
     r = db->set_pagesize(db, 4096);                 CKERR(r);
     r = db->open(db, null_txn, name, "main", DB_BTREE, DB_CREATE, 0666);    CKERR(r);
 }
@@ -51,7 +53,7 @@ insert (void) {
     dbt_init(&value, "value1", sizeof("value1"));
     r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
 
-    dbt_init(&key, "key", sizeof("key"));
+    dbt_init(&key, "key2", sizeof("key2"));
     dbt_init(&value, "value2", sizeof("value2"));
     r = db->put(db, null_txn, &key, &value, DB_YESOVERWRITE);     CKERR(r);
 }
@@ -74,11 +76,6 @@ test_main(int argc, char *const argv[]) {
     setup_db("next.db");
     insert();
     cursor_range_with_delete(DB_NEXT);
-    close_db();
-    
-    setup_db("nextdup.db");
-    insert();
-    cursor_range_with_delete(DB_NEXT_DUP);
     close_db();
     
     return 0;

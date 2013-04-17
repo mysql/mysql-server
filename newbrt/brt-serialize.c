@@ -6,10 +6,6 @@
 #include "includes.h"
 #include "toku_atomic.h"
 
-#include "backwards_11.h"
-// NOTE: The backwards compatability functions are in a file that is included at the END of this file.
-
-
 static BRT_UPGRADE_STATUS_S upgrade_status;  // accountability, used in backwards_x.c
 
 void 
@@ -206,9 +202,8 @@ toku_serialize_brtnode_size_slow (BRTNODE node) {
 	size += 4; /* n_children */
 	size += 4; /* subtree fingerprint. */
 	size += 4*(node->u.n.n_children-1); /* key lengths*/
-	if (node->flags & TOKU_DB_DUPSORT) size += 4*(node->u.n.n_children-1);
 	for (int i=0; i<node->u.n.n_children-1; i++) {
-	    csize += toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]);
+	    csize += toku_brt_pivot_key_len(node->u.n.childkeys[i]);
 	}
 	size += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and 1 for the exact bit for the estimates. */
 	int n_buffers = node->u.n.n_children;
@@ -245,7 +240,6 @@ toku_serialize_brtnode_size (BRTNODE node) {
 	result += 4; /* subtree fingerpirnt */
 	result += 4; /* n_children */
 	result += 4*(node->u.n.n_children-1); /* key lengths*/
-        if (node->flags & TOKU_DB_DUPSORT) result += 4*(node->u.n.n_children-1); /* data lengths */
 	assert(node->u.n.totalchildkeylens < (1<<30));
 	result += node->u.n.totalchildkeylens; /* the lengths of the pivot keys, without their key lengths. */
 	result += (8+4+4+1+3*8)*(node->u.n.n_children); /* For each child, a child offset, a count for the number of hash table entries, the subtree fingerprint, and 3*8 for the subtree estimates and one for the exact bit. */
@@ -317,12 +311,7 @@ serialize_nonleaf(BRTNODE node, int n_sub_blocks, struct sub_block sub_block[], 
     }
     //printf("%s:%d w.ndone=%d\n", __FILE__, __LINE__, w.ndone);
     for (int i = 0; i < node->u.n.n_children-1; i++) {
-        if (node->flags & TOKU_DB_DUPSORT) {
-            wbuf_nocrc_bytes(wbuf, kv_pair_key(node->u.n.childkeys[i]), kv_pair_keylen(node->u.n.childkeys[i]));
-            wbuf_nocrc_bytes(wbuf, kv_pair_val(node->u.n.childkeys[i]), kv_pair_vallen(node->u.n.childkeys[i]));
-        } else {
-            wbuf_nocrc_bytes(wbuf, kv_pair_key(node->u.n.childkeys[i]), toku_brtnode_pivot_key_len(node, node->u.n.childkeys[i]));
-        }
+	wbuf_nocrc_bytes(wbuf, kv_pair_key(node->u.n.childkeys[i]), toku_brt_pivot_key_len(node->u.n.childkeys[i]));
         //printf("%s:%d w.ndone=%d (childkeylen[%d]=%d\n", __FILE__, __LINE__, w.ndone, i, node->childkeylens[i]);
     }
     for (int i = 0; i < node->u.n.n_children; i++) {
@@ -683,20 +672,12 @@ deserialize_brtnode_nonleaf_from_rbuf (BRTNODE result, bytevec magic, struct rbu
         se->exact = (BOOL) (rbuf_char(rb) != 0);
     }
     for (int i=0; i<result->u.n.n_children-1; i++) {
-        if (result->flags & TOKU_DB_DUPSORT) {
-            bytevec keyptr, dataptr;
-            unsigned int keylen, datalen;
-            rbuf_bytes(rb, &keyptr, &keylen);
-            rbuf_bytes(rb, &dataptr, &datalen);
-            result->u.n.childkeys[i] = kv_pair_malloc(keyptr, keylen, dataptr, datalen);
-        } else {
-            bytevec childkeyptr;
-            unsigned int cklen;
-            rbuf_bytes(rb, &childkeyptr, &cklen); /* Returns a pointer into the rbuf. */
-            result->u.n.childkeys[i] = kv_pair_malloc((void*)childkeyptr, cklen, 0, 0);
-        }
+	bytevec childkeyptr;
+	unsigned int cklen;
+	rbuf_bytes(rb, &childkeyptr, &cklen); /* Returns a pointer into the rbuf. */
+	result->u.n.childkeys[i] = kv_pair_malloc((void*)childkeyptr, cklen, 0, 0);
         //printf(" key %d length=%d data=%s\n", i, result->childkeylens[i], result->childkeys[i]);
-        result->u.n.totalchildkeylens+=toku_brtnode_pivot_key_len(result, result->u.n.childkeys[i]);
+        result->u.n.totalchildkeylens+=toku_brt_pivot_key_len(result->u.n.childkeys[i]);
     }
     for (int i=0; i<result->u.n.n_children; i++) {
         BNC_BLOCKNUM(result,i) = rbuf_blocknum(rb);
@@ -758,16 +739,9 @@ deserialize_brtnode_leaf_from_rbuf (BRTNODE result, bytevec magic, struct rbuf *
     // deserialize partition pivots
     for (int p = 0; p < npartitions-1; p++) { 
 	// just throw them away for now
-        if (result->flags & TOKU_DB_DUPSORT) {
-            bytevec keyptr, dataptr;
-            unsigned int keylen, datalen;
-            rbuf_bytes(rb, &keyptr, &keylen);
-            rbuf_bytes(rb, &dataptr, &datalen);
-        } else {
-            bytevec childkeyptr;
-            unsigned int cklen;
-            rbuf_bytes(rb, &childkeyptr, &cklen);
-        }
+	bytevec childkeyptr;
+	unsigned int cklen;
+	rbuf_bytes(rb, &childkeyptr, &cklen);
     }
 
     // deserialize the partition map
@@ -955,9 +929,6 @@ static int
 decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_block, size_t raw_block_size, struct rbuf *rb, BLOCKNUM blocknum) {
     int r;
     switch (version) {
-        case BRT_LAYOUT_VERSION_11:
-            r = decompress_brtnode_from_raw_block_into_rbuf_11(raw_block, rb, blocknum);
-            break;
         case BRT_LAYOUT_VERSION:
             r = decompress_from_raw_block_into_rbuf(raw_block, raw_block_size, rb, blocknum);
             break;
@@ -970,18 +941,10 @@ decompress_from_raw_block_into_rbuf_versioned(u_int32_t version, u_int8_t *raw_b
 static int
 deserialize_brtnode_from_rbuf_versioned (u_int32_t version, BLOCKNUM blocknum, u_int32_t fullhash, BRTNODE *brtnode, struct brt_header *h, struct rbuf *rb) {
     int r = 0;
-    BRTNODE brtnode_11 = NULL;
     BRTNODE brtnode_12 = NULL;
 
     int upgrade = 0;
     switch (version) {
-        case BRT_LAYOUT_VERSION_11:
-            if (!upgrade)
-                r = deserialize_brtnode_from_rbuf_11(blocknum, fullhash, &brtnode_11, h, rb);
-            upgrade++;
-            if (r==0)
-                r = upgrade_brtnode_11_12(&brtnode_11, &brtnode_12);
-            //Fall through on purpose.
         case BRT_LAYOUT_VERSION:
             if (!upgrade)
                 r = deserialize_brtnode_from_rbuf(blocknum, fullhash, &brtnode_12, h, rb);
@@ -1492,18 +1455,10 @@ deserialize_brtheader (int fd, struct rbuf *rb, struct brt_header **brth) {
 static int
 deserialize_brtheader_versioned (int fd, struct rbuf *rb, struct brt_header **brth, u_int32_t version) {
     int rval;
-    struct brt_header *brth_11 = NULL;
     struct brt_header *brth_12 = NULL;
     int upgrade = 0;
 
     switch(version) {
-    case BRT_LAYOUT_VERSION_11:
-	if (!upgrade)
-	    rval = deserialize_brtheader_11(fd, rb, &brth_11);
-	upgrade++;
-	if (rval == 0) 
-	    rval = upgrade_brtheader_11_12(fd, &brth_11, &brth_12);
-        //Fall through on purpose.
     case BRT_LAYOUT_VERSION:
 	if (!upgrade)
 	    rval = deserialize_brtheader (fd, rb, &brth_12);
@@ -1687,21 +1642,8 @@ toku_deserialize_brtheader_from (int fd, struct brt_header **brth) {
 }
 
 unsigned int 
-toku_brt_pivot_key_len (BRT brt, struct kv_pair *pk) {
-    if (brt->flags & TOKU_DB_DUPSORT) {
-	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
-    } else {
-	return kv_pair_keylen(pk);
-    }
-}
-
-unsigned int 
-toku_brtnode_pivot_key_len (BRTNODE node, struct kv_pair *pk) {
-    if (node->flags & TOKU_DB_DUPSORT) {
-	return kv_pair_keylen(pk) + kv_pair_vallen(pk);
-    } else {
-	return kv_pair_keylen(pk);
-    }
+toku_brt_pivot_key_len (struct kv_pair *pk) {
+    return kv_pair_keylen(pk);
 }
 
 int 
@@ -1942,9 +1884,4 @@ cleanup:
     return r;
 }
 
-
-
-
-// NOTE: Backwards compatibility functions are in the included .c file(s):
-#include "backwards_11.c"
 

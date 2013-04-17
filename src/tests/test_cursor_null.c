@@ -106,7 +106,7 @@ close_dbc (char name) {
 }
 
 static void
-setup_dbs (u_int32_t dup_flags) {
+setup_dbs (void) {
     int r;
 
     r = system("rm -rf " ENVDIR);
@@ -124,10 +124,6 @@ setup_dbs (u_int32_t dup_flags) {
     
     r = db_create(&db, dbenv, 0);
         CKERR(r);
-    if (dup_flags) {
-        r = db->set_flags(db, dup_flags);
-            CKERR(r);
-    }
 
     char a;
     r = db->open(db, null_txn, "foobar.db", NULL, DB_BTREE, DB_CREATE, 0600);
@@ -152,7 +148,7 @@ close_dbs (void) {
 }
 
 static void
-test (u_int32_t dup_flags) {
+test (void) {
     /* ********************************************************************** */
     int key;
     int data;
@@ -162,7 +158,7 @@ test (u_int32_t dup_flags) {
         else         key  = 1;
         if (i & 0x2) data = -1;
         else         data = 1;
-        setup_dbs(dup_flags);
+        setup_dbs();
         put(key, data);
         cget(DB_SET,     TRUE, 'a', key, data);
         cget(DB_CURRENT, TRUE, 'a', key, data);
@@ -174,7 +170,6 @@ test (u_int32_t dup_flags) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    test(0);
-    test(DB_DUP | DB_DUPSORT);
+    test();
     return 0;
 }

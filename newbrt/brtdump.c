@@ -94,10 +94,8 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 	for (i=0; i<n->u.n.n_children-1; i++) {
 	    struct kv_pair *piv = n->u.n.childkeys[i];
 	    printf("  pivot %d:", i);
-            assert(n->flags == 0 || n->flags == TOKU_DB_DUP+TOKU_DB_DUPSORT);
+            assert(n->flags == 0);
 	    print_item(kv_pair_key_const(piv), kv_pair_keylen(piv));
-            if (n->flags == TOKU_DB_DUP+TOKU_DB_DUPSORT) 
-                print_item(kv_pair_val_const(piv), kv_pair_vallen(piv));
 	    printf("\n");
 	}
 	printf(" children:\n");
@@ -116,11 +114,8 @@ dump_node (int f, BLOCKNUM blocknum, struct brt_header *h) {
 				 case BRT_INSERT: printf("INSERT"); goto ok;
 				 case BRT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
 				 case BRT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-				 case BRT_DELETE_BOTH: printf("DELETE_BOTH"); goto ok;
 				 case BRT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-				 case BRT_ABORT_BOTH: printf("ABORT_BOTH"); goto ok;
 				 case BRT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-				 case BRT_COMMIT_BOTH: printf("COMMIT_BOTH"); goto ok;
 				 case BRT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
 				 case BRT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
 				 case BRT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;

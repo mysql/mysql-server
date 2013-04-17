@@ -201,7 +201,6 @@ struct brt {
     BOOL did_set_descriptor;
     DESCRIPTOR_S temp_descriptor;
     int (*compare_fun)(DB*,const DBT*,const DBT*);
-    int (*dup_compare)(DB*,const DBT*,const DBT*);
     DB *db;           // To pass to the compare fun, and close once transactions are done.
 
     OMT txns; // transactions that are using this OMT (note that the transaction checks the cf also)
@@ -265,8 +264,7 @@ extern u_int32_t toku_calc_fingerprint_cmd (u_int32_t type, XIDS xids, const voi
 extern u_int32_t toku_calc_fingerprint_cmdstruct (BRT_MSG cmd);
 
 // How long is the pivot key?
-unsigned int toku_brt_pivot_key_len (BRT, struct kv_pair *); // Given the tree
-unsigned int toku_brtnode_pivot_key_len (BRTNODE, struct kv_pair *); // Given the node
+unsigned int toku_brt_pivot_key_len (struct kv_pair *);
 
 // Values to be used to update brtcursor if a search is successful.
 struct brt_cursor_leaf_info_to_be {
@@ -305,7 +303,7 @@ struct brt_cursor {
 // logs the memory allocation, but not the creation of the new node
 int toku_create_new_brtnode (BRT t, BRTNODE *result, int height, size_t mpsize);
 int toku_unpin_brtnode (BRT brt, BRTNODE node);
-unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t);
+unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t);
 
 /* Stuff for testing */
 int toku_testsetup_leaf(BRT brt, BLOCKNUM *);
@@ -319,7 +317,6 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM, enum brt_msg_type, char
 struct cmd_leafval_heaviside_extra {
     BRT t;
     BRT_MSG cmd;
-    int compare_both_keys; // Set to 1 for DUPSORT databases that are not doing a DELETE_BOTH
 };
 int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra);
 

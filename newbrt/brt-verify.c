@@ -40,11 +40,6 @@ static int compare_pairs (BRT brt, struct kv_pair *a, struct kv_pair *b) {
     int cmp = brt->compare_fun(brt->db,
 			       toku_fill_dbt(&x, kv_pair_key(a), kv_pair_keylen(a)),
 			       toku_fill_dbt(&y, kv_pair_key(b), kv_pair_keylen(b)));
-    if (cmp==0 && (brt->flags & TOKU_DB_DUPSORT)) {
-	cmp = brt->dup_compare(brt->db,
-			       toku_fill_dbt(&x, kv_pair_val(a), kv_pair_vallen(a)),
-			       toku_fill_dbt(&y, kv_pair_val(b), kv_pair_vallen(b)));
-    }
     return cmp;
 }
 static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
@@ -52,11 +47,6 @@ static int compare_leafentries (BRT brt, LEAFENTRY a, LEAFENTRY b) {
     int cmp = brt->compare_fun(brt->db,
 			       toku_fill_dbt(&x, le_key(a), le_keylen(a)),
 			       toku_fill_dbt(&y, le_key(b), le_keylen(b)));
-    if (cmp==0 && (brt->flags & TOKU_DB_DUPSORT)) {
-	cmp = brt->dup_compare(brt->db,
-			       toku_fill_dbt(&x, le_innermost_inserted_val(a), le_innermost_inserted_vallen(a)),
-			       toku_fill_dbt(&y, le_innermost_inserted_val(b), le_innermost_inserted_vallen(b)));
-    }
     return cmp;
 }
 
@@ -70,29 +60,6 @@ struct verify_pair_arg {
     ITEMLEN thishilen;
     int *resultp;
 };
-
-static void verify_pair (bytevec key, unsigned int keylen,
-                         bytevec data __attribute__((__unused__)),
-                         unsigned int datalen __attribute__((__unused__)),
-                         int type __attribute__((__unused__)),
-                         XIDS xids __attribute__((__unused__)),
-                         void *arg) {
-    struct verify_pair_arg *vparg = (struct verify_pair_arg *)arg;
-    BRT brt = vparg->brt;
-    int i = vparg->i;
-    bytevec thislorange = vparg->thislorange; ITEMLEN thislolen = vparg->thislolen;
-    bytevec thishirange = vparg->thishirange; ITEMLEN thishilen = vparg->thishilen;
-    DBT k1,k2;
-    if (thislorange) assert(brt->compare_fun(brt->db,
-                                             toku_fill_dbt(&k1,thislorange,thislolen),
-                                             toku_fill_dbt(&k2,key,keylen)) <= 0);
-    if (thishirange && (brt->compare_fun(brt->db,
-                                         toku_fill_dbt(&k1,key,keylen),
-                                         toku_fill_dbt(&k2,thishirange,thishilen)) >= 0)) {
-        printf("%s:%d in buffer %d key %s is bigger than %s\n", __FILE__, __LINE__, i, (char*)key, (char*)thishirange);
-        *vparg->resultp = 1;
-    }
-}
 
 struct check_increasing_arg {
     BRT brt;
@@ -133,19 +100,14 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 		thislolen  =lolen;
 	    } else {
 		thislorange=kv_pair_key(node->u.n.childkeys[i-1]);
-		thislolen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]);
+		thislolen  =toku_brt_pivot_key_len(node->u.n.childkeys[i-1]);
 	    }
 	    if (node->u.n.n_children==0 || i+1>=node->u.n.n_children) {
 		thishirange=hirange;
 		thishilen  =hilen;
 	    } else {
 		thishirange=kv_pair_key(node->u.n.childkeys[i]);
-		thishilen  =toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]);
-	    }
-            struct verify_pair_arg vparg = { brt, i, thislorange, thislolen, thishirange, thishilen, &result };
-	    if (!(brt->flags & TOKU_DB_DUP)) {
-		// verify_pair doesn't work for dupsort
-		toku_fifo_iterate(BNC_BUFFER(node,i), verify_pair, &vparg);
+		thishilen  =toku_brt_pivot_key_len(node->u.n.childkeys[i]);
 	    }
 	}
 	//if (lorange) printf("%s:%d lorange=%s\n", __FILE__, __LINE__, (char*)lorange);
@@ -157,16 +119,16 @@ int toku_verify_brtnode (BRT brt, BLOCKNUM blocknum, bytevec lorange, ITEMLEN lo
 	    if (i>0) {
 		//printf(" %s:%d i=%d %p v=%s\n", __FILE__, __LINE__, i, node->u.n.childkeys[i-1], (char*)kv_pair_key(node->u.n.childkeys[i-1]));
 		DBT k1,k2,k3;
-		toku_fill_dbt(&k2, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]));
+		toku_fill_dbt(&k2, kv_pair_key(node->u.n.childkeys[i-1]), toku_brt_pivot_key_len(node->u.n.childkeys[i-1]));
 		if (lorange) assert(brt->compare_fun(brt->db, toku_fill_dbt(&k1, lorange, lolen), &k2) <0);
 		if (hirange) assert(brt->compare_fun(brt->db, &k2, toku_fill_dbt(&k3, hirange, hilen)) <=0);
 	    }
 	    if (recurse) {
 		result|=toku_verify_brtnode(brt, BNC_BLOCKNUM(node, i),
                                             (i==0) ? lorange : kv_pair_key(node->u.n.childkeys[i-1]),
-                                            (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
+                                            (i==0) ? lolen   : toku_brt_pivot_key_len(node->u.n.childkeys[i-1]),
                                             (i==node->u.n.n_children-1) ? hirange : kv_pair_key(node->u.n.childkeys[i]),
-                                            (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]),
+                                            (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(node->u.n.childkeys[i]),
                                             recurse);
 	    }
 	}

@@ -32,7 +32,6 @@ static void run_test (void) {
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
     r = db_create(&db, env, 0);                                                         CKERR(r);
-    r = db->set_flags(db, DB_DUPSORT);                                                  CKERR(r);
     r = db->open(db, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);      CKERR(r);
     r = db->close(db, 0);                                                               CKERR(r);
 
@@ -53,7 +52,6 @@ static void run_recover (void) {
     r = db_create(&db, env, 0);                                                             CKERR(r);
     r = db->open(db, NULL, namea, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                  CKERR(r);
     r = db->get_flags(db, &dbflags);                                                        CKERR(r);
-    assert(dbflags == DB_DUPSORT);
     r = db->close(db, 0);                                                                   CKERR(r);
 
     r = env->close(env, 0);                                                                 CKERR(r);

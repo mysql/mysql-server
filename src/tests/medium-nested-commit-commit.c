@@ -98,7 +98,6 @@ test_setup (void) {
     env->set_errfile(env, stderr);
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
-    r=db->set_flags(db, DB_DUPSORT);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);

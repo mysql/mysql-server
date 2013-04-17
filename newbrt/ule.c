@@ -170,16 +170,13 @@ msg_modify_ule(ULE ule, BRT_MSG msg) {
         ule_apply_insert(ule, xids, vallen, valp);
         break;
     case BRT_DELETE_ANY:
-    case BRT_DELETE_BOTH:
         ule_apply_delete(ule, xids);
         break;
     case BRT_ABORT_ANY:
-    case BRT_ABORT_BOTH:
     case BRT_ABORT_BROADCAST_TXN:
         ule_apply_abort(ule, xids);
         break;
     case BRT_COMMIT_ANY:
-    case BRT_COMMIT_BOTH:
     case BRT_COMMIT_BROADCAST_TXN:
         ule_apply_commit(ule, xids);
         break;

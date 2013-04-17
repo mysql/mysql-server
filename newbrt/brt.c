@@ -283,12 +283,7 @@ fill_leafnode_estimates (OMTVALUE val, u_int32_t UU(idx), void *vs)
     struct fill_leafnode_estimates_state *s = vs;
     s->e->dsize += le_keylen(le) + le_innermost_inserted_vallen(le);
     s->e->ndata++;
-    if ((s->prevval == NULL) ||
-	(0 == (s->node->flags & TOKU_DB_DUPSORT)) ||
-	(le_keylen(le) != le_keylen(s->prevval)) ||
-	(memcmp(le_key(le), le_key(s->prevval), le_keylen(le))!=0)) { // really should use comparison function
-	s->e->nkeys++;
-    }
+    s->e->nkeys++;
     s->prevval = le;
     return 0;
 }
@@ -502,20 +497,12 @@ int toku_brtnode_fetch_callback (CACHEFILE UU(cachefile), int fd, BLOCKNUM noden
 
 static int
 leafval_heaviside_le (u_int32_t klen, void *kval,
-                      u_int32_t dlen, void *dval,
                       struct cmd_leafval_heaviside_extra *be) {
     BRT t = be->t;
     DBT dbt;
-    int cmp = t->compare_fun(t->db,
-                             toku_fill_dbt(&dbt, kval, klen),
-                             be->cmd->u.id.key);
-    if (cmp == 0 && be->compare_both_keys && be->cmd->u.id.val->data) {
-        return t->dup_compare(t->db,
-                              toku_fill_dbt(&dbt, dval, dlen),
-                              be->cmd->u.id.val);
-    } else {
-        return cmp;
-    }
+    return t->compare_fun(t->db,
+			  toku_fill_dbt(&dbt, kval, klen),
+			  be->cmd->u.id.key);
 }
 
 //TODO: #1125 optimize
@@ -525,27 +512,18 @@ toku_cmd_leafval_heaviside (OMTVALUE lev, void *extra) {
     struct cmd_leafval_heaviside_extra *be = extra;
     u_int32_t keylen;
     void*     key = le_key_and_len(le, &keylen);
-    u_int32_t vallen;
-    void*     val = le_innermost_inserted_val_and_len(le, &vallen);
     return leafval_heaviside_le(keylen, key,
-                                vallen, val,
                                 be);
 }
 
 // If you pass in data==0 then it only compares the key, not the data (even if is a DUPSORT database)
 static int
-brt_compare_pivot(BRT brt, DBT *key, DBT *data, bytevec ck)
+brt_compare_pivot(BRT brt, DBT *key, bytevec ck)
 {
     int cmp;
     DBT mydbt;
     struct kv_pair *kv = (struct kv_pair *) ck;
-    if (brt->flags & TOKU_DB_DUPSORT) {
-        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
-        if (cmp == 0 && data != 0)
-            cmp = brt->dup_compare(brt->db, data, toku_fill_dbt(&mydbt, kv_pair_val(kv), kv_pair_vallen(kv)));
-    } else {
-        cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
-    }
+    cmp = brt->compare_fun(brt->db, key, toku_fill_dbt(&mydbt, kv_pair_key(kv), kv_pair_keylen(kv)));
     return cmp;
 }
 
@@ -865,25 +843,10 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
 	    struct subtree_estimates diff_est = zero_estimates;
 	    LEAFENTRY *MALLOC_N(n_leafentries-split_at, free_us);
             for (i=split_at; i<n_leafentries; i++) {
-		LEAFENTRY prevle = (i>0) ? leafentries[i-1] : 0;
                 LEAFENTRY oldle = leafentries[i];
                 LEAFENTRY newle = toku_mempool_malloc(&B->u.l.buffer_mempool, leafentry_memsize(oldle), 1);
                 assert(newle!=0); // it's a fresh mpool, so this should always work.
-		BOOL key_is_unique;
-		{
-		    DBT xdbt,ydbt;
-		    if (t->flags & TOKU_DB_DUPSORT) key_is_unique=TRUE;
-		    else if (prevle==NULL)          key_is_unique=TRUE;
-		    else if (t->compare_fun(t->db,
-					    toku_fill_dbt(&xdbt, le_key(prevle), le_keylen(prevle)),
-					    toku_fill_dbt(&ydbt, le_key(oldle),   le_keylen(oldle)))
-			     ==0) {
-			key_is_unique=FALSE;
-		    } else {
-			key_is_unique=TRUE;
-		    }
-		}
-		if (key_is_unique) diff_est.nkeys++;
+		diff_est.nkeys++;
 		diff_est.ndata++;
 		diff_est.dsize += le_keylen(oldle) + le_innermost_inserted_vallen(oldle);
 		//printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(oldle)+ le_innermost_inserted_vallen(oldle), diff_est.dsize);
@@ -927,13 +890,8 @@ brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk)
         r=toku_omt_fetch(node->u.l.buffer, toku_omt_size(node->u.l.buffer)-1, &lev, NULL);
         assert(r==0); // that fetch should have worked.
         LEAFENTRY le=lev;
-        if (node->flags&TOKU_DB_DUPSORT) {
-            splitk->size = le_keylen(le)+le_innermost_inserted_vallen(le);
-            splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), le_innermost_inserted_val(le), le_innermost_inserted_vallen(le));
-        } else {
-            splitk->size = le_keylen(le);
-            splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
-        }
+	splitk->size = le_keylen(le);
+	splitk->data = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
         splitk->flags=0;
     }
     assert(r == 0);
@@ -1039,8 +997,8 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
                 assert(i>0);
                 if (i>n_children_in_a) {
                     B->u.n.childkeys[targchild-1] = node->u.n.childkeys[i-1];
-                    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[i-1]);
-                    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[i-1]);
+                    B->u.n.totalchildkeylens += toku_brt_pivot_key_len(node->u.n.childkeys[i-1]);
+                    node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(node->u.n.childkeys[i-1]);
                     node->u.n.childkeys[i-1] = 0;
                 }
             }
@@ -1063,8 +1021,8 @@ brt_nonleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *spl
         }
 
         splitk->data = (void*)(node->u.n.childkeys[n_children_in_a-1]);
-        splitk->size = toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
-        node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(t, node->u.n.childkeys[n_children_in_a-1]);
+        splitk->size = toku_brt_pivot_key_len(node->u.n.childkeys[n_children_in_a-1]);
+        node->u.n.totalchildkeylens -= toku_brt_pivot_key_len(node->u.n.childkeys[n_children_in_a-1]);
 
         REALLOC_N(n_children_in_a+1,   node->u.n.childinfos);
         REALLOC_N(n_children_in_a, node->u.n.childkeys);
@@ -1158,7 +1116,7 @@ handle_split_of_child (BRT t, BRTNODE node, int childnum,
         }
         //if (logger) assert((t->flags&TOKU_DB_DUPSORT)==0); // the setpivot is wrong for TOKU_DB_DUPSORT, so recovery will be broken.
         node->u.n.childkeys[childnum]= pivot;
-        node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, pivot);
+        node->u.n.totalchildkeylens += toku_brt_pivot_key_len(pivot);
     }
 
     WHEN_NOT_GCOV(
@@ -1256,59 +1214,9 @@ brt_split_child (BRT t, BRTNODE node, int childnum, BOOL *did_react)
     }
 }
 
-//TODO: Rename this function
-static int
-should_compare_both_keys (BRTNODE node, BRT_MSG cmd)
-// Effect: Return nonzero if we need to compare both the key and the value.
-{
-    switch (cmd->type) {
-    case BRT_INSERT_NO_OVERWRITE:
-    case BRT_INSERT:
-        return node->flags & TOKU_DB_DUPSORT;
-    case BRT_DELETE_BOTH:
-    case BRT_ABORT_BOTH:
-    case BRT_COMMIT_BOTH:
-        return 1;
-    case BRT_DELETE_ANY:
-    case BRT_ABORT_ANY:
-    case BRT_COMMIT_ANY:
-    case BRT_COMMIT_BROADCAST_ALL:
-    case BRT_COMMIT_BROADCAST_TXN:
-    case BRT_ABORT_BROADCAST_TXN:
-        return 0;
-    case BRT_NONE:
-        break;
-    }
-    abort(); return 0;
-}
-
-static int
-other_key_matches (BRTNODE node, u_int32_t idx, LEAFENTRY le)
-{
-    OMTVALUE other_lev = 0;
-    int r = toku_omt_fetch(node->u.l.buffer, idx, &other_lev, (OMTCURSOR)NULL);
-    assert(r==0);
-    LEAFENTRY other_le = other_lev;
-    u_int32_t other_keylen = le_keylen(other_le);
-    if (other_keylen == le_keylen(le)
-	&& memcmp(le_key(other_le), le_key(le), other_keylen)==0)   // really should use comparison function
-	return 1;
-    else
-	return 0;
-}
-
 static void
-maybe_bump_nkeys (BRTNODE node, u_int32_t idx, LEAFENTRY le, int direction) {
+maybe_bump_nkeys (BRTNODE node, int direction) {
     int keybump=direction;
-
-    if (0 != (node->flags & TOKU_DB_DUPSORT)) {
-	if (idx>0) {
-	    if (other_key_matches(node, idx-1, le)) keybump=0;
-	}
-	if (idx+1<toku_omt_size(node->u.l.buffer)) {
-	    if (other_key_matches(node, idx+1, le)) keybump=0;
-	}
-    }
     node->u.l.leaf_stats.nkeys += keybump;;
     assert(node->u.l.leaf_stats.exact);
 }
@@ -1407,7 +1315,7 @@ brt_leaf_delete_leafentry (BRTNODE node, u_int32_t idx, LEAFENTRY le)
     //
 
     // Figure out if one of the other keys is the same key
-    maybe_bump_nkeys(node, idx, le, -1);
+    maybe_bump_nkeys(node, -1);
 
     int r;
     if ((r = toku_omt_delete_at(node->u.l.buffer, idx))) goto return_r;
@@ -1507,7 +1415,7 @@ brt_leaf_apply_cmd_once (BRTNODE node, BRT_MSG cmd,
 	    assert(node->u.l.leaf_stats.dsize < (1U<<31)); // make sure we didn't underflow
 	    node->u.l.leaf_stats.ndata ++;
 	    // Look at the key to the left and the one to the right.  If both are different then increment nkeys.
-	    maybe_bump_nkeys(node, idx, new_le, +1);
+	    maybe_bump_nkeys(node, +1);
         }
     }
     r=0;
@@ -1539,8 +1447,7 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     u_int32_t idx;
     u_int32_t omt_size;
     int r;
-    int compare_both = should_compare_both_keys(node, cmd);
-    struct cmd_leafval_heaviside_extra be = {t, cmd, compare_both};
+    struct cmd_leafval_heaviside_extra be = {t, cmd};
 
     //static int counter=0;
     //counter++;
@@ -1589,25 +1496,6 @@ brt_leaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
         if (s - idx <= w)
             node->u.l.seqinsert = doing_seqinsert + 1;
         }
-        break;
-    case BRT_DELETE_BOTH:
-    case BRT_ABORT_BOTH:
-    case BRT_COMMIT_BOTH:
-
-        // Delete the one item
-        r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside,  &be,
-                               &storeddatav, &idx, NULL);
-        if (r == DB_NOTFOUND) break;
-        if (r != 0) return r;
-        storeddata=storeddatav;
-
-        VERIFY_NODE(t, node);
-
-        //static int count=0; count++;
-        r = brt_leaf_apply_cmd_once(node, cmd, idx, storeddata);
-        if (r!=0) return r;
-
-        VERIFY_NODE(t, node);
         break;
 
     case BRT_DELETE_ANY:
@@ -1784,7 +1672,7 @@ static int brt_nonleaf_cmd_once_to_child (BRT t, BRTNODE node, unsigned int chil
 }
 
 /* find the leftmost child that may contain the key */
-unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
+unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, BRT t) {
     assert(node->height>0);
 #define DO_PIVOT_SEARCH_LR 0
 #if DO_PIVOT_SEARCH_LR
@@ -1816,7 +1704,7 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
 
     // check the last key to optimize seq insertions
     int n = node->u.n.n_children-1;
-    int cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[n-1]);
+    int cmp = brt_compare_pivot(t, k, node->u.n.childkeys[n-1]);
     if (cmp > 0) return n;
 
     // binary search the pivots
@@ -1825,7 +1713,7 @@ unsigned int toku_brtnode_which_child (BRTNODE node , DBT *k, DBT *d, BRT t) {
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        cmp = brt_compare_pivot(t, k, d, node->u.n.childkeys[mi]);
+        cmp = brt_compare_pivot(t, k, node->u.n.childkeys[mi]);
         if (cmp > 0) {
             lo = mi+1;
             continue;
@@ -1852,7 +1740,7 @@ static int brt_nonleaf_cmd_once (BRT t, BRTNODE node, BRT_MSG cmd,
     verify_local_fingerprint_nonleaf(node);
     /* find the right subtree */
     //TODO: accesses key, val directly
-    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, cmd->u.id.val, t);
+    unsigned int childnum = toku_brtnode_which_child(node, cmd->u.id.key, t);
 
     int r = brt_nonleaf_cmd_once_to_child (t, node, childnum, cmd, re_array, did_io);
 
@@ -1880,54 +1768,6 @@ return_r:
 }
 
 static int
-brt_nonleaf_cmd_many (BRT t, BRTNODE node, BRT_MSG cmd,
-                      enum reactivity re_array[], BOOL *did_io)
-// Effect: Put the cmd into a nonleaf node.  We may put it into several children, possibly causing the children to become reactive.
-//  We don't do the splitting and merging.  That's up to the caller after doing all the puts it wants to do.
-//  The re_array[i] gets set to the reactivity of any modified child i.  (And there may be several such children.)
-{
-    /* find all children that need a copy of the command */
-    unsigned int sendchild[node->u.n.n_children];
-    unsigned int delidx = 0;
-#define sendchild_append(i) \
-        if (delidx == 0 || sendchild[delidx-1] != i) sendchild[delidx++] = i;
-    unsigned int i;
-    for (i = 0; i+1 < (unsigned int)node->u.n.n_children; i++) {
-        //TODO: Is touching key directly
-        int cmp = brt_compare_pivot(t, cmd->u.id.key, 0, node->u.n.childkeys[i]);
-        if (cmp > 0) {
-            continue;
-        } else if (cmp < 0) {
-            sendchild_append(i);
-            break;
-        } else if (t->flags & TOKU_DB_DUPSORT) {
-            sendchild_append(i);
-            sendchild_append(i+1);
-        } else {
-            sendchild_append(i);
-            break;
-        }
-    }
-
-    if (delidx == 0)
-        sendchild_append((unsigned int)(node->u.n.n_children-1));
-#undef sendchild_append
-
-    /* issue the cmd to all of the children found previously */
-    int r;
-    for (i=0; i<delidx; i++) {
-        /* Append the cmd to the appropriate child buffer. */
-        int childnum = sendchild[i];
-
-        r = brt_nonleaf_cmd_once_to_child(t, node, childnum, cmd, re_array, did_io);
-        if (r!=0)  goto return_r;
-    }
-    r=0;
- return_r:
-    return r;
-}
-
-static int
 brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
                      enum reactivity re_array[], BOOL *did_io)
 // Effect: Put the cmd into a nonleaf node.  We may put it into a child, possibly causing the child to become reactive.
@@ -1942,16 +1782,10 @@ brt_nonleaf_put_cmd (BRT t, BRTNODE node, BRT_MSG cmd,
     switch (cmd->type) {
     case BRT_INSERT_NO_OVERWRITE: 
     case BRT_INSERT:
-    case BRT_DELETE_BOTH:
-    case BRT_ABORT_BOTH:
-    case BRT_COMMIT_BOTH:
-    do_once:
-        return brt_nonleaf_cmd_once(t, node, cmd, re_array, did_io);
     case BRT_DELETE_ANY:
     case BRT_ABORT_ANY:
     case BRT_COMMIT_ANY:
-        if (0 == (node->flags & TOKU_DB_DUPSORT)) goto do_once; // for nondupsort brt, delete_any message goes to one child.
-        return brt_nonleaf_cmd_many(t, node, cmd, re_array, did_io);  // send message to at least one, possibly all children
+        return brt_nonleaf_cmd_once(t, node, cmd, re_array, did_io);
     case BRT_COMMIT_BROADCAST_ALL:
     case BRT_COMMIT_BROADCAST_TXN:
     case BRT_ABORT_BROADCAST_TXN:
@@ -1989,12 +1823,12 @@ merge_leaf_nodes (BRTNODE a, BRTNODE b) {
             a->local_fingerprint     += a->rand4fingerprint * le_crc;
 
 	    a->u.l.leaf_stats.ndata++;
-	    maybe_bump_nkeys(a, idx, new_le, +1);
+	    maybe_bump_nkeys(a, +1);
 	    a->u.l.leaf_stats.dsize+= le_keylen(le) + le_innermost_inserted_vallen(le);
 	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+le_innermost_inserted_vallen(le), a->u.l.leaf_stats.dsize);
         }
         {
-	    maybe_bump_nkeys(b, 0, le, -1);
+	    maybe_bump_nkeys(b, -1);
             int r = toku_omt_delete_at(omtb, 0);
             assert(r==0);
             b->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
@@ -2039,7 +1873,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
             memcpy(new_le, le, le_size);
             int r = toku_omt_insert_at(omtto, new_le, to_idx);
             assert(r==0);
-	    maybe_bump_nkeys(to, to_idx, le, +1);
+	    maybe_bump_nkeys(to, +1);
             to  ->u.l.n_bytes_in_buffer += OMT_ITEM_OVERHEAD + le_size;
             to  ->local_fingerprint     += to->rand4fingerprint * le_crc;
 
@@ -2048,7 +1882,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
 	    //printf("%s:%d Added %u got %lu\n", __FILE__, __LINE__, le_keylen(le)+ le_innermost_inserted_vallen(le), to->u.l.leaf_stats.dsize);
         }
         {
-	    maybe_bump_nkeys(from, from_idx, le, -1);
+	    maybe_bump_nkeys(from, -1);
             int r = toku_omt_delete_at(omtfrom, from_idx);
             assert(r==0);
             from->u.l.n_bytes_in_buffer -= OMT_ITEM_OVERHEAD + le_size;
@@ -2067,11 +1901,7 @@ balance_leaf_nodes (BRTNODE a, BRTNODE b, struct kv_pair **splitk)
     assert(toku_omt_size(a->u.l.buffer)>0);
     {
         LEAFENTRY le = fetch_from_buf(a->u.l.buffer, toku_omt_size(a->u.l.buffer)-1);
-        if (a->flags&TOKU_DB_DUPSORT) {
-            *splitk = kv_pair_malloc(le_key(le), le_keylen(le), le_innermost_inserted_val(le), le_innermost_inserted_vallen(le));
-        } else {
-            *splitk = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
-        }
+	*splitk = kv_pair_malloc(le_key(le), le_keylen(le), 0, 0);
     }
     a->dirty = 1; // make them dirty even if nothing actually happened.
     b->dirty = 1;
@@ -2120,8 +1950,7 @@ maybe_merge_pinned_leaf_nodes (BRTNODE parent, int childnum_of_parent,
 }
 
 static int
-maybe_merge_pinned_nonleaf_nodes (BRT t,
-                                  BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
+maybe_merge_pinned_nonleaf_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
                                   BRTNODE a, BRTNODE b,
                                   BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
 {
@@ -2138,7 +1967,7 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
     memcpy(a->u.n.childkeys + old_n_children,
            b->u.n.childkeys,
            (b->u.n.n_children-1)*sizeof(b->u.n.childkeys[0]));
-    a->u.n.totalchildkeylens += b->u.n.totalchildkeylens + toku_brt_pivot_key_len(t, parent_splitk);
+    a->u.n.totalchildkeylens += b->u.n.totalchildkeylens + toku_brt_pivot_key_len(parent_splitk);
     a->u.n.n_bytes_in_buffers += b->u.n.n_bytes_in_buffers;
     a->u.n.n_children = new_n_children;
 
@@ -2173,8 +2002,7 @@ maybe_merge_pinned_nonleaf_nodes (BRT t,
 }
 
 static int
-maybe_merge_pinned_nodes (BRT t,
-                          BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
+maybe_merge_pinned_nodes (BRTNODE parent, int childnum_of_parent, struct kv_pair *parent_splitk,
                           BRTNODE a, BRTNODE b, 
                           BOOL *did_merge, BOOL *did_rebalance, struct kv_pair **splitk)
 // Effect: either merge a and b into one node (merge them into a) and set *did_merge = TRUE.  
@@ -2202,7 +2030,7 @@ maybe_merge_pinned_nodes (BRT t,
     if (a->height == 0) {
         return maybe_merge_pinned_leaf_nodes(parent, childnum_of_parent, a, b, parent_splitk, did_merge, did_rebalance, splitk);
     } else {
-        int r = maybe_merge_pinned_nonleaf_nodes(t, parent, childnum_of_parent, parent_splitk, a, b, did_merge, did_rebalance, splitk);
+        int r = maybe_merge_pinned_nonleaf_nodes(parent, childnum_of_parent, parent_splitk, a, b, did_merge, did_rebalance, splitk);
         verify_local_fingerprint_nonleaf(a);
         return r;
     }
@@ -2270,9 +2098,9 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
     {
         struct kv_pair *splitk_kvpair = 0;
         struct kv_pair *old_split_key = node->u.n.childkeys[childnuma];
-        unsigned int deleted_size = toku_brt_pivot_key_len(t, old_split_key);
+        unsigned int deleted_size = toku_brt_pivot_key_len(old_split_key);
         verify_local_fingerprint_nonleaf(childa);
-        r = maybe_merge_pinned_nodes(t, node, childnuma, node->u.n.childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
+        r = maybe_merge_pinned_nodes(node, childnuma, node->u.n.childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk_kvpair);
         verify_local_fingerprint_nonleaf(childa);
         if (childa->height>0) { int i; for (i=0; i+1<childa->u.n.n_children; i++) assert(childa->u.n.childkeys[i]); }
         //(toku_verify_counts(childa), toku_verify_estimates(t,childa));
@@ -2306,7 +2134,7 @@ brt_merge_child (BRT t, BRTNODE node, int childnum_to_merge, BOOL *did_io, BOOL 
             assert(splitk_kvpair);
             // If we didn't merge the nodes, then we need the correct pivot.
             node->u.n.childkeys[childnuma] = splitk_kvpair;
-            node->u.n.totalchildkeylens += toku_brt_pivot_key_len(t, node->u.n.childkeys[childnuma]);
+            node->u.n.totalchildkeylens += toku_brt_pivot_key_len(node->u.n.childkeys[childnuma]);
             verify_local_fingerprint_nonleaf(node);
             node->dirty = 1;
         }
@@ -2727,13 +2555,7 @@ int toku_brt_maybe_insert (BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_
     TXNID xid = toku_txn_get_txnid(txn);
     if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
         BYTESTRING keybs  = {key->size, key->data};
-        int need_data = (brt->flags&TOKU_DB_DUPSORT)!=0; // dupsorts don't need the data part
-        if (need_data) {
-            BYTESTRING databs = {val->size, val->data};
-            r = toku_logger_save_rollback_cmdinsertboth(txn, toku_cachefile_filenum(brt->cf), &keybs, &databs);
-        } else {
-            r = toku_logger_save_rollback_cmdinsert    (txn, toku_cachefile_filenum(brt->cf), &keybs);
-        }
+	r = toku_logger_save_rollback_cmdinsert(txn, toku_cachefile_filenum(brt->cf), &keybs);
         if (r!=0) return r;
         r = toku_txn_note_brt(txn, brt);
         if (r!=0) return r;
@@ -3159,8 +2981,6 @@ static int
 verify_builtin_comparisons_consistent(BRT t, u_int32_t flags) {
     if ((flags & TOKU_DB_KEYCMP_BUILTIN) && (t->compare_fun != toku_builtin_compare_fun))
         return EINVAL;
-    if ((flags & TOKU_DB_VALCMP_BUILTIN) && (t->dup_compare != toku_builtin_compare_fun))
-        return EINVAL;
     return 0;
 }
 
@@ -3384,11 +3204,7 @@ brt_open_for_redirect(BRT *new_brtp, const char *fname_in_env, TOKUTXN txn, BRT 
     assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     r = toku_brt_create(&t);
     assert(r==0);
-    r = toku_brt_set_flags(t, old_h->flags);
-    assert(r==0);
     r = toku_brt_set_bt_compare(t, old_brt->compare_fun);
-    assert(r==0);
-    r = toku_brt_set_dup_compare(t, old_brt->dup_compare);
     assert(r==0);
     r = toku_brt_set_nodesize(t, old_brt->nodesize);
     assert(r==0);
@@ -3671,6 +3487,7 @@ toku_brt_get_dictionary_id(BRT brt) {
 }
 
 int toku_brt_set_flags(BRT brt, unsigned int flags) {
+    assert(flags==(flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extranious flags
     brt->did_set_flags = TRUE;
     brt->flags = flags;
     return 0;
@@ -3678,8 +3495,10 @@ int toku_brt_set_flags(BRT brt, unsigned int flags) {
 
 int toku_brt_get_flags(BRT brt, unsigned int *flags) {
     *flags = brt->flags;
+    assert(brt->flags==(brt->flags&TOKU_DB_KEYCMP_BUILTIN)); // make sure there are no extranious flags
     return 0;
 }
+
 
 int toku_brt_set_nodesize(BRT brt, unsigned int nodesize) {
     brt->nodesize = nodesize;
@@ -3700,11 +3519,6 @@ brt_compare_func toku_brt_get_bt_compare (BRT brt) {
     return brt->compare_fun;
 }
 
-
-int toku_brt_set_dup_compare(BRT brt, int (*dup_compare)(DB *, const DBT*, const DBT*)) {
-    brt->dup_compare = dup_compare;
-    return 0;
-}
 
 int toku_brt_create_cachetable(CACHETABLE *ct, long cachesize, LSN initial_lsn, TOKULOGGER logger) {
     if (cachesize == 0)
@@ -4036,7 +3850,6 @@ int toku_brt_create(BRT *brt_ptr) {
     brt->did_set_descriptor = FALSE;
     brt->nodesize = BRT_DEFAULT_NODE_SIZE;
     brt->compare_fun = toku_builtin_compare_fun;
-    brt->dup_compare = toku_builtin_compare_fun;
     int r = toku_omt_create(&brt->txns);
     if (r!=0) { toku_free(brt); return r; }
     *brt_ptr = brt;
@@ -4237,12 +4050,10 @@ brt_cursor_not_set(BRT_CURSOR cursor) {
 
 static int
 pair_leafval_heaviside_le (u_int32_t klen, void *kval,
-                           u_int32_t dlen, void *dval,
                            brt_search_t *search) {
-    DBT x,y;
+    DBT x;
     int cmp = search->compare(search,
-                              search->k ? toku_fill_dbt(&x, kval, klen) : 0, 
-                              search->v ? toku_fill_dbt(&y, dval, dlen) : 0);
+                              search->k ? toku_fill_dbt(&x, kval, klen) : 0);
     // The search->compare function returns only 0 or 1
     switch (search->direction) {
     case BRT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
@@ -4258,11 +4069,8 @@ heaviside_from_search_t (OMTVALUE lev, void *extra) {
     brt_search_t *search = extra;
     u_int32_t keylen;
     void* key = le_key_and_len(le, &keylen);
-    u_int32_t vallen;
-    void* val = le_innermost_inserted_val_and_len(le, &vallen);
 
     return pair_leafval_heaviside_le (keylen, key,
-                                      vallen, val,
                                       search);
 }
 
@@ -4536,10 +4344,9 @@ brt_search_nonleaf_node(BRT brt, BRTNODE node, brt_search_t *search, BRT_GET_STR
         for (c = 0; c < node->u.n.n_children-1; c++) {
             int p = search->direction & BRT_SEARCH_LEFT ? child[c] : child[c] - 1;
             struct kv_pair *pivot = node->u.n.childkeys[p];
-            DBT pivotkey, pivotval;
+            DBT pivotkey;
             if (search->compare(search, 
-                                toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)), 
-                                brt->flags & TOKU_DB_DUPSORT ? toku_fill_dbt(&pivotval, kv_pair_val(pivot), kv_pair_vallen(pivot)): 0)) {
+                                toku_fill_dbt(&pivotkey, kv_pair_key(pivot), kv_pair_keylen(pivot)))) {
                 BOOL did_change_shape = FALSE;
                 verify_local_fingerprint_nonleaf(node);
                 int r = brt_search_child(brt, node, child[c], search, getf, getf_v, re, doprefetch, brtcursor, &did_change_shape);
@@ -4657,66 +4464,19 @@ brt_cursor_search(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBACK_FUNC
     return r;
 }
 
-static inline int compare_kv_xy(BRT brt, const DBT *k, const DBT *v, const DBT *x, const DBT *y) {
-    int cmp = brt->compare_fun(brt->db, k, x);
-    if (cmp == 0 && v && y)
-        cmp = brt->dup_compare(brt->db, v, y);
-    return cmp;
-}
-
 static inline int compare_k_x(BRT brt, const DBT *k, const DBT *x) {
     return brt->compare_fun(brt->db, k, x);
 }
 
-static inline int compare_v_y(BRT brt, const DBT *v, const DBT *y) {
-    return brt->dup_compare(brt->db, v, y);
-}
-
 static int
-brt_cursor_compare_one(brt_search_t *search, DBT *x, DBT *y)
+brt_cursor_compare_one(brt_search_t *search __attribute__((__unused__)), DBT *x __attribute__((__unused__)))
 {
-    search = search; x = x; y = y;
     return 1;
 }
 
-static int
-brt_cursor_search_eq_kv_xy_getf(ITEMLEN keylen,          bytevec key,
-                                ITEMLEN vallen,          bytevec val,
-                                ITEMLEN UU(next_keylen), bytevec UU(next_key),
-                                ITEMLEN UU(next_vallen), bytevec UU(next_val),
-                                void *v) {
-    struct brt_cursor_search_struct *bcss = v;
-    int r;
-    if (key==NULL) {
-	r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
-    } else {
-	BRT_CURSOR cursor = bcss->cursor;
-	brt_search_t *search = bcss->search;
-	DBT newkey = {.size = keylen, .data=(void*)key};
-	DBT newval = {.size = vallen, .data=(void*)val};
-	if (compare_kv_xy(cursor->brt, search->k, search->v, &newkey, &newval) == 0) {
-	    r = bcss->getf(keylen, key, vallen, val, bcss->getf_v);
-	} else {
-	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v);
-            if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-        }
-    }
-    return r;
-}
-
-/* search for the kv pair that matches the search object and is equal to kv */
-static int
-brt_cursor_search_eq_kv_xy(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    brt_cursor_invalidate(cursor);
-    struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, search};
-    int r = toku_brt_search(cursor->brt, search, brt_cursor_search_eq_kv_xy_getf, &bcss, cursor, &cursor->root_put_counter);
-    return r;
-}
-
-static int brt_cursor_compare_set(brt_search_t *search, DBT *x, DBT *y) {
+static int brt_cursor_compare_set(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    return compare_kv_xy(brt, search->k, search->v, x, y) <= 0; /* return min xy: kv <= xy */
+    return compare_k_x(brt, search->k, x) <= 0; /* return min xy: kv <= xy */
 }
 
 static int
@@ -4732,9 +4492,8 @@ brt_cursor_current_getf(ITEMLEN keylen,          bytevec key,
     } else {
 	BRT_CURSOR cursor = bcss->cursor;
 	DBT newkey = {.size=keylen, .data=(void*)key}; // initializes other fields to zero
-	DBT newval = {.size=vallen, .data=(void*)val};
         //Safe to access cursor->key/val because current_in_omt is FALSE
-	if (compare_kv_xy(cursor->brt, &cursor->key, &cursor->val, &newkey, &newval) != 0) {
+	if (compare_k_x(cursor->brt, &cursor->key, &newkey) != 0) {
 	    r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v); // This was once DB_KEYEMPTY
             if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
         }
@@ -4752,7 +4511,7 @@ toku_brt_cursor_current(BRT_CURSOR cursor, int op, BRT_GET_CALLBACK_FUNCTION get
     if (op == DB_CURRENT) {
         brt_cursor_invalidate(cursor);
 	struct brt_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
-        brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
+        brt_search_t search; brt_search_init(&search, brt_cursor_compare_set, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
         return toku_brt_search(cursor->brt, &search, brt_cursor_current_getf, &bcss, cursor, &cursor->root_put_counter);
     }
     brt_cursor_invalidate(cursor);
@@ -4772,7 +4531,7 @@ toku_brt_flatten(BRT brt, TOKULOGGER logger)
     BRT_CURSOR tmp_cursor;
     int r = toku_brt_cursor(brt, &tmp_cursor, logger, TXNID_NONE, FALSE);
     if (r!=0) return r;
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, 0, tmp_cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, tmp_cursor->brt);
     r = brt_cursor_search(tmp_cursor, &search, brt_flatten_getf, NULL);
     if (r==DB_NOTFOUND) r = 0;
     {
@@ -4786,20 +4545,20 @@ toku_brt_flatten(BRT brt, TOKULOGGER logger)
 int
 toku_brt_cursor_first(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, 0, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_LEFT, 0, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
 
 int
 toku_brt_cursor_last(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_RIGHT, 0, 0, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_one, BRT_SEARCH_RIGHT, 0, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
 
-static int brt_cursor_compare_next(brt_search_t *search, DBT *x, DBT *y) {
+static int brt_cursor_compare_next(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    return compare_kv_xy(brt, search->k, search->v, x, y) < 0; /* return min xy: kv < xy */
+    return compare_k_x(brt, search->k, x) < 0; /* return min xy: kv < xy */
 }
 
 static int
@@ -4921,46 +4680,14 @@ int
 toku_brt_cursor_next(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     int r;
-
-    if ((cursor->brt->flags & TOKU_DB_DUP) && brt_cursor_next_shortcut(cursor, getf, getf_v)==0) {
+    if (brt_cursor_next_shortcut(cursor, getf, getf_v)==0) {
 	r = 0;
-    }
-    else {
-        brt_search_t search; brt_search_init(&search, brt_cursor_compare_next, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
+    } else {
+        brt_search_t search; brt_search_init(&search, brt_cursor_compare_next, BRT_SEARCH_LEFT, &cursor->key, cursor->brt);
         r = brt_cursor_search(cursor, &search, getf, getf_v);
     }
     if (r == 0) brt_cursor_set_prefetching(cursor);
     return r;
-}
-
-static int brt_cursor_compare_next_nodup(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context; y = y;
-    return compare_k_x(brt, search->k, x) < 0; /* return min x: k < x */
-}
-
-int
-toku_brt_cursor_next_nodup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    int r;
-
-    if (!(cursor->brt->flags & TOKU_DB_DUP) && brt_cursor_next_shortcut(cursor, getf, getf_v)==0) {
-	r = 0;
-    }
-    else {
-        brt_search_t search; brt_search_init(&search, brt_cursor_compare_next_nodup, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
-        r = brt_cursor_search(cursor, &search, getf, getf_v);
-    }
-    if (r == 0) brt_cursor_set_prefetching(cursor);
-    return r;
-}
-
-static int brt_cursor_compare_next_dup(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context;
-    int keycmp = compare_k_x(brt, search->k, x);
-    if (keycmp < 0)
-        return 1;
-    else
-        return keycmp == 0 && y && compare_v_y(brt, search->v, y) < 0; /* return min xy: k <= x && v < y */
 }
 
 static int
@@ -4996,48 +4723,6 @@ brt_cursor_search_eq_k_x(BRT_CURSOR cursor, brt_search_t *search, BRT_GET_CALLBA
     return r;
 }
 
-int
-toku_brt_cursor_next_dup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    int r;
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_next_dup, BRT_SEARCH_LEFT, &cursor->key, &cursor->val, cursor->brt);
-    r = brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
-    if (r == 0) brt_cursor_set_prefetching(cursor);
-    return r;
-}
-
-static int brt_cursor_compare_get_both_range(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context;
-    int keycmp = compare_k_x(brt, search->k, x);
-    if (keycmp < 0)
-        return 1;
-    else
-        return keycmp == 0 && (y == 0 || compare_v_y(brt, search->v, y) <= 0); /* return min xy: k <= x && v <= y */
-}
-
-int
-toku_brt_cursor_get_both_range(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_get_both_range, BRT_SEARCH_LEFT, key, val, cursor->brt);
-    return brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
-}
-
-static int brt_cursor_compare_get_both_range_reverse(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context;
-    int keycmp = compare_k_x(brt, search->k, x);
-    if (keycmp > 0)
-        return 1;
-    else
-        return keycmp == 0 && (y == 0 || compare_v_y(brt, search->v, y) >= 0); /* return min xy: k >= x && v >= y */
-}
-
-int
-toku_brt_cursor_get_both_range_reverse(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_get_both_range_reverse, BRT_SEARCH_RIGHT, key, val, cursor->brt);
-    return brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
-}
-
 static int
 brt_cursor_prev_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 // Effect: If possible, decrement the cursor and return the key-value pair
@@ -5060,81 +4745,48 @@ brt_cursor_prev_shortcut (BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, voi
 
 
 
-static int brt_cursor_compare_prev(brt_search_t *search, DBT *x, DBT *y) {
+static int brt_cursor_compare_prev(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    return compare_kv_xy(brt, search->k, search->v, x, y) > 0; /* return max xy: kv > xy */
+    return compare_k_x(brt, search->k, x) > 0; /* return max xy: kv > xy */
 }
 
 int
 toku_brt_cursor_prev(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    if (0!=(cursor->brt->flags & TOKU_DB_DUP) &&
-	brt_cursor_prev_shortcut(cursor, getf, getf_v)==0)
+    if (brt_cursor_prev_shortcut(cursor, getf, getf_v)==0)
 	return 0;
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev, BRT_SEARCH_RIGHT, &cursor->key, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
 
-static int brt_cursor_compare_prev_nodup(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context; y = y;
-    return compare_k_x(brt, search->k, x) > 0; /* return max x: k > x */
-}
-
-int
-toku_brt_cursor_prev_nodup(BRT_CURSOR cursor,  BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    if (0==(cursor->brt->flags & TOKU_DB_DUP) &&
-	brt_cursor_prev_shortcut(cursor, getf, getf_v)==0)
-	return 0;
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev_nodup, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
-    return brt_cursor_search(cursor, &search, getf, getf_v);
-}
-
-static int brt_cursor_compare_prev_dup(brt_search_t *search, DBT *x, DBT *y) {
+static int brt_cursor_compare_set_range(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    int keycmp = compare_k_x(brt, search->k, x);
-    if (keycmp > 0)
-        return 1;
-    else
-        return keycmp == 0 && y && compare_v_y(brt, search->v, y) > 0; /* return max xy: k >= x && v > y */
+    return compare_k_x(brt, search->k,  x) <= 0; /* return kv <= xy */
 }
 
 int
-toku_brt_cursor_prev_dup(BRT_CURSOR cursor, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
+toku_brt_cursor_set(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_prev_dup, BRT_SEARCH_RIGHT, &cursor->key, &cursor->val, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range, BRT_SEARCH_LEFT, key, cursor->brt);
     return brt_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
-}
-
-
-static int brt_cursor_compare_set_range(brt_search_t *search, DBT *x, DBT *y) {
-    BRT brt = search->context;
-    return compare_kv_xy(brt, search->k, search->v, x, y) <= 0; /* return kv <= xy */
-}
-
-int
-toku_brt_cursor_set(BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range, BRT_SEARCH_LEFT, key, val, cursor->brt);
-    return brt_cursor_search_eq_kv_xy(cursor, &search, getf, getf_v);
 }
 
 int
 toku_brt_cursor_set_range(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range, BRT_SEARCH_LEFT, key, NULL, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range, BRT_SEARCH_LEFT, key, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
 
-static int brt_cursor_compare_set_range_reverse(brt_search_t *search, DBT *x, DBT *y) {
+static int brt_cursor_compare_set_range_reverse(brt_search_t *search, DBT *x) {
     BRT brt = search->context;
-    return compare_kv_xy(brt, search->k, search->v, x, y) >= 0; /* return kv >= xy */
+    return compare_k_x(brt, search->k, x) >= 0; /* return kv >= xy */
 }
 
 int
 toku_brt_cursor_set_range_reverse(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
-    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range_reverse, BRT_SEARCH_RIGHT, key, NULL, cursor->brt);
+    brt_search_t search; brt_search_init(&search, brt_cursor_compare_set_range_reverse, BRT_SEARCH_RIGHT, key, cursor->brt);
     return brt_cursor_search(cursor, &search, getf, getf_v);
 }
 
@@ -5142,7 +4794,7 @@ toku_brt_cursor_set_range_reverse(BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_
 //TODO: When tests have been rewritten, get rid of this function.
 //Only used by tests.
 int
-toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)
+toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)
 {
     int op = get_flags & DB_OPFLAGS_MASK;
     if (get_flags & ~DB_OPFLAGS_MASK)
@@ -5157,45 +4809,21 @@ toku_brt_cursor_get (BRT_CURSOR cursor, DBT *key, DBT *val, BRT_GET_CALLBACK_FUN
     case DB_LAST:
         return toku_brt_cursor_last(cursor, getf, getf_v);
     case DB_NEXT:
-        if (brt_cursor_not_set(cursor))
-            return toku_brt_cursor_first(cursor, getf, getf_v);
-        else
-            return toku_brt_cursor_next(cursor, getf, getf_v);
-    case DB_NEXT_DUP:
-        if (brt_cursor_not_set(cursor))
-            return EINVAL;
-        else
-            return toku_brt_cursor_next_dup(cursor, getf, getf_v);
     case DB_NEXT_NODUP:
         if (brt_cursor_not_set(cursor))
             return toku_brt_cursor_first(cursor, getf, getf_v);
         else
-            return toku_brt_cursor_next_nodup(cursor, getf, getf_v);
+            return toku_brt_cursor_next(cursor, getf, getf_v);
     case DB_PREV:
-        if (brt_cursor_not_set(cursor))
-            return toku_brt_cursor_last(cursor, getf, getf_v);
-        else
-            return toku_brt_cursor_prev(cursor, getf, getf_v);
-#if defined(DB_PREV_DUP)
-    case DB_PREV_DUP:
-        if (brt_cursor_not_set(cursor))
-            return EINVAL;
-        else
-            return toku_brt_cursor_prev_dup(cursor, getf, getf_v);
-#endif
     case DB_PREV_NODUP:
         if (brt_cursor_not_set(cursor))
             return toku_brt_cursor_last(cursor, getf, getf_v);
         else
-            return toku_brt_cursor_prev_nodup(cursor, getf, getf_v);
+            return toku_brt_cursor_prev(cursor, getf, getf_v);
     case DB_SET:
-        return toku_brt_cursor_set(cursor, key, 0, getf, getf_v);
+        return toku_brt_cursor_set(cursor, key, getf, getf_v);
     case DB_SET_RANGE:
         return toku_brt_cursor_set_range(cursor, key, getf, getf_v);
-    case DB_GET_BOTH:
-        return toku_brt_cursor_set(cursor, key, val, getf, getf_v);
-    case DB_GET_BOTH_RANGE:
-        return toku_brt_cursor_get_both_range(cursor, key, val, getf, getf_v);
     default: ;// Fall through
     }
     return EINVAL;
@@ -5242,7 +4870,7 @@ int toku_brt_dbt_set(DBT* key, DBT* key_source) {
 /* ********************************* lookup **************************************/
 
 int
-toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
+toku_brt_lookup (BRT brt, DBT *k, BRT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     int r, rr;
     BRT_CURSOR cursor;
@@ -5250,8 +4878,8 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
     rr = toku_brt_cursor(brt, &cursor, NULL, TXNID_NONE, FALSE);
     if (rr != 0) return rr;
 
-    int op = brt->flags & TOKU_DB_DUPSORT ? DB_GET_BOTH : DB_SET;
-    r = toku_brt_cursor_get(cursor, k, v, getf, getf_v, op);
+    int op = DB_SET;
+    r = toku_brt_cursor_get(cursor, k, getf, getf_v, op);
 
     rr = toku_brt_cursor_close(cursor); assert(rr == 0);
 
@@ -5259,48 +4887,6 @@ toku_brt_lookup (BRT brt, DBT *k, DBT *v, BRT_GET_CALLBACK_FUNCTION getf, void *
 }
 
 /* ********************************* delete **************************************/
-
-int toku_brt_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn) {
-    return toku_brt_maybe_delete_both(brt, key, val, txn, FALSE, ZERO_LSN);
-}
-
-int toku_brt_maybe_delete_both(BRT brt, DBT *key, DBT *val, TOKUTXN txn, BOOL oplsn_valid, LSN oplsn) {
-    //{ unsigned i; printf("del %p keylen=%d key={", brt->db, key->size); for(i=0; i<key->size; i++) printf("%d,", ((char*)key->data)[i]); printf("} datalen=%d data={", val->size); for(i=0; i<val->size; i++) printf("%d,", ((char*)val->data)[i]); printf("}\n"); }
-    int r;
-    XIDS message_xids;
-    TXNID xid = toku_txn_get_txnid(txn);
-    if (txn && (brt->h->txnid_that_created_or_locked_when_empty != xid)) {
-        BYTESTRING keybs  = {key->size, key->data};
-        BYTESTRING databs = {val->size, val->data};
-        r = toku_logger_save_rollback_cmddeleteboth(txn, toku_cachefile_filenum(brt->cf), &keybs, &databs);
-        if (r!=0) return r;
-        r = toku_txn_note_brt(txn, brt);
-        if (r!=0) return r;
-        message_xids = toku_txn_get_xids(txn);
-    }
-    else {
-        //Treat this delete as a commit-immediately delete.
-        //It will never be given an abort message (will be truncated on abort).
-        message_xids = xids_get_root_xids();
-    }
-    TOKULOGGER logger = toku_txn_logger(txn);
-    if (logger && brt->h->txnid_that_suppressed_recovery_logs == TXNID_NONE) {
-        BYTESTRING keybs = {.len=key->size, .data=key->data};
-        BYTESTRING valbs = {.len=val->size, .data=val->data};
-        r = toku_log_enq_delete_both(logger, (LSN*)0, 0, toku_cachefile_filenum(brt->cf), xid, keybs, valbs);
-        if (r!=0) return r;
-    }
-
-    LSN treelsn;
-    if (oplsn_valid && oplsn.lsn <= (treelsn = toku_brt_checkpoint_lsn(brt)).lsn) {
-        r = 0;
-    } else {
-        BRT_MSG_S brtcmd = { BRT_DELETE_BOTH, message_xids, .u.id={key,val}};
-        r = toku_brt_root_put_cmd(brt, &brtcmd);
-    } 
-    return r;
-}
-
 static int
 getf_nothing (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *UU(pair_v)) {
     return 0;
@@ -5327,7 +4913,7 @@ toku_brt_cursor_delete(BRT_CURSOR cursor, int flags, TOKUTXN txn) {
             //If we try to use the omtcursor, there exists a race condition
             //(node could be evicted), but maybe_get_and_pin() prevents delete.
             brt_cursor_invalidate(cursor);
-            r = toku_brt_delete_both(cursor->brt, &cursor->key, &cursor->val, txn);
+            r = toku_brt_delete(cursor->brt, &cursor->key, txn);
         }
     }
     return r;
@@ -5377,28 +4963,15 @@ static void toku_brt_keyrange_internal (BRT brt, CACHEKEY nodename, u_int32_t fu
         }
     } else {
         BRT_MSG_S cmd = { BRT_INSERT, 0, .u.id={key,0}};
-        struct cmd_leafval_heaviside_extra be = {brt, &cmd, 0};
+        struct cmd_leafval_heaviside_extra be = {brt, &cmd};
         u_int32_t idx;
         int r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, 0, &idx, NULL);
         *less += idx;
-        if (r==0 && (brt->flags & TOKU_DB_DUP)) {
-            // There is something, and so we now want to find the rightmost extent.
-            u_int32_t idx2;
-            r = toku_omt_find(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, +1, 0, &idx2, NULL);
-            if (r==0) {
-                *greater += toku_omt_size(node->u.l.buffer)-idx2;
-                *equal   += idx2-idx;
-            } else {
-                *equal   += toku_omt_size(node->u.l.buffer)-idx;
-            }
-            //printf("%s:%d (%llu, %llu, %llu)\n", __FILE__, __LINE__, (unsigned long long)*less, (unsigned long long)*equal, (unsigned long long)*greater);
-        } else {
-            *greater += toku_omt_size(node->u.l.buffer)-idx;
-            if (r==0) {
-                (*greater)--;
-                (*equal)++;
-            }
-        }
+	*greater += toku_omt_size(node->u.l.buffer)-idx;
+	if (r==0) {
+	    (*greater)--;
+	    (*equal)++;
+	}
     }
     {
         int rr = toku_unpin_brtnode(brt, node);
@@ -5481,7 +5054,7 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
             int i;
             for (i=0; i+1< node->u.n.n_children; i++) {
                 fprintf(file, "%*spivotkey %d =", depth+1, "", i);
-                toku_print_BYTESTRING(file, toku_brt_pivot_key_len(brt, node->u.n.childkeys[i]), node->u.n.childkeys[i]->key);
+                toku_print_BYTESTRING(file, toku_brt_pivot_key_len(node->u.n.childkeys[i]), node->u.n.childkeys[i]->key);
                 fprintf(file, "\n");
             }
             for (i=0; i< node->u.n.n_children; i++) {
@@ -5508,9 +5081,9 @@ toku_dump_brtnode (FILE *file, BRT brt, BLOCKNUM blocknum, int depth, bytevec lo
                 }
                 toku_dump_brtnode(file, brt, BNC_BLOCKNUM(node, i), depth+4,
                                   (i==0) ? lorange : node->u.n.childkeys[i-1]->key,
-                                  (i==0) ? lolen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i-1]),
+                                  (i==0) ? lolen   : toku_brt_pivot_key_len(node->u.n.childkeys[i-1]),
                                   (i==node->u.n.n_children-1) ? hirange : node->u.n.childkeys[i]->key,
-                                  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(brt, node->u.n.childkeys[i])
+                                  (i==node->u.n.n_children-1) ? hilen   : toku_brt_pivot_key_len(node->u.n.childkeys[i])
                                   );
             }
         }

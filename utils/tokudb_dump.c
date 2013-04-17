@@ -333,8 +333,6 @@ int dump_header()
       goto error;
    }
    DUMP_IGNORED_FLAG(DB_CHKSUM,    "chksum=1\n");
-   DUMP_FLAG(        DB_DUP,       "duplicates=1\n");
-   DUMP_FLAG(        DB_DUPSORT,   "dupsort=1\n");
    DUMP_IGNORED_FLAG(DB_RECNUM,    "recnum=1\n");
    printf("HEADER=END\n");
    

@@ -20,11 +20,9 @@ static void run_test (void) {
     r = env->open(env, ENVDIR, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                      CKERR(r);
 
     r = db_create(&dba, env, 0);                                                        CKERR(r);
-    r = dba->set_flags(dba, DB_DUPSORT);                                                CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
 
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->set_flags(dbb, DB_DUPSORT);                                                CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
 
     DB_TXN *txn;
@@ -54,13 +52,12 @@ static void run_recover (void) {
     r = db_create(&dba, env, 0);                                                            CKERR(r);
     r = dba->open(dba, NULL, namea, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                CKERR(r);
     r = dba->get_flags(dba, &dbflags);                                                      CKERR(r);
-    assert(dbflags == DB_DUPSORT);
     r = dba->close(dba, 0);                                                                 CKERR(r);
     DB *dbb;
     r = db_create(&dbb, env, 0);                                                            CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_UNKNOWN, DB_AUTO_COMMIT, 0666);                CKERR(r);
     r = dbb->get_flags(dbb, &dbflags);                                                      CKERR(r);
-    assert(dbflags == DB_DUPSORT);
+    assert(dbflags == 0);
     r = dbb->close(dbb, 0);                                                                 CKERR(r);
 
     r = env->close(env, 0);                                                                 CKERR(r);

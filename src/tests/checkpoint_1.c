@@ -162,12 +162,10 @@ test_main (int argc, char * const argv[]) {
     n = 0;
     for (snap = 0; snap < 2; snap++) {
         checkpoint_test_1(0, n, snap);
-        checkpoint_test_1(DB_DUP|DB_DUPSORT, n, snap);
     }
     for (n = 1; n <= 1<<9; n*= 2) {
         for (snap = 0; snap < 2; snap++) {
             checkpoint_test_1(0, n, snap);
-            checkpoint_test_1(DB_DUP|DB_DUPSORT, n, snap);
         }
     }
 

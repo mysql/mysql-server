@@ -42,7 +42,7 @@ static void test5 (void) {
 	    snprintf(key, 100, "key%d", rk);
 	    snprintf(valexpected, 100, "val%d", values[rk]);
 	    struct check_pair pair = {1+strlen(key), key, 1+strlen(valexpected), valexpected, 0};
-	    r = toku_brt_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), NULL, lookup_checkf, &pair);
+	    r = toku_brt_lookup(t, toku_fill_dbt(&k, key, 1+strlen(key)), lookup_checkf, &pair);
 	    assert(r==0);
 	    assert(pair.call_count==1);
 	}

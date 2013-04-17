@@ -65,7 +65,6 @@ test_main(int argc, char *const argv[]) {
 	env->set_errfile(env, stderr);
 	r=env->txn_begin(env, 0, &txn, 0);                            CKERR(r);
 	r=db_create(&db, env, 0);                                     CKERR(r);
-	r=db->set_flags(db, DB_DUP|DB_DUPSORT);
 	r=db->open(db, txn, "foo.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO);  CKERR(r);
 	r=txn->commit(txn, 0);                                        CKERR(r);
     }

@@ -91,7 +91,7 @@ int toku_testsetup_insert_to_leaf (BRT brt, BLOCKNUM blocknum, char *key, int ke
     assert(r==0);
 
 
-    struct cmd_leafval_heaviside_extra be = {brt, &cmd, node->flags & TOKU_DB_DUPSORT};
+    struct cmd_leafval_heaviside_extra be = {brt, &cmd};
     r = toku_omt_find_zero(node->u.l.buffer, toku_cmd_leafval_heaviside, &be, &storeddatav, &idx, NULL);
 
 
@@ -129,10 +129,9 @@ int toku_testsetup_insert_to_nonleaf (BRT brt, BLOCKNUM blocknum, enum brt_msg_t
     BRTNODE node=node_v;
     assert(node->height>0);
 
-    DBT k,v;
+    DBT k;
     int childnum = toku_brtnode_which_child(node,
 				       toku_fill_dbt(&k, key, keylen),
-				       toku_fill_dbt(&v, val, vallen),
 				       brt);
 
     XIDS xids_0 = xids_get_root_xids();

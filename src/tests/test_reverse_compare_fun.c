@@ -53,8 +53,8 @@ expect (DBC *cursor, int k, int v) {
 }
 
 static void
-test_reverse_compare (int n, int dup_flags) {
-    if (verbose) printf("test_reverse_compare:%d %d\n", n, dup_flags);
+test_reverse_compare (int n) {
+    if (verbose) printf("test_reverse_compare:%d\n", n);
 
     DB_TXN * const null_txn = 0;
     const char * const fname = "reverse.compare.db";
@@ -74,13 +74,9 @@ test_reverse_compare (int n, int dup_flags) {
     DB *db;
     r = db_create(&db, env, 0);
     CKERR(r);
-    r = db->set_flags(db, dup_flags);
-    CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
-    CKERR(r);
-    r = db->set_dup_compare(db, reverse_compare);
     CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666);
     CKERR(r);
@@ -89,7 +85,7 @@ test_reverse_compare (int n, int dup_flags) {
     for (i=0; i<n; i++) {
         DBT key, val;
         int k, v;
-        k = htonl(dup_flags ? n : i);
+        k = htonl(i);
         dbt_init(&key, &k, sizeof k);
         v = htonl(i);
         dbt_init(&val, &v, sizeof v);
@@ -102,13 +98,9 @@ test_reverse_compare (int n, int dup_flags) {
     CKERR(r);
     r = db_create(&db, env, 0);
     CKERR(r);
-    r = db->set_flags(db, dup_flags);
-    CKERR(r);
     r = db->set_pagesize(db, 4096);
     CKERR(r);
     r = db->set_bt_compare(db, reverse_compare);
-    CKERR(r);
-    r = db->set_dup_compare(db, reverse_compare);
     CKERR(r);
     r = db->open(db, null_txn, fname, "main", DB_BTREE, 0, 0666);
     CKERR(r);
@@ -117,7 +109,7 @@ test_reverse_compare (int n, int dup_flags) {
     for (i=n; i<2*n; i++) {
         DBT key, val;
         int k, v;
-        k = htonl(dup_flags ? n : i);
+        k = htonl(i);
         dbt_init(&key, &k, sizeof k);
         v = htonl(i);
         dbt_init(&val, &v, sizeof v);
@@ -132,7 +124,7 @@ test_reverse_compare (int n, int dup_flags) {
 
     //for (i=0; i<2*n; i++) 
     for (i=2*n-1; i>=0; i--)
-        expect(cursor, htonl(dup_flags ? n : i), htonl(i));
+        expect(cursor, htonl(i), htonl(i));
 
     r = cursor->c_close(cursor);
     CKERR(r);
@@ -148,8 +140,7 @@ test_main(int argc, char *const argv[]) {
     int i;
 
     for (i = 1; i <= (1<<16); i *= 2) {
-        test_reverse_compare(i, 0);
-        test_reverse_compare(i, DB_DUP + DB_DUPSORT);
+        test_reverse_compare(i);
     }
     return 0;
 }

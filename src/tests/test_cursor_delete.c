@@ -31,13 +31,7 @@ cursor_expect (DBC *cursor, int k, int v, int op) {
     toku_free(val.data);
 }
 
-static void
-cursor_expect_fail (DBC *cursor, int op, int expectr) {
-    DBT key, val;
-    int r = cursor->c_get(cursor, dbt_init_malloc(&key), dbt_init_malloc(&val), op);
-    assert(r == expectr);
-}
- 
+
 /* generate a multi-level tree and delete all entries with a cursor
    verify that the pivot flags are toggled (currently by inspection) */
 
@@ -60,6 +54,9 @@ test_cursor_delete (int dup_mode) {
     /* create the dup database file */
     DB_ENV *env;
     r = db_env_create(&env, 0); assert(r == 0);
+#ifdef USE_TDB
+    r = env->set_redzone(env, 0);                                 CKERR(r);
+#endif
     r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
 
     DB *db;
@@ -71,7 +68,7 @@ test_cursor_delete (int dup_mode) {
 
     int i;
     for (i=0; i<n; i++) {
-        int k = htonl(dup_mode & DB_DUP ? 1 : i);
+        int k = htonl(i);
         int v = htonl(i);
         DBT key, val;
         r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE); assert(r == 0);
@@ -82,77 +79,10 @@ test_cursor_delete (int dup_mode) {
     r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
 
     for (i=0; i<n; i++) {
-        cursor_expect(cursor, htonl(dup_mode & DB_DUP ? 1 : i), htonl(i), DB_NEXT); 
+        cursor_expect(cursor, htonl(i), htonl(i), DB_NEXT); 
         
         r = cursor->c_del(cursor, 0); assert(r == 0);
      }
-
-    r = cursor->c_close(cursor); assert(r == 0);
-
-    r = db->close(db, 0); assert(r == 0);
-    r = env->close(env, 0); assert(r == 0);
-}
-
-/* insert duplicate duplicates into a sorted duplicate tree */
-static void
-test_cursor_delete_dupsort (void) {
-    if (verbose) {
-        printf("test_cursor_delete_dupsort\n"); fflush(stdout);
-    }
-
-    int pagesize = 4096;
-    int elementsize = 32;
-    int npp = pagesize/elementsize;
-    int n = 16*npp; /* build a 2 level tree */
-
-    DB_TXN * const null_txn = 0;
-    const char * const fname = "test.cursor.delete.brt";
-    int r;
-
-    r = system("rm -rf " ENVDIR); CKERR(r);
-    r = toku_os_mkdir(ENVDIR, S_IRWXU|S_IRWXG|S_IRWXO); assert(r == 0);
-
-    /* create the dup database file */
-    DB_ENV *env;
-    r = db_env_create(&env, 0); assert(r == 0);
-    r = env->open(env, ENVDIR, DB_CREATE+DB_PRIVATE+DB_INIT_MPOOL, 0); assert(r == 0);
-
-    DB *db;
-    r = db_create(&db, env, 0); assert(r == 0);
-    db->set_errfile(db,0); // Turn off those annoying errors
-    r = db->set_flags(db, DB_DUP + DB_DUPSORT); assert(r == 0);
-    r = db->set_pagesize(db, pagesize); assert(r == 0);
-    r = db->open(db, null_txn, fname, "main", DB_BTREE, DB_CREATE, 0666); assert(r == 0);
-
-    int i;
-    for (i=0; i<n; i++) {
-        int k = htonl(1);
-        int v = htonl(1);
-        DBT key, val;
-#ifdef USE_BDB
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        if (i == 0) 
-            assert(r == 0); 
-        else 
-            assert(r == DB_KEYEXIST);
-#endif
-#ifdef USE_TDB
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), 0);
-        assert(r == EINVAL);
-        r = db->put(db, null_txn, dbt_init(&key, &k, sizeof k), dbt_init(&val, &v, sizeof v), DB_YESOVERWRITE);
-        assert(r == 0);
-#endif
-    }
-
-    /* verify the sort order with a cursor */
-    DBC *cursor;
-    r = db->cursor(db, null_txn, &cursor, 0); assert(r == 0);
-
-    cursor_expect(cursor, htonl(1), htonl(1), DB_NEXT); 
-        
-    r = cursor->c_del(cursor, 0); assert(r == 0);
-
-    cursor_expect_fail(cursor, DB_NEXT, DB_NOTFOUND);
 
     r = cursor->c_close(cursor); assert(r == 0);
 
@@ -168,8 +98,6 @@ test_main(int argc, char *const argv[]) {
 #ifdef USE_BDB
     test_cursor_delete(DB_DUP);
 #endif
-    test_cursor_delete(DB_DUP + DB_DUPSORT);
-    test_cursor_delete_dupsort();
 
     return 0;
 }

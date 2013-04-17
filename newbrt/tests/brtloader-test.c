@@ -259,7 +259,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int i;
     for (i=0; i<n; i++) {
 	struct check_pair pair = {sizeof sorted_keys[i], &sorted_keys[i], strlen(sorted_vals[i]), sorted_vals[i], 0};
-        r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+        r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
         if (r != 0) {
 	    assert(pair.call_count ==0);
 	    break;
@@ -268,7 +268,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     }
     
     struct check_pair pair; memset(&pair, 0, sizeof pair);
-    r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_NEXT);
+    r = toku_brt_cursor_get(cursor, NULL, lookup_checkf, &pair, DB_NEXT);
     assert(r != 0);
 
     r = toku_brt_cursor_close(cursor); assert(r == 0);

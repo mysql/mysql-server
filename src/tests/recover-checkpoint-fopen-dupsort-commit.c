@@ -26,7 +26,6 @@ static void run_test (BOOL do_commit, BOOL do_abort) {
     r = env->txn_checkpoint(env, 0, 0, 0);                                              CKERR(r);
 
     r = db_create(&dbb, env, 0);                                                        CKERR(r);
-    r = dbb->set_flags(dbb, DB_DUPSORT);                                                CKERR(r);
     r = dbb->open(dbb, NULL, nameb, NULL, DB_BTREE, DB_AUTO_COMMIT|DB_CREATE, 0666);    CKERR(r);
     DB_TXN *txn;
     r = env->txn_begin(env, NULL, &txn, 0);                                             CKERR(r);
@@ -69,7 +68,7 @@ static void run_recover (BOOL did_commit) {
 
     dbflags = 0;
     r = dbb->get_flags(dbb, &dbflags);                                                        CKERR(r);
-    assert(dbflags == DB_DUPSORT);
+    assert(dbflags == 0);
 
     DBT aa={.size=0}, ab={.size=0};
     DBT ba={.size=0}, bb={.size=0};

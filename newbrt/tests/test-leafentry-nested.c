@@ -549,14 +549,10 @@ test_le_empty_apply(void) {
 
                     msg_init(&msg, BRT_COMMIT_ANY, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_COMMIT_BOTH, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
                     msg_init(&msg, BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
 
                     msg_init(&msg, BRT_ABORT_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_ABORT_BOTH, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                     msg_init(&msg, BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
@@ -566,8 +562,6 @@ test_le_empty_apply(void) {
                     ULE_S ule_expected = ule_committed_delete;
 
                     msg_init(&msg, BRT_DELETE_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_DELETE_BOTH, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
                 {
@@ -670,14 +664,10 @@ test_le_committed_apply(void) {
                     ULE_S ule_expected = ule_initial;
                     msg_init(&msg, BRT_COMMIT_ANY, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_COMMIT_BOTH, msg_xids,  &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
                     msg_init(&msg, BRT_COMMIT_BROADCAST_TXN, msg_xids,  &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
 
                     msg_init(&msg, BRT_ABORT_ANY, msg_xids, &key, &val);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_ABORT_BOTH, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                     msg_init(&msg, BRT_ABORT_BROADCAST_TXN, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
@@ -687,8 +677,6 @@ test_le_committed_apply(void) {
                     msg_init(&msg, BRT_DELETE_ANY, msg_xids, &key, &val);
                     ULE_S ule_expected;
                     generate_provdel_for(&ule_expected, &msg);
-                    test_le_apply(&ule_initial, &msg, &ule_expected);
-                    msg_init(&msg, BRT_DELETE_BOTH, msg_xids, &key, &val);
                     test_le_apply(&ule_initial, &msg, &ule_expected);
                 }
 

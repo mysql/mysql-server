@@ -65,7 +65,7 @@ run_test(void) {
     toku_recover_set_callback(recover_callback_at_turnaround, NULL);
 
     // run recovery
-    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, NULL, 0); 
+    r = tokudb_recover(TESTDIR, TESTDIR, 0, 0, NULL, 0); 
     assert(r != 0);
 
     r = system("rm -rf " TESTDIR);

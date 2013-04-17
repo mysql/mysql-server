@@ -183,23 +183,6 @@ int toku_commit_cmdinsert (FILENUM filenum, BYTESTRING key, TOKUTXN txn, YIELDF 
 }
 
 int
-toku_commit_cmdinsertboth (FILENUM    filenum,
-                           BYTESTRING key,
-                           BYTESTRING data,
-                           TOKUTXN    txn,
-                           YIELDF     UU(yield),
-                           void *     UU(yieldv),
-                           LSN        oplsn)
-{
-#if TOKU_DO_COMMIT_CMD_INSERT
-    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
-#else
-    key = key; data = data; oplsn = oplsn;
-    return do_nothing_with_filenum(txn, filenum);
-#endif
-}
-
-int
 toku_rollback_cmdinsert (FILENUM    filenum,
                          BYTESTRING key,
                          TOKUTXN    txn,
@@ -208,47 +191,6 @@ toku_rollback_cmdinsert (FILENUM    filenum,
                          LSN        oplsn)
 {
     return do_insertion (BRT_ABORT_ANY, filenum, key, 0, txn, oplsn);
-}
-
-int
-toku_rollback_cmdinsertboth (FILENUM    filenum,
-                             BYTESTRING key,
-                             BYTESTRING data,
-                             TOKUTXN    txn,
-                             YIELDF     UU(yield),
-                             void *     UU(yieldv),
-                             LSN        oplsn)
-{
-    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
-}
-
-int
-toku_commit_cmddeleteboth (FILENUM    filenum,
-                           BYTESTRING key,
-                           BYTESTRING data,
-                           TOKUTXN    txn,
-                           YIELDF     UU(yield),
-                           void *     UU(yieldv),
-                           LSN        oplsn)
-{
-#if TOKU_DO_COMMIT_CMD_DELETE_BOTH
-    return do_insertion (BRT_COMMIT_BOTH, filenum, key, &data, txn, oplsn);
-#else
-    xid = xid; key = key; data = data;
-    return do_nothing_with_filenum(txn, filenum);
-#endif
-}
-
-int
-toku_rollback_cmddeleteboth (FILENUM    filenum,
-                             BYTESTRING key,
-                             BYTESTRING data,
-                             TOKUTXN    txn,
-                             YIELDF     UU(yield),
-                             void *     UU(yieldv),
-                             LSN        oplsn)
-{
-    return do_insertion (BRT_ABORT_BOTH, filenum, key, &data, txn, oplsn);
 }
 
 int

@@ -149,7 +149,6 @@ test_main(int argc, char *const argv[]) {
 
     test_insert_zero_length(32, 0, "test0");
     test_insert_zero_length_keys(32, 0, "test0keys");
-    test_insert_zero_length_keys(32, DB_DUP+DB_DUPSORT, "test0keys_dupsort");
 
     CLOSE_TRACE_FILE();
 

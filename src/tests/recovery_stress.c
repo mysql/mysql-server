@@ -397,7 +397,7 @@ static void post_checkpoint_acts(ITER_SPEC spec) {
 
 static void run_test (int iter) {
 
-    u_int32_t flags = DB_DUP|DB_DUPSORT;
+    u_int32_t flags = 0;
     int i, r;
 
     if (iter == 0)
