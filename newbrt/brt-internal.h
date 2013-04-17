@@ -547,6 +547,7 @@ int toku_brtnode_pf_callback(void* brtnode_pv, void* UU(disk_data), void* read_e
 extern int toku_brtnode_cleaner_callback( void *brtnode_pv, BLOCKNUM blocknum, u_int32_t fullhash, void *extraargs);
 extern int toku_brt_alloc_init_header(BRT t, TOKUTXN txn);
 extern int toku_read_brt_header_and_store_in_cachefile (BRT brt, CACHEFILE cf, LSN max_acceptable_lsn, struct brt_header **header, BOOL* was_open);
+void toku_brtheader_note_brt_open(BRT live);
 extern CACHEKEY* toku_calculate_root_offset_pointer (struct brt_header* h, u_int32_t *root_hash);
 
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(struct brt_header* h) {

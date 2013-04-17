@@ -103,6 +103,19 @@ int toku_brt_open(BRT, const char *fname_in_env,
 		  int is_create, int only_create, CACHETABLE ct, TOKUTXN txn)  __attribute__ ((warn_unused_result));
 int toku_brt_open_recovery(BRT, const char *fname_in_env, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, 
 			   FILENUM use_filenum, LSN max_acceptable_lsn)  __attribute__ ((warn_unused_result));
+int
+toku_brt_open_with_dict_id(
+    BRT t, 
+    const char *fname_in_env, 
+    int is_create, 
+    int only_create, 
+    CACHETABLE cachetable, 
+    TOKUTXN txn, 
+    DICTIONARY_ID use_dictionary_id
+    )  __attribute__ ((warn_unused_result));
+
+int 
+toku_create_new_brtheader(BRT t, CACHEFILE cf, TOKUTXN txn);
 
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags)  __attribute__ ((warn_unused_result));
 
