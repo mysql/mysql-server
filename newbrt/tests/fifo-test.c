@@ -43,8 +43,7 @@ test_fifo_enq (int n) {
         memset(theval, ~len, thevallen); \
     }
 
-    int i;
-    for (i=0; i<n; i++) {
+    for (int i=0; i<n; i++) {
         buildkey(i);
         buildval(i);
         XIDS xids;
@@ -61,7 +60,7 @@ test_fifo_enq (int n) {
         xids_destroy(&xids);
     }
 
-    i = 0;
+    int i = 0;
     FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, {
         if (verbose) printf("checkit %d %d %"PRIu64"\n", i, type, msn.msn);
         assert(msn.msn == startmsn.msn + i);
