@@ -286,7 +286,7 @@ garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
     fill_bfe_for_full_read(&bfe, info->h);
     int r = toku_deserialize_brtnode_from(info->f, b, 0, &n, &bfe);
     if (r != 0) {
-        goto exit;
+        goto no_node;
     }
     if (n->height > 0) {
         goto exit;
@@ -299,6 +299,8 @@ garbage_helper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
         }
     }
 exit:
+    toku_brtnode_free(&n);
+no_node:
     return r;
 }
 
