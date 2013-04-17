@@ -66,7 +66,7 @@ TEST_NEWBRT = brt-test-helpers.$(OEXT)
 BRT_C_FILES = $(patsubst %,%.c,$(BRT_SOURCES))
 BRT_O_FILES = $(patsubst %,%.$(OEXT),$(BRT_SOURCES))
 
-newbrt.o: $(BRT_C_FILES) $(DEPEND_COMPILE)
+newbrt.$(OEXT): $(BRT_C_FILES) $(DEPEND_COMPILE)
 	$(MAYBEATSIGN)$(CC) $(BRT_C_FILES) $(COMBINE_C) $(O_FROM_C_FLAGS)
 
 

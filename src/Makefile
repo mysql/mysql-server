@@ -92,7 +92,14 @@ $(TLIBRARY_S): $(TLIBRARY) ;
 endif
 
 static_libtokudb.lib: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
-	lib /out:$@ $^
+	xilib /out:$@ $^
+
+ipo_libtokudb.obj: $(YDB) $(LOCKTREE) $(RANGETREE) $(NEWBRT) $(LIBPORTABILITY)
+	$(CC) -Qipo-c *.obj lock_tree/*.obj range_tree/*.obj ../newbrt/*.obj ../windows/*.obj
+	mv ipo_out.obj $@
+
+ipo_libtokudb.lib: ipo_libtokudb.obj
+	xilib /out:$@ $^
 
 
 check_globals: $(LIBNAME).$(AEXT)
