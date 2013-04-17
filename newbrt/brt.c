@@ -1764,18 +1764,22 @@ toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, cons
 {
     int diff = keylen + datalen + KEY_VALUE_OVERHEAD + BRT_CMD_OVERHEAD + xids_get_serialize_size(xids);
     long offset;
-    int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset); assert_zero(r);
+    int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
+    assert_zero(r);
     enum brt_msg_type etype = (enum brt_msg_type) type;
     if (brt_msg_type_applies_once(etype)) {
-        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc= desc, .cmp = cmp, .fifo = bnc->buffer, .key = key, .keylen = keylen, .msn = msn };
+        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer, .key = key, .keylen = keylen, .msn = msn };
         if (is_fresh) {
-            r = toku_omt_insert(bnc->fresh_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL); assert_zero(r);
+            r = toku_omt_insert(bnc->fresh_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
+            assert_zero(r);
         } else {
-            r = toku_omt_insert(bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL); assert_zero(r);
+            r = toku_omt_insert(bnc->stale_message_tree, (OMTVALUE) offset, toku_fifo_entry_key_msn_heaviside, &extra, NULL);
+            assert_zero(r);
         }
     } else if (brt_msg_type_applies_all(etype) || brt_msg_type_does_nothing(etype)) {
         u_int32_t idx = toku_omt_size(bnc->broadcast_list);
-        r = toku_omt_insert_at(bnc->broadcast_list, (OMTVALUE) offset, idx); assert_zero(r);
+        r = toku_omt_insert_at(bnc->broadcast_list, (OMTVALUE) offset, idx);
+        assert_zero(r);
     } else {
         assert(FALSE);
     }
