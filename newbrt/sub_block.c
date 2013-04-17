@@ -39,7 +39,7 @@ sub_block_header_size(int n_sub_blocks) {
 
 void
 set_compressed_size_bound(struct sub_block *se) {
-    se->compressed_size_bound = compressBound(se->uncompressed_size);
+    se->compressed_size_bound = toku_compress_bound(toku_compress_method, se->uncompressed_size);
 }
 
 // get the sum of the sub block compressed sizes 
@@ -47,7 +47,7 @@ size_t
 get_sum_compressed_size_bound(int n_sub_blocks, struct sub_block sub_block[]) {
     size_t compressed_size_bound = 0;
     for (int i = 0; i < n_sub_blocks; i++) {
-        sub_block[i].compressed_size_bound = compressBound(sub_block[i].uncompressed_size);
+        sub_block[i].compressed_size_bound = toku_compress_bound(toku_compress_method, sub_block[i].uncompressed_size);
         compressed_size_bound += sub_block[i].compressed_size_bound;
     }
     return compressed_size_bound;
