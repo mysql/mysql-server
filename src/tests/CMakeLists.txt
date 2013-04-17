@@ -496,7 +496,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
               add_test(
                 NAME ydb/${test}/upgrade/${oldver}/${p_or_s}/${size}
                 COMMAND ${CMAKE_CFG_INTDIR}/run_upgrade_stress_test.sh $<TARGET_FILE:upgrade_${oldver}_${p_or_s}_${size}_${test}> ${TOKU_SVNROOT}/tokudb.data/old-stress-test-envs/${oldver}/saved${p_or_s}-${size}-dir dir.upgrade_${oldver}_${p_or_s}_${size}_${base}.tdb ${size} 600)
-              set_tests_properties(ydb/${test}/upgrade/${oldver}/${p_or_s}/${size} PROPERTIES TIMEOUT 5400)
+              set_tests_properties(ydb/${test}/upgrade/${oldver}/${p_or_s}/${size} PROPERTIES TIMEOUT 10800)
             endforeach(size)
           endif ()
         endforeach(p_or_s)
