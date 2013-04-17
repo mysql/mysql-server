@@ -84,7 +84,7 @@ save_failure() {
     num_update=$1; shift
     phase=$1; shift
     dest="${dir}/${exec}-${table_size}-${cachetable_size}-${num_ptquery}-${num_update}-${phase}-$$"
-    mkdir "$dest"
+    mkdir -p "$dest"
     mv $out "${dest}/output.txt"
     mv core* "${dest}/"
     mv $envdir "${dest}/"
@@ -99,6 +99,7 @@ run_test() {
     mylog="$1"; shift
     mysavedir="$1"; shift
 
+    tmplog=$(mktemp)
     ulimit -c unlimited
     t0="$(date)"
     t1=""
@@ -108,23 +109,23 @@ run_test() {
         --num_elements $table_size \
         --cachetable_size $cachetable_size \
         --num_ptquery_threads $num_ptquery \
-        --num_update_threads $num_update > "/tmp/run.stress-tests.tmp.$$"
+        --num_update_threads $num_update > $tmplog
     then
-        rm "/tmp/run.stress-tests.tmp.$$"
+        rm -f $tmplog
         t1="$(date)"
         if ./$exec -v --recover --envdir "$envdir" \
             --num_elements $table_size \
-            --cachetable_size $cachetable_size > "/tmp/run.stress-tests.tmp.$$"
+            --cachetable_size $cachetable_size > $tmplog
         then
-            rm "/tmp/run.stress-tests.tmp.$$"
+            rm -f $tmplog
             t2="$(date)"
             echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,PASS" > "$mylog"
         else
-            save_failure "$mysavedir" "/tmp/run.stress-tests.tmp.$$" $envdir $exec $table_size $cachetable_size $num_ptquery $num_update recover
+            save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update recover
             echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" > "$mylog"
         fi
     else
-        save_failure "$mysavedir" "/tmp/run.stress-tests.tmp.$$" $envdir $exec $table_size $cachetable_size $num_ptquery $num_update test
+        save_failure "$mysavedir" $tmplog $envdir $exec $table_size $cachetable_size $num_ptquery $num_update test
         echo "\"$exec\",$table_size,$cachetable_size,$num_ptquery,$num_update,$t0,$t1,$t2,FAIL" > "$mylog"
     fi
 }
@@ -135,10 +136,6 @@ loop_test() {
     cachetable_size="$1"; shift
     mylog="$1"; shift
     mysavedir="$1"; shift
-    echo "Logging to $mylog" 1>&2
-    touch $mylog
-    echo "Failures saved to $mysavedir" 1>&2
-    mkdir $mysavedir
 
     ptquery_rand=0
     update_rand=0
