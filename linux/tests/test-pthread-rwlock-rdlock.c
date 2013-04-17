@@ -1,0 +1,1 @@
+../../windows/tests/test-pthread-rwlock-rdlock.c
