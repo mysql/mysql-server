@@ -23,6 +23,34 @@ long limitcount=-1;
 u_int32_t cachesize = 127*1024*1024;
 static int do_mysql = 0;
 
+static int print_usage (const char *argv0) {
+    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag] [--env DIR]\n", argv0);
+    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
+    fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
+    fprintf(stderr, "  --lwc               run light weight cursors instead of heavy weight cursors\n");
+    fprintf(stderr, "  --prelock           acquire a read lock on the entire table before running\n");
+    fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
+    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
+    fprintf(stderr, "  --nox               no transactions (no locking)\n");
+    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
+    fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
+    fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
+    fprintf(stderr, "  --env DIR           put db files in DIR instead of default\n");
+    return 1;
+}
+
+DB_ENV *env;
+DB *db;
+DB_TXN *tid=0;
+
+#define STRINGIFY2(s) #s
+#define STRINGIFY(s) STRINGIFY2(s)
+const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
+int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
+int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
+char *dbfilename = "bench.db";
+
+
 static void parse_args (int argc, const char *argv[]) {
     pname=argv[0];
     argc--;
@@ -57,38 +85,27 @@ static void parse_args (int argc, const char *argv[]) {
             char *end;
             argv++; argc--;
             cachesize=(u_int32_t)strtol(*argv, &end, 10);
+	} else if (strcmp(*argv, "--env") == 0) {
+            argc--;
+            argv++;
+	    if (argc==0) exit(print_usage(pname));
+	    dbdir = *argv;
         } else if (strcmp(*argv, "--mysql") == 0) {
             do_mysql = 1;
 	} else {
-	    fprintf(stderr, "Usage:\n%s [--verify-lwc | --lwc | --nohwc] [--prelock] [--prelockflag] [--prelockwriteflag]\n", pname);
-	    fprintf(stderr, "  --hwc               run heavy weight cursors (this is the default)\n");
-	    fprintf(stderr, "  --verify-lwc        means to run the light weight cursor and the heavyweight cursor to verify that they get the same answer.\n");
-	    fprintf(stderr, "  --lwc               run light weight cursors instead of heavy weight cursors\n");
-	    fprintf(stderr, "  --prelock           acquire a read lock on the entire table before running\n");
-	    fprintf(stderr, "  --prelockflag       pass DB_PRELOCKED to the the cursor get operation whenever the locks have been acquired\n");
-	    fprintf(stderr, "  --prelockwriteflag  pass DB_PRELOCKED_WRITE to the cursor get operation\n");
-	    fprintf(stderr, "  --nox               no transactions\n");
-	    fprintf(stderr, "  --count <count>     read the first COUNT rows and then  stop.\n");
-            fprintf(stderr, "  --cachesize <n>     set the env cachesize to <n>\n");
-            fprintf(stderr, "  --mysql             compare keys that are mysql big int not null types\n");
-            exit(1);
+            exit(print_usage(pname));
 	}
 	argc--;
 	argv++;
     }
+    //Prelocking is meaningless without transactions
+    if (do_txns==0) {
+        prelockflag=0;
+        lock_flag=0;
+        prelock=0;
+    }
 }
 
-
-DB_ENV *env;
-DB *db;
-DB_TXN *tid=0;
-
-#define STRINGIFY2(s) #s
-#define STRINGIFY(s) STRINGIFY2(s)
-const char *dbdir = "./bench."  STRINGIFY(DIRSUF); /* DIRSUF is passed in as a -D argument to the compiler. */
-int env_open_flags_yesx = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL|DB_INIT_TXN|DB_INIT_LOG|DB_INIT_LOCK;
-int env_open_flags_nox = DB_CREATE|DB_PRIVATE|DB_INIT_MPOOL;
-char *dbfilename = "bench.db";
 
 static inline uint64_t mysql_get_bigint(unsigned char *d) {
     uint64_t r = 0;
