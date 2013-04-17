@@ -141,6 +141,7 @@ BDB_DONTRUN_TESTS = \
         progress \
 	put-multiple \
         recover-2483 \
+        recover-3113 \
         recover-compare-db \
         recover-compare-db-descriptor \
 	recover-del-multiple \
