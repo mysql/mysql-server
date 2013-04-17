@@ -122,7 +122,8 @@ static void run_test(void)
 
     run_indexer(src_db, dbs);
 
-    // at this point the hot dictionary should have locks on the rows
+    // at this point the hot dictionary should have locks on the rows since the transaction 
+    //   that created the src dictionary is still open
 
     // try overwriting a value in hot dictionary[0]
     {
@@ -142,7 +143,8 @@ static void run_test(void)
     }
 
     // close the transaction (releasing locks), and try writing again 
-    r = txn->commit(txn, DB_TXN_SYNC);                                       CKERR(r);
+    r = txn->commit(txn, DB_TXN_SYNC);
+    CKERR(r);
     {
         DB_TXN *owrt_txn;
         r = env->txn_begin(env, NULL, &owrt_txn, 0); 
