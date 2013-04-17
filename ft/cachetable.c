@@ -2441,11 +2441,12 @@ void toku_cachetable_verify (CACHETABLE ct) {
                 if (p2==p) {
                     /* found it */
                     num_found++;
-                    continue;
+                    goto next;
                 }
             }
             fprintf(stderr, "Something in the clock chain is not hashed\n");
             assert(0);
+        next:;
         }
         assert (num_found == ct->n_in_table);
     }
