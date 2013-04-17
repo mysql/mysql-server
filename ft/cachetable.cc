@@ -86,7 +86,9 @@ static PAIR_ATTR const zero_attr = {
 
 static inline void ctpair_destroy(PAIR p) {
     p->value_rwlock.deinit();
+    paranoid_invariant(p->refcount == 0);
     nb_mutex_destroy(&p->disk_nb_mutex);
+    toku_cond_destroy(&p->refcount_wait);
     toku_free(p);
 }
 
@@ -96,6 +98,30 @@ static inline void pair_lock(PAIR p) {
 
 static inline void pair_unlock(PAIR p) {
     toku_mutex_unlock(p->mutex);
+}
+
+// adds a reference to the PAIR
+// on input and output, PAIR mutex is held
+static void pair_add_ref_unlocked(PAIR p) {
+    p->refcount++;
+}
+
+// releases a reference to the PAIR
+// on input and output, PAIR mutex is held
+static void pair_release_ref_unlocked(PAIR p) {
+    paranoid_invariant(p->refcount > 0);
+    p->refcount--;
+    if (p->refcount == 0 && p->num_waiting_on_refs > 0) {
+        toku_cond_broadcast(&p->refcount_wait);
+    }
+}
+
+static void pair_wait_for_ref_release_unlocked(PAIR p) {
+    p->num_waiting_on_refs++;
+    while (p->refcount > 0) {
+        toku_cond_wait(&p->refcount_wait, p->mutex);
+    }
+    p->num_waiting_on_refs--;
 }
 
 bool toku_ctpair_is_write_locked(PAIR pair) {
@@ -573,7 +599,7 @@ static void cachetable_maybe_remove_and_free_pair (
     ) 
 {
     // this ensures that a clone running in the background first completes
-    if (p->value_rwlock.users() == 0) {
+    if (p->value_rwlock.users() == 0 && p->refcount == 0) {
         // assumption is that if we are about to remove the pair
         // that no one has grabbed the disk_nb_mutex,
         // and that there is no cloned_value_data, because
@@ -760,6 +786,9 @@ void pair_init(PAIR p,
     p->write_extraargs = write_callback.write_extraargs;
 
     p->count = 0; // <CER> Is zero the correct init value?
+    p->refcount = 0;
+    p->num_waiting_on_refs = 0;
+    toku_cond_init(&p->refcount_wait, NULL);
     p->checkpoint_pending = false;
 
     p->mutex = list->get_mutex_for_pair(fullhash);
@@ -1851,7 +1880,6 @@ int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, 
 //
 static int
 cachetable_unpin_internal(
-    PAIR locked_p,
     CACHEFILE cachefile, 
     PAIR p,
     enum cachetable_dirty dirty, 
@@ -1865,9 +1893,7 @@ cachetable_unpin_internal(
     bool added_data_to_cachetable = false;
 
     // hack for #3969, only exists in case where we run unlockers
-    if (!locked_p || locked_p->mutex != p->mutex) {
-        pair_lock(p);
-    }
+    pair_lock(p);
     PAIR_ATTR old_attr = p->attr;
     PAIR_ATTR new_attr = attr;
     if (dirty) {
@@ -1878,9 +1904,7 @@ cachetable_unpin_internal(
     }
     bool read_lock_grabbed = p->value_rwlock.readers() != 0;
     unpin_pair(p, read_lock_grabbed);
-    if (!locked_p || locked_p->mutex != p->mutex) {
-        pair_unlock(p);
-    }
+    pair_unlock(p);
     
     if (attr.is_valid) {
         if (new_attr.size > old_attr.size) {
@@ -1902,18 +1926,18 @@ cachetable_unpin_internal(
 }
 
 int toku_cachetable_unpin(CACHEFILE cachefile, PAIR p, enum cachetable_dirty dirty, PAIR_ATTR attr) {
-    return cachetable_unpin_internal(NULL, cachefile, p, dirty, attr, true);
+    return cachetable_unpin_internal(cachefile, p, dirty, attr, true);
 }
-int toku_cachetable_unpin_ct_prelocked_no_flush(PAIR locked_p, CACHEFILE cachefile, PAIR p, enum cachetable_dirty dirty, PAIR_ATTR attr) {
-    return cachetable_unpin_internal(locked_p, cachefile, p, dirty, attr, false);
+int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, PAIR p, enum cachetable_dirty dirty, PAIR_ATTR attr) {
+    return cachetable_unpin_internal(cachefile, p, dirty, attr, false);
 }
 
 static void
-run_unlockers (PAIR p, UNLOCKERS unlockers) {
+run_unlockers (UNLOCKERS unlockers) {
     while (unlockers) {
         assert(unlockers->locked);
         unlockers->locked = false;
-        unlockers->f(p, unlockers->extra);
+        unlockers->f(unlockers->extra);
         unlockers=unlockers->next;
     }
 }
@@ -1944,19 +1968,27 @@ maybe_pin_pair(
     // run the unlockers, as we intend to return the value to the user
     if (lock_type == PL_READ) {
         if (p->value_rwlock.read_lock_is_expensive()) {
-            run_unlockers(p, unlockers);
+            pair_add_ref_unlocked(p);
+            pair_unlock(p);
+            run_unlockers(unlockers);
             retval = TOKUDB_TRY_AGAIN;
+            pair_lock(p);
+            pair_release_ref_unlocked(p);
         }
         p->value_rwlock.read_lock();
     }
     else if (lock_type == PL_WRITE_EXPENSIVE || lock_type == PL_WRITE_CHEAP){
         if (p->value_rwlock.write_lock_is_expensive()) {
-            run_unlockers(p, unlockers);
+            pair_add_ref_unlocked(p);
+            pair_unlock(p);
+            run_unlockers(unlockers);
             // change expensive to false because 
             // we will unpin the pair immedietely
             // after pinning it
             expensive = false;
             retval = TOKUDB_TRY_AGAIN;
+            pair_lock(p);
+            pair_release_ref_unlocked(p);
         }
         p->value_rwlock.write_lock(expensive);
     }
@@ -2036,7 +2068,7 @@ try_again:
         // will not block.
         p->value_rwlock.write_lock(true);
         pair_unlock(p);
-        run_unlockers(NULL, unlockers); // we hold the write list_lock.
+        run_unlockers(unlockers); // we hold the write list_lock.
         ct->list.write_list_unlock();
 
         // at this point, only the pair is pinned,
@@ -2075,7 +2107,7 @@ try_again:
         // still check for partial fetch
         bool partial_fetch_required = pf_req_callback(p->value_data,read_extraargs);
         if (partial_fetch_required) {
-            run_unlockers(NULL, unlockers);
+            run_unlockers(unlockers);
 
             // we are now getting an expensive write lock, because we
             // are doing a partial fetch. So, if we previously have 
@@ -2302,6 +2334,8 @@ void toku_cachetable_verify (CACHETABLE ct) {
     ct->list.verify();
 }
 
+
+
 struct pair_flush_for_close{
     PAIR p;
     BACKGROUND_JOB_MANAGER bjm;
@@ -2406,6 +2440,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
         assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
         assert(!p->cloned_value_data);
         assert(p->dirty == CACHETABLE_CLEAN);
+        assert(p->refcount == 0);
         // TODO: maybe break up this function
         // so that write lock does not need to be held for entire
         // free
@@ -2481,7 +2516,7 @@ int toku_test_cachetable_unpin(CACHEFILE cachefile, CACHEKEY key, uint32_t fullh
 int toku_test_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, enum cachetable_dirty dirty, PAIR_ATTR attr) {
     // We hold the cachetable mutex.
     PAIR p = test_get_pair(cachefile, key, fullhash, true);
-    return toku_cachetable_unpin_ct_prelocked_no_flush(NULL, cachefile, p, dirty, attr);
+    return toku_cachetable_unpin_ct_prelocked_no_flush(cachefile, p, dirty, attr);
 }
 
 //test-only wrapper
@@ -2597,11 +2632,15 @@ int toku_cachetable_unpin_and_remove (
     // 
     cachetable_remove_pair(&ct->list, &ct->ev, p);
     ct->list.write_list_unlock();
+    if (p->refcount > 0) {
+        pair_wait_for_ref_release_unlocked(p);
+    }
     if (p->value_rwlock.users() > 0) {
         // Need to wait for everyone else to leave
         // This write lock will be granted only after all waiting
         // threads are done.
         p->value_rwlock.write_lock(true);
+        assert(p->refcount == 0);
         assert(p->value_rwlock.users() == 1);  // us
         assert(!p->checkpoint_pending);
         assert(p->attr.cache_pressure_size == 0);
@@ -3745,7 +3784,13 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         goto exit;
     }
     pair_lock(curr_in_clock);
+    // these are the circumstances under which we don't run eviction on a pair: 
+    //  - if other users are waiting on the lock 
+    //  - if the PAIR is referenced by users 
+    //  - if the PAIR's disk_nb_mutex is in use, implying that it is 
+    //    undergoing a checkpoint
     if (curr_in_clock->value_rwlock.users() || 
+        curr_in_clock->refcount > 0 || 
         nb_mutex_users(&curr_in_clock->disk_nb_mutex)) 
     {
         pair_unlock(curr_in_clock);
