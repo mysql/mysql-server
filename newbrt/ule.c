@@ -64,6 +64,7 @@ static void ule_apply_commit(ULE ule, XIDS xids);
 static void ule_push_insert_uxr(ULE ule, TXNID xid, u_int32_t vallen, void * valp);
 static void ule_push_delete_uxr(ULE ule, TXNID xid);
 static void ule_push_placeholder_uxr(ULE ule, TXNID xid);
+static UXR ule_get_outermost_uxr(ULE ule);
 static UXR ule_get_innermost_uxr(ULE ule);
 static UXR ule_get_first_empty_uxr(ULE ule);
 static void ule_remove_innermost_uxr(ULE ule);
@@ -735,6 +736,13 @@ le_full_promotion(LEAFENTRY le,
 #endif
 }
 
+int le_outermost_is_del(LEAFENTRY le) {
+    ULE_S ule;
+    le_unpack(&ule, le);
+    UXR outermost_uxr = ule_get_outermost_uxr(&ule);
+    int rval = uxr_is_delete(outermost_uxr);
+    return rval;
+}
 
 int le_is_provdel(LEAFENTRY le) {
     int rval;
@@ -857,6 +865,25 @@ have_answer:
     return rval;
 }
 
+void*
+le_outermost_key_and_len (LEAFENTRY le, u_int32_t *len) {
+    ULE_S ule;
+    le_unpack(&ule, le);
+    UXR uxr = ule_get_outermost_uxr(&ule);
+    void     *slow_keyp;
+    u_int32_t slow_len;
+    if (uxr_is_insert(uxr)) {
+        slow_keyp = ule.keyp;
+        slow_len  = ule.keylen; 
+    }
+    else {
+        slow_keyp = NULL;
+        slow_len  = 0;
+    }
+    *len = slow_len;
+    return slow_keyp;
+}
+
 //If le_is_provdel, return (NULL,0)
 //Else,             return (key,keylen)
 void*
@@ -941,6 +968,25 @@ le_latest_keylen (LEAFENTRY le) {
     assert(rval==slow_rval);
 #endif
     return rval;
+}
+
+void*
+le_outermost_val_and_len (LEAFENTRY le, u_int32_t *len) {
+    ULE_S ule;
+    le_unpack(&ule, le);
+    UXR uxr = ule_get_outermost_uxr(&ule);
+    void     *slow_valp;
+    u_int32_t slow_len;
+    if (uxr_is_insert(uxr)) {
+        slow_valp = uxr->valp;
+        slow_len  = uxr->vallen; 
+    }
+    else {
+        slow_valp = NULL;
+        slow_len  = 0;
+    }
+    *len = slow_len;
+    return slow_valp;
 }
 
 void*
@@ -1415,6 +1461,14 @@ static UXR
 ule_get_innermost_uxr(ULE ule) {
     assert(ule->num_uxrs > 0);
     UXR rval = &(ule->uxrs[ule->num_uxrs - 1]);
+    return rval;
+}
+
+// Return innermost transaction record.
+static UXR 
+ule_get_outermost_uxr(ULE ule) {
+    assert(ule->num_uxrs > 0);
+    UXR rval = &(ule->uxrs[0]);
     return rval;
 }
 

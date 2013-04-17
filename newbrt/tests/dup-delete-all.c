@@ -79,7 +79,7 @@ static void test_delete_all (void) {
     // Now use a cursor to see if it is all empty
     {
 	BRT_CURSOR cursor = 0;
-	r = toku_brt_cursor(t, &cursor, 0); assert(r==0);
+	r = toku_brt_cursor(t, &cursor, 0, TXNID_NONE, FALSE); assert(r==0);
         struct check_pair pair = {len_ignore, NULL, len_ignore, NULL, 0};
         r = toku_brt_cursor_get(cursor, NULL, NULL, lookup_checkf, &pair, DB_FIRST);
 	assert(r == DB_NOTFOUND);

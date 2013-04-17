@@ -1996,12 +1996,19 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
     if (!(env->i->open_flags & DB_INIT_TXN))  return toku_ydb_do_error(env, EINVAL, "Environment does not have transactions enabled\n");
     u_int32_t txn_flags = 0;
     txn_flags |= DB_TXN_NOWAIT; //We do not support blocking locks.
-    uint32_t child_isolation_flags = 0; //TODO: #2126 DB_READ_COMMITTED should be added here once supported.
+    uint32_t child_isolation_flags = 0;
     uint32_t parent_isolation_flags = 0;
     int inherit = 0;
     int set_isolation = 0;
+    if ((flags & DB_READ_UNCOMMITTED) && (flags & DB_READ_COMMITTED)) {
+        return toku_ydb_do_error(
+            env, 
+            EINVAL, 
+            "Transaction cannot have both DB_READ_COMMITTED and DB_READ_UNCOMMITTED set\n"
+            );
+    }
     if (stxn) {
-        parent_isolation_flags = db_txn_struct_i(stxn)->flags & (DB_READ_UNCOMMITTED); //TODO: #2126 DB_READ_COMMITTED should be added here once supported.
+        parent_isolation_flags = db_txn_struct_i(stxn)->flags & (DB_READ_UNCOMMITTED | DB_READ_COMMITTED);
         if (internal || flags&DB_INHERIT_ISOLATION) {
             flags &= ~DB_INHERIT_ISOLATION;
             inherit = 1;
@@ -2009,12 +2016,12 @@ static int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, u_int32_t f
             child_isolation_flags = parent_isolation_flags;
         }
     }
-    if (flags&DB_READ_UNCOMMITTED) {
+    if (flags & (DB_READ_UNCOMMITTED|DB_READ_COMMITTED)) {
         if (set_isolation)
             return toku_ydb_do_error(env, EINVAL, "Cannot set isolation two different ways in DB_ENV->txn_begin\n");
         set_isolation = 1;
-        child_isolation_flags |=  DB_READ_UNCOMMITTED;
-        flags                 &= ~DB_READ_UNCOMMITTED;
+        child_isolation_flags |=  (flags & (DB_READ_UNCOMMITTED|DB_READ_COMMITTED));
+        flags                 &= ~(DB_READ_UNCOMMITTED | DB_READ_COMMITTED);
     }
     txn_flags |= child_isolation_flags;
     if (flags&DB_TXN_NOWAIT) {
@@ -2406,8 +2413,13 @@ static inline u_int32_t get_prelocked_flags(u_int32_t flags, DB_TXN* txn, DB* db
 
     // for internal (non-user) dictionary, do not set DB_PRELOCK
     if (db->i->dname) {
-	//DB_READ_UNCOMMITTED transactions 'own' all read locks for user-data dictionaries.
-	if (txn && db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) lock_flags |= DB_PRELOCKED;
+        //DB_READ_UNCOMMITTED and DB_READ_COMMITTED transactions 'own' all read locks for user-data dictionaries.
+        if (txn && 
+            (db_txn_struct_i(txn)->flags& (DB_READ_UNCOMMITTED | DB_READ_COMMITTED))
+           )
+        {
+            lock_flags |= DB_PRELOCKED;
+        }
     }
     return lock_flags;
 }
@@ -4007,7 +4019,21 @@ static int toku_db_cursor(DB * db, DB_TXN * txn, DBC ** c, u_int32_t flags, int 
 	dbc_struct_i(result)->skey = &dbc_struct_i(result)->skey_s;
 	dbc_struct_i(result)->sval = &dbc_struct_i(result)->sval_s;
     }
-    int r = toku_brt_cursor(db->i->brt, &dbc_struct_i(result)->c, db->dbenv->i->logger);
+    DB_TXN* txn_anc = NULL;
+    TXNID txn_anc_id = TXNID_NONE;
+    BOOL is_read_committed = FALSE;
+    if (txn) {
+        txn_anc = toku_txn_ancestor(txn);
+        txn_anc_id = toku_txn_get_txnid(db_txn_struct_i(txn_anc)->tokutxn);
+        is_read_committed = ((db_txn_struct_i(txn_anc)->flags & DB_READ_COMMITTED) != 0);
+    }
+    int r = toku_brt_cursor(
+        db->i->brt, 
+        &dbc_struct_i(result)->c, 
+        db->dbenv->i->logger, 
+        txn_anc_id, 
+        is_read_committed
+        );
     assert(r == 0);
     *c = result;
     return 0;
@@ -4228,8 +4254,9 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
     int is_db_excl    = flags & DB_EXCL;    unused_flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  unused_flags&=~DB_CREATE;
 
-    //We support READ_UNCOMMITTED whether or not the flag is provided.
+    //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
                                             unused_flags&=~DB_READ_UNCOMMITTED;
+                                            unused_flags&=~DB_READ_COMMITTED;
     if (unused_flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
@@ -4329,8 +4356,9 @@ db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, u_int32_t flags, 
 
     int is_db_excl    = flags & DB_EXCL;    flags&=~DB_EXCL;
     int is_db_create  = flags & DB_CREATE;  flags&=~DB_CREATE;
-    //We support READ_UNCOMMITTED whether or not the flag is provided.
+    //We support READ_UNCOMMITTED and READ_COMMITTED whether or not the flag is provided.
                                             flags&=~DB_READ_UNCOMMITTED;
+                                            flags&=~DB_READ_COMMITTED;
     if (flags & ~DB_THREAD) return EINVAL; // unknown flags
 
     if (is_db_excl && !is_db_create) return EINVAL;
@@ -4941,8 +4969,9 @@ cleanup:
 static int toku_db_pre_acquire_read_lock(DB *db, DB_TXN *txn, const DBT *key_left, const DBT *val_left, const DBT *key_right, const DBT *val_right) {
     HANDLE_PANICKED_DB(db);
     if (!db->i->lt || !txn) return EINVAL;
-    //READ_UNCOMMITTED transactions do not need read locks.
+    //READ_UNCOMMITTED and READ_COMMITTED transactions do not need read locks.
     if (db_txn_struct_i(txn)->flags&DB_READ_UNCOMMITTED) return 0;
+    if (db_txn_struct_i(txn)->flags&DB_READ_COMMITTED) return 0;
 
     DB_TXN* txn_anc = toku_txn_ancestor(txn);
     int r;

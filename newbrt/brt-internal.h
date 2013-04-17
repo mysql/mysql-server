@@ -289,6 +289,9 @@ struct brt_cursor {
     OMTCURSOR omtcursor;
     u_int64_t  root_put_counter; // what was the count on the BRT when we validated the cursor?
     TXNID      oldest_living_xid;// what was the oldest live txnid when we created the cursor?
+    TOKULOGGER logger; // to give access to list of live transactions, needed for read_committed queries
+    TXNID ancestor_id; // txnid of ancestor, needed for read_committed queries
+    BOOL is_read_committed; // true if query is read_committed, false otherwise
     struct brt_cursor_leaf_info  leaf_info;
 };
 
