@@ -247,6 +247,13 @@ WORKQUEUE toku_cachetable_get_workqueue(CACHETABLE ct) {
     return &ct->wq;
 }
 
+void toku_cachefile_get_workqueue_load (CACHEFILE cf, int *n_in_queue, int *n_threads) {
+    CACHETABLE ct = cf->cachetable;
+    *n_in_queue = workqueue_n_in_queue(&ct->wq, 1);
+    *n_threads  = threadpool_get_current_threads(ct->threadpool);
+}
+
+
 int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname) {
     int r;
     struct fileid fileid;

@@ -16,9 +16,10 @@
 void toku_init_workers(WORKQUEUE wq, THREADPOOL *tpptr) {
     workqueue_init(wq);
     int nprocs = toku_os_get_number_active_processors();
-    threadpool_create(tpptr, nprocs);
+    int nthreads = nprocs*2;
+    threadpool_create(tpptr, nthreads);
     int i;
-    for (i=0; i<nprocs; i++)
+    for (i=0; i<nthreads; i++)
         threadpool_maybe_add(*tpptr, toku_worker, wq);
 }
 

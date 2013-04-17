@@ -26,7 +26,7 @@ enum { BRT_CMD_OVERHEAD = (1     // the type
 };
 enum { LE_OVERHEAD_BOUND = 9 }; // the type and xid
 
-enum { BRT_DEFAULT_NODE_SIZE = 1 << 20 };
+enum { BRT_DEFAULT_NODE_SIZE = 1 << 22 };
 
 struct nodeheader_in_file {
     int n_in_buffer;
@@ -183,7 +183,7 @@ struct brt {
 };
 
 /* serialization code */
-int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h);
+int toku_serialize_brtnode_to(int fd, BLOCKNUM, BRTNODE node, struct brt_header *h, int n_workitems, int n_threads);
 int toku_deserialize_brtnode_from (int fd, BLOCKNUM off, u_int32_t /*fullhash*/, BRTNODE *brtnode, struct brt_header *h);
 unsigned int toku_serialize_brtnode_size(BRTNODE node); /* How much space will it take? */
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);

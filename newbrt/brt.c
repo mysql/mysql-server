@@ -378,7 +378,9 @@ void toku_brtnode_flush_callback (CACHEFILE cachefile, BLOCKNUM nodename, void *
     //printf("%s:%d %p->mdict[0]=%p\n", __FILE__, __LINE__, brtnode, brtnode->mdicts[0]);
     if (write_me) {
 	if (!h->panic) { // if the brt panicked, stop writing, otherwise try to write it.
-	    int r = toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h);
+	    int n_workitems, n_threads; 
+	    toku_cachefile_get_workqueue_load(cachefile, &n_workitems, &n_threads);
+	    int r = toku_serialize_brtnode_to(toku_cachefile_fd(cachefile), brtnode->thisnodename, brtnode, h, n_workitems, n_threads);
 	    if (r) {
 		if (h->panic==0) {
 		    char s[200];
