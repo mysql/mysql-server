@@ -133,7 +133,7 @@ static uint32_t update_field_offset(uint32_t null_bytes, KEY_AND_COL_INFO *kc_in
 // The update operation consists of a list of update expressions (fields[i] = values[i]), and a list
 // of where conditions (conds).  The function returns true is the update is handled in the storage engine.
 // Otherwise, false is returned.
-bool ha_tokudb::fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds, int *error_ret) {
+int ha_tokudb::fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds) {
     int error = 0;
 
     if (tokudb_fast_update_debug) {
@@ -145,25 +145,22 @@ bool ha_tokudb::fast_update(THD *thd, List<Item> &fields, List<Item> &values, It
     }
 
     if (fields.elements < 1 || fields.elements != values.elements)
-        return false;  // something is fishy with the parameters
+        return ENOTSUP;  // something is fishy with the parameters
 
-    if (thd->is_strict_mode() || !transaction || !check_fast_update(thd, fields, values, conds)) {
-        error = 1;
-    } else {
+    if (thd->is_strict_mode() || !transaction || !check_fast_update(thd, fields, values, conds))
+        error = ENOTSUP;
+
+    if (error == 0)
         error = send_update_message(fields, values, conds, transaction);
-    }
 
-    if (error == 0) {
-        error = -1; // success for mysql_update TODO: move this into the mysql code
-    } else {
+    if (error != 0) {
         if (get_disable_slow_update(thd))
             error = HA_ERR_UNSUPPORTED;
-        else
-            return false;            
-        print_error(error, MYF(0));
+        if (error != ENOTSUP)
+            print_error(error, MYF(0));
     }
-    *error_ret = error;
-    return true;
+
+    return error;
 }
 
 // Return true if an expression is a simple int expression or a simple function of +- int expression.
@@ -608,7 +605,7 @@ int ha_tokudb::send_update_message(List<Item> &fields, List<Item> &values, Item 
 // Determine if an upsert operation can be offloaded to the storage engine.
 // An upsert consists of a row and a list of update expressions (update_fields[i] = update_values[i]).
 // The function returns true is the upsert is handled in the storage engine.  Otherwise, false is returned.
-bool ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values, int *error_ret) {
+int ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values) {
     int error = 0;
 
     if (tokudb_upsert_debug) {
@@ -618,22 +615,21 @@ bool ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<
     }
 
     if (update_fields.elements < 1 || update_fields.elements != update_values.elements)
-        return false;  // not an upsert or something is fishy with the parameters
+        return ENOTSUP;  // not an upsert or something is fishy with the parameters
 
-    if (thd->is_strict_mode() || !transaction || !check_upsert(thd, update_fields, update_values)) {
-        if (get_disable_slow_upsert(thd))
-            error = HA_ERR_UNSUPPORTED;
-        else
-            return false;            
-    }
+    if (thd->is_strict_mode() || !transaction || !check_upsert(thd, update_fields, update_values))
+        error = ENOTSUP;
     
     if (error == 0) 
         error = send_upsert_message(thd, record, update_fields, update_values, transaction);
 
-    if (error != 0)
-        print_error(error, MYF(0));
-    *error_ret = error;
-    return true;
+    if (error != 0) {
+        if (get_disable_slow_upsert(thd))
+            error = HA_ERR_UNSUPPORTED;
+        if (error != ENOTSUP)
+            print_error(error, MYF(0));
+    }
+    return error;
 }
 
 // Check if an upsert can be handled by this storage engine.  Return trus if it can.
