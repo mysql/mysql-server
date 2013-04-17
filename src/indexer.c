@@ -279,12 +279,12 @@ toku_indexer_is_key_right_of_le_cursor(DB_INDEXER *indexer, const DBT *key) {
     return toku_le_cursor_is_key_greater(indexer->i->lec, key);
 }
 
-// initialize provisional info by allocating enough space to
-// hold provisional ids, states, and txns for each of the
-// provisional entries in the ule. the ule remains owned by
-// the caller, not the prov info.
+// initialize provisional info by allocating enough space to hold provisional 
+// ids, states, and txns for each of the provisional entries in the ule. the 
+// ule and le remain owned by the caller, not this struct.
 static void 
-ule_prov_info_init(struct ule_prov_info *prov_info, ULEHANDLE ule) {
+ule_prov_info_init(struct ule_prov_info *prov_info, LEAFENTRY le, ULEHANDLE ule) {
+    prov_info->le = le;
     prov_info->ule = ule;
     prov_info->num_provisional = ule_get_num_provisional(ule);
     prov_info->num_committed = ule_get_num_committed(ule);
@@ -370,15 +370,16 @@ le_cursor_callback(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), byte
     } else {
         struct le_cursor_extra *cursor_extra = extra;
         struct ule_prov_info *prov_info = cursor_extra->prov_info;
-        // the val here is a leafentry. ule_create copies the contents of a
-        // leafentry into its own buffers, so we don't need to malloc space
-        // for this value to exist outside the callback.
-        //
-        // blast away the const from bytevec by casting to LEAFENTRY
-        LEAFENTRY le = (LEAFENTRY) val;
+        // the val here is a leafentry. ule_create does not copy the entire
+        // contents of the leafentry it is given into its own buffers, so we
+        // must allocate space for a leafentry and keep it around with the ule.
+        LEAFENTRY le = toku_xmemdup(val, vallen);
         ULEHANDLE ule = toku_ule_create(le);
         invariant(ule);
-        ule_prov_info_init(prov_info, ule);
+        // when we initialize prov info, we also pass in the leafentry and ule
+        // pointers so the caller can access them later. it's their job to free
+        // them when they're not needed.
+        ule_prov_info_init(prov_info, le, ule);
         indexer_fill_prov_info(cursor_extra->indexer, prov_info);
     }
     return 0;
@@ -425,7 +426,9 @@ build_index(DB_INDEXER *indexer) {
             }
         }
         else {
+            invariant(prov_info.le);
             invariant(prov_info.ule);
+            LEAFENTRY le = prov_info.le;
             ULEHANDLE ule = prov_info.ule;
             for (int which_db = 0; (which_db < indexer->i->N) && (result == 0); which_db++) {
                 DB *db = indexer->i->dest_dbs[which_db];
@@ -437,8 +440,11 @@ build_index(DB_INDEXER *indexer) {
                     indexer->i->error_callback(db, which_db, result, &key, NULL, indexer->i->error_extra);
                     toku_destroy_dbt(&key);
                 }
-                toku_ule_free(prov_info.ule);
             }
+            // the leafentry and ule are not owned by the prov_info,
+            // and are still our responsibility to free
+            toku_free(prov_info.le);
+            toku_ule_free(prov_info.ule);
         }
 
         toku_indexer_unlock(indexer);
@@ -579,7 +585,8 @@ static int
 test_indexer_undo_do(DB_INDEXER *indexer, DB *hotdb, ULEHANDLE ule) {
     struct ule_prov_info prov_info;
     memset(&prov_info, 0, sizeof(prov_info));
-    ule_prov_info_init(&prov_info, ule);
+    // pass null for the leafentry - we don't need it, neither does the info
+    ule_prov_info_init(&prov_info, NULL, ule);
     indexer_fill_prov_info(indexer, &prov_info);
     int r = indexer_undo_do(indexer, hotdb, ule, &prov_info);
     ule_prov_info_destroy(&prov_info);

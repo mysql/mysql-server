@@ -516,7 +516,8 @@ ule_cleanup(ULE ule) {
     }
 }
 
-// Purpose of le_unpack() is to populate our private workspace with the contents of the given le.
+// populate an unpacked leafentry using pointers into the given leafentry.
+// thus, the memory referenced by 'le' must live as long as the ULE.
 void
 le_unpack(ULE ule, LEAFENTRY le) {
     //Read the keylen
