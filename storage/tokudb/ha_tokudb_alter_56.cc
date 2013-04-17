@@ -1274,6 +1274,16 @@ cleanup:
     return retval;
 }
 
+class ha_tokudb_add_index_ctx : public inplace_alter_handler_ctx {
+public:
+    ha_tokudb_add_index_ctx(bool _incremented_num_DBs, bool _modified_DBs) : incremented_num_DBs(_incremented_num_DBs), modified_DBs(_modified_DBs) {
+    }
+    virtual ~ha_tokudb_add_index_ctx() {
+    }
+public:
+    bool incremented_num_DBs, modified_DBs;
+};
+
 enum_alter_inplace_result
 ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("check_if_supported_alter");
@@ -1310,7 +1320,10 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
         ha_alter_info->handler_flags == Alter_inplace_info::ADD_UNIQUE_INDEX) { // && tables_have_same_keys TODO??? 
         assert(ha_alter_info->index_drop_count == 0);
         result = HA_ALTER_INPLACE_SHARED_LOCK;
-        // TODO check for hot add index
+        THD *thd = ha_thd();
+        // TODO allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.x
+        if (get_create_index_online(ha_thd()) && ha_alter_info->index_add_count == 1 && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) 
+            result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE;
     } else
     // drop index
     if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_INDEX ||
@@ -1367,25 +1380,25 @@ bool
 ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("inplace_alter_table");
 
-    bool result = false; // success
+    int error = 0;
 
     if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_INDEX ||
         ha_alter_info->handler_flags == Alter_inplace_info::ADD_UNIQUE_INDEX) {
-        int error = alter_table_add_index(altered_table, ha_alter_info);
-        if (error)
-            result = true;
+        error = alter_table_add_index(altered_table, ha_alter_info);
     } else
     if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_INDEX ||
         ha_alter_info->handler_flags == Alter_inplace_info::DROP_UNIQUE_INDEX) {
-        int error = alter_table_drop_index(altered_table, ha_alter_info);
-        if (error)
-            result = true;
+        error = alter_table_drop_index(altered_table, ha_alter_info);
     } else
     if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_COLUMN || 
         ha_alter_info->handler_flags == Alter_inplace_info::DROP_COLUMN) {
-        int error = alter_table_add_or_drop_column(altered_table, ha_alter_info);
-        if (error)
-            result = true;
+        error = alter_table_add_or_drop_column(altered_table, ha_alter_info);
+    }
+
+    bool result = false; // success
+    if (error) {
+        print_error(error, MYF(0));
+        result = true;  // failure
     }
 
     DBUG_RETURN(result);
@@ -1394,6 +1407,7 @@ ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alte
 int
 ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
 
+    // TODO what does this do?
     KEY *key_info = (KEY*) my_malloc(sizeof (KEY) * ha_alter_info->index_add_count, MYF(MY_WME));
     KEY *key = key_info;
     for (uint i = 0; i < ha_alter_info->index_add_count; i++) {
@@ -1405,25 +1419,34 @@ ha_tokudb::alter_table_add_index(TABLE *altered_table, Alter_inplace_info *ha_al
     bool incremented_num_DBs = false;
     bool modified_DBs = false;
     int error = tokudb_add_index(table, key_info, ha_alter_info->index_add_count, transaction, &incremented_num_DBs, &modified_DBs);
-    assert(error == 0); // TODO
+    if (error == HA_ERR_FOUND_DUPP_KEY) {
+        // hack for now, in case of duplicate key error, 
+        // because at the moment we cannot display the right key
+        // information to the user, so that he knows potentially what went
+        // wrong.
+        last_dup_key = MAX_KEY;
+    }
+
+    assert(ha_alter_info->handler_ctx == NULL);
+    ha_alter_info->handler_ctx = new ha_tokudb_add_index_ctx(incremented_num_DBs, modified_DBs);
+    assert(ha_alter_info->handler_ctx);
     
     my_free(key_info);
 
-    return 0;
+    return error;
 }
 
 int
 ha_tokudb::alter_table_drop_index(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     // translate KEY pointers to indexes into the key_info array
-    uint index_drop_offset[ha_alter_info->index_drop_count];
+    uint index_drop_offsets[ha_alter_info->index_drop_count];
     for (uint i = 0; i < ha_alter_info->index_drop_count; i++)
-        index_drop_offset[i] = ha_alter_info->index_drop_buffer[i] - table->key_info;
+        index_drop_offsets[i] = ha_alter_info->index_drop_buffer[i] - table->key_info;
     
     // drop indexes
-    int error = drop_indexes(table, index_drop_offset, ha_alter_info->index_drop_count, transaction);
-    assert(error == 0); // TODO
+    int error = drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count, transaction);
 
-    return 0;
+    return error;
 }
 
 int
@@ -1560,24 +1583,48 @@ bool
 ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info, bool commit) {
     TOKUDB_DBUG_ENTER("commit_inplace_alter_table");
 
-    assert(commit); // TODO
-
     bool result = false; // success
 
-    if (altered_table->part_info == NULL) {
-        // read frmdata for the altered table
-        uchar *frm_data; size_t frm_len;
-        int error = readfrm(altered_table->s->path.str, &frm_data, &frm_len);
-        assert(error == 0);
+    if (commit) {
+        if (altered_table->part_info == NULL) {
+            // read frmdata for the altered table
+            uchar *frm_data; size_t frm_len;
+            int error = readfrm(altered_table->s->path.str, &frm_data, &frm_len);
+            if (error) {
+                result = true;
+            } else {
+                // transactionally write frmdata to status
+                assert(transaction);
+                error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, transaction);
+                if (error) {
+                    result = true;
+                }                           
 
-        // transactionally write frmdata to status
-        assert(transaction);
-        error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, transaction);
-        assert(error == 0);
-
-        my_free(frm_data);
+                my_free(frm_data);
+            }
+            if (error)
+                print_error(error, MYF(0));
+        }
     }
 
+    if (!commit || result == true) {
+        if (ha_alter_info->handler_flags == Alter_inplace_info::ADD_INDEX ||
+            ha_alter_info->handler_flags == Alter_inplace_info::ADD_UNIQUE_INDEX) {
+            ha_tokudb_add_index_ctx *ctx = static_cast<ha_tokudb_add_index_ctx *>(ha_alter_info->handler_ctx);
+            assert(ctx);
+            restore_add_index(table, ha_alter_info->index_add_count, ctx->incremented_num_DBs, ctx->modified_DBs);
+        } else
+        if (ha_alter_info->handler_flags == Alter_inplace_info::DROP_INDEX ||
+            ha_alter_info->handler_flags == Alter_inplace_info::DROP_UNIQUE_INDEX) {
+            // translate KEY pointers to indexes into the key_info array
+            uint index_drop_offsets[ha_alter_info->index_drop_count];
+            for (uint i = 0; i < ha_alter_info->index_drop_count; i++)
+                index_drop_offsets[i] = ha_alter_info->index_drop_buffer[i] - table->key_info;
+            
+            restore_drop_indexes(table, index_drop_offsets, ha_alter_info->index_drop_count);
+        }
+    }
+    
     DBUG_RETURN(result);
 }
 

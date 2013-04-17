@@ -23,6 +23,10 @@
 #define HA_CLUSTERED_INDEX 0
 #endif
 
+#if !defined(HA_CAN_WRITE_DURING_OPTIMIZE)
+#define HA_CAN_WRITE_DURING_OPTIMIZE 0
+#endif
+
 #include <db.h>
 #include "hatoku_cmp.h"
 
