@@ -169,13 +169,19 @@ static bool only_flags(ulong bits, ulong mask) {
 // Check if an alter table operation on this table and described by the alter table parameters is supported inplace
 // and if so, what type of locking is needed to execute it.
 // return values:
-// HA_ALTER_INPLACE_NOT_SUPPORTED:  alter operation is not supported as an inplace operation, a table copy is required
+
+// HA_ALTER_INPLACE_NOT_SUPPORTED: alter operation is not supported as an inplace operation, a table copy is required
 // HA_ALTER_ERROR: the alter table operation should fail
+
+// HA_ALTER_INPLACE_EXCLUSIVE_LOCK: prepare and alter runs with MDL X
+
+// HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE: prepare runs with MDL X, alter runs with MDL SNW
 // HA_ALTER_INPLACE_SHARED_LOCK: prepare and alter methods called with MDL SNW, concurrent reads, no writes
+
+// HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE: prepare runs with MDL X, alter runs with MDL SW
 // HA_ALTER_INPLACE_NO_LOCK: prepare and alter methods called with MDL SW, concurrent reads, writes.
 //                           must set WRITE_ALLOW_WRITE lock type in the external lock method to avoid deadlocks
 //                           with the MDL lock and the table lock
-// HA_ALTER_INPLACE_EXCLUSIVE_LOCK: the alter operation requires an exclusive MDL no concurrent reads, no writes
 enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("check_if_supported_alter");
 
@@ -209,14 +215,14 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
                 // we grab an exclusive MDL for the drop index.
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             } else {
-                result = HA_ALTER_INPLACE_SHARED_LOCK;
+                result = HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE;
 
                 // someday, allow multiple hot indexes via alter table add key. don't forget to change the store_lock function.
                 // for now, hot indexing is only supported via session variable with the create index sql command
                 if (ha_alter_info->index_add_count == 1 && ha_alter_info->index_drop_count == 0 && 
                     get_create_index_online(thd) && thd_sql_command(thd) == SQLCOM_CREATE_INDEX) {
                     // external_lock set WRITE_ALLOW_WRITE which allows writes concurrent with the index creation
-                    result = HA_ALTER_INPLACE_NO_LOCK; 
+                    result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE; 
                 }
             }
         }
