@@ -257,6 +257,7 @@ static void scanscan_lwc (void) {
 	printf("LWC Scan %lld bytes (%d rows) in %9.6fs at %9fMB/s\n", e.totalbytes, e.rowcounter, tdiff, 1e-6*e.totalbytes/tdiff);
     }
 }
+#endif
 
 static void scanscan_range (void) {
     int fnull = open("/dev/null", O_WRONLY); assert(fnull >= 0); // use with strace
@@ -301,6 +302,7 @@ static void scanscan_range (void) {
     close(fnull);
 }
 
+#ifdef TOKUDB
 struct extra_heavi {
     long long totalbytes;
     int rowcounter;
@@ -461,8 +463,8 @@ int main (int argc, const char *argv[]) {
     case RUN_LWC:    scanscan_lwc();    break;
     case RUN_VERIFY: scanscan_verify(); break;
     case RUN_HEAVI:  scanscan_heaviside(); break;
-    case RUN_RANGE:  scanscan_range();  break;
 #else
+    case RUN_RANGE:  scanscan_range();  break;
     default:         assert(0);         break;
 #endif
     }
