@@ -28,7 +28,6 @@ struct scan_state {
         FORWARD_BETWEEN_CHECKPOINT_BEGIN_END,
         FORWARD_NEWER_CHECKPOINT_END,
     } ss;
-    LSN incomplete_checkpoint_begin_lsn;  // lsn of checkpoint_begin that did not complete
     LSN checkpoint_begin_lsn;
     LSN checkpoint_end_lsn;
     uint64_t checkpoint_end_timestamp;
@@ -339,8 +338,7 @@ static int toku_recover_backward_begin_checkpoint (struct logtype_begin_checkpoi
     fprintf(stderr, "%.24s Tokudb recovery bw_begin_checkpoint at %"PRIu64" timestamp %"PRIu64" (%s)\n", ctime(&tnow), l->lsn.lsn, l->timestamp, recover_state(renv));
     switch (renv->ss.ss) {
     case BACKWARD_NEWER_CHECKPOINT_END:
-	// incomplete checkpoint, useful for accountability
-	renv->ss.incomplete_checkpoint_begin_lsn = l->lsn;
+	// incomplete checkpoint, nothing to do
         r = 0;
         break;
     case BACKWARD_BETWEEN_CHECKPOINT_BEGIN_END:
