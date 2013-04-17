@@ -147,11 +147,18 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &fields, List<Item> &values, Ite
     if (fields.elements < 1 || fields.elements != values.elements)
         return ENOTSUP;  // something is fishy with the parameters
 
-    if (thd->is_strict_mode() || !transaction || !check_fast_update(thd, fields, values, conds))
+    rw_rdlock(&share->num_DBs_lock);
+
+    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) // hot index in progress
+        error = ENOTSUP; // run on the slow path
+
+    if (error == 0 && (thd->is_strict_mode() || !transaction || !check_fast_update(thd, fields, values, conds)))
         error = ENOTSUP;
 
     if (error == 0)
         error = send_update_message(fields, values, conds, transaction);
+
+    rw_unlock(&share->num_DBs_lock);
 
     if (error != 0) {
         if (get_disable_slow_update(thd))
@@ -617,11 +624,18 @@ int ha_tokudb::upsert(THD *thd, uchar *record, List<Item> &update_fields, List<I
     if (update_fields.elements < 1 || update_fields.elements != update_values.elements)
         return ENOTSUP;  // not an upsert or something is fishy with the parameters
 
-    if (thd->is_strict_mode() || !transaction || !check_upsert(thd, update_fields, update_values))
+    rw_rdlock(&share->num_DBs_lock);
+
+    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) // hot index in progress
+        error = ENOTSUP; // run on the slow path
+
+    if (error == 0 && (thd->is_strict_mode() || !transaction || !check_upsert(thd, update_fields, update_values)))
         error = ENOTSUP;
     
     if (error == 0) 
         error = send_upsert_message(thd, record, update_fields, update_values, transaction);
+
+    rw_unlock(&share->num_DBs_lock);
 
     if (error != 0) {
         if (get_disable_slow_upsert(thd))

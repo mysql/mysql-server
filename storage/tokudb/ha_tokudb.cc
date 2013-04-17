@@ -7296,6 +7296,7 @@ bool ha_tokudb::is_auto_inc_singleton(){
 }
 
 volatile int ha_tokudb_tokudb_add_index_wait = 0; // debug
+volatile int ha_tokudb_build_index_wait = 0;      // debug
 
 //
 // Internal function called by ha_tokudb::add_index and ha_tokudb::alter_table_phase2
@@ -7478,6 +7479,8 @@ int ha_tokudb::tokudb_add_index(
         // incremental reports are done in the indexer's callback function.
         thd_progress_init(thd, 1);
 #endif
+
+        while (ha_tokudb_build_index_wait) sleep(1); // debug
 
         error = indexer->build(indexer);
 
