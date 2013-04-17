@@ -52,6 +52,10 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 // Return the filename
 char * toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
+// return the fd
+int toku_cachefile_fd(CACHEFILE cf);
+
+
 // TODO: #1510  Add comments on how these behave
 int toku_cachetable_begin_checkpoint (CACHETABLE ct, TOKULOGGER);
 int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger, 
@@ -61,6 +65,9 @@ int toku_cachetable_end_checkpoint(CACHETABLE ct, TOKULOGGER logger,
 // Shuts down checkpoint thread
 // Requires no locks be held that are taken by the checkpoint function
 void toku_cachetable_minicron_shutdown(CACHETABLE ct);
+
+// Wait for the cachefile's background work to finish.
+void toku_cachefile_wait_for_background_work_to_quiesce(CACHEFILE cf);
 
 // Close the cachetable.
 // Effects: All of the memory objects are flushed to disk, and the cachetable is destroyed.
@@ -78,9 +85,6 @@ int toku_cachetable_openfd (CACHEFILE *,CACHETABLE, int /*fd*/,
 int toku_cachetable_openfd_with_filenum (CACHEFILE *,CACHETABLE, int /*fd*/, 
 					 const char *fname_in_env,
 					 BOOL with_filenum, FILENUM filenum, BOOL reserved);
-
-// Change the binding of which file is attached to a cachefile.  Close the old fd.  Use the new fd.
-int toku_cachefile_redirect (CACHEFILE cf, int fd, const char *fname_in_env);
 
 int toku_cachetable_reserve_filenum (CACHETABLE ct, FILENUM *reserved_filenum, BOOL with_filenum, FILENUM filenum);
 
@@ -116,7 +120,7 @@ enum partial_eviction_cost {
 // When for_checkpoint is true, this was a 'pending' write
 // Returns: 0 if success, otherwise an error number.
 // Can access fd (fd is protected by a readlock during call)
-typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+typedef void (*CACHETABLE_FLUSH_CALLBACK)(CACHEFILE, int fd, CACHEKEY key, void *value, void *write_extraargs, long size, long* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 
 // The fetch callback is called when a thread is attempting to get and pin a memory
 // object and it is not in the cachetable.
@@ -155,6 +159,8 @@ typedef BOOL (*CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK)(void *brtnode_pv, voi
 // Returns: 0 if success, otherwise an error number.  
 typedef int (*CACHETABLE_PARTIAL_FETCH_CALLBACK)(void *brtnode_pv, void *read_extraargs, int fd, long *sizep);
 
+typedef void (*CACHETABLE_GET_KEY_AND_FULLHASH)(CACHEKEY* cachekey, u_int32_t* fullhash, void* extra);
+
 void toku_cachefile_set_userdata(CACHEFILE cf, void *userdata,
     int (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
     int (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
@@ -175,6 +181,45 @@ void *toku_cachefile_get_userdata(CACHEFILE);
 CACHETABLE toku_cachefile_get_cachetable(CACHEFILE cf);
 // Effect: Get the cachetable.
 
+// cachetable pair clean or dirty WRT external memory
+enum cachetable_dirty {
+    CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
+    CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
+};
+
+
+void toku_checkpoint_pairs(
+    CACHEFILE cf,
+    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
+    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
+    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
+    );
+
+
+// put something into the cachetable and checkpoint dependent pairs
+// if the checkpointing is necessary
+int toku_cachetable_put_with_dep_pairs(
+    CACHEFILE cachefile, 
+    CACHETABLE_GET_KEY_AND_FULLHASH get_key_and_fullhash,
+    void*value, 
+    long size,
+    CACHETABLE_FLUSH_CALLBACK flush_callback,
+    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    void *write_extraargs,
+    void *get_key_and_fullhash_extra,
+    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
+    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
+    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    enum cachetable_dirty* dependent_dirty, // array stating dirty/cleanness of dependent pairs
+    CACHEKEY* key,
+    u_int32_t* fullhash
+    );
+
+
 // Put a memory object into the cachetable.
 // Effects: Lookup the key in the cachetable. If the key is not in the cachetable,
 // then insert the pair and pin it. Otherwise return an error.  Some of the key
@@ -188,6 +233,29 @@ int toku_cachetable_put(CACHEFILE cf, CACHEKEY key, u_int32_t fullhash,
                         CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
                         void *write_extraargs
                         );
+
+
+int toku_cachetable_get_and_pin_with_dep_pairs (
+    CACHEFILE cachefile, 
+    CACHEKEY key, 
+    u_int32_t fullhash, 
+    void**value, 
+    long *sizep,
+    CACHETABLE_FLUSH_CALLBACK flush_callback, 
+    CACHETABLE_FETCH_CALLBACK fetch_callback, 
+    CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback,
+    CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback, 
+    CACHETABLE_PARTIAL_FETCH_REQUIRED_CALLBACK pf_req_callback,
+    CACHETABLE_PARTIAL_FETCH_CALLBACK pf_callback,
+    void* read_extraargs,
+    void* write_extraargs,
+    u_int32_t num_dependent_pairs, // number of dependent pairs that we may need to checkpoint
+    CACHEFILE* dependent_cfs, // array of cachefiles of dependent pairs
+    CACHEKEY* dependent_keys, // array of cachekeys of dependent pairs
+    u_int32_t* dependent_fullhash, //array of fullhashes of dependent pairs
+    enum cachetable_dirty* dependent_dirty // array stating dirty/cleanness of dependent pairs
+    );
+
 
 // Get and pin a memory object.
 // Effects: If the memory object is in the cachetable, acquire a read lock on it.
@@ -250,12 +318,6 @@ int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, u_int32_t /*fullhash
 int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, u_int32_t /*fullhash*/, void**);
 // Effect: Like maybe get and pin, but may pin a clean pair.
 
-// cachetable pair clean or dirty WRT external memory
-enum cachetable_dirty {
-    CACHETABLE_CLEAN=0, // the cached object is clean WRT the cachefile
-    CACHETABLE_DIRTY=1, // the cached object is dirty WRT the cachefile
-};
-
 int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
 // Effect: Unpin a memory object
 // Modifies: If the memory object is in the cachetable, then OR the dirty flag,
@@ -263,11 +325,18 @@ int toku_cachetable_unpin(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetab
 // Returns: 0 if success, otherwise returns an error number.
 // Requires: The ct is locked.
 
-int toku_cachetable_unpin_ct_prelocked(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
+int toku_cachetable_unpin_ct_prelocked_no_flush(CACHEFILE, CACHEKEY, u_int32_t fullhash, enum cachetable_dirty dirty, long size);
 // Effect: The same as tokud_cachetable_unpin, except that the ct must not be locked.
 // Requires: The ct is NOT locked.
 
-int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY); /* Removing something already present is OK. */
+void toku_cachetable_prelock(CACHEFILE cf);
+// Effect: locks cachetable
+
+void toku_cachetable_unlock(CACHEFILE cf);
+// Effect: unlocks cachetable
+
+
+int toku_cachetable_unpin_and_remove (CACHEFILE, CACHEKEY, BOOL); /* Removing something already present is OK. */
 // Effect: Remove an object from the cachetable.  Don't write it back.
 // Requires: The object must be pinned exactly once.
 
@@ -386,6 +455,11 @@ int toku_cachetable_get_key_state(CACHETABLE ct, CACHEKEY key, CACHEFILE cf,
 // Verify the whole cachetable that the cachefile is in.  Slow.
 void toku_cachefile_verify (CACHEFILE cf);
 
+int64_t toku_cachetable_size_slowslow (CACHETABLE t);
+int64_t toku_cachetable_size_discrepancy (CACHETABLE t);
+int64_t toku_cachetable_size_discrepancy_pinned (CACHETABLE t);
+int64_t toku_cachetable_size_slow (CACHETABLE t);
+
 // Verify the cachetable. Slow.
 void toku_cachetable_verify (CACHETABLE t);
 
@@ -434,8 +508,15 @@ void toku_cachetable_set_lock_unlock_for_io (CACHETABLE ct, void (*ydb_lock_call
 // Effect: When we do I/O we may need to release locks (e.g., the ydb lock).  These functions release the lock acquire the lock.
 
     
-
+#if 0
 int toku_cachetable_local_checkpoint_for_commit(CACHETABLE ct, TOKUTXN txn, uint32_t n, CACHEFILE cachefiles[]);
+#endif
+
+void cachefile_kibbutz_enq (CACHEFILE cf, void (*f)(void*), void *extra);
+// Effect: Add a job to the cachetable's collection of work to do.  Note that function f must call notify_cachefile_that_kibbutz_job_finishing()
+
+void notify_cachefile_that_kibbutz_job_finishing (CACHEFILE cf);
+// Effect: When a kibbutz job finishes in a cachefile, the cachetable must be notified.
 
 // test-only function
 extern int toku_cachetable_get_checkpointing_user_data_status(void);

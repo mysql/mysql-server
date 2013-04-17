@@ -107,6 +107,7 @@ static void flush (CACHEFILE f,
 		   void*value,
 		   void *extra __attribute__((__unused__)),
 		   long size __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
 		   BOOL write_me __attribute__((__unused__)),
 		   BOOL keep_me __attribute__((__unused__)),
 		   BOOL for_checkpoint __attribute__((__unused__))) {
@@ -176,7 +177,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 
@@ -334,6 +335,7 @@ static void flush_n (CACHEFILE f __attribute__((__unused__)), int UU(fd), CACHEK
 		     void *value,
 		     void *extra  __attribute__((__unused__)),
                      long size __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
 		     BOOL write_me __attribute__((__unused__)),    BOOL keep_me __attribute__((__unused__)),
 		     BOOL for_checkpoint __attribute__ ((__unused__))) {
     int *v = value;
@@ -358,6 +360,7 @@ static void test_nested_pin (void) {
     int r;
     void *vv,*vv2;
     char fname[] = __FILE__ "test_ct.dat";
+    printf("creating cachetable\n");
     r = toku_create_cachetable(&t, 1, ZERO_LSN, NULL_LOGGER);
     assert(r==0);
     unlink(fname);
@@ -369,6 +372,7 @@ static void test_nested_pin (void) {
     u_int32_t f1hash = toku_cachetable_hash(f, make_blocknum(1));
     r = toku_cachetable_put(f, make_blocknum(1), f1hash, &i0, 1, flush_n, pe_est_callback, pe_callback, f2);
     assert(r==0);
+    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, test_object_size);
     r = toku_cachetable_get_and_pin(f, make_blocknum(1), f1hash, &vv, NULL, flush_n, fetch_n, pe_est_callback, pe_callback, pf_req_callback, pf_callback, f2, f2);
     assert(r==0);
     assert(vv==&i0);
@@ -383,8 +387,6 @@ static void test_nested_pin (void) {
     u_int32_t f2hash = toku_cachetable_hash(f, make_blocknum(2));
     r = toku_cachetable_put(f, make_blocknum(2), f2hash, &i1, test_object_size, flush_n, pe_est_callback, pe_callback, f2);
     assert(r==0); // The other one is pinned, but now the cachetable fails gracefully:  It allows the pin to happen
-    r = toku_cachetable_unpin(f, make_blocknum(1), f1hash, CACHETABLE_CLEAN, test_object_size);
-    assert(r==0);
     r = toku_cachetable_unpin(f, make_blocknum(2), f2hash, CACHETABLE_CLEAN, test_object_size);
     assert(r==0);
     //    toku_os_usleep(1*1000000);
@@ -399,6 +401,7 @@ static void null_flush (CACHEFILE cf     __attribute__((__unused__)),
                         void *v          __attribute__((__unused__)),
                         void *extra      __attribute__((__unused__)),
                         long size        __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
                         BOOL write_me    __attribute__((__unused__)),
                         BOOL keep_me     __attribute__((__unused__)),
                         BOOL for_checkpoint __attribute__((__unused__))) {
@@ -443,6 +446,7 @@ static void test_multi_filehandles (void) {
     assert(f1!=f3);
     
     r = toku_cachetable_put(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), (void*)124, test_object_size, null_flush, pe_est_callback, pe_callback, (void*)123); assert(r==0);
+    r = toku_cachetable_unpin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), CACHETABLE_DIRTY, 0); assert(r==0);
     r = toku_cachetable_get_and_pin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), &v, NULL, null_flush, add123_fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, (void*)123, (void*)123); assert(r==0);
     assert((unsigned long)v==124);
     r = toku_cachetable_get_and_pin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), &v, NULL, null_flush, add123_fetch, pe_est_callback, pe_callback, pf_req_callback, pf_callback, (void*)123, (void*)123); assert(r==0);
@@ -454,7 +458,7 @@ static void test_multi_filehandles (void) {
     // r = toku_cachetable_unpin(f1, make_blocknum(2), toku_cachetable_hash(f1, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachefile_close(&f1, 0, FALSE, ZERO_LSN); assert(r==0);
 
-    r = toku_cachetable_unpin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);
+    //r = toku_cachetable_unpin(f2, make_blocknum(1), toku_cachetable_hash(f2, make_blocknum(1)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachetable_unpin(f2, make_blocknum(2), toku_cachetable_hash(f2, make_blocknum(2)), CACHETABLE_CLEAN, 0); assert(r==0);
     r = toku_cachefile_close(&f2, 0, FALSE, ZERO_LSN); assert(r==0);
 
@@ -472,6 +476,7 @@ static void test_dirty_flush(CACHEFILE f,
 			     void *value,
 			     void *extra __attribute__((__unused__)),
 			     long size,
+        long* new_size      __attribute__((__unused__)),
 			     BOOL do_write,
 			     BOOL keep,
 			     BOOL for_checkpoint __attribute__((__unused__))) {
@@ -597,6 +602,7 @@ static void test_size_flush_callback(CACHEFILE f,
 				     void *value,
 				     void *extra __attribute__((__unused__)),
 				     long size,
+        long* new_size      __attribute__((__unused__)),
 				     BOOL do_write,
 				     BOOL keep,
 				     BOOL for_checkpoint __attribute__((__unused__))) {

@@ -509,6 +509,8 @@ struct brt {
     struct toku_list zombie_brt_link;
 };
 
+long brtnode_memory_size (BRTNODE node);
+
 /* serialization code */
 void
 toku_create_compressed_partition_from_available(
@@ -566,7 +568,7 @@ struct brtenv {
     long long checksum_number;
 };
 
-extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
+extern void toku_brtnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *brtnode_v, void *extraargs, long size, long* new_size, BOOL write_me, BOOL keep_me, BOOL for_checkpoint);
 extern int toku_brtnode_fetch_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, u_int32_t fullhash, void **brtnode_pv, long *sizep, int*dirty, void*extraargs);
 extern void toku_brtnode_pe_est_callback(void* brtnode_pv, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
 extern int toku_brtnode_pe_callback (void *brtnode_pv, long bytes_to_free, long* bytes_freed, void *extraargs);
@@ -648,6 +650,8 @@ struct pivot_bounds {
     struct kv_pair const * const lower_bound_exclusive;
     struct kv_pair const * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
+
+void maybe_apply_ancestors_messages_to_node (BRT t, BRTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds);
 
 int
 toku_brt_search_which_child(
@@ -770,24 +774,28 @@ typedef struct brt_status {
 void toku_brt_get_status(BRT_STATUS);
 
 void
-brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node);
+brtleaf_split (BRT t, BRTNODE node, BRTNODE *nodea, BRTNODE *nodeb, DBT *splitk, BOOL create_new_node, u_int32_t num_dependent_nodes, BRTNODE* dependent_nodes);
 
 void
 brt_leaf_apply_cmd_once (
-    BASEMENTNODE bn, 
+    BASEMENTNODE bn,
     SUBTREE_EST se,
     const BRT_MSG cmd,
-    u_int32_t idx, 
-    LEAFENTRY le, 
-    TOKULOGGER logger,
+    u_int32_t idx,
+    LEAFENTRY le,
+    OMT snapshot_txnids,
+    OMT live_list_reverse,
     uint64_t *workdonep
     );
 
-void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, ANCESTORS ancestors, uint64_t *workdone);
+void toku_apply_cmd_to_leaf(BRT t, BRTNODE node, BRT_MSG cmd, bool *made_change, uint64_t *workdone, OMT snapshot_txnids, OMT live_list_reverse);
 
 void toku_reset_root_xid_that_created(BRT brt, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.  
 // This redefines which xid created the dictionary.
+
+
+void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
 C_END
 

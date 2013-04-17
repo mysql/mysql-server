@@ -82,6 +82,7 @@ struct tokulogger {
     int lg_max; // The size of the single file in the log.  Default is 100MB in TokuDB
 
     // To access these, you must have the input lock
+    toku_pthread_mutex_t txn_list_lock;  // a lock protecting live_list_reverse and snapshot_txnids for now TODO: revisit this decision
     LSN lsn; // the next available lsn
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     OMT live_root_txns; // a sorted tree.

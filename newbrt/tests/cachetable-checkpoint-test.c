@@ -12,7 +12,7 @@ static const int item_size = 1;
 
 static int n_flush, n_write_me, n_keep_me, n_fetch;
 
-static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
+static void flush(CACHEFILE cf, int UU(fd), CACHEKEY key, void *value, void *extraargs, long size, long* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint)) {
     cf = cf; key = key; value = value; extraargs = extraargs; 
     // assert(key == make_blocknum((long)value));
     assert(size == item_size);
@@ -41,7 +41,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 

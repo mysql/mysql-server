@@ -42,6 +42,7 @@ static void r_flush (CACHEFILE f      __attribute__((__unused__)),
 		     void *value,
 		     void *extra      __attribute__((__unused__)),
 		     long size        __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
 		     BOOL write_me    __attribute__((__unused__)),
 		     BOOL keep_me,
 		     BOOL for_checkpoint    __attribute__((__unused__))) {
@@ -100,7 +101,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 

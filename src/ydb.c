@@ -2608,11 +2608,22 @@ locked_txn_stat (DB_TXN *txn, struct txn_stat **txn_stat) {
     toku_ydb_lock(); u_int32_t r = toku_txn_stat(txn, txn_stat); toku_ydb_unlock(); return r;
 }
 
-static int 
+static int
 locked_txn_commit_with_progress(DB_TXN *txn, u_int32_t flags,
                                 TXN_PROGRESS_POLL_FUNCTION poll, void* poll_extra) {
+    TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
+    //
+    // We must unpin rollback log, otherwise, another thread that tries to checkpoint during commit
+    // will grab the multi operation lock, and then not be able to complete the checkpoint because
+    // this thread has its rollback log pinned and is trying to grab the multi operation lock.
+    //
+    int r = toku_unpin_inprogress_rollback_log(ttxn);
+    assert(r==0);
+    if (toku_txn_requires_checkpoint(ttxn)) {
+        toku_checkpoint(txn->mgrp->i->cachetable, txn->mgrp->i->logger, NULL, NULL, NULL, NULL);
+    }
     toku_multi_operation_client_lock(); //Cannot checkpoint during a commit.
-    toku_ydb_lock(); int r = toku_txn_commit(txn, flags, poll, poll_extra); toku_ydb_unlock();
+    toku_ydb_lock(); r = toku_txn_commit(txn, flags, poll, poll_extra); toku_ydb_unlock();
     toku_multi_operation_client_unlock(); //Cannot checkpoint during a commit.
     return r;
 }
@@ -6339,6 +6350,11 @@ db_env_set_recover_callback (void (*callback_f)(void*), void* extra) {
 void 
 db_env_set_recover_callback2 (void (*callback_f)(void*), void* extra) {
     toku_recover_set_callback2(callback_f, extra);
+}
+
+void 
+db_env_set_flusher_thread_callback(void (*callback_f)(int, void*), void* extra) {
+    toku_flusher_thread_set_callback(callback_f, extra);
 }
 
 void 

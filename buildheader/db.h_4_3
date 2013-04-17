@@ -591,6 +591,7 @@ void db_env_set_recover_callback2 (void (*)(void*), void*) __attribute__((__visi
 void db_env_set_loader_size_factor (uint32_t) __attribute__((__visibility__("default")));
 void db_env_set_mvcc_garbage_collection_verification(u_int32_t) __attribute__((__visibility__("default")));
 void db_env_enable_engine_status(u_int32_t) __attribute__((__visibility__("default")));
+void db_env_set_flusher_thread_callback (void (*)(int, void*), void*) __attribute__((__visibility__("default")));
 #if defined(__cplusplus)
 }
 #endif

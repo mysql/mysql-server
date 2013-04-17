@@ -119,7 +119,7 @@ static void *my_malloc(size_t n) {
     if (n >= my_big_malloc_limit) {
         (void) toku_sync_fetch_and_increment_int32(&my_big_malloc_count); // my_big_malloc_count++;
         if (do_malloc_errors) {
-            if (event_add_and_fetch()== event_count_trigger) {
+            if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();
                 errno = ENOMEM;
                 return NULL;

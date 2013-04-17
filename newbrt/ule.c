@@ -40,7 +40,7 @@ static LE_STATUS_S status;
 
 ULEHANDLE 
 toku_ule_create(void * le_p) {
-    ULE ule_p = toku_malloc(sizeof(ULE_S));
+    ULE ule_p = toku_xmalloc(sizeof(ULE_S));
     le_unpack(ule_p, le_p);
     return (ULEHANDLE) ule_p;
 }
@@ -122,7 +122,7 @@ static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 static void *
 le_malloc(size_t size)
 {
-    return toku_malloc(size);
+    return toku_xmalloc(size);
 }
 
 
@@ -133,21 +133,19 @@ le_malloc(size_t size)
 static TXNID
 get_next_older_txnid(TXNID xc, OMT omt) {
     int r;
-    TXNID *xid;
+    TXNID xid;
     OMTVALUE v;
     uint32_t idx;
-    TXNID rval;
-    r = toku_omt_find(omt, toku_find_pair_by_xid, &xc, -1, &v, &idx);
+    r = toku_omt_find(omt, toku_find_xid_by_xid, (OMTVALUE) xc, -1, &v, &idx);
     if (r==0) {
-        xid = v;
-        invariant(*xid < xc); //sanity check
-        rval = *xid;
+        xid = (TXNID) v;
+        invariant(xid < xc); //sanity check
     }
     else {
         invariant(r==DB_NOTFOUND);
-        rval = TXNID_NONE;
+        xid = TXNID_NONE;
     }
-    return rval;
+    return xid;
 }
 
 TXNID
@@ -214,7 +212,20 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
         TXNID xc = ule->uxrs[curr_committed_entry].xid;
 
         tl1 = toku_get_youngest_live_list_txnid_for(xc, live_list_reverse);
-        if (tl1 == TXNID_NONE || tl1 == xc) {
+        //
+        // If we find that the committed transaction is in the live list,
+        // then xc is really in the process of being committed. It has not
+        // been fully committed. As a result, our assumption that transactions
+        // newer than what is currently in these OMTs will read the top of the stack
+        // is not necessarily accurate. Transactions may read what is just below xc.
+        // As a result, we must mark what is just below xc as necessary and move on.
+        // This issue was found while testing flusher threads, and was fixed for #3979
+        //
+        if (tl1 == xc) {
+            curr_committed_entry--;
+            continue;
+        }
+        if (tl1 == TXNID_NONE) {
             // set tl1 to youngest live transaction older than ule->uxrs[curr_committed_entry]->xid
             tl1 = get_next_older_txnid(xc, snapshot_xids);
             if (tl1 == TXNID_NONE) {
@@ -226,7 +237,7 @@ garbage_collection(ULE ule, OMT snapshot_xids, OMT live_list_reverse) {
         {
             u_int32_t idx;
             OMTVALUE txnagain;
-            int r = toku_omt_find_zero(snapshot_xids, toku_find_xid_by_xid, &tl1, &txnagain, &idx);
+            int r = toku_omt_find_zero(snapshot_xids, toku_find_xid_by_xid, (OMTVALUE) tl1, &txnagain, &idx);
             invariant(r==0); //make sure that the txn you are claiming is live is actually live
         }
         //

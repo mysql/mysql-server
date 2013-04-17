@@ -32,7 +32,7 @@ sleep_random (void)
 int expect_value = 42; // initially 42, later 43
 
 static void
-flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
+flush (CACHEFILE UU(thiscf), int UU(fd), CACHEKEY UU(key), void *value, void *UU(extraargs), long size, long* UU(new_size), BOOL write_me, BOOL keep_me, BOOL UU(for_checkpoint))
 {
     // printf("f");
     assert(size == item_size);
@@ -72,7 +72,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 

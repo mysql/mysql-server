@@ -102,7 +102,7 @@ test_split_on_boundary(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -193,7 +193,7 @@ test_split_with_everything_on_the_left(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -285,7 +285,7 @@ test_split_on_boundary_of_last_node(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -384,7 +384,7 @@ test_split_at_begin(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);
@@ -474,7 +474,7 @@ test_split_at_end(void)
     BRTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE);
+    brtleaf_split(brt, &sn, &nodea, &nodeb, &splitk, TRUE, 0, NULL);
 
     toku_unpin_brtnode(brt, nodeb);
     r = toku_close_brt(brt, NULL); assert(r == 0);

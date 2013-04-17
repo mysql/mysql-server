@@ -99,6 +99,7 @@ static void flush_forchain (CACHEFILE f            __attribute__((__unused__)),
 			    void     *value,
 			    void     *extra        __attribute__((__unused__)),
 			    long      size         __attribute__((__unused__)),
+        long* new_size      __attribute__((__unused__)),
 			    BOOL      write_me     __attribute__((__unused__)),
 			    BOOL      keep_me      __attribute__((__unused__)),
 			    BOOL      for_checkpoint     __attribute__((__unused__))) {
@@ -139,7 +140,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 
@@ -250,9 +251,9 @@ static void test_chaining (void) {
             item_becomes_present(ct, f[fnum], make_blocknum(i));
             //print_ints();
             //cachetable_print_state(ct);
+            r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
+            assert(r==0);
         }
-	r = toku_cachetable_unpin(f[fnum], make_blocknum(i), fhash, CACHETABLE_CLEAN, test_object_size);
-	assert(r==0);
 
         long long pinned;
         r = toku_cachetable_get_key_state(ct, make_blocknum(i), f[fnum], 0, 0, &pinned, 0);

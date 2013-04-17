@@ -52,7 +52,7 @@ struct omt {
 
 static inline int
 omt_create_no_array(OMT *omtp) {
-    OMT MALLOC(result);
+    OMT XMALLOC(result);
     if (result==NULL) return ENOMEM;
     result->is_array       = TRUE;
     result->i.a.num_values = 0;
@@ -67,11 +67,7 @@ static int omt_create_internal(OMT *omtp, u_int32_t num_starting_nodes) {
     if (r) return r;
     if (num_starting_nodes < 2) num_starting_nodes = 2;
     result->capacity       = 2*num_starting_nodes;
-    MALLOC_N(result->capacity, result->i.a.values);
-    if (result->i.a.values==NULL) {
-        toku_free(result);
-        return errno;
-    }
+    XMALLOC_N(result->capacity, result->i.a.values);
     *omtp = result;
     return 0;
 }
@@ -144,7 +140,7 @@ static inline int maybe_resize_array(OMT omt, u_int32_t n) {
     u_int32_t room = omt->capacity - omt->i.a.start_idx;
 
     if (room<n || omt->capacity/2>=new_size) {
-        OMTVALUE *MALLOC_N(new_size, tmp_values);
+        OMTVALUE *XMALLOC_N(new_size, tmp_values);
         if (tmp_values==NULL) return errno;
         memcpy(tmp_values, omt->i.a.values+omt->i.a.start_idx,
                omt->i.a.num_values*sizeof(*tmp_values));
@@ -162,7 +158,7 @@ static int omt_convert_to_tree(OMT omt) {
     u_int32_t new_size  = num_nodes*2;
     new_size = new_size < 4 ? 4 : new_size;
 
-    OMT_NODE MALLOC_N(new_size, new_nodes);
+    OMT_NODE XMALLOC_N(new_size, new_nodes);
     if (new_nodes==NULL) return errno;
     OMTVALUE *values     = omt->i.a.values;
     OMTVALUE *tmp_values = values + omt->i.a.start_idx;
@@ -182,7 +178,7 @@ static int omt_convert_to_array(OMT omt) {
     u_int32_t new_size  = 2*num_values;
     new_size = new_size < 4 ? 4 : new_size;
 
-    OMTVALUE *MALLOC_N(new_size, tmp_values);
+    OMTVALUE *XMALLOC_N(new_size, tmp_values);
     if (tmp_values==NULL) return errno;
     fill_array_with_subtree_values(omt, tmp_values, omt->i.t.root);
     toku_free(omt->i.t.nodes);
@@ -262,7 +258,7 @@ static inline void rebalance(OMT omt, node_idx *n_idxp) {
     }
     else {
         malloced  = TRUE;
-        MALLOC_N(n->weight, tmp_array);
+        XMALLOC_N(n->weight, tmp_array);
         if (tmp_array==NULL) return;    //Don't rebalance.  Still a working tree.
     }
     fill_array_with_subtree_idxs(omt, tmp_array, idx);
@@ -779,6 +775,87 @@ int toku_omt_merge(OMT leftomt, OMT rightomt, OMT *newomtp) {
     toku_omt_destroy(&rightomt);
     *newomtp = newomt;
     return 0;
+}
+
+struct copy_data_extra {
+    OMTVALUE *a;
+    u_int32_t eltsize;
+};
+
+static int copy_data_iter(OMTVALUE v, u_int32_t idx, void *ve) {
+    struct copy_data_extra *e = ve;
+    memcpy(e->a[idx], v, e->eltsize);
+    return 0;
+}
+
+static int omt_copy_data(OMTVALUE *a, OMT omt, u_int32_t eltsize) {
+    struct copy_data_extra extra = { .a = a, .eltsize = eltsize };
+    if (omt->is_array) {
+        return iterate_internal_array(omt, 0, omt_size(omt), copy_data_iter, &extra);
+    }
+    return iterate_internal(omt, 0, nweight(omt, omt->i.t.root), omt->i.t.root, 0, copy_data_iter, &extra);
+}
+
+int toku_omt_clone(OMT *dest, OMT src, u_int32_t eltsize) {
+    u_int32_t size = omt_size(src);
+    if (size == 0) {
+        *dest = NULL;
+        return 0;
+    }
+    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
+    for (u_int32_t i = 0; i < size; ++i) {
+        a[i] = toku_xmalloc(eltsize);
+    }
+    int r = omt_copy_data(a, src, eltsize);
+    if (r != 0) { goto err; }
+    r = toku_omt_create_steal_sorted_array(dest, &a, size, size);
+    if (r != 0) { goto err; }
+    return 0;
+err:
+    toku_free(a);
+    return r;
+}
+
+int toku_omt_clone_pool(OMT *dest, OMT src, u_int32_t eltsize) {
+    u_int32_t size = omt_size(src);
+    if (size == 0) {
+        *dest = NULL;
+        return 0;
+    }
+    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
+    unsigned char *data = toku_xmalloc(eltsize * size);
+    for (u_int32_t i = 0; i < size; ++i) {
+        a[i] = &data[eltsize * i];
+    }
+    int r = omt_copy_data(a, src, eltsize);
+    if (r != 0) { goto err; }
+    r = toku_omt_create_steal_sorted_array(dest, &a, size, size);
+    if (r != 0) { goto err; }
+    return 0;
+err:
+    toku_free(data);
+    toku_free(a);
+    return r;
+}
+
+int toku_omt_clone_noptr(OMT *dest, OMT src) {
+    u_int32_t size = omt_size(src);
+    if (size == 0) {
+        *dest = NULL;
+        return 0;
+    }
+    OMTVALUE *a = toku_xmalloc((sizeof *a) * size);
+    if (src->is_array) {
+        memcpy(a, src->i.a.values + src->i.a.start_idx, size * (sizeof *src->i.a.values));
+    } else {
+        fill_array_with_subtree_values(src, a, src->i.t.root);
+    }
+    int r = toku_omt_create_steal_sorted_array(dest, &a, size, size);
+    if (r != 0) { goto err; }
+    return 0;
+err:
+    toku_free(a);
+    return r;
 }
 
 void toku_omt_clear(OMT omt) {

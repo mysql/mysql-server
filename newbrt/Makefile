@@ -51,6 +51,7 @@ BRT_SOURCES = \
   dbufio \
   fifo \
   key \
+  kibbutz \
   leafentry \
   le-cursor \
   logfilemgr \

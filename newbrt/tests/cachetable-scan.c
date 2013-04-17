@@ -15,6 +15,7 @@ static void f_flush (CACHEFILE f,
 		     void *value,
 		     void *extra       __attribute__((__unused__)),
 		     long size,
+        long* new_size      __attribute__((__unused__)),
 		     BOOL write_me,
 		     BOOL keep_me,
 		     BOOL for_checkpoint     __attribute__((__unused__))) {
@@ -66,7 +67,7 @@ pe_callback (
     void* extraargs __attribute__((__unused__))
     ) 
 {
-    *bytes_freed = 0;
+    *bytes_freed = bytes_to_free;
     return 0;
 }
 static BOOL pf_req_callback(void* UU(brtnode_pv), void* UU(read_extraargs)) {

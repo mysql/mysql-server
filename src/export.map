@@ -26,6 +26,7 @@
    db_env_set_loader_size_factor;
    db_env_set_mvcc_garbage_collection_verification;
    db_env_enable_engine_status;
+   db_env_set_flusher_thread_callback;
 
    toku_os_get_max_rss;
 

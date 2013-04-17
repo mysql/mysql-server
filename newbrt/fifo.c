@@ -34,7 +34,7 @@ static struct fifo_entry *fifo_peek(struct fifo *fifo) {
 }
 
 int toku_fifo_create(FIFO *ptr) {
-    struct fifo *MALLOC(fifo);
+    struct fifo *XMALLOC(fifo);
     if (fifo == 0) return ENOMEM;
     fifo_init(fifo);
     *ptr = fifo;
@@ -65,7 +65,7 @@ static int next_power_of_two (int n) {
 void toku_fifo_size_hint(FIFO fifo, size_t size) {
     if (fifo->memory == NULL) {
         fifo->memory_size = next_power_of_two(size);
-        fifo->memory = toku_malloc(fifo->memory_size);
+        fifo->memory = toku_xmalloc(fifo->memory_size);
     }
 }
 
@@ -77,7 +77,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
     int need_space_total = fifo->memory_used+need_space_here;
     if (fifo->memory == NULL) {
         fifo->memory_size = next_power_of_two(need_space_total);
-        fifo->memory = toku_malloc(fifo->memory_size);
+        fifo->memory = toku_xmalloc(fifo->memory_size);
     }
     if (fifo->memory_start+need_space_total > fifo->memory_size) {
         // Out of memory at the end.
@@ -85,7 +85,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         if ((2*next_2 > fifo->memory_size)
             || (8*next_2 < fifo->memory_size)) {
             // resize the fifo
-            char *newmem = toku_malloc(next_2);
+            char *newmem = toku_xmalloc(next_2);
             char *oldmem = fifo->memory;
             if (newmem==0) return ENOMEM;
             memcpy(newmem, oldmem+fifo->memory_start, fifo->memory_used);

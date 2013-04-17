@@ -32,6 +32,7 @@ int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
 			 TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
+BOOL toku_txn_requires_checkpoint(TOKUTXN txn);
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
 			     TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);
 
