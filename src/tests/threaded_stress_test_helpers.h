@@ -1742,6 +1742,7 @@ static void open_db_for_create(DB *db, int idx, struct cli_args *cli_args) {
     r = db->set_flags(db, 0); CKERR(r);
     r = db->set_pagesize(db, cli_args->env_args.node_size); CKERR(r);
     r = db->set_readpagesize(db, cli_args->env_args.basement_node_size); CKERR(r);
+    r = db->set_compression_method(db, cli_args->compression_method); CKERR(r);
     const int flags = DB_CREATE | (cli_args->blackhole ? DB_BLACKHOLE : 0);
     r = db->open(db, null_txn, name, nullptr, DB_BTREE, flags, 0666); CKERR(r);
 }
