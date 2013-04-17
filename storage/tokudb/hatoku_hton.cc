@@ -918,6 +918,26 @@ cleanup:
     return error;
 }
 
+/*** to be used when timestamps are sent in engine status as u_int64_t instead of as char strings
+static void
+format_time(u_int64_t time64, char *buf) {
+    time_t timer = (time_t) time64;
+    ctime_r(&timer, buf);
+    size_t len = strlen(buf);
+    assert(len < 26);
+    char end;
+
+    assert(len>=1);
+    end = buf[len-1];
+    while (end == '\n' || end == '\r') {
+        buf[len-1] = '\0';
+        len--;
+        assert(len>=1);
+        end = buf[len-1];
+    }
+}
+***/
+
 #define STATPRINT(legend, val) stat_print(thd, \
                                           tokudb_hton_name, \
                                           tokudb_hton_name_length, \
@@ -954,6 +974,7 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       }
       STATPRINT ("disk free space", buf);
 
+      STATPRINT("time of environment creation", engstat.creationtime);
       STATPRINT("time of engine startup", engstat.startuptime);
       STATPRINT("time now", engstat.now);
 
@@ -1135,7 +1156,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       snprintf(buf, bufsiz, "%" PRIu64, engstat.logsuppressfail);
       STATPRINT("log suppress fail", buf);
 
-#if 0
       // patched out until upgrade logic is in product
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_env_status);
       STATPRINT("upgrade env status", buf);
@@ -1145,7 +1165,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
       STATPRINT("upgrade nonleaf", buf);
       snprintf(buf, bufsiz, "%" PRIu64, engstat.upgrade_leaf);
       STATPRINT("upgrade leaf", buf);
-#endif
+
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.original_ver);
+      STATPRINT("original version", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.ver_at_startup);
+      STATPRINT("version at startup", buf);
+      snprintf(buf, bufsiz, "%" PRIu64, engstat.last_lsn_v12);
+      STATPRINT("last LSN of version 12", buf);      
+      STATPRINT("time of upgrade to version 13", engstat.upgrade_v13_time);
     }
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
