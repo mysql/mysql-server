@@ -13,5 +13,27 @@ BINS_RAW = $(patsubst %.c,%,$(SRCS))
 $(BINS): $(LIBPORTABILITY)
 $(BINS): CFLAGS+=-DTESTDIR=\"dir.$<.dir\"
 
+RUNTARGETS = $(patsubst %$(BINSUF),%.tdbrun,$(BINS))
+VGRIND = 
+
 all: $(BINS)
+
+.PHONY: check
+check: $(BINS) $(RUNTARGETS);
+
+%.tdbrun: %$(BINSUF)
+	mkdir -p dir.$*
+ifeq ($(VGRIND),)
+	cd dir.$* && ../$< $(SUMMARIZE_CMD)
+else
+	cd dir.$* && .$(VGRIND) --log-file=$<.valgrind ../$<; \
+	if [ $$? = 0 ] ; then \
+		grep "LEAK SUMMARY" dir.$*/$<.valgrind >/dev/null 2>&1; \
+		if [ $$? = 0 ] ; then cat dir.$*/$<.valgrind; test 0 = 1; fi \
+	fi \
+	$(SUMMARIZE_CMD)
+endif
+
+clean:
+	rm -rf $(TARGETS) *.valgrind dir.*
 
