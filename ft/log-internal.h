@@ -169,6 +169,9 @@ struct tokutxn {
     XIDS xids; // Represents the xid list
     TXNID oldest_referenced_xid;
 
+    TOKUTXN snapshot_next;
+    TOKUTXN snapshot_prev;
+
     bool begin_was_logged;
     bool declared_read_only; // true if the txn was declared read only when began
     // These are not read until a commit, prepare, or abort starts, and

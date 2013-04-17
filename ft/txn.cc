@@ -253,6 +253,8 @@ static txn_child_manager tcm;
         .live_root_txn_list = nullptr,
         .xids = NULL,
         .oldest_referenced_xid = TXNID_NONE,
+        .snapshot_next = NULL,
+        .snapshot_prev = NULL,
         .begin_was_logged = false,
         .declared_read_only = read_only,
         .do_fsync = false,
