@@ -1,13 +1,7 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
-option(USE_CILK "Use cilk in tokudb." OFF)
-
-## can't use cilk without icc
-if(USE_CILK AND NOT(CMAKE_C_COMPILER_ID MATCHES Intel))
-  message(FATAL_ERROR "You specified USE_CILK=ON so you need to use an Intel compiler.")
-endif()
-
 ## generate log_code.c, log_print.c, log_header.c
+## TODO: generate these in the build directory instead
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_code.c PROPERTIES GENERATED TRUE)
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_print.c PROPERTIES GENERATED TRUE)
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/log_header.h PROPERTIES GENERATED TRUE)
@@ -78,6 +72,7 @@ set(BRT_SOURCES
 
 add_library(newbrt SHARED ${BRT_SOURCES})
 add_library(newbrt_static STATIC ${BRT_SOURCES})
+## we're going to link this into libtokudb.so so it needs to have PIC
 set_property(TARGET newbrt_static APPEND PROPERTY COMPILE_FLAGS "-fPIC")
 maybe_add_gcov_to_libraries(newbrt newbrt_static)
 
@@ -85,11 +80,14 @@ maybe_add_gcov_to_libraries(newbrt newbrt_static)
 add_dependencies(newbrt install_tdb_h build_lzma)
 add_dependencies(newbrt_static install_tdb_h build_lzma)
 
-## link with lzma (which should be static)
+## link with tokuportability, and lzma (which should be static)
 target_link_libraries(newbrt ${LIBTOKUPORTABILITY} lzma)
 target_link_libraries(newbrt_static ${LIBTOKUPORTABILITY} lzma)
 
-if (CMAKE_C_COMPILER_ID STREQUAL "Intel")
+if (CMAKE_C_COMPILER_ID STREQUAL Intel)
+  ## don't link with default libs, those come with tokuportability, but we
+  ## do need libc and we need the intel libirc (and it should be static to
+  ## be redistributable)
   target_link_libraries(newbrt -nodefaultlibs c -Bstatic irc -Bdynamic)
 endif ()
 

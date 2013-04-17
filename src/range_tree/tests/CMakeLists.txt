@@ -4,6 +4,8 @@ if(BUILD_TESTING)
     get_filename_component(base ${src} NAME_WE)
 
     foreach(impl lin tlog)
+      ## each source file test_foo.c creates binaries rt_test_foo.lin and
+      ## rt_test_foo.tlog
       add_executable(rt_${base}.${impl} ${src})
       set_property(TARGET rt_${base}.${impl} APPEND PROPERTY
         COMPILE_DEFINITIONS "TESTDIR=\"dir.${base}.c.${impl}\"")
