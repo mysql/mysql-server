@@ -95,7 +95,7 @@ function runcmd() {
     fi
     echo $result
     echo $result >>$commit_msg
-    echo $result >>/tmp/tokubuild.trace
+    echo $result >>/tmp/$(whoami).build.check.trace
     popd
 }
 
@@ -149,6 +149,7 @@ function build() {
     popd
 
     tracefile=$builddir/$productname+$ftcc-$GCCVERSION+bdb-$BDBVERSION+$nodename+$system+$release+$arch
+    if [ $have_cilk != 0 ] ; then tracefile=$tracefile+cilk; fi
     if [ $debugtests != 0 ] ; then tracefile=$tracefile+debug; fi
     if [ $releasetests != 0 ] ; then tracefile=$tracefile+release; fi
 
@@ -233,6 +234,7 @@ function build() {
 	eval runcmd 0 $productbuilddir make clean >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir make release CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 	eval runcmd 0 $productbuilddir/utils make -j$makejobs CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
+	eval runcmd 0 $productbuilddir/release/examples make check -j$makejobs CC=$ftcc HAVE_CILK=$have_cilk >>$tracefile 2>&1
 
         # release tests
 	eval runcmd 0 $productbuilddir/$system/tests make check -k -s SUMMARIZE=1 CC=$ftcc HAVE_CILK=$have_cilk VGRIND= >>$tracefile 2>&1
@@ -263,11 +265,6 @@ function build() {
     runcmd $dowindows $productbuilddir/cxx/tests make -k -s check SUMMARIZE=1 >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s >>$tracefile 2>&1
     runcmd $dowindows $productbuilddir/db-benchmark-test-cxx make -k -s check >>$tracefile 2>&1
-    fi
-
-    if [ 0 = 1 ] ; then 
-    runcmd $dowindows $productbuilddir/release make -k setup >>$tracefile 2>&1
-    runcmd $dowindows $productbuilddir/release/examples make -k check >>$tracefile 2>&1
     fi
 
     # man
@@ -336,7 +333,7 @@ commit=1
 docoverage=0
 ftcc=gcc
 have_cilk=0
-have_poly=1
+have_poly=0
 debugtests=1
 releasetests=1
 upgradetests=0
