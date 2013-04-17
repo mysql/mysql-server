@@ -221,21 +221,80 @@ fail:
 
 int toku_logcursor_destroy(TOKULOGCURSOR *lc) {
     int r=0;
-    if ( (*lc)->entry_valid ) {
-        toku_log_free_log_entry_resources(&((*lc)->entry));
-        (*lc)->entry_valid = FALSE;
+    if ( *lc ) {
+        if ( (*lc)->entry_valid ) {
+            toku_log_free_log_entry_resources(&((*lc)->entry));
+            (*lc)->entry_valid = FALSE;
+        }
+        r = lc_close_cur_logfile(*lc);
+        int lf;
+        for(lf=0;lf<(*lc)->n_logfiles;lf++) {
+            if ( (*lc)->logfiles[lf] ) toku_free((*lc)->logfiles[lf]);
+        }
+        if ( (*lc)->logfiles ) toku_free((*lc)->logfiles);
+        if ( (*lc)->logdir )   toku_free((*lc)->logdir);
+        if ( (*lc)->buffer )   toku_free((*lc)->buffer);
+        toku_free(*lc);
+        *lc = NULL;
     }
-    r = lc_close_cur_logfile(*lc);
-    int lf;
-    for(lf=0;lf<(*lc)->n_logfiles;lf++) {
-        toku_free((*lc)->logfiles[lf]);
+    return r;
+}
+
+static int lc_log_read(TOKULOGCURSOR lc)
+{
+    int r = toku_log_fread(lc->cur_fp, &(lc->entry));
+    while ( r == EOF ) { 
+        // move to next file
+        r = lc_close_cur_logfile(lc);                    
+        if (r!=0) return r;
+        if ( lc->cur_logfiles_index == lc->n_logfiles-1) return DB_NOTFOUND;
+        lc->cur_logfiles_index++;
+        r = lc_open_logfile(lc, lc->cur_logfiles_index); 
+        if (r!=0) return r;
+        r = toku_log_fread(lc->cur_fp, &(lc->entry));
     }
-    toku_free((*lc)->logfiles);
-    toku_free((*lc)->logdir);
-    if ((*lc)->buffer) 
-        toku_free((*lc)->buffer);
-    toku_free(*lc);
-    *lc = NULL;
+    if (r!=0) {
+        toku_log_free_log_entry_resources(&(lc->entry));
+        time_t tnow = time(NULL);
+        if (r==DB_BADFORMAT) {
+            fprintf(stderr, "%.24s Tokudb bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
+        }
+        else {
+            fprintf(stderr, "%.24s Tokudb unexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
+        }
+    }
+    return r;
+}
+
+static int lc_log_read_backward(TOKULOGCURSOR lc) 
+{
+    int r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
+    while ( -1 == r) { // if within header length of top of file
+        // move to previous file
+        r = lc_close_cur_logfile(lc);
+        if (r!=0) 
+            return r;
+        if ( lc->cur_logfiles_index == 0 ) 
+            return DB_NOTFOUND;
+        lc->cur_logfiles_index--;
+        r = lc_open_logfile(lc, lc->cur_logfiles_index);
+        if (r!=0) 
+            return r;
+        // seek to end
+        r = fseek(lc->cur_fp, 0, SEEK_END);
+        assert(0==r);
+        r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
+    }
+    if (r!=0) {
+        toku_log_free_log_entry_resources(&(lc->entry));
+        time_t tnow = time(NULL);
+        if (r==DB_BADFORMAT) {
+            fprintf(stderr, "%.24s Tokudb bad log format in %s\n", ctime(&tnow), lc->logfiles[lc->cur_logfiles_index]);
+        }
+        else {
+            fprintf(stderr, "%.24s Tokudb uUnexpected log format error '%s' in %s\n", ctime(&tnow), strerror(r), lc->logfiles[lc->cur_logfiles_index]);
+        }
+    }
     return r;
 }
 
@@ -254,32 +313,11 @@ int toku_logcursor_next(TOKULOGCURSOR lc, struct log_entry **le) {
         r = toku_logcursor_first(lc, le);
         return r;
     }
-    r = toku_log_fread(lc->cur_fp, &(lc->entry));
-    while ( EOF == r ) { 
-        // move to next file
-        r = lc_close_cur_logfile(lc);
-        if (r!=0) 
-            return r;
-        if ( lc->cur_logfiles_index == lc->n_logfiles-1) 
-            return DB_NOTFOUND;
-        lc->cur_logfiles_index++;
-        r = lc_open_logfile(lc, lc->cur_logfiles_index);
-        if (r!= 0) 
-            return r;
-        r = toku_log_fread(lc->cur_fp, &(lc->entry));
-    }
-    if (r!=0) {
-        if (r==DB_BADFORMAT) {
-            fprintf(stderr, "Bad log format in %s\n", lc->logfiles[lc->cur_logfiles_index]);
-            return r;
-        } else {
-            fprintf(stderr, "Unexpected log format error '%s' in %s\n", strerror(r), lc->logfiles[lc->cur_logfiles_index]);
-            return r;
-        }
-    }
-    r = lc_check_lsn(lc, LC_FORWARD);
-    if (r!=0)
-        return r;
+    // read the entry
+    r = lc_log_read(lc);                   
+    if (r!=0) return r;
+    r = lc_check_lsn(lc, LC_FORWARD);  
+    if (r!=0) return r;
     lc->last_direction = LC_FORWARD;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
@@ -301,35 +339,11 @@ int toku_logcursor_prev(TOKULOGCURSOR lc, struct log_entry **le) {
         r = toku_logcursor_last(lc, le);
         return r;
     }
-    r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
-    while ( -1 == r) { // if within header length of top of file
-        // move to previous file
-        r = lc_close_cur_logfile(lc);
-        if (r!=0) 
-            return r;
-        if ( lc->cur_logfiles_index == 0 ) 
-            return DB_NOTFOUND;
-        lc->cur_logfiles_index--;
-        r = lc_open_logfile(lc, lc->cur_logfiles_index);
-        if (r!=0) 
-            return r;
-        // seek to end
-        r = fseek(lc->cur_fp, 0, SEEK_END);
-        assert(0==r);
-        r = toku_log_fread_backward(lc->cur_fp, &(lc->entry));
-    }
-    if (r!=0) {
-        if (r==DB_BADFORMAT) {
-            fprintf(stderr, "Bad log format in %s\n", lc->logfiles[lc->cur_logfiles_index]);
-            return r;
-        } else {
-            fprintf(stderr, "Unexpected log format error '%s' in %s\n", strerror(r), lc->logfiles[lc->cur_logfiles_index]);
-            return r;
-        }
-    }
+    // read the entry
+    r = lc_log_read_backward(lc);
+    if (r!=0) return r;
     r = lc_check_lsn(lc, LC_BACKWARD);
-    if (r!=0)
-        return r;
+    if (r!=0) return r;
     lc->last_direction = LC_BACKWARD;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
@@ -353,24 +367,12 @@ int toku_logcursor_first(TOKULOGCURSOR lc, struct log_entry **le) {
             return r;
         lc->cur_logfiles_index = 0;
     }
-    while (1) {
-        r = toku_log_fread(lc->cur_fp, &(lc->entry));
-        if (r==0) 
-            break;
-        // move to next file
-        r = lc_close_cur_logfile(lc);
-        if (r!=0) 
-            return r;
-        if ( lc->cur_logfiles_index == lc->n_logfiles-1) 
-            return DB_NOTFOUND;
-        lc->cur_logfiles_index++;
-        r = lc_open_logfile(lc, lc->cur_logfiles_index);
-        if (r!= 0) 
-            return r;
-    }
+    // read the entry
+    r = lc_log_read(lc);
+    if (r!=0) return r;
+
     r = lc_check_lsn(lc, LC_FIRST);
-    if (r!=0)
-        return r;
+    if (r!=0) return r;
     lc->last_direction = LC_FIRST;
     lc->entry_valid = TRUE;
     *le = &(lc->entry);
@@ -402,6 +404,7 @@ int toku_logcursor_last(TOKULOGCURSOR lc, struct log_entry **le) {
         if (r==0) // got a good entry
             break;
         if (r>0) { 
+            toku_log_free_log_entry_resources(&(lc->entry));
             // got an error, 
             // probably a corrupted last log entry due to a crash
             // try scanning forward from the beginning to find the last good entry
