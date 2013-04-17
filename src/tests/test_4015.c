@@ -15,23 +15,36 @@ static int my_compare (DB *db, const DBT *a, const DBT *b) {
     assert(data[1]=='o');
     assert(data[2]=='o');
     if (verbose) printf("compare descriptor=%s\n", data);
-    usleep(1000);
+    sched_yield();
     return uint_dbt_cmp(db, a, b);
 }
 
 DB_ENV *env;
 DB     *db;
 char   *env_dir = ENVDIR;
+volatile int done = 0;
 
 static void *startA (void *ignore __attribute__((__unused__))) {
-    for (int i=0;i<3; i++) {
+    for (int i=0;i<999; i++) {
 	DBT k,v;
-	int a=1;
+	int a = (random()<<16) + i;
 	dbt_init(&k, &a, sizeof(a));
 	dbt_init(&v, &a, sizeof(a));
-	IN_TXN_COMMIT(env, NULL, txn, 0,
-		      CHK(db->put(db, txn, &k, &v, 0)));
+	DB_TXN *txn;
+    again:
+	CHK(env->txn_begin(env, NULL, &txn, DB_TXN_NOSYNC));
+	{
+	    int r = db->put(db, txn, &k, &v, 0);
+	    if (r==DB_LOCK_NOTGRANTED) {
+		if (verbose) printf("lock not granted on %d\n", i);
+		CHK(txn->abort(txn));
+		goto again;
+	    }
+	    assert(r==0);
+	}
+	CHK(txn->commit(txn, 0));
     }
+    int r __attribute__((__unused__)) = __sync_fetch_and_add(&done, 1);
     return NULL;
 }
 static void change_descriptor (DB_TXN *txn, int i) {
@@ -47,9 +60,10 @@ static void change_descriptor (DB_TXN *txn, int i) {
     if (verbose) printf("ok\n");
 }
 static void startB (void) {
-    for (int i=0; i<10; i++) {
+    for (int i=0; !done; i++) {
 	IN_TXN_COMMIT(env, NULL, txn, 0,
 		      change_descriptor(txn, i));
+	sched_yield();
     }
 }
 
@@ -97,6 +111,7 @@ int test_main(int argc, char * const argv[]) {
     CHK(env->open(env, env_dir, envflags, S_IRWXU+S_IRWXG+S_IRWXO));
 
     CHK(db_create(&db, env, 0));
+    CHK(db->set_pagesize(db, 1024));
     CHK(db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0666));
     DBT desc;
     dbt_init(&desc, "foo", sizeof("foo"));

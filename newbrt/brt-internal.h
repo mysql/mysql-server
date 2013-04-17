@@ -375,6 +375,8 @@ struct brt_header {
     unsigned int flags;
     DESCRIPTOR_S descriptor;
 
+    int free_me_count;                 // Descriptors are freed asynchronously, so we cannot free() them.
+    void **free_me;                    // Instead we just accumulate them in this array.  These are void* that we must free() later.
 
     BLOCK_TABLE blocktable;
     // If a transaction created this BRT, which one?
