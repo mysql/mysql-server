@@ -59,7 +59,12 @@ struct logbuf {
 
 struct tokulogger {
     enum typ_tag tag; // must be first
-    struct mylock  input_lock, output_lock; // acquired in that order
+    struct mylock  input_lock;
+
+    toku_pthread_mutex_t output_condition_lock; // if you need both this lock and input_lock, acquire the output_lock first, then input_lock. More typical is to get the output_is_available condition to be false, and then acquire the input_lock.
+    toku_pthread_cond_t  output_condition;      //
+    BOOL output_is_available;                  // this is part of the predicate for the output condition.  It's true if no thread is modifying the output (either doing an fsync or otherwise fiddling with the output).
+
     BOOL is_open;
     BOOL is_panicked;
     BOOL write_log_files;
@@ -75,14 +80,15 @@ struct tokulogger {
     OMT live_txns; // a sorted tree.  Old comment said should be a hashtable.  Do we still want that?
     struct logbuf inbuf; // data being accumulated for the write
 
-    // To access these, you must have the output lock
+    // To access these, you must have the output condition lock.
     LSN written_lsn; // the last lsn written
-    LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry
+    LSN fsynced_lsn; // What is the LSN of the highest fsynced log entry  (accessed only while holding the output lock, and updated only when the output lock and output permission are held)
     LSN checkpoint_lsn;     // What is the LSN of the most recent completed checkpoint.
     long long next_log_file_number;
     struct logbuf outbuf; // data being written to the file
     int  n_in_file; // The amount of data in the current file
 
+    // To access the logfilemgr you must have the output condition lock.
     TOKULOGFILEMGR logfilemgr;
 
     u_int32_t write_block_size;       // How big should the blocks be written to various logs?

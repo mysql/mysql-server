@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <toku_assert.h>
 #include <stdio.h>
+#include <string.h>
 
 //Print any necessary errors
 //Return whether we should try the write again.
@@ -130,19 +131,29 @@ toku_set_func_fsync(int (*fsync_function)(int)) {
     return 0;
 }
 
-// keep trying if fsync fails because of EINTR
 int
-toku_file_fsync(int fd) {
+toku_file_fsync_without_accounting (int fd) {
     int r = -1;
-    uint64_t tstart = get_tnow();
     while (r != 0) {
 	if (t_fsync)
 	    r = t_fsync(fd);
 	else 
 	    r = fsync(fd);
-	if (r) 
-	    assert(errno==EINTR);
+	if (r) {
+	    int rr = errno;
+	    if (rr!=EINTR) printf("rr=%d (%s)\n", rr, strerror(rr));
+	    assert(rr==EINTR);
+	}
     }
+    return r;
+}
+
+
+// keep trying if fsync fails because of EINTR
+int
+toku_file_fsync(int fd) {
+    uint64_t tstart = get_tnow();
+    int r = toku_file_fsync_without_accounting(fd);
     toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
     toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
     return r;

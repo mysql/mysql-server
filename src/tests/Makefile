@@ -174,7 +174,6 @@ BDB_BINS = $(patsubst %.c,%.bdb$(BINSUF),$(filter-out $(patsubst %,%.c,$(BDB_DON
 endif
 
 TDB_TESTS_THAT_SHOULD_FAIL= \
-	test_groupcommit_count \
 	test944 \
 	test_truncate_txn_abort \
 	test_db_no_env
@@ -215,6 +214,8 @@ TLRECOVER = 2 3 4 5 6 7 8 9 10
 
 EXTRA_TDB_TESTS = \
 	$(patsubst %,test_log%.recover,$(TLRECOVER)) \
+	test_groupcommit_count_hgrind.tdbrun \
+	test_groupcommit_count_vgrind.tdbrun \
 #\ ends prev line
 
 ifeq ($(OS_CHOICE),windows)
@@ -601,6 +602,12 @@ helgrind2.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind2.bdbrun: BDBVGRIND=$(HGRIND)
 helgrind3.tdbrun: TDBVGRIND=$(HGRIND)
 helgrind3.bdbrun: BDBVGRIND=$(HGRIND)
+
+test_groupcommit_count_hgrind.tdbrun: HGRIND+=--suppressions=helgrind.suppressions
+test_groupcommit_count_hgrind.tdbrun: test_groupcommit_count.tdb$(BINSUF)
+	$(HGRIND) ./test_groupcommit_count.tdb$(BINSUF) $(VERBVERBOSE) -n 1 -p hgrind $(SUMMARIZE_CMD)
+test_groupcommit_count_vgrind.tdbrun: test_groupcommit_count.tdb$(BINSUF)
+	$(VGRIND) ./test_groupcommit_count.tdb$(BINSUF) $(VERBVERBOSE) -n 1 -p vgrind $(SUMMARIZE_CMD)
 
 # we deliberately don't close the env, so recovery runs
 # lets avoid all of the valgrind errors

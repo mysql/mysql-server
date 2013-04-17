@@ -91,6 +91,7 @@ printtdiff (char *str) {
     struct timeval thistime;
     gettimeofday(&thistime, 0);
     if (verbose) printf("%10.6f %s\n", toku_tdiff(&thistime, &prevtime), str);
+    prevtime = thistime;
 }
 
 int

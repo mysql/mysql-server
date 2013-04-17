@@ -78,12 +78,16 @@ died:
 
 // Doesn't close the txn, just performs the commit operations.
 int toku_txn_commit_txn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv,
-                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
-    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN, poll, poll_extra);
+                        TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+			void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk) {
+    return toku_txn_commit_with_lsn(txn, nosync, yield, yieldv, ZERO_LSN,
+				    poll, poll_extra,
+				    release_locks, reacquire_locks, locks_thunk);
 }
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv, LSN oplsn,
-                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) {
+                             TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra,
+			     void (*release_locks)(void*), void(*reacquire_locks)(void*), void *locks_thunk) {
     int r;
     // panic handled in log_commit
 
@@ -93,7 +97,9 @@ int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, YIELDF yield, void *yieldv
     txn->progress_poll_fun = poll;
     txn->progress_poll_fun_extra = poll_extra;
 
+    if (release_locks) release_locks(locks_thunk);
     r = toku_log_commit(txn->logger, (LSN*)0, do_fsync, txn->txnid64); // exits holding neither of the tokulogger locks.
+    if (reacquire_locks) reacquire_locks(locks_thunk);
     if (r!=0)
         return r;
     r = toku_rollback_commit(txn, yield, yieldv, oplsn);

@@ -249,9 +249,8 @@ static uint64_t get_tnow(void) {
 
 // keep trying if fsync fails because of EINTR
 int
-toku_file_fsync(int fd) {
+toku_file_fsync_without_accounting (int fd) {
     int r = -1;
-    uint64_t tstart = get_tnow();
     while (r != 0) {
 	if (t_fsync)
 	    r = t_fsync(fd);
@@ -260,6 +259,13 @@ toku_file_fsync(int fd) {
 	if (r) 
 	    assert(errno==EINTR);
     }
+    return r;
+}
+
+int
+toku_file_fsync(int fd) {
+    uint64_t tstart = get_tnow();
+    int r = toku_file_fsync_without_accounting(fd);
 #if TOKU_WINDOWS_HAS_ATOMIC_64 
     toku_sync_fetch_and_increment_uint64(&toku_fsync_count);
     toku_sync_fetch_and_add_uint64(&toku_fsync_time, get_tnow() - tstart);
