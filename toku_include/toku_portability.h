@@ -67,12 +67,15 @@ extern "C" {
 #include "toku_os.h"
 #include "toku_htonl.h"
 
+typedef int64_t toku_off_t;
+
 #define UU(x) x __attribute__((__unused__))
 
 // Deprecated functions.
 #if !defined(TOKU_ALLOW_DEPRECATED)
 #   if defined(__ICL) //Windows Intel Compiler
 #       pragma deprecated (creat, fstat, getpid, syscall, sysconf, mkdir, strdup)
+#       pragma poison off_t
 #    ifndef DONT_DEPRECATE_MALLOC
 #       pragma deprecated (malloc, free, realloc)
 #    endif
@@ -100,14 +103,14 @@ void *realloc(void*, size_t)            __attribute__((__deprecated__));
 void *os_malloc(size_t);
 void *os_realloc(void*,size_t);
 void  os_free(void*);
-ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, off_t off);
+ssize_t toku_os_pwrite (int fd, const void *buf, size_t len, toku_off_t off);
 ssize_t toku_os_write (int fd, const void *buf, size_t len);
 
 int toku_set_func_fsync (int (*fsync_function)(int));
 int toku_set_func_malloc  (void *(*)(size_t));
 int toku_set_func_realloc (void *(*)(void*,size_t));
 int toku_set_func_free    (void (*)(void*));
-int toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, off_t));
+int toku_set_func_pwrite (ssize_t (*pwrite_fun)(int, const void *, size_t, toku_off_t));
 int toku_set_func_write (ssize_t (*pwrite_fun)(int, const void *, size_t));
 
 #if defined __cplusplus

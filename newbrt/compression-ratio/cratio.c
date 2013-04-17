@@ -13,7 +13,7 @@
 #include "toku_portability.h"
 
 
-off_t fd_size (int fd) {
+toku_off_t fd_size (int fd) {
     int64_t file_size;
     int r = toku_os_get_file_size(fd, &file_size);
     assert(r==0);
@@ -25,9 +25,9 @@ unsigned char fbuf[NSIZE];
 unsigned char cbuf[NSIZE+500];
 
 void
-measure_header (int fd, off_t off, // read header from this offset
-		off_t *usize,      // size uncompressed (but not including any padding)
-		off_t *csize)      // compressed size
+measure_header (int fd, toku_off_t off, // read header from this offset
+		toku_off_t *usize,      // size uncompressed (but not including any padding)
+		toku_off_t *csize)      // compressed size
 {
     int r;
     r=pread(fd, fbuf, 12, off);
@@ -50,9 +50,9 @@ measure_header (int fd, off_t off, // read header from this offset
 }
 
 void
-measure_node (int fd, off_t off, // read header from this offset
-	      off_t *usize,      // size uncompressed (but not including any padding)
-	      off_t *csize)      // compressed size
+measure_node (int fd, toku_off_t off, // read header from this offset
+	      toku_off_t *usize,      // size uncompressed (but not including any padding)
+	      toku_off_t *csize)      // compressed size
 {
     int r;
     r=pread(fd, fbuf, 24, off);
@@ -86,13 +86,13 @@ int main (int argc, const char *argv[]) {
     const char *fname=argv[1];
     int fd = open(fname, O_RDONLY);
     assert(fd>=0);
-    off_t fsize = fd_size(fd);
+    toku_off_t fsize = fd_size(fd);
     printf("fsize (uncompressed with   padding)=%lld\n", (long long)fsize);
 
-    off_t usize=0, csize=0;
+    toku_off_t usize=0, csize=0;
     measure_header(fd, 0, &usize, &csize);
 
-    off_t i;
+    toku_off_t i;
     for (i=NSIZE; i+24<fsize; i+=NSIZE) {
 	measure_node(fd, i, &usize, &csize);
     }
