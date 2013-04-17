@@ -24,11 +24,6 @@ int toku_brt_set_dup_compare(BRT, int (*dup_compare)(DB *, const DBT*, const DBT
 int brt_set_cachetable(BRT, CACHETABLE);
 int toku_brt_open(BRT, const char *fname, const char *fname_in_env, const char *dbname, int is_create, int only_create, CACHETABLE ct, TOKUTXN txn, DB *db);
 
-int toku_brt_reopen (BRT brt, const char *fname, const char *fname_in_env, TOKUTXN txn);
-// reopen the tree
-// effect: attach the tree to a new file
-// returns: 0 if success
-
 int toku_brt_remove_subdb(BRT brt, const char *dbname, u_int32_t flags);
 
 int toku_brt_insert (BRT, DBT *, DBT *, TOKUTXN);
@@ -51,10 +46,13 @@ int toku_brt_flush (BRT brt);
 // effect: the tree's cachefile is flushed
 // returns: 0 if success
 
-/* create and initialize a cache table
-   cachesize is the upper limit on the size of the size of the values in the table 
-   pass 0 if you want the default */
+int toku_brt_truncate (BRT brt);
+// effect: remove everything from the tree
+// returns: 0 if success
 
+// create and initialize a cache table
+// cachesize is the upper limit on the size of the size of the values in the table
+// pass 0 if you want the default
 int toku_brt_create_cachetable(CACHETABLE *t, long cachesize, LSN initial_lsn, TOKULOGGER);
 
 extern int toku_brt_debug_mode;

@@ -529,7 +529,22 @@ void toku_brtnode_free (BRTNODE *nodep) {
     *nodep=0;
 }
 
-void toku_brtheader_free (struct brt_header *h) {
+static void
+brtheader_init(struct brt_header *h) {
+    memset(h, 0, sizeof *h);
+}
+
+static void
+brtheader_partial_destroy(struct brt_header *h) {
+    toku_free(h->block_translation);
+    h->block_translation = 0;
+    toku_fifo_free(&h->fifo);
+    destroy_block_allocator(&h->block_allocator);
+}
+
+static void
+brtheader_destroy(struct brt_header *h) {
+    brtheader_partial_destroy(h);
     if (h->n_named_roots>0) {
 	int i;
 	for (i=0; i<h->n_named_roots; i++) {
@@ -537,13 +552,34 @@ void toku_brtheader_free (struct brt_header *h) {
 	}
 	toku_free(h->names);
     }
-    toku_fifo_free(&h->fifo);
     toku_free(h->roots);
     toku_free(h->root_hashes);
     toku_free(h->flags_array);
-    toku_free(h->block_translation);
-    destroy_block_allocator(&h->block_allocator);
+}
+
+static int
+brtheader_alloc(struct brt_header **hh) {
+    int r;
+    if ((MALLOC(*hh))==0) {
+        assert(errno==ENOMEM);
+        r = ENOMEM;
+    } else {
+        brtheader_init(*hh);
+        r = 0;
+    }
+    return r;
+}
+
+static void
+brtheader_free(struct brt_header *h)
+{
+    brtheader_destroy(h);
     toku_free(h);
+}
+	
+void 
+toku_brtheader_free (struct brt_header *h) {
+    brtheader_free(h);
 }
 
 void
@@ -2639,22 +2675,14 @@ static int brt_open_file(BRT brt, const char *fname, int is_create, int *fdp, BO
     return 0;
 }
 
-// allocate and initialize a brt header. 
-// t->cf is not set to anything.
-static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
+static int brt_init_header(BRT t, TOKUTXN txn) {
     int r;
     BLOCKNUM root = make_blocknum(1);
 
-    assert(t->h == 0);
-    if ((MALLOC(t->h))==0) {
-        assert(errno==ENOMEM);
-        r = ENOMEM;
-        if (0) { died2: toku_free(t->h); }
-        t->h=0;
-        return r;
-    }
+    t->h->roots[0] = root; 
+    compute_and_fill_remembered_hash(t, 0);
+
     t->h->dirty=1;
-    if ((MALLOC_N(1, t->h->flags_array))==0)  { r = errno; if (0) { died3: toku_free(t->h->flags_array); } goto died2; }
     t->h->flags_array[0] = t->flags;
     t->h->nodesize=t->nodesize;
     t->h->free_blocks = make_blocknum(-1);
@@ -2667,22 +2695,6 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
     create_block_allocator(&t->h->block_allocator, BLOCK_ALLOCATOR_HEADER_RESERVE, BLOCK_ALLOCATOR_ALIGNMENT);
     toku_fifo_create(&t->h->fifo);
     t->h->root_put_counter = global_root_put_counter++; 
-    if (dbname) {
-        t->h->n_named_roots = 1;
-        if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: if (dbname) toku_free(t->h->names); } goto died3; }
-        if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: if (dbname) toku_free(t->h->roots); } goto died4; }
-        if ((MALLOC_N(1, t->h->root_hashes))==0)       { assert(errno==ENOMEM); r=ENOMEM; if (0) { died6: if (dbname) toku_free(t->h->root_hashes); } goto died5; }
-        if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died7: if (dbname) toku_free(t->h->names[0]); } goto died6; }
-        t->h->roots[0] = root; // Block 0 is the header.  Block 1 is the root.
-        compute_and_fill_remembered_hash(t, 0);
-    } else {
-        MALLOC_N(1, t->h->roots); assert(t->h->roots);
-        MALLOC_N(1, t->h->root_hashes); assert(t->h->root_hashes);
-        t->h->roots[0] = root;
-        compute_and_fill_remembered_hash(t, 0);
-        t->h->n_named_roots = -1;
-        t->h->names=0;
-    }
 	    
     {
         LOGGEDBRTHEADER lh = {.size= toku_serialize_brt_header_size(t->h),
@@ -2697,13 +2709,45 @@ static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
         } else {
             lh.u.one.root = t->h->roots[0];
         }
-        if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { goto died7; }
+        if ((r=toku_log_fheader(toku_txn_logger(txn), (LSN*)0, 0, toku_txn_get_txnid(txn), toku_cachefile_filenum(t->cf), lh))) { return r; }
     }
-    if ((r=setup_initial_brt_root_node(t, root, toku_txn_logger(txn)))!=0) { goto died7; }
+    if ((r=setup_initial_brt_root_node(t, root, toku_txn_logger(txn)))!=0) { return r; }
     //printf("%s:%d putting %p (%d)\n", __FILE__, __LINE__, t->h, 0);
     assert(t->h->free_blocks.b==-1);
     toku_cachefile_set_userdata(t->cf, t->h, toku_brtheader_close);
 
+    return r;
+}
+
+// allocate and initialize a brt header. 
+// t->cf is not set to anything.
+static int brt_alloc_init_header(BRT t, const char *dbname, TOKUTXN txn) {
+    int r;
+
+    r = brtheader_alloc(&t->h);
+    if (r != 0) {
+        if (0) { died2: toku_free(t->h); }
+        t->h=0;
+        return r;
+    }
+
+    if ((MALLOC_N(1, t->h->flags_array))==0)  { r = errno; if (0) { died3: toku_free(t->h->flags_array); } goto died2; }
+
+    if (dbname) {
+        t->h->n_named_roots = 1;
+        if ((MALLOC_N(1, t->h->names))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died4: if (dbname) toku_free(t->h->names); } goto died3; }
+        if ((MALLOC_N(1, t->h->roots))==0)             { assert(errno==ENOMEM); r=ENOMEM; if (0) { died5: if (dbname) toku_free(t->h->roots); } goto died4; }
+        if ((MALLOC_N(1, t->h->root_hashes))==0)       { assert(errno==ENOMEM); r=ENOMEM; if (0) { died6: if (dbname) toku_free(t->h->root_hashes); } goto died5; }
+        if ((t->h->names[0] = toku_strdup(dbname))==0) { assert(errno==ENOMEM); r=ENOMEM; if (0) { died7: if (dbname) toku_free(t->h->names[0]); } goto died6; }
+    } else {
+        MALLOC_N(1, t->h->roots); assert(t->h->roots);
+        MALLOC_N(1, t->h->root_hashes); assert(t->h->root_hashes);
+        t->h->n_named_roots = -1;
+        t->h->names=0;
+    }
+
+    r = brt_init_header(t, txn);
+    if (r != 0) goto died7;
     return r;
 }
 
@@ -4173,4 +4217,26 @@ int toku_dump_brt (FILE *f, BRT brt) {
     fprintf(f, "\n");
     rootp = toku_calculate_root_offset_pointer(brt, &fullhash);
     return toku_dump_brtnode(f, brt, *rootp, 0, 0, 0, 0, 0);
+}
+
+int toku_brt_truncate (BRT brt) {
+    int r;
+
+    // flush the cached tree blocks
+    r = toku_brt_flush(brt);
+    if (r != 0) 
+        return r;
+
+    // truncate the underlying file
+    r = toku_cachefile_truncate0(brt->cf);
+    if (r != 0)
+        return r;
+
+    // TODO log the truncate?
+    
+    // reinit the header
+    brtheader_partial_destroy(brt->h);
+    r = brt_init_header(brt, NULL_TXN);
+
+    return r;
 }

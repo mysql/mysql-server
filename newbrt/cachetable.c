@@ -272,6 +272,13 @@ int toku_cachefile_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
+int toku_cachefile_truncate0 (CACHEFILE cf) {
+    int r = ftruncate(cf->fd, 0);
+    if (r != 0)
+        r = errno;
+    return r;
+}
+
 static CACHEFILE remove_cf_from_list (CACHEFILE cf, CACHEFILE list) {
     if (list==0) return 0;
     else if (list==cf) {

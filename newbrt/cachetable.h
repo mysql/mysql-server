@@ -152,6 +152,10 @@ int toku_cachefile_set_fd (CACHEFILE cf, int fd, const char *fname);
 // closing the user data.
 int toku_cachefile_redirect_nullfd (CACHEFILE cf);
 
+// Truncate a cachefile
+// Effect: set the cachefile size to 0
+int toku_cachefile_truncate0 (CACHEFILE cf);
+
 // Return the logger associated with the cachefile
 TOKULOGGER toku_cachefile_logger (CACHEFILE);
 
