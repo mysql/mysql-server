@@ -427,7 +427,7 @@ toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
         u_int64_t size_translation = calculate_size_on_disk(t);
         assert((int64_t)size_translation==t->block_translation[b.b].size);
         if (0)
-            printf("%s:%d writing translation table of size_translation %ld at %ld\n", __FILE__, __LINE__, size_translation, t->block_translation[b.b].u.diskoff);
+            printf("%s:%d writing translation table of size_translation %"PRIu64" at %"PRId64"\n", __FILE__, __LINE__, size_translation, t->block_translation[b.b].u.diskoff);
         wbuf_init(w, toku_malloc(size_translation), size_translation);
         assert(w->size==size_translation);
     }
@@ -436,7 +436,7 @@ toku_serialize_translation_to_wbuf_unlocked(BLOCK_TABLE bt, struct wbuf *w,
     int64_t i;
     for (i=0; i<t->smallest_never_used_blocknum.b; i++) {
         if (0)
-            printf("%s:%d %ld,%ld\n", __FILE__, __LINE__, t->block_translation[i].u.diskoff, t->block_translation[i].size);
+            printf("%s:%d %"PRId64",%"PRId64"\n", __FILE__, __LINE__, t->block_translation[i].u.diskoff, t->block_translation[i].size);
         wbuf_DISKOFF(w, t->block_translation[i].u.diskoff);
         wbuf_DISKOFF(w, t->block_translation[i].size);
     }
