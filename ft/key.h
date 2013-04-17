@@ -10,13 +10,10 @@
 #include "ybt.h"
 #include "fttypes.h"
 
-
 int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+
 void toku_test_keycompare (void) ;
 
 int toku_builtin_compare_fun (DB *, const DBT *, const DBT*) __attribute__((__visibility__("default")));
-int toku_dont_call_this_compare_fun (DB *, const DBT *, const DBT*);
-
-
 
 #endif
